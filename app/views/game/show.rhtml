@@ -1,0 +1,22 @@
+<html>
+  <body>
+    <h1>Game#view</h1>
+    <%= @game.home.name %> <%= @game.home_score %> 
+    <%= "(#{@game.home_pen})" unless @game.home_pen.nil? %><br/>
+    <%= @game.away.name %> <%= @game.away_score %>
+    <%= "(#{@game.away_pen})" unless @game.away_pen.nil? %><br/>
+    <%= @game.phase.name %><br/>
+    <%= @game.phase.championship.name %><br/>
+    <%= @game.phase.championship.begin %><br/>
+    <%= @game.phase.championship.end %><br/>
+    <%= @game.round %><br/>
+    <%= @game.attendance %><br/>
+    <%= @game.date %><br/>
+    <%= @game.stadium.name unless @game.stadium.nil? %><br/>
+    <%= "#{@game.referee.name} (#{@game.referee.location})" unless @game.referee.nil? %><br/>
+    <%= @game.played %><br/>
+    <%=link_to "List", :action => "list" %>
+    <%=link_to "Delete", { :action => "destroy", :id => @game.id },
+                           :confirm => "Are you sure?", :post => true %>
+  </body>
+</html>

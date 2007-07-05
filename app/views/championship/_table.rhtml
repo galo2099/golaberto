@@ -1,0 +1,75 @@
+<% omit_columns = {} if omit_columns.nil? %>
+<% omit_logo = false if omit_logo.nil? %>
+<% omit_popup = false if omit_popup.nil? %>
+<% @current_phase.groups.each do |group| %>
+<h3><%= h group.name %></h3>
+<table class='class_table'>
+  <tr class='table_head'>
+    <%= content_tag :th, "Pos" unless omit_columns[:Pos] %>
+    <%= content_tag :th, "Name" unless omit_columns[:Name] %>
+    <%= content_tag :th, "Pts" unless omit_columns[:Pts] %>
+    <%= content_tag :th, "G" unless omit_columns[:G] %>
+    <%= content_tag :th, "W" unless omit_columns[:W] %>
+    <%= content_tag :th, "D" unless omit_columns[:D] %>
+    <%= content_tag :th, "L" unless omit_columns[:L] %>
+    <%= content_tag :th, "GF" unless omit_columns[:GF] %>
+    <%= content_tag :th, "GA" unless omit_columns[:GA] %>
+    <%= content_tag :th, "GD" unless omit_columns[:GD] %>
+  </tr>
+  <% pos = 0 %>
+     <% sort_teams(@current_phase, group, @class).each do |team|
+       pos += 1
+       tr_class = 'table_line'
+       tr_class = 'relegated' if group.is_relegated?(pos)
+       tr_class = 'promoted' if group.is_promoted?(pos)
+       image_logo = ""
+       unless omit_logo
+         image_logo = image_tag("logos/" +
+                                team.logo.gsub(/(.*)\.svg/, '\1_15.png'),
+                                :width => 15,
+                                :height => 15)
+       end
+       title_popup = ""
+       unless omit_popup
+         last_game = team.last_n_games(1, group.phase.id).at(0)
+         next_game = team.next_n_games(1, group.phase.id).at(0)
+         header_body = ""
+         unless last_game.nil?
+           header_body << sprintf("%02d", last_game.date.day) << "/"
+           header_body << sprintf("%02d", last_game.date.month) << " "
+           header_body << last_game.home.name << " "
+           header_body << last_game.home_score.to_s << " x "
+           header_body << last_game.away_score.to_s << " "
+           header_body << last_game.away.name << "<br/>"
+         end
+         unless next_game.nil?
+           header_body << sprintf("%02d", next_game.date.day) << "/"
+           header_body << sprintf("%02d", next_game.date.month) << " "
+           header_body << next_game.home.name << " x "
+           header_body << next_game.away.name << "<br/>"
+         end
+         title_popup = "header=[] body=[#{header_body}] cssbody=[popupbody]"
+       end
+   %>
+       <tr class='<%= tr_class %>'>
+         <%= content_tag :td, pos, :class => "pos" unless omit_columns[:Pos] %>
+         <%= content_tag(:td,
+                         image_logo +
+                         link_to(team.name, :controller => 'team',
+                                            :action => 'show',
+                                            :id => team.id),
+                         :class => "name",
+                         :title => title_popup) unless omit_columns[:Name] %>
+                         
+         <%= content_tag :td, @class[team.id].points unless omit_columns[:Pts] %>
+         <%= content_tag :td, @class[team.id].games unless omit_columns[:G] %>
+         <%= content_tag :td, @class[team.id].wins unless omit_columns[:W] %>
+         <%= content_tag :td, @class[team.id].draws unless omit_columns[:D] %>
+         <%= content_tag :td, @class[team.id].losses unless omit_columns[:L] %>
+         <%= content_tag :td, @class[team.id].goals_for unless omit_columns[:GF] %>
+         <%= content_tag :td, @class[team.id].goals_against unless omit_columns[:GA] %>
+         <%= content_tag :td, @class[team.id].goals_diff unless omit_columns[:GD] %>
+       </tr>
+  <% end %>
+</table>
+<% end %>

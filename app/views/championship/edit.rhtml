@@ -1,0 +1,32 @@
+<%= form_tag({ :action => "update", :id => @championship.id }) %>
+<%= hidden_field "championship", "id" %>
+Name:
+<%= text_field "championship", "name", "size" => 40 %><br/>
+
+Date:<br />
+<%= text_field "championship", "begin", "maxlength" => 20 %><br/>
+<%= text_field "championship", "end", "maxlength" => 20 %><br/>
+
+Points for win:
+<%= text_field "championship", "point_win", "maxlength" => 20 %><br/>
+
+Points for draw:
+<%= text_field "championship", "point_draw", "maxlength" => 2 %><br/>
+
+Points for loss:
+<%= text_field "championship", "point_loss", "maxlength" => 20 %><br/>
+
+<p>Phases</p>
+
+<p><% @championship.phases.each { |phase| %>
+<%= tag("input", "type" => "text", "id" => "phases[#{phase.id}][name]", "name" => "phases[#{phase.id}][name]", "value" => phase.name) %>
+<%= tag("input", "type" => "text", "id" => "phases[#{phase.id}][sort]", "name" => "phases[#{phase.id}][sort]", "value" => phase.sort) %>
+<%= phase.errors.on "phase" %><br/>
+<% } %></p>
+
+<p>Add new phase: (More phases can be added later)<br />
+<input type="text" id="phases[new][name]" name="phases[new][name]" value="">
+</p>
+
+<input type="submit" value="Save">
+</form>

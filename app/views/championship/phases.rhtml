@@ -1,0 +1,22 @@
+<h1><%= h @championship.full_name %></h1>
+<table class='tab_header'><tr>
+<% @championship.phases.each do |phase| %>
+<td>
+<%   if (phase.id != @current_phase.id) %>
+<%=    link_to phase.name, { :action => "phases",
+                             :id => @championship,
+                             :phase => phase } %>
+<%   else %>
+<%=    h phase.name %>
+<%   end %>
+</td>
+<% end %>
+</tr></table>
+
+<%= render :partial => "table" %>
+
+<%= javascript_include_tag "boxover" %>
+
+<% content_for :nav_top do %>
+  <%= render_partial "nav_top" %>
+<% end %>

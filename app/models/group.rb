@@ -1,0 +1,23 @@
+class Group < ActiveRecord::Base
+  belongs_to :phase
+  has_many :team_groups
+  has_many :teams,       :through     => :team_groups
+
+
+  # Fields information, just FYI.
+  #
+  # Field: id , SQL Definition:bigint(20)
+  # Field: phase_id , SQL Definition:bigint(20)
+  # Field: name , SQL Definition:varchar(255)
+  # Field: promoted , SQL Definition:tinyint(2)
+  # Field: relegated , SQL Definition:tinyint(2)
+
+  def is_promoted?(pos)
+    return pos <= self.promoted
+  end
+
+  def is_relegated?(pos)
+    return pos > teams.size - self.relegated
+  end
+
+end

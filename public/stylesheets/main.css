@@ -1,0 +1,355 @@
+body 
+{
+	font-family: Arial, Helvetica, sans-serif;
+	/* font-size: 11px; */
+	/* background-image: url('../img/bg.gif'); */
+	background-repeat: repeat-x;
+	background-color: #3b3008;
+}
+#principal
+{
+	width: 790px;
+	position: absolute;
+	margin-left: -350px;
+	left: 50%;
+	background-color: #e3efca;
+}
+#principal h1
+{
+	background-color: #474d0f;
+	font-size: 24px;
+	color: #fff;
+	padding: 5px 10px;
+}
+#conteudo
+{
+  float: right;
+  width: 570px;
+  margin-right: 10px;
+  margin-top: 10px;
+  background-color: #ffffff;
+  padding: 5px;
+}
+/******* menu : BEGIN *********/
+#nav_top, 
+#nav_bottom 
+{
+	background-color: #abb561;
+	color: #e3efca;
+	font-size: 30px;
+	font-weight: bold;
+	line-height: 0.1;
+	padding: 5px;
+	width: 570px;
+	margin-left: 200px;
+}
+#nav_bottom
+{
+	position: relative;
+	width: 760px;
+	text-align: center;
+	margin: 20px 0px 40px 15px;
+}
+#nav_top a, 
+#nav_bottom a
+{
+	color: #330;
+	text-decoration: none;
+	font-size: 12px;
+	font-weight: bold;
+	line-height: normal;
+}
+
+#nav_top a:hover, 
+#nav_bottom a:hover
+{
+	color: #e3efca;
+}
+#nav_top span, 
+#nav_bottom span
+{
+	font-size: 14px;
+	font-weight: bold;
+}
+/******* menu : END *********/
+
+/******* Topo : Begin *********/
+#top {
+	background-color: #8f983b;
+	width: 760px;
+	padding: 5px;
+	margin: 10px;
+}
+#top img {
+	border: none;
+}
+/******* Topo : END *********/
+
+
+
+/**************** CLASSIFICACAO : Begin ************/
+.team_table
+{
+  width: 185px;
+  font-size: 11px;
+  float: left;
+  margin-left: 10px;
+}
+
+.team_table h3 {
+	background-color: #330;
+	color: #e3efca;
+	font-size: 12px;
+	font-weight: bold;
+	padding: 3px;
+	margin-bottom: 1px;
+}
+
+.table_head
+{
+   color: white;
+   background-color: darkblue;
+}
+.table_line
+{
+   background-color: lightgray;
+}
+.class_table .pos
+{
+  text-align: left;
+}
+.class_table .name
+{
+  width: 20%;
+  text-align: left;
+}
+.class_table td
+{
+  width: 3%;
+  text-align: center;
+}
+.class_table a:link, a:visited
+{
+  color: black;
+}
+.table_line_even
+{
+   background-color: lightyellow;
+}
+.table_line_odd
+{
+	background-color: white;
+}
+.promoted
+   {
+   background-color: lightgreen;
+   }
+.relegated
+   {
+   background-color: #FFA0A0;
+   }
+/**************** CLASSIFICACAO : END ************/
+
+
+
+#player_info
+{
+}
+
+.tab_header td
+{
+background-color: lightgrey;
+width: 98px;
+margin: 10px 10px 0 0;
+text-align: center;
+background: lightgrey url("/img/border.png") no-repeat top left;
+}
+
+.tab_header td a:link, .tab_header td a:visited
+{
+//	text-decoration: none;
+	color: black;
+}
+
+table.full
+{
+width: 100%;
+font-size: 11px;
+}
+
+/* Style for the games */
+.game_round
+{
+	position: relative;
+	font-weight: bold;
+	font-size: 14px;
+	border-bottom-width: 15px;
+	padding: 3px;
+	width: 70%;
+	background-color: #bbcc99;
+}
+.game_date
+{
+	font-weight: bold;
+	font-size: 11px;
+	border-bottom-width: 15px;
+	border-bottom: medium solid #ffcc00;
+	width: 100%;
+}
+.game_toplay
+{
+	position: relative;
+	font-weight: bold;
+	font-size: 16px;
+	margin-top: 30px;
+	margin-bottom: 30px;
+	width: 100%;
+	background-color: #fcfcfc;
+}
+.phase
+{
+	position: relative;
+}
+.game
+{
+	position: relative;
+}
+	.game_inline_date
+	{
+		width: 15%;
+		vertical-align: top;
+	}
+	.game_score
+	{
+		width: 100%;
+		padding: 0px;
+		border-spacing: 0px;
+	}
+                .game_time
+                {
+			width: 6%;
+                }
+		.home_team
+		{
+			width: 37%;
+		}
+		.home_score
+		{
+			width: 8%;
+			text-align: right;
+		}
+		.game_x
+		{
+			width: 4%;
+			text-align: center;
+		}
+		.away_score
+		{
+			width: 8%;
+			text-align: left;
+		}
+		.away_team
+		{
+			width: 37%;
+			text-align: right;
+		}
+	.show_info
+	{
+		text-decoration: underline;
+		cursor: pointer;
+		color: blue;
+		vertical-align: top;
+	}
+	.edit
+	{
+		vertical-align: top;
+	}
+	.game_info
+	{
+		border-style: solid;
+		display: none;
+		border-width: 1px;
+		position: relative;
+		font-size: 10px;
+		background-color: lightyellow;
+		width: 100%;
+	}
+		.goal
+		{
+			color: green;
+		}
+			.home_goal
+			{
+				width: 25%;
+			}
+			.home_pen
+			{
+				width: 8%;
+				text-align: right;
+			}
+			.home_time
+			{
+				width: 12%;
+				text-align: right;
+			}
+			.away_time
+			{
+				width: 12%;
+			}
+			.away_pen
+			{
+				width: 8%;
+			}
+			.away_goal
+			{
+				width: 25%;
+				text-align: right;
+			}
+	.info_line
+	{
+	}
+		.info_caption
+		{
+			width: 20%;
+		}
+		.info
+		{
+		}
+	.squad_click
+	{
+		text-align: right;
+		cursor: pointer;
+		color: blue;
+		text-decoration: underline;
+	}
+	.close
+	{
+		position: relative;
+	}
+	.close .X
+	{
+		position: absolute;
+		cursor: pointer;
+		color: white;
+		background: red;
+		font-weight: bold;
+		font-size: 10px;
+		text-align: center;
+		vertical-align: center;
+		clear: both;
+		top: 1px;
+		right: 1px;
+		width: 12px;
+		height: 12px;
+	}
+
+.popupbody
+{
+  padding: 10px;
+  font-weight: bold;
+  font-size: 12px;
+  border: 1px solid #CCFFFF;
+  background: #99CCCC;
+  color: #FFFFFF;
+}
+

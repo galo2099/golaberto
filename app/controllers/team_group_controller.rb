@@ -1,0 +1,12 @@
+class TeamGroupController < ApplicationController
+  scaffold :team_group
+
+  def index
+    list
+    render :action => 'list'
+  end
+
+  def list
+    @team_group_pages, @team_groups = paginate :team_groups, :per_page => 10
+  end
+end

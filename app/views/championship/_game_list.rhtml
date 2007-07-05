@@ -1,0 +1,53 @@
+<% unless @total == 0 %>
+<p>
+<% if @games_pages.page_count > 1 %>
+Page:
+<%= pagination_links_remote @games_pages %>
+<% end %>
+</p>
+
+<table>
+  <% last_played = nil
+     last_round = nil
+     last_date = nil %>
+  <% @games.each do |game| %>
+  <% if last_played != game.played %>
+  <% last_played = game.played %>
+  <tr><td colspan='10' class='game_toplay'><%= game.played.titlecase %></td></tr>
+  <% end %>
+  <% if last_round != game.round %>
+  <% last_round = game.round %>
+  <tr><td colspan='10' class='game_round'>Round <%= game.round %></td></tr>
+  <% end %>
+  <% if last_date != game.date %>
+  <% last_date = game.date %>
+  <tr><td colspan='10' class='game_date'><%= game.date.to_formatted_s(:date) %></td></tr>
+  <% end %>
+  <tr>
+  <td class='game_score'>
+  <table class='game_score'><tr>
+  <td class='game_time'><%= game.date.to_formatted_s(:time) if game.date.hour != 0 or game.date.min != 0%></td>
+  <td><%= image_tag "logos/" + game.home.logo.gsub(/(.*)\.svg/, '\1_15.png') %></td>
+  <td class='home_team'><%= game.home.name %></td>
+  <td class='home_score'><%= game.home_score %></td>
+  <td class='game_x'>x</td>
+  <td class='away_score'><%= game.away_score %></td>
+  <td class='away_team'><%= game.away.name %></td>
+  <td><%= image_tag "logos/" + game.away.logo.gsub(/(.*)\.svg/, '\1_15.png') %></td>
+  </tr></table>
+  <DIV class='game_info' id='game_info_6436'>
+  </DIV>
+  </td>
+  <td valign='top'></td>
+  <td valign='top'></td>
+  <td valign='top'><IMG WIDTH='14' HEIGHT='14' SRC='img/people.gif'></td>
+  <td valign='top'></td>
+  <td valign='top'><IMG WIDTH='14' HEIGHT='14' SRC='img/shirt.png'></td>
+  <td class='show_info'><span onClick='writeInfo(6436, this.parentNode.parentNode, this);'>Info</span></td>
+
+  <td class='edit'><a href='javascript:edit_game(26, 6436);'>Edit</a></td>
+  </tr>
+  <% end %>
+</table>
+
+<% end %>
