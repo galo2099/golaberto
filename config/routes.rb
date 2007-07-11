@@ -17,6 +17,11 @@ ActionController::Routing::Routes.draw do |map|
   # instead of a file named 'wsdl'
   map.connect ':controller/service.wsdl', :action => 'wsdl'
 
+  # map championship actions
+  map.connect 'championship/show/:id/phases/:phase', :controller => 'championship', :action => 'phases'
+  map.connect 'championship/show/:id/games/:phase', :controller => 'championship', :action => 'games'
+  map.connect 'championship/show/:id/new_game/:phase', :controller => 'championship', :action => 'new_game'
+
   # Install the default route as the lowest priority.
   map.connect ':controller/:action/:id'
 end
