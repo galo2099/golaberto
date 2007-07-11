@@ -1,3 +1,4 @@
+<div id="conteudo">
 <h1><%= h @championship.full_name %></h1>
 <table class='tab_header'><tr>
 <% @championship.phases.each do |phase| %>
@@ -16,7 +17,8 @@
 <%= render :partial => "table" %>
 
 <%= javascript_include_tag "boxover" %>
+</div>
 
-<% content_for :nav_top do %>
-  <%= render_partial "nav_top" %>
-<% end %>
+<div style="float: left">
+  <%= render :partial => "nav_side" %>
+</div>

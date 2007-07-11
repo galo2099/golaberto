@@ -1,0 +1,32 @@
+<%= error_messages_for 'group'  %>
+<% @teams.each do |team| %>
+  <%= team.errors.full_messages %>
+  <%= tag "br" unless team.errors.full_messages.empty? %>
+<% end unless @teams.nil? %>
+
+<h1><%= @group.phase.championship.full_name %></h1>
+<h2><%= @group.phase.name %></h2>
+
+<% form_for :group, @group, :url => { :action => :update, :id => @group } do |f| %>
+  <table>
+    <tr><td>Name:</td><td><%= f.text_field :name %></td></tr>
+    <tr><td>Promoted:</td><td><%= f.text_field :promoted, :size => 2 %></td></tr>
+    <tr><td>Relegated:</td><td><%= f.text_field :relegated, :size => 2 %></td></tr>
+  </table>
+
+  <p>Teams</p>
+  Number of teams:
+  <input type="text" id="team_number" value="<%= @group.teams.size %>" size="2"/><br/>
+  <%= observe_field 'team_number', :frequency => 1,
+    :update => 'team_select',
+    :url => { :action => 'edit', :id => @group },
+    :with => 'team_number' %>
+  <div id="team_select">
+    <%= render :partial => "team_list" %>
+  </div>
+  </p>
+
+  <%= submit_tag "Update" %><br/>
+<% end %>
+
+

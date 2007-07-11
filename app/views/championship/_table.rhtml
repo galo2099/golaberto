@@ -17,47 +17,67 @@
     <%= content_tag :th, "GD" unless omit_columns[:GD] %>
   </tr>
   <% pos = 0 %>
-     <% sort_teams(@current_phase, group, @class).each do |team|
-       pos += 1
-       tr_class = 'table_line'
-       tr_class = 'relegated' if group.is_relegated?(pos)
-       tr_class = 'promoted' if group.is_promoted?(pos)
-       image_logo = ""
-       unless omit_logo
-         image_logo = image_tag("logos/" +
-                                team.logo.gsub(/(.*)\.svg/, '\1_15.png'),
-                                :width => 15,
-                                :height => 15)
-       end
-       title_popup = ""
-       unless omit_popup
-         last_game = team.last_n_games(1, group.phase.id).at(0)
-         next_game = team.next_n_games(1, group.phase.id).at(0)
-         header_body = ""
-         unless last_game.nil?
-           header_body << sprintf("%02d", last_game.date.day) << "/"
-           header_body << sprintf("%02d", last_game.date.month) << " "
-           header_body << last_game.home.name << " "
-           header_body << last_game.home_score.to_s << " x "
-           header_body << last_game.away_score.to_s << " "
-           header_body << last_game.away.name << "<br/>"
-         end
-         unless next_game.nil?
-           header_body << sprintf("%02d", next_game.date.day) << "/"
-           header_body << sprintf("%02d", next_game.date.month) << " "
-           header_body << next_game.home.name << " x "
-           header_body << next_game.away.name << "<br/>"
-         end
-         title_popup = "header=[] body=[#{header_body}] cssbody=[popupbody]"
-       end
-   %>
-       <tr class='<%= tr_class %>'>
+  <% notes = Array.new %>
+  <% sort_teams(@current_phase, group, @class).each do |t|
+    team = t.team
+    note_number = ""
+    if t.comment
+      notes.push t.comment
+      note_number = " (#{notes.size})"
+    end
+    pos += 1
+    tr_class = 'table_line'
+    tr_class = 'relegated' if group.is_relegated?(pos)
+    tr_class = 'promoted' if group.is_promoted?(pos)
+    image_logo = ""
+    unless omit_logo or team.logo.nil?
+      image_logo = image_tag("logos/" +
+                             team.small_logo,
+                             :width => 15,
+                             :height => 15)
+    end
+    title_popup = ""
+    unless omit_popup
+      last_game = @all_games.collect do |x|
+        x if (x.home_id == team.id or
+              x.away_id == team.id) and
+              x.played == "played"
+      end.compact.at(-1)
+      next_game = @all_games.collect do |x|
+        x if (x.home_id == team.id or
+              x.away_id == team.id) and
+              x.played == "scheduled"
+      end.compact.at(0)
+      header_body = ""
+      unless last_game.nil?
+        unless last_game.date.nil?
+          header_body << sprintf("%02d", last_game.date.day) << "/"
+          header_body << sprintf("%02d", last_game.date.month) << " "
+        end
+        header_body << last_game.home.name << " "
+        header_body << last_game.home_score.to_s << " x "
+        header_body << last_game.away_score.to_s << " "
+        header_body << last_game.away.name << "<br/>"
+      end
+      unless next_game.nil?
+        unless next_game.date.nil?
+          header_body << sprintf("%02d", next_game.date.day) << "/"
+          header_body << sprintf("%02d", next_game.date.month) << " "
+        end
+        header_body << next_game.home.name << " x "
+        header_body << next_game.away.name << "<br/>"
+      end
+      title_popup = "header=[] body=[#{header_body}] cssbody=[popupbody]"
+    end
+  %>
+  <tr class='<%= tr_class %>'>
          <%= content_tag :td, pos, :class => "pos" unless omit_columns[:Pos] %>
          <%= content_tag(:td,
                          image_logo +
                          link_to(team.name, :controller => 'team',
                                             :action => 'show',
-                                            :id => team.id),
+                                            :id => team.id) +
+                         note_number,
                          :class => "name",
                          :title => title_popup) unless omit_columns[:Name] %>
                          
@@ -70,6 +90,11 @@
          <%= content_tag :td, @class[team.id].goals_against unless omit_columns[:GA] %>
          <%= content_tag :td, @class[team.id].goals_diff unless omit_columns[:GD] %>
        </tr>
-  <% end %>
-</table>
-<% end %>
+     <% end %>
+   </table>
+   <% count = 0 %>
+   <% notes.each do |n| %>
+     <% count += 1 %>
+     <%= "(#{count}) #{n}" %><br/>
+   <% end %>
+ <% end %>

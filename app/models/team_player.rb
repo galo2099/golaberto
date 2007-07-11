@@ -1,14 +1,13 @@
 class TeamPlayer < ActiveRecord::Base
-  self.table_name = "team_player"
-  self.primary_key = ""
-
-
+  belongs_to :team
+  belongs_to :player
+  belongs_to :championship
 
   # Fields information, just FYI.
   #
-  # Field: team , SQL Definition:bigint(20)
-  # Field: player , SQL Definition:bigint(20)
-  # Field: champ , SQL Definition:bigint(20)
-
+  # Field: id , SQL Definition:bigint(20)
+  # Field: team_id , SQL Definition:bigint(20)
+  # Field: player_id , SQL Definition:bigint(20)
+  # Field: championship_id , SQL Definition:bigint(20)
 
 end

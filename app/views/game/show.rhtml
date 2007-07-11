@@ -1,22 +1,101 @@
-<html>
-  <body>
-    <h1>Game#view</h1>
-    <%= @game.home.name %> <%= @game.home_score %> 
-    <%= "(#{@game.home_pen})" unless @game.home_pen.nil? %><br/>
-    <%= @game.away.name %> <%= @game.away_score %>
-    <%= "(#{@game.away_pen})" unless @game.away_pen.nil? %><br/>
-    <%= @game.phase.name %><br/>
-    <%= @game.phase.championship.name %><br/>
-    <%= @game.phase.championship.begin %><br/>
-    <%= @game.phase.championship.end %><br/>
-    <%= @game.round %><br/>
-    <%= @game.attendance %><br/>
-    <%= @game.date %><br/>
-    <%= @game.stadium.name unless @game.stadium.nil? %><br/>
-    <%= "#{@game.referee.name} (#{@game.referee.location})" unless @game.referee.nil? %><br/>
-    <%= @game.played %><br/>
-    <%=link_to "List", :action => "list" %>
-    <%=link_to "Delete", { :action => "destroy", :id => @game.id },
-                           :confirm => "Are you sure?", :post => true %>
-  </body>
-</html>
+<h1><%= @game.phase.championship.full_name %></h1>
+<h2><%= link_to @game.phase.name, :controller => :championship, :action => :games, :id => @game.phase.championship, :phase => @game.phase %></h2>
+
+<table class="game_show_score">
+  <tr>
+    <td class="game_show_home_team"><%= image_tag "logos/" + @game.home.small_logo %> <%= @game.home.name %></td>
+    <td></td>
+    <td class="game_show_home_score"><%= @game.home_score %></td>
+    <td class="game_show_x">x</td>
+    <td class="game_show_away_score"><%= @game.away_score %></td>
+    <td></td>
+    <td class="game_show_away_team"><%= @game.away.name %> <%= image_tag "logos/" + @game.away.small_logo %></td>
+  </tr>
+
+  <% count_home = 0 %>
+  <% count_away = 0 %>
+  <% player_scored = Hash.new %>
+  <% @game.goals.each do |goal| %>
+    <% player_scored[goal.player.id] = true if goal.player %>
+    <% count_home += 1 if goal.team == @game.home %>
+    <% count_away += 1 if goal.team == @game.away %>
+    <tr class="game_show_goals">
+      <td class="game_show_home_score"><%= goal.player.name if goal.team == @game.home %></td>
+      <td class="game_show_home_score"><%= "#{goal.time}'" if goal.team == @game.home %></td>
+      <td class="game_show_home_score"><%= "(#{count_home}-#{count_away})" if goal.team == @game.home %></td>
+      <td></td>
+      <td class="game_show_away_score"><%= "(#{count_home}-#{count_away})" if goal.team == @game.away %></td>
+      <td class="game_show_away_score"><%= "#{goal.time}'" if goal.team == @game.away %></td>
+      <td class="game_show_away_score"><%= goal.player.name if goal.team == @game.away %></td>
+    </tr>
+  <% end %>
+
+  <tr><td colspan="3">
+      <table style="width: 100%">
+        <tr class="game_show_goals game_show_away_score">
+          <th>Name</th>
+          <th>Pos</th>
+          <th>On</th>
+          <th>Off</th>
+          <th></th>
+          <th></th>
+          <th></th>
+        </tr>
+        <% @game.home_player_games.each do |player_game| %>
+          <tr class="game_show_goals game_show_away_score">
+            <td><%= player_game.player.name %></td>
+            <td><%= player_game.player.position %></td>
+            <td><%= player_game.on %></td>
+            <td><%= player_game.off %></td>
+            <td><%= image_tag "yells.gif" if player_game.yellow != 0 %></td>
+            <td><%= image_tag "reds.gif" if player_game.red != 0 %></td>
+            <td><%= image_tag "goal.png" if player_scored[player_game.player.id] %></td>
+          </tr>
+        <% end %>
+      </table>
+    </td><td></td>
+    <td colspan="3">
+      <table style="width: 100%">
+        <tr class="game_show_goals game_show_away_score">
+          <th>Name</th>
+          <th>Pos</th>
+          <th>On</th>
+          <th>Off</th>
+          <th></th>
+          <th></th>
+          <th></th>
+        </tr>
+        <% @game.away_player_games.each do |player_game| %>
+          <tr class="game_show_goals game_show_away_score">
+            <td><%= player_game.player.name %></td>
+            <td><%= player_game.player.position %></td>
+            <td><%= player_game.on %></td>
+            <td><%= player_game.off %></td>
+            <td><%= image_tag "yells.gif" if player_game.yellow != 0 %></td>
+            <td><%= image_tag "reds.gif" if player_game.red != 0 %></td>
+            <td><%= image_tag "goal.png" if player_scored[player_game.player.id] %></td>
+          </tr>
+        <% end %>
+      </table>
+  </td></tr>
+
+
+  <tr><td colspan="7">
+      <table>
+        <tr><td>Round:</td><td><%= @game.round %></td></tr>
+        <tr><td>Attendance:</td><td><%= @game.attendance %></td></tr>
+        <tr><td>Date:</td><td><%= @game.formatted_date + " - " + @game.formatted_time %></td></tr>
+        <tr><td>Stadium:</td><td><%= @game.stadium.name unless @game.stadium.nil? %></td></tr>
+        <tr><td>Referee:</td><td><%= "#{@game.referee.name} (#{@game.referee.location})" unless @game.referee.nil? %></td></tr>
+      </table>
+  </td></tr>
+
+
+</table>
+
+<%=  @game.played.titlecase %><br/>
+
+<%= link_to "List", :action => "list" %><br/>
+<%= link_to "Edit", :action => "edit", :id => @game %><br/>
+<%= link_to "Delete", { :action => "destroy", :id => @game },
+  :confirm => "Are you sure?", :post => true %>

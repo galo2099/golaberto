@@ -1,8 +1,5 @@
 class Player < ActiveRecord::Base
-  self.table_name = %( `Player` )
-  self.primary_key = "id"
-
-
+  has_many :goals, :dependent => :destroy
 
   # Fields information, just FYI.
   #

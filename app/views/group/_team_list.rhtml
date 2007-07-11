@@ -1,0 +1,12 @@
+<% teams = Team.find(:all, :order => "name") %>
+<% (0...@team_number).each do |i| %>
+  <select id="team_<%=i%>_id" name="team[<%=i%>][id]">
+    <% team_id = nil %>
+    <% team_id = @group.teams.at(i).id unless @group.teams.at(i).nil? %>
+    <% if team_id.nil? %>
+      <option value="" selected="selected"></option>
+    <% end %>
+    <%= options_from_collection_for_select teams, "id", "name", team_id %>
+  </select><br/>
+<% end %>
+

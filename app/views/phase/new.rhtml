@@ -1,0 +1,8 @@
+<%= error_messages_for 'phase' %>
+<% form_for :phase, @phase, :url => { :action => "create", :id => @phase } do |p| %>
+  Name: <%= p.text_field :name %><br/>
+  Order: <%= p.text_field :order_by, :size => 2 %><br/>
+  Championship: <%= p.text_field :championship_id %><br/>
+  Sort: <%= p.text_field :sort %><br/>
+  <%= submit_tag "Create" %>
+<% end %>

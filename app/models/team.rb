@@ -1,8 +1,11 @@
 class Team < ActiveRecord::Base
-  has_many :team_groups
-  has_many :groups,      :through     => :team_groups
-  has_many :home_games,  :foreign_key => "home_id",    :class_name => "Game"
-  has_many :away_games,  :foreign_key => "away_id",    :class_name => "Game"
+  has_many :team_groups, :dependent => :delete_all
+  has_many :groups, :through => :team_groups
+  has_many :home_games, :foreign_key => "home_id", :class_name => "Game", :dependent => :destroy
+  has_many :away_games, :foreign_key => "away_id", :class_name => "Game", :dependent => :destroy
+  has_many :team_players, :dependent => :delete_all, :include => :player
+  validates_length_of :name, :within => 1..40
+  validates_uniqueness_of :name, :message => "already exists"
 
   # Fields information, just FYI.
   #
@@ -10,6 +13,18 @@ class Team < ActiveRecord::Base
   # Field: name , SQL Definition:varchar(255)
   # Field: country , SQL Definition:varchar(255)
   # Field: logo , SQL Definition:varchar(255)
+  
+  def small_logo
+    unless logo.nil?
+      logo.gsub(/(.*)\.svg/, '\1_15.png')
+    end
+  end
+
+  def large_logo
+    unless logo.nil?
+      logo.gsub(/(.*)\.svg/, '\1_100.png')
+    end
+  end
   
   def next_n_games(n, phase = nil)
     cond = "played = 'scheduled'"

@@ -25,6 +25,10 @@
 </div>
 </div>
 
+<div style="float: left">
+  <%= render :partial => "nav_side" %>
+</div>
+
 <div class='team_table'>
 <%= render :partial => "table",
            :locals => { :omit_columns => { :D => true,
@@ -34,7 +38,3 @@
                         :omit_logo => true,
                         :omit_popup => true } %>
 </div>
-
-<% content_for :nav_top do %>
-  <%= render :partial => "nav_top" %>
-<% end %>

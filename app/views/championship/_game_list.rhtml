@@ -2,7 +2,7 @@
 <p>
 <% if @games_pages.page_count > 1 %>
 Page:
-<%= pagination_links_remote @games_pages %>
+<%= pagination_links_remote @games_pages, { :window_size => 1 }, :url => { :action => :games }, :update => "table" %>
 <% end %>
 </p>
 
@@ -19,33 +19,32 @@ Page:
   <% last_round = game.round %>
   <tr><td colspan='10' class='game_round'>Round <%= game.round %></td></tr>
   <% end %>
-  <% if last_date != game.date %>
-  <% last_date = game.date %>
-  <tr><td colspan='10' class='game_date'><%= game.date.to_formatted_s(:date) %></td></tr>
+  <% if last_date != game.formatted_date %>
+  <% last_date = game.formatted_date %>
+  <tr><td colspan='10' class='game_date'><%= game.formatted_date %></td></tr>
   <% end %>
   <tr>
   <td class='game_score'>
   <table class='game_score'><tr>
-  <td class='game_time'><%= game.date.to_formatted_s(:time) if game.date.hour != 0 or game.date.min != 0%></td>
-  <td><%= image_tag "logos/" + game.home.logo.gsub(/(.*)\.svg/, '\1_15.png') %></td>
+  <td class='game_time'><%= game.formatted_time %></td>
+  <td><%= image_tag "logos/" + game.home.small_logo unless game.home.logo.nil? %></td>
   <td class='home_team'><%= game.home.name %></td>
   <td class='home_score'><%= game.home_score %></td>
   <td class='game_x'>x</td>
   <td class='away_score'><%= game.away_score %></td>
   <td class='away_team'><%= game.away.name %></td>
-  <td><%= image_tag "logos/" + game.away.logo.gsub(/(.*)\.svg/, '\1_15.png') %></td>
+  <td><%= image_tag "logos/" + game.away.small_logo unless game.away.logo.nil? %></td>
   </tr></table>
   <DIV class='game_info' id='game_info_6436'>
   </DIV>
   </td>
   <td valign='top'></td>
   <td valign='top'></td>
-  <td valign='top'><IMG WIDTH='14' HEIGHT='14' SRC='img/people.gif'></td>
+  <td valign='top'><!--<IMG WIDTH='14' HEIGHT='14' SRC='img/people.gif'>--></td>
   <td valign='top'></td>
-  <td valign='top'><IMG WIDTH='14' HEIGHT='14' SRC='img/shirt.png'></td>
-  <td class='show_info'><span onClick='writeInfo(6436, this.parentNode.parentNode, this);'>Info</span></td>
-
-  <td class='edit'><a href='javascript:edit_game(26, 6436);'>Edit</a></td>
+  <td valign='top'><!--<IMG WIDTH='14' HEIGHT='14' SRC='img/shirt.png'>--></td>
+  <td class='show_info'><%= link_to "Info", :controller => "game", :action => :show, :id => game %></td>
+  <td><%= link_to "Edit", :controller => :game, :action => :edit, :id => game, :redirect => url_for(:action => :games, :phase => game.phase, :page => @games_pages.current.number) %>
   </tr>
   <% end %>
 </table>

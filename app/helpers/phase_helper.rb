@@ -25,6 +25,9 @@ module PhaseHelper
         elsif column ==  "gp"
           ret = team_class[a.id].goals_pen <=> team_class[b.id].goals_pen
           break if ret != 0
+        elsif column ==  "g_away"
+          ret = team_class[a.id].goals_away <=> team_class[b.id].goals_away
+          break if ret != 0
         elsif column ==  "bias"
           ret = group.team_groups.find(
               :first,
@@ -36,8 +39,8 @@ module PhaseHelper
       end
       ret
     }
-    group.teams.sort do |a,b|
-      sorter.call a,b
+    group.team_groups.sort do |a,b|
+      sorter.call a.team, b.team
     end
   end
 end

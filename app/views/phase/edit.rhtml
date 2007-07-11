@@ -1,0 +1,24 @@
+<%= error_messages_for 'phase', 'group'  %>
+
+<h1><%= @phase.championship.full_name %></h1>
+
+<% form_for :phase, @phase, :url => { :action => :update, :id => @phase } do |p| %>
+  <table>
+    <tr><td>Name:</td><td><%= p.text_field :name %></td></tr>
+    <tr><td>Sort:</td><td><%= p.text_field :sort %></td></tr>
+  </table>
+
+  <p>Groups</p>
+  <% @phase.groups.each do |group| %>
+    Name: <%= group.name %>
+    <%= link_to "Edit", :controller => :group, :action => :edit, :id => group %>
+    <%= link_to "Delete", { :controller => :group, :action => :destroy, :id => group }, :confirm => 'Are you sure?', :post => true %><br/>
+  <% end %>
+  <p>Add new group: (More groups can be added later)<br />
+  <input type="text" id="group[name]" name="group[name]" value="">
+  </p>
+
+  <%= submit_tag "Update" %><br/>
+<% end %>
+
+

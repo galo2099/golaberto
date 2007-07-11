@@ -1,21 +1,7 @@
 module ChampionshipHelper
-  def pagination_links_remote(paginator)
-    page_options = {:window_size => 1}
-    pagination_links_each(paginator, page_options) do |n|
-      options = {
-        :url => {:action => 'games', :params => @params.merge({:page => n})},
-        :update => 'table',
-        :before => "Element.show('spinner')",
-        :success => "Element.hide('spinner')"
-      }
-      html_options = {:href => url_for(:action => 'games', :params => @params.merge({:page => n}))}
-      link_to_remote(n.to_s, options, html_options) + "\n"
-    end
-  end
-
   class TeamCampaign
     attr_reader :points, :games, :wins, :draws, :losses,
-                :goals_for, :goals_against, :goals_pen
+                :goals_for, :goals_against, :goals_pen, :goals_away
 
     def initialize(team, games)
       @games = 0
@@ -26,10 +12,15 @@ module ChampionshipHelper
       @goals_for = 0
       @goals_against = 0
       @goals_pen = 0
+      @goals_away = 0
+      if (games.size == 0)
+        return
+      end
       championship = games[0].phase.championship unless games[0].nil?
       points_for_win = championship.point_win
       points_for_draw = championship.point_draw
       points_for_loss = championship.point_loss
+      add_sub = TeamGroup.find(:first, :conditions => [ "team_id = ? AND group_id IN (?)", team.id, games[0].phase.group_ids ]).add_sub
       games.collect do |x|
         x if (x.home_id == team.id or
               x.away_id == team.id) and
@@ -40,6 +31,7 @@ module ChampionshipHelper
           @goals_pen += game.home_pen unless game.home_pen.nil?
         else
           @goals_pen += game.away_pen unless game.home_pen.nil?
+          @goals_away += game.away_score
         end
         if game.home_score > game.away_score then
           if (game.home_id == team.id) then 
@@ -69,6 +61,7 @@ module ChampionshipHelper
           @goals_for += game.away_score
         end
       end
+      @points += add_sub
     end
 
     def goals_diff

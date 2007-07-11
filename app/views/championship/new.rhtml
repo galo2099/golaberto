@@ -1,0 +1,10 @@
+<%= error_messages_for 'championship' %>
+<% form_for :championship, @championship, :url => { :action => "create", :id => @championship } do |f| %>
+  Name: <%= f.text_field :name %><br/>
+  Begin: <%= date_field :championship, :begin %><br/>
+  End: <%= date_field :championship, :end %><br/>
+  Points for win: <%= f.text_field :point_win, :size => 2 %><br/>
+  Points for draw: <%= f.text_field :point_draw, :size => 2 %><br/>
+  Points for loss: <%= f.text_field :point_loss, :size => 2 %><br/>
+  <%= submit_tag "Create" %>
+<% end %>

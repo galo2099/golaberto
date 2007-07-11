@@ -1,19 +1,35 @@
 class TeamController < ApplicationController
   scaffold :team
 
+  def index
+    redirect_to :action => :list
+  end
+
   def show
     @team = Team.find(@params["id"])
   end
 
-  def find
-    unless @params["id"].nil?
-      teams = Team.find(:all, :conditions => [ "name like ?", @params["id"]],
-                        :order => 'name')
-      @team_pages = Paginator.new self, teams.size, 10, @params["page"]
-      first = @team_pages.current.offset
-      last = [first + 10, teams.size].min
-      @teams = teams[first...last]
-      render :action => "list"
+  def list
+    items_per_page = 10
+    conditions = ["name LIKE ?", "%#{@params[:id]}%"] unless @params[:id].nil?
+
+    @total = Team.count :conditions => conditions
+    @team_pages, @teams = paginate :teams, :order => "name",
+                                   :conditions => conditions,
+                                   :per_page => items_per_page
+
+    if request.xhr?
+      render :partial => "team_list", :layout => false
     end
+  end
+
+  def auto_complete_for_team_name
+    search = @params[:team][:name]
+    @teams = Team.find(
+        :all,
+        :conditions => "name like '#{search}%'",
+        :order => "name",
+        :limit => 5) unless search.blank?
+    render :partial => "search" 
   end
 end

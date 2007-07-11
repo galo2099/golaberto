@@ -1,0 +1,41 @@
+<%= error_messages_for 'game' %>
+
+<h1><%= @game.phase.championship.full_name %></h1>
+<h2><%= @game.phase.name %></h2>
+
+<% form_for :game, @game, :url => { :action => "update", :id => @game } do |g| %>
+  <table>
+    <tr><td>
+        <b><%= @game.home.name %></b>
+        </td><td></td><td>
+        <b><%= @game.away.name %></b>
+    </td></tr>
+    <tr>
+      <td>
+        <%= @home_players.map {|p| "#{p.name}<br/>"} %>
+      </td>
+      <td align=center>
+        <%= hidden_field_tag "redirect", @params["redirect"] if @params["redirect"] %>
+        <%= g.text_field :home_score, :size => 2 %> x 
+        <%= g.text_field :away_score, :size => 2 %>
+        <br/>
+        Round: <%= g.text_field :round, :size => 2 %><br/>
+        Attendance: <%= g.text_field :attendance, :size => 6 %><br/>
+        Date: <%= date_field :game, :date, :value => @game.date ? @game.date.to_date : "", :format => "%d/%m/%Y", :size => 10 %><br/>
+        Time: <%= select_hour @game.date %> : <%= select_minute @game.date %><br/>
+        Referee: 
+        <select id="game_referee_id" name="game[referee_id]">
+          <%= options_from_collection_for_select @referees, "id", "name", @game.referee_id %>
+        </select><br/>
+        Stadium: 
+        <select id="game_stadium_id" name="game[stadium_id]">
+          <%= options_from_collection_for_select @stadiums, "id", "name", @game.stadium_id %>
+        </select><br/>
+        <%= select "game", "played", [ "scheduled", "played" ] %><br/>
+      </td>
+      <td>
+        <%= @away_players.map {|p| "#{p.name}<br/>"} %>
+      </td>
+  </tr></table>
+  <%= submit_tag "Update" %>
+<% end %>

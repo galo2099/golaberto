@@ -1,39 +1,70 @@
 class ChampionshipController < ApplicationController
-  scaffold :championship
   helper :phase
+
+  def index
+    redirect_to :action => :list
+  end
+
+  def new
+    @championship = Championship.new
+  end
+
+  def create
+    @championship = Championship.new(@params["championship"])
+
+    if @championship.save
+      redirect_to :action => :show, :id => @championship
+    else
+      render :action => :new
+    end
+  end
+
+  def list
+    @total = Championship.count
+    @championship_pages, @championships = paginate :championships, :order => "name, begin"
+  end
 
   def show
     championship = Championship.find(@params["id"])
-    redirect_to :action => 'phases',
-                :id => championship,
-                :phase => championship.phases[-1]
+    if championship.phases.empty?
+      render :text => "Championship has no phases", :layout => true
+    else
+      redirect_to :action => 'phases',
+                  :id => championship,
+                  :phase => championship.phases[-1]
+    end
   end
 
   def phases
     @championship = Championship.find(@params["id"])
     @current_phase = @championship.phases.find(@params["phase"])
-      games = @current_phase.games.find(:all, :conditions => "played = 'played'")
-      @class = Hash.new
-      @current_phase.teams.each do |team|
-        @class[team.id] = ChampionshipHelper::TeamCampaign.new team, games
+    @all_games = @current_phase.games.find(:all,
+                                           :order => "date")
+    @class = Hash.new
+    @current_phase.groups.each do |group|
+      group.teams.each do |team|
+        @class[team.id] = ChampionshipHelper::TeamCampaign.new team, @all_games
       end
+    end
+  end
+
+  def new_game
+    @championship = Championship.find(@params["id"])
+    @current_phase = @championship.phases.find(@params["phase"])
+    @game = @current_phase.games.build
   end
 
   def games
-    items_per_page = 30
     @championship = Championship.find(@params["id"])
     @current_phase = @championship.phases.find(@params["phase"])
-    games = @current_phase.games.find(:all)
-    @class = Hash.new
-    @current_phase.teams.each do |team|
-      @class[team.id] = ChampionshipHelper::TeamCampaign.new team, games
-    end
 
-    @total = games.size
-    @games_pages, @games = paginate :games, :order => "date", :per_page => items_per_page, :conditions => "games.phase_id = #{@current_phase.id}"
+    items_per_page = 30
+    @games_pages, @games = paginate :games, :order => "date", :per_page => items_per_page, :conditions => "games.phase_id = #{@current_phase.id}", :include => [ "home", "away" ]
 
     if request.xml_http_request?
       render :partial => "game_list", :layout => false
+    else
+      phases
     end
   end
 
@@ -42,31 +73,21 @@ class ChampionshipController < ApplicationController
   end
 
   def update
-    @championship = Championship.find(@params["championship"]["id"])
+    @championship = Championship.find(@params["id"])
     @championship.attributes = @params["championship"]
 
     saved = @championship.save
     new_empty = false
 
-    @params["phases"].each { |key, value|
-      if key == "new"
-        phase = @championship.build_to_phases(value)
-        new_empty = true if value["name"].empty?
-      else
-        phase = Phase.find(key)
-        phase.attributes = value
-      end
+    @phase = @championship.phases.build(@params["phase"])
+    new_empty = @phase.name.empty?
 
-      unless phase.name.empty?
-        saved = false unless phase.save
-      end
-    }
+    saved = @phase.save and saved unless new_empty
 
     if saved and new_empty
-      redirect_to :action => "show", :id => @championship.id
+      redirect_to :action => "show", :id => @championship
     else
-      @target = "update"
-      render "championship/edit" 
+      render :action => "edit" 
     end
   end
 

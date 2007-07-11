@@ -1,6 +1,12 @@
 class Championship < ActiveRecord::Base
-  has_many :phases, :order => "order_by"
-
+  has_many :phases, :order => "order_by", :dependent => :destroy
+  validates_presence_of :name
+  validates_presence_of :begin
+  validates_presence_of :end
+  validates_numericality_of :point_win, :only_integer => true
+  validates_numericality_of :point_draw, :only_integer => true
+  validates_numericality_of :point_loss, :only_integer => true
+  
   # Fields information, just FYI.
   #
   # Field: id , SQL Definition:bigint(20)
@@ -18,5 +24,4 @@ class Championship < ActiveRecord::Base
     end
     name
   end
-
 end

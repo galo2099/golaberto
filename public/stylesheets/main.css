@@ -27,8 +27,15 @@ body
   width: 570px;
   margin-right: 10px;
   margin-top: 10px;
-  background-color: #ffffff;
   padding: 5px;
+}
+.notice
+{
+  color: red;
+  background-color: white;
+  width: 100%;
+  margin-top: 10px;
+  text-align: center;
 }
 /******* menu : BEGIN *********/
 #nav_top, 
@@ -162,7 +169,7 @@ background-color: lightgrey;
 width: 98px;
 margin: 10px 10px 0 0;
 text-align: center;
-background: lightgrey url("/img/border.png") no-repeat top left;
+background: lightgrey no-repeat top left;
 }
 
 .tab_header td a:link, .tab_header td a:visited
@@ -204,7 +211,6 @@ font-size: 11px;
 	margin-top: 30px;
 	margin-bottom: 30px;
 	width: 100%;
-	background-color: #fcfcfc;
 }
 .phase
 {
@@ -235,7 +241,6 @@ font-size: 11px;
 		}
 		.home_score
 		{
-			width: 8%;
 			text-align: right;
 		}
 		.game_x
@@ -264,84 +269,39 @@ font-size: 11px;
 	{
 		vertical-align: top;
 	}
-	.game_info
-	{
-		border-style: solid;
-		display: none;
-		border-width: 1px;
-		position: relative;
-		font-size: 10px;
-		background-color: lightyellow;
-		width: 100%;
-	}
-		.goal
-		{
-			color: green;
-		}
-			.home_goal
-			{
-				width: 25%;
-			}
-			.home_pen
-			{
-				width: 8%;
-				text-align: right;
-			}
-			.home_time
-			{
-				width: 12%;
-				text-align: right;
-			}
-			.away_time
-			{
-				width: 12%;
-			}
-			.away_pen
-			{
-				width: 8%;
-			}
-			.away_goal
-			{
-				width: 25%;
-				text-align: right;
-			}
-	.info_line
-	{
-	}
-		.info_caption
-		{
-			width: 20%;
-		}
-		.info
-		{
-		}
-	.squad_click
-	{
-		text-align: right;
-		cursor: pointer;
-		color: blue;
-		text-decoration: underline;
-	}
-	.close
-	{
-		position: relative;
-	}
-	.close .X
-	{
-		position: absolute;
-		cursor: pointer;
-		color: white;
-		background: red;
-		font-weight: bold;
-		font-size: 10px;
-		text-align: center;
-		vertical-align: center;
-		clear: both;
-		top: 1px;
-		right: 1px;
-		width: 12px;
-		height: 12px;
-	}
+
+.game_show_score
+{
+  width: 70%;
+}
+.game_show_goals
+{
+  font-size: 10px;
+  color: green;
+}
+.game_show_home_team
+{
+  width: 50%;
+}
+.game_show_away_team
+{
+  width: 50%;
+  text-align: right;
+}
+.game_show_home_score
+{
+  text-align: right;
+  width: 0%;
+}
+.game_show_away_score
+{
+  text-align: left;
+  width: 0%;
+}
+.game_show_x
+{
+  text-align: center;
+}
 
 .popupbody
 {

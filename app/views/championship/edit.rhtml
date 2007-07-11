@@ -1,5 +1,6 @@
+<div>
+<%= error_messages_for 'championship', 'phase'  %>
 <%= form_tag({ :action => "update", :id => @championship.id }) %>
-<%= hidden_field "championship", "id" %>
 Name:
 <%= text_field "championship", "name", "size" => 40 %><br/>
 
@@ -18,15 +19,20 @@ Points for loss:
 
 <p>Phases</p>
 
-<p><% @championship.phases.each { |phase| %>
-<%= tag("input", "type" => "text", "id" => "phases[#{phase.id}][name]", "name" => "phases[#{phase.id}][name]", "value" => phase.name) %>
-<%= tag("input", "type" => "text", "id" => "phases[#{phase.id}][sort]", "name" => "phases[#{phase.id}][sort]", "value" => phase.sort) %>
-<%= phase.errors.on "phase" %><br/>
-<% } %></p>
+<% last_order_by = 0 %>
+<p><% @championship.phases(true).each do |phase| %>
+Name: <%= phase.name %>
+<%= link_to "Edit", :controller => :phase, :action => :edit, :id => phase %>
+<%= link_to "Delete", { :controller => :phase, :action => :destroy, :id => phase }, :confirm => 'Are you sure?', :post => true %>
+<br/>
+<% last_order_by = phase.order_by %>
+<% end %></p>
 
 <p>Add new phase: (More phases can be added later)<br />
-<input type="text" id="phases[new][name]" name="phases[new][name]" value="">
+<input type="text" id="phase[name]" name="phase[name]" value="">
+<input type="hidden" id="phase[order_by]" name="phase[order_by]" value="<%= last_order_by + 1 %>">
 </p>
 
 <input type="submit" value="Save">
 </form>
+</div>

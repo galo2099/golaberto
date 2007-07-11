@@ -1,27 +1,27 @@
+<p>
+<% form_tag({ :action => "list", :id => "" }, :method => "GET",
+            :style => "display: inline") do %>
+<%= text_field_tag("id", @params['id'], :size => 20) %>
+<% end %>
+
+<%= image_tag("spinner.gif",
+              :align => 'absmiddle',
+              :border=> 0,
+              :id => "spinner",
+              :style=>"display: none;" ) %>
+</p>
+<%= observe_field 'id', :frequency => 1,
+                        :update => 'table',
+                        :before => "Element.show('spinner')",
+                        :success => "Element.hide('spinner')",
+                        :url => {:action => 'list'},
+                        :with => 'id' %>
+
 <h1>Listing teams</h1>
 
-<table>
-  <tr>
-  <% for column in Team.content_columns %>
-    <th><%= column.human_name %></th>
-  <% end %>
-  </tr>
-  
-<% for team in @teams %>
-  <tr>
-  <% for column in Team.content_columns %>
-    <td><%=h team.send(column.name) %></td>
-  <% end %>
-    <td><%= link_to 'Show', :action => 'show', :id => team %></td>
-    <td><%= link_to 'Edit', :action => 'edit', :id => team %></td>
-    <td><%= link_to 'Destroy', { :action => 'destroy', :id => team }, :confirm => 'Are you sure?', :post => true %></td>
-  </tr>
-<% end %>
-</table>
-
-<%= link_to 'Previous page', { :page => @team_pages.current.previous } if @team_pages.current.previous %>
-<%= link_to 'Next page', { :page => @team_pages.current.next } if @team_pages.current.next %> 
-
-<br />
+<div id="table">
+<%= render :partial => "team_list" %>
+</div>
+<br/>
 
 <%= link_to 'New team', :action => 'new' %>
