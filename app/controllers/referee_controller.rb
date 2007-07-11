@@ -1,0 +1,2 @@
+class RefereeController < ApplicationController
+end
