@@ -1,6 +1,6 @@
 class Phase < ActiveRecord::Base
   belongs_to :championship
-  has_many   :groups, :dependent => :destroy
+  has_many   :groups, :dependent => :destroy, :order => :id
   has_many   :games, :dependent => :destroy
   validates_length_of :name, :within => 1..40
   validates_uniqueness_of :name, :scope => :championship_id

@@ -19,12 +19,13 @@ class GroupController < ApplicationController
 
     @group.team_groups.clear
     @teams = Array.new
-    @params["team"].each do |key, value|
-      @teams.push @group.team_groups.build(:team_id => value["id"])
+    @params["team_group"].each do |key, value|
+      value["comment"] = nil if value["comment"].to_s.empty?
+      @teams.push @group.team_groups.build(value)
       saved = @teams.last.save && saved
-    end unless @params["team"].nil?
+    end unless @params["team_group"].nil?
 
-    @team_number = @group.teams.size
+    @team_number = @group.team_groups
 
     if saved
       redirect_to :controller => :championship, :action => :phases, :id => @group.phase.championship, :phase => @group.phase

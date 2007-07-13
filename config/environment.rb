@@ -51,11 +51,3 @@ end
 # end
 
 # Include your application configuration below
-my_formats = {
-  :date => "%d/%m/%Y",
-  :time => "%H:%M"
-}
-
-ActiveSupport::CoreExtensions::Time::Conversions::DATE_FORMATS.merge!(my_formats)
-ActiveSupport::CoreExtensions::Date::Conversions::DATE_FORMATS.merge!(my_formats)
-

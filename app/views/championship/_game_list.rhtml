@@ -1,52 +1,11 @@
-<% unless @total == 0 %>
-<p>
-<% if @games_pages.page_count > 1 %>
-Page:
-<%= pagination_links_remote @games_pages, { :window_size => 1 }, :url => { :action => :games }, :update => "table" %>
-<% end %>
-</p>
-
-<table>
-  <% last_played = nil
-     last_round = nil
-     last_date = nil %>
-  <% @games.each do |game| %>
-  <% if last_played != game.played %>
-  <% last_played = game.played %>
-  <tr><td colspan='10' class='game_toplay'><%= game.played.titlecase %></td></tr>
-  <% end %>
-  <% if last_round != game.round %>
-  <% last_round = game.round %>
-  <tr><td colspan='10' class='game_round'>Round <%= game.round %></td></tr>
-  <% end %>
-  <% if last_date != game.formatted_date %>
-  <% last_date = game.formatted_date %>
-  <tr><td colspan='10' class='game_date'><%= game.formatted_date %></td></tr>
-  <% end %>
-  <tr>
-  <td class='game_score'>
-  <table class='game_score'><tr>
-  <td class='game_time'><%= game.formatted_time %></td>
-  <td><%= image_tag "logos/" + game.home.small_logo unless game.home.logo.nil? %></td>
-  <td class='home_team'><%= game.home.name %></td>
-  <td class='home_score'><%= game.home_score %></td>
+  <td class='game_time'><%= @game.formatted_time %></td>
+  <td><%= image_tag "logos/" + @game.home.small_logo unless @game.home.logo.nil? %></td>
+  <td class='home_team'><%= @game.home.name %></td>
+  <td class='home_score'><%= @game.home_score %></td>
   <td class='game_x'>x</td>
-  <td class='away_score'><%= game.away_score %></td>
-  <td class='away_team'><%= game.away.name %></td>
-  <td><%= image_tag "logos/" + game.away.small_logo unless game.away.logo.nil? %></td>
-  </tr></table>
-  <DIV class='game_info' id='game_info_6436'>
-  </DIV>
+  <td class='away_score'><%= @game.away_score %></td>
+  <td class='away_team'><%= @game.away.name %></td>
+  <td><%= image_tag "logos/" + @game.away.small_logo unless @game.away.logo.nil? %></td>
   </td>
-  <td valign='top'></td>
-  <td valign='top'></td>
-  <td valign='top'><!--<IMG WIDTH='14' HEIGHT='14' SRC='img/people.gif'>--></td>
-  <td valign='top'></td>
-  <td valign='top'><!--<IMG WIDTH='14' HEIGHT='14' SRC='img/shirt.png'>--></td>
-  <td class='show_info'><%= link_to "Info", :controller => "game", :action => :show, :id => game %></td>
-  <td><%= link_to "Edit", :controller => :game, :action => :edit, :id => game, :redirect => url_for(:action => :games, :phase => game.phase, :page => @games_pages.current.number) %>
-  </tr>
-  <% end %>
-</table>
-
-<% end %>
+  <td class='show_info'><%= link_to "Info", :controller => "game", :action => :show, :id => @game %></td>
+  <td class='show_info'><%= link_to "Edit", :controller => :game, :action => :edit, :id => @game, :redirect => request.request_uri %>

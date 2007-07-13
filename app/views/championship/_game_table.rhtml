@@ -1,0 +1,28 @@
+<p>
+<% if @games_pages.page_count > 1 %>
+Page:
+<%= pagination_links_remote @games_pages, { :window_size => 1 }, :url => { :action => :games }, :update => "table" %>
+<% end %>
+</p>
+<table>
+<% last_played = nil
+   last_round = nil
+   last_date = nil %>
+<% @games.each do |@game| %>
+  <% if last_played != @game.played %>
+    <% last_played = @game.played %>
+    <tr><td colspan='10' class='game_toplay'><%= @game.played.titlecase %></td></tr>
+  <% end %>
+  <% if last_round != @game.round %>
+    <% last_round = @game.round %>
+    <tr><td colspan='10' class='game_round'>Round <%= @game.round %></td></tr>
+  <% end %>
+  <% if last_date != @game.formatted_date %>
+    <% last_date = @game.formatted_date %>
+    <tr><td colspan='10' class='game_date'><%= @game.formatted_date(true) %></td></tr>
+  <% end %>
+    <tr>
+      <%= render :partial => "game_list" %>
+    </tr>
+<% end %>
+</table>

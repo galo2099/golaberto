@@ -1,10 +1,18 @@
-  <h1> <%= image_tag "logos/" + @team.large_logo %>
-    <%= @team.name %></h1>
+<h1><%= @team.name %></h1>
 
-  <% last_games = @team.last_n_games(5)
-     unless last_games.empty? %>
-  <h2> Last 5 games</h2>
-  <table>
+<div>
+  <div style="float: left">
+    <%= image_tag "logos/" + @team.large_logo %>
+  </div>
+  Country: <%= @team.country %><br/>
+  Foundation: <br/>
+  <div style="clear: both"></div>
+</div>
+
+<% last_games = @team.last_n_games(5)
+unless last_games.empty? %>
+<h2> Last 5 games</h2>
+<table>
   <% last_games.each do |game| %>
     <tr>
       <td><%= game.home.name %></td><td><%= game.home_score %></td>
@@ -12,18 +20,18 @@
       <td><%= game.away_score %></td><td><%= game.away.name %></td>
       <td><%= game.date.to_date %></td>
       <td><%= link_to game.phase.championship.full_name,
-                      { :action => "show",
-                        :controller => "championship",
-                        :id => game.phase.championship,
-                      } %></td>
-    </tr>
-  <% end %>
+        { :action => "show",
+          :controller => "championship",
+          :id => game.phase.championship,
+      } %></td>
+  </tr>
+<% end %>
   </table>
-  <% end %>
-  <% next_games = @team.next_n_games(5)
-     unless next_games.empty? %>
-  <h2> Next 5 games</h2>
-  <table>
+<% end %>
+<% next_games = @team.next_n_games(5)
+unless next_games.empty? %>
+<h2> Next 5 games</h2>
+<table>
   <% next_games.each do |game| %>
     <tr>
       <td><%= game.home.name %></td>
@@ -31,11 +39,11 @@
       <td><%= game.away.name %></td>
       <td><%= game.date.to_date %></td>
       <td><%= link_to game.phase.championship.full_name,
-                      { :action => "show",
-                        :controller => "championship",
-                        :id => game.phase.championship,
-                      } %></td>
-    </tr>
-  <% end %>
+        { :action => "show",
+          :controller => "championship",
+          :id => game.phase.championship,
+      } %></td>
+  </tr>
+<% end %>
   </table>
-  <% end %>
+<% end %>

@@ -14,7 +14,7 @@ development:
   adapter: mysql
   database: golaberto_development
   username: root
-  password: trwwsg
+  password: 
   host: localhost
 
 # Warning: The database defined as 'test' will be erased and
@@ -24,12 +24,12 @@ test:
   adapter: mysql
   database: golaberto_test
   username: root
-  password: trwwsg
+  password:
   host: localhost
 
 production:
   adapter: mysql
   database: golaberto
   username: root
-  password: trwwsg
+  password:
   host: localhost

@@ -11,17 +11,25 @@ class GameController < ApplicationController
     redirect_to options
   end
 
+  def prepare_for_edit
+    @referees = Referee.find(:all, :order => :name)
+    @stadiums = Stadium.find(:all, :order => :name)
+    @home_players = @game.home.team_players.find(
+      :all,
+      :order => :name,
+      :conditions => [ "championship_id = ?", @game.phase.championship ]).map {|p| p.player}
+      @away_players = @game.away.team_players.find(
+        :all,
+        :order => :name,
+        :conditions => [ "championship_id = ?", @game.phase.championship ]).map {|p| p.player}
+  end
+
+  private :prepare_for_edit
+
   def edit
     begin
       @game = Game.find(@params["id"])
-      @referees = Referee.find(:all, :order => :name)
-      @stadiums = Stadium.find(:all, :order => :name)
-      @home_players = @game.home.team_players.find(
-          :all,
-          :conditions => [ "championship_id = ?", @game.phase.championship ]).map {|p| p.player}
-      @away_players = @game.away.team_players.find(
-          :all,
-          :conditions => [ "championship_id = ?", @game.phase.championship ]).map {|p| p.player}
+      prepare_for_edit
     rescue
       flash[:notice] = "Game not found"
       redirect_to :action => 'list'
@@ -50,10 +58,31 @@ class GameController < ApplicationController
     @game.attributes = @params["game"]
     unless date.empty?
       @game.date = DateTime.strptime("#{date} - #{hour}:#{minute}",
-                                     ActiveSupport::CoreExtensions::Date::Conversions::DATE_FORMATS[:date] + " - " + ActiveSupport::CoreExtensions::Date::Conversions::DATE_FORMATS[:time])
+                                      "%d/%m/%Y - %H:%M")
     end
 
     saved = @game.save
+
+    @game.home_goals.clear
+    @game.away_goals.clear
+
+    @goals = Array.new
+    @game.home_score.times do |i|
+      goal = @game.home_goals.build(@params["home_goal"][i.to_s])
+      if goal.player
+        goal.team_id = goal.own_goal == "0" ? @game.home_id : @game.away_id
+        saved = goal.save and saved
+        @goals.push goal
+      end
+    end
+    @game.away_score.times do |i|
+      goal = @game.away_goals.build(@params["away_goal"][i.to_s])
+      if goal.player
+        goal.team_id = goal.own_goal == "0" ? @game.away_id : @game.home_id
+        saved = goal.save and saved
+        @goals.push goal
+      end
+    end
 
     if saved
       flash[:notice] = "Game saved"
@@ -63,8 +92,7 @@ class GameController < ApplicationController
         redirect_to :action => :show, :id => @game
       end
     else
-      @referees = Referee.find(:all, :order => :name)
-      @stadiums = Stadium.find(:all, :order => :name)
+      prepare_for_edit
       render :action => :edit
     end
   end

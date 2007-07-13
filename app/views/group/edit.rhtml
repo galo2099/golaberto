@@ -14,10 +14,11 @@
     <tr><td>Relegated:</td><td><%= f.text_field :relegated, :size => 2 %></td></tr>
   </table>
 
-  <p>Teams</p>
+  <p>
+  Teams<br/>
   Number of teams:
   <input type="text" id="team_number" value="<%= @group.teams.size %>" size="2"/><br/>
-  <%= observe_field 'team_number', :frequency => 1,
+  <%= observe_field 'team_number',
     :update => 'team_select',
     :url => { :action => 'edit', :id => @group },
     :with => 'team_number' %>
@@ -28,5 +29,3 @@
 
   <%= submit_tag "Update" %><br/>
 <% end %>
-
-

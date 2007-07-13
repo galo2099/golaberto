@@ -1,5 +1,5 @@
-<div id='conteudo'>
 <h1><%= h @championship.full_name %></h1>
+<div id='conteudo'>
 <%= image_tag("spinner.gif",
               :align => 'absmiddle',
               :border=> 0,
@@ -21,7 +21,7 @@
 </tr></table>
 
 <div id='table'>
-<%= render :partial => "game_list" %>
+  <%= render :partial => "game_table" %>
 </div>
 </div>
 
@@ -36,5 +36,6 @@
                                            :GF => true,
                                            :GA => true },
                         :omit_logo => true,
-                        :omit_popup => true } %>
+                        :omit_popup => true,
+                        :omit_comments => true } %>
 </div>

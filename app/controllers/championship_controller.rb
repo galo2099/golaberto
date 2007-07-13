@@ -21,7 +21,7 @@ class ChampionshipController < ApplicationController
 
   def list
     @total = Championship.count
-    @championship_pages, @championships = paginate :championships, :order => "name, begin"
+    @championship_pages, @championships = paginate :championships, :order => "begin DESC, name"
   end
 
   def show
@@ -48,6 +48,26 @@ class ChampionshipController < ApplicationController
     end
   end
 
+  def team
+    @championship = Championship.find(@params["id"])
+    @teams = @championship.phases.map{|p| p.groups}.flatten.map{|g| g.teams}.flatten.sort{|a,b| a.name <=> b.name}.uniq
+    if @params["team"].to_s == ""
+      @params["team"] = @teams.first.id
+    end
+    @team = Team.find(@params["team"])
+    @played_games = @team.home_games.find_all_by_phase_id_and_played(
+        @championship.phase_ids, 'played')
+    @played_games += @team.away_games.find_all_by_phase_id_and_played(
+        @championship.phase_ids, 'played')
+    @played_games.sort!{|a,b| a.date <=> b.date}
+
+    @scheduled_games = @team.home_games.find_all_by_phase_id_and_played(
+        @championship.phase_ids, 'scheduled')
+    @scheduled_games += @team.away_games.find_all_by_phase_id_and_played(
+        @championship.phase_ids, 'scheduled')
+    @scheduled_games.sort!{|a,b| a.date <=> b.date}
+  end
+
   def new_game
     @championship = Championship.find(@params["id"])
     @current_phase = @championship.phases.find(@params["phase"])
@@ -62,7 +82,7 @@ class ChampionshipController < ApplicationController
     @games_pages, @games = paginate :games, :order => "date", :per_page => items_per_page, :conditions => "games.phase_id = #{@current_phase.id}", :include => [ "home", "away" ]
 
     if request.xml_http_request?
-      render :partial => "game_list", :layout => false
+      render :partial => "game_table", :layout => false
     else
       phases
     end

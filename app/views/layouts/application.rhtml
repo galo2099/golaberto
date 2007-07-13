@@ -11,13 +11,15 @@
 <body>
   <div id='principal'>
     <div id='top'>
-      <%= link_to image_tag("logo", :border => 0), :action => 'index' %>
+      <%= link_to image_tag("logo.png", :border => 0), "/" %>
     </div>
 
     <div id='nav_top'>
       <%= link_to "Championships", :controller => :championship %> | 
       <%= link_to "Teams", :controller => :team %> | 
       <%= link_to "Players", :controller => :player %> |
+      <%= link_to "Stadiums", :controller => :stadium %> |
+      <%= link_to "Referees", :controller => :referee %> |
     </div>
 
     <% if flash[:notice] %>

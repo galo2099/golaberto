@@ -1,41 +1,159 @@
 <%= error_messages_for 'game' %>
+<% @goals.each do |goal| %>
+  <%= goal.errors.full_messages %>
+  <%= tag "br" unless goal.errors.full_messages.empty? %>
+<% end unless @goals.nil? %>
 
+<%= javascript_tag <<EOF
+function receiveDrop(drag, drop) {
+  home_away = drop.id.replace(/_goal_player_.*/, "");
+  idx = drop.id.replace(/.*_goal_player_/, "");
+  drop.innerHTML = drag.innerHTML;
+  penalty = document.getElementById(home_away + "_goal[" + idx + "][penalty]");
+  if (drag.id.match(home_away)) {
+    penalty.disabled = false;
+  } else {
+    penalty.disabled = true;
+    penalty.checked = false;
+  }
+  own = document.getElementById(home_away + "_goal[" + idx + "][own_goal]");
+  if (drag.id.match(home_away)) {
+    own.checked = false;
+  } else {
+    own.checked = true;
+  }
+  input = document.getElementById(home_away + "_goal[" + idx + "][player_id]");
+  input.value = drag.id.replace(/.*_player_/, "");
+}
+
+EOF
+%>
 <h1><%= @game.phase.championship.full_name %></h1>
 <h2><%= @game.phase.name %></h2>
 
-<% form_for :game, @game, :url => { :action => "update", :id => @game } do |g| %>
-  <table>
-    <tr><td>
-        <b><%= @game.home.name %></b>
-        </td><td></td><td>
-        <b><%= @game.away.name %></b>
-    </td></tr>
+<% form_for :game, @game, :url => { :action => "update", :id => @game} do |g| %>
+  <%= hidden_field_tag "redirect", @params["redirect"] if @params["redirect"] %>
+  <table border=1 width=100%>
+    <tr>
+      <td><%= image_tag "logos/" + @game.home.large_logo %></td>
+      <td> <b><%= @game.home.name %></b> </td>
+      <td> <%= g.text_field :home_score, :size => 2 %> </td>
+      <td>x</td>
+      <td> <%= g.text_field :away_score, :size => 2 %> </td>
+      <td> <b><%= @game.away.name %></b> </td>
+      <td><%= image_tag "logos/" + @game.away.large_logo %></td>
+    </tr>
     <tr>
       <td>
-        <%= @home_players.map {|p| "#{p.name}<br/>"} %>
-      </td>
-      <td align=center>
-        <%= hidden_field_tag "redirect", @params["redirect"] if @params["redirect"] %>
-        <%= g.text_field :home_score, :size => 2 %> x 
-        <%= g.text_field :away_score, :size => 2 %>
-        <br/>
-        Round: <%= g.text_field :round, :size => 2 %><br/>
-        Attendance: <%= g.text_field :attendance, :size => 6 %><br/>
-        Date: <%= date_field :game, :date, :value => @game.date ? @game.date.to_date : "", :format => "%d/%m/%Y", :size => 10 %><br/>
-        Time: <%= select_hour @game.date %> : <%= select_minute @game.date %><br/>
-        Referee: 
-        <select id="game_referee_id" name="game[referee_id]">
-          <%= options_from_collection_for_select @referees, "id", "name", @game.referee_id %>
-        </select><br/>
-        Stadium: 
-        <select id="game_stadium_id" name="game[stadium_id]">
-          <%= options_from_collection_for_select @stadiums, "id", "name", @game.stadium_id %>
-        </select><br/>
-        <%= select "game", "played", [ "scheduled", "played" ] %><br/>
+        <% @home_players.each do |p| %>
+          <div id="home_player_<%= p.id %>">
+            <%= p.name %>
+          </div>
+          <%= draggable_element "home_player_#{p.id}", :revert => true %>
+        <% end %>
       </td>
       <td>
-        <%= @away_players.map {|p| "#{p.name}<br/>"} %>
+        <table id="home_goals">
+          <tr><th>Player</th><th>Time</th><th>Pen</th><th>Own</th></tr>
+          <% @game.home_score.times do |i| %>
+            <%= input_for_goal @game.home_goals[i], i, "home" %>
+          <% end %>
+        </table>
       </td>
-  </tr></table>
+      <td></td><td></td><td></td>
+      <td>
+        <table id="away_goals">
+          <tr><th>Player</th><th>Time</th><th>Pen</th><th>Own</th></tr>
+          <% @game.away_score.times do |i| %>
+            <%= input_for_goal @game.away_goals[i], i, "away" %>
+          <% end %>
+        </table>
+      </td>
+      <td>
+        <% @away_players.each do |p| %>
+          <div id="away_player_<%= p.id %>">
+            <%= p.name %>
+          </div>
+          <%= draggable_element "away_player_#{p.id}", :revert => true %>
+        <% end %>
+      </td>
+    </tr>
+  </table>
+  Round: <%= g.text_field :round, :size => 2 %><br/>
+  Attendance: <%= g.text_field :attendance, :size => 6 %><br/>
+  Date: <%= date_field :game, :date, :value => @game.date ? @game.date.to_date : "", :format => "%d/%m/%Y", :size => 10 %><br/>
+  Time: <%= select_hour @game.date %> : <%= select_minute @game.date %><br/>
+  Referee: 
+  <select id="game_referee_id" name="game[referee_id]">
+    <option value=""></option>
+    <%= options_from_collection_for_select @referees, "id", "name", @game.referee_id %>
+  </select><br/>
+  Stadium: 
+  <select id="game_stadium_id" name="game[stadium_id]">
+    <option value=""></option>
+    <%= options_from_collection_for_select @stadiums, "id", "name", @game.stadium_id %>
+  </select><br/>
+  <%= select "game", "played", [ "scheduled", "played" ] %><br/>
   <%= submit_tag "Update" %>
 <% end %>
+
+<%= javascript_tag <<EOF
+function updateGoalTable(home_away, value) {
+  i = 0;
+  for (i = 0; i < value; ++i) {
+    tr = document.getElementById(home_away + "_goal_" + i)
+    if (tr) {
+      tr.style.display = "";
+    } else {
+      tr = document.getElementById(home_away + "_goals").insertRow(-1);
+      tr.id = home_away + "_goal_" + i;
+      td = document.createElement("TD");
+      tr.appendChild(td);
+      input = document.createElement("INPUT");
+      input.type = "hidden";
+      input.id = home_away + "_goal[" + i + "][player_id]";
+      input.name = input.id;
+      input.value = "";
+      td.appendChild(input);
+      div = document.createElement("DIV");
+      div.id = home_away + "_goal_player_" + i;
+      div.innerHTML = "&nbsp;";
+      td.appendChild(div);
+      td = document.createElement("TD");
+      tr.appendChild(td);
+      input = document.createElement("INPUT");
+      input.id = home_away + "_goal[" + i + "][time]";
+      input.name = input.id;
+      input.size = 2;
+      input.type = "text";
+      input.value = "";
+      td.appendChild(input);
+      td = document.createElement("TD");
+      tr.appendChild(td);
+      input = document.createElement("INPUT");
+      input.id = home_away + "_goal[" + i + "][penalty]";
+      input.name = input.id;
+      input.type = "checkbox";
+      input.value = "1";
+      td.appendChild(input);
+      td = document.createElement("TD");
+      tr.appendChild(td);
+      input = document.createElement("INPUT");
+      input.id = home_away + "_goal[" + i + "][own_goal]";
+      input.name = input.id;
+      input.disabled = true;
+      input.type = "checkbox";
+      input.value = "1";
+      td.appendChild(input);
+      Droppables.add(div.id, {hoverclass:'drop_receiving', onDrop:receiveDrop});
+    }
+  }
+  while (tr = document.getElementById(home_away + "_goal_" + i++)) {
+    tr.style.display = "none";
+  }
+}
+EOF
+%>
+
+<%= observe_field 'game_home_score', :function => "updateGoalTable('home', value);" %>
+<%= observe_field 'game_away_score', :function => "updateGoalTable('away', value);" %>

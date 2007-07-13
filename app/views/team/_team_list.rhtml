@@ -1,9 +1,30 @@
 <% if @total == 0 %>
-<p>No teams found</p>
+  <p>No teams found</p>
 <% else %>
 
+  <table>
+    <tr>
+      <th>Name</th>
+      <th>Country</th>
+    </tr>
+
+    <% for team in @teams %>
+      <tr>
+        <td><%= image_tag "logos/" + team.small_logo unless team.logo.nil? %>
+          <%= team.name %></td>
+        <td><%= team.country %></td>
+        <td><%= link_to 'Show', :action => 'show', :id => team %></td>
+        <td><%= link_to 'Edit', :action => 'edit', :id => team %></td>
+        <td><%= link_to 'Destroy', { :action => 'destroy', :id => team }, :confirm => 'Are you sure?', :post => true %></td>
+      </tr>
+    <% end %>
+  </table>
+
   <% if @team_pages.page_count > 1 %>
-    <% page_options = { :url => { :action => :list, :id => @params[:id] }, :update => "table" } %>
+    <% page_options = { :url => { :action => :list, :id => @params[:id] },
+                        :update => "table",
+                        :before => "Element.show('spinner')",
+                        :success => "Element.hide('spinner')" } %>
     <% unless @team_pages.current.first? %>
       <% my_options = page_options %>
       <% my_options[:url].merge!({:page => @team_pages.current.previous}) %>
@@ -21,22 +42,5 @@
     <% end %>
   <% end %>
 
-<table>
-  <tr>
-  <th>Name</th>
-  <th>Country</th>
-  </tr>
-  
-<% for team in @teams %>
-  <tr>
-  <td><%= image_tag "logos/" + team.small_logo unless team.logo.nil? %>
-  <%= team.name %></td>
-  <td><%= team.country %></td>
-  <td><%= link_to 'Show', :action => 'show', :id => team %></td>
-  <td><%= link_to 'Edit', :action => 'edit', :id => team %></td>
-  <td><%= link_to 'Destroy', { :action => 'destroy', :id => team }, :confirm => 'Are you sure?', :post => true %></td>
-  </tr>
-<% end %>
-</table>
 <% end %>
 

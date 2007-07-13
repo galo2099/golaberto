@@ -276,7 +276,7 @@ font-size: 11px;
 }
 .game_show_goals
 {
-  font-size: 10px;
+  font-size: 12px;
   color: green;
 }
 .game_show_home_team
@@ -313,3 +313,7 @@ font-size: 11px;
   color: #FFFFFF;
 }
 
+.drop_receiving
+{
+  border: 2px solid #000000;
+}

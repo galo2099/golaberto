@@ -1,26 +1,33 @@
+<h1>Listing Championships</h1>
 <% if @total == 0 %>
-<p>No championships found</p>
+  <p>No championships found</p>
 <% else %>
 
+  <table>
+    <tr>
+      <th>Name</th>
+      <th>Sort</th>
+    </tr>
+
+    <% for championship in @championships %>
+      <tr>
+        <td><%= championship.full_name %></td>
+        <td><%= link_to 'Show', :action => 'show', :id => championship %></td>
+        <td><%= link_to 'Edit', :action => 'edit', :id => championship %></td>
+        <td><%= link_to 'Destroy', { :action => 'destroy',
+                                     :id => championship },
+                                   :confirm => 'Are you sure?',
+                                   :method => :post %></td>
+      </tr>
+    <% end %>
+  </table>
+
+  <p>
   <% if @championship_pages.page_count > 1 %>
     <%= pagination_links @championship_pages, { :window_size => 1 } %>
   <% end %>
+  </p>
 
-<table>
-  <tr>
-  <th>Name</th>
-  <th>Sort</th>
-  </tr>
-  
-<% for championship in @championships %>
-  <tr>
-  <td><%= championship.full_name %></td>
-  <td><%= link_to 'Show', :action => 'show', :id => championship %></td>
-  <td><%= link_to 'Edit', :action => 'edit', :id => championship %></td>
-  <td><%= link_to 'Destroy', { :action => 'destroy', :id => championship }, :confirm => 'Are you sure?', :post => true %></td>
-  </tr>
-<% end %>
-</table>
 <% end %>
 
 <%= link_to 'Create', :action => :new %>

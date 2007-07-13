@@ -3,34 +3,66 @@
 
 <table class="game_show_score">
   <tr>
-    <td class="game_show_home_team"><%= image_tag "logos/" + @game.home.small_logo %> <%= @game.home.name %></td>
+    <td><%= image_tag "logos/" + @game.home.large_logo %></td>
+    <td class="game_show_home_team"><%= @game.home.name %></td>
     <td></td>
+    <td><%= "(#{@game.home_pen})" if @game.home_pen %></td>
     <td class="game_show_home_score"><%= @game.home_score %></td>
     <td class="game_show_x">x</td>
     <td class="game_show_away_score"><%= @game.away_score %></td>
+    <td><%= "(#{@game.away_pen})" if @game.away_pen %></td>
     <td></td>
-    <td class="game_show_away_team"><%= @game.away.name %> <%= image_tag "logos/" + @game.away.small_logo %></td>
+    <td class="game_show_away_team"><%= @game.away.name %></td>
+    <td><%= image_tag "logos/" + @game.away.large_logo %></td>
   </tr>
 
   <% count_home = 0 %>
   <% count_away = 0 %>
   <% player_scored = Hash.new %>
   <% @game.goals.each do |goal| %>
-    <% player_scored[goal.player.id] = true if goal.player %>
-    <% count_home += 1 if goal.team == @game.home %>
-    <% count_away += 1 if goal.team == @game.away %>
+    <%
+    if goal.own_goal == "1"
+      if goal.team == @game.home
+        home_goal = false
+        away_goal = true
+      else
+        home_goal = true
+        away_goal = false
+      end
+    else
+      if goal.team == @game.home
+        home_goal = true
+        away_goal = false
+      else
+        home_goal = false
+        away_goal = true
+      end
+    end %>
+    <% player_scored[goal.player.id] = true if goal.player unless goal.own_goal %>
+    <% count_home += 1 if home_goal %>
+    <% count_away += 1 if away_goal %>
     <tr class="game_show_goals">
-      <td class="game_show_home_score"><%= goal.player.name if goal.team == @game.home %></td>
-      <td class="game_show_home_score"><%= "#{goal.time}'" if goal.team == @game.home %></td>
-      <td class="game_show_home_score"><%= "(#{count_home}-#{count_away})" if goal.team == @game.home %></td>
       <td></td>
-      <td class="game_show_away_score"><%= "(#{count_home}-#{count_away})" if goal.team == @game.away %></td>
-      <td class="game_show_away_score"><%= "#{goal.time}'" if goal.team == @game.away %></td>
-      <td class="game_show_away_score"><%= goal.player.name if goal.team == @game.away %></td>
+      <td class="game_show_home_score"><%= goal.player.name if home_goal %></td>
+      <td class="game_show_home_score">
+        <%= "(pen)" if goal.penalty == "1" and home_goal %>
+        <%= "(own)" if goal.own_goal == "1" and home_goal %>
+      </td>
+      <td class="game_show_home_score"><%= "#{goal.time}'" if home_goal %></td>
+      <td class="game_show_home_score"><%= "(#{count_home}-#{count_away})" if home_goal %></td>
+      <td></td>
+      <td class="game_show_away_score"><%= "(#{count_home}-#{count_away})" if away_goal %></td>
+      <td class="game_show_away_score"><%= "#{goal.time}'" if away_goal %></td>
+      <td class="game_show_away_score">
+        <%= "(pen)" if goal.penalty == "1" and away_goal %>
+        <%= "(own)" if goal.own_goal == "1" and away_goal %>
+      </td>
+      <td class="game_show_away_score"><%= goal.player.name if away_goal %></td>
+      <td></td>
     </tr>
   <% end %>
 
-  <tr><td colspan="3">
+  <tr><td></td><td colspan="4">
       <table style="width: 100%">
         <tr class="game_show_goals game_show_away_score">
           <th>Name</th>
@@ -54,7 +86,7 @@
         <% end %>
       </table>
     </td><td></td>
-    <td colspan="3">
+    <td colspan="4">
       <table style="width: 100%">
         <tr class="game_show_goals game_show_away_score">
           <th>Name</th>
@@ -77,14 +109,15 @@
           </tr>
         <% end %>
       </table>
+      </td><td>
   </td></tr>
 
 
-  <tr><td colspan="7">
+  <tr><td colspan="10">
       <table>
         <tr><td>Round:</td><td><%= @game.round %></td></tr>
         <tr><td>Attendance:</td><td><%= @game.attendance %></td></tr>
-        <tr><td>Date:</td><td><%= @game.formatted_date + " - " + @game.formatted_time %></td></tr>
+        <tr><td>Date:</td><td><%= @game.formatted_date.to_s + " - " + @game.formatted_time.to_s %></td></tr>
         <tr><td>Stadium:</td><td><%= @game.stadium.name unless @game.stadium.nil? %></td></tr>
         <tr><td>Referee:</td><td><%= "#{@game.referee.name} (#{@game.referee.location})" unless @game.referee.nil? %></td></tr>
       </table>

@@ -6,8 +6,23 @@ class Game < ActiveRecord::Base
   belongs_to :referee
 
   has_many :goals,
+           :class_name => "Goal",
            :order => :time,
            :include => :player,
+           :dependent => :delete_all
+
+  has_many :home_goals,
+           :class_name => "Goal",
+           :order => :time,
+           :include => :player,
+           :conditions => '(team_id = #{home_id} and own_goal = "0") or (team_id = #{away_id} and own_goal = "1")',
+           :dependent => :delete_all
+
+  has_many :away_goals,
+           :class_name => "Goal",
+           :order => :time,
+           :include => :player,
+           :conditions => '(team_id = #{away_id} and own_goal = "0") or (team_id = #{home_id} and own_goal = "1")',
            :dependent => :delete_all
 
   has_many :home_player_games,
@@ -37,15 +52,18 @@ class Game < ActiveRecord::Base
     errors.add(:home, "can't play with itself") if home_id == away_id
   end
 
-  def formatted_date
+  def formatted_date(day = false)
+    ret = ""
     unless date.nil?
-      date.to_s(:date)
+      ret = date.strftime("%d/%m/%Y")
+      ret << " - " << date.strftime("%A") if day
     end
+    ret
   end
 
   def formatted_time
     unless date.nil? or (date.hour == 0 and date.min == 0)
-      date.to_s(:time)
+      date.strftime("%H:%M")
     end
   end
 

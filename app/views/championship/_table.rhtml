@@ -1,5 +1,6 @@
 <% omit_columns = {} if omit_columns.nil? %>
 <% omit_logo = false if omit_logo.nil? %>
+<% omit_comments = false if omit_comments.nil? %>
 <% omit_popup = false if omit_popup.nil? %>
 <% @current_phase.groups.each do |group| %>
 <h3><%= h group.name %></h3>
@@ -21,9 +22,11 @@
   <% sort_teams(@current_phase, group, @class).each do |t|
     team = t.team
     note_number = ""
-    if t.comment
-      notes.push t.comment
-      note_number = " (#{notes.size})"
+    unless omit_comments
+      if t.comment
+        notes.push t.comment
+        note_number = " (#{notes.size})"
+      end
     end
     pos += 1
     tr_class = 'table_line'

@@ -1,0 +1,38 @@
+<h1><%= @championship.full_name %></h1>
+
+<div id='conteudo'>
+<select id='team_select'>
+  <%= options_from_collection_for_select @teams, "id", "name", @team.id %>
+</select>
+
+<% team_url = url_for(:controller => :championship, :action => :team, :id => @championship, :team => "") %>
+<%= observe_field 'team_select', :function => "document.location = '#{team_url}' + value" %>
+
+<h2><%= image_tag "logos/" + @team.large_logo %> <%= @team.name %></h2>
+
+<h3>Played</h3>
+<table class="game_score">
+    <% @played_games.each do |@game| %>
+      <tr class="<%= cycle "table_line_even", "table_line_odd" %>">
+        <td><%= @game.formatted_date %></td>
+        <%= render :partial => "championship/game_list" %>
+      </tr>
+    <% end %>
+</table>
+
+<h3>Scheduled</h3>
+<table class="game_score">
+    <% @scheduled_games.each do |@game| %>
+      <tr class="<%= cycle "table_line_even", "table_line_odd" %>">
+        <td><%= @game.formatted_date %></td>
+        <%= render :partial => "game_list" %>
+      </tr>
+    <% end %>
+</table>
+</div>
+
+<div style="float: left">
+  <%= render :partial => "nav_side" %>
+</div>
+
+

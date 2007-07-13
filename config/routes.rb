@@ -11,7 +11,7 @@ ActionController::Routing::Routes.draw do |map|
 
   # You can have the root of your site routed by hooking up '' 
   # -- just remember to delete public/index.html.
-  # map.connect '', :controller => "welcome"
+  map.connect '', :controller => 'championship'
 
   # Allow downloading Web Service WSDL as a file with an extension
   # instead of a file named 'wsdl'
@@ -21,7 +21,8 @@ ActionController::Routing::Routes.draw do |map|
   map.connect 'championship/show/:id/phases/:phase', :controller => 'championship', :action => 'phases'
   map.connect 'championship/show/:id/games/:phase', :controller => 'championship', :action => 'games'
   map.connect 'championship/show/:id/new_game/:phase', :controller => 'championship', :action => 'new_game'
+  map.connect 'championship/show/:id/team/:team', :controller => 'championship', :action => 'team'
 
   # Install the default route as the lowest priority.
-  map.connect ':controller/:action/:id'
+  map.connect ':controller/:action/:id', :controller => 'championship'
 end
