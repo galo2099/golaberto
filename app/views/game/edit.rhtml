@@ -9,20 +9,20 @@ function receiveDrop(drag, drop) {
   home_away = drop.id.replace(/_goal_player_.*/, "");
   idx = drop.id.replace(/.*_goal_player_/, "");
   drop.innerHTML = drag.innerHTML;
-  penalty = document.getElementById(home_away + "_goal[" + idx + "][penalty]");
+  penalty = $(home_away + "_goal[" + idx + "][penalty]");
   if (drag.id.match(home_away)) {
     penalty.disabled = false;
   } else {
     penalty.disabled = true;
     penalty.checked = false;
   }
-  own = document.getElementById(home_away + "_goal[" + idx + "][own_goal]");
+  own = $(home_away + "_goal[" + idx + "][own_goal]");
   if (drag.id.match(home_away)) {
     own.checked = false;
   } else {
     own.checked = true;
   }
-  input = document.getElementById(home_away + "_goal[" + idx + "][player_id]");
+  input = $(home_away + "_goal[" + idx + "][player_id]");
   input.value = drag.id.replace(/.*_player_/, "");
 }
 
@@ -33,7 +33,7 @@ EOF
 
 <% form_for :game, @game, :url => { :action => "update", :id => @game} do |g| %>
   <%= hidden_field_tag "redirect", @params["redirect"] if @params["redirect"] %>
-  <table border=1 width=100%>
+  <table width="100%">
     <tr>
       <td><%= image_tag "logos/" + @game.home.large_logo %></td>
       <td> <b><%= @game.home.name %></b> </td>
@@ -101,11 +101,11 @@ EOF
 function updateGoalTable(home_away, value) {
   i = 0;
   for (i = 0; i < value; ++i) {
-    tr = document.getElementById(home_away + "_goal_" + i)
+    tr = $(home_away + "_goal_" + i)
     if (tr) {
-      tr.style.display = "";
+      tr.show()
     } else {
-      tr = document.getElementById(home_away + "_goals").insertRow(-1);
+      tr = $(home_away + "_goals").insertRow(-1);
       tr.id = home_away + "_goal_" + i;
       td = document.createElement("TD");
       tr.appendChild(td);
@@ -148,12 +148,12 @@ function updateGoalTable(home_away, value) {
       Droppables.add(div.id, {hoverclass:'drop_receiving', onDrop:receiveDrop});
     }
   }
-  while (tr = document.getElementById(home_away + "_goal_" + i++)) {
-    tr.style.display = "none";
+  while (tr = $(home_away + "_goal_" + i++)) {
+    tr.hide();
   }
 }
 EOF
 %>
 
-<%= observe_field 'game_home_score', :function => "updateGoalTable('home', value);" %>
-<%= observe_field 'game_away_score', :function => "updateGoalTable('away', value);" %>
+<%= observe_field 'game_home_score', :function => "updateGoalTable('home', value); $('game_played').value = 'played';" %>
+<%= observe_field 'game_away_score', :function => "updateGoalTable('away', value); $('game_played').value = 'played';" %>

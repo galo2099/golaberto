@@ -2,7 +2,7 @@
 <% omit_logo = false if omit_logo.nil? %>
 <% omit_comments = false if omit_comments.nil? %>
 <% omit_popup = false if omit_popup.nil? %>
-<% @current_phase.groups.each do |group| %>
+<% @current_phase.groups.each_with_index do |group, i| %>
 <h3><%= h group.name %></h3>
 <table class='class_table'>
   <tr class='table_head'>
@@ -19,12 +19,13 @@
   </tr>
   <% pos = 0 %>
   <% notes = Array.new %>
-  <% sort_teams(@current_phase, group, @class).each do |t|
-    team = t.team
+  <% @sorted_teams[i].each do |t|
+    team = t[0].team
+    stats = t[1]
     note_number = ""
     unless omit_comments
-      if t.comment
-        notes.push t.comment
+      if t[0].comment
+        notes.push t[0].comment
         note_number = " (#{notes.size})"
       end
     end
@@ -84,14 +85,14 @@
                          :class => "name",
                          :title => title_popup) unless omit_columns[:Name] %>
                          
-         <%= content_tag :td, @class[team.id].points unless omit_columns[:Pts] %>
-         <%= content_tag :td, @class[team.id].games unless omit_columns[:G] %>
-         <%= content_tag :td, @class[team.id].wins unless omit_columns[:W] %>
-         <%= content_tag :td, @class[team.id].draws unless omit_columns[:D] %>
-         <%= content_tag :td, @class[team.id].losses unless omit_columns[:L] %>
-         <%= content_tag :td, @class[team.id].goals_for unless omit_columns[:GF] %>
-         <%= content_tag :td, @class[team.id].goals_against unless omit_columns[:GA] %>
-         <%= content_tag :td, @class[team.id].goals_diff unless omit_columns[:GD] %>
+         <%= content_tag :td, stats.points unless omit_columns[:Pts] %>
+         <%= content_tag :td, stats.games unless omit_columns[:G] %>
+         <%= content_tag :td, stats.wins unless omit_columns[:W] %>
+         <%= content_tag :td, stats.draws unless omit_columns[:D] %>
+         <%= content_tag :td, stats.losses unless omit_columns[:L] %>
+         <%= content_tag :td, stats.goals_for unless omit_columns[:GF] %>
+         <%= content_tag :td, stats.goals_against unless omit_columns[:GA] %>
+         <%= content_tag :td, stats.goals_diff unless omit_columns[:GD] %>
        </tr>
      <% end %>
    </table>

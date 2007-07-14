@@ -1,5 +1,4 @@
 class ChampionshipController < ApplicationController
-  helper :phase
 
   def index
     redirect_to :action => :list
@@ -35,16 +34,62 @@ class ChampionshipController < ApplicationController
     end
   end
 
+  def sort_teams(phase, group, team_class)
+    columns = phase.sort.split(/,\s*/)
+    sorter = lambda { |b,a|
+      ret = 0
+      columns.detect do |column|
+        case column
+        when "pt"
+          ret = team_class[a.id].points <=> team_class[b.id].points
+        when "w"
+          ret = team_class[a.id].wins <=> team_class[b.id].wins
+        when  "gd"
+          ret = team_class[a.id].goals_diff <=> team_class[b.id].goals_diff
+        when "gf"
+          ret = team_class[a.id].goals_for <=> team_class[b.id].goals_for
+        when "name"
+          ret = a.name <=> b.name
+        when "g_average"
+          ret = team_class[a.id].goals_avg <=> team_class[b.id].goals_avg
+        when "gp"
+          ret = team_class[a.id].goals_pen <=> team_class[b.id].goals_pen
+        when "g_away"
+          ret = team_class[a.id].goals_away <=> team_class[b.id].goals_away
+        when "bias"
+          ret = group.team_groups.find(
+              :first,
+              :conditions => [ "team_id = ?", a.id ]).bias <=>
+                group.team_groups.find(:first,
+              :conditions => [ "team_id = ?", b.id ]).bias
+        end
+        ret != 0
+      end
+      ret
+    }
+    group.team_groups.sort do |a,b|
+      sorter.call a.team, b.team
+    end.map do |t|
+      [ t, team_class[t.team.id] ]
+    end
+  end
+
+  private :sort_teams
+
   def phases
     @championship = Championship.find(@params["id"])
     @current_phase = @championship.phases.find(@params["phase"])
     @all_games = @current_phase.games.find(:all,
                                            :order => "date")
-    @class = Hash.new
+    stats = Hash.new
     @current_phase.groups.each do |group|
-      group.teams.each do |team|
-        @class[team.id] = ChampionshipHelper::TeamCampaign.new team, @all_games
+      group.team_groups.each do |team_group|
+        stats[team_group.team.id] = ChampionshipHelper::TeamCampaign.new(team_group, @all_games)
       end
+    end
+
+    @sorted_teams = @current_phase.groups.map do |group|
+      sort_teams(@current_phase, group, stats)
     end
   end
 
@@ -61,10 +106,38 @@ class ChampionshipController < ApplicationController
         @championship.phase_ids, 'played')
     @played_games.sort!{|a,b| a.date <=> b.date}
 
+    games = 0
+    @data_for_graph = Array.new
+    @championship.phases.each do |phase|
+      points = 0
+      data = @played_games.select{|g| g.phase.id == phase.id}.map do |game|
+        earned = 0
+        if game.home_score > game.away_score
+          earned = 3 if game.home == @team
+        elsif game.home_score < game.away_score
+          earned = 3 if game.away == @team
+        else
+          earned = 1
+        end
+        points += earned
+        games += 1
+        color = earned == 3 ? "blue" : earned == 1 ? "grey" : "red"
+        game_str = game.formatted_date + " "
+        game_str << game.home.name + " " + game.home_score.to_s + " x "
+        game_str << game.away_score.to_s + " " + game.away.name
+        game_str = "header=[#{points} points] body=[#{game_str}] cssbody=[popupbody]"
+        { :title => game_str,
+          :color => color,
+          :value => points,
+          :game => game }
+      end
+      @data_for_graph.push data
+    end
+
     @scheduled_games = @team.home_games.find_all_by_phase_id_and_played(
-        @championship.phase_ids, 'scheduled')
+        @championship.phase_ids, 'scheduled', :include => [ :home, :away ])
     @scheduled_games += @team.away_games.find_all_by_phase_id_and_played(
-        @championship.phase_ids, 'scheduled')
+        @championship.phase_ids, 'scheduled', :include => [ :home, :away ])
     @scheduled_games.sort!{|a,b| a.date <=> b.date}
   end
 

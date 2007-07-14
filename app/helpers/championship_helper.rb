@@ -3,7 +3,7 @@ module ChampionshipHelper
     attr_reader :points, :games, :wins, :draws, :losses,
                 :goals_for, :goals_against, :goals_pen, :goals_away
 
-    def initialize(team, games)
+    def initialize(team_group, games)
       @games = 0
       @points = 0
       @wins = 0
@@ -16,11 +16,12 @@ module ChampionshipHelper
       if (games.size == 0)
         return
       end
+      team = team_group.team
       championship = games[0].phase.championship unless games[0].nil?
       points_for_win = championship.point_win
       points_for_draw = championship.point_draw
       points_for_loss = championship.point_loss
-      add_sub = TeamGroup.find(:first, :conditions => [ "team_id = ? AND group_id IN (?)", team.id, games[0].phase.group_ids ]).add_sub
+      add_sub = team_group.add_sub
       games.collect do |x|
         x if (x.home_id == team.id or
               x.away_id == team.id) and

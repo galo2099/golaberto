@@ -317,3 +317,37 @@ font-size: 11px;
 {
   border: 2px solid #000000;
 }
+
+#graphs
+{
+  margin-top: 10px;
+}
+
+.panel
+{
+  clear: both;
+  display: none;
+  background-color: #3e3e3e;
+  padding: 5px;
+  margin-top: 4px;
+}
+.panel.active-tab-body
+{
+  display: block;
+}
+
+#tabs a 
+{
+  font-size: 12px;
+  padding: 5px 8px;
+  margin-left: 6px;
+  background-color: #DCDCDC;
+  text-decoration: none;
+  color: #999999;
+}
+
+#tabs a.active-tab 
+{
+  background-color: #3e3e3e;
+  color: #ccc;
+}

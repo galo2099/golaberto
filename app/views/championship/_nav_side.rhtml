@@ -1,3 +1,4 @@
+<% @current_phase ||= @championship.phases[-1] %>
 <%= link_to "Edit championship", :action => "edit", :id => @championship %><br/>
 <br/>
 <%= link_to "New game", :action => :new_game, :id => @championship,
