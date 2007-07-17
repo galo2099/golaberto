@@ -1,9 +1,26 @@
 # Methods added to this helper will be available to all templates in the application.
 module ApplicationHelper
   def pagination_links_remote(paginator, page_options={}, ajax_options={}, html_options={})
-    pagination_links_each(paginator, page_options) {|page|
+    html = ""
+    unless paginator.current.first?
+      ajax_options[:url].merge!({:page => paginator.current.previous})
+      html << link_to_remote("Prev", ajax_options, html_options)
+      html << " "
+    else
+      html << "Prev "
+    end
+    html << pagination_links_each(paginator, page_options) do |page|
       ajax_options[:url].merge!({:page => page})
-      link_to_remote(page, ajax_options, html_options)}
+      link_to_remote(page, ajax_options, html_options)
+    end
+    unless paginator.current.last?
+      ajax_options[:url].merge!({:page => paginator.current.next})
+      html << " "
+      html << link_to_remote("Next", ajax_options, html_options)
+    else
+      html << " Next"
+    end
+    html
   end
 
   def unless_nil(value)

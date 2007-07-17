@@ -1,5 +1,7 @@
 class PhaseController < ApplicationController
-  scaffold :phase
+  before_filter :login_required, :only => [ :new, :create, :edit,
+                                            :update, :destroy ]
+
   def new
     @phase = Phase.new
   end
@@ -37,14 +39,8 @@ class PhaseController < ApplicationController
     end
   end
 
-
   def destroy
     Phase.find(@params["id"]).destroy
     redirect_to :back
-  end
-
-  def list
-    @total = Phase.count
-    @phase_pages, @phases = paginate :phases
   end
 end

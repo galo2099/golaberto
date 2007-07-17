@@ -1,0 +1,30 @@
+<table>
+  <tr><th>Players</th></tr>
+  <% players.each do |p| %>
+    <tr><td><div id="<%= home_away %>_player_<%= p.id %>">
+          <%= p.name %>
+    </div></td></tr>
+    <%= draggable_element "#{home_away}_player_#{p.id}", :revert => true %>
+  <% end %>
+</table>
+
+<%= link_to_function("Add", :id => "link_player_#{home_away}") do |page|
+  page["link_player_#{home_away}"].hide
+  page["add_player_#{home_away}"].show
+end %>
+<div id="add_player_<%= home_away %>" style="display: none">
+  <%= text_field_tag "#{home_away}_player_name" %><br/>
+  <%= button_to_function "Cancel" do |page| 
+      page["link_player_#{home_away}"].show
+      page["add_player_#{home_away}"].hide
+  end %>
+  <%= observe_field "#{home_away}_player_name",
+    :frequency => 1,
+    :url => { :action => :list_players,
+      :team => team,
+      :game => game },
+    :with => "name"
+    %>
+  <div id="<%= home_away %>_add_player_list">
+  </div>
+</div>

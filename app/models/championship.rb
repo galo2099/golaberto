@@ -1,5 +1,6 @@
 class Championship < ActiveRecord::Base
   has_many :phases, :order => "order_by", :dependent => :destroy
+  has_many :team_players, :dependent => :delete_all
   validates_presence_of :name
   validates_presence_of :begin
   validates_presence_of :end

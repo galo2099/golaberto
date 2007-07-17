@@ -1,6 +1,5 @@
 <p>
 <% if @games_pages.page_count > 1 %>
-Page:
 <%= pagination_links_remote @games_pages, { :window_size => 1 }, :url => { :action => :games }, :update => "table" %>
 <% end %>
 </p>

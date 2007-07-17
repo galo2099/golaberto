@@ -16,11 +16,14 @@ function receiveDrop(drag, drop) {
     penalty.disabled = true;
     penalty.checked = false;
   }
+  own_check = $(home_away + "_goal[" + idx + "][own_goal_check]");
   own = $(home_away + "_goal[" + idx + "][own_goal]");
   if (drag.id.match(home_away)) {
-    own.checked = false;
+    own_check.checked = false;
+    own.value = "0";
   } else {
-    own.checked = true;
+    own_check.checked = true;
+    own.value = "1";
   }
   input = $(home_away + "_goal[" + idx + "][player_id]");
   input.value = drag.id.replace(/.*_player_/, "");
@@ -44,38 +47,44 @@ EOF
       <td><%= image_tag "logos/" + @game.away.large_logo %></td>
     </tr>
     <tr>
-      <td>
-        <% @home_players.each do |p| %>
-          <div id="home_player_<%= p.id %>">
-            <%= p.name %>
-          </div>
-          <%= draggable_element "home_player_#{p.id}", :revert => true %>
-        <% end %>
+      <td class="players">
+        <div id="home_players">
+          <%= render :partial => "player_list",
+            :locals => { :players => @home_players,
+              :team => @game.home,
+              :game => @game,
+              :home_away => "home"
+          } %>
+        </div>
       </td>
-      <td>
+      <td class="goals">
         <table id="home_goals">
-          <tr><th>Player</th><th>Time</th><th>Pen</th><th>Own</th></tr>
+          <tr><th colspan="4">Goals</th></tr>
+          <tr><th>Name</th><th>Time</th><th>Pen</th><th>Own</th></tr>
           <% @game.home_score.times do |i| %>
             <%= input_for_goal @game.home_goals[i], i, "home" %>
           <% end %>
         </table>
       </td>
       <td></td><td></td><td></td>
-      <td>
+      <td class="goals">
         <table id="away_goals">
-          <tr><th>Player</th><th>Time</th><th>Pen</th><th>Own</th></tr>
+          <tr><th colspan="4">Goals</th></tr>
+          <tr><th>Name</th><th>Time</th><th>Pen</th><th>Own</th></tr>
           <% @game.away_score.times do |i| %>
             <%= input_for_goal @game.away_goals[i], i, "away" %>
           <% end %>
         </table>
       </td>
-      <td>
-        <% @away_players.each do |p| %>
-          <div id="away_player_<%= p.id %>">
-            <%= p.name %>
-          </div>
-          <%= draggable_element "away_player_#{p.id}", :revert => true %>
-        <% end %>
+      <td class="players">
+        <div id="away_players">
+          <%= render :partial => "player_list",
+            :locals => { :players => @away_players,
+              :team => @game.away,
+              :game => @game,
+              :home_away => "away"
+          } %>
+        </div>
       </td>
     </tr>
   </table>
@@ -136,14 +145,26 @@ function updateGoalTable(home_away, value) {
       input.type = "checkbox";
       input.value = "1";
       td.appendChild(input);
+      input = document.createElement("INPUT");
+      input.id = home_away + "_goal[" + i + "][penalty]";
+      input.name = input.id;
+      input.type = "hidden";
+      input.value = "0";
+      td.appendChild(input);
       td = document.createElement("TD");
       tr.appendChild(td);
       input = document.createElement("INPUT");
-      input.id = home_away + "_goal[" + i + "][own_goal]";
+      input.id = home_away + "_goal[" + i + "][own_goal_check]";
       input.name = input.id;
       input.disabled = true;
       input.type = "checkbox";
       input.value = "1";
+      td.appendChild(input);
+      input = document.createElement("INPUT");
+      input.id = home_away + "_goal[" + i + "][own_goal]";
+      input.name = input.id;
+      input.type = "hidden";
+      input.value = "0";
       td.appendChild(input);
       Droppables.add(div.id, {hoverclass:'drop_receiving', onDrop:receiveDrop});
     }

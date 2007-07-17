@@ -351,3 +351,18 @@ font-size: 11px;
   background-color: #3e3e3e;
   color: #ccc;
 }
+
+#home_goals, #away_goals
+{
+  width: 100%;
+}
+
+.goals
+{
+  vertical-align: top;
+}
+
+.players
+{
+  vertical-align: top;
+}

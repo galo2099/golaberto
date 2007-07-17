@@ -1,4 +1,5 @@
 class GameController < ApplicationController
+  before_filter :login_required, :only => [ :destroy, :edit, :create, :update ]
 
   def show
     @game = Game.find(@params["id"])
@@ -30,6 +31,13 @@ class GameController < ApplicationController
     begin
       @game = Game.find(@params["id"])
       prepare_for_edit
+      if request.xml_http_request?
+        render :partial => "player_list",
+               :locals => { :players => @home_players,
+                            :team => @game.home,
+                            :game => @game,
+                            :home_away => "home" }
+      end
     rescue
       flash[:notice] = "Game not found"
       redirect_to :action => 'list'
@@ -96,4 +104,28 @@ class GameController < ApplicationController
       render :action => :edit
     end
   end
+
+  def list_players
+    items_per_page = 10
+    @name = params[:name]
+    conditions = ["name LIKE ?", "%#{@name}%"] unless @name.nil?
+
+    @game = Game.find(params["game"])
+    @team = Team.find(params["team"])
+    @home_away = @game.home.id == @team.id ? "home" : "away"
+    @total = Player.count :conditions => conditions
+    @player_pages, @players = paginate :players, :order => "name",
+                                       :conditions => conditions,
+                                       :per_page => items_per_page
+  end
+
+  def insert_team_player
+    team_player = TeamPlayer.new(params["team_player"])
+    if team_player.save
+      render :nothing => true
+    else
+      render :nothing => true, :status => 401
+    end
+  end
+
 end

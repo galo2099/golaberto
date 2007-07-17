@@ -1,0 +1,32 @@
+<% if @total == 0 %>
+  <p>No players found</p>
+<% else %>
+
+  <table>
+    <tr>
+      <th>Name</th>
+      <th>Position</th>
+    </tr>
+
+    <% for player in @players %>
+      <tr>
+        <td><%= link_to player.name, :action => :show, :id => player %></td>
+        <td><%= player.position %></td>
+        <% if logged_in? %>
+          <td><%= link_to 'Edit', :action => 'edit', :id => player %></td>
+          <td><%= link_to 'Destroy', { :action => 'destroy', :id => player }, :confirm => 'Are you sure?', :post => true %></td>
+        <% end %>
+      </tr>
+    <% end %>
+  </table>
+
+  <% if @player_pages.page_count > 1 %>
+    <% page_options = { :url => { :action => :list, :id => @params[:id] },
+                        :update => "table",
+                        :before => "Element.show('spinner')",
+                        :success => "Element.hide('spinner')" } %>
+    <%= pagination_links_remote @player_pages, { :window_size => 1 }, page_options %>
+  <% end %>
+
+<% end %>
+

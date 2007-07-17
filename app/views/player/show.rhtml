@@ -1,0 +1,8 @@
+<h1>Player</h1>
+
+<div>
+  <h2><%= @player.name %> - <%= @player.full_name %></h2>
+  <% @player.team_players.each do |tp| %>
+    <%= tp.team.name %> - <%= tp.championship.full_name %><br/>
+  <% end %>
+</div>

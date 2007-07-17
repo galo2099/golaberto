@@ -1,4 +1,6 @@
 class ChampionshipController < ApplicationController
+  before_filter :login_required, :only => [ :new, :create, :new_game,
+                                            :edit, :update, :destroy ]
 
   def index
     redirect_to :action => :list
@@ -139,6 +141,19 @@ class ChampionshipController < ApplicationController
     @scheduled_games += @team.away_games.find_all_by_phase_id_and_played(
         @championship.phase_ids, 'scheduled', :include => [ :home, :away ])
     @scheduled_games.sort!{|a,b| a.date <=> b.date}
+
+    @players = @team.team_players.find_all_by_championship_id(@championship.id)
+    @players.sort!{|a,b| a.player.name <=> b.player.name}.map! do |p|
+      { :player => p.player,
+        :team_player => p,
+        :goals => p.player.goals.count(
+          :joins => "LEFT JOIN games ON games.id = game_id",
+          :conditions => [ "own_goal = '0' AND games.phase_id IN (?)", @championship.phase_ids]),
+        :own_goals => p.player.goals.count(
+          :joins => "LEFT JOIN games ON games.id = game_id",
+          :conditions => [ "own_goal = '1' AND games.phase_id IN (?)", @championship.phase_ids])
+      }
+    end
   end
 
   def new_game

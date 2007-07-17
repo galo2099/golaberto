@@ -1,5 +1,6 @@
 class Player < ActiveRecord::Base
   has_many :goals, :dependent => :destroy
+  has_many :team_players, :dependent => :delete_all
 
   # Fields information, just FYI.
   #

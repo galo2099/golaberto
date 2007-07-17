@@ -1,5 +1,7 @@
 class TeamController < ApplicationController
-  scaffold :team
+  before_filter :login_required, :only => [ :new, :create, :edit,
+                                            :update, :destroy ]
+
 
   def index
     redirect_to :action => :list

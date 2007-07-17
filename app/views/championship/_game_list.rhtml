@@ -8,4 +8,6 @@
   <td><%= image_tag "logos/" + @game.away.small_logo unless @game.away.logo.nil? %></td>
   </td>
   <td class='show_info'><%= link_to "Info", :controller => "game", :action => :show, :id => @game %></td>
-  <td class='show_info'><%= link_to "Edit", :controller => :game, :action => :edit, :id => @game, :redirect => request.request_uri %>
+  <% if logged_in? %>
+    <td class='show_info'><%= link_to "Edit", :controller => :game, :action => :edit, :id => @game, :redirect => request.request_uri %>
+  <% end %>

@@ -127,8 +127,3 @@
 </table>
 
 <%=  @game.played.titlecase %><br/>
-
-<%= link_to "List", :action => "list" %><br/>
-<%= link_to "Edit", :action => "edit", :id => @game %><br/>
-<%= link_to "Delete", { :action => "destroy", :id => @game },
-  :confirm => "Are you sure?", :post => true %>

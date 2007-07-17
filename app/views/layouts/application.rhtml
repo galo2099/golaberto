@@ -20,6 +20,11 @@
       <%= link_to "Players", :controller => :player %> |
       <%= link_to "Stadiums", :controller => :stadium %> |
       <%= link_to "Referees", :controller => :referee %> |
+      <% if logged_in? %>
+        <%= link_to "Logout", :controller => :account, :action => :logout %> |
+      <% else %>
+        <%= link_to "Login", :controller => :account, :action => :login %> |
+      <% end %>
     </div>
 
     <% if flash[:notice] %>

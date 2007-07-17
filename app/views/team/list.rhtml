@@ -10,7 +10,7 @@
               :align => 'absmiddle',
               :border=> 0,
               :id => "spinner",
-              :style=>"display: none;" ) %>
+              :style => "display: none;" ) %>
 </p>
 <%= observe_field 'id', :frequency => 1,
                         :update => 'table',
@@ -24,4 +24,6 @@
 </div>
 <br/>
 
-<%= link_to 'New team', :action => 'new' %>
+<% if logged_in? %>
+  <%= link_to 'New team', :action => 'new' %>
+<% end %>

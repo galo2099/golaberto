@@ -30,6 +30,29 @@
     <% end %>
 </table>
 
+<h3>Players</h3>
+<div id="players">
+  <table>
+    <% @players.each do |p| %>
+      <tr>
+        <td><%= p[:player].name %></td>
+        <td><%= p[:goals] %></td>
+        <td><%= p[:own_goals] %></td>
+        <% if logged_in? %>
+          <td><%= link_to_remote(
+                      'Remove', :url => { :controller => :player,
+                                          :action => :destroy_team,
+                                          :id => p[:team_player] },
+                                :confirm => 'Are you sure?',
+                                :method => :post,
+                                :success => update_page {|p| p.redirect_to request.request_uri },
+                                :failure => "alert('Error removing')") %></td>
+        <% end %>
+      </tr>
+    <% end %>
+  </table>
+</div>
+
 <div id="graphs">
   <div>
     <div id="tabs">

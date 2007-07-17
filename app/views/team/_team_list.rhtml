@@ -11,11 +11,12 @@
     <% for team in @teams %>
       <tr>
         <td><%= image_tag "logos/" + team.small_logo unless team.logo.nil? %>
-          <%= team.name %></td>
+          <%= link_to team.name, :action => :show, :id => team %></td>
         <td><%= team.country %></td>
-        <td><%= link_to 'Show', :action => 'show', :id => team %></td>
-        <td><%= link_to 'Edit', :action => 'edit', :id => team %></td>
-        <td><%= link_to 'Destroy', { :action => 'destroy', :id => team }, :confirm => 'Are you sure?', :post => true %></td>
+        <% if logged_in? %>
+          <td><%= link_to 'Edit', :action => 'edit', :id => team %></td>
+          <td><%= link_to 'Destroy', { :action => 'destroy', :id => team }, :confirm => 'Are you sure?', :post => true %></td>
+        <% end %>
       </tr>
     <% end %>
   </table>
@@ -25,21 +26,7 @@
                         :update => "table",
                         :before => "Element.show('spinner')",
                         :success => "Element.hide('spinner')" } %>
-    <% unless @team_pages.current.first? %>
-      <% my_options = page_options %>
-      <% my_options[:url].merge!({:page => @team_pages.current.previous}) %>
-      <%= link_to_remote "Prev", my_options %>
-    <% else %>
-      Prev
-    <% end %>
     <%= pagination_links_remote @team_pages, { :window_size => 1 }, page_options %>
-    <% unless @team_pages.current.last? %>
-      <% my_options = page_options %>
-      <% my_options[:url].merge!({:page => @team_pages.current.next}) %>
-      <%= link_to_remote "Next", my_options %>
-    <% else %>
-      Next
-    <% end %>
   <% end %>
 
 <% end %>
