@@ -1,7 +1,4 @@
 class RefereeChamp < ActiveRecord::Base
-  self.table_name = "referee_champ"
-  self.primary_key = ""
-
 
 
   # Fields information, just FYI.

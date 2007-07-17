@@ -43,6 +43,7 @@ class Game < ActiveRecord::Base
   validates_presence_of :away
   validates_presence_of :phase
   validates_presence_of :date
+  validates_presence_of :played
   validates_numericality_of :home_score, :only_integer => true
   validates_numericality_of :away_score, :only_integer => true
   validates_numericality_of :home_pen, :only_integer => true, :allow_nil => true
@@ -50,6 +51,10 @@ class Game < ActiveRecord::Base
 
   def validate
     errors.add(:home, "can't play with itself") if home_id == away_id
+  end
+
+  def played_str
+    played? ? "Played" : "Scheduled"
   end
 
   def formatted_date(day = false)
@@ -82,7 +87,7 @@ class Game < ActiveRecord::Base
   # Field: away_score , SQL Definition:tinyint(2)
   # Field: home_pen , SQL Definition:tinyint(2)
   # Field: away_pen , SQL Definition:tinyint(2)
-  # Field: played , SQL Definition:enum('scheduled','played','playing')
+  # Field: played , SQL Definition:tinyint(1)
 
 
 end

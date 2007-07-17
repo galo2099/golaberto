@@ -10,7 +10,7 @@
 <% @games.each do |@game| %>
   <% if last_played != @game.played %>
     <% last_played = @game.played %>
-    <tr><td colspan='10' class='game_toplay'><%= @game.played.titlecase %></td></tr>
+    <tr><td colspan='10' class='game_toplay'><%= @game.played_str %></td></tr>
   <% end %>
   <% if last_round != @game.round %>
     <% last_round = @game.round %>

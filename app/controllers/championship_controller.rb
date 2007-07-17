@@ -103,9 +103,9 @@ class ChampionshipController < ApplicationController
     end
     @team = Team.find(@params["team"])
     @played_games = @team.home_games.find_all_by_phase_id_and_played(
-        @championship.phase_ids, 'played')
+        @championship.phase_ids, true)
     @played_games += @team.away_games.find_all_by_phase_id_and_played(
-        @championship.phase_ids, 'played')
+        @championship.phase_ids, true)
     @played_games.sort!{|a,b| a.date <=> b.date}
 
     games = 0
@@ -137,9 +137,9 @@ class ChampionshipController < ApplicationController
     end
 
     @scheduled_games = @team.home_games.find_all_by_phase_id_and_played(
-        @championship.phase_ids, 'scheduled', :include => [ :home, :away ])
+        @championship.phase_ids, false, :include => [ :home, :away ])
     @scheduled_games += @team.away_games.find_all_by_phase_id_and_played(
-        @championship.phase_ids, 'scheduled', :include => [ :home, :away ])
+        @championship.phase_ids, false, :include => [ :home, :away ])
     @scheduled_games.sort!{|a,b| a.date <=> b.date}
 
     @players = @team.team_players.find_all_by_championship_id(@championship.id)
@@ -148,10 +148,10 @@ class ChampionshipController < ApplicationController
         :team_player => p,
         :goals => p.player.goals.count(
           :joins => "LEFT JOIN games ON games.id = game_id",
-          :conditions => [ "own_goal = '0' AND games.phase_id IN (?)", @championship.phase_ids]),
+          :conditions => [ "own_goal = 0 AND games.phase_id IN (?)", @championship.phase_ids]),
         :own_goals => p.player.goals.count(
           :joins => "LEFT JOIN games ON games.id = game_id",
-          :conditions => [ "own_goal = '1' AND games.phase_id IN (?)", @championship.phase_ids])
+          :conditions => [ "own_goal = 1 AND games.phase_id IN (?)", @championship.phase_ids])
       }
     end
   end

@@ -1,4 +1,4 @@
-require File.dirname(__FILE__) + '/../../test_helper'
+require File.dirname(__FILE__) + '/../test_helper'
 
 class TeamGroupTest < Test::Unit::TestCase
   fixtures :team_groups

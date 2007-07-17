@@ -45,12 +45,12 @@
       last_game = @all_games.collect do |x|
         x if (x.home_id == team.id or
               x.away_id == team.id) and
-              x.played == "played"
+              x.played?
       end.compact.at(-1)
       next_game = @all_games.collect do |x|
         x if (x.home_id == team.id or
               x.away_id == team.id) and
-              x.played == "scheduled"
+              !x.played?
       end.compact.at(0)
       header_body = ""
       unless last_game.nil?

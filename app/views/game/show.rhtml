@@ -21,7 +21,7 @@
   <% player_scored = Hash.new %>
   <% @game.goals.each do |goal| %>
     <%
-    if goal.own_goal == "1"
+    if goal.own_goal?
       if goal.team == @game.home
         home_goal = false
         away_goal = true
@@ -38,15 +38,15 @@
         away_goal = true
       end
     end %>
-    <% player_scored[goal.player.id] = true if goal.player unless goal.own_goal %>
+    <% player_scored[goal.player.id] = true if goal.player unless goal.own_goal? %>
     <% count_home += 1 if home_goal %>
     <% count_away += 1 if away_goal %>
     <tr class="game_show_goals">
       <td></td>
       <td class="game_show_home_score"><%= goal.player.name if home_goal %></td>
       <td class="game_show_home_score">
-        <%= "(pen)" if goal.penalty == "1" and home_goal %>
-        <%= "(own)" if goal.own_goal == "1" and home_goal %>
+        <%= "(pen)" if goal.penalty? and home_goal %>
+        <%= "(own)" if goal.own_goal? and home_goal %>
       </td>
       <td class="game_show_home_score"><%= "#{goal.time}'" if home_goal %></td>
       <td class="game_show_home_score"><%= "(#{count_home}-#{count_away})" if home_goal %></td>
@@ -54,8 +54,8 @@
       <td class="game_show_away_score"><%= "(#{count_home}-#{count_away})" if away_goal %></td>
       <td class="game_show_away_score"><%= "#{goal.time}'" if away_goal %></td>
       <td class="game_show_away_score">
-        <%= "(pen)" if goal.penalty == "1" and away_goal %>
-        <%= "(own)" if goal.own_goal == "1" and away_goal %>
+        <%= "(pen)" if goal.penalty? and away_goal %>
+        <%= "(own)" if goal.own_goal? and away_goal %>
       </td>
       <td class="game_show_away_score"><%= goal.player.name if away_goal %></td>
       <td></td>
@@ -126,4 +126,4 @@
 
 </table>
 
-<%=  @game.played.titlecase %><br/>
+<%=  @game.played_str %><br/>

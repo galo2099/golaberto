@@ -102,7 +102,7 @@ EOF
     <option value=""></option>
     <%= options_from_collection_for_select @stadiums, "id", "name", @game.stadium_id %>
   </select><br/>
-  <%= select "game", "played", [ "scheduled", "played" ] %><br/>
+  Played: <%= check_box :game, :played %><br/>
   <%= submit_tag "Update" %>
 <% end %>
 
@@ -176,5 +176,5 @@ function updateGoalTable(home_away, value) {
 EOF
 %>
 
-<%= observe_field 'game_home_score', :function => "updateGoalTable('home', value); $('game_played').value = 'played';" %>
-<%= observe_field 'game_away_score', :function => "updateGoalTable('away', value); $('game_played').value = 'played';" %>
+<%= observe_field 'game_home_score', :function => "updateGoalTable('home', value); $('game_played').checked = true;" %>
+<%= observe_field 'game_away_score', :function => "updateGoalTable('away', value); $('game_played').checked = true;" %>

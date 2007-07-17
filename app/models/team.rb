@@ -27,8 +27,8 @@ class Team < ActiveRecord::Base
   end
   
   def next_n_games(n, phase = nil)
-    cond = "played = 'scheduled'"
-    cond += " AND phase_id = #{phase}" unless phase.nil?
+    cond = { :played => false }
+    cond.merge!({ :phase => phase }) unless phase.nil?
     ret = n_games(n, cond, "ASC").sort do |a,b|
       a.date <=> b.date
     end
@@ -36,8 +36,8 @@ class Team < ActiveRecord::Base
   end
 
   def last_n_games(n, phase = nil)
-    cond = "played = 'played'"
-    cond += " AND phase_id = #{phase}" unless phase.nil?
+    cond = { :played => true }
+    cond.merge!({ :phase => phase }) unless phase.nil?
     ret = n_games(n, cond, "DESC").sort do |a,b|
       b.date <=> a.date
     end

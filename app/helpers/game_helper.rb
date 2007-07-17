@@ -19,8 +19,8 @@ module GameHelper
                            goal && goal.time, :size => 2)
     html << "</td>"
     html << "<td>"
-    own_goal = goal && goal.own_goal == "1"
-    penalty = goal && goal.penalty == "1"
+    own_goal = goal && goal.own_goal?
+    penalty = goal && goal.penalty?
     html << check_box_tag("#{home_away}_goal[#{i}][penalty]",
                           "1", penalty, :disabled => own_goal)
     html << hidden_field_tag("#{home_away}_goal[#{i}][penalty]", "0")

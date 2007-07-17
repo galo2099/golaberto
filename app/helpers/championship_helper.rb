@@ -25,7 +25,7 @@ module ChampionshipHelper
       games.collect do |x|
         x if (x.home_id == team.id or
               x.away_id == team.id) and
-             x.played == "played"
+             x.played?
       end.compact.each do |game|
         @games += 1
         if (game.home_id == team.id) then 

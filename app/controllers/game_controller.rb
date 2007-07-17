@@ -86,7 +86,7 @@ class GameController < ApplicationController
     @game.home_score.times do |i|
       goal = @game.home_goals.build(@params["home_goal"][i.to_s])
       if goal.player
-        goal.team_id = goal.own_goal == "0" ? @game.home_id : @game.away_id
+        goal.team_id = goal.own_goal? ? @game.away_id : @game.home_id
         saved = goal.save and saved
         @goals.push goal
       end
@@ -94,7 +94,7 @@ class GameController < ApplicationController
     @game.away_score.times do |i|
       goal = @game.away_goals.build(@params["away_goal"][i.to_s])
       if goal.player
-        goal.team_id = goal.own_goal == "0" ? @game.away_id : @game.home_id
+        goal.team_id = goal.own_goal? ? @game.home_id : @game.away_id
         saved = goal.save and saved
         @goals.push goal
       end
