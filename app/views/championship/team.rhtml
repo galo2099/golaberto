@@ -33,9 +33,16 @@
 <h3>Players</h3>
 <div id="players">
   <table>
+    <tr>
+      <th>Name</th>
+      <th>Pos</th>
+      <th>Goals</th>
+      <th>Own Goals</th>
+    </tr>
     <% @players.each do |p| %>
       <tr>
         <td><%= p[:player].name %></td>
+        <td><%= p[:player].position %></td>
         <td><%= p[:goals] %></td>
         <td><%= p[:own_goals] %></td>
         <% if logged_in? %>

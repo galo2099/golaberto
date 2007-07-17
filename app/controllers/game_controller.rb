@@ -32,11 +32,19 @@ class GameController < ApplicationController
       @game = Game.find(@params["id"])
       prepare_for_edit
       if request.xml_http_request?
+        players = @home_players
+        team = @game.home
+        home_away = "home"
+        if params["home_away"] == "away"
+          players = @away_players
+          team = @game.away
+          home_away = "away"
+        end
         render :partial => "player_list",
-               :locals => { :players => @home_players,
-                            :team => @game.home,
+               :locals => { :players => players,
+                            :team => team,
                             :game => @game,
-                            :home_away => "home" }
+                            :home_away => home_away }
       end
     rescue
       flash[:notice] = "Game not found"
@@ -120,6 +128,14 @@ class GameController < ApplicationController
   end
 
   def insert_team_player
+    unless params["name"].to_s.empty?
+      player = Player.new(:name => params["name"])
+      if player.save
+        params["team_player"]["player_id"] = player.id
+      else
+        params["team_player"]["player_id"] = nil
+      end
+    end
     team_player = TeamPlayer.new(params["team_player"])
     if team_player.save
       render :nothing => true

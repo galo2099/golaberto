@@ -18,8 +18,9 @@
                 "team_player[championship_id]" => @game.phase.championship.id,
                 "team_player[team_id]" => @team.id },
       :success => remote_function(:update => "#{@home_away}_players",
-                                  :url => { :action => :edit, :id => @game,
-                                  }),
+                                  :url => { :action => :edit,
+                                            :id => @game,
+                                            :home_away => @home_away}),
       :failure => "alert('Could not insert player')")) %>
   </div>
 </div>
