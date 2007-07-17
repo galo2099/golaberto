@@ -1,7 +1,7 @@
 require File.dirname(__FILE__) + '/../test_helper'
 
 class PhaseTest < Test::Unit::TestCase
-  fixtures :Phases
+  fixtures :phases
 
   # Replace this with your real tests.
   def test_truth
