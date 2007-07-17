@@ -1,0 +1,9 @@
+<h1>Player Edit</h1>
+
+<% form_for :player, @player, :url => { :action => :update } do |f| %>
+  Name: <%= f.text_field :name %><br/>
+  Position: <%= f.select :position, Player::Positions, :include_blank => true %><br/>
+  Birth: <%= f.date_select :birth, :include_blank => true, :start_year => 1900 %><br/>
+  Country: <%= f.text_field :country %><br/>
+  Full Name: <%= f.text_field :full_name %><br/>
+<% end %>

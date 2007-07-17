@@ -36,4 +36,7 @@ class PlayerController < ApplicationController
     @player = Player.find(@params["id"])
   end
 
+  def edit
+    @player = Player.find(@params["id"])
+  end
 end

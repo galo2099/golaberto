@@ -3,7 +3,9 @@ class Player < ActiveRecord::Base
   has_many :team_players, :dependent => :delete_all
 
   validates_length_of :name, :within => 1..40
-  validates_inclusion_of :position, :in => %w(g dr dl dc dm cm am fw)
+
+  Positions = %w(g dr dl dc dm cm am fw)
+  validates_inclusion_of :position, :in => Positions
 
   # Fields information, just FYI.
   #
