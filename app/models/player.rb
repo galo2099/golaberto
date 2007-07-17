@@ -5,7 +5,7 @@ class Player < ActiveRecord::Base
   validates_length_of :name, :within => 1..40
 
   Positions = %w(g dr dl dc dm cm am fw)
-  validates_inclusion_of :position, :in => Positions
+  validates_inclusion_of :position, :in => Positions, :allow_nil => true
 
   # Fields information, just FYI.
   #

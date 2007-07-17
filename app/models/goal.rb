@@ -7,8 +7,8 @@ class Goal < ActiveRecord::Base
   validates_presence_of :game
   validates_presence_of :team
   validates_presence_of :time
-  validates_presence_of :penalty
-  validates_presence_of :goal
+  validates_inclusion_of :penalty, :in => [ true, false ]
+  validates_inclusion_of :own_goal, :in => [ true, false ]
 
   # Fields information, just FYI.
   #
