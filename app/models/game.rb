@@ -43,7 +43,7 @@ class Game < ActiveRecord::Base
   validates_presence_of :away
   validates_presence_of :phase
   validates_presence_of :date
-  validates_presence_of :played
+  validates_inclusion_of :played, :in => [ true, false ]
   validates_numericality_of :home_score, :only_integer => true
   validates_numericality_of :away_score, :only_integer => true
   validates_numericality_of :home_pen, :only_integer => true, :allow_nil => true

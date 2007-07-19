@@ -5,6 +5,7 @@
     end
   %>
   <div id="player_details_<%= player.id %>" style="display: none">
+    <div>Full Name: <%= player.full_name %></div>
     <div>Position: <%= player.position %></div>
     <% player.team_players.each do |t| %>
       <div class="<%= cycle("table_line_even", "table_line_odd") %>">

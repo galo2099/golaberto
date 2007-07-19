@@ -2,11 +2,11 @@
 <% (0...@team_number).each do |i| %>
   <% team_group = @group.team_groups[i] %>
   <select id="team_group_<%=i%>_id" name="team_group[<%=i%>][team_id]">
-    <% if team_group.nil? %>
+    <% if team_group.nil? or team_group.team.nil? %>
       <option value="" selected="selected"></option>
     <% end %>
     <%= options_from_collection_for_select teams, "id", "name",
-            unless team_group.nil?
+            unless team_group.nil? or team_group.team.nil?
               team_group.team.id
             end
     %>

@@ -38,6 +38,7 @@
       <th>Pos</th>
       <th>Goals</th>
       <th>Own Goals</th>
+      <th>Penalties</th>
     </tr>
     <% @players.each do |p| %>
       <tr>
@@ -45,6 +46,7 @@
         <td><%= p[:player].position %></td>
         <td><%= p[:goals] %></td>
         <td><%= p[:own_goals] %></td>
+        <td><%= p[:penalties] %></td>
         <% if logged_in? %>
           <td><%= link_to_remote(
                       'Remove', :url => { :controller => :player,
@@ -77,7 +79,7 @@
           multi_bar_graph data,
                           :width => 550,
                           :height => 200,
-                          :max => data.size * 3 do |i|
+                          :max => data.size * @championship.point_win do |i|
               url_for :controller => :game, :action => :show, :id => data[i][:game]
           end %>
       </div>

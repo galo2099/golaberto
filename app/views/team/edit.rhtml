@@ -1,0 +1,10 @@
+<%= error_messages_for 'team'  %>
+
+<h1>Editing team</h1>
+
+<% form_for :team, @team, :url => { :action => :update, :id => @team } do |f| %>
+  Name: <%= f.text_field :name %><br/>
+  Country: <%= f.text_field :country %><br/>
+  Logo: <%= f.text_field :logo %><br/>
+  <%= submit_tag "Update" %>
+<% end %>

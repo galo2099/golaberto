@@ -11,7 +11,11 @@ class ChampionshipController < ApplicationController
   end
 
   def create
-    @championship = Championship.new(@params["championship"])
+    @championship = Championship.new(params["championship"])
+    @championship.begin = Date.strptime(params["championship"]["begin"],
+                                        "%d/%m/%Y")
+    @championship.end = Date.strptime(params["championship"]["end"],
+                                      "%d/%m/%Y")
 
     if @championship.save
       redirect_to :action => :show, :id => @championship
@@ -22,17 +26,17 @@ class ChampionshipController < ApplicationController
 
   def list
     @total = Championship.count
-    @championship_pages, @championships = paginate :championships, :order => "begin DESC, name"
+    @championship_pages, @championships = paginate :championships, :order => "name, begin"
   end
 
   def show
-    championship = Championship.find(@params["id"])
-    if championship.phases.empty?
-      render :text => "Championship has no phases", :layout => true
+    @championship = Championship.find(params["id"])
+    if @championship.phases.empty?
+      render :partial => "nav_side", :layout => true
     else
       redirect_to :action => 'phases',
-                  :id => championship,
-                  :phase => championship.phases[-1]
+                  :id => @championship,
+                  :phase => @championship.phases[-1]
     end
   end
 
@@ -113,17 +117,17 @@ class ChampionshipController < ApplicationController
     @championship.phases.each do |phase|
       points = 0
       data = @played_games.select{|g| g.phase.id == phase.id}.map do |game|
-        earned = 0
+        earned = @championship.point_loss
         if game.home_score > game.away_score
-          earned = 3 if game.home == @team
+          earned = @championship.point_win if game.home == @team
         elsif game.home_score < game.away_score
-          earned = 3 if game.away == @team
+          earned = @championship.point_win if game.away == @team
         else
-          earned = 1
+          earned = @championship.point_draw
         end
         points += earned
         games += 1
-        color = earned == 3 ? "blue" : earned == 1 ? "grey" : "red"
+        color = earned == @championship.point_win ? "blue" : earned == @championship.point_draw ? "grey" : "red"
         game_str = game.formatted_date + " "
         game_str << game.home.name + " " + game.home_score.to_s + " x "
         game_str << game.away_score.to_s + " " + game.away.name
@@ -149,6 +153,9 @@ class ChampionshipController < ApplicationController
         :goals => p.player.goals.count(
           :joins => "LEFT JOIN games ON games.id = game_id",
           :conditions => [ "own_goal = 0 AND games.phase_id IN (?)", @championship.phase_ids]),
+        :penalties => p.player.goals.count(
+          :joins => "LEFT JOIN games ON games.id = game_id",
+          :conditions => [ "own_goal = 0 AND penalty = 1 AND games.phase_id IN (?)", @championship.phase_ids]),
         :own_goals => p.player.goals.count(
           :joins => "LEFT JOIN games ON games.id = game_id",
           :conditions => [ "own_goal = 1 AND games.phase_id IN (?)", @championship.phase_ids])

@@ -1,5 +1,5 @@
 <%= error_messages_for 'championship' %>
-<% form_for :championship, @championship, :url => { :action => "create", :id => @championship } do |f| %>
+<% form_for :championship, @championship, :url => { :action => "create" } do |f| %>
   Name: <%= f.text_field :name %><br/>
   Begin: <%= date_field :championship, :begin %><br/>
   End: <%= date_field :championship, :end %><br/>

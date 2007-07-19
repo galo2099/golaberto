@@ -25,7 +25,7 @@ class GroupController < ApplicationController
       saved = @teams.last.save && saved
     end unless @params["team_group"].nil?
 
-    @team_number = @group.team_groups
+    @team_number = @group.team_groups.size
 
     if saved
       redirect_to :controller => :championship, :action => :phases, :id => @group.phase.championship, :phase => @group.phase
