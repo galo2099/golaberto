@@ -42,7 +42,7 @@
     </tr>
     <% @players.each do |p| %>
       <tr>
-        <td><%= p[:player].name %></td>
+        <td><%= link_to p[:player].name, :controller => :player, :action => :show, :id => p[:player] %></td>
         <td><%= p[:player].position %></td>
         <td><%= p[:goals] %></td>
         <td><%= p[:own_goals] %></td>
