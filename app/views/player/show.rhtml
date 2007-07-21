@@ -6,3 +6,9 @@
     <%= tp.team.name %> - <%= tp.championship.full_name %><br/>
   <% end %>
 </div>
+
+<% if logged_in? %>
+  <div>
+    <%= link_to "Edit", :action => :edit, :id => @player %>
+  </div>
+<% end %>
