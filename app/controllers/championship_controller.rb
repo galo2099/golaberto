@@ -152,13 +152,13 @@ class ChampionshipController < ApplicationController
         :team_player => p,
         :goals => p.player.goals.count(
           :joins => "LEFT JOIN games ON games.id = game_id",
-          :conditions => [ "own_goal = 0 AND games.phase_id IN (?)", @championship.phase_ids]),
+          :conditions => [ "own_goal = 0 AND games.phase_id IN (?) AND team_id = ?", @championship.phase_ids, @team]),
         :penalties => p.player.goals.count(
           :joins => "LEFT JOIN games ON games.id = game_id",
-          :conditions => [ "own_goal = 0 AND penalty = 1 AND games.phase_id IN (?)", @championship.phase_ids]),
+          :conditions => [ "own_goal = 0 AND penalty = 1 AND games.phase_id IN (?) AND team_id = ?", @championship.phase_ids, @team]),
         :own_goals => p.player.goals.count(
           :joins => "LEFT JOIN games ON games.id = game_id",
-          :conditions => [ "own_goal = 1 AND games.phase_id IN (?)", @championship.phase_ids])
+          :conditions => [ "own_goal = 1 AND games.phase_id IN (?) AND team_id = ?", @championship.phase_ids, @team])
       }
     end
   end
