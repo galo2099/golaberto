@@ -88,20 +88,79 @@ EOF
       </td>
     </tr>
   </table>
-  Round: <%= g.text_field :round, :size => 2 %><br/>
-  Attendance: <%= g.text_field :attendance, :size => 6 %><br/>
-  Date: <%= date_field :game, :date, :value => @game.date ? @game.date.to_date : "", :format => "%d/%m/%Y", :size => 10 %><br/>
-  Time: <%= select_hour @game.date %> : <%= select_minute @game.date %><br/>
-  Referee: 
-  <select id="game_referee_id" name="game[referee_id]">
-    <option value=""></option>
-    <%= options_from_collection_for_select @referees, "id", "name", @game.referee_id %>
-  </select><br/>
-  Stadium: 
-  <select id="game_stadium_id" name="game[stadium_id]">
-    <option value=""></option>
-    <%= options_from_collection_for_select @stadiums, "id", "name", @game.stadium_id %>
-  </select><br/>
+  <table>
+    <tr>
+      <td>Round:</td>
+      <td><%= g.text_field :round, :size => 2 %></td>
+    </tr>
+    <tr>
+      <td>Attendance:</td>
+      <td><%= g.text_field :attendance, :size => 6 %></td>
+    </tr>
+    <tr>
+      <td>Date:</td>
+      <td><%= date_field :game, :date, :value => @game.date ? @game.date.to_date : "", :format => "%d/%m/%Y", :size => 10 %></td>
+    </tr>
+    <tr>
+      <td>Time:</td>
+      <td><%= select_hour @game.date %> : <%= select_minute @game.date %></td>
+    </tr>
+    <tr>
+      <td>Referee:</td>
+      <td>
+        <select id="game_referee_id" name="game[referee_id]">
+          <option value=""></option>
+          <%= options_for_select @referees, @game.referee_id %>
+        </select>
+        <%= link_to_function "New" do |page|
+          page["add_referee"].toggle
+          page["referee_name"].activate
+        end %>
+      </td>
+    </tr>
+    <tr id="add_referee" style="display: none">
+      <td></td>
+      <td><div>
+          Name: <%= text_field_tag "referee_name", "", :onkeypress => "return ignoreEnter(event)", :name => "referee[name]" %>
+          <br/>
+          Location: <%= text_field_tag "referee_location", "", :onkeypress => "return ignoreEnter(event)", :name => "referee[location]" %><br/>
+          <%= submit_to_remote "Create", "Create",
+            :url => { :action => :create_referee_for_edit },
+            :with => "Form.serializeElements([$('referee_name'), $('referee_location')])",
+            :confirm => "Are you sure you want to create a new referee?",
+            :update => { :success => :game_referee_id },
+            :failure => "alert('Could not insert referee')" %>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td>Stadium:</td>
+      <td>
+        <select id="game_stadium_id" name="game[stadium_id]">
+          <option value=""></option>
+          <%= options_from_collection_for_select @stadiums, "id", "name", @game.stadium_id %>
+        </select>
+        <%= link_to_function "New" do |page|
+          page["add_stadium"].toggle
+          page["stadium_name"].activate
+        end %>
+      </td>
+    </tr>
+    <tr id="add_stadium" style="display: none">
+      <td></td>
+      <td><div>
+          Name: <%= text_field_tag "stadium_name", "", :onkeypress => "return ignoreEnter(event)", :name => "stadium[name]" %>
+          <br/>
+          <%= submit_to_remote "Create", "Create",
+            :url => { :action => :create_stadium_for_edit },
+            :with => "Form.serializeElements([$('stadium_name')])",
+            :confirm => "Are you sure you want to create a new stadium?",
+            :update => { :success => :game_stadium_id },
+            :failure => "alert('Could not insert stadium')" %>
+        </div>
+      </td>
+    </tr>
+  </table>
   Played: <%= check_box :game, :played %><br/>
   <%= submit_tag "Update" %>
 <% end %>
@@ -173,8 +232,14 @@ function updateGoalTable(home_away, value) {
     tr.hide();
   }
 }
+
+function ignoreEnter(event) {
+  if (event.keyCode == Event.KEY_RETURN) return false;
+  return true;
+}
 EOF
 %>
 
 <%= observe_field 'game_home_score', :function => "updateGoalTable('home', value); $('game_played').checked = true;" %>
 <%= observe_field 'game_away_score', :function => "updateGoalTable('away', value); $('game_played').checked = true;" %>
+<%= update_page_tag do |page| page["game_home_score"].activate end %>

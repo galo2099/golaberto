@@ -13,7 +13,9 @@ class GameController < ApplicationController
   end
 
   def prepare_for_edit
-    @referees = Referee.find(:all, :order => :name)
+    @referees = Referee.find(:all, :order => :name).map do |r|
+      [ "#{r.name} (#{r.location})", r.id ]
+    end
     @stadiums = Stadium.find(:all, :order => :name)
     @home_players = @game.home.team_players.find(
       :all,
@@ -125,6 +127,28 @@ class GameController < ApplicationController
     @player_pages, @players = paginate :players, :order => "name",
                                        :conditions => conditions,
                                        :per_page => items_per_page
+  end
+
+  def create_stadium_for_edit
+    @stadium = Stadium.new(params[:stadium])
+    if @stadium.save
+      @stadiums = Stadium.find(:all, :order => :name)
+      render :inline => "<option value=""></option><%= options_from_collection_for_select @stadiums, 'id', 'name', @stadium.id %>"
+    else
+      render :nothing => true, :status => 401
+    end
+  end
+
+  def create_referee_for_edit
+    @referee = Referee.new(params[:referee])
+    if @referee.save
+      @referees = Referee.find(:all, :order => :name).map do |r|
+        [ "#{r.name} (#{r.location})", r.id ]
+      end
+      render :inline => "<option value=""></option><%= options_for_select @referees, @referee.id %>"
+    else
+      render :nothing => true, :status => 401
+    end
   end
 
   def insert_team_player

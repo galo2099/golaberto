@@ -1,7 +1,7 @@
 <div>
   <%=
     link_to_function player.name do |page|
-      page["player_details_#{player.id}"].show
+      page["player_details_#{player.id}"].toggle
     end
   %>
   <div id="player_details_<%= player.id %>" style="display: none">

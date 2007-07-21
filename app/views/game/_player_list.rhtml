@@ -11,9 +11,10 @@
 <%= link_to_function("Add", :id => "link_player_#{home_away}") do |page|
   page["link_player_#{home_away}"].hide
   page["add_player_#{home_away}"].show
+  page["#{home_away}_player_name"].activate
 end %>
 <div id="add_player_<%= home_away %>" style="display: none">
-  <%= text_field_tag "#{home_away}_player_name" %><br/>
+  <%= text_field_tag "#{home_away}_player_name", "", :onkeypress => "return ignoreEnter(event)" %><br/>
   <%= button_to_function "Cancel" do |page| 
         page["link_player_#{home_away}"].show
         page["add_player_#{home_away}"].hide
