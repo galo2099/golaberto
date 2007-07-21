@@ -1,6 +1,7 @@
 class Referee < ActiveRecord::Base
   has_many :games, :dependent => :nullify
   validates_presence_of :name
+  validates_length_of :name, :within => 1..255
   validates_uniqueness_of :name
 
   # Fields information, just FYI.
