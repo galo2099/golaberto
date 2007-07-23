@@ -1,6 +1,6 @@
 class ChampionshipController < ApplicationController
-  before_filter :login_required, :only => [ :new, :create, :new_game,
-                                            :edit, :update, :destroy ]
+  before_filter :login_required, :except => [ :index, :list, :show, :phases,
+                                              :team, :games ] 
 
   def index
     redirect_to :action => :list

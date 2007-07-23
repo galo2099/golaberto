@@ -1,5 +1,5 @@
 class GameController < ApplicationController
-  before_filter :login_required, :only => [ :destroy, :edit, :create, :update ]
+  before_filter :login_required, :except => [ :show ]
 
   def show
     @game = Game.find(@params["id"])

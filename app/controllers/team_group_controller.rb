@@ -1,5 +1,6 @@
 class TeamGroupController < ApplicationController
   scaffold :team_group
+  before_filter :login_required, :except => [ :index, :list, :show ]
 
   def index
     list

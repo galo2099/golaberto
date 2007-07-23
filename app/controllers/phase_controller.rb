@@ -1,6 +1,5 @@
 class PhaseController < ApplicationController
-  before_filter :login_required, :only => [ :new, :create, :edit,
-                                            :update, :destroy ]
+  before_filter :login_required
 
   def new
     @phase = Phase.new

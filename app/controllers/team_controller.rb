@@ -1,6 +1,5 @@
 class TeamController < ApplicationController
-  before_filter :login_required, :only => [ :new, :create, :edit,
-                                            :update, :destroy ]
+  before_filter :login_required, :except => [ :index, :list, :show ]
 
   def index
     redirect_to :action => :list

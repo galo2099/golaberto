@@ -1,5 +1,5 @@
 class GroupController < ApplicationController
-  before_filter :login_required, :only => [ :destroy, :edit, :create, :update ]
+  before_filter :login_required
 
   def edit
     @group = Group.find(@params["id"])
