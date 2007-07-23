@@ -1,12 +1,11 @@
-<table>
-  <tr><th>Players</th></tr>
+<ul>
+  <h3>Players</h3>
   <% players.each do |p| %>
-    <tr><td><div id="<%= home_away %>_player_<%= p.id %>">
-          <%= p.name %>
-    </div></td></tr>
+    <li id="<%= home_away %>_player_<%= p.id %>" class="draggable">
+    <%= p.name %>
     <%= draggable_element "#{home_away}_player_#{p.id}", :revert => true %>
   <% end %>
-</table>
+</ul>
 
 <%= link_to_function("Add", :id => "link_player_#{home_away}") do |page|
   page["link_player_#{home_away}"].hide

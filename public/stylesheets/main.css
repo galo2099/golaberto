@@ -23,7 +23,7 @@ body
 }
 #conteudo
 {
-  float: right;
+  float: left;
   width: 570px;
   margin-right: 10px;
   margin-top: 10px;
@@ -127,12 +127,12 @@ body
 }
 .class_table .name
 {
-  width: 20%;
+  width: 40%;
   text-align: left;
 }
 .class_table td
 {
-  width: 3%;
+  width: 5%;
   text-align: center;
 }
 .class_table a:link, a:visited
@@ -187,20 +187,18 @@ font-size: 11px;
 /* Style for the games */
 .game_round
 {
-	position: relative;
 	font-weight: bold;
-	font-size: 14px;
-	border-bottom-width: 15px;
+	font-size: 16px;
 	padding: 3px;
-	width: 70%;
+	width: 100%;
 	background-color: #bbcc99;
 }
 .game_date
 {
 	font-weight: bold;
 	font-size: 11px;
-	border-bottom-width: 15px;
 	border-bottom: medium solid #ffcc00;
+	padding: 1px;
 	width: 100%;
 }
 .game_toplay
@@ -208,8 +206,7 @@ font-size: 11px;
 	position: relative;
 	font-weight: bold;
 	font-size: 16px;
-	margin-top: 30px;
-	margin-bottom: 30px;
+	padding: 3px;
 	width: 100%;
 }
 .phase
@@ -231,45 +228,6 @@ font-size: 11px;
 		padding: 0px;
 		border-spacing: 0px;
 	}
-                .game_time
-                {
-			width: 6%;
-                }
-		.home_team
-		{
-			width: 37%;
-		}
-		.home_score
-		{
-			text-align: right;
-		}
-		.game_x
-		{
-			width: 4%;
-			text-align: center;
-		}
-		.away_score
-		{
-			width: 8%;
-			text-align: left;
-		}
-		.away_team
-		{
-			width: 37%;
-			text-align: right;
-		}
-	.show_info
-	{
-		text-decoration: underline;
-		cursor: pointer;
-		color: blue;
-		vertical-align: top;
-	}
-	.edit
-	{
-		vertical-align: top;
-	}
-
 .game_show_score
 {
   width: 70%;
@@ -365,4 +323,66 @@ font-size: 11px;
 .players
 {
   vertical-align: top;
+}
+
+DIV.table_row {
+  background: none; color: #000000;
+  margin-top: 0; margin-right: auto; margin-bottom: 0; margin-left: auto;
+  padding: 0; text-align: center; width: 99%;
+}
+DIV.table_cell {
+  border: none;
+  float: left;
+  margin: 0;
+  padding: 0;
+}
+
+.game_time {
+  width: 8%;
+}
+.home_logo {
+  width: 4%;
+  text-align: center;
+}
+.home_team {
+  width: 30%;
+  text-align: left;
+}
+.home_score {
+  width: 4%;
+  text-align: right;
+}
+.game_x {
+  width: 4%;
+  text-align: center;
+}
+.away_score {
+  width: 4%;
+  text-align: left;
+}
+.away_team {
+  width: 30%;
+  text-align: right;
+}
+.away_logo {
+  width: 4%;
+  text-align: center;
+}
+.show_info {
+  width: 6%;
+  text-align: right;
+  text-decoration: underline;
+  cursor: pointer;
+  color: blue;
+}
+.edit {
+}
+
+DIV.space_line {
+  clear: both; margin: 0; padding: 0; width: auto;
+}
+
+.draggable {
+  cursor: move;
+  list-style-type: none;
 }

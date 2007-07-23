@@ -1,13 +1,26 @@
-  <td class='game_time'><%= @game.formatted_time %></td>
-  <td><%= image_tag "logos/" + @game.home.small_logo unless @game.home.logo.nil? %></td>
-  <td class='home_team'><%= @game.home.name %></td>
-  <td class='home_score'><%= @game.home_score %></td>
-  <td class='game_x'>x</td>
-  <td class='away_score'><%= @game.away_score %></td>
-  <td class='away_team'><%= @game.away.name %></td>
-  <td><%= image_tag "logos/" + @game.away.small_logo unless @game.away.logo.nil? %></td>
-  </td>
-  <td class='show_info'><%= link_to "Info", :controller => "game", :action => :show, :id => @game %></td>
-  <% if logged_in? %>
-    <td class='show_info'><%= link_to "Edit", :controller => :game, :action => :edit, :id => @game, :redirect => request.request_uri %>
+<div class='table_cell game_time'>
+  <%= @game.formatted_time.to_s.empty? ? "&nbsp;" : @game.formatted_time %>
+</div>
+<div class='table_cell home_logo'>
+  <% if @game.home.logo.to_s.empty? %>
+    &nbsp;
+  <% else %>
+    <%= image_tag "logos/" + @game.home.small_logo unless @game.home.logo.nil? %>
   <% end %>
+</div>
+<div class='table_cell home_team'><%= @game.home.name %></div>
+<div class='table_cell home_score'><%= @game.home_score %></div>
+<div class='table_cell game_x'>x</div>
+<div class='table_cell away_score'><%= @game.away_score %></div>
+<div class='table_cell away_team'><%= @game.away.name %></div>
+<div class='table_cell away_logo'>
+  <% if @game.away.logo.to_s.empty? %>
+    &nbsp;
+  <% else %>
+    <%= image_tag "logos/" + @game.away.small_logo unless @game.away.logo.nil? %>
+  <% end %>
+</div>
+<div class='table_cell show_info'><%= link_to "Info", :controller => "game", :action => :show, :id => @game %></div>
+<% if logged_in? %>
+  <div class='table_cell show_info'><%= link_to "Edit", :controller => :game, :action => :edit, :id => @game, :redirect => request.request_uri %></div>
+<% end %>

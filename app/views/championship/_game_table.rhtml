@@ -3,25 +3,26 @@
 <%= pagination_links_remote @games_pages, { :window_size => 1 }, :url => { :action => :games }, :update => "table" %>
 <% end %>
 </p>
-<table>
+<div>
 <% last_played = nil
    last_round = nil
    last_date = nil %>
 <% @games.each do |@game| %>
   <% if last_played != @game.played %>
     <% last_played = @game.played %>
-    <tr><td colspan='10' class='game_toplay'><%= @game.played_str %></td></tr>
+    <div class='game_toplay'><%= @game.played_str %></div>
   <% end %>
   <% if last_round != @game.round %>
     <% last_round = @game.round %>
-    <tr><td colspan='10' class='game_round'>Round <%= @game.round %></td></tr>
+    <div class='game_round'>Round <%= @game.round %></div>
   <% end %>
   <% if last_date != @game.formatted_date %>
     <% last_date = @game.formatted_date %>
-    <tr><td colspan='10' class='game_date'><%= @game.formatted_date(true) %></td></tr>
+    <div class='game_date'><%= @game.formatted_date(true) %></div>
   <% end %>
-    <tr>
+    <div class='table_row'>
       <%= render :partial => "game_list" %>
-    </tr>
+      <div class='space_line'></div>
+    </div>
 <% end %>
-</table>
+</div>
