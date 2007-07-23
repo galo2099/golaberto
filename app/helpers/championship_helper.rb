@@ -1,7 +1,8 @@
 module ChampionshipHelper
   class TeamCampaign
     attr_reader :points, :games, :wins, :draws, :losses,
-                :goals_for, :goals_against, :goals_pen, :goals_away
+                :goals_for, :goals_against, :goals_pen, :goals_away,
+                :last_game, :next_game
 
     def initialize(team_group, games)
       @games = 0
@@ -13,6 +14,8 @@ module ChampionshipHelper
       @goals_against = 0
       @goals_pen = 0
       @goals_away = 0
+      @last_game = nil
+      @next_game = nil
       if (games.size == 0)
         return
       end
@@ -22,11 +25,11 @@ module ChampionshipHelper
       points_for_draw = championship.point_draw
       points_for_loss = championship.point_loss
       add_sub = team_group.add_sub
-      games.collect do |x|
-        x if (x.home_id == team.id or
-              x.away_id == team.id) and
-             x.played?
-      end.compact.each do |game|
+      games.select do |x|
+        (x.home_id == team.id or
+         x.away_id == team.id) and
+         x.played?
+      end.each do |game|
         @games += 1
         if (game.home_id == team.id) then 
           @goals_pen += game.home_pen unless game.home_pen.nil?
@@ -62,6 +65,16 @@ module ChampionshipHelper
           @goals_for += game.away_score
         end
       end
+      @last_game = games.select do |x|
+        (x.home_id == team.id or
+         x.away_id == team.id) and
+         x.played?
+      end.last
+      @next_game = games.select do |x|
+        (x.home_id == team.id or
+         x.away_id == team.id) and
+         !x.played?
+      end.first
       @points += add_sub
     end
 

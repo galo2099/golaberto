@@ -107,6 +107,20 @@
   <%= render :partial => "nav_side" %>
 </div>
 
+<div class='team_table'>
+  <% @groups.each do |group| %>
+    <h2><%= group.phase.name %></h2>
+    <%= render :partial => "table",
+               :locals => { :group => group,
+                            :omit_columns => { :D => true,
+                                               :L => true,
+                                               :GF => true,
+                                               :GA => true },
+                            :omit_logo => true,
+                            :omit_popup => true,
+                            :omit_comments => true } %>
+  <% end %>
+</div>
 <%= javascript_include_tag "boxover" %>
 
 <%= javascript_tag <<EOF

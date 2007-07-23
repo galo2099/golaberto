@@ -40,72 +40,26 @@ class ChampionshipController < ApplicationController
     end
   end
 
-  def sort_teams(phase, group, team_class)
-    columns = phase.sort.split(/,\s*/)
-    sorter = lambda { |b,a|
-      ret = 0
-      columns.detect do |column|
-        case column
-        when "pt"
-          ret = team_class[a.id].points <=> team_class[b.id].points
-        when "w"
-          ret = team_class[a.id].wins <=> team_class[b.id].wins
-        when  "gd"
-          ret = team_class[a.id].goals_diff <=> team_class[b.id].goals_diff
-        when "gf"
-          ret = team_class[a.id].goals_for <=> team_class[b.id].goals_for
-        when "name"
-          ret = a.name <=> b.name
-        when "g_average"
-          ret = team_class[a.id].goals_avg <=> team_class[b.id].goals_avg
-        when "gp"
-          ret = team_class[a.id].goals_pen <=> team_class[b.id].goals_pen
-        when "g_away"
-          ret = team_class[a.id].goals_away <=> team_class[b.id].goals_away
-        when "bias"
-          ret = group.team_groups.find(
-              :first,
-              :conditions => [ "team_id = ?", a.id ]).bias <=>
-                group.team_groups.find(:first,
-              :conditions => [ "team_id = ?", b.id ]).bias
-        end
-        ret != 0
-      end
-      ret
-    }
-    group.team_groups.sort do |a,b|
-      sorter.call a.team, b.team
-    end.map do |t|
-      [ t, team_class[t.team.id] ]
-    end
-  end
-
-  private :sort_teams
-
   def phases
     @championship = Championship.find(@params["id"])
     @current_phase = @championship.phases.find(@params["phase"])
-    @all_games = @current_phase.games.find(:all,
-                                           :order => "date")
-    stats = Hash.new
-    @current_phase.groups.each do |group|
-      group.team_groups.each do |team_group|
-        stats[team_group.team.id] = ChampionshipHelper::TeamCampaign.new(team_group, @all_games)
-      end
-    end
-
-    @sorted_teams = @current_phase.groups.map do |group|
-      sort_teams(@current_phase, group, stats)
-    end
   end
 
   def team
     @championship = Championship.find(@params["id"])
+
+    # Find every team for this championship
     @teams = @championship.phases.map{|p| p.groups}.flatten.map{|g| g.teams}.flatten.sort{|a,b| a.name <=> b.name}.uniq
+
+    # Find the team we're looking for
     if @params["team"].to_s == ""
       @params["team"] = @teams.first.id
     end
     @team = Team.find(@params["team"])
+
+    # Find every group that this team belonged to
+    @groups = @championship.phases.map{|p| p.groups}.flatten.select{|g| g.teams.include? @team}.reverse
+
     @played_games = @team.home_games.find_all_by_phase_id_and_played(
         @championship.phase_ids, true)
     @played_games += @team.away_games.find_all_by_phase_id_and_played(

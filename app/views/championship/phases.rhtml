@@ -14,7 +14,9 @@
 <% end %>
 </tr></table>
 
-<%= render :partial => "table" %>
+<% @current_phase.groups.each do |group| %>
+  <%= render :partial => "table", :locals => { :group => group } %>
+<% end %>
 
 <%= javascript_include_tag "boxover" %>
 </div>

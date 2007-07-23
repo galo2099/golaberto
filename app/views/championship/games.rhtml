@@ -30,12 +30,15 @@
 </div>
 
 <div class='team_table'>
+<% @current_phase.groups.each do |group| %>
 <%= render :partial => "table",
-           :locals => { :omit_columns => { :D => true,
+           :locals => { :group => group,
+                        :omit_columns => { :D => true,
                                            :L => true,
                                            :GF => true,
                                            :GA => true },
                         :omit_logo => true,
                         :omit_popup => true,
                         :omit_comments => true } %>
+<% end %>
 </div>

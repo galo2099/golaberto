@@ -2,7 +2,6 @@
 <% omit_logo = false if omit_logo.nil? %>
 <% omit_comments = false if omit_comments.nil? %>
 <% omit_popup = false if omit_popup.nil? %>
-<% @current_phase.groups.each_with_index do |group, i| %>
 <h3><%= h group.name %></h3>
 <table class='class_table'>
   <tr class='table_head'>
@@ -19,7 +18,7 @@
   </tr>
   <% pos = 0 %>
   <% notes = Array.new %>
-  <% @sorted_teams[i].each do |t|
+  <% group.team_table.each do |t|
     team = t[0].team
     stats = t[1]
     note_number = ""
@@ -42,16 +41,8 @@
     end
     title_popup = ""
     unless omit_popup
-      last_game = @all_games.collect do |x|
-        x if (x.home_id == team.id or
-              x.away_id == team.id) and
-              x.played?
-      end.compact.at(-1)
-      next_game = @all_games.collect do |x|
-        x if (x.home_id == team.id or
-              x.away_id == team.id) and
-              !x.played?
-      end.compact.at(0)
+      last_game = stats.last_game
+      next_game = stats.next_game
       header_body = ""
       unless last_game.nil?
         unless last_game.date.nil?
@@ -101,4 +92,3 @@
      <% count += 1 %>
      <%= "(#{count}) #{n}" %><br/>
    <% end %>
- <% end %>
