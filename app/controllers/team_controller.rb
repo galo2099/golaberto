@@ -7,6 +7,7 @@ class TeamController < ApplicationController
 
   def show
     @team = Team.find(params["id"])
+    @championships = @team.team_groups.map{|t| t.group.phase.championship}.uniq.sort{|a,b| b.begin <=> a.begin}
   end
 
   def edit
