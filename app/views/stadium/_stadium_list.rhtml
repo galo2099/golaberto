@@ -1,0 +1,30 @@
+<% if @total == 0 %>
+  <p>No stadium found</p>
+<% else %>
+
+  <table>
+    <tr>
+      <th>Name</th>
+    </tr>
+
+    <% @stadia.each do |stadium| %>
+      <tr>
+        <td><%= stadium.name %></td>
+        <% if logged_in? %>
+          <td><%= link_to 'Edit', :action => 'edit', :id => stadium %></td>
+          <td><%= link_to 'Destroy', { :action => 'destroy', :id => stadium }, :confirm => 'Are you sure?', :post => true %></td>
+        <% end %>
+      </tr>
+    <% end %>
+  </table>
+
+  <% if @stadium_pages.page_count > 1 %>
+    <% page_options = { :url => { :action => :list, :name => @name },
+                        :update => "table",
+                        :before => "Element.show('spinner')",
+                        :success => "Element.hide('spinner')" } %>
+    <%= pagination_links_remote @stadium_pages, { :window_size => 1 }, page_options %>
+  <% end %>
+
+<% end %>
+
