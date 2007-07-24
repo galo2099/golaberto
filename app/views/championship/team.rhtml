@@ -1,6 +1,6 @@
 <h1><%= @championship.full_name %></h1>
 
-<div id='conteudo'>
+<div class='content'>
 <select id='team_select'>
   <%= options_from_collection_for_select @teams, "id", "name", @team.id %>
 </select>
@@ -21,9 +21,9 @@
         </div>
         <div class="table_cell" style="width: 92%">
           <%= render :partial => "game_list" %>
-          <div class="space_line"></div>
+          <div class="clearer"></div>
         </div>
-        <div class="space_line"></div>
+        <div class="clearer"></div>
       </div>
     <% end %>
 </div>
@@ -37,9 +37,9 @@
         </div>
         <div class="table_cell" style="width: 92%">
           <%= render :partial => "game_list" %>
-          <div class="space_line"></div>
+          <div class="clearer"></div>
         </div>
-        <div class="space_line"></div>
+        <div class="clearer"></div>
       </div>
     <% end %>
 </div>
@@ -103,9 +103,8 @@
 
 </div>
 
-<div style="float: left">
+<div class="nav_side">
   <%= render :partial => "nav_side" %>
-</div>
 
 <div class='team_table'>
   <% @groups.each do |group| %>
@@ -121,6 +120,9 @@
                             :omit_comments => true } %>
   <% end %>
 </div>
+</div>
+
+<div style="clear: both"/>
 <%= javascript_include_tag "boxover" %>
 
 <%= javascript_tag <<EOF

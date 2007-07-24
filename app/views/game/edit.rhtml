@@ -28,15 +28,16 @@ function receiveDrop(drag, drop) {
   input = $(home_away + "_goal[" + idx + "][player_id]");
   input.value = drag.id.replace(/.*_player_/, "");
 }
-
 EOF
 %>
+
 <h1><%= @game.phase.championship.full_name %></h1>
 <h2><%= @game.phase.name %></h2>
 
+<div class='content'>
 <% form_for :game, @game, :url => { :action => "update", :id => @game} do |g| %>
   <%= hidden_field_tag "redirect", @params["redirect"] if @params["redirect"] %>
-  <table width="100%">
+  <table>
     <tr>
       <td><%= image_tag "logos/" + @game.home.large_logo %></td>
       <td> <b><%= @game.home.name %></b> </td>
@@ -164,6 +165,7 @@ EOF
   Played: <%= check_box :game, :played %><br/>
   <%= submit_tag "Update" %>
 <% end %>
+</div>
 
 <%= javascript_tag <<EOF
 function updateGoalTable(home_away, value) {
@@ -237,6 +239,7 @@ function ignoreEnter(event) {
   if (event.keyCode == Event.KEY_RETURN) return false;
   return true;
 }
+
 EOF
 %>
 

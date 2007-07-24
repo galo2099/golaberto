@@ -1,5 +1,6 @@
 <h1>Team</h1>
 
+<div class='content'>
 <div>
   <div style="float: left">
     <%= image_tag "logos/" + @team.large_logo %>
@@ -31,9 +32,9 @@ unless last_games.empty? %>
       </div>
       <div class="table_cell" style='width: 70%'>
         <%= render :partial => "championship/game_list" %>
-        <div class="space_line"></div>
+        <div class="clearer"></div>
       </div>
-      <div class="space_line"></div>
+      <div class="clearer"></div>
     </div>
   <% end %>
 </div>
@@ -54,9 +55,9 @@ unless next_games.empty? %>
       </div>
       <div class="table_cell" style='width: 70%'>
         <%= render :partial => "championship/game_list" %>
-        <div class="space_line"></div>
+        <div class="clearer"></div>
       </div>
-      <div class="space_line"></div>
+      <div class="clearer"></div>
     </div>
   <% end %>
 </div>
@@ -66,3 +67,4 @@ unless next_games.empty? %>
   <br/>
   <%= link_to "Edit", :action => :edit, :id => @team %>
 <% end %>
+</div>

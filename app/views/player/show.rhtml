@@ -1,14 +1,14 @@
 <h1>Player</h1>
 
-<div>
+<div class='content'>
   <h2><%= @player.name %> - <%= @player.full_name %></h2>
   <% @player.team_players.each do |tp| %>
     <%= tp.team.name %> - <%= tp.championship.full_name %><br/>
   <% end %>
-</div>
 
 <% if logged_in? %>
   <div>
     <%= link_to "Edit", :action => :edit, :id => @player %>
   </div>
 <% end %>
+</div>

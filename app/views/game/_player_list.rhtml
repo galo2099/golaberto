@@ -1,11 +1,10 @@
-<ul>
-  <h3>Players</h3>
-  <% players.each do |p| %>
-    <li id="<%= home_away %>_player_<%= p.id %>" class="draggable">
+<h3>Players</h3>
+<% players.each do |p| %>
+  <div id="<%= home_away %>_player_<%= p.id %>" class="draggable">
     <%= p.name %>
-    <%= draggable_element "#{home_away}_player_#{p.id}", :revert => true %>
-  <% end %>
-</ul>
+  </div>
+  <%= draggable_element "#{home_away}_player_#{p.id}", :revert => true %>
+<% end %>
 
 <%= link_to_function("Add", :id => "link_player_#{home_away}") do |page|
   page["link_player_#{home_away}"].hide

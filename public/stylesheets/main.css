@@ -1,33 +1,49 @@
-body 
-{
-	font-family: Arial, Helvetica, sans-serif;
-	/* font-size: 11px; */
-	/* background-image: url('../img/bg.gif'); */
-	background-repeat: repeat-x;
-	background-color: #3b3008;
+html {
+  min-width: 790px;
+  min-height: 100%;
 }
-#principal
-{
-	width: 790px;
-	position: absolute;
-	margin-left: -350px;
-	left: 50%;
-	background-color: #e3efca;
+
+a {
+  color: #963;
 }
-#principal h1
-{
-	background-color: #474d0f;
-	font-size: 24px;
-	color: #fff;
-	padding: 5px 10px;
+a:hover {
+  color: #C60;
 }
-#conteudo
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  background-repeat: repeat-x;
+  background-color: #3b3008;
+  text-align: center;
+}
+
+.container
+{
+  text-align: left;
+  width: 790px;
+  padding: 0px;
+  background-color: #e3efca;
+  margin: 0 auto;
+}
+
+.main h1
+{
+  background-color: #474d0f;
+  font-size: 24px;
+  color: #ffffff;
+  padding: 5px 10px;
+}
+
+.main {
+  background: url(/images/bg.png) repeat-y;
+}
+
+.content
 {
   float: left;
-  width: 570px;
-  margin-right: 10px;
+  width: 560px;
   margin-top: 10px;
-  padding: 5px;
+  padding: 10px;
 }
 .notice
 {
@@ -37,28 +53,21 @@ body
   margin-top: 10px;
   text-align: center;
 }
+
 /******* menu : BEGIN *********/
-#nav_top, 
-#nav_bottom 
-{
-	background-color: #abb561;
-	color: #e3efca;
-	font-size: 30px;
-	font-weight: bold;
-	line-height: 0.1;
-	padding: 5px;
-	width: 570px;
-	margin-left: 200px;
+.navigation {
+  text-align: center;
+  background-color: #abb561;
+  color: #e3efca;
+  font-size: 18px;
+  font-weight: bold;
+  line-height: 0.1;
+  padding: 5px;
+  margin-top: 5px;
+  margin-bottom: 5px;
 }
-#nav_bottom
-{
-	position: relative;
-	width: 760px;
-	text-align: center;
-	margin: 20px 0px 40px 15px;
-}
-#nav_top a, 
-#nav_bottom a
+
+.navigation a
 {
 	color: #330;
 	text-decoration: none;
@@ -67,27 +76,31 @@ body
 	line-height: normal;
 }
 
-#nav_top a:hover, 
-#nav_bottom a:hover
+.navigation a:hover
 {
 	color: #e3efca;
 }
-#nav_top span, 
-#nav_bottom span
+.navigation span
 {
 	font-size: 14px;
 	font-weight: bold;
 }
+
+.nav_side {
+  float: left;
+  font-weight: bold;
+  width: 190px;
+  padding: 5px;
+  min-height: 100%;
+}
 /******* menu : END *********/
 
 /******* Topo : Begin *********/
-#top {
+.header {
 	background-color: #8f983b;
-	width: 760px;
-	padding: 5px;
-	margin: 10px;
+	padding: 20px 10px 10px 5px;
 }
-#top img {
+.header img {
 	border: none;
 }
 /******* Topo : END *********/
@@ -97,10 +110,8 @@ body
 /**************** CLASSIFICACAO : Begin ************/
 .team_table
 {
-  width: 185px;
   font-size: 11px;
-  float: left;
-  margin-left: 10px;
+  float: right;
 }
 
 .team_table h3 {
@@ -230,7 +241,7 @@ font-size: 11px;
 	}
 .game_show_score
 {
-  width: 70%;
+  width: 100%;
 }
 .game_show_goals
 {
@@ -317,12 +328,17 @@ font-size: 11px;
 
 .goals
 {
+  font-size: 12px;
   vertical-align: top;
 }
 
-.players
-{
+.players {
+  font-size: 12px;
   vertical-align: top;
+}
+.players li {
+  list-style: none;
+  list-style-position: inside;
 }
 
 DIV.table_row {
@@ -378,11 +394,10 @@ DIV.table_cell {
 .edit {
 }
 
-DIV.space_line {
+DIV.clearer {
   clear: both; margin: 0; padding: 0; width: auto;
 }
 
 .draggable {
   cursor: move;
-  list-style-type: none;
 }

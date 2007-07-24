@@ -1,6 +1,7 @@
 <h1><%= @game.phase.championship.full_name %></h1>
 <h2><%= link_to @game.phase.name, :controller => :championship, :action => :games, :id => @game.phase.championship, :phase => @game.phase %></h2>
 
+<div class='content'>
 <table class="game_show_score">
   <tr>
     <td><%= image_tag "logos/" + @game.home.large_logo %></td>
@@ -126,4 +127,5 @@
 
 </table>
 
-<%=  @game.played_str %><br/>
+<%= @game.played_str %><br/>
+</div>
