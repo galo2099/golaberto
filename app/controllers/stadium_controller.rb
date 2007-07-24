@@ -20,4 +20,8 @@ class StadiumController < ApplicationController
       render :partial => "stadium_list", :layout => false
     end
   end
+
+  def show
+    @stadium = Stadium.find(params[:id])
+  end
 end

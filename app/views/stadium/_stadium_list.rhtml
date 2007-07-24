@@ -9,7 +9,7 @@
 
     <% @stadia.each do |stadium| %>
       <tr>
-        <td><%= stadium.name %></td>
+        <td><%= link_to stadium.name, :action => :show, :id => stadium %></td>
         <% if logged_in? %>
           <td><%= link_to 'Edit', :action => 'edit', :id => stadium %></td>
           <td><%= link_to 'Destroy', { :action => 'destroy', :id => stadium }, :confirm => 'Are you sure?', :post => true %></td>
