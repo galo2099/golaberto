@@ -5,6 +5,24 @@ class GameController < ApplicationController
     @game = Game.find(@params["id"])
   end
 
+  def index
+    redirect_to :action => :list
+  end
+
+  def list
+    items_per_page = 30
+    conditions = { :played => true }
+
+    @total = Game.count :conditions => conditions
+    @game_pages, @games = paginate :games, :order => "date DESC, phase_id",
+                                   :conditions => conditions,
+                                   :per_page => items_per_page
+
+    if request.xhr?
+      render :partial => "game_list", :layout => false
+    end
+  end
+
   def destroy
     game = Game.find(@params["id"])
     options = { :controller => :championship, :action => :games, :id => game.phase.championship, :phase => game.phase }
