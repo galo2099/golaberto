@@ -58,7 +58,7 @@ class GameController < ApplicationController
     @championship = Championship.find(@params["championship"])
     @phase = Phase.find(@params["phase"])
     @game = @phase.games.build(@params["game"])
-    @game.date = DateTime.now
+    @game.date = Date.today
     if @game.save
       redirect_to :action => :edit, :id => @game
     else
