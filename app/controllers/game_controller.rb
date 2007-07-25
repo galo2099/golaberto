@@ -86,16 +86,20 @@ class GameController < ApplicationController
   end
 
   def update
-    @game = Game.find(@params["id"])
+    @game = Game.find(params["id"])
 
-    date = @params["game"].delete("date")
-    hour = @params["date"]["hour"]
-    minute = @params["date"]["minute"]
-    @game.attributes = @params["game"]
-    unless date.empty?
-      @game.date = DateTime.strptime("#{date} - #{hour}:#{minute}",
-                                      "%d/%m/%Y - %H:%M")
+    # we want to do our own date parsing
+    date = params[:game].delete(:date)
+    @game.date = Date.strptime(date, "%d/%m/%Y") unless date.empty?
+ 
+    # work around rails TIME bug
+    unless params[:game]["time(4i)"].to_s.empty? and params[:game]["time(5i)"].to_s.empty?
+      params[:game]["time(1i)"] = "2000"
+      params[:game]["time(2i)"] = "1"
+      params[:game]["time(3i)"] = "1"
     end
+
+    @game.attributes = params["game"]
 
     saved = @game.save
 

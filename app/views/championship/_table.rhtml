@@ -45,20 +45,16 @@
       next_game = stats.next_game
       header_body = ""
       unless last_game.nil?
-        unless last_game.date.nil?
-          header_body << sprintf("%02d", last_game.date.day) << "/"
-          header_body << sprintf("%02d", last_game.date.month) << " "
-        end
+        header_body << sprintf("%02d", last_game.date.day) << "/"
+        header_body << sprintf("%02d", last_game.date.month) << " "
         header_body << last_game.home.name << " "
         header_body << last_game.home_score.to_s << " x "
         header_body << last_game.away_score.to_s << " "
         header_body << last_game.away.name << "<br/>"
       end
       unless next_game.nil?
-        unless next_game.date.nil?
-          header_body << sprintf("%02d", next_game.date.day) << "/"
-          header_body << sprintf("%02d", next_game.date.month) << " "
-        end
+        header_body << sprintf("%02d", next_game.date.day) << "/"
+        header_body << sprintf("%02d", next_game.date.month) << " "
         header_body << next_game.home.name << " x "
         header_body << next_game.away.name << "<br/>"
       end

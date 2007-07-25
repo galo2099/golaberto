@@ -67,8 +67,8 @@ class Game < ActiveRecord::Base
   end
 
   def formatted_time
-    unless date.nil? or (date.hour == 0 and date.min == 0)
-      date.strftime("%H:%M")
+    unless time.nil?
+      time.strftime("%H:%M")
     end
   end
 
@@ -80,7 +80,8 @@ class Game < ActiveRecord::Base
   # Field: phase_id , SQL Definition:bigint(20)
   # Field: round , SQL Definition:tinyint(4)
   # Field: attendance , SQL Definition:mediumint(9)
-  # Field: date , SQL Definition:datetime
+  # Field: date , SQL Definition:date
+  # Field: time , SQL Definition:time
   # Field: stadium_id , SQL Definition:bigint(20)
   # Field: referee_id , SQL Definition:bigint(20)
   # Field: home_score , SQL Definition:tinyint(2)

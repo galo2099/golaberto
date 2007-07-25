@@ -100,11 +100,14 @@ EOF
     </tr>
     <tr>
       <td>Date:</td>
-      <td><%= date_field :game, :date, :value => @game.date ? @game.date.to_date : "", :format => "%d/%m/%Y", :size => 10 %></td>
+      <td><%= date_field :game, :date, :value => @game.date ? @game.date : "", :format => "%d/%m/%Y", :size => 10 %></td>
     </tr>
     <tr>
       <td>Time:</td>
-      <td><%= select_hour @game.date %> : <%= select_minute @game.date %></td>
+      <td>
+        <%= select_hour @game.time, :include_blank => true, :field_name => 'time(4i)', :prefix => "game" %> : 
+        <%= select_minute @game.time, :include_blank => true, :field_name => 'time(5i)', :prefix => "game" %>
+      </td>
     </tr>
     <tr>
       <td>Referee:</td>
