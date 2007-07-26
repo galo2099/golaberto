@@ -200,6 +200,9 @@ function calendar_out(evt) {
 function calendar_click(evt) {
   var date = calendar.dates[event_target(evt).id.substr('calendar_day_'.length)];
   calendar.input_element.value = date_to_string(date, calendar.format);
+  var e = document.createEvent("HTMLEvents");
+  e.initEvent('change', false, false);
+  calendar.input_element.dispatchEvent(e);
   calendar_hide();
 }
 

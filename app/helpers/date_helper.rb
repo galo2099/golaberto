@@ -19,6 +19,18 @@ module DateHelper
   # <%= date_field('person', 'birthday', :value => @person.birthday) %>
   #
   def date_field(object_name, method, options={})
+    options = set_date_options(options)
+    text_field object_name, method, options
+  end
+
+  def date_field_tag(name, value = nil, options = {})
+    options = set_date_options(options)
+    text_field_tag name, value, options
+  end
+
+  private
+
+  def set_date_options(options)
     format = options.delete(:format) ||
              ActiveSupport::CoreExtensions::Date::Conversions::DATE_FORMATS[:default] ||
              '%d %b %Y'
@@ -29,10 +41,8 @@ module DateHelper
     months = '[' + months.join(',') + ']'
     days = Date::DAYNAMES.collect { |d| "'#{d}'" }
     days = '[' + days.join(',') + ']'
-    options = {:onfocus => "this.select();calendar_open(this,{format:'#{format}',images_dir:'/images',month_names:#{months},day_names:#{days}})",
-               :onclick => "event.cancelBubble=true;this.select();calendar_open(this,{format:'#{format}',images_dir:'/images',month_names:#{months},day_names:#{days}})",
-              }.merge(options);
-    text_field object_name, method, options
+    { :onfocus => "this.select();calendar_open(this,{format:'#{format}',images_dir:'/images',month_names:#{months},day_names:#{days}})",
+      :onclick => "event.cancelBubble=true;this.select();calendar_open(this,{format:'#{format}',images_dir:'/images',month_names:#{months},day_names:#{days}})",
+    }.merge(options);
   end
-
 end

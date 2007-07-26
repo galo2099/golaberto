@@ -11,10 +11,25 @@ class GameController < ApplicationController
 
   def list
     items_per_page = 30
-    conditions = { :played => true }
+    @type = params[:type] || "played"
+    if (@type == "scheduled")
+      conditions = { :played => false }
+      order = "date ASC, phase_id, time ASC"
+    else
+      conditions = { :played => true }
+      order = "date DESC, phase_id, time DESC"
+    end
+    
+    @date_range_start = params[:date_range_start]
+    @date_range_end = params[:date_range_end]
+    unless @date_range_start.to_s.empty? or @date_range_end.to_s.empty?
+      start_date = Date.strptime(@date_range_start, "%d/%m/%Y")
+      end_date = Date.strptime(@date_range_end, "%d/%m/%Y")
+      conditions.merge!({ :date => start_date..end_date })
+    end
 
     @total = Game.count :conditions => conditions
-    @game_pages, @games = paginate :games, :order => "date DESC, phase_id",
+    @game_pages, @games = paginate :games, :order => order,
                                    :conditions => conditions,
                                    :per_page => items_per_page
 
