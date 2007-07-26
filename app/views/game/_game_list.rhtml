@@ -11,7 +11,10 @@
     <% last_phase_id = @game.phase_id %>
     <div><%= link_to @game.phase.championship.full_name, :controller => :championship, :action => :phases, :id => @game.phase.championship, :phase => @game.phase %></div>
   <% end %>
-  <%= render :partial => "championship/game_list" %>
+  <div class="table_row">
+    <%= render :partial => "championship/game_list" %>
+    <div class="clearer"></div>
+  </div>
 <% end %>
 
 <% if @game_pages.page_count > 1 %>
