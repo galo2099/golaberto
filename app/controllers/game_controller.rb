@@ -14,10 +14,10 @@ class GameController < ApplicationController
     @type = params[:type] || "played"
     if (@type == "scheduled")
       conditions = { :played => false }
-      order = "date ASC, phase_id, time ASC"
+      order = "date ASC, phase_id, time ASC, teams.name"
     else
       conditions = { :played => true }
-      order = "date DESC, phase_id, time DESC"
+      order = "date DESC, phase_id, time DESC, teams.name"
     end
     
     @date_range_start = params[:date_range_start]
@@ -31,7 +31,8 @@ class GameController < ApplicationController
     @total = Game.count :conditions => conditions
     @game_pages, @games = paginate :games, :order => order,
                                    :conditions => conditions,
-                                   :per_page => items_per_page
+                                   :per_page => items_per_page,
+                                   :include => [ :home, :away ]
 
     if request.xhr?
       render :partial => "game_list", :layout => false
