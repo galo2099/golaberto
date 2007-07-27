@@ -132,6 +132,10 @@ body {
 {
    background-color: lightgray;
 }
+.class_table
+{
+  width: 100%;
+}
 .class_table .pos
 {
   text-align: left;
@@ -274,6 +278,7 @@ font-size: 11px;
 
 .popupbody
 {
+  text-align: left;
   padding: 10px;
   font-weight: bold;
   font-size: 12px;
