@@ -40,10 +40,8 @@ class GameController < ApplicationController
   end
 
   def destroy
-    game = Game.find(@params["id"])
-    options = { :controller => :championship, :action => :games, :id => game.phase.championship, :phase => game.phase }
-    game.destroy
-    redirect_to options
+    game = Game.find(@params["id"]).destroy
+    redirect_to :back
   end
 
   def prepare_for_edit

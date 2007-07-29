@@ -23,4 +23,5 @@
 <div class='table_cell show_info'><%= link_to "Info", :controller => "game", :action => :show, :id => @game %></div>
 <% if logged_in? %>
   <div class='table_cell show_info'><%= link_to "Edit", :controller => :game, :action => :edit, :id => @game, :redirect => request.request_uri %></div>
+  <div class='table_cell show_info'><%= link_to "Del", { :controller => :game, :action => :destroy, :id => @game }, :confirm => 'Are you sure?', :method => :post %></div>
 <% end %>
