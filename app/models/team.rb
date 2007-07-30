@@ -15,13 +15,17 @@ class Team < ActiveRecord::Base
   # Field: logo , SQL Definition:varchar(255)
   
   def small_logo
-    unless logo.nil?
+    if logo.nil?
+      '15.png'
+    else
       logo.gsub(/(.*)\.svg/, '\1_15.png')
     end
   end
 
   def large_logo
-    unless logo.nil?
+    if logo.nil?
+      '100.png'
+    else
       logo.gsub(/(.*)\.svg/, '\1_100.png')
     end
   end

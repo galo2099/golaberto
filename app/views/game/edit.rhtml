@@ -39,13 +39,13 @@ EOF
   <%= hidden_field_tag "redirect", @params["redirect"] if @params["redirect"] %>
   <table>
     <tr>
-      <td><%= image_tag "logos/" + @game.home.large_logo if @game.home.large_logo%></td>
+      <td><%= image_tag "logos/" + @game.home.large_logo %></td>
       <td> <b><%= @game.home.name %></b> </td>
       <td> <%= g.text_field :home_score, :size => 2 %> </td>
       <td>x</td>
       <td> <%= g.text_field :away_score, :size => 2 %> </td>
       <td> <b><%= @game.away.name %></b> </td>
-      <td><%= image_tag "logos/" + @game.away.large_logo if @game.away.large_logo%></td>
+      <td><%= image_tag "logos/" + @game.away.large_logo %></td>
     </tr>
     <tr>
       <td class="players">
