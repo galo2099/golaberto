@@ -33,7 +33,7 @@
     tr_class = 'relegated' if group.is_relegated?(pos)
     tr_class = 'promoted' if group.is_promoted?(pos)
     image_logo = ""
-    unless omit_logo or team.logo.nil?
+    unless omit_logo
       image_logo = image_tag("logos/" +
                              team.small_logo,
                              :width => 15,
