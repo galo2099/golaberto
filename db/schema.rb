@@ -2,15 +2,20 @@
 # migrations feature of ActiveRecord to incrementally modify your database, and
 # then regenerate this schema definition.
 
-ActiveRecord::Schema.define(:version => 3) do
+ActiveRecord::Schema.define(:version => 4) do
+
+  create_table "categories", :force => true do |t|
+    t.column "name", :string
+  end
 
   create_table "championships", :force => true do |t|
-    t.column "name",       :string,               :default => "", :null => false
-    t.column "begin",      :date,                                 :null => false
-    t.column "end",        :date,                                 :null => false
-    t.column "point_win",  :integer, :limit => 4, :default => 3,  :null => false
-    t.column "point_draw", :integer, :limit => 4, :default => 1,  :null => false
-    t.column "point_loss", :integer, :limit => 4, :default => 0,  :null => false
+    t.column "name",        :string,                :default => "", :null => false
+    t.column "begin",       :date,                                  :null => false
+    t.column "end",         :date,                                  :null => false
+    t.column "point_win",   :integer, :limit => 4,  :default => 3,  :null => false
+    t.column "point_draw",  :integer, :limit => 4,  :default => 1,  :null => false
+    t.column "point_loss",  :integer, :limit => 4,  :default => 0,  :null => false
+    t.column "category_id", :integer, :limit => 20, :default => 0,  :null => false
   end
 
   create_table "games", :force => true do |t|

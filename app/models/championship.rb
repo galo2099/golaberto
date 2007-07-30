@@ -1,9 +1,11 @@
 class Championship < ActiveRecord::Base
   has_many :phases, :order => "order_by", :dependent => :destroy
   has_many :team_players, :dependent => :delete_all
+  belongs_to :category
   validates_presence_of :name
   validates_presence_of :begin
   validates_presence_of :end
+  validates_presence_of :category
   validates_numericality_of :point_win, :only_integer => true
   validates_numericality_of :point_draw, :only_integer => true
   validates_numericality_of :point_loss, :only_integer => true
@@ -22,6 +24,10 @@ class Championship < ActiveRecord::Base
     name = self.name + " " + self.begin.year.to_s
     if self.begin.year != self.end.year
       name += "/" + self.end.year.to_s
+    end
+
+    if self.category_id != Category::DEFAULT_CATEGORY
+      name += " - " + self.category.name
     end
     name
   end

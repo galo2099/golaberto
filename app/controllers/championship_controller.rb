@@ -8,6 +8,7 @@ class ChampionshipController < ApplicationController
 
   def new
     @championship = Championship.new
+    @categories = Category.find(:all)
   end
 
   def create
@@ -139,6 +140,7 @@ class ChampionshipController < ApplicationController
 
   def edit
     @championship = Championship.find(@params["id"])
+    @categories = Category.find(:all)
   end
 
   def update

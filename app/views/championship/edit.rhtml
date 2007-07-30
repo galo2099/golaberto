@@ -19,6 +19,11 @@
     Points for loss:
     <%= f.text_field :point_loss, :size => 2 %><br/>
 
+    Category:
+    <select id="championship_category_id" name="championship[category_id]">
+      <%= options_from_collection_for_select @categories, "id", "name", @championship.category_id %>
+    </select><br/>
+
     <p>Phases</p>
 
     <% last_order_by = 0 %>

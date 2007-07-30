@@ -6,11 +6,13 @@
   <table>
     <tr>
       <th>Name</th>
+      <th>Category</th>
     </tr>
 
     <% for championship in @championships %>
       <tr>
         <td><%= link_to championship.full_name, :action => 'show', :id => championship %></td>
+        <td><%= championship.category.name %></td>
         <% if logged_in? %>
           <td><%= link_to 'Edit', :action => 'edit', :id => championship %></td>
           <td><%= link_to 'Destroy', { :action => 'destroy',
