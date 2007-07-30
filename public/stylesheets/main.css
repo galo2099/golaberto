@@ -406,3 +406,7 @@ DIV.clearer {
 .draggable {
   cursor: move;
 }
+
+.draggable:hover {
+  border: 2px solid #000000;
+}
