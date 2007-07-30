@@ -51,3 +51,13 @@ end
 # end
 
 # Include your application configuration below
+class ActiveRecord::Base
+  before_validation :clear_empty_attributes
+  
+  protected
+    def clear_empty_attributes
+      @attributes.each do |key,value|
+        self[key] = nil if value.blank?
+      end
+    end
+end

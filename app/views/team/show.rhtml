@@ -3,7 +3,7 @@
 <div class='content'>
 <div>
   <div style="float: left">
-    <%= image_tag "logos/" + @team.large_logo %>
+    <%= image_tag "logos/" + @team.large_logo if @team.large_logo %>
   </div>
   <h2><%= @team.name %></h2>
   Country: <%= @team.country %><br/>
