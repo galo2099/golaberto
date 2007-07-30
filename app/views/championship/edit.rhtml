@@ -1,39 +1,42 @@
 <h1>Edit Championship</h1>
+
+<%= error_messages_for 'championship', 'phase' %>
+
 <div>
-<%= error_messages_for 'championship', 'phase'  %>
-<%= form_tag({ :action => "update", :id => @championship.id }) %>
-Name:
-<%= text_field "championship", "name", "size" => 40 %><br/>
+  <% form_for :championship, @championship, :url => { :action => :update, :id => @championship } do |f| %>
+    Name:
+    <%= f.text_field "name", "size" => 40 %><br/>
 
-Date:<br />
-<%= text_field "championship", "begin", "maxlength" => 20 %><br/>
-<%= text_field "championship", "end", "maxlength" => 20 %><br/>
+    Begin: <%= date_field :championship, :begin, :value => @championship.begin, :size => 10, :format => "%d/%m/%Y" %><br/>
+    End: <%= date_field :championship, :end, :value => @championship.end, :size => 10, :format => "%d/%m/%Y" %><br/>
 
-Points for win:
-<%= text_field "championship", "point_win", "maxlength" => 20 %><br/>
+    Points for win:
+    <%= f.text_field :point_win, :size => 2 %><br/>
 
-Points for draw:
-<%= text_field "championship", "point_draw", "maxlength" => 2 %><br/>
+    Points for draw:
+    <%= f.text_field :point_draw, :size => 2 %><br/>
 
-Points for loss:
-<%= text_field "championship", "point_loss", "maxlength" => 20 %><br/>
+    Points for loss:
+    <%= f.text_field :point_loss, :size => 2 %><br/>
 
-<p>Phases</p>
+    <p>Phases</p>
 
-<% last_order_by = 0 %>
-<p><% @championship.phases(true).each do |phase| %>
-Name: <%= phase.name %>
-<%= link_to "Edit", :controller => :phase, :action => :edit, :id => phase %>
-<%= link_to "Delete", { :controller => :phase, :action => :destroy, :id => phase }, :confirm => 'Are you sure?', :post => true %>
-<br/>
-<% last_order_by = phase.order_by %>
-<% end %></p>
+    <% last_order_by = 0 %>
+    <p>
+    <% @championship.phases(true).each do |phase| %>
+      Name: <%= phase.name %>
+      <%= link_to "Edit", :controller => :phase, :action => :edit, :id => phase %>
+      <%= link_to "Delete", { :controller => :phase, :action => :destroy, :id => phase }, :confirm => 'Are you sure?', :post => true %>
+      <br/>
+      <% last_order_by = phase.order_by %>
+    <% end %>
+    </p>
 
-<p>Add new phase: (More phases can be added later)<br />
-<input type="text" id="phase[name]" name="phase[name]" value="">
-<input type="hidden" id="phase[order_by]" name="phase[order_by]" value="<%= last_order_by + 1 %>">
-</p>
+    <p>Add new phase: (More phases can be added later)<br />
+    <input type="text" id="phase[name]" name="phase[name]" value="">
+    <input type="hidden" id="phase[order_by]" name="phase[order_by]" value="<%= last_order_by + 1 %>">
+    </p>
 
-<input type="submit" value="Save">
-</form>
+    <%= submit_tag "Update" %>
+  <% end %>
 </div>

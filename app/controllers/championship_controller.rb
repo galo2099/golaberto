@@ -143,12 +143,17 @@ class ChampionshipController < ApplicationController
 
   def update
     @championship = Championship.find(@params["id"])
-    @championship.attributes = @params["championship"]
+
+    begin_date = params[:championship].delete(:begin)
+    @championship.begin = Date.strptime(begin_date, "%d/%m/%Y") unless begin_date.empty?
+    end_date = params[:championship].delete(:end)
+    @championship.end = Date.strptime(end_date, "%d/%m/%Y") unless end_date.empty?
+    @championship.attributes = params[:championship]
 
     saved = @championship.save
     new_empty = false
 
-    @phase = @championship.phases.build(@params["phase"])
+    @phase = @championship.phases.build(params[:phase])
     new_empty = @phase.name.empty?
 
     saved = @phase.save and saved unless new_empty
