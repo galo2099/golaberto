@@ -1,0 +1,32 @@
+<% if @total == 0 %>
+  <p>No referee found</p>
+<% else %>
+
+  <table>
+    <tr>
+      <th>Name</th>
+      <th>Location</th>
+    </tr>
+
+    <% @referees.each do |referee| %>
+      <tr>
+        <td><%= link_to referee.name, :action => :show, :id => referee %></td>
+        <td><%= referee.location %></td>
+        <% if logged_in? %>
+          <td><%= link_to 'Edit', :action => 'edit', :id => referee %></td>
+          <td><%= link_to 'Destroy', { :action => 'destroy', :id => referee }, :confirm => 'Are you sure?', :post => true %></td>
+        <% end %>
+      </tr>
+    <% end %>
+  </table>
+
+  <% if @referee_pages.page_count > 1 %>
+    <% page_options = { :url => { :action => :list, :name => @name },
+                        :update => "table",
+                        :before => "Element.show('spinner')",
+                        :success => "Element.hide('spinner')" } %>
+    <%= pagination_links_remote @referee_pages, { :window_size => 1 }, page_options %>
+  <% end %>
+
+<% end %>
+
