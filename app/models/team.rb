@@ -31,8 +31,14 @@ class Team < ActiveRecord::Base
   end
   
   def next_n_games(n, phase = nil)
-    cond = { :played => false }
-    cond.merge!({ :phase => phase }) unless phase.nil?
+    cond = [ "played = ?", false ]
+    if phase.nil?
+      cond[0] << " AND championships.category_id = ?";
+      cond << Category::DEFAULT_CATEGORY
+    else
+      cond[0] << " AND phase_id = ?"
+      cond << phase.id
+    end
     ret = n_games(n, cond, "ASC").sort do |a,b|
       a.date <=> b.date
     end
@@ -40,8 +46,14 @@ class Team < ActiveRecord::Base
   end
 
   def last_n_games(n, phase = nil)
-    cond = { :played => true }
-    cond.merge!({ :phase => phase }) unless phase.nil?
+    cond = [ "played = ?", true ]
+    if phase.nil?
+      cond[0] << " AND championships.category_id = ?";
+      cond << Category::DEFAULT_CATEGORY
+    else
+      cond[0] << " AND phase_id = ?"
+      cond << phase.id
+    end
     ret = n_games(n, cond, "DESC").sort do |a,b|
       b.date <=> a.date
     end
@@ -54,11 +66,13 @@ class Team < ActiveRecord::Base
         :all,
         :order => "date #{order}",
         :conditions => condition,
+        :include => [ { :phase => :championship } ],
         :limit => n)
     away = self.away_games.find(
         :all,
         :order => "date #{order}",
         :conditions => condition,
+        :include => [ { :phase => :championship } ],
         :limit => n)
 
     home + away
