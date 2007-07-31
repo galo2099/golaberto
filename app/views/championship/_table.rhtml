@@ -5,8 +5,8 @@
 <h3><%= h group.name %></h3>
 <table class='class_table'>
   <tr class='table_head'>
-    <%= content_tag :th, "Pos" unless omit_columns[:Pos] %>
-    <%= content_tag :th, "Name" unless omit_columns[:Name] %>
+    <%= content_tag :th, "Pos", :class => "pos" unless omit_columns[:Pos] %>
+    <%= content_tag :th, "Name", :class => "name" unless omit_columns[:Name] %>
     <%= content_tag :th, "Pts" unless omit_columns[:Pts] %>
     <%= content_tag :th, "G" unless omit_columns[:G] %>
     <%= content_tag :th, "W" unless omit_columns[:W] %>
