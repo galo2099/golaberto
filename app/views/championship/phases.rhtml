@@ -17,7 +17,7 @@
 
 <% @current_phase.groups.each do |group| %>
   <%= render :partial => "table", :locals => { :group => group } %>
-<% end %>
+<% end if @current_phase %>
 
 <% content_for :sidebar do %>
   <%= render :partial => "nav_side" %>

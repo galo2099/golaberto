@@ -32,18 +32,13 @@ class ChampionshipController < ApplicationController
 
   def show
     @championship = Championship.find(params["id"])
-    if @championship.phases.empty?
-      render :partial => "nav_side", :layout => true
-    else
-      redirect_to :action => 'phases',
-                  :id => @championship,
-                  :phase => @championship.phases[-1]
-    end
+    redirect_to :action => 'phases',
+                :id => @championship
   end
 
   def phases
-    @championship = Championship.find(@params["id"])
-    @current_phase = @championship.phases.find(@params["phase"])
+    @championship = Championship.find(params[:id])
+    @current_phase = @championship.phases.find(params[:phase]) if params[:phase]
   end
 
   def team
