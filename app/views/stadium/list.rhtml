@@ -1,4 +1,4 @@
-<h1>Listing stadia</h1>
+<% content_for :main_title do %>Listing stadia<% end %>
 
 <p>
 <% form_tag({ :action => "list", :name => "" }, :method => "GET",
@@ -24,7 +24,8 @@
 </div>
 <br/>
 
-<% if logged_in? %>
-  <%= link_to 'New stadium', :action => 'new' %>
+<% content_for :sidebar do %>
+  <% if logged_in? %>
+    <%= link_to 'New stadium', :action => 'new' %>
+  <% end %>
 <% end %>
-

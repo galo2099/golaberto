@@ -1,5 +1,6 @@
-<h1><%= h @championship.full_name %></h1>
-<div class="content">
+<% content_for :main_title do %>
+  <%= h @championship.full_name %>
+<% end %>
 <table class='tab_header'><tr>
 <% @championship.phases.each do |phase| %>
 <td>
@@ -18,10 +19,9 @@
   <%= render :partial => "table", :locals => { :group => group } %>
 <% end %>
 
-<%= javascript_include_tag "boxover" %>
-</div>
-
-<div class="nav_side">
+<% content_for :sidebar do %>
   <%= render :partial => "nav_side" %>
-</div>
-<div style="clear: both"/>
+<% end %>
+
+<%= javascript_include_tag "boxover" %>
+

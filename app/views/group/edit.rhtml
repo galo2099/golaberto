@@ -1,10 +1,13 @@
+<% content_for :main_title do %>
+  <%= @group.phase.championship.full_name %>
+<% end %>
+
 <%= error_messages_for 'group'  %>
 <% @teams.each do |team| %>
   <%= team.errors.full_messages %>
   <%= tag "br" unless team.errors.full_messages.empty? %>
 <% end unless @teams.nil? %>
 
-<h1><%= @group.phase.championship.full_name %></h1>
 <h2><%= @group.phase.name %></h2>
 
 <% form_for :group, @group, :url => { :action => :update, :id => @group } do |f| %>

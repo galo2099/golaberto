@@ -1,6 +1,5 @@
-<h1>Team</h1>
+<% content_for :main_title do %> Team <% end %>
 
-<div class='content'>
 <div>
   <div style="float: left">
     <%= image_tag "logos/" + @team.large_logo %>
@@ -63,8 +62,9 @@ unless next_games.empty? %>
 </div>
 <% end %>
 
-<% if logged_in? %>
-  <br/>
-  <%= link_to "Edit", :action => :edit, :id => @team %>
+<% content_for :sidebar do %>
+  <% if logged_in? %>
+    <%= link_to "Edit", :action => :edit, :id => @team %><br/>
+    <%= link_to "Delete", { :action => :destroy, :id => @team }, :confirm => 'Are you sure?', :method => :post %><br/>
+  <% end %>
 <% end %>
-</div>

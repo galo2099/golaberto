@@ -1,6 +1,7 @@
-<h1><%= @championship.full_name %></h1>
+<% content_for :main_title do %>
+  <%= @championship.full_name %>
+<% end %>
 
-<div class='content'>
 <select id='team_select'>
   <%= options_from_collection_for_select @teams, "id", "name", @team.id %>
 </select>
@@ -101,28 +102,25 @@
   <% end %>
 </div>
 
-</div>
-
-<div class="nav_side">
+<% content_for :sidebar do %>
   <%= render :partial => "nav_side" %>
 
-<div class='team_table'>
-  <% @groups.each do |group| %>
-    <h2><%= group.phase.name %></h2>
-    <%= render :partial => "table",
-               :locals => { :group => group,
-                            :omit_columns => { :D => true,
-                                               :L => true,
-                                               :GF => true,
-                                               :GA => true },
-                            :omit_logo => true,
-                            :omit_popup => true,
-                            :omit_comments => true } %>
-  <% end %>
-</div>
-</div>
+  <div class='team_table'>
+    <% @groups.each do |group| %>
+      <h2><%= group.phase.name %></h2>
+      <%= render :partial => "table",
+                 :locals => { :group => group,
+                              :omit_columns => { :D => true,
+                                                 :L => true,
+                                                 :GF => true,
+                                                 :GA => true },
+                              :omit_logo => true,
+                              :omit_popup => true,
+                              :omit_comments => true } %>
+    <% end %>
+  </div>
+<% end %>
 
-<div style="clear: both"/>
 <%= javascript_include_tag "boxover" %>
 
 <%= javascript_tag <<EOF

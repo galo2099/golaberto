@@ -1,12 +1,10 @@
 <%= error_messages_for 'team'  %>
 
-<h1>Editing team</h1>
+<% content_for :main_title do %> Editing team <% end %>
 
-<div class='content'>
 <% form_for :team, @team, :url => { :action => :update, :id => @team }, :html => { :multipart => true } do |f| %>
   Name: <%= f.text_field :name %><br/>
   Country: <%= f.text_field :country %><br/>
   <label for="logo">Logo:</label> <%= file_field_tag "logo" %><br/>
   <%= submit_tag "Update" %>
 <% end %>
-</div>

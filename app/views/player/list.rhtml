@@ -1,4 +1,4 @@
-<h1>Listing players</h1>
+<% content_for :main_title do %>Listing players<% end %>
 
 <p>
 <% form_tag({ :action => "list", :id => "" }, :method => "GET",
@@ -24,7 +24,9 @@
 </div>
 <br/>
 
-<% if logged_in? %>
-  <%= link_to 'New player', :action => 'new' %>
+<% content_for :sidebar do %>
+  <% if logged_in? %>
+    <%= link_to 'New player', :action => 'new' %>
+  <% end %>
 <% end %>
 

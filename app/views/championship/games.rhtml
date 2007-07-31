@@ -1,5 +1,6 @@
-<h1><%= h @championship.full_name %></h1>
-<div class='content'>
+<% content_for :main_title do %>
+  <%= h @championship.full_name %>
+<% end %>
 <%= image_tag("spinner.gif",
               :align => 'absmiddle',
               :border=> 0,
@@ -23,23 +24,21 @@
 <div id='table'>
   <%= render :partial => "game_table" %>
 </div>
-</div>
 
-<div class="nav_side">
+<% content_for :sidebar do %>
   <%= render :partial => "nav_side" %>
 
-<div class='team_table'>
-<% @current_phase.groups.each do |group| %>
-<%= render :partial => "table",
-           :locals => { :group => group,
-                        :omit_columns => { :D => true,
-                                           :L => true,
-                                           :GF => true,
-                                           :GA => true },
-                        :omit_logo => true,
-                        :omit_popup => true,
-                        :omit_comments => true } %>
+  <div class='team_table'>
+    <% @current_phase.groups.each do |group| %>
+      <%= render :partial => "table",
+                 :locals => { :group => group,
+                              :omit_columns => { :D => true,
+                                                 :L => true,
+                                                 :GF => true,
+                                                 :GA => true },
+                              :omit_logo => true,
+                              :omit_popup => true,
+                              :omit_comments => true } %>
+    <% end %>
+  </div>
 <% end %>
-</div>
-</div>
-<div style="clear: both"/>

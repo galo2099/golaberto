@@ -1,6 +1,6 @@
-<%= error_messages_for 'phase', 'group'  %>
+<% content_for :main_title do %><%= @phase.championship.full_name %><% end %>
 
-<h1><%= @phase.championship.full_name %></h1>
+<%= error_messages_for 'phase', 'group'  %>
 
 <% form_for :phase, @phase, :url => { :action => :update, :id => @phase } do |p| %>
   <table>

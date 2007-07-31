@@ -34,7 +34,13 @@
     <% end %>
 
     <div class='main'>
-      <%= yield %>
+      <h1><%= yield :main_title %></h1>
+      <div class="content">
+        <%= yield %>
+      </div>
+      <div class="nav_side">
+        <%= yield :sidebar %>
+      </div>
       <div class='clearer'></div>
     </div>
 

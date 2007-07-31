@@ -31,10 +31,11 @@ function receiveDrop(drag, drop) {
 EOF
 %>
 
-<h1><%= @game.phase.championship.full_name %></h1>
+<% content_for :main_title do %>
+  <%= @game.phase.championship.full_name %>
+<% end %>
 <h2><%= @game.phase.name %></h2>
 
-<div class='content'>
 <% form_for :game, @game, :url => { :action => "update", :id => @game} do |g| %>
   <%= hidden_field_tag "redirect", @params["redirect"] if @params["redirect"] %>
   <table>
@@ -168,7 +169,6 @@ EOF
   Played: <%= check_box :game, :played %><br/>
   <%= submit_tag "Update" %>
 <% end %>
-</div>
 
 <%= javascript_tag <<EOF
 function updateGoalTable(home_away, value) {

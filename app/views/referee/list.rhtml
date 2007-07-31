@@ -1,4 +1,4 @@
-<h1>Listing referees</h1>
+<% content_for :main_title do %>Listing referees<% end %>
 
 <p>
 <% form_tag({ :action => "list", :name => "" }, :method => "GET",
@@ -24,7 +24,9 @@
 </div>
 <br/>
 
-<% if logged_in? %>
-  <%= link_to 'New referee', :action => 'new' %>
+<% content_for :sidebar do %>
+  <% if logged_in? %>
+    <%= link_to 'New referee', :action => 'new' %>
+  <% end %>
 <% end %>
 

@@ -1,19 +1,17 @@
-<h1>Listing games</h1>
+<% content_for :main_title do %>Listing games<% end %>
 
-<div class='content'>
-  From: <%= date_field_tag "date_range_start", nil, :format => "%d/%m/%Y", :size => 10 %>
-  To: <%= date_field_tag "date_range_end", nil, :format => "%d/%m/%Y", :size => 10 %>
-  <br/>
-  <br/>
-  <div id='table'>
-    <%= render :partial => "game_list" %>
-  </div>
+From: <%= date_field_tag "date_range_start", nil, :format => "%d/%m/%Y", :size => 10 %>
+To: <%= date_field_tag "date_range_end", nil, :format => "%d/%m/%Y", :size => 10 %>
+<br/>
+<br/>
+<div id='table'>
+  <%= render :partial => "game_list" %>
 </div>
 
-<div class="nav_side">
+<% content_for :sidebar do %>
   <%= link_to_unless(@type == "scheduled", "Scheduled", :action => :list, :type => :scheduled) %><br/>
   <%= link_to_unless(@type == "played", "Played", :action => :list, :type => :played) %>
-</div>
+<% end %>
 
 <%= observe_field "date_range_start",
                   :update => "table",

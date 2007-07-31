@@ -1,3 +1,5 @@
+<% content_for :main_title do %>New Team<% end %>
+
 <%= error_messages_for 'team' %>
 <% form_for :team, @team, :url => { :action => :create }, :html => { :multipart => true } do |f| %>
   Name: <%= f.text_field :name %><br/>

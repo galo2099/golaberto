@@ -1,4 +1,4 @@
-<h1>Player Edit</h1>
+<% content_for :main_title do %>Player Edit<% end %>
 
 <% form_for :player, @player, :url => { :action => :update, :id => @player } do |f| %>
   Name: <%= f.text_field :name %><br/>

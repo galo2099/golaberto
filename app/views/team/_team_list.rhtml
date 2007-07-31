@@ -15,7 +15,7 @@
         <td><%= team.country %></td>
         <% if logged_in? %>
           <td><%= link_to 'Edit', :action => 'edit', :id => team %></td>
-          <td><%= link_to 'Destroy', { :action => 'destroy', :id => team }, :confirm => 'Are you sure?', :post => true %></td>
+          <td><%= link_to 'Destroy', { :action => 'destroy', :id => team }, :confirm => 'Are you sure?', :method => :post %></td>
         <% end %>
       </tr>
     <% end %>
