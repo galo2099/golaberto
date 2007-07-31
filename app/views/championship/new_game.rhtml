@@ -3,13 +3,14 @@
 <h1><%= @championship.full_name %></h1>
 <h2><%= @current_phase.name %></h2>
 
-<% form_for :team, @team, :url => { :controller => :game, :action => :create, :championship => @championship, :phase => @current_phase } do |f| %>
+<% form_for :game, @game, :url => { :controller => :game, :action => :create, :championship => @championship, :phase => @current_phase } do |f| %>
   <select id="game_home_id" name="game[home_id]">
     <%= options_from_collection_for_select @current_phase.teams, "id", "name" %>
   </select> x 
   <select id="game_away_id" name="game[away_id]">
     <%= options_from_collection_for_select @current_phase.teams, "id", "name" %>
   </select><br/>
+  <%= f.hidden_field :played %>
   <%= submit_tag "Create" %><br/>
 <% end %>
 
