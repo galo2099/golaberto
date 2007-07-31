@@ -12,6 +12,7 @@ class ChampionshipController < ApplicationController
   end
 
   def create
+    @categories = Category.find(:all)
     @championship = Championship.new(params["championship"])
     @championship.begin = Date.strptime(params["championship"]["begin"],
                                         "%d/%m/%Y")
@@ -32,8 +33,10 @@ class ChampionshipController < ApplicationController
 
   def show
     @championship = Championship.find(params["id"])
+    last_phase = @championship.phases[-1] unless @championship.phases.empty?
     redirect_to :action => 'phases',
-                :id => @championship
+                :id => @championship,
+                :phase => last_phase
   end
 
   def phases
