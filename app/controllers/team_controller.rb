@@ -18,9 +18,11 @@ class TeamController < ApplicationController
     @team = Team.find(params["id"])
     @team.attributes = params["team"]
 
-    if @team.save
+    begin
+      @team.save!
+      @team.uploaded_logo = params[:logo] unless params[:logo].to_s.empty?
       redirect_to :action => :show, :id => @team
-    else
+    rescue
       render :action => :edit
     end
   end

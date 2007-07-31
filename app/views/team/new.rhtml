@@ -1,8 +1,8 @@
 <%= error_messages_for 'team' %>
-<% form_for :team, @team, :url => { :action => "create" } do |f| %>
+<% form_for :team, @team, :url => { :action => :create }, :html => { :multipart => true } do |f| %>
   Name: <%= f.text_field :name %><br/>
   Country: <%= f.text_field :country %><br/>
-  Logo: <%= f.text_field :logo %><br/>
+  <label for="logo">Logo:</label> <%= file_field_tag "logo" %><br/>
   <%= submit_tag "Create" %>
 <% end %>
 

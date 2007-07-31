@@ -1,4 +1,7 @@
 class Team < ActiveRecord::Base
+  require 'RMagick'
+  include Magick
+
   has_many :team_groups, :dependent => :delete_all
   has_many :groups, :through => :team_groups
   has_many :home_games, :foreign_key => "home_id", :class_name => "Game", :dependent => :destroy
@@ -14,6 +17,18 @@ class Team < ActiveRecord::Base
   # Field: country , SQL Definition:varchar(255)
   # Field: logo , SQL Definition:varchar(255)
   
+  def uploaded_logo=(l)
+    image = ImageList.new.from_blob(l.read)
+    image.scale!(100, 100)
+    background = ImageList.new("#{RAILS_ROOT}/public/images/logos/100.png")
+    image = background.composite(image, CenterGravity, OverCompositeOp) 
+    image.write("#{RAILS_ROOT}/public/images/logos/#{self.id}_100.png")
+    image.scale!(15, 15)
+    image.write("#{RAILS_ROOT}/public/images/logos/#{self.id}_15.png")
+    self.logo = "#{self.id}.svg"
+    save!
+  end
+
   def small_logo
     if logo.nil?
       '15.png'
