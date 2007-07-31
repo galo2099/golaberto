@@ -140,6 +140,7 @@ class ChampionshipController < ApplicationController
 
   def update
     @championship = Championship.find(@params["id"])
+    @categories = Category.find(:all)
 
     begin_date = params[:championship].delete(:begin)
     @championship.begin = Date.strptime(begin_date, "%d/%m/%Y") unless begin_date.empty?
