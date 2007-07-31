@@ -19,7 +19,9 @@ class Team < ActiveRecord::Base
   
   def uploaded_logo=(l)
     image = ImageList.new.from_blob(l.read)
-    image.scale!(100, 100)
+    image.change_geometry("100x100") do |cols, rows, img|
+      img.resize!(cols, rows)
+    end
     background = ImageList.new("#{RAILS_ROOT}/public/images/logos/100.png")
     image = background.composite(image, CenterGravity, OverCompositeOp) 
     image.write("#{RAILS_ROOT}/public/images/logos/#{self.id}_100.png")
