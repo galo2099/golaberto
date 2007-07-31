@@ -56,7 +56,7 @@ class TeamController < ApplicationController
 
   def destroy
     team = Team.find(params[:id]).destroy
-    redirect_to :back
+    redirect_to :action => :list
   end
 
   def auto_complete_for_team_name

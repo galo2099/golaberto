@@ -8,6 +8,7 @@ class Team < ActiveRecord::Base
   has_many :away_games, :foreign_key => "away_id", :class_name => "Game", :dependent => :destroy
   has_many :team_players, :dependent => :delete_all, :include => :player
   validates_length_of :name, :within => 1..40
+  validates_length_of :country, :within => 1..40
   validates_uniqueness_of :name, :message => "already exists"
 
   # Fields information, just FYI.
