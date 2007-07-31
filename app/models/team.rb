@@ -18,10 +18,14 @@ class Team < ActiveRecord::Base
   # Field: country , SQL Definition:varchar(255)
   # Field: logo , SQL Definition:varchar(255)
   
-  def uploaded_logo=(l)
+  def uploaded_logo(l, filter_background = false)
     image = ImageList.new.from_blob(l.read)
     image.change_geometry("100x100") do |cols, rows, img|
       img.resize!(cols, rows)
+    end
+    if filter_background
+      image.fuzz = "5%"
+      image = image.matte_floodfill(0, 0)
     end
     background = ImageList.new("#{RAILS_ROOT}/public/images/logos/100.png")
     image = background.composite(image, CenterGravity, OverCompositeOp) 
