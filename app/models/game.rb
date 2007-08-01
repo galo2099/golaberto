@@ -15,15 +15,13 @@ class Game < ActiveRecord::Base
            :class_name => "Goal",
            :order => :time,
            :include => :player,
-           :conditions => '(team_id = #{home_id} and own_goal = "0") or (team_id = #{away_id} and own_goal = "1")',
-           :dependent => :delete_all
+           :conditions => '(team_id = #{home_id} and own_goal = "0") or (team_id = #{away_id} and own_goal = "1")'
 
   has_many :away_goals,
            :class_name => "Goal",
            :order => :time,
            :include => :player,
-           :conditions => '(team_id = #{away_id} and own_goal = "0") or (team_id = #{home_id} and own_goal = "1")',
-           :dependent => :delete_all
+           :conditions => '(team_id = #{away_id} and own_goal = "0") or (team_id = #{home_id} and own_goal = "1")'
 
   has_many :home_player_games,
            :class_name => "PlayerGame",
