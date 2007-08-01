@@ -145,20 +145,22 @@ class Team < ActiveRecord::Base
     cols = image.columns
     rows = image.rows
     background_pixel = image.get_pixels(0, 0, 1, 1).first
-    rows.times do |row|
-      if image.get_pixels(0, row, 1, 1).first == background_pixel
-        image = image.matte_floodfill(0, row)
+    if background_pixel.opacity != MaxRGB
+      rows.times do |row|
+        if image.get_pixels(0, row, 1, 1).first == background_pixel
+          image = image.matte_floodfill(0, row)
+        end
+        if image.get_pixels(cols - 1, row, 1, 1).first == background_pixel
+          image = image.matte_floodfill(cols - 1, row)
+        end
       end
-      if image.get_pixels(cols - 1, row, 1, 1).first == background_pixel
-        image = image.matte_floodfill(cols - 1, row)
-      end
-    end
-    cols.times do |col|
-      if image.get_pixels(col, 0, 1, 1).first == background_pixel
-        image = image.matte_floodfill(col, 0)
-      end
-      if image.get_pixels(col, rows - 1, 1, 1).first == background_pixel
-        image = image.matte_floodfill(col, rows - 1)
+      cols.times do |col|
+        if image.get_pixels(col, 0, 1, 1).first == background_pixel
+          image = image.matte_floodfill(col, 0)
+        end
+        if image.get_pixels(col, rows - 1, 1, 1).first == background_pixel
+          image = image.matte_floodfill(col, rows - 1)
+        end
       end
     end
     image
