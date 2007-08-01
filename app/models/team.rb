@@ -21,11 +21,11 @@ class Team < ActiveRecord::Base
   def uploaded_logo(l, filter_background = false)
     image = ImageList.new.from_blob(l.read)
     if filter_background
-      image.fuzz = "5%"
-      image = image.matte_floodfill(0, 0)
-      # crop the image to have only the logo
-      crop_logo(image)
+      # make the background transparent
+      image = remove_background(image)
     end
+    # crop the image to have only the logo
+    image = crop_logo(image)
     image.change_geometry("100x100") do |cols, rows, img|
       img.resize!(cols, rows)
     end
@@ -137,6 +137,30 @@ class Team < ActiveRecord::Base
     # sanitize values
     x_left = x_right if x_left > x_right
     y_top = y_bottom if y_top > y_bottom
-    image.crop!(x_left, y_top, x_right - x_left, y_bottom - y_top)
+    image.crop(x_left, y_top, x_right - x_left, y_bottom - y_top)
+  end
+  
+  def remove_background(image)
+    image.fuzz = "5%"
+    cols = image.columns
+    rows = image.rows
+    background_pixel = image.get_pixels(0, 0, 1, 1).first
+    rows.times do |row|
+      if image.get_pixels(0, row, 1, 1).first == background_pixel
+        image = image.matte_floodfill(0, row)
+      end
+      if image.get_pixels(cols - 1, row, 1, 1).first == background_pixel
+        image = image.matte_floodfill(cols - 1, row)
+      end
+    end
+    cols.times do |col|
+      if image.get_pixels(col, 0, 1, 1).first == background_pixel
+        image = image.matte_floodfill(col, 0)
+      end
+      if image.get_pixels(col, rows - 1, 1, 1).first == background_pixel
+        image = image.matte_floodfill(col, rows - 1)
+      end
+    end
+    image
   end
 end
