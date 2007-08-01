@@ -47,10 +47,12 @@ class TeamController < ApplicationController
 
   def create
     @team = Team.new(params[:team])
-    if @team.save
+    begin
+      @team.save!
+      @team.uploaded_logo(params[:logo], params[:filter]) unless params[:logo].to_s.empty?
       redirect_to :action => :show, :id => @team
-    else
-      render :action => :new
+    rescue
+      render :action => :edit
     end
   end
 
