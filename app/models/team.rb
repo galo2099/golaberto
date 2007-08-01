@@ -20,12 +20,14 @@ class Team < ActiveRecord::Base
   
   def uploaded_logo(l, filter_background = false)
     image = ImageList.new.from_blob(l.read)
-    image.change_geometry("100x100") do |cols, rows, img|
-      img.resize!(cols, rows)
-    end
     if filter_background
       image.fuzz = "5%"
       image = image.matte_floodfill(0, 0)
+      # crop the image to have only the logo
+      crop_logo(image)
+    end
+    image.change_geometry("100x100") do |cols, rows, img|
+      img.resize!(cols, rows)
     end
     background = ImageList.new("#{RAILS_ROOT}/public/images/logos/100.png")
     image = background.composite(image, CenterGravity, OverCompositeOp) 
@@ -100,4 +102,41 @@ class Team < ActiveRecord::Base
     home + away
   end
 
+  def crop_logo(image)
+    cols = image.columns
+    rows = image.rows
+    x_left = 0
+    x_right = cols - 1
+    y_top = 0
+    y_bottom = rows - 1
+    transparent = Pixel.new(0, 0, 0, MaxRGB)
+    cols.times do |i|
+      if image.get_pixels(i, 0, 1, rows).select{|p| p != transparent}.size > 0
+        x_left = i
+        break
+      end
+    end
+    (cols - 1).downto(0) do |i|
+      if image.get_pixels(i, 0, 1, rows).select{|p| p != transparent}.size > 0
+        x_right = i
+        break
+      end
+    end
+    rows.times do |i|
+      if image.get_pixels(0, i, cols, 1).select{|p| p != transparent}.size > 0
+        y_top = i
+        break
+      end
+    end
+    (rows - 1).downto(0) do |i|
+      if image.get_pixels(0, i, cols, 1).select{|p| p != transparent}.size > 0
+        y_bottom = i
+        break
+      end
+    end
+    # sanitize values
+    x_left = x_right if x_left > x_right
+    y_top = y_bottom if y_top > y_bottom
+    image.crop!(x_left, y_top, x_right - x_left, y_bottom - y_top)
+  end
 end
