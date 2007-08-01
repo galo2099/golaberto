@@ -19,5 +19,5 @@
 
 <% if @game_pages.page_count > 1 %>
   <% page_options = { :url => { :action => :list, :type => @type, :date_range_start => @date_range_start, :date_range_end => @date_range_end }, :update => "table" } %>
-  <%= pagination_links_remote @game_pages, { :window_size => 3 }, page_options %>
+  <%= pagination_links_remote @game_pages, page_options %>
 <% end %>

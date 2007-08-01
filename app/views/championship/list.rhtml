@@ -27,7 +27,7 @@
 
   <p>
   <% if @championship_pages.page_count > 1 %>
-    <%= pagination_links @championship_pages, { :window_size => 1 } %>
+    <%= pagination_links @championship_pages, { :window_size => 5 } %>
   <% end %>
   </p>
 

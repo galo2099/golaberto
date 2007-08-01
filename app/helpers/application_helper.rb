@@ -1,6 +1,7 @@
 # Methods added to this helper will be available to all templates in the application.
 module ApplicationHelper
-  def pagination_links_remote(paginator, page_options={}, ajax_options={}, html_options={})
+  def pagination_links_remote(paginator, ajax_options={}, page_options={}, html_options={})
+    page_options = { :window_size => 8 }.merge(page_options)
     html = ""
     unless paginator.current.first?
       ajax_options[:url].merge!({:page => paginator.current.previous})

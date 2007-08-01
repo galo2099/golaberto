@@ -5,9 +5,9 @@
   <%= image_tag "logos/" + @game.home.small_logo %>
 </div>
 <div class='table_cell home_team'><%= @game.home.name %></div>
-<div class='table_cell home_score'><%= @game.home_score %></div>
+<div class='table_cell home_score'><%= @game.home_score if @game.played? %></div>
 <div class='table_cell game_x'>x</div>
-<div class='table_cell away_score'><%= @game.away_score %></div>
+<div class='table_cell away_score'><%= @game.away_score if @game.played? %></div>
 <div class='table_cell away_team'><%= @game.away.name %></div>
 <div class='table_cell away_logo'>
   <%= image_tag "logos/" + @game.away.small_logo %>

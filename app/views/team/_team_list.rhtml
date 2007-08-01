@@ -26,7 +26,7 @@
                         :update => "table",
                         :before => "Element.show('spinner')",
                         :success => "Element.hide('spinner')" } %>
-    <%= pagination_links_remote @team_pages, { :window_size => 1 }, page_options %>
+    <%= pagination_links_remote @team_pages, page_options %>
   <% end %>
 
 <% end %>

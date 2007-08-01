@@ -353,6 +353,7 @@ DIV.table_row {
 }
 DIV.table_cell {
   border: none;
+  min-height: 1px;
   float: left;
   margin: 0;
   padding: 0;
