@@ -118,7 +118,7 @@ class Team < ActiveRecord::Base
     end
     (cols - 1).downto(0) do |i|
       if image.get_pixels(i, 0, 1, rows).select{|p| p != transparent}.size > 0
-        x_right = i
+        x_right = i + 1
         break
       end
     end
@@ -130,7 +130,7 @@ class Team < ActiveRecord::Base
     end
     (rows - 1).downto(0) do |i|
       if image.get_pixels(0, i, cols, 1).select{|p| p != transparent}.size > 0
-        y_bottom = i
+        y_bottom = i + 1
         break
       end
     end

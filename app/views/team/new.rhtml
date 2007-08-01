@@ -5,6 +5,7 @@
   Name: <%= f.text_field :name %><br/>
   Country: <%= f.text_field :country %><br/>
   <label for="logo">Logo:</label> <%= file_field_tag "logo" %><br/>
+  <label for="filter">Filter image background?</label> <%= check_box_tag "filter" %><br/> 
   <%= submit_tag "Create" %>
 <% end %>
 

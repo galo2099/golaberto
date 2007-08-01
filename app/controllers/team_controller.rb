@@ -52,7 +52,7 @@ class TeamController < ApplicationController
       @team.uploaded_logo(params[:logo], params[:filter]) unless params[:logo].to_s.empty?
       redirect_to :action => :show, :id => @team
     rescue
-      render :action => :edit
+      render :action => :new
     end
   end
 
