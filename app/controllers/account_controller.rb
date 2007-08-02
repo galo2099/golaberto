@@ -1,5 +1,6 @@
 class AccountController < ApplicationController
   # If you want "remember me" functionality, add this before_filter to Application Controller
+  before_filter :login_required, :except => [ :login, :logout ]
   before_filter :login_from_cookie
 
   # say something nice, you goof!  something sweet.
