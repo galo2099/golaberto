@@ -15,6 +15,12 @@ class PlayerController < ApplicationController
         g.destroy
       end
     end
+    player_games = team_player.player.player_games.find_all_by_team_id(team_player.team_id)
+    player_games.each do |pg|
+      if pg.game.phase.championship_id == team_player.championship_id
+        pg.destroy
+      end
+    end
     team_player.destroy
     render :nothing => true
   end

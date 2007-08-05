@@ -5,6 +5,11 @@
 <% end unless @goals.nil? %>
 
 <%= javascript_tag <<EOF
+function finishPlayerAdd(home_away) {
+  $('add_player_' + home_away).hide();
+  $('link_player_' + home_away).show();
+}
+
 function receiveDrop(drag, drop) {
   home_away = drop.id.replace(/_goal_player_.*/, "");
   idx = drop.id.replace(/.*_goal_player_/, "");
@@ -51,12 +56,16 @@ EOF
     <tr>
       <td class="players">
         <div id="home_players">
-          <%= render :partial => "player_list",
-            :locals => { :players => @home_players,
-              :team => @game.home,
-              :game => @game,
+          <h3>Players</h3>
+          <div id="home_player_list">
+            <%= render :partial => "player_list",
+              :collection => @home_players,
+              :locals => { 
               :home_away => "home"
-          } %>
+            } %>
+          </div>
+          <%= render :partial => "insert_player",
+            :locals => { :team => @game.home, :game => @game, :home_away => "home", :partial => "player_list" } %>
         </div>
       </td>
       <td class="goals">
@@ -80,12 +89,16 @@ EOF
       </td>
       <td class="players">
         <div id="away_players">
-          <%= render :partial => "player_list",
-            :locals => { :players => @away_players,
-              :team => @game.away,
-              :game => @game,
+          <h3>Players</h3>
+          <div id="away_player_list">
+            <%= render :partial => "player_list",
+              :collection => @away_players,
+              :locals => {
               :home_away => "away"
-          } %>
+            } %>
+          </div>
+          <%= render :partial => "insert_player",
+            :locals => { :team => @game.away, :game => @game, :home_away => "away", :partial => "player_list" } %>
         </div>
       </td>
     </tr>

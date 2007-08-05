@@ -101,8 +101,7 @@ class GameController < ApplicationController
 
     saved = @game.save
 
-    @game.home_goals.clear
-    @game.away_goals.clear
+    @game.goals.clear
 
     @goals = Array.new
     @game.home_score.times do |i|
@@ -137,6 +136,7 @@ class GameController < ApplicationController
 
   def list_players
     items_per_page = 10
+    @partial = params[:partial]
     @name = params[:name]
     conditions = ["name LIKE ?", "%#{@name}%"] unless @name.nil?
 
@@ -172,20 +172,22 @@ class GameController < ApplicationController
   end
 
   def insert_team_player
-    unless params["name"].to_s.empty?
-      player = Player.new(:name => params["name"])
+    @game = Game.find(params[:id])
+    @home_away = params[:home_away]
+    @partial = params[:partial]
+    unless params[:name].to_s.empty?
+      player = Player.new(:name => params[:name])
       if player.save
-        params["team_player"]["player_id"] = player.id
+        params[:team_player][:player_id] = player.id
       else
-        params["team_player"]["player_id"] = nil
+        params[:team_player][:player_id] = nil
       end
     end
     team_player = TeamPlayer.new(params["team_player"])
-    if team_player.save
-      render :nothing => true
-    else
+    unless team_player.save
       render :nothing => true, :status => 401
     end
+    @player = team_player.player
   end
 
   def edit_squad

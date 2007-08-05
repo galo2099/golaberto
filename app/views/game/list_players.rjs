@@ -4,7 +4,7 @@ unless @total == 0
   page.insert_html :bottom, div_id, :partial => "player",
                                     :collection => @players
   if @player_pages.page_count > 1
-    page_options = { :url => { :action => :list_players, :team => @team, :game => @game, :name => @name } }
+    page_options = { :url => { :action => :list_players, :team => @team, :game => @game, :name => @name, :partial => @partial } }
     page.insert_html :bottom, div_id, pagination_links_remote(@player_pages, page_options)
   end
 end
