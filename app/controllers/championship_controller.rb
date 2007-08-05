@@ -81,7 +81,7 @@ class ChampionshipController < ApplicationController
         end
         points += earned
         games += 1
-        color = earned == @championship.point_win ? "blue" : earned == @championship.point_draw ? "grey" : "red"
+        color = earned == @championship.point_win ? "blue" : earned == @championship.point_draw ? "gray" : "red"
         game_str = game.formatted_date + " "
         game_str << game.home.name + " " + game.home_score.to_s + " x "
         game_str << game.away_score.to_s + " " + game.away.name
