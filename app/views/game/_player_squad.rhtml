@@ -1,0 +1,18 @@
+<div id="player_<%= player_squad.id %>">
+  <div class="draggable">
+    <%= player_squad.player.name %> - <%= player_squad.player.position %>
+  </div>
+  <div class="player_attributes" style="display: <%= disabled ? "none" : "inline" %>">
+    <% fields_for :player_game, player_squad, { :disabled => disabled, :index => "#{player_squad.player.id}_#{player_squad.team.id}_#{player_squad.game.id}" } do |f| %>
+      <%= f.hidden_field :player_id, f.options %>
+      <%= f.hidden_field :game_id, f.options %>
+      <%= f.hidden_field :team_id, f.options %>
+      <%= f.text_field :on, f.options.merge(:size => 2) %>
+      <%= f.text_field :off, f.options.merge(:size => 2) %>
+      <%= check_box_tag "player_game[#{f.options[:index]}][yellow]", "1", player_squad.yellow?, f.options %>
+      <%= hidden_field_tag "player_game[#{f.options[:index]}][yellow]", "0", f.options %>
+      <%= check_box_tag "player_game[#{f.options[:index]}][red]", "1", player_squad.red?, f.options %>
+      <%= hidden_field_tag "player_game[#{f.options[:index]}][red]", "0", f.options %>
+    <% end %>
+  </div>
+</div>

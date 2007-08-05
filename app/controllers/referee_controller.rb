@@ -22,6 +22,7 @@ class RefereeController < ApplicationController
   end
 
   def show
+    store_location
     @referee = Referee.find(params[:id])
   end
 end

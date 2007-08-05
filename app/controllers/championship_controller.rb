@@ -45,6 +45,7 @@ class ChampionshipController < ApplicationController
   end
 
   def team
+    store_location
     @championship = Championship.find(@params["id"])
 
     # Find every team for this championship
@@ -123,6 +124,7 @@ class ChampionshipController < ApplicationController
   end
 
   def games
+    store_location
     @championship = Championship.find(@params["id"])
     @current_phase = @championship.phases.find(@params["phase"])
 

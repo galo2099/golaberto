@@ -4,7 +4,7 @@ class Player < ActiveRecord::Base
 
   validates_length_of :name, :within => 1..40
 
-  Positions = %w(g dr dl dc dm cm am fw)
+  Positions = %w(g dr dc dl dm cm am fw)
   validates_inclusion_of :position, :in => Positions, :allow_nil => true
 
   # Fields information, just FYI.
@@ -16,5 +16,15 @@ class Player < ActiveRecord::Base
   # Field: country , SQL Definition:varchar(255)
   # Field: full_name , SQL Definition:varchar(255)
 
-
+  def self.compare_position(a, b)
+    if a.nil? and b.nil?
+      0
+    elsif a.nil?
+      1
+    elsif b.nil?
+      -1
+    else
+      Positions.index(a) <=> Positions.index(b)
+    end
+  end
 end

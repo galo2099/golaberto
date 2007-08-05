@@ -22,6 +22,7 @@ class StadiumController < ApplicationController
   end
 
   def show
+    store_location
     @stadium = Stadium.find(params[:id])
   end
 end

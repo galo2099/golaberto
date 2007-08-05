@@ -5,19 +5,7 @@
 <h2><%= link_to @game.phase.name, :controller => :championship, :action => :games, :id => @game.phase.championship, :phase => @game.phase %></h2>
 
 <table class="game_show_score">
-  <tr>
-    <td><%= image_tag "logos/" + @game.home.large_logo %></td>
-    <td class="game_show_home_team"><%= @game.home.name %></td>
-    <td></td>
-    <td><%= "(#{@game.home_pen})" if @game.home_pen %></td>
-    <td class="game_show_home_score"><%= @game.home_score %></td>
-    <td class="game_show_x">x</td>
-    <td class="game_show_away_score"><%= @game.away_score %></td>
-    <td><%= "(#{@game.away_pen})" if @game.away_pen %></td>
-    <td></td>
-    <td class="game_show_away_team"><%= @game.away.name %></td>
-    <td><%= image_tag "logos/" + @game.away.large_logo %></td>
-  </tr>
+  <%= render :partial => "game_score" %>
 
   <% count_home = 0 %>
   <% count_away = 0 %>
@@ -65,6 +53,7 @@
     </tr>
   <% end %>
 
+
   <tr><td></td><td colspan="4">
       <table style="width: 100%">
         <tr class="game_show_goals game_show_away_score">
@@ -76,14 +65,14 @@
           <th></th>
           <th></th>
         </tr>
-        <% @game.home_player_games.each do |player_game| %>
+        <% @game.home_player_games.sort.each do |player_game| %>
           <tr class="game_show_goals game_show_away_score">
             <td><%= player_game.player.name %></td>
             <td><%= player_game.player.position %></td>
             <td><%= player_game.on %></td>
             <td><%= player_game.off %></td>
-            <td><%= image_tag "yells.gif" if player_game.yellow != 0 %></td>
-            <td><%= image_tag "reds.gif" if player_game.red != 0 %></td>
+            <td><%= image_tag "yells.gif" if player_game.yellow? %></td>
+            <td><%= image_tag "reds.gif" if player_game.red? %></td>
             <td><%= image_tag "goal.png" if player_scored[player_game.player.id] %></td>
           </tr>
         <% end %>
@@ -100,14 +89,14 @@
           <th></th>
           <th></th>
         </tr>
-        <% @game.away_player_games.each do |player_game| %>
+        <% @game.away_player_games.sort.each do |player_game| %>
           <tr class="game_show_goals game_show_away_score">
             <td><%= player_game.player.name %></td>
             <td><%= player_game.player.position %></td>
             <td><%= player_game.on %></td>
             <td><%= player_game.off %></td>
-            <td><%= image_tag "yells.gif" if player_game.yellow != 0 %></td>
-            <td><%= image_tag "reds.gif" if player_game.red != 0 %></td>
+            <td><%= image_tag "yells.gif" if player_game.yellow? %></td>
+            <td><%= image_tag "reds.gif" if player_game.red? %></td>
             <td><%= image_tag "goal.png" if player_scored[player_game.player.id] %></td>
           </tr>
         <% end %>
@@ -129,3 +118,9 @@
 </table>
 
 <%= @game.played_str %><br/>
+
+<% content_for :sidebar do %>
+  <%= link_to "Edit", :action => :edit, :id => @game %><br/>
+  <%= link_to "Edit Squad", :action => :edit_squad, :id => @game %><br/>
+  <%= link_to "Delete", { :action => :destroy, :id => @game }, :confirm => 'Are you sure?', :method => :post %><br/>
+<% end %>

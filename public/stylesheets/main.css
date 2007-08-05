@@ -341,10 +341,6 @@ font-size: 11px;
   font-size: 12px;
   vertical-align: top;
 }
-.players li {
-  list-style: none;
-  list-style-position: inside;
-}
 
 DIV.table_row {
   background: none; color: #000000;
@@ -410,4 +406,16 @@ DIV.clearer {
 
 .draggable:hover {
   border: 2px solid #000000;
+}
+
+#home_squad {
+  border: 2px solid #e3b2c5;
+  padding: 0 0 10px 0;
+}
+#away_squad {
+  border: 2px solid #e3b2c5;
+  padding: 0 0 10px 0;
+}
+
+.player_attributes {
 }

@@ -34,6 +34,7 @@ class PlayerController < ApplicationController
   end
 
   def show
+    store_location
     @player = Player.find(@params["id"])
   end
 

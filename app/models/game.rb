@@ -23,19 +23,17 @@ class Game < ActiveRecord::Base
            :include => :player,
            :conditions => '(team_id = #{away_id} and own_goal = "0") or (team_id = #{home_id} and own_goal = "1")'
 
+  has_many :player_games, :include => :player, :dependent => :delete_all
+
   has_many :home_player_games,
            :class_name => "PlayerGame",
-           :dependent => :delete_all,
            :conditions => 'team_id = #{home_id}',
-           :include => :player,
-           :order => "player_games.off DESC, player_games.on"
+           :include => :player
 
   has_many :away_player_games,
            :class_name => "PlayerGame",
-           :dependent => :delete_all,
            :conditions => 'team_id = #{away_id}',
-           :include => :player,
-           :order => "player_games.off DESC, player_games.on"
+           :include => :player
 
   validates_presence_of :home
   validates_presence_of :away

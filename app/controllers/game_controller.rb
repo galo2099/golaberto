@@ -10,6 +10,7 @@ class GameController < ApplicationController
   end
 
   def list
+    store_location
     items_per_page = 30
     @type = params[:type] || "played"
     if (@type == "scheduled")
@@ -19,7 +20,7 @@ class GameController < ApplicationController
       conditions = { :played => true }
       order = "date DESC, phase_id, time DESC, teams.name"
     end
-    
+ 
     @date_range_start = params[:date_range_start]
     @date_range_end = params[:date_range_end]
     unless @date_range_start.to_s.empty? or @date_range_end.to_s.empty?
@@ -41,25 +42,8 @@ class GameController < ApplicationController
 
   def destroy
     game = Game.find(@params["id"]).destroy
-    redirect_to :back
+    redirect_back_or_default :back
   end
-
-  def prepare_for_edit
-    @referees = Referee.find(:all, :order => :name).map do |r|
-      [ "#{r.name} (#{r.location})", r.id ]
-    end
-    @stadiums = Stadium.find(:all, :order => :name)
-    @home_players = @game.home.team_players.find(
-      :all,
-      :order => :name,
-      :conditions => [ "championship_id = ?", @game.phase.championship ]).map {|p| p.player}
-      @away_players = @game.away.team_players.find(
-        :all,
-        :order => :name,
-        :conditions => [ "championship_id = ?", @game.phase.championship ]).map {|p| p.player}
-  end
-
-  private :prepare_for_edit
 
   def edit
     begin
@@ -105,7 +89,7 @@ class GameController < ApplicationController
     # we want to do our own date parsing
     date = params[:game].delete(:date)
     @game.date = Date.strptime(date, "%d/%m/%Y") unless date.empty?
- 
+
     # work around rails TIME bug
     unless params[:game]["time(4i)"].to_s.empty? and params[:game]["time(5i)"].to_s.empty?
       params[:game]["time(1i)"] = "2000"
@@ -204,4 +188,50 @@ class GameController < ApplicationController
     end
   end
 
+  def edit_squad
+    @game = Game.find(params[:id])
+    prepare_for_edit
+    prepare_for_edit_squad
+  end
+
+  def update_squad
+    @game = Game.find(params[:id])
+    @game.player_games = params[:player_game].values.map{|v| PlayerGame.new(v)}
+    if @game.save
+      redirect_to :action => :show, :id => @game
+    else
+      prepare_for_edit
+      prepare_for_edit_squad
+      render :action => :edit_squad
+    end
+  end
+
+  private
+
+  def prepare_for_edit
+    @referees = Referee.find(:all, :order => :name).map do |r|
+      [ "#{r.name} (#{r.location})", r.id ]
+    end
+    @stadiums = Stadium.find(:all, :order => :name)
+    @home_players = @game.home.team_players.find(
+      :all,
+      :order => :name,
+      :conditions => [ "championship_id = ?", @game.phase.championship ]).map {|p| p.player}
+      @away_players = @game.away.team_players.find(
+        :all,
+        :order => :name,
+        :conditions => [ "championship_id = ?", @game.phase.championship ]).map {|p| p.player}
+  end
+
+  def prepare_for_edit_squad
+    @home_squad = @game.home_player_games
+    @away_squad = @game.away_player_games
+    @home_players.map!{|p| PlayerGame.new({ :game => @game, :team => @game.home, :player => p }) }
+    @away_players.map!{|p| PlayerGame.new({ :game => @game, :team => @game.away, :player => p }) }
+    @home_players = @home_players.select{|p| @home_squad.select{|pg| pg.player.id == p.player.id}.size == 0}
+    @away_players = @away_players.select{|p| @away_squad.select{|pg| pg.player.id == p.player.id}.size == 0}
+
+    @home_squad.sort!
+    @away_squad.sort!
+  end
 end
