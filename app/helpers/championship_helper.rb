@@ -34,7 +34,7 @@ module ChampionshipHelper
         if (game.home_id == team.id) then 
           @goals_pen += game.home_pen unless game.home_pen.nil?
         else
-          @goals_pen += game.away_pen unless game.home_pen.nil?
+          @goals_pen += game.away_pen unless game.away_pen.nil?
           @goals_away += game.away_score
         end
         if game.home_score > game.away_score then
