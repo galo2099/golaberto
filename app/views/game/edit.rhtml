@@ -55,16 +55,16 @@ EOF
     </tr>
     <tr>
       <td>
-        Penalties: <%= check_box_tag "penalties", "1", @game.home_pen, :onChange => "if (this.checked) { $('game_home_pen').enable(); $('game[home_pen]').disable(); $('game_away_pen').enable(); $('game[away_pen]').disable(); } else { $('game_home_pen').disable(); $('game[home_pen]').enable(); $('game_away_pen').disable(); $('game[away_pen]').enable(); }" %>
+        <label for="penalties">Penalties:</label> <%= check_box_tag "penalties", "1", @game.home_pen, :onChange => "if (this.checked) { $('game_home_pen').enable(); $('game_away_pen').enable(); } else { $('game_home_pen').disable(); $('game_away_pen').disable(); }" %>
       </td>
       <td>
         <%= g.text_field :home_pen, :size => 2, :disabled => @game.home_pen.nil? %>
-        <%= hidden_field_tag "game[home_pen]", "", :disabled => @game.home_pen %>
+        <%= hidden_field_tag "game[home_pen]", "" %>
       </td>
       <td>x</td>
       <td>
         <%= g.text_field :away_pen, :size => 2, :disabled => @game.away_pen.nil? %>
-        <%= hidden_field_tag "game[away_pen]", "", :disabled => @game.away_pen %>
+        <%= hidden_field_tag "game[away_pen]", "" %>
       </td>
       <td></td>
     </tr>
