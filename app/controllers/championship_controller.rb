@@ -128,8 +128,17 @@ class ChampionshipController < ApplicationController
     @championship = Championship.find(@params["id"])
     @current_phase = @championship.phases.find(@params["phase"])
 
+    conditions = { :phase_id => @current_phase }
+
+    @rounds = @current_phase.games.find(:all, :group => :round, :order => :round).map{|g| g.round }
+
+    unless (params[:round].to_s.empty?)
+      @current_round = params[:round].to_i
+      conditions.merge!({ :round => @current_round })
+    end
+
     items_per_page = 30
-    @games_pages, @games = paginate :games, :order => "date, round, time, teams.name", :per_page => items_per_page, :conditions => "games.phase_id = #{@current_phase.id}", :include => [ "home", "away" ]
+    @games_pages, @games = paginate :games, :order => "date, round, time, teams.name", :per_page => items_per_page, :conditions => conditions, :include => [ "home", "away" ]
 
     if request.xml_http_request?
       render :partial => "game_table", :layout => false
