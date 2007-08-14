@@ -130,7 +130,7 @@ class ChampionshipController < ApplicationController
 
     conditions = { :phase_id => @current_phase }
 
-    @rounds = @current_phase.games.find(:all, :group => :round, :order => :round).map{|g| g.round }
+    @rounds = @current_phase.games.find(:all, :group => :round, :order => :round).map{|g| g.round }.compact
 
     unless (params[:round].to_s.empty?)
       @current_round = params[:round].to_i
