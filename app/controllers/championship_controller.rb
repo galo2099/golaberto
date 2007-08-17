@@ -1,6 +1,8 @@
+require 'RMagick'
+
 class ChampionshipController < ApplicationController
   before_filter :login_required, :except => [ :index, :list, :show, :phases,
-                                              :team, :games ] 
+                                              :team, :games, :team_xml ] 
 
   def index
     redirect_to :action => :list
@@ -44,6 +46,90 @@ class ChampionshipController < ApplicationController
     @current_phase = @championship.phases.find(params[:phase]) if params[:phase]
   end
 
+  def team_xml(championship, phase, group, team)
+    data = []
+
+    team_table = group.team_table do |teams, games|
+      games.select{|g| g.home_id == team.id or g.away_id == team.id}.each do |g|
+        teams.each_with_index do |t,idx|
+          if t[0].team_id == team.id
+            data << { :points => t[1].points, :position => idx + 1,
+              :game => g,
+              :type => g.home_score > g.away_score ?
+                         g.home_id == team.id ? "w" : "l" :
+                       g.home_score < g.away_score ?
+                         g.away_id == team.id ? "w" : "l" :
+                       "d" }
+          end
+        end
+      end
+    end
+    
+    team_table.each_with_index do |t,idx|
+      # We need to change the last position to be the final position in the
+      # phase instead of the position right after the team's last game
+      if t[0].team_id == team.id
+        data.last[:position] = idx + 1
+      end
+    end
+
+    point_win = championship.point_win
+
+    buffer = ""
+    xml = Builder::XmlMarkup.new(:target => buffer)
+    xml.instruct! :xml, :version => "1.0", :encoding => "UTF8"
+    xml.graph :PYAxisName => "Position",
+              :showHoverCap => 1,
+              :shownames => 0,
+              :SYAxisMaxValue => data.size * point_win,
+              :PYAxisMinValue => - group.team_groups.size,
+              :PYAxisMaxValue => - 1,
+              :showDivLineSecondaryValue => 0,
+              :showSecondaryLimits => 0,
+              :showLegend => 0,
+              :plotGradientcolor => "",
+              :yAxisValuesStep => group.team_groups.size / 23 + 1,
+              :caption => "#{team.name} Campaign",
+              :NumDivLines => group.team_groups.size - 2,
+              :adjustDiv => 0,
+              :decimalPrecision => 2 do |x|
+      x.categories do |x|
+        data.each_with_index do |d, idx|
+          x.category :name => (idx + 1).to_s
+        end
+      end
+      x.dataset :seriesname => "Points", :renderAs => "column", :parentYAxis => "S", :showValues => 0 do |x|
+        data.each_with_index do |d, idx|
+          x.set :value => d[:points],
+            :link => url_for(:controller => :game, :action => :show, :id => d[:game]),
+            :toolText => "#{d[:position].ordinalize} - #{d[:points]} points\n#{d[:game].home.name} #{d[:game].home_score} x #{d[:game].away_score} #{d[:game].away.name}",
+            :color => case d[:type]
+                      when "w"
+                        "0000ff"
+                      when "d"
+                        "808080"
+                      when "l"
+                        "ff0000"
+                      end
+        end
+      end
+      x.dataset :seriesname => "Position", :renderAs => "line", :parentYAxis => "P", :color => "000000", :showValues => 0 do |x|
+        data.each_with_index do |d, idx|
+          x.set :value => - d[:position],
+            :toolText => "#{d[:position].ordinalize} - #{d[:points]} points\n#{d[:game].home.name} #{d[:game].home_score} x #{d[:game].away_score} #{d[:game].away.name}",
+            :link => url_for(:controller => :game, :action => :show, :id => d[:game])
+        end
+      end
+      x.trendlines do |x|
+        x.line :parentYAxis => "P", :startValue => - (group.promoted + 0.5), :endValue => -1, :color => "00ff00", :displayValue => " ", :isTrendZone => 1, :showOnTop => 1, :alpha => 20
+      end if group.promoted > 0
+      x.trendlines do |x|
+        x.line :parentYAxis => "P", :startValue => - (group.team_groups.size - group.relegated + 0.5), :endValue => -group.team_groups.size, :color => "ff0000", :displayValue => " ", :isTrendZone => 1, :showOnTop => 1, :valueOnRight => 1, :alpha => 20
+      end if group.relegated > 0
+    end
+    return buffer, team_table
+  end
+  
   def team
     store_location
     @championship = Championship.find(@params["id"])
@@ -60,39 +146,19 @@ class ChampionshipController < ApplicationController
     # Find every group that this team belonged to
     @groups = @championship.phases.map{|p| p.groups}.flatten.select{|g| g.teams.include? @team}.reverse
 
+    @group_xml = []
+    @group_table = []
+    @groups.each do |g|
+      xml, table = team_xml(@championship, g.phase, g, @team)
+      @group_xml << xml
+      @group_table << table
+    end
+
     @played_games = @team.home_games.find_all_by_phase_id_and_played(
         @championship.phase_ids, true)
     @played_games += @team.away_games.find_all_by_phase_id_and_played(
         @championship.phase_ids, true)
     @played_games.sort!{|a,b| a.date <=> b.date}
-
-    games = 0
-    @data_for_graph = Array.new
-    @championship.phases.each do |phase|
-      points = 0
-      data = @played_games.select{|g| g.phase.id == phase.id}.map do |game|
-        earned = @championship.point_loss
-        if game.home_score > game.away_score
-          earned = @championship.point_win if game.home == @team
-        elsif game.home_score < game.away_score
-          earned = @championship.point_win if game.away == @team
-        else
-          earned = @championship.point_draw
-        end
-        points += earned
-        games += 1
-        color = earned == @championship.point_win ? "blue" : earned == @championship.point_draw ? "gray" : "red"
-        game_str = game.formatted_date + " "
-        game_str << game.home.name + " " + game.home_score.to_s + " x "
-        game_str << game.away_score.to_s + " " + game.away.name
-        game_str = "header=[#{points} points] body=[#{game_str}] cssbody=[popupbody]"
-        { :title => game_str,
-          :color => color,
-          :value => points,
-          :game => game }
-      end
-      @data_for_graph.push data
-    end
 
     @scheduled_games = @team.home_games.find_all_by_phase_id_and_played(
         @championship.phase_ids, false, :include => [ :home, :away ])
