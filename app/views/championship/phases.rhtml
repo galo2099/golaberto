@@ -16,7 +16,7 @@
 </tr></table>
 
 <% @current_phase.groups.each do |group| %>
-  <%= render :partial => "table", :locals => { :group => group } %>
+  <%= render :partial => "table", :locals => { :group => group, :team_table => group.team_table } %>
 <% end if @current_phase %>
 
 <% content_for :sidebar do %>

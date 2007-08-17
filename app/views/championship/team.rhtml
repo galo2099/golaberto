@@ -78,27 +78,21 @@
 </div>
 
 <div id="graphs">
-  <div>
-    <div id="tabs">
-      <% @championship.phases.each_with_index do |phase, i| %>
-        <% unless @data_for_graph[i].empty? %>
-          <a href="#tab<%= i %>"><%= phase.name %></a>
-        <% end %>
-      <% end %>
-    </div>
+  <div id="tabs">
+    <% @groups.each_with_index do |group, idx| %>
+      <a href="#tab<%= idx %>"><%= group.phase.name %></a>
+    <% end %>
   </div>
-  <% @data_for_graph.each_with_index do |data, idx| %>
-    <% unless data.empty? %>
-      <div class="panel" id="tab<%= idx %>">
-      <%=
-          multi_bar_graph data,
-                          :width => 550,
-                          :height => 200,
-                          :max => data.size * @championship.point_win do |i|
-              url_for :controller => :game, :action => :show, :id => data[i][:game]
-          end %>
-      </div>
-      <% end %>
+  <% @groups.each_with_index do |group, idx| %>
+    <div class="panel" id="tab<%= idx %>">
+      <% xml_url = url_for(:controller => :championship, :action => :team_xml, :id => @championship, :team => @team, :phase => group.phase) %>
+      <OBJECT classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000" codebase=http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=6,0,0,0" width="550" height="300" id="Column3D" >
+         <param name="movie" value="/charts/MSCombiDY2D.swf" />
+         <param name="FlashVars" value='&dataXML=<%= @group_xml[idx] %>&chartWidth=550&chartHeight=300'>
+         <param name="quality" value="high" />
+         <embed src="/charts/MSCombiDY2D.swf" flashVars='&dataXML=<%= @group_xml[idx] %>&chartWidth=550&chartHeight=300' quality="high" width="550" height="300" name="Column3D" type="application/x-shockwave-flash" pluginspage="http://www.macromedia.com/go/getflashplayer" />
+      </object>
+    </div>
   <% end %>
 </div>
 
@@ -106,10 +100,11 @@
   <%= render :partial => "nav_side" %>
 
   <div class='team_table'>
-    <% @groups.each do |group| %>
+    <% @groups.each_with_index do |group, idx| %>
       <h2><%= group.phase.name %></h2>
       <%= render :partial => "table",
                  :locals => { :group => group,
+                              :team_table => @group_table[idx],
                               :omit_columns => { :D => true,
                                                  :L => true,
                                                  :GF => true,

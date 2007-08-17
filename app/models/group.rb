@@ -25,16 +25,36 @@ class Group < ActiveRecord::Base
 
   def team_table
     games = phase.games.find(:all,
-        :conditions => [ "home_id in (?) OR away_id in (?)",
+        :conditions => [ "(home_id in (?) OR away_id in (?)) and played = ?",
                          team_groups.map{|t|t.team_id},
-                         team_groups.map{|t|t.team_id} ],
+                         team_groups.map{|t|t.team_id},
+                         true ],
+        :include => [ :phase, [:phase => :championship ] ],
         :order => :date)
-    stats = Array.new
+    stats = Hash.new
     team_groups.each do |team_group|
       stats[team_group.team.id] =
-          ChampionshipHelper::TeamCampaign.new(team_group, games)
+          ChampionshipHelper::TeamCampaign.new(team_group)
     end
-    sort_teams(stats)
+    last_round = nil
+    last_date = nil
+    last_games = Array.new
+    games.each do |g|
+      if (last_round and last_round != g.round) or
+         (last_date and last_date != g.date)
+        yield sort_teams(stats), last_games if block_given?
+        last_games = Array.new
+      end
+      last_date = g.date
+      last_round = g.round
+      last_games << g
+      stats.each_value do |s|
+        s.add_game g
+      end
+    end
+    ret = sort_teams(stats)
+    yield ret, last_games if block_given?
+    ret
   end
 
   private
@@ -62,11 +82,7 @@ class Group < ActiveRecord::Base
         when "g_away"
           ret = team_class[a.id].goals_away <=> team_class[b.id].goals_away
         when "bias"
-          ret = team_groups.find(
-              :first,
-              :conditions => [ "team_id = ?", a.id ]).bias <=>
-                team_groups.find(:first,
-              :conditions => [ "team_id = ?", b.id ]).bias
+          ret = team_class[a.id].bias <=> team_class[b.id].bias
         end
         ret != 0
       end
