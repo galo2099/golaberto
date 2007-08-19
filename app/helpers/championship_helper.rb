@@ -2,7 +2,7 @@ module ChampionshipHelper
   class TeamCampaign
     attr_reader :points, :games, :wins, :draws, :losses,
                 :goals_for, :goals_against, :goals_pen, :goals_away,
-                :last_game, :next_game, :bias, :add_sub
+                :last_game, :bias, :add_sub
 
     def initialize(team_group)
       @games = 0
@@ -14,9 +14,9 @@ module ChampionshipHelper
       @goals_against = 0
       @goals_pen = 0
       @goals_away = 0
-      @last_game = nil
-      @next_game = nil
+      @team_group = team_group
       @team = team_group.team
+      @last_game = nil
       @points += team_group.add_sub
       @bias = team_group.bias
     end
@@ -72,6 +72,10 @@ module ChampionshipHelper
 
     def goals_avg
       @goals_for / (@goals_against + 0.0000001)
+    end
+
+    def next_game
+      Game.find(:first, :conditions => [ "(home_id = ? OR away_id = ?) AND phase_id = ? AND played = ?", @team, @team, @team_group.group.phase, false ], :order => :date)
     end
   end
 end
