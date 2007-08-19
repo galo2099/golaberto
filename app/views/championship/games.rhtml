@@ -32,6 +32,7 @@
     <% @current_phase.groups.each do |group| %>
       <%= render :partial => "table",
                  :locals => { :group => group,
+                              :team_table => group.team_table,
                               :omit_columns => { :D => true,
                                                  :L => true,
                                                  :GF => true,

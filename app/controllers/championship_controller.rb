@@ -102,7 +102,7 @@ class ChampionshipController < ApplicationController
         data.each_with_index do |d, idx|
           x.set :value => d[:points],
             :link => url_for(:controller => :game, :action => :show, :id => d[:game]),
-            :toolText => "#{d[:position].ordinalize} - #{d[:points]} points\n#{d[:game].home.name} #{d[:game].home_score} x #{d[:game].away_score} #{d[:game].away.name}",
+            :toolText => "#{d[:position].ordinalize} - #{d[:points]} points\\n#{d[:game].home.name} #{d[:game].home_score} x #{d[:game].away_score} #{d[:game].away.name}",
             :color => case d[:type]
                       when "w"
                         "0000ff"
@@ -116,7 +116,7 @@ class ChampionshipController < ApplicationController
       x.dataset :seriesname => "Position", :renderAs => "line", :parentYAxis => "P", :color => "000000", :showValues => 0 do |x|
         data.each_with_index do |d, idx|
           x.set :value => - d[:position],
-            :toolText => "#{d[:position].ordinalize} - #{d[:points]} points\n#{d[:game].home.name} #{d[:game].home_score} x #{d[:game].away_score} #{d[:game].away.name}",
+            :toolText => "#{d[:position].ordinalize} - #{d[:points]} points\\n#{d[:game].home.name} #{d[:game].home_score} x #{d[:game].away_score} #{d[:game].away.name}",
             :link => url_for(:controller => :game, :action => :show, :id => d[:game])
         end
       end
@@ -127,6 +127,8 @@ class ChampionshipController < ApplicationController
         x.line :parentYAxis => "P", :startValue => - (group.team_groups.size - group.relegated + 0.5), :endValue => -group.team_groups.size, :color => "ff0000", :displayValue => " ", :isTrendZone => 1, :showOnTop => 1, :valueOnRight => 1, :alpha => 20
       end if group.relegated > 0
     end
+    buffer.gsub!("'", "&rsquo;")
+    buffer.gsub!('"', "'")
     return buffer, team_table
   end
   
