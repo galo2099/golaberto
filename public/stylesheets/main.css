@@ -89,8 +89,9 @@ body {
 .nav_side {
   float: left;
   font-weight: bold;
-  width: 190px;
-  padding: 5px;
+  width: 195px;
+  padding-left: 3px;
+  padding-right: 5px;
   min-height: 100%;
 }
 /******* menu : END *********/
@@ -111,16 +112,17 @@ body {
 .team_table
 {
   font-size: 11px;
-  float: right;
+  width: 100%;
 }
 
 .team_table h3 {
-	background-color: #330;
-	color: #e3efca;
-	font-size: 12px;
-	font-weight: bold;
-	padding: 3px;
-	margin-bottom: 1px;
+  background-color: #330;
+  color: #e3efca;
+  font-size: 12px;
+  font-weight: bold;
+  padding: 2px;
+  margin-bottom: 1px;
+  width: 100%;
 }
 
 .table_head
