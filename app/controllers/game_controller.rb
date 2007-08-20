@@ -14,27 +14,36 @@ class GameController < ApplicationController
     items_per_page = 30
     @type = params[:type] || "played"
     if (@type == "scheduled")
-      conditions = { :played => false }
+      conditions = [ "played = ?", false ]
       order = "date ASC, phase_id, time ASC, teams.name"
     else
-      conditions = { :played => true }
+      conditions = [ "played = ?", true ]
       order = "date DESC, phase_id, time DESC, teams.name"
     end
+
+    @categories = Category.find(:all)
+    @category = params[:category] || 1
+    @category = @category.to_i
+    conditions[0] << " AND category_id = ?"
+    conditions << @category
  
     @date_range_start = params[:date_range_start]
     @date_range_end = params[:date_range_end]
     unless @date_range_start.to_s.empty? or @date_range_end.to_s.empty?
       start_date = Date.strptime(@date_range_start, "%d/%m/%Y")
       end_date = Date.strptime(@date_range_end, "%d/%m/%Y")
-      conditions.merge!({ :date => start_date..end_date })
+      conditions[0] << " AND date >= ? AND date <= ?"
+      conditions << start_date
+      conditions << end_date
     end
 
-    @total = Game.count :conditions => conditions
+    inc = [ :home, :away, [ :phase => :championship ] ]
+
+    @total = Game.count :conditions => conditions, :include => inc
     @game_pages, @games = paginate :games, :order => order,
                                    :conditions => conditions,
                                    :per_page => items_per_page,
-                                   :include => [ :home, :away ]
-
+                                   :include => inc
     if request.xhr?
       render :partial => "game_list", :layout => false
     end
