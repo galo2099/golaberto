@@ -1,0 +1,3 @@
+<h4><%= comment.title %></h4>
+<%= comment.comment %><br/>
+<small>Comment posted <%= time_ago_in_words(comment.created_at) %> ago by <%= comment.user.login %></small>
