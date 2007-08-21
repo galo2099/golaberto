@@ -126,17 +126,8 @@
     <%= render :partial => "comment/comment", :locals => {:comment => c } %>
   <% end %>
 </div>
-<h5>Leave a comment</h5>
-<% if logged_in? %>
-  <% remote_form_for :comment, :url => { :controller => :comment, :action => :new_game, :id => @game } do |f| %>
-    Title: <%= f.text_field :title %><br>
-    Comment:<br>
-    <%= f.text_area :comment, :rows => 5, :cols => 35 %><br>
-    <%= submit_tag "Add Comment" %>
-  <% end %>
-<% else %>
-  You can only leave a comment if you're <%= link_to "logged in", :controller => :account, :action => :login %>
-<% end %>
+
+<%= render :partial => "comment/form", :locals => { :type => "game", :id => @game } %>
 
 <% content_for :sidebar do %>
   <% if logged_in? %>

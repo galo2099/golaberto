@@ -1,0 +1,13 @@
+<h5>Leave a comment</h5>
+<% if logged_in? %>
+  <% remote_form_for :comment, :url => { :controller => :comment, :action => :new, :type => type, :id => id } do |f| %>
+    Title: <%= f.text_field :title %><br>
+    Comment:<br>
+    <%= f.text_area :comment, :rows => 5, :cols => 35 %><br>
+    <%= submit_tag "Add Comment" %>
+  <% end %>
+<% else %>
+  You can only leave a comment if you're <%= link_to "logged in", :controller => :account, :action => :login %>
+<% end %>
+
+

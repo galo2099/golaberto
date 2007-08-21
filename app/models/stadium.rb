@@ -1,4 +1,5 @@
 class Stadium < ActiveRecord::Base
+  has_many :comments, :as => :commentable, :dependent => :destroy, :order => 'created_at ASC'
   has_many :games, :dependent => :nullify
   has_many :played_games,
            :class_name => "Game",
