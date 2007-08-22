@@ -69,7 +69,7 @@ class ChampionshipController < ApplicationController
       # We need to change the last position to be the final position in the
       # phase instead of the position right after the team's last game
       if t[0].team_id == team.id
-        data.last[:position] = idx + 1
+        data.last[:position] = idx + 1 unless data.empty?
       end
     end
 
