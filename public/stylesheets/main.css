@@ -419,5 +419,6 @@ DIV.clearer {
   padding: 0 0 10px 0;
 }
 
-.player_attributes {
+.comment {
+  padding-bottom: 30px;
 }

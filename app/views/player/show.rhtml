@@ -5,15 +5,7 @@
   <%= tp.team.name %> - <%= tp.championship.full_name %><br/>
 <% end %>
 
-<div id="comments">
-  <h3>Comments</h3>
-  <% @player.comments.each do |c| %>
-    <%= render :partial => "comment/comment", :locals => {:comment => c } %>
-  <% end %>
-</div>
-
-<%= render :partial => "comment/form", :locals => { :type => "player", :id => @player } %>
-
+<%= render :partial => "comment/comments", :locals => { :object => @player } %>
 
 <% content_for :sidebar do %>
   <% if logged_in? %>

@@ -2,7 +2,7 @@ class CommentController < ApplicationController
   before_filter :login_required
   
   def new
-    type = params[:type].camelize.constantize
+    type = params[:type].classify.constantize
     object = type.find(params[:id])
     @comment = Comment.new(params[:comment])
     @comment.created_at = Time.now

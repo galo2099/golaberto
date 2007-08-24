@@ -120,14 +120,7 @@
 
 <%= @game.played_str %><br/>
 
-<div id="comments">
-  <h3>Comments</h3>
-  <% @game.comments.each do |c| %>
-    <%= render :partial => "comment/comment", :locals => {:comment => c } %>
-  <% end %>
-</div>
-
-<%= render :partial => "comment/form", :locals => { :type => "game", :id => @game } %>
+<%= render :partial => "comment/comments", :locals => { :object => @game } %>
 
 <% content_for :sidebar do %>
   <% if logged_in? %>

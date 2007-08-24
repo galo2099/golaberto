@@ -2,6 +2,7 @@ class Team < ActiveRecord::Base
   require 'RMagick'
   include Magick
 
+  has_many :comments, :as => :commentable, :dependent => :destroy, :order => 'created_at ASC'
   has_many :team_groups, :dependent => :delete_all
   has_many :groups, :through => :team_groups
   has_many :home_games, :foreign_key => "home_id", :class_name => "Game", :dependent => :destroy
