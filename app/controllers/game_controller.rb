@@ -108,26 +108,32 @@ class GameController < ApplicationController
 
     @game.attributes = params["game"]
 
-    saved = @game.save
-
-    @game.goals.clear
+    all_valid = true
+    saved = false
 
     @goals = Array.new
     @game.home_score.times do |i|
       goal = @game.home_goals.build(@params["home_goal"][i.to_s])
       if goal.player
         goal.team_id = goal.own_goal? ? @game.away_id : @game.home_id
-        saved = goal.save and saved
         @goals.push goal
+        all_valid &&= goal.valid?
       end
     end
     @game.away_score.times do |i|
       goal = @game.away_goals.build(@params["away_goal"][i.to_s])
       if goal.player
         goal.team_id = goal.own_goal? ? @game.home_id : @game.away_id
-        saved = goal.save and saved
         @goals.push goal
+        all_valid &&= goal.valid?
       end
+    end
+
+    all_valid = @game.valid?
+
+    if all_valid
+      @game.goals.replace @goals
+      saved = @game.save
     end
 
     if saved

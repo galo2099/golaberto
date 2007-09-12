@@ -1,4 +1,11 @@
 class Game < ActiveRecord::Base
+  diff :include => [ :referee_id, :stadium_id ]
+  acts_as_versioned :if_changed => [ :round, :attendance, :date, :time, :stadium_id, :referee_id, :home_score, :away_score, :home_pen, :away_pen, :played ] do
+    def self.included(base)
+      base.diff :include => [ :referee_id, :stadium_id ]
+    end
+  end
+
   has_many :comments, :as => :commentable, :dependent => :destroy, :order => 'created_at ASC'
   belongs_to :home, :class_name => "Team", :foreign_key => "home_id"
   belongs_to :away, :class_name => "Team", :foreign_key => "away_id"
@@ -7,10 +14,9 @@ class Game < ActiveRecord::Base
   belongs_to :referee
 
   has_many :goals,
-           :class_name => "Goal",
            :order => :time,
-           :include => :player,
-           :dependent => :delete_all
+           :include => :player
+  version_association :goals
 
   has_many :home_goals,
            :class_name => "Goal",

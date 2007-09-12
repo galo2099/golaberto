@@ -2,7 +2,7 @@
 # migrations feature of ActiveRecord to incrementally modify your database, and
 # then regenerate this schema definition.
 
-ActiveRecord::Schema.define(:version => 6) do
+ActiveRecord::Schema.define(:version => 7) do
 
   create_table "categories", :force => true do |t|
     t.column "name", :string
@@ -29,6 +29,30 @@ ActiveRecord::Schema.define(:version => 6) do
 
   add_index "comments", ["user_id"], :name => "fk_comments_user"
 
+  create_table "game_goals_versions", :id => false, :force => true do |t|
+    t.column "game_version_id", :integer, :default => 0, :null => false
+    t.column "goal_id",         :integer, :default => 0, :null => false
+  end
+
+  create_table "game_versions", :force => true do |t|
+    t.column "game_id",    :integer
+    t.column "version",    :integer
+    t.column "home_id",    :integer, :limit => 20, :default => 0
+    t.column "away_id",    :integer, :limit => 20, :default => 0
+    t.column "phase_id",   :integer, :limit => 20
+    t.column "round",      :integer, :limit => 4
+    t.column "attendance", :integer, :limit => 9
+    t.column "stadium_id", :integer, :limit => 20
+    t.column "referee_id", :integer, :limit => 20
+    t.column "home_score", :integer, :limit => 2,  :default => 0
+    t.column "away_score", :integer, :limit => 2,  :default => 0
+    t.column "home_pen",   :integer, :limit => 2
+    t.column "away_pen",   :integer, :limit => 2
+    t.column "played",     :boolean,               :default => false
+    t.column "date",       :date
+    t.column "time",       :time
+  end
+
   create_table "games", :force => true do |t|
     t.column "home_id",    :integer, :limit => 20, :default => 0,     :null => false
     t.column "away_id",    :integer, :limit => 20, :default => 0,     :null => false
@@ -44,6 +68,7 @@ ActiveRecord::Schema.define(:version => 6) do
     t.column "played",     :boolean,               :default => false, :null => false
     t.column "date",       :date,                                     :null => false
     t.column "time",       :time
+    t.column "version",    :integer
   end
 
   create_table "goals", :force => true do |t|

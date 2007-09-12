@@ -198,6 +198,24 @@ EOF
   <%= submit_tag "Update" %>
 <% end %>
 
+<div>
+  <% @game.versions.size.downto(2) do |n| %>
+    <h4>Version <%= n %></h4>
+    <% @game.versions[n-2].diff(@game.versions[n-1]).each do |key, value| %>
+      <% if key != :version %>
+        <% if value[0].nil? %>
+          Added <%= key %>: <%= value[1] %><br>
+        <% elsif value[1].nil? %>
+          Removed <%= key %>: <%= value[0] %><br>
+        <% else %>
+          Changed <%= key %>: <%= value[0] %> -&gt; <%= value[1] %><br>
+        <% end %>
+      <% end %>
+    <% end %>
+    <hr>
+  <% end %>
+</div>
+
 <%= javascript_tag <<EOF
 function updateGoalTable(home_away, value) {
   i = 0;
