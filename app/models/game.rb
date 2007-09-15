@@ -1,10 +1,34 @@
-class Game < ActiveRecord::Base
-  diff :include => [ :referee_id, :stadium_id ]
-  acts_as_versioned :if_changed => [ :round, :attendance, :date, :time, :stadium_id, :referee_id, :home_score, :away_score, :home_pen, :away_pen, :played ] do
-    def self.included(base)
-      base.diff :include => [ :referee_id, :stadium_id ]
+module GameDiff
+  def self.included(base)
+    base.diff :include => [ "referee_id", "stadium_id" ], :exclude => [ "version" ]
+    base.class_eval do
+      alias_method :diff_without_associations, :diff
+      alias_method :diff, :diff_with_association
     end
   end
+
+  def diff_with_association(model = self.class.find(id))
+    model_diff = diff_without_associations(model)
+    g1 = goals.map do |goal|
+      Goal.content_columns.map do |c|
+        goal.send(c.name)
+      end
+    end
+    g2 = model.goals.map do |goal|
+      Goal.content_columns.map do |c|
+        goal.send(c.name)
+      end
+    end
+    goal_diff = Diff::LCS.diff(g1, g2)
+    model_diff.merge!({:goals => goal_diff}) unless goal_diff.empty?
+    model_diff
+  end
+end
+
+class Game < ActiveRecord::Base
+  require 'diff/lcs.rb'
+  extend GameDiff
+  acts_as_versioned :extend => GameDiff, :if_changed => [ :round, :attendance, :date, :time, :stadium_id, :referee_id, :home_score, :away_score, :home_pen, :away_pen, :played ]
 
   has_many :comments, :as => :commentable, :dependent => :destroy, :order => 'created_at ASC'
   belongs_to :home, :class_name => "Team", :foreign_key => "home_id"
@@ -52,6 +76,10 @@ class Game < ActiveRecord::Base
   validates_numericality_of :home_pen, :only_integer => true, :allow_nil => true
   validates_numericality_of :away_pen, :only_integer => true, :allow_nil => true
 
+  def version_condition_met?
+    changed? || diff.size > 0
+  end
+
   def validate
     errors.add(:home, "can't play with itself") if home_id == away_id
   end
@@ -92,6 +120,5 @@ class Game < ActiveRecord::Base
   # Field: home_pen , SQL Definition:tinyint(2)
   # Field: away_pen , SQL Definition:tinyint(2)
   # Field: played , SQL Definition:tinyint(1)
-
 
 end

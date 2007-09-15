@@ -59,17 +59,6 @@ module ActiveRecord #:nodoc:
           # store the options with the association name
           self.versioned_associations << {association_name => options}
           
-          callbacks = %w(before_add before_remove)
-          callbacks.each do |callback_name|
-            full_callback_name = "#{callback_name}_for_#{association_name}"
-            write_inheritable_array(full_callback_name.to_sym, [ "write_changed_association_${association_name}".to_sym ])
-          end
-          class_eval do
-            define_method("write_changed_association_${association_name}") do 
-              (self.changed_attributes ||= []) << association_name.to_s unless self.changed?(association_name)
-            end
-          end
-
           association = self.reflect_on_association(association_name)
                                             
           if options[:both_sides]

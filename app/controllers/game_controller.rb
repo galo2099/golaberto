@@ -94,6 +94,7 @@ class GameController < ApplicationController
 
   def update
     @game = Game.find(params["id"])
+    game_compare = @game.clone
 
     # we want to do our own date parsing
     date = params[:game].delete(:date)
@@ -113,27 +114,38 @@ class GameController < ApplicationController
 
     @goals = Array.new
     @game.home_score.times do |i|
-      goal = @game.home_goals.build(@params["home_goal"][i.to_s])
-      if goal.player
+      goal_params = @params["home_goal"][i.to_s]
+      unless goal_params[:player_id].empty?
+        goal = Goal.new(goal_params)
+        goal.game_id = @game.id
         goal.team_id = goal.own_goal? ? @game.away_id : @game.home_id
         @goals.push goal
         all_valid &&= goal.valid?
       end
     end
     @game.away_score.times do |i|
-      goal = @game.away_goals.build(@params["away_goal"][i.to_s])
-      if goal.player
+      goal_params = @params["away_goal"][i.to_s]
+      unless goal_params[:player_id].empty?
+        goal = Goal.new(goal_params)
+        goal.game_id = @game.id
         goal.team_id = goal.own_goal? ? @game.home_id : @game.away_id
         @goals.push goal
         all_valid &&= goal.valid?
       end
     end
 
+    @goals.sort! { |a,b| a.time <=> b.time }
+
     all_valid = @game.valid?
 
     if all_valid
-      @game.goals.replace @goals
-      saved = @game.save
+      game_compare.goals = @goals
+      if @game.diff(game_compare).size > 0
+        @game.goals = @goals
+        saved = @game.save
+      else
+        saved = true
+      end
     end
 
     if saved

@@ -31,7 +31,8 @@ module Riff
           if attributes.is_a?(Hash)
             if attributes.has_key?(:include)
               diffable_attributes = diffable_attributes + attributes[:include]
-            elsif attributes.has_key?(:exclude)
+            end
+            if attributes.has_key?(:exclude)
               diffable_attributes = diffable_attributes - attributes[:exclude] 
             end
           end

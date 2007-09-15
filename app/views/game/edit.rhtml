@@ -202,13 +202,34 @@ EOF
   <% @game.versions.size.downto(2) do |n| %>
     <h4>Version <%= n %></h4>
     <% @game.versions[n-2].diff(@game.versions[n-1]).each do |key, value| %>
-      <% if key != :version %>
+      <% if key != :goals %>
         <% if value[0].nil? %>
           Added <%= key %>: <%= value[1] %><br>
         <% elsif value[1].nil? %>
           Removed <%= key %>: <%= value[0] %><br>
         <% else %>
           Changed <%= key %>: <%= value[0] %> -&gt; <%= value[1] %><br>
+        <% end %>
+      <% else %>
+        <% value.each do |hunk| %>
+          <% hunk.each do |change| %>
+            <% case change.action 
+            when '-' %>
+              Removed goal
+              <% goal = @game.versions[n-2].goals[change.position] %>
+              <%= goal.player.name %> - <%= goal.time %>
+              <%= "(penalty)" if goal.penalty? %>
+              <%= "(own_goal)" if goal.own_goal? %>
+              <br>
+            <% when '+' %>
+              Added goal
+              <% goal = @game.versions[n-1].goals[change.position] %>
+              <%= goal.player.name %> - <%= goal.time %>
+              <%= "(penalty)" if goal.penalty? %>
+              <%= "(own_goal)" if goal.own_goal? %>
+              <br>
+            <% end %>
+          <% end %>
         <% end %>
       <% end %>
     <% end %>
