@@ -134,11 +134,10 @@ class GameController < ApplicationController
       end
     end
 
-    @goals.sort! { |a,b| a.time <=> b.time }
-
-    all_valid = @game.valid?
+    all_valid &&= @game.valid?
 
     if all_valid
+      @goals.sort! { |a,b| a.time <=> b.time }
       game_compare.goals = @goals
       if @game.diff(game_compare).size > 0
         @game.goals = @goals
