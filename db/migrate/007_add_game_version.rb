@@ -5,6 +5,19 @@ class AddGameVersion < ActiveRecord::Migration
       t.column :game_version_id, :integer, :default => 0, :null => false
       t.column :goal_id, :integer, :default => 0, :null => false
     end
+    Game.reset_column_information
+    Game.class_eval do
+      def changed?
+        true
+      end
+    end
+    games = Game.find(:all)
+    say_with_time "Updating games" do
+      games.each do |g|
+        g.save
+        say "#{g.id} updated!", true
+      end
+    end
   end
 
   def self.down

@@ -200,12 +200,15 @@ EOF
 
 <div>
   <% @game.versions.size.downto(2) do |n| %>
-    <h4>Version <%= n-1 %></h4>
+    <h4>Version <%= n %></h4>
     Updated by <%= @game.versions[n-1].updated_by.login if @game.versions[n-1].updated_by %>
     at <%= @game.versions[n-1].updated_at %><br>
     <%= formatted_diff(@game.versions[n-2].diff(@game.versions[n-1])) %>
     <hr>
   <% end %>
+  <h4>Version 1</h4>
+  Created by <%= @game.versions[0].updated_by ? @game.versions[0].updated_by.login : "unknown" %> at <%= @game.versions[0].updated_at ? @game.versions[0].updated_at : "unknown" %><br>
+  <%= formatted_diff(Game.new.diff(@game.versions[0])) %>
 </div>
 
 <%= javascript_tag <<EOF
