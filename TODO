@@ -1,0 +1,27 @@
+- Teams
+  - Add full name
+  - Add city
+  - Add more stats about games, championships, players
+
+- Referees
+  - Add more stats about games, championships
+
+- Stadiums
+  - Add more stats about games, championships
+
+- Players
+  - Add more stats about games, championships, teams, goals
+
+- Championship
+  - Separate games by groups, optional per phase
+  - Add top scorer
+  - Add crowd statistics
+
+- Users
+  - Create user roles: commenter, editor
+  - Create user profile pages
+  - Enable user sign up
+  - Create user rating and system to promote roles
+
+- Tests
+  - Lots and lots of tests to be done!!!
