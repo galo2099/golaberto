@@ -2,7 +2,7 @@
 # migrations feature of ActiveRecord to incrementally modify your database, and
 # then regenerate this schema definition.
 
-ActiveRecord::Schema.define(:version => 9) do
+ActiveRecord::Schema.define(:version => 10) do
 
   create_table "categories", :force => true do |t|
     t.column "name", :string
@@ -20,7 +20,7 @@ ActiveRecord::Schema.define(:version => 9) do
 
   create_table "comments", :force => true do |t|
     t.column "title",            :string,   :limit => 50, :default => ""
-    t.column "comment",          :string,                 :default => ""
+    t.column "comment",          :text
     t.column "created_at",       :datetime,                               :null => false
     t.column "commentable_id",   :integer,                :default => 0,  :null => false
     t.column "commentable_type", :string,   :limit => 15, :default => "", :null => false
