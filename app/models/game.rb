@@ -118,6 +118,10 @@ class Game < ActiveRecord::Base
         time.strftime("%H:%M")
       end
     end
+
+    def updated_by_string
+      updated_by ? updated_by.login : "unknown"
+    end
   end
   
   # As acts_as_versioned only accepts one module to extend, this helper module
