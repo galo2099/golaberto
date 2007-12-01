@@ -5,12 +5,15 @@
     <%= image_tag "logos/" + @team.large_logo %>
   </div>
   <h2><%= @team.name %></h2>
+  City: <%= @team.city %><br/>
   Country: <%= @team.country %><br/>
-  Foundation: <br/>
+  Foundation: <%= @team.foundation %><br/>
+  Stadium: <%= link_to @team.stadium.name, :controller => :stadium, :action => :show, :id => @team.stadium if @team.stadium %><br/>
   <div style="clear: both"></div>
 </div>
 
 <div>
+  Latest championships:<br/>
   <% @championships.each do |c| %>
     <%= link_to c.full_name, :controller => :championship, :action => :team, :id => c, :team => @team %><br/>
   <% end %>

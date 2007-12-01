@@ -171,7 +171,7 @@ EOF
       <td>
         <select id="game_stadium_id" name="game[stadium_id]">
           <option value=""></option>
-          <%= options_from_collection_for_select @stadiums, "id", "name", @game.stadium_id %>
+          <%= options_from_collection_for_select @stadiums, "id", "name", @selected_stadium %>
         </select>
         <%= link_to_function "New" do |page|
           page["add_stadium"].toggle

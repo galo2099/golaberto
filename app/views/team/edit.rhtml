@@ -3,9 +3,6 @@
 <% content_for :main_title do %> Editing team <% end %>
 
 <% form_for :team, @team, :url => { :action => :update, :id => @team }, :html => { :multipart => true } do |f| %>
-  <label for="team_name">Name:</label> <%= f.text_field :name %><br/>
-  <label for="team_country">Country:</label> <%= f.text_field :country %><br/>
-  <label for="logo">Logo:</label> <%= file_field_tag "logo" %><br/>
-  <label for="filter">Filter image background?</label> <%= check_box_tag "filter" %><br/> 
+  <%= render :partial => "form", :locals => { :f => f } %>
   <%= submit_tag "Update" %>
 <% end %>

@@ -241,6 +241,8 @@ class GameController < ApplicationController
       [ "#{r.name} (#{r.location})", r.id ]
     end
     @stadiums = Stadium.find(:all, :order => :name)
+    @selected_stadium = @game.stadium_id ? @game.stadium_id :
+                        @game.version == 1 ? @game.home.stadium_id : 0
     @home_players = @game.home.team_players.find(
       :all,
       :order => :name,

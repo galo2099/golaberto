@@ -2,10 +2,7 @@
 
 <%= error_messages_for 'team' %>
 <% form_for :team, @team, :url => { :action => :create }, :html => { :multipart => true } do |f| %>
-  Name: <%= f.text_field :name %><br/>
-  Country: <%= f.text_field :country %><br/>
-  <label for="logo">Logo:</label> <%= file_field_tag "logo" %><br/>
-  <label for="filter">Filter image background?</label> <%= check_box_tag "filter" %><br/> 
+  <%= render :partial => "form", :locals => { :f => f } %>
   <%= submit_tag "Create" %>
 <% end %>
 
