@@ -4,11 +4,14 @@
   <div style="float: left">
     <%= image_tag "logos/" + @team.large_logo %>
   </div>
-  <h2><%= @team.name %></h2>
-  City: <%= @team.city %><br/>
-  Country: <%= @team.country %><br/>
-  Foundation: <%= @team.foundation %><br/>
-  Stadium: <%= link_to @team.stadium.name, :controller => :stadium, :action => :show, :id => @team.stadium if @team.stadium %><br/>
+  <div style="float: left">
+    <h2><%= @team.name %></h2>
+    <h3><%= @team.full_name %></h2>
+    City: <%= @team.city %><br/>
+    Country: <%= @team.country %><br/>
+    Foundation: <%= @team.foundation %><br/>
+    Stadium: <%= link_to @team.stadium.name, :controller => :stadium, :action => :show, :id => @team.stadium if @team.stadium %><br/>
+  </div>
   <div style="clear: both"></div>
 </div>
 
