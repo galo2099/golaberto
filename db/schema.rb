@@ -2,7 +2,7 @@
 # migrations feature of ActiveRecord to incrementally modify your database, and
 # then regenerate this schema definition.
 
-ActiveRecord::Schema.define(:version => 11) do
+ActiveRecord::Schema.define(:version => 13) do
 
   create_table "categories", :force => true do |t|
     t.column "name", :string
@@ -94,10 +94,12 @@ ActiveRecord::Schema.define(:version => 11) do
   end
 
   create_table "phases", :force => true do |t|
-    t.column "championship_id", :integer, :limit => 20, :default => 0,                                 :null => false
-    t.column "name",            :string,                :default => "",                                :null => false
-    t.column "order_by",        :integer, :limit => 4,  :default => 0,                                 :null => false
-    t.column "sort",            :string,                :default => "pt, w, gd, gf, gp, g_away, name", :null => false
+    t.column "championship_id",        :integer, :limit => 20, :default => 0,                                 :null => false
+    t.column "name",                   :string,                :default => "",                                :null => false
+    t.column "order_by",               :integer, :limit => 4,  :default => 0,                                 :null => false
+    t.column "sort",                   :string,                :default => "pt, w, gd, gf, gp, g_away, name", :null => false
+    t.column "bonus_points",           :integer, :limit => 4,  :default => 0,                                 :null => false
+    t.column "bonus_points_threshold", :integer, :limit => 4,  :default => 0,                                 :null => false
   end
 
   add_index "phases", ["championship_id"], :name => "championship"
@@ -158,6 +160,7 @@ ActiveRecord::Schema.define(:version => 11) do
     t.column "city",       :string
     t.column "stadium_id", :integer, :limit => 20
     t.column "foundation", :date
+    t.column "full_name",  :string
   end
 
   create_table "users", :force => true do |t|

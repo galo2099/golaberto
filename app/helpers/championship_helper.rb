@@ -29,6 +29,8 @@ module ChampionshipHelper
       points_for_win = championship.point_win
       points_for_draw = championship.point_draw
       points_for_loss = championship.point_loss
+      bonus = game.phase.bonus_points
+      bonus_threshold = game.phase.bonus_points_threshold
       @games += 1
       if (game.home_id == @team.id) then 
         @goals_pen += game.home_pen unless game.home_pen.nil?
@@ -40,6 +42,9 @@ module ChampionshipHelper
         if (game.home_id == @team.id) then 
           @wins += 1
           @points += points_for_win
+          if game.home_score - game.away_score >= bonus_threshold then
+            @points += bonus
+          end
         else
           @losses += 1
           @points += points_for_loss
@@ -51,6 +56,9 @@ module ChampionshipHelper
         else
           @wins += 1
           @points += points_for_win
+          if game.away_score - game.home_score >= bonus_threshold then
+            @points += bonus
+          end
         end
       else
         @draws += 1
