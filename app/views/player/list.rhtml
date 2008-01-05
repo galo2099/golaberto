@@ -3,7 +3,7 @@
 <p>
 <% form_tag({ :action => "list", :id => "" }, :method => "GET",
             :style => "display: inline") do %>
-<%= text_field_tag("id", @params['id'], :size => 20) %>
+<%= text_field_tag("id", @id, :size => 20) %>
 <% end %>
 
 <%= image_tag("spinner.gif",

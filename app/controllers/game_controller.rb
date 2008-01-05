@@ -2,7 +2,7 @@ class GameController < ApplicationController
   before_filter :login_required, :except => [ :show, :list, :index ]
 
   def show
-    @game = Game.find(@params["id"])
+    @game = Game.find(params["id"])
   end
 
   def index
@@ -50,13 +50,14 @@ class GameController < ApplicationController
   end
 
   def destroy
-    game = Game.find(@params["id"]).destroy
+    game = Game.find(params["id"]).destroy
     redirect_back_or_default :back
   end
 
   def edit
     begin
-      @game = Game.find(@params["id"])
+      @game = Game.find(params["id"])
+      @redirect = params[:redirect]
       prepare_for_edit
       if request.xml_http_request?
         players = @home_players
@@ -80,9 +81,9 @@ class GameController < ApplicationController
   end
 
   def create
-    @championship = Championship.find(@params["championship"])
-    @phase = Phase.find(@params["phase"])
-    @game = @phase.games.build(@params["game"])
+    @championship = Championship.find(params["championship"])
+    @phase = Phase.find(params["phase"])
+    @game = @phase.games.build(params["game"])
     @game.date = Date.today
     if @game.save
       redirect_to :action => :edit, :id => @game
@@ -114,7 +115,7 @@ class GameController < ApplicationController
 
     @goals = Array.new
     @game.home_score.times do |i|
-      goal_params = @params["home_goal"][i.to_s]
+      goal_params = params["home_goal"][i.to_s]
       unless goal_params[:player_id].empty?
         goal = Goal.new(goal_params)
         goal.game_id = @game.id
@@ -124,7 +125,7 @@ class GameController < ApplicationController
       end
     end
     @game.away_score.times do |i|
-      goal_params = @params["away_goal"][i.to_s]
+      goal_params = params["away_goal"][i.to_s]
       unless goal_params[:player_id].empty?
         goal = Goal.new(goal_params)
         goal.game_id = @game.id
@@ -149,8 +150,8 @@ class GameController < ApplicationController
 
     if saved
       flash[:notice] = "Game saved"
-      if (@params["redirect"])
-        redirect_to @params["redirect"]
+      if (params["redirect"])
+        redirect_to params["redirect"]
       else
         redirect_to :action => :show, :id => @game
       end

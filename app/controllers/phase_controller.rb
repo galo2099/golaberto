@@ -6,7 +6,7 @@ class PhaseController < ApplicationController
   end
 
   def create
-    @phase = Phase.new(@params["phase"])
+    @phase = Phase.new(params["phase"])
 
     if @phase.save
       redirect_to :action => :show, :id => @phase
@@ -16,17 +16,17 @@ class PhaseController < ApplicationController
   end
 
   def edit
-    @phase = Phase.find(@params["id"])
+    @phase = Phase.find(params["id"])
   end
 
   def update
-    @phase = Phase.find(@params["id"])
-    @phase.attributes = @params["phase"]
+    @phase = Phase.find(params["id"])
+    @phase.attributes = params["phase"]
 
     saved = @phase.save
     new_empty = false
 
-    @group = @phase.groups.build(@params["group"])
+    @group = @phase.groups.build(params["group"])
     new_empty = @group.name.empty?
 
     saved = @group.save unless new_empty
@@ -39,7 +39,7 @@ class PhaseController < ApplicationController
   end
 
   def destroy
-    Phase.find(@params["id"]).destroy
+    Phase.find(params["id"]).destroy
     redirect_to :back
   end
 end

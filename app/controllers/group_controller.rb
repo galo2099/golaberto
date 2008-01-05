@@ -2,8 +2,8 @@ class GroupController < ApplicationController
   before_filter :login_required
 
   def edit
-    @group = Group.find(@params["id"])
-    @team_number = @params["team_number"]
+    @group = Group.find(params["id"])
+    @team_number = params["team_number"]
     @team_number = @group.teams.size if @team_number.nil?
     @team_number = @team_number.to_i
     if request.xhr?
@@ -12,18 +12,18 @@ class GroupController < ApplicationController
   end
 
   def update
-    @group = Group.find(@params["id"])
-    @group.attributes = @params["group"]
+    @group = Group.find(params["id"])
+    @group.attributes = params["group"]
 
     saved = @group.save
 
     @group.team_groups.clear
     @teams = Array.new
-    @params["team_group"].each do |key, value|
+    params["team_group"].each do |key, value|
       value["comment"] = nil if value["comment"].to_s.empty?
       @teams.push @group.team_groups.build(value)
       saved = @teams.last.save && saved
-    end unless @params["team_group"].nil?
+    end unless params["team_group"].nil?
 
     @team_number = @group.team_groups.size
 
@@ -35,7 +35,7 @@ class GroupController < ApplicationController
   end
 
   def destroy
-    Group.find(@params["id"]).destroy
+    Group.find(params["id"]).destroy
     redirect_to :back
   end
 end

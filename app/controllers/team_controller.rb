@@ -32,7 +32,8 @@ class TeamController < ApplicationController
 
   def list
     items_per_page = 10
-    conditions = ["name LIKE ?", "%#{params[:id]}%"] unless params[:id].nil?
+    @id = params[:id]
+    conditions = ["name LIKE ?", "%#{@id}%"] unless @id.nil?
 
     @total = Team.count :conditions => conditions
     @team_pages, @teams = paginate :teams, :order => "name",

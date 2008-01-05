@@ -22,7 +22,7 @@
   </table>
 
   <% if @team_pages.page_count > 1 %>
-    <% page_options = { :url => { :action => :list, :id => @params[:id] },
+    <% page_options = { :url => { :action => :list, :id => @id },
                         :update => "table",
                         :before => "Element.show('spinner')",
                         :success => "Element.hide('spinner')" } %>

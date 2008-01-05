@@ -27,7 +27,8 @@ class PlayerController < ApplicationController
 
   def list
     items_per_page = 10
-    conditions = ["name LIKE ?", "%#{@params[:id]}%"] unless @params[:id].nil?
+    @id = params[:id]
+    conditions = ["name LIKE ?", "%#{@id}%"] unless @id.nil?
 
     @total = Player.count :conditions => conditions
     @player_pages, @players = paginate :players, :order => "name",
@@ -41,10 +42,10 @@ class PlayerController < ApplicationController
 
   def show
     store_location
-    @player = Player.find(@params["id"])
+    @player = Player.find(params["id"])
   end
 
   def edit
-    @player = Player.find(@params["id"])
+    @player = Player.find(params["id"])
   end
 end

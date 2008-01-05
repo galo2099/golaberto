@@ -134,16 +134,16 @@ class ChampionshipController < ApplicationController
   
   def team
     store_location
-    @championship = Championship.find(@params["id"])
+    @championship = Championship.find(params["id"])
 
     # Find every team for this championship
     @teams = @championship.phases.map{|p| p.groups}.flatten.map{|g| g.teams}.flatten.sort{|a,b| a.name <=> b.name}.uniq
 
     # Find the team we're looking for
-    if @params["team"].to_s == ""
-      @params["team"] = @teams.first.id
+    if params["team"].to_s == ""
+      params["team"] = @teams.first.id
     end
-    @team = Team.find(@params["team"])
+    @team = Team.find(params["team"])
 
     # Find every group that this team belonged to
     @groups = @championship.phases.map{|p| p.groups}.flatten.select{|g| g.teams.include? @team}.reverse
@@ -186,15 +186,15 @@ class ChampionshipController < ApplicationController
   end
 
   def new_game
-    @championship = Championship.find(@params["id"])
-    @current_phase = @championship.phases.find(@params["phase"])
+    @championship = Championship.find(params["id"])
+    @current_phase = @championship.phases.find(params["phase"])
     @game = @current_phase.games.build
   end
 
   def games
     store_location
-    @championship = Championship.find(@params["id"])
-    @current_phase = @championship.phases.find(@params["phase"])
+    @championship = Championship.find(params["id"])
+    @current_phase = @championship.phases.find(params["phase"])
 
     conditions = { :phase_id => @current_phase }
 
@@ -216,12 +216,12 @@ class ChampionshipController < ApplicationController
   end
 
   def edit
-    @championship = Championship.find(@params["id"])
+    @championship = Championship.find(params["id"])
     @categories = Category.find(:all)
   end
 
   def update
-    @championship = Championship.find(@params["id"])
+    @championship = Championship.find(params["id"])
     @categories = Category.find(:all)
 
     begin_date = params[:championship].delete(:begin)
@@ -246,7 +246,7 @@ class ChampionshipController < ApplicationController
   end
 
   def destroy
-    Championship.find(@params["id"]).destroy
+    Championship.find(params["id"]).destroy
     redirect_to :action => "list" 
   end
 
