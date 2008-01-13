@@ -10,7 +10,7 @@
 <div id="edits">
   <h3> Latest edits</h3>
   <% @games.each do |@game| %>
-    Updated by <%= @game.updated_by_string %> on <%= @game.updated_at.strftime("%A, %d/%m/%Y at %H:%M") %><br>
+    Updated by <%= @game.updated_by_string %> on <%= @game.updated_at.strftime("%A, %d/%m/%Y at %H:%M") if @game.updated_at %><br>
     <div class="table_row">
       <div class="table_cell" style="width: 50%; text-align: left"><%= link_to @game.phase.championship.full_name, :controller => :championship, :action => :show, :id => @game.phase.championship %></div>
       <div class="table_cell" style="width: 50%"><%= @game.formatted_date(true) %></div>
