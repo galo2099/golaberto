@@ -5,8 +5,8 @@ Category: <select id='category_select'>
 </select>
 <br/>
 <br/>
-From: <%= date_field_tag "date_range_start", nil, :format => "%d/%m/%Y", :size => 10 %>
-To: <%= date_field_tag "date_range_end", nil, :format => "%d/%m/%Y", :size => 10 %>
+From: <%= date_field_tag "date_range_start", nil, :format => "%d/%m/%Y", :size => 10, :value => @date_range_start %>
+To: <%= date_field_tag "date_range_end", nil, :format => "%d/%m/%Y", :size => 10, :value => @date_range_end %>
 <br/>
 <br/>
 <div id='table'>

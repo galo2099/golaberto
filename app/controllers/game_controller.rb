@@ -27,13 +27,16 @@ class GameController < ApplicationController
     conditions[0] << " AND category_id = ?"
     conditions << @category
  
-    @date_range_start = params[:date_range_start]
+    @date_range_start = params[:date_range_start] || Date.today.strftime("%d/%m/%Y")
     @date_range_end = params[:date_range_end]
-    unless @date_range_start.to_s.empty? or @date_range_end.to_s.empty?
+    unless @date_range_start.to_s.empty?
       start_date = Date.strptime(@date_range_start, "%d/%m/%Y")
-      end_date = Date.strptime(@date_range_end, "%d/%m/%Y")
-      conditions[0] << " AND date >= ? AND date <= ?"
+      conditions[0] << " AND date >= ?"
       conditions << start_date
+    end
+    unless @date_range_end.to_s.empty?
+      end_date = Date.strptime(@date_range_end, "%d/%m/%Y")
+      conditions[0] << " AND date <= ?"
       conditions << end_date
     end
 
