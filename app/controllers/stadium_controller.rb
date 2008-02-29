@@ -25,4 +25,8 @@ class StadiumController < ApplicationController
     store_location
     @stadium = Stadium.find(params[:id])
   end
+  
+  def edit
+    @stadium = Stadium.find(params[:id])
+  end
 end
