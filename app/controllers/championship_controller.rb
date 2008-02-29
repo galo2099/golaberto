@@ -1,5 +1,3 @@
-require 'RMagick'
-
 class ChampionshipController < ApplicationController
   before_filter :login_required, :except => [ :index, :list, :show, :phases,
                                               :team, :games, :team_xml ] 
