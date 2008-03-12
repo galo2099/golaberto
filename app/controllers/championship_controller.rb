@@ -1,6 +1,6 @@
 class ChampionshipController < ApplicationController
   before_filter :login_required, :except => [ :index, :list, :show, :phases,
-                                              :team, :games, :team_xml ] 
+                                              :crowd, :team, :games, :team_xml ]
 
   def index
     redirect_to :action => :list
@@ -62,7 +62,7 @@ class ChampionshipController < ApplicationController
         end
       end
     end
-    
+
     team_table.each_with_index do |t,idx|
       # We need to change the last position to be the final position in the
       # phase instead of the position right after the team's last game
@@ -129,7 +129,7 @@ class ChampionshipController < ApplicationController
     buffer.gsub!('"', "'")
     return buffer, team_table
   end
-  
+
   def team
     store_location
     @championship = Championship.find(params["id"])
@@ -239,13 +239,24 @@ class ChampionshipController < ApplicationController
     if saved and new_empty
       redirect_to :action => "show", :id => @championship
     else
-      render :action => "edit" 
+      render :action => "edit"
     end
+  end
+
+  def crowd
+    store_location
+    @championship = Championship.find(params["id"])
+
+    @average = @championship.games.average(:attendance, :group => :home, :order => "avg_attendance DESC")
+    @maximum = @championship.games.maximum(:attendance, :group => :home)
+    @minimum = @championship.games.minimum(:attendance, :group => :home)
+    @count = @championship.games.count(:attendance, :group => :home)
+    @games = @championship.games.paginate(:order => "attendance DESC", :page => params[:page], :per_page => 10)
   end
 
   def destroy
     Championship.find(params["id"]).destroy
-    redirect_to :action => "list" 
+    redirect_to :action => "list"
   end
 
 end
