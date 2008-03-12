@@ -1,7 +1,4 @@
 class Team < ActiveRecord::Base
-  require 'RMagick'
-  include Magick
-
   belongs_to :stadium
   has_many :comments, :as => :commentable, :dependent => :destroy, :order => 'created_at ASC'
   has_many :team_groups, :dependent => :delete_all
@@ -21,6 +18,9 @@ class Team < ActiveRecord::Base
   # Field: logo , SQL Definition:varchar(255)
   
   def uploaded_logo(l, filter_background = false)
+    require 'RMagick'
+    include Magick
+
     image = ImageList.new.from_blob(l.read)
     if filter_background
       # make the background transparent
