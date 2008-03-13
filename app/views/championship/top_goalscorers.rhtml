@@ -1,0 +1,38 @@
+<% content_for :main_title do %>
+  <%= @championship.full_name %>
+<% end %>
+
+<% if @goals.length == 0 %>
+  <p>No players in this list</p>
+<% else %>
+
+  <h2>Top Goalscorers</h2>
+
+<div id="players">
+  <table class='class_table'>
+    <tr class='table_head'>
+      <th>Name</th>
+      <th>Pos</th>
+      <th>Goals</th>
+      <th>Penalties</th>
+      <th>Own Goals</th>
+    </tr>
+    <% @goals.each do |player, goals| %>
+      <tr class='table_line'>
+        <td><%= link_to player.name, :controller => :player, :action => :show, :id => player %></td>
+        <td><%= player.position %></td>
+        <td><%= goals %></td>
+        <td><%= @penalty[player] %></td>
+        <td><%= @own[player] %></td>
+      </tr>
+    <% end %>
+  </table>
+</div>
+
+<%= will_paginate @goals %>
+
+ <% end %>
+
+<% content_for :sidebar do %>
+  <%= render :partial => "nav_side" %>
+<% end %>

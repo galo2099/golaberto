@@ -1,6 +1,7 @@
 class ChampionshipController < ApplicationController
   before_filter :login_required, :except => [ :index, :list, :show, :phases,
-                                              :crowd, :team, :games, :team_xml ]
+                                              :crowd, :team, :games, :team_xml,
+                                              :top_goalscorers ]
 
   def index
     redirect_to :action => :list
@@ -259,4 +260,20 @@ class ChampionshipController < ApplicationController
     redirect_to :action => "list"
   end
 
+  def top_goalscorers
+    @championship = Championship.find(params["id"])
+    phases = @championship.phases
+    @goals = phases[0].goals.paginate :finder => :count,
+                                      :page => params[:page],
+                                      :group => :player,
+                                      :conditions => { :own_goal => 0 },
+                                      :limit => 10,
+                                      :order => "count_all DESC"
+    @own = phases[0].goals.count :group => :player,
+                                 :conditions => { :own_goal => 1,
+                                                  :player_id => @goals.map{|p,c| p} }
+    @penalty = phases[0].goals.count :group => :player,
+                                     :conditions => { :penalty => 1,
+                                                      :player_id => @goals.map{|p,c| p} }
+  end
 end
