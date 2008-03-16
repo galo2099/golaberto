@@ -262,18 +262,26 @@ class ChampionshipController < ApplicationController
 
   def top_goalscorers
     @championship = Championship.find(params["id"])
-    phases = @championship.phases
-    @goals = phases[0].goals.paginate :finder => :count,
-                                      :page => params[:page],
-                                      :group => :player,
-                                      :conditions => { :own_goal => 0 },
-                                      :limit => 10,
-                                      :order => "count_all DESC"
-    @own = phases[0].goals.count :group => :player,
-                                 :conditions => { :own_goal => 1,
-                                                  :player_id => @goals.map{|p,c| p} }
-    @penalty = phases[0].goals.count :group => :player,
-                                     :conditions => { :penalty => 1,
-                                                      :player_id => @goals.map{|p,c| p} }
+    @goals = @championship.goals.paginate :finder => :count,
+                                          :page => params[:page],
+                                          :group => :player,
+                                          :conditions => { :own_goal => 0 },
+                                          :limit => 10,
+                                          :order => "count_all DESC"
+    players = @goals.map{|p,c| p}
+    @teams = @championship.goals.calculate :group_concat,
+                                           :all,
+                                           :group => :player,
+                                           :conditions => { :player_id => players },
+                                           :select => "DISTINCT(team_id)"
+    @teams.map! do |p,t|
+      [p, t.split(',').map{ |id| Team.find id } ]
+    end
+    @own = @championship.goals.count :group => :player,
+                                     :conditions => { :own_goal => 1,
+                                                      :player_id => players }
+    @penalty = @championship.goals.count :group => :player,
+                                         :conditions => { :penalty => 1,
+                                                          :player_id => players }
   end
 end

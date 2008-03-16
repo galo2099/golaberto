@@ -13,6 +13,7 @@
     <tr class='table_head'>
       <th>Name</th>
       <th>Pos</th>
+      <th>Teams</th>
       <th>Goals</th>
       <th>Penalties</th>
       <th>Own Goals</th>
@@ -21,6 +22,7 @@
       <tr class='table_line'>
         <td><%= link_to player.name, :controller => :player, :action => :show, :id => player %></td>
         <td><%= player.position %></td>
+        <td><%= @teams[player].map{|t| link_to t.name, :controller => :championship, :action => :team, :id => @championship, :team => t }.join(", ") %>
         <td><%= goals %></td>
         <td><%= @penalty[player] %></td>
         <td><%= @own[player] %></td>
