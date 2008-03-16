@@ -16,9 +16,11 @@ class GameController < ApplicationController
     if (@type == "scheduled")
       conditions = [ "played = ?", false ]
       order = "date ASC, phase_id, time ASC, teams.name"
+      default_start = Date.today.strftime("%d/%m/%Y")
     else
       conditions = [ "played = ?", true ]
       order = "date DESC, phase_id, time DESC, teams.name"
+      default_end = Date.today.strftime("%d/%m/%Y")
     end
 
     @categories = Category.find(:all)
@@ -27,8 +29,8 @@ class GameController < ApplicationController
     conditions[0] << " AND category_id = ?"
     conditions << @category
  
-    @date_range_start = params[:date_range_start] || Date.today.strftime("%d/%m/%Y")
-    @date_range_end = params[:date_range_end]
+    @date_range_start = params[:date_range_start] || default_start
+    @date_range_end = params[:date_range_end] || default_end
     unless @date_range_start.to_s.empty?
       start_date = Date.strptime(@date_range_start, "%d/%m/%Y")
       conditions[0] << " AND date >= ?"
