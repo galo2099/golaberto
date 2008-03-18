@@ -3,9 +3,9 @@
     <td class="game_show_home_team"><%= @game.home.name %></td>
     <td></td>
     <td><%= "(#{@game.home_pen})" if @game.home_pen %></td>
-    <td class="game_show_home_score"><%= @game.home_score %></td>
+    <td class="game_show_home_score"><%= @game.home_score if @game.played? %></td>
     <td class="game_show_x">x</td>
-    <td class="game_show_away_score"><%= @game.away_score %></td>
+    <td class="game_show_away_score"><%= @game.away_score if @game.played? %></td>
     <td><%= "(#{@game.away_pen})" if @game.away_pen %></td>
     <td></td>
     <td class="game_show_away_team"><%= @game.away.name %></td>
