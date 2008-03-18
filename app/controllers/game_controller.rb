@@ -3,6 +3,7 @@ class GameController < ApplicationController
 
   def show
     @game = Game.find(params["id"])
+    @last_games = @game.find_n_previous_games_by_team_versus_team(5)
   end
 
   def index

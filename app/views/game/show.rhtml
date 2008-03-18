@@ -53,8 +53,9 @@
     </tr>
   <% end %>
 
-
+ <% if not @game.home_player_games.empty? and not @game.away_player_games.empty? %>
   <tr><td></td>
+    
     <td colspan="4" style="vertical-align: top">
       <table style="width: 100%">
         <tr class="game_show_goals game_show_away_score">
@@ -78,7 +79,10 @@
           </tr>
         <% end %>
       </table>
-    </td><td></td>
+    </td>
+    
+    <td></td>
+    
     <td colspan="4" style="vertical-align: top">
       <table style="width: 100%">
         <tr class="game_show_goals game_show_away_score">
@@ -104,7 +108,7 @@
       </table>
       </td><td>
   </td></tr>
-
+<% end %>
 
   <tr><td colspan="10">
       <table>
@@ -119,6 +123,28 @@
 </table>
 
 <%= @game.played_str %><br/>
+
+<% if not @last_games.empty? %>
+<h2>Previous <%=@last_games.length%> games</h2>
+<div class="game_score" style='font-size: 12px'>
+  <% @last_games.each do |@game| %>
+    <div class="table_row">
+      <div class="table_cell" style='width: 30%; text-align: left'>
+        <%= link_to @game.phase.championship.full_name,
+          { :action => "show",
+            :controller => "championship",
+            :id => @game.phase.championship,
+          } %>
+      </div>
+      <div class="table_cell" style='width: 70%'>
+        <%= render :partial => "championship/game_list" %>
+        <div class="clearer"></div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <% end %>
+</div>
+<% end %>
 
 <%= render :partial => "comment/comments", :locals => { :object => @game } %>
 

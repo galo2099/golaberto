@@ -155,6 +155,12 @@ class Game < ActiveRecord::Base
     changed? || diff.size > 0
   end
 
+  def find_n_previous_games_by_team_versus_team(n)
+    Game.find :all, :limit => n, :include => { :phase => :championship }, :order => "date desc",
+               :conditions => [ "((home_id = ? and away_id = ?) or (home_id = ? and away_id = ?)) and played = ? and championships.category_id = ? and date < ?",
+                                self.home, self.away, self.away, self.home, true, self.phase.championship.category, self.date ]
+  end
+
   # Fields information, just FYI.
   #
   # Field: id , SQL Definition:bigint(20)
