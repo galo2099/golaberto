@@ -1,9 +1,5 @@
 <% content_for :main_title do %>Listing Championships<% end %>
 
-<% if @total == 0 %>
-  <p>No championships found</p>
-<% else %>
-
   <table>
     <tr>
       <th>Name</th>
@@ -26,12 +22,8 @@
   </table>
 
   <p>
-  <% if @championship_pages.page_count > 1 %>
-    <%= pagination_links @championship_pages, { :window_size => 5 } %>
-  <% end %>
+  <%= will_paginate @championships %>
   </p>
-
-<% end %>
 
 <% content_for :sidebar do %>
   <% if logged_in? %>

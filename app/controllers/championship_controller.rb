@@ -28,8 +28,7 @@ class ChampionshipController < ApplicationController
   end
 
   def list
-    @total = Championship.count
-    @championship_pages, @championships = paginate :championships, :order => "name, begin"
+    @championships = Championship.paginate :order => "name, begin", :page => params[:page]
   end
 
   def show
