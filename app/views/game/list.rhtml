@@ -1,0 +1,31 @@
+<% content_for :main_title do %>Listing games<% end %>
+
+Category: <select id='category_select'>
+  <%= options_from_collection_for_select @categories, "id", "name", @category %>
+</select>
+<br/>
+<br/>
+From: <%= date_field_tag "date_range_start", nil, :format => "%d/%m/%Y", :size => 10, :value => @date_range_start %>
+To: <%= date_field_tag "date_range_end", nil, :format => "%d/%m/%Y", :size => 10, :value => @date_range_end %>
+<br/>
+<br/>
+<div id='table'>
+  <%= render :partial => "game_list" %>
+</div>
+
+<% content_for :sidebar do %>
+  <%= link_to_unless(@type == "scheduled", "Scheduled", :action => :list, :type => :scheduled, :category => @category) %><br/>
+  <%= link_to_unless(@type == "played", "Played", :action => :list, :type => :played, :category => @category) %>
+<% end %>
+
+<%= observe_field "date_range_start",
+                  :update => "table",
+                  :url => { :action => :list, :type => @type, :category => @category },
+                  :with => "Form.serializeElements([$('date_range_start'), $('date_range_end')]) /* = */" %>
+<%= observe_field "date_range_end",
+                  :update => "table",
+                  :url => { :action => :list, :type => @type, :category => @category },
+                  :with => "Form.serializeElements([$('date_range_start'), $('date_range_end')]) /* = */" %>
+<%= observe_field "category_select",
+                  :function => "document.location = '" + url_for({ :action => :list, :type => @type }) + "?category=' + value;"
+                %>

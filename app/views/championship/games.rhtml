@@ -1,0 +1,45 @@
+<% content_for :main_title do %>
+  <%= h @championship.full_name %>
+<% end %>
+<%= image_tag("spinner.gif",
+              :align => 'absmiddle',
+              :border=> 0,
+              :id => "spinner",
+              :style => "display: none;" ) %>
+
+<table class='tab_header'><tr>
+<% @championship.phases.each do |phase| %>
+<td>
+<%   if (phase.id != @current_phase.id) %>
+<%=    link_to phase.name, { :action => "games",
+                             :id => @championship,
+                             :phase => phase } %>
+<%   else %>
+<%=    h phase.name %>
+<%   end %>
+</td>
+<% end %>
+</tr></table>
+
+<div id='table'>
+  <%= render :partial => "game_table" %>
+</div>
+
+<% content_for :sidebar do %>
+  <%= render :partial => "nav_side" %>
+
+  <div class='team_table'>
+    <% @current_phase.groups.each do |group| %>
+      <%= render :partial => "table",
+                 :locals => { :group => group,
+                              :team_table => group.team_table,
+                              :omit_columns => { :D => true,
+                                                 :L => true,
+                                                 :GF => true,
+                                                 :GA => true },
+                              :omit_logo => true,
+                              :omit_popup => true,
+                              :omit_comments => true } %>
+    <% end %>
+  </div>
+<% end %>

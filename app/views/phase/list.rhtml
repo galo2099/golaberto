@@ -1,0 +1,26 @@
+<% if @total == 0 %>
+<p>No phases found</p>
+<% else %>
+
+  <% if @phase_pages.page_count > 1 %>
+    <%= pagination_links @phase_pages, { :window_size => 1 } %>
+  <% end %>
+
+<table>
+  <tr>
+  <th>Name</th>
+  <th>Sort</th>
+  </tr>
+  
+<% for phase in @phases %>
+  <tr>
+  <td><%= phase.name %></td>
+  <td><%= phase.sort %></td>
+  <td><%= link_to 'Show', :action => 'show', :id => phase %></td>
+  <td><%= link_to 'Edit', :action => 'edit', :id => phase %></td>
+  <td><%= link_to 'Destroy', { :action => 'destroy', :id => phase }, :confirm => 'Are you sure?', :post => true %></td>
+  </tr>
+<% end %>
+</table>
+<% end %>
+

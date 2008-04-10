@@ -1,0 +1,29 @@
+<% content_for :main_title do %> Listing teams <% end %>
+
+<% form_tag({ :action => "list", :id => "" }, :method => "GET",
+            :style => "display: inline") do %>
+<%= text_field_tag("id", @id, :size => 20) %>
+<% end %>
+
+<%= image_tag("spinner.gif",
+              :align => 'absmiddle',
+              :border=> 0,
+              :id => "spinner",
+              :style => "display: none;" ) %>
+<%= observe_field 'id', :frequency => 1,
+                        :update => 'table',
+                        :before => "Element.show('spinner')",
+                        :success => "Element.hide('spinner')",
+                        :url => {:action => 'list'},
+                        :with => 'id' %>
+
+<div id="table">
+<%= render :partial => "team_list" %>
+</div>
+
+<% content_for :sidebar do %>
+  <% if logged_in? %>
+    <%= link_to 'New team', :action => 'new' %>
+  <% end %>
+<% end %>
+<%= update_page_tag do |page| page["id"].activate end %>

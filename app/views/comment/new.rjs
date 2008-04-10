@@ -1,0 +1,2 @@
+page.insert_html :bottom, "comments", :partial => "comment/comment", :locals => { :comment => @comment }
+page.visual_effect :highlight, "comments", :duration => 3

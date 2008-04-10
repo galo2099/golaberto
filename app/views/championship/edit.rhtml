@@ -1,0 +1,45 @@
+<% content_for :main_title do %>Edit Championship<% end %>
+
+<%= error_messages_for 'championship', 'phase' %>
+
+<% form_for :championship, @championship, :url => { :action => :update, :id => @championship } do |f| %>
+  Name:
+  <%= f.text_field "name", "size" => 40 %><br/>
+
+  Begin: <%= date_field :championship, :begin, :value => @championship.begin, :size => 10, :format => "%d/%m/%Y" %><br/>
+  End: <%= date_field :championship, :end, :value => @championship.end, :size => 10, :format => "%d/%m/%Y" %><br/>
+
+  Points for win:
+  <%= f.text_field :point_win, :size => 2 %><br/>
+
+  Points for draw:
+  <%= f.text_field :point_draw, :size => 2 %><br/>
+
+  Points for loss:
+  <%= f.text_field :point_loss, :size => 2 %><br/>
+
+  Category:
+  <select id="championship_category_id" name="championship[category_id]">
+    <%= options_from_collection_for_select @categories, "id", "name", @championship.category_id %>
+  </select><br/>
+
+  <p>Phases</p>
+
+  <% last_order_by = 0 %>
+  <p>
+  <% @championship.phases(true).each do |phase| %>
+    Name: <%= phase.name %>
+    <%= link_to "Edit", :controller => :phase, :action => :edit, :id => phase %>
+    <%= link_to "Delete", { :controller => :phase, :action => :destroy, :id => phase }, :confirm => 'Are you sure?', :post => true %>
+    <br/>
+    <% last_order_by = phase.order_by %>
+  <% end %>
+  </p>
+
+  <p>Add new phase: (More phases can be added later)<br />
+  <input type="text" id="phase[name]" name="phase[name]" value="">
+  <input type="hidden" id="phase[order_by]" name="phase[order_by]" value="<%= last_order_by + 1 %>">
+  </p>
+
+  <%= submit_tag "Update" %>
+<% end %>

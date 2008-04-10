@@ -1,0 +1,31 @@
+<% content_for :main_title do %>Listing stadia<% end %>
+
+<p>
+<% form_tag({ :action => "list", :name => "" }, :method => "GET",
+              :style => "display: inline") do %>
+<%= text_field_tag("name", @name, :size => 20) %>
+<% end %>
+
+<%= image_tag("spinner.gif",
+              :align => 'absmiddle',
+              :border=> 0,
+              :id => "spinner",
+              :style => "display: none;" ) %>
+</p>
+<%= observe_field 'name', :frequency => 1,
+                          :update => 'table',
+                          :before => "Element.show('spinner')",
+                          :success => "Element.hide('spinner')",
+                          :url => {:action => 'list'},
+                          :with => 'name' %>
+
+<div id="table">
+<%= render :partial => "stadium_list" %>
+</div>
+<br/>
+
+<% content_for :sidebar do %>
+  <% if logged_in? %>
+    <%= link_to 'New stadium', :action => 'new' %>
+  <% end %>
+<% end %>

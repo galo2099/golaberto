@@ -1,0 +1,15 @@
+<div id="comments">
+  <h1>Comments</h1>
+  <%= render :partial => "comment/comment", :collection => object.comments %>
+</div>
+
+<h5>Leave a comment</h5>
+<% if logged_in? %>
+  <% remote_form_for :comment, :url => { :controller => :comment, :action => :new, :type => object.class, :id => object } do |f| %>
+    Comment:<br>
+    <%= f.text_area :comment, :rows => 5, :cols => 35 %><br>
+    <%= submit_tag "Add Comment" %>
+  <% end %>
+<% else %>
+  You can only leave a comment if you're <%= link_to "logged in", :controller => :account, :action => :login %>
+<% end %>

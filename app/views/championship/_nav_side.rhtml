@@ -1,0 +1,14 @@
+<% @current_phase ||= @championship.phases[-1] %>
+<% if logged_in? %>
+  <%= link_to "Edit championship", :action => "edit", :id => @championship %><br/>
+<%= link_to "New game", :action => :new_game, :id => @championship,
+                        :phase => @current_phase %><br/>
+<br/>
+<% end %>
+<%= link_to "Table", :action => :phases, :id => @championship,
+                     :phase => @current_phase %><br/>
+<%= link_to "Games", :action => :games, :id => @championship,
+                     :phase => @current_phase %><br/>
+<%= link_to "Teams", :action => :team, :id => @championship %><br/>
+<%= link_to "Crowd", :action => :crowd, :id => @championship %><br/>
+<%= link_to "Goalscorers", :action => :top_goalscorers, :id => @championship %><br/>

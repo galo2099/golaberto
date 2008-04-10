@@ -1,0 +1,4 @@
+<div id="<%= home_away %>_player_<%= player_list.id %>" class="draggable">
+  <%= player_list.name %>
+</div>
+<%= draggable_element "#{home_away}_player_#{player_list.id}", :revert => true %>

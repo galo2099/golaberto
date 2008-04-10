@@ -1,0 +1,39 @@
+<% content_for :main_title do %> Home <% end %>
+
+<div id="championship">
+  <h3 style="margin-top: 0px">Current championships</h3>
+  <% @championships.each do |champ| %>
+    <%= link_to champ.full_name, :controller => :championship, :action => :show, :id => champ %><br>
+  <% end %>
+</div>
+
+<div id="edits">
+  <h3> Latest edits</h3>
+  <% @games.each do |@game| %>
+    Updated by <%= @game.updated_by_string %> on <%= @game.updated_at.strftime("%A, %d/%m/%Y at %H:%M") if @game.updated_at %><br>
+    <div class="table_row">
+      <div class="table_cell" style="width: 50%; text-align: left"><%= link_to @game.phase.championship.full_name, :controller => :championship, :action => :show, :id => @game.phase.championship %></div>
+      <div class="table_cell" style="width: 50%"><%= @game.formatted_date(true) %></div>
+      <div class="clearer"></div>
+    </div>
+    <div class="table_row">
+      <%= render :partial => "championship/game_list" %>
+      <div class="clearer"></div>
+    </div>
+    <hr>
+  <% end %>
+</div>
+
+<div id="comments">
+  <h3>Latest comments</h3>
+  <% @comments.each do |comment| %>
+    Comment by <%= comment.user.login %> on <%= comment.created_at.strftime("%A, %d/%m/%Y at %H:%M") %><br>
+    <br>
+    <div>
+      <%= comment.comment %>
+    </div>
+    <%= link_to "View this #{comment.commentable_type}", :controller => comment.commentable_type, :action => :show, :id => comment.commentable_id %>
+    <hr>
+  <% end %>
+</div>
+

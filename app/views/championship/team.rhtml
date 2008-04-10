@@ -1,0 +1,157 @@
+<% content_for :main_title do %>
+  <%= @championship.full_name %>
+<% end %>
+
+<select id='team_select'>
+  <%= options_from_collection_for_select @teams, "id", "name", @team.id %>
+</select>
+
+<% team_url = url_for(:controller => :championship, :action => :team, :id => @championship, :team => "") %>
+<%= observe_field 'team_select', :function => "document.location = '#{team_url}' + value" %>
+
+<h2><%= image_tag "logos/" + @team.large_logo %>
+  <%= link_to @team.name, :controller => :team, :action => :show, :id => @team %>
+</h2>
+
+<h3>Played</h3>
+<div class="game_score">
+    <% @played_games.each do |@game| %>
+      <div class="<%= cycle "table_line_even", "table_line_odd" %> table_row">
+        <div class="table_cell" style="width: 8%">
+          <%= @game.date.strftime("%d/%m") %>
+        </div>
+        <div class="table_cell" style="width: 92%">
+          <%= render :partial => "game_list" %>
+          <div class="clearer"></div>
+        </div>
+        <div class="clearer"></div>
+      </div>
+    <% end %>
+</div>
+
+<h3>Scheduled</h3>
+<div class="game_score">
+    <% @scheduled_games.each do |@game| %>
+      <div class="<%= cycle "table_line_even", "table_line_odd" %> table_row">
+        <div class="table_cell" style="width: 8%">
+          <%= @game.date.strftime("%d/%m") %>
+        </div>
+        <div class="table_cell" style="width: 92%">
+          <%= render :partial => "game_list" %>
+          <div class="clearer"></div>
+        </div>
+        <div class="clearer"></div>
+      </div>
+    <% end %>
+</div>
+
+<h3>Players</h3>
+<div id="players">
+  <table>
+    <tr>
+      <th>Name</th>
+      <th>Pos</th>
+      <th>Goals</th>
+      <th>Own Goals</th>
+      <th>Penalties</th>
+    </tr>
+    <% @players.each do |p| %>
+      <tr>
+        <td><%= link_to p[:player].name, :controller => :player, :action => :show, :id => p[:player] %></td>
+        <td><%= p[:player].position %></td>
+        <td><%= p[:goals] %></td>
+        <td><%= p[:own_goals] %></td>
+        <td><%= p[:penalties] %></td>
+        <% if logged_in? %>
+          <td><%= link_to_remote(
+                      'Remove', :url => { :controller => :player,
+                                          :action => :destroy_team,
+                                          :id => p[:team_player] },
+                                :confirm => 'Are you sure?',
+                                :method => :post,
+                                :success => update_page {|p| p.redirect_to request.request_uri },
+                                :failure => "alert('Error removing')") %></td>
+        <% end %>
+      </tr>
+    <% end %>
+  </table>
+</div>
+
+<div id="graphs">
+  <div id="tabs">
+    <% @groups.each_with_index do |group, idx| %>
+      <a href="#tab<%= idx %>"><%= group.phase.name %></a>
+    <% end %>
+  </div>
+  <% @groups.each_with_index do |group, idx| %>
+    <div class="panel" id="tab<%= idx %>">
+    </div>
+    <%= javascript_tag 'var chart = new FusionCharts("/charts/MSCombiDY2D.swf", "ChartId", "550", "300", "0", "0"); chart.setDataXML("' + @group_xml[idx] + '"); chart.render("tab' + idx.to_s + '");' %>
+  <% end %>
+</div>
+
+<% content_for :sidebar do %>
+  <%= render :partial => "nav_side" %>
+
+  <div class='team_table'>
+    <% @groups.each_with_index do |group, idx| %>
+      <h2><%= group.phase.name %></h2>
+      <%= render :partial => "table",
+                 :locals => { :group => group,
+                              :team_table => @group_table[idx],
+                              :omit_columns => { :D => true,
+                                                 :L => true,
+                                                 :GF => true,
+                                                 :GA => true },
+                              :omit_logo => true,
+                              :omit_popup => true,
+                              :omit_comments => true } %>
+    <% end %>
+  </div>
+<% end %>
+
+<%= javascript_include_tag "boxover" %>
+
+<%= javascript_tag <<EOF
+var Fabtabs = Class.create();
+Fabtabs.prototype = {
+  initialize : function(element) {
+    this.element = $(element);
+    var options = Object.extend({}, arguments[1] || {});
+    this.menu = $A(this.element.getElementsByTagName('a'));
+    this.show(this.getInitialTab());
+    this.menu.each(this.setupTab.bind(this));
+  },
+  setupTab : function(elm) {
+    Event.observe(elm,'click',this.activate.bindAsEventListener(this),false)
+  },
+  activate :  function(ev) {
+    var elm = Event.findElement(ev, "a");
+    Event.stop(ev);
+    this.show(elm);
+    this.menu.without(elm).each(this.hide.bind(this));
+  },
+  hide : function(elm) {
+    $(elm).removeClassName('active-tab');
+    $(this.tabID(elm)).removeClassName('active-tab-body');
+  },
+  show : function(elm) {
+    $(elm).addClassName('active-tab');
+    $(this.tabID(elm)).addClassName('active-tab-body');
+  },
+  tabID : function(elm) {
+    return elm.href.match(/#(\\w.+)/)[1];
+  },
+  getInitialTab : function() {
+    if(document.location.href.match(/#(\\w.+)/)) {
+      var loc = RegExp.$1;
+      var elm = this.menu.find(function(value) { return value.href.match(/#(\\w.+)/)[1] == loc; });
+      return elm || this.menu.first();
+    } else {
+      return this.menu.first();
+    }
+  }
+}
+Event.observe(window,'load',function(){ new Fabtabs('tabs'); },false);
+EOF
+%>

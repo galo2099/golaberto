@@ -1,0 +1,32 @@
+<% content_for :main_title do %>Listing players<% end %>
+
+<p>
+<% form_tag({ :action => "list", :id => "" }, :method => "GET",
+            :style => "display: inline") do %>
+<%= text_field_tag("id", @id, :size => 20) %>
+<% end %>
+
+<%= image_tag("spinner.gif",
+              :align => 'absmiddle',
+              :border=> 0,
+              :id => "spinner",
+              :style => "display: none;" ) %>
+</p>
+<%= observe_field 'id', :frequency => 1,
+                        :update => 'table',
+                        :before => "Element.show('spinner')",
+                        :success => "Element.hide('spinner')",
+                        :url => { :action => 'list' },
+                        :with => 'id' %>
+
+<div id="table">
+<%= render :partial => "player_list" %>
+</div>
+<br/>
+
+<% content_for :sidebar do %>
+  <% if logged_in? %>
+    <%= link_to 'New player', :action => 'new' %>
+  <% end %>
+<% end %>
+

@@ -1,0 +1,15 @@
+Riff
+====
+
+Detect differences between two activerecords, e.g.
+
+  a = Person.create :name => 'alice', :age => 20
+
+  b = Person.create :name => 'bob', :age => 21
+
+  a.diff?(b)   # => true
+
+  a.diff(b)    # => { :name => ['alice', 'bob'], :age => [20, 21] }
+
+
+Thanks to Dave Thomas and Nathaniel Talbott for helpful feedback.

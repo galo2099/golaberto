@@ -1,0 +1,23 @@
+<% last_phase_id = nil %>
+<% last_date = nil %>
+<% @games.each do |@game| %>
+  <% if @game.formatted_date != last_date %>
+    <% last_date = @game.formatted_date %>
+    <% last_phase_id = @game.phase_id %>
+    <div class="game_date"><%= @game.formatted_date(true) %></div>
+    <div><%= link_to @game.phase.championship.full_name, :controller => :championship, :action => :phases, :id => @game.phase.championship, :phase => @game.phase %></div>
+  <% end %>
+  <% if @game.phase_id != last_phase_id %>
+    <% last_phase_id = @game.phase_id %>
+    <div><%= link_to @game.phase.championship.full_name, :controller => :championship, :action => :phases, :id => @game.phase.championship, :phase => @game.phase %></div>
+  <% end %>
+  <div class="table_row">
+    <%= render :partial => "championship/game_list" %>
+    <div class="clearer"></div>
+  </div>
+<% end %>
+
+<% if @game_pages.page_count > 1 %>
+  <% page_options = { :url => { :action => :list, :type => @type, :date_range_start => @date_range_start, :date_range_end => @date_range_end, :category => @category }, :update => "table" } %>
+  <%= pagination_links_remote @game_pages, page_options %>
+<% end %>

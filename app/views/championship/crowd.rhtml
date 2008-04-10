@@ -1,0 +1,49 @@
+<% content_for :main_title do %>
+  <%= h @championship.full_name %>
+<% end %>
+
+<h3>Best averages</h3>
+
+<table class='class_table'>
+  <tr class='table_head'>
+    <th>Name</th>
+    <th>Average</th>
+    <th>Maximum</th>
+    <th>Minimum</th>
+    <th>Games</th>
+  </tr>
+  <% @average.each do |team, avg| %>
+    <tr class='table_line'>
+      <% image_logo = image_tag("logos/" +
+                                team.small_logo,
+                                :width => 15,
+                                :height => 15) %>
+      <td class='name'><%= image_logo + link_to(team.name, :action => 'team',
+                                              :id => @championship,
+                                              :team => team) %></td>
+      <td><%= avg.to_i %></td>
+      <td><%= @maximum[team] %></td>
+      <td><%= @minimum[team] %></td>
+      <td><%= @count[team] %></td>
+    </tr>
+  <% end %>
+</table>
+
+<h3>Most attended games</h3>
+
+<div>
+  <% @games.each do |@game| %>
+    <div class='game_date'><%= @game.formatted_date(true) %></div>
+    <div>Attendance: <%= @game.attendance %></div>
+    <div class='table_row'>
+      <%= render :partial => "game_list" %>
+      <div class='clearer'></div>
+    </div>
+  <% end %>
+</div>
+<br>
+<%= will_paginate @games %>
+
+<% content_for :sidebar do %>
+  <%= render :partial => "nav_side" %>
+<% end %>

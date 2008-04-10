@@ -1,0 +1,40 @@
+<% content_for :main_title do %>Listing Championships<% end %>
+
+<% if @total == 0 %>
+  <p>No championships found</p>
+<% else %>
+
+  <table>
+    <tr>
+      <th>Name</th>
+      <th>Category</th>
+    </tr>
+
+    <% for championship in @championships %>
+      <tr>
+        <td><%= link_to championship.full_name, :action => 'show', :id => championship %></td>
+        <td><%= championship.category.name %></td>
+        <% if logged_in? %>
+          <td><%= link_to 'Edit', :action => 'edit', :id => championship %></td>
+          <td><%= link_to 'Destroy', { :action => 'destroy',
+                                       :id => championship },
+                                     :confirm => 'Are you sure?',
+                                     :method => :post %></td>
+        <% end %>
+      </tr>
+    <% end %>
+  </table>
+
+  <p>
+  <% if @championship_pages.page_count > 1 %>
+    <%= pagination_links @championship_pages, { :window_size => 5 } %>
+  <% end %>
+  </p>
+
+<% end %>
+
+<% content_for :sidebar do %>
+  <% if logged_in? %>
+    <%= link_to 'Create', :action => :new %>
+  <% end %>
+<% end %>

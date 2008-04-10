@@ -1,0 +1,157 @@
+<% content_for :main_title do %>
+  <%= @game.phase.championship.full_name %>
+<% end %>
+
+<h2><%= link_to @game.phase.name, :controller => :championship, :action => :games, :id => @game.phase.championship, :phase => @game.phase %></h2>
+
+<table class="game_show_score">
+  <%= render :partial => "game_score" %>
+
+  <% count_home = 0 %>
+  <% count_away = 0 %>
+  <% player_scored = Hash.new %>
+  <% @game.goals.each do |goal| %>
+    <%
+    if goal.own_goal?
+      if goal.team == @game.home
+        home_goal = false
+        away_goal = true
+      else
+        home_goal = true
+        away_goal = false
+      end
+    else
+      if goal.team == @game.home
+        home_goal = true
+        away_goal = false
+      else
+        home_goal = false
+        away_goal = true
+      end
+    end %>
+    <% player_scored[goal.player.id] = true if goal.player unless goal.own_goal? %>
+    <% count_home += 1 if home_goal %>
+    <% count_away += 1 if away_goal %>
+    <tr class="game_show_goals">
+      <td></td>
+      <td class="game_show_home_score"><%= goal.player.name if home_goal %></td>
+      <td class="game_show_home_score">
+        <%= "(pen)" if goal.penalty? and home_goal %>
+        <%= "(own)" if goal.own_goal? and home_goal %>
+      </td>
+      <td class="game_show_home_score"><%= "#{goal.time}'" if home_goal %></td>
+      <td class="game_show_home_score"><%= "(#{count_home}-#{count_away})" if home_goal %></td>
+      <td></td>
+      <td class="game_show_away_score"><%= "(#{count_home}-#{count_away})" if away_goal %></td>
+      <td class="game_show_away_score"><%= "#{goal.time}'" if away_goal %></td>
+      <td class="game_show_away_score">
+        <%= "(pen)" if goal.penalty? and away_goal %>
+        <%= "(own)" if goal.own_goal? and away_goal %>
+      </td>
+      <td class="game_show_away_score"><%= goal.player.name if away_goal %></td>
+      <td></td>
+    </tr>
+  <% end %>
+
+ <% if not @game.home_player_games.empty? and not @game.away_player_games.empty? %>
+  <tr><td></td>
+    
+    <td colspan="4" style="vertical-align: top">
+      <table style="width: 100%">
+        <tr class="game_show_goals game_show_away_score">
+          <th>Name</th>
+          <th>Pos</th>
+          <th>On</th>
+          <th>Off</th>
+          <th></th>
+          <th></th>
+          <th></th>
+        </tr>
+        <% @game.home_player_games.sort.each do |player_game| %>
+          <tr class="game_show_goals game_show_away_score">
+            <td><%= player_game.player.name %></td>
+            <td><%= player_game.player.position %></td>
+            <td><%= player_game.on %></td>
+            <td><%= player_game.off %></td>
+            <td><%= image_tag "yells.gif" if player_game.yellow? %></td>
+            <td><%= image_tag "reds.gif" if player_game.red? %></td>
+            <td><%= image_tag "goal.png" if player_scored[player_game.player.id] %></td>
+          </tr>
+        <% end %>
+      </table>
+    </td>
+    
+    <td></td>
+    
+    <td colspan="4" style="vertical-align: top">
+      <table style="width: 100%">
+        <tr class="game_show_goals game_show_away_score">
+          <th>Name</th>
+          <th>Pos</th>
+          <th>On</th>
+          <th>Off</th>
+          <th></th>
+          <th></th>
+          <th></th>
+        </tr>
+        <% @game.away_player_games.sort.each do |player_game| %>
+          <tr class="game_show_goals game_show_away_score">
+            <td><%= player_game.player.name %></td>
+            <td><%= player_game.player.position %></td>
+            <td><%= player_game.on %></td>
+            <td><%= player_game.off %></td>
+            <td><%= image_tag "yells.gif" if player_game.yellow? %></td>
+            <td><%= image_tag "reds.gif" if player_game.red? %></td>
+            <td><%= image_tag "goal.png" if player_scored[player_game.player.id] %></td>
+          </tr>
+        <% end %>
+      </table>
+      </td><td>
+  </td></tr>
+<% end %>
+
+  <tr><td colspan="10">
+      <table>
+        <tr><td>Round:</td><td><%= @game.round %></td></tr>
+        <tr><td>Attendance:</td><td><%= @game.attendance %></td></tr>
+        <tr><td>Date:</td><td><%= @game.formatted_date.to_s + " - " + @game.formatted_time.to_s %></td></tr>
+        <tr><td>Stadium:</td><td><%= @game.stadium.name unless @game.stadium.nil? %></td></tr>
+        <tr><td>Referee:</td><td><%= "#{@game.referee.name} (#{@game.referee.location})" unless @game.referee.nil? %></td></tr>
+      </table>
+  </td></tr>
+
+</table>
+
+<%= @game.played_str %><br/>
+
+<% if not @last_games.empty? %>
+<h2>Previous <%=@last_games.length%> games</h2>
+<div class="game_score" style='font-size: 12px'>
+  <% @last_games.each do |@game| %>
+    <div class="table_row">
+      <div class="table_cell" style='width: 30%; text-align: left'>
+        <%= link_to @game.phase.championship.full_name,
+          { :action => "show",
+            :controller => "championship",
+            :id => @game.phase.championship,
+          } %>
+      </div>
+      <div class="table_cell" style='width: 70%'>
+        <%= render :partial => "championship/game_list" %>
+        <div class="clearer"></div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <% end %>
+</div>
+<% end %>
+
+<%= render :partial => "comment/comments", :locals => { :object => @game } %>
+
+<% content_for :sidebar do %>
+  <% if logged_in? %>
+    <%= link_to "Edit", :action => :edit, :id => @game %><br/>
+    <%= link_to "Edit Squad", :action => :edit_squad, :id => @game %><br/>
+    <%= link_to "Delete", { :action => :destroy, :id => @game }, :confirm => 'Are you sure?', :method => :post %><br/>
+  <% end %>
+<% end %>

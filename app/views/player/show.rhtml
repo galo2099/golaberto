@@ -1,0 +1,14 @@
+<% content_for :main_title do %>Player<% end %>
+
+<h2><%= @player.name %> - <%= @player.full_name %></h2>
+<% @player.team_players.each do |tp| %>
+  <%= tp.team.name %> - <%= tp.championship.full_name %><br/>
+<% end %>
+
+<%= render :partial => "comment/comments", :locals => { :object => @player } %>
+
+<% content_for :sidebar do %>
+  <% if logged_in? %>
+    <%= link_to "Edit", :action => :edit, :id => @player %>
+  <% end %>
+<% end %>

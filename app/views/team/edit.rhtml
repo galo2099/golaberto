@@ -1,0 +1,8 @@
+<%= error_messages_for 'team'  %>
+
+<% content_for :main_title do %> Editing team <% end %>
+
+<% form_for :team, @team, :url => { :action => :update, :id => @team }, :html => { :multipart => true } do |f| %>
+  <%= render :partial => "form", :locals => { :f => f } %>
+  <%= submit_tag "Update" %>
+<% end %>

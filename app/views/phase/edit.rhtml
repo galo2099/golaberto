@@ -1,0 +1,33 @@
+<% content_for :main_title do %><%= @phase.championship.full_name %><% end %>
+
+<%= error_messages_for 'phase', 'group'  %>
+
+<% form_for :phase, @phase, :url => { :action => :update, :id => @phase } do |p| %>
+  <table>
+    <tr><td>Name:</td><td><%= p.text_field :name %></td></tr>
+    <tr><td>Sort:</td><td><%= p.text_field :sort %></td></tr>
+    <tr><td><label for="enable_bonus">Bonus points for win?</label></td><td><%= check_box_tag "enable_bonus", "1", @phase.bonus_points > 0, :onChange => "if (this.checked) { $('phase_bonus_points').enable(); $('phase_bonus_points_threshold').enable(); } else { $('phase_bonus_points').disable(); $('phase_bonus_points_threshold').disable(); }" %></td></tr>
+    <tr><td><label for="phase_bonus_points">Bonus:</label></td>
+      <td><%= p.text_field :bonus_points, :size => 2, :disabled => @phase.bonus_points == 0 %>
+        <%= p.hidden_field :bonus_points, :value => 0 %></td>
+    </tr>
+    <tr><td><label for="phase_bonus_points_threshold">Goal difference equal to<br/>or bigger than:</label></td>
+      <td><%= p.text_field :bonus_points_threshold, :size => 2, :disabled => @phase.bonus_points == 0 %>
+        <%= p.hidden_field :bonus_points_threshold, :value => 0 %></td>
+    </tr>
+  </table>
+
+  <p>Groups</p>
+  <% @phase.groups.each do |group| %>
+    Name: <%= group.name %>
+    <%= link_to "Edit", :controller => :group, :action => :edit, :id => group %>
+    <%= link_to "Delete", { :controller => :group, :action => :destroy, :id => group }, :confirm => 'Are you sure?', :post => true %><br/>
+  <% end %>
+  <p>Add new group: (More groups can be added later)<br />
+  <input type="text" id="group[name]" name="group[name]" value="">
+  </p>
+
+  <%= submit_tag "Update" %><br/>
+<% end %>
+
+
