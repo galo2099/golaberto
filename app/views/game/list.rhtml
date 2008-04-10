@@ -5,8 +5,13 @@ Category: <select id='category_select'>
 </select>
 <br/>
 <br/>
+<% form_tag({ :action => :list }, :method => :get) do -%>
 From: <%= date_field_tag "date_range_start", nil, :format => "%d/%m/%Y", :size => 10, :value => @date_range_start %>
 To: <%= date_field_tag "date_range_end", nil, :format => "%d/%m/%Y", :size => 10, :value => @date_range_end %>
+<%= hidden_field_tag(:category, @category) %>
+<%= hidden_field_tag(:type, @type) %>
+<input type="submit" value="Change date">
+<% end %>
 <br/>
 <br/>
 <div id='table'>
@@ -18,14 +23,5 @@ To: <%= date_field_tag "date_range_end", nil, :format => "%d/%m/%Y", :size => 10
   <%= link_to_unless(@type == "played", "Played", :action => :list, :type => :played, :category => @category) %>
 <% end %>
 
-<%= observe_field "date_range_start",
-                  :update => "table",
-                  :url => { :action => :list, :type => @type, :category => @category },
-                  :with => "Form.serializeElements([$('date_range_start'), $('date_range_end')]) /* = */" %>
-<%= observe_field "date_range_end",
-                  :update => "table",
-                  :url => { :action => :list, :type => @type, :category => @category },
-                  :with => "Form.serializeElements([$('date_range_start'), $('date_range_end')]) /* = */" %>
 <%= observe_field "category_select",
-                  :function => "document.location = '" + url_for({ :action => :list, :type => @type }) + "?category=' + value;"
-                %>
+                  :function => "document.location = '" + url_for({ :action => :list, :type => @type }) + "?category=' + value;" %>

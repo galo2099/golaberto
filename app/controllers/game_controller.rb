@@ -29,7 +29,7 @@ class GameController < ApplicationController
     @category = @category.to_i
     conditions[0] << " AND category_id = ?"
     conditions << @category
- 
+
     @date_range_start = params[:date_range_start] || default_start
     @date_range_end = params[:date_range_end] || default_end
     unless @date_range_start.to_s.empty?
@@ -45,14 +45,10 @@ class GameController < ApplicationController
 
     inc = [ :home, :away, [ :phase => :championship ] ]
 
-    @total = Game.count :conditions => conditions, :include => inc
-    @game_pages, @games = paginate :games, :order => order,
-                                   :conditions => conditions,
-                                   :per_page => items_per_page,
-                                   :include => inc
-    if request.xhr?
-      render :partial => "game_list", :layout => false
-    end
+    @games = Game.paginate :order => order,
+                           :conditions => conditions,
+                           :include => inc,
+                           :page => params[:page]
   end
 
   def destroy
