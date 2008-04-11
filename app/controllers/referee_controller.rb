@@ -7,18 +7,12 @@ class RefereeController < ApplicationController
   end
 
   def list
-    items_per_page = 10
     @name = params[:name]
     conditions = ["name LIKE ?", "%#{@name}%"] unless @name.nil?
 
-    @total = Referee.count :conditions => conditions
-    @referee_pages, @referees = paginate(:referees, :order => "name",
-                                         :conditions => conditions,
-                                         :per_page => items_per_page)
-
-    if request.xhr?
-      render :partial => "referee_list", :layout => false
-    end
+    @referees = Referee.paginate :order => "name",
+                                 :conditions => conditions,
+                                 :page => params[:page]
   end
 
   def show
