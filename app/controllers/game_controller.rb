@@ -17,7 +17,7 @@ class GameController < ApplicationController
     if (@type == "scheduled")
       conditions = [ "played = ?", false ]
       order = "date ASC, phase_id, time ASC, teams.name"
-      default_start = Date.today.strftime("%d/%m/%Y")
+      default_start = (Date.today - 7.days).strftime("%d/%m/%Y")
     else
       conditions = [ "played = ?", true ]
       order = "date DESC, phase_id, time DESC, teams.name"
