@@ -1,30 +1,17 @@
-<% if @total == 0 %>
-  <p>No stadium found</p>
-<% else %>
+<table>
+  <tr>
+    <th>Name</th>
+  </tr>
 
-  <table>
+  <% @stadia.each do |stadium| %>
     <tr>
-      <th>Name</th>
+      <td><%= link_to stadium.name, :action => :show, :id => stadium %></td>
+      <% if logged_in? %>
+        <td><%= link_to 'Edit', :action => 'edit', :id => stadium %></td>
+        <td><%= link_to 'Destroy', { :action => 'destroy', :id => stadium }, :confirm => 'Are you sure?', :post => true %></td>
+      <% end %>
     </tr>
-
-    <% @stadia.each do |stadium| %>
-      <tr>
-        <td><%= link_to stadium.name, :action => :show, :id => stadium %></td>
-        <% if logged_in? %>
-          <td><%= link_to 'Edit', :action => 'edit', :id => stadium %></td>
-          <td><%= link_to 'Destroy', { :action => 'destroy', :id => stadium }, :confirm => 'Are you sure?', :post => true %></td>
-        <% end %>
-      </tr>
-    <% end %>
-  </table>
-
-  <% if @stadium_pages.page_count > 1 %>
-    <% page_options = { :url => { :action => :list, :name => @name },
-                        :update => "table",
-                        :before => "Element.show('spinner')",
-                        :success => "Element.hide('spinner')" } %>
-    <%= pagination_links_remote @stadium_pages, page_options %>
   <% end %>
+</table>
 
-<% end %>
-
+<%= will_paginate @stadia %>
