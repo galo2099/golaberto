@@ -26,18 +26,12 @@ class PlayerController < ApplicationController
   end
 
   def list
-    items_per_page = 10
     @id = params[:id]
     conditions = ["name LIKE ?", "%#{@id}%"] unless @id.nil?
 
-    @total = Player.count :conditions => conditions
-    @player_pages, @players = paginate :players, :order => "name",
-                                       :conditions => conditions,
-                                       :per_page => items_per_page
-
-    if request.xhr?
-      render :partial => "player_list", :layout => false
-    end
+    @players = Player.paginate :order => "name",
+                               :conditions => conditions,
+                               :page => params[:page]
   end
 
   def show
