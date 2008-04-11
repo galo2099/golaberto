@@ -1,33 +1,20 @@
-<% if @total == 0 %>
-  <p>No teams found</p>
-<% else %>
+<table>
+  <tr>
+    <th>Name</th>
+    <th>Country</th>
+  </tr>
 
-  <table>
+  <% for team in @teams %>
     <tr>
-      <th>Name</th>
-      <th>Country</th>
+      <td><%= image_tag "logos/" + team.small_logo %>
+        <%= link_to team.name, :action => :show, :id => team %></td>
+      <td><%= team.country %></td>
+      <% if logged_in? %>
+        <td><%= link_to 'Edit', :action => 'edit', :id => team %></td>
+        <td><%= link_to 'Destroy', { :action => 'destroy', :id => team }, :confirm => 'Are you sure?', :method => :post %></td>
+      <% end %>
     </tr>
-
-    <% for team in @teams %>
-      <tr>
-        <td><%= image_tag "logos/" + team.small_logo %>
-          <%= link_to team.name, :action => :show, :id => team %></td>
-        <td><%= team.country %></td>
-        <% if logged_in? %>
-          <td><%= link_to 'Edit', :action => 'edit', :id => team %></td>
-          <td><%= link_to 'Destroy', { :action => 'destroy', :id => team }, :confirm => 'Are you sure?', :method => :post %></td>
-        <% end %>
-      </tr>
-    <% end %>
-  </table>
-
-  <% if @team_pages.page_count > 1 %>
-    <% page_options = { :url => { :action => :list, :id => @id },
-                        :update => "table",
-                        :before => "Element.show('spinner')",
-                        :success => "Element.hide('spinner')" } %>
-    <%= pagination_links_remote @team_pages, page_options %>
   <% end %>
+</table>
 
-<% end %>
-
+<%= will_paginate @teams %>

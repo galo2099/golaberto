@@ -31,18 +31,12 @@ class TeamController < ApplicationController
   end
 
   def list
-    items_per_page = 10
     @id = params[:id]
     conditions = ["name LIKE ?", "%#{@id}%"] unless @id.nil?
 
-    @total = Team.count :conditions => conditions
-    @team_pages, @teams = paginate :teams, :order => "name",
-                                   :conditions => conditions,
-                                   :per_page => items_per_page
-
-    if request.xhr?
-      render :partial => "team_list", :layout => false
-    end
+    @teams = Team.paginate :order => "name",
+                           :conditions => conditions,
+                           :page => params[:page]
   end
 
   def new
