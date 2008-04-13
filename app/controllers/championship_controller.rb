@@ -203,14 +203,9 @@ class ChampionshipController < ApplicationController
       conditions.merge!({ :round => @current_round })
     end
 
-    items_per_page = 30
-    @games_pages, @games = paginate :games, :order => "date, round, time, teams.name", :per_page => items_per_page, :conditions => conditions, :include => [ "home", "away" ]
+    @games = Game.paginate :order => "date, round, time, teams.name", :conditions => conditions, :include => [ "home", "away" ], :page => params[:page]
 
-    if request.xml_http_request?
-      render :partial => "game_table", :layout => false
-    else
-      phases
-    end
+    phases
   end
 
   def edit

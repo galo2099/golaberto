@@ -1,11 +1,6 @@
 <% content_for :main_title do %>
   <%= h @championship.full_name %>
 <% end %>
-<%= image_tag("spinner.gif",
-              :align => 'absmiddle',
-              :border=> 0,
-              :id => "spinner",
-              :style => "display: none;" ) %>
 
 <table class='tab_header'><tr>
 <% @championship.phases.each do |phase| %>
