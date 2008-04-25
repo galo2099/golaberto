@@ -19,7 +19,7 @@ role :app, domain
 role :web, domain
 role :db,  domain, :primary => true
 
-task :after_symlink, :roles => :app do
+task :after_update_code, :roles => :app do
   stats = <<-JS
     <script src="http://www.google-analytics.com/urchin.js">
     </script>
@@ -28,7 +28,15 @@ task :after_symlink, :roles => :app do
     urchinTracker();
     </script>
   JS
-  layout = "#{current_path}/app/views/layouts/application.html"
+  layout = "#{release_path}/app/views/layouts/application.html"
   run "sed -i 's?</body>?#{stats}</body>?' #{layout}"
 end
 
+desc "Link in the production database.yml"
+task :after_update_code do
+  run "cp -f #{shared_path}/config/database.yml #{release_path}/config/database.yml"
+end
+
+task :after_update_code do
+  run "ln -s #{shared_path}/logos #{release_path}/public/images/"
+end
