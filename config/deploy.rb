@@ -18,3 +18,17 @@ ssh_options[:paranoid] = false
 role :app, domain
 role :web, domain
 role :db,  domain, :primary => true
+
+task :after_symlink, :roles => :app do
+  stats = <<-JS
+    <script src="http://www.google-analytics.com/urchin.js">
+    </script>
+    <script type="text/javascript">
+    _uacct = "UA-1911106-4";
+    urchinTracker();
+    </script>
+  JS
+  layout = "#{current_path}/app/views/layouts/application.html"
+  run "sed -i 's?</body>?#{stats}</body>?' #{layout}"
+end
+
