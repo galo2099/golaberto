@@ -28,15 +28,8 @@ task :after_update_code, :roles => :app do
     urchinTracker();
     </script>
   JS
-  layout = "#{release_path}/app/views/layouts/application.html"
+  layout = "#{release_path}/app/views/layouts/application.rhtml"
   run "sed -i 's?</body>?#{stats}</body>?' #{layout}"
-end
-
-desc "Link in the production database.yml"
-task :after_update_code do
   run "cp -f #{shared_path}/config/database.yml #{release_path}/config/database.yml"
-end
-
-task :after_update_code do
   run "ln -s #{shared_path}/logos #{release_path}/public/images/"
 end
