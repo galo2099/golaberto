@@ -2,7 +2,7 @@ set :user, "galo_2099"
 set :application, "golaberto"
 set :domain, "golaberto.com.br"
 
-set :deploy_to, "/home/galo_2099/#{domain}"
+set :deploy_to, "/home/galo_2099/#{application}"
 
 # Dreamhost doesn't allow you to use sudo.
 set :use_sudo, false
@@ -32,4 +32,9 @@ task :after_update_code, :roles => :app do
   run "sed -i 's?</body>?#{stats}</body>?' #{layout}"
   run "cp -f #{shared_path}/config/database.yml #{release_path}/config/database.yml"
   run "ln -s #{shared_path}/logos #{release_path}/public/images/"
+end
+
+desc "Restart the FCGI processes on the app server as a regular user."
+task :restart, :roles => :app do
+  run "#{current_path}/script/process/reaper --dispatcher=dispatch.fcgi"
 end
