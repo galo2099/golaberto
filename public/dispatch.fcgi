@@ -21,4 +21,6 @@
 require File.dirname(__FILE__) + "/../config/environment"
 require 'fcgi_handler'
 
+ENV['RAILS_ENV'] = 'production'
+
 RailsFCGIHandler.process!
