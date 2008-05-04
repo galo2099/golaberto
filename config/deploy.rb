@@ -39,7 +39,9 @@ task :after_update_code, :roles => :app do
   run "ln -s #{shared_path}/logos #{release_path}/public/images/"
 end
 
-desc "Restart the FCGI processes on the app server as a regular user."
-task :restart, :roles => :app do
-  run "#{current_path}/script/process/reaper --dispatcher=dispatch.fcgi"
+namespace :deploy do
+  desc "Restart the FCGI processes on the app server as a regular user."
+  task :restart, :roles => :app do
+    run "#{current_path}/script/process/reaper --dispatcher=dispatch.fcgi"
+  end
 end
