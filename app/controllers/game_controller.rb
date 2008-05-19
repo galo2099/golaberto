@@ -118,7 +118,7 @@ class GameController < ApplicationController
     @goals = Array.new
     @game.home_score.times do |i|
       goal_params = params["home_goal"][i.to_s]
-      unless goal_params[:player_id].empty?
+      unless goal_params.nil? or goal_params[:player_id].empty?
         goal = Goal.new(goal_params)
         goal.game_id = @game.id
         goal.team_id = goal.own_goal? ? @game.away_id : @game.home_id
@@ -128,7 +128,7 @@ class GameController < ApplicationController
     end
     @game.away_score.times do |i|
       goal_params = params["away_goal"][i.to_s]
-      unless goal_params[:player_id].empty?
+      unless goal_params.nil? or goal_params[:player_id].empty?
         goal = Goal.new(goal_params)
         goal.game_id = @game.id
         goal.team_id = goal.own_goal? ? @game.home_id : @game.away_id
