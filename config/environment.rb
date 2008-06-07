@@ -52,6 +52,8 @@ end
 # end
 
 # Include your application configuration below
+require 'gettext/rails'
+
 class ActiveRecord::Base
   before_validation :clear_empty_attributes
 

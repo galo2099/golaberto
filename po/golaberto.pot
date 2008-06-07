@@ -1,0 +1,441 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: golaberto 1.0.0\n"
+"POT-Creation-Date: 2008-06-06 00:02-0300\n"
+"PO-Revision-Date: 2008-06-06 00:02-0300\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+
+#: app/models/phase.rb:-
+msgid "phase"
+msgstr ""
+
+#: app/models/phase.rb:-
+msgid "Phase|Championship"
+msgstr ""
+
+#: app/models/phase.rb:-
+msgid "Phase|Name"
+msgstr ""
+
+#: app/models/phase.rb:-
+msgid "Phase|Order by"
+msgstr ""
+
+#: app/models/phase.rb:-
+msgid "Phase|Sort"
+msgstr ""
+
+#: app/models/phase.rb:-
+msgid "Phase|Bonus points"
+msgstr ""
+
+#: app/models/phase.rb:-
+msgid "Phase|Bonus points threshold"
+msgstr ""
+
+#: app/models/player.rb:-
+msgid "player"
+msgstr ""
+
+#: app/models/player.rb:-
+msgid "Player|Name"
+msgstr ""
+
+#: app/models/player.rb:-
+msgid "Player|Position"
+msgstr ""
+
+#: app/models/player.rb:-
+msgid "Player|Birth"
+msgstr ""
+
+#: app/models/player.rb:-
+msgid "Player|Country"
+msgstr ""
+
+#: app/models/player.rb:-
+msgid "Player|Full name"
+msgstr ""
+
+#: app/models/referee_champ.rb:-
+msgid "referee champ"
+msgstr ""
+
+#: app/models/referee_champ.rb:-
+msgid "RefereeChamp|Referee"
+msgstr ""
+
+#: app/models/referee_champ.rb:-
+msgid "RefereeChamp|Championship"
+msgstr ""
+
+#: app/models/team.rb:-
+msgid "team"
+msgstr ""
+
+#: app/models/team.rb:-
+msgid "Team|Name"
+msgstr ""
+
+#: app/models/team.rb:-
+msgid "Team|Country"
+msgstr ""
+
+#: app/models/team.rb:-
+msgid "Team|Logo"
+msgstr ""
+
+#: app/models/team.rb:-
+msgid "Team|City"
+msgstr ""
+
+#: app/models/team.rb:-
+msgid "Team|Stadium"
+msgstr ""
+
+#: app/models/team.rb:-
+msgid "Team|Foundation"
+msgstr ""
+
+#: app/models/team.rb:-
+msgid "Team|Full name"
+msgstr ""
+
+#: app/models/goal.rb:-
+msgid "goal"
+msgstr ""
+
+#: app/models/goal.rb:-
+msgid "Goal|Player"
+msgstr ""
+
+#: app/models/goal.rb:-
+msgid "Goal|Game"
+msgstr ""
+
+#: app/models/goal.rb:-
+msgid "Goal|Team"
+msgstr ""
+
+#: app/models/goal.rb:-
+msgid "Goal|Time"
+msgstr ""
+
+#: app/models/goal.rb:-
+msgid "Goal|Penalty"
+msgstr ""
+
+#: app/models/goal.rb:-
+msgid "Goal|Own goal"
+msgstr ""
+
+#: app/models/comment.rb:-
+msgid "comment"
+msgstr ""
+
+#: app/models/comment.rb:-
+msgid "Comment|Title"
+msgstr ""
+
+#: app/models/comment.rb:-
+msgid "Comment|Comment"
+msgstr ""
+
+#: app/models/comment.rb:-
+msgid "Comment|Created at"
+msgstr ""
+
+#: app/models/comment.rb:-
+msgid "Comment|Commentable"
+msgstr ""
+
+#: app/models/comment.rb:-
+msgid "Comment|Commentable type"
+msgstr ""
+
+#: app/models/comment.rb:-
+msgid "Comment|User"
+msgstr ""
+
+#: app/models/championship.rb:-
+msgid "championship"
+msgstr ""
+
+#: app/models/championship.rb:-
+msgid "Championship|Name"
+msgstr ""
+
+#: app/models/championship.rb:-
+msgid "Championship|Begin"
+msgstr ""
+
+#: app/models/championship.rb:-
+msgid "Championship|End"
+msgstr ""
+
+#: app/models/championship.rb:-
+msgid "Championship|Point win"
+msgstr ""
+
+#: app/models/championship.rb:-
+msgid "Championship|Point draw"
+msgstr ""
+
+#: app/models/championship.rb:-
+msgid "Championship|Point loss"
+msgstr ""
+
+#: app/models/championship.rb:-
+msgid "Championship|Category"
+msgstr ""
+
+#: app/models/stadium.rb:-
+msgid "stadium"
+msgstr ""
+
+#: app/models/stadium.rb:-
+msgid "Stadium|Name"
+msgstr ""
+
+#: app/models/stadium.rb:-
+msgid "Stadium|Full name"
+msgstr ""
+
+#: app/models/stadium.rb:-
+msgid "Stadium|City"
+msgstr ""
+
+#: app/models/stadium.rb:-
+msgid "Stadium|Country"
+msgstr ""
+
+#: app/models/referee.rb:-
+msgid "referee"
+msgstr ""
+
+#: app/models/referee.rb:-
+msgid "Referee|Name"
+msgstr ""
+
+#: app/models/referee.rb:-
+msgid "Referee|Location"
+msgstr ""
+
+#: app/models/team_group.rb:-
+msgid "team group"
+msgstr ""
+
+#: app/models/team_group.rb:-
+msgid "TeamGroup|Group"
+msgstr ""
+
+#: app/models/team_group.rb:-
+msgid "TeamGroup|Team"
+msgstr ""
+
+#: app/models/team_group.rb:-
+msgid "TeamGroup|Add sub"
+msgstr ""
+
+#: app/models/team_group.rb:-
+msgid "TeamGroup|Bias"
+msgstr ""
+
+#: app/models/team_group.rb:-
+msgid "TeamGroup|Comment"
+msgstr ""
+
+#: app/models/group.rb:-
+msgid "group"
+msgstr ""
+
+#: app/models/group.rb:-
+msgid "Group|Phase"
+msgstr ""
+
+#: app/models/group.rb:-
+msgid "Group|Name"
+msgstr ""
+
+#: app/models/group.rb:-
+msgid "Group|Promoted"
+msgstr ""
+
+#: app/models/group.rb:-
+msgid "Group|Relegated"
+msgstr ""
+
+#: app/models/category.rb:-
+msgid "category"
+msgstr ""
+
+#: app/models/category.rb:-
+msgid "Category|Name"
+msgstr ""
+
+#: app/models/team_player.rb:-
+msgid "team player"
+msgstr ""
+
+#: app/models/team_player.rb:-
+msgid "TeamPlayer|Team"
+msgstr ""
+
+#: app/models/team_player.rb:-
+msgid "TeamPlayer|Player"
+msgstr ""
+
+#: app/models/team_player.rb:-
+msgid "TeamPlayer|Championship"
+msgstr ""
+
+#: app/models/game.rb:-
+msgid "game"
+msgstr ""
+
+#: app/models/game.rb:-
+msgid "Game|Home"
+msgstr ""
+
+#: app/models/game.rb:-
+msgid "Game|Away"
+msgstr ""
+
+#: app/models/game.rb:-
+msgid "Game|Phase"
+msgstr ""
+
+#: app/models/game.rb:-
+msgid "Game|Round"
+msgstr ""
+
+#: app/models/game.rb:-
+msgid "Game|Attendance"
+msgstr ""
+
+#: app/models/game.rb:-
+msgid "Game|Stadium"
+msgstr ""
+
+#: app/models/game.rb:-
+msgid "Game|Referee"
+msgstr ""
+
+#: app/models/game.rb:-
+msgid "Game|Home score"
+msgstr ""
+
+#: app/models/game.rb:-
+msgid "Game|Away score"
+msgstr ""
+
+#: app/models/game.rb:-
+msgid "Game|Home pen"
+msgstr ""
+
+#: app/models/game.rb:-
+msgid "Game|Away pen"
+msgstr ""
+
+#: app/models/game.rb:-
+msgid "Game|Played"
+msgstr ""
+
+#: app/models/game.rb:-
+msgid "Game|Date"
+msgstr ""
+
+#: app/models/game.rb:-
+msgid "Game|Time"
+msgstr ""
+
+#: app/models/game.rb:-
+msgid "Game|Version"
+msgstr ""
+
+#: app/models/game.rb:-
+msgid "Game|Updater"
+msgstr ""
+
+#: app/models/game.rb:-
+msgid "Game|Updated at"
+msgstr ""
+
+#: app/models/user.rb:-
+msgid "user"
+msgstr ""
+
+#: app/models/user.rb:-
+msgid "User|Login"
+msgstr ""
+
+#: app/models/user.rb:-
+msgid "User|Email"
+msgstr ""
+
+#: app/models/user.rb:-
+msgid "User|Crypted password"
+msgstr ""
+
+#: app/models/user.rb:-
+msgid "User|Salt"
+msgstr ""
+
+#: app/models/user.rb:-
+msgid "User|Created at"
+msgstr ""
+
+#: app/models/user.rb:-
+msgid "User|Updated at"
+msgstr ""
+
+#: app/models/user.rb:-
+msgid "User|Remember token"
+msgstr ""
+
+#: app/models/user.rb:-
+msgid "User|Remember token expires at"
+msgstr ""
+
+#: app/models/player_game.rb:-
+msgid "player game"
+msgstr ""
+
+#: app/models/player_game.rb:-
+msgid "PlayerGame|Player"
+msgstr ""
+
+#: app/models/player_game.rb:-
+msgid "PlayerGame|Game"
+msgstr ""
+
+#: app/models/player_game.rb:-
+msgid "PlayerGame|Team"
+msgstr ""
+
+#: app/models/player_game.rb:-
+msgid "PlayerGame|On"
+msgstr ""
+
+#: app/models/player_game.rb:-
+msgid "PlayerGame|Off"
+msgstr ""
+
+#: app/models/player_game.rb:-
+msgid "PlayerGame|Yellow"
+msgstr ""
+
+#: app/models/player_game.rb:-
+msgid "PlayerGame|Red"
+msgstr ""

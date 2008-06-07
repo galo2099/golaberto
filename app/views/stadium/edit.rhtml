@@ -1,9 +1,9 @@
 <% content_for :main_title do %>Stadium Edit<% end %>
 
 <% form_for :stadium, @stadium, :url => { :action => :update, :id => @stadium } do |f| %>
-  Name: <%= f.text_field :name %><br/>
+  <%= f.label :name %>: <%= f.text_field :name %><br/>
   Full Name: <%= f.text_field :full_name %><br/>
   City: <%= f.text_field :city %><br/>
   Country: <%= f.text_field :country %><br/>
-  <%= submit_tag "Update" %>
+  <%= submit_tag _("Update") %>
 <% end %>
