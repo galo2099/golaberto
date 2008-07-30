@@ -35,5 +35,7 @@
     <%= link_to "View this #{comment.commentable_type}", :controller => comment.commentable_type, :action => :show, :id => comment.commentable_id %>
     <hr>
   <% end %>
+  <script type="text/javascript" src="/javascripts/swfobject.js"></script>
+  <%= @graph %>
 </div>
 
