@@ -4,6 +4,6 @@
   Name: <%= f.text_field :name %><br/>
   Full Name: <%= f.text_field :full_name %><br/>
   City: <%= f.text_field :city %><br/>
-  Country: <%= f.text_field :country %><br/>
+  Country: <%= f.select :country, golaberto_options_for_country_select, :include_blank => true %><br/>
   <%= submit_tag "Update" %>
 <% end %>
