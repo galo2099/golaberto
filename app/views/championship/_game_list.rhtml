@@ -1,14 +1,20 @@
+<%
+def name_to_print(team, highlight)
+  name = team.name
+  name = "<b>#{name}</b>" if team == highlight
+  name
+end %>
 <div class='table_cell game_time'>
   <%= @game.formatted_time.to_s.empty? ? "&nbsp;" : @game.formatted_time %>
 </div>
 <div class='table_cell home_logo'>
   <%= image_tag "logos/" + @game.home.small_logo %>
 </div>
-<div class='table_cell home_team'><%= @game.home.name %></div>
+<div class='table_cell home_team'><%= name_to_print(@game.home, highlight) %></div>
 <div class='table_cell home_score'><%= @game.home_score if @game.played? %></div>
 <div class='table_cell game_x'>x</div>
 <div class='table_cell away_score'><%= @game.away_score if @game.played? %></div>
-<div class='table_cell away_team'><%= @game.away.name %></div>
+<div class='table_cell away_team'><%= name_to_print(@game.away, highlight) %></div>
 <div class='table_cell away_logo'>
   <%= image_tag "logos/" + @game.away.small_logo %>
 </div>

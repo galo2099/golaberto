@@ -36,7 +36,7 @@ unless last_games.empty? %>
           } %>
       </div>
       <div class="table_cell" style='width: 70%'>
-        <%= render :partial => "championship/game_list" %>
+        <%= render :partial => "championship/game_list", :locals => { :highlight => @team } %>
         <div class="clearer"></div>
       </div>
       <div class="clearer"></div>
@@ -59,7 +59,7 @@ unless next_games.empty? %>
           } %>
       </div>
       <div class="table_cell" style='width: 70%'>
-        <%= render :partial => "championship/game_list" %>
+        <%= render :partial => "championship/game_list", :locals => { :highlight => @team } %>
         <div class="clearer"></div>
       </div>
       <div class="clearer"></div>

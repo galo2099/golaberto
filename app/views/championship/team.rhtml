@@ -21,7 +21,7 @@
           <%= @game.date.strftime("%d/%m") %>
         </div>
         <div class="table_cell" style="width: 92%">
-          <%= render :partial => "game_list" %>
+          <%= render :partial => "game_list", :locals => { :highlight => @team } %>
           <div class="clearer"></div>
         </div>
         <div class="clearer"></div>
@@ -37,7 +37,7 @@
           <%= @game.date.strftime("%d/%m") %>
         </div>
         <div class="table_cell" style="width: 92%">
-          <%= render :partial => "game_list" %>
+          <%= render :partial => "game_list", :locals => { :highlight => @team } %>
           <div class="clearer"></div>
         </div>
         <div class="clearer"></div>
