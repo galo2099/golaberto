@@ -10,11 +10,11 @@ end %>
 <div class='table_cell home_logo'>
   <%= image_tag "logos/" + @game.home.small_logo %>
 </div>
-<div class='table_cell home_team'><%= name_to_print(@game.home, highlight) %></div>
+<div class='table_cell home_team'><%= name_to_print(@game.home, (highlight_team if defined? highlight_team)) %></div>
 <div class='table_cell home_score'><%= @game.home_score if @game.played? %></div>
 <div class='table_cell game_x'>x</div>
 <div class='table_cell away_score'><%= @game.away_score if @game.played? %></div>
-<div class='table_cell away_team'><%= name_to_print(@game.away, highlight) %></div>
+<div class='table_cell home_team'><%= name_to_print(@game.away, (highlight_team if defined? highlight_team)) %></div>
 <div class='table_cell away_logo'>
   <%= image_tag "logos/" + @game.away.small_logo %>
 </div>
