@@ -2,7 +2,17 @@
 <% omit_logo = false if omit_logo.nil? %>
 <% omit_comments = false if omit_comments.nil? %>
 <% omit_popup = false if omit_popup.nil? %>
-<h3><%= h group.name %></h3>
+<h3><%=
+  if link_to_group
+    link_to group.name,
+            :controller => 'championship',
+            :action => 'games',
+            :id => group.phase.championship,
+            :phase => group.phase,
+            :group => group
+  else
+    h group.name
+  end%></h3>
 <table class='class_table'>
   <tr class='table_head'>
     <%= content_tag :th, "Pos", :class => "pos" unless omit_columns[:Pos] %>
@@ -66,12 +76,12 @@
          <%= content_tag(:td,
                          image_logo +
                          link_to(team.name, :action => 'team',
-                                            :id => @championship,
+                                            :id => group.phase.championship,
                                             :team => team) +
                          note_number,
                          :class => "name",
                          :title => title_popup) unless omit_columns[:Name] %>
-                         
+
          <%= content_tag :td, stats.points unless omit_columns[:Pts] %>
          <%= content_tag :td, stats.games unless omit_columns[:G] %>
          <%= content_tag :td, stats.wins unless omit_columns[:W] %>
