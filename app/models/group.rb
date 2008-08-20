@@ -26,9 +26,7 @@ class Group < ActiveRecord::Base
   def team_table
     games = phase.games.find(:all,
         :conditions => [ "(home_id in (?) OR away_id in (?)) and played = ?",
-                         team_groups.map{|t|t.team_id},
-                         team_groups.map{|t|t.team_id},
-                         true ],
+                         teams, teams, true ],
         :include => [ :phase, [:phase => :championship ] ],
         :order => :date)
     stats = Hash.new
