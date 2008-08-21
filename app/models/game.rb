@@ -90,6 +90,10 @@ class Game < ActiveRecord::Base
                                      :only_integer => true,
                                      :allow_nil => true
 
+      base.named_scope :group_games, lambda { |g|
+        { :conditions => [ "(home_id in (?) OR away_id in (?))", g.teams, g.teams ] }
+      }
+
     end
   end
 

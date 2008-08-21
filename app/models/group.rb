@@ -24,9 +24,8 @@ class Group < ActiveRecord::Base
   end
 
   def team_table
-    games = phase.games.find(:all,
-        :conditions => [ "(home_id in (?) OR away_id in (?)) and played = ?",
-                         teams, teams, true ],
+    played_games = phase.games.group_games(self).find(:all,
+        :conditions => [ "played = ?", true ],
         :include => [ :phase, [:phase => :championship ] ],
         :order => :date)
     stats = Hash.new
@@ -37,7 +36,7 @@ class Group < ActiveRecord::Base
     last_round = nil
     last_date = nil
     last_games = Array.new
-    games.each do |g|
+    played_games.each do |g|
       if (last_round and last_round != g.round) or
          (last_date and last_date != g.date)
         yield sort_teams(stats), last_games if block_given?
