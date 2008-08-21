@@ -5,21 +5,21 @@ def name_to_print(team, highlight)
   name
 end %>
 <div class='table_cell game_time'>
-  <%= @game.formatted_time.to_s.empty? ? "&nbsp;" : @game.formatted_time %>
+  <%= game.formatted_time.to_s.empty? ? "&nbsp;" : game.formatted_time %>
 </div>
 <div class='table_cell home_logo'>
-  <%= image_tag "logos/" + @game.home.small_logo %>
+  <%= image_tag "logos/" + game.home.small_logo %>
 </div>
-<div class='table_cell home_team'><%= name_to_print(@game.home, (highlight_team if defined? highlight_team)) %></div>
-<div class='table_cell home_score'><%= @game.home_score if @game.played? %></div>
+<div class='table_cell home_team'><%= name_to_print(game.home, (highlight_team if defined? highlight_team)) %></div>
+<div class='table_cell home_score'><%= game.home_score if game.played? %></div>
 <div class='table_cell game_x'>x</div>
-<div class='table_cell away_score'><%= @game.away_score if @game.played? %></div>
-<div class='table_cell home_team'><%= name_to_print(@game.away, (highlight_team if defined? highlight_team)) %></div>
+<div class='table_cell away_score'><%= game.away_score if game.played? %></div>
+<div class='table_cell home_team'><%= name_to_print(game.away, (highlight_team if defined? highlight_team)) %></div>
 <div class='table_cell away_logo'>
-  <%= image_tag "logos/" + @game.away.small_logo %>
+  <%= image_tag "logos/" + game.away.small_logo %>
 </div>
-<div class='table_cell show_info'><%= link_to "Info", :controller => "game", :action => :show, :id => @game %></div>
+<div class='table_cell show_info'><%= link_to "Info", :controller => "game", :action => :show, :id => game %></div>
 <% if logged_in? %>
-  <div class='table_cell show_info'><%= link_to "Edit", :controller => :game, :action => :edit, :id => @game, :redirect => request.request_uri %></div>
-  <div class='table_cell show_info'><%= link_to "Del", { :controller => :game, :action => :destroy, :id => @game }, :confirm => 'Are you sure?', :method => :post %></div>
+  <div class='table_cell show_info'><%= link_to "Edit", :controller => :game, :action => :edit, :id => game, :redirect => request.request_uri %></div>
+  <div class='table_cell show_info'><%= link_to "Del", { :controller => :game, :action => :destroy, :id => game }, :confirm => 'Are you sure?', :method => :post %></div>
 <% end %>
