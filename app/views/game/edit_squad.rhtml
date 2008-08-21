@@ -12,7 +12,7 @@ function ignoreEnter(event) {
 
 function addPlayerDetails(container) {
   attr = container.getElementsByClassName("player_attributes");
-  for (i = 0; i < attr.size(); ++i) {
+  for (i = 0; i < attr.length; ++i) {
     children = attr[i].immediateDescendants();
     for (j = 0; j < children.size(); ++j) {
       children[j].enable();
@@ -23,7 +23,7 @@ function addPlayerDetails(container) {
 
 function dropPlayerDetails(container) {
   attr = container.getElementsByClassName("player_attributes");
-  for (i = 0; i < attr.size(); ++i) {
+  for (i = 0; i < attr.length; ++i) {
     children = attr[i].immediateDescendants();
     for (j = 0; j < children.size(); ++j) {
       children[j].disable();
