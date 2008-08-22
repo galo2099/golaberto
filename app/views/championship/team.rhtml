@@ -15,13 +15,15 @@
 
 <h3>Played</h3>
 <div class="game_score">
-    <% @played_games.each do |@game| %>
+    <% @played_games.each do |game| %>
       <div class="<%= cycle "table_line_even", "table_line_odd" %> table_row">
         <div class="table_cell" style="width: 8%">
-          <%= @game.date.strftime("%d/%m") %>
+          <%= game.date.strftime("%d/%m") %>
         </div>
         <div class="table_cell" style="width: 92%">
-          <%= render :partial => "game_list", :locals => { :highlight_team => @team } %>
+          <%= render :partial => "game_list",
+                     :locals => { :highlight_team => @team,
+                                  :game => game } %>
           <div class="clearer"></div>
         </div>
         <div class="clearer"></div>
@@ -31,13 +33,15 @@
 
 <h3>Scheduled</h3>
 <div class="game_score">
-    <% @scheduled_games.each do |@game| %>
+    <% @scheduled_games.each do |game| %>
       <div class="<%= cycle "table_line_even", "table_line_odd" %> table_row">
         <div class="table_cell" style="width: 8%">
-          <%= @game.date.strftime("%d/%m") %>
+          <%= game.date.strftime("%d/%m") %>
         </div>
         <div class="table_cell" style="width: 92%">
-          <%= render :partial => "game_list", :locals => { :highlight_team => @team } %>
+          <%= render :partial => "game_list",
+                     :locals => { :highlight_team => @team,
+                                  :game => game } %>
           <div class="clearer"></div>
         </div>
         <div class="clearer"></div>
