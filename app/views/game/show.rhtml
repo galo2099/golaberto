@@ -53,7 +53,7 @@
     </tr>
   <% end %>
 
- <% if not @game.home_player_games.empty? and not @game.away_player_games.empty? %>
+ <% if not @game.home_player_games.empty? or not @game.away_player_games.empty? %>
   <tr><td></td>
     
     <td colspan="4" style="vertical-align: top">
