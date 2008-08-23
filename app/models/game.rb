@@ -155,8 +155,9 @@ class Game < ActiveRecord::Base
            :include => :player
   version_association :goals
 
-  def version_condition_met?
-    changed? || diff.size > 0
+  # Always save the version. We check if it the game has really changed before saving it.
+  def save_version?
+    true
   end
 
   def find_n_previous_games_by_team_versus_team(n)

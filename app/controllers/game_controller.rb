@@ -225,13 +225,7 @@ class GameController < ApplicationController
   def update_squad
     @game = Game.find(params[:id])
     @game.player_games = params[:player_game].values.map{|v| PlayerGame.new(v)}
-    if @game.save
-      redirect_to :action => :show, :id => @game
-    else
-      prepare_for_edit
-      prepare_for_edit_squad
-      render :action => :edit_squad
-    end
+    redirect_to :action => :show, :id => @game
   end
 
   private

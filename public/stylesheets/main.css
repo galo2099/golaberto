@@ -174,7 +174,10 @@ body {
    }
 /**************** CLASSIFICACAO : END ************/
 
-
+.player_list {
+  border: 2px solid #e3b2c5;
+  min-height: 10px;
+}
 
 #player_info
 {
