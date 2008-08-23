@@ -15,7 +15,8 @@ To: <%= date_field_tag "date_range_end", nil, :format => "%d/%m/%Y", :size => 10
 <br/>
 <br/>
 <div id='table'>
-  <%= render :partial => "game_list" %>
+  <%= render :partial => "game_list",
+             :locals => { :game => @game } %>
 </div>
 
 <% content_for :sidebar do %>
