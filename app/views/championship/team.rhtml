@@ -51,14 +51,17 @@
 
 <h3>Players</h3>
 <div id="players">
-  <table>
+  <table id="player_table">
+  <thead>
     <tr>
       <th>Name</th>
       <th>Pos</th>
       <th>Goals</th>
       <th>Own Goals</th>
       <th>Penalties</th>
+      <th></th>
     </tr>
+  </thead>
     <% @players.each do |p| %>
       <tr>
         <td><%= link_to p[:player].name, :controller => :player, :action => :show, :id => p[:player] %></td>
@@ -66,16 +69,16 @@
         <td><%= p[:goals] %></td>
         <td><%= p[:own_goals] %></td>
         <td><%= p[:penalties] %></td>
-        <% if logged_in? %>
-          <td><%= link_to_remote(
+        <td><% if logged_in? %>
+          <%= link_to_remote(
                       'Remove', :url => { :controller => :player,
                                           :action => :destroy_team,
                                           :id => p[:team_player] },
                                 :confirm => 'Are you sure?',
                                 :method => :post,
                                 :success => update_page {|p| p.redirect_to request.request_uri },
-                                :failure => "alert('Error removing')") %></td>
-        <% end %>
+                                :failure => "alert('Error removing')") %>
+        <% end %></td>
       </tr>
     <% end %>
   </table>
@@ -116,6 +119,9 @@
 <% end %>
 
 <%= javascript_include_tag "boxover" %>
+
+<!-- Load the YUI Loader script: -->
+<script src="http://yui.yahooapis.com/2.5.2/build/yuiloader/yuiloader-beta-min.js"></script>
 
 <%= javascript_tag <<EOF
 var Fabtabs = Class.create();
@@ -158,5 +164,56 @@ Fabtabs.prototype = {
   }
 }
 Event.observe(window,'load',function(){ new Fabtabs('tabs'); },false);
+
+// Instantiate and configure Loader:
+var loader = new YAHOO.util.YUILoader({
+
+    // Identify the components you want to load.  Loader will automatically identify
+    // any additional dependencies required for the specified components.
+    require: ["datatable"],
+
+    // The function to call when all script/css resources have been loaded
+    onSuccess: function() {
+        YAHOO.example.EnhanceFromMarkup = new function() {
+            var myColumnDefs = [
+                {key:"name",label:"Name",sortable:true},
+                {key:"pos",label:"Pos", sortable:true},
+                {key:"goals",label:"Goals",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
+                {key:"own",label:"Own Goals",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
+                {key:"penalties",label:"Penalties",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
+                {key:"remove",label:"",sortable:false},
+            ];
+
+            this.parseStringFromLink = function(sString) {
+              // Remove the link tag
+              var name = sString.replace(/<.*?>/g, "");
+              sortSpan = '<span style="display: none">' + name + '</span>';
+              return sortSpan + sString;
+            };
+
+            this.myDataSource = new YAHOO.util.DataSource(YAHOO.util.Dom.get("player_table"));
+            this.myDataSource.responseType = YAHOO.util.DataSource.TYPE_HTMLTABLE;
+            this.myDataSource.responseSchema = {
+                fields: [{key:"name", parser:this.parseStringFromLink},
+                        {key:"pos"},
+                        {key:"goals", parser:YAHOO.util.DataSource.parseNumber},
+                        {key:"own", parser:YAHOO.util.DataSource.parseNumber},
+                        {key:"penalties", parser:YAHOO.util.DataSource.parseNumber},
+                        {key:"remove"},
+                ]
+            };
+
+            this.myDataTable = new YAHOO.widget.DataTable("players", myColumnDefs, this.myDataSource,
+                    {sortedBy:{key:"name",dir:"asc"}}
+            );
+        };
+    }
+});
+
+// Load the files using the insert() method. The insert method takes an optional
+// configuration object, and in this case we have configured everything in
+// the constructor, so we don't need to pass anything to insert().
+loader.insert();
+
 EOF
 %>
