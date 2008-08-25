@@ -1,3 +1,5 @@
+<!--CSS file (default YUI Sam Skin) --> 
+<link type="text/css" rel="stylesheet" href="http://yui.yahooapis.com/2.5.2/build/datatable/assets/skins/sam/datatable.css">
 <% content_for :main_title do %>
   <%= @championship.full_name %>
 <% end %>
@@ -50,7 +52,7 @@
 </div>
 
 <h3>Players</h3>
-<div id="players">
+<div id="players" class="yui-skin-sam">
   <table id="player_table">
   <thead>
     <tr>
@@ -203,9 +205,13 @@ var loader = new YAHOO.util.YUILoader({
                 ]
             };
 
-            this.myDataTable = new YAHOO.widget.DataTable("players", myColumnDefs, this.myDataSource,
-                    {sortedBy:{key:"name",dir:"asc"}}
-            );
+            var config = {
+              paginator: new YAHOO.widget.Paginator({
+                rowsPerPage: 10
+              }),
+              sortedBy:{ key:"name", dir:"asc" }
+            };
+            this.myDataTable = new YAHOO.widget.DataTable("players", myColumnDefs, this.myDataSource, config);
         };
     }
 });
