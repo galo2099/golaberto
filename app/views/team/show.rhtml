@@ -1,11 +1,15 @@
-<% content_for :main_title do %> Team <% end %>
+<% content_for :title do %>
+  <%= @team.full_name || @team.name %>
+<% end %>
+<% content_for :main_title do %>
+  <%= @team.name %>
+<% end %>
 
 <div>
   <div style="float: left">
     <%= image_tag "logos/" + @team.large_logo %>
   </div>
   <div style="float: left">
-    <h2><%= @team.name %></h2>
     <h3><%= @team.full_name %></h2>
     City: <%= @team.city %><br/>
     Country: <%= @team.country %><br/>

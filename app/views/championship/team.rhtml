@@ -1,8 +1,12 @@
-<!--CSS file (default YUI Sam Skin) --> 
-<link type="text/css" rel="stylesheet" href="http://yui.yahooapis.com/2.5.2/build/datatable/assets/skins/sam/datatable.css">
+<% content_for :title do %>
+  <%= @championship.full_name %> - <%= @team.name %>
+<% end %>
 <% content_for :main_title do %>
   <%= @championship.full_name %>
 <% end %>
+
+<!--CSS file (default YUI Sam Skin) --> 
+<link type="text/css" rel="stylesheet" href="http://yui.yahooapis.com/2.5.2/build/datatable/assets/skins/sam/datatable.css">
 
 <select id='team_select'>
   <%= options_from_collection_for_select @teams, "id", "name", @team.id %>
