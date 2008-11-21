@@ -126,8 +126,41 @@ class Game < ActiveRecord::Base
     def updated_by_string
       updated_by ? updated_by.login : "unknown"
     end
+
+    def goal_distribution(team, side, score)
+      phase.championship.games.select{|g| g.played? and g.send(side) == team and g.date < date}.map{|g| g.send(score)}.inject(Array.new(10, 0)) {|h,x| h[x]+=1;h}
+    end
+
+    def home_for
+      goal_distribution(home.id, :home_id, :home_score)
+    end
+
+    def home_against
+      goal_distribution(home.id, :home_id, :away_score)
+    end
+
+    def away_for
+      goal_distribution(away.id, :away_id, :away_score)
+    end
+
+    def away_against
+      goal_distribution(away.id, :away_id, :home_score)
+    end
+
+    def odds
+      #home_power = (mean_poisson(home_for) + mean_poisson(away_against)) / 2
+      #away_power = (mean_poisson(home_against) + mean_poisson(away_for)) / 2
+      home_power = Poisson.new.find_mean_from(home_for.zip(away_against).map{|a,b| a+b})
+      away_power = Poisson.new.find_mean_from(home_against.zip(away_for).map{|a,b| a+b})
+
+      ten_array = (0...10).to_a
+      probs = ten_array.map{|i| ten_array.map{|j| home_power.p(i) * away_power.p(j) }}
+      [ ten_array.map{|i| (0...i).to_a.map{|j| probs[i][j]}}.flatten.inject(0){|sum,x|sum+x},
+        ten_array.map{|i| probs[i][i]}.inject(0){|sum,x|sum+x},
+        ten_array.map{|i| (0...i).to_a.map{|j| probs[j][i]}}.flatten.inject(0){|sum,x|sum+x} ]
+    end
   end
-  
+
   # As acts_as_versioned only accepts one module to extend, this helper module
   # joins all the above modules
   module GameHelpers
