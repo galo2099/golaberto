@@ -11,11 +11,12 @@ class Poisson
       raise InvalidMean, "the mean must be positive"
     end
 
+    @probability = Hash.new{|h,k| h[k] = Hash.new}
     @mean = mean
   end
 
   def probability(actual)
-    @mean ** actual * Math.exp(-@mean) / Poisson.factorial(actual)
+    @probability[@mean][actual] ||= @mean ** actual * Math.exp(-@mean) / Poisson.factorial(actual)
   end
 
   alias_method :p, :probability
@@ -50,6 +51,17 @@ class Poisson
       end
     end
     self
+  end
+
+  def rand
+    die = Kernel.rand
+    i = 0
+    accumlated_probability = p(i)
+    while die > accumlated_probability
+      i += 1
+      accumlated_probability += p(i)
+    end
+    i
   end
 
   def self.factorial(n)

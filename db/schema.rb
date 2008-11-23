@@ -9,7 +9,7 @@
 #
 # It's strongly recommended to check this file into your version control system.
 
-ActiveRecord::Schema.define(:version => 20081121031542) do
+ActiveRecord::Schema.define(:version => 20081121042429) do
 
   create_table "categories", :force => true do |t|
     t.string "name"
@@ -169,11 +169,14 @@ ActiveRecord::Schema.define(:version => 20081121031542) do
   end
 
   create_table "team_groups", :force => true do |t|
-    t.integer "group_id", :limit => 20, :default => 0, :null => false
-    t.integer "team_id",  :limit => 20, :default => 0, :null => false
-    t.integer "add_sub",  :limit => 4,  :default => 0, :null => false
-    t.integer "bias",     :limit => 4,  :default => 0, :null => false
+    t.integer "group_id",       :limit => 20, :default => 0, :null => false
+    t.integer "team_id",        :limit => 20, :default => 0, :null => false
+    t.integer "add_sub",        :limit => 4,  :default => 0, :null => false
+    t.integer "bias",           :limit => 4,  :default => 0, :null => false
     t.text    "comment"
+    t.float   "first_odds"
+    t.float   "promoted_odds"
+    t.float   "relegated_odds"
   end
 
   add_index "team_groups", ["group_id", "team_id"], :name => "group", :unique => true

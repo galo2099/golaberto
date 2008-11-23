@@ -25,6 +25,9 @@
     <%= content_tag :th, "GF" unless omit_columns[:GF] %>
     <%= content_tag :th, "GA" unless omit_columns[:GA] %>
     <%= content_tag :th, "GD" unless omit_columns[:GD] %>
+    <%= content_tag :th, "1%" unless omit_columns[:OP] || group.promoted == 1 %>
+    <%= content_tag :th, "P%" unless omit_columns[:PP] || group.promoted == 0 %>
+    <%= content_tag :th, "R%" unless omit_columns[:RP] || group.relegated == 0 %>
   </tr>
   <% pos = 0 %>
   <% notes = Array.new %>
@@ -90,6 +93,9 @@
          <%= content_tag :td, stats.goals_for unless omit_columns[:GF] %>
          <%= content_tag :td, stats.goals_against unless omit_columns[:GA] %>
          <%= content_tag :td, stats.goals_diff unless omit_columns[:GD] %>
+         <%= content_tag :td, stats.first_odds unless omit_columns[:OP] || group.promoted == 1 %>
+         <%= content_tag :td, stats.promoted_odds unless omit_columns[:PP] || group.promoted == 0 %>
+         <%= content_tag :td, stats.relegated_odds unless omit_columns[:RP] || group.relegated == 0 %>
        </tr>
      <% end %>
    </table>

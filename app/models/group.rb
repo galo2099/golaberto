@@ -15,8 +15,58 @@ class Group < ActiveRecord::Base
   # Field: promoted , SQL Definition:tinyint(2)
   # Field: relegated , SQL Definition:tinyint(2)
 
+  NUM_ITER = 10000
+
   def is_promoted?(pos)
     return pos <= self.promoted
+  end
+
+  def odds
+    games_to_play = phase.games.group_games(self).find(:all, :conditions => { :played => false })
+    games_played = phase.games.group_games(self).find(:all, :conditions => { :played => true })
+    phase.sort.sub!("name", "rand")
+    odds = games_to_play.map do |g|
+      { :game => g,
+        :home_power => Poisson.new.find_mean_from(g.home_for.zip(g.away_against).map{|a,b| a+b}),
+        :away_power => Poisson.new.find_mean_from(g.home_against.zip(g.away_for).map{|a,b| a+b}) }
+    end
+    results = Hash.new{|h,k| h[k] = Hash.new{|hh,kk| hh[kk] = 0}}
+    fixed_stats = Hash.new
+    team_groups.each do |team_group|
+      fixed_stats[team_group.team_id] =
+          ChampionshipHelper::TeamCampaign.new(team_group)
+    end
+    games_played.each do |g|
+      fixed_stats[g.home_id].add_game g
+      fixed_stats[g.away_id].add_game g
+    end
+    NUM_ITER.times do |count|
+      stats = Marshal.load(Marshal.dump(fixed_stats))
+      odds.each do |o|
+        o[:game].home_score = o[:home_power].rand
+        o[:game].away_score = o[:away_power].rand
+        stats[o[:game].home_id].add_game o[:game]
+        stats[o[:game].away_id].add_game o[:game]
+      end
+      sort_teams(stats).each_with_index do |v,i|
+        if i == 0 then
+          results[:champ][v[0].team_id] += 1
+        end
+        if i < promoted then
+          results[:prom][v[0].team_id] += 1
+        end
+        if i >= stats.size - relegated then
+          results[:rele][v[0].team_id] += 1
+        end
+      end
+    end
+
+    team_groups.each do |t|
+      t.first_odds = results[:champ][t.team_id].to_f * 100 / NUM_ITER
+      t.promoted_odds = results[:prom][t.team_id].to_f * 100 / NUM_ITER
+      t.relegated_odds = results[:rele][t.team_id].to_f * 100 / NUM_ITER
+      t.save!
+    end
   end
 
   def is_relegated?(pos)
@@ -54,8 +104,6 @@ class Group < ActiveRecord::Base
     ret
   end
 
-  private
-
   def sort_teams(team_class)
     columns = phase.sort.split(/,\s*/)
     sorter = lambda { |b,a|
@@ -80,6 +128,8 @@ class Group < ActiveRecord::Base
           ret = team_class[a.id].goals_away <=> team_class[b.id].goals_away
         when "bias"
           ret = team_class[a.id].bias <=> team_class[b.id].bias
+        when "rand"
+          ret = 2*rand(2)-1
         end
         ret != 0
       end
