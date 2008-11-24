@@ -22,7 +22,10 @@
   <%= render :partial => "table",
              :locals => { :group => group,
                           :team_table => group.team_table,
-                          :link_to_group => @current_phase.groups.size > 1 } %>
+                          :link_to_group => @current_phase.groups.size > 1,
+                          :omit_columns => { :OP => @display_odds,
+                                             :PP => @display_odds,
+                                             :RP => @display_odds } } %>
 <% end if @current_phase %>
 
 <% content_for :sidebar do %>
