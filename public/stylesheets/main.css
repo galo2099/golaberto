@@ -147,6 +147,14 @@ body {
   width: 40%;
   text-align: left;
 }
+.class_table .odds
+{
+  text-align: right;
+}
+.class_table th
+{
+  text-align: center;
+}
 .class_table td
 {
   width: 5%;
