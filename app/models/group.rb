@@ -25,10 +25,13 @@ class Group < ActiveRecord::Base
     games_to_play = phase.games.group_games(self).find(:all, :conditions => { :played => false })
     games_played = phase.games.group_games(self).find(:all, :conditions => { :played => true })
     phase.sort.sub!("name", "rand")
+    poisson_hash = Hash.new{|h,k| h[k] = Poisson.new(k)}
     odds = games_to_play.map do |g|
       { :game => g,
-        :home_power => Poisson.new.find_mean_from(g.home_for.zip(g.away_against).map{|a,b| a+b}),
-        :away_power => Poisson.new.find_mean_from(g.home_against.zip(g.away_for).map{|a,b| a+b}) }
+        :home_id => g.home_id,
+        :away_id => g.away_id,
+        :home_power => poisson_hash[Poisson.find_mean_from(g.home_for.zip(g.away_against).map{|a,b| a+b})],
+        :away_power => poisson_hash[Poisson.find_mean_from(g.home_against.zip(g.away_for).map{|a,b| a+b})] }
     end
     results = Hash.new{|h,k| h[k] = Hash.new{|hh,kk| hh[kk] = 0}}
     fixed_stats = Hash.new
@@ -41,12 +44,15 @@ class Group < ActiveRecord::Base
       fixed_stats[g.away_id].add_game g
     end
     NUM_ITER.times do |count|
-      stats = Marshal.load(Marshal.dump(fixed_stats))
+      stats = Hash.new
+      fixed_stats.each do |k,v|
+        stats[k] = v.clone
+      end
       odds.each do |o|
         o[:game].home_score = o[:home_power].rand
         o[:game].away_score = o[:away_power].rand
-        stats[o[:game].home_id].add_game o[:game]
-        stats[o[:game].away_id].add_game o[:game]
+        stats[o[:home_id]].add_game o[:game]
+        stats[o[:away_id]].add_game o[:game]
       end
       sort_teams(stats).each_with_index do |v,i|
         if i == 0 then

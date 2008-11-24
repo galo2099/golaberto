@@ -150,8 +150,8 @@ class Game < ActiveRecord::Base
     def odds
       #home_power = (mean_poisson(home_for) + mean_poisson(away_against)) / 2
       #away_power = (mean_poisson(home_against) + mean_poisson(away_for)) / 2
-      home_power = Poisson.new.find_mean_from(home_for.zip(away_against).map{|a,b| a+b})
-      away_power = Poisson.new.find_mean_from(home_against.zip(away_for).map{|a,b| a+b})
+      home_power = Poisson.new(Poisson.find_mean_from(home_for.zip(away_against).map{|a,b| a+b}))
+      away_power = Poisson.new(Poisson.find_mean_from(home_against.zip(away_for).map{|a,b| a+b}))
 
       ten_array = (0...10).to_a
       probs = ten_array.map{|i| ten_array.map{|j| home_power.p(i) * away_power.p(j) }}

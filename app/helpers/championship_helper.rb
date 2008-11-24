@@ -2,7 +2,8 @@ module ChampionshipHelper
   class TeamCampaign
     attr_reader :points, :games, :wins, :draws, :losses,
                 :goals_for, :goals_against, :goals_pen, :goals_away,
-                :last_game, :bias, :add_sub
+                :last_game, :bias, :add_sub, :promoted_odds,
+                :relegated_odds, :first_odds
 
     def initialize(team_group)
       @games = 0
@@ -19,18 +20,21 @@ module ChampionshipHelper
       @last_game = nil
       @points += team_group.add_sub
       @bias = team_group.bias
+      @promoted_odds = team_group.promoted_odds
+      @relegated_odds = team_group.relegated_odds
+      @first_odds = team_group.first_odds
+      championship = team_group.group.phase.championship
+      @points_for_win = championship.point_win
+      @points_for_draw = championship.point_draw
+      @points_for_loss = championship.point_loss
+      @bonus = team_group.group.phase.bonus_points
+      @bonus_threshold = team_group.group.phase.bonus_points_threshold
     end
 
     def add_game(game)
       if (game.home_id != @team_id and game.away_id != @team_id)
         return
       end
-      championship = game.phase.championship
-      points_for_win = championship.point_win
-      points_for_draw = championship.point_draw
-      points_for_loss = championship.point_loss
-      bonus = game.phase.bonus_points
-      bonus_threshold = game.phase.bonus_points_threshold
       home_score = game.home_score
       away_score = game.away_score
       home_id = game.home_id
@@ -42,30 +46,30 @@ module ChampionshipHelper
         @goals_away += away_score
       end
       if home_score > away_score then
-        if (home_id == @team_id) then 
+        if (home_id == @team_id) then
           @wins += 1
-          @points += points_for_win
-          if home_score - away_score >= bonus_threshold then
-            @points += bonus
+          @points += @points_for_win
+          if home_score - away_score >= @bonus_threshold then
+            @points += @bonus
           end
         else
           @losses += 1
-          @points += points_for_loss
+          @points += @points_for_loss
         end
       elsif home_score < away_score then
-        if (home_id == @team_id) then 
+        if (home_id == @team_id) then
           @losses += 1
-          @points += points_for_loss
+          @points += @points_for_loss
         else
           @wins += 1
-          @points += points_for_win
-          if away_score - home_score >= bonus_threshold then
-            @points += bonus
+          @points += @points_for_win
+          if away_score - home_score >= @bonus_threshold then
+            @points += @bonus
           end
         end
       else
         @draws += 1
-        @points += points_for_draw
+        @points += @points_for_draw
       end
       if (home_id == @team_id) then
         @goals_for += home_score
