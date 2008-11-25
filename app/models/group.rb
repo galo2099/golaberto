@@ -44,6 +44,10 @@ class Group < ActiveRecord::Base
       fixed_stats[g.away_id].add_game g
     end
     NUM_ITER.times do |count|
+      if count % (NUM_ITER / 100) == 0
+        self.odds_progress = count / (NUM_ITER / 100)
+        self.save!
+      end
       stats = Hash.new
       fixed_stats.each do |k,v|
         stats[k] = v.clone
@@ -73,6 +77,8 @@ class Group < ActiveRecord::Base
       t.relegated_odds = results[:rele][t.team_id].to_f * 100 / NUM_ITER
       t.save!
     end
+    self.odds_progress = 100
+    self.save!
   end
 
   def is_relegated?(pos)

@@ -2,17 +2,26 @@
 <% omit_logo = false if omit_logo.nil? %>
 <% omit_comments = false if omit_comments.nil? %>
 <% omit_popup = false if omit_popup.nil? %>
-<h3><%=
-  if link_to_group
-    link_to group.name,
-            :controller => 'championship',
-            :action => 'games',
-            :id => group.phase.championship,
-            :phase => group.phase,
-            :group => group
-  else
-    h group.name
-  end%></h3>
+<div style="position: relative">
+  <div style="float: left"><h3><%=
+    if link_to_group
+      link_to group.name,
+              :controller => 'championship',
+              :action => 'games',
+              :id => group.phase.championship,
+              :phase => group.phase,
+              :group => group
+    else
+      h group.name
+    end%></h3>
+  </div>
+  <% if logged_in? then %>
+    <div id="recalculate" style="position: absolute; bottom: 0px; right: 0px;">
+      <%= render :partial => "recalculate_button", :locals => { :group => group } %>
+    </div>
+  <% end %>
+  <div class="clearer"></div>
+</div>
 <table class='class_table'>
   <tr class='table_head'>
     <%= content_tag :th, "Pos", :class => "pos" unless omit_columns[:Pos] %>
