@@ -11,7 +11,7 @@ class Poisson
       raise InvalidMean, "the mean must be positive"
     end
 
-    @probability = Hash.new
+    @probability = Array.new
     @mean = mean
   end
 

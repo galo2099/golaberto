@@ -27,11 +27,10 @@ class Group < ActiveRecord::Base
     phase.sort.sub!("name", "rand")
     poisson_hash = Hash.new{|h,k| h[k] = Poisson.new(k)}
     odds = games_to_play.map do |g|
-      { :game => g,
-        :home_id => g.home_id,
-        :away_id => g.away_id,
-        :home_power => poisson_hash[Poisson.find_mean_from(g.home_for.zip(g.away_against).map{|a,b| a+b})],
-        :away_power => poisson_hash[Poisson.find_mean_from(g.home_against.zip(g.away_for).map{|a,b| a+b})] }
+      [ g.home_id,
+        g.away_id,
+        poisson_hash[Poisson.find_mean_from(g.home_for.zip(g.away_against).map{|a,b| a+b})],
+        poisson_hash[Poisson.find_mean_from(g.home_against.zip(g.away_for).map{|a,b| a+b})] ]
     end
     results = Hash.new{|h,k| h[k] = Hash.new{|hh,kk| hh[kk] = 0}}
     fixed_stats = Hash.new
@@ -53,10 +52,10 @@ class Group < ActiveRecord::Base
         stats[k] = v.clone
       end
       odds.each do |o|
-        o[:game].home_score = o[:home_power].rand
-        o[:game].away_score = o[:away_power].rand
-        stats[o[:home_id]].add_game o[:game]
-        stats[o[:away_id]].add_game o[:game]
+        home_score = o[2].rand
+        away_score = o[3].rand
+        stats[o[0]].add_game_score_only o[0], o[1], home_score, away_score
+        stats[o[1]].add_game_score_only o[0], o[1], home_score, away_score
       end
       sort_teams(stats).each_with_index do |v,i|
         if i == 0 then
@@ -117,29 +116,29 @@ class Group < ActiveRecord::Base
   end
 
   def sort_teams(team_class)
-    columns = phase.sort.split(/,\s*/)
+    @columns ||= phase.sort.split(/,\s*/)
     sorter = lambda { |b,a|
       ret = 0
-      columns.detect do |column|
+      @columns.detect do |column|
         case column
         when "pt"
-          ret = team_class[a.id].points <=> team_class[b.id].points
+          ret = team_class[a].points <=> team_class[b].points
         when "w"
-          ret = team_class[a.id].wins <=> team_class[b.id].wins
+          ret = team_class[a].wins <=> team_class[b].wins
         when  "gd"
-          ret = team_class[a.id].goals_diff <=> team_class[b.id].goals_diff
+          ret = team_class[a].goals_diff <=> team_class[b].goals_diff
         when "gf"
-          ret = team_class[a.id].goals_for <=> team_class[b.id].goals_for
+          ret = team_class[a].goals_for <=> team_class[b].goals_for
         when "name"
-          ret = a.name <=> b.name
+          ret = team_class[a].name <=> team_class[b].name
         when "g_average"
-          ret = team_class[a.id].goals_avg <=> team_class[b.id].goals_avg
+          ret = team_class[a].goals_avg <=> team_class[b].goals_avg
         when "gp"
-          ret = team_class[a.id].goals_pen <=> team_class[b.id].goals_pen
+          ret = team_class[a].goals_pen <=> team_class[b].goals_pen
         when "g_away"
-          ret = team_class[a.id].goals_away <=> team_class[b.id].goals_away
+          ret = team_class[a].goals_away <=> team_class[b].goals_away
         when "bias"
-          ret = team_class[a.id].bias <=> team_class[b.id].bias
+          ret = team_class[a].bias <=> team_class[b].bias
         when "rand"
           ret = 2*rand(2)-1
         end
@@ -147,10 +146,11 @@ class Group < ActiveRecord::Base
       end
       ret
     }
-    team_groups.sort do |a,b|
-      sorter.call a.team, b.team
+    @team_groups_cache ||= team_groups.to_a.map{|t| [t, t.team_id]}
+    @team_groups_cache.sort do |a,b|
+      sorter.call a[1], b[1]
     end.map do |t|
-      [ t, team_class[t.team.id] ]
+      [ t[0], team_class[t[1]] ]
     end
   end
 end

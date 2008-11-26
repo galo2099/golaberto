@@ -132,19 +132,19 @@ class Game < ActiveRecord::Base
     end
 
     def home_for
-      goal_distribution(home.id, :home_id, :home_score)
+      goal_distribution(home_id, :home_id, :home_score)
     end
 
     def home_against
-      goal_distribution(home.id, :home_id, :away_score)
+      goal_distribution(home_id, :home_id, :away_score)
     end
 
     def away_for
-      goal_distribution(away.id, :away_id, :away_score)
+      goal_distribution(away_id, :away_id, :away_score)
     end
 
     def away_against
-      goal_distribution(away.id, :away_id, :home_score)
+      goal_distribution(away_id, :away_id, :home_score)
     end
 
     def odds
@@ -155,9 +155,9 @@ class Game < ActiveRecord::Base
 
       ten_array = (0...10).to_a
       probs = ten_array.map{|i| ten_array.map{|j| home_power.p(i) * away_power.p(j) }}
-      [ ten_array.map{|i| (0...i).to_a.map{|j| probs[i][j]}}.flatten.inject(0){|sum,x|sum+x},
-        ten_array.map{|i| probs[i][i]}.inject(0){|sum,x|sum+x},
-        ten_array.map{|i| (0...i).to_a.map{|j| probs[j][i]}}.flatten.inject(0){|sum,x|sum+x} ]
+      [ ten_array.map{|i| (0...i).to_a.map{|j| probs[i][j]}}.flatten.sum,
+        ten_array.map{|i| probs[i][i]}.sum,
+        ten_array.map{|i| (0...i).to_a.map{|j| probs[j][i]}}.flatten.sum ]
     end
   end
 

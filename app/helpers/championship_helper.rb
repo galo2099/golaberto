@@ -3,7 +3,7 @@ module ChampionshipHelper
     attr_reader :points, :games, :wins, :draws, :losses,
                 :goals_for, :goals_against, :goals_pen, :goals_away,
                 :last_game, :bias, :add_sub, :promoted_odds,
-                :relegated_odds, :first_odds
+                :relegated_odds, :first_odds, :name
 
     def initialize(team_group)
       @games = 0
@@ -17,6 +17,7 @@ module ChampionshipHelper
       @goals_away = 0
       @team_group = team_group
       @team_id = team_group.team_id
+      @name = team_group.team.name
       @last_game = nil
       @points += team_group.add_sub
       @bias = team_group.bias
@@ -29,6 +30,48 @@ module ChampionshipHelper
       @points_for_loss = championship.point_loss
       @bonus = team_group.group.phase.bonus_points
       @bonus_threshold = team_group.group.phase.bonus_points_threshold
+    end
+
+    def add_game_score_only(home_id, away_id, home_score, away_score)
+      if (home_id != @team_id and away_id != @team_id)
+        return
+      end
+      is_home = home_id == @team_id
+      @games += 1
+      if home_score > away_score then
+        if is_home then
+          @wins += 1
+          @points += @points_for_win
+          if home_score - away_score >= @bonus_threshold then
+            @points += @bonus
+          end
+        else
+          @losses += 1
+          @points += @points_for_loss
+        end
+      elsif home_score < away_score then
+        if is_home then
+          @losses += 1
+          @points += @points_for_loss
+        else
+          @wins += 1
+          @points += @points_for_win
+          if away_score - home_score >= @bonus_threshold then
+            @points += @bonus
+          end
+        end
+      else
+        @draws += 1
+        @points += @points_for_draw
+      end
+      if is_home then
+        @goals_for += home_score
+        @goals_against += away_score
+      else
+        @goals_against += home_score
+        @goals_for += away_score
+        @goals_away += away_score
+      end
     end
 
     def add_game(game)
