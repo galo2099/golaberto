@@ -42,7 +42,9 @@ class ChampionshipController < ApplicationController
   def phases
     @championship = Championship.find(params[:id])
     @current_phase = @championship.phases.find(params[:phase]) if params[:phase]
-    @display_odds = @current_phase.games.find_by_played(:first, false) == nil
+    if @current_phase
+      @display_odds = @current_phase.games.find_by_played(:first, false) == nil
+    end
   end
 
   def team_xml(championship, phase, group, team)

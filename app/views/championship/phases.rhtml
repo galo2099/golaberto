@@ -1,5 +1,5 @@
 <% content_for :title do %>
-  <%= @championship.full_name %> - <%= @current_phase.name %> - Table
+  <%= @championship.full_name %> - <%= @current_phase.name if @current_phase %> - Table
 <% end %>
 <% content_for :main_title do %>
   <%= h @championship.full_name %>
