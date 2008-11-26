@@ -15,7 +15,7 @@
       h group.name
     end%></h3>
   </div>
-  <% if logged_in? then %>
+  <% if logged_in? and !(omit_columns[:OP] and omit_columns[:PP] and omit_columns[:RP]) then %>
     <div id="recalculate" style="position: absolute; bottom: 0px; right: 0px;">
       <%= render :partial => "recalculate_button", :locals => { :group => group } %>
     </div>
