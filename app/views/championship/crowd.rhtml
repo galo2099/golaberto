@@ -1,3 +1,6 @@
+<% content_for :title do %>
+  <%= @championship.full_name %> - Crowd
+<% end %>
 <% content_for :main_title do %>
   <%= h @championship.full_name %>
 <% end %>
@@ -32,11 +35,12 @@
 <h3>Most attended games</h3>
 
 <div>
-  <% @games.each do |@game| %>
-    <div class='game_date'><%= @game.formatted_date(true) %></div>
-    <div>Attendance: <%= @game.attendance %></div>
+  <% @games.each do |game| %>
+    <div class='game_date'><%= game.formatted_date(true) %></div>
+    <div>Attendance: <%= game.attendance %></div>
     <div class='table_row'>
-      <%= render :partial => "game_list" %>
+      <%= render :partial => "game_list",
+                 :locals => { :game => game } %>
       <div class='clearer'></div>
     </div>
   <% end %>

@@ -1,3 +1,6 @@
+<% content_for :title do %>
+  <%= @championship.full_name %> - <%= @current_phase.name %> - Games
+<% end %>
 <% content_for :main_title do %>
   <%= h @championship.full_name %>
 <% end %>
@@ -24,14 +27,18 @@
   <%= render :partial => "nav_side" %>
 
   <div class='team_table'>
-    <% @current_phase.groups.each do |group| %>
+    <% @groups_to_show.each do |group| %>
       <%= render :partial => "table",
                  :locals => { :group => group,
                               :team_table => group.team_table,
+                              :link_to_group => @groups_to_show.size > 1,
                               :omit_columns => { :D => true,
                                                  :L => true,
                                                  :GF => true,
-                                                 :GA => true },
+                                                 :GA => true,
+                                                 :OP => true,
+                                                 :PP => true,
+                                                 :RP => true },
                               :omit_logo => true,
                               :omit_popup => true,
                               :omit_comments => true } %>

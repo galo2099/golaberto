@@ -2,7 +2,26 @@
 <% omit_logo = false if omit_logo.nil? %>
 <% omit_comments = false if omit_comments.nil? %>
 <% omit_popup = false if omit_popup.nil? %>
-<h3><%= h group.name %></h3>
+<div style="position: relative">
+  <div style="float: left"><h3><%=
+    if link_to_group
+      link_to group.name,
+              :controller => 'championship',
+              :action => 'games',
+              :id => group.phase.championship,
+              :phase => group.phase,
+              :group => group
+    else
+      h group.name
+    end%></h3>
+  </div>
+  <% if logged_in? and !(omit_columns[:OP] and omit_columns[:PP] and omit_columns[:RP]) then %>
+    <div id="recalculate" style="position: absolute; bottom: 0px; right: 0px;">
+      <%= render :partial => "recalculate_button", :locals => { :group => group } %>
+    </div>
+  <% end %>
+  <div class="clearer"></div>
+</div>
 <table class='class_table'>
   <tr class='table_head'>
     <%= content_tag :th, "Pos", :class => "pos" unless omit_columns[:Pos] %>
@@ -15,6 +34,9 @@
     <%= content_tag :th, "GF" unless omit_columns[:GF] %>
     <%= content_tag :th, "GA" unless omit_columns[:GA] %>
     <%= content_tag :th, "GD" unless omit_columns[:GD] %>
+    <%= content_tag :th, "1%", :title => "odds of finishing first" unless omit_columns[:OP] || group.promoted == 1 %>
+    <%= content_tag :th, "P%", :title => "odds of finishing in promotion zone" unless omit_columns[:PP] || group.promoted == 0 %>
+    <%= content_tag :th, "R%", :title => "odds of finishing in relegation zone" unless omit_columns[:RP] || group.relegated == 0 %>
   </tr>
   <% pos = 0 %>
   <% notes = Array.new %>
@@ -66,12 +88,12 @@
          <%= content_tag(:td,
                          image_logo +
                          link_to(team.name, :action => 'team',
-                                            :id => @championship,
+                                            :id => group.phase.championship,
                                             :team => team) +
                          note_number,
                          :class => "name",
                          :title => title_popup) unless omit_columns[:Name] %>
-                         
+
          <%= content_tag :td, stats.points unless omit_columns[:Pts] %>
          <%= content_tag :td, stats.games unless omit_columns[:G] %>
          <%= content_tag :td, stats.wins unless omit_columns[:W] %>
@@ -80,6 +102,9 @@
          <%= content_tag :td, stats.goals_for unless omit_columns[:GF] %>
          <%= content_tag :td, stats.goals_against unless omit_columns[:GA] %>
          <%= content_tag :td, stats.goals_diff unless omit_columns[:GD] %>
+         <%= content_tag :td, stats.first_odds ? sprintf("%02.2f", stats.first_odds) : "", :class => "odds" unless omit_columns[:OP] || group.promoted == 1 %>
+         <%= content_tag :td, stats.promoted_odds ? sprintf("%02.2f", stats.promoted_odds) : "", :class => "odds" unless omit_columns[:PP] || group.promoted == 0 %>
+         <%= content_tag :td, stats.relegated_odds ? sprintf("%02.2f", stats.relegated_odds) : "", :class => "odds" unless omit_columns[:RP] || group.relegated == 0 %>
        </tr>
      <% end %>
    </table>

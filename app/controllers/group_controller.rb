@@ -38,4 +38,16 @@ class GroupController < ApplicationController
     Group.find(params["id"]).destroy
     redirect_to :back
   end
+
+  def update_odds
+    @group = Group.find(params["id"])
+    if @group.odds_progress == nil
+      @group.send_later :odds
+      @group.odds_progress = 0
+      @group.save!
+    elsif @group.odds_progress == 100
+      @group.odds_progress = nil
+      @group.save!
+    end
+  end
 end

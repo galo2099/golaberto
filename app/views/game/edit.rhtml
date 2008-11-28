@@ -129,7 +129,10 @@ EOF
     </tr>
     <tr>
       <td>Date:</td>
-      <td><%= date_field :game, :date, :value => @game.date ? @game.date : "", :format => "%d/%m/%Y", :size => 10 %></td>
+      <td><%= date_field :game, :date, :value => @game.date ? @game.date : "", :format => "%d/%m/%Y", :size => 10 %>
+      <%= button_to_function "Today" do |page|
+            page[:game_date].value = Date.today.strftime("%d/%m/%Y");
+          end %></td>
     </tr>
     <tr>
       <td>Time:</td>

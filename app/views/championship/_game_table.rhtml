@@ -3,7 +3,7 @@ Round: <select id="round_select" name="round">
   <option value="">All</option>
   <%= options_for_select @rounds, @current_round %>
 </select>
-<% game_url = url_for(:action => :games, :id => @championship, :phase => @current_phase, :round => "") %>
+<% game_url = url_for(:escape => false, :overwrite_params => { :round => "" }) %>
 <%= observe_field 'round_select', :function => "document.location = '#{game_url}' + value" %>
 </p>
 <p>
@@ -13,23 +13,24 @@ Round: <select id="round_select" name="round">
 <% last_played = nil
    last_round = nil
    last_date = nil %>
-<% @games.each do |@game| %>
-  <% if last_played != @game.played %>
-    <% last_played = @game.played %>
-    <div class='game_toplay'><%= @game.played_str %></div>
+<% @games.each do |game| %>
+  <% if last_played != game.played %>
+    <% last_played = game.played %>
+    <div class='game_toplay'><%= game.played_str %></div>
   <% end %>
-  <% if last_round != @game.round %>
-    <% last_round = @game.round %>
-    <div class='game_round'>Round <%= @game.round %></div>
-    <% last_date = @game.formatted_date %>
-    <div class='game_date'><%= @game.formatted_date(true) %></div>
+  <% if last_round != game.round %>
+    <% last_round = game.round %>
+    <div class='game_round'>Round <%= game.round %></div>
+    <% last_date = game.formatted_date %>
+    <div class='game_date'><%= game.formatted_date(true) %></div>
   <% end %>
-  <% if last_date != @game.formatted_date %>
-    <% last_date = @game.formatted_date %>
-    <div class='game_date'><%= @game.formatted_date(true) %></div>
+  <% if last_date != game.formatted_date %>
+    <% last_date = game.formatted_date %>
+    <div class='game_date'><%= game.formatted_date(true) %></div>
   <% end %>
     <div class='table_row'>
-      <%= render :partial => "game_list" %>
+      <%= render :partial => "game_list",
+                 :locals => { :game => game } %>
       <div class='clearer'></div>
     </div>
 <% end %>

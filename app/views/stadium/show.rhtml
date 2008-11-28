@@ -4,18 +4,19 @@
 
 <div class="game_score" style='font-size: 12px'>
   <h3>Games</h3>
-  <% @stadium.played_games.first(5).each do |@game| %>
+  <% @stadium.played_games.first(5).each do |game| %>
     <div class="table_row">
       <div class="table_cell" style='width: 30%; text-align: left'>
-        <%= @game.formatted_date %>
-        <%= link_to @game.phase.championship.full_name,
+        <%= game.formatted_date %>
+        <%= link_to game.phase.championship.full_name,
           { :action => "show",
             :controller => "championship",
-            :id => @game.phase.championship,
+            :id => game.phase.championship,
         } %><br/>
       </div>
       <div class="table_cell" style='width: 70%; text-align: left'>
-        <%= render :partial => "championship/game_list" %>
+        <%= render :partial => "championship/game_list",
+                   :locals => { :game => game } %>
         <div class="clearer"></div>
       </div>
       <div class="clearer"></div>

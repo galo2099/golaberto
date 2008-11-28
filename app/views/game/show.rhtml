@@ -1,3 +1,7 @@
+<% content_for :title do %>
+  <%= @game.phase.championship.full_name %> - <%= @game.phase.name %> - <%= @game.home.name %> x <%= @game.away.name %>
+<% end %>
+
 <% content_for :main_title do %>
   <%= @game.phase.championship.full_name %>
 <% end %>
@@ -6,6 +10,14 @@
 
 <table class="game_show_score">
   <%= render :partial => "game_score" %>
+  <% if not @game.played? then %>
+    <% odds = @game.odds %>
+    <tr>
+    <td colspan="5"><%= number_to_percentage(100*odds[0], :precision => 2) %></td>
+    <td><%= number_to_percentage(100*odds[1], :precision => 2) %></td>
+    <td colspan="5" align="right"><%= number_to_percentage(100*odds[2], :precision => 2) %></td>
+    </tr>
+  <% end %>
 
   <% count_home = 0 %>
   <% count_away = 0 %>
@@ -53,7 +65,7 @@
     </tr>
   <% end %>
 
- <% if not @game.home_player_games.empty? and not @game.away_player_games.empty? %>
+ <% if not @game.home_player_games.empty? or not @game.away_player_games.empty? %>
   <tr><td></td>
     
     <td colspan="4" style="vertical-align: top">
@@ -127,17 +139,18 @@
 <% if not @last_games.empty? %>
 <h2>Previous <%=@last_games.length%> games</h2>
 <div class="game_score" style='font-size: 12px'>
-  <% @last_games.each do |@game| %>
+  <% @last_games.each do |game| %>
     <div class="table_row">
       <div class="table_cell" style='width: 30%; text-align: left'>
-        <%= link_to @game.phase.championship.full_name,
+        <%= link_to game.phase.championship.full_name,
           { :action => "show",
             :controller => "championship",
-            :id => @game.phase.championship,
+            :id => game.phase.championship,
           } %>
       </div>
       <div class="table_cell" style='width: 70%'>
-        <%= render :partial => "championship/game_list" %>
+        <%= render :partial => "championship/game_list",
+                   :locals => { :game => game } %>
         <div class="clearer"></div>
       </div>
       <div class="clearer"></div>

@@ -2,7 +2,7 @@
 function finishPlayerAdd(home_away) {
   $('add_player_' + home_away).hide();
   $('link_player_' + home_away).show();
-  Sortable.create(home_away + "_player_list", {constraint:false, containment:[home_away + '_player_list', home_away + '_squad'], dropOnEmpty:true, handle:'draggable', onChange:dropPlayerDetails, onUpdate:dropPlayerDetails, only:'player_squad', tag:'div'})
+  Sortable.create(home_away + "_player_list", {constraint:false, containment:[home_away + '_player_list', home_away + '_squad'], dropOnEmpty:true, handle:'draggable', onUpdate:dropPlayerDetails, only:'player_squad', tag:'div'})
 }
 
 function ignoreEnter(event) {
@@ -12,7 +12,7 @@ function ignoreEnter(event) {
 
 function addPlayerDetails(container) {
   attr = container.getElementsByClassName("player_attributes");
-  for (i = 0; i < attr.size(); ++i) {
+  for (i = 0; i < attr.length; ++i) {
     children = attr[i].immediateDescendants();
     for (j = 0; j < children.size(); ++j) {
       children[j].enable();
@@ -23,7 +23,7 @@ function addPlayerDetails(container) {
 
 function dropPlayerDetails(container) {
   attr = container.getElementsByClassName("player_attributes");
-  for (i = 0; i < attr.size(); ++i) {
+  for (i = 0; i < attr.length; ++i) {
     children = attr[i].immediateDescendants();
     for (j = 0; j < children.size(); ++j) {
       children[j].disable();
@@ -48,7 +48,7 @@ EOF
       <td class="players">
         <div id="home_players">
           <h3>Players</h3>
-          <div id="home_player_list">
+          <div id="home_player_list" class="player_list">
             <%= render :partial => "player_squad", :collection => @home_players, :locals => { :disabled => true } %>
           </div>
           <%= render :partial => "insert_player",
@@ -61,8 +61,8 @@ EOF
           <%= render :partial => "player_squad", :collection => @home_squad, :locals => { :disabled => false } %>
         </div>
       </td>
-      <%= sortable_element "home_player_list", :dropOnEmpty => true, :containment => [ "home_player_list", "home_squad" ], :only => "player_squad", :constraint => false, :tag => "div", :onChange => "dropPlayerDetails", :onUpdate => "dropPlayerDetails", :handle => "draggable" %>
-      <%= sortable_element "home_squad", :dropOnEmpty => true, :containment => [ "home_player_list", "home_squad" ], :only => "player_squad", :constraint => false, :tag => "div", :onChange => "dropPlayerDetails", :onUpdate => "addPlayerDetails", :handle => "draggable" %>
+      <%= sortable_element "home_player_list", :dropOnEmpty => true, :containment => [ "home_player_list", "home_squad" ], :only => "player_squad", :constraint => false, :tag => "div", :onUpdate => "dropPlayerDetails", :handle => "draggable" %>
+      <%= sortable_element "home_squad", :dropOnEmpty => true, :containment => [ "home_player_list", "home_squad" ], :only => "player_squad", :constraint => false, :tag => "div", :onUpdate => "addPlayerDetails", :handle => "draggable" %>
       <td></td>
       <td colspan="4" class="players">
         <h3>Players</h3>
@@ -74,15 +74,15 @@ EOF
       <td class="players">
         <div id="away_players">
           <h3>Players</h3>
-          <div id="away_player_list">
+          <div id="away_player_list" class="player_list">
             <%= render :partial => "player_squad", :collection => @away_players, :locals => { :disabled => true } %>
           </div>
           <%= render :partial => "insert_player",
             :locals => { :team => @game.away, :game => @game, :home_away => "away", :partial => "player_squad" } %>
         </div>
       </td>
-      <%= sortable_element "away_player_list", :dropOnEmpty => true, :containment => [ "away_player_list", "away_squad" ], :only => "player_squad", :constraint => false, :tag => "div", :onChange => "dropPlayerDetails", :onUpdate => "dropPlayerDetails", :handle => "draggable" %>
-      <%= sortable_element "away_squad", :dropOnEmpty => true, :containment => [ "away_player_list", "away_squad" ], :only => "player_squad", :constraint => false, :tag => "div", :onChange => "dropPlayerDetails", :onUpdate => "addPlayerDetails", :handle => "draggable" %>
+      <%= sortable_element "away_player_list", :dropOnEmpty => true, :containment => [ "away_player_list", "away_squad" ], :only => "player_squad", :constraint => false, :tag => "div", :onUpdate => "dropPlayerDetails", :handle => "draggable" %>
+      <%= sortable_element "away_squad", :dropOnEmpty => true, :containment => [ "away_player_list", "away_squad" ], :only => "player_squad", :constraint => false, :tag => "div", :onUpdate => "addPlayerDetails", :handle => "draggable" %>
     </tr>
 
     <tr><td colspan="10">

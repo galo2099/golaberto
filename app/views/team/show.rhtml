@@ -1,11 +1,15 @@
-<% content_for :main_title do %> Team <% end %>
+<% content_for :title do %>
+  <%= @team.full_name || @team.name %>
+<% end %>
+<% content_for :main_title do %>
+  <%= @team.name %>
+<% end %>
 
 <div>
   <div style="float: left">
     <%= image_tag "logos/" + @team.large_logo %>
   </div>
   <div style="float: left">
-    <h2><%= @team.name %></h2>
     <h3><%= @team.full_name %></h2>
     City: <%= @team.city %><br/>
     Country: <%= @team.country %><br/>
@@ -26,17 +30,19 @@
 unless last_games.empty? %>
 <h2> Last 5 games</h2>
 <div class="game_score" style='font-size: 12px'>
-  <% last_games.each do |@game| %>
+  <% last_games.each do |game| %>
     <div class="table_row">
       <div class="table_cell" style='width: 30%; text-align: left'>
-        <%= link_to @game.phase.championship.full_name,
+        <%= link_to game.phase.championship.full_name,
           { :action => "show",
             :controller => "championship",
-            :id => @game.phase.championship,
+            :id => game.phase.championship,
           } %>
       </div>
       <div class="table_cell" style='width: 70%'>
-        <%= render :partial => "championship/game_list" %>
+        <%= render :partial => "championship/game_list",
+                   :locals => { :highlight_team => @team,
+                                :game => game } %>
         <div class="clearer"></div>
       </div>
       <div class="clearer"></div>
@@ -49,17 +55,19 @@ unless last_games.empty? %>
 unless next_games.empty? %>
 <h2> Next 5 games</h2>
 <div class="game_score" style='font-size: 12px'>
-  <% next_games.each do |@game| %>
+  <% next_games.each do |game| %>
     <div class="table_row">
       <div class="table_cell" style='width: 30%; text-align: left'>
-        <%= link_to @game.phase.championship.full_name,
+        <%= link_to game.phase.championship.full_name,
           { :action => "show",
             :controller => "championship",
-            :id => @game.phase.championship,
+            :id => game.phase.championship,
           } %>
       </div>
       <div class="table_cell" style='width: 70%'>
-        <%= render :partial => "championship/game_list" %>
+        <%= render :partial => "championship/game_list",
+                   :locals => { :highlight_team => @team,
+                                :game => game } %>
         <div class="clearer"></div>
       </div>
       <div class="clearer"></div>

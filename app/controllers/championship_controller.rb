@@ -42,6 +42,9 @@ class ChampionshipController < ApplicationController
   def phases
     @championship = Championship.find(params[:id])
     @current_phase = @championship.phases.find(params[:phase]) if params[:phase]
+    if @current_phase
+      @display_odds = @current_phase.games.find_by_played(:first, false) == nil
+    end
   end
 
   def team_xml(championship, phase, group, team)
@@ -193,17 +196,27 @@ class ChampionshipController < ApplicationController
     store_location
     @championship = Championship.find(params["id"])
     @current_phase = @championship.phases.find(params["phase"])
+    @group = params["group"]
 
-    conditions = { :phase_id => @current_phase }
+    conditions = nil
+    if @group.nil?
+      @groups_to_show = @current_phase.groups
+    else
+      @groups_to_show = [ @current_phase.groups.find(@group) ]
+      conditions ||= {}
+      teams = @groups_to_show.first.teams.map{|t| t.id}
+      conditions.merge!({ :home_id => teams })
+    end
 
-    @rounds = @current_phase.games.find(:all, :group => :round, :order => :round).map{|g| g.round }.compact
+    @rounds = @current_phase.games.find(:all, :group => :round, :order => :round, :conditions => conditions).map{|g| g.round }.compact
 
     unless (params[:round].to_s.empty?)
       @current_round = params[:round].to_i
+      conditions ||= {}
       conditions.merge!({ :round => @current_round })
     end
 
-    @games = Game.paginate :order => "date, round, time, teams.name", :conditions => conditions, :include => [ "home", "away" ], :page => params[:page]
+    @games = @current_phase.games.paginate :order => "date, round, time, teams.name", :conditions => conditions, :include => [ "home", "away" ], :page => params[:page]
 
     phases
   end

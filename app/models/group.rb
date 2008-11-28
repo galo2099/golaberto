@@ -15,8 +15,69 @@ class Group < ActiveRecord::Base
   # Field: promoted , SQL Definition:tinyint(2)
   # Field: relegated , SQL Definition:tinyint(2)
 
+  NUM_ITER = 10000
+
   def is_promoted?(pos)
     return pos <= self.promoted
+  end
+
+  def odds
+    games_to_play = phase.games.group_games(self).find(:all, :conditions => { :played => false })
+    games_played = phase.games.group_games(self).find(:all, :conditions => { :played => true })
+    phase.sort.sub!("name", "rand")
+    poisson_hash = Hash.new{|h,k| h[k] = Poisson.new(k)}
+    odds = games_to_play.map do |g|
+      [ g.home_id,
+        g.away_id,
+        poisson_hash[Poisson.find_mean_from(g.home_for.zip(g.away_against).map{|a,b| a+b})],
+        poisson_hash[Poisson.find_mean_from(g.home_against.zip(g.away_for).map{|a,b| a+b})] ]
+    end
+    results = Hash.new{|h,k| h[k] = Hash.new{|hh,kk| hh[kk] = 0}}
+    fixed_stats = Hash.new
+    team_groups.each do |team_group|
+      fixed_stats[team_group.team_id] =
+          ChampionshipHelper::TeamCampaign.new(team_group)
+    end
+    games_played.each do |g|
+      fixed_stats[g.home_id].add_game g
+      fixed_stats[g.away_id].add_game g
+    end
+    NUM_ITER.times do |count|
+      if count % (NUM_ITER / 100) == 0
+        self.odds_progress = count / (NUM_ITER / 100)
+        self.save!
+      end
+      stats = Hash.new
+      fixed_stats.each do |k,v|
+        stats[k] = v.clone
+      end
+      odds.each do |o|
+        home_score = o[2].rand
+        away_score = o[3].rand
+        stats[o[0]].add_game_score_only o[0], o[1], home_score, away_score
+        stats[o[1]].add_game_score_only o[0], o[1], home_score, away_score
+      end
+      sort_teams(stats).each_with_index do |v,i|
+        if i == 0 then
+          results[:champ][v[0].team_id] += 1
+        end
+        if i < promoted then
+          results[:prom][v[0].team_id] += 1
+        end
+        if i >= stats.size - relegated then
+          results[:rele][v[0].team_id] += 1
+        end
+      end
+    end
+
+    team_groups.each do |t|
+      t.first_odds = results[:champ][t.team_id].to_f * 100 / NUM_ITER
+      t.promoted_odds = results[:prom][t.team_id].to_f * 100 / NUM_ITER
+      t.relegated_odds = results[:rele][t.team_id].to_f * 100 / NUM_ITER
+      t.save!
+    end
+    self.odds_progress = 100
+    self.save!
   end
 
   def is_relegated?(pos)
@@ -24,11 +85,8 @@ class Group < ActiveRecord::Base
   end
 
   def team_table
-    games = phase.games.find(:all,
-        :conditions => [ "(home_id in (?) OR away_id in (?)) and played = ?",
-                         team_groups.map{|t|t.team_id},
-                         team_groups.map{|t|t.team_id},
-                         true ],
+    played_games = phase.games.group_games(self).find(:all,
+        :conditions => [ "played = ?", true ],
         :include => [ :phase, [:phase => :championship ] ],
         :order => :date)
     stats = Hash.new
@@ -39,7 +97,7 @@ class Group < ActiveRecord::Base
     last_round = nil
     last_date = nil
     last_games = Array.new
-    games.each do |g|
+    played_games.each do |g|
       if (last_round and last_round != g.round) or
          (last_date and last_date != g.date)
         yield sort_teams(stats), last_games if block_given?
@@ -57,41 +115,42 @@ class Group < ActiveRecord::Base
     ret
   end
 
-  private
-
   def sort_teams(team_class)
-    columns = phase.sort.split(/,\s*/)
+    @columns ||= phase.sort.split(/,\s*/)
     sorter = lambda { |b,a|
       ret = 0
-      columns.detect do |column|
+      @columns.detect do |column|
         case column
         when "pt"
-          ret = team_class[a.id].points <=> team_class[b.id].points
+          ret = team_class[a].points <=> team_class[b].points
         when "w"
-          ret = team_class[a.id].wins <=> team_class[b.id].wins
+          ret = team_class[a].wins <=> team_class[b].wins
         when  "gd"
-          ret = team_class[a.id].goals_diff <=> team_class[b.id].goals_diff
+          ret = team_class[a].goals_diff <=> team_class[b].goals_diff
         when "gf"
-          ret = team_class[a.id].goals_for <=> team_class[b.id].goals_for
+          ret = team_class[a].goals_for <=> team_class[b].goals_for
         when "name"
-          ret = a.name <=> b.name
+          ret = team_class[a].name <=> team_class[b].name
         when "g_average"
-          ret = team_class[a.id].goals_avg <=> team_class[b.id].goals_avg
+          ret = team_class[a].goals_avg <=> team_class[b].goals_avg
         when "gp"
-          ret = team_class[a.id].goals_pen <=> team_class[b.id].goals_pen
+          ret = team_class[a].goals_pen <=> team_class[b].goals_pen
         when "g_away"
-          ret = team_class[a.id].goals_away <=> team_class[b.id].goals_away
+          ret = team_class[a].goals_away <=> team_class[b].goals_away
         when "bias"
-          ret = team_class[a.id].bias <=> team_class[b.id].bias
+          ret = team_class[a].bias <=> team_class[b].bias
+        when "rand"
+          ret = 2*rand(2)-1
         end
         ret != 0
       end
       ret
     }
-    team_groups.sort do |a,b|
-      sorter.call a.team, b.team
+    @team_groups_cache ||= team_groups.to_a.map{|t| [t, t.team_id]}
+    @team_groups_cache.sort do |a,b|
+      sorter.call a[1], b[1]
     end.map do |t|
-      [ t, team_class[t.team.id] ]
+      [ t[0], team_class[t[1]] ]
     end
   end
 end
