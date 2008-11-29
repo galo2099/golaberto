@@ -1,7 +1,5 @@
 <% content_for :main_title do %> <%= _("Home") %><% end %>
 
-<%= @cookies[:lang] %>
-
 <div id="championship">
   <h3 style="margin-top: 0px"><%= _("Current championships") %></h3>
   <% @championships.each do |champ| %>
