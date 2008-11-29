@@ -14,6 +14,12 @@
   <div class='container'>
     <div class='header'>
       <%= link_to image_tag("logo.png", :border => 0), "/" %>
+      <div class="navigation" style='position: absolute; top: 0px; right: 0px; background-color: #8f983b;'>
+        <%= case Locale.get.language
+              when "pt": '<a href="/cookie/set_cookie/en_US"><img src="/images/flags/gb.png"> English</a>'
+              else '<a href="/cookie/set_cookie/pt_BR"><img src="/images/flags/br.png"> Português</a>'
+            end %>
+      </div>
     </div>
 
     <div class='navigation'>

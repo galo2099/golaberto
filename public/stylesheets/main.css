@@ -100,6 +100,7 @@ body {
 .header {
 	background-color: #8f983b;
 	padding: 20px 10px 10px 5px;
+        position: relative;
 }
 .header img {
 	border: none;

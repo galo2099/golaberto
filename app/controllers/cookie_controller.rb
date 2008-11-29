@@ -7,6 +7,6 @@ class CookieController < ApplicationController
       :expires => Time.now + 1.year,
       :path => '/'
      }
-   redirect_to "/"
+   redirect_to :back
  end
 end
