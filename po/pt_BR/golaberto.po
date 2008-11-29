@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2008-11-29 16:20-0200\n"
+"POT-Creation-Date: 2008-11-29 20:32-0200\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: Robson Braga Araujo <robsonbraga@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -642,7 +642,6 @@ msgstr "Próximos 5 jogos"
 #: app/views/team/show.rhtml:83 app/views/team/_team_list.rhtml:13
 #: app/views/referee/_referee_list.rhtml:12 app/views/team_group/list.rhtml:16
 #: app/views/stadium/show.rhtml:31 app/views/stadium/_stadium_list.rhtml:10
-#: app/views/championship/_game_list.rhtml:23
 #: app/views/championship/edit.rhtml:32 app/views/championship/list.rhtml:14
 #: app/views/game/show.rhtml:166 app/views/player/_player_list.rhtml:12
 #: app/views/player/show.rhtml:12 app/views/phase/list.rhtml:20
@@ -654,15 +653,13 @@ msgstr "Editar"
 #: app/views/championship/edit.rhtml:33 app/views/game/show.rhtml:168
 #: app/views/phase/edit.rhtml:24
 msgid "Delete"
-msgstr "Deletar"
+msgstr "Apagar"
 
 #: app/views/team/show.rhtml:84 app/views/team/_team_list.rhtml:14
 #: app/views/referee/_referee_list.rhtml:13 app/views/team_group/list.rhtml:17
-#: app/views/championship/team.rhtml:87
-#: app/views/championship/_game_list.rhtml:24
-#: app/views/championship/edit.rhtml:33 app/views/championship/list.rhtml:17
-#: app/views/game/show.rhtml:168 app/views/player/_player_list.rhtml:13
-#: app/views/phase/list.rhtml:21
+#: app/views/championship/team.rhtml:87 app/views/championship/edit.rhtml:33
+#: app/views/championship/list.rhtml:17 app/views/game/show.rhtml:168
+#: app/views/player/_player_list.rhtml:13 app/views/phase/list.rhtml:21
 msgid "Are you sure?"
 msgstr "Tem certeza?"
 
@@ -707,7 +704,7 @@ msgstr "Comentários"
 
 #: app/views/comment/_comments.rhtml:6
 msgid "Leave a comment"
-msgstr "Deixar um comentário"
+msgstr "Deixe um comentário"
 
 #: app/views/comment/_comments.rhtml:9
 msgid "Comment"
@@ -749,7 +746,7 @@ msgid "Location"
 msgstr "Localidade"
 
 #: app/views/referee/show.rhtml:7 app/views/stadium/show.rhtml:6
-#: app/views/layouts/application.rhtml:23 app/views/championship/games.rhtml:2
+#: app/views/layouts/application.rhtml:29 app/views/championship/games.rhtml:2
 #: app/views/championship/crowd.rhtml:16
 #: app/views/championship/_nav_side.rhtml:10
 msgid "Games"
@@ -787,23 +784,23 @@ msgstr "Novo estádio"
 msgid "Stadium Edit"
 msgstr "Editar Estádio"
 
-#: app/views/layouts/application.rhtml:20 app/views/home/index.rhtml:1
+#: app/views/layouts/application.rhtml:26 app/views/home/index.rhtml:1
 msgid "Home"
 msgstr "Principal"
 
 # app/models/championship.rb:-
-#: app/views/layouts/application.rhtml:21
+#: app/views/layouts/application.rhtml:27
 msgid "Championships"
 msgstr "Campeonatos"
 
-#: app/views/layouts/application.rhtml:22
+#: app/views/layouts/application.rhtml:28
 #: app/views/championship/top_goalscorers.rhtml:19
 #: app/views/championship/_nav_side.rhtml:12 app/views/group/edit.rhtml:21
 msgid "Teams"
 msgstr "Equipes"
 
 # app/models/player.rb:-
-#: app/views/layouts/application.rhtml:24 app/views/championship/team.rhtml:62
+#: app/views/layouts/application.rhtml:30 app/views/championship/team.rhtml:62
 #: app/views/game/edit_squad.rhtml:50 app/views/game/edit_squad.rhtml:59
 #: app/views/game/edit_squad.rhtml:68 app/views/game/edit_squad.rhtml:76
 #: app/views/game/edit.rhtml:74 app/views/game/edit.rhtml:107
@@ -811,20 +808,20 @@ msgid "Players"
 msgstr "Jogadores"
 
 # app/models/stadium.rb:-
-#: app/views/layouts/application.rhtml:25
+#: app/views/layouts/application.rhtml:31
 msgid "Stadiums"
 msgstr "Estádios"
 
 # app/models/referee.rb:-
-#: app/views/layouts/application.rhtml:26
+#: app/views/layouts/application.rhtml:32
 msgid "Referees"
 msgstr "Árbitros"
 
-#: app/views/layouts/application.rhtml:28
+#: app/views/layouts/application.rhtml:34
 msgid "Logout"
 msgstr "Sair"
 
-#: app/views/layouts/application.rhtml:30 app/views/account/signup.rhtml:3
+#: app/views/layouts/application.rhtml:36 app/views/account/signup.rhtml:3
 #: app/views/account/login.rhtml:2
 msgid "Login"
 msgstr "Login"
@@ -888,12 +885,20 @@ msgid "Table"
 msgstr "Tabela"
 
 #: app/views/championship/_game_list.rhtml:21
-msgid "Info"
-msgstr "Info"
+msgid "More information"
+msgstr "Mais informações"
+
+#: app/views/championship/_game_list.rhtml:23
+msgid "Edit this game"
+msgstr "Editar este jogo"
 
 #: app/views/championship/_game_list.rhtml:24
-msgid "Del"
-msgstr "Del"
+msgid "Delete this game"
+msgstr "Apagar este jogo"
+
+#: app/views/championship/_game_list.rhtml:24
+msgid "Are you sure you want to delete this game?"
+msgstr "Tem certeza que quer apagar este jogo?"
 
 #: app/views/championship/top_goalscorers.rhtml:2
 #: app/views/championship/_nav_side.rhtml:14
