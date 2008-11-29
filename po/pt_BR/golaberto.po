@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2008-11-29 01:09-0200\n"
+"POT-Creation-Date: 2008-11-29 16:20-0200\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: Robson Braga Araujo <robsonbraga@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -393,7 +393,7 @@ msgstr "Atualizado em"
 msgid "Played"
 msgstr "Jogados"
 
-#: app/models/game.rb:108 app/views/championship/team.rhtml:40
+#: app/models/game.rb:108 app/views/championship/team.rhtml:43
 #: app/views/game/list.rhtml:23
 msgid "Scheduled"
 msgstr "Agendados"
@@ -511,15 +511,15 @@ msgstr "Removido árbitro: %s<br>"
 msgid "Changed referee: %s -> %s<br>"
 msgstr "Modificado árbitro: %s -> %s<br>"
 
-#: app/helpers/game_helper.rb:76
+#: app/helpers/game_helper.rb:77
 msgid "Added %s: %s<br>"
 msgstr "Adicionado %s: %s<br>"
 
-#: app/helpers/game_helper.rb:78
+#: app/helpers/game_helper.rb:79
 msgid "Removed %s: %s<br>"
 msgstr "Removido %s: %s<br>"
 
-#: app/helpers/game_helper.rb:80
+#: app/helpers/game_helper.rb:81
 msgid "Changed %s: %s -> %s<br>"
 msgstr "Modificado %s: %s -> %s<br>"
 
@@ -562,7 +562,7 @@ msgstr "Posição"
 #: app/views/team/_form.rhtml:1 app/views/team/_form.rhtml:16
 #: app/views/team/_team_list.rhtml:3 app/views/referee/_referee_list.rhtml:3
 #: app/views/stadium/_stadium_list.rhtml:3
-#: app/views/championship/team.rhtml:63
+#: app/views/championship/team.rhtml:67
 #: app/views/championship/top_goalscorers.rhtml:17
 #: app/views/championship/_table.rhtml:28 app/views/championship/edit.rhtml:6
 #: app/views/championship/edit.rhtml:31 app/views/championship/list.rhtml:5
@@ -658,7 +658,7 @@ msgstr "Deletar"
 
 #: app/views/team/show.rhtml:84 app/views/team/_team_list.rhtml:14
 #: app/views/referee/_referee_list.rhtml:13 app/views/team_group/list.rhtml:17
-#: app/views/championship/team.rhtml:83
+#: app/views/championship/team.rhtml:87
 #: app/views/championship/_game_list.rhtml:24
 #: app/views/championship/edit.rhtml:33 app/views/championship/list.rhtml:17
 #: app/views/game/show.rhtml:168 app/views/player/_player_list.rhtml:13
@@ -803,7 +803,7 @@ msgid "Teams"
 msgstr "Equipes"
 
 # app/models/player.rb:-
-#: app/views/layouts/application.rhtml:24 app/views/championship/team.rhtml:58
+#: app/views/layouts/application.rhtml:24 app/views/championship/team.rhtml:62
 #: app/views/game/edit_squad.rhtml:50 app/views/game/edit_squad.rhtml:59
 #: app/views/game/edit_squad.rhtml:68 app/views/game/edit_squad.rhtml:76
 #: app/views/game/edit.rhtml:74 app/views/game/edit.rhtml:107
@@ -850,35 +850,35 @@ msgid "Log in"
 msgstr "Logar"
 
 # app/models/championship.rb:-
-#: app/views/championship/team.rhtml:22
+#: app/views/championship/team.rhtml:23
 msgid "ChampionshipTeam|Played"
 msgstr "Jogados"
 
-#: app/views/championship/team.rhtml:64
+#: app/views/championship/team.rhtml:68
 #: app/views/championship/top_goalscorers.rhtml:18
 #: app/views/championship/_table.rhtml:27 app/views/game/show.rhtml:75
 #: app/views/game/show.rhtml:102
 msgid "Pos"
 msgstr "Pos"
 
-#: app/views/championship/team.rhtml:65
+#: app/views/championship/team.rhtml:69
 #: app/views/championship/top_goalscorers.rhtml:20
 #: app/views/game/edit.rhtml:88
 msgid "Goals"
 msgstr "Gols"
 
-#: app/views/championship/team.rhtml:66
+#: app/views/championship/team.rhtml:70
 #: app/views/championship/top_goalscorers.rhtml:22
 msgid "Own Goals"
 msgstr "Gols contra"
 
-#: app/views/championship/team.rhtml:67
+#: app/views/championship/team.rhtml:71
 #: app/views/championship/top_goalscorers.rhtml:21
 #: app/views/game/edit.rhtml:58
 msgid "Penalties"
 msgstr "Pênaltis"
 
-#: app/views/championship/team.rhtml:80
+#: app/views/championship/team.rhtml:84
 msgid "Remove"
 msgstr "Remover"
 
@@ -1284,3 +1284,184 @@ msgstr "Comentário por %s em %s"
 #: app/views/home/index.rhtml:36
 msgid "View this %s"
 msgstr "Ver este %s"
+
+#: lib/gettext_date.rb:26
+msgid "%Y-%m-%d"
+msgstr "%Y-%m-%d"
+
+#: lib/gettext_date.rb:28
+msgid "%a %b %e %H:%M:%S %Y"
+msgstr "%a %b %e %H:%M:%S %Y"
+
+#: lib/gettext_date.rb:30
+msgid "%m/%d/%y"
+msgstr "%d/%m/%y"
+
+#: lib/gettext_date.rb:35
+msgid "Sunday"
+msgstr "Domingo"
+
+#: lib/gettext_date.rb:35
+msgid "Monday"
+msgstr "Segunda"
+
+#: lib/gettext_date.rb:35
+msgid "Tuesday"
+msgstr "Terça"
+
+#: lib/gettext_date.rb:35
+msgid "Wednesday"
+msgstr "Quarta"
+
+#: lib/gettext_date.rb:36
+msgid "Thursday"
+msgstr "Quinta"
+
+#: lib/gettext_date.rb:36
+msgid "Friday"
+msgstr "Sexta"
+
+#: lib/gettext_date.rb:36
+msgid "Saturday"
+msgstr "Sábado"
+
+#: lib/gettext_date.rb:40
+msgid "Sun"
+msgstr "Dom"
+
+#: lib/gettext_date.rb:40
+msgid "Mon"
+msgstr "Seg"
+
+#: lib/gettext_date.rb:40
+msgid "Tue"
+msgstr "Ter"
+
+#: lib/gettext_date.rb:40
+msgid "Wed"
+msgstr "Qua"
+
+#: lib/gettext_date.rb:41
+msgid "Thu"
+msgstr "Qui"
+
+#: lib/gettext_date.rb:41
+msgid "Fri"
+msgstr "Sex"
+
+#: lib/gettext_date.rb:41
+msgid "Sat"
+msgstr "Sab"
+
+#: lib/gettext_date.rb:45
+msgid "January"
+msgstr "Janeiro"
+
+#: lib/gettext_date.rb:45
+msgid "February"
+msgstr "Fevereiro"
+
+#: lib/gettext_date.rb:45
+msgid "March"
+msgstr "Março"
+
+#: lib/gettext_date.rb:45
+msgid "April"
+msgstr "Abril"
+
+#: lib/gettext_date.rb:46
+msgid "Month|May"
+msgstr "Maio"
+
+#: lib/gettext_date.rb:46
+msgid "June"
+msgstr "Junho"
+
+#: lib/gettext_date.rb:46
+msgid "July"
+msgstr "Julho"
+
+#: lib/gettext_date.rb:46
+msgid "August"
+msgstr "Agosto"
+
+#: lib/gettext_date.rb:46
+msgid "September"
+msgstr "Setembro"
+
+#: lib/gettext_date.rb:47
+msgid "October"
+msgstr "Outubro"
+
+#: lib/gettext_date.rb:47
+msgid "November"
+msgstr "Novembro"
+
+#: lib/gettext_date.rb:47
+msgid "December"
+msgstr "Dezembro"
+
+#: lib/gettext_date.rb:52
+msgid "Jan"
+msgstr "Jan"
+
+#: lib/gettext_date.rb:52
+msgid "Feb"
+msgstr "Fev"
+
+#: lib/gettext_date.rb:52
+msgid "Mar"
+msgstr "Mar"
+
+#: lib/gettext_date.rb:52
+msgid "Apr"
+msgstr "Abr"
+
+#: lib/gettext_date.rb:52
+msgid "Abbr|May"
+msgstr "Mai"
+
+#: lib/gettext_date.rb:52
+msgid "Jun"
+msgstr "Jun"
+
+#: lib/gettext_date.rb:53
+msgid "Jul"
+msgstr "Jul"
+
+#: lib/gettext_date.rb:53
+msgid "Aug"
+msgstr "Ago"
+
+#: lib/gettext_date.rb:53
+msgid "Sep"
+msgstr "Set"
+
+#: lib/gettext_date.rb:53
+msgid "Oct"
+msgstr "Out"
+
+#: lib/gettext_date.rb:54
+msgid "Nov"
+msgstr "Nov"
+
+#: lib/gettext_date.rb:54
+msgid "Dec"
+msgstr "Dez"
+
+#: lib/gettext_date.rb:60
+msgid "AM"
+msgstr "AM"
+
+# app/models/team.rb:-
+#: lib/gettext_date.rb:60
+msgid "am"
+msgstr "am"
+
+#: lib/gettext_date.rb:62
+msgid "PM"
+msgstr "PM"
+
+#: lib/gettext_date.rb:62
+msgid "pm"
+msgstr "pm"

@@ -72,12 +72,13 @@ module GameHelper
           ret << sprintf(_("Changed referee: %s -> %s<br>"), Referee.find(value[0]).name, Referee.find(value[1]).name)
         end
       else
+        name = Game.columns_hash[key.to_s] ? Game.columns_hash[key.to_s].human_name.downcase : key.to_s
         if value[0].nil?
-          ret << sprintf(_("Added %s: %s<br>"), key, value[1])
+          ret << sprintf(_("Added %s: %s<br>"), name, value[1])
         elsif value[1].nil?
-          ret << sprintf(_("Removed %s: %s<br>"), key, value[0])
+          ret << sprintf(_("Removed %s: %s<br>"), name, value[0])
         else
-          ret << sprintf(_("Changed %s: %s -> %s<br>"), key, value[0], value[1])
+          ret << sprintf(_("Changed %s: %s -> %s<br>"), name, value[0], value[1])
         end
       end
     end
