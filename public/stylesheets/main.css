@@ -407,6 +407,7 @@ DIV.table_cell {
   width: 5%;
   text-align: center;
   text-decoration: underline;
+  cursor: pointer;
   color: blue;
 }
 .show_info a {
