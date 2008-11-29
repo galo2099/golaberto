@@ -137,7 +137,7 @@
 <%= @game.played_str %><br/>
 
 <% if not @last_games.empty? %>
-<h2><%= sprintf n_("Previous game", "Previous %d games", @last_games.length), @last_games.length %></h2>
+<h2><%= sprintf(n_("Previous game", "Previous %d games", @last_games.size), @last_games.size) %></h2>
 <div class="game_score" style='font-size: 12px'>
   <% @last_games.each do |game| %>
     <div class="table_row">

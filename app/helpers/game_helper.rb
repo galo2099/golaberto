@@ -57,27 +57,27 @@ module GameHelper
         end
       when :stadium_id
         if value[0].nil?
-          ret << _("Added stadium: #{Stadium.find(value[1]).name}<br>")
+          ret << sprintf(_("Added stadium: %s<br>"), Stadium.find(value[1]).name)
         elsif value[1].nil?
-          ret << _("Removed stadium: #{Stadium.find(value[0]).name}<br>")
+          ret << sprintf(_("Removed stadium: %s<br>"), Stadium.find(value[0]).name)
         else
-          ret << _("Changed stadium: #{Stadium.find(value[0]).name} -> #{Stadium.find(value[1]).name}<br>")
+          ret << sprintf(_("Changed stadium: %s -> %s<br>"), Stadium.find(value[0]).name, Stadium.find(value[1]).name)
         end
       when :referee_id
         if value[0].nil?
-          ret << _("Added referee: #{Referee.find(value[1]).name}<br>")
+          ret << sprintf(_("Added referee: %s<br>"), Referee.find(value[1]).name)
         elsif value[1].nil?
-          ret << _("Removed referee: #{Referee.find(value[0]).name}<br>")
+          ret << sprintf(_("Removed referee: %s<br>"), Referee.find(value[0]).name)
         else
-          ret << _("Changed referee: #{Referee.find(value[0]).name} -> #{Referee.find(value[1]).name}<br>")
+          ret << sprintf(_("Changed referee: %s -> %s<br>"), Referee.find(value[0]).name, Referee.find(value[1]).name)
         end
       else
         if value[0].nil?
-          ret << _("Added #{key}: #{value[1]}<br>")
+          ret << sprintf(_("Added %s: %s<br>"), key, value[1])
         elsif value[1].nil?
-          ret << _("Removed #{key}: #{value[0]}<br>")
+          ret << sprintf(_("Removed %s: %s<br>"), key, value[0])
         else
-          ret << _("Changed #{key}: #{value[0]} -> #{value[1]}<br>")
+          ret << sprintf(_("Changed %s: %s -> %s<br>"), key, value[0], value[1])
         end
       end
     end

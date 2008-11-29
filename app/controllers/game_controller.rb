@@ -148,7 +148,7 @@ class GameController < ApplicationController
     end
 
     if saved
-      flash[:notice] = "Game saved"
+      flash[:notice] = _("Game saved")
       if (params["redirect"])
         redirect_to params["redirect"]
       else

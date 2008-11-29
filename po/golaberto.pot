@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2008-11-28 23:57-0200\n"
+"POT-Creation-Date: 2008-11-29 01:09-0200\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -388,6 +388,15 @@ msgstr ""
 msgid "Game|Updated at"
 msgstr ""
 
+#: app/models/game.rb:108
+msgid "Played"
+msgstr ""
+
+#: app/models/game.rb:108 app/views/championship/team.rhtml:40
+#: app/views/game/list.rhtml:23
+msgid "Scheduled"
+msgstr ""
+
 #: app/models/game.rb:127
 msgid "unknown"
 msgstr ""
@@ -476,6 +485,42 @@ msgstr ""
 msgid "(own_goal)"
 msgstr ""
 
+#: app/helpers/game_helper.rb:60
+msgid "Added stadium: %s<br>"
+msgstr ""
+
+#: app/helpers/game_helper.rb:62
+msgid "Removed stadium: %s<br>"
+msgstr ""
+
+#: app/helpers/game_helper.rb:64
+msgid "Changed stadium: %s -> %s<br>"
+msgstr ""
+
+#: app/helpers/game_helper.rb:68
+msgid "Added referee: %s<br>"
+msgstr ""
+
+#: app/helpers/game_helper.rb:70
+msgid "Removed referee: %s<br>"
+msgstr ""
+
+#: app/helpers/game_helper.rb:72
+msgid "Changed referee: %s -> %s<br>"
+msgstr ""
+
+#: app/helpers/game_helper.rb:76
+msgid "Added %s: %s<br>"
+msgstr ""
+
+#: app/helpers/game_helper.rb:78
+msgid "Removed %s: %s<br>"
+msgstr ""
+
+#: app/helpers/game_helper.rb:80
+msgid "Changed %s: %s -> %s<br>"
+msgstr ""
+
 #: app/helpers/application_helper.rb:8
 msgid "Prev"
 msgstr ""
@@ -486,6 +531,10 @@ msgstr ""
 
 #: app/helpers/application_helper.rb:22
 msgid " Next"
+msgstr ""
+
+#: app/controllers/game_controller.rb:151
+msgid "Game saved"
 msgstr ""
 
 #: app/controllers/account_controller.rb:22
@@ -793,10 +842,6 @@ msgstr ""
 msgid "ChampionshipTeam|Played"
 msgstr ""
 
-#: app/views/championship/team.rhtml:40 app/views/game/list.rhtml:23
-msgid "Scheduled"
-msgstr ""
-
 #: app/views/championship/team.rhtml:64
 #: app/views/championship/top_goalscorers.rhtml:18
 #: app/views/championship/_table.rhtml:27 app/views/game/show.rhtml:75
@@ -1068,11 +1113,6 @@ msgid "Edit Squad"
 msgstr ""
 
 #: app/views/game/edit.rhtml:89 app/views/game/edit.rhtml:99
-#: app/views/game/edit.rhtml:138
-msgid "Time"
-msgstr ""
-
-#: app/views/game/edit.rhtml:89 app/views/game/edit.rhtml:99
 msgid "Pen"
 msgstr ""
 
@@ -1092,8 +1132,13 @@ msgstr ""
 msgid "Version %d"
 msgstr ""
 
-#: app/views/game/edit.rhtml:207 app/views/home/index.rhtml:15
+#: app/views/game/edit.rhtml:207 app/views/home/index.rhtml:13
 msgid "Updated by %s on %s"
+msgstr ""
+
+#: app/views/game/edit.rhtml:207 app/views/game/edit.rhtml:212
+#: app/views/home/index.rhtml:13 app/views/home/index.rhtml:31
+msgid "%A, %d/%m/%Y at %H:%M"
 msgstr ""
 
 #: app/views/game/edit.rhtml:211
@@ -1197,26 +1242,22 @@ msgstr ""
 msgid "Order"
 msgstr ""
 
-#: app/views/home/index.rhtml:6
+#: app/views/home/index.rhtml:4
 msgid "Current championships"
 msgstr ""
 
-#: app/views/home/index.rhtml:13
+#: app/views/home/index.rhtml:11
 msgid "Latest edits"
 msgstr ""
 
-#: app/views/home/index.rhtml:15 app/views/home/index.rhtml:33
-msgid "%A, %d/%m/%Y at %H:%M"
-msgstr ""
-
-#: app/views/home/index.rhtml:31
+#: app/views/home/index.rhtml:29
 msgid "Latest comments"
 msgstr ""
 
-#: app/views/home/index.rhtml:33
+#: app/views/home/index.rhtml:31
 msgid "Comment by %s on %s"
 msgstr ""
 
-#: app/views/home/index.rhtml:38
+#: app/views/home/index.rhtml:36
 msgid "View this %s"
 msgstr ""

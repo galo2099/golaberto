@@ -19,6 +19,7 @@
   <%= link_to @team.name, :controller => :team, :action => :show, :id => @team %>
 </h2>
 
+<% if @played_games.size > 0 %>
 <h3><%= s_("ChampionshipTeam|Played") %></h3>
 <div class="game_score">
     <% @played_games.each do |game| %>
@@ -36,7 +37,9 @@
       </div>
     <% end %>
 </div>
+<% end %>
 
+<% if @scheduled_games.size > 0 %>
 <h3><%= _("Scheduled") %></h3>
 <div class="game_score">
     <% @scheduled_games.each do |game| %>
@@ -54,6 +57,7 @@
       </div>
     <% end %>
 </div>
+<% end %>
 
 <h3><%= _("Players") %></h3>
 <div id="players" class="yui-skin-sam">

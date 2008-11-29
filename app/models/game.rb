@@ -105,7 +105,7 @@ class Game < ActiveRecord::Base
     end
 
     def played_str
-      played? ? "Played" : "Scheduled"
+      played? ? _("Played") : _("Scheduled")
     end
 
     def formatted_date(day = false)
