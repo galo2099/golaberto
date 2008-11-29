@@ -19,7 +19,7 @@
   <%= link_to @team.name, :controller => :team, :action => :show, :id => @team %>
 </h2>
 
-<h3>Played</h3>
+<h3><%= s_("ChampionshipTeam|Played") %></h3>
 <div class="game_score">
     <% @played_games.each do |game| %>
       <div class="<%= cycle "table_line_even", "table_line_odd" %> table_row">
@@ -37,7 +37,7 @@
     <% end %>
 </div>
 
-<h3>Scheduled</h3>
+<h3><%= _("Scheduled") %></h3>
 <div class="game_score">
     <% @scheduled_games.each do |game| %>
       <div class="<%= cycle "table_line_even", "table_line_odd" %> table_row">
@@ -55,16 +55,16 @@
     <% end %>
 </div>
 
-<h3>Players</h3>
+<h3><%= _("Players") %></h3>
 <div id="players" class="yui-skin-sam">
   <table id="player_table">
   <thead>
     <tr>
-      <th>Name</th>
-      <th>Pos</th>
-      <th>Goals</th>
-      <th>Own Goals</th>
-      <th>Penalties</th>
+      <th><%= _("Name") %></th>
+      <th><%= _("Pos") %></th>
+      <th><%= _("Goals") %></th>
+      <th><%= _("Own Goals") %></th>
+      <th><%= _("Penalties") %></th>
       <th></th>
     </tr>
   </thead>
@@ -77,13 +77,13 @@
         <td><%= p[:penalties] %></td>
         <td><% if logged_in? %>
           <%= link_to_remote(
-                      'Remove', :url => { :controller => :player,
+                      _('Remove'), :url => { :controller => :player,
                                           :action => :destroy_team,
                                           :id => p[:team_player] },
-                                :confirm => 'Are you sure?',
+                                :confirm => _('Are you sure?'),
                                 :method => :post,
                                 :success => update_page {|p| p.redirect_to request.request_uri },
-                                :failure => "alert('Error removing')") %>
+                                :failure => "alert('#{_('Error removing')}')") %>
         <% end %></td>
       </tr>
     <% end %>

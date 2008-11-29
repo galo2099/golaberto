@@ -24,19 +24,19 @@
 </div>
 <table class='class_table'>
   <tr class='table_head'>
-    <%= content_tag :th, "Pos", :class => "pos" unless omit_columns[:Pos] %>
-    <%= content_tag :th, "Name", :class => "name" unless omit_columns[:Name] %>
-    <%= content_tag :th, "Pts" unless omit_columns[:Pts] %>
-    <%= content_tag :th, "G" unless omit_columns[:G] %>
-    <%= content_tag :th, "W" unless omit_columns[:W] %>
-    <%= content_tag :th, "D" unless omit_columns[:D] %>
-    <%= content_tag :th, "L" unless omit_columns[:L] %>
-    <%= content_tag :th, "GF" unless omit_columns[:GF] %>
-    <%= content_tag :th, "GA" unless omit_columns[:GA] %>
-    <%= content_tag :th, "GD" unless omit_columns[:GD] %>
-    <%= content_tag :th, "1%", :title => "odds of finishing first" unless omit_columns[:OP] || group.promoted == 1 %>
-    <%= content_tag :th, "P%", :title => "odds of finishing in promotion zone" unless omit_columns[:PP] || group.promoted == 0 %>
-    <%= content_tag :th, "R%", :title => "odds of finishing in relegation zone" unless omit_columns[:RP] || group.relegated == 0 %>
+    <%= content_tag :th, _("Pos"), :class => "pos" unless omit_columns[:Pos] %>
+    <%= content_tag :th, _("Name"), :class => "name" unless omit_columns[:Name] %>
+    <%= content_tag :th, _("Pts") unless omit_columns[:Pts] %>
+    <%= content_tag :th, _("G") unless omit_columns[:G] %>
+    <%= content_tag :th, _("W") unless omit_columns[:W] %>
+    <%= content_tag :th, _("D") unless omit_columns[:D] %>
+    <%= content_tag :th, _("L") unless omit_columns[:L] %>
+    <%= content_tag :th, _("GF") unless omit_columns[:GF] %>
+    <%= content_tag :th, _("GA") unless omit_columns[:GA] %>
+    <%= content_tag :th, _("GD") unless omit_columns[:GD] %>
+    <%= content_tag :th, _("1%"), :title => _("odds of finishing first") unless omit_columns[:OP] || group.promoted == 1 %>
+    <%= content_tag :th, _("P%"), :title => _("odds of finishing in promotion zone") unless omit_columns[:PP] || group.promoted == 0 %>
+    <%= content_tag :th, _("R%"), :title => _("odds of finishing in relegation zone") unless omit_columns[:RP] || group.relegated == 0 %>
   </tr>
   <% pos = 0 %>
   <% notes = Array.new %>

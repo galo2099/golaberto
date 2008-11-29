@@ -34,7 +34,7 @@ class PhaseController < ApplicationController
     if saved and new_empty
       redirect_to :controller => :championship, :action => :phases, :id => @phase.championship, :phase => @phase
     else
-      render :action => "edit" 
+      render :action => "edit"
     end
   end
 

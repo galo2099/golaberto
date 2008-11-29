@@ -1,9 +1,9 @@
-<% content_for :main_title do %>Listing Championships<% end %>
+<% content_for :main_title do %><%= _("Listing Championships") %><% end %>
 
   <table>
     <tr>
-      <th>Name</th>
-      <th>Category</th>
+      <th><%= _("Name") %></th>
+      <th><%= _("Category") %></th>
     </tr>
 
     <% for championship in @championships %>
@@ -11,10 +11,10 @@
         <td><%= link_to championship.full_name, :action => 'show', :id => championship %></td>
         <td><%= championship.category.name %></td>
         <% if logged_in? %>
-          <td><%= link_to 'Edit', :action => 'edit', :id => championship %></td>
-          <td><%= link_to 'Destroy', { :action => 'destroy',
+          <td><%= link_to _('Edit'), :action => 'edit', :id => championship %></td>
+          <td><%= link_to _('Destroy'), { :action => 'destroy',
                                        :id => championship },
-                                     :confirm => 'Are you sure?',
+                                     :confirm => _('Are you sure?'),
                                      :method => :post %></td>
         <% end %>
       </tr>
@@ -27,6 +27,6 @@
 
 <% content_for :sidebar do %>
   <% if logged_in? %>
-    <%= link_to 'Create', :action => :new %>
+    <%= link_to _('Create'), :action => :new %>
   <% end %>
 <% end %>

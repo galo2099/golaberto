@@ -1,9 +1,9 @@
-<% content_for :main_title do %>Stadium<% end %>
+<% content_for :main_title do %><%= _("Stadium") %><% end %>
 
 <h2><%= @stadium.name %></h2>
 
 <div class="game_score" style='font-size: 12px'>
-  <h3>Games</h3>
+  <h3><%= _("Games") %></h3>
   <% @stadium.played_games.first(5).each do |game| %>
     <div class="table_row">
       <div class="table_cell" style='width: 30%; text-align: left'>
@@ -28,6 +28,6 @@
 
 <% content_for :sidebar do %>
   <% if logged_in? %>
-    <%= link_to "Edit", :action => :edit, :id => @stadium %>
+    <%= link_to _("Edit"), :action => :edit, :id => @stadium %>
   <% end %>
 <% end %>

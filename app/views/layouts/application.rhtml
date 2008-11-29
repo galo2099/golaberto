@@ -17,17 +17,17 @@
     </div>
 
     <div class='navigation'>
-      <%= link_to "Home", :controller => :home %> | 
-      <%= link_to "Championships", :controller => :championship %> | 
-      <%= link_to "Teams", :controller => :team %> | 
-      <%= link_to "Games", :controller => :game %> | 
-      <%= link_to "Players", :controller => :player %> |
-      <%= link_to "Stadiums", :controller => :stadium %> |
-      <%= link_to "Referees", :controller => :referee %> |
+      <%= link_to _("Home"), :controller => :home %> | 
+      <%= link_to _("Championships"), :controller => :championship %> | 
+      <%= link_to _("Teams"), :controller => :team %> | 
+      <%= link_to _("Games"), :controller => :game %> | 
+      <%= link_to _("Players"), :controller => :player %> |
+      <%= link_to _("Stadiums"), :controller => :stadium %> |
+      <%= link_to _("Referees"), :controller => :referee %> |
       <% if logged_in? %>
-        <%= link_to "Logout", :controller => :account, :action => :logout %>
+        <%= link_to _("Logout"), :controller => :account, :action => :logout %>
       <% else %>
-        <%= link_to "Login", :controller => :account, :action => :login %>
+        <%= link_to _("Login"), :controller => :account, :action => :login %>
       <% end %>
     </div>
 

@@ -1,5 +1,6 @@
 class HomeController < ApplicationController
   def index
+    @cookies = cookies
     @today = Date.today
     @championships = Championship.find :all,
         :conditions => [ "begin <= ? AND end >= ?", @today, @today ],

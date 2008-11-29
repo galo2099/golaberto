@@ -1,7 +1,7 @@
 <table>
   <tr>
-    <th>Name</th>
-    <th>Country</th>
+    <th><%= _("Name") %></th>
+    <th><%= _("Country") %></th>
   </tr>
 
   <% for team in @teams %>
@@ -10,8 +10,8 @@
         <%= link_to team.name, :action => :show, :id => team %></td>
       <td><%= team.country %></td>
       <% if logged_in? %>
-        <td><%= link_to 'Edit', :action => 'edit', :id => team %></td>
-        <td><%= link_to 'Destroy', { :action => 'destroy', :id => team }, :confirm => 'Are you sure?', :method => :post %></td>
+        <td><%= link_to _('Edit'), :action => 'edit', :id => team %></td>
+        <td><%= link_to _('Destroy'), { :action => 'destroy', :id => team }, :confirm => _('Are you sure?'), :method => :post %></td>
       <% end %>
     </tr>
   <% end %>

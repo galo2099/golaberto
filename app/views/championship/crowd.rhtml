@@ -1,19 +1,19 @@
 <% content_for :title do %>
-  <%= @championship.full_name %> - Crowd
+  <%= @championship.full_name %> - <%= _("Crowd") %>
 <% end %>
 <% content_for :main_title do %>
   <%= h @championship.full_name %>
 <% end %>
 
-<h3>Best averages</h3>
+<h3><%= _("Best averages") %></h3>
 
 <table class='class_table'>
   <tr class='table_head'>
-    <th>Name</th>
-    <th>Average</th>
-    <th>Maximum</th>
-    <th>Minimum</th>
-    <th>Games</th>
+    <th><%= _("Name") %></th>
+    <th><%= _("Average") %></th>
+    <th><%= _("Maximum") %></th>
+    <th><%= _("Minimum") %></th>
+    <th><%= _("Games") %></th>
   </tr>
   <% @average.each do |team, avg| %>
     <tr class='table_line'>
@@ -32,7 +32,7 @@
   <% end %>
 </table>
 
-<h3>Most attended games</h3>
+<h3><%= _("Most attended games") %></h3>
 
 <div>
   <% @games.each do |game| %>

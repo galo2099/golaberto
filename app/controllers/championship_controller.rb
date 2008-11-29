@@ -90,7 +90,7 @@ class ChampionshipController < ApplicationController
               :showLegend => 0,
               :plotGradientcolor => "",
               :yAxisValuesStep => group.team_groups.size / 23 + 1,
-              :caption => "#{team.name} Campaign",
+              :caption => _("#{team.name} Campaign"),
               :NumDivLines => group.team_groups.size - 2,
               :adjustDiv => 0,
               :decimalPrecision => 2 do |x|
@@ -103,7 +103,7 @@ class ChampionshipController < ApplicationController
         data.each_with_index do |d, idx|
           x.set :value => d[:points],
             :link => url_for(:controller => :game, :action => :show, :id => d[:game]),
-            :toolText => "#{d[:position].ordinalize} - #{d[:points]} points\\n#{d[:game].home.name} #{d[:game].home_score} x #{d[:game].away_score} #{d[:game].away.name}",
+            :toolText => _("#{d[:position].ordinalize} - #{d[:points]} points\\n#{d[:game].home.name} #{d[:game].home_score} x #{d[:game].away_score} #{d[:game].away.name}"),
             :color => case d[:type]
                       when "w"
                         "0000ff"
@@ -114,10 +114,10 @@ class ChampionshipController < ApplicationController
                       end
         end
       end
-      x.dataset :seriesname => "Position", :renderAs => "line", :parentYAxis => "P", :color => "000000", :showValues => 0 do |x|
+      x.dataset :seriesname => _("Position"), :renderAs => "line", :parentYAxis => "P", :color => "000000", :showValues => 0 do |x|
         data.each_with_index do |d, idx|
           x.set :value => - d[:position],
-            :toolText => "#{d[:position].ordinalize} - #{d[:points]} points\\n#{d[:game].home.name} #{d[:game].home_score} x #{d[:game].away_score} #{d[:game].away.name}",
+            :toolText => _("#{d[:position].ordinalize} - #{d[:points]} points\\n#{d[:game].home.name} #{d[:game].home_score} x #{d[:game].away_score} #{d[:game].away.name}"),
             :link => url_for(:controller => :game, :action => :show, :id => d[:game])
         end
       end

@@ -11,16 +11,16 @@
   </div>
   <div style="float: left">
     <h3><%= @team.full_name %></h2>
-    City: <%= @team.city %><br/>
-    Country: <%= @team.country %><br/>
-    Foundation: <%= @team.foundation %><br/>
-    Stadium: <%= link_to @team.stadium.name, :controller => :stadium, :action => :show, :id => @team.stadium if @team.stadium %><br/>
+    <%= _("City") %>: <%= @team.city %><br/>
+    <%= _("Country") %>: <%= @team.country %><br/>
+    <%= _("Foundation") %>: <%= @team.foundation %><br/>
+    <%= _("Stadium") %>: <%= link_to @team.stadium.name, :controller => :stadium, :action => :show, :id => @team.stadium if @team.stadium %><br/>
   </div>
   <div style="clear: both"></div>
 </div>
 
 <div>
-  Latest championships:<br/>
+  <%= _("Latest championships") %>:<br/>
   <% @championships.each do |c| %>
     <%= link_to c.full_name, :controller => :championship, :action => :team, :id => c, :team => @team %><br/>
   <% end %>
@@ -28,7 +28,7 @@
 
 <% last_games = @team.last_n_games(5)
 unless last_games.empty? %>
-<h2> Last 5 games</h2>
+<h2> <%= _("Last 5 games") %></h2>
 <div class="game_score" style='font-size: 12px'>
   <% last_games.each do |game| %>
     <div class="table_row">
@@ -53,7 +53,7 @@ unless last_games.empty? %>
 
 <% next_games = @team.next_n_games(5)
 unless next_games.empty? %>
-<h2> Next 5 games</h2>
+<h2> <%= _("Next 5 games") %></h2>
 <div class="game_score" style='font-size: 12px'>
   <% next_games.each do |game| %>
     <div class="table_row">
@@ -80,7 +80,7 @@ unless next_games.empty? %>
 
 <% content_for :sidebar do %>
   <% if logged_in? %>
-    <%= link_to "Edit", :action => :edit, :id => @team %><br/>
-    <%= link_to "Delete", { :action => :destroy, :id => @team }, :confirm => 'Are you sure?', :method => :post %><br/>
+    <%= link_to _("Edit"), :action => :edit, :id => @team %><br/>
+    <%= link_to _("Delete"), { :action => :destroy, :id => @team }, :confirm => _('Are you sure?'), :method => :post %><br/>
   <% end %>
 <% end %>

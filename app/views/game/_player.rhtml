@@ -5,23 +5,23 @@
     end
   %>
   <div id="player_details_<%= player.id %>" style="display: none">
-    <div>Full Name: <%= player.full_name %></div>
-    <div>Position: <%= player.position %></div>
+    <div><%= _("Full Name") %>: <%= player.full_name %></div>
+    <div><%= _("Position") %>: <%= player.position %></div>
     <% player.team_players.each do |t| %>
       <div class="<%= cycle("table_line_even", "table_line_odd") %>">
         <%= t.team.name + " - " + t.championship.full_name %>
       </div>
     <% end %>
-    <%= button_to_function("Close") { |page| page["player_details_#{player.id}"].hide } %>
-    <%= button_to_function("Add", remote_function(
+    <%= button_to_function(_("Close")) { |page| page["player_details_#{player.id}"].hide } %>
+    <%= button_to_function(_("Add"), remote_function(
       :url => { :action => :insert_team_player, :id => @game,
                 "team_player[player_id]" => player.id,
                 "team_player[championship_id]" => @game.phase.championship.id,
                 "team_player[team_id]" => @team.id,
                 "home_away" => @home_away,
                 "partial" => @partial },
-      :confirm => "Are you sure you want to add this player?",
+      :confirm => _("Are you sure you want to add this player?"),
       :complete => "finishPlayerAdd('#{@home_away}')",
-      :failure => "alert('Could not insert player')")) %>
+      :failure => "alert('#{_('Could not insert player')}')")) %>
   </div>
 </div>
