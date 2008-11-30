@@ -8,5 +8,7 @@ class CookieController < ApplicationController
       :path => '/'
      }
    redirect_to :back
+   rescue ActionController::RedirectBackError
+   redirect_to "/"
  end
 end
