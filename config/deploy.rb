@@ -42,9 +42,6 @@ end
 namespace :deploy do
   desc "Restart the FCGI processes on the app server as a regular user."
   task :restart, :roles => :app do
-    run "#{current_path}/script/process/reaper --dispatcher=dispatch.fcgi"
-  end
-  task :after_restart, :roles => :app do
-    run "#{current_path}/script/daemons restart"
+    run "touch #{current_path}/tmp/restart.txt"
   end
 end
