@@ -11,7 +11,7 @@
       <td><%= p.text_field :bonus_points, :size => 2, :disabled => @phase.bonus_points == 0 %>
         <%= p.hidden_field :bonus_points, :value => 0 %></td>
     </tr>
-    <tr><td><label for="phase_bonus_points_threshold"><%= _("Goal difference equal to<br/>or bigger than" %>:</label></td>
+    <tr><td><label for="phase_bonus_points_threshold"><%= _("Goal difference equal to<br/>or bigger than") %>:</label></td>
       <td><%= p.text_field :bonus_points_threshold, :size => 2, :disabled => @phase.bonus_points == 0 %>
         <%= p.hidden_field :bonus_points_threshold, :value => 0 %></td>
     </tr>
