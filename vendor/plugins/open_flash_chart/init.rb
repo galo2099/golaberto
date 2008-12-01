@@ -1,25 +1,6 @@
-# Include hook code here
-require 'open_flash_chart_object'
 require 'open_flash_chart'
-require 'bar_base'
-require 'bar'
-require 'bar_3d'
-require 'bar_glass'
-require 'bar_sketch'
-require 'bar_stack'
-require 'h_bar'
-require 'line_base'
-require 'line'
-require 'line_dot'
-require 'line_hollow'
-require 'pie'
-require 'scatter'
-require 'title'
-require 'x_axis_label'
-require 'x_axis_labels'
-require 'x_axis'
-require 'x_legend'
-require 'y_axis_base'
-require 'y_axis'
-require 'y_axis_right'
-require 'y_legend'
+
+ActionView::Base.send :include, OpenFlashChart::View
+OpenFlashChart::Base.send :include, OpenFlashChart::View
+ActionController::Base.send :include, OpenFlashChart::Controller
+ActionController::Base.send :include, OpenFlashChart
