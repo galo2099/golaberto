@@ -1,4 +1,6 @@
 class GameController < ApplicationController
+  N_("Game")
+
   before_filter :login_required, :except => [ :show, :list, :index ]
 
   def show
@@ -27,7 +29,7 @@ class GameController < ApplicationController
     @categories = Category.find(:all)
     @category = params[:category] || 1
     @category = @category.to_i
-    conditions[0] << " AND category_id = ?"
+    conditions[0] << " AND championships.category_id = ?"
     conditions << @category
 
     @date_range_start = params[:date_range_start] || default_start
@@ -76,9 +78,6 @@ class GameController < ApplicationController
                             :game => @game,
                             :home_away => home_away }
       end
-    rescue
-      flash[:notice] = "Game not found"
-      redirect_to :action => 'list'
     end
   end
 
@@ -151,7 +150,7 @@ class GameController < ApplicationController
     end
 
     if saved
-      flash[:notice] = "Game saved"
+      flash[:notice] = _("Game saved")
       if (params["redirect"])
         redirect_to params["redirect"]
       else
@@ -228,13 +227,7 @@ class GameController < ApplicationController
   def update_squad
     @game = Game.find(params[:id])
     @game.player_games = params[:player_game].values.map{|v| PlayerGame.new(v)}
-    if @game.save
-      redirect_to :action => :show, :id => @game
-    else
-      prepare_for_edit
-      prepare_for_edit_squad
-      render :action => :edit_squad
-    end
+    redirect_to :action => :show, :id => @game
   end
 
   private
@@ -248,12 +241,12 @@ class GameController < ApplicationController
                         @game.version == 1 ? @game.home.stadium_id : 0
     @home_players = @game.home.team_players.find(
       :all,
-      :order => :name,
+      :order => "players.name",
       :conditions => [ "championship_id = ?", @game.phase.championship ]).map {|p| p.player}
-      @away_players = @game.away.team_players.find(
-        :all,
-        :order => :name,
-        :conditions => [ "championship_id = ?", @game.phase.championship ]).map {|p| p.player}
+    @away_players = @game.away.team_players.find(
+      :all,
+      :order => "players.name",
+      :conditions => [ "championship_id = ?", @game.phase.championship ]).map {|p| p.player}
   end
 
   def prepare_for_edit_squad

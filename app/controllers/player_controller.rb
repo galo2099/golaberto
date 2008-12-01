@@ -1,4 +1,6 @@
 class PlayerController < ApplicationController
+  N_("Player")
+
   scaffold :player
   before_filter :login_required, :except => [ :index, :list, :show ]
 

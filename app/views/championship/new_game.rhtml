@@ -12,6 +12,6 @@
     <%= options_from_collection_for_select @current_phase.teams, "id", "name" %>
   </select><br/>
   <%= f.hidden_field :played, :value => 0 %>
-  <%= submit_tag "Create" %><br/>
+  <%= submit_tag _("Create") %><br/>
 <% end %>
 

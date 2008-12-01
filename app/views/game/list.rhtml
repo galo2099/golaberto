@@ -1,26 +1,27 @@
-<% content_for :main_title do %>Listing games<% end %>
+<% content_for :main_title do %><%= _("Listing games") %><% end %>
 
-Category: <select id='category_select'>
+<%= _("Category") %>: <select id='category_select'>
   <%= options_from_collection_for_select @categories, "id", "name", @category %>
 </select>
 <br/>
 <br/>
 <% form_tag({ :action => :list }, :method => :get) do -%>
-From: <%= date_field_tag "date_range_start", nil, :format => "%d/%m/%Y", :size => 10, :value => @date_range_start %>
-To: <%= date_field_tag "date_range_end", nil, :format => "%d/%m/%Y", :size => 10, :value => @date_range_end %>
+<%= _("From") %>: <%= date_field_tag "date_range_start", nil, :format => "%d/%m/%Y", :size => 10, :value => @date_range_start %>
+<%= _("To") %>: <%= date_field_tag "date_range_end", nil, :format => "%d/%m/%Y", :size => 10, :value => @date_range_end %>
 <%= hidden_field_tag(:category, @category) %>
 <%= hidden_field_tag(:type, @type) %>
-<input type="submit" value="Change date">
+<input type="submit" value="<%= _("Change date") %>">
 <% end %>
 <br/>
 <br/>
 <div id='table'>
-  <%= render :partial => "game_list" %>
+  <%= render :partial => "game_list",
+             :locals => { :game => @game } %>
 </div>
 
 <% content_for :sidebar do %>
-  <%= link_to_unless(@type == "scheduled", "Scheduled", :action => :list, :type => :scheduled, :category => @category) %><br/>
-  <%= link_to_unless(@type == "played", "Played", :action => :list, :type => :played, :category => @category) %>
+  <%= link_to_unless(@type == "scheduled", _("Scheduled"), :action => :list, :type => :scheduled, :category => @category) %><br/>
+  <%= link_to_unless(@type == "played", s_("GameList|Played"), :action => :list, :type => :played, :category => @category) %>
 <% end %>
 
 <%= observe_field "category_select",

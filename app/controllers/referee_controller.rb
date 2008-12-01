@@ -1,4 +1,6 @@
 class RefereeController < ApplicationController
+  N_("Referee")
+
   scaffold :referee
   before_filter :login_required, :except => [ :index, :list, :show ]
 

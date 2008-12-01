@@ -1,22 +1,25 @@
+<% content_for :title do %>
+  <%= @championship.full_name %> - <%= _("Goalscorers") %>
+<% end %>
 <% content_for :main_title do %>
   <%= @championship.full_name %>
 <% end %>
 
 <% if @goals.length == 0 %>
-  <p>No players in this list</p>
+  <p><%= _("No players in this list") %></p>
 <% else %>
 
-  <h2>Top Goalscorers</h2>
+  <h2><%= _("Top Goalscorers") %></h2>
 
 <div id="players">
   <table class='class_table'>
     <tr class='table_head'>
-      <th>Name</th>
-      <th>Pos</th>
-      <th>Teams</th>
-      <th>Goals</th>
-      <th>Penalties</th>
-      <th>Own Goals</th>
+      <th><%= _("Name") %></th>
+      <th><%= _("Pos") %></th>
+      <th><%= _("Teams") %></th>
+      <th><%= _("Goals") %></th>
+      <th><%= _("Penalties") %></th>
+      <th><%= _("Own Goals") %></th>
     </tr>
     <% @goals.each do |player, goals| %>
       <tr class='table_line'>

@@ -1,4 +1,5 @@
 <div id="comment_<%= comment.id %>" class="comment">
 <%= h comment.comment %><br/>
-<small>Comment posted <%= time_ago_in_words(comment.created_at) %> ago by <%= comment.user.login %> <%= link_to_remote "Delete", :url => { :controller => :comment, :action => :destroy, :id => comment } if current_user == comment.user %></small>
+<small><%= sprintf _("Comment posted %s ago by %s"), time_ago_in_words(comment.created_at), comment.user.login %>
+<%= link_to_remote _("Delete"), :url => { :controller => :comment, :action => :destroy, :id => comment } if current_user == comment.user %></small>
 </div>

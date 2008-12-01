@@ -100,6 +100,7 @@ body {
 .header {
 	background-color: #8f983b;
 	padding: 20px 10px 10px 5px;
+        position: relative;
 }
 .header img {
 	border: none;
@@ -147,6 +148,14 @@ body {
   width: 40%;
   text-align: left;
 }
+.class_table .odds
+{
+  text-align: right;
+}
+.class_table th
+{
+  text-align: center;
+}
 .class_table td
 {
   width: 5%;
@@ -174,7 +183,10 @@ body {
    }
 /**************** CLASSIFICACAO : END ************/
 
-
+.player_list {
+  border: 2px solid #e3b2c5;
+  min-height: 10px;
+}
 
 #player_info
 {
@@ -388,12 +400,18 @@ DIV.table_cell {
   width: 4%;
   text-align: center;
 }
+.show_spacer {
+  width: 3%;
+}
 .show_info {
-  width: 6%;
-  text-align: right;
+  width: 5%;
+  text-align: center;
   text-decoration: underline;
   cursor: pointer;
   color: blue;
+}
+.show_info a {
+  display: block;
 }
 .edit {
 }

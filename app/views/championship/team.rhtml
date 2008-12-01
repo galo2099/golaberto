@@ -1,6 +1,12 @@
+<% content_for :title do %>
+  <%= @championship.full_name %> - <%= @team.name %>
+<% end %>
 <% content_for :main_title do %>
   <%= @championship.full_name %>
 <% end %>
+
+<!--CSS file (default YUI Sam Skin) --> 
+<link type="text/css" rel="stylesheet" href="http://yui.yahooapis.com/2.5.2/build/datatable/assets/skins/sam/datatable.css">
 
 <select id='team_select'>
   <%= options_from_collection_for_select @teams, "id", "name", @team.id %>
@@ -13,48 +19,59 @@
   <%= link_to @team.name, :controller => :team, :action => :show, :id => @team %>
 </h2>
 
-<h3>Played</h3>
+<% if @played_games.size > 0 %>
+<h3><%= s_("ChampionshipTeam|Played") %></h3>
 <div class="game_score">
-    <% @played_games.each do |@game| %>
+    <% @played_games.each do |game| %>
       <div class="<%= cycle "table_line_even", "table_line_odd" %> table_row">
         <div class="table_cell" style="width: 8%">
-          <%= @game.date.strftime("%d/%m") %>
+          <%= game.date.strftime("%d/%m") %>
         </div>
         <div class="table_cell" style="width: 92%">
-          <%= render :partial => "game_list" %>
+          <%= render :partial => "game_list",
+                     :locals => { :highlight_team => @team,
+                                  :game => game } %>
           <div class="clearer"></div>
         </div>
         <div class="clearer"></div>
       </div>
     <% end %>
 </div>
+<% end %>
 
-<h3>Scheduled</h3>
+<% if @scheduled_games.size > 0 %>
+<h3><%= _("Scheduled") %></h3>
 <div class="game_score">
-    <% @scheduled_games.each do |@game| %>
+    <% @scheduled_games.each do |game| %>
       <div class="<%= cycle "table_line_even", "table_line_odd" %> table_row">
         <div class="table_cell" style="width: 8%">
-          <%= @game.date.strftime("%d/%m") %>
+          <%= game.date.strftime("%d/%m") %>
         </div>
         <div class="table_cell" style="width: 92%">
-          <%= render :partial => "game_list" %>
+          <%= render :partial => "game_list",
+                     :locals => { :highlight_team => @team,
+                                  :game => game } %>
           <div class="clearer"></div>
         </div>
         <div class="clearer"></div>
       </div>
     <% end %>
 </div>
+<% end %>
 
-<h3>Players</h3>
-<div id="players">
-  <table>
+<h3><%= _("Players") %></h3>
+<div id="players" class="yui-skin-sam">
+  <table id="player_table">
+  <thead>
     <tr>
-      <th>Name</th>
-      <th>Pos</th>
-      <th>Goals</th>
-      <th>Own Goals</th>
-      <th>Penalties</th>
+      <th><%= _("Name") %></th>
+      <th><%= _("Pos") %></th>
+      <th><%= _("Goals") %></th>
+      <th><%= _("Own Goals") %></th>
+      <th><%= _("Penalties") %></th>
+      <th></th>
     </tr>
+  </thead>
     <% @players.each do |p| %>
       <tr>
         <td><%= link_to p[:player].name, :controller => :player, :action => :show, :id => p[:player] %></td>
@@ -62,16 +79,16 @@
         <td><%= p[:goals] %></td>
         <td><%= p[:own_goals] %></td>
         <td><%= p[:penalties] %></td>
-        <% if logged_in? %>
-          <td><%= link_to_remote(
-                      'Remove', :url => { :controller => :player,
+        <td><% if logged_in? %>
+          <%= link_to_remote(
+                      _('Remove'), :url => { :controller => :player,
                                           :action => :destroy_team,
                                           :id => p[:team_player] },
-                                :confirm => 'Are you sure?',
+                                :confirm => _('Are you sure?'),
                                 :method => :post,
                                 :success => update_page {|p| p.redirect_to request.request_uri },
-                                :failure => "alert('Error removing')") %></td>
-        <% end %>
+                                :failure => "alert('#{_('Error removing')}')") %>
+        <% end %></td>
       </tr>
     <% end %>
   </table>
@@ -99,10 +116,14 @@
       <%= render :partial => "table",
                  :locals => { :group => group,
                               :team_table => @group_table[idx],
+                              :link_to_group => true,
                               :omit_columns => { :D => true,
                                                  :L => true,
                                                  :GF => true,
-                                                 :GA => true },
+                                                 :GA => true,
+                                                 :OP => true,
+                                                 :PP => true,
+                                                 :RP => true },
                               :omit_logo => true,
                               :omit_popup => true,
                               :omit_comments => true } %>
@@ -111,6 +132,9 @@
 <% end %>
 
 <%= javascript_include_tag "boxover" %>
+
+<!-- Load the YUI Loader script: -->
+<script src="http://yui.yahooapis.com/2.5.2/build/yuiloader/yuiloader-beta-min.js"></script>
 
 <%= javascript_tag <<EOF
 var Fabtabs = Class.create();
@@ -153,5 +177,60 @@ Fabtabs.prototype = {
   }
 }
 Event.observe(window,'load',function(){ new Fabtabs('tabs'); },false);
+
+// Instantiate and configure Loader:
+var loader = new YAHOO.util.YUILoader({
+
+    // Identify the components you want to load.  Loader will automatically identify
+    // any additional dependencies required for the specified components.
+    require: ["datatable"],
+
+    // The function to call when all script/css resources have been loaded
+    onSuccess: function() {
+        YAHOO.example.EnhanceFromMarkup = new function() {
+            var myColumnDefs = [
+                {key:"name",label:"Name",sortable:true},
+                {key:"pos",label:"Pos", sortable:true},
+                {key:"goals",label:"Goals",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
+                {key:"own",label:"Own Goals",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
+                {key:"penalties",label:"Penalties",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
+                {key:"remove",label:"",sortable:false},
+            ];
+
+            this.parseStringFromLink = function(sString) {
+              // Remove the link tag
+              var name = sString.replace(/<.*?>/g, "");
+              sortSpan = '<span style="display: none">' + name + '</span>';
+              return sortSpan + sString;
+            };
+
+            this.myDataSource = new YAHOO.util.DataSource(YAHOO.util.Dom.get("player_table"));
+            this.myDataSource.responseType = YAHOO.util.DataSource.TYPE_HTMLTABLE;
+            this.myDataSource.responseSchema = {
+                fields: [{key:"name", parser:this.parseStringFromLink},
+                        {key:"pos"},
+                        {key:"goals", parser:YAHOO.util.DataSource.parseNumber},
+                        {key:"own", parser:YAHOO.util.DataSource.parseNumber},
+                        {key:"penalties", parser:YAHOO.util.DataSource.parseNumber},
+                        {key:"remove"},
+                ]
+            };
+
+            var config = {
+              paginator: new YAHOO.widget.Paginator({
+                rowsPerPage: 10
+              }),
+              sortedBy:{ key:"name", dir:"asc" }
+            };
+            this.myDataTable = new YAHOO.widget.DataTable("players", myColumnDefs, this.myDataSource, config);
+        };
+    }
+});
+
+// Load the files using the insert() method. The insert method takes an optional
+// configuration object, and in this case we have configured everything in
+// the constructor, so we don't need to pass anything to insert().
+loader.insert();
+
 EOF
 %>

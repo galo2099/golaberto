@@ -55,7 +55,7 @@ EOF
     </tr>
     <tr>
       <td>
-        <label for="penalties">Penalties:</label> <%= check_box_tag "penalties", "1", @game.home_pen, :onChange => "if (this.checked) { $('game_home_pen').enable(); $('game_away_pen').enable(); } else { $('game_home_pen').disable(); $('game_away_pen').disable(); }" %>
+        <label for="penalties"><%= _("Penalties") %>:</label> <%= check_box_tag "penalties", "1", @game.home_pen, :onChange => "if (this.checked) { $('game_home_pen').enable(); $('game_away_pen').enable(); } else { $('game_home_pen').disable(); $('game_away_pen').disable(); }" %>
       </td>
       <td>
         <%= g.text_field :home_pen, :size => 2, :disabled => @game.home_pen.nil? %>
@@ -71,7 +71,7 @@ EOF
     <tr>
       <td class="players">
         <div id="home_players">
-          <h3>Players</h3>
+          <h3><%= _("Players") %></h3>
           <div id="home_player_list">
             <%= render :partial => "player_list",
               :collection => @home_players,
@@ -85,8 +85,8 @@ EOF
       </td>
       <td class="goals">
         <table id="home_goals">
-          <tr><th colspan="4">Goals</th></tr>
-          <tr><th>Name</th><th>Time</th><th>Pen</th><th>Own</th></tr>
+          <tr><th colspan="4"><%= _("Goals") %></th></tr>
+          <tr><th><%= _("Name") %></th><th><%= s_("Goal|Time") %></th><th><%= _("Pen") %></th><th><%= _("Own") %></th></tr>
           <% @game.home_score.times do |i| %>
             <%= input_for_goal @game.home_goals[i], i, "home" %>
           <% end %>
@@ -96,7 +96,7 @@ EOF
       <td class="goals">
         <table id="away_goals">
           <tr><th colspan="4">Goals</th></tr>
-          <tr><th>Name</th><th>Time</th><th>Pen</th><th>Own</th></tr>
+          <tr><th><%= _("Name") %></th><th><%= s_("Goal|Time") %></th><th><%= _("Pen") %></th><th><%= _("Own") %></th></tr>
           <% @game.away_score.times do |i| %>
             <%= input_for_goal @game.away_goals[i], i, "away" %>
           <% end %>
@@ -104,7 +104,7 @@ EOF
       </td>
       <td class="players">
         <div id="away_players">
-          <h3>Players</h3>
+          <h3><%= _("Players") %></h3>
           <div id="away_player_list">
             <%= render :partial => "player_list",
               :collection => @away_players,
@@ -120,32 +120,35 @@ EOF
   </table>
   <table>
     <tr>
-      <td>Round:</td>
+      <td><%= _("Round") %>:</td>
       <td><%= g.text_field :round, :size => 2 %></td>
     </tr>
     <tr>
-      <td>Attendance:</td>
+      <td><%= _("Attendance") %>:</td>
       <td><%= g.text_field :attendance, :size => 6 %></td>
     </tr>
     <tr>
-      <td>Date:</td>
-      <td><%= date_field :game, :date, :value => @game.date ? @game.date : "", :format => "%d/%m/%Y", :size => 10 %></td>
+      <td><%= _("Date") %>:</td>
+      <td><%= date_field :game, :date, :value => @game.date ? @game.date : "", :format => "%d/%m/%Y", :size => 10 %>
+      <%= button_to_function "Today" do |page|
+            page[:game_date].value = Date.today.strftime("%d/%m/%Y");
+          end %></td>
     </tr>
     <tr>
-      <td>Time:</td>
+      <td><%= s_("Game|Time") %>:</td>
       <td>
         <%= select_hour @game.time, :include_blank => true, :field_name => 'time(4i)', :prefix => "game" %> : 
         <%= select_minute @game.time, :include_blank => true, :field_name => 'time(5i)', :prefix => "game" %>
       </td>
     </tr>
     <tr>
-      <td>Referee:</td>
+      <td><%= _("Referee") %>:</td>
       <td>
         <select id="game_referee_id" name="game[referee_id]">
           <option value=""></option>
           <%= options_for_select @referees, @game.referee_id %>
         </select>
-        <%= link_to_function "New" do |page|
+        <%= link_to_function _("New") do |page|
           page["add_referee"].toggle
           page["referee_name"].activate
         end %>
@@ -154,26 +157,26 @@ EOF
     <tr id="add_referee" style="display: none">
       <td></td>
       <td><div>
-          Name: <%= text_field_tag "referee_name", "", :onkeypress => "return ignoreEnter(event)", :name => "referee[name]" %>
+          <%= _("Name") %>: <%= text_field_tag "referee_name", "", :onkeypress => "return ignoreEnter(event)", :name => "referee[name]" %>
           <br/>
-          Location: <%= text_field_tag "referee_location", "", :onkeypress => "return ignoreEnter(event)", :name => "referee[location]" %><br/>
-          <%= submit_to_remote "Create", "Create",
+          <%= _("Location") %>: <%= text_field_tag "referee_location", "", :onkeypress => "return ignoreEnter(event)", :name => "referee[location]" %><br/>
+          <%= submit_to_remote _("Create"), "Create",
             :url => { :action => :create_referee_for_edit },
             :with => "Form.serializeElements([$('referee_name'), $('referee_location')])",
-            :confirm => "Are you sure you want to create a new referee?",
+            :confirm => _("Are you sure you want to create a new referee?"),
             :update => { :success => :game_referee_id },
-            :failure => "alert('Could not insert referee')" %>
+            :failure => "alert('#{_('Could not insert referee')}')" %>
         </div>
       </td>
     </tr>
     <tr>
-      <td>Stadium:</td>
+      <td><%= _("Stadium") %>:</td>
       <td>
         <select id="game_stadium_id" name="game[stadium_id]">
           <option value=""></option>
           <%= options_from_collection_for_select @stadiums, "id", "name", @selected_stadium %>
         </select>
-        <%= link_to_function "New" do |page|
+        <%= link_to_function _("New") do |page|
           page["add_stadium"].toggle
           page["stadium_name"].activate
         end %>
@@ -182,32 +185,31 @@ EOF
     <tr id="add_stadium" style="display: none">
       <td></td>
       <td><div>
-          Name: <%= text_field_tag "stadium_name", "", :onkeypress => "return ignoreEnter(event)", :name => "stadium[name]" %>
+          <%= _("Name") %>: <%= text_field_tag "stadium_name", "", :onkeypress => "return ignoreEnter(event)", :name => "stadium[name]" %>
           <br/>
-          <%= submit_to_remote "Create", "Create",
+          <%= submit_to_remote _("Create"), "Create",
             :url => { :action => :create_stadium_for_edit },
             :with => "Form.serializeElements([$('stadium_name')])",
-            :confirm => "Are you sure you want to create a new stadium?",
+            :confirm => _("Are you sure you want to create a new stadium?"),
             :update => { :success => :game_stadium_id },
-            :failure => "alert('Could not insert stadium')" %>
+            :failure => "alert('#{_('Could not insert referee')}')" %>
         </div>
       </td>
     </tr>
   </table>
-  <label for="game_played">Played:</label> <%= check_box :game, :played %><br/>
-  <%= submit_tag "Update" %>
+  <label for="game_played"><%= s_("GameEdit|Played") %>:</label> <%= check_box :game, :played %><br/>
+  <%= submit_tag _("Update") %>
 <% end %>
 
 <div>
   <% @game.versions.size.downto(2) do |n| %>
-    <h4>Version <%= n %></h4>
-    Updated by <%= @game.versions[n-1].updated_by_string %>
-    on <%= @game.versions[n-1].updated_at.strftime("%A, %d/%m/%Y at %H:%M") %><br>
+    <h4><%= sprintf _("Version %d"),  n %></h4>
+    <%= sprintf _("Updated by %s on %s"), @game.versions[n-1].updated_by_string, @game.versions[n-1].updated_at.strftime(_("%A, %d/%m/%Y at %H:%M")) %><br>
     <%= formatted_diff(@game.versions[n-2].diff(@game.versions[n-1])) %>
     <hr>
   <% end %>
-  <h4>Version 1</h4>
-  Created by <%= @game.versions[0].updated_by_string %> on <%= @game.versions[0].updated_at ? @game.versions[0].updated_at.strftime("%A, %d/%m/%Y at %H:%M") : "unknown" %><br>
+  <h4><%= _("Version 1") %></h4>
+  <%= sprintf _("Created by %s on %s"), @game.versions[0].updated_by_string, @game.versions[0].updated_at ? @game.versions[0].updated_at.strftime(_("%A, %d/%m/%Y at %H:%M")) : "unknown" %><br>
   <%= formatted_diff(Game.new.diff(@game.versions[0])) %>
 </div>
 

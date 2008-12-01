@@ -1,7 +1,7 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-  <title>GolAberto - <%= controller.controller_name.titleize %></title>
+  <title>GolAberto - <%= yield(:title) || _(controller.controller_name.titleize) %></title>
   <%= stylesheet_link_tag 'main' %>
   <%= stylesheet_link_tag 'calendar' %>
   <%= javascript_include_tag :defaults %>
@@ -14,20 +14,26 @@
   <div class='container'>
     <div class='header'>
       <%= link_to image_tag("logo.png", :border => 0), "/" %>
+      <div class="navigation" style='position: absolute; top: 0px; right: 0px; background-color: #8f983b;'>
+        <%= case Locale.get.language
+              when "pt": '<a href="/cookie/set_cookie/en_US"><img src="/images/flags/gb.png"> English</a>'
+              else '<a href="/cookie/set_cookie/pt_BR"><img src="/images/flags/br.png"> Português</a>'
+            end %>
+      </div>
     </div>
 
     <div class='navigation'>
-      <%= link_to "Home", :controller => :home %> | 
-      <%= link_to "Championships", :controller => :championship %> | 
-      <%= link_to "Teams", :controller => :team %> | 
-      <%= link_to "Games", :controller => :game %> | 
-      <%= link_to "Players", :controller => :player %> |
-      <%= link_to "Stadiums", :controller => :stadium %> |
-      <%= link_to "Referees", :controller => :referee %> |
+      <%= link_to _("Home"), :controller => :home %> | 
+      <%= link_to _("Championships"), :controller => :championship %> | 
+      <%= link_to _("Teams"), :controller => :team %> | 
+      <%= link_to _("Games"), :controller => :game %> | 
+      <%= link_to _("Players"), :controller => :player %> |
+      <%= link_to _("Stadiums"), :controller => :stadium %> |
+      <%= link_to _("Referees"), :controller => :referee %> |
       <% if logged_in? %>
-        <%= link_to "Logout", :controller => :account, :action => :logout %>
+        <%= link_to _("Logout"), :controller => :account, :action => :logout %>
       <% else %>
-        <%= link_to "Login", :controller => :account, :action => :login %>
+        <%= link_to _("Login"), :controller => :account, :action => :login %>
       <% end %>
     </div>
 
