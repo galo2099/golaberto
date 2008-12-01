@@ -1,4 +1,6 @@
 class GameController < ApplicationController
+  N_("Game")
+
   before_filter :login_required, :except => [ :show, :list, :index ]
 
   def show

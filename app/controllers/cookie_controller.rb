@@ -1,4 +1,6 @@
 class CookieController < ApplicationController
+  N_("Cookie")
+
  def set_cookie
    code = params[:id]
    cookies[:lang] =

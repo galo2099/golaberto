@@ -1,4 +1,6 @@
 class TeamController < ApplicationController
+  N_("Team")
+
   before_filter :login_required, :except => [ :index, :list, :show ]
 
   def index

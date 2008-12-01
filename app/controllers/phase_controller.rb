@@ -1,4 +1,6 @@
 class PhaseController < ApplicationController
+  N_("Phase")
+
   before_filter :login_required
 
   def new

@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2008-11-30 01:46-0200\n"
+"POT-Creation-Date: 2008-11-30 22:26-0200\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: Robson Braga Araujo <robsonbraga@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -535,28 +535,101 @@ msgstr "Anterior "
 msgid " Next"
 msgstr " Próximo"
 
+#: app/controllers/game_controller.rb:2
+msgid "Game"
+msgstr "Jogo"
+
 # app/models/game.rb:-
-#: app/controllers/game_controller.rb:151
+#: app/controllers/game_controller.rb:153
 msgid "Game saved"
 msgstr "Jogo salvo"
 
-#: app/controllers/account_controller.rb:22
+# app/models/phase.rb:-
+#: app/controllers/phase_controller.rb:2
+msgid "Phase"
+msgstr "Fase"
+
+#: app/controllers/comment_controller.rb:2 app/views/comment/_comments.rhtml:9
+msgid "Comment"
+msgstr "Comentário"
+
+# app/models/team_group.rb:-
+#: app/controllers/team_group_controller.rb:2
+msgid "TeamGroup"
+msgstr "EquipeGrupo"
+
+# app/models/category.rb:-
+#: app/controllers/category_controller.rb:2
+#: app/views/championship/edit.rhtml:21 app/views/championship/list.rhtml:6
+#: app/views/championship/new.rhtml:9 app/views/game/list.rhtml:3
+msgid "Category"
+msgstr "Categoria"
+
+#: app/controllers/account_controller.rb:2
+msgid "Account"
+msgstr "Conta"
+
+#: app/controllers/account_controller.rb:24
 msgid "Logged in successfully"
 msgstr "Autenticado com sucesso"
 
-#: app/controllers/account_controller.rb:32
+#: app/controllers/account_controller.rb:34
 msgid "Thanks for signing up!"
 msgstr "Obrigado por se cadastrar!"
 
-#: app/controllers/account_controller.rb:41
+#: app/controllers/account_controller.rb:43
 msgid "You have been logged out."
 msgstr "Você foi desconectado."
 
-#: app/controllers/championship_controller.rb:117
+# app/models/group.rb:-
+#: app/controllers/group_controller.rb:2
+msgid "Group"
+msgstr "Grupo"
+
+#: app/controllers/team_controller.rb:2
+msgid "Team"
+msgstr "Equipe"
+
+# app/models/player.rb:-
+#: app/controllers/player_controller.rb:2 app/views/player/show.rhtml:1
+msgid "Player"
+msgstr "Jogador"
+
+# app/models/referee.rb:-
+#: app/controllers/referee_controller.rb:2 app/views/referee/show.rhtml:1
+#: app/views/game/edit_squad.rhtml:94 app/views/game/show.rhtml:132
+#: app/views/game/edit.rhtml:145
+msgid "Referee"
+msgstr "Árbitro"
+
+# app/models/stadium.rb:-
+#: app/controllers/stadium_controller.rb:2 app/views/team/_form.rhtml:6
+#: app/views/team/show.rhtml:17 app/views/stadium/show.rhtml:1
+#: app/views/game/edit_squad.rhtml:93 app/views/game/show.rhtml:131
+#: app/views/game/edit.rhtml:173
+msgid "Stadium"
+msgstr "Estádio"
+
+# app/models/championship.rb:-
+#: app/controllers/championship_controller.rb:2 app/views/phase/show.rhtml:1
+#: app/views/phase/new.rhtml:5
+msgid "Championship"
+msgstr "Campeonato"
+
+#: app/controllers/championship_controller.rb:119
 #: app/views/game/_player.rhtml:9 app/views/player/_player_list.rhtml:4
 #: app/views/player/edit.rhtml:5
 msgid "Position"
 msgstr "Posição"
+
+#: app/controllers/home_controller.rb:2 app/views/layouts/application.rhtml:26
+#: app/views/home/index.rhtml:1
+msgid "Home"
+msgstr "Principal"
+
+#: app/controllers/cookie_controller.rb:2
+msgid "Cookie"
+msgstr "Cookie"
 
 # app/models/team.rb:-
 #: app/views/team/_form.rhtml:1 app/views/team/_form.rhtml:16
@@ -593,13 +666,6 @@ msgstr "Fundação"
 #: app/views/team/_team_list.rhtml:4 app/views/player/edit.rhtml:7
 msgid "Country"
 msgstr "País"
-
-# app/models/stadium.rb:-
-#: app/views/team/_form.rhtml:6 app/views/team/show.rhtml:17
-#: app/views/stadium/show.rhtml:1 app/views/game/edit_squad.rhtml:93
-#: app/views/game/show.rhtml:130 app/views/game/edit.rhtml:173
-msgid "Stadium"
-msgstr "Estádio"
 
 #: app/views/team/_form.rhtml:11 app/views/game/_insert_player.rhtml:12
 #: app/views/game/edit.rhtml:151 app/views/game/edit.rhtml:179
@@ -643,14 +709,14 @@ msgstr "Próximos 5 jogos"
 #: app/views/referee/_referee_list.rhtml:12 app/views/team_group/list.rhtml:16
 #: app/views/stadium/show.rhtml:31 app/views/stadium/_stadium_list.rhtml:10
 #: app/views/championship/edit.rhtml:32 app/views/championship/list.rhtml:14
-#: app/views/game/show.rhtml:164 app/views/player/_player_list.rhtml:12
+#: app/views/game/show.rhtml:165 app/views/player/_player_list.rhtml:12
 #: app/views/player/show.rhtml:12 app/views/phase/list.rhtml:20
 #: app/views/phase/edit.rhtml:23
 msgid "Edit"
 msgstr "Editar"
 
 #: app/views/team/show.rhtml:84 app/views/comment/_comment.rhtml:4
-#: app/views/championship/edit.rhtml:33 app/views/game/show.rhtml:166
+#: app/views/championship/edit.rhtml:33 app/views/game/show.rhtml:167
 #: app/views/phase/edit.rhtml:24
 msgid "Delete"
 msgstr "Apagar"
@@ -658,7 +724,7 @@ msgstr "Apagar"
 #: app/views/team/show.rhtml:84 app/views/team/_team_list.rhtml:14
 #: app/views/referee/_referee_list.rhtml:13 app/views/team_group/list.rhtml:17
 #: app/views/championship/team.rhtml:87 app/views/championship/edit.rhtml:33
-#: app/views/championship/list.rhtml:17 app/views/game/show.rhtml:166
+#: app/views/championship/list.rhtml:17 app/views/game/show.rhtml:167
 #: app/views/player/_player_list.rhtml:13 app/views/phase/list.rhtml:21
 msgid "Are you sure?"
 msgstr "Tem certeza?"
@@ -706,10 +772,6 @@ msgstr "Comentários"
 msgid "Leave a comment"
 msgstr "Deixe um comentário"
 
-#: app/views/comment/_comments.rhtml:9
-msgid "Comment"
-msgstr "Comentário"
-
 #: app/views/comment/_comments.rhtml:11
 msgid "Add Comment"
 msgstr "Adicionar Comentário"
@@ -733,12 +795,6 @@ msgstr "Listando árbitros"
 #: app/views/referee/list.rhtml:19
 msgid "New referee"
 msgstr "Novo árbitro"
-
-# app/models/referee.rb:-
-#: app/views/referee/show.rhtml:1 app/views/game/edit_squad.rhtml:94
-#: app/views/game/show.rhtml:131 app/views/game/edit.rhtml:145
-msgid "Referee"
-msgstr "Árbitro"
 
 #: app/views/referee/show.rhtml:4 app/views/referee/_referee_list.rhtml:4
 #: app/views/game/edit.rhtml:162
@@ -783,10 +839,6 @@ msgstr "Novo estádio"
 #: app/views/stadium/edit.rhtml:1
 msgid "Stadium Edit"
 msgstr "Editar Estádio"
-
-#: app/views/layouts/application.rhtml:26 app/views/home/index.rhtml:1
-msgid "Home"
-msgstr "Principal"
 
 # app/models/championship.rb:-
 #: app/views/layouts/application.rhtml:27
@@ -994,12 +1046,6 @@ msgstr "Pontos por empate"
 msgid "Points for loss"
 msgstr "Pontos por derrota"
 
-# app/models/category.rb:-
-#: app/views/championship/edit.rhtml:21 app/views/championship/list.rhtml:6
-#: app/views/championship/new.rhtml:9 app/views/game/list.rhtml:3
-msgid "Category"
-msgstr "Categoria"
-
 # app/models/phase.rb:-
 #: app/views/championship/edit.rhtml:26
 msgid "Phases"
@@ -1124,13 +1170,13 @@ msgstr "Entrou"
 msgid "Off"
 msgstr "Saiu"
 
-#: app/views/game/show.rhtml:138
+#: app/views/game/show.rhtml:139
 msgid "Previous game"
 msgid_plural "Previous %d games"
 msgstr[0] "Último jogo"
 msgstr[1] "%d últimos jogos"
 
-#: app/views/game/show.rhtml:165
+#: app/views/game/show.rhtml:166
 msgid "Edit Squad"
 msgstr "Editar elenco"
 
@@ -1209,11 +1255,6 @@ msgstr "Editar Jogador"
 msgid "Birth"
 msgstr "Nascimento"
 
-# app/models/player.rb:-
-#: app/views/player/show.rhtml:1
-msgid "Player"
-msgstr "Jogador"
-
 #: app/views/group/edit.rhtml:16
 msgid "Promoted"
 msgstr "Classificados"
@@ -1225,11 +1266,6 @@ msgstr "Rebaixados"
 #: app/views/group/edit.rhtml:22
 msgid "Number of teams"
 msgstr "Número de equipes"
-
-# app/models/championship.rb:-
-#: app/views/phase/show.rhtml:1 app/views/phase/new.rhtml:5
-msgid "Championship"
-msgstr "Campeonato"
 
 #: app/views/phase/list.rhtml:2
 msgid "No phases found"

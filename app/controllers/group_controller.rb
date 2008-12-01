@@ -1,4 +1,6 @@
 class GroupController < ApplicationController
+  N_("Group")
+
   before_filter :login_required
 
   def edit

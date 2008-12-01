@@ -1,4 +1,6 @@
 class ChampionshipController < ApplicationController
+  N_("Championship")
+
   before_filter :login_required, :except => [ :index, :list, :show, :phases,
                                               :crowd, :team, :games, :team_xml,
                                               :top_goalscorers ]

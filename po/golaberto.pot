@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2008-11-30 01:46-0200\n"
+"POT-Creation-Date: 2008-11-30 22:26-0200\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -533,26 +533,91 @@ msgstr ""
 msgid " Next"
 msgstr ""
 
-#: app/controllers/game_controller.rb:151
+#: app/controllers/game_controller.rb:2
+msgid "Game"
+msgstr ""
+
+#: app/controllers/game_controller.rb:153
 msgid "Game saved"
 msgstr ""
 
-#: app/controllers/account_controller.rb:22
+#: app/controllers/phase_controller.rb:2
+msgid "Phase"
+msgstr ""
+
+#: app/controllers/comment_controller.rb:2 app/views/comment/_comments.rhtml:9
+msgid "Comment"
+msgstr ""
+
+#: app/controllers/team_group_controller.rb:2
+msgid "TeamGroup"
+msgstr ""
+
+#: app/controllers/category_controller.rb:2
+#: app/views/championship/edit.rhtml:21 app/views/championship/list.rhtml:6
+#: app/views/championship/new.rhtml:9 app/views/game/list.rhtml:3
+msgid "Category"
+msgstr ""
+
+#: app/controllers/account_controller.rb:2
+msgid "Account"
+msgstr ""
+
+#: app/controllers/account_controller.rb:24
 msgid "Logged in successfully"
 msgstr ""
 
-#: app/controllers/account_controller.rb:32
+#: app/controllers/account_controller.rb:34
 msgid "Thanks for signing up!"
 msgstr ""
 
-#: app/controllers/account_controller.rb:41
+#: app/controllers/account_controller.rb:43
 msgid "You have been logged out."
 msgstr ""
 
-#: app/controllers/championship_controller.rb:117
+#: app/controllers/group_controller.rb:2
+msgid "Group"
+msgstr ""
+
+#: app/controllers/team_controller.rb:2
+msgid "Team"
+msgstr ""
+
+#: app/controllers/player_controller.rb:2 app/views/player/show.rhtml:1
+msgid "Player"
+msgstr ""
+
+#: app/controllers/referee_controller.rb:2 app/views/referee/show.rhtml:1
+#: app/views/game/edit_squad.rhtml:94 app/views/game/show.rhtml:132
+#: app/views/game/edit.rhtml:145
+msgid "Referee"
+msgstr ""
+
+#: app/controllers/stadium_controller.rb:2 app/views/team/_form.rhtml:6
+#: app/views/team/show.rhtml:17 app/views/stadium/show.rhtml:1
+#: app/views/game/edit_squad.rhtml:93 app/views/game/show.rhtml:131
+#: app/views/game/edit.rhtml:173
+msgid "Stadium"
+msgstr ""
+
+#: app/controllers/championship_controller.rb:2 app/views/phase/show.rhtml:1
+#: app/views/phase/new.rhtml:5
+msgid "Championship"
+msgstr ""
+
+#: app/controllers/championship_controller.rb:119
 #: app/views/game/_player.rhtml:9 app/views/player/_player_list.rhtml:4
 #: app/views/player/edit.rhtml:5
 msgid "Position"
+msgstr ""
+
+#: app/controllers/home_controller.rb:2 app/views/layouts/application.rhtml:26
+#: app/views/home/index.rhtml:1
+msgid "Home"
+msgstr ""
+
+#: app/controllers/cookie_controller.rb:2
+msgid "Cookie"
 msgstr ""
 
 #: app/views/team/_form.rhtml:1 app/views/team/_form.rhtml:16
@@ -588,12 +653,6 @@ msgstr ""
 #: app/views/team/_form.rhtml:5 app/views/team/show.rhtml:15
 #: app/views/team/_team_list.rhtml:4 app/views/player/edit.rhtml:7
 msgid "Country"
-msgstr ""
-
-#: app/views/team/_form.rhtml:6 app/views/team/show.rhtml:17
-#: app/views/stadium/show.rhtml:1 app/views/game/edit_squad.rhtml:93
-#: app/views/game/show.rhtml:130 app/views/game/edit.rhtml:173
-msgid "Stadium"
 msgstr ""
 
 #: app/views/team/_form.rhtml:11 app/views/game/_insert_player.rhtml:12
@@ -637,14 +696,14 @@ msgstr ""
 #: app/views/referee/_referee_list.rhtml:12 app/views/team_group/list.rhtml:16
 #: app/views/stadium/show.rhtml:31 app/views/stadium/_stadium_list.rhtml:10
 #: app/views/championship/edit.rhtml:32 app/views/championship/list.rhtml:14
-#: app/views/game/show.rhtml:164 app/views/player/_player_list.rhtml:12
+#: app/views/game/show.rhtml:165 app/views/player/_player_list.rhtml:12
 #: app/views/player/show.rhtml:12 app/views/phase/list.rhtml:20
 #: app/views/phase/edit.rhtml:23
 msgid "Edit"
 msgstr ""
 
 #: app/views/team/show.rhtml:84 app/views/comment/_comment.rhtml:4
-#: app/views/championship/edit.rhtml:33 app/views/game/show.rhtml:166
+#: app/views/championship/edit.rhtml:33 app/views/game/show.rhtml:167
 #: app/views/phase/edit.rhtml:24
 msgid "Delete"
 msgstr ""
@@ -652,7 +711,7 @@ msgstr ""
 #: app/views/team/show.rhtml:84 app/views/team/_team_list.rhtml:14
 #: app/views/referee/_referee_list.rhtml:13 app/views/team_group/list.rhtml:17
 #: app/views/championship/team.rhtml:87 app/views/championship/edit.rhtml:33
-#: app/views/championship/list.rhtml:17 app/views/game/show.rhtml:166
+#: app/views/championship/list.rhtml:17 app/views/game/show.rhtml:167
 #: app/views/player/_player_list.rhtml:13 app/views/phase/list.rhtml:21
 msgid "Are you sure?"
 msgstr ""
@@ -700,10 +759,6 @@ msgstr ""
 msgid "Leave a comment"
 msgstr ""
 
-#: app/views/comment/_comments.rhtml:9
-msgid "Comment"
-msgstr ""
-
 #: app/views/comment/_comments.rhtml:11
 msgid "Add Comment"
 msgstr ""
@@ -726,11 +781,6 @@ msgstr ""
 
 #: app/views/referee/list.rhtml:19
 msgid "New referee"
-msgstr ""
-
-#: app/views/referee/show.rhtml:1 app/views/game/edit_squad.rhtml:94
-#: app/views/game/show.rhtml:131 app/views/game/edit.rhtml:145
-msgid "Referee"
 msgstr ""
 
 #: app/views/referee/show.rhtml:4 app/views/referee/_referee_list.rhtml:4
@@ -775,10 +825,6 @@ msgstr ""
 
 #: app/views/stadium/edit.rhtml:1
 msgid "Stadium Edit"
-msgstr ""
-
-#: app/views/layouts/application.rhtml:26 app/views/home/index.rhtml:1
-msgid "Home"
 msgstr ""
 
 #: app/views/layouts/application.rhtml:27
@@ -981,11 +1027,6 @@ msgstr ""
 msgid "Points for loss"
 msgstr ""
 
-#: app/views/championship/edit.rhtml:21 app/views/championship/list.rhtml:6
-#: app/views/championship/new.rhtml:9 app/views/game/list.rhtml:3
-msgid "Category"
-msgstr ""
-
 #: app/views/championship/edit.rhtml:26
 msgid "Phases"
 msgstr ""
@@ -1107,13 +1148,13 @@ msgstr ""
 msgid "Off"
 msgstr ""
 
-#: app/views/game/show.rhtml:138
+#: app/views/game/show.rhtml:139
 msgid "Previous game"
 msgid_plural "Previous %d games"
 msgstr[0] ""
 msgstr[1] ""
 
-#: app/views/game/show.rhtml:165
+#: app/views/game/show.rhtml:166
 msgid "Edit Squad"
 msgstr ""
 
@@ -1190,10 +1231,6 @@ msgstr ""
 msgid "Birth"
 msgstr ""
 
-#: app/views/player/show.rhtml:1
-msgid "Player"
-msgstr ""
-
 #: app/views/group/edit.rhtml:16
 msgid "Promoted"
 msgstr ""
@@ -1204,10 +1241,6 @@ msgstr ""
 
 #: app/views/group/edit.rhtml:22
 msgid "Number of teams"
-msgstr ""
-
-#: app/views/phase/show.rhtml:1 app/views/phase/new.rhtml:5
-msgid "Championship"
 msgstr ""
 
 #: app/views/phase/list.rhtml:2
