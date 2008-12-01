@@ -127,7 +127,7 @@
         <tr><td><%= _("Round") %>:</td><td><%= @game.round %></td></tr>
         <tr><td><%= _("Attendance") %>:</td><td><%= @game.attendance %></td></tr>
         <tr><td><%= _("Date") %>:</td><td><%= @game.formatted_date(true) %></td></tr>
-        <tr><td><%= _("Game|Time") %>:</td><td><%= @game.formatted_time %></td></tr>
+        <tr><td><%= s_("Game|Time") %>:</td><td><%= @game.formatted_time %></td></tr>
         <tr><td><%= _("Stadium") %>:</td><td><%= @game.stadium.name unless @game.stadium.nil? %></td></tr>
         <tr><td><%= _("Referee") %>:</td><td><%= "#{@game.referee.name} (#{@game.referee.location})" unless @game.referee.nil? %></td></tr>
       </table>
