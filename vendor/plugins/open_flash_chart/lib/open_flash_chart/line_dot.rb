@@ -8,10 +8,9 @@ module OpenFlashChart
   end
 
   class DotValue < Base
-    def initialize(value, colour, args={})
+    def initialize(value, args={})
       @value = value
-      @colour = colour
-      super
+      super args
     end
   end
 

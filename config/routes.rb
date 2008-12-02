@@ -19,10 +19,10 @@ ActionController::Routing::Routes.draw do |map|
 
   # map championship actions
   map.connect 'championship/show/:id/phases/:phase', :controller => 'championship', :action => 'phases'
+  map.connect 'championship/show/:id/phases/:phase/team_json/', :controller => 'championship', :action => 'team_json'
   map.connect 'championship/show/:id/games/:phase', :controller => 'championship', :action => 'games'
   map.connect 'championship/show/:id/new_game/:phase', :controller => 'championship', :action => 'new_game'
   map.connect 'championship/show/:id/team/:team', :controller => 'championship', :action => 'team'
-  map.connect 'championship/show/:id/team_xml/:team', :controller => 'championship', :action => 'team_xml'
 
   map.connect 'game/list/:type/:page', :controller => 'game', :action => 'list', :page => /\d+/, :defaults => { :type => 'scheduled', :page => 1 }
 

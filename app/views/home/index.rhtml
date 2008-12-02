@@ -36,7 +36,5 @@
     <%= link_to sprintf(_("View this %s"), _(comment.commentable_type.downcase)), :controller => comment.commentable_type, :action => :show, :id => comment.commentable_id %>
     <hr>
   <% end %>
-  <script type="text/javascript" src="/javascripts/swfobject.js"></script>
-  <%= @graph %>
 </div>
 

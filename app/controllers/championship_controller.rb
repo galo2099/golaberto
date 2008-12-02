@@ -2,7 +2,7 @@ class ChampionshipController < ApplicationController
   N_("Championship")
 
   before_filter :login_required, :except => [ :index, :list, :show, :phases,
-                                              :crowd, :team, :games, :team_xml,
+                                              :crowd, :team, :games, :team_json,
                                               :top_goalscorers ]
 
   def index
@@ -49,7 +49,7 @@ class ChampionshipController < ApplicationController
     end
   end
 
-  def team_xml(championship, phase, group, team)
+  def generate_team_json(championship, phase, group, team)
     data = []
 
     team_table = group.team_table do |teams, games|
@@ -78,61 +78,73 @@ class ChampionshipController < ApplicationController
 
     point_win = championship.point_win
 
-    buffer = ""
-    xml = Builder::XmlMarkup.new(:target => buffer)
-    xml.instruct! :xml, :version => "1.0", :encoding => "UTF8"
-    xml.graph :PYAxisName => "Position",
-              :showHoverCap => 1,
-              :shownames => 0,
-              :SYAxisMaxValue => data.size * point_win,
-              :PYAxisMinValue => - group.team_groups.size,
-              :PYAxisMaxValue => - 1,
-              :showDivLineSecondaryValue => 0,
-              :showSecondaryLimits => 0,
-              :showLegend => 0,
-              :plotGradientcolor => "",
-              :yAxisValuesStep => group.team_groups.size / 23 + 1,
-              :caption => _("#{team.name} Campaign"),
-              :NumDivLines => group.team_groups.size - 2,
-              :adjustDiv => 0,
-              :decimalPrecision => 2 do |x|
-      x.categories do |x|
-        data.each_with_index do |d, idx|
-          x.category :name => (idx + 1).to_s
-        end
-      end
-      x.dataset :seriesname => "Points", :renderAs => "column", :parentYAxis => "S", :showValues => 0 do |x|
-        data.each_with_index do |d, idx|
-          x.set :value => d[:points],
-            :link => url_for(:controller => :game, :action => :show, :id => d[:game]),
-            :toolText => _("#{d[:position].ordinalize} - #{d[:points]} points\\n#{d[:game].home.name} #{d[:game].home_score} x #{d[:game].away_score} #{d[:game].away.name}"),
-            :color => case d[:type]
-                      when "w"
-                        "0000ff"
-                      when "d"
-                        "808080"
-                      when "l"
-                        "ff0000"
-                      end
-        end
-      end
-      x.dataset :seriesname => _("Position"), :renderAs => "line", :parentYAxis => "P", :color => "000000", :showValues => 0 do |x|
-        data.each_with_index do |d, idx|
-          x.set :value => - d[:position],
-            :toolText => _("#{d[:position].ordinalize} - #{d[:points]} points\\n#{d[:game].home.name} #{d[:game].home_score} x #{d[:game].away_score} #{d[:game].away.name}"),
-            :link => url_for(:controller => :game, :action => :show, :id => d[:game])
-        end
-      end
-      x.trendlines do |x|
-        x.line :parentYAxis => "P", :startValue => - (group.promoted + 0.5), :endValue => -1, :color => "00ff00", :displayValue => " ", :isTrendZone => 1, :showOnTop => 1, :alpha => 20
-      end if group.promoted > 0
-      x.trendlines do |x|
-        x.line :parentYAxis => "P", :startValue => - (group.team_groups.size - group.relegated + 0.5), :endValue => -group.team_groups.size, :color => "ff0000", :displayValue => " ", :isTrendZone => 1, :showOnTop => 1, :valueOnRight => 1, :alpha => 20
-      end if group.relegated > 0
+    chart = Chart.new("Campaign")
+    chart.bg_colour = "#FFFFFF"
+    tooltip = Tooltip.new
+    tooltip.set_hover
+    chart.tooltip = tooltip
+    chart.y_axis = YAxis.new do |y|
+      y.title = "Position"
+      y.labels = (1..group.team_groups.size).to_a.reverse.map{|i| i.to_s}
+      y.offset = true
     end
-    buffer.gsub!("'", "&rsquo;")
-    buffer.gsub!('"', "'")
-    return buffer, team_table
+
+    promotion_zone = Shape.new("#00FF00")
+    promotion_zone.append_value ShapePoint.new(-0.5, group.team_groups.size - 0.5)
+    promotion_zone.append_value ShapePoint.new(data.size - 0.5, group.team_groups.size - 0.5)
+    promotion_zone.append_value ShapePoint.new(data.size - 0.5, group.team_groups.size - group.promoted - 0.5)
+    promotion_zone.append_value ShapePoint.new(-0.5, group.team_groups.size - group.promoted - 0.5)
+    promotion_zone.alpha = 0.4
+    chart.add_element promotion_zone
+
+    relegation_zone = Shape.new("#FF0000")
+    relegation_zone.append_value ShapePoint.new(-0.5, -0.5)
+    relegation_zone.append_value ShapePoint.new(- 0.5, group.relegated - 0.5)
+    relegation_zone.append_value ShapePoint.new(data.size - 0.5, group.relegated - 0.5)
+    relegation_zone.append_value ShapePoint.new(data.size - 0.5, -0.5)
+    relegation_zone.alpha = 0.4
+    chart.add_element relegation_zone
+
+    bar = BarGlass.new
+    data.each do |d|
+      value = BarValue.new(d[:points].to_f/(data.size * point_win) * group.team_groups.size - 0.5, -0.5, {
+        :on_click => url_for(:controller => :game, :action => :show, :id => d[:game]),
+        :tip => _("#{d[:position].ordinalize} - #{d[:points]} points<br>#{d[:game].home.name} #{d[:game].home_score} x #{d[:game].away_score} #{d[:game].away.name}"),
+        :colour => case d[:type]
+                     when "w"
+                       "0000ff"
+                     when "d"
+                       "808080"
+                     when "l"
+                       "ff0000"
+                     end })
+      bar.append_value value
+    end
+    chart.add_element bar
+    line = LineHollow.new
+    line.values = []
+    line.colour = "#000000"
+    line.dot_size = 4
+    line.halo_size = 1
+    data.each do |d|
+      value = DotValue.new(group.team_groups.size - d[:position], {
+        :tip => _("#{d[:position].ordinalize} - #{d[:points]} points<br>#{d[:game].home.name} #{d[:game].home_score} x #{d[:game].away_score} #{d[:game].away.name}"),
+        :on_click => url_for(:controller => :game, :action => :show, :id => d[:game])})
+      line.append_value value
+    end
+    chart.add_element line
+
+    return chart.render, team_table
+  end
+
+  def team_json
+    championship = Championship.find(params["id"])
+    team = Team.find(params["team"])
+    phase = Phase.find(params["phase"])
+    group = phase.groups.select{|g| g.teams.include? team}.first
+    json, table = generate_team_json(championship, phase, group, team)
+
+    render :text => json, :layout => false
   end
 
   def team
@@ -151,11 +163,13 @@ class ChampionshipController < ApplicationController
     # Find every group that this team belonged to
     @groups = @championship.phases.map{|p| p.groups}.flatten.select{|g| g.teams.include? @team}.reverse
 
-    @group_xml = []
+    @group_json = []
     @group_table = []
-    @groups.each do |g|
-      xml, table = team_xml(@championship, g.phase, g, @team)
-      @group_xml << xml
+    @graph = []
+    @groups.each_with_index do |g, idx|
+      json, table = generate_team_json(@championship, g.phase, g, @team)
+      @group_json << json
+      @graph << open_flash_chart_object(550, 300, "dataf#{idx}", false, "graph#{idx}")
       @group_table << table
     end
 
