@@ -78,11 +78,15 @@ class ChampionshipController < ApplicationController
 
     point_win = championship.point_win
 
-    chart = Chart.new("Campaign")
+    chart = Chart.new(sprintf(_("%s Campaign"), team.name))
     chart.bg_colour = "#FFFFFF"
     tooltip = Tooltip.new
     tooltip.set_hover
     chart.tooltip = tooltip
+    chart.x_axis = XAxis.new do |x|
+      x.labels = [ "" ]
+      x.offset = true
+    end
     chart.y_axis = YAxis.new do |y|
       y.title = "Position"
       y.labels = (1..group.team_groups.size).to_a.reverse.map{|i| i.to_s}
