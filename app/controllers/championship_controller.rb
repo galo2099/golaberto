@@ -68,6 +68,8 @@ class ChampionshipController < ApplicationController
       end
     end
 
+    points_for_1st_place = team_table[0][1].points
+
     team_table.each_with_index do |t,idx|
       # We need to change the last position to be the final position in the
       # phase instead of the position right after the team's last game
@@ -111,7 +113,7 @@ class ChampionshipController < ApplicationController
 
     bar = BarGlass.new
     data.each do |d|
-      value = BarValue.new(d[:points].to_f/(data.size * point_win) * group.team_groups.size - 0.5, -0.5, {
+      value = BarValue.new(d[:points].to_f/(points_for_1st_place) * group.team_groups.size - 0.5, -0.5, {
         :on_click => url_for(:controller => :game, :action => :show, :id => d[:game]),
         :tip => _("#{d[:position].ordinalize} - #{d[:points]} points<br>#{d[:game].home.name} #{d[:game].home_score} x #{d[:game].away_score} #{d[:game].away.name}"),
         :colour => case d[:type]
@@ -169,11 +171,10 @@ class ChampionshipController < ApplicationController
 
     @group_json = []
     @group_table = []
-    @graph = []
+    @graph = open_flash_chart_object(550, 300, { :div_name => "campaign_graph", :function => "load_graph_data0" })
     @groups.each_with_index do |g, idx|
       json, table = generate_team_json(@championship, g.phase, g, @team)
       @group_json << json
-      @graph << open_flash_chart_object(550, 300, "dataf#{idx}", false, "graph#{idx}")
       @group_table << table
     end
 

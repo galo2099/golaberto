@@ -314,17 +314,22 @@ font-size: 11px;
 .panel
 {
   clear: both;
-  display: none;
   background-color: #3e3e3e;
   padding: 5px;
   margin-top: 4px;
+  font-size: 12px;
+  color: #999999;
 }
-.panel.active-tab-body
+.panel select
 {
-  display: block;
+  display: none;
+}
+.panel select.active-tab-body
+{
+  display: inline;
 }
 
-#tabs a 
+#tabs a
 {
   font-size: 12px;
   padding: 5px 8px;
@@ -334,7 +339,7 @@ font-size: 11px;
   color: #999999;
 }
 
-#tabs a.active-tab 
+#tabs a.active-tab
 {
   background-color: #3e3e3e;
   color: #ccc;

@@ -95,18 +95,66 @@
   </table>
 </div>
 
+<%= javascript_tag "data = new Array();" %>
+<%= javascript_tag "function load_graph_data0() { return Object.toJSON(data[0]); }" %>
+<%= javascript_tag <<EOF
+  function plot_team_graph_data(request, idx) {
+    var new_data = request.responseText.evalJSON();
+    var new_bar = new_data["elements"][2];
+    var new_line = new_data["elements"][3];
+    new_line["colour"] = "#006600";
+
+    var current_data = data[idx];
+    has_other_team = current_data["elements"][3].type == "bar_glass";
+    if (has_other_team) {
+      current_data["elements"][3] = new_bar;
+      current_data["elements"][5] = new_line;
+    } else {
+      current_data["elements"].splice(3, 0, new_bar);
+      current_data["elements"].push(new_line);
+    }
+
+    current_data["elements"][4].text = '#{@team.name}';
+    current_data["elements"][5].text = $('team_graph_select' + idx).options[$('team_graph_select' + idx).selectedIndex].text;
+    findSWF("campaign_graph").load(Object.toJSON(current_data));
+  }
+  function filter_other_team(idx) {
+    var current_data = data[idx];
+    current_data["elements"][4].text = null;
+    current_data["elements"].splice(5, 1);
+    current_data["elements"].splice(3, 1);
+    findSWF("campaign_graph").load(Object.toJSON(current_data));
+  }
+EOF
+%>
+
 <div id="graphs">
   <div id="tabs">
     <% @groups.each_with_index do |group, idx| %>
-      <a href="#tab<%= idx %>"><%= group.phase.name %></a>
+      <a href="javascript:load_graph_data(<%=idx%>)" class="<%= idx == 0 ? "active-tab" : "" %>"><%= group.phase.name %></a>
     <% end %>
   </div>
-  <% @groups.each_with_index do |group, idx| %>
-    <%= javascript_tag "var data#{idx} = #{@group_json[idx]};\nfunction dataf#{idx}() { return Object.toJSON(data#{idx}); }\n" %>
-    <div class='panel' id='tab<%= idx %>'>
-      <%= @graph[idx] %>
-    </div>
-  <% end %>
+  <div id="panel" class='panel'>
+    <%= @graph %>
+    <% @groups.each_with_index do |group, idx| %>
+      <%= javascript_tag "data[#{idx}] = #{@group_json[idx]};" %>
+      <%= _("Compare with other team:") %> <select id='team_graph_select<%=idx%>' class="<%= idx == 0 ? "active-tab-body" : "" %>">
+        <option value="">-</option>
+        <%= options_from_collection_for_select (group.teams - [@team]).sort{|a,b| a.name<=>b.name}, "id", "name" %>
+      </select>
+
+      <%= observe_field "team_graph_select#{idx}",
+                        :function => remote_function(
+                                       :url => { :action => :team_json,
+                                                 :id => @championship,
+                                                 :phase => group.phase },
+                                       :with => "'team=' + value",
+                                       :before => "if (!value) { filter_other_team(#{idx}); return true; }",
+                                       :failure => "alert('#{_("Cant download data for team!")}');",
+                                       :success => "plot_team_graph_data(request, #{idx})"
+                                     ) %>
+    <% end %>
+  </div>
 </div>
 
 <% content_for :sidebar do %>
@@ -139,46 +187,28 @@
 <script src="http://yui.yahooapis.com/2.5.2/build/yuiloader/yuiloader-beta-min.js"></script>
 
 <%= javascript_tag <<EOF
-var Fabtabs = Class.create();
-Fabtabs.prototype = {
-  initialize : function(element) {
-    this.element = $(element);
-    var options = Object.extend({}, arguments[1] || {});
-    this.menu = $A(this.element.getElementsByTagName('a'));
-    this.show(this.getInitialTab());
-    this.menu.each(this.setupTab.bind(this));
-  },
-  setupTab : function(elm) {
-    Event.observe(elm,'click',this.activate.bindAsEventListener(this),false)
-  },
-  activate :  function(ev) {
-    var elm = Event.findElement(ev, "a");
-    Event.stop(ev);
-    this.show(elm);
-    this.menu.without(elm).each(this.hide.bind(this));
-  },
-  hide : function(elm) {
-    $(elm).removeClassName('active-tab');
-    $(this.tabID(elm)).removeClassName('active-tab-body');
-  },
-  show : function(elm) {
-    $(elm).addClassName('active-tab');
-    $(this.tabID(elm)).addClassName('active-tab-body');
-  },
-  tabID : function(elm) {
-    return elm.href.match(/#(\\w.+)/)[1];
-  },
-  getInitialTab : function() {
-    if(document.location.href.match(/#(\\w.+)/)) {
-      var loc = RegExp.$1;
-      var elm = this.menu.find(function(value) { return value.href.match(/#(\\w.+)/)[1] == loc; });
-      return elm || this.menu.first();
-    } else {
-      return this.menu.first();
-    }
+function findSWF(movieName) {
+  if (navigator.appName.indexOf("Microsoft")!= -1) {
+    return window[movieName];
+  } else {
+    return document[movieName];
   }
 }
-Event.observe(window,'load',function(){ new Fabtabs('tabs'); },false);
+
+function load_graph_data(index) {
+  tabs = $A($('tabs').getElementsByTagName('a'));
+  selects = $A($('panel').getElementsByTagName('select'));
+  for (i = 0; i < tabs.length; ++i) {
+    if (i == index) {
+      tabs[i].addClassName('active-tab');
+      selects[i].addClassName('active-tab-body');
+    } else {
+      tabs[i].removeClassName('active-tab');
+      selects[i].removeClassName('active-tab-body');
+    }
+  }
+  findSWF("campaign_graph").load(Object.toJSON(data[index]));
+}
 
 // Instantiate and configure Loader:
 var loader = new YAHOO.util.YUILoader({
