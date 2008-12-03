@@ -81,68 +81,73 @@ class ChampionshipController < ApplicationController
     #points_for_1st_place = team_table[0][1].points
     points_for_1st_place = data.size * point_win
 
+    chart = { :title => { :text => sprintf(_("%s Campaign"), team.name) },
+              :bg_colour => "#FFFFFF",
+              :tooltip => { :mouse => 2 },
+              :x_axis => {
+                  :labels => { :labels => [ "" ] },
+                  :offset => true,
+              },
+              :y_axis => {
+                  :title => "Position",
+                  :labels => (1..group.team_groups.size).to_a.reverse.map{|i| i.to_s},
+                  :offset => true,
+              },
+              :elements => [] }
 
-    chart = Chart.new(sprintf(_("%s Campaign"), team.name))
-    chart.bg_colour = "#FFFFFF"
-    tooltip = Tooltip.new
-    tooltip.set_hover
-    chart.tooltip = tooltip
-    chart.x_axis = XAxis.new do |x|
-      x.labels = [ "" ]
-      x.offset = true
-    end
-    chart.y_axis = YAxis.new do |y|
-      y.title = "Position"
-      y.labels = (1..group.team_groups.size).to_a.reverse.map{|i| i.to_s}
-      y.offset = true
-    end
+    promotion_zone = { :type => "shape",
+                       :colour => "#00FF00",
+                       :alpha => 0.4,
+                       :values => [] }
+    promotion_zone[:values] << { :x => -0.5, :y => group.team_groups.size - 0.5 }
+    promotion_zone[:values] << { :x => data.size - 0.5, :y => group.team_groups.size - 0.5 }
+    promotion_zone[:values] << { :x => data.size - 0.5, :y => group.team_groups.size - group.promoted - 0.5 }
+    promotion_zone[:values] << { :x => -0.5, :y => group.team_groups.size - group.promoted - 0.5 }
+    chart[:elements] << promotion_zone
 
-    promotion_zone = Shape.new("#00FF00")
-    promotion_zone.append_value ShapePoint.new(-0.5, group.team_groups.size - 0.5)
-    promotion_zone.append_value ShapePoint.new(data.size - 0.5, group.team_groups.size - 0.5)
-    promotion_zone.append_value ShapePoint.new(data.size - 0.5, group.team_groups.size - group.promoted - 0.5)
-    promotion_zone.append_value ShapePoint.new(-0.5, group.team_groups.size - group.promoted - 0.5)
-    promotion_zone.alpha = 0.4
-    chart.add_element promotion_zone
+    relegation_zone = { :type => "shape",
+                        :colour => "#FF0000",
+                        :alpha => 0.4,
+                        :values => [] }
+    relegation_zone[:values] << { :x => -0.5, :y => -0.5 }
+    relegation_zone[:values] << { :x => - 0.5, :y => group.relegated - 0.5 }
+    relegation_zone[:values] << { :x => data.size - 0.5, :y => group.relegated - 0.5 }
+    relegation_zone[:values] << { :x => data.size - 0.5, :y => -0.5 }
+    chart[:elements] << relegation_zone
 
-    relegation_zone = Shape.new("#FF0000")
-    relegation_zone.append_value ShapePoint.new(-0.5, -0.5)
-    relegation_zone.append_value ShapePoint.new(- 0.5, group.relegated - 0.5)
-    relegation_zone.append_value ShapePoint.new(data.size - 0.5, group.relegated - 0.5)
-    relegation_zone.append_value ShapePoint.new(data.size - 0.5, -0.5)
-    relegation_zone.alpha = 0.4
-    chart.add_element relegation_zone
-
-    bar = BarGlass.new
+    bar = { :type => "bar_glass",
+            :values => [] }
     data.each do |d|
-      value = BarValue.new(d[:points].to_f/(points_for_1st_place) * group.team_groups.size - 0.5, -0.5, {
-        :on_click => url_for(:controller => :game, :action => :show, :id => d[:game]),
-        :tip => _("#{d[:position].ordinalize} - #{d[:points]} points<br>#{d[:game].home.name} #{d[:game].home_score} x #{d[:game].away_score} #{d[:game].away.name}"),
-        :colour => case d[:type]
-                     when "w"
-                       "0000ff"
-                     when "d"
-                       "808080"
-                     when "l"
-                       "ff0000"
-                     end })
-      bar.append_value value
+      value = { :top => d[:points].to_f/(points_for_1st_place) * group.team_groups.size - 0.5,
+                :bottom => -0.5,
+                "on-click" => url_for(:controller => :game, :action => :show, :id => d[:game]),
+                :tip => _("#{d[:position].ordinalize} - #{d[:points]} points<br>#{d[:game].home.name} #{d[:game].home_score} x #{d[:game].away_score} #{d[:game].away.name}"),
+                :colour => case d[:type]
+                    when "w"
+                    "0000ff"
+                    when "d"
+                    "808080"
+                    when "l"
+                    "ff0000"
+                    end }
+      bar[:values] << value
     end
-    chart.add_element bar
-    line = LineHollow.new
-    line.values = []
-    line.colour = "#000000"
-    line.dot_size = 4
-    line.halo_size = 1
-    data.each do |d|
-      value = DotValue.new(group.team_groups.size - d[:position], {
-        :tip => _("#{d[:position].ordinalize} - #{d[:points]} points<br>#{d[:game].home.name} #{d[:game].home_score} x #{d[:game].away_score} #{d[:game].away.name}"),
-        :on_click => url_for(:controller => :game, :action => :show, :id => d[:game])})
-      line.append_value value
-    end
-    chart.add_element line
+    chart[:elements] << bar
 
-    return chart.render, team_table
+    line = { :type => "line_hollow",
+             :values => [],
+             :colour => "#000000",
+             "dot-size" => 4,
+             "halo-size" => 1 }
+    data.each do |d|
+      value = { :value => group.team_groups.size - d[:position],
+                :tip => _("#{d[:position].ordinalize} - #{d[:points]} points<br>#{d[:game].home.name} #{d[:game].home_score} x #{d[:game].away_score} #{d[:game].away.name}"),
+                "on-click" => url_for(:controller => :game, :action => :show, :id => d[:game]) }
+      line[:values] << value
+    end
+    chart[:elements] << line
+
+    return chart.to_json, team_table
   end
 
   def team_json
@@ -313,5 +318,38 @@ class ChampionshipController < ApplicationController
     @penalty = @championship.goals.count :group => :player,
                                          :conditions => { :penalty => 1,
                                                           :player_id => players }
+  end
+
+  def open_flash_chart_object(width, height, options = {})
+    protocol = options[:protocol] || "http"
+    base = options[:base] || "/"
+    function = options[:function]
+    url = options[:url] || ""
+    url = CGI::escape(url)
+    # need something that will not be repeated on the same request
+    special_hash = Base64.encode64(Digest::SHA1.digest("#{rand(1<<64)}/#{Time.now.to_f}/#{Process.pid}/#{url}"))[0..7]
+    # only good characters for our div
+    special_hash = special_hash.gsub(/[^a-zA-Z0-9]/,rand(10).to_s)
+    obj_id   = "chart_#{special_hash}"  # some sequencing without all the work of tracking it
+    div_name = options[:div_name] || "flash_content_#{special_hash}"
+
+    # NOTE: users should put this in the <head> section themselves:
+    ## <script type="text/javascript" src="#{base}/javascripts/swfobject.js"></script>
+
+    <<-HTML
+    <div style="min-height: #{height}px"><div id="#{div_name}"></div></div>
+    <script type="text/javascript">
+    swfobject.embedSWF("#{base}open-flash-chart.swf", "#{div_name}", "#{width}", "#{height}", "9.0.0", "expressInstall.swf", #{ url.empty? ? "" : "{'data-file':'#{url}'}, "}#{ function ? "{'get-data':'#{function}'}, " : "" }{"wmode":"transparent"});
+    </script>
+    <noscript>
+      <object classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000" codebase="#{protocol}://fpdownload.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=8,0,0,0" width="#{width}" height="#{height}" id="#{obj_id}" align="middle" wmode="transparent">
+        <param name="allowScriptAccess" value="sameDomain" />
+        <param name="movie" value="#{base}open-flash-chart.swf?data=#{url}" />
+        <param name="quality" value="high" />
+        <param name="bgcolor" value="#FFFFFF" />
+        <embed src="#{base}open-flash-chart.swf?data=#{url}" quality="high" bgcolor="#FFFFFF" width="#{width}" height="#{height}" name="#{obj_id}" align="middle"  allowScriptAccess="sameDomain" type="application/x-shockwave-flash" pluginspage="#{protocol}://www.macromedia.com/go/getflashplayer" id="#{obj_id}" />
+      </object>
+    </noscript>
+    HTML
   end
 end
