@@ -68,8 +68,6 @@ class ChampionshipController < ApplicationController
       end
     end
 
-    points_for_1st_place = team_table[0][1].points
-
     team_table.each_with_index do |t,idx|
       # We need to change the last position to be the final position in the
       # phase instead of the position right after the team's last game
@@ -79,6 +77,10 @@ class ChampionshipController < ApplicationController
     end
 
     point_win = championship.point_win
+
+    #points_for_1st_place = team_table[0][1].points
+    points_for_1st_place = data.size * point_win
+
 
     chart = Chart.new(sprintf(_("%s Campaign"), team.name))
     chart.bg_colour = "#FFFFFF"
