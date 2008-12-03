@@ -2,8 +2,8 @@
 <% omit_logo = false if omit_logo.nil? %>
 <% omit_comments = false if omit_comments.nil? %>
 <% omit_popup = false if omit_popup.nil? %>
-<div style="position: relative">
-  <div style="float: left"><h3><%=
+<div style="position: relative; margin-left: 2px; margin-right: 2px;">
+  <div style="width: 100%; float: left; position: relative;"><h3><span><%=
     if link_to_group
       link_to group.name,
               :controller => 'championship',
@@ -13,7 +13,7 @@
               :group => group
     else
       h group.name
-    end%></h3>
+    end%></span></h3>
   </div>
   <% if logged_in? and !(omit_columns[:OP] and omit_columns[:PP] and omit_columns[:RP]) then %>
     <div id="recalculate" style="position: absolute; bottom: 0px; right: 0px;">

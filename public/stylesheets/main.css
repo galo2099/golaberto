@@ -121,9 +121,14 @@ body {
   color: #e3efca;
   font-size: 12px;
   font-weight: bold;
-  padding: 2px;
   margin-bottom: 1px;
   width: 100%;
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+
+.team_table h3 span {
+  padding-left: 4px;
 }
 
 .table_head
