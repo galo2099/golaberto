@@ -105,7 +105,7 @@
     new_line["colour"] = "#006600";
 
     var current_data = data[idx];
-    has_other_team = current_data["elements"][3].type == "bar_glass";
+    var has_other_team = current_data["elements"][3].type == "bar_glass";
     if (has_other_team) {
       current_data["elements"][3] = new_bar;
       current_data["elements"][5] = new_line;
@@ -120,10 +120,13 @@
   }
   function filter_other_team(idx) {
     var current_data = data[idx];
-    current_data["elements"][4].text = null;
-    current_data["elements"].splice(5, 1);
-    current_data["elements"].splice(3, 1);
-    findSWF("campaign_graph").load(Object.toJSON(current_data));
+    var has_other_team = current_data["elements"][3].type == "bar_glass";
+    if (has_other_team) {
+      current_data["elements"][4].text = null;
+      current_data["elements"].splice(5, 1);
+      current_data["elements"].splice(3, 1);
+      findSWF("campaign_graph").load(Object.toJSON(current_data));
+    }
   }
 EOF
 %>
@@ -138,10 +141,13 @@ EOF
     <%= @graph %>
     <% @groups.each_with_index do |group, idx| %>
       <%= javascript_tag "data[#{idx}] = #{@group_json[idx]};" %>
-      <%= _("Compare with other team:") %> <select id='team_graph_select<%=idx%>' class="<%= idx == 0 ? "active-tab-body" : "" %>">
+      <div id="panel<%=idx%>" class="select-div <%= idx == 0 ? "active-tab-body" : "" %>">
+      <div id="spinner<%=idx%>" style="min-width: 30px; min-height: 30px; float: right;">&nbsp;</div>
+      <%= _("Compare with other team:") %> <select id='team_graph_select<%=idx%>'>
         <option value="">-</option>
         <%= options_from_collection_for_select (group.teams - [@team]).sort{|a,b| a.name<=>b.name}, "id", "name" %>
       </select>
+      </div>
 
       <%= observe_field "team_graph_select#{idx}",
                         :function => remote_function(
@@ -149,9 +155,10 @@ EOF
                                                  :id => @championship,
                                                  :phase => group.phase },
                                        :with => "'team=' + value",
-                                       :before => "if (!value) { filter_other_team(#{idx}); return true; }",
+                                       :before => "if (!value) { filter_other_team(#{idx}); return true; } $('spinner#{idx}').setStyle({backgroundImage: 'url(/images/spinner.gif)'});",
                                        :failure => "alert('#{_("Cant download data for team!")}');",
-                                       :success => "plot_team_graph_data(request, #{idx})"
+                                       :success => "plot_team_graph_data(request, #{idx})",
+                                       :complete => "$('spinner#{idx}').setStyle({backgroundImage: ''})"
                                      ) %>
     <% end %>
   </div>
@@ -197,14 +204,14 @@ function findSWF(movieName) {
 
 function load_graph_data(index) {
   tabs = $A($('tabs').getElementsByTagName('a'));
-  selects = $A($('panel').getElementsByTagName('select'));
+  divs = $A($('panel').getElementsByClassName('select-div'));
   for (i = 0; i < tabs.length; ++i) {
     if (i == index) {
       tabs[i].addClassName('active-tab');
-      selects[i].addClassName('active-tab-body');
+      divs[i].addClassName('active-tab-body');
     } else {
       tabs[i].removeClassName('active-tab');
-      selects[i].removeClassName('active-tab-body');
+      divs[i].removeClassName('active-tab-body');
     }
   }
   findSWF("campaign_graph").load(Object.toJSON(data[index]));
