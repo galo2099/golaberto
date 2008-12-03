@@ -121,7 +121,7 @@ class ChampionshipController < ApplicationController
       value = { :top => d[:points].to_f/(points_for_1st_place) * group.team_groups.size - 0.5,
                 :bottom => -0.5,
                 "on-click" => url_for(:controller => :game, :action => :show, :id => d[:game]),
-                :tip => _("#{d[:position].ordinalize} - #{d[:points]} points<br>#{d[:game].home.name} #{d[:game].home_score} x #{d[:game].away_score} #{d[:game].away.name}"),
+                :tip => sprintf(_("%s - %d points<br>%s %d x %d %s"), d[:position].ordinalize, d[:points], d[:game].home.name, d[:game].home_score, d[:game].away_score, d[:game].away.name),
                 :colour => case d[:type]
                     when "w"
                     "0000ff"
@@ -141,7 +141,7 @@ class ChampionshipController < ApplicationController
              "halo-size" => 1 }
     data.each do |d|
       value = { :value => group.team_groups.size - d[:position],
-                :tip => _("#{d[:position].ordinalize} - #{d[:points]} points<br>#{d[:game].home.name} #{d[:game].home_score} x #{d[:game].away_score} #{d[:game].away.name}"),
+                :tip => sprintf(_("%s - %d points<br>%s %d x %d %s"), d[:position].ordinalize, d[:points], d[:game].home.name, d[:game].home_score, d[:game].away_score, d[:game].away.name),
                 "on-click" => url_for(:controller => :game, :action => :show, :id => d[:game]) }
       line[:values] << value
     end
