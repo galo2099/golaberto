@@ -99,7 +99,7 @@ class Group < ActiveRecord::Base
     last_games = Array.new
     played_games.each do |g|
       if (last_round and last_round != g.round) or
-         (last_date and last_date != g.date)
+         (!last_round and last_date and last_date != g.date)
         yield sort_teams(stats), last_games if block_given?
         last_games = Array.new
       end
