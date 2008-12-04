@@ -42,42 +42,43 @@ module GameHelper
         value.each do |hunk|
           hunk.each do |change|
             goal = Goal.new Hash[*change.element.flatten]
-            case change.action 
+            case change.action
             when "-"
-              ret << "Removed goal "
+              ret << _("Removed goal ")
             when "+"
-              ret << "Added goal "
+              ret << _("Added goal ")
             end
             ret << goal.player.name + " - "
             ret << goal.time.to_s + " "
-            ret << "(penalty)" if goal.penalty?
-            ret << "(own_goal)" if goal.own_goal?
+            ret << _("(penalty)") if goal.penalty?
+            ret << _("(own_goal)") if goal.own_goal?
             ret << "<br>"
           end
         end
       when :stadium_id
         if value[0].nil?
-          ret << "Added stadium: #{Stadium.find(value[1]).name}<br>"
+          ret << sprintf(_("Added stadium: %s<br>"), Stadium.find(value[1]).name)
         elsif value[1].nil?
-          ret << "Removed stadium: #{Stadium.find(value[0]).name}<br>"
+          ret << sprintf(_("Removed stadium: %s<br>"), Stadium.find(value[0]).name)
         else
-          ret << "Changed stadium: #{Stadium.find(value[0]).name} -> #{Stadium.find(value[1]).name}<br>"
+          ret << sprintf(_("Changed stadium: %s -> %s<br>"), Stadium.find(value[0]).name, Stadium.find(value[1]).name)
         end
       when :referee_id
         if value[0].nil?
-          ret << "Added referee: #{Referee.find(value[1]).name}<br>"
+          ret << sprintf(_("Added referee: %s<br>"), Referee.find(value[1]).name)
         elsif value[1].nil?
-          ret << "Removed referee: #{Referee.find(value[0]).name}<br>"
+          ret << sprintf(_("Removed referee: %s<br>"), Referee.find(value[0]).name)
         else
-          ret << "Changed referee: #{Referee.find(value[0]).name} -> #{Referee.find(value[1]).name}<br>"
+          ret << sprintf(_("Changed referee: %s -> %s<br>"), Referee.find(value[0]).name, Referee.find(value[1]).name)
         end
       else
+        name = Game.columns_hash[key.to_s] ? Game.columns_hash[key.to_s].human_name.downcase : key.to_s
         if value[0].nil?
-          ret << "Added #{key}: #{value[1]}<br>"
+          ret << sprintf(_("Added %s: %s<br>"), name, value[1])
         elsif value[1].nil?
-          ret << "Removed #{key}: #{value[0]}<br>"
+          ret << sprintf(_("Removed %s: %s<br>"), name, value[0])
         else
-          ret << "Changed #{key}: #{value[0]} -> #{value[1]}<br>"
+          ret << sprintf(_("Changed %s: %s -> %s<br>"), name, value[0], value[1])
         end
       end
     end

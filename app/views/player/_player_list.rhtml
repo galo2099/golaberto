@@ -1,7 +1,7 @@
 <table>
   <tr>
-    <th>Name</th>
-    <th>Position</th>
+    <th><%= _("Name") %></th>
+    <th><%= _("Position") %></th>
   </tr>
 
   <% for player in @players %>
@@ -9,8 +9,8 @@
       <td><%= link_to player.name, :action => :show, :id => player %></td>
       <td><%= player.position %></td>
       <% if logged_in? %>
-        <td><%= link_to 'Edit', :action => 'edit', :id => player %></td>
-        <td><%= link_to 'Destroy', { :action => 'destroy', :id => player }, :confirm => 'Are you sure?', :post => true %></td>
+        <td><%= link_to _('Edit'), :action => 'edit', :id => player %></td>
+        <td><%= link_to _('Destroy'), { :action => 'destroy', :id => player }, :confirm => _('Are you sure?'), :post => true %></td>
       <% end %>
     </tr>
   <% end %>

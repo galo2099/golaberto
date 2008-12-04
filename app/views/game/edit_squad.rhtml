@@ -47,7 +47,7 @@ EOF
     <tr>
       <td class="players">
         <div id="home_players">
-          <h3>Players</h3>
+          <h3><%= _("Players") %></h3>
           <div id="home_player_list" class="player_list">
             <%= render :partial => "player_squad", :collection => @home_players, :locals => { :disabled => true } %>
           </div>
@@ -56,7 +56,7 @@ EOF
         </div>
       </td>
       <td colspan="4" class="players">
-        <h3>Players</h3>
+        <h3><%= _("Players") %></h3>
         <div id="home_squad">
           <%= render :partial => "player_squad", :collection => @home_squad, :locals => { :disabled => false } %>
         </div>
@@ -65,7 +65,7 @@ EOF
       <%= sortable_element "home_squad", :dropOnEmpty => true, :containment => [ "home_player_list", "home_squad" ], :only => "player_squad", :constraint => false, :tag => "div", :onUpdate => "addPlayerDetails", :handle => "draggable" %>
       <td></td>
       <td colspan="4" class="players">
-        <h3>Players</h3>
+        <h3><%= _("Players") %></h3>
         <div id="away_squad">
           <%= render :partial => "player_squad", :collection => @away_squad, :locals => { :disabled => false } %>
         </div>
@@ -73,7 +73,7 @@ EOF
       </td>
       <td class="players">
         <div id="away_players">
-          <h3>Players</h3>
+          <h3><%= _("Players") %></h3>
           <div id="away_player_list" class="player_list">
             <%= render :partial => "player_squad", :collection => @away_players, :locals => { :disabled => true } %>
           </div>
@@ -87,14 +87,14 @@ EOF
 
     <tr><td colspan="10">
         <table>
-          <tr><td>Round:</td><td><%= @game.round %></td></tr>
-          <tr><td>Attendance:</td><td><%= @game.attendance %></td></tr>
-          <tr><td>Date:</td><td><%= @game.formatted_date.to_s + " - " + @game.formatted_time.to_s %></td></tr>
-          <tr><td>Stadium:</td><td><%= @game.stadium.name unless @game.stadium.nil? %></td></tr>
-          <tr><td>Referee:</td><td><%= "#{@game.referee.name} (#{@game.referee.location})" unless @game.referee.nil? %></td></tr>
+          <tr><td><%= _("Round") %>:</td><td><%= @game.round %></td></tr>
+          <tr><td><%= _("Attendance") %>:</td><td><%= @game.attendance %></td></tr>
+          <tr><td><%= _("Date") %>:</td><td><%= @game.formatted_date.to_s + " - " + @game.formatted_time.to_s %></td></tr>
+          <tr><td><%= _("Stadium") %>:</td><td><%= @game.stadium.name unless @game.stadium.nil? %></td></tr>
+          <tr><td><%= _("Referee") %>:</td><td><%= "#{@game.referee.name} (#{@game.referee.location})" unless @game.referee.nil? %></td></tr>
         </table>
     </td></tr>
   </table>
 
-  <%= submit_tag "Update" %>
+  <%= submit_tag _("Update") %>
 <% end %>

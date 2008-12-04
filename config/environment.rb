@@ -40,6 +40,8 @@ Rails::Initializer.run do |config|
 
   # See Rails::Configuration for more options
   config.action_controller.session = { :session_key => "_myapp_session", :secret => "some secret phrase of at least 30 characters" }
+
+  config.gem "gettext", :lib => "gettext/rails"
 end
 
 # Add new inflection rules using the following format

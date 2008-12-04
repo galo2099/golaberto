@@ -12,14 +12,14 @@
 
 <% form_for :group, @group, :url => { :action => :update, :id => @group } do |f| %>
   <table>
-    <tr><td>Name:</td><td><%= f.text_field :name %></td></tr>
-    <tr><td>Promoted:</td><td><%= f.text_field :promoted, :size => 2 %></td></tr>
-    <tr><td>Relegated:</td><td><%= f.text_field :relegated, :size => 2 %></td></tr>
+    <tr><td><%= _("Name") %>:</td><td><%= f.text_field :name %></td></tr>
+    <tr><td><%= _("Promoted") %>:</td><td><%= f.text_field :promoted, :size => 2 %></td></tr>
+    <tr><td><%= _("Relegated") %>:</td><td><%= f.text_field :relegated, :size => 2 %></td></tr>
   </table>
 
   <p>
-  Teams<br/>
-  Number of teams:
+  <%= _("Teams") %><br/>
+  <%= _("Number of teams") %>:
   <input type="text" id="team_number" value="<%= @group.teams.size %>" size="2"/><br/>
   <%= observe_field 'team_number',
     :update => 'team_select',
@@ -30,5 +30,5 @@
   </div>
   </p>
 
-  <%= submit_tag "Update" %><br/>
+  <%= submit_tag _("Update") %><br/>
 <% end %>

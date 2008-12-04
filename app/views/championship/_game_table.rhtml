@@ -1,6 +1,6 @@
 <p>
-Round: <select id="round_select" name="round">
-  <option value="">All</option>
+<%= _("Round") %>: <select id="round_select" name="round">
+  <option value=""><%= _("All") %></option>
   <%= options_for_select @rounds, @current_round %>
 </select>
 <% game_url = url_for(:escape => false, :overwrite_params => { :round => "" }) %>
@@ -20,7 +20,7 @@ Round: <select id="round_select" name="round">
   <% end %>
   <% if last_round != game.round %>
     <% last_round = game.round %>
-    <div class='game_round'>Round <%= game.round %></div>
+    <div class='game_round'><%= _("Round ") %><%= game.round %></div>
     <% last_date = game.formatted_date %>
     <div class='game_date'><%= game.formatted_date(true) %></div>
   <% end %>

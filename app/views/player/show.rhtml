@@ -1,4 +1,4 @@
-<% content_for :main_title do %>Player<% end %>
+<% content_for :main_title do %><%= _("Player") %><% end %>
 
 <h2><%= @player.name %> - <%= @player.full_name %></h2>
 <% @player.team_players.each do |tp| %>
@@ -9,6 +9,6 @@
 
 <% content_for :sidebar do %>
   <% if logged_in? %>
-    <%= link_to "Edit", :action => :edit, :id => @player %>
+    <%= link_to _("Edit"), :action => :edit, :id => @player %>
   <% end %>
 <% end %>

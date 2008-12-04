@@ -71,10 +71,10 @@
     <td colspan="4" style="vertical-align: top">
       <table style="width: 100%">
         <tr class="game_show_goals game_show_away_score">
-          <th>Name</th>
-          <th>Pos</th>
-          <th>On</th>
-          <th>Off</th>
+          <th><%= _("Name") %></th>
+          <th><%= _("Pos") %></th>
+          <th><%= _("On") %></th>
+          <th><%= _("Off") %></th>
           <th></th>
           <th></th>
           <th></th>
@@ -98,10 +98,10 @@
     <td colspan="4" style="vertical-align: top">
       <table style="width: 100%">
         <tr class="game_show_goals game_show_away_score">
-          <th>Name</th>
-          <th>Pos</th>
-          <th>On</th>
-          <th>Off</th>
+          <th><%= _("Name") %></th>
+          <th><%= _("Pos") %></th>
+          <th><%= _("On") %></th>
+          <th><%= _("Off") %></th>
           <th></th>
           <th></th>
           <th></th>
@@ -124,20 +124,19 @@
 
   <tr><td colspan="10">
       <table>
-        <tr><td>Round:</td><td><%= @game.round %></td></tr>
-        <tr><td>Attendance:</td><td><%= @game.attendance %></td></tr>
-        <tr><td>Date:</td><td><%= @game.formatted_date.to_s + " - " + @game.formatted_time.to_s %></td></tr>
-        <tr><td>Stadium:</td><td><%= @game.stadium.name unless @game.stadium.nil? %></td></tr>
-        <tr><td>Referee:</td><td><%= "#{@game.referee.name} (#{@game.referee.location})" unless @game.referee.nil? %></td></tr>
+        <tr><td><%= _("Round") %>:</td><td><%= @game.round %></td></tr>
+        <tr><td><%= _("Attendance") %>:</td><td><%= @game.attendance %></td></tr>
+        <tr><td><%= _("Date") %>:</td><td><%= @game.formatted_date(true) %></td></tr>
+        <tr><td><%= s_("Game|Time") %>:</td><td><%= @game.formatted_time %></td></tr>
+        <tr><td><%= _("Stadium") %>:</td><td><%= @game.stadium.name unless @game.stadium.nil? %></td></tr>
+        <tr><td><%= _("Referee") %>:</td><td><%= "#{@game.referee.name} (#{@game.referee.location})" unless @game.referee.nil? %></td></tr>
       </table>
   </td></tr>
 
 </table>
 
-<%= @game.played_str %><br/>
-
 <% if not @last_games.empty? %>
-<h2>Previous <%=@last_games.length%> games</h2>
+<h2><%= sprintf(n_("Previous game", "Previous %d games", @last_games.size), @last_games.size) %></h2>
 <div class="game_score" style='font-size: 12px'>
   <% @last_games.each do |game| %>
     <div class="table_row">
@@ -163,8 +162,8 @@
 
 <% content_for :sidebar do %>
   <% if logged_in? %>
-    <%= link_to "Edit", :action => :edit, :id => @game %><br/>
-    <%= link_to "Edit Squad", :action => :edit_squad, :id => @game %><br/>
-    <%= link_to "Delete", { :action => :destroy, :id => @game }, :confirm => 'Are you sure?', :method => :post %><br/>
+    <%= link_to _("Edit"), :action => :edit, :id => @game %><br/>
+    <%= link_to _("Edit Squad"), :action => :edit_squad, :id => @game %><br/>
+    <%= link_to _("Delete"), { :action => :destroy, :id => @game }, :confirm => _('Are you sure?'), :method => :post %><br/>
   <% end %>
 <% end %>

@@ -1,16 +1,16 @@
-<% content_for :main_title do %> Home <% end %>
+<% content_for :main_title do %> <%= _("Home") %><% end %>
 
 <div id="championship">
-  <h3 style="margin-top: 0px">Current championships</h3>
+  <h3 style="margin-top: 0px"><%= _("Current championships") %></h3>
   <% @championships.each do |champ| %>
     <%= link_to champ.full_name, :controller => :championship, :action => :show, :id => champ %><br>
   <% end %>
 </div>
 
 <div id="edits">
-  <h3> Latest edits</h3>
+  <h3> <%= _("Latest edits") %></h3>
   <% @games.each do |game| %>
-    Updated by <%= game.updated_by_string %> on <%= game.updated_at.strftime("%A, %d/%m/%Y at %H:%M") if game.updated_at %><br>
+    <%= sprintf _("Updated by %s on %s"), game.updated_by_string, game.updated_at.strftime(_("%A, %d/%m/%Y at %H:%M")) if game.updated_at %><br>
     <div class="table_row">
       <div class="table_cell" style="width: 50%; text-align: left"><%= link_to game.phase.championship.full_name, :controller => :championship, :action => :show, :id => game.phase.championship %></div>
       <div class="table_cell" style="width: 50%"><%= game.formatted_date(true) %></div>
@@ -26,14 +26,14 @@
 </div>
 
 <div id="comments">
-  <h3>Latest comments</h3>
+  <h3><%= _("Latest comments") %></h3>
   <% @comments.each do |comment| %>
-    Comment by <%= comment.user.login %> on <%= comment.created_at.strftime("%A, %d/%m/%Y at %H:%M") %><br>
+    <%= sprintf _("Comment by %s on %s"), comment.user.login, comment.created_at.strftime(_("%A, %d/%m/%Y at %H:%M")) %><br>
     <br>
     <div>
       <%= comment.comment %>
     </div>
-    <%= link_to "View this #{comment.commentable_type}", :controller => comment.commentable_type, :action => :show, :id => comment.commentable_id %>
+    <%= link_to sprintf(_("View this %s"), _(comment.commentable_type.downcase)), :controller => comment.commentable_type, :action => :show, :id => comment.commentable_id %>
     <hr>
   <% end %>
 </div>

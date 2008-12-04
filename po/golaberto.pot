@@ -1,0 +1,1481 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: golaberto 1.0.0\n"
+"POT-Creation-Date: 2008-11-30 22:26-0200\n"
+"PO-Revision-Date: 2008-06-06 00:02-0300\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+
+# app/models/phase.rb:-
+msgid "phase"
+msgstr ""
+
+# app/models/phase.rb:-
+msgid "Phase|Championship"
+msgstr ""
+
+# app/models/phase.rb:-
+msgid "Phase|Name"
+msgstr ""
+
+# app/models/phase.rb:-
+msgid "Phase|Order by"
+msgstr ""
+
+# app/models/phase.rb:-
+msgid "Phase|Sort"
+msgstr ""
+
+# app/models/phase.rb:-
+msgid "Phase|Bonus points"
+msgstr ""
+
+# app/models/phase.rb:-
+msgid "Phase|Bonus points threshold"
+msgstr ""
+
+# app/models/player.rb:-
+msgid "player"
+msgstr ""
+
+# app/models/player.rb:-
+msgid "Player|Name"
+msgstr ""
+
+# app/models/player.rb:-
+msgid "Player|Position"
+msgstr ""
+
+# app/models/player.rb:-
+msgid "Player|Birth"
+msgstr ""
+
+# app/models/player.rb:-
+msgid "Player|Country"
+msgstr ""
+
+# app/models/player.rb:-
+msgid "Player|Full name"
+msgstr ""
+
+# app/models/referee_champ.rb:-
+msgid "referee champ"
+msgstr ""
+
+# app/models/referee_champ.rb:-
+msgid "RefereeChamp|Referee"
+msgstr ""
+
+# app/models/referee_champ.rb:-
+msgid "RefereeChamp|Championship"
+msgstr ""
+
+# app/models/team.rb:-
+msgid "team"
+msgstr ""
+
+# app/models/team.rb:-
+msgid "Team|Name"
+msgstr ""
+
+# app/models/team.rb:-
+msgid "Team|Country"
+msgstr ""
+
+# app/models/team.rb:-
+msgid "Team|Logo"
+msgstr ""
+
+# app/models/team.rb:-
+msgid "Team|City"
+msgstr ""
+
+# app/models/team.rb:-
+msgid "Team|Stadium"
+msgstr ""
+
+# app/models/team.rb:-
+msgid "Team|Foundation"
+msgstr ""
+
+# app/models/team.rb:-
+msgid "Team|Full name"
+msgstr ""
+
+# app/models/goal.rb:-
+msgid "goal"
+msgstr ""
+
+# app/models/goal.rb:-
+msgid "Goal|Player"
+msgstr ""
+
+# app/models/goal.rb:-
+msgid "Goal|Game"
+msgstr ""
+
+# app/models/goal.rb:-
+msgid "Goal|Team"
+msgstr ""
+
+# app/models/goal.rb:-
+msgid "Goal|Time"
+msgstr ""
+
+# app/models/goal.rb:-
+msgid "Goal|Penalty"
+msgstr ""
+
+# app/models/goal.rb:-
+msgid "Goal|Own goal"
+msgstr ""
+
+# app/models/comment.rb:-
+msgid "comment"
+msgstr ""
+
+# app/models/comment.rb:-
+msgid "Comment|Title"
+msgstr ""
+
+# app/models/comment.rb:-
+msgid "Comment|Comment"
+msgstr ""
+
+# app/models/comment.rb:-
+msgid "Comment|Created at"
+msgstr ""
+
+# app/models/comment.rb:-
+msgid "Comment|Commentable"
+msgstr ""
+
+# app/models/comment.rb:-
+msgid "Comment|Commentable type"
+msgstr ""
+
+# app/models/comment.rb:-
+msgid "Comment|User"
+msgstr ""
+
+# app/models/championship.rb:-
+msgid "championship"
+msgstr ""
+
+# app/models/championship.rb:-
+msgid "Championship|Name"
+msgstr ""
+
+# app/models/championship.rb:-
+msgid "Championship|Begin"
+msgstr ""
+
+# app/models/championship.rb:-
+msgid "Championship|End"
+msgstr ""
+
+# app/models/championship.rb:-
+msgid "Championship|Point win"
+msgstr ""
+
+# app/models/championship.rb:-
+msgid "Championship|Point draw"
+msgstr ""
+
+# app/models/championship.rb:-
+msgid "Championship|Point loss"
+msgstr ""
+
+# app/models/championship.rb:-
+msgid "Championship|Category"
+msgstr ""
+
+# app/models/stadium.rb:-
+msgid "stadium"
+msgstr ""
+
+# app/models/stadium.rb:-
+msgid "Stadium|Name"
+msgstr ""
+
+# app/models/stadium.rb:-
+msgid "Stadium|Full name"
+msgstr ""
+
+# app/models/stadium.rb:-
+msgid "Stadium|City"
+msgstr ""
+
+# app/models/stadium.rb:-
+msgid "Stadium|Country"
+msgstr ""
+
+# app/models/referee.rb:-
+msgid "referee"
+msgstr ""
+
+# app/models/referee.rb:-
+msgid "Referee|Name"
+msgstr ""
+
+# app/models/referee.rb:-
+msgid "Referee|Location"
+msgstr ""
+
+# app/models/team_group.rb:-
+msgid "team group"
+msgstr ""
+
+# app/models/team_group.rb:-
+msgid "TeamGroup|Group"
+msgstr ""
+
+# app/models/team_group.rb:-
+msgid "TeamGroup|Team"
+msgstr ""
+
+# app/models/team_group.rb:-
+msgid "TeamGroup|Add sub"
+msgstr ""
+
+# app/models/team_group.rb:-
+msgid "TeamGroup|Bias"
+msgstr ""
+
+# app/models/team_group.rb:-
+msgid "TeamGroup|Comment"
+msgstr ""
+
+# app/models/team_group.rb:-
+msgid "TeamGroup|First odds"
+msgstr ""
+
+# app/models/team_group.rb:-
+msgid "TeamGroup|Promoted odds"
+msgstr ""
+
+# app/models/team_group.rb:-
+msgid "TeamGroup|Relegated odds"
+msgstr ""
+
+# app/models/group.rb:-
+msgid "group"
+msgstr ""
+
+# app/models/group.rb:-
+msgid "Group|Phase"
+msgstr ""
+
+# app/models/group.rb:-
+msgid "Group|Name"
+msgstr ""
+
+# app/models/group.rb:-
+msgid "Group|Promoted"
+msgstr ""
+
+# app/models/group.rb:-
+msgid "Group|Relegated"
+msgstr ""
+
+# app/models/group.rb:-
+msgid "Group|Odds progress"
+msgstr ""
+
+# app/models/category.rb:-
+msgid "category"
+msgstr ""
+
+# app/models/category.rb:-
+msgid "Category|Name"
+msgstr ""
+
+# app/models/team_player.rb:-
+msgid "team player"
+msgstr ""
+
+# app/models/team_player.rb:-
+msgid "TeamPlayer|Team"
+msgstr ""
+
+# app/models/team_player.rb:-
+msgid "TeamPlayer|Player"
+msgstr ""
+
+# app/models/team_player.rb:-
+msgid "TeamPlayer|Championship"
+msgstr ""
+
+# app/models/game.rb:-
+msgid "game"
+msgstr ""
+
+# app/models/game.rb:-
+msgid "Game|Home"
+msgstr ""
+
+# app/models/game.rb:-
+msgid "Game|Away"
+msgstr ""
+
+# app/models/game.rb:-
+msgid "Game|Phase"
+msgstr ""
+
+# app/models/game.rb:-
+msgid "Game|Round"
+msgstr ""
+
+# app/models/game.rb:-
+msgid "Game|Attendance"
+msgstr ""
+
+# app/models/game.rb:-
+msgid "Game|Stadium"
+msgstr ""
+
+# app/models/game.rb:-
+msgid "Game|Referee"
+msgstr ""
+
+# app/models/game.rb:-
+msgid "Game|Home score"
+msgstr ""
+
+# app/models/game.rb:-
+msgid "Game|Away score"
+msgstr ""
+
+# app/models/game.rb:-
+msgid "Game|Home pen"
+msgstr ""
+
+# app/models/game.rb:-
+msgid "Game|Away pen"
+msgstr ""
+
+# app/models/game.rb:-
+msgid "Game|Played"
+msgstr ""
+
+# app/models/game.rb:-
+msgid "Game|Date"
+msgstr ""
+
+# app/models/game.rb:-
+msgid "Game|Time"
+msgstr ""
+
+# app/models/game.rb:-
+msgid "Game|Version"
+msgstr ""
+
+# app/models/game.rb:-
+msgid "Game|Updater"
+msgstr ""
+
+# app/models/game.rb:-
+msgid "Game|Updated at"
+msgstr ""
+
+#: app/models/game.rb:108
+msgid "Played"
+msgstr ""
+
+#: app/models/game.rb:108 app/views/championship/team.rhtml:43
+#: app/views/game/list.rhtml:23
+msgid "Scheduled"
+msgstr ""
+
+#: app/models/game.rb:127
+msgid "unknown"
+msgstr ""
+
+# app/models/user.rb:-
+msgid "user"
+msgstr ""
+
+# app/models/user.rb:-
+msgid "User|Login"
+msgstr ""
+
+# app/models/user.rb:-
+msgid "User|Email"
+msgstr ""
+
+# app/models/user.rb:-
+msgid "User|Crypted password"
+msgstr ""
+
+# app/models/user.rb:-
+msgid "User|Salt"
+msgstr ""
+
+# app/models/user.rb:-
+msgid "User|Created at"
+msgstr ""
+
+# app/models/user.rb:-
+msgid "User|Updated at"
+msgstr ""
+
+# app/models/user.rb:-
+msgid "User|Remember token"
+msgstr ""
+
+# app/models/user.rb:-
+msgid "User|Remember token expires at"
+msgstr ""
+
+# app/models/player_game.rb:-
+msgid "player game"
+msgstr ""
+
+# app/models/player_game.rb:-
+msgid "PlayerGame|Player"
+msgstr ""
+
+# app/models/player_game.rb:-
+msgid "PlayerGame|Game"
+msgstr ""
+
+# app/models/player_game.rb:-
+msgid "PlayerGame|Team"
+msgstr ""
+
+# app/models/player_game.rb:-
+msgid "PlayerGame|On"
+msgstr ""
+
+# app/models/player_game.rb:-
+msgid "PlayerGame|Off"
+msgstr ""
+
+# app/models/player_game.rb:-
+msgid "PlayerGame|Yellow"
+msgstr ""
+
+# app/models/player_game.rb:-
+msgid "PlayerGame|Red"
+msgstr ""
+
+#: app/helpers/game_helper.rb:47
+msgid "Removed goal "
+msgstr ""
+
+#: app/helpers/game_helper.rb:49
+msgid "Added goal "
+msgstr ""
+
+#: app/helpers/game_helper.rb:53
+msgid "(penalty)"
+msgstr ""
+
+#: app/helpers/game_helper.rb:54
+msgid "(own_goal)"
+msgstr ""
+
+#: app/helpers/game_helper.rb:60
+msgid "Added stadium: %s<br>"
+msgstr ""
+
+#: app/helpers/game_helper.rb:62
+msgid "Removed stadium: %s<br>"
+msgstr ""
+
+#: app/helpers/game_helper.rb:64
+msgid "Changed stadium: %s -> %s<br>"
+msgstr ""
+
+#: app/helpers/game_helper.rb:68
+msgid "Added referee: %s<br>"
+msgstr ""
+
+#: app/helpers/game_helper.rb:70
+msgid "Removed referee: %s<br>"
+msgstr ""
+
+#: app/helpers/game_helper.rb:72
+msgid "Changed referee: %s -> %s<br>"
+msgstr ""
+
+#: app/helpers/game_helper.rb:77
+msgid "Added %s: %s<br>"
+msgstr ""
+
+#: app/helpers/game_helper.rb:79
+msgid "Removed %s: %s<br>"
+msgstr ""
+
+#: app/helpers/game_helper.rb:81
+msgid "Changed %s: %s -> %s<br>"
+msgstr ""
+
+#: app/helpers/application_helper.rb:8
+msgid "Prev"
+msgstr ""
+
+#: app/helpers/application_helper.rb:11
+msgid "Prev "
+msgstr ""
+
+#: app/helpers/application_helper.rb:22
+msgid " Next"
+msgstr ""
+
+#: app/controllers/game_controller.rb:2
+msgid "Game"
+msgstr ""
+
+#: app/controllers/game_controller.rb:153
+msgid "Game saved"
+msgstr ""
+
+#: app/controllers/phase_controller.rb:2
+msgid "Phase"
+msgstr ""
+
+#: app/controllers/comment_controller.rb:2 app/views/comment/_comments.rhtml:9
+msgid "Comment"
+msgstr ""
+
+#: app/controllers/team_group_controller.rb:2
+msgid "TeamGroup"
+msgstr ""
+
+#: app/controllers/category_controller.rb:2
+#: app/views/championship/edit.rhtml:21 app/views/championship/list.rhtml:6
+#: app/views/championship/new.rhtml:9 app/views/game/list.rhtml:3
+msgid "Category"
+msgstr ""
+
+#: app/controllers/account_controller.rb:2
+msgid "Account"
+msgstr ""
+
+#: app/controllers/account_controller.rb:24
+msgid "Logged in successfully"
+msgstr ""
+
+#: app/controllers/account_controller.rb:34
+msgid "Thanks for signing up!"
+msgstr ""
+
+#: app/controllers/account_controller.rb:43
+msgid "You have been logged out."
+msgstr ""
+
+#: app/controllers/group_controller.rb:2
+msgid "Group"
+msgstr ""
+
+#: app/controllers/team_controller.rb:2
+msgid "Team"
+msgstr ""
+
+#: app/controllers/player_controller.rb:2 app/views/player/show.rhtml:1
+msgid "Player"
+msgstr ""
+
+#: app/controllers/referee_controller.rb:2 app/views/referee/show.rhtml:1
+#: app/views/game/edit_squad.rhtml:94 app/views/game/show.rhtml:132
+#: app/views/game/edit.rhtml:145
+msgid "Referee"
+msgstr ""
+
+#: app/controllers/stadium_controller.rb:2 app/views/team/_form.rhtml:6
+#: app/views/team/show.rhtml:17 app/views/stadium/show.rhtml:1
+#: app/views/game/edit_squad.rhtml:93 app/views/game/show.rhtml:131
+#: app/views/game/edit.rhtml:173
+msgid "Stadium"
+msgstr ""
+
+#: app/controllers/championship_controller.rb:2 app/views/phase/show.rhtml:1
+#: app/views/phase/new.rhtml:5
+msgid "Championship"
+msgstr ""
+
+#: app/controllers/championship_controller.rb:119
+#: app/views/game/_player.rhtml:9 app/views/player/_player_list.rhtml:4
+#: app/views/player/edit.rhtml:5
+msgid "Position"
+msgstr ""
+
+#: app/controllers/home_controller.rb:2 app/views/layouts/application.rhtml:26
+#: app/views/home/index.rhtml:1
+msgid "Home"
+msgstr ""
+
+#: app/controllers/cookie_controller.rb:2
+msgid "Cookie"
+msgstr ""
+
+#: app/views/team/_form.rhtml:1 app/views/team/_form.rhtml:16
+#: app/views/team/_team_list.rhtml:3 app/views/referee/_referee_list.rhtml:3
+#: app/views/stadium/_stadium_list.rhtml:3
+#: app/views/championship/team.rhtml:67
+#: app/views/championship/top_goalscorers.rhtml:17
+#: app/views/championship/_table.rhtml:28 app/views/championship/edit.rhtml:6
+#: app/views/championship/edit.rhtml:31 app/views/championship/list.rhtml:5
+#: app/views/championship/new.rhtml:3 app/views/championship/crowd.rhtml:12
+#: app/views/game/show.rhtml:74 app/views/game/show.rhtml:101
+#: app/views/game/edit.rhtml:89 app/views/game/edit.rhtml:99
+#: app/views/game/edit.rhtml:160 app/views/game/edit.rhtml:188
+#: app/views/player/_player_list.rhtml:3 app/views/player/edit.rhtml:4
+#: app/views/group/edit.rhtml:15 app/views/phase/show.rhtml:2
+#: app/views/phase/list.rhtml:11 app/views/phase/edit.rhtml:7
+#: app/views/phase/edit.rhtml:22 app/views/phase/new.rhtml:3
+msgid "Name"
+msgstr ""
+
+#: app/views/team/_form.rhtml:2
+msgid "Full name"
+msgstr ""
+
+#: app/views/team/_form.rhtml:3 app/views/team/show.rhtml:14
+msgid "City"
+msgstr ""
+
+#: app/views/team/_form.rhtml:4 app/views/team/show.rhtml:16
+msgid "Foundation"
+msgstr ""
+
+#: app/views/team/_form.rhtml:5 app/views/team/show.rhtml:15
+#: app/views/team/_team_list.rhtml:4 app/views/player/edit.rhtml:7
+msgid "Country"
+msgstr ""
+
+#: app/views/team/_form.rhtml:11 app/views/game/_insert_player.rhtml:12
+#: app/views/game/edit.rhtml:151 app/views/game/edit.rhtml:179
+msgid "New"
+msgstr ""
+
+#: app/views/team/_form.rhtml:18 app/views/team/new.rhtml:6
+#: app/views/championship/new_game.rhtml:15
+#: app/views/championship/list.rhtml:30 app/views/championship/new.rhtml:13
+#: app/views/game/edit.rhtml:163 app/views/game/edit.rhtml:190
+#: app/views/phase/new.rhtml:7
+msgid "Create"
+msgstr ""
+
+#: app/views/team/_form.rhtml:21 app/views/game/edit.rhtml:193
+msgid "Are you sure you want to create a new stadium?"
+msgstr ""
+
+#: app/views/team/_form.rhtml:25
+msgid "Logo"
+msgstr ""
+
+#: app/views/team/_form.rhtml:26
+msgid "Filter image background?"
+msgstr ""
+
+#: app/views/team/show.rhtml:23
+msgid "Latest championships"
+msgstr ""
+
+#: app/views/team/show.rhtml:31
+msgid "Last 5 games"
+msgstr ""
+
+#: app/views/team/show.rhtml:56
+msgid "Next 5 games"
+msgstr ""
+
+#: app/views/team/show.rhtml:83 app/views/team/_team_list.rhtml:13
+#: app/views/referee/_referee_list.rhtml:12 app/views/team_group/list.rhtml:16
+#: app/views/stadium/show.rhtml:31 app/views/stadium/_stadium_list.rhtml:10
+#: app/views/championship/edit.rhtml:32 app/views/championship/list.rhtml:14
+#: app/views/game/show.rhtml:165 app/views/player/_player_list.rhtml:12
+#: app/views/player/show.rhtml:12 app/views/phase/list.rhtml:20
+#: app/views/phase/edit.rhtml:23
+msgid "Edit"
+msgstr ""
+
+#: app/views/team/show.rhtml:84 app/views/comment/_comment.rhtml:4
+#: app/views/championship/edit.rhtml:33 app/views/game/show.rhtml:167
+#: app/views/phase/edit.rhtml:24
+msgid "Delete"
+msgstr ""
+
+#: app/views/team/show.rhtml:84 app/views/team/_team_list.rhtml:14
+#: app/views/referee/_referee_list.rhtml:13 app/views/team_group/list.rhtml:17
+#: app/views/championship/team.rhtml:87 app/views/championship/edit.rhtml:33
+#: app/views/championship/list.rhtml:17 app/views/game/show.rhtml:167
+#: app/views/player/_player_list.rhtml:13 app/views/phase/list.rhtml:21
+msgid "Are you sure?"
+msgstr ""
+
+#: app/views/team/_team_list.rhtml:14 app/views/referee/_referee_list.rhtml:13
+#: app/views/team_group/list.rhtml:17 app/views/stadium/_stadium_list.rhtml:11
+#: app/views/championship/list.rhtml:15 app/views/player/_player_list.rhtml:13
+#: app/views/phase/list.rhtml:21
+msgid "Destroy"
+msgstr ""
+
+#: app/views/team/list.rhtml:1
+msgid "Listing teams"
+msgstr ""
+
+#: app/views/team/list.rhtml:6 app/views/referee/list.rhtml:7
+#: app/views/stadium/list.rhtml:7 app/views/player/list.rhtml:7
+msgid "Search"
+msgstr ""
+
+#: app/views/team/list.rhtml:15
+msgid "New team"
+msgstr ""
+
+#: app/views/team/edit.rhtml:3
+msgid "Editing team"
+msgstr ""
+
+#: app/views/team/edit.rhtml:7 app/views/stadium/edit.rhtml:8
+#: app/views/championship/edit.rhtml:44 app/views/game/edit_squad.rhtml:99
+#: app/views/game/edit.rhtml:201 app/views/player/edit.rhtml:9
+#: app/views/group/edit.rhtml:33 app/views/phase/edit.rhtml:30
+msgid "Update"
+msgstr ""
+
+#: app/views/team/new.rhtml:1
+msgid "New Team"
+msgstr ""
+
+#: app/views/comment/_comments.rhtml:2
+msgid "Comments"
+msgstr ""
+
+#: app/views/comment/_comments.rhtml:6
+msgid "Leave a comment"
+msgstr ""
+
+#: app/views/comment/_comments.rhtml:11
+msgid "Add Comment"
+msgstr ""
+
+#: app/views/comment/_comments.rhtml:14
+msgid "You can only leave a comment if you're %s"
+msgstr ""
+
+#: app/views/comment/_comments.rhtml:14
+msgid "logged in"
+msgstr ""
+
+#: app/views/comment/_comment.rhtml:3
+msgid "Comment posted %s ago by %s"
+msgstr ""
+
+#: app/views/referee/list.rhtml:1
+msgid "Listing referees"
+msgstr ""
+
+#: app/views/referee/list.rhtml:19
+msgid "New referee"
+msgstr ""
+
+#: app/views/referee/show.rhtml:4 app/views/referee/_referee_list.rhtml:4
+#: app/views/game/edit.rhtml:162
+msgid "Location"
+msgstr ""
+
+#: app/views/referee/show.rhtml:7 app/views/stadium/show.rhtml:6
+#: app/views/layouts/application.rhtml:29 app/views/championship/games.rhtml:2
+#: app/views/championship/crowd.rhtml:16
+#: app/views/championship/_nav_side.rhtml:10
+msgid "Games"
+msgstr ""
+
+#: app/views/team_group/list.rhtml:1
+msgid "Listing team_groups"
+msgstr ""
+
+#: app/views/team_group/list.rhtml:15 app/views/phase/list.rhtml:19
+msgid "Show"
+msgstr ""
+
+#: app/views/team_group/list.rhtml:22
+msgid "Previous page"
+msgstr ""
+
+#: app/views/team_group/list.rhtml:23
+msgid "Next page"
+msgstr ""
+
+#: app/views/team_group/list.rhtml:27
+msgid "New team_group"
+msgstr ""
+
+#: app/views/stadium/list.rhtml:1
+msgid "Listing stadia"
+msgstr ""
+
+#: app/views/stadium/list.rhtml:19
+msgid "New stadium"
+msgstr ""
+
+#: app/views/stadium/edit.rhtml:1
+msgid "Stadium Edit"
+msgstr ""
+
+#: app/views/layouts/application.rhtml:27
+msgid "Championships"
+msgstr ""
+
+#: app/views/layouts/application.rhtml:28
+#: app/views/championship/top_goalscorers.rhtml:19
+#: app/views/championship/_nav_side.rhtml:12 app/views/group/edit.rhtml:21
+msgid "Teams"
+msgstr ""
+
+#: app/views/layouts/application.rhtml:30 app/views/championship/team.rhtml:62
+#: app/views/game/edit_squad.rhtml:50 app/views/game/edit_squad.rhtml:59
+#: app/views/game/edit_squad.rhtml:68 app/views/game/edit_squad.rhtml:76
+#: app/views/game/edit.rhtml:74 app/views/game/edit.rhtml:107
+msgid "Players"
+msgstr ""
+
+#: app/views/layouts/application.rhtml:31
+msgid "Stadiums"
+msgstr ""
+
+#: app/views/layouts/application.rhtml:32
+msgid "Referees"
+msgstr ""
+
+#: app/views/layouts/application.rhtml:34
+msgid "Logout"
+msgstr ""
+
+#: app/views/layouts/application.rhtml:36 app/views/account/signup.rhtml:3
+#: app/views/account/login.rhtml:2
+msgid "Login"
+msgstr ""
+
+#: app/views/account/signup.rhtml:6
+msgid "Email"
+msgstr ""
+
+#: app/views/account/signup.rhtml:9 app/views/account/login.rhtml:5
+msgid "Password"
+msgstr ""
+
+#: app/views/account/signup.rhtml:12
+msgid "Confirm Password"
+msgstr ""
+
+#: app/views/account/signup.rhtml:15
+msgid "Sign up"
+msgstr ""
+
+#: app/views/account/login.rhtml:13
+msgid "Log in"
+msgstr ""
+
+#: app/views/championship/team.rhtml:23
+msgid "ChampionshipTeam|Played"
+msgstr ""
+
+#: app/views/championship/team.rhtml:68
+#: app/views/championship/top_goalscorers.rhtml:18
+#: app/views/championship/_table.rhtml:27 app/views/game/show.rhtml:75
+#: app/views/game/show.rhtml:102
+msgid "Pos"
+msgstr ""
+
+#: app/views/championship/team.rhtml:69
+#: app/views/championship/top_goalscorers.rhtml:20
+#: app/views/game/edit.rhtml:88
+msgid "Goals"
+msgstr ""
+
+#: app/views/championship/team.rhtml:70
+#: app/views/championship/top_goalscorers.rhtml:22
+msgid "Own Goals"
+msgstr ""
+
+#: app/views/championship/team.rhtml:71
+#: app/views/championship/top_goalscorers.rhtml:21
+#: app/views/game/edit.rhtml:58
+msgid "Penalties"
+msgstr ""
+
+#: app/views/championship/team.rhtml:84
+msgid "Remove"
+msgstr ""
+
+#: app/views/championship/phases.rhtml:2
+#: app/views/championship/_nav_side.rhtml:8
+msgid "Table"
+msgstr ""
+
+#: app/views/championship/_game_list.rhtml:22
+msgid "More information"
+msgstr ""
+
+#: app/views/championship/_game_list.rhtml:24
+msgid "Edit this game"
+msgstr ""
+
+#: app/views/championship/_game_list.rhtml:25
+msgid "Delete this game"
+msgstr ""
+
+#: app/views/championship/_game_list.rhtml:25
+msgid "Are you sure you want to delete this game?"
+msgstr ""
+
+#: app/views/championship/top_goalscorers.rhtml:2
+#: app/views/championship/_nav_side.rhtml:14
+msgid "Goalscorers"
+msgstr ""
+
+#: app/views/championship/top_goalscorers.rhtml:9
+msgid "No players in this list"
+msgstr ""
+
+#: app/views/championship/top_goalscorers.rhtml:12
+msgid "Top Goalscorers"
+msgstr ""
+
+#: app/views/championship/_table.rhtml:29
+msgid "Pts"
+msgstr ""
+
+#: app/views/championship/_table.rhtml:30
+msgid "G"
+msgstr ""
+
+#: app/views/championship/_table.rhtml:31
+msgid "W"
+msgstr ""
+
+#: app/views/championship/_table.rhtml:32
+msgid "D"
+msgstr ""
+
+#: app/views/championship/_table.rhtml:33
+msgid "L"
+msgstr ""
+
+#: app/views/championship/_table.rhtml:34
+msgid "GF"
+msgstr ""
+
+#: app/views/championship/_table.rhtml:35
+msgid "GA"
+msgstr ""
+
+#: app/views/championship/_table.rhtml:36
+msgid "GD"
+msgstr ""
+
+#: app/views/championship/_table.rhtml:37
+msgid "1%"
+msgstr ""
+
+#: app/views/championship/_table.rhtml:37
+msgid "odds of finishing first"
+msgstr ""
+
+#: app/views/championship/_table.rhtml:38
+msgid "P%"
+msgstr ""
+
+#: app/views/championship/_table.rhtml:38
+msgid "odds of finishing in promotion zone"
+msgstr ""
+
+#: app/views/championship/_table.rhtml:39
+msgid "R%"
+msgstr ""
+
+#: app/views/championship/_table.rhtml:39
+msgid "odds of finishing in relegation zone"
+msgstr ""
+
+#: app/views/championship/edit.rhtml:1
+msgid "Edit Championship"
+msgstr ""
+
+#: app/views/championship/edit.rhtml:9 app/views/championship/new.rhtml:4
+msgid "Begin"
+msgstr ""
+
+#: app/views/championship/edit.rhtml:10 app/views/championship/new.rhtml:5
+msgid "End"
+msgstr ""
+
+#: app/views/championship/edit.rhtml:12 app/views/championship/new.rhtml:6
+msgid "Points for win"
+msgstr ""
+
+#: app/views/championship/edit.rhtml:15 app/views/championship/new.rhtml:7
+msgid "Points for draw"
+msgstr ""
+
+#: app/views/championship/edit.rhtml:18 app/views/championship/new.rhtml:8
+msgid "Points for loss"
+msgstr ""
+
+#: app/views/championship/edit.rhtml:26
+msgid "Phases"
+msgstr ""
+
+#: app/views/championship/edit.rhtml:39
+msgid "Add new phase"
+msgstr ""
+
+#: app/views/championship/edit.rhtml:39
+msgid "More phases can be added later"
+msgstr ""
+
+#: app/views/championship/_game_table.rhtml:2
+#: app/views/game/edit_squad.rhtml:90 app/views/game/show.rhtml:127
+#: app/views/game/edit.rhtml:123
+msgid "Round"
+msgstr ""
+
+#: app/views/championship/_game_table.rhtml:3
+msgid "All"
+msgstr ""
+
+#: app/views/championship/_game_table.rhtml:23
+msgid "Round "
+msgstr ""
+
+#: app/views/championship/list.rhtml:1
+msgid "Listing Championships"
+msgstr ""
+
+#: app/views/championship/_recalculate_button.rhtml:5
+msgid "Updating odds..."
+msgstr ""
+
+#: app/views/championship/_recalculate_button.rhtml:8
+msgid "Odds being recalculated"
+msgstr ""
+
+#: app/views/championship/_recalculate_button.rhtml:8
+msgid "%d%% done."
+msgstr ""
+
+#: app/views/championship/_recalculate_button.rhtml:13
+msgid "Recalculate odds"
+msgstr ""
+
+#: app/views/championship/crowd.rhtml:2
+#: app/views/championship/_nav_side.rhtml:13
+msgid "Crowd"
+msgstr ""
+
+#: app/views/championship/crowd.rhtml:8
+msgid "Best averages"
+msgstr ""
+
+#: app/views/championship/crowd.rhtml:13
+msgid "Average"
+msgstr ""
+
+#: app/views/championship/crowd.rhtml:14
+msgid "Maximum"
+msgstr ""
+
+#: app/views/championship/crowd.rhtml:15
+msgid "Minimum"
+msgstr ""
+
+#: app/views/championship/crowd.rhtml:35
+msgid "Most attended games"
+msgstr ""
+
+#: app/views/championship/_nav_side.rhtml:3
+msgid "Edit championship"
+msgstr ""
+
+#: app/views/championship/_nav_side.rhtml:4
+msgid "New game"
+msgstr ""
+
+#: app/views/game/_player.rhtml:8 app/views/player/edit.rhtml:8
+msgid "Full Name"
+msgstr ""
+
+#: app/views/game/_player.rhtml:15
+msgid "Close"
+msgstr ""
+
+#: app/views/game/_player.rhtml:16 app/views/game/_insert_player.rhtml:1
+msgid "Add"
+msgstr ""
+
+#: app/views/game/_player.rhtml:23
+msgid "Are you sure you want to add this player?"
+msgstr ""
+
+#: app/views/game/_insert_player.rhtml:8
+msgid "Cancel"
+msgstr ""
+
+#: app/views/game/_insert_player.rhtml:18
+msgid "Are you sure you want to create a new player?"
+msgstr ""
+
+#: app/views/game/edit_squad.rhtml:91 app/views/game/show.rhtml:128
+#: app/views/game/edit.rhtml:127
+msgid "Attendance"
+msgstr ""
+
+#: app/views/game/edit_squad.rhtml:92 app/views/game/show.rhtml:129
+#: app/views/game/edit.rhtml:131
+msgid "Date"
+msgstr ""
+
+#: app/views/game/show.rhtml:76 app/views/game/show.rhtml:103
+msgid "On"
+msgstr ""
+
+#: app/views/game/show.rhtml:77 app/views/game/show.rhtml:104
+msgid "Off"
+msgstr ""
+
+#: app/views/game/show.rhtml:139
+msgid "Previous game"
+msgid_plural "Previous %d games"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/views/game/show.rhtml:166
+msgid "Edit Squad"
+msgstr ""
+
+#: app/views/game/edit.rhtml:89 app/views/game/edit.rhtml:99
+msgid "Pen"
+msgstr ""
+
+#: app/views/game/edit.rhtml:89 app/views/game/edit.rhtml:99
+msgid "Own"
+msgstr ""
+
+#: app/views/game/edit.rhtml:166
+msgid "Are you sure you want to create a new referee?"
+msgstr ""
+
+#: app/views/game/edit.rhtml:200
+msgid "GameEdit|Played"
+msgstr ""
+
+#: app/views/game/edit.rhtml:206
+msgid "Version %d"
+msgstr ""
+
+#: app/views/game/edit.rhtml:207 app/views/home/index.rhtml:13
+msgid "Updated by %s on %s"
+msgstr ""
+
+#: app/views/game/edit.rhtml:207 app/views/game/edit.rhtml:212
+#: app/views/home/index.rhtml:13 app/views/home/index.rhtml:31
+msgid "%A, %d/%m/%Y at %H:%M"
+msgstr ""
+
+#: app/views/game/edit.rhtml:211
+msgid "Version 1"
+msgstr ""
+
+#: app/views/game/edit.rhtml:212
+msgid "Created by %s on %s"
+msgstr ""
+
+#: app/views/game/list.rhtml:1
+msgid "Listing games"
+msgstr ""
+
+#: app/views/game/list.rhtml:9
+msgid "From"
+msgstr ""
+
+#: app/views/game/list.rhtml:10
+msgid "To"
+msgstr ""
+
+#: app/views/game/list.rhtml:13
+msgid "Change date"
+msgstr ""
+
+#: app/views/game/list.rhtml:24
+msgid "GameList|Played"
+msgstr ""
+
+#: app/views/player/list.rhtml:1
+msgid "Listing players"
+msgstr ""
+
+#: app/views/player/list.rhtml:19
+msgid "New player"
+msgstr ""
+
+#: app/views/player/edit.rhtml:1
+msgid "Player Edit"
+msgstr ""
+
+#: app/views/player/edit.rhtml:6
+msgid "Birth"
+msgstr ""
+
+#: app/views/group/edit.rhtml:16
+msgid "Promoted"
+msgstr ""
+
+#: app/views/group/edit.rhtml:17
+msgid "Relegated"
+msgstr ""
+
+#: app/views/group/edit.rhtml:22
+msgid "Number of teams"
+msgstr ""
+
+#: app/views/phase/list.rhtml:2
+msgid "No phases found"
+msgstr ""
+
+#: app/views/phase/list.rhtml:12 app/views/phase/edit.rhtml:8
+#: app/views/phase/new.rhtml:6
+msgid "Sort"
+msgstr ""
+
+#: app/views/phase/edit.rhtml:9
+msgid "Bonus points for win?"
+msgstr ""
+
+#: app/views/phase/edit.rhtml:10
+msgid "Bonus"
+msgstr ""
+
+#: app/views/phase/edit.rhtml:14
+msgid "Goal difference equal to<br/>or bigger than"
+msgstr ""
+
+#: app/views/phase/edit.rhtml:20
+msgid "Groups"
+msgstr ""
+
+#: app/views/phase/edit.rhtml:26
+msgid "Add new group"
+msgstr ""
+
+#: app/views/phase/edit.rhtml:26
+msgid "More groups can be added later"
+msgstr ""
+
+#: app/views/phase/new.rhtml:4
+msgid "Order"
+msgstr ""
+
+#: app/views/home/index.rhtml:4
+msgid "Current championships"
+msgstr ""
+
+#: app/views/home/index.rhtml:11
+msgid "Latest edits"
+msgstr ""
+
+#: app/views/home/index.rhtml:29
+msgid "Latest comments"
+msgstr ""
+
+#: app/views/home/index.rhtml:31
+msgid "Comment by %s on %s"
+msgstr ""
+
+#: app/views/home/index.rhtml:36
+msgid "View this %s"
+msgstr ""
+
+#: lib/gettext_date.rb:26
+msgid "%Y-%m-%d"
+msgstr ""
+
+#: lib/gettext_date.rb:28
+msgid "%a %b %e %H:%M:%S %Y"
+msgstr ""
+
+#: lib/gettext_date.rb:30
+msgid "%m/%d/%y"
+msgstr ""
+
+#: lib/gettext_date.rb:35
+msgid "Sunday"
+msgstr ""
+
+#: lib/gettext_date.rb:35
+msgid "Monday"
+msgstr ""
+
+#: lib/gettext_date.rb:35
+msgid "Tuesday"
+msgstr ""
+
+#: lib/gettext_date.rb:35
+msgid "Wednesday"
+msgstr ""
+
+#: lib/gettext_date.rb:36
+msgid "Thursday"
+msgstr ""
+
+#: lib/gettext_date.rb:36
+msgid "Friday"
+msgstr ""
+
+#: lib/gettext_date.rb:36
+msgid "Saturday"
+msgstr ""
+
+#: lib/gettext_date.rb:40
+msgid "Sun"
+msgstr ""
+
+#: lib/gettext_date.rb:40
+msgid "Mon"
+msgstr ""
+
+#: lib/gettext_date.rb:40
+msgid "Tue"
+msgstr ""
+
+#: lib/gettext_date.rb:40
+msgid "Wed"
+msgstr ""
+
+#: lib/gettext_date.rb:41
+msgid "Thu"
+msgstr ""
+
+#: lib/gettext_date.rb:41
+msgid "Fri"
+msgstr ""
+
+#: lib/gettext_date.rb:41
+msgid "Sat"
+msgstr ""
+
+#: lib/gettext_date.rb:45
+msgid "January"
+msgstr ""
+
+#: lib/gettext_date.rb:45
+msgid "February"
+msgstr ""
+
+#: lib/gettext_date.rb:45
+msgid "March"
+msgstr ""
+
+#: lib/gettext_date.rb:45
+msgid "April"
+msgstr ""
+
+#: lib/gettext_date.rb:46
+msgid "Month|May"
+msgstr ""
+
+#: lib/gettext_date.rb:46
+msgid "June"
+msgstr ""
+
+#: lib/gettext_date.rb:46
+msgid "July"
+msgstr ""
+
+#: lib/gettext_date.rb:46
+msgid "August"
+msgstr ""
+
+#: lib/gettext_date.rb:46
+msgid "September"
+msgstr ""
+
+#: lib/gettext_date.rb:47
+msgid "October"
+msgstr ""
+
+#: lib/gettext_date.rb:47
+msgid "November"
+msgstr ""
+
+#: lib/gettext_date.rb:47
+msgid "December"
+msgstr ""
+
+#: lib/gettext_date.rb:52
+msgid "Jan"
+msgstr ""
+
+#: lib/gettext_date.rb:52
+msgid "Feb"
+msgstr ""
+
+#: lib/gettext_date.rb:52
+msgid "Mar"
+msgstr ""
+
+#: lib/gettext_date.rb:52
+msgid "Apr"
+msgstr ""
+
+#: lib/gettext_date.rb:52
+msgid "Abbr|May"
+msgstr ""
+
+#: lib/gettext_date.rb:52
+msgid "Jun"
+msgstr ""
+
+#: lib/gettext_date.rb:53
+msgid "Jul"
+msgstr ""
+
+#: lib/gettext_date.rb:53
+msgid "Aug"
+msgstr ""
+
+#: lib/gettext_date.rb:53
+msgid "Sep"
+msgstr ""
+
+#: lib/gettext_date.rb:53
+msgid "Oct"
+msgstr ""
+
+#: lib/gettext_date.rb:54
+msgid "Nov"
+msgstr ""
+
+#: lib/gettext_date.rb:54
+msgid "Dec"
+msgstr ""
+
+#: lib/gettext_date.rb:60
+msgid "AM"
+msgstr ""
+
+#: lib/gettext_date.rb:60
+msgid "am"
+msgstr ""
+
+#: lib/gettext_date.rb:62
+msgid "PM"
+msgstr ""
+
+#: lib/gettext_date.rb:62
+msgid "pm"
+msgstr ""

@@ -2,13 +2,13 @@
           :url => { :controller => :group,
                     :action => :update_odds,
                     :id => group },
-          :before => update_page{|p|p["recalculate"].replace_html("Updating odds...")},
-          :failure => 'alert("Cant calculate odds")') %>
+          :before => update_page{|p|p["recalculate"].replace_html(_("Updating odds..."))},
+          :failure => "alert('#{_('Cant calculate odds')}')") %>
 <% if group.odds_progress then %>
-  Odds being recalculated. <%= group.odds_progress %>% done.
+  <%= _("Odds being recalculated") %>. <%= sprintf _("%d%% done."), group.odds_progress %>
   <%= javascript_tag update_page{|p| p.delay(5) {
         p.insert_html :before, "recalculate", javascript_tag(calculate_function)
       }} %>
 <% else %>
-  <%= button_to_function "Recalculate odds", calculate_function %>
+  <%= button_to_function _("Recalculate odds"), calculate_function %>
 <% end %>

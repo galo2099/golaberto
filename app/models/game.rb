@@ -105,7 +105,7 @@ class Game < ActiveRecord::Base
     end
 
     def played_str
-      played? ? "Played" : "Scheduled"
+      played? ? _("Played") : _("Scheduled")
     end
 
     def formatted_date(day = false)
@@ -124,7 +124,7 @@ class Game < ActiveRecord::Base
     end
 
     def updated_by_string
-      updated_by ? updated_by.login : "unknown"
+      updated_by ? updated_by.login : _("unknown")
     end
 
     def goal_distribution(team, side, score)

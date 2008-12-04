@@ -1,14 +1,14 @@
 <%= error_messages_for 'championship' %>
 <% form_for :championship, @championship, :url => { :action => "create" } do |f| %>
-  Name: <%= f.text_field :name %><br/>
-  Begin: <%= date_field :championship, :begin, :format => "%d/%m/%Y", :size => 10 %><br/>
-  End: <%= date_field :championship, :end, :format => "%d/%m/%Y", :size => 10 %><br/>
-  Points for win: <%= f.text_field :point_win, :size => 2 %><br/>
-  Points for draw: <%= f.text_field :point_draw, :size => 2 %><br/>
-  Points for loss: <%= f.text_field :point_loss, :size => 2 %><br/>
-  Category:
+  <%= _("Name") %>: <%= f.text_field :name %><br/>
+  <%= _("Begin") %>: <%= date_field :championship, :begin, :format => "%d/%m/%Y", :size => 10 %><br/>
+  <%= _("End") %>: <%= date_field :championship, :end, :format => "%d/%m/%Y", :size => 10 %><br/>
+  <%= _("Points for win") %>: <%= f.text_field :point_win, :size => 2 %><br/>
+  <%= _("Points for draw") %>: <%= f.text_field :point_draw, :size => 2 %><br/>
+  <%= _("Points for loss") %>: <%= f.text_field :point_loss, :size => 2 %><br/>
+  <%= _("Category") %>:
   <select id="championship_category_id" name="championship[category_id]">
     <%= options_from_collection_for_select @categories, "id", "name" %>
   </select><br/>
-  <%= submit_tag "Create" %>
+  <%= submit_tag _("Create") %>
 <% end %>

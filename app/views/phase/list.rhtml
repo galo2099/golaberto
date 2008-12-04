@@ -1,5 +1,5 @@
 <% if @total == 0 %>
-<p>No phases found</p>
+<p><%= _("No phases found") %></p>
 <% else %>
 
   <% if @phase_pages.page_count > 1 %>
@@ -8,17 +8,17 @@
 
 <table>
   <tr>
-  <th>Name</th>
-  <th>Sort</th>
+  <th><%= _("Name") %></th>
+  <th><%= _("Sort") %></th>
   </tr>
   
 <% for phase in @phases %>
   <tr>
   <td><%= phase.name %></td>
   <td><%= phase.sort %></td>
-  <td><%= link_to 'Show', :action => 'show', :id => phase %></td>
-  <td><%= link_to 'Edit', :action => 'edit', :id => phase %></td>
-  <td><%= link_to 'Destroy', { :action => 'destroy', :id => phase }, :confirm => 'Are you sure?', :post => true %></td>
+  <td><%= link_to _('Show'), :action => 'show', :id => phase %></td>
+  <td><%= link_to _('Edit'), :action => 'edit', :id => phase %></td>
+  <td><%= link_to _('Destroy'), { :action => 'destroy', :id => phase }, :confirm => _('Are you sure?'), :post => true %></td>
   </tr>
 <% end %>
 </table>

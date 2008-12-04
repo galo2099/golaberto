@@ -1,14 +1,14 @@
 <table>
   <tr>
-    <th>Name</th>
+    <th><%= _("Name") %></th>
   </tr>
 
   <% @stadia.each do |stadium| %>
     <tr>
       <td><%= link_to stadium.name, :action => :show, :id => stadium %></td>
       <% if logged_in? %>
-        <td><%= link_to 'Edit', :action => 'edit', :id => stadium %></td>
-        <td><%= link_to 'Destroy', { :action => 'destroy', :id => stadium }, :confirm => 'Are you sure?', :post => true %></td>
+        <td><%= link_to _('Edit'), :action => 'edit', :id => stadium %></td>
+        <td><%= link_to _('Destroy'), { :action => 'destroy', :id => stadium }, :confirm => 'Are you sure?', :post => true %></td>
       <% end %>
     </tr>
   <% end %>

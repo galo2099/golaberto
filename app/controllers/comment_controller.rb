@@ -1,6 +1,8 @@
 class CommentController < ApplicationController
+  N_("Comment")
+
   before_filter :login_required
-  
+
   def new
     type = params[:type].classify.constantize
     object = type.find(params[:id])

@@ -1,9 +1,9 @@
-<% content_for :main_title do %> Listing teams <% end %>
+<% content_for :main_title do %> <%= _("Listing teams") %><% end %>
 
 <% form_tag({ :action => "list", :id => "" }, :method => "GET",
             :style => "display: inline") do %>
   <%= text_field_tag("id", @id, :size => 20) %>
-  <%= submit_tag("Search", :name => nil) %>
+  <%= submit_tag(_("Search"), :name => nil) %>
 <% end %>
 
 <div id="table">
@@ -12,7 +12,7 @@
 
 <% content_for :sidebar do %>
   <% if logged_in? %>
-    <%= link_to 'New team', :action => 'new' %>
+    <%= link_to _('New team'), :action => 'new' %>
   <% end %>
 <% end %>
 <%= update_page_tag do |page| page["id"].activate end %>

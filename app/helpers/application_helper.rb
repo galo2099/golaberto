@@ -5,10 +5,10 @@ module ApplicationHelper
     html = ""
     unless paginator.current.first?
       ajax_options[:url].merge!({:page => paginator.current.previous.number})
-      html << link_to_remote("Prev", ajax_options, html_options)
+      html << link_to_remote(_("Prev"), ajax_options, html_options)
       html << " "
     else
-      html << "Prev "
+      html << _("Prev ")
     end
     html << pagination_links_each(paginator, page_options) do |page|
       ajax_options[:url].merge!({:page => page})
@@ -19,7 +19,7 @@ module ApplicationHelper
       html << " "
       html << link_to_remote("Next", ajax_options, html_options)
     else
-      html << " Next"
+      html << _(" Next")
     end
     html
   end
