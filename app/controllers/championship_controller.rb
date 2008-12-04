@@ -1,3 +1,5 @@
+require 'digest/sha1'
+
 class ChampionshipController < ApplicationController
   N_("Championship")
 
