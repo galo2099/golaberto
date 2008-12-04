@@ -128,7 +128,7 @@ class Game < ActiveRecord::Base
     end
 
     def goal_distribution(team, side, score)
-      phase.championship.games.select{|g| g.played? and g.send(side) == team and g.date < date}.map{|g| g.send(score)}.inject(Array.new(10, 0)) {|a,x| a.map!{|z|z*0.8}; a[x]+=1;a}
+      phase.championship.games.find(:all, :order => :date).select{|g| g.played? and g.send(side) == team and g.date < date}.map{|g| g.send(score)}.inject(Array.new(10, 0)) {|a,x| a.map!{|z|z*0.8}; a[x]+=1;a}
     end
 
     def home_for
