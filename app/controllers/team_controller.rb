@@ -21,6 +21,8 @@ class TeamController < ApplicationController
   def update
     @team = Team.find(params["id"])
     @team.attributes = params["team"]
+    foundation = params[:team].delete(:foundation)
+    @team.foundation = Date.strptime(foundation, "%d/%m/%Y") unless foundation.empty?
 
     begin
       @team.save!
