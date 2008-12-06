@@ -37,9 +37,9 @@ module DateHelper
     if options[:value].is_a?(Date)
       options[:value] = options[:value].strftime(format)
     end
-    months = Date::MONTHNAMES[1..12].collect { |m| "'#{m}'" }
+    months = (1..12).map{|i| GettextDate::Conversions.abbr_monthnames(i) }.collect { |m| "'#{m}'" }
     months = '[' + months.join(',') + ']'
-    days = Date::DAYNAMES.collect { |d| "'#{d}'" }
+    days = (0..6).map{|i| GettextDate::Conversions.abbr_daynames(i) }.collect { |d| "'#{d}'" }
     days = '[' + days.join(',') + ']'
     { :onfocus => "this.select();calendar_open(this,{format:'#{format}',images_dir:'/images',month_names:#{months},day_names:#{days}})",
       :onclick => "event.cancelBubble=true;this.select();calendar_open(this,{format:'#{format}',images_dir:'/images',month_names:#{months},day_names:#{days}})",
