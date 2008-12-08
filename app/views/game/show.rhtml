@@ -66,9 +66,8 @@
   <% end %>
 
  <% if not @game.home_player_games.empty? or not @game.away_player_games.empty? %>
-  <tr><td></td>
-    
-    <td colspan="4" style="vertical-align: top">
+  <tr>
+    <td colspan="5" style="vertical-align: top">
       <table style="width: 100%">
         <tr class="game_show_goals game_show_away_score">
           <th><%= _("Name") %></th>
@@ -92,10 +91,10 @@
         <% end %>
       </table>
     </td>
-    
+
     <td></td>
-    
-    <td colspan="4" style="vertical-align: top">
+
+    <td colspan="5" style="vertical-align: top">
       <table style="width: 100%">
         <tr class="game_show_goals game_show_away_score">
           <th><%= _("Name") %></th>
@@ -118,8 +117,8 @@
           </tr>
         <% end %>
       </table>
-      </td><td>
-  </td></tr>
+    </td>
+  </tr>
 <% end %>
 
   <tr><td colspan="10">
