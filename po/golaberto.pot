@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2008-12-07 22:29-0200\n"
+"POT-Creation-Date: 2008-12-08 12:00-0200\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -588,14 +588,14 @@ msgid "Player"
 msgstr ""
 
 #: app/controllers/referee_controller.rb:2 app/views/referee/show.rhtml:1
-#: app/views/game/edit_squad.rhtml:94 app/views/game/show.rhtml:132
+#: app/views/game/edit_squad.rhtml:94 app/views/game/show.rhtml:131
 #: app/views/game/edit.rhtml:145
 msgid "Referee"
 msgstr ""
 
 #: app/controllers/stadium_controller.rb:2 app/views/team/_form.rhtml:6
 #: app/views/team/show.rhtml:17 app/views/stadium/show.rhtml:1
-#: app/views/game/edit_squad.rhtml:93 app/views/game/show.rhtml:131
+#: app/views/game/edit_squad.rhtml:93 app/views/game/show.rhtml:130
 #: app/views/game/edit.rhtml:173
 msgid "Stadium"
 msgstr ""
@@ -631,7 +631,7 @@ msgstr ""
 #: app/views/championship/_table.rhtml:28 app/views/championship/edit.rhtml:6
 #: app/views/championship/edit.rhtml:31 app/views/championship/list.rhtml:5
 #: app/views/championship/new.rhtml:3 app/views/championship/crowd.rhtml:12
-#: app/views/game/show.rhtml:74 app/views/game/show.rhtml:101
+#: app/views/game/show.rhtml:73 app/views/game/show.rhtml:100
 #: app/views/game/edit.rhtml:89 app/views/game/edit.rhtml:99
 #: app/views/game/edit.rhtml:160 app/views/game/edit.rhtml:188
 #: app/views/player/_player_list.rhtml:3 app/views/player/edit.rhtml:4
@@ -699,14 +699,14 @@ msgstr ""
 #: app/views/referee/_referee_list.rhtml:12 app/views/team_group/list.rhtml:16
 #: app/views/stadium/show.rhtml:31 app/views/stadium/_stadium_list.rhtml:10
 #: app/views/championship/edit.rhtml:32 app/views/championship/list.rhtml:14
-#: app/views/game/show.rhtml:165 app/views/player/_player_list.rhtml:12
+#: app/views/game/show.rhtml:164 app/views/player/_player_list.rhtml:12
 #: app/views/player/show.rhtml:12 app/views/phase/list.rhtml:20
 #: app/views/phase/edit.rhtml:23
 msgid "Edit"
 msgstr ""
 
 #: app/views/team/show.rhtml:84 app/views/comment/_comment.rhtml:4
-#: app/views/championship/edit.rhtml:33 app/views/game/show.rhtml:167
+#: app/views/championship/edit.rhtml:33 app/views/game/show.rhtml:166
 #: app/views/phase/edit.rhtml:24
 msgid "Delete"
 msgstr ""
@@ -714,7 +714,7 @@ msgstr ""
 #: app/views/team/show.rhtml:84 app/views/team/_team_list.rhtml:14
 #: app/views/referee/_referee_list.rhtml:13 app/views/team_group/list.rhtml:17
 #: app/views/championship/team.rhtml:90 app/views/championship/edit.rhtml:33
-#: app/views/championship/list.rhtml:17 app/views/game/show.rhtml:167
+#: app/views/championship/list.rhtml:17 app/views/game/show.rhtml:166
 #: app/views/player/_player_list.rhtml:13 app/views/phase/list.rhtml:21
 msgid "Are you sure?"
 msgstr ""
@@ -890,8 +890,8 @@ msgstr ""
 
 #: app/views/championship/team.rhtml:71
 #: app/views/championship/top_goalscorers.rhtml:18
-#: app/views/championship/_table.rhtml:27 app/views/game/show.rhtml:75
-#: app/views/game/show.rhtml:102
+#: app/views/championship/_table.rhtml:27 app/views/game/show.rhtml:74
+#: app/views/game/show.rhtml:101
 msgid "Pos"
 msgstr ""
 
@@ -921,14 +921,6 @@ msgid "Compare with other team:"
 msgstr ""
 
 #: app/views/championship/team.rhtml:199
-msgid "< Prev"
-msgstr ""
-
-#: app/views/championship/team.rhtml:200
-msgid "Next >"
-msgstr ""
-
-#: app/views/championship/team.rhtml:201
 msgid "No records found."
 msgstr ""
 
@@ -1059,7 +1051,7 @@ msgid "More phases can be added later"
 msgstr ""
 
 #: app/views/championship/_game_table.rhtml:2
-#: app/views/game/edit_squad.rhtml:90 app/views/game/show.rhtml:127
+#: app/views/game/edit_squad.rhtml:90 app/views/game/show.rhtml:126
 #: app/views/game/edit.rhtml:123
 msgid "Round"
 msgstr ""
@@ -1154,31 +1146,31 @@ msgstr ""
 msgid "Are you sure you want to create a new player?"
 msgstr ""
 
-#: app/views/game/edit_squad.rhtml:91 app/views/game/show.rhtml:128
+#: app/views/game/edit_squad.rhtml:91 app/views/game/show.rhtml:127
 #: app/views/game/edit.rhtml:127
 msgid "Attendance"
 msgstr ""
 
-#: app/views/game/edit_squad.rhtml:92 app/views/game/show.rhtml:129
+#: app/views/game/edit_squad.rhtml:92 app/views/game/show.rhtml:128
 #: app/views/game/edit.rhtml:131
 msgid "Date"
 msgstr ""
 
-#: app/views/game/show.rhtml:76 app/views/game/show.rhtml:103
+#: app/views/game/show.rhtml:75 app/views/game/show.rhtml:102
 msgid "On"
 msgstr ""
 
-#: app/views/game/show.rhtml:77 app/views/game/show.rhtml:104
+#: app/views/game/show.rhtml:76 app/views/game/show.rhtml:103
 msgid "Off"
 msgstr ""
 
-#: app/views/game/show.rhtml:139
+#: app/views/game/show.rhtml:138
 msgid "Previous game"
 msgid_plural "Previous %d games"
 msgstr[0] ""
 msgstr[1] ""
 
-#: app/views/game/show.rhtml:166
+#: app/views/game/show.rhtml:165
 msgid "Edit Squad"
 msgstr ""
 
@@ -1502,4 +1494,12 @@ msgstr ""
 
 #: lib/gettext_date.rb:62
 msgid "pm"
+msgstr ""
+
+#: lib/gettext_will_paginate.rb:4
+msgid "&laquo; Previous"
+msgstr ""
+
+#: lib/gettext_will_paginate.rb:5
+msgid "Next &raquo;"
 msgstr ""

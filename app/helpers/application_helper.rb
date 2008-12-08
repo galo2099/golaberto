@@ -24,10 +24,6 @@ module ApplicationHelper
     html
   end
 
-  def unless_nil(value)
-    yield value unless value.nil?
-  end
-
   # We define our own list of countries because we'd like to have England,
   # Wales, Ireland and Scotland as options. United Kingdom is left as a choice
   # because that's how they play at the Olympic Games.

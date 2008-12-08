@@ -196,8 +196,6 @@ EOF
 <!-- Load the YUI Loader script: -->
 <script src="http://yui.yahooapis.com/2.5.2/build/yuiloader/yuiloader-beta-min.js"></script>
 
-<% N_("< Prev") %>
-<% N_("Next >") %>
 <% N_("No records found.") %>
 
 <%= javascript_tag <<EOF
@@ -267,8 +265,8 @@ var loader = new YAHOO.util.YUILoader({
                 rowsPerPage: 10,
                 template: '{PreviousPageLink} {NextPageLink}',
                 containers: 'pag',
-                previousPageLinkLabel: '#{_("< Prev")}',
-                nextPageLinkLabel: '#{_("Next >")}',
+                previousPageLinkLabel: '#{_("&laquo; Previous")}',
+                nextPageLinkLabel: '#{_("Next &raquo;")}',
                 alwaysVisible: false
               }),
               sortedBy:{ key:"name", dir:"asc" }

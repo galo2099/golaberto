@@ -2,6 +2,7 @@
 # Likewise, all the methods added will be available for all controllers.
 class ApplicationController < ActionController::Base
   require 'gettext_date'
+  require 'gettext_will_paginate'
   init_gettext "golaberto"
   include AuthenticatedSystem
 
