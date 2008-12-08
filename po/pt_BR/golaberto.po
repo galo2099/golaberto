@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2008-12-03 20:46-0200\n"
+"POT-Creation-Date: 2008-12-07 22:29-0200\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: Robson Braga Araujo <robsonbraga@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -611,17 +611,17 @@ msgid "Stadium"
 msgstr "Estádio"
 
 # app/models/championship.rb:-
-#: app/controllers/championship_controller.rb:2 app/views/phase/show.rhtml:1
+#: app/controllers/championship_controller.rb:4 app/views/phase/show.rhtml:1
 #: app/views/phase/new.rhtml:5
 msgid "Championship"
 msgstr "Campeonato"
 
-#: app/controllers/championship_controller.rb:84
+#: app/controllers/championship_controller.rb:86
 msgid "%s Campaign"
 msgstr "Campanha de %s"
 
-#: app/controllers/championship_controller.rb:124
-#: app/controllers/championship_controller.rb:144
+#: app/controllers/championship_controller.rb:126
+#: app/controllers/championship_controller.rb:146
 msgid "%s - %d points<br>%s %d x %d %s"
 msgstr "%s - %d pontos<br>%s %d x %d %s"
 
@@ -638,7 +638,7 @@ msgstr "Cookie"
 #: app/views/team/_form.rhtml:1 app/views/team/_form.rhtml:16
 #: app/views/team/_team_list.rhtml:3 app/views/referee/_referee_list.rhtml:3
 #: app/views/stadium/_stadium_list.rhtml:3
-#: app/views/championship/team.rhtml:68
+#: app/views/championship/team.rhtml:70
 #: app/views/championship/top_goalscorers.rhtml:17
 #: app/views/championship/_table.rhtml:28 app/views/championship/edit.rhtml:6
 #: app/views/championship/edit.rhtml:31 app/views/championship/list.rhtml:5
@@ -726,7 +726,7 @@ msgstr "Apagar"
 
 #: app/views/team/show.rhtml:84 app/views/team/_team_list.rhtml:14
 #: app/views/referee/_referee_list.rhtml:13 app/views/team_group/list.rhtml:17
-#: app/views/championship/team.rhtml:88 app/views/championship/edit.rhtml:33
+#: app/views/championship/team.rhtml:90 app/views/championship/edit.rhtml:33
 #: app/views/championship/list.rhtml:17 app/views/game/show.rhtml:167
 #: app/views/player/_player_list.rhtml:13 app/views/phase/list.rhtml:21
 msgid "Are you sure?"
@@ -906,37 +906,49 @@ msgstr "Logar"
 msgid "ChampionshipTeam|Played"
 msgstr "Jogados"
 
-#: app/views/championship/team.rhtml:69
+#: app/views/championship/team.rhtml:71
 #: app/views/championship/top_goalscorers.rhtml:18
 #: app/views/championship/_table.rhtml:27 app/views/game/show.rhtml:75
 #: app/views/game/show.rhtml:102
 msgid "Pos"
 msgstr "Pos"
 
-#: app/views/championship/team.rhtml:70
+#: app/views/championship/team.rhtml:72
 #: app/views/championship/top_goalscorers.rhtml:20
 #: app/views/game/edit.rhtml:88
 msgid "Goals"
 msgstr "Gols"
 
-#: app/views/championship/team.rhtml:71
+#: app/views/championship/team.rhtml:73
 #: app/views/championship/top_goalscorers.rhtml:22
 msgid "Own Goals"
 msgstr "Gols contra"
 
-#: app/views/championship/team.rhtml:72
+#: app/views/championship/team.rhtml:74
 #: app/views/championship/top_goalscorers.rhtml:21
 #: app/views/game/edit.rhtml:58
 msgid "Penalties"
 msgstr "Pênaltis"
 
-#: app/views/championship/team.rhtml:85
+#: app/views/championship/team.rhtml:87
 msgid "Remove"
 msgstr "Remover"
 
-#: app/views/championship/team.rhtml:146
+#: app/views/championship/team.rhtml:149
 msgid "Compare with other team:"
 msgstr "Comparar com outras equipes:"
+
+#: app/views/championship/team.rhtml:199
+msgid "< Prev"
+msgstr "< Anterior"
+
+#: app/views/championship/team.rhtml:200
+msgid "Next >"
+msgstr "Próximo >"
+
+#: app/views/championship/team.rhtml:201
+msgid "No records found."
+msgstr "Nenhum registro encontrado."
 
 #: app/views/championship/phases.rhtml:2
 #: app/views/championship/_nav_side.rhtml:8

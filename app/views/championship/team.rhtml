@@ -61,7 +61,9 @@
 <% end %>
 
 <h3><%= _("Players") %></h3>
-<div id="players" class="yui-skin-sam">
+<div class="yui-skin-sam">
+<div id="pag" class="yui-dt-paginator"></div>
+<div id="players">
   <table id="player_table">
   <thead>
     <tr>
@@ -93,6 +95,7 @@
       </tr>
     <% end %>
   </table>
+</div>
 </div>
 
 <%= javascript_tag "data = new Array();" %>
@@ -193,6 +196,10 @@ EOF
 <!-- Load the YUI Loader script: -->
 <script src="http://yui.yahooapis.com/2.5.2/build/yuiloader/yuiloader-beta-min.js"></script>
 
+<% N_("< Prev") %>
+<% N_("Next >") %>
+<% N_("No records found.") %>
+
 <%= javascript_tag <<EOF
 function findSWF(movieName) {
   if (navigator.appName.indexOf("Microsoft")!= -1) {
@@ -228,11 +235,11 @@ var loader = new YAHOO.util.YUILoader({
     onSuccess: function() {
         YAHOO.example.EnhanceFromMarkup = new function() {
             var myColumnDefs = [
-                {key:"name",label:"Name",sortable:true},
-                {key:"pos",label:"Pos", sortable:true},
-                {key:"goals",label:"Goals",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
-                {key:"own",label:"Own Goals",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
-                {key:"penalties",label:"Penalties",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
+                {key:"name",label:"#{_("Name")}",sortable:true},
+                {key:"pos",label:"#{_("Pos")}", sortable:true},
+                {key:"goals",label:"#{_("Goals")}",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
+                {key:"own",label:"#{_("Own Goals")}",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
+                {key:"penalties",label:"#{_("Penalties")}",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
                 {key:"remove",label:"",sortable:false},
             ];
 
@@ -257,10 +264,16 @@ var loader = new YAHOO.util.YUILoader({
 
             var config = {
               paginator: new YAHOO.widget.Paginator({
-                rowsPerPage: 10
+                rowsPerPage: 10,
+                template: '{PreviousPageLink} {NextPageLink}',
+                containers: 'pag',
+                previousPageLinkLabel: '#{_("< Prev")}',
+                nextPageLinkLabel: '#{_("Next >")}',
+                alwaysVisible: false
               }),
               sortedBy:{ key:"name", dir:"asc" }
             };
+            YAHOO.widget.DataTable.MSG_EMPTY = '#{_("No records found.")}';
             this.myDataTable = new YAHOO.widget.DataTable("players", myColumnDefs, this.myDataSource, config);
         };
     }
