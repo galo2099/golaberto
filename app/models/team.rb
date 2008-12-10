@@ -83,7 +83,7 @@ class Team < ActiveRecord::Base
     ret = n_games(n, cond, "DESC").sort do |a,b|
       b.date <=> a.date
     end
-    ret.slice(0..4)
+    ret.slice(0...n)
   end
 
   private
