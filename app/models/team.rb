@@ -55,53 +55,50 @@ class Team < ActiveRecord::Base
       logo.gsub(/(.*)\.svg/, '\1_100.png')
     end
   end
-  
-  def next_n_games(n, phase = nil)
+
+  def next_n_games(n, options = {})
     cond = [ "played = ?", false ]
-    if phase.nil?
+    if options[:phase].nil?
       cond[0] << " AND championships.category_id = ?";
       cond << Category::DEFAULT_CATEGORY
     else
       cond[0] << " AND phase_id = ?"
       cond << phase.id
     end
-    ret = n_games(n, cond, "ASC").sort do |a,b|
-      a.date <=> b.date
+    if options[:date]
+      cond[0] << " AND date >= ?"
+      cond << options[:date]
     end
-    ret.slice(0..4)
+    ret = n_games(n, cond, "ASC")
   end
 
-  def last_n_games(n, phase = nil)
+  def last_n_games(n, options = {})
     cond = [ "played = ?", true ]
-    if phase.nil?
+    if options[:phase].nil?
       cond[0] << " AND championships.category_id = ?";
       cond << Category::DEFAULT_CATEGORY
     else
       cond[0] << " AND phase_id = ?"
-      cond << phase.id
+      cond << options[:phase].id
     end
-    ret = n_games(n, cond, "DESC").sort do |a,b|
-      b.date <=> a.date
+    if options[:date]
+      cond[0] << " AND date <= ?"
+      cond << options[:date]
     end
-    ret.slice(0...n)
+    ret = n_games(n, cond, "DESC")
   end
 
   private
   def n_games(n, condition, order)
-    home = self.home_games.find(
+    condition[0] << " AND (home_id = ? OR away_id = ?)"
+    condition << id
+    condition << id
+    Game.find(
         :all,
         :order => "date #{order}",
         :conditions => condition,
         :include => [ { :phase => :championship } ],
         :limit => n)
-    away = self.away_games.find(
-        :all,
-        :order => "date #{order}",
-        :conditions => condition,
-        :include => [ { :phase => :championship } ],
-        :limit => n)
-
-    home + away
   end
 
   def crop_logo(image)

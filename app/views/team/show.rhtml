@@ -26,11 +26,10 @@
   <% end %>
 </div>
 
-<% last_games = @team.last_n_games(5)
-unless last_games.empty? %>
-<h2> <%= _("Last 5 games") %></h2>
+<% unless @last_games.empty? %>
+<h2> <%= n_("Last game", "Last %{num} games", @last_games.size) % { :num => @last_games.size } %></h2>
 <div class="game_score" style='font-size: 12px'>
-  <% last_games.each do |game| %>
+  <% @last_games.each do |game| %>
     <div class="table_row">
       <div class="table_cell" style='width: 30%; text-align: left'>
         <%= link_to game.phase.championship.full_name,
@@ -51,11 +50,10 @@ unless last_games.empty? %>
 </div>
 <% end %>
 
-<% next_games = @team.next_n_games(5)
-unless next_games.empty? %>
-<h2> <%= _("Next 5 games") %></h2>
+<% unless @next_games.empty? %>
+<h2> <%= n_("Next game", "Next %{num} games", @next_games.size) % { :num => @next_games.size } %></h2>
 <div class="game_score" style='font-size: 12px'>
-  <% next_games.each do |game| %>
+  <% @next_games.each do |game| %>
     <div class="table_row">
       <div class="table_cell" style='width: 30%; text-align: left'>
         <%= link_to game.phase.championship.full_name,

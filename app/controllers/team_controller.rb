@@ -11,6 +11,8 @@ class TeamController < ApplicationController
     store_location
     @team = Team.find(params["id"])
     @championships = @team.team_groups.map{|t| t.group.phase.championship}.uniq.sort{|a,b| b.begin <=> a.begin}
+    @next_games = @team.next_n_games(5, { :date => Date.today })
+    @last_games = @team.last_n_games(5, { :date => Date.today })
   end
 
   def edit

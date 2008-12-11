@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2008-12-08 12:00-0200\n"
+"POT-Creation-Date: 2008-12-11 00:35-0200\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: Robson Braga Araujo <robsonbraga@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -700,15 +700,19 @@ msgstr "Filtrar fundo da imagem?"
 msgid "Latest championships"
 msgstr "Últimos campeonatos"
 
-#: app/views/team/show.rhtml:31
-msgid "Last 5 games"
-msgstr "Últimos 5 jogos"
+#: app/views/team/show.rhtml:30
+msgid "Last game"
+msgid_plural "Last %{num} games"
+msgstr[0] "Último jogo"
+msgstr[1] "Últimos %{num} jogos"
 
-#: app/views/team/show.rhtml:56
-msgid "Next 5 games"
-msgstr "Próximos 5 jogos"
+#: app/views/team/show.rhtml:54
+msgid "Next game"
+msgid_plural "Next %{num} games"
+msgstr[0] "Próximo jogo"
+msgstr[1] "Próximos %{num} jogos"
 
-#: app/views/team/show.rhtml:83 app/views/team/_team_list.rhtml:13
+#: app/views/team/show.rhtml:81 app/views/team/_team_list.rhtml:13
 #: app/views/referee/_referee_list.rhtml:12 app/views/team_group/list.rhtml:16
 #: app/views/stadium/show.rhtml:31 app/views/stadium/_stadium_list.rhtml:10
 #: app/views/championship/edit.rhtml:32 app/views/championship/list.rhtml:14
@@ -718,13 +722,13 @@ msgstr "Próximos 5 jogos"
 msgid "Edit"
 msgstr "Editar"
 
-#: app/views/team/show.rhtml:84 app/views/comment/_comment.rhtml:4
+#: app/views/team/show.rhtml:82 app/views/comment/_comment.rhtml:4
 #: app/views/championship/edit.rhtml:33 app/views/game/show.rhtml:166
 #: app/views/phase/edit.rhtml:24
 msgid "Delete"
 msgstr "Apagar"
 
-#: app/views/team/show.rhtml:84 app/views/team/_team_list.rhtml:14
+#: app/views/team/show.rhtml:82 app/views/team/_team_list.rhtml:14
 #: app/views/referee/_referee_list.rhtml:13 app/views/team_group/list.rhtml:17
 #: app/views/championship/team.rhtml:90 app/views/championship/edit.rhtml:33
 #: app/views/championship/list.rhtml:17 app/views/game/show.rhtml:166
