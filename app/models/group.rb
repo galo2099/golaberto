@@ -130,7 +130,7 @@ class Group < ActiveRecord::Base
         when "gf"
           ret = team_class[a].goals_for <=> team_class[b].goals_for
         when "name"
-          ret = team_class[a].name <=> team_class[b].name
+          ret = team_class[b].name <=> team_class[a].name
         when "g_average"
           ret = team_class[a].goals_avg <=> team_class[b].goals_avg
         when "gp"
