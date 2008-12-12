@@ -48,3 +48,6 @@ ErrorDocument 500 "<h2>Application error</h2>Rails application failed to start p
   AddOutputFilterByType DEFLATE text/text text/html text/plain text/xml text/css application/x-javascript application/javascript
 </ifmodule>
 # END GZIP
+
+ExpiresActive On
+ExpiresDefault "access plus 1 year"
