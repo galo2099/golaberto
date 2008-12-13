@@ -1,7 +1,6 @@
 ---
 javascripts:
 - base:
-  - swfobject
   - prototype
   - effects
   - dragdrop
