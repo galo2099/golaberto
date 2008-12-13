@@ -1,0 +1,14 @@
+---
+javascripts:
+- base:
+  - swfobject
+  - prototype
+  - effects
+  - dragdrop
+  - controls
+  - boxover
+  - calendar
+stylesheets:
+- base:
+  - calendar
+  - main

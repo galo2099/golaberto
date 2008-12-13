@@ -5,10 +5,6 @@
   <%= @championship.full_name %>
 <% end %>
 
-<%= javascript_include_tag 'swfobject' %>
-<!--CSS file (default YUI Sam Skin) -->
-<link type="text/css" rel="stylesheet" href="http://yui.yahooapis.com/2.5.2/build/datatable/assets/skins/sam/datatable.css">
-
 <select id='team_select'>
   <%= options_from_collection_for_select @teams, "id", "name", @team.id %>
 </select>
@@ -190,8 +186,6 @@ EOF
     <% end %>
   </div>
 <% end %>
-
-<%= javascript_include_tag "boxover" %>
 
 <!-- Load the YUI Loader script: -->
 <script src="http://yui.yahooapis.com/2.5.2/build/yuiloader/yuiloader-beta-min.js"></script>
