@@ -17,11 +17,9 @@
     </tr>
   </table>
 
-  <p><%= _("Groups") %></p>
-  <% @phase.groups.each do |group| %>
-    <%= _("Name") %>: <%= group.name %>
-    <%= link_to _("Edit"), :controller => :group, :action => :edit, :id => group %>
-    <%= link_to _("Delete"), { :controller => :group, :action => :destroy, :id => group }, :confirm => 'Are you sure?', :post => true %><br/>
+  <%= render :partial => "group_list", :object => @phase %>
+  <% if @phase.groups.size > 0 %>
+    <%= link_to_remote _("Add 4 more groups"), :update => "groups", :url => { :action => :add_groups, :id => @phase } %>
   <% end %>
   <p><%= _("Add new group") %>: (<%= _("More groups can be added later") %>)<br />
   <input type="text" id="group[name]" name="group[name]" value="">
