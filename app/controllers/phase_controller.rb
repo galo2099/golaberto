@@ -26,7 +26,7 @@ class PhaseController < ApplicationController
     last_group = phase.groups[-1]
     4.times do
       new_name = returning last_group.name.split(" ") do |x|
-        x[1].succ!
+        x[-1].succ!
       end.join " "
       last_group = phase.groups.build
       last_group.name = new_name
