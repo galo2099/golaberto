@@ -5,6 +5,7 @@ class ApplicationController < ActionController::Base
   require 'gettext_will_paginate'
   init_gettext "golaberto"
   include AuthenticatedSystem
+  include RoleRequirementSystem
 
   include ExceptionNotifiable
   ExceptionNotifier.exception_recipients = %w(golaberto@gmail.com)

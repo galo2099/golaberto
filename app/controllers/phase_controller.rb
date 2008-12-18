@@ -1,7 +1,7 @@
 class PhaseController < ApplicationController
   N_("Phase")
 
-  before_filter :login_required
+  require_role "editor"
 
   def new
     @phase = Phase.new

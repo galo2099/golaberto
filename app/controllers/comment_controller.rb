@@ -1,7 +1,7 @@
 class CommentController < ApplicationController
   N_("Comment")
 
-  before_filter :login_required
+  require_role "commenter"
 
   def new
     type = params[:type].classify.constantize

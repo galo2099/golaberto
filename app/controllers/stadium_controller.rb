@@ -2,7 +2,7 @@ class StadiumController < ApplicationController
   N_("Stadium")
 
   scaffold :stadium
-  before_filter :login_required, :except => [ :index, :list, :show ]
+  require_role "editor", :except => [ :index, :list, :show ]
 
   def index
     redirect_to :action => :list

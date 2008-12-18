@@ -2,7 +2,7 @@ class TeamGroupController < ApplicationController
   N_("TeamGroup")
 
   scaffold :team_group
-  before_filter :login_required, :except => [ :index, :list, :show ]
+  require_role "editor", :except => [ :index, :list, :show ]
 
   def index
     list

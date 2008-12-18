@@ -3,9 +3,9 @@ require 'digest/sha1'
 class ChampionshipController < ApplicationController
   N_("Championship")
 
-  before_filter :login_required, :except => [ :index, :list, :show, :phases,
-                                              :crowd, :team, :games, :team_json,
-                                              :top_goalscorers ]
+  require_role "editor", :except => [ :index, :list, :show, :phases,
+                                      :crowd, :team, :games, :team_json,
+                                      :top_goalscorers ]
 
   def index
     redirect_to :action => :list

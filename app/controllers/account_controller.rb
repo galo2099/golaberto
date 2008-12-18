@@ -1,14 +1,7 @@
 class AccountController < ApplicationController
   N_("Account")
 
-  # If you want "remember me" functionality, add this before_filter to Application Controller
-  before_filter :login_required, :except => [ :login, :logout ]
   before_filter :login_from_cookie
-
-  # say something nice, you goof!  something sweet.
-  def index
-    redirect_to(:action => 'signup') unless logged_in? || User.count > 0
-  end
 
   def login
     session[:return_to] = request.env["HTTP_REFERER"] unless request.post?
@@ -35,7 +28,7 @@ class AccountController < ApplicationController
   rescue ActiveRecord::RecordInvalid
     render :action => 'signup'
   end
-  
+
   def logout
     self.current_user.forget_me if logged_in?
     cookies.delete :auth_token

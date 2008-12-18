@@ -1,7 +1,7 @@
 class GroupController < ApplicationController
   N_("Group")
 
-  before_filter :login_required
+  require_role "editor"
 
   def edit
     @group = Group.find(params["id"])
@@ -32,7 +32,7 @@ class GroupController < ApplicationController
     if saved
       redirect_to :controller => :championship, :action => :phases, :id => @group.phase.championship, :phase => @group.phase
     else
-      render :action => "edit" 
+      render :action => "edit"
     end
   end
 

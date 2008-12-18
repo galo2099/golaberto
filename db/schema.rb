@@ -9,7 +9,7 @@
 #
 # It's strongly recommended to check this file into your version control system.
 
-ActiveRecord::Schema.define(:version => 20081125013901) do
+ActiveRecord::Schema.define(:version => 20081218134155) do
 
   create_table "categories", :force => true do |t|
     t.string "name"
@@ -157,6 +157,18 @@ ActiveRecord::Schema.define(:version => 20081125013901) do
     t.string "name",     :default => "", :null => false
     t.string "location"
   end
+
+  create_table "roles", :force => true do |t|
+    t.string "name"
+  end
+
+  create_table "roles_users", :id => false, :force => true do |t|
+    t.integer "role_id", :limit => 11
+    t.integer "user_id", :limit => 11
+  end
+
+  add_index "roles_users", ["role_id"], :name => "index_roles_users_on_role_id"
+  add_index "roles_users", ["user_id"], :name => "index_roles_users_on_user_id"
 
   create_table "schema_info", :id => false, :force => true do |t|
     t.integer "version", :limit => 11
