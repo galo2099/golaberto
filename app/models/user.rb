@@ -35,6 +35,14 @@ class User < ActiveRecord::Base
     (@_list.include?(role_in_question.to_s) )
   end
 
+  def can_comment?
+    has_role?("commenter")
+  end
+
+  def can_edit?
+    has_role?("editor")
+  end
+
   # Encrypts the password with the user salt
   def encrypt(password)
     self.class.encrypt(password, salt)

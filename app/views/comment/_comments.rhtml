@@ -4,7 +4,7 @@
 </div>
 
 <h5><%= _("Leave a comment") %></h5>
-<% if logged_in? %>
+<% if logged_in? and current_user.can_comment? %>
   <% remote_form_for :comment, :url => { :controller => :comment, :action => :new, :type => object.class, :id => object } do |f| %>
     <%= _("Comment") %>:<br>
     <%= f.text_area :comment, :rows => 5, :cols => 35 %><br>

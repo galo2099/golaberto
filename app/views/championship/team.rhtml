@@ -78,7 +78,7 @@
         <td><%= p[:goals] %></td>
         <td><%= p[:own_goals] %></td>
         <td><%= p[:penalties] %></td>
-        <td><% if logged_in? %>
+        <td><% if logged_in? and current_user.can_edit? %>
           <%= link_to_remote(
                       _('Remove'), :url => { :controller => :player,
                                           :action => :destroy_team,

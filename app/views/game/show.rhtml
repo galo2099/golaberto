@@ -160,7 +160,7 @@
 <%= render :partial => "comment/comments", :locals => { :object => @game } %>
 
 <% content_for :sidebar do %>
-  <% if logged_in? %>
+  <% if logged_in? and current_user.can_edit? %>
     <%= link_to _("Edit"), :action => :edit, :id => @game %><br/>
     <%= link_to _("Edit Squad"), :action => :edit_squad, :id => @game %><br/>
     <%= link_to _("Delete"), { :action => :destroy, :id => @game }, :confirm => _('Are you sure?'), :method => :post %><br/>

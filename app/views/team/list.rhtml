@@ -11,7 +11,7 @@
 </div>
 
 <% content_for :sidebar do %>
-  <% if logged_in? %>
+  <% if logged_in? and current_user.can_edit? %>
     <%= link_to _('New team'), :action => 'new' %>
   <% end %>
 <% end %>
