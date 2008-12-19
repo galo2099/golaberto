@@ -69,6 +69,10 @@ class User < ActiveRecord::Base
     save(false)
   end
 
+  def display_login
+    login || identity_url
+  end
+
   protected
     # before filter
     def encrypt_password
