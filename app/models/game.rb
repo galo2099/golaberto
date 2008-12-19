@@ -124,7 +124,7 @@ class Game < ActiveRecord::Base
     end
 
     def updated_by_string
-      updated_by ? updated_by.login : _("unknown")
+      updated_by ? updated_by.display_login : _("unknown")
     end
 
     def goal_distribution(team, side, score)

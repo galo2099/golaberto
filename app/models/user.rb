@@ -6,14 +6,14 @@ class User < ActiveRecord::Base
 
   has_and_belongs_to_many :roles
 
-  validates_presence_of     :login, :email
+  validates_presence_of     :login, :email, :if => :not_openid?
   validates_presence_of     :password,                   :if => :password_required?
   validates_presence_of     :password_confirmation,      :if => :password_required?
   validates_length_of       :password, :within => 4..40, :if => :password_required?
   validates_confirmation_of :password,                   :if => :password_required?
-  validates_length_of       :login,    :within => 3..40
-  validates_length_of       :email,    :within => 3..100
-  validates_uniqueness_of   :login, :email, :case_sensitive => false
+  validates_length_of       :login,    :within => 3..40, :if => :not_openid?
+  validates_length_of       :email,    :within => 3..100, :if => :not_openid?
+  validates_uniqueness_of   :login, :email, :case_sensitive => false, :allow_nil => true
   before_save :encrypt_password
 
   # Authenticates a user by their login name and unencrypted password.  Returns the user or nil.
@@ -78,6 +78,10 @@ class User < ActiveRecord::Base
     end
 
     def password_required?
-      crypted_password.blank? || !password.blank?
+      not_openid? && (crypted_password.blank? or not password.blank?)
+    end
+
+    def not_openid?
+      identity_url.blank?
     end
 end

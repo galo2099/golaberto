@@ -4,19 +4,13 @@ class AccountController < ApplicationController
   before_filter :login_from_cookie
 
   def login
-    session[:return_to] = request.env["HTTP_REFERER"] unless request.post?
-    return unless request.post?
-    @login = params[:login]  #add this variable
-    self.current_user = User.authenticate(params[:login], params[:password])
-    if logged_in?
-      if params[:remember_me] == "1"
-        self.current_user.remember_me
-        cookies[:auth_token] = { :value => self.current_user.remember_token , :expires => self.current_user.remember_token_expires_at }
-      end
-      redirect_back_or_default("/")
-      flash[:notice] = _("Logged in successfully")
+    @user = User.new(params[:user])
+    if using_open_id?
+      open_id_authentication
+    elsif not @user.login.blank?
+      password_authentication
     else
-      flash[:notice] = _("Username or password invalid")
+      session[:return_to] = request.env["HTTP_REFERER"]
     end
   end
 
@@ -37,5 +31,44 @@ class AccountController < ApplicationController
     reset_session
     flash[:notice] = _("You have been logged out.")
     redirect_back_or_default("/")
+  end
+
+  private
+
+  def password_authentication
+    self.current_user = User.authenticate(@user.login, @user.password)
+    if logged_in?
+      successful_login
+    else
+      failed_login _("Username or password invalid")
+    end
+  end
+
+  def open_id_authentication
+    @user.identity_url = params[:openid_url]
+    authenticate_with_open_id do |result, identity_url|
+      if result.successful?
+        if self.current_user = User.find_or_create_by_identity_url(identity_url)
+          successful_login
+        else
+          failed_login _("Sorry, no user by that identity URL exists (%{identity_url})" % { :identity_url => identity_url })
+        end
+      else
+        failed_login result.message
+      end
+    end
+  end
+
+  def successful_login
+    if params[:remember_me] == "1"
+      self.current_user.remember_me
+      cookies[:auth_token] = { :value => self.current_user.remember_token , :expires => self.current_user.remember_token_expires_at }
+    end
+    redirect_back_or_default("/")
+    flash[:notice] = _("Logged in successfully")
+  end
+
+  def failed_login(message)
+    flash[:notice] = message
   end
 end

@@ -1,9 +1,15 @@
 <% form_tag do -%>
-<p><label for="login"><%= _("Login") %></label><br/>
-<%= text_field_tag 'login', @login %></p>
+<p><%= label_tag :openid_url, _("OpenID URL") %><br/>
+<%= text_field_tag :openid_url, @user.identity_url %></p>
+<p><%= submit_tag _('Log in with OpenID') %></p>
+<% end %>
 
-<p><label for="password"><%= _("Password") %></label><br/>
-<%= password_field_tag 'password' %></p>
+<% form_for :user, @user do |f| -%>
+<p><%= f.label :login %><br/>
+<%= f.text_field :login %></p>
+
+<p><%= f.label :password %><br/>
+<%= f.password_field :password %></p>
 
 <!-- Uncomment this if you want this functionality
 <p><label for="remember_me">Remember me:</label>

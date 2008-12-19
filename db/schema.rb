@@ -9,7 +9,7 @@
 #
 # It's strongly recommended to check this file into your version control system.
 
-ActiveRecord::Schema.define(:version => 20081218134155) do
+ActiveRecord::Schema.define(:version => 20081219181139) do
 
   create_table "categories", :force => true do |t|
     t.string "name"
@@ -112,6 +112,21 @@ ActiveRecord::Schema.define(:version => 20081218134155) do
     t.integer "promoted",      :limit => 2,  :default => 0,  :null => false
     t.integer "relegated",     :limit => 2,  :default => 0,  :null => false
     t.integer "odds_progress", :limit => 11
+  end
+
+  create_table "open_id_authentication_associations", :force => true do |t|
+    t.integer "issued",     :limit => 11
+    t.integer "lifetime",   :limit => 11
+    t.string  "handle"
+    t.string  "assoc_type"
+    t.binary  "server_url"
+    t.binary  "secret"
+  end
+
+  create_table "open_id_authentication_nonces", :force => true do |t|
+    t.integer "timestamp",  :limit => 11,                 :null => false
+    t.string  "server_url"
+    t.string  "salt",                     :default => "", :null => false
   end
 
   create_table "phases", :force => true do |t|
@@ -220,6 +235,7 @@ ActiveRecord::Schema.define(:version => 20081218134155) do
     t.datetime "updated_at"
     t.string   "remember_token"
     t.datetime "remember_token_expires_at"
+    t.string   "identity_url"
   end
 
 end

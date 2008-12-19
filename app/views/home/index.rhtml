@@ -28,7 +28,7 @@
 <div id="comments">
   <h3><%= _("Latest comments") %></h3>
   <% @comments.each do |comment| %>
-    <%= sprintf _("Comment by %s on %s"), comment.user.login, comment.created_at.strftime(_("%A, %d/%m/%Y at %H:%M")) %><br>
+    <%= sprintf _("Comment by %s on %s"), comment.user.display_login, comment.created_at.strftime(_("%A, %d/%m/%Y at %H:%M")) %><br>
     <br>
     <div>
       <%= comment.comment %>
