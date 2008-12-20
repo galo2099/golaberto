@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2008-12-14 10:17-0200\n"
+"POT-Creation-Date: 2008-12-19 23:10-0200\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -138,6 +138,14 @@ msgstr ""
 
 # app/models/goal.rb:-
 msgid "Goal|Own goal"
+msgstr ""
+
+# app/models/role.rb:-
+msgid "role"
+msgstr ""
+
+# app/models/role.rb:-
+msgid "Role|Name"
 msgstr ""
 
 # app/models/comment.rb:-
@@ -397,10 +405,6 @@ msgstr ""
 msgid "Scheduled"
 msgstr ""
 
-#: app/models/game.rb:127
-msgid "unknown"
-msgstr ""
-
 # app/models/user.rb:-
 msgid "user"
 msgstr ""
@@ -437,6 +441,10 @@ msgstr ""
 msgid "User|Remember token expires at"
 msgstr ""
 
+# app/models/user.rb:-
+msgid "User|Identity url"
+msgstr ""
+
 # app/models/player_game.rb:-
 msgid "player game"
 msgstr ""
@@ -469,55 +477,64 @@ msgstr ""
 msgid "PlayerGame|Red"
 msgstr ""
 
-#: app/helpers/game_helper.rb:47
+#: app/helpers/game_helper.rb:40
+msgid "Version %{number}"
+msgstr ""
+
+#: app/helpers/game_helper.rb:45 app/views/home/index.rhtml:16
+#: app/views/home/index.rhtml:35
+msgid "%A, %d/%m/%Y at %H:%M"
+msgstr ""
+
+#: app/helpers/game_helper.rb:63
 msgid "Removed goal "
 msgstr ""
 
-#: app/helpers/game_helper.rb:49
+#: app/helpers/game_helper.rb:65
 msgid "Added goal "
 msgstr ""
 
-#: app/helpers/game_helper.rb:53
+#: app/helpers/game_helper.rb:69
 msgid "(penalty)"
 msgstr ""
 
-#: app/helpers/game_helper.rb:54
+#: app/helpers/game_helper.rb:70
 msgid "(own_goal)"
 msgstr ""
 
-#: app/helpers/game_helper.rb:60
+#: app/helpers/game_helper.rb:76
 msgid "Added stadium: %s<br>"
 msgstr ""
 
-#: app/helpers/game_helper.rb:62
+#: app/helpers/game_helper.rb:78
 msgid "Removed stadium: %s<br>"
 msgstr ""
 
-#: app/helpers/game_helper.rb:64
+#: app/helpers/game_helper.rb:80
 msgid "Changed stadium: %s -> %s<br>"
 msgstr ""
 
-#: app/helpers/game_helper.rb:68
+#: app/helpers/game_helper.rb:84
 msgid "Added referee: %s<br>"
 msgstr ""
 
-#: app/helpers/game_helper.rb:70
+#: app/helpers/game_helper.rb:86
 msgid "Removed referee: %s<br>"
 msgstr ""
 
-#: app/helpers/game_helper.rb:72
+#: app/helpers/game_helper.rb:88
 msgid "Changed referee: %s -> %s<br>"
 msgstr ""
 
-#: app/helpers/game_helper.rb:77
+#: app/helpers/game_helper.rb:93
 msgid "Added %s: %s<br>"
 msgstr ""
 
-#: app/helpers/game_helper.rb:79
+#: app/helpers/game_helper.rb:95
 msgid "Removed %s: %s<br>"
 msgstr ""
 
-#: app/helpers/game_helper.rb:81
+#: app/helpers/game_helper.rb:97
 msgid "Changed %s: %s -> %s<br>"
 msgstr ""
 
@@ -563,16 +580,24 @@ msgstr ""
 msgid "Account"
 msgstr ""
 
-#: app/controllers/account_controller.rb:24
-msgid "Logged in successfully"
-msgstr ""
-
-#: app/controllers/account_controller.rb:34
+#: app/controllers/account_controller.rb:23
 msgid "Thanks for signing up!"
 msgstr ""
 
-#: app/controllers/account_controller.rb:43
+#: app/controllers/account_controller.rb:32
 msgid "You have been logged out."
+msgstr ""
+
+#: app/controllers/account_controller.rb:43
+msgid "Username or password invalid"
+msgstr ""
+
+#: app/controllers/account_controller.rb:54
+msgid "Sorry, no user by that identity URL exists (%{identity_url})"
+msgstr ""
+
+#: app/controllers/account_controller.rb:68
+msgid "Logged in successfully"
 msgstr ""
 
 #: app/controllers/group_controller.rb:2
@@ -864,7 +889,6 @@ msgid "Logout"
 msgstr ""
 
 #: app/views/layouts/application.rhtml:33 app/views/account/signup.rhtml:3
-#: app/views/account/login.rhtml:2
 msgid "Login"
 msgstr ""
 
@@ -872,7 +896,7 @@ msgstr ""
 msgid "Email"
 msgstr ""
 
-#: app/views/account/signup.rhtml:9 app/views/account/login.rhtml:5
+#: app/views/account/signup.rhtml:9
 msgid "Password"
 msgstr ""
 
@@ -884,7 +908,15 @@ msgstr ""
 msgid "Sign up"
 msgstr ""
 
-#: app/views/account/login.rhtml:13
+#: app/views/account/login.rhtml:2
+msgid "OpenID URL"
+msgstr ""
+
+#: app/views/account/login.rhtml:4
+msgid "Log in with OpenID"
+msgstr ""
+
+#: app/views/account/login.rhtml:19
 msgid "Log in"
 msgstr ""
 
@@ -1194,27 +1226,6 @@ msgstr ""
 msgid "GameEdit|Played"
 msgstr ""
 
-#: app/views/game/edit.rhtml:206
-msgid "Version %d"
-msgstr ""
-
-#: app/views/game/edit.rhtml:207 app/views/home/index.rhtml:13
-msgid "Updated by %s on %s"
-msgstr ""
-
-#: app/views/game/edit.rhtml:207 app/views/game/edit.rhtml:212
-#: app/views/home/index.rhtml:13 app/views/home/index.rhtml:31
-msgid "%A, %d/%m/%Y at %H:%M"
-msgstr ""
-
-#: app/views/game/edit.rhtml:211
-msgid "Version 1"
-msgstr ""
-
-#: app/views/game/edit.rhtml:212
-msgid "Created by %s on %s"
-msgstr ""
-
 #: app/views/game/list.rhtml:1
 msgid "Listing games"
 msgstr ""
@@ -1312,15 +1323,11 @@ msgstr ""
 msgid "Latest edits"
 msgstr ""
 
-#: app/views/home/index.rhtml:29
+#: app/views/home/index.rhtml:32
 msgid "Latest comments"
 msgstr ""
 
-#: app/views/home/index.rhtml:31
-msgid "Comment by %s on %s"
-msgstr ""
-
-#: app/views/home/index.rhtml:36
+#: app/views/home/index.rhtml:40
 msgid "View this %s"
 msgstr ""
 
@@ -1502,6 +1509,10 @@ msgstr ""
 
 #: lib/gettext_date.rb:62
 msgid "pm"
+msgstr ""
+
+#: lib/role_requirement_system.rb:113
+msgid "You are not authorized to view that page"
 msgstr ""
 
 #: lib/gettext_will_paginate.rb:4

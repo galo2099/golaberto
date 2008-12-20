@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2008-12-14 10:17-0200\n"
+"POT-Creation-Date: 2008-12-19 23:10-0200\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: Robson Braga Araujo <robsonbraga@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -139,6 +139,14 @@ msgstr "Pênalti"
 # app/models/goal.rb:-
 msgid "Goal|Own goal"
 msgstr "Gol contra"
+
+# app/models/role.rb:-
+msgid "role"
+msgstr "função"
+
+# app/models/player.rb:-
+msgid "Role|Name"
+msgstr "Nome"
 
 # app/models/comment.rb:-
 msgid "comment"
@@ -398,10 +406,6 @@ msgstr "Jogados"
 msgid "Scheduled"
 msgstr "Agendados"
 
-#: app/models/game.rb:127
-msgid "unknown"
-msgstr "desconhecido"
-
 # app/models/user.rb:-
 msgid "user"
 msgstr "usuário"
@@ -438,6 +442,10 @@ msgstr "Lembrar token"
 msgid "User|Remember token expires at"
 msgstr "Lembrar token expira em"
 
+# app/models/user.rb:-
+msgid "User|Identity url"
+msgstr "Url identidade"
+
 # app/models/player_game.rb:-
 msgid "player game"
 msgstr "jogador jogo"
@@ -470,56 +478,65 @@ msgstr "Amarelo"
 msgid "PlayerGame|Red"
 msgstr "Vermelho"
 
-#: app/helpers/game_helper.rb:47
+#: app/helpers/game_helper.rb:40
+msgid "Version %{number}"
+msgstr "Versão %{number}"
+
+#: app/helpers/game_helper.rb:45 app/views/home/index.rhtml:16
+#: app/views/home/index.rhtml:35
+msgid "%A, %d/%m/%Y at %H:%M"
+msgstr "%A, %d/%m/%Y às %H:%M"
+
+#: app/helpers/game_helper.rb:63
 msgid "Removed goal "
 msgstr "Removido gol "
 
-#: app/helpers/game_helper.rb:49
+#: app/helpers/game_helper.rb:65
 msgid "Added goal "
 msgstr "Adicionado gol "
 
-#: app/helpers/game_helper.rb:53
+#: app/helpers/game_helper.rb:69
 msgid "(penalty)"
 msgstr "(pênalti)"
 
 # app/models/goal.rb:-
-#: app/helpers/game_helper.rb:54
+#: app/helpers/game_helper.rb:70
 msgid "(own_goal)"
 msgstr "(gol contra)"
 
-#: app/helpers/game_helper.rb:60
+#: app/helpers/game_helper.rb:76
 msgid "Added stadium: %s<br>"
 msgstr "Adicionado estádio: %s<br>"
 
-#: app/helpers/game_helper.rb:62
+#: app/helpers/game_helper.rb:78
 msgid "Removed stadium: %s<br>"
 msgstr "Removido estádio: %s<br>"
 
-#: app/helpers/game_helper.rb:64
+#: app/helpers/game_helper.rb:80
 msgid "Changed stadium: %s -> %s<br>"
 msgstr "Modificado estádio: %s -> %s<br>"
 
-#: app/helpers/game_helper.rb:68
+#: app/helpers/game_helper.rb:84
 msgid "Added referee: %s<br>"
 msgstr "Adicionado árbitro: %s<br>"
 
-#: app/helpers/game_helper.rb:70
+#: app/helpers/game_helper.rb:86
 msgid "Removed referee: %s<br>"
 msgstr "Removido árbitro: %s<br>"
 
-#: app/helpers/game_helper.rb:72
+#: app/helpers/game_helper.rb:88
 msgid "Changed referee: %s -> %s<br>"
 msgstr "Modificado árbitro: %s -> %s<br>"
 
-#: app/helpers/game_helper.rb:77
+#: app/helpers/game_helper.rb:93
 msgid "Added %s: %s<br>"
 msgstr "Adicionado %s: %s<br>"
 
-#: app/helpers/game_helper.rb:79
+#: app/helpers/game_helper.rb:95
 msgid "Removed %s: %s<br>"
 msgstr "Removido %s: %s<br>"
 
-#: app/helpers/game_helper.rb:81
+#: app/helpers/game_helper.rb:97
 msgid "Changed %s: %s -> %s<br>"
 msgstr "Modificado %s: %s -> %s<br>"
 
@@ -569,17 +586,25 @@ msgstr "Categoria"
 msgid "Account"
 msgstr "Conta"
 
-#: app/controllers/account_controller.rb:24
-msgid "Logged in successfully"
-msgstr "Autenticado com sucesso"
-
-#: app/controllers/account_controller.rb:34
+#: app/controllers/account_controller.rb:23
 msgid "Thanks for signing up!"
 msgstr "Obrigado por se cadastrar!"
 
-#: app/controllers/account_controller.rb:43
+#: app/controllers/account_controller.rb:32
 msgid "You have been logged out."
 msgstr "Você foi desconectado."
+
+#: app/controllers/account_controller.rb:43
+msgid "Username or password invalid"
+msgstr "Usuário ou senha inválidos"
+
+#: app/controllers/account_controller.rb:54
+msgid "Sorry, no user by that identity URL exists (%{identity_url})"
+msgstr "Desculpe, não existe um usuário nessa URL identidate (%{identity_url})"
+
+#: app/controllers/account_controller.rb:68
+msgid "Logged in successfully"
+msgstr "Autenticado com sucesso"
 
 # app/models/group.rb:-
 #: app/controllers/group_controller.rb:2
@@ -881,7 +906,6 @@ msgid "Logout"
 msgstr "Sair"
 
 #: app/views/layouts/application.rhtml:33 app/views/account/signup.rhtml:3
-#: app/views/account/login.rhtml:2
 msgid "Login"
 msgstr "Login"
 
@@ -889,7 +913,7 @@ msgstr "Login"
 msgid "Email"
 msgstr "Email"
 
-#: app/views/account/signup.rhtml:9 app/views/account/login.rhtml:5
+#: app/views/account/signup.rhtml:9
 msgid "Password"
 msgstr "Senha"
 
@@ -901,7 +925,15 @@ msgstr "Confirmar Senha"
 msgid "Sign up"
 msgstr "Inscrever"
 
-#: app/views/account/login.rhtml:13
+#: app/views/account/login.rhtml:2
+msgid "OpenID URL"
+msgstr "URL OpenID"
+
+#: app/views/account/login.rhtml:4
+msgid "Log in with OpenID"
+msgstr "Logar com OpenID"
+
+#: app/views/account/login.rhtml:19
 msgid "Log in"
 msgstr "Logar"
 
@@ -1217,27 +1249,6 @@ msgstr "Tem certeza que quer criar um novo árbitro?"
 msgid "GameEdit|Played"
 msgstr "Jogado"
 
-#: app/views/game/edit.rhtml:206
-msgid "Version %d"
-msgstr "Versão %d"
-
-#: app/views/game/edit.rhtml:207 app/views/home/index.rhtml:13
-msgid "Updated by %s on %s"
-msgstr "Atualizado por %s em %s"
-
-#: app/views/game/edit.rhtml:207 app/views/game/edit.rhtml:212
-#: app/views/home/index.rhtml:13 app/views/home/index.rhtml:31
-msgid "%A, %d/%m/%Y at %H:%M"
-msgstr "%A, %d/%m/%Y às %H:%M"
-
-#: app/views/game/edit.rhtml:211
-msgid "Version 1"
-msgstr "Versão 1"
-
-#: app/views/game/edit.rhtml:212
-msgid "Created by %s on %s"
-msgstr "Criado por %s em %s"
-
 #: app/views/game/list.rhtml:1
 msgid "Listing games"
 msgstr "Listando jogos"
@@ -1338,15 +1349,11 @@ msgstr "Campeonatos atuais"
 msgid "Latest edits"
 msgstr "Últimas edições"
 
-#: app/views/home/index.rhtml:29
+#: app/views/home/index.rhtml:32
 msgid "Latest comments"
 msgstr "Últimos comentários"
 
-#: app/views/home/index.rhtml:31
-msgid "Comment by %s on %s"
-msgstr "Comentário por %s em %s"
-
-#: app/views/home/index.rhtml:36
+#: app/views/home/index.rhtml:40
 msgid "View this %s"
 msgstr "Ver este %s"
 
@@ -1530,6 +1537,10 @@ msgstr "PM"
 #: lib/gettext_date.rb:62
 msgid "pm"
 msgstr "pm"
+
+#: lib/role_requirement_system.rb:113
+msgid "You are not authorized to view that page"
+msgstr "Você não está autorizado a ver esta página"
 
 #: lib/gettext_will_paginate.rb:4
 msgid "&laquo; Previous"

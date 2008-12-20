@@ -10,7 +10,10 @@
 <div id="edits">
   <h3> <%= _("Latest edits") %></h3>
   <% @games.each do |game| %>
-    <%= sprintf _("Updated by %s on %s"), game.updated_by_string, game.updated_at.strftime(_("%A, %d/%m/%Y at %H:%M")) if game.updated_at %><br>
+    <% if game.updated_by %>
+      <div style="overflow: hidden; white-space: nowrap; width: 100%"><%= image_tag "users/" + game.updated_by.small_logo, :border => 1 %> <%= game.updated_by.display_login %></div>
+    <% end %>
+    <%= game.updated_at.strftime(_("%A, %d/%m/%Y at %H:%M")) %><br>
     <div class="table_row">
       <div class="table_cell" style="width: 50%; text-align: left"><%= link_to game.phase.championship.full_name, :controller => :championship, :action => :show, :id => game.phase.championship %></div>
       <div class="table_cell" style="width: 50%"><%= game.formatted_date(true) %></div>
@@ -28,7 +31,8 @@
 <div id="comments">
   <h3><%= _("Latest comments") %></h3>
   <% @comments.each do |comment| %>
-    <%= sprintf _("Comment by %s on %s"), comment.user.display_login, comment.created_at.strftime(_("%A, %d/%m/%Y at %H:%M")) %><br>
+    <div style="overflow: hidden; white-space: nowrap; width: 100%"><%= image_tag "users/" + comment.user.small_logo, :border => 1 %> <%= comment.user.display_login %></div>
+    <%= comment.created_at.strftime(_("%A, %d/%m/%Y at %H:%M")) %><br>
     <br>
     <div>
       <%= comment.comment %>

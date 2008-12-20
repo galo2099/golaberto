@@ -202,15 +202,7 @@ EOF
 <% end %>
 
 <div>
-  <% @game.versions.size.downto(2) do |n| %>
-    <h4><%= sprintf _("Version %d"),  n %></h4>
-    <%= sprintf _("Updated by %s on %s"), @game.versions[n-1].updated_by_string, @game.versions[n-1].updated_at.strftime(_("%A, %d/%m/%Y at %H:%M")) %><br>
-    <%= formatted_diff(@game.versions[n-2].diff(@game.versions[n-1])) %>
-    <hr>
-  <% end %>
-  <h4><%= _("Version 1") %></h4>
-  <%= sprintf _("Created by %s on %s"), @game.versions[0].updated_by_string, @game.versions[0].updated_at ? @game.versions[0].updated_at.strftime(_("%A, %d/%m/%Y at %H:%M")) : "unknown" %><br>
-  <%= formatted_diff(Game.new.diff(@game.versions[0])) %>
+  <%= game_versions(@game.versions) %>
 </div>
 
 <%= javascript_tag <<EOF

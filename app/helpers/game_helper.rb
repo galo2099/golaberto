@@ -34,6 +34,23 @@ module GameHelper
     html << "</tr>"
   end
 
+  def game_versions(versions)
+    diff_strings = []
+    versions.inject(Game.new) do |old_game, new_game|
+      str = content_tag(:h4, _("Version %{number}") % {:number => new_game.version})
+      if new_game.updated_by
+        str << content_tag(:div, image_tag("users/" + new_game.updated_by.small_logo, :border => 1) + " " + new_game.updated_by.display_login,
+                           :style => "overflow: hidden; white-space: nowrap; width: 100%")
+      end
+      str << new_game.updated_at.strftime(_("%A, %d/%m/%Y at %H:%M"))
+      str << content_tag(:br)
+      str << formatted_diff(old_game.diff(new_game))
+      diff_strings << str
+      new_game
+    end
+    diff_strings.reverse.join ""
+  end
+
   def formatted_diff(diff)
     ret = ""
     diff.each do |key, value|

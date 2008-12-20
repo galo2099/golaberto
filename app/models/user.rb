@@ -73,6 +73,14 @@ class User < ActiveRecord::Base
     login || identity_url
   end
 
+  def small_logo
+    "#{id}_15.png"
+  end
+
+  def large_logo
+    "#{id}_100.png"
+  end
+
   protected
     # before filter
     def encrypt_password

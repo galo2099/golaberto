@@ -123,10 +123,6 @@ class Game < ActiveRecord::Base
       end
     end
 
-    def updated_by_string
-      updated_by ? updated_by.display_login : _("unknown")
-    end
-
     def goal_distribution(team, side, score)
       phase.championship.games.find(:all, :order => :date).select{|g| g.played? and g.send(side) == team and g.date < date}.map{|g| g.send(score)}.inject(Array.new(10, 0)) {|a,x| a.map!{|z|z*0.8}; a[x]+=1;a}
     end
