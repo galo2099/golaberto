@@ -10,6 +10,7 @@
 <div id="edits">
   <h3> <%= _("Latest edits") %></h3>
   <% @games.each do |game| %>
+    <div class="updated-game">
     <% if game.updated_by %>
       <div style="overflow: hidden; white-space: nowrap; width: 100%"><small><%= image_tag "users/" + game.updated_by.small_logo, :class => "user-logo" %> <%= game.updated_by.display_login %></small></div>
     <% end %>
@@ -24,7 +25,7 @@
                  :locals => { :game => game } %>
       <div class="clearer"></div>
     </div>
-    <hr>
+    </div>
   <% end %>
 </div>
 
