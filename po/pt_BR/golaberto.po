@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2008-12-20 15:37-0200\n"
+"POT-Creation-Date: 2008-12-20 21:46-0200\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: Robson Braga Araujo <robsonbraga@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -487,7 +487,7 @@ msgid "Version %{number}"
 msgstr "Versão %{number}"
 
 #: app/helpers/game_helper.rb:45 app/views/comment/_comment.rhtml:4
-#: app/views/home/index.rhtml:16
+#: app/views/home/index.rhtml:23
 msgid "%A, %d/%m/%Y at %H:%M"
 msgstr "%A, %d/%m/%Y às %H:%M"
 
@@ -571,7 +571,7 @@ msgid "Phase"
 msgstr "Fase"
 
 #: app/controllers/comment_controller.rb:2
-#: app/views/comment/_comments.rhtml:14
+#: app/views/comment/_comments.rhtml:18
 msgid "Comment"
 msgstr "Comentário"
 
@@ -801,23 +801,23 @@ msgstr "Atualizar"
 msgid "New Team"
 msgstr "Nova Equipe"
 
-#: app/views/comment/_comments.rhtml:2
+#: app/views/comment/_comments.rhtml:1
 msgid "Comments"
 msgstr "Comentários"
 
-#: app/views/comment/_comments.rhtml:6
+#: app/views/comment/_comments.rhtml:10
 msgid "Leave a comment"
 msgstr "Deixe um comentário"
 
-#: app/views/comment/_comments.rhtml:16
+#: app/views/comment/_comments.rhtml:20
 msgid "Add Comment"
 msgstr "Adicionar Comentário"
 
-#: app/views/comment/_comments.rhtml:19
+#: app/views/comment/_comments.rhtml:23
 msgid "You can only leave a comment if you're %s"
 msgstr "Voce só pode deixar um comentário se você %s"
 
-#: app/views/comment/_comments.rhtml:19
+#: app/views/comment/_comments.rhtml:23
 msgid "logged in"
 msgstr "se logar"
 
@@ -957,8 +957,7 @@ msgstr ""
 
 #: app/views/account/login.rhtml:5
 msgid "You can also <a href='%{signup}'>create an account for this site.</a>"
-msgstr ""
-"Você também pode <a href='%{signup}'>criar uma conta para este site.</a>"
+msgstr "Você também pode <a href='%{signup}'>criar uma conta para este site.</a>"
 
 #: app/views/account/login.rhtml:8
 msgid "OpenID URL"
@@ -1371,20 +1370,28 @@ msgstr "Mais grupos podem ser adicionados depois"
 msgid "Order"
 msgstr "Ordem"
 
+#: app/views/home/index.rhtml:5
+msgid ""
+"Now you can <a href='%{signup_link}'>sign up</a> and leave comments on the "
+"site."
+msgstr ""
+"Você agora pode <a href='%{signup_link}'>se cadastrar</a> e deixar comentários "
+"no site."
+
 # app/models/championship.rb:-
-#: app/views/home/index.rhtml:4
+#: app/views/home/index.rhtml:10
 msgid "Current championships"
 msgstr "Campeonatos atuais"
 
-#: app/views/home/index.rhtml:11
+#: app/views/home/index.rhtml:17
 msgid "Latest edits"
 msgstr "Últimas edições"
 
-#: app/views/home/index.rhtml:32
+#: app/views/home/index.rhtml:38
 msgid "Latest comments"
 msgstr "Últimos comentários"
 
-#: app/views/home/index.rhtml:35
+#: app/views/home/index.rhtml:43
 msgid "View this %s"
 msgstr "Ver este %s"
 

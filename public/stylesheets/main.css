@@ -481,3 +481,9 @@ img.user-logo {
   padding-bottom: 10px;
   margin-bottom: 10px;
 }
+
+.promo {
+  padding: 10px;
+  border: 1px solid #ABB561;
+  margin-bottom: 10px;
+}

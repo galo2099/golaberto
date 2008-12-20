@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2008-12-20 15:37-0200\n"
+"POT-Creation-Date: 2008-12-20 21:46-0200\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -486,7 +486,7 @@ msgid "Version %{number}"
 msgstr ""
 
 #: app/helpers/game_helper.rb:45 app/views/comment/_comment.rhtml:4
-#: app/views/home/index.rhtml:16
+#: app/views/home/index.rhtml:23
 msgid "%A, %d/%m/%Y at %H:%M"
 msgstr ""
 
@@ -567,7 +567,7 @@ msgid "Phase"
 msgstr ""
 
 #: app/controllers/comment_controller.rb:2
-#: app/views/comment/_comments.rhtml:14
+#: app/views/comment/_comments.rhtml:18
 msgid "Comment"
 msgstr ""
 
@@ -788,23 +788,23 @@ msgstr ""
 msgid "New Team"
 msgstr ""
 
-#: app/views/comment/_comments.rhtml:2
+#: app/views/comment/_comments.rhtml:1
 msgid "Comments"
 msgstr ""
 
-#: app/views/comment/_comments.rhtml:6
+#: app/views/comment/_comments.rhtml:10
 msgid "Leave a comment"
 msgstr ""
 
-#: app/views/comment/_comments.rhtml:16
+#: app/views/comment/_comments.rhtml:20
 msgid "Add Comment"
 msgstr ""
 
-#: app/views/comment/_comments.rhtml:19
+#: app/views/comment/_comments.rhtml:23
 msgid "You can only leave a comment if you're %s"
 msgstr ""
 
-#: app/views/comment/_comments.rhtml:19
+#: app/views/comment/_comments.rhtml:23
 msgid "logged in"
 msgstr ""
 
@@ -1339,19 +1339,25 @@ msgstr ""
 msgid "Order"
 msgstr ""
 
-#: app/views/home/index.rhtml:4
+#: app/views/home/index.rhtml:5
+msgid ""
+"Now you can <a href='%{signup_link}'>sign up</a> and leave comments on the "
+"site."
+msgstr ""
+
+#: app/views/home/index.rhtml:10
 msgid "Current championships"
 msgstr ""
 
-#: app/views/home/index.rhtml:11
+#: app/views/home/index.rhtml:17
 msgid "Latest edits"
 msgstr ""
 
-#: app/views/home/index.rhtml:32
+#: app/views/home/index.rhtml:38
 msgid "Latest comments"
 msgstr ""
 
-#: app/views/home/index.rhtml:35
+#: app/views/home/index.rhtml:43
 msgid "View this %s"
 msgstr ""
 
