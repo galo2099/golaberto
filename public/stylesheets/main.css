@@ -470,3 +470,7 @@ DIV.clearer {
 .comment-text {
   padding: 10px;
 }
+
+img.user-logo {
+  border: 1px solid #ABB561;
+}

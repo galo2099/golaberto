@@ -1,5 +1,5 @@
 <div id="comment_<%= comment.id %>" class="comment">
-  <div class="comment-author"><%= image_tag "users/" + comment.user.small_logo, :border => 1 %> <%= comment.user.display_login %></div>
+  <div class="comment-author"><%= image_tag "users/" + comment.user.small_logo, :class => "user-logo" %> <%= comment.user.display_login %></div>
   <div class="comment-date"><%= comment.created_at.strftime(_("%A, %d/%m/%Y at %H:%M")) %></div>
   <div class="comment-text"><%= h comment.comment %></div>
   <%= link_to_remote _("Delete"), :url => { :controller => :comment, :action => :destroy, :id => comment } if current_user == comment.user %></small>

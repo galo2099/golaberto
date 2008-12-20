@@ -39,7 +39,7 @@ module GameHelper
     versions.inject(Game.new) do |old_game, new_game|
       str = content_tag(:h4, _("Version %{number}") % {:number => new_game.version})
       if new_game.updated_by
-        str << content_tag(:div, image_tag("users/" + new_game.updated_by.small_logo, :border => 1) + " " + new_game.updated_by.display_login,
+        str << content_tag(:div, image_tag("users/" + new_game.updated_by.small_logo, :class => "user-logo") + " " + new_game.updated_by.display_login,
                            :style => "overflow: hidden; white-space: nowrap; width: 100%")
       end
       str << new_game.updated_at.strftime(_("%A, %d/%m/%Y at %H:%M"))

@@ -11,7 +11,7 @@
   <h3> <%= _("Latest edits") %></h3>
   <% @games.each do |game| %>
     <% if game.updated_by %>
-      <div style="overflow: hidden; white-space: nowrap; width: 100%"><small><%= image_tag "users/" + game.updated_by.small_logo, :border => 1 %> <%= game.updated_by.display_login %></small></div>
+      <div style="overflow: hidden; white-space: nowrap; width: 100%"><small><%= image_tag "users/" + game.updated_by.small_logo, :class => "user-logo" %> <%= game.updated_by.display_login %></small></div>
     <% end %>
     <small><%= game.updated_at.strftime(_("%A, %d/%m/%Y at %H:%M")) %></small><br>
     <div class="table_row">
