@@ -3,6 +3,7 @@ class User < ActiveRecord::Base
   cattr_accessor :current_user
   # Virtual attribute for the unencrypted password
   attr_accessor :password
+  N_("User|Password")
 
   has_and_belongs_to_many :roles
 

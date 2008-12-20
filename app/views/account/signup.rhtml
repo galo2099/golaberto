@@ -1,4 +1,9 @@
 <%= error_messages_for :user %>
+
+<% content_for :main_title do %> <%= _("Sign up") %><% end %>
+
+<small><%= _("You can create an account for this site using the form below. If you have an %{openid_link} URL, you can <a href='%{login_link}'>log in with OpenID</a> rather than creating an account.") % { :openid_link => link_to(_("OpenID"), "http://openid.net/"), :login_link => url_for(:action => :login) } %></small>
+
 <% form_for :user do |f| -%>
 <p><label for="login"><%= _("Login") %></label><br/>
 <%= f.text_field :login %></p>

@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2008-12-19 23:10-0200\n"
+"POT-Creation-Date: 2008-12-20 15:37-0200\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: Robson Braga Araujo <robsonbraga@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -446,6 +446,10 @@ msgstr "Lembrar token expira em"
 msgid "User|Identity url"
 msgstr "Url identidade"
 
+#: app/models/user.rb:6
+msgid "User|Password"
+msgstr "Senha"
+
 # app/models/player_game.rb:-
 msgid "player game"
 msgstr "jogador jogo"
@@ -482,61 +486,61 @@ msgstr "Vermelho"
 msgid "Version %{number}"
 msgstr "Versão %{number}"
 
-#: app/helpers/game_helper.rb:45 app/views/home/index.rhtml:16
-#: app/views/home/index.rhtml:35
+#: app/helpers/game_helper.rb:45 app/views/comment/_comment.rhtml:4
+#: app/views/home/index.rhtml:16
 msgid "%A, %d/%m/%Y at %H:%M"
 msgstr "%A, %d/%m/%Y às %H:%M"
 
-#: app/helpers/game_helper.rb:63
+#: app/helpers/game_helper.rb:64
 msgid "Removed goal "
 msgstr "Removido gol "
 
-#: app/helpers/game_helper.rb:65
+#: app/helpers/game_helper.rb:66
 msgid "Added goal "
 msgstr "Adicionado gol "
 
-#: app/helpers/game_helper.rb:69
+#: app/helpers/game_helper.rb:70
 msgid "(penalty)"
 msgstr "(pênalti)"
 
 # app/models/goal.rb:-
-#: app/helpers/game_helper.rb:70
+#: app/helpers/game_helper.rb:71
 msgid "(own_goal)"
 msgstr "(gol contra)"
 
-#: app/helpers/game_helper.rb:76
+#: app/helpers/game_helper.rb:77
 msgid "Added stadium: %s<br>"
 msgstr "Adicionado estádio: %s<br>"
 
-#: app/helpers/game_helper.rb:78
+#: app/helpers/game_helper.rb:79
 msgid "Removed stadium: %s<br>"
 msgstr "Removido estádio: %s<br>"
 
-#: app/helpers/game_helper.rb:80
+#: app/helpers/game_helper.rb:81
 msgid "Changed stadium: %s -> %s<br>"
 msgstr "Modificado estádio: %s -> %s<br>"
 
-#: app/helpers/game_helper.rb:84
+#: app/helpers/game_helper.rb:85
 msgid "Added referee: %s<br>"
 msgstr "Adicionado árbitro: %s<br>"
 
-#: app/helpers/game_helper.rb:86
+#: app/helpers/game_helper.rb:87
 msgid "Removed referee: %s<br>"
 msgstr "Removido árbitro: %s<br>"
 
-#: app/helpers/game_helper.rb:88
+#: app/helpers/game_helper.rb:89
 msgid "Changed referee: %s -> %s<br>"
 msgstr "Modificado árbitro: %s -> %s<br>"
 
-#: app/helpers/game_helper.rb:93
+#: app/helpers/game_helper.rb:94
 msgid "Added %s: %s<br>"
 msgstr "Adicionado %s: %s<br>"
 
-#: app/helpers/game_helper.rb:95
+#: app/helpers/game_helper.rb:96
 msgid "Removed %s: %s<br>"
 msgstr "Removido %s: %s<br>"
 
-#: app/helpers/game_helper.rb:97
+#: app/helpers/game_helper.rb:98
 msgid "Changed %s: %s -> %s<br>"
 msgstr "Modificado %s: %s -> %s<br>"
 
@@ -566,7 +570,8 @@ msgstr "Jogo salvo"
 msgid "Phase"
 msgstr "Fase"
 
-#: app/controllers/comment_controller.rb:2 app/views/comment/_comments.rhtml:9
+#: app/controllers/comment_controller.rb:2
+#: app/views/comment/_comments.rhtml:14
 msgid "Comment"
 msgstr "Comentário"
 
@@ -747,7 +752,7 @@ msgstr[1] "Próximos %{num} jogos"
 msgid "Edit"
 msgstr "Editar"
 
-#: app/views/team/show.rhtml:82 app/views/comment/_comment.rhtml:4
+#: app/views/team/show.rhtml:82 app/views/comment/_comment.rhtml:2
 #: app/views/championship/edit.rhtml:33 app/views/game/show.rhtml:166
 #: app/views/phase/_group_list.rhtml:6
 msgid "Delete"
@@ -804,21 +809,17 @@ msgstr "Comentários"
 msgid "Leave a comment"
 msgstr "Deixe um comentário"
 
-#: app/views/comment/_comments.rhtml:11
+#: app/views/comment/_comments.rhtml:16
 msgid "Add Comment"
 msgstr "Adicionar Comentário"
 
-#: app/views/comment/_comments.rhtml:14
+#: app/views/comment/_comments.rhtml:19
 msgid "You can only leave a comment if you're %s"
 msgstr "Voce só pode deixar um comentário se você %s"
 
-#: app/views/comment/_comments.rhtml:14
+#: app/views/comment/_comments.rhtml:19
 msgid "logged in"
 msgstr "se logar"
-
-#: app/views/comment/_comment.rhtml:3
-msgid "Comment posted %s ago by %s"
-msgstr "Comentário por %2$s há %1$s"
 
 #: app/views/referee/list.rhtml:1
 msgid "Listing referees"
@@ -905,37 +906,67 @@ msgstr "Árbitros"
 msgid "Logout"
 msgstr "Sair"
 
-#: app/views/layouts/application.rhtml:33 app/views/account/signup.rhtml:3
+#: app/views/layouts/application.rhtml:33 app/views/account/signup.rhtml:8
 msgid "Login"
 msgstr "Login"
 
-#: app/views/account/signup.rhtml:6
-msgid "Email"
-msgstr "Email"
-
-#: app/views/account/signup.rhtml:9
-msgid "Password"
-msgstr "Senha"
-
-#: app/views/account/signup.rhtml:12
-msgid "Confirm Password"
-msgstr "Confirmar Senha"
-
-#: app/views/account/signup.rhtml:15
+#: app/views/account/signup.rhtml:3 app/views/account/signup.rhtml:20
 msgid "Sign up"
 msgstr "Inscrever"
 
-#: app/views/account/login.rhtml:2
+#: app/views/account/signup.rhtml:5
+msgid ""
+"You can create an account for this site using the form below. If you have an "
+"%{openid_link} URL, you can <a href='%{login_link}'>log in with OpenID</a> "
+"rather than creating an account."
+msgstr ""
+"Você pode criar uma conta para este site usando o formulário abaixo. Se você "
+"possui uma URL %{openid_link}, você pode <a href='%{login_link}'>se logar "
+"com OpenID</a> ao invés de criar uma conta. "
+
+#: app/views/account/signup.rhtml:5 app/views/account/login.rhtml:3
+msgid "OpenID"
+msgstr "OpenID"
+
+#: app/views/account/signup.rhtml:11
+msgid "Email"
+msgstr "Email"
+
+#: app/views/account/signup.rhtml:14
+msgid "Password"
+msgstr "Senha"
+
+#: app/views/account/signup.rhtml:17
+msgid "Confirm Password"
+msgstr "Confirmar Senha"
+
+#: app/views/account/login.rhtml:1 app/views/account/login.rhtml:25
+msgid "Log in"
+msgstr "Logar"
+
+#: app/views/account/login.rhtml:3
+msgid ""
+"If you've already created an account, or if you have an %{openid_link} "
+"login, use one of the forms below to log in to the site. If you use your "
+"OpenID URL to log in, an account will be created for you automatically if "
+"necessary."
+msgstr ""
+"Se você já criou uma conta, ou se você possui um login %{openid_link}, use "
+"um dos formulários abaixo para se logar no site. Se você usar sua URL OpenID "
+"para se logar, uma conta será criada automaticamente para você se necessário."
+
+#: app/views/account/login.rhtml:5
+msgid "You can also <a href='%{signup}'>create an account for this site.</a>"
+msgstr ""
+"Você também pode <a href='%{signup}'>criar uma conta para este site.</a>"
+
+#: app/views/account/login.rhtml:8
 msgid "OpenID URL"
 msgstr "URL OpenID"
 
-#: app/views/account/login.rhtml:4
+#: app/views/account/login.rhtml:10
 msgid "Log in with OpenID"
 msgstr "Logar com OpenID"
-
-#: app/views/account/login.rhtml:19
-msgid "Log in"
-msgstr "Logar"
 
 # app/models/championship.rb:-
 #: app/views/championship/team.rhtml:20
@@ -1353,7 +1384,7 @@ msgstr "Últimas edições"
 msgid "Latest comments"
 msgstr "Últimos comentários"
 
-#: app/views/home/index.rhtml:40
+#: app/views/home/index.rhtml:35
 msgid "View this %s"
 msgstr "Ver este %s"
 

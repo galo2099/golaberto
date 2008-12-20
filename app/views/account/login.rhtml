@@ -1,6 +1,12 @@
+<% content_for :main_title do %> <%= _("Log in") %><% end %>
+
+<small><%= _("If you've already created an account, or if you have an %{openid_link} login, use one of the forms below to log in to the site. If you use your OpenID URL to log in, an account will be created for you automatically if necessary.") % { :openid_link => link_to(_("OpenID"), "http://openid.net/") } %></small>
+
+<p><small><%= _("You can also <a href='%{signup}'>create an account for this site.</a>") % { :signup => url_for(:action => :signup) } %></small></p>
+
 <% form_tag do -%>
 <p><%= label_tag :openid_url, _("OpenID URL") %><br/>
-<%= text_field_tag :openid_url, @user.identity_url %></p>
+<%= text_field_tag :openid_url, @user.identity_url, :size => 30 %></p>
 <p><%= submit_tag _('Log in with OpenID') %></p>
 <% end %>
 
