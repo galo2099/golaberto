@@ -15,6 +15,8 @@ class User < ActiveRecord::Base
   validates_length_of       :email,    :within => 3..100, :if => :not_openid?
   validates_uniqueness_of   :login, :email, :case_sensitive => false, :allow_nil => true
   before_save :encrypt_password
+  after_create :create_logo
+  after_create :add_initial_roles
 
   # Authenticates a user by their login name and unencrypted password.  Returns the user or nil.
   def self.authenticate(login, password)
@@ -95,5 +97,16 @@ class User < ActiveRecord::Base
 
     def not_openid?
       identity_url.blank?
+    end
+
+    def create_logo
+      icon = Quilt::Identicon.new display_login, :size => 15
+      icon.write("#{RAILS_ROOT}/public/images/users/#{self.id}_15.png")
+      icon = Quilt::Identicon.new display_login, :size => 100
+      icon.write("#{RAILS_ROOT}/public/images/users/#{self.id}_100.png")
+    end
+
+    def add_initial_roles
+      self.roles << Role.find_or_create_by_name("commenter")
     end
 end
