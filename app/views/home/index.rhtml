@@ -29,11 +29,13 @@
   <% end %>
 </div>
 
+<h3><%= _("Latest comments") %></h3>
 <div id="comments">
-  <h3><%= _("Latest comments") %></h3>
   <% @comments.each do |comment| %>
-    <%= render :partial => "comment/comment", :object => comment %>
-    <small><%= link_to sprintf(_("View this %s"), _(comment.commentable_type.downcase)), :controller => comment.commentable_type, :action => :show, :id => comment.commentable_id %></small>
+      <div class="comment">
+      <%= render :partial => "comment/comment", :object => comment %>
+      <small><%= link_to sprintf(_("View this %s"), _(comment.commentable_type.downcase)), :controller => comment.commentable_type, :action => :show, :id => comment.commentable_id %></small>
+    </div>
   <% end %>
 </div>
 
