@@ -1,5 +1,6 @@
 <div id="comment_<%= comment.id %>" class="comment">
-<%= h comment.comment %><br/>
-<small><%= sprintf _("Comment posted %s ago by %s"), time_ago_in_words(comment.created_at), comment.user.display_login %> <%= image_tag "users/" + comment.user.small_logo %>
-<%= link_to_remote _("Delete"), :url => { :controller => :comment, :action => :destroy, :id => comment } if current_user == comment.user %></small>
+  <div class="comment-author"><%= image_tag "users/" + comment.user.small_logo, :border => 1 %> <%= comment.user.display_login %></div>
+  <div class="comment-date"><%= comment.created_at.strftime(_("%A, %d/%m/%Y at %H:%M")) %></div>
+  <div class="comment-text"><%= h comment.comment %></div>
+  <%= link_to_remote _("Delete"), :url => { :controller => :comment, :action => :destroy, :id => comment } if current_user == comment.user %></small>
 </div>

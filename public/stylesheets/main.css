@@ -450,5 +450,23 @@ DIV.clearer {
 }
 
 .comment {
-  padding-bottom: 30px;
+  border-top: 1px solid #ABB561;
+  padding-top: 10px;
+  margin-top: 10px;
+}
+.comment:hover {
+  background-color: #D3DFBA;
+}
+
+.comment-author {
+  overflow: hidden;
+  white-space: nowrap;
+  width: 100%;
+  font-size: small;
+}
+.comment-date {
+  font-size: small;
+}
+.comment-text {
+  padding: 10px;
 }

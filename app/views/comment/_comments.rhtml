@@ -5,10 +5,15 @@
 
 <h5><%= _("Leave a comment") %></h5>
 <% if logged_in? and current_user.can_comment? %>
-  <% remote_form_for :comment, :url => { :controller => :comment, :action => :new, :type => object.class, :id => object } do |f| %>
+  <% remote_form_for :comment, :url => { :controller => :comment, :action => :new, :type => object.class, :id => object },
+                               :condition => "$('comment_comment').value.length > 0",
+                               :before => "$('submit_comment').disable();",
+                               :after => "$('comment_comment').disable();",
+                               :complete => "$('comment_comment').enable(); $('submit_comment').enable()",
+                               :success => "$('comment_comment').value = ''" do |f| %>
     <%= _("Comment") %>:<br>
     <%= f.text_area :comment, :rows => 5, :cols => 35 %><br>
-    <%= submit_tag _("Add Comment") %>
+    <%= submit_tag _("Add Comment"), :id => "submit_comment" %>
   <% end %>
 <% else %>
   <%= sprintf _("You can only leave a comment if you're %s"), link_to(_("logged in"), :controller => :account, :action => :login) %>
