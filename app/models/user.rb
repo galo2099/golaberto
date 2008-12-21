@@ -6,6 +6,8 @@ class User < ActiveRecord::Base
   N_("User|Password")
 
   has_and_belongs_to_many :roles
+  has_many :comments, :dependent => :destroy, :order => 'created_at ASC'
+  has_many :game_edits, :class_name => "Game::Version", :foreign_key => "updater_id"
 
   validates_presence_of     :login, :email, :if => :not_openid?
   validates_presence_of     :password,                   :if => :password_required?
@@ -73,7 +75,11 @@ class User < ActiveRecord::Base
   end
 
   def display_login
-    login || identity_url
+    login or identity_url
+  end
+
+  def display_name
+    name or display_login
   end
 
   def small_logo
