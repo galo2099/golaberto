@@ -5,9 +5,14 @@
 <p><small><%= _("You can also <a href='%{signup}'>create an account for this site.</a>") % { :signup => url_for(:action => :signup) } %></small></p>
 
 <% form_tag do -%>
-<p><%= label_tag :openid_url, _("OpenID URL") %><br/>
-<%= text_field_tag :openid_url, @user.identity_url, :size => 30 %></p>
+
+<div>
+  <label for="openid_url"><span class="form-error"></span></label>
+  <input id="openid_identifier" name="openid_url" type="text" size="40" tabindex="100" />
+</div>
+
 <p><%= submit_tag _('Log in with OpenID') %></p>
+
 <% end %>
 
 <% form_for :user, @user do |f| -%>
@@ -24,3 +29,5 @@
 
 <p><%= submit_tag _('Log in') %></p>
 <% end -%>
+
+<%= javascript_include_tag "openid" %>
