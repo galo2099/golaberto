@@ -69,21 +69,24 @@ body {
 
 .navigation a
 {
-	color: #330;
-	text-decoration: none;
-	font-size: 12px;
-	font-weight: bold;
-	line-height: normal;
+  color: #330;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: bold;
+  line-height: normal;
+}
+
+.navigation span
+{
+  color: #330;
+  font-size: 12px;
+  font-weight: bold;
+  line-height: normal;
 }
 
 .navigation a:hover
 {
-	color: #e3efca;
-}
-.navigation span
-{
-	font-size: 14px;
-	font-weight: bold;
+  color: #e3efca;
 }
 
 .nav_side {

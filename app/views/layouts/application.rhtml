@@ -13,17 +13,23 @@
       <%= link_to image_tag("logo.png", :border => 0), "/" %>
       <div class="navigation" style='position: absolute; top: 0px; right: 0px; background-color: #8f983b;'>
         <%= case Locale.get.language
-              when "pt": '<a href="/cookie/set_cookie/en_US"><img src="/images/flags/gb.png"> English</a>'
-              else '<a href="/cookie/set_cookie/pt_BR"><img src="/images/flags/br.png"> Português</a>'
+              when "pt": '<a href="/cookie/set_cookie/en_US">English <img src="/images/flags/gb.png"></a>'
+              else '<a href="/cookie/set_cookie/pt_BR">Português <img src="/images/flags/br.png"></a>'
             end %>
       </div>
+      <% if logged_in? %>
+        <div class="navigation" style="position: absolute; bottom: 0px; right: 0px; background-color: #8f983b; width: 30%">
+          <div style="float: left; width: 90%; overflow: hidden; white-space: nowrap; text-align: right;"><span><%= current_user.display_login %></span></div>
+          <div style="float: right"><%= image_tag "users/" + current_user.small_logo, :class => "user-logo" %></div>
+        </div>
+      <% end %>
     </div>
 
     <div class='navigation'>
-      <%= link_to _("Home"), :controller => :home %> | 
-      <%= link_to _("Championships"), :controller => :championship %> | 
-      <%= link_to _("Teams"), :controller => :team %> | 
-      <%= link_to _("Games"), :controller => :game %> | 
+      <%= link_to _("Home"), :controller => :home %> |
+      <%= link_to _("Championships"), :controller => :championship %> |
+      <%= link_to _("Teams"), :controller => :team %> |
+      <%= link_to _("Games"), :controller => :game %> |
       <%= link_to _("Players"), :controller => :player %> |
       <%= link_to _("Stadiums"), :controller => :stadium %> |
       <%= link_to _("Referees"), :controller => :referee %> |
