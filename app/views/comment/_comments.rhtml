@@ -7,7 +7,7 @@
   <% end %>
 </div>
 
-<h5><%= _("Leave a comment") %></h5>
+<h4><%= _("Leave a comment") %></h4>
 <% if logged_in? and current_user.can_comment? %>
   <% remote_form_for :comment, :url => { :controller => :comment, :action => :new, :type => object.class, :id => object },
                                :condition => "! $('comment_comment').value.blank()",
