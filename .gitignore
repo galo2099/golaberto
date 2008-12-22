@@ -1,4 +1,5 @@
 public/images/logos
+public/images/users/*.png
 log/*
 public/javascripts/base_packaged.js
 public/stylesheets/base_packaged.css
