@@ -17,9 +17,9 @@
         <span style="font-size: small"><%= _("Only used to show your age.") %></span></td></tr>
     <% if @user.login %>
       <tr><td><%= f.label :login %>:</td><td><%= h @user.login %></td></tr>
-      <tr><td><label for="change_pass"><%= _("Change password?") %></td><td><%= check_box_tag "change_pass", "1", false, :onChange => "if (this.checked) { $('user_password').enable(); $('user_password_confirmation').enable(); } else { $('user_password').disable(); $('user_password_confirmation').disable(); }" %></td></tr>
-      <tr><td><%= f.label :password %>:</td><td><%= f.password_field :password, :disabled => true %></td></tr>
-      <tr><td><label for="password_confirmation"><%= _("Confirm Password") %></label>:</td><td><%= f.password_field :password_confirmation, :disabled => true %></td></tr>
+      <tr><td><label for="change_pass"><%= _("Change password?") %></td><td><%= check_box_tag "change_pass", "1", !@user.password.blank?, :onChange => "if (this.checked) { $('user_password').enable(); $('user_password_confirmation').enable(); } else { $('user_password').disable(); $('user_password_confirmation').disable(); }" %></td></tr>
+      <tr><td><%= f.label :password %>:</td><td><%= f.password_field :password, :disabled => @user.password.blank? %></td></tr>
+      <tr><td><label for="password_confirmation"><%= _("Confirm Password") %></label>:</td><td><%= f.password_field :password_confirmation, :disabled => @user.password.blank? %></td></tr>
     <% else %>
       <tr><td><%= f.label :identity_url %>:</td><td><%= h @user.identity_url %></td></tr>
     <% end %>
