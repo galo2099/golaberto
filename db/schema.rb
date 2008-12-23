@@ -9,7 +9,7 @@
 #
 # It's strongly recommended to check this file into your version control system.
 
-ActiveRecord::Schema.define(:version => 20081219181139) do
+ActiveRecord::Schema.define(:version => 20081221120603) do
 
   create_table "categories", :force => true do |t|
     t.string "name"
@@ -236,6 +236,12 @@ ActiveRecord::Schema.define(:version => 20081219181139) do
     t.string   "remember_token"
     t.datetime "remember_token_expires_at"
     t.string   "identity_url"
+    t.string   "website",                   :limit => 100
+    t.string   "name",                      :limit => 30
+    t.string   "location",                  :limit => 100
+    t.date     "birthday"
+    t.text     "about_me"
+    t.datetime "last_login"
   end
 
 end

@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2008-12-20 21:46-0200\n"
+"POT-Creation-Date: 2008-12-23 19:38-0200\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: Robson Braga Araujo <robsonbraga@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -446,7 +446,27 @@ msgstr "Lembrar token expira em"
 msgid "User|Identity url"
 msgstr "Url identidade"
 
-#: app/models/user.rb:6
+# app/models/phase.rb:-
+msgid "User|Name"
+msgstr "Nome"
+
+# app/models/user.rb:-
+msgid "User|Location"
+msgstr "Localidade"
+
+# app/models/user.rb:-
+msgid "User|Birthday"
+msgstr "Nascimento"
+
+# app/models/user.rb:-
+msgid "User|About me"
+msgstr "Sobre mim"
+
+# app/models/user.rb:-
+msgid "User|Last login"
+msgstr "Último login"
+
+#: app/models/user.rb:8
 msgid "User|Password"
 msgstr "Senha"
 
@@ -486,61 +506,61 @@ msgstr "Vermelho"
 msgid "Version %{number}"
 msgstr "Versão %{number}"
 
-#: app/helpers/game_helper.rb:45 app/views/comment/_comment.rhtml:4
+#: app/helpers/game_helper.rb:44 app/views/comment/_comment.rhtml:4
 #: app/views/home/index.rhtml:23
 msgid "%A, %d/%m/%Y at %H:%M"
 msgstr "%A, %d/%m/%Y às %H:%M"
 
-#: app/helpers/game_helper.rb:64
+#: app/helpers/game_helper.rb:63
 msgid "Removed goal "
 msgstr "Removido gol "
 
-#: app/helpers/game_helper.rb:66
+#: app/helpers/game_helper.rb:65
 msgid "Added goal "
 msgstr "Adicionado gol "
 
-#: app/helpers/game_helper.rb:70
+#: app/helpers/game_helper.rb:69
 msgid "(penalty)"
 msgstr "(pênalti)"
 
 # app/models/goal.rb:-
-#: app/helpers/game_helper.rb:71
+#: app/helpers/game_helper.rb:70
 msgid "(own_goal)"
 msgstr "(gol contra)"
 
-#: app/helpers/game_helper.rb:77
+#: app/helpers/game_helper.rb:76
 msgid "Added stadium: %s<br>"
 msgstr "Adicionado estádio: %s<br>"
 
-#: app/helpers/game_helper.rb:79
+#: app/helpers/game_helper.rb:78
 msgid "Removed stadium: %s<br>"
 msgstr "Removido estádio: %s<br>"
 
-#: app/helpers/game_helper.rb:81
+#: app/helpers/game_helper.rb:80
 msgid "Changed stadium: %s -> %s<br>"
 msgstr "Modificado estádio: %s -> %s<br>"
 
-#: app/helpers/game_helper.rb:85
+#: app/helpers/game_helper.rb:84
 msgid "Added referee: %s<br>"
 msgstr "Adicionado árbitro: %s<br>"
 
-#: app/helpers/game_helper.rb:87
+#: app/helpers/game_helper.rb:86
 msgid "Removed referee: %s<br>"
 msgstr "Removido árbitro: %s<br>"
 
-#: app/helpers/game_helper.rb:89
+#: app/helpers/game_helper.rb:88
 msgid "Changed referee: %s -> %s<br>"
 msgstr "Modificado árbitro: %s -> %s<br>"
 
-#: app/helpers/game_helper.rb:94
+#: app/helpers/game_helper.rb:93
 msgid "Added %s: %s<br>"
 msgstr "Adicionado %s: %s<br>"
 
-#: app/helpers/game_helper.rb:96
+#: app/helpers/game_helper.rb:95
 msgid "Removed %s: %s<br>"
 msgstr "Removido %s: %s<br>"
 
-#: app/helpers/game_helper.rb:98
+#: app/helpers/game_helper.rb:97
 msgid "Changed %s: %s -> %s<br>"
 msgstr "Modificado %s: %s -> %s<br>"
 
@@ -555,6 +575,24 @@ msgstr "Anterior "
 #: app/helpers/application_helper.rb:22
 msgid " Next"
 msgstr " Próximo"
+
+#: app/helpers/user_helper.rb:23
+msgid "%{num} year"
+msgid_plural "%{num} years"
+msgstr[0] "%{num} ano"
+msgstr[1] "%{num} anos"
+
+#: app/helpers/user_helper.rb:27
+msgid "%{num} month"
+msgid_plural "%{num} months"
+msgstr[0] "%{num} mes"
+msgstr[1] "%{num} meses"
+
+#: app/helpers/user_helper.rb:31
+msgid "%{num} day"
+msgid_plural "%{num} days"
+msgstr[0] "%{num} dia"
+msgstr[1] "%{num} dias"
 
 #: app/controllers/game_controller.rb:2
 msgid "Game"
@@ -607,7 +645,7 @@ msgstr "Usuário ou senha inválidos"
 msgid "Sorry, no user by that identity URL exists (%{identity_url})"
 msgstr "Desculpe, não existe um usuário nessa URL identidate (%{identity_url})"
 
-#: app/controllers/account_controller.rb:68
+#: app/controllers/account_controller.rb:70
 msgid "Logged in successfully"
 msgstr "Autenticado com sucesso"
 
@@ -655,18 +693,28 @@ msgstr "Campanha de %s"
 msgid "%s - %d points<br>%s %d x %d %s"
 msgstr "%s - %d pontos<br>%s %d x %d %s"
 
-#: app/controllers/home_controller.rb:2 app/views/layouts/application.rhtml:23
+#: app/controllers/home_controller.rb:2 app/views/layouts/application.rhtml:30
 #: app/views/home/index.rhtml:1
 msgid "Home"
 msgstr "Principal"
+
+#: app/controllers/user_controller.rb:29
+msgid "Your profile was saved"
+msgstr "Seu perfil foi salvo"
 
 #: app/controllers/cookie_controller.rb:2
 msgid "Cookie"
 msgstr "Cookie"
 
+# app/models/user.rb:-
+#: app/views/user/show.html.erb:2
+msgid "User"
+msgstr "Usuário"
+
 # app/models/team.rb:-
-#: app/views/team/_form.rhtml:1 app/views/team/_form.rhtml:16
-#: app/views/team/_team_list.rhtml:3 app/views/referee/_referee_list.rhtml:3
+#: app/views/user/show.html.erb:13 app/views/team/_form.rhtml:1
+#: app/views/team/_form.rhtml:16 app/views/team/_team_list.rhtml:3
+#: app/views/referee/_referee_list.rhtml:3
 #: app/views/stadium/_stadium_list.rhtml:3
 #: app/views/championship/team.rhtml:66
 #: app/views/championship/top_goalscorers.rhtml:17
@@ -682,6 +730,108 @@ msgstr "Cookie"
 #: app/views/phase/edit.rhtml:7 app/views/phase/new.rhtml:3
 msgid "Name"
 msgstr "Nome"
+
+#: app/views/user/show.html.erb:14
+msgid "Member for"
+msgstr "Membro por"
+
+#: app/views/user/show.html.erb:15
+msgid "Last seen"
+msgstr "Visto por último"
+
+#: app/views/user/show.html.erb:15
+msgid "%{time} ago"
+msgstr "%{time} atrás"
+
+#: app/views/user/show.html.erb:16 app/views/referee/show.rhtml:4
+#: app/views/referee/_referee_list.rhtml:4 app/views/game/edit.rhtml:162
+msgid "Location"
+msgstr "Localidade"
+
+#: app/views/user/show.html.erb:17
+msgid "Age"
+msgstr "Idade"
+
+#: app/views/user/show.html.erb:17
+msgid "%{num} years"
+msgstr "%{num} anos"
+
+#: app/views/user/show.html.erb:27
+msgid "Stats"
+msgstr "Estatísticas"
+
+#: app/views/user/show.html.erb:28
+msgid "This user has made %{num_comments} comment to this date."
+msgid_plural "This user has made %{num_comments} comments to this date."
+msgstr[0] "Este usuário fez %{num_comments} comentário até hoje."
+msgstr[1] "Este usuário fez %{num_comments} comentários até hoje."
+
+#: app/views/user/show.html.erb:29
+msgid "This user has made %{num_edits} edit to this date."
+msgid_plural "This user has made %{num_edits} edits to this date."
+msgstr[0] "Este usuário fez %{num_edits} edição até hoje."
+msgstr[1] "Este usuário fez %{num_edits} edições até hoje."
+
+#: app/views/user/show.html.erb:34
+msgid "View all users"
+msgstr "Ver todos usuários"
+
+#: app/views/user/show.html.erb:37
+msgid "Edit profile"
+msgstr "Editar perfil"
+
+#: app/views/user/list.html.erb:1
+msgid "Listing users"
+msgstr "Listando usuários"
+
+#: app/views/user/list.html.erb:10
+msgid "edits"
+msgstr "edições"
+
+# app/models/comment.rb:-
+#: app/views/user/list.html.erb:11
+msgid "comments"
+msgstr "comentários"
+
+#: app/views/user/edit.html.erb:4
+msgid "Edit user"
+msgstr "Editar usuário"
+
+#: app/views/user/edit.html.erb:14
+msgid "never displayed, no spam, used for password recovery"
+msgstr "nunca mostrado, sem spam, usado para recuperar a senha"
+
+#: app/views/user/edit.html.erb:17
+msgid "only used to show your age"
+msgstr "só usado para mostrar sua idade"
+
+#: app/views/user/edit.html.erb:20
+msgid "Change password?"
+msgstr "Mudar senha?"
+
+#: app/views/user/edit.html.erb:22 app/views/account/signup.rhtml:17
+msgid "Confirm Password"
+msgstr "Confirmar Senha"
+
+#: app/views/user/edit.html.erb:27
+msgid "basic html is accepted"
+msgstr "html básico é aceito"
+
+#: app/views/user/edit.html.erb:28
+msgid "Picture"
+msgstr "Imagem"
+
+#: app/views/user/edit.html.erb:29 app/views/team/_form.rhtml:26
+msgid "Filter image background?"
+msgstr "Filtrar fundo da imagem?"
+
+#: app/views/user/edit.html.erb:31 app/views/team/edit.rhtml:7
+#: app/views/stadium/edit.rhtml:8 app/views/championship/edit.rhtml:44
+#: app/views/game/edit_squad.rhtml:99 app/views/game/edit.rhtml:201
+#: app/views/player/edit.rhtml:9 app/views/group/edit.rhtml:33
+#: app/views/phase/edit.rhtml:28
+msgid "Update"
+msgstr "Atualizar"
 
 #: app/views/team/_form.rhtml:2
 msgid "Full name"
@@ -720,10 +870,6 @@ msgstr "Tem certeza que quer criar um novo estádio?"
 #: app/views/team/_form.rhtml:25
 msgid "Logo"
 msgstr "Logo"
-
-#: app/views/team/_form.rhtml:26
-msgid "Filter image background?"
-msgstr "Filtrar fundo da imagem?"
 
 # app/models/phase.rb:-
 #: app/views/team/show.rhtml:23
@@ -790,13 +936,6 @@ msgstr "Nova equipe"
 msgid "Editing team"
 msgstr "Editando equipe"
 
-#: app/views/team/edit.rhtml:7 app/views/stadium/edit.rhtml:8
-#: app/views/championship/edit.rhtml:44 app/views/game/edit_squad.rhtml:99
-#: app/views/game/edit.rhtml:201 app/views/player/edit.rhtml:9
-#: app/views/group/edit.rhtml:33 app/views/phase/edit.rhtml:28
-msgid "Update"
-msgstr "Atualizar"
-
 #: app/views/team/new.rhtml:1
 msgid "New Team"
 msgstr "Nova Equipe"
@@ -829,13 +968,8 @@ msgstr "Listando árbitros"
 msgid "New referee"
 msgstr "Novo árbitro"
 
-#: app/views/referee/show.rhtml:4 app/views/referee/_referee_list.rhtml:4
-#: app/views/game/edit.rhtml:162
-msgid "Location"
-msgstr "Localidade"
-
 #: app/views/referee/show.rhtml:7 app/views/stadium/show.rhtml:6
-#: app/views/layouts/application.rhtml:26 app/views/championship/games.rhtml:2
+#: app/views/layouts/application.rhtml:33 app/views/championship/games.rhtml:2
 #: app/views/championship/crowd.rhtml:16
 #: app/views/championship/_nav_side.rhtml:10
 msgid "Games"
@@ -874,18 +1008,18 @@ msgid "Stadium Edit"
 msgstr "Editar Estádio"
 
 # app/models/championship.rb:-
-#: app/views/layouts/application.rhtml:24
+#: app/views/layouts/application.rhtml:31
 msgid "Championships"
 msgstr "Campeonatos"
 
-#: app/views/layouts/application.rhtml:25
+#: app/views/layouts/application.rhtml:32
 #: app/views/championship/top_goalscorers.rhtml:19
 #: app/views/championship/_nav_side.rhtml:12 app/views/group/edit.rhtml:21
 msgid "Teams"
 msgstr "Equipes"
 
 # app/models/player.rb:-
-#: app/views/layouts/application.rhtml:27 app/views/championship/team.rhtml:59
+#: app/views/layouts/application.rhtml:34 app/views/championship/team.rhtml:59
 #: app/views/game/edit_squad.rhtml:50 app/views/game/edit_squad.rhtml:59
 #: app/views/game/edit_squad.rhtml:68 app/views/game/edit_squad.rhtml:76
 #: app/views/game/edit.rhtml:74 app/views/game/edit.rhtml:107
@@ -893,20 +1027,20 @@ msgid "Players"
 msgstr "Jogadores"
 
 # app/models/stadium.rb:-
-#: app/views/layouts/application.rhtml:28
+#: app/views/layouts/application.rhtml:35
 msgid "Stadiums"
 msgstr "Estádios"
 
 # app/models/referee.rb:-
-#: app/views/layouts/application.rhtml:29
+#: app/views/layouts/application.rhtml:36
 msgid "Referees"
 msgstr "Árbitros"
 
-#: app/views/layouts/application.rhtml:31
+#: app/views/layouts/application.rhtml:38
 msgid "Logout"
 msgstr "Sair"
 
-#: app/views/layouts/application.rhtml:33 app/views/account/signup.rhtml:8
+#: app/views/layouts/application.rhtml:40 app/views/account/signup.rhtml:8
 msgid "Login"
 msgstr "Login"
 
@@ -936,10 +1070,6 @@ msgstr "Email"
 msgid "Password"
 msgstr "Senha"
 
-#: app/views/account/signup.rhtml:17
-msgid "Confirm Password"
-msgstr "Confirmar Senha"
-
 #: app/views/account/login.rhtml:1 app/views/account/login.rhtml:25
 msgid "Log in"
 msgstr "Logar"
@@ -957,7 +1087,8 @@ msgstr ""
 
 #: app/views/account/login.rhtml:5
 msgid "You can also <a href='%{signup}'>create an account for this site.</a>"
-msgstr "Você também pode <a href='%{signup}'>criar uma conta para este site.</a>"
+msgstr ""
+"Você também pode <a href='%{signup}'>criar uma conta para este site.</a>"
 
 #: app/views/account/login.rhtml:8
 msgid "OpenID URL"
@@ -1375,8 +1506,8 @@ msgid ""
 "Now you can <a href='%{signup_link}'>sign up</a> and leave comments on the "
 "site."
 msgstr ""
-"Você agora pode <a href='%{signup_link}'>se cadastrar</a> e deixar comentários "
-"no site."
+"Você agora pode <a href='%{signup_link}'>se cadastrar</a> e deixar "
+"comentários no site."
 
 # app/models/championship.rb:-
 #: app/views/home/index.rhtml:10

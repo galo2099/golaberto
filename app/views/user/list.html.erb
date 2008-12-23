@@ -1,0 +1,15 @@
+<% content_for :main_title do %><%= _("Listing users") %><% end %>
+
+<div>
+  <% @users.each do |user| %>
+    <div class="item-with-separator">
+      <div style="float: left"><%= link_to image_tag("users/" + user.small_logo, :class => "user-logo"), :action => :show, :id => user %></div>
+      <div class="user-name" style="padding-left: 2px"><%= link_to user.display_name, :action => :show, :id => user %></div>
+      <div style="clear: both"></div>
+      <table><tr>
+        <td><%= user.edit_count %> <%= image_tag "icons/pencil.png", :title => _("edits") %></td>
+        <td><%= user.comment_count %> <%= image_tag "icons/balloon.png", :title => _("comments") %></td>
+      </tr></table>
+    </div>
+  <% end %>
+</div>

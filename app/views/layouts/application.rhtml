@@ -4,6 +4,7 @@
   <title>GolAberto - <%= yield(:title) || _(controller.controller_name.titleize) %></title>
   <%= stylesheet_link_merged :base %>
   <%= javascript_include_merged :base %>
+  <link rel="shortcut icon" href="<%= image_path "/favicon.ico" %>" type="image/x-icon"/>
 </head>
 
 <body>
@@ -19,8 +20,8 @@
       </div>
       <% if logged_in? %>
         <div class="navigation" style="position: absolute; bottom: 0px; right: 0px; background-color: #8f983b; width: 30%">
-          <div style="float: left; width: 90%; overflow: hidden; white-space: nowrap; text-align: right;"><span><%= current_user.display_login %></span></div>
-          <div style="float: right"><%= image_tag "users/" + current_user.small_logo, :class => "user-logo" %></div>
+          <div style="float: left; text-align: right;" class="user-name"><%= link_to current_user.display_name, :controller => :user, :action => :show, :id => current_user %></div>
+          <div style="float: right"><%= link_to image_tag("users/" + current_user.small_logo, :class => "user-logo"), :controller => :user, :action => :show, :id => current_user %></div>
         </div>
       <% end %>
     </div>

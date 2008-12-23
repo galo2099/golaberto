@@ -1,11 +1,15 @@
 require 'digest/sha1'
 class User < ActiveRecord::Base
+  include ImageUpload
+
   cattr_accessor :current_user
   # Virtual attribute for the unencrypted password
   attr_accessor :password
   N_("User|Password")
 
   has_and_belongs_to_many :roles
+  has_many :comments, :dependent => :destroy, :order => 'created_at ASC'
+  has_many :game_edits, :class_name => "Game::Version", :foreign_key => "updater_id"
 
   validates_presence_of     :login, :email, :if => :not_openid?
   validates_presence_of     :password,                   :if => :password_required?
@@ -15,6 +19,10 @@ class User < ActiveRecord::Base
   validates_length_of       :login,    :within => 3..40, :if => :not_openid?
   validates_length_of       :email,    :within => 3..100, :if => :not_openid?
   validates_uniqueness_of   :login, :email, :case_sensitive => false, :allow_nil => true
+  validates_length_of       :name, :maximum => 30, :allow_blank => true
+  validates_length_of       :location, :maximum => 100, :allow_blank => true
+  validates_length_of       :about_me, :maximum => 2000, :allow_blank => true
+
   before_save :encrypt_password
   after_create :create_logo
   after_create :add_initial_roles
@@ -73,7 +81,11 @@ class User < ActiveRecord::Base
   end
 
   def display_login
-    login || identity_url
+    login or identity_url
+  end
+
+  def display_name
+    name or display_login
   end
 
   def small_logo
@@ -82,6 +94,10 @@ class User < ActiveRecord::Base
 
   def large_logo
     "#{id}_100.png"
+  end
+
+  def uploaded_picture(l, filter_background = false)
+    uploaded_image(l, "users", filter_background)
   end
 
   protected

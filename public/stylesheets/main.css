@@ -17,6 +17,12 @@ body {
   text-align: center;
 }
 
+.fieldWithErrors
+{
+  display: inline;
+  color: #FF0000;
+}
+
 .container
 {
   text-align: left;
@@ -452,6 +458,13 @@ DIV.clearer {
   padding: 0 0 10px 0;
 }
 
+.item-with-separator {
+  border-bottom: 1px solid #ABB561;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+}
+
 .comment {
   border-bottom: 1px solid #ABB561;
   padding-top: 10px;
@@ -462,10 +475,10 @@ DIV.clearer {
   background-color: #D3DFBA;
 }
 
-.comment-author {
+.user-name {
   overflow: hidden;
   white-space: nowrap;
-  width: 95%;
+  width: 90%;
   font-size: small;
 }
 .comment-date {
@@ -489,4 +502,25 @@ img.user-logo {
   padding: 10px;
   border: 1px solid #ABB561;
   margin-bottom: 10px;
+}
+
+#about_me {
+  background-color: #D3DFBA;
+  height: 200px;
+  line-height: 120%;
+  margin: 0px 0px 10px 10px;
+  overflow: auto;
+  padding: 10px;
+  width: 212px;
+}
+
+.user-details {
+  width: 100%;
+  font-size: 14px;
+}
+.user-details tr {
+  vertical-align: top;
+}
+.user-details td {
+  padding: 4px 0;
 }

@@ -1,0 +1,39 @@
+<% content_for :title do %>
+  <%= _("User") %> - <%= @user.display_name %>
+<% end %>
+<% content_for :main_title do %>
+  <%= @user.display_name %>
+<% end %>
+
+<div style="width: 100%">
+  <table class="user-details"><tr>
+    <td width="20%"><%= image_tag "users/" + @user.large_logo, :class => "user-logo" %></td>
+    <td width="35%">
+      <table style="width: 100%">
+        <tr><td width="40%"><%= _("Name") %>:</td><td width="60%"><b><%= h @user.name %></b></td></tr>
+        <tr><td><%= _("Member for") %>:</td><td><%= precise_time_ago_in_words(@user.created_at) %></td></tr>
+        <tr><td><%= _("Last seen") %>:</td><td><b><%= _("%{time} ago") % { :time => time_ago_in_words(@user.last_login, true) } if @user.last_login %></b></td></tr>
+        <tr><td><%= _("Location") %>:</td><td><%= h @user.location %></td></tr>
+        <tr><td><%= _("Age") %>:</td><td><%= _("%{num} years") % { :num => precise_time_ago(@user.birthday)[:years] } if @user.birthday%></td></tr>
+      </table>
+    </td>
+    <% unless @user.about_me.blank? %>
+      <td width="45%"><div id='about_me'><%= sanitize @user.about_me, :tags => Set.new(%w(b i ol ul li pre code tt p br)), :attributes => Set.new %></div></td>
+    <% end %>
+  </tr></table>
+</div>
+
+<div>
+  <h4><%= _("Stats") %></h4>
+  <%= n_("This user has made %{num_comments} comment to this date.", "This user has made %{num_comments} comments to this date.", @comment_number) % { :num_comments => @comment_number } %><br>
+  <%= n_("This user has made %{num_edits} edit to this date.", "This user has made %{num_edits} edits to this date.", @edit_number) % { :num_edits => @edit_number } %><br>
+</div>
+
+
+<% content_for :sidebar do %>
+  <%= link_to _("View all users"), :action => :list %><br/>
+  <br/>
+  <% if logged_in? and current_user == @user %>
+    <%= link_to _("Edit profile"), :action => :edit, :id => current_user %><br/>
+  <% end %>
+<% end %>

@@ -37,6 +37,7 @@ task :after_update_code, :roles => :app do
   run "cp -f #{shared_path}/config/database.yml #{release_path}/config/database.yml"
 
   run "ln -s #{shared_path}/logos #{release_path}/public/images/"
+  run "ln -s #{shared_path}/users #{release_path}/public/images/"
 
   run "rake -f #{release_path}/Rakefile asset:packager:build_all"
 end

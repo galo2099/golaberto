@@ -1,0 +1,32 @@
+<%= error_messages_for 'user' %>
+
+<% content_for :title do %>
+  <%= _("Edit user") %> - <%= @user.display_name %>
+<% end %>
+<% content_for :main_title do %>
+  <%= @user.display_name %>
+<% end %>
+
+<% form_for :user, @user, :url => { :action => :update, :id => @user }, :html => { :multipart => true } do |f| %>
+  <table>
+    <tr><td><%= f.label :name %>:</td><td><%= f.text_field :name %></td></tr>
+    <tr><td><%= f.label :email %>:</td><td><%= f.text_field :email %></td></tr>
+    <tr><td></td><td style="font-size: small"><%= _("never displayed, no spam, used for password recovery") %></td></tr>
+    <tr><td><%= f.label :location %>:</td><td><%= f.text_field :location %></td></tr>
+    <tr><td><%= f.label :birthday %>:</td><td><%= date_field :user, :birthday, :value => @user.birthday, :size => 10, :format => "%d/%m/%Y" %>
+        <span style="font-size: small"><%= _("only used to show your age") %></span></td></tr>
+    <% if @user.login %>
+      <tr><td><%= f.label :login %>:</td><td><%= h @user.login %></td></tr>
+      <tr><td><label for="change_pass"><%= _("Change password?") %></td><td><%= check_box_tag "change_pass", "1", !@user.password.blank?, :onChange => "if (this.checked) { $('user_password').enable(); $('user_password_confirmation').enable(); } else { $('user_password').disable(); $('user_password_confirmation').disable(); }" %></td></tr>
+      <tr><td><%= f.label :password %>:</td><td><%= f.password_field :password, :disabled => @user.password.blank? %></td></tr>
+      <tr><td><label for="password_confirmation"><%= _("Confirm Password") %></label>:</td><td><%= f.password_field :password_confirmation, :disabled => @user.password.blank? %></td></tr>
+    <% else %>
+      <tr><td><%= f.label :identity_url %>:</td><td><%= h @user.identity_url %></td></tr>
+    <% end %>
+    <tr><td><%= f.label :about_me %>:</td><td><%= f.text_area :about_me %></td></tr>
+    <tr><td></td><td style="font-size: small"><%= _("basic html is accepted") %></td></tr>
+    <tr><td><label for="picture"><%= _("Picture") %>:</label></td><td><%= file_field_tag "picture" %></td></tr>
+    <tr><td><label for="filter"><%= _("Filter image background?") %></label></td><td><%= check_box_tag "filter" %></td></tr>
+  </table>
+  <%= submit_tag _("Update") %>
+<% end %>
