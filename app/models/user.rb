@@ -1,5 +1,7 @@
 require 'digest/sha1'
 class User < ActiveRecord::Base
+  include ImageUpload
+
   cattr_accessor :current_user
   # Virtual attribute for the unencrypted password
   attr_accessor :password
@@ -92,6 +94,10 @@ class User < ActiveRecord::Base
 
   def large_logo
     "#{id}_100.png"
+  end
+
+  def uploaded_picture(l, filter_background = false)
+    uploaded_image(l, "users", filter_background)
   end
 
   protected

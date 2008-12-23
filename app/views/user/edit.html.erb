@@ -25,6 +25,8 @@
     <% end %>
     <tr><td><%= f.label :about_me %>:</td><td><%= f.text_area :about_me %></td></tr>
     <tr><td></td><td style="font-size: small"><%= _("basic html is accepted") %></td></tr>
+    <tr><td><label for="picture"><%= _("Picture") %>:</label></td><td><%= file_field_tag "picture" %></td></tr>
+    <tr><td><label for="filter"><%= _("Filter image background?") %></label></td><td><%= check_box_tag "filter" %></td></tr>
   </table>
   <%= submit_tag _("Update") %>
 <% end %>

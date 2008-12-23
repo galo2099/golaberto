@@ -25,6 +25,7 @@ class UserController < ApplicationController
     @user.birthday = Date.strptime(birthday, "%d/%m/%Y") unless birthday.empty?
     @user.attributes = params[:user]
     @user.save!
+    @user.uploaded_picture(params[:picture], params[:filter]) unless params[:picture].to_s.empty?
     flash[:notice] = _("Your profile was saved")
     redirect_to :action => :show, :id => @user
   rescue ActiveRecord::RecordInvalid
