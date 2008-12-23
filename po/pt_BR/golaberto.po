@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2008-12-22 23:56-0200\n"
+"POT-Creation-Date: 2008-12-23 00:11-0200\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: Robson Braga Araujo <robsonbraga@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -645,7 +645,7 @@ msgstr "Usuário ou senha inválidos"
 msgid "Sorry, no user by that identity URL exists (%{identity_url})"
 msgstr "Desculpe, não existe um usuário nessa URL identidate (%{identity_url})"
 
-#: app/controllers/account_controller.rb:68
+#: app/controllers/account_controller.rb:70
 msgid "Logged in successfully"
 msgstr "Autenticado com sucesso"
 
@@ -734,6 +734,10 @@ msgstr "Membro por"
 #: app/views/user/show.html.erb:15
 msgid "Last seen"
 msgstr "Visto por último"
+
+#: app/views/user/show.html.erb:15
+msgid "%{time} ago"
+msgstr "%{time} atrás"
 
 #: app/views/user/show.html.erb:16 app/views/referee/show.rhtml:4
 #: app/views/referee/_referee_list.rhtml:4 app/views/game/edit.rhtml:162

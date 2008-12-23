@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2008-12-22 23:56-0200\n"
+"POT-Creation-Date: 2008-12-23 00:11-0200\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -639,7 +639,7 @@ msgstr ""
 msgid "Sorry, no user by that identity URL exists (%{identity_url})"
 msgstr ""
 
-#: app/controllers/account_controller.rb:68
+#: app/controllers/account_controller.rb:70
 msgid "Logged in successfully"
 msgstr ""
 
@@ -720,6 +720,10 @@ msgstr ""
 
 #: app/views/user/show.html.erb:15
 msgid "Last seen"
+msgstr ""
+
+#: app/views/user/show.html.erb:15
+msgid "%{time} ago"
 msgstr ""
 
 #: app/views/user/show.html.erb:16 app/views/referee/show.rhtml:4

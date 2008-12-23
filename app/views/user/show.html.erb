@@ -12,7 +12,7 @@
       <table style="width: 100%">
         <tr><td width="40%"><%= _("Name") %>:</td><td width="60%"><b><%= h @user.name %></b></td></tr>
         <tr><td><%= _("Member for") %>:</td><td><%= precise_time_ago_in_words(@user.created_at) %></td></tr>
-        <tr><td><%= _("Last seen") %>:</td><td><b><%= time_ago_in_words(@user.last_login) if @user.last_login %></b></td></tr>
+        <tr><td><%= _("Last seen") %>:</td><td><b><%= _("%{time} ago") % { :time => time_ago_in_words(@user.last_login, true) } if @user.last_login %></b></td></tr>
         <tr><td><%= _("Location") %>:</td><td><%= h @user.location %></td></tr>
         <tr><td><%= _("Age") %>:</td><td><%= _("%{num} years") % { :num => precise_time_ago(@user.birthday)[:years] } if @user.birthday%></td></tr>
       </table>
