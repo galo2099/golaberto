@@ -17,7 +17,9 @@
         <tr><td><%= _("Age") %>:</td><td><%= _("%{num} years") % { :num => precise_time_ago(@user.birthday)[:years] } if @user.birthday%></td></tr>
       </table>
     </td>
-    <td width="45%"><div id='about_me'><%= sanitize @user.about_me, :tags => Set.new(%w(b i ol ul li pre code tt p br)), :attributes => Set.new %></div></td>
+    <% unless @user.about_me.blank? %>
+      <td width="45%"><div id='about_me'><%= sanitize @user.about_me, :tags => Set.new(%w(b i ol ul li pre code tt p br)), :attributes => Set.new %></div></td>
+    <% end %>
   </tr></table>
 </div>
 
@@ -29,4 +31,9 @@
 
 
 <% content_for :sidebar do %>
+  <%= link_to _("View all users"), :action => :list %><br/>
+  <br/>
+  <% if logged_in? and current_user == @user %>
+    <%= link_to _("Edit profile"), :action => :edit, :id => current_user %><br/>
+  <% end %>
 <% end %>

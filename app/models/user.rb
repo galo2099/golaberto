@@ -17,6 +17,10 @@ class User < ActiveRecord::Base
   validates_length_of       :login,    :within => 3..40, :if => :not_openid?
   validates_length_of       :email,    :within => 3..100, :if => :not_openid?
   validates_uniqueness_of   :login, :email, :case_sensitive => false, :allow_nil => true
+  validates_length_of       :name, :maximum => 30, :allow_blank => true
+  validates_length_of       :location, :maximum => 100, :allow_blank => true
+  validates_length_of       :about_me, :maximum => 2000, :allow_blank => true
+
   before_save :encrypt_password
   after_create :create_logo
   after_create :add_initial_roles

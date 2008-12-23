@@ -30,7 +30,7 @@ class AccountController < ApplicationController
     cookies.delete :auth_token
     reset_session
     flash[:notice] = _("You have been logged out.")
-    redirect_back_or_default("/")
+    redirect_to(:back) rescue redirect_to("/")
   end
 
   private

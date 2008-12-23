@@ -17,6 +17,12 @@ body {
   text-align: center;
 }
 
+.fieldWithErrors
+{
+  display: inline;
+  color: #FF0000;
+}
+
 .container
 {
   text-align: left;
@@ -462,10 +468,10 @@ DIV.clearer {
   background-color: #D3DFBA;
 }
 
-.comment-author {
+.user-name {
   overflow: hidden;
   white-space: nowrap;
-  width: 95%;
+  width: 90%;
   font-size: small;
 }
 .comment-date {
