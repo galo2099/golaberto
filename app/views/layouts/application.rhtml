@@ -4,6 +4,7 @@
   <title>GolAberto - <%= yield(:title) || _(controller.controller_name.titleize) %></title>
   <%= stylesheet_link_merged :base %>
   <%= javascript_include_merged :base %>
+  <link rel="shortcut icon" href="<%= image_path "/favicon.ico" %>" type="image/x-icon"/>
 </head>
 
 <body>
