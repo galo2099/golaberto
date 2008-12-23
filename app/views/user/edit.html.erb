@@ -13,7 +13,8 @@
     <tr><td><%= f.label :email %>:</td><td><%= f.text_field :email %></td></tr>
     <tr><td></td><td style="font-size: small"><%= _("never displayed, no spam, used for password recovery") %></td></tr>
     <tr><td><%= f.label :location %>:</td><td><%= f.text_field :location %></td></tr>
-    <tr><td><%= f.label :birthday %>:</td><td><%= date_field :user, :birthday, :value => @user.birthday, :size => 10, :format => "%d/%m/%Y" %></td></tr>
+    <tr><td><%= f.label :birthday %>:</td><td><%= date_field :user, :birthday, :value => @user.birthday, :size => 10, :format => "%d/%m/%Y" %>
+        <span style="font-size: small"><%= _("Only used to show your age.") %></span></td></tr>
     <% if @user.login %>
       <tr><td><%= f.label :login %>:</td><td><%= h @user.login %></td></tr>
       <tr><td><label for="change_pass"><%= _("Change password?") %></td><td><%= check_box_tag "change_pass", "1", false, :onChange => "if (this.checked) { $('user_password').enable(); $('user_password_confirmation').enable(); } else { $('user_password').disable(); $('user_password_confirmation').disable(); }" %></td></tr>
