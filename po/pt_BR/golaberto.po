@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2008-12-23 00:11-0200\n"
+"POT-Creation-Date: 2008-12-23 19:38-0200\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: Robson Braga Araujo <robsonbraga@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -466,7 +466,7 @@ msgstr "Sobre mim"
 msgid "User|Last login"
 msgstr "Último login"
 
-#: app/models/user.rb:6
+#: app/models/user.rb:8
 msgid "User|Password"
 msgstr "Senha"
 
@@ -693,10 +693,14 @@ msgstr "Campanha de %s"
 msgid "%s - %d points<br>%s %d x %d %s"
 msgstr "%s - %d pontos<br>%s %d x %d %s"
 
-#: app/controllers/home_controller.rb:2 app/views/layouts/application.rhtml:29
+#: app/controllers/home_controller.rb:2 app/views/layouts/application.rhtml:30
 #: app/views/home/index.rhtml:1
 msgid "Home"
 msgstr "Principal"
+
+#: app/controllers/user_controller.rb:29
+msgid "Your profile was saved"
+msgstr "Seu perfil foi salvo"
 
 #: app/controllers/cookie_controller.rb:2
 msgid "Cookie"
@@ -752,25 +756,82 @@ msgstr "Idade"
 msgid "%{num} years"
 msgstr "%{num} anos"
 
-#: app/views/user/show.html.erb:25
+#: app/views/user/show.html.erb:27
 msgid "Stats"
 msgstr "Estatísticas"
 
-#: app/views/user/show.html.erb:26
+#: app/views/user/show.html.erb:28
 msgid "This user has made %{num_comments} comment to this date."
 msgid_plural "This user has made %{num_comments} comments to this date."
 msgstr[0] "Este usuário fez %{num_comments} comentário até hoje."
 msgstr[1] "Este usuário fez %{num_comments} comentários até hoje."
 
-#: app/views/user/show.html.erb:27
+#: app/views/user/show.html.erb:29
 msgid "This user has made %{num_edits} edit to this date."
 msgid_plural "This user has made %{num_edits} edits to this date."
 msgstr[0] "Este usuário fez %{num_edits} edição até hoje."
 msgstr[1] "Este usuário fez %{num_edits} edições até hoje."
 
+#: app/views/user/show.html.erb:34
+msgid "View all users"
+msgstr "Ver todos usuários"
+
+#: app/views/user/show.html.erb:37
+msgid "Edit profile"
+msgstr "Editar perfil"
+
 #: app/views/user/list.html.erb:1
 msgid "Listing users"
 msgstr "Listando usuários"
+
+#: app/views/user/list.html.erb:10
+msgid "edits"
+msgstr "edições"
+
+# app/models/comment.rb:-
+#: app/views/user/list.html.erb:11
+msgid "comments"
+msgstr "comentários"
+
+#: app/views/user/edit.html.erb:4
+msgid "Edit user"
+msgstr "Editar usuário"
+
+#: app/views/user/edit.html.erb:14
+msgid "never displayed, no spam, used for password recovery"
+msgstr "nunca mostrado, sem spam, usado para recuperar a senha"
+
+#: app/views/user/edit.html.erb:17
+msgid "only used to show your age"
+msgstr "só usado para mostrar sua idade"
+
+#: app/views/user/edit.html.erb:20
+msgid "Change password?"
+msgstr "Mudar senha?"
+
+#: app/views/user/edit.html.erb:22 app/views/account/signup.rhtml:17
+msgid "Confirm Password"
+msgstr "Confirmar Senha"
+
+#: app/views/user/edit.html.erb:27
+msgid "basic html is accepted"
+msgstr "html básico é aceito"
+
+#: app/views/user/edit.html.erb:28
+msgid "Picture"
+msgstr "Imagem"
+
+#: app/views/user/edit.html.erb:29 app/views/team/_form.rhtml:26
+msgid "Filter image background?"
+msgstr "Filtrar fundo da imagem?"
+
+#: app/views/user/edit.html.erb:31 app/views/team/edit.rhtml:7
+#: app/views/stadium/edit.rhtml:8 app/views/championship/edit.rhtml:44
+#: app/views/game/edit_squad.rhtml:99 app/views/game/edit.rhtml:201
+#: app/views/player/edit.rhtml:9 app/views/group/edit.rhtml:33
+#: app/views/phase/edit.rhtml:28
+msgid "Update"
+msgstr "Atualizar"
 
 #: app/views/team/_form.rhtml:2
 msgid "Full name"
@@ -809,10 +870,6 @@ msgstr "Tem certeza que quer criar um novo estádio?"
 #: app/views/team/_form.rhtml:25
 msgid "Logo"
 msgstr "Logo"
-
-#: app/views/team/_form.rhtml:26
-msgid "Filter image background?"
-msgstr "Filtrar fundo da imagem?"
 
 # app/models/phase.rb:-
 #: app/views/team/show.rhtml:23
@@ -879,13 +936,6 @@ msgstr "Nova equipe"
 msgid "Editing team"
 msgstr "Editando equipe"
 
-#: app/views/team/edit.rhtml:7 app/views/stadium/edit.rhtml:8
-#: app/views/championship/edit.rhtml:44 app/views/game/edit_squad.rhtml:99
-#: app/views/game/edit.rhtml:201 app/views/player/edit.rhtml:9
-#: app/views/group/edit.rhtml:33 app/views/phase/edit.rhtml:28
-msgid "Update"
-msgstr "Atualizar"
-
 #: app/views/team/new.rhtml:1
 msgid "New Team"
 msgstr "Nova Equipe"
@@ -919,7 +969,7 @@ msgid "New referee"
 msgstr "Novo árbitro"
 
 #: app/views/referee/show.rhtml:7 app/views/stadium/show.rhtml:6
-#: app/views/layouts/application.rhtml:32 app/views/championship/games.rhtml:2
+#: app/views/layouts/application.rhtml:33 app/views/championship/games.rhtml:2
 #: app/views/championship/crowd.rhtml:16
 #: app/views/championship/_nav_side.rhtml:10
 msgid "Games"
@@ -958,18 +1008,18 @@ msgid "Stadium Edit"
 msgstr "Editar Estádio"
 
 # app/models/championship.rb:-
-#: app/views/layouts/application.rhtml:30
+#: app/views/layouts/application.rhtml:31
 msgid "Championships"
 msgstr "Campeonatos"
 
-#: app/views/layouts/application.rhtml:31
+#: app/views/layouts/application.rhtml:32
 #: app/views/championship/top_goalscorers.rhtml:19
 #: app/views/championship/_nav_side.rhtml:12 app/views/group/edit.rhtml:21
 msgid "Teams"
 msgstr "Equipes"
 
 # app/models/player.rb:-
-#: app/views/layouts/application.rhtml:33 app/views/championship/team.rhtml:59
+#: app/views/layouts/application.rhtml:34 app/views/championship/team.rhtml:59
 #: app/views/game/edit_squad.rhtml:50 app/views/game/edit_squad.rhtml:59
 #: app/views/game/edit_squad.rhtml:68 app/views/game/edit_squad.rhtml:76
 #: app/views/game/edit.rhtml:74 app/views/game/edit.rhtml:107
@@ -977,20 +1027,20 @@ msgid "Players"
 msgstr "Jogadores"
 
 # app/models/stadium.rb:-
-#: app/views/layouts/application.rhtml:34
+#: app/views/layouts/application.rhtml:35
 msgid "Stadiums"
 msgstr "Estádios"
 
 # app/models/referee.rb:-
-#: app/views/layouts/application.rhtml:35
+#: app/views/layouts/application.rhtml:36
 msgid "Referees"
 msgstr "Árbitros"
 
-#: app/views/layouts/application.rhtml:37
+#: app/views/layouts/application.rhtml:38
 msgid "Logout"
 msgstr "Sair"
 
-#: app/views/layouts/application.rhtml:39 app/views/account/signup.rhtml:8
+#: app/views/layouts/application.rhtml:40 app/views/account/signup.rhtml:8
 msgid "Login"
 msgstr "Login"
 
@@ -1019,10 +1069,6 @@ msgstr "Email"
 #: app/views/account/signup.rhtml:14
 msgid "Password"
 msgstr "Senha"
-
-#: app/views/account/signup.rhtml:17
-msgid "Confirm Password"
-msgstr "Confirmar Senha"
 
 #: app/views/account/login.rhtml:1 app/views/account/login.rhtml:25
 msgid "Log in"
