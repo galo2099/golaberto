@@ -5,23 +5,26 @@
   <%= @user.display_name %>
 <% end %>
 
-<div>
-  <table style="width: 100%"><tr>
-    <td><%= image_tag "users/" + @user.large_logo %></td>
-    <td>
-      <table>
-        <tr><td><%= _("Name") %>:</td><td><%= @user.name %></td></tr>
-        <tr><td><%= _("Member for") %>:</td><td><%= time_ago_in_words(@user.created_at) %></td></tr>
+<div style="width: 100%">
+  <table class="user-details"><tr>
+    <td width="20%"><%= image_tag "users/" + @user.large_logo, :class => "user-logo" %></td>
+    <td width="35%">
+      <table style="width: 100%">
+        <tr><td width="40%"><%= _("Name") %>:</td><td width="60%"><b><%= h @user.name %></b></td></tr>
+        <tr><td><%= _("Member for") %>:</td><td><%= precise_time_ago_in_words(@user.created_at) %></td></tr>
+        <tr><td><%= _("Last seen") %>:</td><td><b><%= time_ago_in_words(@user.last_login) if @user.last_login %></b></td></tr>
+        <tr><td><%= _("Location") %>:</td><td><%= h @user.location %></td></tr>
+        <tr><td><%= _("Age") %>:</td><td><%= _("%{num} years") % { :num => precise_time_ago(@user.birthday)[:years] } if @user.birthday%></td></tr>
       </table>
     </td>
-    <td><div id='about_me'></div></td>
+    <td width="45%"><div id='about_me'><%= sanitize @user.about_me, :tags => Set.new(%w(b i ol ul li pre code tt p br)), :attributes => Set.new %></div></td>
   </tr></table>
 </div>
 
 <div>
   <h4><%= _("Stats") %></h4>
-  <%= _("This user has made %{num_comments} comments to this date.") % { :num_comments => @comment_number } %><br>
-  <%= _("This user has made %{num_edits} edits to this date.") % { :num_edits => @edit_number } %><br>
+  <%= n_("This user has made %{num_comments} comment to this date.", "This user has made %{num_comments} comments to this date.", @comment_number) % { :num_comments => @comment_number } %><br>
+  <%= n_("This user has made %{num_edits} edit to this date.", "This user has made %{num_edits} edits to this date.", @edit_number) % { :num_edits => @edit_number } %><br>
 </div>
 
 

@@ -236,11 +236,12 @@ ActiveRecord::Schema.define(:version => 20081221120603) do
     t.string   "remember_token"
     t.datetime "remember_token_expires_at"
     t.string   "identity_url"
-    t.string   "name",                      :limit => 30
     t.string   "website",                   :limit => 100
+    t.string   "name",                      :limit => 30
     t.string   "location",                  :limit => 100
     t.date     "birthday"
     t.text     "about_me"
+    t.datetime "last_login"
   end
 
 end

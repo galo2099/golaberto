@@ -2,7 +2,7 @@
 
 <div>
   <% @users.each do |user| %>
-    <%= link_to image_tag("users/" + user.small_logo, :class => "user_logo"), :action => :show, :id => user %>
+    <%= link_to image_tag("users/" + user.small_logo, :class => "user-logo"), :action => :show, :id => user %>
     <%= link_to user.display_name, :action => :show, :id => user %><br>
   <% end %>
 </div>
