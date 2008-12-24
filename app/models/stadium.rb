@@ -7,9 +7,9 @@ class Stadium < ActiveRecord::Base
            :order => "date DESC"
   validates_presence_of :name
   validates_length_of :name, :within => 1..255
-  validates_length_of :full_name, :within => 1..255
-  validates_length_of :city, :within => 1..255
-  validates_length_of :country, :within => 1..255
+  validates_length_of :full_name, :within => 1..255, :allow_blank => true
+  validates_length_of :city, :within => 1..255, :allow_blank => true
+  validates_length_of :country, :within => 1..255, :allow_blank => true
   validates_uniqueness_of :name
 
   # Fields information, just FYI.

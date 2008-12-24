@@ -23,6 +23,13 @@ body {
   color: #FF0000;
 }
 
+.fieldWithErrors input, .fieldWithErrors textarea, .fieldWithErrors select
+{
+  border: 2px solid red;
+  display: inline;
+  padding: 2px;
+}
+
 .container
 {
   text-align: left;

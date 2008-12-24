@@ -3,9 +3,6 @@
 <% content_for :main_title do %><%= _("Stadium Edit") %><% end %>
 
 <% form_for :stadium, @stadium, :url => { :action => :update, :id => @stadium } do |f| %>
-  <%= f.label :name %>: <%= f.text_field :name %><br/>
-  <%= f.label :full_name %>: <%= f.text_field :full_name %><br/>
-  <%= f.label :city %>: <%= f.text_field :city %><br/>
-  <%= f.label :country %>: <%= f.select :country, golaberto_options_for_country_select, :include_blank => true %><br/>
+  <%= render :partial => "form", :locals => { :f => f } %>
   <%= submit_tag _("Update") %>
 <% end %>
