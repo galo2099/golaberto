@@ -26,3 +26,10 @@
 </div>
 
 <%= render :partial => "comment/comments", :locals => { :object => @referee } %>
+
+<% content_for :sidebar do %>
+  <% if logged_in? and current_user.can_edit? %>
+    <%= link_to _("Edit"), :action => :edit, :id => @referee %><br/>
+    <%= link_to _("Delete"), { :action => :destroy, :id => @referee }, :confirm => _('Are you sure?'), :method => :post %><br/>
+  <% end %>
+<% end %>

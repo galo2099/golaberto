@@ -1,0 +1,8 @@
+<%= error_messages_for 'referee' %>
+
+<% content_for :main_title do %><%= _("Referee Edit") %><% end %>
+
+<% form_for :referee, @referee, :url => { :action => :update, :id => @referee } do |f| %>
+  <%= render :partial => "form", :locals => { :f => f } %>
+  <%= submit_tag _("Update") %>
+<% end %>
