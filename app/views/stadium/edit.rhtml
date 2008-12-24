@@ -1,3 +1,5 @@
+<%= error_messages_for 'stadium' %>
+
 <% content_for :main_title do %><%= _("Stadium Edit") %><% end %>
 
 <% form_for :stadium, @stadium, :url => { :action => :update, :id => @stadium } do |f| %>
