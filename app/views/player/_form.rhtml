@@ -1,0 +1,5 @@
+<%= _("Name") %>: <%= f.text_field :name %><br/>
+<%= _("Position") %>: <%= f.select :position, Player::Positions, :include_blank => true %><br/>
+<%= _("Birth") %>: <%= f.date_select :birth, :include_blank => true, :start_year => 1900 %><br/>
+<%= _("Country") %>: <%= f.select :country, golaberto_options_for_country_select, :include_blank => true %><br/>
+<%= _("Full Name") %>: <%= f.text_field :full_name %><br/>

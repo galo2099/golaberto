@@ -1,10 +1,8 @@
+<%= error_messages_for 'player' %>
+
 <% content_for :main_title do %><%= _("Player Edit") %><% end %>
 
 <% form_for :player, @player, :url => { :action => :update, :id => @player } do |f| %>
-  <%= _("Name") %>: <%= f.text_field :name %><br/>
-  <%= _("Position") %>: <%= f.select :position, Player::Positions, :include_blank => true %><br/>
-  <%= _("Birth") %>: <%= f.date_select :birth, :include_blank => true, :start_year => 1900 %><br/>
-  <%= _("Country") %>: <%= f.select :country, golaberto_options_for_country_select, :include_blank => true %><br/>
-  <%= _("Full Name") %>: <%= f.text_field :full_name %><br/>
+  <%= render :partial => "form", :locals => { :f => f } %>
   <%= submit_tag _("Update") %>
 <% end %>

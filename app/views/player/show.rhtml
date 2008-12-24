@@ -9,6 +9,7 @@
 
 <% content_for :sidebar do %>
   <% if logged_in? and current_user.can_edit? %>
-    <%= link_to _("Edit"), :action => :edit, :id => @player %>
+    <%= link_to _("Edit"), :action => :edit, :id => @player %><br/>
+    <%= link_to _("Delete"), { :action => :destroy, :id => @player }, :confirm => _('Are you sure?'), :method => :post %><br/>
   <% end %>
 <% end %>

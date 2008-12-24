@@ -1,7 +1,6 @@
 class PlayerController < ApplicationController
   N_("Player")
 
-  scaffold :player
   require_role "editor", :except => [ :index, :list, :show ]
 
   def index
@@ -43,5 +42,36 @@ class PlayerController < ApplicationController
 
   def edit
     @player = Player.find(params["id"])
+  end
+
+  def update
+    @player = Player.find(params[:id])
+    @player.attributes = params[:player]
+
+    if @player.save
+      flash[:notice] = _("Player was successfully updated")
+      redirect_to :action => :show, :id => @player
+    else
+      render :action => :edit
+    end
+  end
+
+  def new
+    @player = Player.new
+  end
+
+  def create
+    @player = Player.new(params[:player])
+    if @player.save
+      flash[:notice] = _("Player was successfully created")
+      redirect_to :action => :show, :id => @player
+    else
+      render :action => :new
+    end
+  end
+
+  def destroy
+    Player.find(params[:id]).destroy
+    redirect_to :action => :list
   end
 end
