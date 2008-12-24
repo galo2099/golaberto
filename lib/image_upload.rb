@@ -1,6 +1,7 @@
 require 'RMagick'
 
 module ImageUpload
+  include Magick
   def uploaded_image(l, type, filter_background = false)
     image = ImageList.new.from_blob(l.read)
     if filter_background
