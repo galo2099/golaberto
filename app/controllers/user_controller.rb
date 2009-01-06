@@ -11,7 +11,7 @@ class UserController < ApplicationController
     @users = User.paginate(
         :select => "*, (select count(game_versions.id) from game_versions where game_versions.updater_id = users.id) edit_count, " +
                    "(select count(comments.id) from comments where `comments`.user_id = users.id) comment_count",
-        :order => "edit_count DESC, comment_count DESC, name, login, identity_url",
+        :order => "edit_count DESC, comment_count DESC, last_login DESC, name, login, identity_url",
         :page => params[:page])
   end
 
