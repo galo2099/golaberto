@@ -55,7 +55,8 @@ class PhaseController < ApplicationController
   end
 
   def destroy
-    Phase.find(params["id"]).destroy
-    redirect_to :back
+    phase = Phase.find(params["id"])
+    phase.destroy
+    redirect_to :controller => :championship, :action => :edit, :id => phase.championship
   end
 end

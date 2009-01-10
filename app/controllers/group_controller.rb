@@ -37,8 +37,9 @@ class GroupController < ApplicationController
   end
 
   def destroy
-    Group.find(params["id"]).destroy
-    redirect_to :back
+    group = Group.find(params["id"])
+    group.destroy
+    redirect_to :controller => :phase, :action => :edit, :id => group.phase
   end
 
   def update_odds
