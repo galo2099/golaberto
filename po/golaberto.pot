@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2008-12-24 19:23-0200\n"
+"POT-Creation-Date: 2009-01-10 20:28-0200\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -520,6 +520,42 @@ msgstr ""
 msgid "Phase|Bonus points threshold"
 msgstr ""
 
+#: app/models/phase.rb:22
+msgid "points"
+msgstr ""
+
+#: app/models/phase.rb:23
+msgid "wins"
+msgstr ""
+
+#: app/models/phase.rb:24
+msgid "goal difference"
+msgstr ""
+
+#: app/models/phase.rb:25
+msgid "goals for"
+msgstr ""
+
+#: app/models/phase.rb:26
+msgid "name"
+msgstr ""
+
+#: app/models/phase.rb:27
+msgid "goal average"
+msgstr ""
+
+#: app/models/phase.rb:28
+msgid "penalty goals"
+msgstr ""
+
+#: app/models/phase.rb:29
+msgid "goals away"
+msgstr ""
+
+#: app/models/phase.rb:30
+msgid "bias"
+msgstr ""
+
 # app/models/player.rb:-
 #: app/models/player.rb:-
 msgid "player"
@@ -873,7 +909,7 @@ msgstr ""
 
 #: app/views/user/edit.html.erb:31 app/views/championship/edit.rhtml:44
 #: app/views/game/edit.rhtml:201 app/views/game/edit_squad.rhtml:99
-#: app/views/group/edit.rhtml:33 app/views/phase/edit.rhtml:28
+#: app/views/group/edit.rhtml:33 app/views/phase/edit.rhtml:47
 #: app/views/player/edit.rhtml:7 app/views/referee/edit.rhtml:7
 #: app/views/stadium/edit.rhtml:7 app/views/team/edit.rhtml:7
 msgid "Update"
@@ -1485,27 +1521,27 @@ msgstr ""
 msgid "Sort"
 msgstr ""
 
-#: app/views/phase/edit.rhtml:9
+#: app/views/phase/edit.rhtml:28
 msgid "Bonus points for win?"
 msgstr ""
 
-#: app/views/phase/edit.rhtml:10
+#: app/views/phase/edit.rhtml:29
 msgid "Bonus"
 msgstr ""
 
-#: app/views/phase/edit.rhtml:14
+#: app/views/phase/edit.rhtml:33
 msgid "Goal difference equal to<br/>or bigger than"
 msgstr ""
 
-#: app/views/phase/edit.rhtml:22
+#: app/views/phase/edit.rhtml:41
 msgid "Add 4 more groups"
 msgstr ""
 
-#: app/views/phase/edit.rhtml:24
+#: app/views/phase/edit.rhtml:43
 msgid "Add new group"
 msgstr ""
 
-#: app/views/phase/edit.rhtml:24
+#: app/views/phase/edit.rhtml:43
 msgid "More groups can be added later"
 msgstr ""
 

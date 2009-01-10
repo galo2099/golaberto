@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2008-12-24 19:23-0200\n"
+"POT-Creation-Date: 2009-01-10 20:28-0200\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: Robson Braga Araujo <robsonbraga@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -531,6 +531,43 @@ msgstr "Pontos de bônus"
 msgid "Phase|Bonus points threshold"
 msgstr "Diferença para pontos de bônus"
 
+#: app/models/phase.rb:22
+msgid "points"
+msgstr "pontos"
+
+#: app/models/phase.rb:23
+msgid "wins"
+msgstr "vitórias"
+
+#: app/models/phase.rb:24
+msgid "goal difference"
+msgstr "diferença de gols"
+
+# app/models/goal.rb:-
+#: app/models/phase.rb:25
+msgid "goals for"
+msgstr "gols a favor"
+
+#: app/models/phase.rb:26
+msgid "name"
+msgstr "nome"
+
+#: app/models/phase.rb:27
+msgid "goal average"
+msgstr "média de gols"
+
+#: app/models/phase.rb:28
+msgid "penalty goals"
+msgstr "gols de pênalti"
+
+#: app/models/phase.rb:29
+msgid "goals away"
+msgstr "gols fora"
+
+#: app/models/phase.rb:30
+msgid "bias"
+msgstr "vantagem"
+
 # app/models/player.rb:-
 #: app/models/player.rb:-
 msgid "player"
@@ -884,7 +921,7 @@ msgstr "Filtrar fundo da imagem?"
 
 #: app/views/user/edit.html.erb:31 app/views/championship/edit.rhtml:44
 #: app/views/game/edit.rhtml:201 app/views/game/edit_squad.rhtml:99
-#: app/views/group/edit.rhtml:33 app/views/phase/edit.rhtml:28
+#: app/views/group/edit.rhtml:33 app/views/phase/edit.rhtml:47
 #: app/views/player/edit.rhtml:7 app/views/referee/edit.rhtml:7
 #: app/views/stadium/edit.rhtml:7 app/views/team/edit.rhtml:7
 msgid "Update"
@@ -1521,27 +1558,27 @@ msgstr "Grupos"
 msgid "Sort"
 msgstr "Ordenação"
 
-#: app/views/phase/edit.rhtml:9
+#: app/views/phase/edit.rhtml:28
 msgid "Bonus points for win?"
 msgstr "Pontos de bônus por vitória?"
 
-#: app/views/phase/edit.rhtml:10
+#: app/views/phase/edit.rhtml:29
 msgid "Bonus"
 msgstr "Bônus"
 
-#: app/views/phase/edit.rhtml:14
+#: app/views/phase/edit.rhtml:33
 msgid "Goal difference equal to<br/>or bigger than"
 msgstr "Diferença de gols igual a<br/>ou maior que"
 
-#: app/views/phase/edit.rhtml:22
+#: app/views/phase/edit.rhtml:41
 msgid "Add 4 more groups"
 msgstr "Adicionar 4 grupos mais"
 
-#: app/views/phase/edit.rhtml:24
+#: app/views/phase/edit.rhtml:43
 msgid "Add new group"
 msgstr "Adicionar novo grupo"
 
-#: app/views/phase/edit.rhtml:24
+#: app/views/phase/edit.rhtml:43
 msgid "More groups can be added later"
 msgstr "Mais grupos podem ser adicionados depois"
 
