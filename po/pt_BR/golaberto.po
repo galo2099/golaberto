@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2009-01-10 20:28-0200\n"
+"POT-Creation-Date: 2009-01-10 20:45-0200\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: Robson Braga Araujo <robsonbraga@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -139,7 +139,7 @@ msgstr "Estádio foi atualizado com sucesso"
 msgid "Stadium was successfully created"
 msgstr "Estádio foi criado com sucesso"
 
-#: app/controllers/team_controller.rb:2
+#: app/controllers/team_controller.rb:2 app/views/group/_team_list.rhtml:2
 msgid "Team"
 msgstr "Equipe"
 
@@ -1492,6 +1492,19 @@ msgstr[1] "%d últimos jogos"
 msgid "Edit Squad"
 msgstr "Editar elenco"
 
+#: app/views/group/_team_list.rhtml:2 app/views/phase/edit.rhtml:29
+msgid "Bonus"
+msgstr "Bônus"
+
+#: app/views/group/_team_list.rhtml:2
+msgid "Bias"
+msgstr "Vantagem"
+
+# app/models/user.rb:-
+#: app/views/group/_team_list.rhtml:2
+msgid "Observation"
+msgstr "Observação"
+
 #: app/views/group/edit.rhtml:16
 msgid "Promoted"
 msgstr "Classificados"
@@ -1561,10 +1574,6 @@ msgstr "Ordenação"
 #: app/views/phase/edit.rhtml:28
 msgid "Bonus points for win?"
 msgstr "Pontos de bônus por vitória?"
-
-#: app/views/phase/edit.rhtml:29
-msgid "Bonus"
-msgstr "Bônus"
 
 #: app/views/phase/edit.rhtml:33
 msgid "Goal difference equal to<br/>or bigger than"

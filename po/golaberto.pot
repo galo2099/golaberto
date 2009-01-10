@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2009-01-10 20:28-0200\n"
+"POT-Creation-Date: 2009-01-10 20:45-0200\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -131,7 +131,7 @@ msgstr ""
 msgid "Stadium was successfully created"
 msgstr ""
 
-#: app/controllers/team_controller.rb:2
+#: app/controllers/team_controller.rb:2 app/views/group/_team_list.rhtml:2
 msgid "Team"
 msgstr ""
 
@@ -1462,6 +1462,18 @@ msgstr[1] ""
 msgid "Edit Squad"
 msgstr ""
 
+#: app/views/group/_team_list.rhtml:2 app/views/phase/edit.rhtml:29
+msgid "Bonus"
+msgstr ""
+
+#: app/views/group/_team_list.rhtml:2
+msgid "Bias"
+msgstr ""
+
+#: app/views/group/_team_list.rhtml:2
+msgid "Observation"
+msgstr ""
+
 #: app/views/group/edit.rhtml:16
 msgid "Promoted"
 msgstr ""
@@ -1523,10 +1535,6 @@ msgstr ""
 
 #: app/views/phase/edit.rhtml:28
 msgid "Bonus points for win?"
-msgstr ""
-
-#: app/views/phase/edit.rhtml:29
-msgid "Bonus"
 msgstr ""
 
 #: app/views/phase/edit.rhtml:33

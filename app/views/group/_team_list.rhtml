@@ -1,34 +1,34 @@
-<% teams = Team.find(:all, :order => "name") %>
-<% (0...@team_number).each do |i| %>
-  <% team_group = @group.team_groups[i] %>
-  <select id="team_group_<%=i%>_id" name="team_group[<%=i%>][team_id]">
-    <% if team_group.nil? or team_group.team.nil? %>
-      <option value="" selected="selected"></option>
-    <% end %>
-    <%= options_from_collection_for_select teams, "id", "name",
-            unless team_group.nil? or team_group.team.nil?
-              team_group.team.id
-            end
-    %>
-  </select>
-  <%= text_field_tag "team_group[#{i}][add_sub]",
-                     unless team_group.nil?
-                       team_group.add_sub
-                     else
-                       0
-                     end,
-                     :size => 2 %>
-  <%= text_field_tag "team_group[#{i}][bias]",
-                     unless team_group.nil?
-                       team_group.bias
-                     else
-                       0
-                     end,
-                     :size => 2 %>
-  <%= text_area_tag "team_group[#{i}][comment]",
-                    unless team_group.nil?
-                      team_group.comment
-                    end %>
-  <br/>
+<table>
+  <tr><th><%= _("Team") %></th><th><%= _("Bonus") %></th><th><%= _("Bias") %></th><th><%= _("Observation") %></th></tr>
+<% @team_number.times do |i| %>
+  <tr><td>
+      <% team_group = @group.team_groups[i] %>
+      <select id="team_group_<%=i%>_id" name="team_group[<%=i%>][team_id]">
+        <% if team_group.nil? or team_group.team.nil? %>
+          <option value="" selected="selected"></option>
+        <% end %>
+        <%= options_from_collection_for_select @teams, "id", "name",
+          unless team_group.nil? or team_group.team.nil?
+            team_group.team.id
+          end
+        %>
+      </select>
+    </td>
+    <td>
+      <%= text_field_tag "team_group[#{i}][add_sub]",
+                         team_group ? team_group.add_sub : 0,
+                         :size => 2 %>
+    </td>
+    <td>
+      <%= text_field_tag "team_group[#{i}][bias]",
+                         team_group ? team_group.bias : 0,
+                         :size => 2 %>
+    </td>
+    <td>
+      <%= text_area_tag "team_group[#{i}][comment]",
+                        team_group ? team_group.comment : "" %>
+    </td>
+  </tr>
 <% end %>
+</table>
 

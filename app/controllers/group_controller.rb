@@ -8,6 +8,7 @@ class GroupController < ApplicationController
     @team_number = params["team_number"]
     @team_number = @group.teams.size if @team_number.nil?
     @team_number = @team_number.to_i
+    @teams = Team.all(:order => :name)
     if request.xhr?
       render :partial => "team_list"
     end
@@ -32,6 +33,7 @@ class GroupController < ApplicationController
     if saved
       redirect_to :controller => :championship, :action => :phases, :id => @group.phase.championship, :phase => @group.phase
     else
+      @teams = Team.all(:order => :name)
       render :action => "edit"
     end
   end
