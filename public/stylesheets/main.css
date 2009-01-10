@@ -531,3 +531,17 @@ img.user-logo {
 .user-details td {
   padding: 4px 0;
 }
+
+.sort_options {
+  border: 2px solid #ABB561;
+  min-height: 15px;
+  min-width: 100px;
+}
+.sort_options div {
+  font-size: 14px;
+  width: 100%;
+  border: 1px solid #ABB561;
+}
+#unselected_options {
+  color: #999999;
+}

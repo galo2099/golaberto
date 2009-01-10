@@ -18,6 +18,18 @@ class Phase < ActiveRecord::Base
   # Field: order_by , SQL Definition:tinyint(4)
   # Field: sort , SQL Definition:varchar(255)
 
+  def self.sort_options
+    { "pt" => _("points"),
+      "w" => _("wins"),
+      "gd" => _("goal difference"),
+      "gf" => _("goals for"),
+      "name" => _("name"),
+      "g_average" => _("goal average"),
+      "gp" => _("penalty goals"),
+      "g_away" => _("goals away"),
+      "bias" => _("bias") }
+  end
+
   def teams
     ret = Array.new
     groups.each do |group|

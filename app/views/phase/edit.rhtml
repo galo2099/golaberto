@@ -5,7 +5,26 @@
 <% form_for :phase, @phase, :url => { :action => :update, :id => @phase } do |p| %>
   <table>
     <tr><td><%= _("Name") %>:</td><td><%= p.text_field :name %></td></tr>
-    <tr><td><%= _("Sort") %>:</td><td><%= p.text_field :sort %></td></tr>
+    <tr><td><%= _("Sort") %>:</td><td>
+        <div id="sort_options">
+          <table>
+            <tr><td style="vertical-align: top">
+                <div id="selected_options" class="sort_options">
+                  <% @phase.sort.split(/,\s*/).each do |option| %>
+                    <div id="sort_<%= option %>"><%= Phase.sort_options[option] %></div>
+                  <% end %>
+                </div>
+              </td><td style="vertical-align: top">
+                <div id="unselected_options" class="sort_options">
+                  <% (Phase.sort_options.keys - @phase.sort.split(/,\s*/)).each do |option| %>
+                    <div id="sort_<%= option %>"><%= Phase.sort_options[option] %></div>
+                  <% end %>
+                </div>
+            </td></tr>
+          </table>
+        </div>
+        <%= p.hidden_field :sort %>
+    </td></tr>
     <tr><td><label for="enable_bonus"><%= _("Bonus points for win?") %></label></td><td><%= check_box_tag "enable_bonus", "1", @phase.bonus_points > 0, :onChange => "if (this.checked) { $('phase_bonus_points').enable(); $('phase_bonus_points_threshold').enable(); } else { $('phase_bonus_points').disable(); $('phase_bonus_points_threshold').disable(); }" %></td></tr>
     <tr><td><label for="phase_bonus_points"><%= _("Bonus") %>:</label></td>
       <td><%= p.text_field :bonus_points, :size => 2, :disabled => @phase.bonus_points == 0 %>
@@ -28,4 +47,12 @@
   <%= submit_tag _("Update") %><br/>
 <% end %>
 
+<script type="text/javascript">
+  function updateSortOptions(sortable) {
+    $('phase_sort').value = Sortable.sequence('selected_options').join(",");
+  }
 
+  Sortable.SERIALIZE_RULE = /^[^_\-](?:[A-Za-z0-9\-\_]*?)[_](.*)$/;
+  Sortable.create('selected_options', {constraint:false, containment:['selected_options', 'unselected_options'], dropOnEmpty:true, onUpdate:updateSortOptions, tag:'div'})
+  Sortable.create('unselected_options', {constraint:false, containment:['selected_options', 'unselected_options'], dropOnEmpty:true, onUpdate:updateSortOptions, tag:'div'})
+</script>
