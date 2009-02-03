@@ -39,8 +39,8 @@ class Group < ActiveRecord::Base
           ChampionshipHelper::TeamCampaign.new(team_group)
     end
     games_played.each do |g|
-      fixed_stats[g.home_id].add_game g
-      fixed_stats[g.away_id].add_game g
+      fixed_stats[g.home_id].add_game g if fixed_stats[g.home_id]
+      fixed_stats[g.away_id].add_game g if fixed_stats[g.away_id]
     end
     NUM_ITER.times do |count|
       if count % (NUM_ITER / 100) == 0
@@ -54,8 +54,8 @@ class Group < ActiveRecord::Base
       odds.each do |o|
         home_score = o[2].rand
         away_score = o[3].rand
-        stats[o[0]].add_game_score_only o[0], o[1], home_score, away_score
-        stats[o[1]].add_game_score_only o[0], o[1], home_score, away_score
+        stats[o[0]].add_game_score_only o[0], o[1], home_score, away_score if stats[o[0]]
+        stats[o[1]].add_game_score_only o[0], o[1], home_score, away_score if stats[o[1]]
       end
       sort_teams(stats).each_with_index do |v,i|
         if i == 0 then
