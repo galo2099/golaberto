@@ -43,6 +43,9 @@ class TeamController < ApplicationController
     @teams = Team.paginate :order => "name",
                            :conditions => conditions,
                            :page => params[:page]
+    if @teams.size == 1
+      redirect_to :action => :show, :id => @teams.first
+    end
   end
 
   def new
