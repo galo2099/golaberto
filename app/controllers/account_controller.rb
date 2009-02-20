@@ -57,6 +57,8 @@ class AccountController < ApplicationController
         failed_login result.message
       end
     end
+  rescue
+    failed_login $!.to_s
   end
 
   def successful_login
