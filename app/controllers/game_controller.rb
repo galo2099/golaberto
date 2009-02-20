@@ -34,13 +34,13 @@ class GameController < ApplicationController
 
     @date_range_start = params[:date_range_start] || default_start
     @date_range_end = params[:date_range_end] || default_end
+    start_date = Date.strptime(@date_range_start, "%d/%m/%Y") rescue @date_range_start = nil
     unless @date_range_start.to_s.empty?
-      start_date = Date.strptime(@date_range_start, "%d/%m/%Y")
       conditions[0] << " AND date >= ?"
       conditions << start_date
     end
+    end_date = Date.strptime(@date_range_end, "%d/%m/%Y") rescue @date_range_end = nil
     unless @date_range_end.to_s.empty?
-      end_date = Date.strptime(@date_range_end, "%d/%m/%Y")
       conditions[0] << " AND date <= ?"
       conditions << end_date
     end
