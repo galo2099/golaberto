@@ -110,6 +110,9 @@ class GameController < ApplicationController
     end
 
     @game.attributes = params["game"]
+    # set score to sane values
+    @game.home_score = 0 unless @game.home_score
+    @game.away_score = 0 unless @game.away_score
 
     all_valid = true
     saved = false
