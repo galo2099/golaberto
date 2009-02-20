@@ -20,9 +20,9 @@ class ChampionshipController < ApplicationController
     @categories = Category.find(:all)
     @championship = Championship.new(params["championship"])
     @championship.begin = Date.strptime(params["championship"]["begin"],
-                                        "%d/%m/%Y")
+                                        "%d/%m/%Y") rescue nil
     @championship.end = Date.strptime(params["championship"]["end"],
-                                      "%d/%m/%Y")
+                                      "%d/%m/%Y") rescue nil
 
     if @championship.save
       redirect_to :action => :show, :id => @championship

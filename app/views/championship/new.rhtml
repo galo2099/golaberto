@@ -1,8 +1,8 @@
 <%= error_messages_for 'championship' %>
 <% form_for :championship, @championship, :url => { :action => "create" } do |f| %>
   <%= _("Name") %>: <%= f.text_field :name %><br/>
-  <%= _("Begin") %>: <%= date_field :championship, :begin, :format => "%d/%m/%Y", :size => 10 %><br/>
-  <%= _("End") %>: <%= date_field :championship, :end, :format => "%d/%m/%Y", :size => 10 %><br/>
+  <%= _("Begin") %>: <%= date_field :championship, :begin, :value => @championship.begin, :format => "%d/%m/%Y", :size => 10 %><br/>
+  <%= _("End") %>: <%= date_field :championship, :end, :value => @championship.end, :format => "%d/%m/%Y", :size => 10 %><br/>
   <%= _("Points for win") %>: <%= f.text_field :point_win, :size => 2 %><br/>
   <%= _("Points for draw") %>: <%= f.text_field :point_draw, :size => 2 %><br/>
   <%= _("Points for loss") %>: <%= f.text_field :point_loss, :size => 2 %><br/>
