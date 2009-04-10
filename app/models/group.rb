@@ -84,6 +84,14 @@ class Group < ActiveRecord::Base
     return pos > teams.size - self.relegated
   end
 
+  def create_home_and_away_games
+    teams.each do |home|
+      (teams - [home]).each do |away|
+        phase.games.build(:home => home, :away => away, :played => "0", :date => Date.today).save!
+      end
+    end
+  end
+
   def team_table
     played_games = phase.games.group_games(self).find(:all,
         :conditions => [ "played = ?", true ],
