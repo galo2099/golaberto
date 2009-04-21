@@ -9,7 +9,7 @@
 #
 # It's strongly recommended to check this file into your version control system.
 
-ActiveRecord::Schema.define(:version => 20081221120603) do
+ActiveRecord::Schema.define(:version => 20090421203213) do
 
   create_table "categories", :force => true do |t|
     t.string "name"
@@ -93,6 +93,8 @@ ActiveRecord::Schema.define(:version => 20081221120603) do
     t.integer  "version",    :limit => 11
     t.integer  "updater_id", :limit => 20, :default => 0,     :null => false
     t.datetime "updated_at",                                  :null => false
+    t.integer  "home_aet",   :limit => 11
+    t.integer  "away_aet",   :limit => 11
   end
 
   create_table "goals", :force => true do |t|
@@ -124,9 +126,9 @@ ActiveRecord::Schema.define(:version => 20081221120603) do
   end
 
   create_table "open_id_authentication_nonces", :force => true do |t|
-    t.integer "timestamp",  :limit => 11,                 :null => false
+    t.integer "timestamp",  :limit => 11, :null => false
     t.string  "server_url"
-    t.string  "salt",                     :default => "", :null => false
+    t.string  "salt",                     :null => false
   end
 
   create_table "phases", :force => true do |t|
@@ -156,11 +158,6 @@ ActiveRecord::Schema.define(:version => 20081221120603) do
     t.date   "birth"
     t.string "country"
     t.string "full_name"
-  end
-
-  create_table "plugin_schema_info", :id => false, :force => true do |t|
-    t.string  "plugin_name"
-    t.integer "version",     :limit => 11
   end
 
   create_table "referee_champs", :force => true do |t|
@@ -236,7 +233,6 @@ ActiveRecord::Schema.define(:version => 20081221120603) do
     t.string   "remember_token"
     t.datetime "remember_token_expires_at"
     t.string   "identity_url"
-    t.string   "website",                   :limit => 100
     t.string   "name",                      :limit => 30
     t.string   "location",                  :limit => 100
     t.date     "birthday"
