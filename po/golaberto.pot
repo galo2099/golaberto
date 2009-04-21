@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2009-01-10 20:45-0200\n"
+"POT-Creation-Date: 2009-04-21 17:17-0300\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -36,7 +36,7 @@ msgstr ""
 msgid "Sorry, no user by that identity URL exists (%{identity_url})"
 msgstr ""
 
-#: app/controllers/account_controller.rb:70
+#: app/controllers/account_controller.rb:72
 msgid "Logged in successfully"
 msgstr ""
 
@@ -73,7 +73,7 @@ msgstr ""
 msgid "Game"
 msgstr ""
 
-#: app/controllers/game_controller.rb:153
+#: app/controllers/game_controller.rb:156
 msgid "Game saved"
 msgstr ""
 
@@ -239,84 +239,14 @@ msgstr[1] ""
 msgid "category"
 msgstr ""
 
-# app/models/category.rb:-
-#: app/models/category.rb:-
-msgid "Category|Name"
-msgstr ""
-
 # app/models/championship.rb:-
 #: app/models/championship.rb:-
 msgid "championship"
 msgstr ""
 
-# app/models/championship.rb:-
-#: app/models/championship.rb:-
-msgid "Championship|Name"
-msgstr ""
-
-# app/models/championship.rb:-
-#: app/models/championship.rb:-
-msgid "Championship|Begin"
-msgstr ""
-
-# app/models/championship.rb:-
-#: app/models/championship.rb:-
-msgid "Championship|End"
-msgstr ""
-
-# app/models/championship.rb:-
-#: app/models/championship.rb:-
-msgid "Championship|Point win"
-msgstr ""
-
-# app/models/championship.rb:-
-#: app/models/championship.rb:-
-msgid "Championship|Point draw"
-msgstr ""
-
-# app/models/championship.rb:-
-#: app/models/championship.rb:-
-msgid "Championship|Point loss"
-msgstr ""
-
-# app/models/championship.rb:-
-#: app/models/championship.rb:-
-msgid "Championship|Category"
-msgstr ""
-
 # app/models/comment.rb:-
 #: app/models/comment.rb:-
 msgid "comment"
-msgstr ""
-
-# app/models/comment.rb:-
-#: app/models/comment.rb:-
-msgid "Comment|Title"
-msgstr ""
-
-# app/models/comment.rb:-
-#: app/models/comment.rb:-
-msgid "Comment|Comment"
-msgstr ""
-
-# app/models/comment.rb:-
-#: app/models/comment.rb:-
-msgid "Comment|Created at"
-msgstr ""
-
-# app/models/comment.rb:-
-#: app/models/comment.rb:-
-msgid "Comment|Commentable"
-msgstr ""
-
-# app/models/comment.rb:-
-#: app/models/comment.rb:-
-msgid "Comment|Commentable type"
-msgstr ""
-
-# app/models/comment.rb:-
-#: app/models/comment.rb:-
-msgid "Comment|User"
 msgstr ""
 
 # app/models/goal.rb:-
@@ -1410,6 +1340,10 @@ msgstr ""
 #: app/views/game/edit.rhtml:131 app/views/game/edit_squad.rhtml:92
 #: app/views/game/show.rhtml:128
 msgid "Date"
+msgstr ""
+
+#: app/views/game/edit.rhtml:133
+msgid "Today"
 msgstr ""
 
 #: app/views/game/edit.rhtml:166

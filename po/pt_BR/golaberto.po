@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2009-01-10 20:45-0200\n"
+"POT-Creation-Date: 2009-04-21 17:17-0300\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: Robson Braga Araujo <robsonbraga@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -36,7 +36,7 @@ msgstr "Usuário ou senha inválidos"
 msgid "Sorry, no user by that identity URL exists (%{identity_url})"
 msgstr "Desculpe, não existe um usuário nessa URL identidate (%{identity_url})"
 
-#: app/controllers/account_controller.rb:70
+#: app/controllers/account_controller.rb:72
 msgid "Logged in successfully"
 msgstr "Autenticado com sucesso"
 
@@ -76,7 +76,7 @@ msgid "Game"
 msgstr "Jogo"
 
 # app/models/game.rb:-
-#: app/controllers/game_controller.rb:153
+#: app/controllers/game_controller.rb:156
 msgid "Game saved"
 msgstr "Jogo salvo"
 
@@ -249,85 +249,15 @@ msgstr[1] "%{num} dias"
 msgid "category"
 msgstr "categoria"
 
-# app/models/category.rb:-
-#: app/models/category.rb:-
-msgid "Category|Name"
-msgstr "Nome"
-
 # app/models/championship.rb:-
 #: app/models/championship.rb:-
 msgid "championship"
 msgstr "campeonato"
 
-# app/models/championship.rb:-
-#: app/models/championship.rb:-
-msgid "Championship|Name"
-msgstr "Nome"
-
-# app/models/championship.rb:-
-#: app/models/championship.rb:-
-msgid "Championship|Begin"
-msgstr "Início"
-
-# app/models/championship.rb:-
-#: app/models/championship.rb:-
-msgid "Championship|End"
-msgstr "Término"
-
-# app/models/championship.rb:-
-#: app/models/championship.rb:-
-msgid "Championship|Point win"
-msgstr "Pontos por vitória"
-
-# app/models/championship.rb:-
-#: app/models/championship.rb:-
-msgid "Championship|Point draw"
-msgstr "Pontos por empate"
-
-# app/models/championship.rb:-
-#: app/models/championship.rb:-
-msgid "Championship|Point loss"
-msgstr "Pontos por derrato"
-
-# app/models/championship.rb:-
-#: app/models/championship.rb:-
-msgid "Championship|Category"
-msgstr "Categoria"
-
 # app/models/comment.rb:-
 #: app/models/comment.rb:-
 msgid "comment"
 msgstr "comentário"
-
-# app/models/comment.rb:-
-#: app/models/comment.rb:-
-msgid "Comment|Title"
-msgstr "Título"
-
-# app/models/comment.rb:-
-#: app/models/comment.rb:-
-msgid "Comment|Comment"
-msgstr "Comentário"
-
-# app/models/comment.rb:-
-#: app/models/comment.rb:-
-msgid "Comment|Created at"
-msgstr "Criado em"
-
-# app/models/comment.rb:-
-#: app/models/comment.rb:-
-msgid "Comment|Commentable"
-msgstr "Comentável"
-
-# app/models/comment.rb:-
-#: app/models/comment.rb:-
-msgid "Comment|Commentable type"
-msgstr "Tipo comentável"
-
-# app/models/comment.rb:-
-#: app/models/comment.rb:-
-msgid "Comment|User"
-msgstr "Usuário"
 
 # app/models/goal.rb:-
 #: app/models/game.rb:-
@@ -1439,6 +1369,10 @@ msgstr "Público"
 #: app/views/game/show.rhtml:128
 msgid "Date"
 msgstr "Data"
+
+#: app/views/game/edit.rhtml:133
+msgid "Today"
+msgstr "Hoje"
 
 #: app/views/game/edit.rhtml:166
 msgid "Are you sure you want to create a new referee?"
