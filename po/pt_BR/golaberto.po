@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2009-04-21 17:17-0300\n"
+"POT-Creation-Date: 2009-05-03 10:15-0300\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: Robson Braga Araujo <robsonbraga@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -249,15 +249,80 @@ msgstr[1] "%{num} dias"
 msgid "category"
 msgstr "categoria"
 
+# app/models/category.rb:-
+#: app/models/category.rb:-
+msgid "Category|Name"
+msgstr "Nome"
+
 # app/models/championship.rb:-
 #: app/models/championship.rb:-
 msgid "championship"
 msgstr "campeonato"
 
+# app/models/championship.rb:-
+#: app/models/championship.rb:-
+msgid "Championship|Name"
+msgstr "Nome"
+
+# app/models/championship.rb:-
+#: app/models/championship.rb:-
+msgid "Championship|Begin"
+msgstr "Início"
+
+# app/models/championship.rb:-
+#: app/models/championship.rb:-
+msgid "Championship|End"
+msgstr "Término"
+
+# app/models/championship.rb:-
+#: app/models/championship.rb:-
+msgid "Championship|Point win"
+msgstr "Pontos por vitória"
+
+# app/models/championship.rb:-
+#: app/models/championship.rb:-
+msgid "Championship|Point draw"
+msgstr "Pontos por empate"
+
+# app/models/championship.rb:-
+#: app/models/championship.rb:-
+msgid "Championship|Point loss"
+msgstr "Pontos por derrato"
+
+# app/models/championship.rb:-
+#: app/models/championship.rb:-
+msgid "Championship|Category"
+msgstr "Categoria"
+
 # app/models/comment.rb:-
 #: app/models/comment.rb:-
 msgid "comment"
 msgstr "comentário"
+
+#: app/models/comment.rb:-
+msgid "Comment|Title"
+msgstr "Título"
+
+#: app/models/comment.rb:-
+msgid "Comment|Comment"
+msgstr "Comentário"
+
+# app/models/user.rb:-
+#: app/models/comment.rb:-
+msgid "Comment|Created at"
+msgstr "Criado em"
+
+#: app/models/comment.rb:-
+msgid "Comment|Commentable"
+msgstr "Comentável"
+
+#: app/models/comment.rb:-
+msgid "Comment|Commentable type"
+msgstr "Tipo comentável"
+
+#: app/models/comment.rb:-
+msgid "Comment|User"
+msgstr "Usuário"
 
 # app/models/goal.rb:-
 #: app/models/game.rb:-
@@ -385,6 +450,16 @@ msgstr "Atualizador"
 #: app/models/game.rb:-
 msgid "Game|Updated at"
 msgstr "Atualizado em"
+
+# app/models/game.rb:-
+#: app/models/game.rb:-
+msgid "Game|Home aet"
+msgstr "Prorrogação casa"
+
+# app/models/game.rb:-
+#: app/models/game.rb:-
+msgid "Game|Away aet"
+msgstr "Prorrogação fora"
 
 # app/models/player.rb:-
 #: app/models/game.rb:108
@@ -1161,6 +1236,11 @@ msgstr "Mínimo"
 msgid "Most attended games"
 msgstr "Jogos com maiores públicos"
 
+#: app/views/championship/crowd.rhtml:40 app/views/game/edit.rhtml:127
+#: app/views/game/edit_squad.rhtml:91 app/views/game/show.rhtml:127
+msgid "Attendance"
+msgstr "Público"
+
 # app/models/championship.rb:-
 #: app/views/championship/edit.rhtml:1
 msgid "Edit Championship"
@@ -1359,11 +1439,6 @@ msgstr "Pen"
 #: app/views/game/edit.rhtml:89 app/views/game/edit.rhtml:99
 msgid "Own"
 msgstr "Contra"
-
-#: app/views/game/edit.rhtml:127 app/views/game/edit_squad.rhtml:91
-#: app/views/game/show.rhtml:127
-msgid "Attendance"
-msgstr "Público"
 
 #: app/views/game/edit.rhtml:131 app/views/game/edit_squad.rhtml:92
 #: app/views/game/show.rhtml:128
