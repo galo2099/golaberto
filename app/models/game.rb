@@ -89,6 +89,12 @@ class Game < ActiveRecord::Base
       base.validates_numericality_of :away_pen,
                                      :only_integer => true,
                                      :allow_nil => true
+      base.validates_numericality_of :home_aet,
+                                     :only_integer => true,
+                                     :allow_nil => true
+      base.validates_numericality_of :away_aet,
+                                     :only_integer => true,
+                                     :allow_nil => true
 
       base.named_scope :group_games, lambda { |g|
         { :conditions => [ "(home_id in (?) OR away_id in (?))", g.teams, g.teams ] }
@@ -175,7 +181,7 @@ class Game < ActiveRecord::Base
                     :if_changed => [ :round, :attendance, :date, :time,
                                      :stadium_id, :referee_id, :home_score,
                                      :away_score, :home_pen, :away_pen,
-                                     :played ]
+                                     :home_aet, :away_aet, :played ]
 
   # The versioned association is not shared because it is added automatically
   # to the versioned class by the version_association method
