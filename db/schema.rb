@@ -9,7 +9,7 @@
 #
 # It's strongly recommended to check this file into your version control system.
 
-ActiveRecord::Schema.define(:version => 20090421204546) do
+ActiveRecord::Schema.define(:version => 20090505012856) do
 
   create_table "categories", :force => true do |t|
     t.string "name"
@@ -106,6 +106,7 @@ ActiveRecord::Schema.define(:version => 20090421204546) do
     t.integer "time",      :limit => 4,  :default => 0,     :null => false
     t.boolean "penalty",                 :default => false, :null => false
     t.boolean "own_goal",                :default => false, :null => false
+    t.boolean "aet",                     :default => false, :null => false
   end
 
   add_index "goals", ["player_id", "game_id"], :name => "player"
