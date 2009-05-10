@@ -11,18 +11,19 @@ function finishPlayerAdd(home_away) {
 }
 
 function receiveDrop(drag, drop) {
-  home_away = drop.id.replace(/_goal_player_.*/, "");
-  idx = drop.id.replace(/.*_goal_player_/, "");
+  var home_away = drop.id.replace(/_(regulation|aet)_goal_player_.*/, "");
+  var aet = drop.id.replace(/.*_(regulation|aet)_.*/, "$1");
+  var idx = drop.id.replace(/.*_goal_player_/, "");
   drop.innerHTML = drag.innerHTML;
-  penalty = $(home_away + "_goal[" + idx + "][penalty]");
+  penalty = $(home_away + "_" + aet + "_goal[" + idx + "][penalty]");
   if (drag.id.match(home_away)) {
     penalty.disabled = false;
   } else {
     penalty.disabled = true;
     penalty.checked = false;
   }
-  own_check = $(home_away + "_goal[" + idx + "][own_goal_check]");
-  own = $(home_away + "_goal[" + idx + "][own_goal]");
+  own_check = $(home_away + "_" + aet + "_goal[" + idx + "][own_goal_check]");
+  own = $(home_away + "_" + aet + "_goal[" + idx + "][own_goal]");
   if (drag.id.match(home_away)) {
     own_check.checked = false;
     own.value = "0";
@@ -30,7 +31,7 @@ function receiveDrop(drag, drop) {
     own_check.checked = true;
     own.value = "1";
   }
-  input = $(home_away + "_goal[" + idx + "][player_id]");
+  input = $(home_away + "_" + aet + "_goal[" + idx + "][player_id]");
   input.value = drag.id.replace(/.*_player_/, "");
 }
 EOF
@@ -106,10 +107,10 @@ EOF
             <%= input_for_goal @game.home_goals.regulation[i], i, "home", "regulation" %>
           <% end %>
         </table>
-        <table id="home_aet_goals" style="display: <%= @game.home_aet > 0 ? "" : "none" %>;">
+        <table id="home_aet_goals" style="display: <%= (@game.home_aet and @game.home_aet > 0) ? "block" : "none" %>;">
           <tr><th colspan="4"><%= _("Extra time") %></th></tr>
           <tr><th><%= _("Name") %></th><th><%= s_("Goal|Time") %></th><th><%= _("Pen") %></th><th><%= _("Own") %></th></tr>
-          <% @game.home_aet.times do |i| %>
+          <% @game.home_aet and @game.home_aet.times do |i| %>
             <%= input_for_goal @game.home_goals.aet[i], i, "home", "aet" %>
           <% end %>
         </table>
@@ -117,19 +118,17 @@ EOF
       <td></td><td></td><td></td>
       <td class="goals">
         <table id="away_regulation_goals">
-          <tr><th colspan="4">Goals</th></tr>
+          <tr><th colspan="4"><%= _("Goals") %></th></tr>
           <tr><th><%= _("Name") %></th><th><%= s_("Goal|Time") %></th><th><%= _("Pen") %></th><th><%= _("Own") %></th></tr>
           <% @game.away_score.times do |i| %>
             <%= input_for_goal @game.away_goals.regulation[i], i, "away", "regulation" %>
           <% end %>
         </table>
-        <table id="away_aet_goals" style="display: <%= @game.away_aet > 0 ? "" : "none" %>;">
-          <% if @game.away_aet > 0 %>
-            <tr><th colspan="4"><%= _("Extra time") %></th></tr>
-            <tr><th><%= _("Name") %></th><th><%= s_("Goal|Time") %></th><th><%= _("Pen") %></th><th><%= _("Own") %></th></tr>
-            <% @game.away_aet.times do |i| %>
-              <%= input_for_goal @game.away_goals.regulation[i], i, "away", "aet" %>
-            <% end %>
+        <table id="away_aet_goals" style="display: <%= (@game.away_aet and @game.away_aet > 0) ? "" : "none" %>;">
+          <tr><th colspan="4"><%= _("Extra time") %></th></tr>
+          <tr><th><%= _("Name") %></th><th><%= s_("Goal|Time") %></th><th><%= _("Pen") %></th><th><%= _("Own") %></th></tr>
+          <% @game.away_aet and @game.away_aet.times do |i| %>
+            <%= input_for_goal @game.away_goals.aet[i], i, "away", "aet" %>
           <% end %>
         </table>
       </td>

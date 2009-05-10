@@ -118,26 +118,11 @@ class GameController < ApplicationController
     saved = false
 
     @goals = Array.new
-    @game.home_score.times do |i|
-      goal_params = params["home_goal"][i.to_s] if params["home_goal"]
-      unless goal_params.nil? or goal_params[:player_id].empty?
-        goal = Goal.new(goal_params)
-        goal.game_id = @game.id
-        goal.team_id = goal.own_goal? ? @game.away_id : @game.home_id
-        @goals.push goal
-        all_valid &&= goal.valid?
-      end
-    end
-    @game.away_score.times do |i|
-      goal_params = params["away_goal"][i.to_s] if params["away_goal"]
-      unless goal_params.nil? or goal_params[:player_id].empty?
-        goal = Goal.new(goal_params)
-        goal.game_id = @game.id
-        goal.team_id = goal.own_goal? ? @game.home_id : @game.away_id
-        @goals.push goal
-        all_valid &&= goal.valid?
-      end
-    end
+    all_valid &&= update_goals("home", "score", params["home_regulation_goal"])
+    all_valid &&= update_goals("away", "score", params["away_regulation_goal"])
+    all_valid &&= update_goals("home", "aet", params["home_aet_goal"]) if @game.home_aet
+    all_valid &&= update_goals("away", "aet", params["away_aet_goal"]) if @game.away_aet
+    puts @goals
 
     all_valid &&= @game.valid?
 
@@ -234,6 +219,23 @@ class GameController < ApplicationController
   end
 
   private
+
+  def update_goals(home_away, aet, goals)
+    us = home_away
+    them = home_away == "home" ? "away" : "home"
+    all_valid = true
+    @game.send(us + "_" + aet).times do |i|
+      goal_params = goals[i.to_s] if goals
+      unless goal_params.nil? or goal_params[:player_id].empty?
+        goal = Goal.new(goal_params)
+        goal.game_id = @game.id
+        goal.team_id = goal.own_goal? ? @game.send(them + "_id") : @game.send(us + "_id")
+        @goals.push goal
+        all_valid &&= goal.valid?
+      end
+    end
+    return all_valid
+  end
 
   def prepare_for_edit
     @referees = Referee.find(:all, :order => :name).map do |r|
