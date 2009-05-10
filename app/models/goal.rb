@@ -10,6 +10,9 @@ class Goal < ActiveRecord::Base
   validates_inclusion_of :penalty, :in => [ true, false ]
   validates_inclusion_of :own_goal, :in => [ true, false ]
 
+  named_scope :regulation, :conditions => { :aet => 0 }
+  named_scope :aet, :conditions => { :aet => 1 }
+
   # Fields information, just FYI.
   #
   # Field: id , SQL Definition:bigint(20)
