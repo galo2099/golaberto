@@ -101,4 +101,59 @@ module GameHelper
     end
     ret
   end
+
+  def print_goals(goals, player_scored)
+    count_home = 0
+    count_away = 0
+    html = ""
+    goals.each do |goal|
+      if goal.own_goal?
+        if goal.team == @game.home
+          home_goal = false
+          away_goal = true
+        else
+          home_goal = true
+          away_goal = false
+        end
+      else
+        if goal.team == @game.home
+          home_goal = true
+          away_goal = false
+        else
+          home_goal = false
+          away_goal = true
+        end
+      end
+      player_scored[goal.player.id] = true if goal.player unless goal.own_goal?
+      count_home += 1 if home_goal
+      count_away += 1 if away_goal
+      html << "<tr class='game_show_goals'>"
+      html << "  <td class='game_show_home_score'>#{goal.player.name if home_goal}</td>"
+      html << "  <td class='game_show_home_score'>"
+      html << "    (pen)" if goal.penalty? and home_goal
+      html << "    (own)" if goal.own_goal? and home_goal
+      html << "  </td>"
+      html << "  <td class='game_show_home_score'>"
+      html << "    #{goal.time}'" if home_goal
+      html << "  </td>"
+      html << "  <td class='game_show_home_score'>"
+      html << "    (#{count_home}-#{count_away})" if home_goal
+      html << "  </td>"
+      html << "  <td></td>"
+      html << "  <td class='game_show_away_score'>"
+      html << "    (#{count_home}-#{count_away})" if away_goal
+      html << "  <td class='game_show_away_score'>"
+      html << "    #{goal.time}'" if away_goal
+      html << "  </td>"
+      html << "  <td class='game_show_away_score'>"
+      html << "    (pen)" if goal.penalty? and away_goal
+      html << "    (own)" if goal.own_goal? and away_goal
+      html << "  </td>"
+      html << "  <td class='game_show_away_score'>"
+      html << goal.player.name if away_goal
+      html << "  </td>"
+      html << "</tr>"
+    end
+    html
+  end
 end
