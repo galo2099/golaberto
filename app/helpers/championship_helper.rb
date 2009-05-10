@@ -1,9 +1,9 @@
 module ChampionshipHelper
   class TeamCampaign
     attr_reader :points, :games, :wins, :draws, :losses,
-                :goals_for, :goals_against, :goals_pen, :goals_away,
-                :last_game, :bias, :add_sub, :promoted_odds,
-                :relegated_odds, :first_odds, :name
+                :goals_for, :goals_against, :goals_aet, :goals_pen,
+                :goals_away, :last_game, :bias, :add_sub,
+                :promoted_odds, :relegated_odds, :first_odds, :name
 
     def initialize(team_group)
       @games = 0
@@ -13,6 +13,7 @@ module ChampionshipHelper
       @losses = 0
       @goals_for = 0
       @goals_against = 0
+      @goals_aet = 0
       @goals_pen = 0
       @goals_away = 0
       @team_group = team_group
@@ -83,8 +84,10 @@ module ChampionshipHelper
       home_id = game.home_id
       @games += 1
       if (home_id == @team_id) then
+        @goals_aet += game.home_aet unless game.home_aet.nil?
         @goals_pen += game.home_pen unless game.home_pen.nil?
       else
+        @goals_aet += game.away_aet unless game.away_aet.nil?
         @goals_pen += game.away_pen unless game.away_pen.nil?
         @goals_away += away_score
       end
