@@ -12,7 +12,7 @@
   </tr>
   <% if @game.home_aet and @game.away_aet %>
     <tr>
-      <td><%= _("Extra time:") %></td>
+      <td><small><%= _("Extra time:") %></small></td>
       <td></td>
       <td class="game_show_home_score"><%= @game.home_aet %></td>
       <td class="game_show_x">x</td>
@@ -23,7 +23,7 @@
   <% end %>
   <% if @game.home_pen and @game.away_pen %>
     <tr>
-      <td><%= _("Penalties:") %></td>
+      <td><small><%= _("Penalties:") %></small></td>
       <td></td>
       <td class="game_show_home_score"><%= @game.home_pen %></td>
       <td class="game_show_x">x</td>
