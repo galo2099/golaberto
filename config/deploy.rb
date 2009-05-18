@@ -32,7 +32,7 @@ task :after_update_code, :roles => :app do
     </script>
   JS
   layout = "#{release_path}/app/views/layouts/application.rhtml"
-  run "sed -i 's?</body>?#{stats}</body>?' #{layout}"
+  run "sed -i 's^</body>^#{stats}</body>^' #{layout}"
 
   run "patch #{release_path}/config/environment.rb -i #{shared_path}/config/environment.patch"
 
