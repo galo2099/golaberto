@@ -19,51 +19,12 @@
     </tr>
   <% end %>
 
-  <% count_home = 0 %>
-  <% count_away = 0 %>
   <% player_scored = Hash.new %>
-  <% @game.goals.each do |goal| %>
-    <%
-    if goal.own_goal?
-      if goal.team == @game.home
-        home_goal = false
-        away_goal = true
-      else
-        home_goal = true
-        away_goal = false
-      end
-    else
-      if goal.team == @game.home
-        home_goal = true
-        away_goal = false
-      else
-        home_goal = false
-        away_goal = true
-      end
-    end %>
-    <% player_scored[goal.player.id] = true if goal.player unless goal.own_goal? %>
-    <% count_home += 1 if home_goal %>
-    <% count_away += 1 if away_goal %>
-    <tr class="game_show_goals">
-      <td></td>
-      <td class="game_show_home_score"><%= goal.player.name if home_goal %></td>
-      <td class="game_show_home_score">
-        <%= "(pen)" if goal.penalty? and home_goal %>
-        <%= "(own)" if goal.own_goal? and home_goal %>
-      </td>
-      <td class="game_show_home_score"><%= "#{goal.time}'" if home_goal %></td>
-      <td class="game_show_home_score"><%= "(#{count_home}-#{count_away})" if home_goal %></td>
-      <td></td>
-      <td class="game_show_away_score"><%= "(#{count_home}-#{count_away})" if away_goal %></td>
-      <td class="game_show_away_score"><%= "#{goal.time}'" if away_goal %></td>
-      <td class="game_show_away_score">
-        <%= "(pen)" if goal.penalty? and away_goal %>
-        <%= "(own)" if goal.own_goal? and away_goal %>
-      </td>
-      <td class="game_show_away_score"><%= goal.player.name if away_goal %></td>
-      <td></td>
-    </tr>
+  <%= print_goals(@game.goals.regulation, player_scored) %>
+  <% if not @game.goals.aet.empty? %>
+    <tr><td colspan="100"><%= _("Extra time") %></td></tr>
   <% end %>
+  <%= print_goals(@game.goals.aet, player_scored) %>
 
  <% if not @game.home_player_games.empty? or not @game.away_player_games.empty? %>
   <tr>

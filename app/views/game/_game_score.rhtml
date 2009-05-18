@@ -1,15 +1,34 @@
+<% rowspan = 3 - (1 if @game.home_aet.nil?).to_i - (1 if @game.home_pen.nil?).to_i %>
   <tr>
-    <td><%= image_tag "logos/" + @game.home.large_logo %></td>
+    <td rowspan="<%= rowspan %>"><%= image_tag "logos/" + @game.home.large_logo %></td>
     <td class="game_show_home_team"><%= @game.home.name %></td>
     <td></td>
-    <td><%= "(#{@game.home_pen})" if @game.home_pen %></td>
     <td class="game_show_home_score"><%= @game.home_score if @game.played? %></td>
     <td class="game_show_x">x</td>
     <td class="game_show_away_score"><%= @game.away_score if @game.played? %></td>
-    <td><%= "(#{@game.away_pen})" if @game.away_pen %></td>
     <td></td>
     <td class="game_show_away_team"><%= @game.away.name %></td>
-    <td><%= image_tag "logos/" + @game.away.large_logo %></td>
+    <td rowspan="<%= rowspan %>"><%= image_tag "logos/" + @game.away.large_logo %></td>
   </tr>
-
-
+  <% if @game.home_aet and @game.away_aet %>
+    <tr>
+      <td><small><%= _("Extra time:") %></small></td>
+      <td></td>
+      <td class="game_show_home_score"><%= @game.home_aet %></td>
+      <td class="game_show_x">x</td>
+      <td class="game_show_away_score"><%= @game.away_aet %></td>
+      <td></td>
+      <td></td>
+    </tr>
+  <% end %>
+  <% if @game.home_pen and @game.away_pen %>
+    <tr>
+      <td><small><%= _("Penalties:") %></small></td>
+      <td></td>
+      <td class="game_show_home_score"><%= @game.home_pen %></td>
+      <td class="game_show_x">x</td>
+      <td class="game_show_away_score"><%= @game.away_pen %></td>
+      <td></td>
+      <td></td>
+    </tr>
+  <% end %>

@@ -143,6 +143,8 @@ class Group < ActiveRecord::Base
           ret = team_class[a].goals_avg <=> team_class[b].goals_avg
         when "gp"
           ret = team_class[a].goals_pen <=> team_class[b].goals_pen
+        when "g_aet"
+          ret = team_class[a].goals_aet <=> team_class[b].goals_aet
         when "g_away"
           ret = team_class[a].goals_away <=> team_class[b].goals_away
         when "bias"

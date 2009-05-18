@@ -1,35 +1,36 @@
 module GameHelper
-  def input_for_goal(goal, i, home_away)
-    html = "<tr id='#{home_away}_goal_#{i}'>"
+  def input_for_goal(goal, i, home_away, aet)
+    html = "<tr id='#{home_away}_#{aet}_goal_#{i}'>"
     html << "<td>"
-    html << hidden_field_tag("#{home_away}_goal[#{i}][player_id]",
+    html << hidden_field_tag("#{home_away}_#{aet}_goal[#{i}][player_id]",
                              goal && goal.player_id)
-    html << "<div id='#{home_away}_goal_player_#{i}'>"
+    html << "<div id='#{home_away}_#{aet}_goal_player_#{i}'>"
     if goal
       html << goal.player.name if goal.player
     else
       html << "&nbsp;"
     end
     html << "</div></td>"
-    html << drop_receiving_element("#{home_away}_goal_player_#{i}",
+    html << drop_receiving_element("#{home_away}_#{aet}_goal_player_#{i}",
                                    :hoverclass => "drop_receiving",
                                    :onDrop => "receiveDrop")
     html << "<td>"
-    html << text_field_tag("#{home_away}_goal[#{i}][time]",
+    html << text_field_tag("#{home_away}_#{aet}_goal[#{i}][time]",
                            goal && goal.time, :size => 2)
     html << "</td>"
     html << "<td>"
     own_goal = goal && goal.own_goal?
     penalty = goal && goal.penalty?
-    html << check_box_tag("#{home_away}_goal[#{i}][penalty]",
+    html << check_box_tag("#{home_away}_#{aet}_goal[#{i}][penalty]",
                           "1", penalty, :disabled => own_goal)
-    html << hidden_field_tag("#{home_away}_goal[#{i}][penalty]", "0")
+    html << hidden_field_tag("#{home_away}_#{aet}_goal[#{i}][penalty]", "0")
     html << "</td>"
     html << "<td>"
-    html << check_box_tag("#{home_away}_goal[#{i}][own_goal_check]",
+    html << check_box_tag("#{home_away}_#{aet}_goal[#{i}][own_goal_check]",
                           "", own_goal,
                           :disabled => true)
-    html << hidden_field_tag("#{home_away}_goal[#{i}][own_goal]", own_goal ? "1": "0")
+    html << hidden_field_tag("#{home_away}_#{aet}_goal[#{i}][own_goal]", own_goal ? "1": "0")
+    html << hidden_field_tag("#{home_away}_#{aet}_goal[#{i}][aet]", aet == "aet" ? "1" : "0")
     html << "</td>"
     html << "</tr>"
   end
@@ -99,5 +100,60 @@ module GameHelper
       end
     end
     ret
+  end
+
+  def print_goals(goals, player_scored)
+    count_home = 0
+    count_away = 0
+    html = ""
+    goals.each do |goal|
+      if goal.own_goal?
+        if goal.team == @game.home
+          home_goal = false
+          away_goal = true
+        else
+          home_goal = true
+          away_goal = false
+        end
+      else
+        if goal.team == @game.home
+          home_goal = true
+          away_goal = false
+        else
+          home_goal = false
+          away_goal = true
+        end
+      end
+      player_scored[goal.player.id] = true if goal.player unless goal.own_goal?
+      count_home += 1 if home_goal
+      count_away += 1 if away_goal
+      html << "<tr class='game_show_goals'>"
+      html << "  <td class='game_show_home_score'>#{goal.player.name if home_goal}</td>"
+      html << "  <td class='game_show_home_score'>"
+      html << "    (pen)" if goal.penalty? and home_goal
+      html << "    (own)" if goal.own_goal? and home_goal
+      html << "  </td>"
+      html << "  <td class='game_show_home_score'>"
+      html << "    #{goal.time}'" if home_goal
+      html << "  </td>"
+      html << "  <td class='game_show_home_score'>"
+      html << "    (#{count_home}-#{count_away})" if home_goal
+      html << "  </td>"
+      html << "  <td></td>"
+      html << "  <td class='game_show_away_score'>"
+      html << "    (#{count_home}-#{count_away})" if away_goal
+      html << "  <td class='game_show_away_score'>"
+      html << "    #{goal.time}'" if away_goal
+      html << "  </td>"
+      html << "  <td class='game_show_away_score'>"
+      html << "    (pen)" if goal.penalty? and away_goal
+      html << "    (own)" if goal.own_goal? and away_goal
+      html << "  </td>"
+      html << "  <td class='game_show_away_score'>"
+      html << goal.player.name if away_goal
+      html << "  </td>"
+      html << "</tr>"
+    end
+    html
   end
 end

@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2009-05-03 10:15-0300\n"
+"POT-Creation-Date: 2009-05-18 10:21-0300\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: Robson Braga Araujo <robsonbraga@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -76,7 +76,7 @@ msgid "Game"
 msgstr "Jogo"
 
 # app/models/game.rb:-
-#: app/controllers/game_controller.rb:156
+#: app/controllers/game_controller.rb:141
 msgid "Game saved"
 msgstr "Jogo salvo"
 
@@ -109,8 +109,8 @@ msgid "Player was successfully created"
 msgstr "Jogador foi criado com sucesso"
 
 # app/models/referee.rb:-
-#: app/controllers/referee_controller.rb:2 app/views/game/edit.rhtml:145
-#: app/views/game/edit_squad.rhtml:94 app/views/game/show.rhtml:131
+#: app/controllers/referee_controller.rb:2 app/views/game/edit.rhtml:175
+#: app/views/game/edit_squad.rhtml:94 app/views/game/show.rhtml:92
 #: app/views/referee/show.rhtml:1
 msgid "Referee"
 msgstr "Árbitro"
@@ -124,8 +124,8 @@ msgid "Referee was successfully created"
 msgstr "Árbitro foi criado com sucesso"
 
 # app/models/stadium.rb:-
-#: app/controllers/stadium_controller.rb:2 app/views/game/edit.rhtml:173
-#: app/views/game/edit_squad.rhtml:93 app/views/game/show.rhtml:130
+#: app/controllers/stadium_controller.rb:2 app/views/game/edit.rhtml:203
+#: app/views/game/edit_squad.rhtml:93 app/views/game/show.rhtml:91
 #: app/views/stadium/show.rhtml:1 app/views/team/_form.rhtml:6
 #: app/views/team/show.rhtml:17
 msgid "Stadium"
@@ -164,65 +164,65 @@ msgstr "Anterior "
 msgid " Next"
 msgstr " Próximo"
 
-#: app/helpers/game_helper.rb:40
+#: app/helpers/game_helper.rb:41
 msgid "Version %{number}"
 msgstr "Versão %{number}"
 
-#: app/helpers/game_helper.rb:44 app/views/comment/_comment.rhtml:4
+#: app/helpers/game_helper.rb:45 app/views/comment/_comment.rhtml:4
 #: app/views/home/index.rhtml:23
 msgid "%A, %d/%m/%Y at %H:%M"
 msgstr "%A, %d/%m/%Y às %H:%M"
 
-#: app/helpers/game_helper.rb:63
+#: app/helpers/game_helper.rb:64
 msgid "Removed goal "
 msgstr "Removido gol "
 
-#: app/helpers/game_helper.rb:65
+#: app/helpers/game_helper.rb:66
 msgid "Added goal "
 msgstr "Adicionado gol "
 
-#: app/helpers/game_helper.rb:69
+#: app/helpers/game_helper.rb:70
 msgid "(penalty)"
 msgstr "(pênalti)"
 
 # app/models/goal.rb:-
-#: app/helpers/game_helper.rb:70
+#: app/helpers/game_helper.rb:71
 msgid "(own_goal)"
 msgstr "(gol contra)"
 
-#: app/helpers/game_helper.rb:76
+#: app/helpers/game_helper.rb:77
 msgid "Added stadium: %s<br>"
 msgstr "Adicionado estádio: %s<br>"
 
-#: app/helpers/game_helper.rb:78
+#: app/helpers/game_helper.rb:79
 msgid "Removed stadium: %s<br>"
 msgstr "Removido estádio: %s<br>"
 
-#: app/helpers/game_helper.rb:80
+#: app/helpers/game_helper.rb:81
 msgid "Changed stadium: %s -> %s<br>"
 msgstr "Modificado estádio: %s -> %s<br>"
 
-#: app/helpers/game_helper.rb:84
+#: app/helpers/game_helper.rb:85
 msgid "Added referee: %s<br>"
 msgstr "Adicionado árbitro: %s<br>"
 
-#: app/helpers/game_helper.rb:86
+#: app/helpers/game_helper.rb:87
 msgid "Removed referee: %s<br>"
 msgstr "Removido árbitro: %s<br>"
 
-#: app/helpers/game_helper.rb:88
+#: app/helpers/game_helper.rb:89
 msgid "Changed referee: %s -> %s<br>"
 msgstr "Modificado árbitro: %s -> %s<br>"
 
-#: app/helpers/game_helper.rb:93
+#: app/helpers/game_helper.rb:94
 msgid "Added %s: %s<br>"
 msgstr "Adicionado %s: %s<br>"
 
-#: app/helpers/game_helper.rb:95
+#: app/helpers/game_helper.rb:96
 msgid "Removed %s: %s<br>"
 msgstr "Removido %s: %s<br>"
 
-#: app/helpers/game_helper.rb:97
+#: app/helpers/game_helper.rb:98
 msgid "Changed %s: %s -> %s<br>"
 msgstr "Modificado %s: %s -> %s<br>"
 
@@ -287,7 +287,7 @@ msgstr "Pontos por empate"
 # app/models/championship.rb:-
 #: app/models/championship.rb:-
 msgid "Championship|Point loss"
-msgstr "Pontos por derrato"
+msgstr "Pontos por derrota"
 
 # app/models/championship.rb:-
 #: app/models/championship.rb:-
@@ -345,8 +345,9 @@ msgid "Goal|Team"
 msgstr "Equipe"
 
 # app/models/goal.rb:-
-#: app/models/game.rb:- app/views/game/edit.rhtml:89
-#: app/views/game/edit.rhtml:99
+#: app/models/game.rb:- app/views/game/edit.rhtml:105
+#: app/views/game/edit.rhtml:112 app/views/game/edit.rhtml:122
+#: app/views/game/edit.rhtml:129
 msgid "Goal|Time"
 msgstr "Tempo"
 
@@ -359,6 +360,11 @@ msgstr "Pênalti"
 #: app/models/game.rb:-
 msgid "Goal|Own goal"
 msgstr "Gol contra"
+
+# app/models/goal.rb:-
+#: app/models/game.rb:-
+msgid "Goal|Aet"
+msgstr "Prorrogação"
 
 # app/models/game.rb:-
 #: app/models/game.rb:-
@@ -431,8 +437,8 @@ msgid "Game|Date"
 msgstr "Data"
 
 # app/models/game.rb:-
-#: app/models/game.rb:- app/views/game/edit.rhtml:138
-#: app/views/game/show.rhtml:129
+#: app/models/game.rb:- app/views/game/edit.rhtml:168
+#: app/views/game/show.rhtml:90
 msgid "Game|Time"
 msgstr "Horário"
 
@@ -462,11 +468,11 @@ msgid "Game|Away aet"
 msgstr "Prorrogação fora"
 
 # app/models/player.rb:-
-#: app/models/game.rb:108
+#: app/models/game.rb:114
 msgid "Played"
 msgstr "Jogados"
 
-#: app/models/game.rb:108 app/views/championship/team.rhtml:40
+#: app/models/game.rb:114 app/views/championship/team.rhtml:40
 #: app/views/game/list.rhtml:23
 msgid "Scheduled"
 msgstr "Agendados"
@@ -572,6 +578,10 @@ msgstr "gols fora"
 #: app/models/phase.rb:30
 msgid "bias"
 msgstr "vantagem"
+
+#: app/models/phase.rb:31
+msgid "aet goals"
+msgstr "gols na prorrogação"
 
 # app/models/player.rb:-
 #: app/models/player.rb:-
@@ -925,7 +935,7 @@ msgid "Filter image background?"
 msgstr "Filtrar fundo da imagem?"
 
 #: app/views/user/edit.html.erb:31 app/views/championship/edit.rhtml:44
-#: app/views/game/edit.rhtml:201 app/views/game/edit_squad.rhtml:99
+#: app/views/game/edit.rhtml:231 app/views/game/edit_squad.rhtml:99
 #: app/views/group/edit.rhtml:33 app/views/phase/edit.rhtml:47
 #: app/views/player/edit.rhtml:7 app/views/referee/edit.rhtml:7
 #: app/views/stadium/edit.rhtml:7 app/views/team/edit.rhtml:7
@@ -956,9 +966,10 @@ msgstr "Usuário"
 #: app/views/championship/edit.rhtml:31 app/views/championship/list.rhtml:5
 #: app/views/championship/new.rhtml:3 app/views/championship/team.rhtml:66
 #: app/views/championship/top_goalscorers.rhtml:17
-#: app/views/game/edit.rhtml:89 app/views/game/edit.rhtml:99
-#: app/views/game/edit.rhtml:160 app/views/game/edit.rhtml:188
-#: app/views/game/show.rhtml:73 app/views/game/show.rhtml:100
+#: app/views/game/edit.rhtml:105 app/views/game/edit.rhtml:112
+#: app/views/game/edit.rhtml:122 app/views/game/edit.rhtml:129
+#: app/views/game/edit.rhtml:190 app/views/game/edit.rhtml:218
+#: app/views/game/show.rhtml:34 app/views/game/show.rhtml:61
 #: app/views/group/edit.rhtml:15 app/views/phase/_group_list.rhtml:4
 #: app/views/phase/edit.rhtml:7 app/views/phase/list.rhtml:11
 #: app/views/phase/new.rhtml:3 app/views/phase/show.rhtml:2
@@ -981,7 +992,7 @@ msgstr "Visto por último"
 msgid "%{time} ago"
 msgstr "%{time} atrás"
 
-#: app/views/user/show.html.erb:16 app/views/game/edit.rhtml:162
+#: app/views/user/show.html.erb:16 app/views/game/edit.rhtml:192
 #: app/views/referee/_referee_list.rhtml:4 app/views/referee/show.rhtml:4
 msgid "Location"
 msgstr "Localidade"
@@ -1088,8 +1099,8 @@ msgstr "Apagar este jogo"
 msgid "Are you sure you want to delete this game?"
 msgstr "Tem certeza que quer apagar este jogo?"
 
-#: app/views/championship/_game_table.rhtml:2 app/views/game/edit.rhtml:123
-#: app/views/game/edit_squad.rhtml:90 app/views/game/show.rhtml:126
+#: app/views/championship/_game_table.rhtml:2 app/views/game/edit.rhtml:153
+#: app/views/game/edit_squad.rhtml:90 app/views/game/show.rhtml:87
 msgid "Round"
 msgstr "Rodada"
 
@@ -1156,7 +1167,7 @@ msgstr "Recalcular chances"
 
 #: app/views/championship/_table.rhtml:27 app/views/championship/team.rhtml:67
 #: app/views/championship/top_goalscorers.rhtml:18
-#: app/views/game/show.rhtml:74 app/views/game/show.rhtml:101
+#: app/views/game/show.rhtml:35 app/views/game/show.rhtml:62
 msgid "Pos"
 msgstr "Pos"
 
@@ -1236,8 +1247,8 @@ msgstr "Mínimo"
 msgid "Most attended games"
 msgstr "Jogos com maiores públicos"
 
-#: app/views/championship/crowd.rhtml:40 app/views/game/edit.rhtml:127
-#: app/views/game/edit_squad.rhtml:91 app/views/game/show.rhtml:127
+#: app/views/championship/crowd.rhtml:40 app/views/game/edit.rhtml:157
+#: app/views/game/edit_squad.rhtml:91 app/views/game/show.rhtml:88
 msgid "Attendance"
 msgstr "Público"
 
@@ -1272,7 +1283,7 @@ msgid "Phases"
 msgstr "Fases"
 
 #: app/views/championship/edit.rhtml:32 app/views/championship/list.rhtml:14
-#: app/views/game/show.rhtml:164 app/views/phase/_group_list.rhtml:5
+#: app/views/game/show.rhtml:125 app/views/phase/_group_list.rhtml:5
 #: app/views/phase/list.rhtml:20 app/views/player/_player_list.rhtml:12
 #: app/views/player/show.rhtml:12 app/views/referee/_referee_list.rhtml:12
 #: app/views/referee/show.rhtml:32 app/views/stadium/_stadium_list.rhtml:10
@@ -1282,14 +1293,14 @@ msgid "Edit"
 msgstr "Editar"
 
 #: app/views/championship/edit.rhtml:33 app/views/comment/_comment.rhtml:2
-#: app/views/game/show.rhtml:166 app/views/phase/_group_list.rhtml:6
+#: app/views/game/show.rhtml:127 app/views/phase/_group_list.rhtml:6
 #: app/views/player/show.rhtml:13 app/views/referee/show.rhtml:33
 #: app/views/team/show.rhtml:82
 msgid "Delete"
 msgstr "Apagar"
 
 #: app/views/championship/edit.rhtml:33 app/views/championship/list.rhtml:17
-#: app/views/championship/team.rhtml:86 app/views/game/show.rhtml:166
+#: app/views/championship/team.rhtml:86 app/views/game/show.rhtml:127
 #: app/views/phase/list.rhtml:21 app/views/player/_player_list.rhtml:13
 #: app/views/player/show.rhtml:13 app/views/referee/_referee_list.rhtml:13
 #: app/views/referee/show.rhtml:33 app/views/stadium/_stadium_list.rhtml:11
@@ -1320,8 +1331,8 @@ msgid "Destroy"
 msgstr "Destruir"
 
 #: app/views/championship/list.rhtml:30 app/views/championship/new.rhtml:13
-#: app/views/championship/new_game.rhtml:15 app/views/game/edit.rhtml:163
-#: app/views/game/edit.rhtml:190 app/views/phase/new.rhtml:7
+#: app/views/championship/new_game.rhtml:15 app/views/game/edit.rhtml:193
+#: app/views/game/edit.rhtml:220 app/views/phase/new.rhtml:7
 #: app/views/player/new.rhtml:7 app/views/referee/new.rhtml:7
 #: app/views/stadium/new.rhtml:7 app/views/team/_form.rhtml:18
 #: app/views/team/new.rhtml:6
@@ -1334,8 +1345,8 @@ msgid "ChampionshipTeam|Played"
 msgstr "Jogados"
 
 # app/models/player.rb:-
-#: app/views/championship/team.rhtml:59 app/views/game/edit.rhtml:74
-#: app/views/game/edit.rhtml:107 app/views/game/edit_squad.rhtml:50
+#: app/views/championship/team.rhtml:59 app/views/game/edit.rhtml:90
+#: app/views/game/edit.rhtml:137 app/views/game/edit_squad.rhtml:50
 #: app/views/game/edit_squad.rhtml:59 app/views/game/edit_squad.rhtml:68
 #: app/views/game/edit_squad.rhtml:76 app/views/layouts/application.rhtml:34
 msgid "Players"
@@ -1343,7 +1354,7 @@ msgstr "Jogadores"
 
 #: app/views/championship/team.rhtml:68
 #: app/views/championship/top_goalscorers.rhtml:20
-#: app/views/game/edit.rhtml:88
+#: app/views/game/edit.rhtml:104 app/views/game/edit.rhtml:121
 msgid "Goals"
 msgstr "Gols"
 
@@ -1354,7 +1365,7 @@ msgstr "Gols contra"
 
 #: app/views/championship/team.rhtml:70
 #: app/views/championship/top_goalscorers.rhtml:21
-#: app/views/game/edit.rhtml:58
+#: app/views/game/edit.rhtml:74
 msgid "Penalties"
 msgstr "Pênaltis"
 
@@ -1398,6 +1409,14 @@ msgstr "Voce só pode deixar um comentário se você %s"
 msgid "logged in"
 msgstr "se logar"
 
+#: app/views/game/_game_score.rhtml:15
+msgid "Extra time:"
+msgstr "Prorrogação:"
+
+#: app/views/game/_game_score.rhtml:26
+msgid "Penalties:"
+msgstr "Pênaltis:"
+
 #: app/views/game/_insert_player.rhtml:1 app/views/game/_player.rhtml:16
 msgid "Add"
 msgstr "Adicionar"
@@ -1406,8 +1425,8 @@ msgstr "Adicionar"
 msgid "Cancel"
 msgstr "Cancelar"
 
-#: app/views/game/_insert_player.rhtml:12 app/views/game/edit.rhtml:151
-#: app/views/game/edit.rhtml:179 app/views/team/_form.rhtml:11
+#: app/views/game/_insert_player.rhtml:12 app/views/game/edit.rhtml:181
+#: app/views/game/edit.rhtml:209 app/views/team/_form.rhtml:11
 msgid "New"
 msgstr "Novo"
 
@@ -1432,33 +1451,40 @@ msgstr "Fechar"
 msgid "Are you sure you want to add this player?"
 msgstr "Tem certeza que quer adicionar esse jogador?"
 
-#: app/views/game/edit.rhtml:89 app/views/game/edit.rhtml:99
+#: app/views/game/edit.rhtml:59 app/views/game/edit.rhtml:111
+#: app/views/game/edit.rhtml:128 app/views/game/show.rhtml:25
+msgid "Extra time"
+msgstr "Prorrogação"
+
+#: app/views/game/edit.rhtml:105 app/views/game/edit.rhtml:112
+#: app/views/game/edit.rhtml:122 app/views/game/edit.rhtml:129
 msgid "Pen"
 msgstr "Pen"
 
-#: app/views/game/edit.rhtml:89 app/views/game/edit.rhtml:99
+#: app/views/game/edit.rhtml:105 app/views/game/edit.rhtml:112
+#: app/views/game/edit.rhtml:122 app/views/game/edit.rhtml:129
 msgid "Own"
 msgstr "Contra"
 
-#: app/views/game/edit.rhtml:131 app/views/game/edit_squad.rhtml:92
-#: app/views/game/show.rhtml:128
+#: app/views/game/edit.rhtml:161 app/views/game/edit_squad.rhtml:92
+#: app/views/game/show.rhtml:89
 msgid "Date"
 msgstr "Data"
 
-#: app/views/game/edit.rhtml:133
+#: app/views/game/edit.rhtml:163
 msgid "Today"
 msgstr "Hoje"
 
-#: app/views/game/edit.rhtml:166
+#: app/views/game/edit.rhtml:196
 msgid "Are you sure you want to create a new referee?"
 msgstr "Tem certeza que quer criar um novo árbitro?"
 
-#: app/views/game/edit.rhtml:193 app/views/team/_form.rhtml:21
+#: app/views/game/edit.rhtml:223 app/views/team/_form.rhtml:21
 msgid "Are you sure you want to create a new stadium?"
 msgstr "Tem certeza que quer criar um novo estádio?"
 
 # app/models/game.rb:-
-#: app/views/game/edit.rhtml:200
+#: app/views/game/edit.rhtml:230
 msgid "GameEdit|Played"
 msgstr "Jogado"
 
@@ -1483,21 +1509,21 @@ msgstr "Mudar data"
 msgid "GameList|Played"
 msgstr "Jogados"
 
-#: app/views/game/show.rhtml:75 app/views/game/show.rhtml:102
+#: app/views/game/show.rhtml:36 app/views/game/show.rhtml:63
 msgid "On"
 msgstr "Entrou"
 
-#: app/views/game/show.rhtml:76 app/views/game/show.rhtml:103
+#: app/views/game/show.rhtml:37 app/views/game/show.rhtml:64
 msgid "Off"
 msgstr "Saiu"
 
-#: app/views/game/show.rhtml:138
+#: app/views/game/show.rhtml:99
 msgid "Previous game"
 msgid_plural "Previous %d games"
 msgstr[0] "Último jogo"
 msgstr[1] "%d últimos jogos"
 
-#: app/views/game/show.rhtml:165
+#: app/views/game/show.rhtml:126
 msgid "Edit Squad"
 msgstr "Editar elenco"
 
