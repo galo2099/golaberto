@@ -22,17 +22,18 @@ role :db,  domain, :primary => true
 
 task :after_update_code, :roles => :app do
   stats = <<-JS
-    <script type="text/javascript">
-    var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
-    document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
-    </script>
-    <script type="text/javascript">
-    var pageTracker = _gat._getTracker("UA-1911106-4");
-    pageTracker._trackPageview();
-    </script>
+<script type='text/javascript'>
+var gaJsHost = (('https:' == document.location.protocol) ? 'https://ssl.' : 'http://www.');
+document.write(unescape('%3Cscript src=\\"' + gaJsHost + 'google-analytics.com/ga.js\\" type=\\"text/javascript\\"%3E%3C/script%3E'));
+</script>
+<script type='text/javascript'>
+try {
+var pageTracker = _gat._getTracker('UA-1911106-4');
+pageTracker._trackPageview();
+} catch(err) {}</script>
   JS
   layout = "#{release_path}/app/views/layouts/application.rhtml"
-  run "sed -i 's^</body>^#{stats}</body>^' #{layout}"
+  run "sed -i \"s^</body>^#{stats}</body>^\" #{layout}"
 
   run "patch #{release_path}/config/environment.rb -i #{shared_path}/config/environment.patch"
 
