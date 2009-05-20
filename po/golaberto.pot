@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2009-05-18 10:21-0300\n"
+"POT-Creation-Date: 2009-05-19 22:29-0300\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -469,12 +469,10 @@ msgstr ""
 msgid "Group|Name"
 msgstr ""
 
-# app/models/group.rb:-
 #: app/models/group.rb:-
 msgid "Group|Promoted"
 msgstr ""
 
-# app/models/group.rb:-
 #: app/models/group.rb:-
 msgid "Group|Relegated"
 msgstr ""
@@ -764,17 +762,14 @@ msgstr ""
 msgid "TeamGroup|Comment"
 msgstr ""
 
-# app/models/team_group.rb:-
 #: app/models/team_group.rb:-
 msgid "TeamGroup|First odds"
 msgstr ""
 
-# app/models/team_group.rb:-
 #: app/models/team_group.rb:-
 msgid "TeamGroup|Promoted odds"
 msgstr ""
 
-# app/models/team_group.rb:-
 #: app/models/team_group.rb:-
 msgid "TeamGroup|Relegated odds"
 msgstr ""
@@ -1114,19 +1109,23 @@ msgstr ""
 msgid "Goalscorers"
 msgstr ""
 
-#: app/views/championship/_recalculate_button.rhtml:5
+#: app/views/championship/_recalculate_button.rhtml:2
+msgid "Can't calculate odds"
+msgstr ""
+
+#: app/views/championship/_recalculate_button.rhtml:7
 msgid "Updating odds..."
 msgstr ""
 
-#: app/views/championship/_recalculate_button.rhtml:8
+#: app/views/championship/_recalculate_button.rhtml:10
 msgid "Odds being recalculated"
 msgstr ""
 
-#: app/views/championship/_recalculate_button.rhtml:8
+#: app/views/championship/_recalculate_button.rhtml:10
 msgid "%d%% done."
 msgstr ""
 
-#: app/views/championship/_recalculate_button.rhtml:13
+#: app/views/championship/_recalculate_button.rhtml:15
 msgid "Recalculate odds"
 msgstr ""
 

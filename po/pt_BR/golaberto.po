@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2009-05-18 10:21-0300\n"
+"POT-Creation-Date: 2009-05-19 22:29-0300\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: Robson Braga Araujo <robsonbraga@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1149,19 +1149,23 @@ msgstr "Público"
 msgid "Goalscorers"
 msgstr "Artilheiros"
 
-#: app/views/championship/_recalculate_button.rhtml:5
+#: app/views/championship/_recalculate_button.rhtml:2
+msgid "Can't calculate odds"
+msgstr "Erro ao recalcular chances"
+
+#: app/views/championship/_recalculate_button.rhtml:7
 msgid "Updating odds..."
 msgstr "Atualizando chances..."
 
-#: app/views/championship/_recalculate_button.rhtml:8
+#: app/views/championship/_recalculate_button.rhtml:10
 msgid "Odds being recalculated"
 msgstr "Chances sendo calculadas"
 
-#: app/views/championship/_recalculate_button.rhtml:8
+#: app/views/championship/_recalculate_button.rhtml:10
 msgid "%d%% done."
 msgstr "%d%% pronto."
 
-#: app/views/championship/_recalculate_button.rhtml:13
+#: app/views/championship/_recalculate_button.rhtml:15
 msgid "Recalculate odds"
 msgstr "Recalcular chances"
 
