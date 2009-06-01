@@ -123,6 +123,48 @@ class Group < ActiveRecord::Base
     ret
   end
 
+  def get_game(team_class, a, b)
+    game = team_class[a].home_games[b]
+    if game
+      [ a, b, game[0], game[1] ]
+    end
+  end
+
+  def compare_head_to_head(team_class, a, b)
+    tied_teams = team_class.select { |k,v| v.points == team_class[a].points }.map{|k,v| k}
+    if (tied_teams.size == team_class.size) then
+      return 0
+    end
+    if @cached_sub_team_class != team_class or @cached_sorted.nil? or @cached_sorted[[a,b]].nil?
+      if @cached_sub_team_class != team_class
+        @cached_sub_team_class = team_class
+        @cached_sorted = Hash.new
+      end
+      games = Array.new
+      games << get_game(team_class, a, b)
+      games << get_game(team_class, b, a)
+      (tied_teams - [a,b]).each do |t|
+        games << get_game(team_class, a, t)
+        games << get_game(team_class, t, a)
+        games << get_game(team_class, b, t)
+        games << get_game(team_class, t, b)
+      end
+      games = games.select{|g|!g.nil?}
+      sub_team_class = Hash.new
+      tied_teams.each do |t|
+        sub_team_class[t] = ChampionshipHelper::TeamCampaign.new(team_class[t].team_group)
+      end
+      games.each do |home_id, away_id, home_score, away_score|
+        sub_team_class.values.each do |stat|
+          stat.add_game_score_only home_id, away_id, home_score, away_score
+        end
+      end
+      sorted = sort_teams(sub_team_class).map{|t,stat|t.team_id}
+      @cached_sorted[[a,b]] = sorted
+    end
+    @cached_sorted[[a,b]].index(b) <=> @cached_sorted[[a,b]].index(a)
+  end
+
   def sort_teams(team_class)
     @columns ||= phase.sort.split(/,\s*/)
     sorter = lambda { |b,a|
@@ -145,6 +187,8 @@ class Group < ActiveRecord::Base
           ret = team_class[a].goals_pen <=> team_class[b].goals_pen
         when "g_aet"
           ret = team_class[a].goals_aet <=> team_class[b].goals_aet
+        when "head"
+          ret = compare_head_to_head(team_class, a, b) if team_class.size > 2
         when "g_away"
           ret = team_class[a].goals_away <=> team_class[b].goals_away
         when "bias"
@@ -156,11 +200,10 @@ class Group < ActiveRecord::Base
       end
       ret
     }
-    @team_groups_cache ||= team_groups.to_a.map{|t| [t, t.team_id]}
-    @team_groups_cache.sort do |a,b|
-      sorter.call a[1], b[1]
+    team_class.keys.sort do |a,b|
+      sorter.call a, b
     end.map do |t|
-      [ t[0], team_class[t[1]] ]
+      [ team_class[t].team_group, team_class[t] ]
     end
   end
 end

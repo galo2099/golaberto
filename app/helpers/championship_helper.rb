@@ -2,8 +2,8 @@ module ChampionshipHelper
   class TeamCampaign
     attr_reader :points, :games, :wins, :draws, :losses,
                 :goals_for, :goals_against, :goals_aet, :goals_pen,
-                :goals_away, :last_game, :bias, :add_sub,
-                :promoted_odds, :relegated_odds, :first_odds, :name
+                :goals_away, :last_game, :bias, :add_sub, :team_group,
+                :promoted_odds, :relegated_odds, :first_odds, :name, :home_games
 
     def initialize(team_group)
       @games = 0
@@ -31,6 +31,7 @@ module ChampionshipHelper
       @points_for_loss = championship.point_loss
       @bonus = team_group.group.phase.bonus_points
       @bonus_threshold = team_group.group.phase.bonus_points_threshold
+      @home_games = Hash.new
     end
 
     def add_game_score_only(home_id, away_id, home_score, away_score)
@@ -38,6 +39,9 @@ module ChampionshipHelper
         return
       end
       is_home = home_id == @team_id
+      if is_home then
+        @home_games[away_id] = [ home_score, away_score ]
+      end
       @games += 1
       if home_score > away_score then
         if is_home then
@@ -84,6 +88,7 @@ module ChampionshipHelper
       home_id = game.home_id
       @games += 1
       if (home_id == @team_id) then
+        @home_games[game.away_id] = [ home_score, away_score ]
         @goals_aet += game.home_aet unless game.home_aet.nil?
         @goals_pen += game.home_pen unless game.home_pen.nil?
       else

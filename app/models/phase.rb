@@ -28,7 +28,8 @@ class Phase < ActiveRecord::Base
       "gp" => _("penalty goals"),
       "g_away" => _("goals away"),
       "bias" => _("bias"),
-      "g_aet" => _("aet goals") }
+      "g_aet" => _("aet goals"),
+      "head" => _("head to head") }
   end
 
   def teams
