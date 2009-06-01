@@ -135,10 +135,10 @@ class Group < ActiveRecord::Base
     if (tied_teams.size == team_class.size) then
       return 0
     end
-    if @cached_sub_team_class != team_class or @cached_sorted.nil? or @cached_sorted[[a,b]].nil?
-      if @cached_sub_team_class != team_class
-        @cached_sub_team_class = team_class
-        @cached_sorted = Hash.new
+    if @cached_team_class != team_class or @cached_sub_team_class.nil? or @cached_sub_team_class[[a,b]].nil?
+      if @cached_team_class != team_class
+        @cached_team_class = team_class
+        @cached_sub_team_class = Hash.new
       end
       games = Array.new
       games << get_game(team_class, a, b)
@@ -159,49 +159,49 @@ class Group < ActiveRecord::Base
           stat.add_game_score_only home_id, away_id, home_score, away_score
         end
       end
-      sorted = sort_teams(sub_team_class).map{|t,stat|t.team_id}
-      @cached_sorted[[a,b]] = sorted
+      @cached_sub_team_class[[a,b]] = sub_team_class
     end
-    @cached_sorted[[a,b]].index(b) <=> @cached_sorted[[a,b]].index(a)
+    compare_teams(@cached_sub_team_class[[a,b]], @columns - ['name'], a, b)
+  end
+
+  def compare_teams(team_class, columns, a, b)
+    ret = 0
+    columns.detect do |column|
+      case column
+      when "pt"
+        ret = team_class[b].points <=> team_class[a].points
+      when "w"
+        ret = team_class[b].wins <=> team_class[a].wins
+      when  "gd"
+        ret = team_class[b].goals_diff <=> team_class[a].goals_diff
+      when "gf"
+        ret = team_class[b].goals_for <=> team_class[a].goals_for
+      when "name"
+        ret = team_class[a].name <=> team_class[b].name
+      when "g_average"
+        ret = team_class[b].goals_avg <=> team_class[a].goals_avg
+      when "gp"
+        ret = team_class[b].goals_pen <=> team_class[a].goals_pen
+      when "g_aet"
+        ret = team_class[b].goals_aet <=> team_class[a].goals_aet
+      when "head"
+        ret = compare_head_to_head(team_class, a, b) if team_class.size > 2
+      when "g_away"
+        ret = team_class[b].goals_away <=> team_class[a].goals_away
+      when "bias"
+        ret = team_class[b].bias <=> team_class[a].bias
+      when "rand"
+        ret = 2*rand(2)-1
+      end
+      ret != 0
+    end
+    ret
   end
 
   def sort_teams(team_class)
     @columns ||= phase.sort.split(/,\s*/)
-    sorter = lambda { |b,a|
-      ret = 0
-      @columns.detect do |column|
-        case column
-        when "pt"
-          ret = team_class[a].points <=> team_class[b].points
-        when "w"
-          ret = team_class[a].wins <=> team_class[b].wins
-        when  "gd"
-          ret = team_class[a].goals_diff <=> team_class[b].goals_diff
-        when "gf"
-          ret = team_class[a].goals_for <=> team_class[b].goals_for
-        when "name"
-          ret = team_class[b].name <=> team_class[a].name
-        when "g_average"
-          ret = team_class[a].goals_avg <=> team_class[b].goals_avg
-        when "gp"
-          ret = team_class[a].goals_pen <=> team_class[b].goals_pen
-        when "g_aet"
-          ret = team_class[a].goals_aet <=> team_class[b].goals_aet
-        when "head"
-          ret = compare_head_to_head(team_class, a, b) if team_class.size > 2
-        when "g_away"
-          ret = team_class[a].goals_away <=> team_class[b].goals_away
-        when "bias"
-          ret = team_class[a].bias <=> team_class[b].bias
-        when "rand"
-          ret = 2*rand(2)-1
-        end
-        ret != 0
-      end
-      ret
-    }
     team_class.keys.sort do |a,b|
-      sorter.call a, b
+      compare_teams team_class, @columns, a, b
     end.map do |t|
       [ team_class[t].team_group, team_class[t] ]
     end
