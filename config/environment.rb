@@ -41,7 +41,9 @@ Rails::Initializer.run do |config|
   # See Rails::Configuration for more options
   config.action_controller.session = { :session_key => "_myapp_session", :secret => "some secret phrase of at least 30 characters" }
 
-  config.gem "gettext", :lib => "gettext/rails"
+  config.gem "locale_rails"
+  config.gem "gettext_activerecord"
+  config.gem "gettext_rails"
 
   config.gem "quilt"
 end

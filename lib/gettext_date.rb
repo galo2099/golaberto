@@ -171,8 +171,8 @@ module GettextDate
     end
 
     module ClassMethods
-      def init_gettext_with_dates(domainname, options = {}, content_type = "text/html")
-        init_gettext_original(domainname, options, content_type)
+      def init_gettext_with_dates(domainname, options = {})
+        init_gettext_original(domainname, options)
         textdomain_to( GettextDate::Conversions, domainname ) if defined? GettextDate::Conversions
       end
     end

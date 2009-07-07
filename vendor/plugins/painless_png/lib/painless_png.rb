@@ -108,7 +108,7 @@ end
 # Monkey patch the test environment
 #if RAILS_ENV == "test"
   module ActionController
-    class TestRequest < AbstractRequest
+    class TestRequest < Request
       attr_accessor :user_agent
     end
   end
