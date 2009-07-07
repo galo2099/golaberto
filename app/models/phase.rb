@@ -32,6 +32,10 @@ class Phase < ActiveRecord::Base
       "head" => _("head to head") }
   end
 
+  def to_param
+    "#{id}-#{name.parameterize}"
+  end
+
   def teams
     ret = Array.new
     groups.each do |group|

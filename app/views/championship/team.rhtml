@@ -6,7 +6,7 @@
 <% end %>
 
 <select id='team_select'>
-  <%= options_from_collection_for_select @teams, "id", "name", @team.id %>
+  <%= options_from_collection_for_select @teams, "to_param", "name", @team.to_param %>
 </select>
 
 <% team_url = url_for(:controller => :championship, :action => :team, :id => @championship, :team => "") %>

@@ -22,6 +22,10 @@ class Championship < ActiveRecord::Base
   # Field: point_draw , SQL Definition:tinyint(4)
   # Field: point_loss , SQL Definition:tinyint(4)
 
+  def to_param
+    "#{id}-#{full_name.parameterize}"
+  end
+
   def full_name
     name = self.name + " " + self.begin.year.to_s
     if self.begin.year != self.end.year

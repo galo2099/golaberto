@@ -29,4 +29,8 @@ class Player < ActiveRecord::Base
       Positions.index(a) <=> Positions.index(b)
     end
   end
+
+  def to_param
+    "#{id}-#{name.parameterize}"
+  end
 end

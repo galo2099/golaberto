@@ -19,6 +19,10 @@ class Team < ActiveRecord::Base
   # Field: country , SQL Definition:varchar(255)
   # Field: logo , SQL Definition:varchar(255)
 
+  def to_param
+    "#{id}-#{name.parameterize}"
+  end
+
   def small_logo
     if logo.nil?
       '15.png'

@@ -15,5 +15,7 @@ class Referee < ActiveRecord::Base
   # Field: name , SQL Definition:varchar(255)
   # Field: location , SQL Definition:varchar(255)
 
-
+  def to_param
+    "#{id}-#{name.parameterize}"
+  end
 end

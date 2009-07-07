@@ -20,5 +20,7 @@ class Stadium < ActiveRecord::Base
   # Field: city, SQL Definition: varchar(255)
   # Field: country, SQL Definition: varchar(255)
 
-
+  def to_param
+    "#{id}-#{name.parameterize}"
+  end
 end
