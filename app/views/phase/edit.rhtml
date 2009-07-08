@@ -27,12 +27,16 @@
     </td></tr>
     <tr><td><label for="enable_bonus"><%= _("Bonus points for win?") %></label></td><td><%= check_box_tag "enable_bonus", "1", @phase.bonus_points > 0, :onChange => "if (this.checked) { $('phase_bonus_points').enable(); $('phase_bonus_points_threshold').enable(); } else { $('phase_bonus_points').disable(); $('phase_bonus_points_threshold').disable(); }" %></td></tr>
     <tr><td><label for="phase_bonus_points"><%= _("Bonus") %>:</label></td>
-      <td><%= p.text_field :bonus_points, :size => 2, :disabled => @phase.bonus_points == 0 %>
-        <%= p.hidden_field :bonus_points, :value => 0 %></td>
+      <td>
+        <%= p.hidden_field :bonus_points, :value => 0, :id => "phase_bonus_points_hidden" %>
+        <%= p.text_field :bonus_points, :size => 2, :disabled => @phase.bonus_points == 0 %>
+      </td>
     </tr>
     <tr><td><label for="phase_bonus_points_threshold"><%= _("Goal difference equal to<br/>or bigger than") %>:</label></td>
-      <td><%= p.text_field :bonus_points_threshold, :size => 2, :disabled => @phase.bonus_points == 0 %>
-        <%= p.hidden_field :bonus_points_threshold, :value => 0 %></td>
+      <td>
+        <%= p.hidden_field :bonus_points_threshold, :value => 0, :id => "phase_bonus_points_threshold_hidden" %>
+        <%= p.text_field :bonus_points_threshold, :size => 2, :disabled => @phase.bonus_points == 0 %>
+      </td>
     </tr>
   </table>
 
