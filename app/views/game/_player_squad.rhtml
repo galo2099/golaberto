@@ -9,10 +9,10 @@
       <%= f.hidden_field :team_id, f.options %>
       <%= f.text_field :on, f.options.merge(:size => 2) %>
       <%= f.text_field :off, f.options.merge(:size => 2) %>
-      <%= check_box_tag "player_game[#{f.options[:index]}][yellow]", "1", player_squad.yellow?, f.options %>
       <%= hidden_field_tag "player_game[#{f.options[:index]}][yellow]", "0", f.options %>
-      <%= check_box_tag "player_game[#{f.options[:index]}][red]", "1", player_squad.red?, f.options %>
+      <%= check_box_tag "player_game[#{f.options[:index]}][yellow]", "1", player_squad.yellow?, f.options %>
       <%= hidden_field_tag "player_game[#{f.options[:index]}][red]", "0", f.options %>
+      <%= check_box_tag "player_game[#{f.options[:index]}][red]", "1", player_squad.red?, f.options %>
     <% end %>
   </div>
 </div>
