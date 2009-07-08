@@ -15,15 +15,15 @@ function receiveDrop(drag, drop) {
   var aet = drop.id.replace(/.*_(regulation|aet)_.*/, "$1");
   var idx = drop.id.replace(/.*_goal_player_/, "");
   drop.innerHTML = drag.innerHTML;
-  penalty = $(home_away + "_" + aet + "_goal[" + idx + "][penalty]");
+  penalty = $(home_away + "_" + aet + "_goal_" + idx + "_penalty");
   if (drag.id.match(home_away)) {
     penalty.disabled = false;
   } else {
     penalty.disabled = true;
     penalty.checked = false;
   }
-  own_check = $(home_away + "_" + aet + "_goal[" + idx + "][own_goal_check]");
-  own = $(home_away + "_" + aet + "_goal[" + idx + "][own_goal]");
+  own_check = $(home_away + "_" + aet + "_goal_" + idx + "_own_goal_check");
+  own = $(home_away + "_" + aet + "_goal_" + idx + "_own_goal");
   if (drag.id.match(home_away)) {
     own_check.checked = false;
     own.value = "0";
@@ -31,7 +31,7 @@ function receiveDrop(drag, drop) {
     own_check.checked = true;
     own.value = "1";
   }
-  input = $(home_away + "_" + aet + "_goal[" + idx + "][player_id]");
+  input = $(home_away + "_" + aet + "_goal_" + idx + "_player_id");
   input.value = drag.id.replace(/.*_player_/, "");
 }
 EOF
@@ -59,13 +59,13 @@ EOF
         <label for="aet"><small><%= _("Extra time") %>:</small></label> <%= check_box_tag "aet", "1", @game.home_aet, :onChange => "if (this.checked) { $('game_home_aet').enable(); $('game_away_aet').enable(); } else { $('game_home_aet').disable(); $('game_away_aet').disable(); }" %>
       </td>
       <td>
+        <%= hidden_field_tag "game[home_aet]", "", :id => "game_home_aet_hidden" %>
         <%= g.text_field :home_aet, :size => 2, :disabled => @game.home_aet.nil? %>
-        <%= hidden_field_tag "game[home_aet]", "" %>
       </td>
       <td>x</td>
       <td>
+        <%= hidden_field_tag "game[away_aet]", "", :id => "game_away_aet_hidden" %>
         <%= g.text_field :away_aet, :size => 2, :disabled => @game.away_aet.nil? %>
-        <%= hidden_field_tag "game[away_aet]", "" %>
       </td>
       <td></td>
     </tr>
@@ -74,13 +74,13 @@ EOF
         <label for="penalties"><small><%= _("Penalties") %>:</small></label> <%= check_box_tag "penalties", "1", @game.home_pen, :onChange => "if (this.checked) { $('game_home_pen').enable(); $('game_away_pen').enable(); } else { $('game_home_pen').disable(); $('game_away_pen').disable(); }" %>
       </td>
       <td>
+        <%= hidden_field_tag "game[home_pen]", "", :id => "game_home_pen_hidden" %>
         <%= g.text_field :home_pen, :size => 2, :disabled => @game.home_pen.nil? %>
-        <%= hidden_field_tag "game[home_pen]", "" %>
       </td>
       <td>x</td>
       <td>
+        <%= hidden_field_tag "game[away_pen]", "", :id => "game_away_pen_hidden" %>
         <%= g.text_field :away_pen, :size => 2, :disabled => @game.away_pen.nil? %>
-        <%= hidden_field_tag "game[away_pen]", "" %>
       </td>
       <td></td>
     </tr>
@@ -257,8 +257,8 @@ function updateGoalTable(home_away, aet, value) {
       tr.appendChild(td);
       input = document.createElement("INPUT");
       input.type = "hidden";
-      input.id = prefix + "_goal[" + i + "][player_id]";
-      input.name = input.id;
+      input.name = prefix + "_goal[" + i + "][player_id]";
+      input.id = prefix + "_goal_" + i + "_player_id";
       input.value = "";
       td.appendChild(input);
       div = document.createElement("DIV");
@@ -268,8 +268,8 @@ function updateGoalTable(home_away, aet, value) {
       td = document.createElement("TD");
       tr.appendChild(td);
       input = document.createElement("INPUT");
-      input.id = prefix + "_goal[" + i + "][time]";
-      input.name = input.id;
+      input.name = prefix + "_goal[" + i + "][time]";
+      input.id = prefix + "_goal_" + i + "_time";
       input.size = 2;
       input.type = "text";
       input.value = "";
@@ -277,35 +277,35 @@ function updateGoalTable(home_away, aet, value) {
       td = document.createElement("TD");
       tr.appendChild(td);
       input = document.createElement("INPUT");
-      input.id = prefix + "_goal[" + i + "][penalty]";
-      input.name = input.id;
-      input.type = "checkbox";
-      input.value = "1";
-      td.appendChild(input);
-      input = document.createElement("INPUT");
-      input.id = prefix + "_goal[" + i + "][penalty]";
-      input.name = input.id;
+      input.name = prefix + "_goal[" + i + "][penalty]";
+      input.id = prefix + "_goal_" + i + "_penalty_hidden";
       input.type = "hidden";
       input.value = "0";
+      td.appendChild(input);
+      input = document.createElement("INPUT");
+      input.name = prefix + "_goal[" + i + "][penalty]";
+      input.id = prefix + "_goal_" + i + "_penalty";
+      input.type = "checkbox";
+      input.value = "1";
       td.appendChild(input);
       td = document.createElement("TD");
       tr.appendChild(td);
       input = document.createElement("INPUT");
-      input.id = prefix + "_goal[" + i + "][own_goal_check]";
-      input.name = input.id;
+      input.name = prefix + "_goal[" + i + "][own_goal]";
+      input.id = prefix + "_goal_" + i + "_own_goal";
+      input.type = "hidden";
+      input.value = "0";
+      td.appendChild(input);
+      input = document.createElement("INPUT");
+      input.name = prefix + "_goal[" + i + "][own_goal_check]";
+      input.id = prefix + "_goal_" + i + "_own_goal_check";
       input.disabled = true;
       input.type = "checkbox";
       input.value = "1";
       td.appendChild(input);
       input = document.createElement("INPUT");
-      input.id = prefix + "_goal[" + i + "][own_goal]";
-      input.name = input.id;
-      input.type = "hidden";
-      input.value = "0";
-      td.appendChild(input);
-      input = document.createElement("INPUT");
-      input.id = prefix + "_goal[" + i + "][aet]";
-      input.name = input.id;
+      input.name = prefix + "_goal[" + i + "][aet]";
+      input.id = prefix + "_goal_" + i + "_aet";
       input.type = "hidden";
       input.value = aet == "aet" ? "1" : "0";
       td.appendChild(input);
