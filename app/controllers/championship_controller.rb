@@ -299,20 +299,24 @@ class ChampionshipController < ApplicationController
 
   def top_goalscorers
     @championship = Championship.find(params["id"])
-    @goals = @championship.goals.paginate :finder => :count,
-                                          :page => params[:page],
-                                          :group => :player,
-                                          :conditions => { :own_goal => 0 },
-                                          :limit => 10,
-                                          :order => "count_all DESC"
-    players = @goals.map{|p,c| p}
+    # we do pagination by hand because will_paginate doesn't like the
+    # OrderedHash returned by the count method
+    page = (params[:page] || 1).to_i
+    per_page = 30
+    offset = (page - 1) * per_page
+    scorers = @championship.goals.count :group => :player,
+                                        :conditions => { :own_goal => 0 },
+                                        :order => "count_all DESC"
+    @scorer_pagination = WillPaginate::Collection.new(page, per_page, scorers.size)
+    @scorers = scorers.keys[offset, per_page].map{|k| [ k, scorers[k] ] }
+    players = @scorers.map{|p,c| p}
     @teams = @championship.goals.calculate :group_concat,
                                            :all,
                                            :group => :player,
                                            :conditions => { :player_id => players },
                                            :select => "DISTINCT(team_id)"
-    @teams.map! do |p,t|
-      [p, t.split(',').map{ |id| Team.find id } ]
+    @teams.each do |p,t|
+      @teams[p] = t.split(',').map{ |id| Team.find id }
     end
     @own = @championship.goals.count :group => :player,
                                      :conditions => { :own_goal => 1,

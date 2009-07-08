@@ -5,7 +5,7 @@
   <%= @championship.full_name %>
 <% end %>
 
-<% if @goals.length == 0 %>
+<% if @scorers.length == 0 %>
   <p><%= _("No players in this list") %></p>
 <% else %>
 
@@ -21,7 +21,7 @@
       <th><%= _("Penalties") %></th>
       <th><%= _("Own Goals") %></th>
     </tr>
-    <% @goals.each do |player, goals| %>
+    <% @scorers.each do |player, goals| %>
       <tr class='table_line'>
         <td><%= link_to player.name, :controller => :player, :action => :show, :id => player %></td>
         <td><%= player.position %></td>
@@ -34,7 +34,7 @@
   </table>
 </div>
 
-<%= will_paginate @goals %>
+<%= will_paginate @scorer_pagination %>
 
  <% end %>
 
