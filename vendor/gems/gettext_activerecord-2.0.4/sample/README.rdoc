@@ -1,0 +1,9 @@
+= Sample for gettext_activerecord
+== USAGE
+(Install sqlite3 and sqlite3-ruby first)
+
+$ Edit config/database.yml if you need.
+$ rake createdb
+$ rake makemo
+$ ruby sample.rb
+  (or ruby -I/gettext/path/lib sample.rb)

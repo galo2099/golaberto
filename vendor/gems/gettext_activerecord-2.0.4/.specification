@@ -1,0 +1,254 @@
+--- !ruby/object:Gem::Specification 
+name: gettext_activerecord
+version: !ruby/object:Gem::Version 
+  version: 2.0.4
+platform: ruby
+authors: 
+- Masao Mutoh
+autorequire: 
+bindir: bin
+cert_chain: []
+
+date: 2009-05-22 00:00:00 -03:00
+default_executable: 
+dependencies: 
+- !ruby/object:Gem::Dependency 
+  name: gettext
+  type: :runtime
+  version_requirement: 
+  version_requirements: !ruby/object:Gem::Requirement 
+    requirements: 
+    - - ">="
+      - !ruby/object:Gem::Version 
+        version: 2.0.4
+    version: 
+- !ruby/object:Gem::Dependency 
+  name: activerecord
+  type: :runtime
+  version_requirement: 
+  version_requirements: !ruby/object:Gem::Requirement 
+    requirements: 
+    - - ">="
+      - !ruby/object:Gem::Version 
+        version: 2.3.2
+    version: 
+description: Localization support for ActiveRecord by Ruby-GetText-Package.
+email: mutomasa at gmail.com
+executables: []
+
+extensions: []
+
+extra_rdoc_files: []
+
+files: 
+- po
+- po/es
+- po/es/gettext_activerecord.po
+- po/el
+- po/el/gettext_activerecord.po
+- po/cs
+- po/cs/gettext_activerecord.po
+- po/ko
+- po/ko/gettext_activerecord.po
+- po/sr
+- po/sr/gettext_activerecord.po
+- po/nb
+- po/nb/gettext_activerecord.po
+- po/zh
+- po/zh/gettext_activerecord.po
+- po/eo
+- po/eo/gettext_activerecord.po
+- po/vi
+- po/vi/gettext_activerecord.po
+- po/nl
+- po/nl/gettext_activerecord.po
+- po/fr
+- po/fr/gettext_activerecord.po
+- po/bg
+- po/bg/gettext_activerecord.po
+- po/hu
+- po/hu/gettext_activerecord.po
+- po/ua
+- po/ua/gettext_activerecord.po
+- po/hr
+- po/hr/gettext_activerecord.po
+- po/et
+- po/et/gettext_activerecord.po
+- po/lv
+- po/lv/gettext_activerecord.po
+- po/it
+- po/it/gettext_activerecord.po
+- po/pt_BR
+- po/pt_BR/gettext_activerecord.po
+- po/ja
+- po/ja/gettext_activerecord.po
+- po/zh_TW
+- po/zh_TW/gettext_activerecord.po
+- po/ru
+- po/ru/gettext_activerecord.po
+- po/bs
+- po/bs/gettext_activerecord.po
+- po/de
+- po/de/gettext_activerecord.po
+- po/gettext_activerecord.pot
+- po/ca
+- po/ca/gettext_activerecord.po
+- ChangeLog
+- COPYING
+- lib
+- lib/gettext_activerecord
+- lib/gettext_activerecord/tools.rb
+- lib/gettext_activerecord/base.rb
+- lib/gettext_activerecord/version.rb
+- lib/gettext_activerecord/migration.rb
+- lib/gettext_activerecord/parser.rb
+- lib/gettext_activerecord/schema_definitions.rb
+- lib/gettext_activerecord/validations.rb
+- lib/gettext_activerecord/i18n.rb
+- lib/gettext_activerecord.rb
+- README.rdoc
+- test
+- test/test_parser.rb
+- test/po
+- test/po/ja
+- test/po/ja/active_record.po
+- test/po/active_record.pot
+- test/helper.rb
+- test/locale
+- test/locale/ja
+- test/locale/ja/LC_MESSAGES
+- test/locale/ja/LC_MESSAGES/active_record.mo
+- test/test_validations.rb
+- test/db
+- test/db/sqlite.rb
+- test/db/migrate.rb
+- test/models
+- test/models/user.rb
+- test/models/topic.rb
+- test/models/book.rb
+- test/models/wizard.rb
+- test/models/inept_wizard.rb
+- test/models/reply.rb
+- test/models/developer.rb
+- test/vendor
+- test/vendor/repair_helper.rb
+- test/Rakefile
+- sample
+- sample/po
+- sample/po/sample_ar.pot
+- sample/po/ja
+- sample/po/ja/sample_ar.po
+- sample/book.rb
+- sample/sample.rb
+- sample/db
+- sample/db/schema.rb
+- sample/README.rdoc
+- sample/config
+- sample/config/database.yml
+- sample/Rakefile
+- data
+- data/locale
+- data/locale/es
+- data/locale/es/LC_MESSAGES
+- data/locale/es/LC_MESSAGES/gettext_activerecord.mo
+- data/locale/el
+- data/locale/el/LC_MESSAGES
+- data/locale/el/LC_MESSAGES/gettext_activerecord.mo
+- data/locale/cs
+- data/locale/cs/LC_MESSAGES
+- data/locale/cs/LC_MESSAGES/gettext_activerecord.mo
+- data/locale/ko
+- data/locale/ko/LC_MESSAGES
+- data/locale/ko/LC_MESSAGES/gettext_activerecord.mo
+- data/locale/sr
+- data/locale/sr/LC_MESSAGES
+- data/locale/sr/LC_MESSAGES/gettext_activerecord.mo
+- data/locale/nb
+- data/locale/nb/LC_MESSAGES
+- data/locale/nb/LC_MESSAGES/gettext_activerecord.mo
+- data/locale/zh
+- data/locale/zh/LC_MESSAGES
+- data/locale/zh/LC_MESSAGES/gettext_activerecord.mo
+- data/locale/eo
+- data/locale/eo/LC_MESSAGES
+- data/locale/eo/LC_MESSAGES/gettext_activerecord.mo
+- data/locale/vi
+- data/locale/vi/LC_MESSAGES
+- data/locale/vi/LC_MESSAGES/gettext_activerecord.mo
+- data/locale/nl
+- data/locale/nl/LC_MESSAGES
+- data/locale/nl/LC_MESSAGES/gettext_activerecord.mo
+- data/locale/fr
+- data/locale/fr/LC_MESSAGES
+- data/locale/fr/LC_MESSAGES/gettext_activerecord.mo
+- data/locale/bg
+- data/locale/bg/LC_MESSAGES
+- data/locale/bg/LC_MESSAGES/gettext_activerecord.mo
+- data/locale/hu
+- data/locale/hu/LC_MESSAGES
+- data/locale/hu/LC_MESSAGES/gettext_activerecord.mo
+- data/locale/ua
+- data/locale/ua/LC_MESSAGES
+- data/locale/ua/LC_MESSAGES/gettext_activerecord.mo
+- data/locale/hr
+- data/locale/hr/LC_MESSAGES
+- data/locale/hr/LC_MESSAGES/gettext_activerecord.mo
+- data/locale/et
+- data/locale/et/LC_MESSAGES
+- data/locale/et/LC_MESSAGES/gettext_activerecord.mo
+- data/locale/lv
+- data/locale/lv/LC_MESSAGES
+- data/locale/lv/LC_MESSAGES/gettext_activerecord.mo
+- data/locale/it
+- data/locale/it/LC_MESSAGES
+- data/locale/it/LC_MESSAGES/gettext_activerecord.mo
+- data/locale/pt_BR
+- data/locale/pt_BR/LC_MESSAGES
+- data/locale/pt_BR/LC_MESSAGES/gettext_activerecord.mo
+- data/locale/ja
+- data/locale/ja/LC_MESSAGES
+- data/locale/ja/LC_MESSAGES/gettext_activerecord.mo
+- data/locale/zh_TW
+- data/locale/zh_TW/LC_MESSAGES
+- data/locale/zh_TW/LC_MESSAGES/gettext_activerecord.mo
+- data/locale/ru
+- data/locale/ru/LC_MESSAGES
+- data/locale/ru/LC_MESSAGES/gettext_activerecord.mo
+- data/locale/bs
+- data/locale/bs/LC_MESSAGES
+- data/locale/bs/LC_MESSAGES/gettext_activerecord.mo
+- data/locale/de
+- data/locale/de/LC_MESSAGES
+- data/locale/de/LC_MESSAGES/gettext_activerecord.mo
+- data/locale/ca
+- data/locale/ca/LC_MESSAGES
+- data/locale/ca/LC_MESSAGES/gettext_activerecord.mo
+- Rakefile
+has_rdoc: true
+homepage: http://gettext.rubyforge.org/
+post_install_message: 
+rdoc_options: []
+
+require_paths: 
+- lib
+required_ruby_version: !ruby/object:Gem::Requirement 
+  requirements: 
+  - - ">="
+    - !ruby/object:Gem::Version 
+      version: "0"
+  version: 
+required_rubygems_version: !ruby/object:Gem::Requirement 
+  requirements: 
+  - - ">="
+    - !ruby/object:Gem::Version 
+      version: "0"
+  version: 
+requirements: []
+
+rubyforge_project: gettext
+rubygems_version: 1.3.1
+signing_key: 
+specification_version: 2
+summary: Localization support for ActiveRecord by Ruby-GetText-Package.
+test_files: []
+

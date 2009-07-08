@@ -1,0 +1,24 @@
+= gettext_rails-2.0.4 (2009-05-23)
+ * Updated version/dependencies.
+
+= gettext_rails-2.0.3 (2009-05-09)
+ * Fixed the dependencies. [Reported by Hans de Graaff]
+
+= gettext_rails-2.0.2 (2009-05-07)
+ * Update Dutch translation [by Bart ten Brinke]
+ * Apply the gettext-2.0.2 changes((don't use bindtextdomain with :supported_language_tags)
+ * Fix the bug of sample.
+
+= gettext_rails-2.0.1 (2009-04-18)
+ * Fix bugs
+    * ActionMailer didn't work.  [Reported by Simone Carletti]
+    * error_messages_for doesn't have compatibility with original method. [by
+    Adam Ilan]
+
+Thanks to:
+  Simone Carletti, Adam Ilan
+
+= gettext_rails-2.0.0 (2009-03-22)
+
+* Support Rails-2.3.2.
+* Work with other I18n backends.

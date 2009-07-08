@@ -1,0 +1,116 @@
+#
+# a po-file for Ruby-GetText-Package and Ruby on Rails.
+#
+# Copyright (C) 2005-2008 Masao Mutoh
+#
+# This file is distributed under the same license as the Ruby-GetText-Package.
+#
+# Masao Mutoh, 2005-2008.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: gettext_activerecord 0.1.0\n"
+"POT-Creation-Date: 2009-02-09 01:48+0900\n"
+"PO-Revision-Date: 2008-07-13 15:10+0900\n"
+"Last-Translator: Masao Mutoh\n"
+"Language-Team: Japanese\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: lib/gettext_activerecord/parser.rb:60
+msgid "'%{file}' is not found."
+msgstr ""
+
+#: lib/gettext_activerecord/parser.rb:104
+msgid "Ignored '%{file}'. Solve dependencies first."
+msgstr ""
+
+#: lib/gettext_activerecord/parser.rb:131
+msgid "No database is available."
+msgstr ""
+
+#: lib/gettext_activerecord/parser.rb:167
+msgid "rubygems are not found."
+msgstr ""
+
+#: lib/gettext_activerecord/active_record.rb:27
+msgid "Validation failed: %{error_messages}"
+msgstr "入力値が正しくありません。: %{error_messages}"
+
+#: lib/gettext_activerecord/active_record.rb:218
+msgid "%{attribute} is not included in the list"
+msgstr "%{attribute}は一覧にありません。"
+
+#: lib/gettext_activerecord/active_record.rb:219
+msgid "%{attribute} is reserved"
+msgstr "%{attribute}は予約されています。"
+
+#: lib/gettext_activerecord/active_record.rb:220
+msgid "%{attribute} is invalid"
+msgstr "%{attribute}は不正な値です。"
+
+#: lib/gettext_activerecord/active_record.rb:221
+msgid "%{attribute} doesn't match confirmation"
+msgstr "%{attribute}が一致しません。"
+
+#: lib/gettext_activerecord/active_record.rb:222
+msgid "%{attribute} must be accepted"
+msgstr "%{attribute}を受諾してください。"
+
+#: lib/gettext_activerecord/active_record.rb:223
+msgid "%{attribute} can't be empty"
+msgstr "%{attribute}を入力してください。"
+
+#: lib/gettext_activerecord/active_record.rb:224
+msgid "%{attribute} can't be blank"
+msgstr "%{attribute}を入力してください。"
+
+#: lib/gettext_activerecord/active_record.rb:225
+msgid "%{attribute} is too long (maximum is %{count} characters)"
+msgstr "%{attribute}は%{count}文字以内で入力してください。"
+
+#: lib/gettext_activerecord/active_record.rb:226
+msgid "%{attribute} is too short (minimum is %{count} characters)"
+msgstr "%{attribute}は%{count}文字以上で入力してください。"
+
+#: lib/gettext_activerecord/active_record.rb:227
+msgid "%{attribute} is the wrong length (should be %{count} characters)"
+msgstr "%{attribute}は%{count}文字で入力してください。"
+
+#: lib/gettext_activerecord/active_record.rb:228
+msgid "%{attribute} has already been taken"
+msgstr "%{attribute}はすでに存在します。"
+
+#: lib/gettext_activerecord/active_record.rb:229
+msgid "%{attribute} is not a number"
+msgstr "%{attribute}は数値で入力してください。"
+
+#: lib/gettext_activerecord/active_record.rb:230
+msgid "%{attribute} must be greater than %{count}"
+msgstr "%{attribute}は%{count}より大きい値にしてください。"
+
+#: lib/gettext_activerecord/active_record.rb:231
+msgid "%{attribute} must be greater than or equal to %{count}"
+msgstr "%{attribute}は%{count}以上の値にしてください。"
+
+#: lib/gettext_activerecord/active_record.rb:232
+msgid "%{attribute} must be equal to %{count}"
+msgstr "%{attribute}は%{count}にしてください。"
+
+#: lib/gettext_activerecord/active_record.rb:233
+msgid "%{attribute} must be less than %{count}"
+msgstr "%{attribute}は%{count}より小さい値にしてください。"
+
+#: lib/gettext_activerecord/active_record.rb:234
+msgid "%{attribute} must be less than or equal to %{count}"
+msgstr "%{attribute}は%{count}以下の値にしてください。"
+
+#: lib/gettext_activerecord/active_record.rb:235
+msgid "%{attribute} must be odd"
+msgstr "%{attribute}は奇数にしてください。"
+
+#: lib/gettext_activerecord/active_record.rb:236
+msgid "%{attribute} must be even"
+msgstr "%{attribute}は偶数にしてください。"
