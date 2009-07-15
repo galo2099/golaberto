@@ -214,7 +214,8 @@ module OpenIdAuthentication
     def open_id_redirect_url(open_id_request, return_to = nil, method = nil)
       open_id_request.return_to_args['_method'] = (method || request.method).to_s
       open_id_request.return_to_args['open_id_complete'] = '1'
-      open_id_request.redirect_url(root_url, return_to || requested_url)
+      # TODO(robson): figure out a better way not to break compatibility with the old real that didn't have a slash
+      open_id_request.redirect_url("#{request.protocol + request.host_with_port}", return_to || requested_url)
     end
 
     def requested_url
