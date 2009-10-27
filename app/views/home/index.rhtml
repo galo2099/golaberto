@@ -45,3 +45,8 @@
   <% end %>
 </div>
 
+<% content_for :sidebar do %>
+  <font size="2"><%= _("GolAberto is a collaborative site that is updated by its users. Registered users can give information by commenting on items. The top users are promoted to editors who can edit the site and create new championships.") %></font>
+  <br><br>
+  <%= _("Contact:") %> <%= mail_to "golaberto@gmail.com" %>
+<% end %>

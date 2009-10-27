@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2009-05-31 21:42-0300\n"
+"POT-Creation-Date: 2009-10-26 22:56-0200\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -234,6 +234,106 @@ msgid_plural "%{num} days"
 msgstr[0] ""
 msgstr[1] ""
 
+#: app/models/category.rb:-
+msgid "delayed job"
+msgstr ""
+
+#: app/models/category.rb:-
+msgid "delayed::job"
+msgstr ""
+
+#: app/models/category.rb:-
+msgid "Delayed::Job|Priority"
+msgstr ""
+
+#: app/models/category.rb:-
+msgid "Delayed::Job|Attempts"
+msgstr ""
+
+#: app/models/category.rb:-
+msgid "Delayed::Job|Handler"
+msgstr ""
+
+#: app/models/category.rb:-
+msgid "Delayed::Job|Last error"
+msgstr ""
+
+#: app/models/category.rb:-
+msgid "Delayed::Job|Run at"
+msgstr ""
+
+#: app/models/category.rb:-
+msgid "Delayed::Job|Locked at"
+msgstr ""
+
+#: app/models/category.rb:-
+msgid "Delayed::Job|Failed at"
+msgstr ""
+
+#: app/models/category.rb:-
+msgid "Delayed::Job|Locked by"
+msgstr ""
+
+#: app/models/category.rb:-
+msgid "Delayed::Job|Created at"
+msgstr ""
+
+#: app/models/category.rb:-
+msgid "Delayed::Job|Updated at"
+msgstr ""
+
+#: app/models/category.rb:-
+msgid "open id authentication association"
+msgstr ""
+
+#: app/models/category.rb:-
+msgid "openidauthentication::association"
+msgstr ""
+
+#: app/models/category.rb:-
+msgid "OpenIdAuthentication::Association|Issued"
+msgstr ""
+
+#: app/models/category.rb:-
+msgid "OpenIdAuthentication::Association|Lifetime"
+msgstr ""
+
+#: app/models/category.rb:-
+msgid "OpenIdAuthentication::Association|Handle"
+msgstr ""
+
+#: app/models/category.rb:-
+msgid "OpenIdAuthentication::Association|Assoc type"
+msgstr ""
+
+#: app/models/category.rb:-
+msgid "OpenIdAuthentication::Association|Server url"
+msgstr ""
+
+#: app/models/category.rb:-
+msgid "OpenIdAuthentication::Association|Secret"
+msgstr ""
+
+#: app/models/category.rb:-
+msgid "open id authentication nonce"
+msgstr ""
+
+#: app/models/category.rb:-
+msgid "openidauthentication::nonce"
+msgstr ""
+
+#: app/models/category.rb:-
+msgid "OpenIdAuthentication::Nonce|Timestamp"
+msgstr ""
+
+#: app/models/category.rb:-
+msgid "OpenIdAuthentication::Nonce|Server url"
+msgstr ""
+
+#: app/models/category.rb:-
+msgid "OpenIdAuthentication::Nonce|Salt"
+msgstr ""
+
 # app/models/category.rb:-
 #: app/models/category.rb:-
 msgid "category"
@@ -303,47 +403,6 @@ msgstr ""
 
 #: app/models/comment.rb:-
 msgid "Comment|User"
-msgstr ""
-
-# app/models/goal.rb:-
-#: app/models/game.rb:-
-msgid "goal"
-msgstr ""
-
-# app/models/goal.rb:-
-#: app/models/game.rb:-
-msgid "Goal|Player"
-msgstr ""
-
-# app/models/goal.rb:-
-#: app/models/game.rb:-
-msgid "Goal|Game"
-msgstr ""
-
-# app/models/goal.rb:-
-#: app/models/game.rb:-
-msgid "Goal|Team"
-msgstr ""
-
-# app/models/goal.rb:-
-#: app/models/game.rb:- app/views/game/edit.rhtml:105
-#: app/views/game/edit.rhtml:112 app/views/game/edit.rhtml:122
-#: app/views/game/edit.rhtml:129
-msgid "Goal|Time"
-msgstr ""
-
-# app/models/goal.rb:-
-#: app/models/game.rb:-
-msgid "Goal|Penalty"
-msgstr ""
-
-# app/models/goal.rb:-
-#: app/models/game.rb:-
-msgid "Goal|Own goal"
-msgstr ""
-
-#: app/models/game.rb:-
-msgid "Goal|Aet"
 msgstr ""
 
 # app/models/game.rb:-
@@ -443,6 +502,47 @@ msgstr ""
 
 #: app/models/game.rb:-
 msgid "Game|Away aet"
+msgstr ""
+
+# app/models/goal.rb:-
+#: app/models/game.rb:-
+msgid "goal"
+msgstr ""
+
+# app/models/goal.rb:-
+#: app/models/game.rb:-
+msgid "Goal|Player"
+msgstr ""
+
+# app/models/goal.rb:-
+#: app/models/game.rb:-
+msgid "Goal|Game"
+msgstr ""
+
+# app/models/goal.rb:-
+#: app/models/game.rb:-
+msgid "Goal|Team"
+msgstr ""
+
+# app/models/goal.rb:-
+#: app/models/game.rb:- app/views/game/edit.rhtml:105
+#: app/views/game/edit.rhtml:112 app/views/game/edit.rhtml:122
+#: app/views/game/edit.rhtml:129
+msgid "Goal|Time"
+msgstr ""
+
+# app/models/goal.rb:-
+#: app/models/game.rb:-
+msgid "Goal|Penalty"
+msgstr ""
+
+# app/models/goal.rb:-
+#: app/models/game.rb:-
+msgid "Goal|Own goal"
+msgstr ""
+
+#: app/models/game.rb:-
+msgid "Goal|Aet"
 msgstr ""
 
 #: app/models/game.rb:114
@@ -911,7 +1011,7 @@ msgstr ""
 
 #: app/views/user/edit.html.erb:31 app/views/championship/edit.rhtml:44
 #: app/views/game/edit.rhtml:231 app/views/game/edit_squad.rhtml:99
-#: app/views/group/edit.rhtml:33 app/views/phase/edit.rhtml:47
+#: app/views/group/edit.rhtml:33 app/views/phase/edit.rhtml:51
 #: app/views/player/edit.rhtml:7 app/views/referee/edit.rhtml:7
 #: app/views/stadium/edit.rhtml:7 app/views/team/edit.rhtml:7
 msgid "Update"
@@ -1534,6 +1634,17 @@ msgstr ""
 msgid "View this %s"
 msgstr ""
 
+#: app/views/home/index.rhtml:49
+msgid ""
+"GolAberto is a collaborative site that is updated by its users. Registered "
+"users can give information by commenting on items. The top users are "
+"promoted to editors who can edit the site and create new championships."
+msgstr ""
+
+#: app/views/home/index.rhtml:51
+msgid "Contact:"
+msgstr ""
+
 #: app/views/layouts/application.rhtml:31
 msgid "Championships"
 msgstr ""
@@ -1563,19 +1674,19 @@ msgstr ""
 msgid "Bonus points for win?"
 msgstr ""
 
-#: app/views/phase/edit.rhtml:33
+#: app/views/phase/edit.rhtml:35
 msgid "Goal difference equal to<br/>or bigger than"
 msgstr ""
 
-#: app/views/phase/edit.rhtml:41
+#: app/views/phase/edit.rhtml:45
 msgid "Add 4 more groups"
 msgstr ""
 
-#: app/views/phase/edit.rhtml:43
+#: app/views/phase/edit.rhtml:47
 msgid "Add new group"
 msgstr ""
 
-#: app/views/phase/edit.rhtml:43
+#: app/views/phase/edit.rhtml:47
 msgid "More groups can be added later"
 msgstr ""
 
