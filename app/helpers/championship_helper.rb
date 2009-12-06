@@ -141,7 +141,7 @@ module ChampionshipHelper
     end
 
     def next_game
-      Game.find(:first, :conditions => [ "(home_id = ? OR away_id = ?) AND phase_id = ? AND played = ?", @team_id, @team_id, @team_group.group.phase, false ], :order => :date)
+      Game.find(:first, :conditions => [ "(home_id = ? OR away_id = ?) AND phase_id = ? AND played = ? AND date >= ?", @team_id, @team_id, @team_group.group.phase, false, Date.today ], :order => :date)
     end
   end
 end
