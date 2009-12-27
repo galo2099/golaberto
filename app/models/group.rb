@@ -135,33 +135,26 @@ class Group < ActiveRecord::Base
     if (tied_teams.size == team_class.size) then
       return 0
     end
-    if @cached_team_class != team_class or @cached_sub_team_class.nil? or @cached_sub_team_class[[a,b]].nil?
-      if @cached_team_class != team_class
-        @cached_team_class = team_class
-        @cached_sub_team_class = Hash.new
-      end
-      games = Array.new
-      games << get_game(team_class, a, b)
-      games << get_game(team_class, b, a)
-      (tied_teams - [a,b]).each do |t|
-        games << get_game(team_class, a, t)
-        games << get_game(team_class, t, a)
-        games << get_game(team_class, b, t)
-        games << get_game(team_class, t, b)
-      end
-      games = games.select{|g|!g.nil?}
-      sub_team_class = Hash.new
-      tied_teams.each do |t|
-        sub_team_class[t] = ChampionshipHelper::TeamCampaign.new(team_class[t].team_group)
-      end
-      games.each do |home_id, away_id, home_score, away_score|
-        sub_team_class.values.each do |stat|
-          stat.add_game_score_only home_id, away_id, home_score, away_score
-        end
-      end
-      @cached_sub_team_class[[a,b]] = sub_team_class
+    games = Array.new
+    games << get_game(team_class, a, b)
+    games << get_game(team_class, b, a)
+    (tied_teams - [a,b]).each do |t|
+      games << get_game(team_class, a, t)
+      games << get_game(team_class, t, a)
+      games << get_game(team_class, b, t)
+      games << get_game(team_class, t, b)
     end
-    compare_teams(@cached_sub_team_class[[a,b]], @columns - ['name'], a, b)
+    games = games.select{|g|!g.nil?}
+    sub_team_class = Hash.new
+    tied_teams.each do |t|
+      sub_team_class[t] = ChampionshipHelper::TeamCampaign.new(team_class[t].team_group)
+    end
+    games.each do |home_id, away_id, home_score, away_score|
+      sub_team_class.values.each do |stat|
+        stat.add_game_score_only home_id, away_id, home_score, away_score
+      end
+    end
+    compare_teams(sub_team_class, @columns - ['name'], a, b)
   end
 
   def compare_teams(team_class, columns, a, b)
