@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2009-10-26 22:56-0200\n"
+"POT-Creation-Date: 2009-12-28 01:35-0200\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: Robson Braga Araujo <robsonbraga@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -164,6 +164,967 @@ msgstr "Anterior "
 msgid " Next"
 msgstr " Próximo"
 
+#: app/helpers/application_helper.rb:31
+msgid "Afghanistan"
+msgstr "Afeganistão"
+
+#: app/helpers/application_helper.rb:32
+msgid "Albania"
+msgstr "Albânia"
+
+#: app/helpers/application_helper.rb:33
+msgid "Algeria"
+msgstr "Argélia"
+
+#: app/helpers/application_helper.rb:34
+msgid "American Samoa"
+msgstr "Samoa Americana"
+
+#: app/helpers/application_helper.rb:35
+msgid "Andorra"
+msgstr "Andorra"
+
+# app/models/goal.rb:-
+#: app/helpers/application_helper.rb:36
+msgid "Angola"
+msgstr "Angola"
+
+#: app/helpers/application_helper.rb:37
+msgid "Anguilla"
+msgstr "Anguilla"
+
+#: app/helpers/application_helper.rb:38
+msgid "Antigua And Barbuda"
+msgstr "Antígua e Barbuda"
+
+#: app/helpers/application_helper.rb:39
+msgid "Argentina"
+msgstr "Argentina"
+
+#: app/helpers/application_helper.rb:40
+msgid "Armenia"
+msgstr "Armênia"
+
+#: app/helpers/application_helper.rb:41
+msgid "Aruba"
+msgstr "Aruba"
+
+#: app/helpers/application_helper.rb:42
+msgid "Australia"
+msgstr "Austrália"
+
+#: app/helpers/application_helper.rb:43
+msgid "Austria"
+msgstr "Áustria"
+
+#: app/helpers/application_helper.rb:44
+msgid "Azerbaijan"
+msgstr "Azerbeijão"
+
+#: app/helpers/application_helper.rb:45
+msgid "Bahamas"
+msgstr "Bahamas"
+
+#: app/helpers/application_helper.rb:46
+msgid "Bahrain"
+msgstr "Bahrein"
+
+#: app/helpers/application_helper.rb:47
+msgid "Bangladesh"
+msgstr "Bangladesh"
+
+#: app/helpers/application_helper.rb:48
+msgid "Barbados"
+msgstr "Barbados"
+
+#: app/helpers/application_helper.rb:49
+msgid "Belarus"
+msgstr "Bielorrússia"
+
+#: app/helpers/application_helper.rb:50
+msgid "Belgium"
+msgstr "Bélgica"
+
+#: app/helpers/application_helper.rb:51
+msgid "Belize"
+msgstr "Belize"
+
+#: app/helpers/application_helper.rb:52
+msgid "Benin"
+msgstr "Benin"
+
+#: app/helpers/application_helper.rb:53
+msgid "Bermuda"
+msgstr "Bermuda"
+
+#: app/helpers/application_helper.rb:54
+msgid "Bhutan"
+msgstr "Butão"
+
+#: app/helpers/application_helper.rb:55
+msgid "Bolivia"
+msgstr "Bolívia"
+
+#: app/helpers/application_helper.rb:56
+msgid "Bosnia and Herzegovina"
+msgstr "Bósnia e Herzegovina"
+
+#: app/helpers/application_helper.rb:57
+msgid "Botswana"
+msgstr "Botswana"
+
+#: app/helpers/application_helper.rb:58
+msgid "Brazil"
+msgstr "Brasil"
+
+#: app/helpers/application_helper.rb:59
+msgid "British Indian Ocean Territory"
+msgstr "Território Britânico do Oceano Índico"
+
+#: app/helpers/application_helper.rb:60
+msgid "Brunei Darussalam"
+msgstr "Brunei"
+
+#: app/helpers/application_helper.rb:61
+msgid "Bulgaria"
+msgstr "Bulgária"
+
+#: app/helpers/application_helper.rb:62
+msgid "Burkina Faso"
+msgstr "Burkina Faso"
+
+#: app/helpers/application_helper.rb:63
+msgid "Burundi"
+msgstr "Burundi"
+
+#: app/helpers/application_helper.rb:64
+msgid "Cambodia"
+msgstr "Camboja"
+
+# app/models/game.rb:-
+#: app/helpers/application_helper.rb:65
+msgid "Cameroon"
+msgstr "Camarões"
+
+#: app/helpers/application_helper.rb:66
+msgid "Canada"
+msgstr "Canadá"
+
+#: app/helpers/application_helper.rb:67
+msgid "Cape Verde"
+msgstr "Cabo Verde"
+
+#: app/helpers/application_helper.rb:68
+msgid "Cayman Islands"
+msgstr "Ilhas Caiman"
+
+#: app/helpers/application_helper.rb:69
+msgid "Central African Republic"
+msgstr "República Centro-Africana"
+
+#: app/helpers/application_helper.rb:70
+msgid "Chad"
+msgstr "Chade"
+
+#: app/helpers/application_helper.rb:71
+msgid "Chile"
+msgstr "Chile"
+
+#: app/helpers/application_helper.rb:72
+msgid "China"
+msgstr "China"
+
+#: app/helpers/application_helper.rb:73
+msgid "Christmas Island"
+msgstr "Ilha Christmas"
+
+#: app/helpers/application_helper.rb:74
+msgid "Cocos (Keeling) Islands"
+msgstr "Ilhas Cocos (Keeling)"
+
+#: app/helpers/application_helper.rb:75
+msgid "Colombia"
+msgstr "Colômbia"
+
+#: app/helpers/application_helper.rb:76
+msgid "Comoros"
+msgstr "Comores"
+
+#: app/helpers/application_helper.rb:77
+msgid "Congo"
+msgstr "Congo"
+
+#: app/helpers/application_helper.rb:78
+msgid "Congo, the Democratic Republic of the"
+msgstr "Congo, República Democrática do"
+
+#: app/helpers/application_helper.rb:79
+msgid "Cook Islands"
+msgstr "Ilhas Cook"
+
+#: app/helpers/application_helper.rb:80
+msgid "Costa Rica"
+msgstr "Costa Rica"
+
+#: app/helpers/application_helper.rb:81
+msgid "Cote d'Ivoire"
+msgstr "Costa do Marfim"
+
+#: app/helpers/application_helper.rb:82
+msgid "Croatia"
+msgstr "Croácia"
+
+#: app/helpers/application_helper.rb:83
+msgid "Cuba"
+msgstr "Cuba"
+
+#: app/helpers/application_helper.rb:84
+msgid "Cyprus"
+msgstr "Chipre"
+
+#: app/helpers/application_helper.rb:85
+msgid "Czech Republic"
+msgstr "República Checa"
+
+#: app/helpers/application_helper.rb:86
+msgid "Denmark"
+msgstr "Dinamarca"
+
+#: app/helpers/application_helper.rb:87
+msgid "Djibouti"
+msgstr "Djibouti"
+
+#: app/helpers/application_helper.rb:88
+msgid "Dominica"
+msgstr "Dominica"
+
+#: app/helpers/application_helper.rb:89
+msgid "Dominican Republic"
+msgstr "República Dominicana"
+
+#: app/helpers/application_helper.rb:90
+msgid "East Timor"
+msgstr "Timor Leste"
+
+#: app/helpers/application_helper.rb:91
+msgid "Ecuador"
+msgstr "Equador"
+
+#: app/helpers/application_helper.rb:92
+msgid "Egypt"
+msgstr "Egito"
+
+#: app/helpers/application_helper.rb:93
+msgid "El Salvador"
+msgstr "El Salvador"
+
+#: app/helpers/application_helper.rb:94
+msgid "England"
+msgstr "Inglaterra"
+
+#: app/helpers/application_helper.rb:95
+msgid "Equatorial Guinea"
+msgstr "Guiné Equatorial"
+
+#: app/helpers/application_helper.rb:96
+msgid "Eritrea"
+msgstr "Eritréia"
+
+#: app/helpers/application_helper.rb:97
+msgid "Estonia"
+msgstr "Estônia"
+
+#: app/helpers/application_helper.rb:98
+msgid "Ethiopia"
+msgstr "Etiópia"
+
+#: app/helpers/application_helper.rb:99
+msgid "Falkland Islands"
+msgstr "Ilhas Malvinas"
+
+#: app/helpers/application_helper.rb:100
+msgid "Faroe Islands"
+msgstr "Ilhas Feroe"
+
+#: app/helpers/application_helper.rb:101
+msgid "Fiji"
+msgstr "Fiji"
+
+#: app/helpers/application_helper.rb:102
+msgid "Finland"
+msgstr "Finlândia"
+
+#: app/helpers/application_helper.rb:103
+msgid "France"
+msgstr "França"
+
+#: app/helpers/application_helper.rb:104
+msgid "French Guiana"
+msgstr "Guiana Francesa"
+
+#: app/helpers/application_helper.rb:105
+msgid "French Polynesia"
+msgstr "Polinésia Francesa"
+
+#: app/helpers/application_helper.rb:106
+msgid "French Southern Territories"
+msgstr "Terras Austrais e Antárticas Francesas"
+
+#: app/helpers/application_helper.rb:107
+msgid "Gabon"
+msgstr "Gabão"
+
+#: app/helpers/application_helper.rb:108
+msgid "Gambia"
+msgstr "Gâmbia"
+
+#: app/helpers/application_helper.rb:109
+msgid "Georgia"
+msgstr "Geórgia"
+
+#: app/helpers/application_helper.rb:110
+msgid "Germany"
+msgstr "Alemanha"
+
+#: app/helpers/application_helper.rb:111
+msgid "Ghana"
+msgstr "Gana"
+
+#: app/helpers/application_helper.rb:112
+msgid "Gibraltar"
+msgstr "Gibraltar"
+
+# app/models/referee.rb:-
+#: app/helpers/application_helper.rb:113
+msgid "Greece"
+msgstr "Grécia"
+
+#: app/helpers/application_helper.rb:114
+msgid "Greenland"
+msgstr "Groelândia"
+
+#: app/helpers/application_helper.rb:115
+msgid "Grenada"
+msgstr "Granada"
+
+#: app/helpers/application_helper.rb:116
+msgid "Guadeloupe"
+msgstr "Guadalupe"
+
+#: app/helpers/application_helper.rb:117
+msgid "Guam"
+msgstr "Guam"
+
+#: app/helpers/application_helper.rb:118
+msgid "Guatemala"
+msgstr "Guatemala"
+
+#: app/helpers/application_helper.rb:119
+msgid "Guinea"
+msgstr "Guiné"
+
+#: app/helpers/application_helper.rb:120
+msgid "Guinea-Bissau"
+msgstr "Guiné-Bissau"
+
+#: app/helpers/application_helper.rb:121
+msgid "Guyana"
+msgstr "Guiana"
+
+#: app/helpers/application_helper.rb:122
+msgid "Haiti"
+msgstr "Haiti"
+
+#: app/helpers/application_helper.rb:123
+msgid "Heard and Mc Donald Islands"
+msgstr "Ilha Heard e as Ilhas McDonald"
+
+#: app/helpers/application_helper.rb:124
+msgid "Honduras"
+msgstr "Honduras"
+
+#: app/helpers/application_helper.rb:125
+msgid "Hong Kong"
+msgstr "Hong Kong"
+
+#: app/helpers/application_helper.rb:126
+msgid "Hungary"
+msgstr "Hungria"
+
+#: app/helpers/application_helper.rb:127
+msgid "Iceland"
+msgstr "Islândia"
+
+#: app/helpers/application_helper.rb:128
+msgid "India"
+msgstr "Índia"
+
+#: app/helpers/application_helper.rb:129
+msgid "Indonesia"
+msgstr "Indonésia"
+
+#: app/helpers/application_helper.rb:130
+msgid "Ireland"
+msgstr "Irlanda"
+
+#: app/helpers/application_helper.rb:131
+msgid "Israel"
+msgstr "Israel"
+
+#: app/helpers/application_helper.rb:132
+msgid "Italy"
+msgstr "Itália"
+
+#: app/helpers/application_helper.rb:133
+msgid "Iran"
+msgstr "Irã"
+
+#: app/helpers/application_helper.rb:134
+msgid "Iraq"
+msgstr "Iraque"
+
+#: app/helpers/application_helper.rb:135
+msgid "Jamaica"
+msgstr "Jamaica"
+
+#: app/helpers/application_helper.rb:136
+msgid "Japan"
+msgstr "Japão"
+
+#: app/helpers/application_helper.rb:137
+msgid "Jordan"
+msgstr "Jordânia"
+
+#: app/helpers/application_helper.rb:138
+msgid "Kazakhstan"
+msgstr "Cazaquistão"
+
+#: app/helpers/application_helper.rb:139
+msgid "Kenya"
+msgstr "Quênia"
+
+#: app/helpers/application_helper.rb:140
+msgid "Kiribati"
+msgstr "Kiribati"
+
+#: app/helpers/application_helper.rb:141
+msgid "Kuwait"
+msgstr "Kuwait"
+
+#: app/helpers/application_helper.rb:142
+msgid "Kyrgyzstan"
+msgstr "Quirguistão"
+
+#: app/helpers/application_helper.rb:143
+msgid "Lao People's Democratic Republic"
+msgstr "Laos"
+
+#: app/helpers/application_helper.rb:144
+msgid "Latvia"
+msgstr "Letônia"
+
+#: app/helpers/application_helper.rb:145
+msgid "Lebanon"
+msgstr "Líbano"
+
+#: app/helpers/application_helper.rb:146
+msgid "Lesotho"
+msgstr "Lesoto"
+
+#: app/helpers/application_helper.rb:147
+msgid "Liberia"
+msgstr "Libéria"
+
+#: app/helpers/application_helper.rb:148
+msgid "Liechtenstein"
+msgstr "Liechtenstein"
+
+#: app/helpers/application_helper.rb:149
+msgid "Lithuania"
+msgstr "Lituânia"
+
+#: app/helpers/application_helper.rb:150
+msgid "Luxembourg"
+msgstr "Luxemburgo"
+
+#: app/helpers/application_helper.rb:151
+msgid "Macau"
+msgstr "Macau"
+
+#: app/helpers/application_helper.rb:152
+msgid "Macedonia"
+msgstr "Macedônia"
+
+#: app/helpers/application_helper.rb:153
+msgid "Madagascar"
+msgstr "Madagascar"
+
+#: app/helpers/application_helper.rb:154
+msgid "Malawi"
+msgstr "Malaui"
+
+#: app/helpers/application_helper.rb:155
+msgid "Malaysia"
+msgstr "Malásia"
+
+#: app/helpers/application_helper.rb:156
+msgid "Maldives"
+msgstr "Maldivas"
+
+#: app/helpers/application_helper.rb:157
+msgid "Mali"
+msgstr "Mali"
+
+#: app/helpers/application_helper.rb:158
+msgid "Malta"
+msgstr "Malta"
+
+#: app/helpers/application_helper.rb:159
+msgid "Marshall Islands"
+msgstr "Ilhas Marshall"
+
+#: app/helpers/application_helper.rb:160
+msgid "Martinique"
+msgstr "Martinica"
+
+#: app/helpers/application_helper.rb:161
+msgid "Mauritania"
+msgstr "Mauritânia"
+
+#: app/helpers/application_helper.rb:162
+msgid "Mauritius"
+msgstr "Maurício"
+
+#: app/helpers/application_helper.rb:163
+msgid "Mayotte"
+msgstr "Mayotte"
+
+#: app/helpers/application_helper.rb:164
+msgid "Mexico"
+msgstr "México"
+
+#: app/helpers/application_helper.rb:165
+msgid "Micronesia, Federated States of"
+msgstr "Micronésia"
+
+#: app/helpers/application_helper.rb:166
+msgid "Moldova, Republic of"
+msgstr "Moldávia"
+
+#: app/helpers/application_helper.rb:167
+msgid "Monaco"
+msgstr "Mônaco"
+
+#: app/helpers/application_helper.rb:168
+msgid "Mongolia"
+msgstr "Mongólia"
+
+#: app/helpers/application_helper.rb:169
+msgid "Montenegro"
+msgstr "Montenegro"
+
+#: app/helpers/application_helper.rb:170
+msgid "Montserrat"
+msgstr "Montserrat"
+
+#: app/helpers/application_helper.rb:171
+msgid "Morocco"
+msgstr "Marrocos"
+
+#: app/helpers/application_helper.rb:172
+msgid "Mozambique"
+msgstr "Moçambique"
+
+#: app/helpers/application_helper.rb:173
+msgid "Myanmar"
+msgstr "Myanmar"
+
+#: app/helpers/application_helper.rb:174
+msgid "Namibia"
+msgstr "Namíbia"
+
+#: app/helpers/application_helper.rb:175
+msgid "Nauru"
+msgstr "Nauru"
+
+#: app/helpers/application_helper.rb:176
+msgid "Nepal"
+msgstr "Nepal"
+
+#: app/helpers/application_helper.rb:177
+msgid "Netherlands"
+msgstr "Holanda"
+
+#: app/helpers/application_helper.rb:178
+msgid "Netherlands Antilles"
+msgstr "Antilhas Holandesas"
+
+#: app/helpers/application_helper.rb:179
+msgid "New Caledonia"
+msgstr "Nova Caledônia"
+
+#: app/helpers/application_helper.rb:180
+msgid "New Zealand"
+msgstr "Nova Zelândia"
+
+#: app/helpers/application_helper.rb:181
+msgid "Nicaragua"
+msgstr "Nicarágua"
+
+#: app/helpers/application_helper.rb:182
+msgid "Niger"
+msgstr "Níger"
+
+#: app/helpers/application_helper.rb:183
+msgid "Nigeria"
+msgstr "Nigéria"
+
+#: app/helpers/application_helper.rb:184
+msgid "Niue"
+msgstr "Niue"
+
+#: app/helpers/application_helper.rb:185
+msgid "Norfolk Island"
+msgstr "Ilha Norfolk"
+
+#: app/helpers/application_helper.rb:186
+msgid "North Korea"
+msgstr "Coréia do Norte"
+
+#: app/helpers/application_helper.rb:187
+msgid "Northern Ireland"
+msgstr "Irlanda do Norte"
+
+#: app/helpers/application_helper.rb:188
+msgid "Northern Mariana Islands"
+msgstr "Marianas Setentrionais"
+
+#: app/helpers/application_helper.rb:189
+msgid "Norway"
+msgstr "Noruega"
+
+#: app/helpers/application_helper.rb:190
+msgid "Oman"
+msgstr "Omã"
+
+#: app/helpers/application_helper.rb:191
+msgid "Pakistan"
+msgstr "Paquistão"
+
+#: app/helpers/application_helper.rb:192
+msgid "Palau"
+msgstr "Palau"
+
+#: app/helpers/application_helper.rb:193
+msgid "Panama"
+msgstr "Panamá"
+
+#: app/helpers/application_helper.rb:194
+msgid "Papua New Guinea"
+msgstr "Papua-Nova Guiné"
+
+#: app/helpers/application_helper.rb:195
+msgid "Paraguay"
+msgstr "Paraguai"
+
+# app/models/player.rb:-
+#: app/helpers/application_helper.rb:196
+msgid "Peru"
+msgstr "Peru"
+
+#: app/helpers/application_helper.rb:197
+msgid "Philippines"
+msgstr "Filipinas"
+
+#: app/helpers/application_helper.rb:198
+msgid "Pitcairn"
+msgstr "Pitcairn"
+
+# app/models/player.rb:-
+#: app/helpers/application_helper.rb:199
+msgid "Poland"
+msgstr "Polônia"
+
+#: app/helpers/application_helper.rb:200
+msgid "Portugal"
+msgstr "Portugal"
+
+#: app/helpers/application_helper.rb:201
+msgid "Puerto Rico"
+msgstr "Porto Rico"
+
+#: app/helpers/application_helper.rb:202
+msgid "Qatar"
+msgstr "Qatar"
+
+#: app/helpers/application_helper.rb:203
+msgid "Reunion"
+msgstr "Reunião"
+
+#: app/helpers/application_helper.rb:204
+msgid "Romania"
+msgstr "Romênia"
+
+#: app/helpers/application_helper.rb:205
+msgid "Russia"
+msgstr "Rússia"
+
+#: app/helpers/application_helper.rb:206
+msgid "Rwanda"
+msgstr "Ruanda"
+
+#: app/helpers/application_helper.rb:207
+msgid "Saint Kitts and Nevis"
+msgstr "São Cristóvão e Neves"
+
+#: app/helpers/application_helper.rb:208
+msgid "Saint Lucia"
+msgstr "Santa Lúcia"
+
+#: app/helpers/application_helper.rb:209
+msgid "Saint Vincent and the Grenadines"
+msgstr "São Vicente e Granadinas"
+
+#: app/helpers/application_helper.rb:210
+msgid "Samoa (Independent)"
+msgstr "Samoa"
+
+#: app/helpers/application_helper.rb:211
+msgid "San Marino"
+msgstr "San Marino"
+
+#: app/helpers/application_helper.rb:212
+msgid "Sao Tome and Principe"
+msgstr "São Tomé e Príncipe"
+
+#: app/helpers/application_helper.rb:213
+msgid "Saudi Arabia"
+msgstr "Arábia Saudita"
+
+#: app/helpers/application_helper.rb:214
+msgid "Scotland"
+msgstr "Escócia"
+
+#: app/helpers/application_helper.rb:215
+msgid "Senegal"
+msgstr "Senegal"
+
+#: app/helpers/application_helper.rb:216
+msgid "Serbia"
+msgstr "Sérvia"
+
+#: app/helpers/application_helper.rb:217
+msgid "Serbia and Montenegro"
+msgstr "Sérvia e Montenegro"
+
+#: app/helpers/application_helper.rb:218
+msgid "Seychelles"
+msgstr "Seychelles"
+
+#: app/helpers/application_helper.rb:219
+msgid "Sierra Leone"
+msgstr "Serra Leoa"
+
+#: app/helpers/application_helper.rb:220
+msgid "Singapore"
+msgstr "Cingapura"
+
+#: app/helpers/application_helper.rb:221
+msgid "Slovakia"
+msgstr "Eslováquia"
+
+#: app/helpers/application_helper.rb:222
+msgid "Slovenia"
+msgstr "Eslovênia"
+
+#: app/helpers/application_helper.rb:223
+msgid "Solomon Islands"
+msgstr "Ilhas Salomão"
+
+#: app/helpers/application_helper.rb:224
+msgid "Somalia"
+msgstr "Somália"
+
+#: app/helpers/application_helper.rb:225
+msgid "South Africa"
+msgstr "África do Sul"
+
+#: app/helpers/application_helper.rb:226
+msgid "South Georgia and the South Sandwich Islands"
+msgstr "Ilhas Geórgia do Sul e Sandwich do Sul"
+
+#: app/helpers/application_helper.rb:227
+msgid "South Korea"
+msgstr "Coréia do Sul"
+
+#: app/helpers/application_helper.rb:228
+msgid "Spain"
+msgstr "Espanha"
+
+#: app/helpers/application_helper.rb:229
+msgid "Sri Lanka"
+msgstr "Sri Lanka"
+
+#: app/helpers/application_helper.rb:230
+msgid "St. Helena"
+msgstr "Santa Helena"
+
+#: app/helpers/application_helper.rb:231
+msgid "St. Pierre and Miquelon"
+msgstr "Saint-Pierre e Miquelon"
+
+#: app/helpers/application_helper.rb:232
+msgid "Suriname"
+msgstr "Suriname"
+
+#: app/helpers/application_helper.rb:233
+msgid "Svalbard and Jan Mayen Islands"
+msgstr "Svalbard e Jan Mayen"
+
+#: app/helpers/application_helper.rb:234
+msgid "Swaziland"
+msgstr "Suazilândia"
+
+#: app/helpers/application_helper.rb:235
+msgid "Sweden"
+msgstr "Suécia"
+
+#: app/helpers/application_helper.rb:236
+msgid "Switzerland"
+msgstr "Suíça"
+
+#: app/helpers/application_helper.rb:237
+msgid "Taiwan"
+msgstr "Taiwan"
+
+#: app/helpers/application_helper.rb:238
+msgid "Tajikistan"
+msgstr "Tadjiquistão"
+
+#: app/helpers/application_helper.rb:239
+msgid "Tanzania"
+msgstr "Tanzânia"
+
+#: app/helpers/application_helper.rb:240
+msgid "Thailand"
+msgstr "Tailândia"
+
+#: app/helpers/application_helper.rb:241
+msgid "Togo"
+msgstr "Togo"
+
+#: app/helpers/application_helper.rb:242
+msgid "Tokelau"
+msgstr "Tokelau"
+
+#: app/helpers/application_helper.rb:243
+msgid "Tonga"
+msgstr "Tonga"
+
+#: app/helpers/application_helper.rb:244
+msgid "Trinidad and Tobago"
+msgstr "Trindade e Tobago"
+
+#: app/helpers/application_helper.rb:245
+msgid "Tunisia"
+msgstr "Tunísia"
+
+#: app/helpers/application_helper.rb:246
+msgid "Turkey"
+msgstr "Turquia"
+
+#: app/helpers/application_helper.rb:247
+msgid "Turkmenistan"
+msgstr "Turcomenistão"
+
+#: app/helpers/application_helper.rb:248
+msgid "Turks and Caicos Islands"
+msgstr "Turks e Caicos"
+
+#: app/helpers/application_helper.rb:249
+msgid "Tuvalu"
+msgstr "Tuvalu"
+
+#: app/helpers/application_helper.rb:250
+msgid "Uganda"
+msgstr "Uganda"
+
+#: app/helpers/application_helper.rb:251
+msgid "Ukraine"
+msgstr "Ucrânia"
+
+#: app/helpers/application_helper.rb:252
+msgid "United Arab Emirates"
+msgstr "Emirados Árabes Unidos"
+
+#: app/helpers/application_helper.rb:253
+msgid "United Kingdom"
+msgstr "Reino Unido"
+
+#: app/helpers/application_helper.rb:254
+msgid "United States"
+msgstr "Estados Unidos"
+
+#: app/helpers/application_helper.rb:255
+msgid "United States Minor Outlying Islands"
+msgstr "Ilhas Menores Distantes dos Estados Unidos"
+
+#: app/helpers/application_helper.rb:256
+msgid "Uruguay"
+msgstr "Uruguai"
+
+#: app/helpers/application_helper.rb:257
+msgid "Uzbekistan"
+msgstr "Uzbequistão"
+
+#: app/helpers/application_helper.rb:258
+msgid "Vanuatu"
+msgstr "Vanuatu"
+
+#: app/helpers/application_helper.rb:259
+msgid "Vatican City State (Holy See)"
+msgstr "Cidade do Vaticano"
+
+#: app/helpers/application_helper.rb:260
+msgid "Venezuela"
+msgstr "Venezuela"
+
+#: app/helpers/application_helper.rb:261
+msgid "Viet Nam"
+msgstr "Vietnã"
+
+#: app/helpers/application_helper.rb:262
+msgid "Virgin Islands (British)"
+msgstr "Ilhas Virgens Britânicas"
+
+#: app/helpers/application_helper.rb:263
+msgid "Virgin Islands (U.S.)"
+msgstr "Ilhas Virgens Americanas"
+
+#: app/helpers/application_helper.rb:264
+msgid "Wales"
+msgstr "País de Gales"
+
+#: app/helpers/application_helper.rb:265
+msgid "Wallis and Futuna Islands"
+msgstr "Wallis e Futuna"
+
+#: app/helpers/application_helper.rb:266
+msgid "Western Sahara"
+msgstr "Saara Ocidental"
+
+#: app/helpers/application_helper.rb:267
+msgid "Yemen"
+msgstr "Iêmen"
+
+#: app/helpers/application_helper.rb:268
+msgid "Zambia"
+msgstr "Zâmbia"
+
+#: app/helpers/application_helper.rb:269
+msgid "Zimbabwe"
+msgstr "Zimbábue"
+
 #: app/helpers/game_helper.rb:41
 msgid "Version %{number}"
 msgstr "Versão %{number}"
@@ -286,13 +1247,11 @@ msgstr ""
 
 # app/models/user.rb:-
 #: app/models/category.rb:-
-#, fuzzy
 msgid "Delayed::Job|Created at"
 msgstr "Criado em"
 
 # app/models/game.rb:-
 #: app/models/category.rb:-
-#, fuzzy
 msgid "Delayed::Job|Updated at"
 msgstr "Atualizado em"
 
@@ -1696,9 +2655,9 @@ msgid ""
 "promoted to editors who can edit the site and create new championships."
 msgstr ""
 "GolAberto é um site colaborativo que é atualizado por seus usuários. "
-"Usuários registrados podem dar informações comentando nos itens. Os "
-"usuários mais destacados são promovidos a editores que podem editar o site "
-"e cadastrar novos campeonatos."
+"Usuários registrados podem dar informações comentando nos itens. Os usuários "
+"mais destacados são promovidos a editores que podem editar o site e "
+"cadastrar novos campeonatos."
 
 #: app/views/home/index.rhtml:51
 msgid "Contact:"
