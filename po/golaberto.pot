@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2009-12-28 01:35-0200\n"
+"POT-Creation-Date: 2009-12-28 22:07-0200\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -624,490 +624,506 @@ msgid "Liberia"
 msgstr ""
 
 #: app/helpers/application_helper.rb:148
-msgid "Liechtenstein"
+msgid "Libya"
 msgstr ""
 
 #: app/helpers/application_helper.rb:149
-msgid "Lithuania"
+msgid "Liechtenstein"
 msgstr ""
 
 #: app/helpers/application_helper.rb:150
-msgid "Luxembourg"
+msgid "Lithuania"
 msgstr ""
 
 #: app/helpers/application_helper.rb:151
-msgid "Macau"
+msgid "Luxembourg"
 msgstr ""
 
 #: app/helpers/application_helper.rb:152
-msgid "Macedonia"
+msgid "Macau"
 msgstr ""
 
 #: app/helpers/application_helper.rb:153
-msgid "Madagascar"
+msgid "Macedonia"
 msgstr ""
 
 #: app/helpers/application_helper.rb:154
-msgid "Malawi"
+msgid "Madagascar"
 msgstr ""
 
 #: app/helpers/application_helper.rb:155
-msgid "Malaysia"
+msgid "Malawi"
 msgstr ""
 
 #: app/helpers/application_helper.rb:156
-msgid "Maldives"
+msgid "Malaysia"
 msgstr ""
 
 #: app/helpers/application_helper.rb:157
-msgid "Mali"
+msgid "Maldives"
 msgstr ""
 
 #: app/helpers/application_helper.rb:158
-msgid "Malta"
+msgid "Mali"
 msgstr ""
 
 #: app/helpers/application_helper.rb:159
-msgid "Marshall Islands"
+msgid "Malta"
 msgstr ""
 
 #: app/helpers/application_helper.rb:160
-msgid "Martinique"
+msgid "Marshall Islands"
 msgstr ""
 
 #: app/helpers/application_helper.rb:161
-msgid "Mauritania"
+msgid "Martinique"
 msgstr ""
 
 #: app/helpers/application_helper.rb:162
-msgid "Mauritius"
+msgid "Mauritania"
 msgstr ""
 
 #: app/helpers/application_helper.rb:163
-msgid "Mayotte"
+msgid "Mauritius"
 msgstr ""
 
 #: app/helpers/application_helper.rb:164
-msgid "Mexico"
+msgid "Mayotte"
 msgstr ""
 
 #: app/helpers/application_helper.rb:165
-msgid "Micronesia, Federated States of"
+msgid "Mexico"
 msgstr ""
 
 #: app/helpers/application_helper.rb:166
-msgid "Moldova, Republic of"
+msgid "Micronesia, Federated States of"
 msgstr ""
 
 #: app/helpers/application_helper.rb:167
-msgid "Monaco"
+msgid "Moldova, Republic of"
 msgstr ""
 
 #: app/helpers/application_helper.rb:168
-msgid "Mongolia"
+msgid "Monaco"
 msgstr ""
 
 #: app/helpers/application_helper.rb:169
-msgid "Montenegro"
+msgid "Mongolia"
 msgstr ""
 
 #: app/helpers/application_helper.rb:170
-msgid "Montserrat"
+msgid "Montenegro"
 msgstr ""
 
 #: app/helpers/application_helper.rb:171
-msgid "Morocco"
+msgid "Montserrat"
 msgstr ""
 
 #: app/helpers/application_helper.rb:172
-msgid "Mozambique"
+msgid "Morocco"
 msgstr ""
 
 #: app/helpers/application_helper.rb:173
-msgid "Myanmar"
+msgid "Mozambique"
 msgstr ""
 
 #: app/helpers/application_helper.rb:174
-msgid "Namibia"
+msgid "Myanmar"
 msgstr ""
 
 #: app/helpers/application_helper.rb:175
-msgid "Nauru"
+msgid "Namibia"
 msgstr ""
 
 #: app/helpers/application_helper.rb:176
-msgid "Nepal"
+msgid "Nauru"
 msgstr ""
 
 #: app/helpers/application_helper.rb:177
-msgid "Netherlands"
+msgid "Nepal"
 msgstr ""
 
 #: app/helpers/application_helper.rb:178
-msgid "Netherlands Antilles"
+msgid "Netherlands"
 msgstr ""
 
 #: app/helpers/application_helper.rb:179
-msgid "New Caledonia"
+msgid "Netherlands Antilles"
 msgstr ""
 
 #: app/helpers/application_helper.rb:180
-msgid "New Zealand"
+msgid "New Caledonia"
 msgstr ""
 
 #: app/helpers/application_helper.rb:181
-msgid "Nicaragua"
+msgid "New Zealand"
 msgstr ""
 
 #: app/helpers/application_helper.rb:182
-msgid "Niger"
+msgid "Nicaragua"
 msgstr ""
 
 #: app/helpers/application_helper.rb:183
-msgid "Nigeria"
+msgid "Niger"
 msgstr ""
 
 #: app/helpers/application_helper.rb:184
-msgid "Niue"
+msgid "Nigeria"
 msgstr ""
 
 #: app/helpers/application_helper.rb:185
-msgid "Norfolk Island"
+msgid "Niue"
 msgstr ""
 
 #: app/helpers/application_helper.rb:186
-msgid "North Korea"
+msgid "Norfolk Island"
 msgstr ""
 
 #: app/helpers/application_helper.rb:187
-msgid "Northern Ireland"
+msgid "North Korea"
 msgstr ""
 
 #: app/helpers/application_helper.rb:188
-msgid "Northern Mariana Islands"
+msgid "Northern Ireland"
 msgstr ""
 
 #: app/helpers/application_helper.rb:189
-msgid "Norway"
+msgid "Northern Mariana Islands"
 msgstr ""
 
 #: app/helpers/application_helper.rb:190
-msgid "Oman"
+msgid "Norway"
 msgstr ""
 
 #: app/helpers/application_helper.rb:191
-msgid "Pakistan"
+msgid "Oman"
 msgstr ""
 
 #: app/helpers/application_helper.rb:192
-msgid "Palau"
+msgid "Pakistan"
 msgstr ""
 
 #: app/helpers/application_helper.rb:193
-msgid "Panama"
+msgid "Palau"
 msgstr ""
 
 #: app/helpers/application_helper.rb:194
-msgid "Papua New Guinea"
+msgid "Palestine"
 msgstr ""
 
 #: app/helpers/application_helper.rb:195
-msgid "Paraguay"
+msgid "Panama"
 msgstr ""
 
 #: app/helpers/application_helper.rb:196
-msgid "Peru"
+msgid "Papua New Guinea"
 msgstr ""
 
 #: app/helpers/application_helper.rb:197
-msgid "Philippines"
+msgid "Paraguay"
 msgstr ""
 
 #: app/helpers/application_helper.rb:198
-msgid "Pitcairn"
+msgid "Peru"
 msgstr ""
 
 #: app/helpers/application_helper.rb:199
-msgid "Poland"
+msgid "Philippines"
 msgstr ""
 
 #: app/helpers/application_helper.rb:200
-msgid "Portugal"
+msgid "Pitcairn"
 msgstr ""
 
 #: app/helpers/application_helper.rb:201
-msgid "Puerto Rico"
+msgid "Poland"
 msgstr ""
 
 #: app/helpers/application_helper.rb:202
-msgid "Qatar"
+msgid "Portugal"
 msgstr ""
 
 #: app/helpers/application_helper.rb:203
-msgid "Reunion"
+msgid "Puerto Rico"
 msgstr ""
 
 #: app/helpers/application_helper.rb:204
-msgid "Romania"
+msgid "Qatar"
 msgstr ""
 
 #: app/helpers/application_helper.rb:205
-msgid "Russia"
+msgid "Reunion"
 msgstr ""
 
 #: app/helpers/application_helper.rb:206
-msgid "Rwanda"
+msgid "Romania"
 msgstr ""
 
 #: app/helpers/application_helper.rb:207
-msgid "Saint Kitts and Nevis"
+msgid "Russia"
 msgstr ""
 
 #: app/helpers/application_helper.rb:208
-msgid "Saint Lucia"
+msgid "Rwanda"
 msgstr ""
 
 #: app/helpers/application_helper.rb:209
-msgid "Saint Vincent and the Grenadines"
+msgid "Saint Kitts and Nevis"
 msgstr ""
 
 #: app/helpers/application_helper.rb:210
-msgid "Samoa (Independent)"
+msgid "Saint Lucia"
 msgstr ""
 
 #: app/helpers/application_helper.rb:211
-msgid "San Marino"
+msgid "Saint Vincent and the Grenadines"
 msgstr ""
 
 #: app/helpers/application_helper.rb:212
-msgid "Sao Tome and Principe"
+msgid "Samoa (Independent)"
 msgstr ""
 
 #: app/helpers/application_helper.rb:213
-msgid "Saudi Arabia"
+msgid "San Marino"
 msgstr ""
 
 #: app/helpers/application_helper.rb:214
-msgid "Scotland"
+msgid "Sao Tome and Principe"
 msgstr ""
 
 #: app/helpers/application_helper.rb:215
-msgid "Senegal"
+msgid "Saudi Arabia"
 msgstr ""
 
 #: app/helpers/application_helper.rb:216
-msgid "Serbia"
+msgid "Scotland"
 msgstr ""
 
 #: app/helpers/application_helper.rb:217
-msgid "Serbia and Montenegro"
+msgid "Senegal"
 msgstr ""
 
 #: app/helpers/application_helper.rb:218
-msgid "Seychelles"
+msgid "Serbia"
 msgstr ""
 
 #: app/helpers/application_helper.rb:219
-msgid "Sierra Leone"
+msgid "Serbia and Montenegro"
 msgstr ""
 
 #: app/helpers/application_helper.rb:220
-msgid "Singapore"
+msgid "Seychelles"
 msgstr ""
 
 #: app/helpers/application_helper.rb:221
-msgid "Slovakia"
+msgid "Sierra Leone"
 msgstr ""
 
 #: app/helpers/application_helper.rb:222
-msgid "Slovenia"
+msgid "Singapore"
 msgstr ""
 
 #: app/helpers/application_helper.rb:223
-msgid "Solomon Islands"
+msgid "Slovakia"
 msgstr ""
 
 #: app/helpers/application_helper.rb:224
-msgid "Somalia"
+msgid "Slovenia"
 msgstr ""
 
 #: app/helpers/application_helper.rb:225
-msgid "South Africa"
+msgid "Solomon Islands"
 msgstr ""
 
 #: app/helpers/application_helper.rb:226
-msgid "South Georgia and the South Sandwich Islands"
+msgid "Somalia"
 msgstr ""
 
 #: app/helpers/application_helper.rb:227
-msgid "South Korea"
+msgid "South Africa"
 msgstr ""
 
 #: app/helpers/application_helper.rb:228
-msgid "Spain"
+msgid "South Georgia and the South Sandwich Islands"
 msgstr ""
 
 #: app/helpers/application_helper.rb:229
-msgid "Sri Lanka"
+msgid "South Korea"
 msgstr ""
 
 #: app/helpers/application_helper.rb:230
-msgid "St. Helena"
+msgid "Spain"
 msgstr ""
 
 #: app/helpers/application_helper.rb:231
-msgid "St. Pierre and Miquelon"
+msgid "Sri Lanka"
 msgstr ""
 
 #: app/helpers/application_helper.rb:232
-msgid "Suriname"
+msgid "St. Helena"
 msgstr ""
 
 #: app/helpers/application_helper.rb:233
-msgid "Svalbard and Jan Mayen Islands"
+msgid "St. Pierre and Miquelon"
 msgstr ""
 
 #: app/helpers/application_helper.rb:234
-msgid "Swaziland"
+msgid "Sudan"
 msgstr ""
 
 #: app/helpers/application_helper.rb:235
-msgid "Sweden"
+msgid "Suriname"
 msgstr ""
 
 #: app/helpers/application_helper.rb:236
-msgid "Switzerland"
+msgid "Svalbard and Jan Mayen Islands"
 msgstr ""
 
 #: app/helpers/application_helper.rb:237
-msgid "Taiwan"
+msgid "Swaziland"
 msgstr ""
 
 #: app/helpers/application_helper.rb:238
-msgid "Tajikistan"
+msgid "Sweden"
 msgstr ""
 
 #: app/helpers/application_helper.rb:239
-msgid "Tanzania"
+msgid "Switzerland"
 msgstr ""
 
 #: app/helpers/application_helper.rb:240
-msgid "Thailand"
+msgid "Syria"
 msgstr ""
 
 #: app/helpers/application_helper.rb:241
-msgid "Togo"
+msgid "Taiwan"
 msgstr ""
 
 #: app/helpers/application_helper.rb:242
-msgid "Tokelau"
+msgid "Tajikistan"
 msgstr ""
 
 #: app/helpers/application_helper.rb:243
-msgid "Tonga"
+msgid "Tanzania"
 msgstr ""
 
 #: app/helpers/application_helper.rb:244
-msgid "Trinidad and Tobago"
+msgid "Thailand"
 msgstr ""
 
 #: app/helpers/application_helper.rb:245
-msgid "Tunisia"
+msgid "Togo"
 msgstr ""
 
 #: app/helpers/application_helper.rb:246
-msgid "Turkey"
+msgid "Tokelau"
 msgstr ""
 
 #: app/helpers/application_helper.rb:247
-msgid "Turkmenistan"
+msgid "Tonga"
 msgstr ""
 
 #: app/helpers/application_helper.rb:248
-msgid "Turks and Caicos Islands"
+msgid "Trinidad and Tobago"
 msgstr ""
 
 #: app/helpers/application_helper.rb:249
-msgid "Tuvalu"
+msgid "Tunisia"
 msgstr ""
 
 #: app/helpers/application_helper.rb:250
-msgid "Uganda"
+msgid "Turkey"
 msgstr ""
 
 #: app/helpers/application_helper.rb:251
-msgid "Ukraine"
+msgid "Turkmenistan"
 msgstr ""
 
 #: app/helpers/application_helper.rb:252
-msgid "United Arab Emirates"
+msgid "Turks and Caicos Islands"
 msgstr ""
 
 #: app/helpers/application_helper.rb:253
-msgid "United Kingdom"
+msgid "Tuvalu"
 msgstr ""
 
 #: app/helpers/application_helper.rb:254
-msgid "United States"
+msgid "Uganda"
 msgstr ""
 
 #: app/helpers/application_helper.rb:255
-msgid "United States Minor Outlying Islands"
+msgid "Ukraine"
 msgstr ""
 
 #: app/helpers/application_helper.rb:256
-msgid "Uruguay"
+msgid "United Arab Emirates"
 msgstr ""
 
 #: app/helpers/application_helper.rb:257
-msgid "Uzbekistan"
+msgid "United Kingdom"
 msgstr ""
 
 #: app/helpers/application_helper.rb:258
-msgid "Vanuatu"
+msgid "United States"
 msgstr ""
 
 #: app/helpers/application_helper.rb:259
-msgid "Vatican City State (Holy See)"
+msgid "United States Minor Outlying Islands"
 msgstr ""
 
 #: app/helpers/application_helper.rb:260
-msgid "Venezuela"
+msgid "Uruguay"
 msgstr ""
 
 #: app/helpers/application_helper.rb:261
-msgid "Viet Nam"
+msgid "Uzbekistan"
 msgstr ""
 
 #: app/helpers/application_helper.rb:262
-msgid "Virgin Islands (British)"
+msgid "Vanuatu"
 msgstr ""
 
 #: app/helpers/application_helper.rb:263
-msgid "Virgin Islands (U.S.)"
+msgid "Vatican City State (Holy See)"
 msgstr ""
 
 #: app/helpers/application_helper.rb:264
-msgid "Wales"
+msgid "Venezuela"
 msgstr ""
 
 #: app/helpers/application_helper.rb:265
-msgid "Wallis and Futuna Islands"
+msgid "Viet Nam"
 msgstr ""
 
 #: app/helpers/application_helper.rb:266
-msgid "Western Sahara"
+msgid "Virgin Islands (British)"
 msgstr ""
 
 #: app/helpers/application_helper.rb:267
-msgid "Yemen"
+msgid "Virgin Islands (U.S.)"
 msgstr ""
 
 #: app/helpers/application_helper.rb:268
-msgid "Zambia"
+msgid "Wales"
 msgstr ""
 
 #: app/helpers/application_helper.rb:269
+msgid "Wallis and Futuna Islands"
+msgstr ""
+
+#: app/helpers/application_helper.rb:270
+msgid "Western Sahara"
+msgstr ""
+
+#: app/helpers/application_helper.rb:271
+msgid "Yemen"
+msgstr ""
+
+#: app/helpers/application_helper.rb:272
+msgid "Zambia"
+msgstr ""
+
+#: app/helpers/application_helper.rb:273
 msgid "Zimbabwe"
 msgstr ""
 

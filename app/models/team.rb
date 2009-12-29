@@ -23,6 +23,22 @@ class Team < ActiveRecord::Base
     "#{id}-#{name.parameterize}"
   end
 
+  def country_small_logo
+    if country.nil?
+      'logos/15.png'
+    else
+      "countries/#{country.parameterize('_')}_15.png"
+    end
+  end
+
+  def country_large_logo
+    if country.nil?
+      'logos/100.png'
+    else
+      "countries/#{country.parameterize('_')}_100.png"
+    end
+  end
+
   def small_logo
     if logo.nil?
       '15.png'
