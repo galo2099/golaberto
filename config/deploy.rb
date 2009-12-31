@@ -39,6 +39,7 @@ pageTracker._trackPageview();
 
   run "cp -f #{shared_path}/config/database.yml #{release_path}/config/database.yml"
 
+  run "ln -s #{shared_path}/countries #{release_path}/public/images/"
   run "ln -s #{shared_path}/logos #{release_path}/public/images/"
   run "ln -s #{shared_path}/users #{release_path}/public/images/"
 
