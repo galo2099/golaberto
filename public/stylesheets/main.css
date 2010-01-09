@@ -401,11 +401,16 @@ DIV.table_cell {
   width: 8%;
 }
 .home_logo {
-  width: 4%;
+  float: left;
+  width: 13%;
   text-align: center;
 }
+.home_name {
+  float: left;
+  width: 74%;
+}
 .home_team {
-  width: 27%;
+  width: 31%;
   text-align: left;
 }
 .home_score {
@@ -421,12 +426,17 @@ DIV.table_cell {
   text-align: left;
 }
 .away_team {
-  width: 27%;
+  width: 31%;
   text-align: right;
 }
 .away_logo {
-  width: 4%;
+  width: 13%;
   text-align: center;
+  float: right;
+}
+.away_name {
+  float: right;
+  width: 74%;
 }
 .show_spacer {
   width: 3%;

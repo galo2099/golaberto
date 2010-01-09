@@ -2,6 +2,7 @@
 <% omit_logo = false if omit_logo.nil? %>
 <% omit_comments = false if omit_comments.nil? %>
 <% omit_popup = false if omit_popup.nil? %>
+<% show_country_logo = false if show_country_logo.nil? %>
 <div style="position: relative; margin-left: 2px; margin-right: 2px;">
   <div style="width: 100%; float: left; position: relative;"><h3><span><%=
     if link_to_group
@@ -54,6 +55,10 @@
     tr_class = 'table_line'
     tr_class = 'relegated' if group.is_relegated?(pos)
     tr_class = 'promoted' if group.is_promoted?(pos)
+    country_logo = ""
+    if show_country_logo
+      country_logo = image_tag(team.small_country_logo, :width => 15, :height => 15, :title => _(team.country))
+    end
     image_logo = ""
     unless omit_logo
       image_logo = image_tag("logos/" +
@@ -86,7 +91,7 @@
   <tr class='<%= tr_class %>'>
          <%= content_tag :td, pos, :class => "pos" unless omit_columns[:Pos] %>
          <%= content_tag(:td,
-                         image_logo +
+                         country_logo + " " + image_logo + " " +
                          link_to(team.name, :action => 'team',
                                             :id => group.phase.championship,
                                             :team => team) +

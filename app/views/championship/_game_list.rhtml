@@ -1,4 +1,6 @@
 <%
+highlight_team = defined?(highlight_team) ? highlight_team : nil
+show_countries = defined?(show_countries) ? show_countries : nil
 def name_to_print(team, highlight)
   name = team.name
   name = "<b>#{name}</b>" if team == highlight
@@ -7,16 +9,36 @@ end %>
 <div class='table_cell game_time'>
   <%= game.formatted_time.to_s.empty? ? "&nbsp;" : game.formatted_time %>
 </div>
-<div class='table_cell home_logo'>
-  <%= image_tag "logos/" + game.home.small_logo %>
+<div class='table_cell home_team'>
+  <% if show_countries %>
+    <div class='home_logo'>
+      <%= image_tag game.home.small_country_logo, :title => _(game.home.country) %>
+    </div>
+  <% end %>
+  <div class='home_logo'>
+    <%= image_tag "logos/" + game.home.small_logo %>
+  </div>
+  <div class='home_name'>
+    <%= name_to_print(game.home, highlight_team) %>
+  </div>
 </div>
-<div class='table_cell home_team'><%= name_to_print(game.home, (highlight_team if defined? highlight_team)) %></div>
 <div class='table_cell home_score'><%= game.home_score if game.played? %></div>
 <div class='table_cell game_x'>x</div>
 <div class='table_cell away_score'><%= game.away_score if game.played? %></div>
-<div class='table_cell away_team'><%= name_to_print(game.away, (highlight_team if defined? highlight_team)) %></div>
-<div class='table_cell away_logo'>
-  <%= image_tag "logos/" + game.away.small_logo %>
+<div class='table_cell away_team'>
+  <div style='width: 100%; align: right; position: relative'>
+    <% if show_countries %>
+      <div class='away_logo'>
+        <%= image_tag game.away.small_country_logo, :title => _(game.away.country) %>
+      </div>
+    <% end %>
+    <div class='away_logo'>
+      <%= image_tag "logos/" + game.away.small_logo %>
+    </div>
+    <div class='away_name'>
+      <%= name_to_print(game.away, highlight_team) %>
+    </div>
+  </div>
 </div>
 <div class='table_cell show_spacer'></div>
 <div class='table_cell show_info'><%= link_to image_tag("icons/report.png", :border => 0, :title => _("More information")), :controller => "game", :action => :show, :id => game %></div>

@@ -23,7 +23,7 @@ class Team < ActiveRecord::Base
     "#{id}-#{name.parameterize}"
   end
 
-  def country_small_logo
+  def small_country_logo
     if country.nil?
       'logos/15.png'
     else
@@ -31,7 +31,7 @@ class Team < ActiveRecord::Base
     end
   end
 
-  def country_large_logo
+  def large_country_logo
     if country.nil?
       'logos/100.png'
     else
