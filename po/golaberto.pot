@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2009-12-28 22:07-0200\n"
+"POT-Creation-Date: 2010-01-13 23:08-0200\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2766,6 +2766,10 @@ msgstr ""
 
 #: app/views/team/new.rhtml:1
 msgid "New Team"
+msgstr ""
+
+#: app/views/team/show.rhtml:16
+msgid "%B %d, %Y"
 msgstr ""
 
 #: app/views/team/show.rhtml:23
