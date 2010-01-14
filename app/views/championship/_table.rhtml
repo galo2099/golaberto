@@ -2,7 +2,7 @@
 <% omit_logo = false if omit_logo.nil? %>
 <% omit_comments = false if omit_comments.nil? %>
 <% omit_popup = false if omit_popup.nil? %>
-<% show_country_logo = false if show_country_logo.nil? %>
+<% show_country = false if show_country.nil? %>
 <div style="position: relative; margin-left: 2px; margin-right: 2px;">
   <div style="width: 100%; float: left; position: relative;"><h3><span><%=
     if link_to_group
@@ -56,7 +56,7 @@
     tr_class = 'relegated' if group.is_relegated?(pos)
     tr_class = 'promoted' if group.is_promoted?(pos)
     country_logo = ""
-    if show_country_logo
+    if show_country
       country_logo = image_tag(team.small_country_logo, :width => 15, :height => 15, :title => _(team.country))
     end
     image_logo = ""

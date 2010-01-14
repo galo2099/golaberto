@@ -1,6 +1,6 @@
 <%
 highlight_team = defined?(highlight_team) ? highlight_team : nil
-show_countries = defined?(show_countries) ? show_countries : nil
+show_country = defined?(show_country) ? show_country : nil
 def name_to_print(team, highlight)
   name = team.name
   name = "<b>#{name}</b>" if team == highlight
@@ -10,7 +10,7 @@ end %>
   <%= game.formatted_time.to_s.empty? ? "&nbsp;" : game.formatted_time %>
 </div>
 <div class='table_cell home_team'>
-  <% if show_countries %>
+  <% if show_country %>
     <div class='home_logo'>
       <%= image_tag game.home.small_country_logo, :title => _(game.home.country) %>
     </div>
@@ -27,7 +27,7 @@ end %>
 <div class='table_cell away_score'><%= game.away_score if game.played? %></div>
 <div class='table_cell away_team'>
   <div style='width: 100%; align: right; position: relative'>
-    <% if show_countries %>
+    <% if show_country %>
       <div class='away_logo'>
         <%= image_tag game.away.small_country_logo, :title => _(game.away.country) %>
       </div>
