@@ -16,14 +16,14 @@ ActiveRecord::Schema.define(:version => 20100109023228) do
   end
 
   create_table "championships", :force => true do |t|
-    t.string  "name",         :default => "", :null => false
-    t.date    "begin",                        :null => false
-    t.date    "end",                          :null => false
-    t.integer "point_win",    :default => 3,  :null => false
-    t.integer "point_draw",   :default => 1,  :null => false
-    t.integer "point_loss",   :default => 0,  :null => false
-    t.integer "category_id",  :default => 0,  :null => false
-    t.boolean "show_country"
+    t.string  "name",         :default => "",    :null => false
+    t.date    "begin",                           :null => false
+    t.date    "end",                             :null => false
+    t.integer "point_win",    :default => 3,     :null => false
+    t.integer "point_draw",   :default => 1,     :null => false
+    t.integer "point_loss",   :default => 0,     :null => false
+    t.integer "category_id",  :default => 0,     :null => false
+    t.boolean "show_country", :default => false, :null => false
   end
 
   create_table "comments", :force => true do |t|
@@ -221,10 +221,6 @@ ActiveRecord::Schema.define(:version => 20100109023228) do
     t.integer "stadium_id"
     t.date    "foundation"
     t.string  "full_name"
-  end
-
-  create_table "test_default", :id => false, :force => true do |t|
-    t.string "text", :limit => 5
   end
 
   create_table "users", :force => true do |t|
