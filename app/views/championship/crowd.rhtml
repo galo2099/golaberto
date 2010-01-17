@@ -17,11 +17,15 @@
   </tr>
   <% @average.each do |team, avg| %>
     <tr class='table_line'>
+      <% country_logo = if @championship.show_country
+                          image_tag(team.small_country_logo, :width => 15, :height => 15, :title => _(team.country))
+                        end %>
       <% image_logo = image_tag("logos/" +
                                 team.small_logo,
                                 :width => 15,
                                 :height => 15) %>
-      <td class='name'><%= image_logo + link_to(team.name, :action => 'team',
+      <td class='name'><%= country_logo + " " + image_logo + " " +
+                           link_to(team.name, :action => 'team',
                                               :id => @championship,
                                               :team => team) %></td>
       <td><%= avg.to_i %></td>
@@ -40,7 +44,9 @@
     <div><%= _("Attendance") %>: <%= game.attendance %></div>
     <div class='table_row'>
       <%= render :partial => "game_list",
-                 :locals => { :game => game } %>
+                 :locals => { :game => game,
+                              :show_country => @championship.show_country,
+                            } %>
       <div class='clearer'></div>
     </div>
   <% end %>

@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2010-01-13 23:08-0200\n"
+"POT-Creation-Date: 2010-01-17 19:51-0200\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: Robson Braga Araujo <robsonbraga@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1373,6 +1373,11 @@ msgstr "Pontos por derrota"
 msgid "Championship|Category"
 msgstr "Categoria"
 
+# app/models/championship.rb:-
+#: app/models/championship.rb:-
+msgid "Championship|Show country"
+msgstr "Mostrar país"
+
 # app/models/comment.rb:-
 #: app/models/comment.rb:-
 msgid "comment"
@@ -1551,7 +1556,7 @@ msgstr "Prorrogação"
 msgid "Played"
 msgstr "Jogados"
 
-#: app/models/game.rb:114 app/views/championship/team.rhtml:40
+#: app/models/game.rb:114 app/views/championship/team.rhtml:42
 #: app/views/game/list.rhtml:23
 msgid "Scheduled"
 msgstr "Agendados"
@@ -2017,7 +2022,7 @@ msgstr "Imagem"
 msgid "Filter image background?"
 msgstr "Filtrar fundo da imagem?"
 
-#: app/views/user/edit.html.erb:31 app/views/championship/edit.rhtml:44
+#: app/views/user/edit.html.erb:31 app/views/championship/edit.rhtml:47
 #: app/views/game/edit.rhtml:231 app/views/game/edit_squad.rhtml:99
 #: app/views/group/edit.rhtml:33 app/views/phase/edit.rhtml:51
 #: app/views/player/edit.rhtml:7 app/views/referee/edit.rhtml:7
@@ -2044,10 +2049,10 @@ msgid "User"
 msgstr "Usuário"
 
 # app/models/team.rb:-
-#: app/views/user/show.html.erb:13 app/views/championship/_table.rhtml:28
+#: app/views/user/show.html.erb:13 app/views/championship/_table.rhtml:29
 #: app/views/championship/crowd.rhtml:12 app/views/championship/edit.rhtml:6
-#: app/views/championship/edit.rhtml:31 app/views/championship/list.rhtml:5
-#: app/views/championship/new.rhtml:3 app/views/championship/team.rhtml:66
+#: app/views/championship/edit.rhtml:34 app/views/championship/list.rhtml:5
+#: app/views/championship/new.rhtml:3 app/views/championship/team.rhtml:68
 #: app/views/championship/top_goalscorers.rhtml:17
 #: app/views/game/edit.rhtml:105 app/views/game/edit.rhtml:112
 #: app/views/game/edit.rhtml:122 app/views/game/edit.rhtml:129
@@ -2166,19 +2171,19 @@ msgstr "Email"
 msgid "Password"
 msgstr "Senha"
 
-#: app/views/championship/_game_list.rhtml:22
+#: app/views/championship/_game_list.rhtml:44
 msgid "More information"
 msgstr "Mais informações"
 
-#: app/views/championship/_game_list.rhtml:24
+#: app/views/championship/_game_list.rhtml:46
 msgid "Edit this game"
 msgstr "Editar este jogo"
 
-#: app/views/championship/_game_list.rhtml:25
+#: app/views/championship/_game_list.rhtml:47
 msgid "Delete this game"
 msgstr "Apagar este jogo"
 
-#: app/views/championship/_game_list.rhtml:25
+#: app/views/championship/_game_list.rhtml:47
 msgid "Are you sure you want to delete this game?"
 msgstr "Tem certeza que quer apagar este jogo?"
 
@@ -2252,65 +2257,65 @@ msgstr "%d%% pronto."
 msgid "Recalculate odds"
 msgstr "Recalcular chances"
 
-#: app/views/championship/_table.rhtml:27 app/views/championship/team.rhtml:67
+#: app/views/championship/_table.rhtml:28 app/views/championship/team.rhtml:69
 #: app/views/championship/top_goalscorers.rhtml:18
 #: app/views/game/show.rhtml:35 app/views/game/show.rhtml:62
 msgid "Pos"
 msgstr "Pos"
 
-#: app/views/championship/_table.rhtml:29
+#: app/views/championship/_table.rhtml:30
 msgid "Pts"
 msgstr "Pts"
 
-#: app/views/championship/_table.rhtml:30
+#: app/views/championship/_table.rhtml:31
 msgid "G"
 msgstr "J"
 
-#: app/views/championship/_table.rhtml:31
+#: app/views/championship/_table.rhtml:32
 msgid "W"
 msgstr "V"
 
-#: app/views/championship/_table.rhtml:32
+#: app/views/championship/_table.rhtml:33
 msgid "D"
 msgstr "E"
 
-#: app/views/championship/_table.rhtml:33
+#: app/views/championship/_table.rhtml:34
 msgid "L"
 msgstr "D"
 
-#: app/views/championship/_table.rhtml:34
+#: app/views/championship/_table.rhtml:35
 msgid "GF"
 msgstr "GF"
 
-#: app/views/championship/_table.rhtml:35
+#: app/views/championship/_table.rhtml:36
 msgid "GA"
 msgstr "GC"
 
-#: app/views/championship/_table.rhtml:36
+#: app/views/championship/_table.rhtml:37
 msgid "GD"
 msgstr "SG"
 
-#: app/views/championship/_table.rhtml:37
+#: app/views/championship/_table.rhtml:38
 msgid "1%"
 msgstr "1%"
 
-#: app/views/championship/_table.rhtml:37
+#: app/views/championship/_table.rhtml:38
 msgid "odds of finishing first"
 msgstr "chances de terminar em primeiro"
 
-#: app/views/championship/_table.rhtml:38
+#: app/views/championship/_table.rhtml:39
 msgid "P%"
 msgstr "C%"
 
-#: app/views/championship/_table.rhtml:38
+#: app/views/championship/_table.rhtml:39
 msgid "odds of finishing in promotion zone"
 msgstr "chances de terminar na zona de classificação"
 
-#: app/views/championship/_table.rhtml:39
+#: app/views/championship/_table.rhtml:40
 msgid "R%"
 msgstr "R%"
 
-#: app/views/championship/_table.rhtml:39
+#: app/views/championship/_table.rhtml:40
 msgid "odds of finishing in relegation zone"
 msgstr "chances de terminar na zona de rebaixamento"
 
@@ -2330,11 +2335,11 @@ msgstr "Máximo"
 msgid "Minimum"
 msgstr "Mínimo"
 
-#: app/views/championship/crowd.rhtml:35
+#: app/views/championship/crowd.rhtml:39
 msgid "Most attended games"
 msgstr "Jogos com maiores públicos"
 
-#: app/views/championship/crowd.rhtml:40 app/views/game/edit.rhtml:157
+#: app/views/championship/crowd.rhtml:44 app/views/game/edit.rhtml:157
 #: app/views/game/edit_squad.rhtml:91 app/views/game/show.rhtml:88
 msgid "Attendance"
 msgstr "Público"
@@ -2364,12 +2369,16 @@ msgstr "Pontos por empate"
 msgid "Points for loss"
 msgstr "Pontos por derrota"
 
-# app/models/phase.rb:-
 #: app/views/championship/edit.rhtml:26
+msgid "Show country flags"
+msgstr "Mostrar bandeiras dos países"
+
+# app/models/phase.rb:-
+#: app/views/championship/edit.rhtml:29
 msgid "Phases"
 msgstr "Fases"
 
-#: app/views/championship/edit.rhtml:32 app/views/championship/list.rhtml:14
+#: app/views/championship/edit.rhtml:35 app/views/championship/list.rhtml:14
 #: app/views/game/show.rhtml:125 app/views/phase/_group_list.rhtml:5
 #: app/views/phase/list.rhtml:20 app/views/player/_player_list.rhtml:12
 #: app/views/player/show.rhtml:12 app/views/referee/_referee_list.rhtml:12
@@ -2379,15 +2388,15 @@ msgstr "Fases"
 msgid "Edit"
 msgstr "Editar"
 
-#: app/views/championship/edit.rhtml:33 app/views/comment/_comment.rhtml:2
+#: app/views/championship/edit.rhtml:36 app/views/comment/_comment.rhtml:2
 #: app/views/game/show.rhtml:127 app/views/phase/_group_list.rhtml:6
 #: app/views/player/show.rhtml:13 app/views/referee/show.rhtml:33
 #: app/views/team/show.rhtml:82
 msgid "Delete"
 msgstr "Apagar"
 
-#: app/views/championship/edit.rhtml:33 app/views/championship/list.rhtml:17
-#: app/views/championship/team.rhtml:86 app/views/game/show.rhtml:127
+#: app/views/championship/edit.rhtml:36 app/views/championship/list.rhtml:17
+#: app/views/championship/team.rhtml:88 app/views/game/show.rhtml:127
 #: app/views/phase/list.rhtml:21 app/views/player/_player_list.rhtml:13
 #: app/views/player/show.rhtml:13 app/views/referee/_referee_list.rhtml:13
 #: app/views/referee/show.rhtml:33 app/views/stadium/_stadium_list.rhtml:11
@@ -2396,11 +2405,11 @@ msgstr "Apagar"
 msgid "Are you sure?"
 msgstr "Tem certeza?"
 
-#: app/views/championship/edit.rhtml:39
+#: app/views/championship/edit.rhtml:42
 msgid "Add new phase"
 msgstr "Adicionar nova fase"
 
-#: app/views/championship/edit.rhtml:39
+#: app/views/championship/edit.rhtml:42
 msgid "More phases can be added later"
 msgstr "Mais fases podem ser adicionadas depois"
 
@@ -2432,39 +2441,39 @@ msgid "ChampionshipTeam|Played"
 msgstr "Jogados"
 
 # app/models/player.rb:-
-#: app/views/championship/team.rhtml:59 app/views/game/edit.rhtml:90
+#: app/views/championship/team.rhtml:61 app/views/game/edit.rhtml:90
 #: app/views/game/edit.rhtml:137 app/views/game/edit_squad.rhtml:50
 #: app/views/game/edit_squad.rhtml:59 app/views/game/edit_squad.rhtml:68
 #: app/views/game/edit_squad.rhtml:76 app/views/layouts/application.rhtml:34
 msgid "Players"
 msgstr "Jogadores"
 
-#: app/views/championship/team.rhtml:68
+#: app/views/championship/team.rhtml:70
 #: app/views/championship/top_goalscorers.rhtml:20
 #: app/views/game/edit.rhtml:104 app/views/game/edit.rhtml:121
 msgid "Goals"
 msgstr "Gols"
 
-#: app/views/championship/team.rhtml:69
+#: app/views/championship/team.rhtml:71
 #: app/views/championship/top_goalscorers.rhtml:22
 msgid "Own Goals"
 msgstr "Gols contra"
 
-#: app/views/championship/team.rhtml:70
+#: app/views/championship/team.rhtml:72
 #: app/views/championship/top_goalscorers.rhtml:21
 #: app/views/game/edit.rhtml:74
 msgid "Penalties"
 msgstr "Pênaltis"
 
-#: app/views/championship/team.rhtml:83
+#: app/views/championship/team.rhtml:85
 msgid "Remove"
 msgstr "Remover"
 
-#: app/views/championship/team.rhtml:147
+#: app/views/championship/team.rhtml:149
 msgid "Compare with other team:"
 msgstr "Comparar com outras equipes:"
 
-#: app/views/championship/team.rhtml:195
+#: app/views/championship/team.rhtml:197
 msgid "No records found."
 msgstr "Nenhum registro encontrado."
 

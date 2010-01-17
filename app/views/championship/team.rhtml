@@ -27,7 +27,9 @@
         <div class="table_cell" style="width: 92%">
           <%= render :partial => "game_list",
                      :locals => { :highlight_team => @team,
-                                  :game => game } %>
+                                  :game => game,
+                                  :show_country => @championship.show_country,
+                                } %>
           <div class="clearer"></div>
         </div>
         <div class="clearer"></div>

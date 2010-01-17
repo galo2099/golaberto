@@ -30,7 +30,8 @@
   <% end %>
     <div class='table_row'>
       <%= render :partial => "game_list",
-                 :locals => { :game => game } %>
+        :locals => { :game => game,
+                     :show_country => @championship.show_country } %>
       <div class='clearer'></div>
     </div>
 <% end %>
