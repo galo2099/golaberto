@@ -100,6 +100,10 @@ class Game < ActiveRecord::Base
         { :conditions => [ "(home_id in (?) OR away_id in (?))", g.teams, g.teams ] }
       }
 
+      base.named_scope :team_games, lambda { |t|
+        { :conditions => [ "(home_id = ? or away_id = ?)", t, t ] }
+      }
+
     end
   end
 

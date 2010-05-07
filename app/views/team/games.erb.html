@@ -1,0 +1,20 @@
+<div class="game_score">
+  <% @games.each do |game| %>
+  <div class="table_row">
+    <div class="table_cell" style="width: 50%; text-align: left"><%= link_to game.phase.championship.full_name, :controller => :championship, :action => :show, :id => game.phase.championship %></div>
+    <div class="table_cell" style="width: 50%"><%= game.formatted_date(true) %></div>
+    <div class="clearer"></div>
+  </div>
+  <div class="table_row">
+    <div class="table_cell" style="width: 100%">
+      <%= render :partial => "championship/game_list",
+      :locals => { :highlight_team => @team,
+      :game => game } %>
+      <div class="clearer"></div>
+    </div>
+    <div class="clearer"></div>
+  </div>
+  <% end %>
+</div>
+
+<%= will_paginate @games %>
