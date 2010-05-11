@@ -1,10 +1,30 @@
+<% content_for :title do %>
+  <%= @team.name %> - <%= _("Games") %>
+<% end %>
+<% content_for :main_title do %>
+  <%= h @team.name %>
+<% end %>
+
+<% content_for :sidebar do %>
+  <%= link_to _("Team"), :action => :show, :id => @team %><br/>
+  <%= link_to _("Games"), :action => :games, :id => @team, :played => true %><br/>
+  <br/>
+  <%= link_to_unless @played, _("Played"), :action => :games, :id => @team, :played => true %><br/>
+  <%= link_to_unless !@played, _("Scheduled"), :action => :games, :id => @team, :played => false %><br/>
+<% end %>
+
+<% last_championship = nil %>
+
+<%= _("Category") %>: <select id='category_select'>
+  <%= options_from_collection_for_select @categories, "id", "name", @category.id %>
+</select>
 <div class="game_score">
   <% @games.each do |game| %>
-  <div class="table_row">
-    <div class="table_cell" style="width: 50%; text-align: left"><%= link_to game.phase.championship.full_name, :controller => :championship, :action => :show, :id => game.phase.championship %></div>
-    <div class="table_cell" style="width: 50%"><%= game.formatted_date(true) %></div>
-    <div class="clearer"></div>
-  </div>
+  <% if last_championship != game.phase.championship %>
+    <% last_championship = game.phase.championship %>
+    <div><%= link_to game.phase.championship.full_name, :controller => :championship, :action => :show, :id => game.phase.championship %></div>
+  <% end %>
+  <div style='font-size: 11px'><%= game.formatted_date(true) %></div>
   <div class="table_row">
     <div class="table_cell" style="width: 100%">
       <%= render :partial => "championship/game_list",
@@ -17,4 +37,9 @@
   <% end %>
 </div>
 
+<br>
+
 <%= will_paginate @games %>
+
+<%= observe_field "category_select",
+        :function => "document.location = '" + url_for({ :page => 1, :played => true, :category => "XXX" }) + "'.replace('XXX', value);" %>

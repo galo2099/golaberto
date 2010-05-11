@@ -22,8 +22,12 @@ class TeamController < ApplicationController
 
   def games
     store_location
+    @categories = Category.find(:all)
     @team = Team.find(params["id"])
-    @games = Game.team_games(@team).paginate(:page => params[:page], :order => "date DESC", :conditions => [ "played = ? and championships.category_id = ?", true, 1], :include => { :phase => :championship })
+    @category = Category.find(params[:category])
+    @played = params[:played]
+    order = !!@played ? "date DESC" : "date ASC"
+    @games = Game.team_games(@team).paginate(:page => params[:page], :order => order, :conditions => [ "played = ? and championships.category_id = ?", @played, @category ], :include => { :phase => :championship })
   end
 
   def update

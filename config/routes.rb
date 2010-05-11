@@ -26,6 +26,9 @@ ActionController::Routing::Routes.draw do |map|
 
   map.connect 'game/list/:type/:page', :controller => 'game', :action => 'list', :page => /\d+/, :defaults => { :type => 'scheduled', :page => 1 }
 
+  map.connect 'team/games/played/:id/:category/:page', :controller => 'team', :action => 'games', :played => true, :defaults => { :category => 1, :page => 1 }
+  map.connect 'team/games/scheduled/:id/:category/:page', :controller => 'team', :action => 'games', :played => false, :defaults => { :category => 1, :page => 1 }
+
   # Install the default route as the lowest priority.
   map.connect ':controller/:action/:id', :controller => 'home'
 end
