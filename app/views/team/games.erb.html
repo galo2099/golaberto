@@ -18,6 +18,10 @@
 <%= _("Category") %>: <select id='category_select'>
   <%= options_from_collection_for_select @categories, "id", "name", @category.id %>
 </select>
+<br/>
+<br/>
+<%= will_paginate @games %>
+<br/>
 <div class="game_score">
   <% @games.each do |game| %>
   <% if last_championship != game.phase.championship %>
