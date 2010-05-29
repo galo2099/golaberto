@@ -1,7 +1,7 @@
 class TeamController < ApplicationController
   N_("Team")
 
-  require_role "editor", :except => [ :index, :list, :show ]
+  require_role "editor", :except => [ :index, :list, :show, :games ]
 
   def index
     redirect_to :action => :list
@@ -18,6 +18,16 @@ class TeamController < ApplicationController
   def edit
     @team = Team.find(params["id"])
     @stadiums = Stadium.find(:all, :order => :name)
+  end
+
+  def games
+    store_location
+    @categories = Category.find(:all)
+    @team = Team.find(params["id"])
+    @category = Category.find(params[:category])
+    @played = params[:played]
+    order = !!@played ? "date DESC" : "date ASC"
+    @games = Game.team_games(@team).paginate(:page => params[:page], :order => order, :conditions => [ "played = ? and championships.category_id = ?", @played, @category ], :include => { :phase => :championship })
   end
 
   def update

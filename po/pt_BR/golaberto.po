@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2010-05-29 00:18-0400\n"
+"POT-Creation-Date: 2010-05-29 00:23-0400\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: Robson Braga Araujo <robsonbraga@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -140,6 +140,7 @@ msgid "Stadium was successfully created"
 msgstr "Estádio foi criado com sucesso"
 
 #: app/controllers/team_controller.rb:2 app/views/group/_team_list.rhtml:2
+#: app/views/team/show.rhtml:85
 msgid "Team"
 msgstr "Equipe"
 
@@ -1553,11 +1554,11 @@ msgid "Goal|Aet"
 msgstr "Prorrogação"
 
 # app/models/player.rb:-
-#: app/models/game.rb:114
+#: app/models/game.rb:118
 msgid "Played"
 msgstr "Jogados"
 
-#: app/models/game.rb:114 app/views/championship/team.rhtml:42
+#: app/models/game.rb:118 app/views/championship/team.rhtml:42
 #: app/views/game/list.rhtml:23
 msgid "Scheduled"
 msgstr "Agendados"
@@ -2230,7 +2231,7 @@ msgstr "Tabela"
 #: app/views/championship/_nav_side.rhtml:10
 #: app/views/championship/crowd.rhtml:16 app/views/championship/games.rhtml:2
 #: app/views/layouts/application.rhtml:33 app/views/referee/show.rhtml:7
-#: app/views/stadium/show.rhtml:6
+#: app/views/stadium/show.rhtml:6 app/views/team/show.rhtml:86
 msgid "Games"
 msgstr "Jogos"
 
@@ -2397,14 +2398,13 @@ msgstr "Fases"
 #: app/views/player/show.rhtml:12 app/views/referee/_referee_list.rhtml:12
 #: app/views/referee/show.rhtml:32 app/views/stadium/_stadium_list.rhtml:10
 #: app/views/stadium/show.rhtml:31 app/views/team/_team_list.rhtml:13
-#: app/views/team/show.rhtml:81 app/views/team_group/list.rhtml:16
+#: app/views/team_group/list.rhtml:16
 msgid "Edit"
 msgstr "Editar"
 
 #: app/views/championship/edit.rhtml:36 app/views/comment/_comment.rhtml:2
 #: app/views/game/show.rhtml:127 app/views/phase/_group_list.rhtml:6
 #: app/views/player/show.rhtml:13 app/views/referee/show.rhtml:33
-#: app/views/team/show.rhtml:82
 msgid "Delete"
 msgstr "Apagar"
 
@@ -2873,6 +2873,14 @@ msgid "Next game"
 msgid_plural "Next %{num} games"
 msgstr[0] "Próximo jogo"
 msgstr[1] "Próximos %{num} jogos"
+
+#: app/views/team/show.rhtml:81
+msgid "Edit team"
+msgstr "Editar equipe"
+
+#: app/views/team/show.rhtml:82
+msgid "Delete team"
+msgstr "Apagar equipe"
 
 #: app/views/team_group/list.rhtml:1
 msgid "Listing team_groups"
