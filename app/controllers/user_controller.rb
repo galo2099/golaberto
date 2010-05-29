@@ -7,6 +7,11 @@ class UserController < ApplicationController
     @edit_number = @user.game_edits.count
   end
 
+  def list_edits
+    @user = User.find(params[:id])
+    @edits = @user.game_edits.paginate(:page => params[:page], :order => "updated_at DESC", :conditions => [ "version > 1" ])
+  end
+
   def list
     @users = User.paginate(
         :select => "*, (select count(game_versions.id) from game_versions where game_versions.updater_id = users.id) edit_count, " +

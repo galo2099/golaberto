@@ -31,6 +31,8 @@
 
 
 <% content_for :sidebar do %>
+  <%= link_to _("View user"), :action => :show, :id => @user %><br/>
+  <%= link_to _("View user edits"), :action => :list_edits, :id => @user %><br/>
   <%= link_to _("View all users"), :action => :list %><br/>
   <br/>
   <% if logged_in? and current_user == @user %>
