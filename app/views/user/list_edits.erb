@@ -1,0 +1,41 @@
+<% content_for :main_title do %><%= _("Listing games") %><% end %>
+
+<div><%= image_tag "users/" + @user.small_logo, :class => "user-logo" %> <%= h @user.display_name %></div>
+<br/>
+<%= will_paginate @edits %>
+<br/>
+
+<% @edits.each do |edit| %>
+  <div class="updated-game">
+    <small><%= edit.updated_at.strftime(_("%A, %d/%m/%Y at %H:%M")) %></small><br>
+    <div class="table_row">
+      <div class="table_cell" style="width: 50%; text-align: left"><%= link_to edit.phase.championship.full_name, :controller => :championship, :action => :show, :id => edit.phase.championship %></div>
+      <div class="table_cell" style="width: 50%"><%= edit.formatted_date(true) %></div>
+      <div class="clearer"></div>
+    </div>
+    <div class="table_row">
+      <%= render :partial => "championship/game_list",
+                 :locals => { :game => edit } %>
+      <div class="clearer"></div>
+    </div>
+    <div>
+      <b><%= _("Version %{number}") % { :number => edit.version } %></b><br/>
+      <small><%= edit.updated_at.strftime(_("%A, %d/%m/%Y at %H:%M")) %></small>
+      <br/>
+      <%= formatted_diff((edit.previous || Game.new).diff(edit)) %>
+    </div>
+  </div>
+
+<% end %>
+
+<%= will_paginate @edits %>
+
+<% content_for :sidebar do %>
+  <%= link_to _("View user"), :action => :show, :id => @user %><br/>
+  <%= link_to _("View user edits"), :action => :list_edits, :id => @user %><br/>
+  <%= link_to _("View all users"), :action => :list %><br/>
+  <br/>
+  <% if logged_in? and current_user == @user %>
+    <%= link_to _("Edit profile"), :action => :edit, :id => current_user %><br/>
+  <% end %>
+<% end %>
