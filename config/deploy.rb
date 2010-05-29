@@ -15,12 +15,14 @@ set :deploy_via, :remote_cache
 set :branch, "master"
 
 ssh_options[:paranoid] = false
+ssh_options[:encryption] = [ "arcfour256", "aes128-cbc", "aes256-cbc", "3des-cbc" ]
+ssh_options[:auth_methods] = [ "publickey", "keyboard-interactive", "password" ]
 
 role :app, domain
 role :web, domain
 role :db,  domain, :primary => true
 
-task :after_update_code, :roles => :app do
+after "deploy:update_code", :roles => :app do
   stats = <<-JS
 <script type='text/javascript'>
 var gaJsHost = (('https:' == document.location.protocol) ? 'https://ssl.' : 'http://www.');
