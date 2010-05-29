@@ -1,6 +1,7 @@
 set :user, "galo_2099"
 set :domain, "golaberto.com.br"
 set :application, "golaberto"
+set :rake, "/home/galo_2099/.gem/ruby/1.8/bin/rake"
 
 set :deploy_to, "/home/galo_2099/#{application}"
 
@@ -45,7 +46,7 @@ pageTracker._trackPageview();
   run "ln -s #{shared_path}/logos #{release_path}/public/images/"
   run "ln -s #{shared_path}/users #{release_path}/public/images/"
 
-  run "rake -f #{release_path}/Rakefile asset:packager:build_all"
+  run "#{rake} -f #{release_path}/Rakefile asset:packager:build_all"
 end
 
 namespace :deploy do
