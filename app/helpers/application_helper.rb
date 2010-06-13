@@ -47,19 +47,19 @@ module ApplicationHelper
         end
       when :stadium_id
         if value[0].nil?
-          ret << sprintf(_("Added stadium: %s<br>"), Stadium.find(value[1]).name)
+          ret << sprintf(_("Added stadium: %s<br>"), Stadium.find(value[1]).name) rescue nil
         elsif value[1].nil?
-          ret << sprintf(_("Removed stadium: %s<br>"), Stadium.find(value[0]).name)
+          ret << sprintf(_("Removed stadium: %s<br>"), Stadium.find(value[0]).name) rescue nil
         else
-          ret << sprintf(_("Changed stadium: %s -> %s<br>"), Stadium.find(value[0]).name, Stadium.find(value[1]).name)
+          ret << sprintf(_("Changed stadium: %s -> %s<br>"), Stadium.find(value[0]).name, Stadium.find(value[1]).name) rescue nil
         end
       when :referee_id
         if value[0].nil?
-          ret << sprintf(_("Added referee: %s<br>"), Referee.find(value[1]).name)
+          ret << sprintf(_("Added referee: %s<br>"), Referee.find(value[1]).name) rescue nil
         elsif value[1].nil?
-          ret << sprintf(_("Removed referee: %s<br>"), Referee.find(value[0]).name)
+          ret << sprintf(_("Removed referee: %s<br>"), Referee.find(value[0]).name) rescue nil
         else
-          ret << sprintf(_("Changed referee: %s -> %s<br>"), Referee.find(value[0]).name, Referee.find(value[1]).name)
+          ret << sprintf(_("Changed referee: %s -> %s<br>"), Referee.find(value[0]).name, Referee.find(value[1]).name) rescue nil
         end
       else
         name = Game.columns_hash[key.to_s] ? Game.columns_hash[key.to_s].human_name.downcase : key.to_s
