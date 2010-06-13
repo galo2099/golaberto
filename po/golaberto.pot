@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: golaberto 1.0.0\n"
-"POT-Creation-Date: 2010-05-29 00:23-0400\n"
+"POT-Creation-Date: 2010-06-13 10:16-0300\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2301,11 +2301,11 @@ msgstr ""
 msgid "Minimum"
 msgstr ""
 
-#: app/views/championship/crowd.rhtml:39
+#: app/views/championship/crowd.rhtml:41
 msgid "Most attended games"
 msgstr ""
 
-#: app/views/championship/crowd.rhtml:44 app/views/game/edit.rhtml:157
+#: app/views/championship/crowd.rhtml:46 app/views/game/edit.rhtml:157
 #: app/views/game/edit_squad.rhtml:91 app/views/game/show.rhtml:88
 msgid "Attendance"
 msgstr ""
@@ -2334,7 +2334,7 @@ msgstr ""
 msgid "Points for loss"
 msgstr ""
 
-#: app/views/championship/edit.rhtml:26
+#: app/views/championship/edit.rhtml:26 app/views/championship/new.rhtml:13
 msgid "Show country flags"
 msgstr ""
 
@@ -2388,7 +2388,7 @@ msgstr ""
 msgid "Destroy"
 msgstr ""
 
-#: app/views/championship/list.rhtml:30 app/views/championship/new.rhtml:13
+#: app/views/championship/list.rhtml:30 app/views/championship/new.rhtml:15
 #: app/views/championship/new_game.rhtml:15 app/views/game/edit.rhtml:193
 #: app/views/game/edit.rhtml:220 app/views/phase/new.rhtml:7
 #: app/views/player/new.rhtml:7 app/views/referee/new.rhtml:7
