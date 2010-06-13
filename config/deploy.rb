@@ -38,6 +38,8 @@ pageTracker._trackPageview();
   layout = "#{release_path}/app/views/layouts/application.rhtml"
   run "sed -i \"s^</body>^#{stats}</body>^\" #{layout}"
 
+  run "sed -i -e 's/development/production/' #{release_path}/lib/daemons/delayed_jobs.rb"
+
   run "patch #{release_path}/config/environment.rb -i #{shared_path}/config/environment.patch"
 
   run "cp -f #{shared_path}/config/database.yml #{release_path}/config/database.yml"
