@@ -16,7 +16,7 @@ set :deploy_via, :remote_cache
 set :branch, "master"
 
 ssh_options[:paranoid] = false
-ssh_options[:encryption] = [ "arcfour256", "aes128-cbc", "aes256-cbc", "3des-cbc" ]
+ssh_options[:encryption] = [ "aes128-cbc", "aes256-cbc", "3des-cbc" ]
 ssh_options[:auth_methods] = [ "publickey", "keyboard-interactive", "password" ]
 
 role :app, domain
