@@ -30,6 +30,7 @@
 <h2> <%= n_("Last game", "Last %{num} games", @last_games.size) % { :num => @last_games.size } %></h2>
 <div class="game_score" style='font-size: 12px'>
   <% @last_games.each do |game| %>
+    <div style='font-size: 11px'><%= game.formatted_date(true) %></div>
     <div class="table_row">
       <div class="table_cell" style='width: 30%; text-align: left'>
         <%= link_to game.phase.championship.full_name,
@@ -54,6 +55,7 @@
 <h2> <%= n_("Next game", "Next %{num} games", @next_games.size) % { :num => @next_games.size } %></h2>
 <div class="game_score" style='font-size: 12px'>
   <% @next_games.each do |game| %>
+    <div style='font-size: 11px'><%= game.formatted_date(true) %></div>
     <div class="table_row">
       <div class="table_cell" style='width: 30%; text-align: left'>
         <%= link_to game.phase.championship.full_name,
