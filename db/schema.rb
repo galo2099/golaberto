@@ -9,7 +9,7 @@
 #
 # It's strongly recommended to check this file into your version control system.
 
-ActiveRecord::Schema.define(:version => 20100109023228) do
+ActiveRecord::Schema.define(:version => 20100727001049) do
 
   create_table "categories", :force => true do |t|
     t.string "name"
@@ -99,6 +99,9 @@ ActiveRecord::Schema.define(:version => 20100109023228) do
     t.integer  "home_aet"
     t.integer  "away_aet"
   end
+
+  add_index "games", ["away_id"], :name => "index_games_on_away_id"
+  add_index "games", ["home_id"], :name => "index_games_on_home_id"
 
   create_table "goals", :force => true do |t|
     t.integer "player_id", :default => 0,     :null => false
