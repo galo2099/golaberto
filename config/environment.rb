@@ -44,6 +44,7 @@ Rails::Initializer.run do |config|
   config.gem "locale_rails"
   config.gem "gettext_activerecord"
   config.gem "gettext_rails"
+  config.gem "newrelic_rpm"
 
   config.gem "quilt"
 end
