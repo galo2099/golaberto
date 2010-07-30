@@ -21,11 +21,11 @@ class GroupController < ApplicationController
     saved = @group.save
 
     @group.team_groups.clear
-    @teams = Array.new
+    @team_groups = Array.new
     params["team_group"].each do |key, value|
       value["comment"] = nil if value["comment"].to_s.empty?
-      @teams.push @group.team_groups.build(value)
-      saved = @teams.last.save && saved
+      @team_groups.push @group.team_groups.build(value)
+      saved = @team_groups.last.save && saved
     end unless params["team_group"].nil?
 
     @team_number = @group.team_groups.size

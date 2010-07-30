@@ -3,10 +3,10 @@
 <% end %>
 
 <%= error_messages_for 'group'  %>
-<% @teams.each do |team| %>
+<% @team_groups.each do |team| %>
   <%= team.errors.full_messages %>
   <%= tag "br" unless team.errors.full_messages.empty? %>
-<% end unless @teams.nil? %>
+<% end unless @team_groups.nil? %>
 
 <h2><%= @group.phase.name %></h2>
 
