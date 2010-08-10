@@ -1,17 +1,26 @@
+<style type="text/css">
+  .ui-autocomplete {
+    max-height: 200px;
+    width: 500px;
+    background-color: #D9D9D9;
+    overflow: auto;
+  }
+</style>
+<div class="demo">
+<div class="ui-widget">
+  <img src="/images/blank.gif" id="team-icon" />
+  <input id="team-label" />
+  <input type="hidden" id="team-id" />
+  <p id="team-description"></p>
+</div>
+</div><!-- End demo -->
+
 <table>
   <tr><th><%= _("Team") %></th><th><%= _("Bonus") %></th><th><%= _("Bias") %></th><th><%= _("Observation") %></th></tr>
 <% @team_number.times do |i| %>
   <tr><td>
       <% team_group = @group.team_groups[i] %>
       <select id="team_group_<%=i%>_id" name="team_group[<%=i%>][team_id]">
-        <% if team_group.nil? or team_group.team.nil? %>
-          <option value="" selected="selected"></option>
-        <% end %>
-        <%= options_from_collection_for_select @teams, "id", "name",
-          unless team_group.nil? or team_group.team.nil?
-            team_group.team.id
-          end
-        %>
       </select>
     </td>
     <td>
@@ -31,4 +40,14 @@
   </tr>
 <% end %>
 </table>
-
+<%= javascript_include_merged :edit_group %>
+<script type="text/javascript">
+var teams = [
+<% @teams.each do |team| %>
+  <%= "{ id: #{team.id},
+         name: '#{escape_javascript team.name}',
+         desc: '#{escape_javascript team.full_name}, #{escape_javascript _(team.country)}',
+         icon: '#{escape_javascript team.small_logo}' }," %>
+<% end %>
+];
+</script>

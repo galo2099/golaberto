@@ -1,3 +1,10 @@
+<%= google_jquery :local => true %>
+<%= google_jqueryui :local => true %>
+<script type="text/javascript">
+  jQuery.noConflict();
+</script>
+
+
 <% content_for :main_title do %>
   <%= @group.phase.championship.full_name %>
 <% end %>
@@ -21,14 +28,9 @@
   <%= _("Teams") %><br/>
   <%= _("Number of teams") %>:
   <input type="text" id="team_number" value="<%= @group.teams.size %>" size="2"/><br/>
-  <%= observe_field 'team_number',
-    :update => 'team_select',
-    :url => { :action => 'edit', :id => @group },
-    :with => 'team_number' %>
   <div id="team_select">
     <%= render :partial => "team_list" %>
   </div>
-  </p>
 
   <%= submit_tag _("Update") %><br/>
 <% end %>
