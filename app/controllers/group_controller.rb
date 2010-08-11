@@ -5,32 +5,28 @@ class GroupController < ApplicationController
 
   def edit
     @group = Group.find(params["id"])
-    @team_number = params["team_number"]
-    @team_number = @group.teams.size if @team_number.nil?
-    @team_number = @team_number.to_i
     @teams = Team.all(:order => :name)
-    if request.xhr?
-      render :partial => "team_list"
-    end
   end
 
   def update
     @group = Group.find(params["id"])
     @group.attributes = params["group"]
 
-    saved = @group.save
+    valid = @group.valid?
 
-    @group.team_groups.clear
-    @team_groups = Array.new
+	@group.team_groups.clear
+
+    new_team_groups = Array.new
     params["team_group"].each do |key, value|
       value["comment"] = nil if value["comment"].to_s.empty?
-      @team_groups.push @group.team_groups.build(value)
-      saved = @team_groups.last.save && saved
+      new_team_groups.push TeamGroup.new(value.merge({:group_id => @group.id}))
+      valid = new_team_groups.last.try(:valid?) && valid
     end unless params["team_group"].nil?
 
-    @team_number = @group.team_groups.size
+	@group.team_groups = new_team_groups
 
-    if saved
+    if valid
+      @group.save!
       redirect_to :controller => :championship, :action => :phases, :id => @group.phase.championship, :phase => @group.phase
     else
       @teams = Team.all(:order => :name)

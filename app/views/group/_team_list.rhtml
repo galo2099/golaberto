@@ -1,53 +1,37 @@
+<link rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.4/themes/humanity/jquery-ui.css" type="text/css" media="all" /> 
 <style type="text/css">
   .ui-autocomplete {
-    max-height: 200px;
-    width: 500px;
-    background-color: #D9D9D9;
+    max-height: 220px;
+    width: 520px;
+    font-size: small;
+    text-align: left;
     overflow: auto;
   }
 </style>
-<div class="demo">
-<div class="ui-widget">
-  <img src="/images/blank.gif" id="team-icon" />
-  <input id="team-label" />
-  <input type="hidden" id="team-id" />
-  <p id="team-description"></p>
-</div>
-</div><!-- End demo -->
 
-<table>
-  <tr><th><%= _("Team") %></th><th><%= _("Bonus") %></th><th><%= _("Bias") %></th><th><%= _("Observation") %></th></tr>
-<% @team_number.times do |i| %>
-  <tr><td>
-      <% team_group = @group.team_groups[i] %>
-      <select id="team_group_<%=i%>_id" name="team_group[<%=i%>][team_id]">
-      </select>
-    </td>
-    <td>
-      <%= text_field_tag "team_group[#{i}][add_sub]",
-                         team_group ? team_group.add_sub : 0,
-                         :size => 2 %>
-    </td>
-    <td>
-      <%= text_field_tag "team_group[#{i}][bias]",
-                         team_group ? team_group.bias : 0,
-                         :size => 2 %>
-    </td>
-    <td>
-      <%= text_area_tag "team_group[#{i}][comment]",
-                        team_group ? team_group.comment : "" %>
-    </td>
-  </tr>
-<% end %>
+<table id="team_groups">
+  <tr><th></th><th><%= _("Team") %></th><th><%= _("Bonus") %></th><th><%= _("Bias") %></th><th><%= _("Observation") %></th></tr>
 </table>
 <%= javascript_include_merged :edit_group %>
 <script type="text/javascript">
-var teams = [
+var teams = {
 <% @teams.each do |team| %>
-  <%= "{ id: #{team.id},
-         name: '#{escape_javascript team.name}',
-         desc: '#{escape_javascript team.full_name}, #{escape_javascript _(team.country)}',
-         icon: '#{escape_javascript team.small_logo}' }," %>
+  <%= team.id %>:
+  { name: '<%= escape_javascript team.name %>',
+    desc: '<%= escape_javascript team.full_name %>, <%= escape_javascript _(team.country) %>',
+    icon: '<%= escape_javascript team.small_logo %>' },
+<% end %>
+};
+var ordered_teams = [
+<% @teams.each do |team| %>
+  <%= team.id %>,
 <% end %>
 ];
+var current_data = [
+<% @group.team_groups.each do |t| %>
+  <%= t.to_json %>,
+<% end %>
+];
+jQuery(function() { update_team_groups(<%= @group.team_groups.size %>, teams, ordered_teams, current_data); });
 </script>
+<%= observe_field "team_number", :function => "update_team_groups(value, teams, ordered_teams, current_data);" %>

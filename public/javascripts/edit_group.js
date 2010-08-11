@@ -1,41 +1,92 @@
-jQuery(function() {
-  var label = jQuery('#team-label');
-  label.autocomplete({
+(function( $ ) {
+
+ $( ".ui-autocomplete-input" ).live( "autocompleteopen", function() {
+    var autocomplete = $( this ).data( "autocomplete" ),
+            menu = autocomplete.menu;
+
+                if ( !autocomplete.options.selectFirst ) {
+                        return;
+                            }
+
+                                menu.activate( $.Event({ type: "mouseenter" }), menu.element.children().first() );
+                                });
+
+ }( jQuery ));
+
+function update_team_groups(size, teams, ordered_teams, current_data) {
+  current_size = jQuery(".team_group").length;
+  if (size < current_size) {
+    jQuery(".team_group:gt(" + size + "), .team_group:eq(" + size + ")").remove();
+  } else if (size > current_size) {
+    for (var i = current_size; i < size; ++i) {
+      var team_group = jQuery("<tr class='team_group'></tr>")
+        .append("<td><img class='team_group_icon' src='/images/blank.gif' height='20px' width='20px' /></td>")
+        .append("<td><input size='40' class='team_group_name' /><input type='hidden' class='team_group_id' name='team_group[" + i + "][team_id]' /></td>")
+        .append("<td><input size='2' class='team_group_add_sub' name='team_group[" + i + "][add_sub]' /></td>")
+        .append("<td><input size='2' class='team_group_bias' name='team_group[" + i + "][bias]' /></td>")
+        .append("<td><textarea class='team_group_comment' name='team_group[" + i + "][comment]' /></td>")
+        .appendTo("#team_groups");
+      initialize_team_group(team_group, teams, ordered_teams, current_data[i]);
+    }
+    jQuery(".team_group:eq(" + current_size + ") .team_group_name").focus();
+  }
+}
+
+function initialize_team_group(team_group, teams, ordered_teams, current_data) {
+  var id = team_group.find(".team_group_id");
+  var add_sub = team_group.find(".team_group_add_sub").val(0);
+  var bias = team_group.find(".team_group_bias").val(0);
+  var comment = team_group.find(".team_group_comment");
+  var icon = team_group.find(".team_group_icon");
+  var name = team_group.find(".team_group_name");
+
+  name.autocomplete({
     source: function(request, response) {
       var matcher = new RegExp(request.term.latinize(), "i");
-      response(teams.map(function(x) {
-        if (!x.latinized) {
-          x.latinized = x.name.latinize();
+      response(ordered_teams.map(function(key) {
+        var team = teams[key];
+        if (!team.latinized) {
+          team.latinized = team.name.latinize();
         }
-        if (!request.term || matcher.test(x.latinized)) {
+        if (!request.term || matcher.test(team.latinized)) {
           return {
-            id: x.id,
-            value: x.name,
-            label: x.name + '<br>' + x.desc,
-            desc: x.desc,
-            icon: x.icon,
+            id: key,
+            value: team.name,
+            label: team.name + ' - ' + team.desc,
+            icon: team.icon,
           };
         }
       }).filter(function(x) {
         return x;
       }));
     },
-    focus: function(event, ui) {
-      var a = jQuery('#team-label');
-      a.val(ui.item.value);
+    select: function(event, ui) {
+      id.val(ui.item.id);
+      name.val(ui.item.value);
+      icon.attr('src', '/images/logos/' + ui.item.icon);
       return false;
     },
-    select: function(event, ui) {
-      jQuery('#team-id').val(ui.item.id);
-      jQuery('#team-label').val(ui.item.value);
-      jQuery('#team-description').html(ui.item.desc);
-      jQuery('#team-icon').attr('src', '/images/logos/' + ui.item.icon);
-      return false;
+    change: function(event, ui) {
+      if (!ui.item) {
+        id.val(null);
+        name.val(null);
+        icon.attr('src', '/images/blank.gif');
+      }
     },
     delay: 0,
     minLength: 2,
+    selectFirst: true,
   });
-});
+
+  if (current_data && current_data.team_id) {
+    add_sub.val(current_data.add_sub);
+    bias.val(current_data.bias);
+    comment.val(current_data.comment);
+    id.val(current_data.team_id);
+    name.val(teams[current_data.team_id].name);
+    icon.attr('src', '/images/logos/' + teams[current_data.team_id].icon);
+  }
+}
 
 var latin_map = {
 'Á': 'A',

@@ -1,5 +1,5 @@
-<%= google_jquery :local => true %>
-<%= google_jqueryui :local => true %>
+<%= google_jquery %>
+<%= google_jqueryui %>
 <script type="text/javascript">
   jQuery.noConflict();
 </script>
@@ -9,11 +9,8 @@
   <%= @group.phase.championship.full_name %>
 <% end %>
 
-<%= error_messages_for 'group'  %>
-<% @team_groups.each do |team| %>
-  <%= team.errors.full_messages %>
-  <%= tag "br" unless team.errors.full_messages.empty? %>
-<% end unless @team_groups.nil? %>
+<%= error_messages_for 'group' %>
+<%= error_messages_for 'team_group', :object => @group.team_groups %>
 
 <h2><%= @group.phase.name %></h2>
 
@@ -27,7 +24,7 @@
   <p>
   <%= _("Teams") %><br/>
   <%= _("Number of teams") %>:
-  <input type="text" id="team_number" value="<%= @group.teams.size %>" size="2"/><br/>
+  <input type="text" id="team_number" value="<%= @group.team_groups.size %>" size="2"/><br/>
   <div id="team_select">
     <%= render :partial => "team_list" %>
   </div>
