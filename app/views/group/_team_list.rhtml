@@ -23,9 +23,7 @@ var teams = {
 <% end %>
 };
 var ordered_teams = [
-<% @teams.each do |team| %>
-  <%= team.id %>,
-<% end %>
+<% @teams.each do |team| %><%= team.id %>,<% end %>
 ];
 var current_data = [
 <% @group.team_groups.each do |t| %>
