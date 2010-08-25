@@ -1,6 +1,6 @@
 class Group < ActiveRecord::Base
   belongs_to :phase
-  has_many :team_groups, :dependent => :delete_all, :include => :team
+  has_many :team_groups, :dependent => :delete_all, :include => :team, :order => "teams.name ASC"
   has_many :teams, :through => :team_groups
   validates_length_of :name, :within => 1..40
   validates_uniqueness_of :name, :scope => :phase_id
