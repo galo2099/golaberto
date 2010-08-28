@@ -1,17 +1,17 @@
 (function( $ ) {
 
- $( ".ui-autocomplete-input" ).live( "autocompleteopen", function() {
-    var autocomplete = $( this ).data( "autocomplete" ),
-            menu = autocomplete.menu;
+$( ".ui-autocomplete-input" ).live( "autocompleteopen", function() {
+  var autocomplete = $( this ).data( "autocomplete" ),
+      menu = autocomplete.menu;
 
-                if ( !autocomplete.options.selectFirst ) {
-                        return;
-                            }
+  if ( !autocomplete.options.selectFirst ) {
+    return;
+  }
 
-                                menu.activate( $.Event({ type: "mouseenter" }), menu.element.children().first() );
-                                });
+  menu.activate( $.Event({ type: "mouseenter" }), menu.element.children().first() );
+});
 
- }( jQuery ));
+}( jQuery ));
 
 function update_team_groups(size, teams, ordered_teams, current_data) {
   current_size = jQuery(".team_group").length;
