@@ -1,5 +1,15 @@
 # Methods added to this helper will be available to all templates in the application.
 module ApplicationHelper
+  def add_wbr_to_string(str, strings_to_break_after = [ '/' ])
+    ret = String.new(str)
+    strings_to_break_after.each do |pattern|
+      ret.gsub!(pattern) do |s|
+        s + '<wbr />'
+      end
+    end
+    ret
+  end
+
   def pagination_links_remote(paginator, ajax_options={}, page_options={}, html_options={})
     page_options = { :window_size => 8 }.merge(page_options)
     html = ""

@@ -7,7 +7,7 @@
   <% for team in @teams %>
     <tr>
       <td><%= image_tag "logos/" + team.small_logo %>
-        <%= link_to team.name, :action => :show, :id => team %></td>
+        <%= link_to add_wbr_to_string(team.name), :action => :show, :id => team %></td>
       <td><%= _(team.country) %></td>
       <% if logged_in? and current_user.can_edit? %>
         <td><%= link_to _('Edit'), :action => 'edit', :id => team %></td>

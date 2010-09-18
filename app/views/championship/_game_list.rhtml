@@ -3,7 +3,7 @@ highlight_team = defined?(highlight_team) ? highlight_team : nil
 show_country = defined?(show_country) ? show_country : nil
 game_id = game.class == Game::Version ? game.game.id : game.id
 def name_to_print(team, highlight)
-  name = team.name
+  name = add_wbr_to_string team.name
   name = "<b>#{name}</b>" if team == highlight
   name
 end %>
