@@ -5,7 +5,12 @@
   <%= h @championship.full_name %>
 <% end %>
 <table class='tab_header'><tr>
+<% count = 0 %>
 <% @championship.phases.each do |phase| %>
+<% if count % 6 == 0 %>
+  </tr><tr>
+<% end %>
+<% count = count + 1 %>
 <td>
 <%   if (phase.id != @current_phase.id) %>
 <%=    link_to phase.name, { :action => "phases",
