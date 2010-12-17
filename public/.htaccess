@@ -23,6 +23,11 @@ RewriteBase /
 RewriteCond %{REQUEST_URI} ^/(stats|failed_auth\.html)/?(.*)$ [NC]
 RewriteRule ^.*$ - [L]
 
+# Prevent hotlinking to images
+RewriteCond %{HTTP_REFERER} !^http://(www\.)?golaberto\.com\.br/ [NC]
+RewriteCond %{HTTP_REFERER} !^$
+RewriteRule \.(jpe?g|gif|png)$ - [F]
+
 # If your Rails application is accessed via an Alias directive,
 # then you MUST also set the RewriteBase in this htaccess file.
 #
