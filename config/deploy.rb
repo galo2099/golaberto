@@ -9,7 +9,6 @@ set :deploy_to, "/home/galo_2099/#{application}"
 set :use_sudo, false
 
 set :scm, :git
-set :scm_command, "/home/galo_2099/git/bin/git"
 set :local_scm_command, "git"
 set :repository, "git://github.com/galo2099/golaberto.git"
 set :deploy_via, :remote_cache
