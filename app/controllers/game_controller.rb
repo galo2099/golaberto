@@ -18,19 +18,26 @@ class GameController < ApplicationController
     @type = params[:type] || "played"
     if (@type == "scheduled")
       conditions = [ "played = ?", false ]
-      order = "date ASC, phase_id, time ASC, teams.name"
+      order = "date ASC, phase_id, time ASC"
+      post_sort = proc do |g|
+        [(g.date.to_time.to_i), g.phase_id, (g.time.to_i), g.home.name]
+      end
       default_start = (Date.today - 7.days).strftime("%d/%m/%Y")
     else
       conditions = [ "played = ?", true ]
-      order = "date DESC, phase_id, time DESC, teams.name"
+      order = "date DESC, phase_id, time DESC"
+      post_sort = proc do |g|
+        [-(g.date.to_time.to_i), g.phase_id, -(g.time.to_i), g.home.name]
+      end
       default_end = Date.today.strftime("%d/%m/%Y")
     end
 
     @categories = Category.find(:all)
     @category = params[:category] || 1
     @category = @category.to_i
-    conditions[0] << " AND championships.category_id = ?"
-    conditions << @category
+    phases = Phase.find(:all, :joins => [ :championship ], :conditions => { :championships => { :category_id => @category }})
+    conditions[0] << " AND phase_id IN (?)"
+    conditions << phases
 
     @date_range_start = params[:date_range_start] || default_start
     @date_range_end = params[:date_range_end] || default_end
@@ -45,12 +52,10 @@ class GameController < ApplicationController
       conditions << end_date
     end
 
-    inc = [ :home, :away, [ :phase => :championship ] ]
-
     @games = Game.paginate :order => order,
                            :conditions => conditions,
-                           :include => inc,
                            :page => params[:page]
+    @sorted_games = @games.sort_by{|g|post_sort.call(g)}
   end
 
   def destroy

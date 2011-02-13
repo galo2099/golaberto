@@ -1,6 +1,6 @@
 <% last_phase_id = nil %>
 <% last_date = nil %>
-<% @games.each do |game| %>
+<% @sorted_games.each do |game| %>
   <% if game.formatted_date != last_date %>
     <% last_date = game.formatted_date %>
     <% last_phase_id = game.phase_id %>
