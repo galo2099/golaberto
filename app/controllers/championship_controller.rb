@@ -228,25 +228,23 @@ class ChampionshipController < ApplicationController
     @current_phase = @championship.phases.find(params["phase"])
     @group = params["group"]
 
-    conditions = nil
+    games = @current_phase.games.scoped
     if @group.nil?
       @groups_to_show = @current_phase.groups
     else
       @groups_to_show = [ @current_phase.groups.find(@group) ]
-      conditions ||= {}
       teams = @groups_to_show.first.teams.map{|t| t.id}
-      conditions.merge!({ :home_id => teams })
+      games = games.scoped(:conditions => [ "home_id IN (?) OR away_id IN (?)", teams, teams ])
     end
 
-    @rounds = @current_phase.games.find(:all, :group => :round, :order => :round, :conditions => conditions).map{|g| g.round }.compact
+    @rounds = games.all(:group => :round, :order => :round).map{|g| g.round }.compact
 
     unless (params[:round].to_s.empty?)
       @current_round = params[:round].to_i
-      conditions ||= {}
-      conditions.merge!({ :round => @current_round })
+      games = games.scoped(:conditions => { :round => @current_round })
     end
 
-    @games = @current_phase.games.paginate :order => "date, round, time, teams.name", :conditions => conditions, :include => [ "home", "away" ], :page => params[:page]
+    @games = games.paginate :order => "date, round, time, teams.name", :include => [ "home", "away" ], :page => params[:page]
 
     phases
   end
