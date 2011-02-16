@@ -12,8 +12,6 @@
 <%= hidden_field_tag(:type, @type) %>
 <input type="submit" value="<%= _("Change date") %>">
 <% end %>
-<br/>
-<br/>
 <div id='table'>
   <%= render :partial => "game_list",
              :locals => { :game => @game } %>

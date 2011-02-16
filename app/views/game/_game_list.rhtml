@@ -1,3 +1,6 @@
+<p>
+<%= will_paginate @games %>
+</p>
 <% last_phase_id = nil %>
 <% last_date = nil %>
 <% @sorted_games.each do |game| %>
@@ -17,5 +20,6 @@
     <div class="clearer"></div>
   </div>
 <% end %>
-
+<p>
 <%= will_paginate @games %>
+</p>
