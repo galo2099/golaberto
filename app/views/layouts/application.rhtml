@@ -4,10 +4,6 @@
   <title>GolAberto - <%= yield(:title) || _(controller.controller_name.titleize) %></title>
   <%= stylesheet_link_merged :base %>
   <%= javascript_include_merged :base %>
-  <script type="text/javascript" src="http://api.bitp.it/bitp.it.js"></script>
-  <script type="text/javascript">
-    bitpit({clientId: "2507", forceUIThread: false});
-  </script>
   <link rel="shortcut icon" href="<%= image_path "/favicon.ico" %>" type="image/x-icon"/>
 </head>
 
