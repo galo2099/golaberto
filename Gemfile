@@ -22,6 +22,7 @@ end
 
 group :development do
   gem 'gettext', git: 'https://github.com/cameel/gettext.git', ref: 'c3a8373'
+  gem 'wirble'
 end
 
 gem 'jquery-rails'
@@ -35,14 +36,16 @@ gem 'jquery-rails'
 # Use unicorn as the web server
 # gem 'unicorn'
 
-gem "newrelic_rpm"
-gem "ruby-openid"
-gem "riff"
-gem "will_paginate"
-gem "open_id_authentication"
+gem "activerecord-diff", git: "https://github.com/galo2099/activerecord-diff.git"
+gem "acts_as_versioned", git: "https://github.com/luismreis/acts_as_versioned.git"
+gem "exception_notification"
 gem "gettext_i18n_rails"
-
+gem "newrelic_rpm"
+gem "open_id_authentication"
 gem "quilt"
+gem "rmagick"
+gem "ruby-openid"
+gem "will_paginate"
 
 # Deploy with Capistrano
 # gem 'capistrano'

@@ -51,7 +51,7 @@ module ActiveRecord #:nodoc:
           end
           
           # must have called acts_as_versioned first
-          return unless self.included_modules.include?(ActiveRecord::Acts::Versioned::ActMethods)
+          return unless self.included_modules.include?(ActiveRecord::Acts::Versioned::Behaviors)
           
           # only allow this to be called once per association
           return if self.versioned_associations.include? association_name

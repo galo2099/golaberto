@@ -1,4 +1,5 @@
 require 'digest/sha1'
+require 'image_upload'
 class User < ActiveRecord::Base
   include ImageUpload
 

@@ -2,16 +2,11 @@
 # Likewise, all the methods added will be available for all controllers.
 class ApplicationController < ActionController::Base
   protect_from_forgery
-  require 'gettext_date'
   require 'gettext_will_paginate'
+  require 'authenticated_system'
+  require 'role_requirement_system'
   include AuthenticatedSystem
   include RoleRequirementSystem
-
-  include ExceptionNotifiable
-  ExceptionNotifier.exception_recipients = %w(golaberto@gmail.com)
-  ExceptionNotifier.sender_address =
-    %("Application Error" <app.error@golaberto.com.br>)
-  ExceptionNotifier.email_prefix = "[GolAberto] "
 
   helper :date
   before_filter :set_gettext_locale

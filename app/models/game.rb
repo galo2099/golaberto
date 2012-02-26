@@ -1,5 +1,5 @@
+require 'diff/lcs.rb'
 class Game < ActiveRecord::Base
-  require 'diff/lcs.rb'
 
   # This module implements a diff with knowledge of associations
   module GameDiff
@@ -96,12 +96,12 @@ class Game < ActiveRecord::Base
                                      :only_integer => true,
                                      :allow_nil => true
 
-      base.named_scope :group_games, lambda { |g|
-        { :conditions => [ "(home_id in (?) OR away_id in (?))", g.teams, g.teams ] }
+      base.scope :group_games, lambda { |g|
+        where("(home_id in (?) OR away_id in (?))", g.teams, g.teams)
       }
 
-      base.named_scope :team_games, lambda { |t|
-        { :conditions => [ "(home_id = ? or away_id = ?)", t, t ] }
+      base.scope :team_games, lambda { |t|
+        where("(home_id = ? or away_id = ?)", t, t)
       }
 
     end
@@ -172,6 +172,7 @@ class Game < ActiveRecord::Base
   module GameHelpers
     def self.included(base)
       base.class_eval do
+        include ActiveRecord::Diff
         include GameDiff
         include GameAssociations
         include GameMethods
