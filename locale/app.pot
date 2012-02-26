@@ -1,0 +1,1559 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: version 0.0.1\n"
+"POT-Creation-Date: 2012-02-26 08:31-0800\n"
+"PO-Revision-Date: 2012-02-26 08:31-0800\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+
+#: app/controllers/account_controller.rb:2
+msgid "Account"
+msgstr ""
+
+#: app/controllers/account_controller.rb:23
+msgid "Thanks for signing up!"
+msgstr ""
+
+#: app/controllers/account_controller.rb:32
+msgid "You have been logged out."
+msgstr ""
+
+#: app/controllers/account_controller.rb:43
+msgid "Username or password invalid"
+msgstr ""
+
+#: app/controllers/account_controller.rb:54
+msgid "Sorry, no user by that identity URL exists (%{identity_url})"
+msgstr ""
+
+#: app/controllers/account_controller.rb:72
+msgid "Logged in successfully"
+msgstr ""
+
+#: app/controllers/category_controller.rb:2
+msgid "Category"
+msgstr ""
+
+#: app/controllers/championship_controller.rb:4
+msgid "Championship"
+msgstr ""
+
+#: app/controllers/championship_controller.rb:86
+msgid "%s Campaign"
+msgstr ""
+
+#: app/controllers/championship_controller.rb:126 app/controllers/championship_controller.rb:146
+msgid "%s - %d points<br>%s %d x %d %s"
+msgstr ""
+
+#: app/controllers/comment_controller.rb:2
+msgid "Comment"
+msgstr ""
+
+#: app/controllers/cookie_controller.rb:2
+msgid "Cookie"
+msgstr ""
+
+#: app/controllers/game_controller.rb:2
+msgid "Game"
+msgstr ""
+
+#: app/controllers/game_controller.rb:146
+msgid "Game saved"
+msgstr ""
+
+#: app/controllers/group_controller.rb:2
+msgid "Group"
+msgstr ""
+
+#: app/controllers/home_controller.rb:2
+msgid "Home"
+msgstr ""
+
+#: app/controllers/phase_controller.rb:2
+msgid "Phase"
+msgstr ""
+
+#: app/controllers/player_controller.rb:2
+msgid "Player"
+msgstr ""
+
+#: app/controllers/player_controller.rb:52
+msgid "Player was successfully updated"
+msgstr ""
+
+#: app/controllers/player_controller.rb:66
+msgid "Player was successfully created"
+msgstr ""
+
+#: app/controllers/referee_controller.rb:2
+msgid "Referee"
+msgstr ""
+
+#: app/controllers/referee_controller.rb:33
+msgid "Referee was successfully updated"
+msgstr ""
+
+#: app/controllers/referee_controller.rb:47
+msgid "Referee was successfully created"
+msgstr ""
+
+#: app/controllers/stadium_controller.rb:2
+msgid "Stadium"
+msgstr ""
+
+#: app/controllers/stadium_controller.rb:33
+msgid "Stadium was successfully updated"
+msgstr ""
+
+#: app/controllers/stadium_controller.rb:47
+msgid "Stadium was successfully created"
+msgstr ""
+
+#: app/controllers/team_controller.rb:2
+msgid "Team"
+msgstr ""
+
+#: app/controllers/team_group_controller.rb:2
+msgid "TeamGroup"
+msgstr ""
+
+#: app/controllers/user_controller.rb:34
+msgid "Your profile was saved"
+msgstr ""
+
+#: app/helpers/application_helper.rb:18
+msgid "Prev"
+msgstr ""
+
+#: app/helpers/application_helper.rb:21
+msgid "Prev "
+msgstr ""
+
+#: app/helpers/application_helper.rb:32
+msgid " Next"
+msgstr ""
+
+#: app/helpers/application_helper.rb:47
+msgid "Removed goal "
+msgstr ""
+
+#: app/helpers/application_helper.rb:49
+msgid "Added goal "
+msgstr ""
+
+#: app/helpers/application_helper.rb:53
+msgid "(penalty)"
+msgstr ""
+
+#: app/helpers/application_helper.rb:54
+msgid "(own_goal)"
+msgstr ""
+
+#: app/helpers/application_helper.rb:60
+msgid "Added stadium: %s<br>"
+msgstr ""
+
+#: app/helpers/application_helper.rb:62
+msgid "Removed stadium: %s<br>"
+msgstr ""
+
+#: app/helpers/application_helper.rb:64
+msgid "Changed stadium: %s -> %s<br>"
+msgstr ""
+
+#: app/helpers/application_helper.rb:68
+msgid "Added referee: %s<br>"
+msgstr ""
+
+#: app/helpers/application_helper.rb:70
+msgid "Removed referee: %s<br>"
+msgstr ""
+
+#: app/helpers/application_helper.rb:72
+msgid "Changed referee: %s -> %s<br>"
+msgstr ""
+
+#: app/helpers/application_helper.rb:77
+msgid "Added %s: %s<br>"
+msgstr ""
+
+#: app/helpers/application_helper.rb:79
+msgid "Removed %s: %s<br>"
+msgstr ""
+
+#: app/helpers/application_helper.rb:81
+msgid "Changed %s: %s -> %s<br>"
+msgstr ""
+
+#: app/helpers/application_helper.rb:92
+msgid "Afghanistan"
+msgstr ""
+
+#: app/helpers/application_helper.rb:93
+msgid "Albania"
+msgstr ""
+
+#: app/helpers/application_helper.rb:94
+msgid "Algeria"
+msgstr ""
+
+#: app/helpers/application_helper.rb:95
+msgid "American Samoa"
+msgstr ""
+
+#: app/helpers/application_helper.rb:96
+msgid "Andorra"
+msgstr ""
+
+#: app/helpers/application_helper.rb:97
+msgid "Angola"
+msgstr ""
+
+#: app/helpers/application_helper.rb:98
+msgid "Anguilla"
+msgstr ""
+
+#: app/helpers/application_helper.rb:99
+msgid "Antigua And Barbuda"
+msgstr ""
+
+#: app/helpers/application_helper.rb:100
+msgid "Argentina"
+msgstr ""
+
+#: app/helpers/application_helper.rb:101
+msgid "Armenia"
+msgstr ""
+
+#: app/helpers/application_helper.rb:102
+msgid "Aruba"
+msgstr ""
+
+#: app/helpers/application_helper.rb:103
+msgid "Australia"
+msgstr ""
+
+#: app/helpers/application_helper.rb:104
+msgid "Austria"
+msgstr ""
+
+#: app/helpers/application_helper.rb:105
+msgid "Azerbaijan"
+msgstr ""
+
+#: app/helpers/application_helper.rb:106
+msgid "Bahamas"
+msgstr ""
+
+#: app/helpers/application_helper.rb:107
+msgid "Bahrain"
+msgstr ""
+
+#: app/helpers/application_helper.rb:108
+msgid "Bangladesh"
+msgstr ""
+
+#: app/helpers/application_helper.rb:109
+msgid "Barbados"
+msgstr ""
+
+#: app/helpers/application_helper.rb:110
+msgid "Belarus"
+msgstr ""
+
+#: app/helpers/application_helper.rb:111
+msgid "Belgium"
+msgstr ""
+
+#: app/helpers/application_helper.rb:112
+msgid "Belize"
+msgstr ""
+
+#: app/helpers/application_helper.rb:113
+msgid "Benin"
+msgstr ""
+
+#: app/helpers/application_helper.rb:114
+msgid "Bermuda"
+msgstr ""
+
+#: app/helpers/application_helper.rb:115
+msgid "Bhutan"
+msgstr ""
+
+#: app/helpers/application_helper.rb:116
+msgid "Bolivia"
+msgstr ""
+
+#: app/helpers/application_helper.rb:117
+msgid "Bosnia and Herzegovina"
+msgstr ""
+
+#: app/helpers/application_helper.rb:118
+msgid "Botswana"
+msgstr ""
+
+#: app/helpers/application_helper.rb:119
+msgid "Brazil"
+msgstr ""
+
+#: app/helpers/application_helper.rb:120
+msgid "British Indian Ocean Territory"
+msgstr ""
+
+#: app/helpers/application_helper.rb:121
+msgid "Brunei Darussalam"
+msgstr ""
+
+#: app/helpers/application_helper.rb:122
+msgid "Bulgaria"
+msgstr ""
+
+#: app/helpers/application_helper.rb:123
+msgid "Burkina Faso"
+msgstr ""
+
+#: app/helpers/application_helper.rb:124
+msgid "Burundi"
+msgstr ""
+
+#: app/helpers/application_helper.rb:125
+msgid "Cambodia"
+msgstr ""
+
+#: app/helpers/application_helper.rb:126
+msgid "Cameroon"
+msgstr ""
+
+#: app/helpers/application_helper.rb:127
+msgid "Canada"
+msgstr ""
+
+#: app/helpers/application_helper.rb:128
+msgid "Cape Verde"
+msgstr ""
+
+#: app/helpers/application_helper.rb:129
+msgid "Cayman Islands"
+msgstr ""
+
+#: app/helpers/application_helper.rb:130
+msgid "Central African Republic"
+msgstr ""
+
+#: app/helpers/application_helper.rb:131
+msgid "Chad"
+msgstr ""
+
+#: app/helpers/application_helper.rb:132
+msgid "Chile"
+msgstr ""
+
+#: app/helpers/application_helper.rb:133
+msgid "China"
+msgstr ""
+
+#: app/helpers/application_helper.rb:134
+msgid "Christmas Island"
+msgstr ""
+
+#: app/helpers/application_helper.rb:135
+msgid "Cocos (Keeling) Islands"
+msgstr ""
+
+#: app/helpers/application_helper.rb:136
+msgid "Colombia"
+msgstr ""
+
+#: app/helpers/application_helper.rb:137
+msgid "Comoros"
+msgstr ""
+
+#: app/helpers/application_helper.rb:138
+msgid "Congo"
+msgstr ""
+
+#: app/helpers/application_helper.rb:139
+msgid "Congo, the Democratic Republic of the"
+msgstr ""
+
+#: app/helpers/application_helper.rb:140
+msgid "Cook Islands"
+msgstr ""
+
+#: app/helpers/application_helper.rb:141
+msgid "Costa Rica"
+msgstr ""
+
+#: app/helpers/application_helper.rb:142
+msgid "Cote d'Ivoire"
+msgstr ""
+
+#: app/helpers/application_helper.rb:143
+msgid "Croatia"
+msgstr ""
+
+#: app/helpers/application_helper.rb:144
+msgid "Cuba"
+msgstr ""
+
+#: app/helpers/application_helper.rb:145
+msgid "Cyprus"
+msgstr ""
+
+#: app/helpers/application_helper.rb:146
+msgid "Czech Republic"
+msgstr ""
+
+#: app/helpers/application_helper.rb:147
+msgid "Denmark"
+msgstr ""
+
+#: app/helpers/application_helper.rb:148
+msgid "Djibouti"
+msgstr ""
+
+#: app/helpers/application_helper.rb:149
+msgid "Dominica"
+msgstr ""
+
+#: app/helpers/application_helper.rb:150
+msgid "Dominican Republic"
+msgstr ""
+
+#: app/helpers/application_helper.rb:151
+msgid "East Timor"
+msgstr ""
+
+#: app/helpers/application_helper.rb:152
+msgid "Ecuador"
+msgstr ""
+
+#: app/helpers/application_helper.rb:153
+msgid "Egypt"
+msgstr ""
+
+#: app/helpers/application_helper.rb:154
+msgid "El Salvador"
+msgstr ""
+
+#: app/helpers/application_helper.rb:155
+msgid "England"
+msgstr ""
+
+#: app/helpers/application_helper.rb:156
+msgid "Equatorial Guinea"
+msgstr ""
+
+#: app/helpers/application_helper.rb:157
+msgid "Eritrea"
+msgstr ""
+
+#: app/helpers/application_helper.rb:158
+msgid "Estonia"
+msgstr ""
+
+#: app/helpers/application_helper.rb:159
+msgid "Ethiopia"
+msgstr ""
+
+#: app/helpers/application_helper.rb:160
+msgid "Falkland Islands"
+msgstr ""
+
+#: app/helpers/application_helper.rb:161
+msgid "Faroe Islands"
+msgstr ""
+
+#: app/helpers/application_helper.rb:162
+msgid "Fiji"
+msgstr ""
+
+#: app/helpers/application_helper.rb:163
+msgid "Finland"
+msgstr ""
+
+#: app/helpers/application_helper.rb:164
+msgid "France"
+msgstr ""
+
+#: app/helpers/application_helper.rb:165
+msgid "French Guiana"
+msgstr ""
+
+#: app/helpers/application_helper.rb:166
+msgid "French Polynesia"
+msgstr ""
+
+#: app/helpers/application_helper.rb:167
+msgid "French Southern Territories"
+msgstr ""
+
+#: app/helpers/application_helper.rb:168
+msgid "Gabon"
+msgstr ""
+
+#: app/helpers/application_helper.rb:169
+msgid "Gambia"
+msgstr ""
+
+#: app/helpers/application_helper.rb:170
+msgid "Georgia"
+msgstr ""
+
+#: app/helpers/application_helper.rb:171
+msgid "Germany"
+msgstr ""
+
+#: app/helpers/application_helper.rb:172
+msgid "Ghana"
+msgstr ""
+
+#: app/helpers/application_helper.rb:173
+msgid "Gibraltar"
+msgstr ""
+
+#: app/helpers/application_helper.rb:174
+msgid "Greece"
+msgstr ""
+
+#: app/helpers/application_helper.rb:175
+msgid "Greenland"
+msgstr ""
+
+#: app/helpers/application_helper.rb:176
+msgid "Grenada"
+msgstr ""
+
+#: app/helpers/application_helper.rb:177
+msgid "Guadeloupe"
+msgstr ""
+
+#: app/helpers/application_helper.rb:178
+msgid "Guam"
+msgstr ""
+
+#: app/helpers/application_helper.rb:179
+msgid "Guatemala"
+msgstr ""
+
+#: app/helpers/application_helper.rb:180
+msgid "Guinea"
+msgstr ""
+
+#: app/helpers/application_helper.rb:181
+msgid "Guinea-Bissau"
+msgstr ""
+
+#: app/helpers/application_helper.rb:182
+msgid "Guyana"
+msgstr ""
+
+#: app/helpers/application_helper.rb:183
+msgid "Haiti"
+msgstr ""
+
+#: app/helpers/application_helper.rb:184
+msgid "Heard and Mc Donald Islands"
+msgstr ""
+
+#: app/helpers/application_helper.rb:185
+msgid "Honduras"
+msgstr ""
+
+#: app/helpers/application_helper.rb:186
+msgid "Hong Kong"
+msgstr ""
+
+#: app/helpers/application_helper.rb:187
+msgid "Hungary"
+msgstr ""
+
+#: app/helpers/application_helper.rb:188
+msgid "Iceland"
+msgstr ""
+
+#: app/helpers/application_helper.rb:189
+msgid "India"
+msgstr ""
+
+#: app/helpers/application_helper.rb:190
+msgid "Indonesia"
+msgstr ""
+
+#: app/helpers/application_helper.rb:191
+msgid "Ireland"
+msgstr ""
+
+#: app/helpers/application_helper.rb:192
+msgid "Israel"
+msgstr ""
+
+#: app/helpers/application_helper.rb:193
+msgid "Italy"
+msgstr ""
+
+#: app/helpers/application_helper.rb:194
+msgid "Iran"
+msgstr ""
+
+#: app/helpers/application_helper.rb:195
+msgid "Iraq"
+msgstr ""
+
+#: app/helpers/application_helper.rb:196
+msgid "Jamaica"
+msgstr ""
+
+#: app/helpers/application_helper.rb:197
+msgid "Japan"
+msgstr ""
+
+#: app/helpers/application_helper.rb:198
+msgid "Jordan"
+msgstr ""
+
+#: app/helpers/application_helper.rb:199
+msgid "Kazakhstan"
+msgstr ""
+
+#: app/helpers/application_helper.rb:200
+msgid "Kenya"
+msgstr ""
+
+#: app/helpers/application_helper.rb:201
+msgid "Kiribati"
+msgstr ""
+
+#: app/helpers/application_helper.rb:202
+msgid "Kuwait"
+msgstr ""
+
+#: app/helpers/application_helper.rb:203
+msgid "Kyrgyzstan"
+msgstr ""
+
+#: app/helpers/application_helper.rb:204
+msgid "Lao People's Democratic Republic"
+msgstr ""
+
+#: app/helpers/application_helper.rb:205
+msgid "Latvia"
+msgstr ""
+
+#: app/helpers/application_helper.rb:206
+msgid "Lebanon"
+msgstr ""
+
+#: app/helpers/application_helper.rb:207
+msgid "Lesotho"
+msgstr ""
+
+#: app/helpers/application_helper.rb:208
+msgid "Liberia"
+msgstr ""
+
+#: app/helpers/application_helper.rb:209
+msgid "Libya"
+msgstr ""
+
+#: app/helpers/application_helper.rb:210
+msgid "Liechtenstein"
+msgstr ""
+
+#: app/helpers/application_helper.rb:211
+msgid "Lithuania"
+msgstr ""
+
+#: app/helpers/application_helper.rb:212
+msgid "Luxembourg"
+msgstr ""
+
+#: app/helpers/application_helper.rb:213
+msgid "Macau"
+msgstr ""
+
+#: app/helpers/application_helper.rb:214
+msgid "Macedonia"
+msgstr ""
+
+#: app/helpers/application_helper.rb:215
+msgid "Madagascar"
+msgstr ""
+
+#: app/helpers/application_helper.rb:216
+msgid "Malawi"
+msgstr ""
+
+#: app/helpers/application_helper.rb:217
+msgid "Malaysia"
+msgstr ""
+
+#: app/helpers/application_helper.rb:218
+msgid "Maldives"
+msgstr ""
+
+#: app/helpers/application_helper.rb:219
+msgid "Mali"
+msgstr ""
+
+#: app/helpers/application_helper.rb:220
+msgid "Malta"
+msgstr ""
+
+#: app/helpers/application_helper.rb:221
+msgid "Marshall Islands"
+msgstr ""
+
+#: app/helpers/application_helper.rb:222
+msgid "Martinique"
+msgstr ""
+
+#: app/helpers/application_helper.rb:223
+msgid "Mauritania"
+msgstr ""
+
+#: app/helpers/application_helper.rb:224
+msgid "Mauritius"
+msgstr ""
+
+#: app/helpers/application_helper.rb:225
+msgid "Mayotte"
+msgstr ""
+
+#: app/helpers/application_helper.rb:226
+msgid "Mexico"
+msgstr ""
+
+#: app/helpers/application_helper.rb:227
+msgid "Micronesia, Federated States of"
+msgstr ""
+
+#: app/helpers/application_helper.rb:228
+msgid "Moldova, Republic of"
+msgstr ""
+
+#: app/helpers/application_helper.rb:229
+msgid "Monaco"
+msgstr ""
+
+#: app/helpers/application_helper.rb:230
+msgid "Mongolia"
+msgstr ""
+
+#: app/helpers/application_helper.rb:231
+msgid "Montenegro"
+msgstr ""
+
+#: app/helpers/application_helper.rb:232
+msgid "Montserrat"
+msgstr ""
+
+#: app/helpers/application_helper.rb:233
+msgid "Morocco"
+msgstr ""
+
+#: app/helpers/application_helper.rb:234
+msgid "Mozambique"
+msgstr ""
+
+#: app/helpers/application_helper.rb:235
+msgid "Myanmar"
+msgstr ""
+
+#: app/helpers/application_helper.rb:236
+msgid "Namibia"
+msgstr ""
+
+#: app/helpers/application_helper.rb:237
+msgid "Nauru"
+msgstr ""
+
+#: app/helpers/application_helper.rb:238
+msgid "Nepal"
+msgstr ""
+
+#: app/helpers/application_helper.rb:239
+msgid "Netherlands"
+msgstr ""
+
+#: app/helpers/application_helper.rb:240
+msgid "Netherlands Antilles"
+msgstr ""
+
+#: app/helpers/application_helper.rb:241
+msgid "New Caledonia"
+msgstr ""
+
+#: app/helpers/application_helper.rb:242
+msgid "New Zealand"
+msgstr ""
+
+#: app/helpers/application_helper.rb:243
+msgid "Nicaragua"
+msgstr ""
+
+#: app/helpers/application_helper.rb:244
+msgid "Niger"
+msgstr ""
+
+#: app/helpers/application_helper.rb:245
+msgid "Nigeria"
+msgstr ""
+
+#: app/helpers/application_helper.rb:246
+msgid "Niue"
+msgstr ""
+
+#: app/helpers/application_helper.rb:247
+msgid "Norfolk Island"
+msgstr ""
+
+#: app/helpers/application_helper.rb:248
+msgid "North Korea"
+msgstr ""
+
+#: app/helpers/application_helper.rb:249
+msgid "Northern Ireland"
+msgstr ""
+
+#: app/helpers/application_helper.rb:250
+msgid "Northern Mariana Islands"
+msgstr ""
+
+#: app/helpers/application_helper.rb:251
+msgid "Norway"
+msgstr ""
+
+#: app/helpers/application_helper.rb:252
+msgid "Oman"
+msgstr ""
+
+#: app/helpers/application_helper.rb:253
+msgid "Pakistan"
+msgstr ""
+
+#: app/helpers/application_helper.rb:254
+msgid "Palau"
+msgstr ""
+
+#: app/helpers/application_helper.rb:255
+msgid "Palestine"
+msgstr ""
+
+#: app/helpers/application_helper.rb:256
+msgid "Panama"
+msgstr ""
+
+#: app/helpers/application_helper.rb:257
+msgid "Papua New Guinea"
+msgstr ""
+
+#: app/helpers/application_helper.rb:258
+msgid "Paraguay"
+msgstr ""
+
+#: app/helpers/application_helper.rb:259
+msgid "Peru"
+msgstr ""
+
+#: app/helpers/application_helper.rb:260
+msgid "Philippines"
+msgstr ""
+
+#: app/helpers/application_helper.rb:261
+msgid "Pitcairn"
+msgstr ""
+
+#: app/helpers/application_helper.rb:262
+msgid "Poland"
+msgstr ""
+
+#: app/helpers/application_helper.rb:263
+msgid "Portugal"
+msgstr ""
+
+#: app/helpers/application_helper.rb:264
+msgid "Puerto Rico"
+msgstr ""
+
+#: app/helpers/application_helper.rb:265
+msgid "Qatar"
+msgstr ""
+
+#: app/helpers/application_helper.rb:266
+msgid "Reunion"
+msgstr ""
+
+#: app/helpers/application_helper.rb:267
+msgid "Romania"
+msgstr ""
+
+#: app/helpers/application_helper.rb:268
+msgid "Russia"
+msgstr ""
+
+#: app/helpers/application_helper.rb:269
+msgid "Rwanda"
+msgstr ""
+
+#: app/helpers/application_helper.rb:270
+msgid "Saint Kitts and Nevis"
+msgstr ""
+
+#: app/helpers/application_helper.rb:271
+msgid "Saint Lucia"
+msgstr ""
+
+#: app/helpers/application_helper.rb:272
+msgid "Saint Vincent and the Grenadines"
+msgstr ""
+
+#: app/helpers/application_helper.rb:273
+msgid "Samoa (Independent)"
+msgstr ""
+
+#: app/helpers/application_helper.rb:274
+msgid "San Marino"
+msgstr ""
+
+#: app/helpers/application_helper.rb:275
+msgid "Sao Tome and Principe"
+msgstr ""
+
+#: app/helpers/application_helper.rb:276
+msgid "Saudi Arabia"
+msgstr ""
+
+#: app/helpers/application_helper.rb:277
+msgid "Scotland"
+msgstr ""
+
+#: app/helpers/application_helper.rb:278
+msgid "Senegal"
+msgstr ""
+
+#: app/helpers/application_helper.rb:279
+msgid "Serbia"
+msgstr ""
+
+#: app/helpers/application_helper.rb:280
+msgid "Serbia and Montenegro"
+msgstr ""
+
+#: app/helpers/application_helper.rb:281
+msgid "Seychelles"
+msgstr ""
+
+#: app/helpers/application_helper.rb:282
+msgid "Sierra Leone"
+msgstr ""
+
+#: app/helpers/application_helper.rb:283
+msgid "Singapore"
+msgstr ""
+
+#: app/helpers/application_helper.rb:284
+msgid "Slovakia"
+msgstr ""
+
+#: app/helpers/application_helper.rb:285
+msgid "Slovenia"
+msgstr ""
+
+#: app/helpers/application_helper.rb:286
+msgid "Solomon Islands"
+msgstr ""
+
+#: app/helpers/application_helper.rb:287
+msgid "Somalia"
+msgstr ""
+
+#: app/helpers/application_helper.rb:288
+msgid "South Africa"
+msgstr ""
+
+#: app/helpers/application_helper.rb:289
+msgid "South Georgia and the South Sandwich Islands"
+msgstr ""
+
+#: app/helpers/application_helper.rb:290
+msgid "South Korea"
+msgstr ""
+
+#: app/helpers/application_helper.rb:291
+msgid "Spain"
+msgstr ""
+
+#: app/helpers/application_helper.rb:292
+msgid "Sri Lanka"
+msgstr ""
+
+#: app/helpers/application_helper.rb:293
+msgid "St. Helena"
+msgstr ""
+
+#: app/helpers/application_helper.rb:294
+msgid "St. Pierre and Miquelon"
+msgstr ""
+
+#: app/helpers/application_helper.rb:295
+msgid "Sudan"
+msgstr ""
+
+#: app/helpers/application_helper.rb:296
+msgid "Suriname"
+msgstr ""
+
+#: app/helpers/application_helper.rb:297
+msgid "Svalbard and Jan Mayen Islands"
+msgstr ""
+
+#: app/helpers/application_helper.rb:298
+msgid "Swaziland"
+msgstr ""
+
+#: app/helpers/application_helper.rb:299
+msgid "Sweden"
+msgstr ""
+
+#: app/helpers/application_helper.rb:300
+msgid "Switzerland"
+msgstr ""
+
+#: app/helpers/application_helper.rb:301
+msgid "Syria"
+msgstr ""
+
+#: app/helpers/application_helper.rb:302
+msgid "Taiwan"
+msgstr ""
+
+#: app/helpers/application_helper.rb:303
+msgid "Tajikistan"
+msgstr ""
+
+#: app/helpers/application_helper.rb:304
+msgid "Tanzania"
+msgstr ""
+
+#: app/helpers/application_helper.rb:305
+msgid "Thailand"
+msgstr ""
+
+#: app/helpers/application_helper.rb:306
+msgid "Togo"
+msgstr ""
+
+#: app/helpers/application_helper.rb:307
+msgid "Tokelau"
+msgstr ""
+
+#: app/helpers/application_helper.rb:308
+msgid "Tonga"
+msgstr ""
+
+#: app/helpers/application_helper.rb:309
+msgid "Trinidad and Tobago"
+msgstr ""
+
+#: app/helpers/application_helper.rb:310
+msgid "Tunisia"
+msgstr ""
+
+#: app/helpers/application_helper.rb:311
+msgid "Turkey"
+msgstr ""
+
+#: app/helpers/application_helper.rb:312
+msgid "Turkmenistan"
+msgstr ""
+
+#: app/helpers/application_helper.rb:313
+msgid "Turks and Caicos Islands"
+msgstr ""
+
+#: app/helpers/application_helper.rb:314
+msgid "Tuvalu"
+msgstr ""
+
+#: app/helpers/application_helper.rb:315
+msgid "Uganda"
+msgstr ""
+
+#: app/helpers/application_helper.rb:316
+msgid "Ukraine"
+msgstr ""
+
+#: app/helpers/application_helper.rb:317
+msgid "United Arab Emirates"
+msgstr ""
+
+#: app/helpers/application_helper.rb:318
+msgid "United Kingdom"
+msgstr ""
+
+#: app/helpers/application_helper.rb:319
+msgid "United States"
+msgstr ""
+
+#: app/helpers/application_helper.rb:320
+msgid "United States Minor Outlying Islands"
+msgstr ""
+
+#: app/helpers/application_helper.rb:321
+msgid "Uruguay"
+msgstr ""
+
+#: app/helpers/application_helper.rb:322
+msgid "Uzbekistan"
+msgstr ""
+
+#: app/helpers/application_helper.rb:323
+msgid "Vanuatu"
+msgstr ""
+
+#: app/helpers/application_helper.rb:324
+msgid "Vatican City State (Holy See)"
+msgstr ""
+
+#: app/helpers/application_helper.rb:325
+msgid "Venezuela"
+msgstr ""
+
+#: app/helpers/application_helper.rb:326
+msgid "Viet Nam"
+msgstr ""
+
+#: app/helpers/application_helper.rb:327
+msgid "Virgin Islands (British)"
+msgstr ""
+
+#: app/helpers/application_helper.rb:328
+msgid "Virgin Islands (U.S.)"
+msgstr ""
+
+#: app/helpers/application_helper.rb:329
+msgid "Wales"
+msgstr ""
+
+#: app/helpers/application_helper.rb:330
+msgid "Wallis and Futuna Islands"
+msgstr ""
+
+#: app/helpers/application_helper.rb:331
+msgid "Western Sahara"
+msgstr ""
+
+#: app/helpers/application_helper.rb:332
+msgid "Yemen"
+msgstr ""
+
+#: app/helpers/application_helper.rb:333
+msgid "Zambia"
+msgstr ""
+
+#: app/helpers/application_helper.rb:334
+msgid "Zimbabwe"
+msgstr ""
+
+#: app/helpers/game_helper.rb:41 app/views/user/list_edits.erb:22
+msgid "Version %{number}"
+msgstr ""
+
+#: app/helpers/game_helper.rb:45 app/views/user/list_edits.erb:10 app/views/user/list_edits.erb:23
+msgid "%A, %d/%m/%Y at %H:%M"
+msgstr ""
+
+#: app/helpers/user_helper.rb:23
+msgid "%{num} year"
+msgid_plural "%{num} years"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/helpers/user_helper.rb:27
+msgid "%{num} month"
+msgid_plural "%{num} months"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/helpers/user_helper.rb:31
+msgid "%{num} day"
+msgid_plural "%{num} days"
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/models/game.rb:118
+msgid "Played"
+msgstr ""
+
+#: app/models/game.rb:118
+msgid "Scheduled"
+msgstr ""
+
+#: app/models/phase.rb:22
+msgid "points"
+msgstr ""
+
+#: app/models/phase.rb:23
+msgid "wins"
+msgstr ""
+
+#: app/models/phase.rb:24
+msgid "goal difference"
+msgstr ""
+
+#: app/models/phase.rb:25
+msgid "goals for"
+msgstr ""
+
+#: app/models/phase.rb:26
+msgid "name"
+msgstr ""
+
+#: app/models/phase.rb:27
+msgid "goal average"
+msgstr ""
+
+#: app/models/phase.rb:28
+msgid "penalty goals"
+msgstr ""
+
+#: app/models/phase.rb:29
+msgid "goals away"
+msgstr ""
+
+#: app/models/phase.rb:30
+msgid "bias"
+msgstr ""
+
+#: app/models/phase.rb:31
+msgid "aet goals"
+msgstr ""
+
+#: app/models/phase.rb:32
+msgid "head to head"
+msgstr ""
+
+#: app/models/user.rb:8
+msgid "User|Password"
+msgstr ""
+
+#: app/views/user/edit.html.erb:4
+msgid "Edit user"
+msgstr ""
+
+#: app/views/user/edit.html.erb:14
+msgid "never displayed, no spam, used for password recovery"
+msgstr ""
+
+#: app/views/user/edit.html.erb:17
+msgid "only used to show your age"
+msgstr ""
+
+#: app/views/user/edit.html.erb:20
+msgid "Change password?"
+msgstr ""
+
+#: app/views/user/edit.html.erb:22
+msgid "Confirm Password"
+msgstr ""
+
+#: app/views/user/edit.html.erb:27
+msgid "basic html is accepted"
+msgstr ""
+
+#: app/views/user/edit.html.erb:28
+msgid "Picture"
+msgstr ""
+
+#: app/views/user/edit.html.erb:29
+msgid "Filter image background?"
+msgstr ""
+
+#: app/views/user/edit.html.erb:31
+msgid "Update"
+msgstr ""
+
+#: app/views/user/list.html.erb:1
+msgid "Listing users"
+msgstr ""
+
+#: app/views/user/list.html.erb:10
+msgid "edits"
+msgstr ""
+
+#: app/views/user/list.html.erb:11
+msgid "comments"
+msgstr ""
+
+#: app/views/user/list_edits.erb:1
+msgid "Listing games"
+msgstr ""
+
+#: app/views/user/list_edits.erb:34 app/views/user/show.html.erb:34
+msgid "View user"
+msgstr ""
+
+#: app/views/user/list_edits.erb:35 app/views/user/show.html.erb:35
+msgid "View user edits"
+msgstr ""
+
+#: app/views/user/list_edits.erb:36 app/views/user/show.html.erb:36
+msgid "View all users"
+msgstr ""
+
+#: app/views/user/list_edits.erb:39 app/views/user/show.html.erb:39
+msgid "Edit profile"
+msgstr ""
+
+#: app/views/user/show.html.erb:2
+msgid "User"
+msgstr ""
+
+#: app/views/user/show.html.erb:13
+msgid "Name"
+msgstr ""
+
+#: app/views/user/show.html.erb:14
+msgid "Member for"
+msgstr ""
+
+#: app/views/user/show.html.erb:15
+msgid "Last seen"
+msgstr ""
+
+#: app/views/user/show.html.erb:15
+msgid "%{time} ago"
+msgstr ""
+
+#: app/views/user/show.html.erb:16
+msgid "Location"
+msgstr ""
+
+#: app/views/user/show.html.erb:17
+msgid "Age"
+msgstr ""
+
+#: app/views/user/show.html.erb:17
+msgid "%{num} years"
+msgstr ""
+
+#: app/views/user/show.html.erb:27
+msgid "Stats"
+msgstr ""
+
+#: app/views/user/show.html.erb:28
+msgid "This user has made %{num_comments} comment to this date."
+msgid_plural "This user has made %{num_comments} comments to this date."
+msgstr[0] ""
+msgstr[1] ""
+
+#: app/views/user/show.html.erb:29
+msgid "This user has made %{num_edits} edit to this date."
+msgid_plural "This user has made %{num_edits} edits to this date."
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/gettext_date.rb:26
+msgid "%Y-%m-%d"
+msgstr ""
+
+#: lib/gettext_date.rb:28
+msgid "%a %b %e %H:%M:%S %Y"
+msgstr ""
+
+#: lib/gettext_date.rb:30
+msgid "%m/%d/%y"
+msgstr ""
+
+#: lib/gettext_date.rb:35
+msgid "Sunday"
+msgstr ""
+
+#: lib/gettext_date.rb:35
+msgid "Monday"
+msgstr ""
+
+#: lib/gettext_date.rb:35
+msgid "Tuesday"
+msgstr ""
+
+#: lib/gettext_date.rb:35
+msgid "Wednesday"
+msgstr ""
+
+#: lib/gettext_date.rb:36
+msgid "Thursday"
+msgstr ""
+
+#: lib/gettext_date.rb:36
+msgid "Friday"
+msgstr ""
+
+#: lib/gettext_date.rb:36
+msgid "Saturday"
+msgstr ""
+
+#: lib/gettext_date.rb:40
+msgid "Sun"
+msgstr ""
+
+#: lib/gettext_date.rb:40
+msgid "Mon"
+msgstr ""
+
+#: lib/gettext_date.rb:40
+msgid "Tue"
+msgstr ""
+
+#: lib/gettext_date.rb:40
+msgid "Wed"
+msgstr ""
+
+#: lib/gettext_date.rb:41
+msgid "Thu"
+msgstr ""
+
+#: lib/gettext_date.rb:41
+msgid "Fri"
+msgstr ""
+
+#: lib/gettext_date.rb:41
+msgid "Sat"
+msgstr ""
+
+#: lib/gettext_date.rb:45
+msgid "January"
+msgstr ""
+
+#: lib/gettext_date.rb:45
+msgid "February"
+msgstr ""
+
+#: lib/gettext_date.rb:45
+msgid "March"
+msgstr ""
+
+#: lib/gettext_date.rb:45
+msgid "April"
+msgstr ""
+
+#: lib/gettext_date.rb:46
+msgid "Month|May"
+msgstr ""
+
+#: lib/gettext_date.rb:46
+msgid "June"
+msgstr ""
+
+#: lib/gettext_date.rb:46
+msgid "July"
+msgstr ""
+
+#: lib/gettext_date.rb:46
+msgid "August"
+msgstr ""
+
+#: lib/gettext_date.rb:46
+msgid "September"
+msgstr ""
+
+#: lib/gettext_date.rb:47
+msgid "October"
+msgstr ""
+
+#: lib/gettext_date.rb:47
+msgid "November"
+msgstr ""
+
+#: lib/gettext_date.rb:47
+msgid "December"
+msgstr ""
+
+#: lib/gettext_date.rb:52
+msgid "Jan"
+msgstr ""
+
+#: lib/gettext_date.rb:52
+msgid "Feb"
+msgstr ""
+
+#: lib/gettext_date.rb:52
+msgid "Mar"
+msgstr ""
+
+#: lib/gettext_date.rb:52
+msgid "Apr"
+msgstr ""
+
+#: lib/gettext_date.rb:52
+msgid "Abbr|May"
+msgstr ""
+
+#: lib/gettext_date.rb:52
+msgid "Jun"
+msgstr ""
+
+#: lib/gettext_date.rb:53
+msgid "Jul"
+msgstr ""
+
+#: lib/gettext_date.rb:53
+msgid "Aug"
+msgstr ""
+
+#: lib/gettext_date.rb:53
+msgid "Sep"
+msgstr ""
+
+#: lib/gettext_date.rb:53
+msgid "Oct"
+msgstr ""
+
+#: lib/gettext_date.rb:54
+msgid "Nov"
+msgstr ""
+
+#: lib/gettext_date.rb:54
+msgid "Dec"
+msgstr ""
+
+#: lib/gettext_date.rb:60
+msgid "AM"
+msgstr ""
+
+#: lib/gettext_date.rb:60
+msgid "am"
+msgstr ""
+
+#: lib/gettext_date.rb:62
+msgid "PM"
+msgstr ""
+
+#: lib/gettext_date.rb:62
+msgid "pm"
+msgstr ""
+
+#: lib/gettext_will_paginate.rb:4
+msgid "&laquo; Previous"
+msgstr ""
+
+#: lib/gettext_will_paginate.rb:5
+msgid "Next &raquo;"
+msgstr ""
+
+#: lib/role_requirement_system.rb:113
+msgid "You are not authorized to view that page"
+msgstr ""

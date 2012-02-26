@@ -33,7 +33,7 @@ require 'diff/lcs/hunk'
 module Diff::LCS::Ldiff
   BANNER = <<-COPYRIGHT
 ldiff #{Diff::LCS::VERSION}
-  Copyright © 2004 Austin Ziegler
+  Copyright 2004 Austin Ziegler
 
   Part of Diff::LCS.
   http://rubyforge.org/projects/ruwiki/
