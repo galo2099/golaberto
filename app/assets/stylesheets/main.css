@@ -48,7 +48,7 @@ body {
 }
 
 .main {
-  background: url(/images/bg.png) repeat-y;
+  background: url(/assets/bg.png) repeat-y;
 }
 
 .content

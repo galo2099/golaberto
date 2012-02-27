@@ -1,0 +1,2212 @@
+# Golaberto pt_BR translation.
+# Copyright (C) 2008
+# This file is distributed under the same license as the Golaberto package.
+# Robson Braga Araujo <robsonbraga@gmail.com>, 2008.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: version 0.0.1\n"
+"POT-Creation-Date: 2012-02-26 21:45-0800\n"
+"PO-Revision-Date: 2008-06-06 00:02-0300\n"
+"Last-Translator: Robson Braga Araujo <robsonbraga@gmail.com>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+
+msgid " Next"
+msgstr " Próximo"
+
+msgid "%A, %d/%m/%Y at %H:%M"
+msgstr "%A, %d/%m/%Y às %H:%M"
+
+msgid "%B %d, %Y"
+msgstr "%d de %B de %Y"
+
+msgid "%Y-%m-%d"
+msgstr "%Y-%m-%d"
+
+msgid "%a %b %e %H:%M:%S %Y"
+msgstr "%a %b %e %H:%M:%S %Y"
+
+msgid "%d%% done."
+msgstr "%d%% pronto."
+
+msgid "%m/%d/%y"
+msgstr "%d/%m/%y"
+
+msgid "%s - %d points<br>%s %d x %d %s"
+msgstr "%s - %d pontos<br>%s %d x %d %s"
+
+msgid "%s Campaign"
+msgstr "Campanha de %s"
+
+msgid "%{num} day"
+msgid_plural "%{num} days"
+msgstr[0] "%{num} dia"
+msgstr[1] "%{num} dias"
+
+msgid "%{num} month"
+msgid_plural "%{num} months"
+msgstr[0] "%{num} mes"
+msgstr[1] "%{num} meses"
+
+msgid "%{num} year"
+msgid_plural "%{num} years"
+msgstr[0] "%{num} ano"
+msgstr[1] "%{num} anos"
+
+msgid "%{num} years"
+msgstr "%{num} anos"
+
+msgid "%{time} ago"
+msgstr "%{time} atrás"
+
+msgid "&laquo; Previous"
+msgstr "&laquo; Anterior"
+
+# app/models/goal.rb:-
+msgid "(own_goal)"
+msgstr "(gol contra)"
+
+msgid "(penalty)"
+msgstr "(pênalti)"
+
+msgid "1%"
+msgstr "1%"
+
+msgid "AM"
+msgstr "AM"
+
+msgid "Abbr|May"
+msgstr "Mai"
+
+msgid "Account"
+msgstr "Conta"
+
+msgid "Add"
+msgstr "Adicionar"
+
+msgid "Add 4 more groups"
+msgstr "Adicionar 4 grupos mais"
+
+msgid "Add Comment"
+msgstr "Adicionar Comentário"
+
+msgid "Add new group"
+msgstr "Adicionar novo grupo"
+
+msgid "Add new phase"
+msgstr "Adicionar nova fase"
+
+msgid "Added %s: %s<br>"
+msgstr "Adicionado %s: %s<br>"
+
+msgid "Added goal "
+msgstr "Adicionado gol "
+
+msgid "Added referee: %s<br>"
+msgstr "Adicionado árbitro: %s<br>"
+
+msgid "Added stadium: %s<br>"
+msgstr "Adicionado estádio: %s<br>"
+
+msgid "Afghanistan"
+msgstr "Afeganistão"
+
+msgid "Age"
+msgstr "Idade"
+
+msgid "Albania"
+msgstr "Albânia"
+
+msgid "Algeria"
+msgstr "Argélia"
+
+msgid "All"
+msgstr "Todas"
+
+msgid "American Samoa"
+msgstr "Samoa Americana"
+
+msgid "Andorra"
+msgstr "Andorra"
+
+# app/models/goal.rb:-
+msgid "Angola"
+msgstr "Angola"
+
+msgid "Anguilla"
+msgstr "Anguilla"
+
+msgid "Antigua And Barbuda"
+msgstr "Antígua e Barbuda"
+
+msgid "Apr"
+msgstr "Abr"
+
+msgid "April"
+msgstr "Abril"
+
+msgid "Are you sure you want to add this player?"
+msgstr "Tem certeza que quer adicionar esse jogador?"
+
+msgid "Are you sure you want to create a new player?"
+msgstr "Tem certeza que quer criar um novo jogador?"
+
+msgid "Are you sure you want to create a new referee?"
+msgstr "Tem certeza que quer criar um novo árbitro?"
+
+msgid "Are you sure you want to create a new stadium?"
+msgstr "Tem certeza que quer criar um novo estádio?"
+
+msgid "Are you sure you want to delete this game?"
+msgstr "Tem certeza que quer apagar este jogo?"
+
+msgid "Are you sure?"
+msgstr "Tem certeza?"
+
+msgid "Argentina"
+msgstr "Argentina"
+
+msgid "Armenia"
+msgstr "Armênia"
+
+msgid "Aruba"
+msgstr "Aruba"
+
+msgid "Attendance"
+msgstr "Público"
+
+msgid "Aug"
+msgstr "Ago"
+
+msgid "August"
+msgstr "Agosto"
+
+msgid "Australia"
+msgstr "Austrália"
+
+msgid "Austria"
+msgstr "Áustria"
+
+msgid "Average"
+msgstr "Média"
+
+msgid "Azerbaijan"
+msgstr "Azerbeijão"
+
+msgid "Bahamas"
+msgstr "Bahamas"
+
+msgid "Bahrain"
+msgstr "Bahrein"
+
+msgid "Bangladesh"
+msgstr "Bangladesh"
+
+msgid "Barbados"
+msgstr "Barbados"
+
+msgid "Begin"
+msgstr "Início"
+
+msgid "Belarus"
+msgstr "Bielorrússia"
+
+msgid "Belgium"
+msgstr "Bélgica"
+
+msgid "Belize"
+msgstr "Belize"
+
+msgid "Benin"
+msgstr "Benin"
+
+msgid "Bermuda"
+msgstr "Bermuda"
+
+msgid "Best averages"
+msgstr "Melhores médias"
+
+msgid "Bhutan"
+msgstr "Butão"
+
+msgid "Bias"
+msgstr "Vantagem"
+
+msgid "Birth"
+msgstr "Nascimento"
+
+msgid "Bolivia"
+msgstr "Bolívia"
+
+msgid "Bonus"
+msgstr "Bônus"
+
+msgid "Bonus points for win?"
+msgstr "Pontos de bônus por vitória?"
+
+msgid "Bosnia and Herzegovina"
+msgstr "Bósnia e Herzegovina"
+
+msgid "Botswana"
+msgstr "Botswana"
+
+msgid "Brazil"
+msgstr "Brasil"
+
+msgid "British Indian Ocean Territory"
+msgstr "Território Britânico do Oceano Índico"
+
+msgid "Brunei Darussalam"
+msgstr "Brunei"
+
+msgid "Bulgaria"
+msgstr "Bulgária"
+
+msgid "Burkina Faso"
+msgstr "Burkina Faso"
+
+msgid "Burundi"
+msgstr "Burundi"
+
+msgid "Cambodia"
+msgstr "Camboja"
+
+# app/models/game.rb:-
+msgid "Cameroon"
+msgstr "Camarões"
+
+msgid "Can't calculate odds"
+msgstr "Erro ao recalcular chances"
+
+msgid "Canada"
+msgstr "Canadá"
+
+msgid "Cancel"
+msgstr "Cancelar"
+
+msgid "Cape Verde"
+msgstr "Cabo Verde"
+
+# app/models/category.rb:-
+msgid "Category"
+msgstr "Categoria"
+
+msgid "Cayman Islands"
+msgstr "Ilhas Caiman"
+
+msgid "Central African Republic"
+msgstr "República Centro-Africana"
+
+msgid "Chad"
+msgstr "Chade"
+
+# app/models/championship.rb:-
+msgid "Championship"
+msgstr "Campeonato"
+
+# app/models/championship.rb:-
+msgid "ChampionshipTeam|Played"
+msgstr "Jogados"
+
+# app/models/championship.rb:-
+msgid "Championships"
+msgstr "Campeonatos"
+
+msgid "Change date"
+msgstr "Mudar data"
+
+msgid "Change password?"
+msgstr "Mudar senha?"
+
+msgid "Changed %s: %s -> %s<br>"
+msgstr "Modificado %s: %s -> %s<br>"
+
+msgid "Changed referee: %s -> %s<br>"
+msgstr "Modificado árbitro: %s -> %s<br>"
+
+msgid "Changed stadium: %s -> %s<br>"
+msgstr "Modificado estádio: %s -> %s<br>"
+
+msgid "Chile"
+msgstr "Chile"
+
+msgid "China"
+msgstr "China"
+
+msgid "Christmas Island"
+msgstr "Ilha Christmas"
+
+msgid "City"
+msgstr "Cidade"
+
+msgid "Close"
+msgstr "Fechar"
+
+msgid "Cocos (Keeling) Islands"
+msgstr "Ilhas Cocos (Keeling)"
+
+msgid "Colombia"
+msgstr "Colômbia"
+
+msgid "Comment"
+msgstr "Comentário"
+
+msgid "Comments"
+msgstr "Comentários"
+
+msgid "Comoros"
+msgstr "Comores"
+
+msgid "Compare with other team:"
+msgstr "Comparar com outras equipes:"
+
+msgid "Confirm Password"
+msgstr "Confirmar Senha"
+
+msgid "Congo"
+msgstr "Congo"
+
+msgid "Congo, the Democratic Republic of the"
+msgstr "Congo, República Democrática do"
+
+msgid "Contact:"
+msgstr "Contato:"
+
+msgid "Cook Islands"
+msgstr "Ilhas Cook"
+
+msgid "Cookie"
+msgstr "Cookie"
+
+msgid "Costa Rica"
+msgstr "Costa Rica"
+
+msgid "Cote d'Ivoire"
+msgstr "Costa do Marfim"
+
+msgid "Country"
+msgstr "País"
+
+msgid "Create"
+msgstr "Criar"
+
+msgid "Croatia"
+msgstr "Croácia"
+
+msgid "Crowd"
+msgstr "Público"
+
+msgid "Cuba"
+msgstr "Cuba"
+
+# app/models/championship.rb:-
+msgid "Current championships"
+msgstr "Campeonatos atuais"
+
+msgid "Cyprus"
+msgstr "Chipre"
+
+msgid "Czech Republic"
+msgstr "República Checa"
+
+msgid "D"
+msgstr "E"
+
+msgid "Date"
+msgstr "Data"
+
+msgid "Dec"
+msgstr "Dez"
+
+msgid "December"
+msgstr "Dezembro"
+
+msgid "Delete"
+msgstr "Apagar"
+
+msgid "Delete team"
+msgstr "Apagar equipe"
+
+msgid "Delete this game"
+msgstr "Apagar este jogo"
+
+msgid "Denmark"
+msgstr "Dinamarca"
+
+msgid "Destroy"
+msgstr "Destruir"
+
+msgid "Djibouti"
+msgstr "Djibouti"
+
+msgid "Dominica"
+msgstr "Dominica"
+
+msgid "Dominican Republic"
+msgstr "República Dominicana"
+
+msgid "East Timor"
+msgstr "Timor Leste"
+
+msgid "Ecuador"
+msgstr "Equador"
+
+msgid "Edit"
+msgstr "Editar"
+
+# app/models/championship.rb:-
+msgid "Edit Championship"
+msgstr "Editar Campeonato"
+
+msgid "Edit Squad"
+msgstr "Editar elenco"
+
+# app/models/championship.rb:-
+msgid "Edit championship"
+msgstr "Editar campeonato"
+
+msgid "Edit profile"
+msgstr "Editar perfil"
+
+msgid "Edit team"
+msgstr "Editar equipe"
+
+msgid "Edit this game"
+msgstr "Editar este jogo"
+
+msgid "Edit user"
+msgstr "Editar usuário"
+
+msgid "Editing team"
+msgstr "Editando equipe"
+
+msgid "Egypt"
+msgstr "Egito"
+
+msgid "El Salvador"
+msgstr "El Salvador"
+
+msgid "Email"
+msgstr "Email"
+
+msgid "End"
+msgstr "Término"
+
+msgid "England"
+msgstr "Inglaterra"
+
+msgid "Equatorial Guinea"
+msgstr "Guiné Equatorial"
+
+msgid "Eritrea"
+msgstr "Eritréia"
+
+msgid "Estonia"
+msgstr "Estônia"
+
+msgid "Ethiopia"
+msgstr "Etiópia"
+
+msgid "Extra time"
+msgstr "Prorrogação"
+
+msgid "Extra time:"
+msgstr "Prorrogação:"
+
+msgid "Falkland Islands"
+msgstr "Ilhas Malvinas"
+
+msgid "Faroe Islands"
+msgstr "Ilhas Feroe"
+
+msgid "Feb"
+msgstr "Fev"
+
+msgid "February"
+msgstr "Fevereiro"
+
+msgid "Fiji"
+msgstr "Fiji"
+
+msgid "Filter image background?"
+msgstr "Filtrar fundo da imagem?"
+
+msgid "Finland"
+msgstr "Finlândia"
+
+msgid "Foundation"
+msgstr "Fundação"
+
+msgid "France"
+msgstr "França"
+
+msgid "French Guiana"
+msgstr "Guiana Francesa"
+
+msgid "French Polynesia"
+msgstr "Polinésia Francesa"
+
+msgid "French Southern Territories"
+msgstr "Terras Austrais e Antárticas Francesas"
+
+msgid "Fri"
+msgstr "Sex"
+
+msgid "Friday"
+msgstr "Sexta"
+
+msgid "From"
+msgstr "De"
+
+msgid "Full Name"
+msgstr "Nome completo"
+
+msgid "Full name"
+msgstr "Nome completo"
+
+msgid "G"
+msgstr "J"
+
+msgid "GA"
+msgstr "GC"
+
+msgid "GD"
+msgstr "SG"
+
+msgid "GF"
+msgstr "GF"
+
+msgid "Gabon"
+msgstr "Gabão"
+
+msgid "Gambia"
+msgstr "Gâmbia"
+
+msgid "Game"
+msgstr "Jogo"
+
+# app/models/game.rb:-
+msgid "Game saved"
+msgstr "Jogo salvo"
+
+# app/models/game.rb:-
+msgid "GameEdit|Played"
+msgstr "Jogado"
+
+# app/models/game.rb:-
+msgid "GameList|Played"
+msgstr "Jogados"
+
+msgid "Games"
+msgstr "Jogos"
+
+# app/models/game.rb:-
+msgid "Game|Time"
+msgstr "Horário"
+
+msgid "Georgia"
+msgstr "Geórgia"
+
+msgid "Germany"
+msgstr "Alemanha"
+
+msgid "Ghana"
+msgstr "Gana"
+
+msgid "Gibraltar"
+msgstr "Gibraltar"
+
+msgid "Goal difference equal to<br/>or bigger than"
+msgstr "Diferença de gols igual a<br/>ou maior que"
+
+msgid "Goals"
+msgstr "Gols"
+
+msgid "Goalscorers"
+msgstr "Artilheiros"
+
+# app/models/goal.rb:-
+msgid "Goal|Time"
+msgstr "Tempo"
+
+msgid "GolAberto is a collaborative site that is updated by its users. Registered users can give information by commenting on items. The top users are promoted to editors who can edit the site and create new championships."
+msgstr "GolAberto é um site colaborativo que é atualizado por seus usuários. Usuários registrados podem dar informações comentando nos itens. Os usuários mais destacados são promovidos a editores que podem editar o site e cadastrar novos campeonatos."
+
+# app/models/referee.rb:-
+msgid "Greece"
+msgstr "Grécia"
+
+msgid "Greenland"
+msgstr "Groelândia"
+
+msgid "Grenada"
+msgstr "Granada"
+
+# app/models/group.rb:-
+msgid "Group"
+msgstr "Grupo"
+
+# app/models/group.rb:-
+msgid "Groups"
+msgstr "Grupos"
+
+msgid "Guadeloupe"
+msgstr "Guadalupe"
+
+msgid "Guam"
+msgstr "Guam"
+
+msgid "Guatemala"
+msgstr "Guatemala"
+
+msgid "Guinea"
+msgstr "Guiné"
+
+msgid "Guinea-Bissau"
+msgstr "Guiné-Bissau"
+
+msgid "Guyana"
+msgstr "Guiana"
+
+msgid "Haiti"
+msgstr "Haiti"
+
+msgid "Heard and Mc Donald Islands"
+msgstr "Ilha Heard e as Ilhas McDonald"
+
+msgid "Home"
+msgstr "Principal"
+
+msgid "Honduras"
+msgstr "Honduras"
+
+msgid "Hong Kong"
+msgstr "Hong Kong"
+
+msgid "Hungary"
+msgstr "Hungria"
+
+msgid "Iceland"
+msgstr "Islândia"
+
+msgid "If you've already created an account, or if you have an %{openid_link} login, use one of the forms below to log in to the site. If you use your OpenID URL to log in, an account will be created for you automatically if necessary."
+msgstr "Se você já criou uma conta, ou se você possui um login %{openid_link}, use um dos formulários abaixo para se logar no site. Se você usar sua URL OpenID para se logar, uma conta será criada automaticamente para você se necessário."
+
+msgid "India"
+msgstr "Índia"
+
+msgid "Indonesia"
+msgstr "Indonésia"
+
+msgid "Iran"
+msgstr "Irã"
+
+msgid "Iraq"
+msgstr "Iraque"
+
+msgid "Ireland"
+msgstr "Irlanda"
+
+msgid "Israel"
+msgstr "Israel"
+
+msgid "Italy"
+msgstr "Itália"
+
+msgid "Jamaica"
+msgstr "Jamaica"
+
+msgid "Jan"
+msgstr "Jan"
+
+msgid "January"
+msgstr "Janeiro"
+
+msgid "Japan"
+msgstr "Japão"
+
+msgid "Jordan"
+msgstr "Jordânia"
+
+msgid "Jul"
+msgstr "Jul"
+
+msgid "July"
+msgstr "Julho"
+
+msgid "Jun"
+msgstr "Jun"
+
+msgid "June"
+msgstr "Junho"
+
+msgid "Kazakhstan"
+msgstr "Cazaquistão"
+
+msgid "Kenya"
+msgstr "Quênia"
+
+msgid "Kiribati"
+msgstr "Kiribati"
+
+msgid "Kuwait"
+msgstr "Kuwait"
+
+msgid "Kyrgyzstan"
+msgstr "Quirguistão"
+
+msgid "L"
+msgstr "D"
+
+msgid "Lao People's Democratic Republic"
+msgstr "Laos"
+
+msgid "Last game"
+msgid_plural "Last %{num} games"
+msgstr[0] "Último jogo"
+msgstr[1] "Últimos %{num} jogos"
+
+msgid "Last seen"
+msgstr "Visto por último"
+
+# app/models/phase.rb:-
+msgid "Latest championships"
+msgstr "Últimos campeonatos"
+
+msgid "Latest comments"
+msgstr "Últimos comentários"
+
+msgid "Latest edits"
+msgstr "Últimas edições"
+
+msgid "Latvia"
+msgstr "Letônia"
+
+msgid "Leave a comment"
+msgstr "Deixe um comentário"
+
+msgid "Lebanon"
+msgstr "Líbano"
+
+msgid "Lesotho"
+msgstr "Lesoto"
+
+msgid "Liberia"
+msgstr "Libéria"
+
+msgid "Libya"
+msgstr "Líbia"
+
+msgid "Liechtenstein"
+msgstr "Liechtenstein"
+
+# app/models/phase.rb:-
+msgid "Listing Championships"
+msgstr "Listando Campeonatos"
+
+msgid "Listing games"
+msgstr "Listando jogos"
+
+msgid "Listing players"
+msgstr "Listando jogadores"
+
+msgid "Listing referees"
+msgstr "Listando árbitros"
+
+msgid "Listing stadia"
+msgstr "Listando estádios"
+
+msgid "Listing team_groups"
+msgstr "Listando equipe_groups"
+
+msgid "Listing teams"
+msgstr "Listando equipes"
+
+msgid "Listing users"
+msgstr "Listando usuários"
+
+msgid "Lithuania"
+msgstr "Lituânia"
+
+msgid "Location"
+msgstr "Localidade"
+
+msgid "Log in"
+msgstr "Logar"
+
+msgid "Log in with OpenID"
+msgstr "Logar com OpenID"
+
+msgid "Logged in successfully"
+msgstr "Autenticado com sucesso"
+
+msgid "Login"
+msgstr "Login"
+
+msgid "Logo"
+msgstr "Logo"
+
+msgid "Logout"
+msgstr "Sair"
+
+msgid "Luxembourg"
+msgstr "Luxemburgo"
+
+msgid "Macau"
+msgstr "Macau"
+
+msgid "Macedonia"
+msgstr "Macedônia"
+
+msgid "Madagascar"
+msgstr "Madagascar"
+
+msgid "Malawi"
+msgstr "Malaui"
+
+msgid "Malaysia"
+msgstr "Malásia"
+
+msgid "Maldives"
+msgstr "Maldivas"
+
+msgid "Mali"
+msgstr "Mali"
+
+msgid "Malta"
+msgstr "Malta"
+
+msgid "Mar"
+msgstr "Mar"
+
+msgid "March"
+msgstr "Março"
+
+msgid "Marshall Islands"
+msgstr "Ilhas Marshall"
+
+msgid "Martinique"
+msgstr "Martinica"
+
+msgid "Mauritania"
+msgstr "Mauritânia"
+
+msgid "Mauritius"
+msgstr "Maurício"
+
+msgid "Maximum"
+msgstr "Máximo"
+
+msgid "Mayotte"
+msgstr "Mayotte"
+
+msgid "Member for"
+msgstr "Membro por"
+
+msgid "Mexico"
+msgstr "México"
+
+msgid "Micronesia, Federated States of"
+msgstr "Micronésia"
+
+msgid "Minimum"
+msgstr "Mínimo"
+
+msgid "Moldova, Republic of"
+msgstr "Moldávia"
+
+msgid "Mon"
+msgstr "Seg"
+
+msgid "Monaco"
+msgstr "Mônaco"
+
+msgid "Monday"
+msgstr "Segunda"
+
+msgid "Mongolia"
+msgstr "Mongólia"
+
+msgid "Montenegro"
+msgstr "Montenegro"
+
+msgid "Month|May"
+msgstr "Maio"
+
+msgid "Montserrat"
+msgstr "Montserrat"
+
+msgid "More groups can be added later"
+msgstr "Mais grupos podem ser adicionados depois"
+
+msgid "More information"
+msgstr "Mais informações"
+
+msgid "More phases can be added later"
+msgstr "Mais fases podem ser adicionadas depois"
+
+msgid "Morocco"
+msgstr "Marrocos"
+
+msgid "Most attended games"
+msgstr "Jogos com maiores públicos"
+
+msgid "Mozambique"
+msgstr "Moçambique"
+
+msgid "Myanmar"
+msgstr "Myanmar"
+
+# app/models/team.rb:-
+msgid "Name"
+msgstr "Nome"
+
+msgid "Namibia"
+msgstr "Namíbia"
+
+msgid "Nauru"
+msgstr "Nauru"
+
+msgid "Nepal"
+msgstr "Nepal"
+
+msgid "Netherlands"
+msgstr "Holanda"
+
+msgid "Netherlands Antilles"
+msgstr "Antilhas Holandesas"
+
+msgid "New"
+msgstr "Novo"
+
+msgid "New Caledonia"
+msgstr "Nova Caledônia"
+
+msgid "New Player"
+msgstr "Novo Jogador"
+
+msgid "New Referee"
+msgstr "Novo Árbitro"
+
+msgid "New Stadium"
+msgstr "Novo Estádio"
+
+msgid "New Team"
+msgstr "Nova Equipe"
+
+msgid "New Zealand"
+msgstr "Nova Zelândia"
+
+msgid "New game"
+msgstr "Novo jogo"
+
+msgid "New player"
+msgstr "Novo jogador"
+
+msgid "New referee"
+msgstr "Novo árbitro"
+
+msgid "New stadium"
+msgstr "Novo estádio"
+
+msgid "New team"
+msgstr "Nova equipe"
+
+msgid "New team_group"
+msgstr "Novo equipe_grupo"
+
+msgid "Next &raquo;"
+msgstr "Próximo &raquo;"
+
+msgid "Next game"
+msgid_plural "Next %{num} games"
+msgstr[0] "Próximo jogo"
+msgstr[1] "Próximos %{num} jogos"
+
+msgid "Next page"
+msgstr "Próxima página"
+
+msgid "Nicaragua"
+msgstr "Nicarágua"
+
+msgid "Niger"
+msgstr "Níger"
+
+msgid "Nigeria"
+msgstr "Nigéria"
+
+msgid "Niue"
+msgstr "Niue"
+
+msgid "No phases found"
+msgstr "Nenhuma fase encontrada"
+
+msgid "No players in this list"
+msgstr "Sem jogadores nesta lista"
+
+msgid "No records found."
+msgstr "Nenhum registro encontrado."
+
+msgid "Norfolk Island"
+msgstr "Ilha Norfolk"
+
+msgid "North Korea"
+msgstr "Coréia do Norte"
+
+msgid "Northern Ireland"
+msgstr "Irlanda do Norte"
+
+msgid "Northern Mariana Islands"
+msgstr "Marianas Setentrionais"
+
+msgid "Norway"
+msgstr "Noruega"
+
+msgid "Nov"
+msgstr "Nov"
+
+msgid "November"
+msgstr "Novembro"
+
+msgid "Now you can <a href='%{signup_link}'>sign up</a> and leave comments on the site."
+msgstr "Você agora pode <a href='%{signup_link}'>se cadastrar</a> e deixar comentários no site."
+
+msgid "Number of teams"
+msgstr "Número de equipes"
+
+# app/models/user.rb:-
+msgid "Observation"
+msgstr "Observação"
+
+msgid "Oct"
+msgstr "Out"
+
+msgid "October"
+msgstr "Outubro"
+
+msgid "Odds being recalculated"
+msgstr "Chances sendo calculadas"
+
+msgid "Off"
+msgstr "Saiu"
+
+msgid "Oman"
+msgstr "Omã"
+
+msgid "On"
+msgstr "Entrou"
+
+msgid "OpenID"
+msgstr "OpenID"
+
+msgid "Order"
+msgstr "Ordem"
+
+msgid "Own"
+msgstr "Contra"
+
+msgid "Own Goals"
+msgstr "Gols contra"
+
+msgid "P%"
+msgstr "C%"
+
+msgid "PM"
+msgstr "PM"
+
+msgid "Pakistan"
+msgstr "Paquistão"
+
+msgid "Palau"
+msgstr "Palau"
+
+msgid "Palestine"
+msgstr "Palestina"
+
+msgid "Panama"
+msgstr "Panamá"
+
+msgid "Papua New Guinea"
+msgstr "Papua-Nova Guiné"
+
+msgid "Paraguay"
+msgstr "Paraguai"
+
+msgid "Password"
+msgstr "Senha"
+
+msgid "Pen"
+msgstr "Pen"
+
+msgid "Penalties"
+msgstr "Pênaltis"
+
+msgid "Penalties:"
+msgstr "Pênaltis:"
+
+# app/models/player.rb:-
+msgid "Peru"
+msgstr "Peru"
+
+# app/models/phase.rb:-
+msgid "Phase"
+msgstr "Fase"
+
+# app/models/phase.rb:-
+msgid "Phases"
+msgstr "Fases"
+
+msgid "Philippines"
+msgstr "Filipinas"
+
+msgid "Picture"
+msgstr "Imagem"
+
+msgid "Pitcairn"
+msgstr "Pitcairn"
+
+# app/models/player.rb:-
+msgid "Played"
+msgstr "Jogados"
+
+# app/models/player.rb:-
+msgid "Player"
+msgstr "Jogador"
+
+msgid "Player Edit"
+msgstr "Editar Jogador"
+
+msgid "Player was successfully created"
+msgstr "Jogador foi criado com sucesso"
+
+msgid "Player was successfully updated"
+msgstr "Jogador foi atualizado com sucesso"
+
+# app/models/player.rb:-
+msgid "Players"
+msgstr "Jogadores"
+
+msgid "Points for draw"
+msgstr "Pontos por empate"
+
+msgid "Points for loss"
+msgstr "Pontos por derrota"
+
+msgid "Points for win"
+msgstr "Pontos por vitória"
+
+# app/models/player.rb:-
+msgid "Poland"
+msgstr "Polônia"
+
+msgid "Portugal"
+msgstr "Portugal"
+
+msgid "Pos"
+msgstr "Pos"
+
+msgid "Position"
+msgstr "Posição"
+
+msgid "Prev"
+msgstr "Anterior"
+
+msgid "Prev "
+msgstr "Anterior "
+
+msgid "Previous game"
+msgid_plural "Previous %d games"
+msgstr[0] "Último jogo"
+msgstr[1] "%d últimos jogos"
+
+msgid "Previous page"
+msgstr "Página anterior"
+
+msgid "Promoted"
+msgstr "Classificados"
+
+msgid "Pts"
+msgstr "Pts"
+
+msgid "Puerto Rico"
+msgstr "Porto Rico"
+
+msgid "Qatar"
+msgstr "Qatar"
+
+msgid "R%"
+msgstr "R%"
+
+msgid "Recalculate odds"
+msgstr "Recalcular chances"
+
+# app/models/referee.rb:-
+msgid "Referee"
+msgstr "Árbitro"
+
+# app/models/referee.rb:-
+msgid "Referee Edit"
+msgstr "Editar Árbitro"
+
+msgid "Referee was successfully created"
+msgstr "Árbitro foi criado com sucesso"
+
+msgid "Referee was successfully updated"
+msgstr "Árbitro foi atualizado com sucesso"
+
+# app/models/referee.rb:-
+msgid "Referees"
+msgstr "Árbitros"
+
+msgid "Relegated"
+msgstr "Rebaixados"
+
+msgid "Remove"
+msgstr "Remover"
+
+msgid "Removed %s: %s<br>"
+msgstr "Removido %s: %s<br>"
+
+msgid "Removed goal "
+msgstr "Removido gol "
+
+msgid "Removed referee: %s<br>"
+msgstr "Removido árbitro: %s<br>"
+
+msgid "Removed stadium: %s<br>"
+msgstr "Removido estádio: %s<br>"
+
+msgid "Reunion"
+msgstr "Reunião"
+
+msgid "Romania"
+msgstr "Romênia"
+
+msgid "Round"
+msgstr "Rodada"
+
+msgid "Round "
+msgstr "Rodada "
+
+msgid "Russia"
+msgstr "Rússia"
+
+msgid "Rwanda"
+msgstr "Ruanda"
+
+msgid "Saint Kitts and Nevis"
+msgstr "São Cristóvão e Neves"
+
+msgid "Saint Lucia"
+msgstr "Santa Lúcia"
+
+msgid "Saint Vincent and the Grenadines"
+msgstr "São Vicente e Granadinas"
+
+msgid "Samoa (Independent)"
+msgstr "Samoa"
+
+msgid "San Marino"
+msgstr "San Marino"
+
+msgid "Sao Tome and Principe"
+msgstr "São Tomé e Príncipe"
+
+msgid "Sat"
+msgstr "Sab"
+
+msgid "Saturday"
+msgstr "Sábado"
+
+msgid "Saudi Arabia"
+msgstr "Arábia Saudita"
+
+msgid "Scheduled"
+msgstr "Agendados"
+
+msgid "Scotland"
+msgstr "Escócia"
+
+msgid "Search"
+msgstr "Procurar"
+
+msgid "Senegal"
+msgstr "Senegal"
+
+msgid "Sep"
+msgstr "Set"
+
+msgid "September"
+msgstr "Setembro"
+
+msgid "Serbia"
+msgstr "Sérvia"
+
+msgid "Serbia and Montenegro"
+msgstr "Sérvia e Montenegro"
+
+msgid "Seychelles"
+msgstr "Seychelles"
+
+msgid "Show"
+msgstr "Mostrar"
+
+msgid "Show country flags"
+msgstr "Mostrar bandeiras dos países"
+
+msgid "Sierra Leone"
+msgstr "Serra Leoa"
+
+msgid "Sign up"
+msgstr "Inscrever"
+
+msgid "Singapore"
+msgstr "Cingapura"
+
+msgid "Slovakia"
+msgstr "Eslováquia"
+
+msgid "Slovenia"
+msgstr "Eslovênia"
+
+msgid "Solomon Islands"
+msgstr "Ilhas Salomão"
+
+msgid "Somalia"
+msgstr "Somália"
+
+msgid "Sorry, no user by that identity URL exists (%{identity_url})"
+msgstr "Desculpe, não existe um usuário nessa URL identidate (%{identity_url})"
+
+msgid "Sort"
+msgstr "Ordenação"
+
+msgid "South Africa"
+msgstr "África do Sul"
+
+msgid "South Georgia and the South Sandwich Islands"
+msgstr "Ilhas Geórgia do Sul e Sandwich do Sul"
+
+msgid "South Korea"
+msgstr "Coréia do Sul"
+
+msgid "Spain"
+msgstr "Espanha"
+
+msgid "Sri Lanka"
+msgstr "Sri Lanka"
+
+msgid "St. Helena"
+msgstr "Santa Helena"
+
+msgid "St. Pierre and Miquelon"
+msgstr "Saint-Pierre e Miquelon"
+
+# app/models/stadium.rb:-
+msgid "Stadium"
+msgstr "Estádio"
+
+msgid "Stadium Edit"
+msgstr "Editar Estádio"
+
+msgid "Stadium was successfully created"
+msgstr "Estádio foi criado com sucesso"
+
+msgid "Stadium was successfully updated"
+msgstr "Estádio foi atualizado com sucesso"
+
+# app/models/stadium.rb:-
+msgid "Stadiums"
+msgstr "Estádios"
+
+msgid "Stats"
+msgstr "Estatísticas"
+
+msgid "Sudan"
+msgstr "Sudão"
+
+msgid "Sun"
+msgstr "Dom"
+
+msgid "Sunday"
+msgstr "Domingo"
+
+msgid "Suriname"
+msgstr "Suriname"
+
+msgid "Svalbard and Jan Mayen Islands"
+msgstr "Svalbard e Jan Mayen"
+
+msgid "Swaziland"
+msgstr "Suazilândia"
+
+msgid "Sweden"
+msgstr "Suécia"
+
+msgid "Switzerland"
+msgstr "Suíça"
+
+msgid "Syria"
+msgstr "Síria"
+
+msgid "Table"
+msgstr "Tabela"
+
+msgid "Taiwan"
+msgstr "Taiwan"
+
+msgid "Tajikistan"
+msgstr "Tadjiquistão"
+
+msgid "Tanzania"
+msgstr "Tanzânia"
+
+msgid "Team"
+msgstr "Equipe"
+
+# app/models/team_group.rb:-
+msgid "TeamGroup"
+msgstr "EquipeGrupo"
+
+msgid "Teams"
+msgstr "Equipes"
+
+msgid "Thailand"
+msgstr "Tailândia"
+
+msgid "Thanks for signing up!"
+msgstr "Obrigado por se cadastrar!"
+
+msgid "This user has made %{num_comments} comment to this date."
+msgid_plural "This user has made %{num_comments} comments to this date."
+msgstr[0] "Este usuário fez %{num_comments} comentário até hoje."
+msgstr[1] "Este usuário fez %{num_comments} comentários até hoje."
+
+msgid "This user has made %{num_edits} edit to this date."
+msgid_plural "This user has made %{num_edits} edits to this date."
+msgstr[0] "Este usuário fez %{num_edits} edição até hoje."
+msgstr[1] "Este usuário fez %{num_edits} edições até hoje."
+
+msgid "Thu"
+msgstr "Qui"
+
+msgid "Thursday"
+msgstr "Quinta"
+
+msgid "To"
+msgstr "Até"
+
+msgid "Today"
+msgstr "Hoje"
+
+msgid "Togo"
+msgstr "Togo"
+
+msgid "Tokelau"
+msgstr "Tokelau"
+
+msgid "Tonga"
+msgstr "Tonga"
+
+msgid "Top Goalscorers"
+msgstr "Maiores Artilheiros"
+
+msgid "Trinidad and Tobago"
+msgstr "Trindade e Tobago"
+
+msgid "Tue"
+msgstr "Ter"
+
+msgid "Tuesday"
+msgstr "Terça"
+
+msgid "Tunisia"
+msgstr "Tunísia"
+
+msgid "Turkey"
+msgstr "Turquia"
+
+msgid "Turkmenistan"
+msgstr "Turcomenistão"
+
+msgid "Turks and Caicos Islands"
+msgstr "Turks e Caicos"
+
+msgid "Tuvalu"
+msgstr "Tuvalu"
+
+msgid "Uganda"
+msgstr "Uganda"
+
+msgid "Ukraine"
+msgstr "Ucrânia"
+
+msgid "United Arab Emirates"
+msgstr "Emirados Árabes Unidos"
+
+msgid "United Kingdom"
+msgstr "Reino Unido"
+
+msgid "United States"
+msgstr "Estados Unidos"
+
+msgid "United States Minor Outlying Islands"
+msgstr "Ilhas Menores Distantes dos Estados Unidos"
+
+msgid "Update"
+msgstr "Atualizar"
+
+msgid "Updating odds..."
+msgstr "Atualizando chances..."
+
+msgid "Uruguay"
+msgstr "Uruguai"
+
+# app/models/user.rb:-
+msgid "User"
+msgstr "Usuário"
+
+msgid "Username or password invalid"
+msgstr "Usuário ou senha inválidos"
+
+msgid "User|Password"
+msgstr "Senha"
+
+msgid "Uzbekistan"
+msgstr "Uzbequistão"
+
+msgid "Vanuatu"
+msgstr "Vanuatu"
+
+msgid "Vatican City State (Holy See)"
+msgstr "Cidade do Vaticano"
+
+msgid "Venezuela"
+msgstr "Venezuela"
+
+msgid "Version %{number}"
+msgstr "Versão %{number}"
+
+msgid "Viet Nam"
+msgstr "Vietnã"
+
+msgid "View all users"
+msgstr "Ver todos usuários"
+
+msgid "View this %s"
+msgstr "Ver este %s"
+
+msgid "View user"
+msgstr "Ver usuário"
+
+msgid "View user edits"
+msgstr "Ver edições do usuário"
+
+msgid "Virgin Islands (British)"
+msgstr "Ilhas Virgens Britânicas"
+
+msgid "Virgin Islands (U.S.)"
+msgstr "Ilhas Virgens Americanas"
+
+msgid "W"
+msgstr "V"
+
+msgid "Wales"
+msgstr "País de Gales"
+
+msgid "Wallis and Futuna Islands"
+msgstr "Wallis e Futuna"
+
+msgid "Wed"
+msgstr "Qua"
+
+msgid "Wednesday"
+msgstr "Quarta"
+
+msgid "Western Sahara"
+msgstr "Saara Ocidental"
+
+msgid "Yemen"
+msgstr "Iêmen"
+
+msgid "You are not authorized to view that page"
+msgstr "Você não está autorizado a ver esta página"
+
+msgid "You can also <a href='%{signup}'>create an account for this site.</a>"
+msgstr "Você também pode <a href='%{signup}'>criar uma conta para este site.</a>"
+
+msgid "You can create an account for this site using the form below. If you have an %{openid_link} URL, you can <a href='%{login_link}'>log in with OpenID</a> rather than creating an account."
+msgstr "Você pode criar uma conta para este site usando o formulário abaixo. Se você possui uma URL %{openid_link}, você pode <a href='%{login_link}'>se logar com OpenID</a> ao invés de criar uma conta. "
+
+msgid "You can only leave a comment if you're %s"
+msgstr "Voce só pode deixar um comentário se você %s"
+
+msgid "You have been logged out."
+msgstr "Você foi desconectado."
+
+msgid "Your profile was saved"
+msgstr "Seu perfil foi salvo"
+
+msgid "Zambia"
+msgstr "Zâmbia"
+
+msgid "Zimbabwe"
+msgstr "Zimbábue"
+
+msgid "aet goals"
+msgstr "gols na prorrogação"
+
+# app/models/team.rb:-
+msgid "am"
+msgstr "am"
+
+msgid "basic html is accepted"
+msgstr "html básico é aceito"
+
+msgid "bias"
+msgstr "vantagem"
+
+# app/models/comment.rb:-
+msgid "comments"
+msgstr "comentários"
+
+msgid "edits"
+msgstr "edições"
+
+msgid "goal average"
+msgstr "média de gols"
+
+msgid "goal difference"
+msgstr "diferença de gols"
+
+msgid "goals away"
+msgstr "gols fora"
+
+# app/models/goal.rb:-
+msgid "goals for"
+msgstr "gols a favor"
+
+msgid "head to head"
+msgstr "confronto direto"
+
+msgid "logged in"
+msgstr "se logar"
+
+msgid "name"
+msgstr "nome"
+
+msgid "never displayed, no spam, used for password recovery"
+msgstr "nunca mostrado, sem spam, usado para recuperar a senha"
+
+msgid "odds of finishing first"
+msgstr "chances de terminar em primeiro"
+
+msgid "odds of finishing in promotion zone"
+msgstr "chances de terminar na zona de classificação"
+
+msgid "odds of finishing in relegation zone"
+msgstr "chances de terminar na zona de rebaixamento"
+
+msgid "only used to show your age"
+msgstr "só usado para mostrar sua idade"
+
+msgid "penalty goals"
+msgstr "gols de pênalti"
+
+msgid "pm"
+msgstr "pm"
+
+msgid "points"
+msgstr "pontos"
+
+msgid "wins"
+msgstr "vitórias"
+
+# app/models/category.rb:-
+#~ msgid "Category|Name"
+#~ msgstr "Nome"
+
+# app/models/championship.rb:-
+#~ msgid "Championship|Begin"
+#~ msgstr "Início"
+
+# app/models/championship.rb:-
+#~ msgid "Championship|Category"
+#~ msgstr "Categoria"
+
+# app/models/championship.rb:-
+#~ msgid "Championship|End"
+#~ msgstr "Término"
+
+# app/models/championship.rb:-
+#~ msgid "Championship|Name"
+#~ msgstr "Nome"
+
+# app/models/championship.rb:-
+#~ msgid "Championship|Point draw"
+#~ msgstr "Pontos por empate"
+
+# app/models/championship.rb:-
+#~ msgid "Championship|Point loss"
+#~ msgstr "Pontos por derrota"
+
+# app/models/championship.rb:-
+#~ msgid "Championship|Point win"
+#~ msgstr "Pontos por vitória"
+
+# app/models/championship.rb:-
+#~ msgid "Championship|Show country"
+#~ msgstr "Mostrar país"
+
+#~ msgid "Comment|Comment"
+#~ msgstr "Comentário"
+
+#~ msgid "Comment|Commentable"
+#~ msgstr "Comentável"
+
+#~ msgid "Comment|Commentable type"
+#~ msgstr "Tipo comentável"
+
+# app/models/user.rb:-
+#~ msgid "Comment|Created at"
+#~ msgstr "Criado em"
+
+#~ msgid "Comment|Title"
+#~ msgstr "Título"
+
+#~ msgid "Comment|User"
+#~ msgstr "Usuário"
+
+# app/models/user.rb:-
+#~ msgid "Delayed::Job|Created at"
+#~ msgstr "Criado em"
+
+# app/models/game.rb:-
+#~ msgid "Delayed::Job|Updated at"
+#~ msgstr "Atualizado em"
+
+# app/models/game.rb:-
+#~ msgid "Game|Attendance"
+#~ msgstr "Público"
+
+# app/models/game.rb:-
+#~ msgid "Game|Away"
+#~ msgstr "Fora"
+
+# app/models/game.rb:-
+#~ msgid "Game|Away aet"
+#~ msgstr "Prorrogação fora"
+
+# app/models/game.rb:-
+#~ msgid "Game|Away pen"
+#~ msgstr "Pen fora"
+
+# app/models/game.rb:-
+#~ msgid "Game|Away score"
+#~ msgstr "Placar fora"
+
+# app/models/game.rb:-
+#~ msgid "Game|Date"
+#~ msgstr "Data"
+
+# app/models/game.rb:-
+#~ msgid "Game|Home"
+#~ msgstr "Casa"
+
+# app/models/game.rb:-
+#~ msgid "Game|Home aet"
+#~ msgstr "Prorrogação casa"
+
+# app/models/game.rb:-
+#~ msgid "Game|Home pen"
+#~ msgstr "Pen casa"
+
+# app/models/game.rb:-
+#~ msgid "Game|Home score"
+#~ msgstr "Placar casa"
+
+# app/models/game.rb:-
+#~ msgid "Game|Phase"
+#~ msgstr "Fase"
+
+# app/models/game.rb:-
+#~ msgid "Game|Played"
+#~ msgstr "Jogado"
+
+# app/models/game.rb:-
+#~ msgid "Game|Referee"
+#~ msgstr "Árbitro"
+
+# app/models/game.rb:-
+#~ msgid "Game|Round"
+#~ msgstr "Rodada"
+
+# app/models/game.rb:-
+#~ msgid "Game|Stadium"
+#~ msgstr "Estádio"
+
+# app/models/game.rb:-
+#~ msgid "Game|Updated at"
+#~ msgstr "Atualizado em"
+
+# app/models/game.rb:-
+#~ msgid "Game|Updater"
+#~ msgstr "Atualizador"
+
+# app/models/game.rb:-
+#~ msgid "Game|Version"
+#~ msgstr "Versão"
+
+# app/models/goal.rb:-
+#~ msgid "Goal|Aet"
+#~ msgstr "Prorrogação"
+
+# app/models/goal.rb:-
+#~ msgid "Goal|Game"
+#~ msgstr "Jogo"
+
+# app/models/goal.rb:-
+#~ msgid "Goal|Own goal"
+#~ msgstr "Gol contra"
+
+# app/models/goal.rb:-
+#~ msgid "Goal|Penalty"
+#~ msgstr "Pênalti"
+
+# app/models/goal.rb:-
+#~ msgid "Goal|Player"
+#~ msgstr "Jogador"
+
+# app/models/goal.rb:-
+#~ msgid "Goal|Team"
+#~ msgstr "Equipe"
+
+# app/models/group.rb:-
+#~ msgid "Group|Name"
+#~ msgstr "Nome"
+
+# app/models/group.rb:-
+#~ msgid "Group|Odds progress"
+#~ msgstr "Progresso chances"
+
+# app/models/group.rb:-
+#~ msgid "Group|Phase"
+#~ msgstr "Fase"
+
+# app/models/group.rb:-
+#~ msgid "Group|Promoted"
+#~ msgstr "Classificados"
+
+# app/models/group.rb:-
+#~ msgid "Group|Relegated"
+#~ msgstr "Rebaixados"
+
+# app/models/phase.rb:-
+#~ msgid "Phase|Bonus points"
+#~ msgstr "Pontos de bônus"
+
+# app/models/phase.rb:-
+#~ msgid "Phase|Bonus points threshold"
+#~ msgstr "Diferença para pontos de bônus"
+
+# app/models/phase.rb:-
+#~ msgid "Phase|Championship"
+#~ msgstr "Campeonato"
+
+# app/models/phase.rb:-
+#~ msgid "Phase|Name"
+#~ msgstr "Nome"
+
+# app/models/phase.rb:-
+#~ msgid "Phase|Order by"
+#~ msgstr "Ordem"
+
+# app/models/phase.rb:-
+#~ msgid "Phase|Sort"
+#~ msgstr "Ordenação"
+
+# app/models/player_game.rb:-
+#~ msgid "PlayerGame|Game"
+#~ msgstr "Jogo"
+
+# app/models/player_game.rb:-
+#~ msgid "PlayerGame|Off"
+#~ msgstr "Saiu"
+
+# app/models/player_game.rb:-
+#~ msgid "PlayerGame|On"
+#~ msgstr "Entrou"
+
+# app/models/player_game.rb:-
+#~ msgid "PlayerGame|Player"
+#~ msgstr "Jogador"
+
+# app/models/player_game.rb:-
+#~ msgid "PlayerGame|Red"
+#~ msgstr "Vermelho"
+
+# app/models/player_game.rb:-
+#~ msgid "PlayerGame|Team"
+#~ msgstr "Equipe"
+
+# app/models/player_game.rb:-
+#~ msgid "PlayerGame|Yellow"
+#~ msgstr "Amarelo"
+
+# app/models/player.rb:-
+#~ msgid "Player|Birth"
+#~ msgstr "Nascimento"
+
+# app/models/player.rb:-
+#~ msgid "Player|Country"
+#~ msgstr "País"
+
+# app/models/player.rb:-
+#~ msgid "Player|Full name"
+#~ msgstr "Nome completo"
+
+# app/models/player.rb:-
+#~ msgid "Player|Name"
+#~ msgstr "Nome"
+
+# app/models/player.rb:-
+#~ msgid "Player|Position"
+#~ msgstr "Posição"
+
+# app/models/referee_champ.rb:-
+#~ msgid "RefereeChamp|Championship"
+#~ msgstr "Campeonato"
+
+# app/models/referee_champ.rb:-
+#~ msgid "RefereeChamp|Referee"
+#~ msgstr "Árbitro"
+
+# app/models/referee.rb:-
+#~ msgid "Referee|Location"
+#~ msgstr "Localidade"
+
+# app/models/referee.rb:-
+#~ msgid "Referee|Name"
+#~ msgstr "Nome"
+
+# app/models/player.rb:-
+#~ msgid "Role|Name"
+#~ msgstr "Nome"
+
+# app/models/stadium.rb:-
+#~ msgid "Stadium|City"
+#~ msgstr "Cidade"
+
+# app/models/stadium.rb:-
+#~ msgid "Stadium|Country"
+#~ msgstr "País"
+
+# app/models/stadium.rb:-
+#~ msgid "Stadium|Full name"
+#~ msgstr "Nome completo"
+
+# app/models/stadium.rb:-
+#~ msgid "Stadium|Name"
+#~ msgstr "Nome"
+
+# app/models/team_group.rb:-
+#~ msgid "TeamGroup|Add sub"
+#~ msgstr "Adicionar Subtrai"
+
+# app/models/team_group.rb:-
+#~ msgid "TeamGroup|Bias"
+#~ msgstr "Vantagem"
+
+# app/models/team_group.rb:-
+#~ msgid "TeamGroup|Comment"
+#~ msgstr "Comentário"
+
+# app/models/team_group.rb:-
+#~ msgid "TeamGroup|First odds"
+#~ msgstr "Chance primeiro"
+
+# app/models/team_group.rb:-
+#~ msgid "TeamGroup|Group"
+#~ msgstr "Grupo"
+
+# app/models/team_group.rb:-
+#~ msgid "TeamGroup|Promoted odds"
+#~ msgstr "Chances de classificação"
+
+# app/models/team_group.rb:-
+#~ msgid "TeamGroup|Relegated odds"
+#~ msgstr "Chances de rebaixamento"
+
+# app/models/team_group.rb:-
+#~ msgid "TeamGroup|Team"
+#~ msgstr "Equipe"
+
+# app/models/team_player.rb:-
+#~ msgid "TeamPlayer|Championship"
+#~ msgstr "Campeonato"
+
+# app/models/team_player.rb:-
+#~ msgid "TeamPlayer|Player"
+#~ msgstr "Jogador"
+
+# app/models/team_player.rb:-
+#~ msgid "TeamPlayer|Team"
+#~ msgstr "Equipe"
+
+# app/models/team.rb:-
+#~ msgid "Team|City"
+#~ msgstr "Cidade"
+
+# app/models/team.rb:-
+#~ msgid "Team|Country"
+#~ msgstr "País"
+
+# app/models/team.rb:-
+#~ msgid "Team|Foundation"
+#~ msgstr "Fundação"
+
+# app/models/team.rb:-
+#~ msgid "Team|Full name"
+#~ msgstr "Nome completo"
+
+# app/models/team.rb:-
+#~ msgid "Team|Logo"
+#~ msgstr "Logo"
+
+# app/models/team.rb:-
+#~ msgid "Team|Name"
+#~ msgstr "Nome"
+
+# app/models/team.rb:-
+#~ msgid "Team|Stadium"
+#~ msgstr "Estádio"
+
+# app/models/user.rb:-
+#~ msgid "User|About me"
+#~ msgstr "Sobre mim"
+
+# app/models/user.rb:-
+#~ msgid "User|Birthday"
+#~ msgstr "Nascimento"
+
+# app/models/user.rb:-
+#~ msgid "User|Created at"
+#~ msgstr "Criado em"
+
+# app/models/user.rb:-
+#~ msgid "User|Crypted password"
+#~ msgstr "Senha encriptada"
+
+# app/models/user.rb:-
+#~ msgid "User|Email"
+#~ msgstr "Email"
+
+# app/models/user.rb:-
+#~ msgid "User|Identity url"
+#~ msgstr "Url identidade"
+
+# app/models/user.rb:-
+#~ msgid "User|Last login"
+#~ msgstr "Último login"
+
+# app/models/user.rb:-
+#~ msgid "User|Location"
+#~ msgstr "Localidade"
+
+# app/models/user.rb:-
+#~ msgid "User|Login"
+#~ msgstr "Login"
+
+# app/models/phase.rb:-
+#~ msgid "User|Name"
+#~ msgstr "Nome"
+
+# app/models/user.rb:-
+#~ msgid "User|Remember token"
+#~ msgstr "Lembrar token"
+
+# app/models/user.rb:-
+#~ msgid "User|Remember token expires at"
+#~ msgstr "Lembrar token expira em"
+
+# app/models/user.rb:-
+#~ msgid "User|Salt"
+#~ msgstr "Salt"
+
+# app/models/user.rb:-
+#~ msgid "User|Updated at"
+#~ msgstr "Atualizado em"
+
+# app/models/category.rb:-
+#~ msgid "category"
+#~ msgstr "categoria"
+
+# app/models/championship.rb:-
+#~ msgid "championship"
+#~ msgstr "campeonato"
+
+# app/models/comment.rb:-
+#~ msgid "comment"
+#~ msgstr "comentário"
+
+# app/models/game.rb:-
+#~ msgid "game"
+#~ msgstr "jogo"
+
+# app/models/goal.rb:-
+#~ msgid "goal"
+#~ msgstr "gol"
+
+# app/models/group.rb:-
+#~ msgid "group"
+#~ msgstr "grupo"
+
+# app/models/phase.rb:-
+#~ msgid "phase"
+#~ msgstr "fase"
+
+# app/models/player.rb:-
+#~ msgid "player"
+#~ msgstr "jogador"
+
+# app/models/player_game.rb:-
+#~ msgid "player game"
+#~ msgstr "jogador jogo"
+
+# app/models/referee.rb:-
+#~ msgid "referee"
+#~ msgstr "árbitro"
+
+# app/models/referee_champ.rb:-
+#~ msgid "referee champ"
+#~ msgstr "árbitro campeonato"
+
+# app/models/role.rb:-
+#~ msgid "role"
+#~ msgstr "função"
+
+# app/models/stadium.rb:-
+#~ msgid "stadium"
+#~ msgstr "estádio"
+
+# app/models/team.rb:-
+#~ msgid "team"
+#~ msgstr "equipe"
+
+# app/models/team_group.rb:-
+#~ msgid "team group"
+#~ msgstr "equipe grupo"
+
+# app/models/team_player.rb:-
+#~ msgid "team player"
+#~ msgstr "equipe jogador"
+
+# app/models/user.rb:-
+#~ msgid "user"
+#~ msgstr "usuário"

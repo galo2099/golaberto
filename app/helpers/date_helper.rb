@@ -5,6 +5,7 @@
 # Author:  Stuart Rackham <srackham@methods.co.nz>
 # License: This source code is released under the MIT license.
 #
+require 'gettext_date'
 module DateHelper
 
   # Rails text_field helper plus drop-down calendar control for date input. Same

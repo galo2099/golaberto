@@ -2,7 +2,7 @@
 
 <% if not logged_in? %>
 <div class="promo">
-  <%= _("Now you can <a href='%{signup_link}'>sign up</a> and leave comments on the site.") % { :signup_link => url_for(:controller => :account, :action => :login) } %>
+  <%= (_("Now you can <a href='%{signup_link}'>sign up</a> and leave comments on the site.") % { :signup_link => url_for(:controller => :account, :action => :login) }).html_safe %>
 </div>
 <% end %>
 

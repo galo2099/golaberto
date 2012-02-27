@@ -7,1553 +7,1684 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: version 0.0.1\n"
-"POT-Creation-Date: 2012-02-26 08:31-0800\n"
+"POT-Creation-Date: 2012-02-26 21:45-0800\n"
 "PO-Revision-Date: 2012-02-26 08:31-0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
-#: app/controllers/account_controller.rb:2
-msgid "Account"
-msgstr ""
-
-#: app/controllers/account_controller.rb:23
-msgid "Thanks for signing up!"
-msgstr ""
-
-#: app/controllers/account_controller.rb:32
-msgid "You have been logged out."
-msgstr ""
-
-#: app/controllers/account_controller.rb:43
-msgid "Username or password invalid"
-msgstr ""
-
-#: app/controllers/account_controller.rb:54
-msgid "Sorry, no user by that identity URL exists (%{identity_url})"
-msgstr ""
-
-#: app/controllers/account_controller.rb:72
-msgid "Logged in successfully"
-msgstr ""
-
-#: app/controllers/category_controller.rb:2
-msgid "Category"
-msgstr ""
-
-#: app/controllers/championship_controller.rb:4
-msgid "Championship"
-msgstr ""
-
-#: app/controllers/championship_controller.rb:86
-msgid "%s Campaign"
-msgstr ""
-
-#: app/controllers/championship_controller.rb:126 app/controllers/championship_controller.rb:146
-msgid "%s - %d points<br>%s %d x %d %s"
-msgstr ""
-
-#: app/controllers/comment_controller.rb:2
-msgid "Comment"
-msgstr ""
-
-#: app/controllers/cookie_controller.rb:2
-msgid "Cookie"
-msgstr ""
-
-#: app/controllers/game_controller.rb:2
-msgid "Game"
-msgstr ""
-
-#: app/controllers/game_controller.rb:146
-msgid "Game saved"
-msgstr ""
-
-#: app/controllers/group_controller.rb:2
-msgid "Group"
-msgstr ""
-
-#: app/controllers/home_controller.rb:2
-msgid "Home"
-msgstr ""
-
-#: app/controllers/phase_controller.rb:2
-msgid "Phase"
-msgstr ""
-
-#: app/controllers/player_controller.rb:2
-msgid "Player"
-msgstr ""
-
-#: app/controllers/player_controller.rb:52
-msgid "Player was successfully updated"
-msgstr ""
-
-#: app/controllers/player_controller.rb:66
-msgid "Player was successfully created"
-msgstr ""
-
-#: app/controllers/referee_controller.rb:2
-msgid "Referee"
-msgstr ""
-
-#: app/controllers/referee_controller.rb:33
-msgid "Referee was successfully updated"
-msgstr ""
-
-#: app/controllers/referee_controller.rb:47
-msgid "Referee was successfully created"
-msgstr ""
-
-#: app/controllers/stadium_controller.rb:2
-msgid "Stadium"
-msgstr ""
-
-#: app/controllers/stadium_controller.rb:33
-msgid "Stadium was successfully updated"
-msgstr ""
-
-#: app/controllers/stadium_controller.rb:47
-msgid "Stadium was successfully created"
-msgstr ""
-
-#: app/controllers/team_controller.rb:2
-msgid "Team"
-msgstr ""
-
-#: app/controllers/team_group_controller.rb:2
-msgid "TeamGroup"
-msgstr ""
-
-#: app/controllers/user_controller.rb:34
-msgid "Your profile was saved"
-msgstr ""
-
-#: app/helpers/application_helper.rb:18
-msgid "Prev"
-msgstr ""
-
-#: app/helpers/application_helper.rb:21
-msgid "Prev "
-msgstr ""
-
-#: app/helpers/application_helper.rb:32
 msgid " Next"
 msgstr ""
 
-#: app/helpers/application_helper.rb:47
-msgid "Removed goal "
-msgstr ""
-
-#: app/helpers/application_helper.rb:49
-msgid "Added goal "
-msgstr ""
-
-#: app/helpers/application_helper.rb:53
-msgid "(penalty)"
-msgstr ""
-
-#: app/helpers/application_helper.rb:54
-msgid "(own_goal)"
-msgstr ""
-
-#: app/helpers/application_helper.rb:60
-msgid "Added stadium: %s<br>"
-msgstr ""
-
-#: app/helpers/application_helper.rb:62
-msgid "Removed stadium: %s<br>"
-msgstr ""
-
-#: app/helpers/application_helper.rb:64
-msgid "Changed stadium: %s -> %s<br>"
-msgstr ""
-
-#: app/helpers/application_helper.rb:68
-msgid "Added referee: %s<br>"
-msgstr ""
-
-#: app/helpers/application_helper.rb:70
-msgid "Removed referee: %s<br>"
-msgstr ""
-
-#: app/helpers/application_helper.rb:72
-msgid "Changed referee: %s -> %s<br>"
-msgstr ""
-
-#: app/helpers/application_helper.rb:77
-msgid "Added %s: %s<br>"
-msgstr ""
-
-#: app/helpers/application_helper.rb:79
-msgid "Removed %s: %s<br>"
-msgstr ""
-
-#: app/helpers/application_helper.rb:81
-msgid "Changed %s: %s -> %s<br>"
-msgstr ""
-
-#: app/helpers/application_helper.rb:92
-msgid "Afghanistan"
-msgstr ""
-
-#: app/helpers/application_helper.rb:93
-msgid "Albania"
-msgstr ""
-
-#: app/helpers/application_helper.rb:94
-msgid "Algeria"
-msgstr ""
-
-#: app/helpers/application_helper.rb:95
-msgid "American Samoa"
-msgstr ""
-
-#: app/helpers/application_helper.rb:96
-msgid "Andorra"
-msgstr ""
-
-#: app/helpers/application_helper.rb:97
-msgid "Angola"
-msgstr ""
-
-#: app/helpers/application_helper.rb:98
-msgid "Anguilla"
-msgstr ""
-
-#: app/helpers/application_helper.rb:99
-msgid "Antigua And Barbuda"
-msgstr ""
-
-#: app/helpers/application_helper.rb:100
-msgid "Argentina"
-msgstr ""
-
-#: app/helpers/application_helper.rb:101
-msgid "Armenia"
-msgstr ""
-
-#: app/helpers/application_helper.rb:102
-msgid "Aruba"
-msgstr ""
-
-#: app/helpers/application_helper.rb:103
-msgid "Australia"
-msgstr ""
-
-#: app/helpers/application_helper.rb:104
-msgid "Austria"
-msgstr ""
-
-#: app/helpers/application_helper.rb:105
-msgid "Azerbaijan"
-msgstr ""
-
-#: app/helpers/application_helper.rb:106
-msgid "Bahamas"
-msgstr ""
-
-#: app/helpers/application_helper.rb:107
-msgid "Bahrain"
-msgstr ""
-
-#: app/helpers/application_helper.rb:108
-msgid "Bangladesh"
-msgstr ""
-
-#: app/helpers/application_helper.rb:109
-msgid "Barbados"
-msgstr ""
-
-#: app/helpers/application_helper.rb:110
-msgid "Belarus"
-msgstr ""
-
-#: app/helpers/application_helper.rb:111
-msgid "Belgium"
-msgstr ""
-
-#: app/helpers/application_helper.rb:112
-msgid "Belize"
-msgstr ""
-
-#: app/helpers/application_helper.rb:113
-msgid "Benin"
-msgstr ""
-
-#: app/helpers/application_helper.rb:114
-msgid "Bermuda"
-msgstr ""
-
-#: app/helpers/application_helper.rb:115
-msgid "Bhutan"
-msgstr ""
-
-#: app/helpers/application_helper.rb:116
-msgid "Bolivia"
-msgstr ""
-
-#: app/helpers/application_helper.rb:117
-msgid "Bosnia and Herzegovina"
-msgstr ""
-
-#: app/helpers/application_helper.rb:118
-msgid "Botswana"
-msgstr ""
-
-#: app/helpers/application_helper.rb:119
-msgid "Brazil"
-msgstr ""
-
-#: app/helpers/application_helper.rb:120
-msgid "British Indian Ocean Territory"
-msgstr ""
-
-#: app/helpers/application_helper.rb:121
-msgid "Brunei Darussalam"
-msgstr ""
-
-#: app/helpers/application_helper.rb:122
-msgid "Bulgaria"
-msgstr ""
-
-#: app/helpers/application_helper.rb:123
-msgid "Burkina Faso"
-msgstr ""
-
-#: app/helpers/application_helper.rb:124
-msgid "Burundi"
-msgstr ""
-
-#: app/helpers/application_helper.rb:125
-msgid "Cambodia"
-msgstr ""
-
-#: app/helpers/application_helper.rb:126
-msgid "Cameroon"
-msgstr ""
-
-#: app/helpers/application_helper.rb:127
-msgid "Canada"
-msgstr ""
-
-#: app/helpers/application_helper.rb:128
-msgid "Cape Verde"
-msgstr ""
-
-#: app/helpers/application_helper.rb:129
-msgid "Cayman Islands"
-msgstr ""
-
-#: app/helpers/application_helper.rb:130
-msgid "Central African Republic"
-msgstr ""
-
-#: app/helpers/application_helper.rb:131
-msgid "Chad"
-msgstr ""
-
-#: app/helpers/application_helper.rb:132
-msgid "Chile"
-msgstr ""
-
-#: app/helpers/application_helper.rb:133
-msgid "China"
-msgstr ""
-
-#: app/helpers/application_helper.rb:134
-msgid "Christmas Island"
-msgstr ""
-
-#: app/helpers/application_helper.rb:135
-msgid "Cocos (Keeling) Islands"
-msgstr ""
-
-#: app/helpers/application_helper.rb:136
-msgid "Colombia"
-msgstr ""
-
-#: app/helpers/application_helper.rb:137
-msgid "Comoros"
-msgstr ""
-
-#: app/helpers/application_helper.rb:138
-msgid "Congo"
-msgstr ""
-
-#: app/helpers/application_helper.rb:139
-msgid "Congo, the Democratic Republic of the"
-msgstr ""
-
-#: app/helpers/application_helper.rb:140
-msgid "Cook Islands"
-msgstr ""
-
-#: app/helpers/application_helper.rb:141
-msgid "Costa Rica"
-msgstr ""
-
-#: app/helpers/application_helper.rb:142
-msgid "Cote d'Ivoire"
-msgstr ""
-
-#: app/helpers/application_helper.rb:143
-msgid "Croatia"
-msgstr ""
-
-#: app/helpers/application_helper.rb:144
-msgid "Cuba"
-msgstr ""
-
-#: app/helpers/application_helper.rb:145
-msgid "Cyprus"
-msgstr ""
-
-#: app/helpers/application_helper.rb:146
-msgid "Czech Republic"
-msgstr ""
-
-#: app/helpers/application_helper.rb:147
-msgid "Denmark"
-msgstr ""
-
-#: app/helpers/application_helper.rb:148
-msgid "Djibouti"
-msgstr ""
-
-#: app/helpers/application_helper.rb:149
-msgid "Dominica"
-msgstr ""
-
-#: app/helpers/application_helper.rb:150
-msgid "Dominican Republic"
-msgstr ""
-
-#: app/helpers/application_helper.rb:151
-msgid "East Timor"
-msgstr ""
-
-#: app/helpers/application_helper.rb:152
-msgid "Ecuador"
-msgstr ""
-
-#: app/helpers/application_helper.rb:153
-msgid "Egypt"
-msgstr ""
-
-#: app/helpers/application_helper.rb:154
-msgid "El Salvador"
-msgstr ""
-
-#: app/helpers/application_helper.rb:155
-msgid "England"
-msgstr ""
-
-#: app/helpers/application_helper.rb:156
-msgid "Equatorial Guinea"
-msgstr ""
-
-#: app/helpers/application_helper.rb:157
-msgid "Eritrea"
-msgstr ""
-
-#: app/helpers/application_helper.rb:158
-msgid "Estonia"
-msgstr ""
-
-#: app/helpers/application_helper.rb:159
-msgid "Ethiopia"
-msgstr ""
-
-#: app/helpers/application_helper.rb:160
-msgid "Falkland Islands"
-msgstr ""
-
-#: app/helpers/application_helper.rb:161
-msgid "Faroe Islands"
-msgstr ""
-
-#: app/helpers/application_helper.rb:162
-msgid "Fiji"
-msgstr ""
-
-#: app/helpers/application_helper.rb:163
-msgid "Finland"
-msgstr ""
-
-#: app/helpers/application_helper.rb:164
-msgid "France"
-msgstr ""
-
-#: app/helpers/application_helper.rb:165
-msgid "French Guiana"
-msgstr ""
-
-#: app/helpers/application_helper.rb:166
-msgid "French Polynesia"
-msgstr ""
-
-#: app/helpers/application_helper.rb:167
-msgid "French Southern Territories"
-msgstr ""
-
-#: app/helpers/application_helper.rb:168
-msgid "Gabon"
-msgstr ""
-
-#: app/helpers/application_helper.rb:169
-msgid "Gambia"
-msgstr ""
-
-#: app/helpers/application_helper.rb:170
-msgid "Georgia"
-msgstr ""
-
-#: app/helpers/application_helper.rb:171
-msgid "Germany"
-msgstr ""
-
-#: app/helpers/application_helper.rb:172
-msgid "Ghana"
-msgstr ""
-
-#: app/helpers/application_helper.rb:173
-msgid "Gibraltar"
-msgstr ""
-
-#: app/helpers/application_helper.rb:174
-msgid "Greece"
-msgstr ""
-
-#: app/helpers/application_helper.rb:175
-msgid "Greenland"
-msgstr ""
-
-#: app/helpers/application_helper.rb:176
-msgid "Grenada"
-msgstr ""
-
-#: app/helpers/application_helper.rb:177
-msgid "Guadeloupe"
-msgstr ""
-
-#: app/helpers/application_helper.rb:178
-msgid "Guam"
-msgstr ""
-
-#: app/helpers/application_helper.rb:179
-msgid "Guatemala"
-msgstr ""
-
-#: app/helpers/application_helper.rb:180
-msgid "Guinea"
-msgstr ""
-
-#: app/helpers/application_helper.rb:181
-msgid "Guinea-Bissau"
-msgstr ""
-
-#: app/helpers/application_helper.rb:182
-msgid "Guyana"
-msgstr ""
-
-#: app/helpers/application_helper.rb:183
-msgid "Haiti"
-msgstr ""
-
-#: app/helpers/application_helper.rb:184
-msgid "Heard and Mc Donald Islands"
-msgstr ""
-
-#: app/helpers/application_helper.rb:185
-msgid "Honduras"
-msgstr ""
-
-#: app/helpers/application_helper.rb:186
-msgid "Hong Kong"
-msgstr ""
-
-#: app/helpers/application_helper.rb:187
-msgid "Hungary"
-msgstr ""
-
-#: app/helpers/application_helper.rb:188
-msgid "Iceland"
-msgstr ""
-
-#: app/helpers/application_helper.rb:189
-msgid "India"
-msgstr ""
-
-#: app/helpers/application_helper.rb:190
-msgid "Indonesia"
-msgstr ""
-
-#: app/helpers/application_helper.rb:191
-msgid "Ireland"
-msgstr ""
-
-#: app/helpers/application_helper.rb:192
-msgid "Israel"
-msgstr ""
-
-#: app/helpers/application_helper.rb:193
-msgid "Italy"
-msgstr ""
-
-#: app/helpers/application_helper.rb:194
-msgid "Iran"
-msgstr ""
-
-#: app/helpers/application_helper.rb:195
-msgid "Iraq"
-msgstr ""
-
-#: app/helpers/application_helper.rb:196
-msgid "Jamaica"
-msgstr ""
-
-#: app/helpers/application_helper.rb:197
-msgid "Japan"
-msgstr ""
-
-#: app/helpers/application_helper.rb:198
-msgid "Jordan"
-msgstr ""
-
-#: app/helpers/application_helper.rb:199
-msgid "Kazakhstan"
-msgstr ""
-
-#: app/helpers/application_helper.rb:200
-msgid "Kenya"
-msgstr ""
-
-#: app/helpers/application_helper.rb:201
-msgid "Kiribati"
-msgstr ""
-
-#: app/helpers/application_helper.rb:202
-msgid "Kuwait"
-msgstr ""
-
-#: app/helpers/application_helper.rb:203
-msgid "Kyrgyzstan"
-msgstr ""
-
-#: app/helpers/application_helper.rb:204
-msgid "Lao People's Democratic Republic"
-msgstr ""
-
-#: app/helpers/application_helper.rb:205
-msgid "Latvia"
-msgstr ""
-
-#: app/helpers/application_helper.rb:206
-msgid "Lebanon"
-msgstr ""
-
-#: app/helpers/application_helper.rb:207
-msgid "Lesotho"
-msgstr ""
-
-#: app/helpers/application_helper.rb:208
-msgid "Liberia"
-msgstr ""
-
-#: app/helpers/application_helper.rb:209
-msgid "Libya"
-msgstr ""
-
-#: app/helpers/application_helper.rb:210
-msgid "Liechtenstein"
-msgstr ""
-
-#: app/helpers/application_helper.rb:211
-msgid "Lithuania"
-msgstr ""
-
-#: app/helpers/application_helper.rb:212
-msgid "Luxembourg"
-msgstr ""
-
-#: app/helpers/application_helper.rb:213
-msgid "Macau"
-msgstr ""
-
-#: app/helpers/application_helper.rb:214
-msgid "Macedonia"
-msgstr ""
-
-#: app/helpers/application_helper.rb:215
-msgid "Madagascar"
-msgstr ""
-
-#: app/helpers/application_helper.rb:216
-msgid "Malawi"
-msgstr ""
-
-#: app/helpers/application_helper.rb:217
-msgid "Malaysia"
-msgstr ""
-
-#: app/helpers/application_helper.rb:218
-msgid "Maldives"
-msgstr ""
-
-#: app/helpers/application_helper.rb:219
-msgid "Mali"
-msgstr ""
-
-#: app/helpers/application_helper.rb:220
-msgid "Malta"
-msgstr ""
-
-#: app/helpers/application_helper.rb:221
-msgid "Marshall Islands"
-msgstr ""
-
-#: app/helpers/application_helper.rb:222
-msgid "Martinique"
-msgstr ""
-
-#: app/helpers/application_helper.rb:223
-msgid "Mauritania"
-msgstr ""
-
-#: app/helpers/application_helper.rb:224
-msgid "Mauritius"
-msgstr ""
-
-#: app/helpers/application_helper.rb:225
-msgid "Mayotte"
-msgstr ""
-
-#: app/helpers/application_helper.rb:226
-msgid "Mexico"
-msgstr ""
-
-#: app/helpers/application_helper.rb:227
-msgid "Micronesia, Federated States of"
-msgstr ""
-
-#: app/helpers/application_helper.rb:228
-msgid "Moldova, Republic of"
-msgstr ""
-
-#: app/helpers/application_helper.rb:229
-msgid "Monaco"
-msgstr ""
-
-#: app/helpers/application_helper.rb:230
-msgid "Mongolia"
-msgstr ""
-
-#: app/helpers/application_helper.rb:231
-msgid "Montenegro"
-msgstr ""
-
-#: app/helpers/application_helper.rb:232
-msgid "Montserrat"
-msgstr ""
-
-#: app/helpers/application_helper.rb:233
-msgid "Morocco"
-msgstr ""
-
-#: app/helpers/application_helper.rb:234
-msgid "Mozambique"
-msgstr ""
-
-#: app/helpers/application_helper.rb:235
-msgid "Myanmar"
-msgstr ""
-
-#: app/helpers/application_helper.rb:236
-msgid "Namibia"
-msgstr ""
-
-#: app/helpers/application_helper.rb:237
-msgid "Nauru"
-msgstr ""
-
-#: app/helpers/application_helper.rb:238
-msgid "Nepal"
-msgstr ""
-
-#: app/helpers/application_helper.rb:239
-msgid "Netherlands"
-msgstr ""
-
-#: app/helpers/application_helper.rb:240
-msgid "Netherlands Antilles"
-msgstr ""
-
-#: app/helpers/application_helper.rb:241
-msgid "New Caledonia"
-msgstr ""
-
-#: app/helpers/application_helper.rb:242
-msgid "New Zealand"
-msgstr ""
-
-#: app/helpers/application_helper.rb:243
-msgid "Nicaragua"
-msgstr ""
-
-#: app/helpers/application_helper.rb:244
-msgid "Niger"
-msgstr ""
-
-#: app/helpers/application_helper.rb:245
-msgid "Nigeria"
-msgstr ""
-
-#: app/helpers/application_helper.rb:246
-msgid "Niue"
-msgstr ""
-
-#: app/helpers/application_helper.rb:247
-msgid "Norfolk Island"
-msgstr ""
-
-#: app/helpers/application_helper.rb:248
-msgid "North Korea"
-msgstr ""
-
-#: app/helpers/application_helper.rb:249
-msgid "Northern Ireland"
-msgstr ""
-
-#: app/helpers/application_helper.rb:250
-msgid "Northern Mariana Islands"
-msgstr ""
-
-#: app/helpers/application_helper.rb:251
-msgid "Norway"
-msgstr ""
-
-#: app/helpers/application_helper.rb:252
-msgid "Oman"
-msgstr ""
-
-#: app/helpers/application_helper.rb:253
-msgid "Pakistan"
-msgstr ""
-
-#: app/helpers/application_helper.rb:254
-msgid "Palau"
-msgstr ""
-
-#: app/helpers/application_helper.rb:255
-msgid "Palestine"
-msgstr ""
-
-#: app/helpers/application_helper.rb:256
-msgid "Panama"
-msgstr ""
-
-#: app/helpers/application_helper.rb:257
-msgid "Papua New Guinea"
-msgstr ""
-
-#: app/helpers/application_helper.rb:258
-msgid "Paraguay"
-msgstr ""
-
-#: app/helpers/application_helper.rb:259
-msgid "Peru"
-msgstr ""
-
-#: app/helpers/application_helper.rb:260
-msgid "Philippines"
-msgstr ""
-
-#: app/helpers/application_helper.rb:261
-msgid "Pitcairn"
-msgstr ""
-
-#: app/helpers/application_helper.rb:262
-msgid "Poland"
-msgstr ""
-
-#: app/helpers/application_helper.rb:263
-msgid "Portugal"
-msgstr ""
-
-#: app/helpers/application_helper.rb:264
-msgid "Puerto Rico"
-msgstr ""
-
-#: app/helpers/application_helper.rb:265
-msgid "Qatar"
-msgstr ""
-
-#: app/helpers/application_helper.rb:266
-msgid "Reunion"
-msgstr ""
-
-#: app/helpers/application_helper.rb:267
-msgid "Romania"
-msgstr ""
-
-#: app/helpers/application_helper.rb:268
-msgid "Russia"
-msgstr ""
-
-#: app/helpers/application_helper.rb:269
-msgid "Rwanda"
-msgstr ""
-
-#: app/helpers/application_helper.rb:270
-msgid "Saint Kitts and Nevis"
-msgstr ""
-
-#: app/helpers/application_helper.rb:271
-msgid "Saint Lucia"
-msgstr ""
-
-#: app/helpers/application_helper.rb:272
-msgid "Saint Vincent and the Grenadines"
-msgstr ""
-
-#: app/helpers/application_helper.rb:273
-msgid "Samoa (Independent)"
-msgstr ""
-
-#: app/helpers/application_helper.rb:274
-msgid "San Marino"
-msgstr ""
-
-#: app/helpers/application_helper.rb:275
-msgid "Sao Tome and Principe"
-msgstr ""
-
-#: app/helpers/application_helper.rb:276
-msgid "Saudi Arabia"
-msgstr ""
-
-#: app/helpers/application_helper.rb:277
-msgid "Scotland"
-msgstr ""
-
-#: app/helpers/application_helper.rb:278
-msgid "Senegal"
-msgstr ""
-
-#: app/helpers/application_helper.rb:279
-msgid "Serbia"
-msgstr ""
-
-#: app/helpers/application_helper.rb:280
-msgid "Serbia and Montenegro"
-msgstr ""
-
-#: app/helpers/application_helper.rb:281
-msgid "Seychelles"
-msgstr ""
-
-#: app/helpers/application_helper.rb:282
-msgid "Sierra Leone"
-msgstr ""
-
-#: app/helpers/application_helper.rb:283
-msgid "Singapore"
-msgstr ""
-
-#: app/helpers/application_helper.rb:284
-msgid "Slovakia"
-msgstr ""
-
-#: app/helpers/application_helper.rb:285
-msgid "Slovenia"
-msgstr ""
-
-#: app/helpers/application_helper.rb:286
-msgid "Solomon Islands"
-msgstr ""
-
-#: app/helpers/application_helper.rb:287
-msgid "Somalia"
-msgstr ""
-
-#: app/helpers/application_helper.rb:288
-msgid "South Africa"
-msgstr ""
-
-#: app/helpers/application_helper.rb:289
-msgid "South Georgia and the South Sandwich Islands"
-msgstr ""
-
-#: app/helpers/application_helper.rb:290
-msgid "South Korea"
-msgstr ""
-
-#: app/helpers/application_helper.rb:291
-msgid "Spain"
-msgstr ""
-
-#: app/helpers/application_helper.rb:292
-msgid "Sri Lanka"
-msgstr ""
-
-#: app/helpers/application_helper.rb:293
-msgid "St. Helena"
-msgstr ""
-
-#: app/helpers/application_helper.rb:294
-msgid "St. Pierre and Miquelon"
-msgstr ""
-
-#: app/helpers/application_helper.rb:295
-msgid "Sudan"
-msgstr ""
-
-#: app/helpers/application_helper.rb:296
-msgid "Suriname"
-msgstr ""
-
-#: app/helpers/application_helper.rb:297
-msgid "Svalbard and Jan Mayen Islands"
-msgstr ""
-
-#: app/helpers/application_helper.rb:298
-msgid "Swaziland"
-msgstr ""
-
-#: app/helpers/application_helper.rb:299
-msgid "Sweden"
-msgstr ""
-
-#: app/helpers/application_helper.rb:300
-msgid "Switzerland"
-msgstr ""
-
-#: app/helpers/application_helper.rb:301
-msgid "Syria"
-msgstr ""
-
-#: app/helpers/application_helper.rb:302
-msgid "Taiwan"
-msgstr ""
-
-#: app/helpers/application_helper.rb:303
-msgid "Tajikistan"
-msgstr ""
-
-#: app/helpers/application_helper.rb:304
-msgid "Tanzania"
-msgstr ""
-
-#: app/helpers/application_helper.rb:305
-msgid "Thailand"
-msgstr ""
-
-#: app/helpers/application_helper.rb:306
-msgid "Togo"
-msgstr ""
-
-#: app/helpers/application_helper.rb:307
-msgid "Tokelau"
-msgstr ""
-
-#: app/helpers/application_helper.rb:308
-msgid "Tonga"
-msgstr ""
-
-#: app/helpers/application_helper.rb:309
-msgid "Trinidad and Tobago"
-msgstr ""
-
-#: app/helpers/application_helper.rb:310
-msgid "Tunisia"
-msgstr ""
-
-#: app/helpers/application_helper.rb:311
-msgid "Turkey"
-msgstr ""
-
-#: app/helpers/application_helper.rb:312
-msgid "Turkmenistan"
-msgstr ""
-
-#: app/helpers/application_helper.rb:313
-msgid "Turks and Caicos Islands"
-msgstr ""
-
-#: app/helpers/application_helper.rb:314
-msgid "Tuvalu"
-msgstr ""
-
-#: app/helpers/application_helper.rb:315
-msgid "Uganda"
-msgstr ""
-
-#: app/helpers/application_helper.rb:316
-msgid "Ukraine"
-msgstr ""
-
-#: app/helpers/application_helper.rb:317
-msgid "United Arab Emirates"
-msgstr ""
-
-#: app/helpers/application_helper.rb:318
-msgid "United Kingdom"
-msgstr ""
-
-#: app/helpers/application_helper.rb:319
-msgid "United States"
-msgstr ""
-
-#: app/helpers/application_helper.rb:320
-msgid "United States Minor Outlying Islands"
-msgstr ""
-
-#: app/helpers/application_helper.rb:321
-msgid "Uruguay"
-msgstr ""
-
-#: app/helpers/application_helper.rb:322
-msgid "Uzbekistan"
-msgstr ""
-
-#: app/helpers/application_helper.rb:323
-msgid "Vanuatu"
-msgstr ""
-
-#: app/helpers/application_helper.rb:324
-msgid "Vatican City State (Holy See)"
-msgstr ""
-
-#: app/helpers/application_helper.rb:325
-msgid "Venezuela"
-msgstr ""
-
-#: app/helpers/application_helper.rb:326
-msgid "Viet Nam"
-msgstr ""
-
-#: app/helpers/application_helper.rb:327
-msgid "Virgin Islands (British)"
-msgstr ""
-
-#: app/helpers/application_helper.rb:328
-msgid "Virgin Islands (U.S.)"
-msgstr ""
-
-#: app/helpers/application_helper.rb:329
-msgid "Wales"
-msgstr ""
-
-#: app/helpers/application_helper.rb:330
-msgid "Wallis and Futuna Islands"
-msgstr ""
-
-#: app/helpers/application_helper.rb:331
-msgid "Western Sahara"
-msgstr ""
-
-#: app/helpers/application_helper.rb:332
-msgid "Yemen"
-msgstr ""
-
-#: app/helpers/application_helper.rb:333
-msgid "Zambia"
-msgstr ""
-
-#: app/helpers/application_helper.rb:334
-msgid "Zimbabwe"
-msgstr ""
-
-#: app/helpers/game_helper.rb:41 app/views/user/list_edits.erb:22
-msgid "Version %{number}"
-msgstr ""
-
-#: app/helpers/game_helper.rb:45 app/views/user/list_edits.erb:10 app/views/user/list_edits.erb:23
 msgid "%A, %d/%m/%Y at %H:%M"
 msgstr ""
 
-#: app/helpers/user_helper.rb:23
-msgid "%{num} year"
-msgid_plural "%{num} years"
-msgstr[0] ""
-msgstr[1] ""
+msgid "%B %d, %Y"
+msgstr ""
 
-#: app/helpers/user_helper.rb:27
-msgid "%{num} month"
-msgid_plural "%{num} months"
-msgstr[0] ""
-msgstr[1] ""
+msgid "%Y-%m-%d"
+msgstr ""
 
-#: app/helpers/user_helper.rb:31
+msgid "%a %b %e %H:%M:%S %Y"
+msgstr ""
+
+msgid "%d%% done."
+msgstr ""
+
+msgid "%m/%d/%y"
+msgstr ""
+
+msgid "%s - %d points<br>%s %d x %d %s"
+msgstr ""
+
+msgid "%s Campaign"
+msgstr ""
+
 msgid "%{num} day"
 msgid_plural "%{num} days"
 msgstr[0] ""
 msgstr[1] ""
 
-#: app/models/game.rb:118
-msgid "Played"
-msgstr ""
+msgid "%{num} month"
+msgid_plural "%{num} months"
+msgstr[0] ""
+msgstr[1] ""
 
-#: app/models/game.rb:118
-msgid "Scheduled"
-msgstr ""
+msgid "%{num} year"
+msgid_plural "%{num} years"
+msgstr[0] ""
+msgstr[1] ""
 
-#: app/models/phase.rb:22
-msgid "points"
-msgstr ""
-
-#: app/models/phase.rb:23
-msgid "wins"
-msgstr ""
-
-#: app/models/phase.rb:24
-msgid "goal difference"
-msgstr ""
-
-#: app/models/phase.rb:25
-msgid "goals for"
-msgstr ""
-
-#: app/models/phase.rb:26
-msgid "name"
-msgstr ""
-
-#: app/models/phase.rb:27
-msgid "goal average"
-msgstr ""
-
-#: app/models/phase.rb:28
-msgid "penalty goals"
-msgstr ""
-
-#: app/models/phase.rb:29
-msgid "goals away"
-msgstr ""
-
-#: app/models/phase.rb:30
-msgid "bias"
-msgstr ""
-
-#: app/models/phase.rb:31
-msgid "aet goals"
-msgstr ""
-
-#: app/models/phase.rb:32
-msgid "head to head"
-msgstr ""
-
-#: app/models/user.rb:8
-msgid "User|Password"
-msgstr ""
-
-#: app/views/user/edit.html.erb:4
-msgid "Edit user"
-msgstr ""
-
-#: app/views/user/edit.html.erb:14
-msgid "never displayed, no spam, used for password recovery"
-msgstr ""
-
-#: app/views/user/edit.html.erb:17
-msgid "only used to show your age"
-msgstr ""
-
-#: app/views/user/edit.html.erb:20
-msgid "Change password?"
-msgstr ""
-
-#: app/views/user/edit.html.erb:22
-msgid "Confirm Password"
-msgstr ""
-
-#: app/views/user/edit.html.erb:27
-msgid "basic html is accepted"
-msgstr ""
-
-#: app/views/user/edit.html.erb:28
-msgid "Picture"
-msgstr ""
-
-#: app/views/user/edit.html.erb:29
-msgid "Filter image background?"
-msgstr ""
-
-#: app/views/user/edit.html.erb:31
-msgid "Update"
-msgstr ""
-
-#: app/views/user/list.html.erb:1
-msgid "Listing users"
-msgstr ""
-
-#: app/views/user/list.html.erb:10
-msgid "edits"
-msgstr ""
-
-#: app/views/user/list.html.erb:11
-msgid "comments"
-msgstr ""
-
-#: app/views/user/list_edits.erb:1
-msgid "Listing games"
-msgstr ""
-
-#: app/views/user/list_edits.erb:34 app/views/user/show.html.erb:34
-msgid "View user"
-msgstr ""
-
-#: app/views/user/list_edits.erb:35 app/views/user/show.html.erb:35
-msgid "View user edits"
-msgstr ""
-
-#: app/views/user/list_edits.erb:36 app/views/user/show.html.erb:36
-msgid "View all users"
-msgstr ""
-
-#: app/views/user/list_edits.erb:39 app/views/user/show.html.erb:39
-msgid "Edit profile"
-msgstr ""
-
-#: app/views/user/show.html.erb:2
-msgid "User"
-msgstr ""
-
-#: app/views/user/show.html.erb:13
-msgid "Name"
-msgstr ""
-
-#: app/views/user/show.html.erb:14
-msgid "Member for"
-msgstr ""
-
-#: app/views/user/show.html.erb:15
-msgid "Last seen"
-msgstr ""
-
-#: app/views/user/show.html.erb:15
-msgid "%{time} ago"
-msgstr ""
-
-#: app/views/user/show.html.erb:16
-msgid "Location"
-msgstr ""
-
-#: app/views/user/show.html.erb:17
-msgid "Age"
-msgstr ""
-
-#: app/views/user/show.html.erb:17
 msgid "%{num} years"
 msgstr ""
 
-#: app/views/user/show.html.erb:27
+msgid "%{time} ago"
+msgstr ""
+
+msgid "&laquo; Previous"
+msgstr ""
+
+msgid "(own_goal)"
+msgstr ""
+
+msgid "(penalty)"
+msgstr ""
+
+msgid "1%"
+msgstr ""
+
+msgid "AM"
+msgstr ""
+
+msgid "Abbr|May"
+msgstr ""
+
+msgid "Account"
+msgstr ""
+
+msgid "Add"
+msgstr ""
+
+msgid "Add 4 more groups"
+msgstr ""
+
+msgid "Add Comment"
+msgstr ""
+
+msgid "Add new group"
+msgstr ""
+
+msgid "Add new phase"
+msgstr ""
+
+msgid "Added %s: %s<br>"
+msgstr ""
+
+msgid "Added goal "
+msgstr ""
+
+msgid "Added referee: %s<br>"
+msgstr ""
+
+msgid "Added stadium: %s<br>"
+msgstr ""
+
+msgid "Afghanistan"
+msgstr ""
+
+msgid "Age"
+msgstr ""
+
+msgid "Albania"
+msgstr ""
+
+msgid "Algeria"
+msgstr ""
+
+msgid "All"
+msgstr ""
+
+msgid "American Samoa"
+msgstr ""
+
+msgid "Andorra"
+msgstr ""
+
+msgid "Angola"
+msgstr ""
+
+msgid "Anguilla"
+msgstr ""
+
+msgid "Antigua And Barbuda"
+msgstr ""
+
+msgid "Apr"
+msgstr ""
+
+msgid "April"
+msgstr ""
+
+msgid "Are you sure you want to add this player?"
+msgstr ""
+
+msgid "Are you sure you want to create a new player?"
+msgstr ""
+
+msgid "Are you sure you want to create a new referee?"
+msgstr ""
+
+msgid "Are you sure you want to create a new stadium?"
+msgstr ""
+
+msgid "Are you sure you want to delete this game?"
+msgstr ""
+
+msgid "Are you sure?"
+msgstr ""
+
+msgid "Argentina"
+msgstr ""
+
+msgid "Armenia"
+msgstr ""
+
+msgid "Aruba"
+msgstr ""
+
+msgid "Attendance"
+msgstr ""
+
+msgid "Aug"
+msgstr ""
+
+msgid "August"
+msgstr ""
+
+msgid "Australia"
+msgstr ""
+
+msgid "Austria"
+msgstr ""
+
+msgid "Average"
+msgstr ""
+
+msgid "Azerbaijan"
+msgstr ""
+
+msgid "Bahamas"
+msgstr ""
+
+msgid "Bahrain"
+msgstr ""
+
+msgid "Bangladesh"
+msgstr ""
+
+msgid "Barbados"
+msgstr ""
+
+msgid "Begin"
+msgstr ""
+
+msgid "Belarus"
+msgstr ""
+
+msgid "Belgium"
+msgstr ""
+
+msgid "Belize"
+msgstr ""
+
+msgid "Benin"
+msgstr ""
+
+msgid "Bermuda"
+msgstr ""
+
+msgid "Best averages"
+msgstr ""
+
+msgid "Bhutan"
+msgstr ""
+
+msgid "Bias"
+msgstr ""
+
+msgid "Birth"
+msgstr ""
+
+msgid "Bolivia"
+msgstr ""
+
+msgid "Bonus"
+msgstr ""
+
+msgid "Bonus points for win?"
+msgstr ""
+
+msgid "Bosnia and Herzegovina"
+msgstr ""
+
+msgid "Botswana"
+msgstr ""
+
+msgid "Brazil"
+msgstr ""
+
+msgid "British Indian Ocean Territory"
+msgstr ""
+
+msgid "Brunei Darussalam"
+msgstr ""
+
+msgid "Bulgaria"
+msgstr ""
+
+msgid "Burkina Faso"
+msgstr ""
+
+msgid "Burundi"
+msgstr ""
+
+msgid "Cambodia"
+msgstr ""
+
+msgid "Cameroon"
+msgstr ""
+
+msgid "Can't calculate odds"
+msgstr ""
+
+msgid "Canada"
+msgstr ""
+
+msgid "Cancel"
+msgstr ""
+
+msgid "Cape Verde"
+msgstr ""
+
+msgid "Category"
+msgstr ""
+
+msgid "Cayman Islands"
+msgstr ""
+
+msgid "Central African Republic"
+msgstr ""
+
+msgid "Chad"
+msgstr ""
+
+msgid "Championship"
+msgstr ""
+
+msgid "ChampionshipTeam|Played"
+msgstr ""
+
+msgid "Championships"
+msgstr ""
+
+msgid "Change date"
+msgstr ""
+
+msgid "Change password?"
+msgstr ""
+
+msgid "Changed %s: %s -> %s<br>"
+msgstr ""
+
+msgid "Changed referee: %s -> %s<br>"
+msgstr ""
+
+msgid "Changed stadium: %s -> %s<br>"
+msgstr ""
+
+msgid "Chile"
+msgstr ""
+
+msgid "China"
+msgstr ""
+
+msgid "Christmas Island"
+msgstr ""
+
+msgid "City"
+msgstr ""
+
+msgid "Close"
+msgstr ""
+
+msgid "Cocos (Keeling) Islands"
+msgstr ""
+
+msgid "Colombia"
+msgstr ""
+
+msgid "Comment"
+msgstr ""
+
+msgid "Comments"
+msgstr ""
+
+msgid "Comoros"
+msgstr ""
+
+msgid "Compare with other team:"
+msgstr ""
+
+msgid "Confirm Password"
+msgstr ""
+
+msgid "Congo"
+msgstr ""
+
+msgid "Congo, the Democratic Republic of the"
+msgstr ""
+
+msgid "Contact:"
+msgstr ""
+
+msgid "Cook Islands"
+msgstr ""
+
+msgid "Cookie"
+msgstr ""
+
+msgid "Costa Rica"
+msgstr ""
+
+msgid "Cote d'Ivoire"
+msgstr ""
+
+msgid "Country"
+msgstr ""
+
+msgid "Create"
+msgstr ""
+
+msgid "Croatia"
+msgstr ""
+
+msgid "Crowd"
+msgstr ""
+
+msgid "Cuba"
+msgstr ""
+
+msgid "Current championships"
+msgstr ""
+
+msgid "Cyprus"
+msgstr ""
+
+msgid "Czech Republic"
+msgstr ""
+
+msgid "D"
+msgstr ""
+
+msgid "Date"
+msgstr ""
+
+msgid "Dec"
+msgstr ""
+
+msgid "December"
+msgstr ""
+
+msgid "Delete"
+msgstr ""
+
+msgid "Delete team"
+msgstr ""
+
+msgid "Delete this game"
+msgstr ""
+
+msgid "Denmark"
+msgstr ""
+
+msgid "Destroy"
+msgstr ""
+
+msgid "Djibouti"
+msgstr ""
+
+msgid "Dominica"
+msgstr ""
+
+msgid "Dominican Republic"
+msgstr ""
+
+msgid "East Timor"
+msgstr ""
+
+msgid "Ecuador"
+msgstr ""
+
+msgid "Edit"
+msgstr ""
+
+msgid "Edit Championship"
+msgstr ""
+
+msgid "Edit Squad"
+msgstr ""
+
+msgid "Edit championship"
+msgstr ""
+
+msgid "Edit profile"
+msgstr ""
+
+msgid "Edit team"
+msgstr ""
+
+msgid "Edit this game"
+msgstr ""
+
+msgid "Edit user"
+msgstr ""
+
+msgid "Editing team"
+msgstr ""
+
+msgid "Egypt"
+msgstr ""
+
+msgid "El Salvador"
+msgstr ""
+
+msgid "Email"
+msgstr ""
+
+msgid "End"
+msgstr ""
+
+msgid "England"
+msgstr ""
+
+msgid "Equatorial Guinea"
+msgstr ""
+
+msgid "Eritrea"
+msgstr ""
+
+msgid "Estonia"
+msgstr ""
+
+msgid "Ethiopia"
+msgstr ""
+
+msgid "Extra time"
+msgstr ""
+
+msgid "Extra time:"
+msgstr ""
+
+msgid "Falkland Islands"
+msgstr ""
+
+msgid "Faroe Islands"
+msgstr ""
+
+msgid "Feb"
+msgstr ""
+
+msgid "February"
+msgstr ""
+
+msgid "Fiji"
+msgstr ""
+
+msgid "Filter image background?"
+msgstr ""
+
+msgid "Finland"
+msgstr ""
+
+msgid "Foundation"
+msgstr ""
+
+msgid "France"
+msgstr ""
+
+msgid "French Guiana"
+msgstr ""
+
+msgid "French Polynesia"
+msgstr ""
+
+msgid "French Southern Territories"
+msgstr ""
+
+msgid "Fri"
+msgstr ""
+
+msgid "Friday"
+msgstr ""
+
+msgid "From"
+msgstr ""
+
+msgid "Full Name"
+msgstr ""
+
+msgid "Full name"
+msgstr ""
+
+msgid "G"
+msgstr ""
+
+msgid "GA"
+msgstr ""
+
+msgid "GD"
+msgstr ""
+
+msgid "GF"
+msgstr ""
+
+msgid "Gabon"
+msgstr ""
+
+msgid "Gambia"
+msgstr ""
+
+msgid "Game"
+msgstr ""
+
+msgid "Game saved"
+msgstr ""
+
+msgid "GameEdit|Played"
+msgstr ""
+
+msgid "GameList|Played"
+msgstr ""
+
+msgid "Games"
+msgstr ""
+
+msgid "Game|Time"
+msgstr ""
+
+msgid "Georgia"
+msgstr ""
+
+msgid "Germany"
+msgstr ""
+
+msgid "Ghana"
+msgstr ""
+
+msgid "Gibraltar"
+msgstr ""
+
+msgid "Goal difference equal to<br/>or bigger than"
+msgstr ""
+
+msgid "Goals"
+msgstr ""
+
+msgid "Goalscorers"
+msgstr ""
+
+msgid "Goal|Time"
+msgstr ""
+
+msgid "GolAberto is a collaborative site that is updated by its users. Registered users can give information by commenting on items. The top users are promoted to editors who can edit the site and create new championships."
+msgstr ""
+
+msgid "Greece"
+msgstr ""
+
+msgid "Greenland"
+msgstr ""
+
+msgid "Grenada"
+msgstr ""
+
+msgid "Group"
+msgstr ""
+
+msgid "Groups"
+msgstr ""
+
+msgid "Guadeloupe"
+msgstr ""
+
+msgid "Guam"
+msgstr ""
+
+msgid "Guatemala"
+msgstr ""
+
+msgid "Guinea"
+msgstr ""
+
+msgid "Guinea-Bissau"
+msgstr ""
+
+msgid "Guyana"
+msgstr ""
+
+msgid "Haiti"
+msgstr ""
+
+msgid "Heard and Mc Donald Islands"
+msgstr ""
+
+msgid "Home"
+msgstr ""
+
+msgid "Honduras"
+msgstr ""
+
+msgid "Hong Kong"
+msgstr ""
+
+msgid "Hungary"
+msgstr ""
+
+msgid "Iceland"
+msgstr ""
+
+msgid "If you've already created an account, or if you have an %{openid_link} login, use one of the forms below to log in to the site. If you use your OpenID URL to log in, an account will be created for you automatically if necessary."
+msgstr ""
+
+msgid "India"
+msgstr ""
+
+msgid "Indonesia"
+msgstr ""
+
+msgid "Iran"
+msgstr ""
+
+msgid "Iraq"
+msgstr ""
+
+msgid "Ireland"
+msgstr ""
+
+msgid "Israel"
+msgstr ""
+
+msgid "Italy"
+msgstr ""
+
+msgid "Jamaica"
+msgstr ""
+
+msgid "Jan"
+msgstr ""
+
+msgid "January"
+msgstr ""
+
+msgid "Japan"
+msgstr ""
+
+msgid "Jordan"
+msgstr ""
+
+msgid "Jul"
+msgstr ""
+
+msgid "July"
+msgstr ""
+
+msgid "Jun"
+msgstr ""
+
+msgid "June"
+msgstr ""
+
+msgid "Kazakhstan"
+msgstr ""
+
+msgid "Kenya"
+msgstr ""
+
+msgid "Kiribati"
+msgstr ""
+
+msgid "Kuwait"
+msgstr ""
+
+msgid "Kyrgyzstan"
+msgstr ""
+
+msgid "L"
+msgstr ""
+
+msgid "Lao People's Democratic Republic"
+msgstr ""
+
+msgid "Last game"
+msgid_plural "Last %{num} games"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Last seen"
+msgstr ""
+
+msgid "Latest championships"
+msgstr ""
+
+msgid "Latest comments"
+msgstr ""
+
+msgid "Latest edits"
+msgstr ""
+
+msgid "Latvia"
+msgstr ""
+
+msgid "Leave a comment"
+msgstr ""
+
+msgid "Lebanon"
+msgstr ""
+
+msgid "Lesotho"
+msgstr ""
+
+msgid "Liberia"
+msgstr ""
+
+msgid "Libya"
+msgstr ""
+
+msgid "Liechtenstein"
+msgstr ""
+
+msgid "Listing Championships"
+msgstr ""
+
+msgid "Listing games"
+msgstr ""
+
+msgid "Listing players"
+msgstr ""
+
+msgid "Listing referees"
+msgstr ""
+
+msgid "Listing stadia"
+msgstr ""
+
+msgid "Listing team_groups"
+msgstr ""
+
+msgid "Listing teams"
+msgstr ""
+
+msgid "Listing users"
+msgstr ""
+
+msgid "Lithuania"
+msgstr ""
+
+msgid "Location"
+msgstr ""
+
+msgid "Log in"
+msgstr ""
+
+msgid "Log in with OpenID"
+msgstr ""
+
+msgid "Logged in successfully"
+msgstr ""
+
+msgid "Login"
+msgstr ""
+
+msgid "Logo"
+msgstr ""
+
+msgid "Logout"
+msgstr ""
+
+msgid "Luxembourg"
+msgstr ""
+
+msgid "Macau"
+msgstr ""
+
+msgid "Macedonia"
+msgstr ""
+
+msgid "Madagascar"
+msgstr ""
+
+msgid "Malawi"
+msgstr ""
+
+msgid "Malaysia"
+msgstr ""
+
+msgid "Maldives"
+msgstr ""
+
+msgid "Mali"
+msgstr ""
+
+msgid "Malta"
+msgstr ""
+
+msgid "Mar"
+msgstr ""
+
+msgid "March"
+msgstr ""
+
+msgid "Marshall Islands"
+msgstr ""
+
+msgid "Martinique"
+msgstr ""
+
+msgid "Mauritania"
+msgstr ""
+
+msgid "Mauritius"
+msgstr ""
+
+msgid "Maximum"
+msgstr ""
+
+msgid "Mayotte"
+msgstr ""
+
+msgid "Member for"
+msgstr ""
+
+msgid "Mexico"
+msgstr ""
+
+msgid "Micronesia, Federated States of"
+msgstr ""
+
+msgid "Minimum"
+msgstr ""
+
+msgid "Moldova, Republic of"
+msgstr ""
+
+msgid "Mon"
+msgstr ""
+
+msgid "Monaco"
+msgstr ""
+
+msgid "Monday"
+msgstr ""
+
+msgid "Mongolia"
+msgstr ""
+
+msgid "Montenegro"
+msgstr ""
+
+msgid "Month|May"
+msgstr ""
+
+msgid "Montserrat"
+msgstr ""
+
+msgid "More groups can be added later"
+msgstr ""
+
+msgid "More information"
+msgstr ""
+
+msgid "More phases can be added later"
+msgstr ""
+
+msgid "Morocco"
+msgstr ""
+
+msgid "Most attended games"
+msgstr ""
+
+msgid "Mozambique"
+msgstr ""
+
+msgid "Myanmar"
+msgstr ""
+
+msgid "Name"
+msgstr ""
+
+msgid "Namibia"
+msgstr ""
+
+msgid "Nauru"
+msgstr ""
+
+msgid "Nepal"
+msgstr ""
+
+msgid "Netherlands"
+msgstr ""
+
+msgid "Netherlands Antilles"
+msgstr ""
+
+msgid "New"
+msgstr ""
+
+msgid "New Caledonia"
+msgstr ""
+
+msgid "New Player"
+msgstr ""
+
+msgid "New Referee"
+msgstr ""
+
+msgid "New Stadium"
+msgstr ""
+
+msgid "New Team"
+msgstr ""
+
+msgid "New Zealand"
+msgstr ""
+
+msgid "New game"
+msgstr ""
+
+msgid "New player"
+msgstr ""
+
+msgid "New referee"
+msgstr ""
+
+msgid "New stadium"
+msgstr ""
+
+msgid "New team"
+msgstr ""
+
+msgid "New team_group"
+msgstr ""
+
+msgid "Next &raquo;"
+msgstr ""
+
+msgid "Next game"
+msgid_plural "Next %{num} games"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Next page"
+msgstr ""
+
+msgid "Nicaragua"
+msgstr ""
+
+msgid "Niger"
+msgstr ""
+
+msgid "Nigeria"
+msgstr ""
+
+msgid "Niue"
+msgstr ""
+
+msgid "No phases found"
+msgstr ""
+
+msgid "No players in this list"
+msgstr ""
+
+msgid "No records found."
+msgstr ""
+
+msgid "Norfolk Island"
+msgstr ""
+
+msgid "North Korea"
+msgstr ""
+
+msgid "Northern Ireland"
+msgstr ""
+
+msgid "Northern Mariana Islands"
+msgstr ""
+
+msgid "Norway"
+msgstr ""
+
+msgid "Nov"
+msgstr ""
+
+msgid "November"
+msgstr ""
+
+msgid "Now you can <a href='%{signup_link}'>sign up</a> and leave comments on the site."
+msgstr ""
+
+msgid "Number of teams"
+msgstr ""
+
+msgid "Observation"
+msgstr ""
+
+msgid "Oct"
+msgstr ""
+
+msgid "October"
+msgstr ""
+
+msgid "Odds being recalculated"
+msgstr ""
+
+msgid "Off"
+msgstr ""
+
+msgid "Oman"
+msgstr ""
+
+msgid "On"
+msgstr ""
+
+msgid "OpenID"
+msgstr ""
+
+msgid "Order"
+msgstr ""
+
+msgid "Own"
+msgstr ""
+
+msgid "Own Goals"
+msgstr ""
+
+msgid "P%"
+msgstr ""
+
+msgid "PM"
+msgstr ""
+
+msgid "Pakistan"
+msgstr ""
+
+msgid "Palau"
+msgstr ""
+
+msgid "Palestine"
+msgstr ""
+
+msgid "Panama"
+msgstr ""
+
+msgid "Papua New Guinea"
+msgstr ""
+
+msgid "Paraguay"
+msgstr ""
+
+msgid "Password"
+msgstr ""
+
+msgid "Pen"
+msgstr ""
+
+msgid "Penalties"
+msgstr ""
+
+msgid "Penalties:"
+msgstr ""
+
+msgid "Peru"
+msgstr ""
+
+msgid "Phase"
+msgstr ""
+
+msgid "Phases"
+msgstr ""
+
+msgid "Philippines"
+msgstr ""
+
+msgid "Picture"
+msgstr ""
+
+msgid "Pitcairn"
+msgstr ""
+
+msgid "Played"
+msgstr ""
+
+msgid "Player"
+msgstr ""
+
+msgid "Player Edit"
+msgstr ""
+
+msgid "Player was successfully created"
+msgstr ""
+
+msgid "Player was successfully updated"
+msgstr ""
+
+msgid "Players"
+msgstr ""
+
+msgid "Points for draw"
+msgstr ""
+
+msgid "Points for loss"
+msgstr ""
+
+msgid "Points for win"
+msgstr ""
+
+msgid "Poland"
+msgstr ""
+
+msgid "Portugal"
+msgstr ""
+
+msgid "Pos"
+msgstr ""
+
+msgid "Position"
+msgstr ""
+
+msgid "Prev"
+msgstr ""
+
+msgid "Prev "
+msgstr ""
+
+msgid "Previous game"
+msgid_plural "Previous %d games"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "Previous page"
+msgstr ""
+
+msgid "Promoted"
+msgstr ""
+
+msgid "Pts"
+msgstr ""
+
+msgid "Puerto Rico"
+msgstr ""
+
+msgid "Qatar"
+msgstr ""
+
+msgid "R%"
+msgstr ""
+
+msgid "Recalculate odds"
+msgstr ""
+
+msgid "Referee"
+msgstr ""
+
+msgid "Referee Edit"
+msgstr ""
+
+msgid "Referee was successfully created"
+msgstr ""
+
+msgid "Referee was successfully updated"
+msgstr ""
+
+msgid "Referees"
+msgstr ""
+
+msgid "Relegated"
+msgstr ""
+
+msgid "Remove"
+msgstr ""
+
+msgid "Removed %s: %s<br>"
+msgstr ""
+
+msgid "Removed goal "
+msgstr ""
+
+msgid "Removed referee: %s<br>"
+msgstr ""
+
+msgid "Removed stadium: %s<br>"
+msgstr ""
+
+msgid "Reunion"
+msgstr ""
+
+msgid "Romania"
+msgstr ""
+
+msgid "Round"
+msgstr ""
+
+msgid "Round "
+msgstr ""
+
+msgid "Russia"
+msgstr ""
+
+msgid "Rwanda"
+msgstr ""
+
+msgid "Saint Kitts and Nevis"
+msgstr ""
+
+msgid "Saint Lucia"
+msgstr ""
+
+msgid "Saint Vincent and the Grenadines"
+msgstr ""
+
+msgid "Samoa (Independent)"
+msgstr ""
+
+msgid "San Marino"
+msgstr ""
+
+msgid "Sao Tome and Principe"
+msgstr ""
+
+msgid "Sat"
+msgstr ""
+
+msgid "Saturday"
+msgstr ""
+
+msgid "Saudi Arabia"
+msgstr ""
+
+msgid "Scheduled"
+msgstr ""
+
+msgid "Scotland"
+msgstr ""
+
+msgid "Search"
+msgstr ""
+
+msgid "Senegal"
+msgstr ""
+
+msgid "Sep"
+msgstr ""
+
+msgid "September"
+msgstr ""
+
+msgid "Serbia"
+msgstr ""
+
+msgid "Serbia and Montenegro"
+msgstr ""
+
+msgid "Seychelles"
+msgstr ""
+
+msgid "Show"
+msgstr ""
+
+msgid "Show country flags"
+msgstr ""
+
+msgid "Sierra Leone"
+msgstr ""
+
+msgid "Sign up"
+msgstr ""
+
+msgid "Singapore"
+msgstr ""
+
+msgid "Slovakia"
+msgstr ""
+
+msgid "Slovenia"
+msgstr ""
+
+msgid "Solomon Islands"
+msgstr ""
+
+msgid "Somalia"
+msgstr ""
+
+msgid "Sorry, no user by that identity URL exists (%{identity_url})"
+msgstr ""
+
+msgid "Sort"
+msgstr ""
+
+msgid "South Africa"
+msgstr ""
+
+msgid "South Georgia and the South Sandwich Islands"
+msgstr ""
+
+msgid "South Korea"
+msgstr ""
+
+msgid "Spain"
+msgstr ""
+
+msgid "Sri Lanka"
+msgstr ""
+
+msgid "St. Helena"
+msgstr ""
+
+msgid "St. Pierre and Miquelon"
+msgstr ""
+
+msgid "Stadium"
+msgstr ""
+
+msgid "Stadium Edit"
+msgstr ""
+
+msgid "Stadium was successfully created"
+msgstr ""
+
+msgid "Stadium was successfully updated"
+msgstr ""
+
+msgid "Stadiums"
+msgstr ""
+
 msgid "Stats"
 msgstr ""
 
-#: app/views/user/show.html.erb:28
+msgid "Sudan"
+msgstr ""
+
+msgid "Sun"
+msgstr ""
+
+msgid "Sunday"
+msgstr ""
+
+msgid "Suriname"
+msgstr ""
+
+msgid "Svalbard and Jan Mayen Islands"
+msgstr ""
+
+msgid "Swaziland"
+msgstr ""
+
+msgid "Sweden"
+msgstr ""
+
+msgid "Switzerland"
+msgstr ""
+
+msgid "Syria"
+msgstr ""
+
+msgid "Table"
+msgstr ""
+
+msgid "Taiwan"
+msgstr ""
+
+msgid "Tajikistan"
+msgstr ""
+
+msgid "Tanzania"
+msgstr ""
+
+msgid "Team"
+msgstr ""
+
+msgid "TeamGroup"
+msgstr ""
+
+msgid "Teams"
+msgstr ""
+
+msgid "Thailand"
+msgstr ""
+
+msgid "Thanks for signing up!"
+msgstr ""
+
 msgid "This user has made %{num_comments} comment to this date."
 msgid_plural "This user has made %{num_comments} comments to this date."
 msgstr[0] ""
 msgstr[1] ""
 
-#: app/views/user/show.html.erb:29
 msgid "This user has made %{num_edits} edit to this date."
 msgid_plural "This user has made %{num_edits} edits to this date."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/gettext_date.rb:26
-msgid "%Y-%m-%d"
-msgstr ""
-
-#: lib/gettext_date.rb:28
-msgid "%a %b %e %H:%M:%S %Y"
-msgstr ""
-
-#: lib/gettext_date.rb:30
-msgid "%m/%d/%y"
-msgstr ""
-
-#: lib/gettext_date.rb:35
-msgid "Sunday"
-msgstr ""
-
-#: lib/gettext_date.rb:35
-msgid "Monday"
-msgstr ""
-
-#: lib/gettext_date.rb:35
-msgid "Tuesday"
-msgstr ""
-
-#: lib/gettext_date.rb:35
-msgid "Wednesday"
-msgstr ""
-
-#: lib/gettext_date.rb:36
-msgid "Thursday"
-msgstr ""
-
-#: lib/gettext_date.rb:36
-msgid "Friday"
-msgstr ""
-
-#: lib/gettext_date.rb:36
-msgid "Saturday"
-msgstr ""
-
-#: lib/gettext_date.rb:40
-msgid "Sun"
-msgstr ""
-
-#: lib/gettext_date.rb:40
-msgid "Mon"
-msgstr ""
-
-#: lib/gettext_date.rb:40
-msgid "Tue"
-msgstr ""
-
-#: lib/gettext_date.rb:40
-msgid "Wed"
-msgstr ""
-
-#: lib/gettext_date.rb:41
 msgid "Thu"
 msgstr ""
 
-#: lib/gettext_date.rb:41
-msgid "Fri"
+msgid "Thursday"
 msgstr ""
 
-#: lib/gettext_date.rb:41
-msgid "Sat"
+msgid "To"
 msgstr ""
 
-#: lib/gettext_date.rb:45
-msgid "January"
+msgid "Today"
 msgstr ""
 
-#: lib/gettext_date.rb:45
-msgid "February"
+msgid "Togo"
 msgstr ""
 
-#: lib/gettext_date.rb:45
-msgid "March"
+msgid "Tokelau"
 msgstr ""
 
-#: lib/gettext_date.rb:45
-msgid "April"
+msgid "Tonga"
 msgstr ""
 
-#: lib/gettext_date.rb:46
-msgid "Month|May"
+msgid "Top Goalscorers"
 msgstr ""
 
-#: lib/gettext_date.rb:46
-msgid "June"
+msgid "Trinidad and Tobago"
 msgstr ""
 
-#: lib/gettext_date.rb:46
-msgid "July"
+msgid "Tue"
 msgstr ""
 
-#: lib/gettext_date.rb:46
-msgid "August"
+msgid "Tuesday"
 msgstr ""
 
-#: lib/gettext_date.rb:46
-msgid "September"
+msgid "Tunisia"
 msgstr ""
 
-#: lib/gettext_date.rb:47
-msgid "October"
+msgid "Turkey"
 msgstr ""
 
-#: lib/gettext_date.rb:47
-msgid "November"
+msgid "Turkmenistan"
 msgstr ""
 
-#: lib/gettext_date.rb:47
-msgid "December"
+msgid "Turks and Caicos Islands"
 msgstr ""
 
-#: lib/gettext_date.rb:52
-msgid "Jan"
+msgid "Tuvalu"
 msgstr ""
 
-#: lib/gettext_date.rb:52
-msgid "Feb"
+msgid "Uganda"
 msgstr ""
 
-#: lib/gettext_date.rb:52
-msgid "Mar"
+msgid "Ukraine"
 msgstr ""
 
-#: lib/gettext_date.rb:52
-msgid "Apr"
+msgid "United Arab Emirates"
 msgstr ""
 
-#: lib/gettext_date.rb:52
-msgid "Abbr|May"
+msgid "United Kingdom"
 msgstr ""
 
-#: lib/gettext_date.rb:52
-msgid "Jun"
+msgid "United States"
 msgstr ""
 
-#: lib/gettext_date.rb:53
-msgid "Jul"
+msgid "United States Minor Outlying Islands"
 msgstr ""
 
-#: lib/gettext_date.rb:53
-msgid "Aug"
+msgid "Update"
 msgstr ""
 
-#: lib/gettext_date.rb:53
-msgid "Sep"
+msgid "Updating odds..."
 msgstr ""
 
-#: lib/gettext_date.rb:53
-msgid "Oct"
+msgid "Uruguay"
 msgstr ""
 
-#: lib/gettext_date.rb:54
-msgid "Nov"
+msgid "User"
 msgstr ""
 
-#: lib/gettext_date.rb:54
-msgid "Dec"
+msgid "Username or password invalid"
 msgstr ""
 
-#: lib/gettext_date.rb:60
-msgid "AM"
+msgid "User|Password"
 msgstr ""
 
-#: lib/gettext_date.rb:60
+msgid "Uzbekistan"
+msgstr ""
+
+msgid "Vanuatu"
+msgstr ""
+
+msgid "Vatican City State (Holy See)"
+msgstr ""
+
+msgid "Venezuela"
+msgstr ""
+
+msgid "Version %{number}"
+msgstr ""
+
+msgid "Viet Nam"
+msgstr ""
+
+msgid "View all users"
+msgstr ""
+
+msgid "View this %s"
+msgstr ""
+
+msgid "View user"
+msgstr ""
+
+msgid "View user edits"
+msgstr ""
+
+msgid "Virgin Islands (British)"
+msgstr ""
+
+msgid "Virgin Islands (U.S.)"
+msgstr ""
+
+msgid "W"
+msgstr ""
+
+msgid "Wales"
+msgstr ""
+
+msgid "Wallis and Futuna Islands"
+msgstr ""
+
+msgid "Wed"
+msgstr ""
+
+msgid "Wednesday"
+msgstr ""
+
+msgid "Western Sahara"
+msgstr ""
+
+msgid "Yemen"
+msgstr ""
+
+msgid "You are not authorized to view that page"
+msgstr ""
+
+msgid "You can also <a href='%{signup}'>create an account for this site.</a>"
+msgstr ""
+
+msgid "You can create an account for this site using the form below. If you have an %{openid_link} URL, you can <a href='%{login_link}'>log in with OpenID</a> rather than creating an account."
+msgstr ""
+
+msgid "You can only leave a comment if you're %s"
+msgstr ""
+
+msgid "You have been logged out."
+msgstr ""
+
+msgid "Your profile was saved"
+msgstr ""
+
+msgid "Zambia"
+msgstr ""
+
+msgid "Zimbabwe"
+msgstr ""
+
+msgid "aet goals"
+msgstr ""
+
 msgid "am"
 msgstr ""
 
-#: lib/gettext_date.rb:62
-msgid "PM"
+msgid "basic html is accepted"
 msgstr ""
 
-#: lib/gettext_date.rb:62
+msgid "bias"
+msgstr ""
+
+msgid "comments"
+msgstr ""
+
+msgid "edits"
+msgstr ""
+
+msgid "goal average"
+msgstr ""
+
+msgid "goal difference"
+msgstr ""
+
+msgid "goals away"
+msgstr ""
+
+msgid "goals for"
+msgstr ""
+
+msgid "head to head"
+msgstr ""
+
+msgid "logged in"
+msgstr ""
+
+msgid "name"
+msgstr ""
+
+msgid "never displayed, no spam, used for password recovery"
+msgstr ""
+
+msgid "odds of finishing first"
+msgstr ""
+
+msgid "odds of finishing in promotion zone"
+msgstr ""
+
+msgid "odds of finishing in relegation zone"
+msgstr ""
+
+msgid "only used to show your age"
+msgstr ""
+
+msgid "penalty goals"
+msgstr ""
+
 msgid "pm"
 msgstr ""
 
-#: lib/gettext_will_paginate.rb:4
-msgid "&laquo; Previous"
+msgid "points"
 msgstr ""
 
-#: lib/gettext_will_paginate.rb:5
-msgid "Next &raquo;"
-msgstr ""
-
-#: lib/role_requirement_system.rb:113
-msgid "You are not authorized to view that page"
+msgid "wins"
 msgstr ""
