@@ -36,6 +36,8 @@ class Game < ActiveRecord::Base
   # and Game::Version, created by acts_as_versioned
   module GameAssociations
     def self.included(base)
+      base.stampable
+
       base.has_many :comments,
                     :as => :commentable,
                     :dependent => :destroy,
@@ -46,35 +48,9 @@ class Game < ActiveRecord::Base
       base.belongs_to :stadium
       base.belongs_to :referee
 
-      base.belongs_to :updated_by,
-                      :class_name => "User",
-                      :foreign_key => "updater_id"
-
-      base.has_many :home_goals,
-                    :class_name => "Goal",
-                    :order => :time,
-                    :include => :player,
-                    :conditions => '(team_id = #{home_id} and own_goal = "0") or (team_id = #{away_id} and own_goal = "1")'
-
-      base.has_many :away_goals,
-                    :class_name => "Goal",
-                    :order => :time,
-                    :include => :player,
-                    :conditions => '(team_id = #{away_id} and own_goal = "0") or (team_id = #{home_id} and own_goal = "1")'
-
       base.has_many :player_games,
                     :include => :player,
                     :dependent => :delete_all
-
-      base.has_many :home_player_games,
-                    :class_name => "PlayerGame",
-                    :conditions => 'team_id = #{home_id}',
-                    :include => :player
-
-      base.has_many :away_player_games,
-                    :class_name => "PlayerGame",
-                    :conditions => 'team_id = #{away_id}',
-                    :include => :player
 
       base.validates_presence_of :home
       base.validates_presence_of :away
@@ -97,11 +73,11 @@ class Game < ActiveRecord::Base
                                      :allow_nil => true
 
       base.scope :group_games, lambda { |g|
-        where("(home_id in (?) OR away_id in (?))", g.teams, g.teams)
+        base.where("(home_id in (?) OR away_id in (?))", g.teams, g.teams)
       }
 
       base.scope :team_games, lambda { |t|
-        where("(home_id = ? or away_id = ?)", t, t)
+        base.where("(home_id = ? or away_id = ?)", t, t)
       }
 
     end
@@ -110,6 +86,22 @@ class Game < ActiveRecord::Base
   # This helper methods are also shared between the main class and the
   # versioned class
   module GameMethods
+    def home_goals
+      goals.where('(team_id = ? and own_goal = 0) or (team_id = ? and own_goal = 1)', home_id, away_id)
+    end
+
+    def away_goals
+      goals.where('(team_id = ? and own_goal = 0) or (team_id = ? and own_goal = 1)', away_id, home_id)
+    end
+
+    def home_player_games
+      player_games.where(:team_id => home_id)
+    end
+
+    def away_player_games
+      player_games.where(:team_id => away_id)
+    end
+
     def validate
       errors.add(:home, "can't play with itself") if home_id == away_id
     end

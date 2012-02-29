@@ -15,7 +15,7 @@ class GameController < ApplicationController
   def list
     store_location
     items_per_page = 30
-    @type = params[:type] || "played"
+    @type = params[:type] || "scheduled"
     if (@type == "scheduled")
       conditions = [ "played = ?", false ]
       order = "date ASC, phase_id, time ASC"
@@ -39,8 +39,8 @@ class GameController < ApplicationController
     conditions[0] << " AND phase_id IN (?)"
     conditions << phases
 
-    @date_range_start = params[:date_range_start] || default_start
-    @date_range_end = params[:date_range_end] || default_end
+    @date_range_start = parse_date_select(params[:date_range_start]) || default_start
+    @date_range_end = parse_date_select(params[:date_range_end]) || default_end
     start_date = Date.strptime(@date_range_start, "%d/%m/%Y") rescue @date_range_start = nil
     unless @date_range_start.to_s.empty?
       conditions[0] << " AND date >= ?"
@@ -224,6 +224,16 @@ class GameController < ApplicationController
   end
 
   private
+
+  def parse_date_select(param)
+    unless param.nil? or (param[:year].empty? and param[:month].empty? and param[:day].empty?)
+      param[:year] = Date.today.year if param[:year].empty?
+      param[:month] = Date.today.month if param[:month].empty?
+      param[:day] = Date.today.day if param[:day].empty?
+      p param
+      Date.civil(param[:year].to_i, param[:month].to_i, param[:day].to_i).strftime("%d/%m/%Y")
+    end
+  end
 
   def update_goals(home_away, aet, goals)
     us = home_away

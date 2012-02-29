@@ -40,12 +40,12 @@ gem "activerecord-diff", git: "https://github.com/galo2099/activerecord-diff.git
 gem "acts_as_versioned", git: "https://github.com/luismreis/acts_as_versioned.git"
 gem "exception_notification"
 gem "gettext_i18n_rails"
-gem "newrelic_rpm"
+#gem "newrelic_rpm"
 gem "open_id_authentication"
 gem 'prototype_legacy_helper', '0.0.0', :git => 'git://github.com/rails/prototype_legacy_helper.git'
 gem "quilt"
 gem "rmagick"
-gem "ruby-openid"
+gem "userstamp", git: "https://github.com/delynn/userstamp.git"
 gem "will_paginate"
 
 # Deploy with Capistrano

@@ -2,13 +2,12 @@
 # Likewise, all the methods added will be available for all controllers.
 class ApplicationController < ActionController::Base
   protect_from_forgery
-  require 'gettext_will_paginate'
   require 'authenticated_system'
   require 'role_requirement_system'
   include AuthenticatedSystem
   include RoleRequirementSystem
+  include Userstamp
 
-  helper :date
   before_filter :set_gettext_locale
   before_filter :set_current_user
   before_filter :update_last_login

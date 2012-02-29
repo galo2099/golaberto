@@ -1,7 +1,7 @@
 <% content_for :main_title do %><%= _("Listing stadia") %><% end %>
 
 <p>
-<% form_tag({ :action => "list", :name => "" }, :method => "GET",
+<%= form_tag({ :action => "list", :name => "" }, :method => "GET",
               :style => "display: inline") do %>
   <%= text_field_tag("name", @name, :size => 20) %>
   <%= submit_tag(_("Search"), :name => nil) %>
@@ -19,4 +19,4 @@
     <%= link_to _('New stadium'), :action => 'new' %>
   <% end %>
 <% end %>
-<%= update_page_tag do |page| page["name"].activate end %>
+<%= javascript_tag "$('name').activate()" %>

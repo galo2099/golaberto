@@ -5,9 +5,9 @@
 </select>
 <br/>
 <br/>
-<% form_tag({ :action => :list }, :method => :get) do -%>
-<%= _("From") %>: <%= date_field_tag "date_range_start", nil, :format => "%d/%m/%Y", :size => 10, :value => @date_range_start %>
-<%= _("To") %>: <%= date_field_tag "date_range_end", nil, :format => "%d/%m/%Y", :size => 10, :value => @date_range_end %>
+<%= form_tag({ :action => :list }, :method => :get) do -%>
+<%= _("From") %>: <%= select_date @date_range_start.try(:to_date), { :use_short_month => true, :start_year => 1800, :include_blank => true, :prefix => "date_range_start" } %>
+<%= _("To") %>: <%= select_date @date_range_end.try(:to_date), { :use_short_month => true, :start_year => 1800, :include_blank => true, :prefix => "date_range_end" } %>
 <%= hidden_field_tag(:category, @category) %>
 <%= hidden_field_tag(:type, @type) %>
 <input type="submit" value="<%= _("Change date") %>">

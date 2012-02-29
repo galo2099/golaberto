@@ -3,6 +3,7 @@ require 'image_upload'
 class User < ActiveRecord::Base
   include ImageUpload
 
+  model_stamper
   cattr_accessor :current_user
   # Virtual attribute for the unencrypted password
   attr_accessor :password
@@ -119,9 +120,9 @@ class User < ActiveRecord::Base
 
     def create_logo
       icon = Quilt::Identicon.new display_login, :size => 15
-      icon.write("#{RAILS_ROOT}/public/images/users/#{self.id}_15.png")
+      icon.write("#{Rails.root}/app/assets/images/users/#{self.id}_15.png")
       icon = Quilt::Identicon.new display_login, :size => 100
-      icon.write("#{RAILS_ROOT}/public/images/users/#{self.id}_100.png")
+      icon.write("#{Rails.root}/app/assets/images/users/#{self.id}_100.png")
     end
 
     def add_initial_roles

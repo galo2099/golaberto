@@ -1,10 +1,10 @@
 <% content_for :main_title do %> <%= _("Log in") %><% end %>
 
-<small><%= _("If you've already created an account, or if you have an %{openid_link} login, use one of the forms below to log in to the site. If you use your OpenID URL to log in, an account will be created for you automatically if necessary.") % { :openid_link => link_to(_("OpenID"), "http://openid.net/") } %></small>
+<small><%= (_("If you've already created an account, or if you have an %{openid_link} login, use one of the forms below to log in to the site. If you use your OpenID URL to log in, an account will be created for you automatically if necessary.") % { :openid_link => link_to(_("OpenID"), "http://openid.net/")}).html_safe %></small>
 
-<p><small><%= _("You can also <a href='%{signup}'>create an account for this site.</a>") % { :signup => url_for(:action => :signup) } %></small></p>
+<p><small><%= (_("You can also <a href='%{signup}'>create an account for this site.</a>") % { :signup => url_for(:action => :signup) }).html_safe %></small></p>
 
-<% form_tag do -%>
+<%= form_tag do -%>
 
 <div>
   <label for="openid_url"><span class="form-error"></span></label>
@@ -13,9 +13,9 @@
 
 <p><%= submit_tag _('Log in with OpenID') %></p>
 
-<% end %>
+<% end -%>
 
-<% form_for :user, @user do |f| -%>
+<%= form_for :user, :action => :new do |f| -%>
 <p><%= f.label :login %><br/>
 <%= f.text_field :login %></p>
 
@@ -29,5 +29,3 @@
 
 <p><%= submit_tag _('Log in') %></p>
 <% end -%>
-
-<%= javascript_include_tag "openid" %>

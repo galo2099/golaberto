@@ -1,7 +1,7 @@
 <% content_for :main_title do %><%= _("Listing players") %><% end %>
 
 <p>
-<% form_tag({ :action => "list", :id => "" }, :method => "GET",
+<%= form_tag({ :action => "list", :id => "" }, :method => "GET",
             :style => "display: inline") do %>
   <%= text_field_tag("id", @id, :size => 20) %>
   <%= submit_tag(_("Search"), :name => nil) %>

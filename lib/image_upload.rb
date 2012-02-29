@@ -13,11 +13,11 @@ module ImageUpload
     image.change_geometry("100x100") do |cols, rows, img|
       img.resize!(cols, rows)
     end
-    background = ImageList.new("#{RAILS_ROOT}/public/images/logos/100.png")
+    background = ImageList.new("#{Rails.root}/app/assets/images/logos/100.png")
     image = background.composite(image, CenterGravity, OverCompositeOp)
-    image.write("#{RAILS_ROOT}/public/images/#{type}/#{self.id}_100.png")
+    image.write("#{Rails.root}/app/assets/images/#{type}/#{self.id}_100.png")
     image.scale!(15, 15)
-    image.write("#{RAILS_ROOT}/public/images/#{type}/#{self.id}_15.png")
+    image.write("#{Rails.root}/app/assets/images/#{type}/#{self.id}_15.png")
   end
 
  protected
