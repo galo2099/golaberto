@@ -44,7 +44,8 @@ gem "exception_notification"
 gem "gettext_i18n_rails"
 #gem "newrelic_rpm"
 gem "open_id_authentication"
-gem 'prototype_legacy_helper', '0.0.0', :git => 'git://github.com/rails/prototype_legacy_helper.git'
+gem "prototype_legacy_helper", "0.0.0", :git => 'git://github.com/willbryant/prototype_legacy_helper.git'
+gem "prototype-rails"
 gem "quilt"
 gem "rmagick"
 gem "userstamp", git: "https://github.com/delynn/userstamp.git"
