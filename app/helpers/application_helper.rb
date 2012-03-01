@@ -48,8 +48,8 @@ module ApplicationHelper
             when "+"
               ret << _("Added goal ")
             end
-            ret << goal.player.name + " - "
-            ret << goal.time.to_s + " "
+            ret << h(goal.player.name) + " - "
+            ret << h(goal.time.to_s) + " "
             ret << _("(penalty)") if goal.penalty?
             ret << _("(own_goal)") if goal.own_goal?
             ret << "<br>"
@@ -57,32 +57,32 @@ module ApplicationHelper
         end
       when :stadium_id
         if value[0].nil?
-          ret << sprintf(_("Added stadium: %s<br>"), Stadium.find(value[1]).name) rescue nil
+          ret << sprintf(_("Added stadium: %s<br>"), h(Stadium.find(value[1]).name)) rescue nil
         elsif value[1].nil?
-          ret << sprintf(_("Removed stadium: %s<br>"), Stadium.find(value[0]).name) rescue nil
+          ret << sprintf(_("Removed stadium: %s<br>"), h(Stadium.find(value[0]).name)) rescue nil
         else
-          ret << sprintf(_("Changed stadium: %s -> %s<br>"), Stadium.find(value[0]).name, Stadium.find(value[1]).name) rescue nil
+          ret << sprintf(_("Changed stadium: %s -> %s<br>"), h(Stadium.find(value[0]).name), h(Stadium.find(value[1]).name)) rescue nil
         end
       when :referee_id
         if value[0].nil?
-          ret << sprintf(_("Added referee: %s<br>"), Referee.find(value[1]).name) rescue nil
+          ret << sprintf(_("Added referee: %s<br>"), h(Referee.find(value[1]).name)) rescue nil
         elsif value[1].nil?
-          ret << sprintf(_("Removed referee: %s<br>"), Referee.find(value[0]).name) rescue nil
+          ret << sprintf(_("Removed referee: %s<br>"), h(Referee.find(value[0]).name)) rescue nil
         else
-          ret << sprintf(_("Changed referee: %s -> %s<br>"), Referee.find(value[0]).name, Referee.find(value[1]).name) rescue nil
+          ret << sprintf(_("Changed referee: %s -> %s<br>"), h(Referee.find(value[0]).name), h(Referee.find(value[1]).name)) rescue nil
         end
       else
-        name = Game.columns_hash[key.to_s] ? Game.columns_hash[key.to_s].human_name.downcase : key.to_s
+        name = Game.columns_hash[key.to_s] ? Game.columns_hash[key.to_s].human_name : key.to_s
         if value[0].nil?
-          ret << sprintf(_("Added %s: %s<br>"), name, value[1])
+          ret << sprintf(_("Added %s: %s<br>"), h(s_("Game|" + name)), h(value[1]))
         elsif value[1].nil?
-          ret << sprintf(_("Removed %s: %s<br>"), name, value[0])
+          ret << sprintf(_("Removed %s: %s<br>"), h(s_"Game|" + (name)), h(value[0]))
         else
-          ret << sprintf(_("Changed %s: %s -> %s<br>"), name, value[0], value[1])
+          ret << sprintf(_("Changed %s: %s -> %s<br>"), h(s_"Game|" + (name)), h(value[0]), h(value[1]))
         end
       end
     end
-    ret
+    ret.html_safe
   end
 
   # We define our own list of countries because we'd like to have England,

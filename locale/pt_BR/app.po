@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: version 0.0.1\n"
-"POT-Creation-Date: 2012-02-29 23:45-0800\n"
+"POT-Creation-Date: 2012-03-01 10:34-0800\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: Robson Braga Araujo <robsonbraga@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -22,9 +22,6 @@ msgstr " Próximo"
 
 msgid "%A, %d/%m/%Y at %H:%M"
 msgstr "%A, %d/%m/%Y às %H:%M"
-
-msgid "%B %d, %Y"
-msgstr "%d de %B de %Y"
 
 msgid "%d%% done."
 msgstr "%d%% pronto."
@@ -267,6 +264,10 @@ msgstr "Cabo Verde"
 msgid "Category"
 msgstr "Categoria"
 
+# app/models/category.rb:-
+msgid "Category|Name"
+msgstr "Nome"
+
 msgid "Cayman Islands"
 msgstr "Ilhas Caiman"
 
@@ -287,6 +288,34 @@ msgstr "Jogados"
 # app/models/championship.rb:-
 msgid "Championships"
 msgstr "Campeonatos"
+
+# app/models/championship.rb:-
+msgid "Championship|Begin"
+msgstr "Início"
+
+# app/models/championship.rb:-
+msgid "Championship|End"
+msgstr "Término"
+
+# app/models/championship.rb:-
+msgid "Championship|Name"
+msgstr "Nome"
+
+# app/models/championship.rb:-
+msgid "Championship|Point draw"
+msgstr "Pontos por empate"
+
+# app/models/championship.rb:-
+msgid "Championship|Point loss"
+msgstr "Pontos por derrota"
+
+# app/models/championship.rb:-
+msgid "Championship|Point win"
+msgstr "Pontos por vitória"
+
+# app/models/championship.rb:-
+msgid "Championship|Show country"
+msgstr "Mostrar país"
 
 msgid "Change date"
 msgstr "Mudar data"
@@ -329,6 +358,15 @@ msgstr "Comentário"
 
 msgid "Comments"
 msgstr "Comentários"
+
+msgid "Comment|Comment"
+msgstr "Comentário"
+
+msgid "Comment|Commentable type"
+msgstr "Tipo comentável"
+
+msgid "Comment|Title"
+msgstr "Título"
 
 msgid "Comoros"
 msgstr "Comores"
@@ -559,8 +597,52 @@ msgid "Games"
 msgstr "Jogos"
 
 # app/models/game.rb:-
+msgid "Game|Attendance"
+msgstr "Público"
+
+# app/models/game.rb:-
+msgid "Game|Away aet"
+msgstr "Prorrogação fora"
+
+# app/models/game.rb:-
+msgid "Game|Away pen"
+msgstr "Pen fora"
+
+# app/models/game.rb:-
+msgid "Game|Away score"
+msgstr "Placar fora"
+
+# app/models/game.rb:-
+msgid "Game|Date"
+msgstr "Data"
+
+# app/models/game.rb:-
+msgid "Game|Home aet"
+msgstr "Prorrogação casa"
+
+# app/models/game.rb:-
+msgid "Game|Home pen"
+msgstr "Pen casa"
+
+# app/models/game.rb:-
+msgid "Game|Home score"
+msgstr "Placar casa"
+
+# app/models/game.rb:-
+msgid "Game|Played"
+msgstr "Jogado"
+
+# app/models/game.rb:-
+msgid "Game|Round"
+msgstr "Rodada"
+
+# app/models/game.rb:-
 msgid "Game|Time"
 msgstr "Horário"
+
+# app/models/game.rb:-
+msgid "Game|Version"
+msgstr "Versão"
 
 msgid "Georgia"
 msgstr "Geórgia"
@@ -582,6 +664,18 @@ msgstr "Gols"
 
 msgid "Goalscorers"
 msgstr "Artilheiros"
+
+# app/models/goal.rb:-
+msgid "Goal|Aet"
+msgstr "Prorrogação"
+
+# app/models/goal.rb:-
+msgid "Goal|Own goal"
+msgstr "Gol contra"
+
+# app/models/goal.rb:-
+msgid "Goal|Penalty"
+msgstr "Pênalti"
 
 # app/models/goal.rb:-
 msgid "Goal|Time"
@@ -607,6 +701,22 @@ msgstr "Grupo"
 # app/models/group.rb:-
 msgid "Groups"
 msgstr "Grupos"
+
+# app/models/group.rb:-
+msgid "Group|Name"
+msgstr "Nome"
+
+# app/models/group.rb:-
+msgid "Group|Odds progress"
+msgstr "Progresso chances"
+
+# app/models/group.rb:-
+msgid "Group|Promoted"
+msgstr "Classificados"
+
+# app/models/group.rb:-
+msgid "Group|Relegated"
+msgstr "Rebaixados"
 
 msgid "Guadeloupe"
 msgstr "Guadalupe"
@@ -1063,6 +1173,26 @@ msgstr "Fase"
 msgid "Phases"
 msgstr "Fases"
 
+# app/models/phase.rb:-
+msgid "Phase|Bonus points"
+msgstr "Pontos de bônus"
+
+# app/models/phase.rb:-
+msgid "Phase|Bonus points threshold"
+msgstr "Diferença para pontos de bônus"
+
+# app/models/phase.rb:-
+msgid "Phase|Name"
+msgstr "Nome"
+
+# app/models/phase.rb:-
+msgid "Phase|Order by"
+msgstr "Ordem"
+
+# app/models/phase.rb:-
+msgid "Phase|Sort"
+msgstr "Ordenação"
+
 msgid "Philippines"
 msgstr "Filipinas"
 
@@ -1089,9 +1219,45 @@ msgstr "Jogador foi criado com sucesso"
 msgid "Player was successfully updated"
 msgstr "Jogador foi atualizado com sucesso"
 
+# app/models/player_game.rb:-
+msgid "PlayerGame|Off"
+msgstr "Saiu"
+
+# app/models/player_game.rb:-
+msgid "PlayerGame|On"
+msgstr "Entrou"
+
+# app/models/player_game.rb:-
+msgid "PlayerGame|Red"
+msgstr "Vermelho"
+
+# app/models/player_game.rb:-
+msgid "PlayerGame|Yellow"
+msgstr "Amarelo"
+
 # app/models/player.rb:-
 msgid "Players"
 msgstr "Jogadores"
+
+# app/models/player.rb:-
+msgid "Player|Birth"
+msgstr "Nascimento"
+
+# app/models/player.rb:-
+msgid "Player|Country"
+msgstr "País"
+
+# app/models/player.rb:-
+msgid "Player|Full name"
+msgstr "Nome completo"
+
+# app/models/player.rb:-
+msgid "Player|Name"
+msgstr "Nome"
+
+# app/models/player.rb:-
+msgid "Player|Position"
+msgstr "Posição"
 
 msgid "Points for draw"
 msgstr "Pontos por empate"
@@ -1165,6 +1331,14 @@ msgstr "Árbitro foi atualizado com sucesso"
 msgid "Referees"
 msgstr "Árbitros"
 
+# app/models/referee.rb:-
+msgid "Referee|Location"
+msgstr "Localidade"
+
+# app/models/referee.rb:-
+msgid "Referee|Name"
+msgstr "Nome"
+
 msgid "Relegated"
 msgstr "Rebaixados"
 
@@ -1185,6 +1359,10 @@ msgstr "Removido estádio: %s<br>"
 
 msgid "Reunion"
 msgstr "Reunião"
+
+# app/models/player.rb:-
+msgid "Role|Name"
+msgstr "Nome"
 
 msgid "Romania"
 msgstr "Romênia"
@@ -1314,6 +1492,22 @@ msgstr "Estádio foi atualizado com sucesso"
 msgid "Stadiums"
 msgstr "Estádios"
 
+# app/models/stadium.rb:-
+msgid "Stadium|City"
+msgstr "Cidade"
+
+# app/models/stadium.rb:-
+msgid "Stadium|Country"
+msgstr "País"
+
+# app/models/stadium.rb:-
+msgid "Stadium|Full name"
+msgstr "Nome completo"
+
+# app/models/stadium.rb:-
+msgid "Stadium|Name"
+msgstr "Nome"
+
 msgid "Stats"
 msgstr "Estatísticas"
 
@@ -1357,8 +1551,56 @@ msgstr "Equipe"
 msgid "TeamGroup"
 msgstr "EquipeGrupo"
 
+# app/models/team_group.rb:-
+msgid "TeamGroup|Add sub"
+msgstr "Adicionar Subtrai"
+
+# app/models/team_group.rb:-
+msgid "TeamGroup|Bias"
+msgstr "Vantagem"
+
+# app/models/team_group.rb:-
+msgid "TeamGroup|Comment"
+msgstr "Comentário"
+
+# app/models/team_group.rb:-
+msgid "TeamGroup|First odds"
+msgstr "Chance primeiro"
+
+# app/models/team_group.rb:-
+msgid "TeamGroup|Promoted odds"
+msgstr "Chances de classificação"
+
+# app/models/team_group.rb:-
+msgid "TeamGroup|Relegated odds"
+msgstr "Chances de rebaixamento"
+
 msgid "Teams"
 msgstr "Equipes"
+
+# app/models/team.rb:-
+msgid "Team|City"
+msgstr "Cidade"
+
+# app/models/team.rb:-
+msgid "Team|Country"
+msgstr "País"
+
+# app/models/team.rb:-
+msgid "Team|Foundation"
+msgstr "Fundação"
+
+# app/models/team.rb:-
+msgid "Team|Full name"
+msgstr "Nome completo"
+
+# app/models/team.rb:-
+msgid "Team|Logo"
+msgstr "Logo"
+
+# app/models/team.rb:-
+msgid "Team|Name"
+msgstr "Nome"
 
 msgid "Thailand"
 msgstr "Tailândia"
@@ -1446,8 +1688,56 @@ msgstr "Usuário"
 msgid "Username or password invalid"
 msgstr "Usuário ou senha inválidos"
 
+# app/models/user.rb:-
+msgid "User|About me"
+msgstr "Sobre mim"
+
+# app/models/user.rb:-
+msgid "User|Birthday"
+msgstr "Nascimento"
+
+# app/models/user.rb:-
+msgid "User|Crypted password"
+msgstr "Senha encriptada"
+
+# app/models/user.rb:-
+msgid "User|Email"
+msgstr "Email"
+
+# app/models/user.rb:-
+msgid "User|Identity url"
+msgstr "Url identidade"
+
+# app/models/user.rb:-
+msgid "User|Last login"
+msgstr "Último login"
+
+# app/models/user.rb:-
+msgid "User|Location"
+msgstr "Localidade"
+
+# app/models/user.rb:-
+msgid "User|Login"
+msgstr "Login"
+
+# app/models/phase.rb:-
+msgid "User|Name"
+msgstr "Nome"
+
 msgid "User|Password"
 msgstr "Senha"
+
+# app/models/user.rb:-
+msgid "User|Remember token"
+msgstr "Lembrar token"
+
+# app/models/user.rb:-
+msgid "User|Remember token expires at"
+msgstr "Lembrar token expira em"
+
+# app/models/user.rb:-
+msgid "User|Salt"
+msgstr "Salt"
 
 msgid "Uzbekistan"
 msgstr "Uzbequistão"
@@ -1530,12 +1820,32 @@ msgstr "html básico é aceito"
 msgid "bias"
 msgstr "vantagem"
 
+# app/models/category.rb:-
+msgid "category"
+msgstr "categoria"
+
+# app/models/championship.rb:-
+msgid "championship"
+msgstr "campeonato"
+
+# app/models/comment.rb:-
+msgid "comment"
+msgstr "comentário"
+
 # app/models/comment.rb:-
 msgid "comments"
 msgstr "comentários"
 
 msgid "edits"
 msgstr "edições"
+
+# app/models/game.rb:-
+msgid "game"
+msgstr "jogo"
+
+# app/models/goal.rb:-
+msgid "goal"
+msgstr "gol"
 
 msgid "goal average"
 msgstr "média de gols"
@@ -1549,6 +1859,10 @@ msgstr "gols fora"
 # app/models/goal.rb:-
 msgid "goals for"
 msgstr "gols a favor"
+
+# app/models/group.rb:-
+msgid "group"
+msgstr "grupo"
 
 msgid "head to head"
 msgstr "confronto direto"
@@ -1574,11 +1888,50 @@ msgstr "só usado para mostrar sua idade"
 msgid "penalty goals"
 msgstr "gols de pênalti"
 
+# app/models/phase.rb:-
+msgid "phase"
+msgstr "fase"
+
+# app/models/player.rb:-
+msgid "player"
+msgstr "jogador"
+
+# app/models/player_game.rb:-
+msgid "player game"
+msgstr "jogador jogo"
+
 msgid "points"
 msgstr "pontos"
 
+# app/models/referee.rb:-
+msgid "referee"
+msgstr "árbitro"
+
+# app/models/role.rb:-
+msgid "role"
+msgstr "função"
+
+# app/models/stadium.rb:-
+msgid "stadium"
+msgstr "estádio"
+
+# app/models/team.rb:-
+msgid "team"
+msgstr "equipe"
+
+# app/models/team_group.rb:-
+msgid "team group"
+msgstr "equipe grupo"
+
+# app/models/user.rb:-
+msgid "user"
+msgstr "usuário"
+
 msgid "wins"
 msgstr "vitórias"
+
+#~ msgid "%B %d, %Y"
+#~ msgstr "%d de %B de %Y"
 
 #~ msgid "%Y-%m-%d"
 #~ msgstr "%Y-%m-%d"
@@ -1610,57 +1963,16 @@ msgstr "vitórias"
 #~ msgid "August"
 #~ msgstr "Agosto"
 
-# app/models/category.rb:-
-#~ msgid "Category|Name"
-#~ msgstr "Nome"
-
-# app/models/championship.rb:-
-#~ msgid "Championship|Begin"
-#~ msgstr "Início"
-
 # app/models/championship.rb:-
 #~ msgid "Championship|Category"
 #~ msgstr "Categoria"
 
-# app/models/championship.rb:-
-#~ msgid "Championship|End"
-#~ msgstr "Término"
-
-# app/models/championship.rb:-
-#~ msgid "Championship|Name"
-#~ msgstr "Nome"
-
-# app/models/championship.rb:-
-#~ msgid "Championship|Point draw"
-#~ msgstr "Pontos por empate"
-
-# app/models/championship.rb:-
-#~ msgid "Championship|Point loss"
-#~ msgstr "Pontos por derrota"
-
-# app/models/championship.rb:-
-#~ msgid "Championship|Point win"
-#~ msgstr "Pontos por vitória"
-
-# app/models/championship.rb:-
-#~ msgid "Championship|Show country"
-#~ msgstr "Mostrar país"
-
-#~ msgid "Comment|Comment"
-#~ msgstr "Comentário"
-
 #~ msgid "Comment|Commentable"
 #~ msgstr "Comentável"
-
-#~ msgid "Comment|Commentable type"
-#~ msgstr "Tipo comentável"
 
 # app/models/user.rb:-
 #~ msgid "Comment|Created at"
 #~ msgstr "Criado em"
-
-#~ msgid "Comment|Title"
-#~ msgstr "Título"
 
 #~ msgid "Comment|User"
 #~ msgstr "Usuário"
@@ -1692,60 +2004,20 @@ msgstr "vitórias"
 #~ msgstr "Sexta"
 
 # app/models/game.rb:-
-#~ msgid "Game|Attendance"
-#~ msgstr "Público"
-
-# app/models/game.rb:-
 #~ msgid "Game|Away"
 #~ msgstr "Fora"
-
-# app/models/game.rb:-
-#~ msgid "Game|Away aet"
-#~ msgstr "Prorrogação fora"
-
-# app/models/game.rb:-
-#~ msgid "Game|Away pen"
-#~ msgstr "Pen fora"
-
-# app/models/game.rb:-
-#~ msgid "Game|Away score"
-#~ msgstr "Placar fora"
-
-# app/models/game.rb:-
-#~ msgid "Game|Date"
-#~ msgstr "Data"
 
 # app/models/game.rb:-
 #~ msgid "Game|Home"
 #~ msgstr "Casa"
 
 # app/models/game.rb:-
-#~ msgid "Game|Home aet"
-#~ msgstr "Prorrogação casa"
-
-# app/models/game.rb:-
-#~ msgid "Game|Home pen"
-#~ msgstr "Pen casa"
-
-# app/models/game.rb:-
-#~ msgid "Game|Home score"
-#~ msgstr "Placar casa"
-
-# app/models/game.rb:-
 #~ msgid "Game|Phase"
 #~ msgstr "Fase"
 
 # app/models/game.rb:-
-#~ msgid "Game|Played"
-#~ msgstr "Jogado"
-
-# app/models/game.rb:-
 #~ msgid "Game|Referee"
 #~ msgstr "Árbitro"
-
-# app/models/game.rb:-
-#~ msgid "Game|Round"
-#~ msgstr "Rodada"
 
 # app/models/game.rb:-
 #~ msgid "Game|Stadium"
@@ -1759,25 +2031,9 @@ msgstr "vitórias"
 #~ msgid "Game|Updater"
 #~ msgstr "Atualizador"
 
-# app/models/game.rb:-
-#~ msgid "Game|Version"
-#~ msgstr "Versão"
-
-# app/models/goal.rb:-
-#~ msgid "Goal|Aet"
-#~ msgstr "Prorrogação"
-
 # app/models/goal.rb:-
 #~ msgid "Goal|Game"
 #~ msgstr "Jogo"
-
-# app/models/goal.rb:-
-#~ msgid "Goal|Own goal"
-#~ msgstr "Gol contra"
-
-# app/models/goal.rb:-
-#~ msgid "Goal|Penalty"
-#~ msgstr "Pênalti"
 
 # app/models/goal.rb:-
 #~ msgid "Goal|Player"
@@ -1788,24 +2044,8 @@ msgstr "vitórias"
 #~ msgstr "Equipe"
 
 # app/models/group.rb:-
-#~ msgid "Group|Name"
-#~ msgstr "Nome"
-
-# app/models/group.rb:-
-#~ msgid "Group|Odds progress"
-#~ msgstr "Progresso chances"
-
-# app/models/group.rb:-
 #~ msgid "Group|Phase"
 #~ msgstr "Fase"
-
-# app/models/group.rb:-
-#~ msgid "Group|Promoted"
-#~ msgstr "Classificados"
-
-# app/models/group.rb:-
-#~ msgid "Group|Relegated"
-#~ msgstr "Rebaixados"
 
 #~ msgid "Jan"
 #~ msgstr "Jan"
@@ -1859,76 +2099,20 @@ msgstr "vitórias"
 #~ msgstr "PM"
 
 # app/models/phase.rb:-
-#~ msgid "Phase|Bonus points"
-#~ msgstr "Pontos de bônus"
-
-# app/models/phase.rb:-
-#~ msgid "Phase|Bonus points threshold"
-#~ msgstr "Diferença para pontos de bônus"
-
-# app/models/phase.rb:-
 #~ msgid "Phase|Championship"
 #~ msgstr "Campeonato"
-
-# app/models/phase.rb:-
-#~ msgid "Phase|Name"
-#~ msgstr "Nome"
-
-# app/models/phase.rb:-
-#~ msgid "Phase|Order by"
-#~ msgstr "Ordem"
-
-# app/models/phase.rb:-
-#~ msgid "Phase|Sort"
-#~ msgstr "Ordenação"
 
 # app/models/player_game.rb:-
 #~ msgid "PlayerGame|Game"
 #~ msgstr "Jogo"
 
 # app/models/player_game.rb:-
-#~ msgid "PlayerGame|Off"
-#~ msgstr "Saiu"
-
-# app/models/player_game.rb:-
-#~ msgid "PlayerGame|On"
-#~ msgstr "Entrou"
-
-# app/models/player_game.rb:-
 #~ msgid "PlayerGame|Player"
 #~ msgstr "Jogador"
 
 # app/models/player_game.rb:-
-#~ msgid "PlayerGame|Red"
-#~ msgstr "Vermelho"
-
-# app/models/player_game.rb:-
 #~ msgid "PlayerGame|Team"
 #~ msgstr "Equipe"
-
-# app/models/player_game.rb:-
-#~ msgid "PlayerGame|Yellow"
-#~ msgstr "Amarelo"
-
-# app/models/player.rb:-
-#~ msgid "Player|Birth"
-#~ msgstr "Nascimento"
-
-# app/models/player.rb:-
-#~ msgid "Player|Country"
-#~ msgstr "País"
-
-# app/models/player.rb:-
-#~ msgid "Player|Full name"
-#~ msgstr "Nome completo"
-
-# app/models/player.rb:-
-#~ msgid "Player|Name"
-#~ msgstr "Nome"
-
-# app/models/player.rb:-
-#~ msgid "Player|Position"
-#~ msgstr "Posição"
 
 # app/models/referee_champ.rb:-
 #~ msgid "RefereeChamp|Championship"
@@ -1937,18 +2121,6 @@ msgstr "vitórias"
 # app/models/referee_champ.rb:-
 #~ msgid "RefereeChamp|Referee"
 #~ msgstr "Árbitro"
-
-# app/models/referee.rb:-
-#~ msgid "Referee|Location"
-#~ msgstr "Localidade"
-
-# app/models/referee.rb:-
-#~ msgid "Referee|Name"
-#~ msgstr "Nome"
-
-# app/models/player.rb:-
-#~ msgid "Role|Name"
-#~ msgstr "Nome"
 
 #~ msgid "Sat"
 #~ msgstr "Sab"
@@ -1962,22 +2134,6 @@ msgstr "vitórias"
 #~ msgid "September"
 #~ msgstr "Setembro"
 
-# app/models/stadium.rb:-
-#~ msgid "Stadium|City"
-#~ msgstr "Cidade"
-
-# app/models/stadium.rb:-
-#~ msgid "Stadium|Country"
-#~ msgstr "País"
-
-# app/models/stadium.rb:-
-#~ msgid "Stadium|Full name"
-#~ msgstr "Nome completo"
-
-# app/models/stadium.rb:-
-#~ msgid "Stadium|Name"
-#~ msgstr "Nome"
-
 #~ msgid "Sun"
 #~ msgstr "Dom"
 
@@ -1985,32 +2141,8 @@ msgstr "vitórias"
 #~ msgstr "Domingo"
 
 # app/models/team_group.rb:-
-#~ msgid "TeamGroup|Add sub"
-#~ msgstr "Adicionar Subtrai"
-
-# app/models/team_group.rb:-
-#~ msgid "TeamGroup|Bias"
-#~ msgstr "Vantagem"
-
-# app/models/team_group.rb:-
-#~ msgid "TeamGroup|Comment"
-#~ msgstr "Comentário"
-
-# app/models/team_group.rb:-
-#~ msgid "TeamGroup|First odds"
-#~ msgstr "Chance primeiro"
-
-# app/models/team_group.rb:-
 #~ msgid "TeamGroup|Group"
 #~ msgstr "Grupo"
-
-# app/models/team_group.rb:-
-#~ msgid "TeamGroup|Promoted odds"
-#~ msgstr "Chances de classificação"
-
-# app/models/team_group.rb:-
-#~ msgid "TeamGroup|Relegated odds"
-#~ msgstr "Chances de rebaixamento"
 
 # app/models/team_group.rb:-
 #~ msgid "TeamGroup|Team"
@@ -2029,30 +2161,6 @@ msgstr "vitórias"
 #~ msgstr "Equipe"
 
 # app/models/team.rb:-
-#~ msgid "Team|City"
-#~ msgstr "Cidade"
-
-# app/models/team.rb:-
-#~ msgid "Team|Country"
-#~ msgstr "País"
-
-# app/models/team.rb:-
-#~ msgid "Team|Foundation"
-#~ msgstr "Fundação"
-
-# app/models/team.rb:-
-#~ msgid "Team|Full name"
-#~ msgstr "Nome completo"
-
-# app/models/team.rb:-
-#~ msgid "Team|Logo"
-#~ msgstr "Logo"
-
-# app/models/team.rb:-
-#~ msgid "Team|Name"
-#~ msgstr "Nome"
-
-# app/models/team.rb:-
 #~ msgid "Team|Stadium"
 #~ msgstr "Estádio"
 
@@ -2069,56 +2177,8 @@ msgstr "vitórias"
 #~ msgstr "Terça"
 
 # app/models/user.rb:-
-#~ msgid "User|About me"
-#~ msgstr "Sobre mim"
-
-# app/models/user.rb:-
-#~ msgid "User|Birthday"
-#~ msgstr "Nascimento"
-
-# app/models/user.rb:-
 #~ msgid "User|Created at"
 #~ msgstr "Criado em"
-
-# app/models/user.rb:-
-#~ msgid "User|Crypted password"
-#~ msgstr "Senha encriptada"
-
-# app/models/user.rb:-
-#~ msgid "User|Email"
-#~ msgstr "Email"
-
-# app/models/user.rb:-
-#~ msgid "User|Identity url"
-#~ msgstr "Url identidade"
-
-# app/models/user.rb:-
-#~ msgid "User|Last login"
-#~ msgstr "Último login"
-
-# app/models/user.rb:-
-#~ msgid "User|Location"
-#~ msgstr "Localidade"
-
-# app/models/user.rb:-
-#~ msgid "User|Login"
-#~ msgstr "Login"
-
-# app/models/phase.rb:-
-#~ msgid "User|Name"
-#~ msgstr "Nome"
-
-# app/models/user.rb:-
-#~ msgid "User|Remember token"
-#~ msgstr "Lembrar token"
-
-# app/models/user.rb:-
-#~ msgid "User|Remember token expires at"
-#~ msgstr "Lembrar token expira em"
-
-# app/models/user.rb:-
-#~ msgid "User|Salt"
-#~ msgstr "Salt"
 
 # app/models/user.rb:-
 #~ msgid "User|Updated at"
@@ -2137,76 +2197,16 @@ msgstr "vitórias"
 #~ msgid "am"
 #~ msgstr "am"
 
-# app/models/category.rb:-
-#~ msgid "category"
-#~ msgstr "categoria"
-
-# app/models/championship.rb:-
-#~ msgid "championship"
-#~ msgstr "campeonato"
-
-# app/models/comment.rb:-
-#~ msgid "comment"
-#~ msgstr "comentário"
-
-# app/models/game.rb:-
-#~ msgid "game"
-#~ msgstr "jogo"
-
-# app/models/goal.rb:-
-#~ msgid "goal"
-#~ msgstr "gol"
-
-# app/models/group.rb:-
-#~ msgid "group"
-#~ msgstr "grupo"
-
 #~ msgid "logged in"
 #~ msgstr "se logar"
 
-# app/models/phase.rb:-
-#~ msgid "phase"
-#~ msgstr "fase"
-
-# app/models/player.rb:-
-#~ msgid "player"
-#~ msgstr "jogador"
-
-# app/models/player_game.rb:-
-#~ msgid "player game"
-#~ msgstr "jogador jogo"
-
 #~ msgid "pm"
 #~ msgstr "pm"
-
-# app/models/referee.rb:-
-#~ msgid "referee"
-#~ msgstr "árbitro"
 
 # app/models/referee_champ.rb:-
 #~ msgid "referee champ"
 #~ msgstr "árbitro campeonato"
 
-# app/models/role.rb:-
-#~ msgid "role"
-#~ msgstr "função"
-
-# app/models/stadium.rb:-
-#~ msgid "stadium"
-#~ msgstr "estádio"
-
-# app/models/team.rb:-
-#~ msgid "team"
-#~ msgstr "equipe"
-
-# app/models/team_group.rb:-
-#~ msgid "team group"
-#~ msgstr "equipe grupo"
-
 # app/models/team_player.rb:-
 #~ msgid "team player"
 #~ msgstr "equipe jogador"
-
-# app/models/user.rb:-
-#~ msgid "user"
-#~ msgstr "usuário"

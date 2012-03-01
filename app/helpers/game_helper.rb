@@ -6,7 +6,7 @@ module GameHelper
                              goal && goal.player_id)
     html << "<div id='#{home_away}_#{aet}_goal_player_#{i}'>"
     if goal
-      html << goal.player.name if goal.player
+      html << h(goal.player.name) if goal.player
     else
       html << "&nbsp;"
     end
@@ -33,6 +33,7 @@ module GameHelper
     html << hidden_field_tag("#{home_away}_#{aet}_goal[#{i}][aet]", aet == "aet" ? "1" : "0")
     html << "</td>"
     html << "</tr>"
+    html.html_safe
   end
 
   def game_versions(versions)
@@ -48,7 +49,7 @@ module GameHelper
       diff_strings << str
       new_game
     end
-    diff_strings.reverse.join ""
+    diff_strings.reverse.join("").html_safe
   end
 
   def print_goals(goals, player_scored)
@@ -77,13 +78,13 @@ module GameHelper
       count_home += 1 if home_goal
       count_away += 1 if away_goal
       html << "<tr class='game_show_goals'>"
-      html << "  <td class='game_show_home_score'>#{goal.player.name if home_goal}</td>"
+      html << "  <td class='game_show_home_score'>#{h(goal.player.name) if home_goal}</td>"
       html << "  <td class='game_show_home_score'>"
       html << "    (pen)" if goal.penalty? and home_goal
       html << "    (own)" if goal.own_goal? and home_goal
       html << "  </td>"
       html << "  <td class='game_show_home_score'>"
-      html << "    #{goal.time}'" if home_goal
+      html << "    #{h goal.time}'" if home_goal
       html << "  </td>"
       html << "  <td class='game_show_home_score'>"
       html << "    (#{count_home}-#{count_away})" if home_goal
@@ -92,17 +93,17 @@ module GameHelper
       html << "  <td class='game_show_away_score'>"
       html << "    (#{count_home}-#{count_away})" if away_goal
       html << "  <td class='game_show_away_score'>"
-      html << "    #{goal.time}'" if away_goal
+      html << "    #{h goal.time}'" if away_goal
       html << "  </td>"
       html << "  <td class='game_show_away_score'>"
       html << "    (pen)" if goal.penalty? and away_goal
       html << "    (own)" if goal.own_goal? and away_goal
       html << "  </td>"
       html << "  <td class='game_show_away_score'>"
-      html << goal.player.name if away_goal
+      html << h(goal.player.name) if away_goal
       html << "  </td>"
       html << "</tr>"
     end
-    html
+    html.html_safe
   end
 end

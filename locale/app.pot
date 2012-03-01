@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: version 0.0.1\n"
-"POT-Creation-Date: 2012-02-29 23:45-0800\n"
+"POT-Creation-Date: 2012-03-01 10:34-0800\n"
 "PO-Revision-Date: 2012-02-26 08:31-0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -21,9 +21,6 @@ msgid " Next"
 msgstr ""
 
 msgid "%A, %d/%m/%Y at %H:%M"
-msgstr ""
-
-msgid "%B %d, %Y"
 msgstr ""
 
 msgid "%d%% done."
@@ -263,6 +260,9 @@ msgstr ""
 msgid "Category"
 msgstr ""
 
+msgid "Category|Name"
+msgstr ""
+
 msgid "Cayman Islands"
 msgstr ""
 
@@ -279,6 +279,27 @@ msgid "ChampionshipTeam|Played"
 msgstr ""
 
 msgid "Championships"
+msgstr ""
+
+msgid "Championship|Begin"
+msgstr ""
+
+msgid "Championship|End"
+msgstr ""
+
+msgid "Championship|Name"
+msgstr ""
+
+msgid "Championship|Point draw"
+msgstr ""
+
+msgid "Championship|Point loss"
+msgstr ""
+
+msgid "Championship|Point win"
+msgstr ""
+
+msgid "Championship|Show country"
 msgstr ""
 
 msgid "Change date"
@@ -321,6 +342,15 @@ msgid "Comment"
 msgstr ""
 
 msgid "Comments"
+msgstr ""
+
+msgid "Comment|Comment"
+msgstr ""
+
+msgid "Comment|Commentable type"
+msgstr ""
+
+msgid "Comment|Title"
 msgstr ""
 
 msgid "Comoros"
@@ -545,7 +575,40 @@ msgstr ""
 msgid "Games"
 msgstr ""
 
+msgid "Game|Attendance"
+msgstr ""
+
+msgid "Game|Away aet"
+msgstr ""
+
+msgid "Game|Away pen"
+msgstr ""
+
+msgid "Game|Away score"
+msgstr ""
+
+msgid "Game|Date"
+msgstr ""
+
+msgid "Game|Home aet"
+msgstr ""
+
+msgid "Game|Home pen"
+msgstr ""
+
+msgid "Game|Home score"
+msgstr ""
+
+msgid "Game|Played"
+msgstr ""
+
+msgid "Game|Round"
+msgstr ""
+
 msgid "Game|Time"
+msgstr ""
+
+msgid "Game|Version"
 msgstr ""
 
 msgid "Georgia"
@@ -569,6 +632,15 @@ msgstr ""
 msgid "Goalscorers"
 msgstr ""
 
+msgid "Goal|Aet"
+msgstr ""
+
+msgid "Goal|Own goal"
+msgstr ""
+
+msgid "Goal|Penalty"
+msgstr ""
+
 msgid "Goal|Time"
 msgstr ""
 
@@ -588,6 +660,18 @@ msgid "Group"
 msgstr ""
 
 msgid "Groups"
+msgstr ""
+
+msgid "Group|Name"
+msgstr ""
+
+msgid "Group|Odds progress"
+msgstr ""
+
+msgid "Group|Promoted"
+msgstr ""
+
+msgid "Group|Relegated"
 msgstr ""
 
 msgid "Guadeloupe"
@@ -1038,6 +1122,21 @@ msgstr ""
 msgid "Phases"
 msgstr ""
 
+msgid "Phase|Bonus points"
+msgstr ""
+
+msgid "Phase|Bonus points threshold"
+msgstr ""
+
+msgid "Phase|Name"
+msgstr ""
+
+msgid "Phase|Order by"
+msgstr ""
+
+msgid "Phase|Sort"
+msgstr ""
+
 msgid "Philippines"
 msgstr ""
 
@@ -1062,7 +1161,34 @@ msgstr ""
 msgid "Player was successfully updated"
 msgstr ""
 
+msgid "PlayerGame|Off"
+msgstr ""
+
+msgid "PlayerGame|On"
+msgstr ""
+
+msgid "PlayerGame|Red"
+msgstr ""
+
+msgid "PlayerGame|Yellow"
+msgstr ""
+
 msgid "Players"
+msgstr ""
+
+msgid "Player|Birth"
+msgstr ""
+
+msgid "Player|Country"
+msgstr ""
+
+msgid "Player|Full name"
+msgstr ""
+
+msgid "Player|Name"
+msgstr ""
+
+msgid "Player|Position"
 msgstr ""
 
 msgid "Points for draw"
@@ -1133,6 +1259,12 @@ msgstr ""
 msgid "Referees"
 msgstr ""
 
+msgid "Referee|Location"
+msgstr ""
+
+msgid "Referee|Name"
+msgstr ""
+
 msgid "Relegated"
 msgstr ""
 
@@ -1152,6 +1284,9 @@ msgid "Removed stadium: %s<br>"
 msgstr ""
 
 msgid "Reunion"
+msgstr ""
+
+msgid "Role|Name"
 msgstr ""
 
 msgid "Romania"
@@ -1280,6 +1415,18 @@ msgstr ""
 msgid "Stadiums"
 msgstr ""
 
+msgid "Stadium|City"
+msgstr ""
+
+msgid "Stadium|Country"
+msgstr ""
+
+msgid "Stadium|Full name"
+msgstr ""
+
+msgid "Stadium|Name"
+msgstr ""
+
 msgid "Stats"
 msgstr ""
 
@@ -1322,7 +1469,43 @@ msgstr ""
 msgid "TeamGroup"
 msgstr ""
 
+msgid "TeamGroup|Add sub"
+msgstr ""
+
+msgid "TeamGroup|Bias"
+msgstr ""
+
+msgid "TeamGroup|Comment"
+msgstr ""
+
+msgid "TeamGroup|First odds"
+msgstr ""
+
+msgid "TeamGroup|Promoted odds"
+msgstr ""
+
+msgid "TeamGroup|Relegated odds"
+msgstr ""
+
 msgid "Teams"
+msgstr ""
+
+msgid "Team|City"
+msgstr ""
+
+msgid "Team|Country"
+msgstr ""
+
+msgid "Team|Foundation"
+msgstr ""
+
+msgid "Team|Full name"
+msgstr ""
+
+msgid "Team|Logo"
+msgstr ""
+
+msgid "Team|Name"
 msgstr ""
 
 msgid "Thailand"
@@ -1410,7 +1593,43 @@ msgstr ""
 msgid "Username or password invalid"
 msgstr ""
 
+msgid "User|About me"
+msgstr ""
+
+msgid "User|Birthday"
+msgstr ""
+
+msgid "User|Crypted password"
+msgstr ""
+
+msgid "User|Email"
+msgstr ""
+
+msgid "User|Identity url"
+msgstr ""
+
+msgid "User|Last login"
+msgstr ""
+
+msgid "User|Location"
+msgstr ""
+
+msgid "User|Login"
+msgstr ""
+
+msgid "User|Name"
+msgstr ""
+
 msgid "User|Password"
+msgstr ""
+
+msgid "User|Remember token"
+msgstr ""
+
+msgid "User|Remember token expires at"
+msgstr ""
+
+msgid "User|Salt"
 msgstr ""
 
 msgid "Uzbekistan"
@@ -1494,10 +1713,25 @@ msgstr ""
 msgid "bias"
 msgstr ""
 
+msgid "category"
+msgstr ""
+
+msgid "championship"
+msgstr ""
+
+msgid "comment"
+msgstr ""
+
 msgid "comments"
 msgstr ""
 
 msgid "edits"
+msgstr ""
+
+msgid "game"
+msgstr ""
+
+msgid "goal"
 msgstr ""
 
 msgid "goal average"
@@ -1510,6 +1744,9 @@ msgid "goals away"
 msgstr ""
 
 msgid "goals for"
+msgstr ""
+
+msgid "group"
 msgstr ""
 
 msgid "head to head"
@@ -1536,7 +1773,34 @@ msgstr ""
 msgid "penalty goals"
 msgstr ""
 
+msgid "phase"
+msgstr ""
+
+msgid "player"
+msgstr ""
+
+msgid "player game"
+msgstr ""
+
 msgid "points"
+msgstr ""
+
+msgid "referee"
+msgstr ""
+
+msgid "role"
+msgstr ""
+
+msgid "stadium"
+msgstr ""
+
+msgid "team"
+msgstr ""
+
+msgid "team group"
+msgstr ""
+
+msgid "user"
 msgstr ""
 
 msgid "wins"
