@@ -111,17 +111,18 @@ class Game < ActiveRecord::Base
     end
 
     def formatted_date(day = false)
-      ret = ""
       unless date.nil?
-        ret = date.strftime("%d/%m/%Y")
-        ret << " - " << date.strftime("%A") if day
+        if day
+          I18n.l date, :format => :date_weekday
+        else
+          I18n.l date, :format => :default
+        end
       end
-      ret
     end
 
     def formatted_time
       unless time.nil?
-        time.strftime("%H:%M")
+        I18n.l time, :format => :hour_minute
       end
     end
 

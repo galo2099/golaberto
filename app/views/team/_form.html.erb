@@ -1,7 +1,7 @@
 <label for="team_name"><%= _("Name") %>:</label> <%= f.text_field :name %><br/>
 <label for="team_full_name"><%= _("Full name") %>:</label> <%= f.text_field :full_name %><br/>
 <label for="team_city"><%= _("City") %>:</label> <%= f.text_field :city %><br/>
-<label for="team_foundation"><%= _("Foundation") %>:</label> <%= date_field :team, :foundation, :value => @team.foundation, :size => 10, :format => "%d/%m/%Y" %><br/>
+<label for="team_foundation"><%= _("Foundation") %>:</label> <%= f.date_select :foundation, :value => @team.foundation %><br/>
 <label for="team_country"><%= _("Country") %>:</label> <%= f.select :country, golaberto_options_for_country_select, :include_blank => true %><br/>
 <%= _("Stadium") %>:
 <select id="team_stadium_id" name="team[stadium_id]">

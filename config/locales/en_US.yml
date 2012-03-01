@@ -34,6 +34,7 @@ en_US:
       default: ! '%Y-%m-%d'
       long: ! '%B %d, %Y'
       short: ! '%b %d'
+      date_weekday: ! '%m/%d/%Y - %A'
     month_names:
     - 
     - January
@@ -195,6 +196,7 @@ en_US:
       default: ! '%a, %d %b %Y %H:%M:%S %z'
       long: ! '%B %d, %Y %H:%M'
       short: ! '%d %b %H:%M'
+      hour_minute: ! '%H:%M'
     pm: pm
 
   will_paginate:

@@ -1,6 +1,7 @@
 class AccountController < ApplicationController
   N_("Account")
 
+  skip_authorization_check
   before_filter :login_from_cookie
 
   def login

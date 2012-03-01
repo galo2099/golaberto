@@ -33,8 +33,6 @@ class TeamController < ApplicationController
   def update
     @team = Team.find(params["id"])
     @team.attributes = params["team"]
-    foundation = params[:team].delete(:foundation)
-    @team.foundation = Date.strptime(foundation, "%d/%m/%Y") unless foundation.empty?
 
     begin
       @team.save!
@@ -65,8 +63,6 @@ class TeamController < ApplicationController
 
   def create
     foundation = params[:team].delete(:foundation)
-    @team = Team.new(params[:team])
-    @team.foundation = Date.strptime(foundation, "%d/%m/%Y") unless foundation.empty?
     begin
       @team.save!
       @team.uploaded_logo(params[:logo], params[:filter]) unless params[:logo].to_s.empty?

@@ -2,7 +2,7 @@
 
 <% content_for :main_title do %> <%= _("Editing team") %><% end %>
 
-<% form_for :team, @team, :url => { :action => :update, :id => @team }, :html => { :multipart => true } do |f| %>
+<%= form_for @team, :url => { :action => :update, :id => @team }, :html => { :multipart => true } do |f| %>
   <%= render :partial => "form", :locals => { :f => f } %>
   <%= submit_tag _("Update") %>
 <% end %>

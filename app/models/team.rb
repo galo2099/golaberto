@@ -1,3 +1,4 @@
+require 'image_upload'
 class Team < ActiveRecord::Base
   include ImageUpload
 

@@ -13,7 +13,7 @@
     <h3><%= @team.full_name %></h3>
     <%= _("City") %>: <%= @team.city %><br/>
     <%= _("Country") %>: <%= _(@team.country) %><br/>
-    <%= _("Foundation") %>: <%= @team.foundation.strftime(_("%B %d, %Y")) if @team.foundation %><br/>
+    <%= _("Foundation") %>: <%= l @team.foundation, :format => :long if @team.foundation %><br/>
     <%= _("Stadium") %>: <%= link_to @team.stadium.name, :controller => :stadium, :action => :show, :id => @team.stadium if @team.stadium %><br/>
   </div>
   <div style="clear: both"></div>
