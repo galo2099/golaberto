@@ -1,4 +1,5 @@
 require 'diff/lcs.rb'
+require 'active_record/diff'
 class Game < ActiveRecord::Base
 
   # This module implements a diff with knowledge of associations
