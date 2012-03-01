@@ -41,7 +41,7 @@ EOF
 
 <h2><%= @game.phase.name %></h2>
 
-<% form_tag :action => :update_squad, :id => @game do %>
+<%= form_tag :action => :update_squad, :id => @game do %>
   <table class="game_show_score">
     <%= render :partial => "game_score" %>
     <tr>

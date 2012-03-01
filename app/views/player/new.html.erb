@@ -2,7 +2,7 @@
 
 <% content_for :main_title do %><%= _("New Player") %><% end %>
 
-<% form_for :player, @player, :url => { :action => :create } do |f| %>
+<%= form_for @player, :url => { :action => :create } do |f| %>
   <%= render :partial => "form", :locals => { :f => f } %>
   <%= submit_tag _("Create") %>
 <% end %>

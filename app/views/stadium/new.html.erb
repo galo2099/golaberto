@@ -2,7 +2,7 @@
 
 <% content_for :main_title do %><%= _("New Stadium") %><% end %>
 
-<% form_for :stadium, @stadium, :url => { :action => :create } do |f| %>
+<%= form_for @stadium, :url => { :action => :create } do |f| %>
   <%= render :partial => "form", :locals => { :f => f } %>
   <%= submit_tag _("Create") %>
 <% end %>

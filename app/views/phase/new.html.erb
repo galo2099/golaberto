@@ -1,5 +1,5 @@
 <%= error_messages_for 'phase' %>
-<% form_for :phase, @phase, :url => { :action => "create", :id => @phase } do |p| %>
+<%= form_for @phase, :url => { :action => "create", :id => @phase } do |p| %>
   <%= _("Name") %>: <%= p.text_field :name %><br/>
   <%= _("Order") %>: <%= p.text_field :order_by, :size => 2 %><br/>
   <%= _("Championship") %>: <%= p.text_field :championship_id %><br/>

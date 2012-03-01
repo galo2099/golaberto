@@ -14,7 +14,7 @@
 
 <h2><%= @group.phase.name %></h2>
 
-<% form_for :group, @group, :url => { :action => :update, :id => @group } do |f| %>
+<%= form_for @group, :url => { :action => :update, :id => @group } do |f| %>
   <table>
     <tr><td><%= _("Name") %>:</td><td><%= f.text_field :name %></td></tr>
     <tr><td><%= _("Promoted") %>:</td><td><%= f.text_field :promoted, :size => 2 %></td></tr>

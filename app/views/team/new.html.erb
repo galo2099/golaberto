@@ -1,7 +1,7 @@
 <% content_for :main_title do %><%= _("New Team") %><% end %>
 
 <%= error_messages_for 'team' %>
-<% form_for :team, @team, :url => { :action => :create }, :html => { :multipart => true } do |f| %>
+<%= form_for @team, :url => { :action => :create }, :html => { :multipart => true } do |f| %>
   <%= render :partial => "form", :locals => { :f => f } %>
   <%= submit_tag _("Create") %>
 <% end %>

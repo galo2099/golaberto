@@ -1,4 +1,5 @@
-<% content_for :main_title do %><%= _("Referee") %><% end %>
+<%= content_for :title do %><%= _("Referee") %><% end %>
+<%= content_for :main_title do %><%= _("Referee") %><% end %>
 
   <h2><%= @referee.name %></h2>
   <h3><%= _("Location") %>: <%= @referee.location %></h3>
@@ -27,7 +28,7 @@
 
 <%= render :partial => "comment/comments", :locals => { :object => @referee } %>
 
-<% content_for :sidebar do %>
+<%= content_for :sidebar do %>
   <% if can? :manage, @referee %>
     <%= link_to _("Edit"), :action => :edit, :id => @referee %><br/>
     <%= link_to _("Delete"), { :action => :destroy, :id => @referee }, :confirm => _('Are you sure?'), :method => :post %><br/>

@@ -2,7 +2,7 @@
 
 <% content_for :main_title do %><%= _("Player Edit") %><% end %>
 
-<% form_for :player, @player, :url => { :action => :update, :id => @player } do |f| %>
+<%= form_for @player, :url => { :action => :update, :id => @player } do |f| %>
   <%= render :partial => "form", :locals => { :f => f } %>
   <%= submit_tag _("Update") %>
 <% end %>

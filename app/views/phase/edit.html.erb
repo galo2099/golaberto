@@ -2,7 +2,7 @@
 
 <%= error_messages_for 'phase', 'group'  %>
 
-<% form_for :phase, @phase, :url => { :action => :update, :id => @phase } do |p| %>
+<%= form_for @phase, :url => { :action => :update, :id => @phase } do |p| %>
   <table>
     <tr><td><%= _("Name") %>:</td><td><%= p.text_field :name %></td></tr>
     <tr><td><%= _("Sort") %>:</td><td>

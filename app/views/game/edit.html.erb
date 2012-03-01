@@ -42,7 +42,7 @@ EOF
 <% end %>
 <h2><%= @game.phase.name %></h2>
 
-<% form_for :game, @game, :url => { :action => "update", :id => @game} do |g| %>
+<%= form_for @game, :url => { :action => "update", :id => @game} do |g| %>
   <%= hidden_field_tag "redirect", @redirect if @redirect %>
   <table>
     <tr>
@@ -159,7 +159,7 @@ EOF
     </tr>
     <tr>
       <td><%= _("Date") %>:</td>
-      <td><%= date_field :game, :date, :value => @game.date ? @game.date : "", :format => "%d/%m/%Y", :size => 10 %>
+      <td><%= g.date_select :date %>
       <%= button_to_function _("Today") do |page|
             page[:game_date].value = Date.today.strftime("%d/%m/%Y");
           end %></td>
