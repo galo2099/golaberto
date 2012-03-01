@@ -79,7 +79,7 @@
 <%= render :partial => "comment/comments", :locals => { :object => @team } %>
 
 <% content_for :sidebar do %>
-  <% if logged_in? and current_user.can_edit? %>
+  <% if can? :manage, @team %>
     <%= link_to _("Edit team"), :action => :edit, :id => @team %><br/>
     <%= link_to _("Delete team"), { :action => :destroy, :id => @team }, :confirm => _('Are you sure?'), :method => :post %><br/>
     <br/>

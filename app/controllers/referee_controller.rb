@@ -1,7 +1,7 @@
 class RefereeController < ApplicationController
   N_("Referee")
 
-  require_role "editor", :except => [ :index, :list, :show ]
+  authorize_resource
 
   def index
     redirect_to :action => :list

@@ -1,6 +1,8 @@
 class HomeController < ApplicationController
   N_("Home")
 
+  authorize_resource :class => false
+
   def index
     @today = Date.today
     @championships = Championship.find :all,

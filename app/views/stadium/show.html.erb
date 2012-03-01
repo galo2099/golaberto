@@ -27,7 +27,7 @@
 <%= render :partial => "comment/comments", :locals => { :object => @stadium } %>
 
 <% content_for :sidebar do %>
-  <% if logged_in? and current_user.can_edit? %>
+  <% if can? :manage, @stadium %>
     <%= link_to _("Edit"), :action => :edit, :id => @stadium %>
   <% end %>
 <% end %>

@@ -1,7 +1,7 @@
 class PlayerController < ApplicationController
   N_("Player")
 
-  require_role "editor", :except => [ :index, :list, :show ]
+  authorize_resource
 
   def index
     list

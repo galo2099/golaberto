@@ -1,16 +1,16 @@
 # Filters added to this controller will be run for all controllers in the application.
 # Likewise, all the methods added will be available for all controllers.
+require 'authenticated_system'
 class ApplicationController < ActionController::Base
-  protect_from_forgery
-  require 'authenticated_system'
-  require 'role_requirement_system'
   include AuthenticatedSystem
-  include RoleRequirementSystem
   include Userstamp
 
   before_filter :set_gettext_locale
   before_filter :set_current_user
   before_filter :update_last_login
+
+  check_authorization
+  protect_from_forgery
 
   private
   def set_current_user

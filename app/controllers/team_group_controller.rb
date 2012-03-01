@@ -2,7 +2,7 @@ class TeamGroupController < ApplicationController
   N_("TeamGroup")
 
   scaffold :team_group
-  require_role "editor", :except => [ :index, :list, :show ]
+  authorize_resource
 
   def index
     list

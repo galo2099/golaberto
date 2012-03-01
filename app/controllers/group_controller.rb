@@ -1,7 +1,7 @@
 class GroupController < ApplicationController
   N_("Group")
 
-  require_role "editor"
+  authorize_resource
 
   def edit
     @group = Group.find(params["id"])

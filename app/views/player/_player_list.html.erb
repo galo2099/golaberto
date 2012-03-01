@@ -8,7 +8,7 @@
     <tr>
       <td><%= link_to player.name, :action => :show, :id => player %></td>
       <td><%= player.position %></td>
-      <% if logged_in? and current_user.can_edit? %>
+      <% if can? :manage, player %>
         <td><%= link_to _('Edit'), :action => 'edit', :id => player %></td>
         <td><%= link_to _('Destroy'), { :action => 'destroy', :id => player }, :confirm => _('Are you sure?'), :post => true %></td>
       <% end %>

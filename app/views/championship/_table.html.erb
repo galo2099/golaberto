@@ -16,7 +16,7 @@
       h group.name
     end%></span></h3>
   </div>
-  <% if logged_in? and current_user.can_edit? and !(omit_columns[:OP] and omit_columns[:PP] and omit_columns[:RP]) then %>
+  <% if can?(:manage, group) and !(omit_columns[:OP] and omit_columns[:PP] and omit_columns[:RP]) then %>
     <div id="recalculate<%= group.id %>" style="position: absolute; bottom: 0px; right: 0px;">
       <%= render :partial => "recalculate_button", :locals => { :group => group } %>
     </div>

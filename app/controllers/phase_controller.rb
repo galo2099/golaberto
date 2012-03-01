@@ -1,7 +1,7 @@
 class PhaseController < ApplicationController
   N_("Phase")
 
-  require_role "editor"
+  authorize_resource
 
   def new
     @phase = Phase.new

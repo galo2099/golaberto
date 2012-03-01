@@ -1,7 +1,7 @@
 class TeamController < ApplicationController
   N_("Team")
 
-  require_role "editor", :except => [ :index, :list, :show, :games ]
+  authorize_resource
 
   def index
     redirect_to :action => :list

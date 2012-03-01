@@ -1,5 +1,5 @@
 <% @current_phase ||= @championship.phases[-1] %>
-<% if logged_in? and current_user.can_edit? %>
+<% if can? :manage, @championship %>
   <%= link_to _("Edit championship"), :action => "edit", :id => @championship %><br/>
 <%= link_to _("New game"), :action => :new_game, :id => @championship,
                         :phase => @current_phase %><br/>

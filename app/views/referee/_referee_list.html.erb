@@ -8,7 +8,7 @@
     <tr>
       <td><%= link_to referee.name, :action => :show, :id => referee %></td>
       <td><%= referee.location %></td>
-      <% if logged_in? and current_user.can_edit? %>
+      <% if can? :manage, referee %>
         <td><%= link_to _('Edit'), :action => 'edit', :id => referee %></td>
         <td><%= link_to _('Destroy'), { :action => 'destroy', :id => referee }, :confirm => _('Are you sure?'), :post => true %></td>
       <% end %>

@@ -38,6 +38,7 @@ gem 'jquery-rails'
 
 gem "activerecord-diff", git: "https://github.com/galo2099/activerecord-diff.git"
 gem "acts_as_versioned", git: "https://github.com/luismreis/acts_as_versioned.git"
+gem "cancan"
 gem "exception_notification"
 gem "gettext_i18n_rails"
 #gem "newrelic_rpm"

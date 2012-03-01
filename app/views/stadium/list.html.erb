@@ -15,7 +15,7 @@
 <br/>
 
 <% content_for :sidebar do %>
-  <% if logged_in? and current_user.can_edit? %>
+  <% if can? :manage, :stadium %>
     <%= link_to _('New stadium'), :action => 'new' %>
   <% end %>
 <% end %>

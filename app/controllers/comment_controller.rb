@@ -1,7 +1,7 @@
 class CommentController < ApplicationController
   N_("Comment")
 
-  require_role "commenter"
+  authorize_resource
 
   def new
     type = params[:type].classify.constantize

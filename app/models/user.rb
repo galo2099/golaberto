@@ -41,19 +41,9 @@ class User < ActiveRecord::Base
   end
 
   # has_role? simply needs to return true or false whether a user has a role or not.
-  # It may be a good idea to have "admin" roles return true always
   def has_role?(role_in_question)
     @_list ||= self.roles.collect(&:name)
-    return true if @_list.include?("admin")
     (@_list.include?(role_in_question.to_s) )
-  end
-
-  def can_comment?
-    has_role?("commenter")
-  end
-
-  def can_edit?
-    has_role?("editor")
   end
 
   # Encrypts the password with the user salt
@@ -73,13 +63,13 @@ class User < ActiveRecord::Base
   def remember_me
     self.remember_token_expires_at = 2.weeks.from_now.utc
     self.remember_token            = encrypt("#{email}--#{remember_token_expires_at}")
-    save(false)
+    save(:validate => false)
   end
 
   def forget_me
     self.remember_token_expires_at = nil
     self.remember_token            = nil
-    save(false)
+    save(:validate => false)
   end
 
   def display_login

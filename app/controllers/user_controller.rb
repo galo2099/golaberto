@@ -1,5 +1,5 @@
 class UserController < ApplicationController
-  before_filter :editing_himself?, :only => [ :edit, :update ]
+  authorize_resource
 
   def show
     @user = User.find(params[:id])
@@ -36,10 +36,4 @@ class UserController < ApplicationController
   rescue ActiveRecord::RecordInvalid
     render :action => :edit
   end
-
-  private
-    def editing_himself?
-      return access_denied unless User.find(params[:id]) == current_user
-      true
-    end
 end

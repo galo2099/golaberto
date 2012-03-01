@@ -1,7 +1,7 @@
 class GameController < ApplicationController
   N_("Game")
 
-  require_role "editor", :except => [ :show, :list, :index ]
+  authorize_resource
 
   def show
     @game = Game.find(params["id"])

@@ -3,9 +3,7 @@ require 'digest/sha1'
 class ChampionshipController < ApplicationController
   N_("Championship")
 
-  require_role "editor", :except => [ :index, :list, :show, :phases,
-                                      :crowd, :team, :games, :team_json,
-                                      :top_goalscorers ]
+  authorize_resource
 
   def index
     redirect_to :action => :list
