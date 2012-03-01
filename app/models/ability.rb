@@ -7,7 +7,7 @@ class Ability
     user ||= User.new # guest user (not logged in)
     if user.has_role?("editor")
       can :manage, :all
-      cannot :manage, :users
+      cannot :manage, User
     end
 
     if user.has_role?("commenter")

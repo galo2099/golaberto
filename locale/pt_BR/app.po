@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: version 0.0.1\n"
-"POT-Creation-Date: 2012-02-26 21:45-0800\n"
+"POT-Creation-Date: 2012-02-29 23:45-0800\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: Robson Braga Araujo <robsonbraga@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -26,17 +26,8 @@ msgstr "%A, %d/%m/%Y às %H:%M"
 msgid "%B %d, %Y"
 msgstr "%d de %B de %Y"
 
-msgid "%Y-%m-%d"
-msgstr "%Y-%m-%d"
-
-msgid "%a %b %e %H:%M:%S %Y"
-msgstr "%a %b %e %H:%M:%S %Y"
-
 msgid "%d%% done."
 msgstr "%d%% pronto."
-
-msgid "%m/%d/%y"
-msgstr "%d/%m/%y"
 
 msgid "%s - %d points<br>%s %d x %d %s"
 msgstr "%s - %d pontos<br>%s %d x %d %s"
@@ -65,9 +56,6 @@ msgstr "%{num} anos"
 msgid "%{time} ago"
 msgstr "%{time} atrás"
 
-msgid "&laquo; Previous"
-msgstr "&laquo; Anterior"
-
 # app/models/goal.rb:-
 msgid "(own_goal)"
 msgstr "(gol contra)"
@@ -77,12 +65,6 @@ msgstr "(pênalti)"
 
 msgid "1%"
 msgstr "1%"
-
-msgid "AM"
-msgstr "AM"
-
-msgid "Abbr|May"
-msgstr "Mai"
 
 msgid "Account"
 msgstr "Conta"
@@ -145,12 +127,6 @@ msgstr "Anguilla"
 msgid "Antigua And Barbuda"
 msgstr "Antígua e Barbuda"
 
-msgid "Apr"
-msgstr "Abr"
-
-msgid "April"
-msgstr "Abril"
-
 msgid "Are you sure you want to add this player?"
 msgstr "Tem certeza que quer adicionar esse jogador?"
 
@@ -180,12 +156,6 @@ msgstr "Aruba"
 
 msgid "Attendance"
 msgstr "Público"
-
-msgid "Aug"
-msgstr "Ago"
-
-msgid "August"
-msgstr "Agosto"
 
 msgid "Australia"
 msgstr "Austrália"
@@ -421,12 +391,6 @@ msgstr "E"
 msgid "Date"
 msgstr "Data"
 
-msgid "Dec"
-msgstr "Dez"
-
-msgid "December"
-msgstr "Dezembro"
-
 msgid "Delete"
 msgstr "Apagar"
 
@@ -525,12 +489,6 @@ msgstr "Ilhas Malvinas"
 msgid "Faroe Islands"
 msgstr "Ilhas Feroe"
 
-msgid "Feb"
-msgstr "Fev"
-
-msgid "February"
-msgstr "Fevereiro"
-
 msgid "Fiji"
 msgstr "Fiji"
 
@@ -554,12 +512,6 @@ msgstr "Polinésia Francesa"
 
 msgid "French Southern Territories"
 msgstr "Terras Austrais e Antárticas Francesas"
-
-msgid "Fri"
-msgstr "Sex"
-
-msgid "Friday"
-msgstr "Sexta"
 
 msgid "From"
 msgstr "De"
@@ -722,29 +674,11 @@ msgstr "Itália"
 msgid "Jamaica"
 msgstr "Jamaica"
 
-msgid "Jan"
-msgstr "Jan"
-
-msgid "January"
-msgstr "Janeiro"
-
 msgid "Japan"
 msgstr "Japão"
 
 msgid "Jordan"
 msgstr "Jordânia"
-
-msgid "Jul"
-msgstr "Jul"
-
-msgid "July"
-msgstr "Julho"
-
-msgid "Jun"
-msgstr "Jun"
-
-msgid "June"
-msgstr "Junho"
 
 msgid "Kazakhstan"
 msgstr "Cazaquistão"
@@ -882,12 +816,6 @@ msgstr "Mali"
 msgid "Malta"
 msgstr "Malta"
 
-msgid "Mar"
-msgstr "Mar"
-
-msgid "March"
-msgstr "Março"
-
 msgid "Marshall Islands"
 msgstr "Ilhas Marshall"
 
@@ -921,23 +849,14 @@ msgstr "Mínimo"
 msgid "Moldova, Republic of"
 msgstr "Moldávia"
 
-msgid "Mon"
-msgstr "Seg"
-
 msgid "Monaco"
 msgstr "Mônaco"
-
-msgid "Monday"
-msgstr "Segunda"
 
 msgid "Mongolia"
 msgstr "Mongólia"
 
 msgid "Montenegro"
 msgstr "Montenegro"
-
-msgid "Month|May"
-msgstr "Maio"
 
 msgid "Montserrat"
 msgstr "Montserrat"
@@ -1021,9 +940,6 @@ msgstr "Nova equipe"
 msgid "New team_group"
 msgstr "Novo equipe_grupo"
 
-msgid "Next &raquo;"
-msgstr "Próximo &raquo;"
-
 msgid "Next game"
 msgid_plural "Next %{num} games"
 msgstr[0] "Próximo jogo"
@@ -1068,12 +984,6 @@ msgstr "Marianas Setentrionais"
 msgid "Norway"
 msgstr "Noruega"
 
-msgid "Nov"
-msgstr "Nov"
-
-msgid "November"
-msgstr "Novembro"
-
 msgid "Now you can <a href='%{signup_link}'>sign up</a> and leave comments on the site."
 msgstr "Você agora pode <a href='%{signup_link}'>se cadastrar</a> e deixar comentários no site."
 
@@ -1083,12 +993,6 @@ msgstr "Número de equipes"
 # app/models/user.rb:-
 msgid "Observation"
 msgstr "Observação"
-
-msgid "Oct"
-msgstr "Out"
-
-msgid "October"
-msgstr "Outubro"
 
 msgid "Odds being recalculated"
 msgstr "Chances sendo calculadas"
@@ -1116,9 +1020,6 @@ msgstr "Gols contra"
 
 msgid "P%"
 msgstr "C%"
-
-msgid "PM"
-msgstr "PM"
 
 msgid "Pakistan"
 msgstr "Paquistão"
@@ -1318,12 +1219,6 @@ msgstr "San Marino"
 msgid "Sao Tome and Principe"
 msgstr "São Tomé e Príncipe"
 
-msgid "Sat"
-msgstr "Sab"
-
-msgid "Saturday"
-msgstr "Sábado"
-
 msgid "Saudi Arabia"
 msgstr "Arábia Saudita"
 
@@ -1338,12 +1233,6 @@ msgstr "Procurar"
 
 msgid "Senegal"
 msgstr "Senegal"
-
-msgid "Sep"
-msgstr "Set"
-
-msgid "September"
-msgstr "Setembro"
 
 msgid "Serbia"
 msgstr "Sérvia"
@@ -1431,12 +1320,6 @@ msgstr "Estatísticas"
 msgid "Sudan"
 msgstr "Sudão"
 
-msgid "Sun"
-msgstr "Dom"
-
-msgid "Sunday"
-msgstr "Domingo"
-
 msgid "Suriname"
 msgstr "Suriname"
 
@@ -1493,12 +1376,6 @@ msgid_plural "This user has made %{num_edits} edits to this date."
 msgstr[0] "Este usuário fez %{num_edits} edição até hoje."
 msgstr[1] "Este usuário fez %{num_edits} edições até hoje."
 
-msgid "Thu"
-msgstr "Qui"
-
-msgid "Thursday"
-msgstr "Quinta"
-
 msgid "To"
 msgstr "Até"
 
@@ -1519,12 +1396,6 @@ msgstr "Maiores Artilheiros"
 
 msgid "Trinidad and Tobago"
 msgstr "Trindade e Tobago"
-
-msgid "Tue"
-msgstr "Ter"
-
-msgid "Tuesday"
-msgstr "Terça"
 
 msgid "Tunisia"
 msgstr "Tunísia"
@@ -1623,20 +1494,11 @@ msgstr "País de Gales"
 msgid "Wallis and Futuna Islands"
 msgstr "Wallis e Futuna"
 
-msgid "Wed"
-msgstr "Qua"
-
-msgid "Wednesday"
-msgstr "Quarta"
-
 msgid "Western Sahara"
 msgstr "Saara Ocidental"
 
 msgid "Yemen"
 msgstr "Iêmen"
-
-msgid "You are not authorized to view that page"
-msgstr "Você não está autorizado a ver esta página"
 
 msgid "You can also <a href='%{signup}'>create an account for this site.</a>"
 msgstr "Você também pode <a href='%{signup}'>criar uma conta para este site.</a>"
@@ -1644,8 +1506,8 @@ msgstr "Você também pode <a href='%{signup}'>criar uma conta para este site.</
 msgid "You can create an account for this site using the form below. If you have an %{openid_link} URL, you can <a href='%{login_link}'>log in with OpenID</a> rather than creating an account."
 msgstr "Você pode criar uma conta para este site usando o formulário abaixo. Se você possui uma URL %{openid_link}, você pode <a href='%{login_link}'>se logar com OpenID</a> ao invés de criar uma conta. "
 
-msgid "You can only leave a comment if you're %s"
-msgstr "Voce só pode deixar um comentário se você %s"
+msgid "You can only leave a comment if you're <a href='%{signup_link}'>logged in</a>"
+msgstr "Voce só pode deixar um comentário se você <a href='%{signup_link}'>se logar</a>"
 
 msgid "You have been logged out."
 msgstr "Você foi desconectado."
@@ -1661,10 +1523,6 @@ msgstr "Zimbábue"
 
 msgid "aet goals"
 msgstr "gols na prorrogação"
-
-# app/models/team.rb:-
-msgid "am"
-msgstr "am"
 
 msgid "basic html is accepted"
 msgstr "html básico é aceito"
@@ -1695,9 +1553,6 @@ msgstr "gols a favor"
 msgid "head to head"
 msgstr "confronto direto"
 
-msgid "logged in"
-msgstr "se logar"
-
 msgid "name"
 msgstr "nome"
 
@@ -1719,14 +1574,41 @@ msgstr "só usado para mostrar sua idade"
 msgid "penalty goals"
 msgstr "gols de pênalti"
 
-msgid "pm"
-msgstr "pm"
-
 msgid "points"
 msgstr "pontos"
 
 msgid "wins"
 msgstr "vitórias"
+
+#~ msgid "%Y-%m-%d"
+#~ msgstr "%Y-%m-%d"
+
+#~ msgid "%a %b %e %H:%M:%S %Y"
+#~ msgstr "%a %b %e %H:%M:%S %Y"
+
+#~ msgid "%m/%d/%y"
+#~ msgstr "%d/%m/%y"
+
+#~ msgid "&laquo; Previous"
+#~ msgstr "&laquo; Anterior"
+
+#~ msgid "AM"
+#~ msgstr "AM"
+
+#~ msgid "Abbr|May"
+#~ msgstr "Mai"
+
+#~ msgid "Apr"
+#~ msgstr "Abr"
+
+#~ msgid "April"
+#~ msgstr "Abril"
+
+#~ msgid "Aug"
+#~ msgstr "Ago"
+
+#~ msgid "August"
+#~ msgstr "Agosto"
 
 # app/models/category.rb:-
 #~ msgid "Category|Name"
@@ -1783,6 +1665,12 @@ msgstr "vitórias"
 #~ msgid "Comment|User"
 #~ msgstr "Usuário"
 
+#~ msgid "Dec"
+#~ msgstr "Dez"
+
+#~ msgid "December"
+#~ msgstr "Dezembro"
+
 # app/models/user.rb:-
 #~ msgid "Delayed::Job|Created at"
 #~ msgstr "Criado em"
@@ -1790,6 +1678,18 @@ msgstr "vitórias"
 # app/models/game.rb:-
 #~ msgid "Delayed::Job|Updated at"
 #~ msgstr "Atualizado em"
+
+#~ msgid "Feb"
+#~ msgstr "Fev"
+
+#~ msgid "February"
+#~ msgstr "Fevereiro"
+
+#~ msgid "Fri"
+#~ msgstr "Sex"
+
+#~ msgid "Friday"
+#~ msgstr "Sexta"
 
 # app/models/game.rb:-
 #~ msgid "Game|Attendance"
@@ -1907,6 +1807,57 @@ msgstr "vitórias"
 #~ msgid "Group|Relegated"
 #~ msgstr "Rebaixados"
 
+#~ msgid "Jan"
+#~ msgstr "Jan"
+
+#~ msgid "January"
+#~ msgstr "Janeiro"
+
+#~ msgid "Jul"
+#~ msgstr "Jul"
+
+#~ msgid "July"
+#~ msgstr "Julho"
+
+#~ msgid "Jun"
+#~ msgstr "Jun"
+
+#~ msgid "June"
+#~ msgstr "Junho"
+
+#~ msgid "Mar"
+#~ msgstr "Mar"
+
+#~ msgid "March"
+#~ msgstr "Março"
+
+#~ msgid "Mon"
+#~ msgstr "Seg"
+
+#~ msgid "Monday"
+#~ msgstr "Segunda"
+
+#~ msgid "Month|May"
+#~ msgstr "Maio"
+
+#~ msgid "Next &raquo;"
+#~ msgstr "Próximo &raquo;"
+
+#~ msgid "Nov"
+#~ msgstr "Nov"
+
+#~ msgid "November"
+#~ msgstr "Novembro"
+
+#~ msgid "Oct"
+#~ msgstr "Out"
+
+#~ msgid "October"
+#~ msgstr "Outubro"
+
+#~ msgid "PM"
+#~ msgstr "PM"
+
 # app/models/phase.rb:-
 #~ msgid "Phase|Bonus points"
 #~ msgstr "Pontos de bônus"
@@ -1999,6 +1950,18 @@ msgstr "vitórias"
 #~ msgid "Role|Name"
 #~ msgstr "Nome"
 
+#~ msgid "Sat"
+#~ msgstr "Sab"
+
+#~ msgid "Saturday"
+#~ msgstr "Sábado"
+
+#~ msgid "Sep"
+#~ msgstr "Set"
+
+#~ msgid "September"
+#~ msgstr "Setembro"
+
 # app/models/stadium.rb:-
 #~ msgid "Stadium|City"
 #~ msgstr "Cidade"
@@ -2014,6 +1977,12 @@ msgstr "vitórias"
 # app/models/stadium.rb:-
 #~ msgid "Stadium|Name"
 #~ msgstr "Nome"
+
+#~ msgid "Sun"
+#~ msgstr "Dom"
+
+#~ msgid "Sunday"
+#~ msgstr "Domingo"
 
 # app/models/team_group.rb:-
 #~ msgid "TeamGroup|Add sub"
@@ -2087,6 +2056,18 @@ msgstr "vitórias"
 #~ msgid "Team|Stadium"
 #~ msgstr "Estádio"
 
+#~ msgid "Thu"
+#~ msgstr "Qui"
+
+#~ msgid "Thursday"
+#~ msgstr "Quinta"
+
+#~ msgid "Tue"
+#~ msgstr "Ter"
+
+#~ msgid "Tuesday"
+#~ msgstr "Terça"
+
 # app/models/user.rb:-
 #~ msgid "User|About me"
 #~ msgstr "Sobre mim"
@@ -2143,6 +2124,19 @@ msgstr "vitórias"
 #~ msgid "User|Updated at"
 #~ msgstr "Atualizado em"
 
+#~ msgid "Wed"
+#~ msgstr "Qua"
+
+#~ msgid "Wednesday"
+#~ msgstr "Quarta"
+
+#~ msgid "You are not authorized to view that page"
+#~ msgstr "Você não está autorizado a ver esta página"
+
+# app/models/team.rb:-
+#~ msgid "am"
+#~ msgstr "am"
+
 # app/models/category.rb:-
 #~ msgid "category"
 #~ msgstr "categoria"
@@ -2167,6 +2161,9 @@ msgstr "vitórias"
 #~ msgid "group"
 #~ msgstr "grupo"
 
+#~ msgid "logged in"
+#~ msgstr "se logar"
+
 # app/models/phase.rb:-
 #~ msgid "phase"
 #~ msgstr "fase"
@@ -2178,6 +2175,9 @@ msgstr "vitórias"
 # app/models/player_game.rb:-
 #~ msgid "player game"
 #~ msgstr "jogador jogo"
+
+#~ msgid "pm"
+#~ msgstr "pm"
 
 # app/models/referee.rb:-
 #~ msgid "referee"

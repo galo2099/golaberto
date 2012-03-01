@@ -1,7 +1,7 @@
 class CommentController < ApplicationController
   N_("Comment")
 
-  authorize_resource
+  load_and_authorize_resource
 
   def new
     type = params[:type].classify.constantize
@@ -14,7 +14,6 @@ class CommentController < ApplicationController
   end
 
   def destroy
-    @comment = Comment.find(params[:id])
     if current_user == @comment.user
       @comment.destroy
     else

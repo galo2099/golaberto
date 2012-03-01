@@ -10,7 +10,7 @@
 </div>
 
 <% content_for :sidebar do %>
-  <% if can? :manage, :team %>
+  <% if can? :create, Team %>
     <%= link_to _('New team'), :action => 'new' %>
   <% end %>
 <% end %>

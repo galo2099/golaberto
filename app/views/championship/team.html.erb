@@ -80,7 +80,7 @@
         <td><%= p[:goals] %></td>
         <td><%= p[:own_goals] %></td>
         <td><%= p[:penalties] %></td>
-        <td><% if can? :manage, :game %>
+        <td><% if can? :manage, Game %>
           <%= link_to_remote(
                       _('Remove'), :url => { :controller => :player,
                                           :action => :destroy_team,

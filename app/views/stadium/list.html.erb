@@ -15,7 +15,7 @@
 <br/>
 
 <% content_for :sidebar do %>
-  <% if can? :manage, :stadium %>
+  <% if can? :create, Stadium %>
     <%= link_to _('New stadium'), :action => 'new' %>
   <% end %>
 <% end %>

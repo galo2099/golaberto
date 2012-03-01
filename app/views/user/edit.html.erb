@@ -7,13 +7,13 @@
   <%= @user.display_name %>
 <% end %>
 
-<% form_for :user, @user, :url => { :action => :update, :id => @user }, :html => { :multipart => true } do |f| %>
+<%= form_for @user, :url => { :action => :update, :id => @user }, :html => { :multipart => true } do |f| %>
   <table>
     <tr><td><%= f.label :name %>:</td><td><%= f.text_field :name %></td></tr>
     <tr><td><%= f.label :email %>:</td><td><%= f.text_field :email %></td></tr>
     <tr><td></td><td style="font-size: small"><%= _("never displayed, no spam, used for password recovery") %></td></tr>
     <tr><td><%= f.label :location %>:</td><td><%= f.text_field :location %></td></tr>
-    <tr><td><%= f.label :birthday %>:</td><td><%= date_field :user, :birthday, :value => @user.birthday, :size => 10, :format => "%d/%m/%Y" %>
+    <tr><td><%= f.label :birthday %>:</td><td><%= f.date_select :birthday, :start_year => 1800, :include_blank => true %>
         <span style="font-size: small"><%= _("only used to show your age") %></span></td></tr>
     <% if @user.login %>
       <tr><td><%= f.label :login %>:</td><td><%= h @user.login %></td></tr>

@@ -15,7 +15,7 @@
 <br/>
 
 <% content_for :sidebar do %>
-  <% if can? :manage, :referee %>
+  <% if can? :create, Referee %>
     <%= link_to _('New referee'), :action => 'new' %>
   <% end %>
 <% end %>

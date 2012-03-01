@@ -15,7 +15,7 @@
 <br/>
 
 <% content_for :sidebar do %>
-  <% if can? :manage, :player %>
+  <% if can? :create, Player %>
     <%= link_to _('New player'), :action => 'new' %>
   <% end %>
 <% end %>

@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: version 0.0.1\n"
-"POT-Creation-Date: 2012-02-26 21:45-0800\n"
+"POT-Creation-Date: 2012-02-29 23:45-0800\n"
 "PO-Revision-Date: 2012-02-26 08:31-0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -26,16 +26,7 @@ msgstr ""
 msgid "%B %d, %Y"
 msgstr ""
 
-msgid "%Y-%m-%d"
-msgstr ""
-
-msgid "%a %b %e %H:%M:%S %Y"
-msgstr ""
-
 msgid "%d%% done."
-msgstr ""
-
-msgid "%m/%d/%y"
 msgstr ""
 
 msgid "%s - %d points<br>%s %d x %d %s"
@@ -65,9 +56,6 @@ msgstr ""
 msgid "%{time} ago"
 msgstr ""
 
-msgid "&laquo; Previous"
-msgstr ""
-
 msgid "(own_goal)"
 msgstr ""
 
@@ -75,12 +63,6 @@ msgid "(penalty)"
 msgstr ""
 
 msgid "1%"
-msgstr ""
-
-msgid "AM"
-msgstr ""
-
-msgid "Abbr|May"
 msgstr ""
 
 msgid "Account"
@@ -143,12 +125,6 @@ msgstr ""
 msgid "Antigua And Barbuda"
 msgstr ""
 
-msgid "Apr"
-msgstr ""
-
-msgid "April"
-msgstr ""
-
 msgid "Are you sure you want to add this player?"
 msgstr ""
 
@@ -177,12 +153,6 @@ msgid "Aruba"
 msgstr ""
 
 msgid "Attendance"
-msgstr ""
-
-msgid "Aug"
-msgstr ""
-
-msgid "August"
 msgstr ""
 
 msgid "Australia"
@@ -413,12 +383,6 @@ msgstr ""
 msgid "Date"
 msgstr ""
 
-msgid "Dec"
-msgstr ""
-
-msgid "December"
-msgstr ""
-
 msgid "Delete"
 msgstr ""
 
@@ -515,12 +479,6 @@ msgstr ""
 msgid "Faroe Islands"
 msgstr ""
 
-msgid "Feb"
-msgstr ""
-
-msgid "February"
-msgstr ""
-
 msgid "Fiji"
 msgstr ""
 
@@ -543,12 +501,6 @@ msgid "French Polynesia"
 msgstr ""
 
 msgid "French Southern Territories"
-msgstr ""
-
-msgid "Fri"
-msgstr ""
-
-msgid "Friday"
 msgstr ""
 
 msgid "From"
@@ -704,28 +656,10 @@ msgstr ""
 msgid "Jamaica"
 msgstr ""
 
-msgid "Jan"
-msgstr ""
-
-msgid "January"
-msgstr ""
-
 msgid "Japan"
 msgstr ""
 
 msgid "Jordan"
-msgstr ""
-
-msgid "Jul"
-msgstr ""
-
-msgid "July"
-msgstr ""
-
-msgid "Jun"
-msgstr ""
-
-msgid "June"
 msgstr ""
 
 msgid "Kazakhstan"
@@ -862,12 +796,6 @@ msgstr ""
 msgid "Malta"
 msgstr ""
 
-msgid "Mar"
-msgstr ""
-
-msgid "March"
-msgstr ""
-
 msgid "Marshall Islands"
 msgstr ""
 
@@ -901,22 +829,13 @@ msgstr ""
 msgid "Moldova, Republic of"
 msgstr ""
 
-msgid "Mon"
-msgstr ""
-
 msgid "Monaco"
-msgstr ""
-
-msgid "Monday"
 msgstr ""
 
 msgid "Mongolia"
 msgstr ""
 
 msgid "Montenegro"
-msgstr ""
-
-msgid "Month|May"
 msgstr ""
 
 msgid "Montserrat"
@@ -1000,9 +919,6 @@ msgstr ""
 msgid "New team_group"
 msgstr ""
 
-msgid "Next &raquo;"
-msgstr ""
-
 msgid "Next game"
 msgid_plural "Next %{num} games"
 msgstr[0] ""
@@ -1047,12 +963,6 @@ msgstr ""
 msgid "Norway"
 msgstr ""
 
-msgid "Nov"
-msgstr ""
-
-msgid "November"
-msgstr ""
-
 msgid "Now you can <a href='%{signup_link}'>sign up</a> and leave comments on the site."
 msgstr ""
 
@@ -1060,12 +970,6 @@ msgid "Number of teams"
 msgstr ""
 
 msgid "Observation"
-msgstr ""
-
-msgid "Oct"
-msgstr ""
-
-msgid "October"
 msgstr ""
 
 msgid "Odds being recalculated"
@@ -1093,9 +997,6 @@ msgid "Own Goals"
 msgstr ""
 
 msgid "P%"
-msgstr ""
-
-msgid "PM"
 msgstr ""
 
 msgid "Pakistan"
@@ -1286,12 +1187,6 @@ msgstr ""
 msgid "Sao Tome and Principe"
 msgstr ""
 
-msgid "Sat"
-msgstr ""
-
-msgid "Saturday"
-msgstr ""
-
 msgid "Saudi Arabia"
 msgstr ""
 
@@ -1305,12 +1200,6 @@ msgid "Search"
 msgstr ""
 
 msgid "Senegal"
-msgstr ""
-
-msgid "Sep"
-msgstr ""
-
-msgid "September"
 msgstr ""
 
 msgid "Serbia"
@@ -1397,12 +1286,6 @@ msgstr ""
 msgid "Sudan"
 msgstr ""
 
-msgid "Sun"
-msgstr ""
-
-msgid "Sunday"
-msgstr ""
-
 msgid "Suriname"
 msgstr ""
 
@@ -1458,12 +1341,6 @@ msgid_plural "This user has made %{num_edits} edits to this date."
 msgstr[0] ""
 msgstr[1] ""
 
-msgid "Thu"
-msgstr ""
-
-msgid "Thursday"
-msgstr ""
-
 msgid "To"
 msgstr ""
 
@@ -1483,12 +1360,6 @@ msgid "Top Goalscorers"
 msgstr ""
 
 msgid "Trinidad and Tobago"
-msgstr ""
-
-msgid "Tue"
-msgstr ""
-
-msgid "Tuesday"
 msgstr ""
 
 msgid "Tunisia"
@@ -1587,19 +1458,10 @@ msgstr ""
 msgid "Wallis and Futuna Islands"
 msgstr ""
 
-msgid "Wed"
-msgstr ""
-
-msgid "Wednesday"
-msgstr ""
-
 msgid "Western Sahara"
 msgstr ""
 
 msgid "Yemen"
-msgstr ""
-
-msgid "You are not authorized to view that page"
 msgstr ""
 
 msgid "You can also <a href='%{signup}'>create an account for this site.</a>"
@@ -1608,7 +1470,7 @@ msgstr ""
 msgid "You can create an account for this site using the form below. If you have an %{openid_link} URL, you can <a href='%{login_link}'>log in with OpenID</a> rather than creating an account."
 msgstr ""
 
-msgid "You can only leave a comment if you're %s"
+msgid "You can only leave a comment if you're <a href='%{signup_link}'>logged in</a>"
 msgstr ""
 
 msgid "You have been logged out."
@@ -1624,9 +1486,6 @@ msgid "Zimbabwe"
 msgstr ""
 
 msgid "aet goals"
-msgstr ""
-
-msgid "am"
 msgstr ""
 
 msgid "basic html is accepted"
@@ -1656,9 +1515,6 @@ msgstr ""
 msgid "head to head"
 msgstr ""
 
-msgid "logged in"
-msgstr ""
-
 msgid "name"
 msgstr ""
 
@@ -1678,9 +1534,6 @@ msgid "only used to show your age"
 msgstr ""
 
 msgid "penalty goals"
-msgstr ""
-
-msgid "pm"
 msgstr ""
 
 msgid "points"
