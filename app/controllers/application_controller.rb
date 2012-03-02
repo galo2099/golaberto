@@ -12,6 +12,11 @@ class ApplicationController < ActionController::Base
   check_authorization
   protect_from_forgery
 
+  rescue_from CanCan::AccessDenied do |exception|
+    flash[:notice] = _("Access denied!")
+    redirect_to root_url
+  end
+
   private
   def set_current_user
     User.current_user = current_user
