@@ -1,3 +1,4 @@
+require 'poisson'
 class Group < ActiveRecord::Base
   belongs_to :phase
   has_many :team_groups, :dependent => :delete_all, :include => :team, :order => "teams.name ASC"

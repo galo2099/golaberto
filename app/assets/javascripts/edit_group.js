@@ -20,7 +20,7 @@ function update_team_groups(size, teams, ordered_teams, current_data) {
   } else if (size > current_size) {
     for (var i = current_size; i < size; ++i) {
       var team_group = jQuery("<tr class='team_group'></tr>")
-        .append("<td><img class='team_group_icon' src='/images/blank.gif' height='15px' width='15px' /></td>")
+        .append("<td><img class='team_group_icon' src='/assets/blank.gif' height='15px' width='15px' /></td>")
         .append("<td><input size='30' class='team_group_name' /><input type='hidden' class='team_group_id' name='team_group[" + i + "][team_id]' /></td>")
         .append("<td><input size='2' class='team_group_add_sub' name='team_group[" + i + "][add_sub]' /></td>")
         .append("<td><input size='2' class='team_group_bias' name='team_group[" + i + "][bias]' /></td>")
@@ -63,14 +63,14 @@ function initialize_team_group(team_group, teams, ordered_teams, current_data) {
     select: function(event, ui) {
       id.val(ui.item.id);
       name.val(ui.item.value);
-      icon.attr('src', '/images/logos/' + ui.item.icon);
+      icon.attr('src', '/assets/logos/' + ui.item.icon);
       return false;
     },
     change: function(event, ui) {
       if (!ui.item) {
         id.val(null);
         name.val(null);
-        icon.attr('src', '/images/blank.gif');
+        icon.attr('src', '/assets/blank.gif');
       }
     },
     delay: 0,
@@ -84,7 +84,7 @@ function initialize_team_group(team_group, teams, ordered_teams, current_data) {
     comment.val(current_data.comment);
     id.val(current_data.team_id);
     name.val(teams[current_data.team_id].name);
-    icon.attr('src', '/images/logos/' + teams[current_data.team_id].icon);
+    icon.attr('src', '/assets/logos/' + teams[current_data.team_id].icon);
   }
 }
 

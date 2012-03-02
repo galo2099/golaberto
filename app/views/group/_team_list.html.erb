@@ -12,7 +12,7 @@
 <table id="team_groups">
   <tr><th></th><th><%= _("Team") %></th><th><%= _("Bonus") %></th><th><%= _("Bias") %></th><th><%= _("Observation") %></th></tr>
 </table>
-<%= javascript_include_merged :edit_group %>
+<%= javascript_include_tag "edit_group" %>
 <script type="text/javascript">
 var teams = {
 <% @teams.each do |team| %>
@@ -27,7 +27,7 @@ var ordered_teams = [
 ];
 var current_data = [
 <% @group.team_groups.each do |t| %>
-  <%= t.to_json %>,
+  <%= t.to_json.html_safe %>,
 <% end %>
 ];
 jQuery(function() { update_team_groups(<%= @group.team_groups.size %>, teams, ordered_teams, current_data); });
