@@ -17,12 +17,12 @@ class TeamController < ApplicationController
 
   def edit
     @team = Team.find(params["id"])
-    @stadiums = Stadium.find(:all, :order => :name)
+    @stadiums = Stadium.order(:name)
   end
 
   def games
     store_location
-    @categories = Category.find(:all)
+    @categories = Category.all
     @team = Team.find(params["id"])
     @category = Category.find(params[:category])
     @played = params[:played]
@@ -39,7 +39,7 @@ class TeamController < ApplicationController
       @team.uploaded_logo(params[:logo], params[:filter]) unless params[:logo].to_s.empty?
       redirect_to :action => :show, :id => @team
     rescue
-      @stadiums = Stadium.find(:all, :order => :name)
+      @stadiums = Stadium.order(:name)
       render :action => :edit
     end
   end
@@ -58,7 +58,7 @@ class TeamController < ApplicationController
 
   def new
     @team = Team.new
-    @stadiums = Stadium.find(:all, :order => :name)
+    @stadiums = Stadium.order(:name)
   end
 
   def create
@@ -68,7 +68,7 @@ class TeamController < ApplicationController
       @team.uploaded_logo(params[:logo], params[:filter]) unless params[:logo].to_s.empty?
       redirect_to :action => :show, :id => @team
     rescue
-      @stadiums = Stadium.find(:all, :order => :name)
+      @stadiums = Stadium.order(:name)
       render :action => :new
     end
   end

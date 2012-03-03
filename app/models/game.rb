@@ -6,8 +6,8 @@ class Game < ActiveRecord::Base
   # This module implements a diff with knowledge of associations
   module GameDiff
     def self.included(base)
-      base.diff :include => [ "referee_id", "stadium_id" ],
-                :exclude => [ "version", "updated_at" ]
+      base.diff :include => [ :referee_id, :stadium_id ],
+                :exclude => [ :version, :updated_at ]
       base.class_eval do
         alias_method :diff_without_associations, :diff
         alias_method :diff, :diff_with_association
@@ -129,7 +129,7 @@ class Game < ActiveRecord::Base
     end
 
     def goal_distribution(team, side, score)
-      phase.championship.games.find(:all, :order => :date).select{|g| g.played? and g.send(side) == team and g.date < date}.map{|g| g.send(score)}.inject(Array.new(10, 0)) {|a,x| a.map!{|z|z*0.8}; a[[x, 9].min]+=1;a}
+      phase.championship.games.order(:date).select{|g| g.played? and g.send(side) == team and g.date < date}.map{|g| g.send(score)}.inject(Array.new(10, 0)) {|a,x| a.map!{|z|z*0.8}; a[[x, 9].min]+=1;a}
     end
 
     def home_for
@@ -196,9 +196,9 @@ class Game < ActiveRecord::Base
   end
 
   def find_n_previous_games_by_team_versus_team(n)
-    Game.find :all, :limit => n, :include => { :phase => :championship }, :order => "date desc",
-               :conditions => [ "((home_id = ? and away_id = ?) or (home_id = ? and away_id = ?)) and played = ? and championships.category_id = ? and date < ?",
-                                self.home, self.away, self.away, self.home, true, self.phase.championship.category, self.date ]
+    Game.limit(n).includes(:phase => :championship).order("date desc").
+        where("((home_id = ? and away_id = ?) or (home_id = ? and away_id = ?)) and played = ? and championships.category_id = ? and date < ?",
+                                self.home, self.away, self.away, self.home, true, self.phase.championship.category, self.date)
   end
 
   # Fields information, just FYI.

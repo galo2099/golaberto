@@ -3,7 +3,7 @@
     <%= player_squad.player.name %> - <%= player_squad.player.position %>
   </div>
   <div class="player_attributes" style="display: <%= disabled ? "none" : "inline" %>">
-    <% fields_for :player_game, player_squad, { :disabled => disabled, :index => "#{player_squad.player.id}_#{player_squad.team.id}_#{player_squad.game.id}" } do |f| %>
+    <%= fields_for :player_game, player_squad, { :disabled => disabled, :index => "#{player_squad.player.id}_#{player_squad.team.id}_#{player_squad.game.id}" } do |f| %>
       <%= f.hidden_field :player_id, f.options %>
       <%= f.hidden_field :game_id, f.options %>
       <%= f.hidden_field :team_id, f.options %>

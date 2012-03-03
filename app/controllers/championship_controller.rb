@@ -11,11 +11,11 @@ class ChampionshipController < ApplicationController
 
   def new
     @championship = Championship.new
-    @categories = Category.find(:all)
+    @categories = Category.all
   end
 
   def create
-    @categories = Category.find(:all)
+    @categories = Category.all
     @championship = Championship.new(params["championship"])
     @championship.begin = Date.strptime(params["championship"]["begin"],
                                         "%d/%m/%Y") rescue nil
@@ -178,7 +178,7 @@ class ChampionshipController < ApplicationController
 
     @group_json = []
     @group_table = []
-    @graph = open_flash_chart_object(550, 300, { :div_name => "campaign_graph", :function => "load_graph_data0" })
+    @graph = open_flash_chart_object(550, 300, { :div_name => "campaign_graph", :function => "load_graph_data0" }).html_safe
     @groups.each_with_index do |g, idx|
       json, table = generate_team_json(@championship, g.phase, g, @team)
       @group_json << json
@@ -201,15 +201,9 @@ class ChampionshipController < ApplicationController
     @players.sort!{|a,b| a.player.name <=> b.player.name}.map! do |p|
       { :player => p.player,
         :team_player => p,
-        :goals => p.player.goals.count(
-          :joins => "LEFT JOIN games ON games.id = game_id",
-          :conditions => [ "own_goal = 0 AND games.phase_id IN (?) AND team_id = ?", @championship.phase_ids, @team]),
-        :penalties => p.player.goals.count(
-          :joins => "LEFT JOIN games ON games.id = game_id",
-          :conditions => [ "own_goal = 0 AND penalty = 1 AND games.phase_id IN (?) AND team_id = ?", @championship.phase_ids, @team]),
-        :own_goals => p.player.goals.count(
-          :joins => "LEFT JOIN games ON games.id = game_id",
-          :conditions => [ "own_goal = 1 AND games.phase_id IN (?) AND team_id = ?", @championship.phase_ids, @team])
+        :goals => p.player.goals.joins("LEFT JOIN games ON games.id = game_id").where("own_goal = 0 AND games.phase_id IN (?) AND team_id = ?", @championship.phase_ids, @team).count,
+        :penalties => p.player.goals.joins("LEFT JOIN games ON games.id = game_id").where("own_goal = 0 AND penalty = 1 AND games.phase_id IN (?) AND team_id = ?", @championship.phase_ids, @team).count,
+        :own_goals => p.player.goals.joins("LEFT JOIN games ON games.id = game_id").where("own_goal = 1 AND games.phase_id IN (?) AND team_id = ?", @championship.phase_ids, @team).count
       }
     end
   end
@@ -232,14 +226,14 @@ class ChampionshipController < ApplicationController
     else
       @groups_to_show = [ @current_phase.groups.find(@group) ]
       teams = @groups_to_show.first.teams.map{|t| t.id}
-      games = games.scoped(:conditions => [ "home_id IN (?) OR away_id IN (?)", teams, teams ])
+      games = games.where("home_id IN (?) OR away_id IN (?)", teams, teams)
     end
 
     @rounds = games.all(:group => :round, :order => :round).map{|g| g.round }.compact
 
     unless (params[:round].to_s.empty?)
       @current_round = params[:round].to_i
-      games = games.scoped(:conditions => { :round => @current_round })
+      games = games.where(:round => @current_round)
     end
 
     @games = games.paginate :order => "date, round, time, teams.name", :include => [ "home", "away" ], :page => params[:page]
@@ -249,12 +243,12 @@ class ChampionshipController < ApplicationController
 
   def edit
     @championship = Championship.find(params["id"])
-    @categories = Category.find(:all)
+    @categories = Category.all
   end
 
   def update
     @championship = Championship.find(params["id"])
-    @categories = Category.find(:all)
+    @categories = Category.all
 
     begin_date = params[:championship].delete(:begin)
     @championship.begin = Date.strptime(begin_date, "%d/%m/%Y") unless begin_date.empty?
@@ -300,26 +294,18 @@ class ChampionshipController < ApplicationController
     page = (params[:page] || 1).to_i
     per_page = 30
     offset = (page - 1) * per_page
-    scorers = @championship.goals.count :group => :player,
-                                        :conditions => { :own_goal => 0 },
-                                        :order => "count_all DESC"
+    scorers = @championship.goals.group(:player).where(:own_goal => 0).order("count_all DESC").count
     @scorer_pagination = WillPaginate::Collection.new(page, per_page, scorers.size)
     @scorers = scorers.keys[offset, per_page].map{|k| [ k, scorers[k] ] }
     players = @scorers.map{|p,c| p}
-    @teams = @championship.goals.calculate :group_concat,
-                                           :all,
-                                           :group => :player,
-                                           :conditions => { :player_id => players },
-                                           :select => "DISTINCT(team_id)"
-    @teams.each do |p,t|
-      @teams[p] = t.split(',').map{ |id| Team.find id }
+    @teams = @championship.goals.group(:player_id, :team_id).where(:own_goal => false).count.inject(Hash.new) do |h,t|
+      player = Player.find(t[0][0])
+      team = Team.find(t[0][1])
+      h[player] = [ team ] + h[player].to_a
+      h
     end
-    @own = @championship.goals.count :group => :player,
-                                     :conditions => { :own_goal => 1,
-                                                      :player_id => players }
-    @penalty = @championship.goals.count :group => :player,
-                                         :conditions => { :penalty => 1,
-                                                          :player_id => players }
+    @own = @championship.goals.group(:player).where(:own_goal => 1, :player_id => players).count
+    @penalty = @championship.goals.group(:player).where(:penalty => 1, :player_id => players).count
   end
 
   def open_flash_chart_object(width, height, options = {})

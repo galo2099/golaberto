@@ -42,7 +42,7 @@
 
   <%= render :partial => "group_list", :object => @phase %>
   <% if @phase.groups.size > 0 %>
-    <%= link_to_remote _("Add 4 more groups"), :update => "groups", :url => { :action => :add_groups, :id => @phase } %>
+    <%= link_to _("Add 4 more groups"), :update => "groups", :remote => true, :url => { :action => :add_groups, :id => @phase } %>
   <% end %>
   <p><%= _("Add new group") %>: (<%= _("More groups can be added later") %>)<br />
   <input type="text" id="group[name]" name="group[name]" value="">

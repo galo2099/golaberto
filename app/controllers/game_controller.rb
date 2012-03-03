@@ -32,10 +32,10 @@ class GameController < ApplicationController
       default_end = Date.today.strftime("%d/%m/%Y")
     end
 
-    @categories = Category.find(:all)
+    @categories = Category.all
     @category = params[:category] || 1
     @category = @category.to_i
-    phases = Phase.find(:all, :joins => [ :championship ], :conditions => { :championships => { :category_id => @category }})
+    phases = Phase.joins(:championship).where(:championships => { :category_id => @category })
     conditions[0] << " AND phase_id IN (?)"
     conditions << phases
 
@@ -173,7 +173,7 @@ class GameController < ApplicationController
   def create_stadium_for_edit
     @stadium = Stadium.new(params[:stadium])
     if @stadium.save
-      @stadiums = Stadium.find(:all, :order => :name)
+      @stadiums = Stadium.order(:name)
       render :inline => "<option value=""></option><%= options_from_collection_for_select @stadiums, 'id', 'name', @stadium.id %>"
     else
       render :nothing => true, :status => 401
@@ -183,7 +183,7 @@ class GameController < ApplicationController
   def create_referee_for_edit
     @referee = Referee.new(params[:referee])
     if @referee.save
-      @referees = Referee.find(:all, :order => :name).map do |r|
+      @referees = Referee.order(:name).map do |r|
         [ "#{r.name} (#{r.location})", r.id ]
       end
       render :inline => "<option value=""></option><%= options_for_select @referees, @referee.id %>"
@@ -253,10 +253,10 @@ class GameController < ApplicationController
   end
 
   def prepare_for_edit
-    @referees = Referee.find(:all, :order => :name).map do |r|
+    @referees = Referee.order(:name).map do |r|
       [ "#{r.name} (#{r.location})", r.id ]
     end
-    @stadiums = Stadium.find(:all, :order => :name)
+    @stadiums = Stadium.order(:name)
     @selected_stadium = @game.stadium_id ? @game.stadium_id :
                         @game.version == 1 ? @game.home.stadium_id : 0
     @home_players = @game.home.team_players.find(

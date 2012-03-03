@@ -81,13 +81,13 @@
         <td><%= p[:own_goals] %></td>
         <td><%= p[:penalties] %></td>
         <td><% if can? :manage, Game %>
-          <%= link_to_remote(
-                      _('Remove'), :url => { :controller => :player,
+          <%= link_to(_('Remove'), :url => { :controller => :player,
                                           :action => :destroy_team,
                                           :id => p[:team_player] },
+                                :remote => true,
                                 :confirm => _('Are you sure?'),
                                 :method => :post,
-                                :success => update_page {|p| p.redirect_to request.request_uri },
+                                :success => update_page {|p| p.redirect_to request.path },
                                 :failure => "alert('#{_('Error removing')}')") %>
         <% end %></td>
       </tr>

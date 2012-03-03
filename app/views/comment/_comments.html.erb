@@ -9,7 +9,8 @@
 
 <h4><%= _("Leave a comment") %></h4>
 <% if can? :create, Comment %>
-  <%= remote_form_for :comment, :url => { :controller => :comment, :action => :new, :type => object.class, :id => object },
+  <%= form_for :comment, :url => { :controller => :comment, :action => :new, :type => object.class, :id => object },
+                         :remote => true,
                          :condition => "! $('comment_comment').value.blank()",
                          :before => "$('submit_comment').disable();",
                          :after => "$('comment_comment').disable();",

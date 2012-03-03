@@ -23,8 +23,8 @@ class Group < ActiveRecord::Base
   end
 
   def odds
-    games_to_play = phase.games.group_games(self).find(:all, :conditions => { :played => false })
-    games_played = phase.games.group_games(self).find(:all, :conditions => { :played => true })
+    games_to_play = phase.games.group_games(self).where(:played => false)
+    games_played = phase.games.group_games(self).where(:played => true)
     phase.sort.sub!("name", "rand")
     poisson_hash = Hash.new{|h,k| h[k] = Poisson.new(k)}
     odds = games_to_play.map do |g|
@@ -94,10 +94,9 @@ class Group < ActiveRecord::Base
   end
 
   def team_table
-    played_games = phase.games.group_games(self).find(:all,
-        :conditions => [ "played = ?", true ],
-        :include => [ :phase, [:phase => :championship ] ],
-        :order => :date)
+    played_games = phase.games.group_games(self).where("played = ?", true).
+        includes(:phase, [:phase => :championship ]).
+        order(:date)
     stats = Hash.new
     team_groups.each do |team_group|
       stats[team_group.team.id] =

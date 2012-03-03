@@ -5,7 +5,7 @@ class GroupController < ApplicationController
 
   def edit
     @group = Group.find(params["id"])
-    @teams = Team.all(:order => :name)
+    @teams = Team.order(:name)
   end
 
   def update
@@ -29,7 +29,7 @@ class GroupController < ApplicationController
       @group.save!
       redirect_to :controller => :championship, :action => :phases, :id => @group.phase.championship, :phase => @group.phase
     else
-      @teams = Team.all(:order => :name)
+      @teams = Team.order(:name)
       render :action => "edit"
     end
   end
