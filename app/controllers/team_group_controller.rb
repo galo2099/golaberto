@@ -1,7 +1,6 @@
 class TeamGroupController < ApplicationController
   N_("TeamGroup")
 
-  scaffold :team_group
   authorize_resource
 
   def index

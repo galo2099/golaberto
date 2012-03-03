@@ -51,6 +51,7 @@ gem "prototype_legacy_helper", "0.0.0", :git => 'git://github.com/willbryant/pro
 gem "prototype-rails"
 gem "quilt"
 gem "rmagick"
+gem "scaffolding"
 gem "userstamp", git: "https://github.com/delynn/userstamp.git"
 gem "will_paginate"
 
