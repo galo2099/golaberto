@@ -23,6 +23,30 @@
 <% end %>
 </tr></table>
 
+<script type="text/javascript">
+<% update_message = _("Updating odds...") %>
+<% error_message = _("Cant calculate odds") %>
+function recalculate_odds(group_id) {
+  <%= remote_function(
+          :url => { :controller => :group,
+                    :action => :update_odds },
+          :with => "'id=' + group_id",
+          :failure => "alert('#{error_message}')",
+          :before => "$('recalculate'+group_id).innerHTML = '#{update_message}'") %>
+  watch_odds(group_id);
+}
+
+function watch_odds(group_id) {
+  new PeriodicalExecuter(function() {
+      <%= remote_function(
+              :url => { :controller => :group,
+                        :action => :odds_progress },
+              :with => "'id=' + group_id",
+              :failure => "alert('#{error_message}')",
+              :before => "$('recalculate'+group_id).innerHTML = '#{update_message}'") %>
+      }, 5);
+}
+</script>
 <% @current_phase.groups.each do |group| %>
   <%= render :partial => "table",
              :locals => { :group => group,

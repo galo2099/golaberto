@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: version 0.0.1\n"
-"POT-Creation-Date: 2012-03-01 10:34-0800\n"
+"POT-Creation-Date: 2012-03-02 22:28-0800\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: Robson Braga Araujo <robsonbraga@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -62,6 +62,9 @@ msgstr "(pênalti)"
 
 msgid "1%"
 msgstr "1%"
+
+msgid "Access denied!"
+msgstr "Acesso negado!"
 
 msgid "Account"
 msgstr "Conta"
@@ -248,14 +251,14 @@ msgstr "Camboja"
 msgid "Cameroon"
 msgstr "Camarões"
 
-msgid "Can't calculate odds"
-msgstr "Erro ao recalcular chances"
-
 msgid "Canada"
 msgstr "Canadá"
 
 msgid "Cancel"
 msgstr "Cancelar"
+
+msgid "Cant calculate odds"
+msgstr "Erro ao recalcular chances"
 
 msgid "Cape Verde"
 msgstr "Cabo Verde"
@@ -595,6 +598,9 @@ msgstr "Jogados"
 
 msgid "Games"
 msgstr "Jogos"
+
+msgid "Game|"
+msgstr "Jogo"
 
 # app/models/game.rb:-
 msgid "Game|Attendance"
@@ -1106,6 +1112,9 @@ msgstr "Observação"
 
 msgid "Odds being recalculated"
 msgstr "Chances sendo calculadas"
+
+msgid "Odds being recalculated. "
+msgstr "Chances sendo calculadas. "
 
 msgid "Off"
 msgstr "Saiu"

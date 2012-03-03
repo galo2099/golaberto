@@ -1,5 +1,0 @@
-if @group.odds_progress
-  page.replace_html "recalculate#{@group.id}", :partial => "championship/recalculate_button", :locals => { :group => @group }
-else
-  page.call 'window.location.reload'
-end

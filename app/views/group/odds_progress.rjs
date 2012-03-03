@@ -1,0 +1,5 @@
+if @group.odds_progress
+  page.replace_html "recalculate#{@group.id}", _("Odds being recalculated. ") + sprintf(_("%d%% done."), @group.odds_progress)
+else
+  page.call 'window.location.reload'
+end

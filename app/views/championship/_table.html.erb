@@ -18,7 +18,12 @@
   </div>
   <% if can?(:manage, group) and !(omit_columns[:OP] and omit_columns[:PP] and omit_columns[:RP]) then %>
     <div id="recalculate<%= group.id %>" style="position: absolute; bottom: 0px; right: 0px;">
-      <%= render :partial => "recalculate_button", :locals => { :group => group } %>
+      <% if group.odds_progress then %>
+        <%= _("Odds being recalculated") %>. <%= sprintf _("%d%% done."), group.odds_progress %>
+        <%= javascript_tag "watch_odds(#{group.id})" %>
+      <% else %>
+        <%= button_to_function _("Recalculate odds"), "recalculate_odds(#{group.id})" %>
+      <% end %>
     </div>
   <% end %>
   <div class="clearer"></div>

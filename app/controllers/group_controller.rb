@@ -40,15 +40,21 @@ class GroupController < ApplicationController
     redirect_to :controller => :phase, :action => :edit, :id => group.phase
   end
 
+  def odds_progress
+    @group = Group.find(params["id"])
+    if @group.odds_progress == 100
+      @group.odds_progress = nil
+      @group.save!
+    end
+  end
+
   def update_odds
     @group = Group.find(params["id"])
     if @group.odds_progress == nil
       @group.delay.odds
       @group.odds_progress = 0
       @group.save!
-    elsif @group.odds_progress == 100
-      @group.odds_progress = nil
-      @group.save!
     end
+    render :action => :odds_progress
   end
 end
