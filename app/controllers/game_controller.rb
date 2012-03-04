@@ -101,11 +101,7 @@ class GameController < ApplicationController
 
   def update
     @game = Game.find(params["id"])
-    game_compare = @game.clone
-
-    # we want to do our own date parsing
-    date = params[:game].delete(:date)
-    @game.date = Date.strptime(date, "%d/%m/%Y") unless date.empty?
+    game_compare = @game.dup
 
     # work around rails TIME bug
     unless params[:game]["time(4i)"].to_s.empty? and params[:game]["time(5i)"].to_s.empty?
