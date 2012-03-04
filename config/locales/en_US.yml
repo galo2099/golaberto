@@ -96,7 +96,7 @@ en_US:
       month: Month
       second: Seconds
       year: Year
-  errors:
+  errors: &errors
     format: ! '%{attribute} %{message}'
     messages:
       accepted: must be accepted
@@ -198,6 +198,13 @@ en_US:
       short: ! '%d %b %H:%M'
       hour_minute: ! '%H:%M'
     pm: pm
+  # remove these aliases after 'activemodel' and 'activerecord' namespaces are removed from Rails repository
+  activemodel:
+    errors:
+      <<: *errors
+  activerecord:
+    errors:
+      <<: *errors
 
   will_paginate:
     previous_label: "&#8592; Previous"

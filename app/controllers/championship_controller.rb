@@ -17,10 +17,6 @@ class ChampionshipController < ApplicationController
   def create
     @categories = Category.all
     @championship = Championship.new(params["championship"])
-    @championship.begin = Date.strptime(params["championship"]["begin"],
-                                        "%d/%m/%Y") rescue nil
-    @championship.end = Date.strptime(params["championship"]["end"],
-                                      "%d/%m/%Y") rescue nil
 
     if @championship.save
       redirect_to :action => :show, :id => @championship
@@ -250,10 +246,6 @@ class ChampionshipController < ApplicationController
     @championship = Championship.find(params["id"])
     @categories = Category.all
 
-    begin_date = params[:championship].delete(:begin)
-    @championship.begin = Date.strptime(begin_date, "%d/%m/%Y") unless begin_date.empty?
-    end_date = params[:championship].delete(:end)
-    @championship.end = Date.strptime(end_date, "%d/%m/%Y") unless end_date.empty?
     @championship.attributes = params[:championship]
 
     saved = @championship.save
