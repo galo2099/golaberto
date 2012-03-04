@@ -1,0 +1,221 @@
+GIT
+  remote: git://github.com/willbryant/prototype_legacy_helper.git
+  revision: fc4fbb8792e7bb511ca8327774bbf4f6a3ec7434
+  specs:
+    prototype_legacy_helper (0.0.0)
+
+GIT
+  remote: https://github.com/cameel/gettext.git
+  revision: c3a83734eea5029d067783127398ddf765f7265c
+  ref: c3a8373
+  specs:
+    gettext (2.0.0)
+      locale
+
+GIT
+  remote: https://github.com/delynn/userstamp.git
+  revision: 777633aa564f8457c999ddb96afa4c5ae18d319f
+  specs:
+    userstamp (2.0.2)
+
+GIT
+  remote: https://github.com/galo2099/activerecord-diff.git
+  revision: 99fd640be784df0473a7a08756aa9ab861385cc5
+  specs:
+    activerecord-diff (0.0.0)
+      activerecord
+      activesupport
+
+GIT
+  remote: https://github.com/galo2099/acts_as_versioned_association
+  revision: 8c74ad20db472b1fad7826a63e53d444264595ee
+  specs:
+    acts_as_versioned_association (0.0.0)
+
+GIT
+  remote: https://github.com/galo2099/google_ajax_libraries_api
+  revision: 165477f87ad92d824213ec9bb94e507ffb23a21e
+  specs:
+    google_ajax_libraries_api (0.0.0)
+
+GIT
+  remote: https://github.com/luismreis/acts_as_versioned.git
+  revision: b26b8f8836836f2ec36d8c0525b4fae508fb0352
+  specs:
+    acts_as_versioned (0.6.0)
+      activerecord (>= 3.0.0)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    actionmailer (3.2.1)
+      actionpack (= 3.2.1)
+      mail (~> 2.4.0)
+    actionpack (3.2.1)
+      activemodel (= 3.2.1)
+      activesupport (= 3.2.1)
+      builder (~> 3.0.0)
+      erubis (~> 2.7.0)
+      journey (~> 1.0.1)
+      rack (~> 1.4.0)
+      rack-cache (~> 1.1)
+      rack-test (~> 0.6.1)
+      sprockets (~> 2.1.2)
+    activemodel (3.2.1)
+      activesupport (= 3.2.1)
+      builder (~> 3.0.0)
+    activerecord (3.2.1)
+      activemodel (= 3.2.1)
+      activesupport (= 3.2.1)
+      arel (~> 3.0.0)
+      tzinfo (~> 0.3.29)
+    activeresource (3.2.1)
+      activemodel (= 3.2.1)
+      activesupport (= 3.2.1)
+    activesupport (3.2.1)
+      i18n (~> 0.6)
+      multi_json (~> 1.0)
+    arel (3.0.2)
+    builder (3.0.0)
+    cancan (1.6.7)
+    capistrano (2.11.2)
+      highline
+      net-scp (>= 1.0.0)
+      net-sftp (>= 2.0.0)
+      net-ssh (>= 2.0.14)
+      net-ssh-gateway (>= 1.1.0)
+    coffee-rails (3.2.2)
+      coffee-script (>= 2.2.0)
+      railties (~> 3.2.0)
+    coffee-script (2.2.0)
+      coffee-script-source
+      execjs
+    coffee-script-source (1.2.0)
+    daemons (1.1.8)
+    delayed_job (3.0.1)
+      activesupport (~> 3.0)
+    delayed_job_active_record (0.3.2)
+      activerecord (> 2.1.0)
+      delayed_job (~> 3.0.0)
+    dynamic_form (1.1.4)
+    erubis (2.7.0)
+    exception_notification (2.5.2)
+      actionmailer (>= 3.0.4)
+    execjs (1.3.0)
+      multi_json (~> 1.0)
+    fast_gettext (0.6.4)
+    gettext_i18n_rails (0.4.3)
+      fast_gettext
+    highline (1.6.11)
+    hike (1.2.1)
+    i18n (0.6.0)
+    journey (1.0.3)
+    jquery-rails (2.0.1)
+      railties (>= 3.2.0, < 5.0)
+      thor (~> 0.14)
+    json (1.6.5)
+    locale (2.0.5)
+    mail (2.4.1)
+      i18n (>= 0.4.0)
+      mime-types (~> 1.16)
+      treetop (~> 1.4.8)
+    mime-types (1.17.2)
+    multi_json (1.1.0)
+    mysql2 (0.3.11)
+    net-scp (1.0.4)
+      net-ssh (>= 1.99.1)
+    net-sftp (2.0.5)
+      net-ssh (>= 2.0.9)
+    net-ssh (2.3.0)
+    net-ssh-gateway (1.1.0)
+      net-ssh (>= 1.99.1)
+    open_id_authentication (1.1.0)
+      rack-openid (~> 1.3)
+    polyglot (0.3.3)
+    prototype-rails (3.2.1)
+      rails (~> 3.2)
+    quilt (0.0.5)
+    rack (1.4.1)
+    rack-cache (1.1)
+      rack (>= 0.4)
+    rack-openid (1.3.1)
+      rack (>= 1.1.0)
+      ruby-openid (>= 2.1.8)
+    rack-ssl (1.3.2)
+      rack
+    rack-test (0.6.1)
+      rack (>= 1.0)
+    rails (3.2.1)
+      actionmailer (= 3.2.1)
+      actionpack (= 3.2.1)
+      activerecord (= 3.2.1)
+      activeresource (= 3.2.1)
+      activesupport (= 3.2.1)
+      bundler (~> 1.0)
+      railties (= 3.2.1)
+    railties (3.2.1)
+      actionpack (= 3.2.1)
+      activesupport (= 3.2.1)
+      rack-ssl (~> 1.3.2)
+      rake (>= 0.8.7)
+      rdoc (~> 3.4)
+      thor (~> 0.14.6)
+    rake (0.9.2.2)
+    rdoc (3.12)
+      json (~> 1.4)
+    rmagick (2.13.1)
+    ruby-openid (2.1.8)
+    sass (3.1.15)
+    sass-rails (3.2.4)
+      railties (~> 3.2.0)
+      sass (>= 3.1.10)
+      tilt (~> 1.3)
+    sprockets (2.1.2)
+      hike (~> 1.2)
+      rack (~> 1.0)
+      tilt (~> 1.1, != 1.3.0)
+    sqlite3 (1.3.5)
+    thor (0.14.6)
+    tilt (1.3.3)
+    treetop (1.4.10)
+      polyglot
+      polyglot (>= 0.3.1)
+    tzinfo (0.3.31)
+    uglifier (1.2.3)
+      execjs (>= 0.3.0)
+      multi_json (>= 1.0.2)
+    will_paginate (3.0.3)
+    wirble (0.1.3)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  activerecord-diff!
+  acts_as_versioned!
+  acts_as_versioned_association (= 0.0.0)!
+  cancan
+  capistrano
+  coffee-rails (~> 3.2.1)
+  daemons
+  delayed_job
+  delayed_job_active_record
+  dynamic_form
+  exception_notification
+  gettext!
+  gettext_i18n_rails
+  google_ajax_libraries_api (= 0.0.0)!
+  jquery-rails
+  mysql2
+  open_id_authentication
+  prototype-rails
+  prototype_legacy_helper (= 0.0.0)!
+  quilt
+  rails (= 3.2.1)
+  rmagick
+  sass-rails (~> 3.2.3)
+  sqlite3
+  uglifier (>= 1.0.3)
+  userstamp!
+  will_paginate
+  wirble
