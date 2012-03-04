@@ -38,6 +38,7 @@ gem 'jquery-rails'
 
 gem "activerecord-diff", git: "https://github.com/galo2099/activerecord-diff.git"
 gem "acts_as_versioned", git: "https://github.com/luismreis/acts_as_versioned.git"
+gem "acts_as_versioned_association", "0.0.0", git: "https://github.com/galo2099/acts_as_versioned_association"
 gem "cancan"
 gem "daemons"
 gem "delayed_job"
