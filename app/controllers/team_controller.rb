@@ -62,7 +62,7 @@ class TeamController < ApplicationController
   end
 
   def create
-    foundation = params[:team].delete(:foundation)
+    @team = Team.new(params[:team])
     begin
       @team.save!
       @team.uploaded_logo(params[:logo], params[:filter]) unless params[:logo].to_s.empty?
