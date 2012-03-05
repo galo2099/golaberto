@@ -9,8 +9,8 @@
   <%= link_to _("Team"), :action => :show, :id => @team %><br/>
   <%= link_to _("Games"), :action => :games, :id => @team, :played => true %><br/>
   <br/>
-  <%= link_to_unless @played, _("Played"), :action => :games, :id => @team, :played => true %><br/>
-  <%= link_to_unless !@played, _("Scheduled"), :action => :games, :id => @team, :played => false %><br/>
+  <%= link_to_unless @played, _("Played"), :action => :games, :id => @team, :played => true, :page => 1 %><br/>
+  <%= link_to_unless !@played, _("Scheduled"), :action => :games, :id => @team, :played => false, :page => 1 %><br/>
 <% end %>
 
 <% last_championship = nil %>
@@ -45,5 +45,11 @@
 
 <%= will_paginate @games %>
 
-<%= observe_field "category_select",
-        :function => "document.location = '" + url_for({ :page => 1, :played => true, :category => "XXX" }) + "'.replace('XXX', value);" %>
+<%
+observe_field_function = "switch(value) {\n";
+@categories.each do |cat|
+  observe_field_function << "case '#{cat.id}': document.location = '#{url_for(:page => 1, :played => @played, :category => cat)}';break;\n"
+end
+observe_field_function << "}\n"
+%>
+<%= observe_field "category_select", :function => observe_field_function %>

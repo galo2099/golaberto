@@ -18,9 +18,15 @@
 </div>
 
 <% content_for :sidebar do %>
-  <%= link_to_unless(@type == "scheduled", _("Scheduled"), :action => :list, :type => :scheduled, :category => @category) %><br/>
-  <%= link_to_unless(@type == "played", s_("GameList|Played"), :action => :list, :type => :played, :category => @category) %>
+  <%= link_to_unless(@type == :scheduled, _("Scheduled"), :action => :list, :type => :scheduled, :category => @category) %><br/>
+  <%= link_to_unless(@type == :played, s_("GameList|Played"), :action => :list, :type => :played, :category => @category) %>
 <% end %>
 
-<%= observe_field "category_select",
-                  :function => "document.location = '" + url_for({ :action => :list, :type => @type }) + "?category=' + value;" %>
+<%
+observe_field_function = "switch(value) {\n";
+@categories.each do |cat|
+  observe_field_function << "case '#{cat.id}': document.location = '#{url_for(:page => 1, :played => @played, :category => cat)}';break;\n"
+end
+observe_field_function << "}\n"
+%>
+<%= observe_field "category_select", :function => observe_field_function %>

@@ -61,16 +61,17 @@ Golaberto::Application.routes.draw do
   root :to => "home#index"
 
   # map championship actions
-  match 'championship/show/:id/phases/:phase', :to => 'championship#phases'
-  match 'championship/show/:id/phases/:phase/team_json/', :to => 'championship#team_json'
-  match 'championship/show/:id/games/:phase', :to => 'championship#games'
-  match 'championship/show/:id/new_game/:phase', :to => 'championship#new_game'
-  match 'championship/show/:id/team/:team', :to => 'championship#team'
+  match 'championship/show/:id/phases/:phase' => 'championship#phases'
+  match 'championship/show/:id/phases/:phase/team_json/' => 'championship#team_json'
+  match 'championship/show/:id/games/:phase' => 'championship#games'
+  match 'championship/show/:id/new_game/:phase' => 'championship#new_game'
+  match 'championship/show/:id/team/:team' => 'championship#team'
 
-  match 'game/list/:type/:page', :to => 'game#list', :page => /\d+/, :defaults => { :type => 'scheduled', :page => 1 }
+  match 'game/list(/cat/:category)(/p/:page)' => 'game#list', :constraints => { :page => /\d+/ }, :defaults => { :type => :scheduled, :page => 1, :category => 1 }
+  match 'game/list/played(/cat/:category)(/p/:page)' => 'game#list', :constraints => { :page => /\d+/ }, :defaults => { :type => :played, :page => 1, :category => 1 }
 
-  match 'team/games/played/:id/:category/:page', :to => 'team#games', :played => true, :defaults => { :category => 1, :page => 1 }
-  match 'team/games/scheduled/:id/:category/:page', :to => 'team#games', :played => false, :defaults => { :category => 1, :page => 1 }
+  match 'team/games/scheduled/:id(/cat/:category)(/p/:page)' => 'team#games', :defaults => { :played => false, :category => 1, :page => 1 }
+  match 'team/games/played/:id(/cat/:category)(/p/:page)' => 'team#games', :defaults => { :played => true, :category => 1, :page => 1 }
 
   # Install the default route as the lowest priority.
   match ':controller(/:action(/:id))(.:format)'
