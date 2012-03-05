@@ -4,7 +4,17 @@
   <%= tag "br" unless goal.errors.full_messages.empty? %>
 <% end unless @goals.nil? %>
 
-<%= javascript_tag <<EOF
+<%= stylesheet_link_tag "http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.18/themes/blitzer/jquery-ui.css" %>
+<%= google_javascripts "jquery" %>
+<%= google_javascripts "jqueryui" %>
+<%= javascript_include_tag "jquery.ui.datepicker-pt-BR" if I18n.locale == :pt_BR %>
+
+<style type="text/css">
+.ui-datepicker { font-size: 0.8em }
+.ui-datepicker-trigger { top: 5px; width: 2em }
+</style>
+
+<script type="text/javascript">
 function finishPlayerAdd(home_away) {
   $('add_player_' + home_away).hide();
   $('link_player_' + home_away).show();
@@ -34,8 +44,7 @@ function receiveDrop(drag, drop) {
   input = $(home_away + "_" + aet + "_goal_" + idx + "_player_id");
   input.value = drag.id.replace(/.*_player_/, "");
 }
-EOF
-%>
+</script>
 
 <% content_for :main_title do %>
   <%= @game.phase.championship.full_name %>
@@ -159,10 +168,29 @@ EOF
     </tr>
     <tr>
       <td><%= _("Date") %>:</td>
-      <td><%= g.date_select :date %>
-      <%= button_to_function _("Today") do |page|
-            page[:game_date].value = Date.today.strftime("%d/%m/%Y");
-          end %></td>
+      <td>
+      <%= g.hidden_field :date %>
+      <%= text_field_tag "game_date_ui" %>
+      <script type="text/javascript">
+        jQuery(document).ready(function() {
+            $('#game_date_ui').datepicker({ "altField": "#game_date",
+                "altFormat": "yy-mm-dd",
+                "autoSize": true,
+                "changeMonth": true,
+                "changeYear": true,
+                "selectOtherMonths": true,
+                "showButtonPanel": true,
+                "showOn": "both",
+                "showOtherMonths": true});
+            var current_datepicker_format =  $('#game_date_ui').datepicker("option", "dateFormat");
+            $('#game_date_ui').datepicker("option", "dateFormat", "yy-mm-dd")
+            $('#game_date_ui').datepicker("setDate", '<%= @game.date %>');
+            $('#game_date_ui').datepicker("option", "dateFormat", current_datepicker_format)
+            $('#game_date_ui').datepicker().next('button').text('').button({icons:{primary : 'ui-icon-calendar'}});
+        });
+      </script>
+      </td>
+
     </tr>
     <tr>
       <td><%= s_("Game|Time") %>:</td>

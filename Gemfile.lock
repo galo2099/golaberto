@@ -34,7 +34,7 @@ GIT
 
 GIT
   remote: https://github.com/galo2099/google_ajax_libraries_api
-  revision: 165477f87ad92d824213ec9bb94e507ffb23a21e
+  revision: a337778d8c89ad6fe36bb11b6f2f65d3e7229071
   specs:
     google_ajax_libraries_api (0.0.0)
 
