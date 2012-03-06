@@ -8,11 +8,6 @@
   jQuery.noConflict();
 </script>
 
-<style type="text/css">
-.ui-datepicker { font-size: 0.8em }
-.ui-datepicker-trigger { top: 5px; width: 2em }
-</style>
-
 <%= _("Category") %>: <select id='category_select'>
   <%= options_from_collection_for_select @categories, "id", "name", @category %>
 </select>

@@ -1,7 +1,11 @@
+<%= stylesheet_link_tag "http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.18/themes/blitzer/jquery-ui.css" %>
+<%= google_javascripts "jquery" %>
+<%= google_javascripts "jqueryui" %>
+<%= javascript_include_tag "jquery.ui.datepicker-pt-BR" if I18n.locale == :pt_BR %>
 <label for="team_name"><%= _("Name") %>:</label> <%= f.text_field :name %><br/>
 <label for="team_full_name"><%= _("Full name") %>:</label> <%= f.text_field :full_name %><br/>
 <label for="team_city"><%= _("City") %>:</label> <%= f.text_field :city %><br/>
-<label for="team_foundation"><%= _("Foundation") %>:</label> <%= f.date_select :foundation, :value => @team.foundation %><br/>
+<label for="team_foundation"><%= _("Foundation") %>:</label> <%= f.datepicker :foundation, :autoSize => true, :changeYear => true, :selectOtherMonths => true, :showButtonPanel => true, :showOtherMonths => true %><br/>
 <label for="team_country"><%= _("Country") %>:</label> <%= f.select :country, golaberto_options_for_country_select, :include_blank => true %><br/>
 <%= _("Stadium") %>:
 <select id="team_stadium_id" name="team[stadium_id]">

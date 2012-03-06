@@ -1,8 +1,12 @@
+<%= stylesheet_link_tag "http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.18/themes/blitzer/jquery-ui.css" %>
+<%= google_javascripts "jquery" %>
+<%= google_javascripts "jqueryui" %>
+<%= javascript_include_tag "jquery.ui.datepicker-pt-BR" if I18n.locale == :pt_BR %>
 <%= error_messages_for 'championship' %>
 <%= form_for @championship, :url => { :action => "create" } do |f| %>
   <%= _("Name") %>: <%= f.text_field :name %><br/>
-  <%= _("Begin") %>: <%= f.date_select :begin %><br/>
-  <%= _("End") %>: <%= f.date_select :end %><br/>
+  <%= _("Begin") %>: <%= f.datepicker :begin, :autoSize => true, :changeYear => true, :selectOtherMonths => true, :showButtonPanel => true, :showOtherMonths => true %><br/>
+  <%= _("End") %>: <%= f.datepicker :end, :autoSize => true, :changeYear => true, :selectOtherMonths => true, :showButtonPanel => true, :showOtherMonths => true %><br/>
   <%= _("Points for win") %>: <%= f.text_field :point_win, :size => 2 %><br/>
   <%= _("Points for draw") %>: <%= f.text_field :point_draw, :size => 2 %><br/>
   <%= _("Points for loss") %>: <%= f.text_field :point_loss, :size => 2 %><br/>
