@@ -38,10 +38,7 @@
 <h3><%= _("Latest comments") %></h3>
 <div id="comments">
   <% @comments.each do |comment| %>
-      <div class="comment">
-      <%= render :partial => "comment/comment", :object => comment %>
-      <small><%= link_to sprintf(_("View this %s"), _(comment.commentable_type.downcase)), :controller => comment.commentable_type, :action => :show, :id => comment.commentable_id %></small>
-    </div>
+      <%= render :partial => "comment/comment", :object => comment, :locals => { :render_link_to_parent => true } %>
   <% end %>
 </div>
 
