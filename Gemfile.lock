@@ -39,6 +39,12 @@ GIT
     google_ajax_libraries_api (0.0.0)
 
 GIT
+  remote: https://github.com/galo2099/jquery_datepicker
+  revision: 71056f6e16634b97820b044f6799b524b8845596
+  specs:
+    jquery_datepicker (0.3.2)
+
+GIT
   remote: https://github.com/luismreis/acts_as_versioned.git
   revision: b26b8f8836836f2ec36d8c0525b4fae508fb0352
   specs:
@@ -206,6 +212,7 @@ DEPENDENCIES
   gettext_i18n_rails
   google_ajax_libraries_api (= 0.0.0)!
   jquery-rails
+  jquery_datepicker!
   mysql2
   open_id_authentication
   prototype-rails

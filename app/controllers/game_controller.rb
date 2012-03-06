@@ -22,14 +22,14 @@ class GameController < ApplicationController
       post_sort = proc do |g|
         [(g.date.to_time.to_i), g.phase_id, (g.time.to_i), g.home.name]
       end
-      default_start = (Date.today - 7.days).strftime("%d/%m/%Y")
+      default_start = (Date.today - 7.days)
     else
       conditions = [ "played = ?", true ]
       order = "date DESC, phase_id, time DESC"
       post_sort = proc do |g|
         [-(g.date.to_time.to_i), g.phase_id, -(g.time.to_i), g.home.name]
       end
-      default_end = Date.today.strftime("%d/%m/%Y")
+      default_end = Date.today
     end
 
     @categories = Category.all
@@ -39,17 +39,15 @@ class GameController < ApplicationController
     conditions[0] << " AND phase_id IN (?)"
     conditions << phases
 
-    @date_range_start = parse_date_select(params[:date_range_start]) || default_start
-    @date_range_end = parse_date_select(params[:date_range_end]) || default_end
-    start_date = Date.strptime(@date_range_start, "%d/%m/%Y") rescue @date_range_start = nil
-    unless @date_range_start.to_s.empty?
+    @date_range_start = params[:date_range_start] || default_start
+    @date_range_end = params[:date_range_end] || default_end
+    unless @date_range_start.nil? or @date_range_start.to_date.nil?
       conditions[0] << " AND date >= ?"
-      conditions << start_date
+      conditions << @date_range_start.to_date
     end
-    end_date = Date.strptime(@date_range_end, "%d/%m/%Y") rescue @date_range_end = nil
-    unless @date_range_end.to_s.empty?
+    unless @date_range_end.nil? or @date_range_end.to_date.nil?
       conditions[0] << " AND date <= ?"
-      conditions << end_date
+      conditions << @date_range_end.to_date
     end
 
     @games = Game.paginate :order => order,
@@ -220,16 +218,6 @@ class GameController < ApplicationController
   end
 
   private
-
-  def parse_date_select(param)
-    unless param.nil? or (param[:year].empty? and param[:month].empty? and param[:day].empty?)
-      param[:year] = Date.today.year if param[:year].empty?
-      param[:month] = Date.today.month if param[:month].empty?
-      param[:day] = Date.today.day if param[:day].empty?
-      p param
-      Date.civil(param[:year].to_i, param[:month].to_i, param[:day].to_i).strftime("%d/%m/%Y")
-    end
-  end
 
   def update_goals(home_away, aet, goals)
     us = home_away

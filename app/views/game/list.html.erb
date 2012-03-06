@@ -1,13 +1,44 @@
 <% content_for :main_title do %><%= _("Listing games") %><% end %>
 
+<%= stylesheet_link_tag "http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.18/themes/blitzer/jquery-ui.css" %>
+<%= google_javascripts "jquery", :uncompressed => true %>
+<%= google_javascripts "jqueryui", :uncompressed => true %>
+<%= javascript_include_tag "jquery.ui.datepicker-pt-BR" if I18n.locale == :pt_BR %>
+<script type="text/javascript">
+  jQuery.noConflict();
+</script>
+
+<style type="text/css">
+.ui-datepicker { font-size: 0.8em }
+.ui-datepicker-trigger { top: 5px; width: 2em }
+</style>
+
 <%= _("Category") %>: <select id='category_select'>
   <%= options_from_collection_for_select @categories, "id", "name", @category %>
 </select>
 <br/>
 <br/>
 <%= form_tag({ :action => :list }, :method => :get) do -%>
-<%= _("From") %>: <%= select_date @date_range_start.try(:to_date), { :use_short_month => true, :start_year => 1800, :include_blank => true, :prefix => "date_range_start" } %>
-<%= _("To") %>: <%= select_date @date_range_end.try(:to_date), { :use_short_month => true, :start_year => 1800, :include_blank => true, :prefix => "date_range_end" } %>
+<% options_for_datepicker = { :autoSize => true, :changeYear => true, :selectOtherMonths => true, :showButtonPanel => true, :showOtherMonths => true, :numberOfMonths => 2 } %>
+<%= _("From") %>: <%= datepicker_tag "date_range_start", @date_range_start, options_for_datepicker %>
+<%= _("To") %>: <%= datepicker_tag "date_range_end", @date_range_end, options_for_datepicker %>
+<script type="text/javascript">
+function datepickerOnSelect(selectedDate) {
+  var option = this.id == "date_range_start_datepicker_ui" ? "minDate" : "maxDate";
+  var instance = jQuery(this).data( "datepicker" );
+  var date = jQuery.datepicker.parseDate(
+          instance.settings.dateFormat ||
+          jQuery.datepicker._defaults.dateFormat,
+          selectedDate, instance.settings );
+  jQuery(this.id == "date_range_start_datepicker_ui" ? "#date_range_end_datepicker_ui" : "#date_range_start_datepicker_ui").datepicker("option", option, date);
+}
+jQuery(document).ready(function() {
+  jQuery('#date_range_start_datepicker_ui').datepicker("option", "maxDate", jQuery.datepicker.parseDate('yy-mm-dd', '<%= @date_range_end %>'));
+  jQuery('#date_range_start_datepicker_ui').datepicker("option", "onSelect", datepickerOnSelect);
+  jQuery('#date_range_end_datepicker_ui').datepicker("option", "minDate", jQuery.datepicker.parseDate('yy-mm-dd', '<%= @date_range_start %>'));
+  jQuery('#date_range_end_datepicker_ui').datepicker("option", "onSelect", datepickerOnSelect);
+});
+</script>
 <%= hidden_field_tag(:category, @category) %>
 <%= hidden_field_tag(:type, @type) %>
 <input type="submit" value="<%= _("Change date") %>">

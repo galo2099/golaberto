@@ -8,6 +8,9 @@
 <%= google_javascripts "jquery" %>
 <%= google_javascripts "jqueryui" %>
 <%= javascript_include_tag "jquery.ui.datepicker-pt-BR" if I18n.locale == :pt_BR %>
+<script type="text/javascript">
+  jQuery.noConflict();
+</script>
 
 <style type="text/css">
 .ui-datepicker { font-size: 0.8em }
@@ -169,25 +172,11 @@ function receiveDrop(drag, drop) {
     <tr>
       <td><%= _("Date") %>:</td>
       <td>
-      <%= g.hidden_field :date %>
-      <%= text_field_tag "game_date_ui" %>
+      <%= g.datepicker :date, :autoSize => true, :changeYear => true, :selectOtherMonths => true, :showButtonPanel => true, :showOn => "both", :showOtherMonths => true %>
       <script type="text/javascript">
-        jQuery(document).ready(function() {
-            $('#game_date_ui').datepicker({ "altField": "#game_date",
-                "altFormat": "yy-mm-dd",
-                "autoSize": true,
-                "changeMonth": true,
-                "changeYear": true,
-                "selectOtherMonths": true,
-                "showButtonPanel": true,
-                "showOn": "both",
-                "showOtherMonths": true});
-            var current_datepicker_format =  $('#game_date_ui').datepicker("option", "dateFormat");
-            $('#game_date_ui').datepicker("option", "dateFormat", "yy-mm-dd")
-            $('#game_date_ui').datepicker("setDate", '<%= @game.date %>');
-            $('#game_date_ui').datepicker("option", "dateFormat", current_datepicker_format)
-            $('#game_date_ui').datepicker().next('button').text('').button({icons:{primary : 'ui-icon-calendar'}});
-        });
+      jQuery(document).ready(function() {
+        jQuery('#game_date_datepicker_ui').datepicker().next('button').text('').button({icons:{primary : 'ui-icon-calendar'}});
+      });
       </script>
       </td>
 

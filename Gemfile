@@ -47,6 +47,7 @@ gem "dynamic_form"
 gem "exception_notification"
 gem "gettext_i18n_rails"
 gem "google_ajax_libraries_api", "0.0.0", git: "https://github.com/galo2099/google_ajax_libraries_api"
+gem "jquery_datepicker", git: "https://github.com/galo2099/jquery_datepicker"
 #gem "newrelic_rpm"
 gem "open_id_authentication"
 gem "prototype_legacy_helper", "0.0.0", :git => 'git://github.com/willbryant/prototype_legacy_helper.git'
