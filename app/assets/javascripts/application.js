@@ -11,6 +11,7 @@
 // GO AFTER THE REQUIRES BELOW.
 //
 //= require prototype
+//= require prototype-ujs
 //= require effects
 //= require dragdrop
 //= require controls

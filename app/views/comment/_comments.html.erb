@@ -1,9 +1,7 @@
 <h1><%= _("Comments") %></h1>
 <div id="comments">
   <% object.comments.each do |comment| %>
-    <div class="comment">
-      <%= render :partial => "comment/comment", :object => comment %>
-    </div>
+    <%= render :partial => "comment/comment", :object => comment %>
   <% end %>
 </div>
 
