@@ -5,8 +5,8 @@
 <% end unless @goals.nil? %>
 
 <%= stylesheet_link_tag "http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.18/themes/blitzer/jquery-ui.css" %>
-<%= google_javascripts "jquery" %>
-<%= google_javascripts "jqueryui" %>
+<%= google_jquery %>
+<%= google_jqueryui %>
 <%= javascript_include_tag "jquery.ui.datepicker-pt-BR" if I18n.locale == :pt_BR %>
 <script type="text/javascript">
   jQuery.noConflict();

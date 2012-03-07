@@ -1,5 +1,12 @@
 # Methods added to this helper will be available to all templates in the application.
 module ApplicationHelper
+  class RemoteLinkRenderer < WillPaginate::ActionView::LinkRenderer
+    private
+      def link(text, target, attributes = {})
+        super(text, target, attributes.merge("data-remote" => "true"))
+      end
+  end
+
   def add_wbr_to_string(str, strings_to_break_after = [ '/' ])
     ret = String.new(str)
     strings_to_break_after.each do |pattern|
@@ -8,30 +15,6 @@ module ApplicationHelper
       end
     end
     ret
-  end
-
-  def pagination_links_remote(paginator, ajax_options={}, page_options={}, html_options={})
-    page_options = { :window_size => 8 }.merge(page_options)
-    html = ""
-    unless paginator.current.first?
-      ajax_options[:url].merge!({:page => paginator.current.previous.number})
-      html << link_to_remote(_("Prev"), ajax_options, html_options)
-      html << " "
-    else
-      html << _("Prev ")
-    end
-    html << pagination_links_each(paginator, page_options) do |page|
-      ajax_options[:url].merge!({:page => page})
-      link_to_remote(page, ajax_options, html_options)
-    end
-    unless paginator.current.last?
-      ajax_options[:url].merge!({:page => paginator.current.next.number})
-      html << " "
-      html << link_to_remote("Next", ajax_options, html_options)
-    else
-      html << _(" Next")
-    end
-    html
   end
 
   def formatted_diff(diff)

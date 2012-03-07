@@ -159,9 +159,7 @@ class GameController < ApplicationController
     @team = Team.find(params["team"])
     @home_away = @game.home.id == @team.id ? "home" : "away"
     @total = Player.count :conditions => conditions
-    @player_pages, @players = paginate :players, :order => "name",
-                                       :conditions => conditions,
-                                       :per_page => items_per_page
+    @players = Player.order(:name).where(conditions).paginate(:per_page => items_per_page, :page => params[:page])
   end
 
   def create_stadium_for_edit
