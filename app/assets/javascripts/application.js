@@ -14,5 +14,4 @@
 //= require prototype-ujs
 //= require effects
 //= require dragdrop
-//= require controls
 //= require boxover
