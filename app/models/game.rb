@@ -105,7 +105,7 @@ class Game < ActiveRecord::Base
     end
 
     def validate
-      errors.add(:home, "can't play with itself") if home_id == away_id
+      errors.add(:home, _("can't play with itself")) if home_id == away_id
     end
 
     def played_str

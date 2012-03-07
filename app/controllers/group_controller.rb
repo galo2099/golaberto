@@ -10,25 +10,19 @@ class GroupController < ApplicationController
 
   def update
     @group = Group.find(params["id"])
-    @group.attributes = params["group"]
-
-    valid = @group.valid?
+    @group.update_attributes(params["group"])
 
 	@group.team_groups.clear
 
-    new_team_groups = Array.new
     params["team_group"].each do |key, value|
       value["comment"] = nil if value["comment"].to_s.empty?
-      new_team_groups.push TeamGroup.new(value.merge({:group_id => @group.id}))
-      valid = new_team_groups.last.try(:valid?) && valid
+      @group.team_groups << TeamGroup.new(value.merge({:group_id => @group.id}))
     end unless params["team_group"].nil?
 
-	@group.team_groups = new_team_groups
-
-    if valid
+    begin
       @group.save!
       redirect_to :controller => :championship, :action => :phases, :id => @group.phase.championship, :phase => @group.phase
-    else
+    rescue
       @teams = Team.order(:name)
       render :action => "edit"
     end
