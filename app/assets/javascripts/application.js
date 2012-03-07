@@ -16,4 +16,3 @@
 //= require dragdrop
 //= require controls
 //= require boxover
-//= require calendar
