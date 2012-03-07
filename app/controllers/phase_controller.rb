@@ -25,9 +25,9 @@ class PhaseController < ApplicationController
     phase = Phase.find(params["id"])
     last_group = phase.groups[-1]
     4.times do
-      new_name = returning last_group.name.split(" ") do |x|
-        x[-1].succ!
-      end.join " "
+      tokens = last_group.name.split(" ")
+      tokens[-1].succ!
+      new_name = tokens.join " "
       last_group = phase.groups.build
       last_group.name = new_name
       last_group.save!
