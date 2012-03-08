@@ -13,11 +13,11 @@
 
   <div class='container'>
     <div class='header'>
-      <%= link_to image_tag("logo.png", :border => 0), "/" %>
+      <%= link_to image_tag("logo.png", :border => 0), :controller => :home %>
       <div class="navigation" style='position: absolute; top: 0px; right: 0px; background-color: #8f983b;'>
         <% case I18n.locale
-              when :pt_BR then %> <a href="/cookie/set_cookie/en_US">English <%= image_tag "flags/gb.png" %></a> 
-           <% else %> <a href="/cookie/set_cookie/pt_BR">Português <%= image_tag "flags/br.png" %></a>
+              when :pt_BR then %> <%= link_to ("English " + image_tag("flags/gb.png")).html_safe, url_for(:locale => :en_US) %>
+           <% else %> <%= link_to ("Português " + image_tag("flags/br.png")).html_safe, url_for(:locale => :pt_BR) %>
         <% end %>
       </div>
       <% if logged_in? %>
