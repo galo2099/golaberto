@@ -14,6 +14,7 @@
 /log/*.log
 /tmp
 
+public/assets
 public/images/countries/*.png
 public/images/logos
 public/images/users/*.png

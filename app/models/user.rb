@@ -81,11 +81,11 @@ class User < ActiveRecord::Base
   end
 
   def small_logo
-    "#{id}_15.png"
+    "/images/users/#{id}_15.png"
   end
 
   def large_logo
-    "#{id}_100.png"
+    "/images/users/#{id}_100.png"
   end
 
   def uploaded_picture(l, filter_background = false)
@@ -110,9 +110,9 @@ class User < ActiveRecord::Base
 
     def create_logo
       icon = Quilt::Identicon.new display_login, :size => 15
-      icon.write("#{Rails.root}/app/assets/images/users/#{self.id}_15.png")
+      icon.write("#{Rails.root}/public/images/users/#{self.id}_15.png")
       icon = Quilt::Identicon.new display_login, :size => 100
-      icon.write("#{Rails.root}/app/assets/images/users/#{self.id}_100.png")
+      icon.write("#{Rails.root}/public/images/users/#{self.id}_100.png")
     end
 
     def add_initial_roles

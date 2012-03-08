@@ -53,13 +53,13 @@ function receiveDrop(drag, drop) {
   <%= hidden_field_tag "redirect", @redirect if @redirect %>
   <table>
     <tr>
-      <td rowspan=3><%= image_tag "logos/" + @game.home.large_logo %></td>
+      <td rowspan=3><%= image_tag @game.home.large_logo %></td>
       <td> <b><%= add_wbr_to_string(h(@game.home.name)) %></b> </td>
       <td> <%= g.text_field :home_score, :size => 2 %> </td>
       <td>x</td>
       <td> <%= g.text_field :away_score, :size => 2 %> </td>
       <td> <b><%= add_wbr_to_string(h(@game.away.name)) %></b> </td>
-      <td rowspan=3><%= image_tag "logos/" + @game.away.large_logo %></td>
+      <td rowspan=3><%= image_tag @game.away.large_logo %></td>
     </tr>
     <tr>
       <td>

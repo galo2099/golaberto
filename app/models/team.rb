@@ -26,33 +26,33 @@ class Team < ActiveRecord::Base
 
   def small_country_logo
     if country.nil?
-      'logos/15.png'
+      '/images/logos/15.png'
     else
-      "countries/#{country.parameterize('_')}_15.png"
+      "/images/countries/#{country.parameterize('_')}_15.png"
     end
   end
 
   def large_country_logo
     if country.nil?
-      'logos/100.png'
+      '/images/logos/100.png'
     else
-      "countries/#{country.parameterize('_')}_100.png"
+      "/images/countries/#{country.parameterize('_')}_100.png"
     end
   end
 
   def small_logo
     if logo.nil?
-      '15.png'
+      '/images/logos/15.png'
     else
-      logo.gsub(/(.*)\.svg/, '\1_15.png')
+      "/images/logos/" + logo.gsub(/(.*)\.svg/, '\1_15.png')
     end
   end
 
   def large_logo
     if logo.nil?
-      '100.png'
+      '/images/logos/100.png'
     else
-      logo.gsub(/(.*)\.svg/, '\1_100.png')
+      "/images/logos/" + logo.gsub(/(.*)\.svg/, '\1_100.png')
     end
   end
 

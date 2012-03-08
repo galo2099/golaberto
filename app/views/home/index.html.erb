@@ -18,7 +18,7 @@
   <% @games.each do |game| %>
     <div class="updated-game">
     <% if game.updater %>
-      <div style="overflow: hidden; white-space: nowrap; width: 100%"><a href="<%= url_for(:controller => :user, :action => :show, :id => game.updater) %>"><small><%= image_tag "users/" + game.updater.small_logo, :class => "user-logo" %> <%= game.updater.display_name %></small></a></div>
+      <div style="overflow: hidden; white-space: nowrap; width: 100%"><a href="<%= url_for(:controller => :user, :action => :show, :id => game.updater) %>"><small><%= image_tag game.updater.small_logo, :class => "user-logo" %> <%= game.updater.display_name %></small></a></div>
     <% end %>
     <small><%= game.updated_at.strftime(_("%A, %d/%m/%Y at %H:%M")) %></small><br>
     <div class="table_row">
