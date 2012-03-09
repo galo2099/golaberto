@@ -197,9 +197,9 @@ class ChampionshipController < ApplicationController
     @players.sort!{|a,b| a.player.name <=> b.player.name}.map! do |p|
       { :player => p.player,
         :team_player => p,
-        :goals => p.player.goals.joins("LEFT JOIN games ON games.id = game_id").where("own_goal = 0 AND games.phase_id IN (?) AND team_id = ?", @championship.phase_ids, @team).count,
-        :penalties => p.player.goals.joins("LEFT JOIN games ON games.id = game_id").where("own_goal = 0 AND penalty = 1 AND games.phase_id IN (?) AND team_id = ?", @championship.phase_ids, @team).count,
-        :own_goals => p.player.goals.joins("LEFT JOIN games ON games.id = game_id").where("own_goal = 1 AND games.phase_id IN (?) AND team_id = ?", @championship.phase_ids, @team).count
+        :goals => p.player.goals.joins("LEFT JOIN games ON games.id = game_id").where("own_goal = ? AND games.phase_id IN (?) AND team_id = ?", false, @championship.phase_ids, @team).count,
+        :penalties => p.player.goals.joins("LEFT JOIN games ON games.id = game_id").where("own_goal = ? AND penalty = ? AND games.phase_id IN (?) AND team_id = ?", false, true, @championship.phase_ids, @team).count,
+        :own_goals => p.player.goals.joins("LEFT JOIN games ON games.id = game_id").where("own_goal = ? AND games.phase_id IN (?) AND team_id = ?", true, @championship.phase_ids, @team).count
       }
     end
   end
@@ -225,7 +225,7 @@ class ChampionshipController < ApplicationController
       games = games.where("home_id IN (?) OR away_id IN (?)", teams, teams)
     end
 
-    @rounds = games.all(:group => :round, :order => :round).map{|g| g.round }.compact
+    @rounds = games.group(:round).order(:round).count.keys
 
     unless (params[:round].to_s.empty?)
       @current_round = params[:round].to_i
@@ -267,7 +267,7 @@ class ChampionshipController < ApplicationController
     store_location
     @championship = Championship.find(params["id"])
 
-    @average = @championship.games.average(:attendance, :group => :home, :order => "avg_attendance DESC")
+    @average = @championship.games.group(:home).average(:attendance).sort{|a,b| b[1] <=> a[1]}
     @maximum = @championship.games.maximum(:attendance, :group => :home)
     @minimum = @championship.games.minimum(:attendance, :group => :home)
     @count = @championship.games.count(:attendance, :group => :home)
@@ -286,7 +286,7 @@ class ChampionshipController < ApplicationController
     page = (params[:page] || 1).to_i
     per_page = 30
     offset = (page - 1) * per_page
-    scorers = @championship.goals.group(:player).where(:own_goal => 0).order("count_all DESC").count
+    scorers = @championship.goals.group(:player).where(:own_goal => false).order("count_all DESC").count
     @scorer_pagination = WillPaginate::Collection.new(page, per_page, scorers.size)
     @scorers = scorers.keys[offset, per_page].map{|k| [ k, scorers[k] ] }
     players = @scorers.map{|p,c| p}
@@ -296,8 +296,8 @@ class ChampionshipController < ApplicationController
       h[player] = [ team ] + h[player].to_a
       h
     end
-    @own = @championship.goals.group(:player).where(:own_goal => 1, :player_id => players).count
-    @penalty = @championship.goals.group(:player).where(:penalty => 1, :player_id => players).count
+    @own = @championship.goals.group(:player).where(:own_goal => true, :player_id => players).count
+    @penalty = @championship.goals.group(:player).where(:penalty => true, :player_id => players).count
   end
 
   def open_flash_chart_object(width, height, options = {})
