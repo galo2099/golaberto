@@ -14,10 +14,6 @@ class CommentController < ApplicationController
   end
 
   def destroy
-    if current_user == @comment.user
-      @comment.destroy
-    else
-      render :nothing => true
-    end
+    @comment.destroy
   end
 end
