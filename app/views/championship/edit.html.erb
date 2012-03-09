@@ -2,13 +2,7 @@
 
 <%= error_messages_for 'championship', 'phase' %>
 
-<%= stylesheet_link_tag "http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.18/themes/blitzer/jquery-ui.css" %>
-<%= google_javascripts "jquery" %>
-<%= google_javascripts "jqueryui" %>
-<%= javascript_include_tag "jquery.ui.datepicker-pt-BR" if I18n.locale == :pt_BR %>
-<script type="text/javascript">
-  jQuery.noConflict();
-</script>
+<%= javascript_include_jquery %>
 
 <%= form_for @championship, :url => { :action => :update, :id => @championship } do |f| %>
   <%= _("Name") %>:

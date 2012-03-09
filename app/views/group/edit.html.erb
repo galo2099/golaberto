@@ -1,10 +1,4 @@
-<%= google_jquery %>
-<%= google_jqueryui %>
-<%= stylesheet_link_tag "http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.18/themes/blitzer/jquery-ui.css" %>
-<script type="text/javascript">
-  jQuery.noConflict();
-</script>
-
+<%= javascript_include_jquery %>
 
 <% content_for :main_title do %>
   <%= @group.phase.championship.full_name %>

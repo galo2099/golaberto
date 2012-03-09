@@ -63,7 +63,7 @@ function initialize_team_group(team_group, teams, ordered_teams, current_data) {
     select: function(event, ui) {
       id.val(ui.item.id);
       name.val(ui.item.value);
-      icon.attr('src', '/assets/logos/' + ui.item.icon);
+      icon.attr('src', ui.item.icon);
       return false;
     },
     change: function(event, ui) {
@@ -84,7 +84,7 @@ function initialize_team_group(team_group, teams, ordered_teams, current_data) {
     comment.val(current_data.comment);
     id.val(current_data.team_id);
     name.val(teams[current_data.team_id].name);
-    icon.attr('src', '/assets/logos/' + teams[current_data.team_id].icon);
+    icon.attr('src', teams[current_data.team_id].icon);
   }
 }
 

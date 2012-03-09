@@ -1,12 +1,6 @@
 <% content_for :main_title do %><%= _("Listing games") %><% end %>
 
-<%= stylesheet_link_tag "http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.18/themes/blitzer/jquery-ui.css" %>
-<%= google_jquery %>
-<%= google_jqueryui %>
-<%= javascript_include_tag "jquery.ui.datepicker-pt-BR" if I18n.locale == :pt_BR %>
-<script type="text/javascript">
-  jQuery.noConflict();
-</script>
+<%= javascript_include_jquery %>
 
 <%= _("Category") %>: <select id='category_select'>
   <%= options_from_collection_for_select @categories, "id", "name", @category %>
