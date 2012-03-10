@@ -96,7 +96,7 @@
          <%= content_tag :td, pos, :class => "pos" unless omit_columns[:Pos] %>
          <%= content_tag(:td,
                          (country_logo + " " + image_logo + " " +
-                         link_to(add_wbr_to_string(h team.name), :action => 'team',
+                         link_to(add_wbr_to_string(team.name), :action => 'team',
                                             :id => group.phase.championship,
                                             :team => team) +
                          note_number).html_safe,

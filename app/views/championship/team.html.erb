@@ -13,7 +13,7 @@
 <%= observe_field 'team_select', :function => "document.location = '#{team_url}' + value" %>
 
 <h2><%= image_tag @team.large_logo %>
-  <%= link_to add_wbr_to_string(h(@team.name)), :controller => :team, :action => :show, :id => @team %>
+  <%= link_to add_wbr_to_string(@team.name), :controller => :team, :action => :show, :id => @team %>
 </h2>
 
 <% if @played_games.size > 0 %>

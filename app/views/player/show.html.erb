@@ -2,7 +2,7 @@
 
 <h2><%= @player.name %> - <%= @player.full_name %></h2>
 <% @player.team_players.each do |tp| %>
-  <%= add_wbr_to_string(h(tp.team.name)) %> - <%= tp.championship.full_name %><br/>
+  <%= add_wbr_to_string(tp.team.name) %> - <%= tp.championship.full_name %><br/>
 <% end %>
 
 <%= render :partial => "comment/comments", :locals => { :object => @player } %>

@@ -25,7 +25,7 @@
       <tr class='table_line'>
         <td><%= link_to player.name, :controller => :player, :action => :show, :id => player %></td>
         <td><%= player.position %></td>
-        <td><%= @teams[player].map{|t| link_to add_wbr_to_string(h(t.name)), :controller => :championship, :action => :team, :id => @championship, :team => t }.join(", ").html_safe %>
+        <td><%= @teams[player].map{|t| link_to add_wbr_to_string(t.name), :controller => :championship, :action => :team, :id => @championship, :team => t }.join(", ").html_safe %>
         <td><%= goals %></td>
         <td><%= @penalty[player] %></td>
         <td><%= @own[player] %></td>

@@ -26,7 +26,7 @@
                                 :width => 15,
                                 :height => 15) %>
       <td class='name'><%= (country_logo + " " + image_logo + " " +
-                           link_to(add_wbr_to_string(h team.name), :action => 'team',
+                           link_to(add_wbr_to_string(team.name), :action => 'team',
                                               :id => @championship,
                                               :team => team)).html_safe %></td>
       <td><%= avg.to_i %></td>

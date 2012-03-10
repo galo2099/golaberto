@@ -9,7 +9,7 @@
     <div><%= _("Position") %>: <%= player.position %></div>
     <% player.team_players.each do |t| %>
       <div class="<%= cycle("table_line_even", "table_line_odd") %>">
-        <%= add_wbr_to_string(h(t.team.name)) + " - " + t.championship.full_name %>
+        <%= add_wbr_to_string(t.team.name) + " - " + t.championship.full_name %>
       </div>
     <% end %>
     <%= button_to_function(_("Close")) { |page| page["player_details_#{player.id}"].hide } %>

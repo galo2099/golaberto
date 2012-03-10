@@ -20,12 +20,13 @@ module ApplicationHelper
 
   def add_wbr_to_string(str, strings_to_break_after = [ '/' ])
     ret = String.new(str)
+    ret = h(ret) unless str.html_safe?
     strings_to_break_after.each do |pattern|
-      ret.gsub!(pattern) do |s|
+      ret = ret.gsub(pattern) do |s|
         s + '<wbr />'
       end
     end
-    ret
+    ret.html_safe
   end
 
   def formatted_diff(diff)

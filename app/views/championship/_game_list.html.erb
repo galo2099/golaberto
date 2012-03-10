@@ -4,7 +4,7 @@ show_country = defined?(show_country) ? show_country : nil
 game_id = game.class == Game::Version ? game.game.id : game.id
 def name_to_print(team, highlight)
   name = add_wbr_to_string team.name
-  name = "<b>#{h name}</b>" if team == highlight
+  name = "<b>#{name}</b>" if team == highlight
   name.html_safe
 end %>
 <div class='table_cell game_time'>
