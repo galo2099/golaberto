@@ -1,0 +1,49 @@
+---
+- !ruby/object:Rubber::Configuration::InstanceItem
+  name: production
+  domain: golaberto.com
+  roles:
+  - !ruby/object:Rubber::Configuration::RoleItem
+    name: web
+    options: {}
+  - !ruby/object:Rubber::Configuration::RoleItem
+    name: haproxy
+    options: {}
+  - !ruby/object:Rubber::Configuration::RoleItem
+    name: app
+    options: {}
+  - !ruby/object:Rubber::Configuration::RoleItem
+    name: passenger
+    options: {}
+  - !ruby/object:Rubber::Configuration::RoleItem
+    name: apache
+    options: {}
+  - !ruby/object:Rubber::Configuration::RoleItem
+    name: db
+    options:
+      primary: true
+  - !ruby/object:Rubber::Configuration::RoleItem
+    name: mysql_master
+    options: {}
+  instance_id: i-e3ea6d87
+  image_type: t1.micro
+  image_id: ami-baba68d3
+  security_groups:
+  - GolAberto_production_default
+  - GolAberto_production_web
+  - GolAberto_production_production
+  - GolAberto_production_haproxy
+  - GolAberto_production_app
+  - GolAberto_production_passenger
+  - GolAberto_production_apache
+  - GolAberto_production_db
+  - GolAberto_production_mysql_master
+  external_host: ec2-23-20-163-139.compute-1.amazonaws.com
+  external_ip: 23.20.163.139
+  internal_host: ip-10-195-201-165.ec2.internal
+  internal_ip: 10.195.201.165
+  zone: us-east-1c
+  platform: linux
+  root_device_type: ebs
+- volumes: {}
+  static_ips: {}

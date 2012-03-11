@@ -1,58 +1,61 @@
-set :user, "galo_2099"
-set :domain, "golaberto.com.br"
-set :application, "golaberto"
-set :rake, "/home/galo_2099/.gem/ruby/1.8/bin/rake"
+# This is a sample Capistrano config file for rubber
 
-set :deploy_to, "/home/galo_2099/#{application}"
+set :rails_env, RUBBER_ENV
 
-# Dreamhost doesn't allow you to use sudo.
-set :use_sudo, false
-
-set :scm, :git
-set :local_scm_command, "git"
-set :repository, "git://github.com/galo2099/golaberto.git"
-set :deploy_via, :remote_cache
-set :branch, "master"
+on :load do
+  set :application, rubber_env.app_name
+  set :runner,      rubber_env.app_user
+  set :deploy_to,   "/mnt/#{application}-#{RUBBER_ENV}"
+  set :copy_exclude, [".git/*", ".bundle/*", "log/*", ".rvmrc"]
+end
 
 ssh_options[:paranoid] = false
 ssh_options[:encryption] = [ "aes128-cbc", "aes256-cbc", "3des-cbc" ]
 ssh_options[:auth_methods] = [ "publickey", "keyboard-interactive", "password" ]
 
-role :app, domain
-role :web, domain
-role :db,  domain, :primary => true
+# Use a simple directory tree copy here to make demo easier.
+# You probably want to use your own repository for a real app
+set :scm, :git
+set :repository, "git://github.com/galo2099/golaberto.git"
+set :deploy_via, :remote_cache
+set :branch, "rails3"
 
-after "deploy:update_code", :roles => :app do
-  stats = <<-JS
-<script type='text/javascript'>
-var gaJsHost = (('https:' == document.location.protocol) ? 'https://ssl.' : 'http://www.');
-document.write(unescape('%3Cscript src=\\"' + gaJsHost + 'google-analytics.com/ga.js\\" type=\\"text/javascript\\"%3E%3C/script%3E'));
-</script>
-<script type='text/javascript'>
-try {
-var pageTracker = _gat._getTracker('UA-1911106-4');
-pageTracker._trackPageview();
-} catch(err) {}</script>
-  JS
-  layout = "#{release_path}/app/views/layouts/application.rhtml"
-  run "sed -i \"s^</body>^#{stats}</body>^\" #{layout}"
+# Easier to do system level config as root - probably should do it through
+# sudo in the future.  We use ssh keys for access, so no passwd needed
+set :user, 'root'
+set :password, nil
 
-  run "sed -i -e 's/development/production/' #{release_path}/lib/daemons/delayed_jobs.rb"
+# Use sudo with user rails for cap deploy:[stop|start|restart]
+# This way exposed services (mongrel) aren't running as a privileged user
+set :use_sudo, true
 
-  run "patch #{release_path}/config/environment.rb -i #{shared_path}/config/environment.patch"
+# How many old releases should be kept around when running "cleanup" task
+set :keep_releases, 3
 
-  run "cp -f #{shared_path}/config/database.yml #{release_path}/config/database.yml"
+# Lets us work with staging instances without having to checkin config files
+# (instance*.yml + rubber*.yml) for a deploy.  This gives us the
+# convenience of not having to checkin files for staging, as well as 
+# the safety of forcing it to be checked in for production.
+set :push_instance_config, RUBBER_ENV != 'production'
 
-  run "ln -s #{shared_path}/countries #{release_path}/public/images/"
-  run "ln -s #{shared_path}/logos #{release_path}/public/images/"
-  run "ln -s #{shared_path}/users #{release_path}/public/images/"
-
-  run "#{rake} -f #{release_path}/Rakefile asset:packager:build_all"
-end
-
+# Allows the tasks defined to fail gracefully if there are no hosts for them.
+# Comment out or use "required_task" for default cap behavior of a hard failure
+rubber.allow_optional_tasks(self)
+# Wrap tasks in the deploy namespace that have roles so that we can use FILTER
+# with something like a deploy:cold which tries to run deploy:migrate but can't
+# because we filtered out the :db role
 namespace :deploy do
-  desc "Restart the FCGI processes on the app server as a regular user."
-  task :restart, :roles => :app do
-    run "touch #{current_path}/tmp/restart.txt"
+  rubber.allow_optional_tasks(self)
+  tasks.values.each do |t|
+    if t.options[:roles]
+      task t.name, t.options, &t.body
+    end
   end
 end
+
+# load in the deploy scripts installed by vulcanize for each rubber module
+Dir["#{File.dirname(__FILE__)}/rubber/deploy-*.rb"].each do |deploy_file|
+  load deploy_file
+end
+
+after "deploy", "deploy:cleanup"
