@@ -67,4 +67,11 @@ namespace :deploy do
     run_locally "#{rake} assets:clean && #{rake} RAILS_ENV=#{rails_env} RAILS_GROUPS=assets assets:precompile"
     transfer(:up, "public/assets", "#{release_path}/public/assets") { print "." }
   end
+  after "deploy:update_code", "deploy:set_image_symlinks"
+  task :set_image_symlinks, :roles => :app do
+    run "mkdir -p #{release_path}/public/images"
+    run "ln -s #{shared_path}/images/countries #{release_path}/public/images/"
+    run "ln -s #{shared_path}/images/logos #{release_path}/public/images/"
+    run "ln -s #{shared_path}/images/users #{release_path}/public/images/"
+  end
 end
