@@ -53,7 +53,7 @@ gem "open_id_authentication", git: "https://github.com/ndbradley730/open_id_auth
 gem "prototype_legacy_helper", "0.0.0", :git => 'git://github.com/willbryant/prototype_legacy_helper.git'
 gem "prototype-rails"
 gem "quilt"
-gem "rmagick"
+gem "rmagick", require: "RMagick"
 gem "userstamp", git: "https://github.com/delynn/userstamp.git"
 gem "will_paginate"
 
