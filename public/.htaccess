@@ -20,7 +20,7 @@ Options +FollowSymLinks +ExecCGI
 RewriteEngine On
 
 RewriteBase /
-RewriteCond %{REQUEST_URI} ^/(stats|failed_auth\.html|assets)/?(.*)$ [NC]
+RewriteCond %{REQUEST_URI} ^/(stats|failed_auth\.html|assets|images)/?(.*)$ [NC]
 RewriteRule ^.*$ - [L]
 
 # Prevent hotlinking to images
