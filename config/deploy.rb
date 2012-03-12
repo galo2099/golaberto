@@ -59,3 +59,12 @@ Dir["#{File.dirname(__FILE__)}/rubber/deploy-*.rb"].each do |deploy_file|
 end
 
 after "deploy", "deploy:cleanup"
+
+namespace :deploy do
+  desc "precompile and deploy the assets to the server"
+  after "deploy:update_code", "deploy:precompile_assets"
+  task :precompile_assets, :roles => :app do
+    run_locally "#{rake} assets:clean && #{rake} RAILS_ENV=#{rails_env} RAILS_GROUPS=assets assets:precompile"
+    transfer(:up, "public/assets", "#{release_path}/public/assets") { print "." }
+  end
+end
