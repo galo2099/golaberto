@@ -17,6 +17,7 @@ development:
   password: 
   host: localhost
   encoding: utf8
+  collation: utf8_unicode_ci
 
 # Warning: The database defined as 'test' will be erased and
 # re-generated from your development database when you run 'rake'.
@@ -28,6 +29,7 @@ test:
   password:
   host: localhost
   encoding: utf8
+  collation: utf8_unicode_ci
 
 production:
   adapter: mysql2
@@ -36,3 +38,4 @@ production:
   password:
   host: localhost
   encoding: utf8
+  collation: utf8_unicode_ci
