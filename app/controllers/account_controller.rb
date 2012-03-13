@@ -20,7 +20,7 @@ class AccountController < ApplicationController
     return unless request.post?
     @user.save!
     self.current_user = @user
-    redirect_back_or_default("/")
+    redirect_back_or_default(:controller => :home)
     flash[:notice] = _("Thanks for signing up!")
   rescue ActiveRecord::RecordInvalid
     render :action => 'signup'
@@ -69,7 +69,7 @@ class AccountController < ApplicationController
     end
     current_user.last_login = Time.now
     current_user.save
-    redirect_back_or_default("/")
+    redirect_back_or_default(:controller => :home)
     flash[:notice] = _("Logged in successfully")
   end
 
