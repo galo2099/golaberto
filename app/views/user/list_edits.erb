@@ -1,6 +1,6 @@
 <% content_for :main_title do %><%= _("Listing games") %><% end %>
 
-<div><%= image_tag @user.small_logo, :class => "user-logo" %> <%= h @user.display_name %></div>
+<div><%= image_tag @user.avatar.url(:thumb), :class => "user-logo" %> <%= h @user.display_name %></div>
 <br/>
 <%= will_paginate @edits %>
 <br/>

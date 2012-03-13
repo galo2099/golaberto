@@ -39,6 +39,7 @@ gem 'jquery-rails'
 gem "activerecord-diff", git: "https://github.com/galo2099/activerecord-diff.git"
 gem "acts_as_versioned", git: "https://github.com/luismreis/acts_as_versioned.git"
 gem "acts_as_versioned_association", "0.0.0", git: "https://github.com/galo2099/acts_as_versioned_association"
+gem "aws-sdk"
 gem "cancan"
 gem "daemons"
 gem "delayed_job"
@@ -50,6 +51,7 @@ gem "google_ajax_libraries_api", "0.0.0", git: "https://github.com/galo2099/goog
 gem "jquery_datepicker", git: "https://github.com/galo2099/jquery_datepicker"
 #gem "newrelic_rpm"
 gem "open_id_authentication", git: "https://github.com/ndbradley730/open_id_authentication", branch: "controllermethods_name_error"
+gem "paperclip"
 gem "prototype_legacy_helper", "0.0.0", :git => 'git://github.com/willbryant/prototype_legacy_helper.git'
 gem "prototype-rails"
 gem "quilt"

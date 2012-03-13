@@ -1,9 +1,11 @@
 require 'digest/sha1'
-require 'image_upload'
 class User < ActiveRecord::Base
-  include ImageUpload
-
   model_stamper
+  has_attached_file :avatar,
+      :styles => { :medium => "100x100#", :thumb => "15x15#" },
+      :storage => :s3,
+      :s3_credentials => "#{Rails.root}/config/s3.yml",
+      :path => ":class/:attachment/:id/:style.:extension"
   cattr_accessor :current_user
   # Virtual attribute for the unencrypted password
   attr_accessor :password
@@ -80,18 +82,6 @@ class User < ActiveRecord::Base
     name or display_login
   end
 
-  def small_logo
-    "/images/users/#{id}_15.png"
-  end
-
-  def large_logo
-    "/images/users/#{id}_100.png"
-  end
-
-  def uploaded_picture(l, filter_background = false)
-    uploaded_image(l, "users", filter_background)
-  end
-
   protected
     # before filter
     def encrypt_password
@@ -109,10 +99,17 @@ class User < ActiveRecord::Base
     end
 
     def create_logo
-      icon = Quilt::Identicon.new display_login, :size => 15
-      icon.write("#{Rails.root}/public/images/users/#{self.id}_15.png")
-      icon = Quilt::Identicon.new display_login, :size => 100
-      icon.write("#{Rails.root}/public/images/users/#{self.id}_100.png")
+      tmpfile = Tempfile.new("user_#{id}_icon")
+      begin
+        icon = Quilt::Identicon.new display_login, :size => 100
+        tmpfile.binmode
+        tmpfile.write icon.to_blob
+        self.avatar = tmpfile
+        save!
+      ensure
+        tmpfile.close
+        tmpfile.unlink
+      end
     end
 
     def add_initial_roles
