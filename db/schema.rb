@@ -11,7 +11,7 @@
 #
 # It's strongly recommended to check this file into your version control system.
 
-ActiveRecord::Schema.define(:version => 20120302074545) do
+ActiveRecord::Schema.define(:version => 20120312221558) do
 
   create_table "categories", :force => true do |t|
     t.string "name"
@@ -80,6 +80,8 @@ ActiveRecord::Schema.define(:version => 20120302074545) do
     t.integer  "home_aet"
     t.integer  "away_aet"
   end
+
+  add_index "game_versions", ["updater_id"], :name => "index_game_versions_on_updater_id"
 
   create_table "games", :force => true do |t|
     t.integer  "home_id",    :default => 0,     :null => false
