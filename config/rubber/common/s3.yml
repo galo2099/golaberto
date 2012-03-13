@@ -1,9 +1,8 @@
 <%
   @path = "#{RUBBER_ROOT}/config/s3.yml"
-  p rubber_env
 %>
 
 <%= RUBBER_ENV %>:
   access_key_id: <%= cloud_provider.access_key %>
   secret_access_key: <%= cloud_provider.secret_access_key %>
-  bucket: <%= rubber_env.app_name %>_<%= RUBBER_ENV %>
+  bucket: <%= rubber_env.app_name.downcase %>_<%= RUBBER_ENV %>
