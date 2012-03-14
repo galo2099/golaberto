@@ -12,7 +12,7 @@
 <% team_url = url_for(:controller => :championship, :action => :team, :id => @championship, :team => "") %>
 <%= observe_field 'team_select', :function => "document.location = '#{team_url}' + value" %>
 
-<h2><%= image_tag @team.large_logo %>
+<h2><%= image_tag @team.logo.url(:medium) %>
   <%= link_to add_wbr_to_string(@team.name), :controller => :team, :action => :show, :id => @team %>
 </h2>
 

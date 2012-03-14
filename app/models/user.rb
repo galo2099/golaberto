@@ -7,8 +7,7 @@ class User < ActiveRecord::Base
       :styles => lambda { |attachment|
         options = { :format => "png", :filter_background => attachment.instance.filter_image_background }
         { :medium => options.merge(:geometry => "100x100"),
-          :thumb => options.merge(:geometry => "15x15")
-        }
+          :thumb => options.merge(:geometry => "15x15") }
       },
       :processors => [ :logo ],
       :storage => :s3,

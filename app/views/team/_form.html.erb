@@ -23,8 +23,8 @@ end %><br/>
     :update => { :success => :team_stadium_id },
     :failure => "alert('#{ _('Could not insert stadium') }')" %>
 </div>
-<label for="logo"><%= _("Logo") %>:</label> <%= file_field_tag "logo" %><br/>
-<label for="filter"><%= _("Filter image background?") %></label> <%= check_box_tag "filter" %><br/>
+<%= f.label :logo, _("Logo") %>: <%= f.file_field :logo %><br/>
+<%= f.label :filter_image_background, _("Filter image background?") %> <%= f.check_box :filter_image_background %><br/>
 
 <%= javascript_tag <<EOF
 function ignoreEnter(event) {

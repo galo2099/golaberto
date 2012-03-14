@@ -4,6 +4,10 @@ class AddAttachmentAvatarToUser < ActiveRecord::Migration
     add_column :users, :avatar_content_type, :string
     add_column :users, :avatar_file_size, :integer
     add_column :users, :avatar_updated_at, :datetime
+    User.all.each do |user|
+      user.avatar = File.open("#{Rails.root}/public/images/users/#{user.id}_100.png")
+      user.save!
+    end
   end
 
   def self.down

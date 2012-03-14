@@ -31,12 +31,11 @@ class TeamController < ApplicationController
   end
 
   def update
-    @team = Team.find(params["id"])
-    @team.attributes = params["team"]
-
+    @team = Team.find(params[:id])
     begin
+      @team.filter_image_background = params[:team][:filter_image_background]
+      @team.attributes = params[:team]
       @team.save!
-      @team.uploaded_logo(params[:logo], params[:filter]) unless params[:logo].to_s.empty?
       redirect_to :action => :show, :id => @team
     rescue
       @stadiums = Stadium.order(:name)
@@ -62,10 +61,11 @@ class TeamController < ApplicationController
   end
 
   def create
-    @team = Team.new(params[:team])
+    @team = Team.new
     begin
+      @team.filter_image_background = params[:user][:filter_image_background]
+      @team.attributes = params[:team]
       @team.save!
-      @team.uploaded_logo(params[:logo], params[:filter]) unless params[:logo].to_s.empty?
       redirect_to :action => :show, :id => @team
     rescue
       @stadiums = Stadium.order(:name)

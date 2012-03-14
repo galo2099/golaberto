@@ -18,7 +18,7 @@ var teams = {
   <%= team.id %>:
   { name: '<%= escape_javascript team.name %>',
     desc: '<%= escape_javascript team.full_name %>, <%= escape_javascript _(team.country) %>',
-    icon: '<%= escape_javascript team.small_logo %>' },
+    icon: '<%= escape_javascript team.logo.url(:thumb) %>' },
 <% end %>
 };
 var ordered_teams = [

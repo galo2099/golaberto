@@ -1,6 +1,18 @@
-require 'image_upload'
 class Team < ActiveRecord::Base
-  include ImageUpload
+
+  has_attached_file :logo,
+      :styles => lambda { |attachment|
+        options = { :format => "png", :filter_background => attachment.instance.filter_image_background }
+        { :medium => options.merge(:geometry => "100x100"),
+          :thumb => options.merge(:geometry => "15x15") }
+      },
+      :processors => [ :logo ],
+      :storage => :s3,
+      :s3_credentials => "#{Rails.root}/config/s3.yml",
+      :path => ":class/:attachment/:id/:style.:extension"
+
+  # Virtual attribute to see if we should filter the image background
+  attr_accessor :filter_image_background
 
   belongs_to :stadium
   has_many :comments, :as => :commentable, :dependent => :destroy, :order => 'created_at ASC'
@@ -40,22 +52,6 @@ class Team < ActiveRecord::Base
     end
   end
 
-  def small_logo
-    if logo.nil?
-      '/images/logos/15.png'
-    else
-      "/images/logos/" + logo.gsub(/(.*)\.svg/, '\1_15.png')
-    end
-  end
-
-  def large_logo
-    if logo.nil?
-      '/images/logos/100.png'
-    else
-      "/images/logos/" + logo.gsub(/(.*)\.svg/, '\1_100.png')
-    end
-  end
-
   def next_n_games(n, options = {})
     cond = [ "played = ?", false ]
     if options[:phase].nil?
@@ -86,12 +82,6 @@ class Team < ActiveRecord::Base
       cond << options[:date]
     end
     ret = n_games(n, cond, "DESC")
-  end
-
-  def uploaded_logo(l, filter_background = false)
-    uploaded_image(l, "logos", filter_background)
-    self.logo = "#{self.id}.svg"
-    save!
   end
 
   private

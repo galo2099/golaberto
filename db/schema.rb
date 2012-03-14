@@ -11,7 +11,7 @@
 #
 # It's strongly recommended to check this file into your version control system.
 
-ActiveRecord::Schema.define(:version => 20120313132856) do
+ActiveRecord::Schema.define(:version => 20120314044043) do
 
   create_table "categories", :force => true do |t|
     t.string "name"
@@ -222,13 +222,17 @@ ActiveRecord::Schema.define(:version => 20120313132856) do
   end
 
   create_table "teams", :force => true do |t|
-    t.string  "name",       :default => "", :null => false
-    t.string  "country",    :default => "", :null => false
-    t.string  "logo"
-    t.string  "city"
-    t.integer "stadium_id"
-    t.date    "foundation"
-    t.string  "full_name"
+    t.string   "name",              :default => "", :null => false
+    t.string   "country",           :default => "", :null => false
+    t.string   "legacy_logo"
+    t.string   "city"
+    t.integer  "stadium_id"
+    t.date     "foundation"
+    t.string   "full_name"
+    t.string   "logo_file_name"
+    t.string   "logo_content_type"
+    t.integer  "logo_file_size"
+    t.datetime "logo_updated_at"
   end
 
   create_table "users", :force => true do |t|
