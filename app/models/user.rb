@@ -1,12 +1,23 @@
 require 'digest/sha1'
 class User < ActiveRecord::Base
+  cattr_accessor :current_user
   model_stamper
+
   has_attached_file :avatar,
-      :styles => { :medium => "100x100#", :thumb => "15x15#" },
+      :styles => lambda { |attachment|
+        options = { :format => "png", :filter_background => attachment.instance.filter_image_background }
+        { :medium => options.merge(:geometry => "100x100"),
+          :thumb => options.merge(:geometry => "15x15")
+        }
+      },
+      :processors => [ :logo ],
       :storage => :s3,
       :s3_credentials => "#{Rails.root}/config/s3.yml",
       :path => ":class/:attachment/:id/:style.:extension"
-  cattr_accessor :current_user
+
+  # Virtual attribute to see if we should filter the image background
+  attr_accessor :filter_image_background
+
   # Virtual attribute for the unencrypted password
   attr_accessor :password
   N_("User|Password")

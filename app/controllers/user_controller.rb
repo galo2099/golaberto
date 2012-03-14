@@ -22,6 +22,7 @@ class UserController < ApplicationController
   end
 
   def update
+    @user.filter_image_background = params[:user][:filter_image_background]
     @user.attributes = params[:user]
     @user.save!
     flash[:notice] = _("Your profile was saved")
