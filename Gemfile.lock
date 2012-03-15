@@ -40,7 +40,7 @@ GIT
 
 GIT
   remote: https://github.com/galo2099/jquery_datepicker
-  revision: 71056f6e16634b97820b044f6799b524b8845596
+  revision: 4a8ada4184961a32937f36ec92ed4533c6799954
   specs:
     jquery_datepicker (0.3.2)
 

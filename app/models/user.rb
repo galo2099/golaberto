@@ -89,7 +89,7 @@ class User < ActiveRecord::Base
   end
 
   def display_name
-    name or display_login
+    name.blank? ? display_login : name
   end
 
   protected
