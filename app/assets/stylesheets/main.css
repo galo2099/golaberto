@@ -558,3 +558,8 @@ img.user-logo {
 
 .ui-datepicker { font-size: 0.8em !important; }
 .ui-datepicker-trigger { top: 5px !important; width: 2em !important; }
+
+.thumb-upload-input img {
+  max-height: 100px;
+  max-width: 100px;
+}
