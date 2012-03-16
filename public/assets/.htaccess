@@ -1,0 +1,19 @@
+RewriteEngine On
+
+# Check for browser's Accept-Encoding, remove it for force return gzipped one
+RewriteCond "%{HTTP:Accept-Encoding}" "gzip.*deflate|deflate.*gzip"
+
+# 2 lines to serve pre-gzipped version
+RewriteCond %{REQUEST_FILENAME}.gz -s
+RewriteRule ^(.+) $1.gz [L]
+
+# without it, Content-Type will be "application/x-gzip"
+<FilesMatch .*\.css.gz>
+    AddEncoding gzip .gz
+    ForceType text/css
+</FilesMatch>
+
+<FilesMatch .*\.js.gz>
+    AddEncoding gzip .gz
+    ForceType text/javascript
+</FilesMatch>
