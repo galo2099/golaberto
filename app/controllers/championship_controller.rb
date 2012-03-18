@@ -39,6 +39,8 @@ class ChampionshipController < ApplicationController
 
   def phases
     @championship = Championship.find(params[:id])
+    # Use an empty phase instead of nil if none is passed.
+    @current_phase = Phase.new
     @current_phase = @championship.phases.find(params[:phase]) if params[:phase]
     if @current_phase
       @display_odds = @current_phase.games.find_by_played(false) == nil

@@ -40,7 +40,7 @@ module ChampionshipHelper
         @goals_aet, @goals_pen, @goals_away, @home_games ].each do |var|
         sha256 << var.to_param
       end
-      sha256 << @last_game.cache_key
+      sha256 << @last_game.cache_key if @last_game
       sha256.hexdigest
     end
 

@@ -73,7 +73,7 @@ Golaberto::Application.routes.draw do
   # map championship actions
   match 'championship/show/:id/phases/:phase' => 'championship#phases'
   match 'championship/show/:id/phases/:phase/team_json/' => 'championship#team_json'
-  match 'championship/show/:id/games/:phase(/group/:group)' => 'championship#games'
+  match 'championship/show/:id/games/:phase(/group/:group)(/round/:round)(/p/:page)' => 'championship#games', :constraints => { :page => /\d+/ }, :defaults => { :page => 1 }
   match 'championship/show/:id/new_game/:phase' => 'championship#new_game'
   match 'championship/show/:id/team/:team' => 'championship#team'
 
