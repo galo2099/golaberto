@@ -16,10 +16,11 @@ module ChampionshipHelper
       @goals_aet = 0
       @goals_pen = 0
       @goals_away = 0
+      @home_games = Hash.new
+      @last_game = nil
       @team_group = team_group
       @team_id = team_group.team_id
       @name = team_group.team.name
-      @last_game = nil
       @points += team_group.add_sub
       @bias = team_group.bias
       @promoted_odds = team_group.promoted_odds
@@ -31,7 +32,16 @@ module ChampionshipHelper
       @points_for_loss = championship.point_loss
       @bonus = team_group.group.phase.bonus_points
       @bonus_threshold = team_group.group.phase.bonus_points_threshold
-      @home_games = Hash.new
+    end
+
+    def cache_key
+      sha256 = Digest::SHA256.new
+      [ @games, @points, @wins, @draws, @losses, @goals_for, @goals_against,
+        @goals_aet, @goals_pen, @goals_away, @home_games ].each do |var|
+        sha256 << var.to_param
+      end
+      sha256 << @last_game.cache_key
+      sha256.hexdigest
     end
 
     def add_game_score_only(home_id, away_id, home_score, away_score)

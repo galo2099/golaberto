@@ -11,21 +11,23 @@
 #
 # It's strongly recommended to check this file into your version control system.
 
-ActiveRecord::Schema.define(:version => 20120314044043) do
+ActiveRecord::Schema.define(:version => 20120317131748) do
 
   create_table "categories", :force => true do |t|
     t.string "name"
   end
 
   create_table "championships", :force => true do |t|
-    t.string  "name",         :default => "",    :null => false
-    t.date    "begin",                           :null => false
-    t.date    "end",                             :null => false
-    t.integer "point_win",    :default => 3,     :null => false
-    t.integer "point_draw",   :default => 1,     :null => false
-    t.integer "point_loss",   :default => 0,     :null => false
-    t.integer "category_id",  :default => 0,     :null => false
-    t.boolean "show_country", :default => false, :null => false
+    t.string   "name",         :default => "",    :null => false
+    t.date     "begin",                           :null => false
+    t.date     "end",                             :null => false
+    t.integer  "point_win",    :default => 3,     :null => false
+    t.integer  "point_draw",   :default => 1,     :null => false
+    t.integer  "point_loss",   :default => 0,     :null => false
+    t.integer  "category_id",  :default => 0,     :null => false
+    t.boolean  "show_country", :default => false, :null => false
+    t.datetime "created_at",                      :null => false
+    t.datetime "updated_at",                      :null => false
   end
 
   create_table "comments", :force => true do |t|
@@ -109,23 +111,27 @@ ActiveRecord::Schema.define(:version => 20120314044043) do
   add_index "games", ["home_id"], :name => "index_games_on_home_id"
 
   create_table "goals", :force => true do |t|
-    t.integer "player_id", :default => 0,     :null => false
-    t.integer "game_id",   :default => 0
-    t.integer "team_id",   :default => 0,     :null => false
-    t.integer "time",      :default => 0,     :null => false
-    t.boolean "penalty",   :default => false, :null => false
-    t.boolean "own_goal",  :default => false, :null => false
-    t.boolean "aet",       :default => false, :null => false
+    t.integer  "player_id",  :default => 0,     :null => false
+    t.integer  "game_id",    :default => 0
+    t.integer  "team_id",    :default => 0,     :null => false
+    t.integer  "time",       :default => 0,     :null => false
+    t.boolean  "penalty",    :default => false, :null => false
+    t.boolean  "own_goal",   :default => false, :null => false
+    t.boolean  "aet",        :default => false, :null => false
+    t.datetime "created_at",                    :null => false
+    t.datetime "updated_at",                    :null => false
   end
 
   add_index "goals", ["player_id", "game_id"], :name => "player"
 
   create_table "groups", :force => true do |t|
-    t.integer "phase_id",      :default => 0,  :null => false
-    t.string  "name",          :default => "", :null => false
-    t.integer "promoted",      :default => 0,  :null => false
-    t.integer "relegated",     :default => 0,  :null => false
-    t.integer "odds_progress"
+    t.integer  "phase_id",      :default => 0,  :null => false
+    t.string   "name",          :default => "", :null => false
+    t.integer  "promoted",      :default => 0,  :null => false
+    t.integer  "relegated",     :default => 0,  :null => false
+    t.integer  "odds_progress"
+    t.datetime "created_at",                    :null => false
+    t.datetime "updated_at",                    :null => false
   end
 
   create_table "open_id_authentication_associations", :force => true do |t|
@@ -144,12 +150,14 @@ ActiveRecord::Schema.define(:version => 20120314044043) do
   end
 
   create_table "phases", :force => true do |t|
-    t.integer "championship_id",        :default => 0,                                 :null => false
-    t.string  "name",                   :default => "",                                :null => false
-    t.integer "order_by",               :default => 0,                                 :null => false
-    t.string  "sort",                   :default => "pt, w, gd, gf, gp, g_away, name", :null => false
-    t.integer "bonus_points",           :default => 0,                                 :null => false
-    t.integer "bonus_points_threshold", :default => 0,                                 :null => false
+    t.integer  "championship_id",        :default => 0,                                 :null => false
+    t.string   "name",                   :default => "",                                :null => false
+    t.integer  "order_by",               :default => 0,                                 :null => false
+    t.string   "sort",                   :default => "pt, w, gd, gf, gp, g_away, name", :null => false
+    t.integer  "bonus_points",           :default => 0,                                 :null => false
+    t.integer  "bonus_points_threshold", :default => 0,                                 :null => false
+    t.datetime "created_at",                                                            :null => false
+    t.datetime "updated_at",                                                            :null => false
   end
 
   add_index "phases", ["championship_id"], :name => "championship"
@@ -165,11 +173,13 @@ ActiveRecord::Schema.define(:version => 20120314044043) do
   end
 
   create_table "players", :force => true do |t|
-    t.string "name",                   :default => "", :null => false
-    t.string "position",  :limit => 3
-    t.date   "birth"
-    t.string "country"
-    t.string "full_name"
+    t.string   "name",                    :default => "", :null => false
+    t.string   "position",   :limit => 3
+    t.date     "birth"
+    t.string   "country"
+    t.string   "full_name"
+    t.datetime "created_at",                              :null => false
+    t.datetime "updated_at",                              :null => false
   end
 
   create_table "referee_champs", :force => true do |t|
@@ -178,8 +188,10 @@ ActiveRecord::Schema.define(:version => 20120314044043) do
   end
 
   create_table "referees", :force => true do |t|
-    t.string "name",     :default => "", :null => false
-    t.string "location"
+    t.string   "name",       :default => "", :null => false
+    t.string   "location"
+    t.datetime "created_at",                 :null => false
+    t.datetime "updated_at",                 :null => false
   end
 
   create_table "roles", :force => true do |t|
@@ -195,30 +207,36 @@ ActiveRecord::Schema.define(:version => 20120314044043) do
   add_index "roles_users", ["user_id"], :name => "index_roles_users_on_user_id"
 
   create_table "stadia", :force => true do |t|
-    t.string "name",      :default => "", :null => false
-    t.string "full_name"
-    t.string "city"
-    t.string "country"
+    t.string   "name",       :default => "", :null => false
+    t.string   "full_name"
+    t.string   "city"
+    t.string   "country"
+    t.datetime "created_at",                 :null => false
+    t.datetime "updated_at",                 :null => false
   end
 
   create_table "team_groups", :force => true do |t|
-    t.integer "group_id",       :default => 0, :null => false
-    t.integer "team_id",        :default => 0, :null => false
-    t.integer "add_sub",        :default => 0, :null => false
-    t.integer "bias",           :default => 0, :null => false
-    t.text    "comment"
-    t.float   "first_odds"
-    t.float   "promoted_odds"
-    t.float   "relegated_odds"
+    t.integer  "group_id",       :default => 0, :null => false
+    t.integer  "team_id",        :default => 0, :null => false
+    t.integer  "add_sub",        :default => 0, :null => false
+    t.integer  "bias",           :default => 0, :null => false
+    t.text     "comment"
+    t.float    "first_odds"
+    t.float    "promoted_odds"
+    t.float    "relegated_odds"
+    t.datetime "created_at",                    :null => false
+    t.datetime "updated_at",                    :null => false
   end
 
   add_index "team_groups", ["group_id", "team_id"], :name => "group", :unique => true
   add_index "team_groups", ["id"], :name => "id"
 
   create_table "team_players", :force => true do |t|
-    t.integer "team_id",         :default => 0, :null => false
-    t.integer "player_id",       :default => 0, :null => false
-    t.integer "championship_id", :default => 0, :null => false
+    t.integer  "team_id",         :default => 0, :null => false
+    t.integer  "player_id",       :default => 0, :null => false
+    t.integer  "championship_id", :default => 0, :null => false
+    t.datetime "created_at",                     :null => false
+    t.datetime "updated_at",                     :null => false
   end
 
   create_table "teams", :force => true do |t|
@@ -233,6 +251,8 @@ ActiveRecord::Schema.define(:version => 20120314044043) do
     t.string   "logo_content_type"
     t.integer  "logo_file_size"
     t.datetime "logo_updated_at"
+    t.datetime "created_at",                        :null => false
+    t.datetime "updated_at",                        :null => false
   end
 
   create_table "users", :force => true do |t|

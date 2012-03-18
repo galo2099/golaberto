@@ -1,9 +1,4 @@
-<% content_for :title do %>
-  <%= @championship.full_name %> - <%= @current_phase.name if @current_phase %> - <%= _("Table") %>
-<% end %>
-<% content_for :main_title do %>
-  <%= h @championship.full_name %>
-<% end %>
+<% cache [ "v1", @championship, @current_phase, @current_phase.teams ] do %>
 <table class='tab_header'><tr>
 <% count = 0 %>
 <% @championship.phases.each do |phase| %>
@@ -58,7 +53,14 @@ function watch_odds(group_id) {
                                              :RP => @display_odds } } %>
 <% end if @current_phase %>
 
+<% end %>
+
+<% content_for :title do %>
+  <%= @championship.full_name %> - <%= @current_phase.name if @current_phase %> - <%= _("Table") %>
+<% end %>
+<% content_for :main_title do %>
+  <%= h @championship.full_name %>
+<% end %>
 <% content_for :sidebar do %>
   <%= render :partial => "nav_side" %>
 <% end %>
-

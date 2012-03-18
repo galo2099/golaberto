@@ -1,5 +1,5 @@
 class TeamGroup < ActiveRecord::Base
-  belongs_to :group
+  belongs_to :group, :touch => true
   belongs_to :team
   validates_presence_of :group
   validates_presence_of :team

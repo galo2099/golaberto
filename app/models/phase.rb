@@ -1,5 +1,5 @@
 class Phase < ActiveRecord::Base
-  belongs_to :championship
+  belongs_to :championship, :touch => true
   has_many   :groups, :dependent => :destroy, :order => :id
   has_many   :games, :dependent => :destroy
   has_many   :goals, :through => :games

@@ -3,6 +3,7 @@
 <% omit_comments = false if omit_comments.nil? %>
 <% omit_popup = false if omit_popup.nil? %>
 <% show_country = false if show_country.nil? %>
+<% cache [ "v1", group, group.teams, team_table, link_to_group, omit_columns, omit_logo, omit_comments, omit_popup, show_country ] do %>
 <div style="position: relative; margin-left: 2px; margin-right: 2px;">
   <div style="width: 100%; float: left; position: relative;"><h3><span><%=
     if link_to_group
@@ -28,6 +29,7 @@
   <% end %>
   <div class="clearer"></div>
 </div>
+
 <table class='class_table'>
   <tr class='table_head'>
     <%= content_tag :th, _("Pos"), :class => "pos" unless omit_columns[:Pos] %>
@@ -122,3 +124,4 @@
      <% count += 1 %>
      <%= "(#{count}) #{n}" %><br/>
    <% end %>
+<% end  # caching %>

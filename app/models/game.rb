@@ -46,7 +46,7 @@ class Game < ActiveRecord::Base
                     :order => 'created_at ASC'
       base.belongs_to :home, :class_name => "Team", :foreign_key => "home_id"
       base.belongs_to :away, :class_name => "Team", :foreign_key => "away_id"
-      base.belongs_to :phase
+      base.belongs_to :phase, :touch => true
       base.belongs_to :stadium
       base.belongs_to :referee
 
