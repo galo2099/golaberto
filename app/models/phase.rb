@@ -1,6 +1,8 @@
 class Phase < ActiveRecord::Base
   belongs_to :championship, :touch => true
   has_many   :groups, :dependent => :destroy, :order => :id
+  has_many   :team_groups, :through => :groups
+  has_many   :teams, :through => :team_groups
   has_many   :games, :dependent => :destroy
   has_many   :goals, :through => :games
   validates_length_of :name, :within => 1..40
@@ -35,13 +37,4 @@ class Phase < ActiveRecord::Base
   def to_param
     "#{id}-#{name.parameterize}"
   end
-
-  def teams
-    ret = Array.new
-    groups.each do |group|
-      ret.concat group.teams
-    end
-    ret.sort do |a,b| a.name <=> b.name end
-  end
-
 end

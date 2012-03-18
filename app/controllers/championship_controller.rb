@@ -38,10 +38,10 @@ class ChampionshipController < ApplicationController
   end
 
   def phases
-    @championship = Championship.find(params[:id])
+    @championship = Championship.includes(:phases).find(params[:id])
     # Use an empty phase instead of nil if none is passed.
     @current_phase = Phase.new
-    @current_phase = @championship.phases.find(params[:phase]) if params[:phase]
+    @current_phase = @championship.phases.includes(:teams).find(params[:phase]) if params[:phase]
     if @current_phase
       @display_odds = @current_phase.games.find_by_played(false) == nil
     end
@@ -216,15 +216,14 @@ class ChampionshipController < ApplicationController
     store_location
     @championship = Championship.find(params["id"])
     @current_phase = @championship.phases.find(params["phase"])
-    @group = params["group"]
+    group = params["group"]
 
     games = @current_phase.games.scoped
-    if @group.nil?
-      @groups_to_show = @current_phase.groups
+    if group.nil?
+      @groups_to_show = @current_phase.groups.includes(:teams).includes(:teams).all
     else
-      @groups_to_show = [ @current_phase.groups.find(@group) ]
-      teams = @groups_to_show.first.teams.map{|t| t.id}
-      games = games.where("home_id IN (?) OR away_id IN (?)", teams, teams)
+      @groups_to_show = [ @current_phase.groups.find(group) ]
+      games = games.group_games(@groups_to_show.first)
     end
 
     @rounds = games.group(:round).order(:round).count.keys
@@ -235,8 +234,6 @@ class ChampionshipController < ApplicationController
     end
 
     @games = games.paginate :order => "date, round, time, teams.name", :include => [ "home", "away" ], :page => params[:page]
-
-    phases
   end
 
   def edit

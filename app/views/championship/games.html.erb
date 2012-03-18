@@ -1,10 +1,4 @@
-<% content_for :title do %>
-  <%= @championship.full_name %> - <%= @current_phase.name %> - <%= _("Games") %>
-<% end %>
-<% content_for :main_title do %>
-  <%= h @championship.full_name %>
-<% end %>
-
+<% cache [ "v1", @current_round, @championship, @groups_to_show, @current_phase, @groups_to_show.map {|g| g.teams} ] do %>
 <table class='tab_header'><tr>
 <% count = 0 %>
 <% @championship.phases.each do |phase| %>
@@ -27,6 +21,15 @@
 <div id='table'>
   <%= render :partial => "game_table" %>
 </div>
+<% end %>
+
+<% content_for :title do %>
+  <%= @championship.full_name %> - <%= @current_phase.name %> - <%= _("Games") %>
+<% end %>
+<% content_for :main_title do %>
+  <%= h @championship.full_name %>
+<% end %>
+
 
 <% content_for :sidebar do %>
   <%= render :partial => "nav_side" %>
