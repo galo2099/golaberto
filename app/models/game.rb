@@ -74,10 +74,6 @@ class Game < ActiveRecord::Base
                                      :only_integer => true,
                                      :allow_nil => true
 
-      base.scope :group_games, lambda { |g|
-        base.where("(home_id in (?) OR away_id in (?))", g.teams, g.teams)
-      }
-
       base.scope :team_games, lambda { |t|
         base.where("(home_id = ? or away_id = ?)", t, t)
       }

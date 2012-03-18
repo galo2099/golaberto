@@ -223,7 +223,7 @@ class ChampionshipController < ApplicationController
       @groups_to_show = @current_phase.groups.includes(:teams).includes(:teams).all
     else
       @groups_to_show = [ @current_phase.groups.find(group) ]
-      games = games.group_games(@groups_to_show.first)
+      games = @groups_to_show.first.games
     end
 
     @rounds = games.group(:round).order(:round).count.keys

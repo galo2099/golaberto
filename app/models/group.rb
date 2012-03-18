@@ -1,7 +1,7 @@
 require 'poisson'
 class Group < ActiveRecord::Base
   belongs_to :phase, :touch => true
-  has_many :games, :through => :phase
+  has_many :games, :through => :phase, :conditions => Proc.new {[ "home_id IN (?) OR away_id IN (?)", teams, teams ]}
   has_many :team_groups, :dependent => :delete_all, :include => :team, :order => "teams.name ASC"
   has_many :teams, :through => :team_groups
   validates_length_of :name, :within => 1..40
@@ -24,8 +24,8 @@ class Group < ActiveRecord::Base
   end
 
   def odds
-    games_to_play = phase.games.group_games(self).where(:played => false)
-    games_played = phase.games.group_games(self).where(:played => true)
+    games_to_play = games.where(:played => false)
+    games_played = games.where(:played => true)
     phase.sort.sub!("name", "rand")
     poisson_hash = Hash.new{|h,k| h[k] = Poisson.new(k)}
     odds = games_to_play.map do |g|
@@ -95,7 +95,7 @@ class Group < ActiveRecord::Base
   end
 
   def team_table
-    played_games = phase.games.group_games(self).where("played = ?", true).
+    played_games = games.where("played = ?", true).
         includes(:phase, [:phase => :championship ]).
         order(:date)
     stats = Hash.new
