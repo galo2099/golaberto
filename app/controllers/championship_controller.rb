@@ -224,7 +224,7 @@ class ChampionshipController < ApplicationController
       games = @groups_to_show.first.games
     end
 
-    @rounds = games.group(:round).order(:round).count.keys
+    @rounds = games.pluck(:round).uniq.reject{|r|r.nil?}.sort
 
     unless (params[:round].to_s.empty?)
       @current_round = params[:round].to_i
