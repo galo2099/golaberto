@@ -171,11 +171,10 @@ EOF
   <%= render :partial => "nav_side" %>
 
   <div class='team_table'>
-    <% @groups.each_with_index do |group, idx| %>
+    <% @groups.each do |group| %>
       <h2><%= group.phase.name %></h2>
       <%= render :partial => "table",
                  :locals => { :group => group,
-                              :team_table => @group_table[idx],
                               :link_to_group => true,
                               :omit_columns => { :D => true,
                                                  :L => true,

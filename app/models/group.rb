@@ -95,33 +95,35 @@ class Group < ActiveRecord::Base
   end
 
   def team_table
-    played_games = games.where("played = ?", true).
-        includes(:phase, [:phase => :championship ]).
-        order(:date)
-    stats = Hash.new
-    team_groups.each do |team_group|
-      stats[team_group.team.id] =
-          ChampionshipHelper::TeamCampaign.new(team_group)
-    end
-    last_round = nil
-    last_date = nil
-    last_games = Array.new
-    played_games.each do |g|
-      if (last_round and last_round != g.round) or
-         (!last_round and last_date and last_date != g.date)
-        yield sort_teams(stats), last_games if block_given?
-        last_games = Array.new
+    @team_table ||= begin
+      played_games = games.where("played = ?", true).
+          includes(:phase, [:phase => :championship ]).
+          order(:date)
+      stats = Hash.new
+      team_groups.each do |team_group|
+        stats[team_group.team.id] =
+            ChampionshipHelper::TeamCampaign.new(team_group)
       end
-      last_date = g.date
-      last_round = g.round
-      last_games << g
-      stats.each_value do |s|
-        s.add_game g
+      last_round = nil
+      last_date = nil
+      last_games = Array.new
+      played_games.each do |g|
+        if (last_round and last_round != g.round) or
+           (!last_round and last_date and last_date != g.date)
+          yield sort_teams(stats), last_games if block_given?
+          last_games = Array.new
+        end
+        last_date = g.date
+        last_round = g.round
+        last_games << g
+        stats.each_value do |s|
+          s.add_game g
+        end
       end
+      ret = sort_teams(stats)
+      yield ret, last_games if block_given?
+      ret
     end
-    ret = sort_teams(stats)
-    yield ret, last_games if block_given?
-    ret
   end
 
   def get_game(team_class, a, b)

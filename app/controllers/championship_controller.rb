@@ -160,10 +160,10 @@ class ChampionshipController < ApplicationController
 
   def team
     store_location
-    @championship = Championship.find(params["id"])
+    @championship = Championship.includes(:phases => [ :teams, { :groups => :teams }]).find(params["id"])
 
     # Find every team for this championship
-    @teams = @championship.phases.map{|p| p.groups}.flatten.map{|g| g.teams}.flatten.sort{|a,b| a.name <=> b.name}.uniq
+    @teams = @championship.phases.map{|p| p.teams}.flatten.sort{|a,b| a.name <=> b.name}.uniq
 
     # Find the team we're looking for
     if params["team"].to_s == ""
@@ -175,12 +175,10 @@ class ChampionshipController < ApplicationController
     @groups = @championship.phases.map{|p| p.groups}.flatten.select{|g| g.teams.include? @team}.reverse
 
     @group_json = []
-    @group_table = []
     @graph = open_flash_chart_object(550, 300, { :div_name => "campaign_graph", :function => "load_graph_data0" }).html_safe
     @groups.each_with_index do |g, idx|
       json, table = generate_team_json(@championship, g.phase, g, @team)
       @group_json << json
-      @group_table << table
     end
 
     @played_games = @team.home_games.find_all_by_phase_id_and_played(

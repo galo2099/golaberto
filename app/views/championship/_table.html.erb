@@ -3,7 +3,7 @@
 <% omit_comments = false if omit_comments.nil? %>
 <% omit_popup = false if omit_popup.nil? %>
 <% show_country = false if show_country.nil? %>
-<% cache [ "v1", group, group.teams, team_table, link_to_group, omit_columns, omit_logo, omit_comments, omit_popup, show_country ] do %>
+<% cache [ "v1", group, group.teams, group.team_table, link_to_group, omit_columns, omit_logo, omit_comments, omit_popup, show_country ] do %>
 <div style="position: relative; margin-left: 2px; margin-right: 2px;">
   <div style="width: 100%; float: left; position: relative;"><h3><span><%=
     if link_to_group
@@ -48,7 +48,7 @@
   </tr>
   <% pos = 0 %>
   <% notes = Array.new %>
-  <% team_table.each do |t|
+  <% group.team_table.each do |t|
     team = t[0].team
     stats = t[1]
     note_number = ""

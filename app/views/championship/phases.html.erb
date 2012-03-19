@@ -45,7 +45,6 @@ function watch_odds(group_id) {
 <% @current_phase.groups.each do |group| %>
   <%= render :partial => "table",
              :locals => { :group => group,
-                          :team_table => group.team_table,
                           :link_to_group => @current_phase.groups.size > 1,
                           :show_country => @championship.show_country,
                           :omit_columns => { :OP => @display_odds,
