@@ -89,6 +89,6 @@ namespace :deploy do
       </script>
     JS
     layout = "#{current_path}/app/views/layouts/application.html.erb"
-    run "sed -i 's?</body>?#{stats}</body>?' #{layout}"
+    run "sed -i 's#</body>##{stats}</body>#' #{layout}"
   end
 end
