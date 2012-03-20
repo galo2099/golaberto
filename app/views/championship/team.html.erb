@@ -22,7 +22,7 @@
     <% @played_games.each do |game| %>
       <div class="<%= cycle "table_line_even", "table_line_odd" %> table_row">
         <div class="table_cell" style="width: 8%">
-          <%= game.date.strftime("%d/%m") %>
+          <%= l game.date, :format => :day_month %>
         </div>
         <div class="table_cell" style="width: 92%">
           <%= render :partial => "game_list",
@@ -44,7 +44,7 @@
     <% @scheduled_games.each do |game| %>
       <div class="<%= cycle "table_line_even", "table_line_odd" %> table_row">
         <div class="table_cell" style="width: 8%">
-          <%= game.date.strftime("%d/%m") %>
+          <%= l game.date, :format => :day_month %>
         </div>
         <div class="table_cell" style="width: 92%">
           <%= render :partial => "game_list",

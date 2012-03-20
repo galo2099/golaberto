@@ -1,7 +1,7 @@
 <div id="comment_<%= comment.id %>" class="comment">
   <div style="float: right"><%= link_to image_tag("icons/bin.png", :border => 0, :title => _("Delete")), url_for(:controller => :comment, :action => :destroy, :id => comment), :confirm => _("Are you sure?"), :remote => true  if can? :destroy, comment %></div>
   <div class="user-name"><%= link_to(image_tag(comment.user.avatar.url(:thumb), :class => "user-logo"), :controller => :user, :action => :show, :id => comment.user) %> <%= link_to(comment.user.display_name, :controller => :user, :action => :show, :id => comment.user) %></div>
-  <div class="comment-date"><%= comment.created_at.strftime(_("%A, %d/%m/%Y at %H:%M")) %></div>
+  <div class="comment-date"><%= l comment.created_at %></div>
   <div class="comment-text"><%= h(comment.comment).gsub(/\n/, "<br>") %></div>
   <% if defined? render_link_to_parent %>
     <small><%= link_to sprintf(_("View this %s"), _(comment.commentable_type.downcase)), :controller => comment.commentable_type.downcase, :action => :show, :id => comment.commentable_id %></small>

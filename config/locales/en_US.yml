@@ -34,6 +34,7 @@ en_US:
       default: ! '%Y-%m-%d'
       long: ! '%B %d, %Y'
       short: ! '%b %d'
+      day_month: ! '%m/%d'
       date_weekday: ! '%m/%d/%Y - %A'
     month_names:
     - 
@@ -193,7 +194,7 @@ en_US:
   time:
     am: am
     formats:
-      default: ! '%a, %d %b %Y %H:%M:%S %z'
+      default: ! '%a, %d %b %Y %H:%M'
       long: ! '%B %d, %Y %H:%M'
       short: ! '%d %b %H:%M'
       hour_minute: ! '%H:%M'

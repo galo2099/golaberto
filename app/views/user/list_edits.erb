@@ -7,7 +7,6 @@
 
 <% @edits.each do |edit| %>
   <div class="updated-game">
-    <small><%= edit.updated_at.strftime(_("%A, %d/%m/%Y at %H:%M")) %></small><br>
     <div class="table_row">
       <div class="table_cell" style="width: 50%; text-align: left"><%= link_to edit.phase.championship.full_name, :controller => :championship, :action => :show, :id => edit.phase.championship %></div>
       <div class="table_cell" style="width: 50%"><%= edit.formatted_date(true) %></div>
@@ -20,7 +19,7 @@
     </div>
     <div>
       <b><%= _("Version %{number}") % { :number => edit.version } %></b><br/>
-      <small><%= edit.updated_at.strftime(_("%A, %d/%m/%Y at %H:%M")) %></small>
+      <small><%= l edit.updated_at %></small>
       <br/>
       <%= formatted_diff((edit.previous || Game.new).diff(edit)) %>
     </div>
