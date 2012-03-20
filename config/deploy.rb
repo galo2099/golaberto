@@ -74,4 +74,21 @@ namespace :deploy do
     run "ln -s #{shared_path}/images/logos #{release_path}/public/images/"
     run "ln -s #{shared_path}/images/users #{release_path}/public/images/"
   end
+  after "deploy:update_code", "deploy:install_google_analytics"
+  task :install_google_analytics, :roles => :app do
+    stats = <<-JS
+      <script type="text/javascript">
+        var _gaq = _gaq || [];
+        _gaq.push(['_setAccount', 'UA-1911106-4']);
+        _gaq.push(['_trackPageview']);
+        (function() {
+          var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+          ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+          var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+        })();
+      </script>
+    JS
+    layout = "#{current_path}/app/views/layouts/application.html.erb"
+    run "sed -i 's?</body>?#{stats}</body>?' #{layout}"
+  end
 end
