@@ -17,8 +17,8 @@
       h group.name
     end%></span></h3>
   </div>
-  <% if can?(:manage, group) and !(omit_columns[:OP] and omit_columns[:PP] and omit_columns[:RP]) then %>
-    <div id="recalculate<%= group.id %>" style="position: absolute; bottom: 0px; right: 0px;">
+  <% if !(omit_columns[:OP] and omit_columns[:PP] and omit_columns[:RP]) then %>
+    <div id="recalculate<%= group.id %>" style="position: absolute; bottom: 0px; right: 0px;" data-authorize="group">
       <% if group.odds_progress then %>
         <%= _("Odds being recalculated") %>. <%= sprintf _("%d%% done."), group.odds_progress %>
         <%= javascript_tag "watch_odds(#{group.id})" %>

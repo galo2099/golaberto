@@ -16,3 +16,4 @@
 //= require dragdrop
 //= require boxover
 //= require image_upload
+//= require ability

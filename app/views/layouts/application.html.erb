@@ -2,6 +2,9 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <title>GolAberto - <%= yield(:title) || _(controller.controller_name.titleize) %></title>
+  <%= javascript_tag do %>
+    var current_user = <%= (current_user || User.new).as_json(:root => false, :only => :id, :include => :roles).to_json.html_safe %>;
+  <% end %>
   <%= javascript_include_tag "application" %>
   <%= stylesheet_link_tag "application" %>
   <%= csrf_meta_tag %>
