@@ -1,3 +1,6 @@
+<%
+  @path = "#{RUBBER_ROOT}/public/assets/.htaccess"
+%>
 RewriteEngine On
 
 # Check for browser's Accept-Encoding, remove it for force return gzipped one
