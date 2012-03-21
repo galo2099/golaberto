@@ -134,6 +134,7 @@ GEM
       fast_gettext
     highline (1.6.11)
     hike (1.2.1)
+    hpricot (0.8.6)
     httparty (0.8.1)
       multi_json
       multi_xml
@@ -255,6 +256,8 @@ DEPENDENCIES
   gettext!
   gettext_i18n_rails
   google_ajax_libraries_api (= 0.0.0)!
+  hpricot
+  httparty
   jquery-rails
   jquery_datepicker!
   mysql2
