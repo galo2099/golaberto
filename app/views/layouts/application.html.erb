@@ -5,8 +5,8 @@
   <%= javascript_tag do %>
     var current_user = <%= (current_user || User.new).as_json(:root => false, :only => :id, :include => :roles).to_json.html_safe %>;
   <% end %>
-  <%= javascript_include_tag "application" %>
   <%= stylesheet_link_tag "application" %>
+  <%= javascript_include_tag "application" %>
   <%= csrf_meta_tag %>
   <link rel="shortcut icon" href="<%= image_path "/favicon.ico" %>" type="image/x-icon" />
   <link rel="apple-touch-icon-precomposed" href="http://www.golaberto.com.br/favicon.png" />
@@ -34,12 +34,12 @@
 
     <div class='navigation'>
       <%= link_to _("Home"), :controller => :home %> |
-      <%= link_to _("Championships"), :controller => :championship %> |
-      <%= link_to _("Teams"), :controller => :team %> |
-      <%= link_to _("Games"), :controller => :game %> |
-      <%= link_to _("Players"), :controller => :player %> |
-      <%= link_to _("Stadiums"), :controller => :stadium %> |
-      <%= link_to _("Referees"), :controller => :referee %> |
+      <%= link_to _("Championships"), :controller => :championship, :action => :list %> |
+      <%= link_to _("Teams"), :controller => :team, :action => :list %> |
+      <%= link_to _("Games"), :controller => :game, :action => :list %> |
+      <%= link_to _("Players"), :controller => :player, :action => :list %> |
+      <%= link_to _("Stadiums"), :controller => :stadium, :action => :list %> |
+      <%= link_to _("Referees"), :controller => :referee, :action => :list %> |
       <% if logged_in? %>
         <%= link_to _("Logout"), :controller => :account, :action => :logout %>
       <% else %>
