@@ -1,4 +1,9 @@
-<% cache [ "v1", I18n.locale, @games.all, @games.all.map{|g| [g.home, g.away]}.flatten.sort.uniq, @current_round, @championship.show_country ] do %>
+<% cache [ "v1",
+           I18n.locale,
+           digest_cache_key(@games.all),
+           digest_cache_key(@games.all.map{|g| [g.home, g.away]}.flatten.sort.uniq),
+           @current_round,
+           @championship.show_country ] do %>
 
 <p>
 <%= _("Round") %>: <select id="round_select" name="round">

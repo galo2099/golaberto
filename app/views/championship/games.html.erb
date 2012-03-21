@@ -1,4 +1,11 @@
-<% cache [ "v1", I18n.locale, @current_round, @games.all, @championship, @groups_to_show, @current_phase, @groups_to_show.map {|g| g.teams} ] do %>
+<% cache [ "v1",
+           I18n.locale,
+           @current_round,
+           digest_cache_key(@games.all),
+           @championship,
+           digest_cache_key(@groups_to_show),
+           @current_phase,
+           digest_cache_key(@groups_to_show.map {|g| g.teams}.flatten) ] do %>
 <table class='tab_header'><tr>
 <% count = 0 %>
 <% @championship.phases.each do |phase| %>

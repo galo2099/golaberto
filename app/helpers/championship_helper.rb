@@ -1,4 +1,8 @@
 module ChampionshipHelper
+  def digest_cache_key(collection)
+    collection.inject(Digest::SHA256.new){|digest,obj| digest << obj.cache_key}.hexdigest
+  end
+
   class TeamCampaign
     attr_reader :points, :games, :wins, :draws, :losses,
                 :goals_for, :goals_against, :goals_aet, :goals_pen,
