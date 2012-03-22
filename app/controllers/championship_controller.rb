@@ -163,11 +163,11 @@ class ChampionshipController < ApplicationController
     @championship = Championship.includes(:phases => [ :teams, { :groups => :teams }]).find(params["id"])
 
     # Find every team for this championship
-    @teams = @championship.phases.map{|p| p.teams}.flatten.sort{|a,b| a.name <=> b.name}.uniq
+    @teams = @championship.teams.order(:name)
 
     # Find the team we're looking for
-    if params["team"].to_s == ""
-      params["team"] = @teams.first.id
+    if params["team"].blank?
+      params["team"] = @teams.first.id unless @teams.empty?
     end
     @team = Team.find(params["team"])
 

@@ -3,6 +3,7 @@ class Championship < ActiveRecord::Base
   has_many :games, :through => :phases
   has_many :goals, :through => :games
   has_many :team_players, :dependent => :delete_all
+  has_many :teams, :through => :phases, :uniq => true
   belongs_to :category
   validates_presence_of :name
   validates_presence_of :begin
