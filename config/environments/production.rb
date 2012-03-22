@@ -65,3 +65,8 @@ Golaberto::Application.configure do
   # with SQLite, MySQL, and PostgreSQL)
   # config.active_record.auto_explain_threshold_in_seconds = 0.5
 end
+
+Golaberto::Application.config.middleware.use ExceptionNotifier,
+  :email_prefix => "[GolAberto] ",
+  :sender_address => %{"notifier" <notifier@golaberto.com.br>},
+  :exception_recipients => %w{golaberto@gmail.com}
