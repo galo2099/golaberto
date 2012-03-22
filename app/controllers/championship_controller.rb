@@ -264,7 +264,7 @@ class ChampionshipController < ApplicationController
     store_location
     @championship = Championship.find(params["id"])
 
-    @average = @championship.games.group(:home).average(:attendance).sort{|a,b| b[1] <=> a[1]}
+    @average = @championship.games.group(:home).average(:attendance).sort{|a,b| b[1].to_i <=> a[1].to_i}
     @maximum = @championship.games.maximum(:attendance, :group => :home)
     @minimum = @championship.games.minimum(:attendance, :group => :home)
     @count = @championship.games.count(:attendance, :group => :home)
