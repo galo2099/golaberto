@@ -1,5 +1,6 @@
 package main
 
+import _ "http/pprof"
 import "fmt"
 import "http"
 import "json"
@@ -263,6 +264,8 @@ func (sorted TeamCampaignSorted) Less(i, j int) bool {
         a, b = float64(sorted.t[i].goals_away), float64(sorted.t[j].goals_away)
       case "bias":
         a, b = float64(sorted.t[i].bias), float64(sorted.t[j].bias)
+      case "head":
+        a, b = 0, 0
       default:
         return rand.Float64() < 0.5
     }
@@ -282,18 +285,17 @@ type TeamOdds struct {
 }
 
 func (group *GroupType) calculate_odds() map[string]*TeamOdds {
-  odds := make(map[int]*GameOdds)
-  campaign := make(map[int]*TeamCampaign)
+  odds := make([]GameOdds, 0, len(group.Games))
+  campaign := make(map[int]*TeamCampaign, len(group.Teams))
 
   for _, t := range group.Teams {
-    campaign[t.Id] = new(TeamCampaign)
-    campaign[t.Id].id = t.Id
-    campaign[t.Id].points_win = group.Phase.Championship.Point_win
-    campaign[t.Id].points_draw = group.Phase.Championship.Point_draw
-    campaign[t.Id].points_loss = group.Phase.Championship.Point_loss
+    campaign[t.Id] = &TeamCampaign{id: t.Id,
+      points_win: group.Phase.Championship.Point_win,
+      points_draw: group.Phase.Championship.Point_draw,
+      points_loss: group.Phase.Championship.Point_loss}
   }
 
-  for i, g := range group.Games {
+  for _, g := range group.Games {
     if g.Played {
       if campaign[g.Home_id] != nil {
         campaign[g.Home_id].add_game(&g)
@@ -302,11 +304,9 @@ func (group *GroupType) calculate_odds() map[string]*TeamOdds {
         campaign[g.Away_id].add_game(&g)
       }
     } else {
-      odds[i] = new(GameOdds)
-      odds[i].Home_id = g.Home_id
-      odds[i].Away_id = g.Away_id
-      odds[i].Home_mean = find_poisson_mean(add_slices(group.home_for(g.Home_id), group.away_against(g.Away_id)))
-      odds[i].Away_mean = find_poisson_mean(add_slices(group.away_for(g.Away_id), group.home_against(g.Home_id)))
+      odds = append(odds, GameOdds{g.Home_id, g.Away_id,
+        find_poisson_mean(add_slices(group.home_for(g.Home_id), group.away_against(g.Away_id))),
+        find_poisson_mean(add_slices(group.away_for(g.Away_id), group.home_against(g.Home_id))) })
     }
   }
 
@@ -317,7 +317,7 @@ func (group *GroupType) calculate_odds() map[string]*TeamOdds {
   }
   const NUM_ITER = 10000
   for i := 0; i < NUM_ITER; i++ {
-    simulated_campaign := make(map[int]*TeamCampaign)
+    simulated_campaign := make(map[int]*TeamCampaign, len(campaign))
     for k, v := range campaign {
       simulated_campaign[k] = v.clone()
     }
