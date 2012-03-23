@@ -23,7 +23,7 @@ class Group < ActiveRecord::Base
     return pos <= self.promoted
   end
 
-  def odds_remote
+  def odds
     req = Net::HTTP::Post.new("/", initheader = {'Content-Type' =>'application/json'})
     req.body = as_json(:root => false, :include => { :games => { :only => [ :home_id, :away_id, :home_score, :away_score, :played ] }, :phase => { :include => { :championship => { :include => { :games => { :only => [ :home_id, :away_id, :home_score, :away_score, :played ] } } } } }, :teams => { :only => :id } }).to_json
     response = Net::HTTP.new("localhost", 6577).start {|http| http.request(req) }
@@ -39,7 +39,7 @@ class Group < ActiveRecord::Base
     self.save!
   end
 
-  def odds
+  def odds_legacy
     games_to_play = games.where(:played => false)
     games_played = games.where(:played => true)
     phase.sort.sub!("name", "rand")

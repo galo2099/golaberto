@@ -45,8 +45,8 @@ class GroupController < ApplicationController
   def update_odds
     @group = Group.find(params["id"])
     if @group.odds_progress == nil
-      @group.delay.odds
       @group.odds_progress = 0
+      @group.delay.odds
       @group.save!
     end
     render :action => :odds_progress
