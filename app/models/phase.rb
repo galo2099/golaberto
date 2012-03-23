@@ -3,7 +3,7 @@ class Phase < ActiveRecord::Base
   has_many   :groups, :dependent => :destroy, :order => :id
   has_many   :team_groups, :through => :groups
   has_many   :teams, :through => :team_groups
-  has_many   :games, :dependent => :destroy
+  has_many   :games, :dependent => :destroy, :order => :date
   has_many   :goals, :through => :games
   validates_length_of :name, :within => 1..40
   validates_uniqueness_of :name, :scope => :championship_id

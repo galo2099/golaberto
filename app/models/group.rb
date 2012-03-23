@@ -25,7 +25,7 @@ class Group < ActiveRecord::Base
 
   def odds_remote
     req = Net::HTTP::Post.new("/", initheader = {'Content-Type' =>'application/json'})
-    req.body = as_json(:root => false, :include => { :games => { :only => [ :home_id, :away_id, :home_score, :away_score, :played ] }, :phase => { :include => :championship }, :teams => { :only => :id } }).to_json
+    req.body = as_json(:root => false, :include => { :games => { :only => [ :home_id, :away_id, :home_score, :away_score, :played ] }, :phase => { :include => { :championship => { :include => { :games => { :only => [ :home_id, :away_id, :home_score, :away_score, :played ] } } } } }, :teams => { :only => :id } }).to_json
     response = Net::HTTP.new("localhost", 6577).start {|http| http.request(req) }
     calculated_odds = ActiveSupport::JSON.decode(response.body)
     p calculated_odds

@@ -109,6 +109,7 @@ type ChampionshipType struct {
   Point_draw int
   Point_loss int
   Point_win int
+  Games []GameType
 }
 
 type TeamType struct {
@@ -190,7 +191,7 @@ func (group *GroupType) goal_distribution(
     side func (*GameType) int,
     score func (*GameType) int) []float64 {
   ret := make([]float64, 10)
-  for _, g := range group.Games {
+  for _, g := range group.Phase.Championship.Games {
     if g.Played && side(&g) == team_id {
       for i := range ret {
         ret[i] = ret[i] * 0.8;
@@ -267,6 +268,10 @@ func (sorted TeamCampaignSorted) Less(i, j int) bool {
         a, b = float64(sorted.t[i].goals_away), float64(sorted.t[j].goals_away)
       case "bias":
         a, b = float64(sorted.t[i].bias), float64(sorted.t[j].bias)
+      case "g_aet":
+        a, b = 0, 0
+      case "gp":
+        a, b = 0, 0
       case "head":
         ret := compare_head_to_head(sorted.t[i], sorted.t[j], sorted.sort)
         if ret < 0 {
