@@ -1,7 +1,7 @@
 require 'poisson'
 class Group < ActiveRecord::Base
   belongs_to :phase, :touch => true
-  has_many :games, :through => :phase, :conditions => Proc.new {[ "home_id IN (?) OR away_id IN (?)", teams, teams ]}
+  has_many :games, :through => :phase, :conditions => Proc.new {[ "home_id IN (?) OR away_id IN (?)", teams, teams ]}, :order => :date
   has_many :team_groups, :dependent => :delete_all, :include => :team
   has_many :teams, :through => :team_groups
   validates_length_of :name, :within => 1..40
@@ -21,6 +21,22 @@ class Group < ActiveRecord::Base
 
   def is_promoted?(pos)
     return pos <= self.promoted
+  end
+
+  def odds_remote
+    req = Net::HTTP::Post.new("/", initheader = {'Content-Type' =>'application/json'})
+    req.body = as_json(:root => false, :include => { :games => { :only => [ :home_id, :away_id, :home_score, :away_score, :played ] }, :phase => { :include => :championship }, :teams => { :only => :id } }).to_json
+    response = Net::HTTP.new("localhost", 6577).start {|http| http.request(req) }
+    calculated_odds = ActiveSupport::JSON.decode(response.body)
+    p calculated_odds
+    team_groups.each do |t|
+      t.first_odds = calculated_odds[t.team_id.to_s]["First"]
+      t.promoted_odds = calculated_odds[t.team_id.to_s]["Promoted"]
+      t.relegated_odds = calculated_odds[t.team_id.to_s]["Relegated"]
+      t.save!
+    end
+    self.odds_progress = 100
+    self.save!
   end
 
   def odds
