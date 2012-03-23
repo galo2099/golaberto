@@ -26,7 +26,7 @@ type TeamCampaign struct {
   points_win int
   points_draw int
   points_loss int
-  home_games []GameType
+  home_games []*GameType
 }
 
 func (campaign *TeamCampaign) goals_diff() int {
@@ -52,6 +52,8 @@ func (campaign *TeamCampaign) clone() *TeamCampaign {
   t.points_win = campaign.points_win
   t.points_draw = campaign.points_draw
   t.points_loss = campaign.points_loss
+  t.home_games = make([]*GameType, len(campaign.home_games))
+  copy(t.home_games, campaign.home_games)
   return t
 }
 
@@ -78,6 +80,7 @@ func (campaign *TeamCampaign) add_game(game *GameType) {
     campaign.points += campaign.points_draw
   }
   if is_home {
+    campaign.home_games = append(campaign.home_games, game)
     campaign.goals_for += game.Home_score
     campaign.goals_against += game.Away_score
   } else {
@@ -265,7 +268,14 @@ func (sorted TeamCampaignSorted) Less(i, j int) bool {
       case "bias":
         a, b = float64(sorted.t[i].bias), float64(sorted.t[j].bias)
       case "head":
-        a, b = 0, 0
+        ret := compare_head_to_head(sorted.t[i], sorted.t[j], sorted.sort)
+        if ret < 0 {
+          a, b = 0, 1
+        } else if ret > 0 {
+          a, b = 1, 0
+        } else {
+          a, b = 0, 0
+        }
       default:
         return rand.Float64() < 0.5
     }
@@ -276,6 +286,44 @@ func (sorted TeamCampaignSorted) Less(i, j int) bool {
     }
   }
   return false
+}
+
+func compare_head_to_head(a, b *TeamCampaign, sort []string) int {
+  head_to_head_campaign := make([]*TeamCampaign, 2)
+  head_to_head_campaign[0] = &TeamCampaign{id: a.id,
+      points_win: a.points_win,
+      points_draw: a.points_draw,
+      points_loss: a.points_loss}
+  head_to_head_campaign[1] = &TeamCampaign{id: b.id,
+      points_win: a.points_win,
+      points_draw: a.points_draw,
+      points_loss: a.points_loss}
+  for i := range a.home_games {
+    if (a.home_games[i].Away_id == b.id) {
+      head_to_head_campaign[0].add_game(a.home_games[i])
+      head_to_head_campaign[1].add_game(a.home_games[i])
+    }
+  }
+  for i := range b.home_games {
+    if (b.home_games[i].Away_id == a.id) {
+      head_to_head_campaign[0].add_game(b.home_games[i])
+      head_to_head_campaign[1].add_game(b.home_games[i])
+    }
+  }
+  sort_no_head := make([]string, 0, len(sort))
+  for _, s := range sort {
+    if s != "name" && s != "head" {
+      sort_no_head = append(sort_no_head, s)
+    }
+  }
+  sorted_teams := TeamCampaignSorted{head_to_head_campaign, sort_no_head}
+  ret := 0
+  if sorted_teams.Less(1, 0) {
+    ret = -1
+  } else if sorted_teams.Less(0, 1) {
+    ret = 1
+  }
+  return ret
 }
 
 type TeamOdds struct {
@@ -295,18 +343,18 @@ func (group *GroupType) calculate_odds() map[string]*TeamOdds {
       points_loss: group.Phase.Championship.Point_loss}
   }
 
-  for _, g := range group.Games {
-    if g.Played {
-      if campaign[g.Home_id] != nil {
-        campaign[g.Home_id].add_game(&g)
+  for i := range group.Games {
+    if group.Games[i].Played {
+      if campaign[group.Games[i].Home_id] != nil {
+        campaign[group.Games[i].Home_id].add_game(&group.Games[i])
       }
-      if campaign[g.Away_id] != nil {
-        campaign[g.Away_id].add_game(&g)
+      if campaign[group.Games[i].Away_id] != nil {
+        campaign[group.Games[i].Away_id].add_game(&group.Games[i])
       }
     } else {
-      odds = append(odds, GameOdds{g.Home_id, g.Away_id,
-        find_poisson_mean(add_slices(group.home_for(g.Home_id), group.away_against(g.Away_id))),
-        find_poisson_mean(add_slices(group.away_for(g.Away_id), group.home_against(g.Home_id))) })
+      odds = append(odds, GameOdds{group.Games[i].Home_id, group.Games[i].Away_id,
+        find_poisson_mean(add_slices(group.home_for(group.Games[i].Home_id), group.away_against(group.Games[i].Away_id))),
+        find_poisson_mean(add_slices(group.away_for(group.Games[i].Away_id), group.home_against(group.Games[i].Home_id))) })
     }
   }
 
