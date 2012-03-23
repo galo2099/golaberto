@@ -28,7 +28,6 @@ class Group < ActiveRecord::Base
     req.body = as_json(:root => false, :include => { :games => { :only => [ :home_id, :away_id, :home_score, :away_score, :played ] }, :phase => { :include => { :championship => { :include => { :games => { :only => [ :home_id, :away_id, :home_score, :away_score, :played ] } } } } }, :teams => { :only => :id } }).to_json
     response = Net::HTTP.new("localhost", 6577).start {|http| http.request(req) }
     calculated_odds = ActiveSupport::JSON.decode(response.body)
-    p calculated_odds
     team_groups.each do |t|
       t.first_odds = calculated_odds[t.team_id.to_s]["First"]
       t.promoted_odds = calculated_odds[t.team_id.to_s]["Promoted"]
