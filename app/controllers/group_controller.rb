@@ -46,8 +46,12 @@ class GroupController < ApplicationController
     @group = Group.find(params["id"])
     if @group.odds_progress == nil
       @group.odds_progress = 0
-      @group.delay.odds
       @group.save!
+      Thread.new do
+        ActiveRecord::Base.connection_pool.with_connection do
+          @group.odds
+        end
+      end
     end
     render :action => :odds_progress
   end

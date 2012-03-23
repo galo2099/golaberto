@@ -10,4 +10,4 @@
   username: <%= rubber_env.db_user %>
   password: <%= rubber_env.db_pass %>
   host: <%= rubber_instances.for_role('db', 'primary' => true).first.full_name %>
-  pool: 5
+  pool: 30
