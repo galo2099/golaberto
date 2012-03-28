@@ -36,7 +36,7 @@ class GroupController < ApplicationController
 
   def odds_progress
     @group = Group.find(params["id"])
-    if @group.odds_progress == 100
+    if @group.odds_progress == 100 or @group.odds_progress.nil?
       @group.odds_progress = nil
       @group.save!
     end
