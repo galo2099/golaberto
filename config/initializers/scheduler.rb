@@ -18,7 +18,11 @@ def execute_scheduler
   scheduler = Rufus::Scheduler::EmScheduler.start_new  
   logger = Logger.new(Rails.root.to_s + "/log/scheduler.log")
 
-  EM::start_server "127.0.0.1", 6789, EvalServer, scheduler
+  begin
+    EM::start_server "127.0.0.1", 6789, EvalServer, scheduler
+  rescue
+    puts "Can't start server on port 6789."
+  end
 end
 
 # Create the main logger and set some useful variables.
