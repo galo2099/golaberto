@@ -1,7 +1,6 @@
 require File.dirname(__FILE__) + '/../test_helper'
 
 class GoalTest < Test::Unit::TestCase
-  fixtures :goals, :players, :games, :teams
 
   def setup
     @goal_attr = { :player_id => 1,

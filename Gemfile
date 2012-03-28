@@ -42,8 +42,6 @@ gem "acts_as_versioned_association", "0.0.0", git: "https://github.com/galo2099/
 gem "aws-sdk"
 gem "cancan"
 gem "daemons"
-gem "delayed_job"
-gem "delayed_job_active_record"
 gem "dynamic_form"
 gem "exception_notification"
 gem "gettext_i18n_rails"
@@ -58,6 +56,7 @@ gem "prototype_legacy_helper", "0.0.0", :git => 'git://github.com/willbryant/pro
 gem "prototype-rails"
 gem "quilt"
 gem "rmagick", require: "RMagick"
+gem "rufus-scheduler"
 gem "userstamp", git: "https://github.com/delynn/userstamp.git"
 gem "will_paginate"
 
