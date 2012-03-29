@@ -66,14 +66,11 @@ Golaberto::Application.configure do
   # config.active_record.auto_explain_threshold_in_seconds = 0.5
 
   config.action_mailer.delivery_method = :smtp
-  config.action_mailer.smtp_settings = {
-    :address              => "smtp.gmail.com",
-    :port                 => 587,
-    :domain               => 'golaberto.com',
-    :user_name            => 'admin@golaberto.com',
-    :password             => '',
-    :authentication       => 'plain',
-    :enable_starttls_auto => true  }
+  config.action_mailer.smtp_settings = begin
+    YAML::load(File.open(
+        File.expand_path(File.join(Rails.root, 'config', 'rubber-secret.yml'))))["smtp_settings"]
+    rescue
+    end
 end
 
 Golaberto::Application.config.middleware.use ExceptionNotifier,
