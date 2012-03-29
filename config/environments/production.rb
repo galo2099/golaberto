@@ -68,7 +68,7 @@ Golaberto::Application.configure do
   config.action_mailer.delivery_method = :smtp
   config.action_mailer.smtp_settings = begin
     YAML::load(File.open(
-        File.expand_path(File.join(Rails.root, 'config', 'rubber-secret.yml'))))["smtp_settings"]
+        File.expand_path(File.join(Rails.root, 'config', 'rubber', 'rubber-secret.yml'))))["smtp_settings"]
     rescue
     end
 end
