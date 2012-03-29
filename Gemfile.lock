@@ -162,6 +162,7 @@ GEM
       net-ssh (>= 1.99.1)
     nettica (0.4.0)
       mumboe-soap4r
+    newrelic_rpm (3.3.2.1)
     nokogiri (1.5.0)
     paperclip (2.7.0)
       activerecord (>= 2.3.0)
@@ -258,6 +259,7 @@ DEPENDENCIES
   jquery-rails
   jquery_datepicker!
   mysql2
+  newrelic_rpm
   open_id_authentication!
   paperclip
   prototype-rails
