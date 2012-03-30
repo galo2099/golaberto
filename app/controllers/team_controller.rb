@@ -63,7 +63,7 @@ class TeamController < ApplicationController
   def create
     @team = Team.new
     begin
-      @team.filter_image_background = params[:user][:filter_image_background]
+      @team.filter_image_background = params[:team][:filter_image_background]
       @team.attributes = params[:team]
       @team.save!
       redirect_to :action => :show, :id => @team
