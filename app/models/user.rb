@@ -12,6 +12,7 @@ class User < ActiveRecord::Base
       :processors => [ :logo ],
       :storage => :s3,
       :s3_credentials => "#{Rails.root}/config/s3.yml",
+      :s3_headers => { 'Cache-Control' => 'max-age=315576000', 'Expires' => 10.years.from_now.httpdate },
       :path => ":class/:attachment/:id/:style.:extension"
 
   # Virtual attribute to see if we should filter the image background
