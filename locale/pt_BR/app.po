@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: version 0.0.1\n"
-"POT-Creation-Date: 2012-03-02 22:28-0800\n"
+"POT-Creation-Date: 2012-03-29 22:45-0700\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: Robson Braga Araujo <robsonbraga@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,12 +16,6 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-
-msgid " Next"
-msgstr " Próximo"
-
-msgid "%A, %d/%m/%Y at %H:%M"
-msgstr "%A, %d/%m/%Y às %H:%M"
 
 msgid "%d%% done."
 msgstr "%d%% pronto."
@@ -392,9 +386,6 @@ msgstr "Contato:"
 msgid "Cook Islands"
 msgstr "Ilhas Cook"
 
-msgid "Cookie"
-msgstr "Cookie"
-
 msgid "Costa Rica"
 msgstr "Costa Rica"
 
@@ -599,9 +590,6 @@ msgstr "Jogados"
 msgid "Games"
 msgstr "Jogos"
 
-msgid "Game|"
-msgstr "Jogo"
-
 # app/models/game.rb:-
 msgid "Game|Attendance"
 msgstr "Público"
@@ -662,8 +650,8 @@ msgstr "Gana"
 msgid "Gibraltar"
 msgstr "Gibraltar"
 
-msgid "Goal difference equal to<br/>or bigger than"
-msgstr "Diferença de gols igual a<br/>ou maior que"
+msgid "Goal difference equal to or bigger than"
+msgstr "Diferença de gols igual a ou maior que"
 
 msgid "Goals"
 msgstr "Gols"
@@ -1290,12 +1278,6 @@ msgstr "Pos"
 msgid "Position"
 msgstr "Posição"
 
-msgid "Prev"
-msgstr "Anterior"
-
-msgid "Prev "
-msgstr "Anterior "
-
 msgid "Previous game"
 msgid_plural "Previous %d games"
 msgstr[0] "Último jogo"
@@ -1630,9 +1612,6 @@ msgstr[1] "Este usuário fez %{num_edits} edições até hoje."
 msgid "To"
 msgstr "Até"
 
-msgid "Today"
-msgstr "Hoje"
-
 msgid "Togo"
 msgstr "Togo"
 
@@ -1828,6 +1807,9 @@ msgstr "html básico é aceito"
 
 msgid "bias"
 msgstr "vantagem"
+
+msgid "can't play with itself"
+msgstr "não pode jogar consigo mesmo"
 
 # app/models/category.rb:-
 msgid "category"

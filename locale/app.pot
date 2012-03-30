@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: version 0.0.1\n"
-"POT-Creation-Date: 2012-03-02 22:28-0800\n"
+"POT-Creation-Date: 2012-03-29 22:45-0700\n"
 "PO-Revision-Date: 2012-02-26 08:31-0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,12 +16,6 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
-
-msgid " Next"
-msgstr ""
-
-msgid "%A, %d/%m/%Y at %H:%M"
-msgstr ""
 
 msgid "%d%% done."
 msgstr ""
@@ -377,9 +371,6 @@ msgstr ""
 msgid "Cook Islands"
 msgstr ""
 
-msgid "Cookie"
-msgstr ""
-
 msgid "Costa Rica"
 msgstr ""
 
@@ -578,9 +569,6 @@ msgstr ""
 msgid "Games"
 msgstr ""
 
-msgid "Game|"
-msgstr ""
-
 msgid "Game|Attendance"
 msgstr ""
 
@@ -629,7 +617,7 @@ msgstr ""
 msgid "Gibraltar"
 msgstr ""
 
-msgid "Goal difference equal to<br/>or bigger than"
+msgid "Goal difference equal to or bigger than"
 msgstr ""
 
 msgid "Goals"
@@ -1221,12 +1209,6 @@ msgstr ""
 msgid "Position"
 msgstr ""
 
-msgid "Prev"
-msgstr ""
-
-msgid "Prev "
-msgstr ""
-
 msgid "Previous game"
 msgid_plural "Previous %d games"
 msgstr[0] ""
@@ -1536,9 +1518,6 @@ msgstr[1] ""
 msgid "To"
 msgstr ""
 
-msgid "Today"
-msgstr ""
-
 msgid "Togo"
 msgstr ""
 
@@ -1720,6 +1699,9 @@ msgid "basic html is accepted"
 msgstr ""
 
 msgid "bias"
+msgstr ""
+
+msgid "can't play with itself"
 msgstr ""
 
 msgid "category"
