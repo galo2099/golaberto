@@ -1,0 +1,17 @@
+<% cache [ "v1",
+           I18n.locale,
+           digest_cache_key(@teams) ] do %>
+
+var teams = {
+<% @teams.each do |team| %>
+  <%= team.id %>:
+  { name: '<%= escape_javascript team.name %>',
+    desc: '<%= escape_javascript team.full_name %>, <%= escape_javascript _(team.country) %>',
+    icon: '<%= escape_javascript team.logo.url(:thumb) %>' },
+<% end %>
+};
+var ordered_teams = [
+<% @teams.each do |team| %><%= team.id %>,<% end %>
+];
+
+<% end %>

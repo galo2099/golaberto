@@ -13,17 +13,7 @@
 </table>
 <%= javascript_include_tag "edit_group" %>
 <script type="text/javascript">
-var teams = {
-<% @teams.each do |team| %>
-  <%= team.id %>:
-  { name: '<%= escape_javascript team.name %>',
-    desc: '<%= escape_javascript team.full_name %>, <%= escape_javascript _(team.country) %>',
-    icon: '<%= escape_javascript team.logo.url(:thumb) %>' },
-<% end %>
-};
-var ordered_teams = [
-<% @teams.each do |team| %><%= team.id %>,<% end %>
-];
+  <%= render :partial => "js_team_list" %>
 var current_data = [
 <% @group.team_groups.each do |t| %>
   <%= t.to_json.html_safe %>,
