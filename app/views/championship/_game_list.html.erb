@@ -44,6 +44,6 @@ end %>
 <div class='table_cell show_spacer'></div>
 <div class='table_cell show_info'><%= link_to image_tag("icons/report.png", :border => 0, :title => _("More information")), :controller => "game", :action => :show, :id => game_id %></div>
 <div data-authorize="game">
-  <div class='table_cell show_info'><%= link_to image_tag("icons/pencil.png", :border => 0, :title => _("Edit this game")), :controller => :game, :action => :edit, :id => game_id, :redirect => request.path %></div>
-  <div class='table_cell show_info'><%= link_to image_tag("icons/bin.png", :border => 0, :title => _("Delete this game")), { :controller => :game, :action => :destroy, :id => game_id }, :confirm => _('Are you sure you want to delete this game?'), :method => :post %></div>
+  <div class='table_cell show_info'><%= link_to image_tag("icons/pencil.png", :border => 0, :title => _("Edit this game")), { :controller => :game, :action => :edit, :id => game_id, :redirect => request.path }, :rel => 'nofollow' %></div>
+  <div class='table_cell show_info'><%= link_to image_tag("icons/bin.png", :border => 0, :title => _("Delete this game")), { :controller => :game, :action => :destroy, :id => game_id }, { :confirm => _('Are you sure you want to delete this game?'), :method => :post, :rel => 'nofollow' } %></div>
 </div>
