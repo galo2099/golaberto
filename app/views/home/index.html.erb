@@ -9,7 +9,7 @@
 <div id="championship">
   <h3 style="margin-top: 0px"><%= _("Current championships") %></h3>
   <% @championships.each do |champ| %>
-    <%= link_to champ.full_name, :controller => :championship, :action => :show, :id => champ %><br>
+    <%= link_to champ.full_name, :controller => :championship, :action => :phases, :id => champ, :phase => champ.phases.try(:last) %><br>
   <% end %>
 </div>
 
