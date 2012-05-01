@@ -6,6 +6,8 @@
 <% cache [ "v1",
            I18n.locale,
            digest_cache_key(group.teams),
+           group,
+           group.phase,
            group.phase.championship,
            link_to_group,
            omit_columns,
