@@ -65,6 +65,7 @@ namespace :deploy do
   after "deploy:update_code", "deploy:precompile_assets"
   task :precompile_assets, :roles => :app do
     run_locally "#{rake} assets:clean && #{rake} RAILS_ENV=#{rails_env} RAILS_GROUPS=assets assets:precompile"
+    run "mkdir -p #{release_path}/public/assets"
     transfer(:up, "public/assets", "#{release_path}/public/assets") { print "." }
   end
   after "deploy:update_code", "deploy:set_image_symlinks"
