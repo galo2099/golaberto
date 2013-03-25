@@ -16,8 +16,13 @@ class ApplicationController < ActionController::Base
     flash[:notice] = _("Access denied!")
     redirect_to root_url
   end
+  rescue_from ActiveRecord::RecordNotFound, :with => :record_not_found
 
   private
+  def record_not_found
+    render :text => "404 Not Found", :status => 404
+  end
+
   def set_current_user
     User.current_user = current_user
   end
