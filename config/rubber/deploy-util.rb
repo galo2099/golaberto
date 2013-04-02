@@ -4,7 +4,7 @@ namespace :rubber do
     rubber.allow_optional_tasks(self)
    
     desc <<-DESC
-      Backup database using rake task rubber:backup_db
+      Backup database using rubber util:backup_db
     DESC
     task :backup do
       master_instances = rubber_instances.for_role('db', 'primary' => true)
@@ -15,31 +15,32 @@ namespace :rubber do
             
       task_name = "_backup_db_#{selected_db_instance.full_name}".to_sym()
       task task_name, :hosts => selected_db_instance.full_name do
-        rsudo "cd #{current_path} && RUBBER_ENV=#{RUBBER_ENV} BACKUP_DIR=/mnt/db_backups DBUSER=#{rubber_env.db_user} DBPASS=#{rubber_env.db_pass} DBNAME=#{rubber_env.db_name} DBHOST=#{selected_db_instance.full_name} rake rubber:backup_db"
+        rsudo "cd #{current_path} && RUBBER_ENV=#{Rubber.env} ./script/rubber util:backup_db --directory=/mnt/db_backups --dbuser=#{rubber_env.db_user} --dbpass=#{rubber_env.db_pass} --dbname=#{rubber_env.db_name} --dbhost=#{selected_db_instance.full_name}"
       end
       send task_name
     end
     
     desc <<-DESC
-      Restore database from s3 using rake task rubber:restore_db_s3
+      Restore database from cloud using rubber util:restore_db
     DESC
-    task :restore_s3 do
+    task :restore_cloud do
+      filename = get_env('FILENAME', "The cloud key to restore", true)
       master_instances = rubber_instances.for_role('db', 'primary' => true)
       slaves = rubber_instances.for_role('db', {})
 
       for instance in master_instances+slaves
-        task_name = "_restore_db_s3_#{instance.full_name}".to_sym()
+        task_name = "_restore_db_cloud_#{instance.full_name}".to_sym()
         task task_name, :hosts => instance.full_name do
-          rsudo "cd #{current_path} && RUBBER_ENV=#{RUBBER_ENV} BACKUP_DIR=/mnt/db_backups DBUSER=#{rubber_env.db_user} DBPASS=#{rubber_env.db_pass} DBNAME=#{rubber_env.db_name} DBHOST=#{instance.full_name} rake rubber:restore_db_s3"
+          rsudo "cd #{current_path} && RUBBER_ENV=#{Rubber.env} ./script/rubber util:restore_db --filename=#{filename} --dbuser=#{rubber_env.db_user} --dbpass=#{rubber_env.db_pass} --dbname=#{rubber_env.db_name} --dbhost=#{instance.full_name}"
         end
         send task_name
       end
     end    
     
     desc <<-DESC
-      Overwrite ec2 production database with export from local production database.
+      Overwrite production database with export from local production database.
     DESC
-    task :local_to_ec2 do
+    task :local_to_cloud do
       require 'yaml'      
       master_instances = rubber_instances.for_role('db', 'primary' => true)
       slaves = rubber_instances.for_role('db', {})
@@ -57,7 +58,7 @@ namespace :rubber do
         FileUtils.mkdir_p(File.dirname(backup_file))
 
         # Use database.yml to get connection params
-        db = YAML::load(ERB.new(IO.read(File.join(File.dirname(__FILE__), '..','database.yml'))).result)[RUBBER_ENV]
+        db = YAML::load(ERB.new(IO.read(File.join(File.dirname(__FILE__), '..','database.yml'))).result)[Rubber.env]
         user = db['username']
         pass = db['password']
         pass = nil if pass and pass.strip.size == 0
@@ -73,21 +74,14 @@ namespace :rubber do
         system(db_backup_cmd)
         puts "Created backup: #{backup_file}"
 
-        # Upload Local to S3
-        cloud_provider = rubber_env.cloud_providers[rubber_env.cloud_provider]
-        s3_prefix = "db/"
-        backup_bucket = cloud_provider.backup_bucket
-        if backup_bucket
-          AWS::S3::Base.establish_connection!(:access_key_id => cloud_provider.access_key, :secret_access_key => cloud_provider.secret_access_key)
-          unless AWS::S3::Bucket.list.find { |b| b.name == backup_bucket }
-            AWS::S3::Bucket.create(backup_bucket)
-          end
-          dest = "#{s3_prefix}#{File.basename(backup_file)}"
-          puts "Saving db dump to S3: #{backup_bucket}:#{dest}"
-          AWS::S3::S3Object.store(dest, open(backup_file), backup_bucket)
-        end
+        # Upload Local to Cloud
+        backup_bucket = Rubber.cloud.env.backup_bucket
+        dest = "db/#{File.basename(backup_file)}"
+          
+        puts "Saving db dump to cloud: #{backup_bucket}:#{dest}"
+        Rubber.cloud.storage(backup_bucket).store(dest, open(backup_file))
         
-        send :restore_s3
+        send :restore_cloud
 
       end
       send task_name

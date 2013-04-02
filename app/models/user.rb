@@ -115,6 +115,7 @@ class User < ActiveRecord::Base
         icon = Quilt::Identicon.new display_login, :size => 100
         tmpfile.binmode
         tmpfile.write icon.to_blob
+	tmpfile.flush
         self.avatar = tmpfile
         save!
       ensure

@@ -9,7 +9,7 @@ app_user: app
 admin_email: robsonbraga@gmail.com
 
 # OPTIONAL: If not set, you won't be able to access web_tools
-# server (munin stats, monit status, etc)
+# server (graphite, graylog, monit status, haproxy status, etc)
 # web_tools_user: admin
 # web_tools_password: sekret
 
@@ -26,27 +26,39 @@ domain: golaberto.com
 # dns records (CNAME, MX, Round Robin DNS, etc)
 
 # OPTIONAL: Additional rubber file to pull config from if it exists.  This file will
-# also be pushed to remote host at RUBBER_ROOT/config/rubber/rubber-secret.yml
+# also be pushed to remote host at Rubber.root/config/rubber/rubber-secret.yml
 #
-rubber_secret: "#{File.expand_path('~') + '/.ec2' + (RUBBER_ENV == 'production' ? '' : '_dev') + '/rubber-secret.yml' rescue ''}"
+rubber_secret: "#{File.expand_path('~') + '/.ec2' + (Rubber.env == 'production' ? '' : '_dev') + '/rubber-secret.yml' rescue ''}"
+
+# OPTIONAL: Encryption key that was used to obfuscate the contents of rubber-secret.yml with "rubber util:obfuscation" 
+# Not that much better when stored in here, but you could use a ruby snippet in here to fetch it from a key server or something
+#
+# rubber_secret_key: "XXXyyy=="
 
 # REQUIRED All known cloud providers with the settings needed to configure them
-# There's only one coud provider right now - Amazon Web Services
-# To implement another, clone lib/rubber/cloud/aws.rb
+# There's only one working cloud provider right now - Amazon Web Services
+# To implement another, clone lib/rubber/cloud/aws.rb or make the fog provider 
+# work in a generic fashion
 #
 cloud_providers:
   aws:
-    # REQUIRED The endpoint for the region server that you want to use.
+    # REQUIRED The AWS region that you want to use.
     # 
     # Options include
-    # us-east-1.ec2.amazonaws.com
-    # eu-west-1.ec2.amazonaws.com
-    # ap-northeast-1.ec2.amazonaws.com
-    # ap-southeast-1.ec2.amazonaws.com
-    # ap-southeast-2.ec2.amazonaws.com
+    # us-east-1
+    # eu-west-1
+    # ap-northeast-1
+    # ap-southeast-1
+    # ap-southeast-2
     #
-    server_endpoint: us-east-1.ec2.amazonaws.com
+    region: us-east-1
     
+    # REQUIRED The amazon keys and account ID (digits only, no dashes) used to access the AWS API
+    #
+    access_key: XXX
+    secret_access_key: YYY
+    account: 'ZZZ'
+
     # REQUIRED:  The name of the amazon keypair and location of its private key
     #
     # NOTE: for some reason Capistrano requires you to have both the public and
@@ -68,12 +80,11 @@ cloud_providers:
 
     # REQUIRED: the ami and instance type for creating instances
     # The Ubuntu images at http://alestic.com/ work well
-    # Ubuntu 10.04 Lucid	base install	32-bit	ami-7000f019
-    # Ubuntu 10.04 Lucid	base install	64-bit	ami-fa01f193
+    # Ubuntu 12.04 Precise instance-store 64-bit: ami-eafa5883
     #
     # m1.small or m1.large or m1.xlarge
     image_type: t1.micro
-    image_id: "ami-baba68d3"
+    image_id: ami-b6089bdf
 
     # OPTIONAL: EC2 spot instance request support.
     #
@@ -87,16 +98,69 @@ cloud_providers:
     # If a spot instance request can't be fulfilled in 3 minutes, fallback to on-demand instance creation.  If not set,
     # the default is infinite.
     # spot_instance_request_timeout: 180
+    
+  # Use an alternate cloud provider supported by fog.  This doesn't fully work
+  # yet due to differences in providers within fog, but gives you a starting
+  # point for contributing a new provider to rubber.  See rubber/lib/rubber/cloud(.rb)
+  fog:
+    credentials:
+      provider: rackspace
+      rackspace_api_key: 'XXX'
+      rackspace_username: 'YYY'
+    image_type: 123
+    image_id: 123
 
 # REQUIRED the cloud provider to use
 #
 cloud_provider: aws
+
+# OPTIONAL: Where to store instance data.
+# 
+# Allowed forms are:
+# filesystem: "file:#{Rubber.root}/config/rubber/instance-#{Rubber.env}.yml"
+# cloud storage (s3): "storage:#{cloud_provider.aws.backup_bucket}/RubberInstances_#{app_name}/instance-#{Rubber.env}.yml"
+# cloud table (simpledb): "table:RubberInstances_#{app_name}_#{Rubber.env}"
+#
+# If you need to port between forms, load the rails console then:
+# Rubber.instances.save(location)
+# where location is one of the allowed forms for this variable
+#
+# instance_storage: "file:#{Rubber.root}/config/rubber/instance-#{Rubber.env}.yml"
+
+# OPTIONAL: Where to store a backup of the instance data
+#
+# This is most useful when using a remote store in case you end up
+# wiping the single copy of your instance data.  When using the file
+# store, the instance file is typically under version control with
+# your project code, so that provides some safety.
+#
+# instance_storage_backup: "storage:#{cloud_providers.aws.backup_bucket}/RubberInstances_#{app_name}/instance-#{Rubber.env}-#{Time.now.strftime('%Y%m%d-%H%M%S')}.yml"
+
+# OPTIONAL: Default ports for security groups
+web_port: 80
+web_ssl_port: 443
+web_tools_port: 8080
+web_tools_ssl_port: 8443
 
 # OPTIONAL: Define security groups
 # Each security group is a name associated with a sequence of maps where the
 # keys are the parameters to the ec2 AuthorizeSecurityGroupIngress API
 # source_security_group_name, source_security_group_owner_id
 # ip_protocol, from_port, to_port, cidr_ip
+# If you want to use a source_group outside of this project, add "external_group: true"
+# to prevent group_isolation from mangling its name, e.g.  to give access to graphite
+# server to other projects
+#
+# security_groups:
+#   graphite_server:
+#     description: The graphite_server security group to allow projects to send graphite data
+#     rules:
+#       - source_group_name: yourappname_production_collectd
+#         source_group_account: 123456
+#         external_group: true
+#         protocol: tcp
+#         from_port: "#{graphite_server_port}"
+#         to_port: "#{graphite_server_port}"
 #
 security_groups:
   default:
@@ -108,9 +172,36 @@ security_groups:
         from_port: 22
         to_port: 22
         source_ips: [0.0.0.0/0]
+  web:
+    description: "To open up port #{web_port}/#{web_ssl_port} for http server on web role"
+    rules:
+      - protocol: tcp
+        from_port: "#{web_port}"
+        to_port: "#{web_port}"
+        source_ips: [0.0.0.0/0]
+      - protocol: tcp
+        from_port: "#{web_ssl_port}"
+        to_port: "#{web_ssl_port}"
+        source_ips: [0.0.0.0/0]
+  web_tools:
+    description: "To open up port #{web_tools_port}/#{web_tools_ssl_port} for internal/tools http server"
+    rules:
+      - protocol: tcp
+        from_port: "#{web_tools_port}"
+        to_port: "#{web_tools_port}"
+        source_ips: [0.0.0.0/0]
+      - protocol: tcp
+        from_port: "#{web_tools_ssl_port}"
+        to_port: "#{web_tools_ssl_port}"
+        source_ips: [0.0.0.0/0]
 
 # OPTIONAL: The default security groups to create instances with
 assigned_security_groups: [default]
+roles:
+  web:
+    assigned_security_groups: [web]
+  web_tools:
+    assigned_security_groups: [web_tools]
 
 # OPTIONAL: Automatically create security groups for each host and role
 # EC2 doesn't allow one to change what groups an instance belongs to after
@@ -130,10 +221,10 @@ prompt_for_security_group_sync: true
 # OPTIONAL: The packages to install on all instances
 # You can install a specific version of a package by using a sub-array of pkg, version
 # For example, packages: [[rake, 0.7.1], irb]
-packages: [postfix, build-essential, git-core, ec2-ami-tools]
+packages: [postfix, build-essential, git-core, ec2-ami-tools, libxslt-dev, ntp]
 
 # OPTIONAL: gem sources to setup for rubygems
-# gemsources: ["http://rubygems.org", "http://gems.github.com"]
+# gemsources: ["https://rubygems.org"]
 
 # OPTIONAL: The gems to install on all instances
 # You can install a specific version of a gem by using a sub-array of gem, version
@@ -148,10 +239,10 @@ stop_on_error_cmd: "function error_exit { exit 99; }; trap error_exit ERR"
 
 # OPTIONAL: The default set of roles to use when creating a staging instance
 # with "cap rubber:create_staging".  By default this uses all the known roles,
-# but this is not always desired for staging, so you can specify a different
-# set here
+# excluding slave roles, but this is not always desired for staging, so you can
+# specify a different set here
 #
-staging_roles: "web,app,db:primary=true"
+# staging_roles: "web,app,db:primary=true"
 
 
 # OPTIONAL: Lets one assign amazon elastic IPs (static IPs) to your instances
@@ -167,14 +258,14 @@ staging_roles: "web,app,db:primary=true"
 #           affect instances in another.  As such, it is good to specify these
 #           for instances that need to be redundant to reduce your chance of
 #           downtime. You should typically set this on the role/host level
-#           rather than globally.  Use rubber describe:zones to see the list
+#           rather than globally.  Use cap rubber:describe_zones to see the list
 #           of zones
 # availability_zone: us-east-1a
 
-# OPTIONAL: If you want t use Elastic Block Store (EBS) persistent
+# OPTIONAL: If you want to use Elastic Block Store (EBS) persistent
 # volumes, add them to host specific overrides and they will get created
 # and assigned to the instance.  On initial creation, the volume will get
-# attached _and_ formatted, but if your host disapears and you recreate
+# attached _and_ formatted, but if your host disappears and you recreate
 # it, the volume will only get remounted thereby preserving your data
 #
 # hosts:
@@ -210,14 +301,23 @@ staging_roles: "web,app,db:primary=true"
 #
 #     # for raid array, you'll need to add mdadm to packages.  Likewise,
 #     # xfsprogs is needed for xfs filesystem support
+#     #
 #     packages: [xfsprogs, mdadm]
 #     raid_volumes:
 #       - device: /dev/md0 # OS device to to create raid array on
 #         mount: /mnt/fast # The directory to mount this array to
+#         mount_opts: 'nobootwait' # Recent Ubuntu versions require this flag or SSH will not start on reboot
 #         filesystem: xfs # the filesystem to create on array
 #         filesystem_opts: -f # the filesystem opts in mkfs
 #         raid_level: 0 # the raid level to use for the array
-#         source_devices: [/dev/sdx, /dev/sdy] # the source EBS devices we are creating raid array from
+#         # if you're using Ubuntu 11.x or later (Natty, Oneiric, Precise, etc)
+#         # you will want to specify the source devices in their /dev/xvd format
+#         # see https://bugs.launchpad.net/ubuntu/+source/linux/+bug/684875 for
+#         # more information.
+#         # NOTE: Only make this change for raid source_devices, NOT generic
+#         # volume commands above.
+#         source_devices: [/dev/sdx, /dev/sdy] # the source EBS devices we are creating raid array from (Ubuntu Lucid or older)
+#         source_devices: [/dev/xvdx, /dev/xvdy] # the source EBS devices we are creating raid array from (Ubuntu Natty or newer)
 #
 #     # for LVM volumes, you'll need to add lvm2 to packages.  Likewise,
 #     # xfsprogs is needed for xfs filesystem support
@@ -236,12 +336,12 @@ staging_roles: "web,app,db:primary=true"
 
 # OPTIONAL: You can also define your own variables here for use when
 # transforming config files, and they will be available in your config
-# templates as  <%= rubber_env.var_name %>
+# templates as  <%%= rubber_env.var_name %>
 #
 # var_name: var_value
 
-# All variables can also be overridden on the role and/or host level by creating
-# a sub level to the config under roles and hosts
+# All variables can also be overridden on the role, environment and/or host level by creating
+# a sub level to the config under roles, environments and hosts.  The precedence is host, environment, role
 # e.g. to install mysql only on db role, and awstats only on web01:
 
 # OPTIONAL: Role specific overrides
@@ -250,6 +350,13 @@ staging_roles: "web,app,db:primary=true"
 #     packages: []
 #   somerole2:
 #     myconfig: someval
+
+# OPTIONAL: Environment specific overrides
+# environments:
+#   staging:
+#     myconfig: otherval
+#   production:
+#     myconfig: val
 
 # OPTIONAL: Host specific overrides
 # hosts:
