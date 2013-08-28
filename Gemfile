@@ -1,24 +1,12 @@
 source 'http://rubygems.org'
 
-gem 'rails', '~> 3.2'
+gem 'rails', '~> 4'
 
 # Bundle edge Rails instead:
 # gem 'rails', :git => 'git://github.com/rails/rails.git'
 
 gem 'sqlite3'
 gem 'mysql2'
-
-# Gems used only for assets and not required
-# in production environments by default.
-group :assets do
-  gem 'sass-rails',   '~> 3.2'
-  gem 'coffee-rails', '~> 3.2'
-
-  # See https://github.com/sstephenson/execjs#readme for more supported runtimes
-  gem 'therubyracer'
-
-  gem 'uglifier', '>= 1.0.3'
-end
 
 group :development do
   gem 'gettext', git: 'https://github.com/cameel/gettext.git', ref: 'c3a8373'
@@ -53,7 +41,7 @@ gem "jquery_datepicker", git: "https://github.com/galo2099/jquery_datepicker"
 gem "newrelic_rpm"
 gem "open_id_authentication", git: "https://github.com/ndbradley730/open_id_authentication", branch: "controllermethods_name_error"
 gem "paperclip"
-gem "prototype_legacy_helper", "0.0.0", :git => 'git://github.com/willbryant/prototype_legacy_helper.git'
+gem 'prototype_legacy_helper', '0.0.0', :git => 'git://github.com/rails/prototype_legacy_helper.git'
 gem "prototype-rails"
 gem "quilt"
 gem "rmagick", require: "RMagick"

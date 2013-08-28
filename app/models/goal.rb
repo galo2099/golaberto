@@ -10,8 +10,8 @@ class Goal < ActiveRecord::Base
   validates_inclusion_of :penalty, :in => [ true, false ]
   validates_inclusion_of :own_goal, :in => [ true, false ]
 
-  scope :regulation, where(:aet => 0)
-  scope :aet, where(:aet => 1)
+  scope :regulation, ->{ where(:aet => 0) }
+  scope :aet, ->{ where(:aet => 1) }
 
   # Fields information, just FYI.
   #

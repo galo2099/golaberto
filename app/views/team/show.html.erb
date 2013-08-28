@@ -81,7 +81,7 @@
 <% content_for :sidebar do %>
   <% if can? :manage, @team %>
     <%= link_to _("Edit team"), :action => :edit, :id => @team %><br/>
-    <%= link_to _("Delete team"), { :action => :destroy, :id => @team }, :confirm => _('Are you sure?'), :method => :post %><br/>
+    <%= link_to _("Delete team"), { :action => :destroy, :id => @team }, data: { confirm: _('Are you sure?') }, :method => :post %><br/>
     <br/>
   <% end %>
   <%= link_to _("Team"), :action => :show, :id => @team %><br/>

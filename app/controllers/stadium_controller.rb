@@ -27,7 +27,7 @@ class StadiumController < ApplicationController
 
   def update
     @stadium = Stadium.find(params[:id])
-    @stadium.attributes = params[:stadium]
+    @stadium.attributes = stadium_params
 
     if @stadium.save
       flash[:notice] = _("Stadium was successfully updated")
@@ -42,7 +42,7 @@ class StadiumController < ApplicationController
   end
 
   def create
-    @stadium = Stadium.new(params[:stadium])
+    @stadium = Stadium.new(stadium_params)
     if @stadium.save
       flash[:notice] = _("Stadium was successfully created")
       redirect_to :action => :show, :id => @stadium
@@ -54,5 +54,10 @@ class StadiumController < ApplicationController
   def destroy
     Stadium.find(params[:id]).destroy
     redirect_to :action => :list
+  end
+  
+  private
+  def stadium_params
+    params.require(:stadium).permit(:name, :full_name, :city, :country)
   end
 end

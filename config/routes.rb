@@ -67,23 +67,23 @@ Golaberto::Application.routes.draw do
 
   # You can have the root of your site routed by hooking up '' 
   # -- just remember to delete public/index.html.
-  scope_for_locales do
   root :to => "home#index"
+  scope_for_locales do
 
   # map championship actions
-  match 'championship/show/:id/phases/:phase' => 'championship#phases'
-  match 'championship/show/:id/phases/:phase/team_json/' => 'championship#team_json'
-  match 'championship/show/:id/games/:phase(/group/:group)(/round/:round)(/p/:page)' => 'championship#games', :constraints => { :page => /\d+/ }, :defaults => { :page => 1 }
-  match 'championship/show/:id/new_game/:phase' => 'championship#new_game'
-  match 'championship/show/:id/team/:team' => 'championship#team'
+  match 'championship/show/:id/phases/:phase' => 'championship#phases', via: :get
+  match 'championship/show/:id/phases/:phase/team_json/' => 'championship#team_json', via: :get
+  match 'championship/show/:id/games/:phase(/group/:group)(/round/:round)(/p/:page)' => 'championship#games', :constraints => { :page => /\d+/ }, :defaults => { :page => 1 }, via: :get
+  match 'championship/show/:id/new_game/:phase' => 'championship#new_game', via: :get
+  match 'championship/show/:id/team/:team' => 'championship#team', via: :get
 
-  match 'game/list(/cat/:category)(/p/:page)' => 'game#list', :constraints => { :page => /\d+/ }, :defaults => { :type => :scheduled, :page => 1, :category => 1 }
-  match 'game/list/played(/cat/:category)(/p/:page)' => 'game#list', :constraints => { :page => /\d+/ }, :defaults => { :type => :played, :page => 1, :category => 1 }
+  match 'game/list(/cat/:category)(/p/:page)' => 'game#list', :constraints => { :page => /\d+/ }, :defaults => { :type => :scheduled, :page => 1, :category => 1 }, via: :get
+  match 'game/list/played(/cat/:category)(/p/:page)' => 'game#list', :constraints => { :page => /\d+/ }, :defaults => { :type => :played, :page => 1, :category => 1 }, via: :get
 
-  match 'team/games/scheduled/:id(/cat/:category)(/p/:page)' => 'team#games', :defaults => { :played => false, :category => 1, :page => 1 }
-  match 'team/games/played/:id(/cat/:category)(/p/:page)' => 'team#games', :defaults => { :played => true, :category => 1, :page => 1 }
+  match 'team/games/scheduled/:id(/cat/:category)(/p/:page)' => 'team#games', :defaults => { :played => false, :category => 1, :page => 1 }, via: :get
+  match 'team/games/played/:id(/cat/:category)(/p/:page)' => 'team#games', :defaults => { :played => true, :category => 1, :page => 1 }, via: :get
 
   # Install the default route as the lowest priority.
-  match ':controller(/:action(/:id))(.:format)'
+  match ':controller(/:action(/:id))(.:format)', via: [:get, :post, :patch]
   end
 end

@@ -1,5 +1,5 @@
 class Player < ActiveRecord::Base
-  has_many :comments, :as => :commentable, :dependent => :destroy, :order => 'created_at ASC'
+  has_many :comments, ->{order(created_at: :asc) }, :as => :commentable, :dependent => :destroy
   has_many :goals, :dependent => :delete_all
   has_many :team_players, :dependent => :delete_all
   has_many :player_games, :dependent => :delete_all

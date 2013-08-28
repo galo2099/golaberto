@@ -33,8 +33,7 @@ class TeamController < ApplicationController
   def update
     @team = Team.find(params[:id])
     begin
-      @team.filter_image_background = params[:team][:filter_image_background]
-      @team.attributes = params[:team]
+      @team.attributes = team_params
       @team.save!
       redirect_to :action => :show, :id => @team
     rescue
@@ -63,8 +62,7 @@ class TeamController < ApplicationController
   def create
     @team = Team.new
     begin
-      @team.filter_image_background = params[:team][:filter_image_background]
-      @team.attributes = params[:team]
+      @team.attributes = team_params
       @team.save!
       redirect_to :action => :show, :id => @team
     rescue
@@ -86,5 +84,11 @@ class TeamController < ApplicationController
         :order => "name",
         :limit => 5) unless search.blank?
     render :partial => "search" 
+  end
+
+  private
+
+  def team_params
+    params.require(:team).permit(:name, :full_name, :city, :foundation, :country, :stadium_id, :filter_image_background, :logo)
   end
 end

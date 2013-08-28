@@ -16,7 +16,7 @@ class ChampionshipController < ApplicationController
 
   def create
     @categories = Category.all
-    @championship = Championship.new(params["championship"])
+    @championship = Championship.new(championship_params)
 
     if @championship.save
       redirect_to :action => :show, :id => @championship
@@ -243,12 +243,12 @@ class ChampionshipController < ApplicationController
     @championship = Championship.find(params["id"])
     @categories = Category.all
 
-    @championship.attributes = params[:championship]
+    @championship.attributes = championship_params
 
     saved = @championship.save
     new_empty = false
 
-    @phase = @championship.phases.build(params[:phase])
+    @phase = @championship.phases.build(phase_params)
     new_empty = @phase.name.empty?
 
     saved = @phase.save and saved unless new_empty
@@ -328,5 +328,14 @@ class ChampionshipController < ApplicationController
       </object>
     </noscript>
     HTML
+  end
+
+  private
+  def championship_params
+    params.require(:championship).permit(:name, :begin, :end, :point_win, :point_draw, :point_loss, :category_id, :show_country)
+  end
+
+  def phase_params
+    params.require(:phase).permit(:name, :order_by)
   end
 end

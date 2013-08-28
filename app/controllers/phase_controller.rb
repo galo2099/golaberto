@@ -8,7 +8,7 @@ class PhaseController < ApplicationController
   end
 
   def create
-    @phase = Phase.new(params["phase"])
+    @phase = Phase.new(phase_params)
 
     if @phase.save
       redirect_to :action => :show, :id => @phase
@@ -37,12 +37,12 @@ class PhaseController < ApplicationController
 
   def update
     @phase = Phase.find(params["id"])
-    @phase.attributes = params["phase"]
+    @phase.attributes = phase_params
 
     saved = @phase.save
     new_empty = false
 
-    @group = @phase.groups.build(params["group"])
+    @group = @phase.groups.build(group_params)
     new_empty = @group.name.empty?
 
     saved = @group.save unless new_empty
@@ -58,5 +58,14 @@ class PhaseController < ApplicationController
     phase = Phase.find(params["id"])
     phase.destroy
     redirect_to :controller => :championship, :action => :edit, :id => phase.championship
+  end
+
+  private
+  def phase_params
+    params.require(:phase).permit(:name, :order_by, :sort, :bonus_points, :bonus_points_threshold)
+  end
+
+  def group_params
+    params.require(:group).permit(:name)
   end
 end

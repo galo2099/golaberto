@@ -22,12 +22,17 @@ class UserController < ApplicationController
   end
 
   def update
-    @user.filter_image_background = params[:user][:filter_image_background]
-    @user.attributes = params[:user]
+    @user.attributes = user_params
     @user.save!
     flash[:notice] = _("Your profile was saved")
     redirect_to :action => :show, :id => @user
   rescue ActiveRecord::RecordInvalid
     render :action => :edit
+  end
+
+  private
+
+  def user_params
+    params.require(:user).permit("name", "email", "location", "birthday", "about_me", "filter_image_background", "avatar")
   end
 end

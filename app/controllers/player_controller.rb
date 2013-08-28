@@ -46,7 +46,7 @@ class PlayerController < ApplicationController
 
   def update
     @player = Player.find(params[:id])
-    @player.attributes = params[:player]
+    @player.attributes = player_params
 
     if @player.save
       flash[:notice] = _("Player was successfully updated")
@@ -61,7 +61,7 @@ class PlayerController < ApplicationController
   end
 
   def create
-    @player = Player.new(params[:player])
+    @player = Player.new(player_params)
     if @player.save
       flash[:notice] = _("Player was successfully created")
       redirect_to :action => :show, :id => @player
@@ -73,5 +73,11 @@ class PlayerController < ApplicationController
   def destroy
     Player.find(params[:id]).destroy
     redirect_to :action => :list
+  end
+
+  private
+
+  def player_params
+    params.require(:player).permit("name", "position", "birth", "country", "full_name")
   end
 end

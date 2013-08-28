@@ -41,9 +41,9 @@ class Game < ActiveRecord::Base
       base.stampable
 
       base.has_many :comments,
+	            ->{ order(created_at: :asc) },
                     :as => :commentable,
-                    :dependent => :destroy,
-                    :order => 'created_at ASC'
+                    :dependent => :destroy
       base.belongs_to :home, :class_name => "Team", :foreign_key => "home_id"
       base.belongs_to :away, :class_name => "Team", :foreign_key => "away_id"
       base.belongs_to :phase, :touch => true
@@ -51,7 +51,7 @@ class Game < ActiveRecord::Base
       base.belongs_to :referee
 
       base.has_many :player_games,
-                    :include => :player,
+                    ->{ includes :player },
                     :dependent => :delete_all
 
       base.validates_presence_of :home
@@ -182,8 +182,7 @@ class Game < ActiveRecord::Base
   # The versioned association is not shared because it is added automatically
   # to the versioned class by the version_association method
   has_many :goals,
-           :order => :time,
-           :include => :player
+	   ->{ order(:time).includes(:player) }
   version_association :goals
 
   # Always save the version. We check if it the game has really changed before saving it.

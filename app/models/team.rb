@@ -2,7 +2,7 @@ class Team < ActiveRecord::Base
 
   has_attached_file :logo,
       :styles => lambda { |attachment|
-        options = { :format => "png", :filter_background => attachment.instance.filter_image_background }
+        options = { :format => "png", :filter_background => attachment.instance.filter_image_background? }
         { :medium => options.merge(:geometry => "100x100"),
           :thumb => options.merge(:geometry => "15x15") }
       },
@@ -16,12 +16,12 @@ class Team < ActiveRecord::Base
   attr_accessor :filter_image_background
 
   belongs_to :stadium
-  has_many :comments, :as => :commentable, :dependent => :destroy, :order => 'created_at ASC'
+  has_many :comments, ->{ order(created_at: :asc) }, :as => :commentable, :dependent => :destroy
   has_many :team_groups, :dependent => :delete_all
   has_many :groups, :through => :team_groups
   has_many :home_games, :foreign_key => "home_id", :class_name => "Game", :dependent => :destroy
   has_many :away_games, :foreign_key => "away_id", :class_name => "Game", :dependent => :destroy
-  has_many :team_players, :dependent => :delete_all, :include => :player
+  has_many :team_players, ->{ includes :player}, :dependent => :delete_all
   validates_length_of :name, :within => 1..40
   validates_length_of :country, :within => 1..40
   validates_uniqueness_of :name, :message => "already exists"
@@ -32,6 +32,10 @@ class Team < ActiveRecord::Base
   # Field: name , SQL Definition:varchar(255)
   # Field: country , SQL Definition:varchar(255)
   # Field: logo , SQL Definition:varchar(255)
+
+  def filter_image_background?
+    return filter_image_background == "1"
+  end
 
   def to_param
     "#{id}-#{name.parameterize}"
@@ -66,7 +70,7 @@ class Team < ActiveRecord::Base
       cond[0] << " AND date >= ?"
       cond << options[:date]
     end
-    ret = n_games(n, cond, "ASC")
+    ret = n_games(n, cond, :asc)
   end
 
   def last_n_games(n, options = {})
@@ -82,7 +86,7 @@ class Team < ActiveRecord::Base
       cond[0] << " AND date <= ?"
       cond << options[:date]
     end
-    ret = n_games(n, cond, "DESC")
+    ret = n_games(n, cond, :desc)
   end
 
   private
@@ -90,12 +94,7 @@ class Team < ActiveRecord::Base
     condition[0] << " AND (home_id = ? OR away_id = ?)"
     condition << id
     condition << id
-    Game.find(
-        :all,
-        :order => "date #{order}",
-        :conditions => condition,
-        :include => [ { :phase => :championship } ],
-        :limit => n)
+    Game.where(condition).order(date: order).includes({ :phase => :championship }).limit(n).references(:championship).to_a
   end
 
 end

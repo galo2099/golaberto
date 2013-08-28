@@ -5,7 +5,7 @@ class AccountController < ApplicationController
   before_filter :login_from_cookie
 
   def login
-    @user = User.new(params[:user])
+    @user = User.new(params.fetch(:user, {}).permit(:login, :password))
     if using_open_id?
       open_id_authentication
     elsif not @user.login.blank?
@@ -16,7 +16,7 @@ class AccountController < ApplicationController
   end
 
   def signup
-    @user = User.new(params[:user])
+    @user = User.new(params.fetch(:user, {}).permit(:login, :password, :email, :password_confirmation))
     return unless request.post?
     @user.save!
     self.current_user = @user
@@ -49,7 +49,7 @@ class AccountController < ApplicationController
     @user.identity_url = params[:openid_url]
     authenticate_with_open_id do |result, identity_url|
       if result.successful?
-        if self.current_user = User.find_or_create_by_identity_url(identity_url)
+        if self.current_user = User.find_or_create_by(identity_url: identity_url)
           successful_login
         else
           failed_login _("Sorry, no user by that identity URL exists (%{identity_url})" % { :identity_url => identity_url })

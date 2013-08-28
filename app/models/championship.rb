@@ -1,9 +1,9 @@
 class Championship < ActiveRecord::Base
-  has_many :phases, :order => "order_by", :dependent => :destroy
-  has_many :games, :through => :phases, :order => :date
+  has_many :phases, ->{ order :order_by }, :dependent => :destroy
+  has_many :games, ->{ order :date }, :through => :phases
   has_many :goals, :through => :games
   has_many :team_players, :dependent => :delete_all
-  has_many :teams, :through => :phases, :uniq => true
+  has_many :teams, ->{ uniq }, :through => :phases
   belongs_to :category
   validates_presence_of :name
   validates_presence_of :begin

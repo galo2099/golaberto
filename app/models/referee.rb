@@ -1,10 +1,9 @@
 class Referee < ActiveRecord::Base
-  has_many :comments, :as => :commentable, :dependent => :destroy, :order => 'created_at ASC'
+  has_many :comments, ->{ order(created_at: :asc) }, :as => :commentable, :dependent => :destroy
   has_many :games, :dependent => :nullify
   has_many :played_games,
-           :class_name => "Game",
-           :conditions => { :played => true },
-           :order => "date DESC"
+	   ->{ where(played: true).order(date: :desc) },
+           :class_name => "Game"
   validates_presence_of :name
   validates_length_of :name, :within => 1..255
   validates_uniqueness_of :name

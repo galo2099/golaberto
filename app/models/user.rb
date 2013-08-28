@@ -5,7 +5,7 @@ class User < ActiveRecord::Base
 
   has_attached_file :avatar,
       :styles => lambda { |attachment|
-        options = { :format => "png", :filter_background => attachment.instance.filter_image_background }
+        options = { :format => "png", :filter_background => attachment.instance.filter_image_background? }
         { :medium => options.merge(:geometry => "100x100"),
           :thumb => options.merge(:geometry => "15x15") }
       },
@@ -23,7 +23,7 @@ class User < ActiveRecord::Base
   N_("User|Password")
 
   has_and_belongs_to_many :roles
-  has_many :comments, :dependent => :destroy, :order => 'created_at ASC'
+  has_many :comments, -> { order('created_at ASC') }, :dependent => :destroy
   has_many :game_edits, :class_name => "Game::Version", :foreign_key => "updater_id"
 
   validates_presence_of     :login, :email, :if => :not_openid?
@@ -51,6 +51,10 @@ class User < ActiveRecord::Base
   # Encrypts some data with the salt.
   def self.encrypt(password, salt)
     Digest::SHA1.hexdigest("--#{salt}--#{password}--")
+  end
+
+  def filter_image_background?
+    return filter_image_background == "1"
   end
 
   # has_role? simply needs to return true or false whether a user has a role or not.

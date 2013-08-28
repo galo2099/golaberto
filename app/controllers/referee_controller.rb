@@ -27,7 +27,7 @@ class RefereeController < ApplicationController
 
   def update
     @referee = Referee.find(params[:id])
-    @referee.attributes = params[:referee]
+    @referee.attributes = referee_params
 
     if @referee.save
       flash[:notice] = _("Referee was successfully updated")
@@ -42,7 +42,7 @@ class RefereeController < ApplicationController
   end
 
   def create
-    @referee = Referee.new(params[:referee])
+    @referee = Referee.new(referee_params)
     if @referee.save
       flash[:notice] = _("Referee was successfully created")
       redirect_to :action => :show, :id => @referee
@@ -54,5 +54,11 @@ class RefereeController < ApplicationController
   def destroy
     Referee.find(params[:id]).destroy
     redirect_to :action => :list
+  end
+
+  private
+
+  def referee_params
+    params.require(:referee).permit(:name, :location)
   end
 end

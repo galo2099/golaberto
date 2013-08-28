@@ -87,7 +87,7 @@ class GameController < ApplicationController
   def create
     @championship = Championship.find(params["championship"])
     @phase = Phase.find(params["phase"])
-    @game = @phase.games.build(params["game"])
+    @game = @phase.games.build(game_params)
     @game.date = Date.today
     if @game.save
       redirect_to :action => :edit, :id => @game
@@ -108,7 +108,7 @@ class GameController < ApplicationController
       params[:game]["time(3i)"] = "1"
     end
 
-    @game.attributes = params["game"]
+    @game.attributes = game_params
     # set score to sane values
     @game.home_score = 0 unless @game.home_score
     @game.away_score = 0 unless @game.away_score
@@ -163,7 +163,7 @@ class GameController < ApplicationController
   end
 
   def create_stadium_for_edit
-    @stadium = Stadium.new(params[:stadium])
+    @stadium = Stadium.new(params.require(:stadium).permit(:name))
     if @stadium.save
       @stadiums = Stadium.order(:name)
       render :inline => "<option value=""></option><%= options_from_collection_for_select @stadiums, 'id', 'name', @stadium.id %>"
@@ -188,15 +188,16 @@ class GameController < ApplicationController
     @game = Game.find(params[:id])
     @home_away = params[:home_away]
     @partial = params[:partial]
+    team_player = params.require("team_player").permit("championship_id", "team_id", "player_id")
     unless params[:name].to_s.empty?
       player = Player.new(:name => params[:name])
       if player.save
-        params[:team_player][:player_id] = player.id
+        team_player[:player_id] = player.id
       else
-        params[:team_player][:player_id] = nil
+        team_player[:player_id] = nil
       end
     end
-    team_player = TeamPlayer.new(params["team_player"])
+    team_player = TeamPlayer.new(team_player)
     unless team_player.save
       render :nothing => true, :status => 401
     end
@@ -224,7 +225,7 @@ class GameController < ApplicationController
     @game.send(us + "_" + aet).times do |i|
       goal_params = goals[i.to_s] if goals
       unless goal_params.nil? or goal_params[:player_id].empty?
-        goal = Goal.new(goal_params)
+        goal = Goal.new(goal_params.permit("player_id", "time", "penalty", "own_goal", "aet"))
         goal.game_id = @game.id
         goal.team_id = goal.own_goal? ? @game.send(them + "_id") : @game.send(us + "_id")
         @goals.push goal
@@ -261,5 +262,12 @@ class GameController < ApplicationController
 
     @home_squad.sort!
     @away_squad.sort!
+  end
+
+  def game_params
+    params.require("game").permit(
+	    "home_id", "away_id", "home_score", "away_score", "home_aet", "away_aet", "home_pen",
+	    "away_pen", "round", "attendance", "date", "time", "referee_id",
+	    "stadium_id", "played")
   end
 end

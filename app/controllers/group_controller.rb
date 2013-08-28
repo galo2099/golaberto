@@ -10,7 +10,7 @@ class GroupController < ApplicationController
 
   def update
     @group = Group.find(params["id"])
-    @group.update_attributes(params["group"])
+    @group.update_attributes(group_params)
 
 	@group.team_groups.clear
 
@@ -54,5 +54,10 @@ class GroupController < ApplicationController
       end
     end
     render :action => :odds_progress
+  end
+
+  private
+  def group_params
+    params.require(:group).permit(:name, :promoted, :relegated)
   end
 end
