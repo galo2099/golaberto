@@ -124,6 +124,6 @@
   <% if can? :manage, @game %>
     <%= link_to _("Edit"), :action => :edit, :id => @game %><br/>
     <%= link_to _("Edit Squad"), :action => :edit_squad, :id => @game %><br/>
-    <%= link_to _("Delete"), { :action => :destroy, :id => @game }, :confirm => _('Are you sure?'), :method => :post %><br/>
+    <%= link_to _("Delete"), { :action => :destroy, :id => @game }, data: {confirm: _('Are you sure?')}, :method => :post %><br/>
   <% end %>
 <% end %>

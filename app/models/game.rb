@@ -193,7 +193,9 @@ class Game < ActiveRecord::Base
   def find_n_previous_games_by_team_versus_team(n)
     Game.limit(n).includes(:phase => :championship).order("date desc").
         where("((home_id = ? and away_id = ?) or (home_id = ? and away_id = ?)) and played = ? and championships.category_id = ? and date < ?",
-                                self.home, self.away, self.away, self.home, true, self.phase.championship.category, self.date)
+              self.home, self.away, self.away, self.home, true, self.phase.championship.category, self.date).
+	references(:championship)
+
   end
 
   # Fields information, just FYI.

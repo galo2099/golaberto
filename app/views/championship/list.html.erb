@@ -13,9 +13,9 @@
         <% if can? :manage, championship %>
           <td><%= link_to _('Edit'), :action => 'edit', :id => championship %></td>
           <td><%= link_to _('Destroy'), { :action => 'destroy',
-                                       :id => championship },
-                                     :confirm => _('Are you sure?'),
-                                     :method => :post %></td>
+                                          :id => championship },
+				          data: {confirm: _('Are you sure?')},
+				          :method => :post %></td>
         <% end %>
       </tr>
     <% end %>

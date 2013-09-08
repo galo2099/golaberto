@@ -7,7 +7,7 @@
 </select>
 <br/>
 <br/>
-<%= form_tag({ :action => :list }, :method => :get) do -%>
+<%= form_tag({ :action => :list, :type => @type }, :method => :get) do -%>
 <% options_for_datepicker = { :autoSize => true, :changeYear => true, :selectOtherMonths => true, :showButtonPanel => true, :showOtherMonths => true, :numberOfMonths => 2 } %>
 <%= _("From") %>: <%= datepicker_tag "date_range_start", @date_range_start, options_for_datepicker %>
 <%= _("To") %>: <%= datepicker_tag "date_range_end", @date_range_end, options_for_datepicker %>

@@ -30,9 +30,7 @@ class PlayerController < ApplicationController
     @id = params[:id]
     conditions = ["name LIKE ?", "%#{@id}%"] unless @id.nil?
 
-    @players = Player.paginate :order => "name",
-                               :conditions => conditions,
-                               :page => params[:page]
+    @players = Player.order(:name).where(conditions).page(params[:page])
   end
 
   def show

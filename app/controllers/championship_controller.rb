@@ -26,7 +26,7 @@ class ChampionshipController < ApplicationController
   end
 
   def list
-    @championships = Championship.paginate :order => "name, begin", :page => params[:page]
+    @championships = Championship.order("name, begin").page(params[:page])
   end
 
   def show
@@ -216,9 +216,9 @@ class ChampionshipController < ApplicationController
     @current_phase = @championship.phases.find(params["phase"])
     group = params["group"]
 
-    games = @current_phase.games.scoped
+    games = @current_phase.games
     if group.nil?
-      @groups_to_show = @current_phase.groups.includes(:teams).includes(:teams).all
+      @groups_to_show = @current_phase.groups.includes(:teams)
     else
       @groups_to_show = [ @current_phase.groups.find(group) ]
       games = @groups_to_show.first.games
@@ -231,7 +231,7 @@ class ChampionshipController < ApplicationController
       games = games.where(:round => @current_round)
     end
 
-    @games = games.paginate :order => "date, round, time, teams.name", :include => [ "home", "away" ], :page => params[:page]
+    @games = games.order("date, round, time, teams.name").includes(:home, :away).page(params[:page]).references(:team)
   end
 
   def edit
@@ -265,10 +265,10 @@ class ChampionshipController < ApplicationController
     @championship = Championship.find(params["id"])
 
     @average = @championship.games.group(:home).average(:attendance).sort{|a,b| b[1].to_i <=> a[1].to_i}
-    @maximum = @championship.games.maximum(:attendance, :group => :home)
-    @minimum = @championship.games.minimum(:attendance, :group => :home)
-    @count = @championship.games.count(:attendance, :group => :home)
-    @games = @championship.games.paginate(:order => "attendance DESC", :page => params[:page], :per_page => 10)
+    @maximum = @championship.games.group(:home).maximum(:attendance)
+    @minimum = @championship.games.group(:home).minimum(:attendance)
+    @count = @championship.games.group(:home).count(:attendance)
+    @games = @championship.games.order("attendance DESC").page(params[:page]).per_page(10)
   end
 
   def destroy

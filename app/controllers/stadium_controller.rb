@@ -11,9 +11,7 @@ class StadiumController < ApplicationController
     @name = params[:name]
     conditions = ["name LIKE ?", "%#{@name}%"] unless @name.nil?
 
-    @stadia = Stadium.paginate :order => "name",
-                               :conditions => conditions,
-                               :page => params[:page]
+    @stadia = Stadium.order(:name).where(conditions).page(params[:page])
   end
 
   def show

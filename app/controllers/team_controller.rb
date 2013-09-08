@@ -25,9 +25,10 @@ class TeamController < ApplicationController
     @categories = Category.all
     @team = Team.find(params["id"])
     @category = Category.find(params[:category])
-    @played = params[:played]
+    @type = params[:type].to_s
+    @played = @type == "played"
     order = !!@played ? "date DESC" : "date ASC"
-    @games = Game.team_games(@team).includes(:phase => :championship).where("played = ? and championships.category_id = ?", @played, @category).order(order).paginate(:page => params[:page])
+    @games = Game.team_games(@team).includes(:phase => :championship).where("played = ? and championships.category_id = ?", @played, @category).order(order).page(params[:page]).references(:championship)
   end
 
   def update
@@ -46,9 +47,7 @@ class TeamController < ApplicationController
     @id = params[:id]
     conditions = ["name LIKE ?", "%#{@id}%"] unless @id.nil?
 
-    @teams = Team.paginate :order => "name",
-                           :conditions => conditions,
-                           :page => params[:page]
+    @teams = Team.order(:name).where(conditions).page(params[:page])
     if @teams.size == 1
       redirect_to :action => :show, :id => @teams.first
     end

@@ -50,9 +50,7 @@ class GameController < ApplicationController
       conditions << @date_range_end.to_date
     end
 
-    @games = Game.paginate :order => order,
-                           :conditions => conditions,
-                           :page => params[:page]
+    @games = Game.where(conditions).page(params[:page]).order(order)
     @sorted_games = @games.sort_by{|g|post_sort.call(g)}
   end
 
