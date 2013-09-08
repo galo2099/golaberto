@@ -1,11 +1,11 @@
 package main
 
-import _ "http/pprof"
+import _ "net/http/pprof"
 import "fmt"
-import "http"
-import "json"
+import "net/http"
+import "encoding/json"
 import "math"
-import "rand"
+import "math/rand"
 import "os"
 import "sort"
 import "strconv"
@@ -434,8 +434,5 @@ func serveRequests(c http.ResponseWriter, req *http.Request) {
 func main() {
   fmt.Printf("Starting http Server ... ")
   http.Handle("/", http.HandlerFunc(serveRequests))
-  err := http.ListenAndServe("127.0.0.1:6577", nil)
-  if err != nil {
-    fmt.Printf("ListenAndServe Error :" + err.String())
-  }
+  log.Fatal(http.ListenAndServe(":6577", nil))
 }
