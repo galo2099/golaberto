@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: version 0.0.1\n"
-"POT-Creation-Date: 2012-03-29 22:45-0700\n"
+"POT-Creation-Date: 2013-09-11 01:54-0700\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: Robson Braga Araujo <robsonbraga@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -56,6 +56,9 @@ msgstr "(pênalti)"
 
 msgid "1%"
 msgstr "1%"
+
+msgid "AOL screen name"
+msgstr "usuário AOL"
 
 msgid "Access denied!"
 msgstr "Acesso negado!"
@@ -205,6 +208,9 @@ msgstr "Vantagem"
 msgid "Birth"
 msgstr "Nascimento"
 
+msgid "Blogger blog name"
+msgstr "usuário Blogger"
+
 msgid "Bolivia"
 msgstr "Bolívia"
 
@@ -340,6 +346,9 @@ msgstr "Ilha Christmas"
 
 msgid "City"
 msgstr "Cidade"
+
+msgid "ClaimID user name"
+msgstr "usuário ClaimID"
 
 msgid "Close"
 msgstr "Fechar"
@@ -497,6 +506,12 @@ msgstr "Término"
 msgid "England"
 msgstr "Inglaterra"
 
+msgid "Enter your <a class=\"openid_logo\" href=\"http://openid.net\">OpenID</a>"
+msgstr "Entre com seu <a class=\"openid_logo\" href=\"http://openid.net\">OpenID</a>"
+
+msgid "Enter your <span>Provider user name</span>"
+msgstr "Entre com seu <span>usuário do Provider</span>"
+
 msgid "Equatorial Guinea"
 msgstr "Guiné Equatorial"
 
@@ -529,6 +544,9 @@ msgstr "Filtrar fundo da imagem?"
 
 msgid "Finland"
 msgstr "Finlândia"
+
+msgid "Flickr user name"
+msgstr "usuário Flickr"
 
 msgid "Foundation"
 msgstr "Fundação"
@@ -872,20 +890,23 @@ msgstr "Listando usuários"
 msgid "Lithuania"
 msgstr "Lituânia"
 
+msgid "LiveJournal blog name"
+msgstr "usuário LiveJournal"
+
 msgid "Location"
 msgstr "Localidade"
 
 msgid "Log in"
 msgstr "Logar"
 
-msgid "Log in with OpenID"
-msgstr "Logar com OpenID"
-
 msgid "Logged in successfully"
 msgstr "Autenticado com sucesso"
 
 msgid "Login"
 msgstr "Login"
+
+msgid "Login with OpenID"
+msgstr "Logar com OpenID"
 
 msgid "Logo"
 msgstr "Logo"
@@ -982,6 +1003,9 @@ msgstr "Jogos com maiores públicos"
 
 msgid "Mozambique"
 msgstr "Moçambique"
+
+msgid "MyOpenID user name"
+msgstr "usuário MyOpenID"
 
 msgid "Myanmar"
 msgstr "Myanmar"
@@ -1593,6 +1617,9 @@ msgstr "Logo"
 msgid "Team|Name"
 msgstr "Nome"
 
+msgid "Technorati user name"
+msgstr "usuário Technorati"
+
 msgid "Thailand"
 msgstr "Tailândia"
 
@@ -1739,8 +1766,14 @@ msgstr "Cidade do Vaticano"
 msgid "Venezuela"
 msgstr "Venezuela"
 
+msgid "Verisign user name"
+msgstr "usuário Verisign"
+
 msgid "Version %{number}"
 msgstr "Versão %{number}"
+
+msgid "Vidoop user name"
+msgstr "usuário Vidoop"
 
 msgid "Viet Nam"
 msgstr "Vietnã"
@@ -1774,6 +1807,9 @@ msgstr "Wallis e Futuna"
 
 msgid "Western Sahara"
 msgstr "Saara Ocidental"
+
+msgid "Wordpress blog name"
+msgstr "usuário Wordpress"
 
 msgid "Yemen"
 msgstr "Iêmen"

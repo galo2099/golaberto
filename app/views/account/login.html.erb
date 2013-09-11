@@ -1,17 +1,53 @@
 <% content_for :main_title do %> <%= _("Log in") %><% end %>
 
+<%= javascript_include_jquery %>
+
 <small><%= (_("If you've already created an account, or if you have an %{openid_link} login, use one of the forms below to log in to the site. If you use your OpenID URL to log in, an account will be created for you automatically if necessary.") % { :openid_link => link_to(_("OpenID"), "http://openid.net/")}).html_safe %></small>
 
 <p><small><%= (_("You can also <a href='%{signup}'>create an account for this site.</a>") % { :signup => url_for(:action => :signup) }).html_safe %></small></p>
 
-<%= form_tag do -%>
+<%= form_tag({}, { class: :openid }) do -%>
 
 <div>
-  <label for="openid_url"><span class="form-error"></span></label>
-  <input id="openid_identifier" name="openid_url" type="text" size="40" tabindex="100" />
+  <div><ul class="providers"> 
+  <li class="openid" title="OpenID"><%= image_tag "openid/openidW.png", alt: "icon" %> 
+  <span><strong>http://{your-openid-url}</strong></span></li> 
+  <li class="direct" title="Google"> 
+		<%= image_tag "openid/googleW.png", alt: "icon" %><span>https://www.google.com/accounts/o8/id</span></li> 
+  <li class="direct" title="Yahoo"> 
+		<%= image_tag "openid/yahooW.png", alt: "icon" %><span>http://yahoo.com/</span></li> 
+		<li class="username" title="<%= _("AOL screen name") %>"> 
+  <%= image_tag "openid/aolW.png", alt: "icon" %><span>http://openid.aol.com/<strong>username</strong></span></li>
+	<li class="username" title="<%= _("MyOpenID user name") %>"> 
+		<%= image_tag "openid/myopenid.png", alt: "icon" %><span>http://<strong>username</strong>.myopenid.com/</span></li> 
+		<li class="username" title="<%= _("Flickr user name") %>"> 
+		<%= image_tag "openid/flickr.png", alt: "icon" %><span>http://flickr.com/<strong>username</strong>/</span></li> 
+		<li class="username" title="<%= _("Technorati user name") %>"> 
+		<%= image_tag "openid/technorati.png", alt: "icon" %><span>http://technorati.com/people/technorati/<strong>username</strong>/</span></li> 
+		<li class="username" title="<%= _("Wordpress blog name") %>"> 
+		<%= image_tag "openid/wordpress.png", alt: "icon" %><span>http://<strong>username</strong>.wordpress.com</span></li> 
+		<li class="username" title="<%= _("Blogger blog name") %>"> 
+		<%= image_tag "openid/blogger.png", alt: "icon" %><span>http://<strong>username</strong>.blogspot.com/</span></li> 
+		<li class="username" title="<%= _("LiveJournal blog name") %>"> 
+		<%= image_tag "openid/livejournal.png", alt: "icon" %><span>http://<strong>username</strong>.livejournal.com</span></li> 
+		<li class="username" title="<%= _("ClaimID user name") %>"> 
+		<%= image_tag "openid/claimid.png", alt: "icon" %><span>http://claimid.com/<strong>username</strong></span></li> 
+		<li class="username" title="<%= _("Vidoop user name") %>"> 
+		<%= image_tag "openid/vidoop.png", alt: "icon" %><span>http://<strong>username</strong>.myvidoop.com/</span></li> 
+		<li class="username" title="<%= _("Verisign user name") %>"> 
+		<%= image_tag "openid/verisign.png", alt: "icon" %><span>http://<strong>username</strong>.pip.verisignlabs.com/</span></li> 
+  </ul></div> 
+  <fieldset> 
+	  <label for="openid_username"><%= _("Enter your <span>Provider user name</span>").html_safe %></label> 
+  <div><span></span><input type="text" name="openid_username" /><span></span> 
+	  <input type="submit" value="<%= _("Login with OpenID") %>" /></div> 
+  </fieldset> 
+  <fieldset> 
+	  <label for="openid_identifier"><%= _('Enter your <a class="openid_logo" href="http://openid.net">OpenID</a>').html_safe %></label> 
+  <div><input type="text" name="openid_identifier" /> 
+	  <input type="submit" value="<%= _("Login with OpenID") %>" /></div> 
+  </fieldset> 
 </div>
-
-<p><%= submit_tag _('Log in with OpenID') %></p>
 
 <% end -%>
 
@@ -30,4 +66,9 @@
 <p><%= submit_tag _('Log in') %></p>
 <% end -%>
 
-<%= javascript_include_tag "openid" %>
+<%= javascript_include_tag "jquery.openid" %>
+<script type="text/javascript">
+  jQuery(document).ready(function($) {
+    $("form.openid:eq(0)").openid();
+  });
+</script>

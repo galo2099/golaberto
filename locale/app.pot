@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: version 0.0.1\n"
-"POT-Creation-Date: 2012-03-29 22:45-0700\n"
+"POT-Creation-Date: 2013-09-11 01:54-0700\n"
 "PO-Revision-Date: 2012-02-26 08:31-0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -54,6 +54,9 @@ msgid "(penalty)"
 msgstr ""
 
 msgid "1%"
+msgstr ""
+
+msgid "AOL screen name"
 msgstr ""
 
 msgid "Access denied!"
@@ -203,6 +206,9 @@ msgstr ""
 msgid "Birth"
 msgstr ""
 
+msgid "Blogger blog name"
+msgstr ""
+
 msgid "Bolivia"
 msgstr ""
 
@@ -324,6 +330,9 @@ msgid "Christmas Island"
 msgstr ""
 
 msgid "City"
+msgstr ""
+
+msgid "ClaimID user name"
 msgstr ""
 
 msgid "Close"
@@ -479,6 +488,12 @@ msgstr ""
 msgid "England"
 msgstr ""
 
+msgid "Enter your <a class=\"openid_logo\" href=\"http://openid.net\">OpenID</a>"
+msgstr ""
+
+msgid "Enter your <span>Provider user name</span>"
+msgstr ""
+
 msgid "Equatorial Guinea"
 msgstr ""
 
@@ -510,6 +525,9 @@ msgid "Filter image background?"
 msgstr ""
 
 msgid "Finland"
+msgstr ""
+
+msgid "Flickr user name"
 msgstr ""
 
 msgid "Foundation"
@@ -826,19 +844,22 @@ msgstr ""
 msgid "Lithuania"
 msgstr ""
 
+msgid "LiveJournal blog name"
+msgstr ""
+
 msgid "Location"
 msgstr ""
 
 msgid "Log in"
 msgstr ""
 
-msgid "Log in with OpenID"
-msgstr ""
-
 msgid "Logged in successfully"
 msgstr ""
 
 msgid "Login"
+msgstr ""
+
+msgid "Login with OpenID"
 msgstr ""
 
 msgid "Logo"
@@ -935,6 +956,9 @@ msgid "Most attended games"
 msgstr ""
 
 msgid "Mozambique"
+msgstr ""
+
+msgid "MyOpenID user name"
 msgstr ""
 
 msgid "Myanmar"
@@ -1499,6 +1523,9 @@ msgstr ""
 msgid "Team|Name"
 msgstr ""
 
+msgid "Technorati user name"
+msgstr ""
+
 msgid "Thailand"
 msgstr ""
 
@@ -1632,7 +1659,13 @@ msgstr ""
 msgid "Venezuela"
 msgstr ""
 
+msgid "Verisign user name"
+msgstr ""
+
 msgid "Version %{number}"
+msgstr ""
+
+msgid "Vidoop user name"
 msgstr ""
 
 msgid "Viet Nam"
@@ -1666,6 +1699,9 @@ msgid "Wallis and Futuna Islands"
 msgstr ""
 
 msgid "Western Sahara"
+msgstr ""
+
+msgid "Wordpress blog name"
 msgstr ""
 
 msgid "Yemen"
