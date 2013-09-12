@@ -240,14 +240,10 @@ class GameController < ApplicationController
     @stadiums = Stadium.order(:name)
     @selected_stadium = @game.stadium_id ? @game.stadium_id :
                         @game.version == 1 ? @game.home.stadium_id : 0
-    @home_players = @game.home.team_players.find(
-      :all,
-      :order => "players.name",
-      :conditions => [ "championship_id = ?", @game.phase.championship ]).map {|p| p.player}
-    @away_players = @game.away.team_players.find(
-      :all,
-      :order => "players.name",
-      :conditions => [ "championship_id = ?", @game.phase.championship ]).map {|p| p.player}
+    @home_players = @game.home.team_players.order("players.name").
+	    where("championship_id = ?", @game.phase.championship).map {|p| p.player}
+    @away_players = @game.away.team_players.order("players.name").
+      where("championship_id = ?", @game.phase.championship).map {|p| p.player}
   end
 
   def prepare_for_edit_squad
