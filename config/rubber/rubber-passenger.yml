@@ -1,6 +1,6 @@
-passenger_version: 3.0.9
-passenger_root: "#{rvm_gem_home}/gems/passenger-#{passenger_version}"
-passenger_ruby: "#{rvm_prefix}/wrappers/#{`bash -l -c 'rvm strings #{rvm_ruby}'`.strip}/ruby"
+passenger_version: 4.0.17
+passenger_root: "#{`bash -l -c 'find #{ruby_path} -name passenger-#{passenger_version}'`.strip}"
+passenger_ruby: "#{ruby_path}/bin/ruby"
 passenger_lib: "#{passenger_root}/ext/apache2/mod_passenger.so"
 passenger_listen_port: 7000
 passenger_listen_ssl_port: 7001
@@ -12,5 +12,9 @@ role_dependencies:
 
 roles:
   passenger:
-    packages: [apache2-mpm-prefork, apache2-prefork-dev, libcurl4-openssl-dev]
+    packages: [apache2-mpm-prefork, apache2-prefork-dev, libcurl4-openssl-dev, libapache2-mod-xsendfile]
     gems: [fastthread, rack, [passenger, "#{passenger_version}"]]
+    rolling_restart_port: "#{passenger_listen_port}"
+
+  web_tools:
+    rolling_restart_port: "#{web_tools_port}"
