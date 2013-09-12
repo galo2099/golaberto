@@ -19,7 +19,7 @@ ssh_options[:auth_methods] = [ "publickey", "keyboard-interactive", "password" ]
 set :scm, :git
 set :repository, "git://github.com/galo2099/golaberto.git"
 set :deploy_via, :remote_cache
-set :branch, "rails3"
+set :branch, "rails4"
 
 # Easier to do system level config as root - probably should do it through
 # sudo in the future.  We use ssh keys for access, so no passwd needed
