@@ -15,7 +15,7 @@ class GameController < ApplicationController
   def list
     store_location
     items_per_page = 30
-    @type = params[:type] || :scheduled
+    @type = params[:type].to_sym || :scheduled
     if (@type == :scheduled)
       conditions = [ "played = ?", false ]
       order = "date ASC, phase_id, time ASC"
