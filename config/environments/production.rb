@@ -73,7 +73,9 @@ Golaberto::Application.configure do
     end
 end
 
-Golaberto::Application.config.middleware.use ExceptionNotifier,
-  :email_prefix => "[GolAberto] ",
-  :sender_address => %{"notifier" <notifier@golaberto.com.br>},
-  :exception_recipients => %w{golaberto@gmail.com}
+Golaberto::Application.config.middleware.use ExceptionNotification::Rack,
+  email: {
+    email_prefix: "[GolAberto] ",
+    sender_address: %{"notifier" <notifier@golaberto.com.br>},
+    exception_recipients: %w{golaberto@gmail.com}
+  }
