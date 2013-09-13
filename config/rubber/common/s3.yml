@@ -3,6 +3,6 @@
 %>
 
 <%= Rubber.env %>:
-  access_key_id: <%= cloud_provider.access_key %>
-  secret_access_key: <%= cloud_provider.secret_access_key %>
+  access_key_id:
+  secret_access_key:
   bucket: <%= rubber_env.app_name.downcase %>_<%= Rubber.env %>
