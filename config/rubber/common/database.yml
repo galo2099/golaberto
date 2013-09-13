@@ -3,7 +3,7 @@
 %>
 
 <%= Rubber.env %>:
-  adapter: mysql2
+  adapter: <%= YAML::load(File.open("#{Rubber.root}/config/database.yml"))["production"]["adapter"] %>
   encoding: utf8
   collation: utf8_unicode_ci
   database: <%= rubber_env.db_name %>

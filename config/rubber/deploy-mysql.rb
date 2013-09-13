@@ -40,6 +40,7 @@ namespace :rubber do
             pass = "identified by '#{env.db_pass}'" if env.db_pass
             rubber.sudo_script "create_master_db", <<-ENDSCRIPT
               mysql -u root -e "create database #{env.db_name};"
+              mysql -u root -e "delete from mysql.user where user='' and host='localhost';"
               mysql -u root -e "grant all on *.* to '#{env.db_user}'@'%' #{pass};"
               mysql -u root -e "grant select on *.* to '#{env.db_slave_user}'@'%' #{pass};"
               mysql -u root -e "grant replication slave on *.* to '#{env.db_replicator_user}'@'%' #{pass};"
@@ -119,7 +120,7 @@ namespace :rubber do
       rubber.update_code_for_bootstrap
       
       # Gen just the conf for the given mysql role
-      rubber.run_config(:RUBBER_ENV => RUBBER_ENV, :FILE => "role/#{role}|role/db/", :FORCE => true, :deploy_path => release_path)
+      rubber.run_config(:file => "role/#{role}|role/db/", :force => true, :deploy_path => release_path)
 
       # reconfigure mysql so that it sets up data dir in /mnt with correct files
       sudo_script 'reconfigure-mysql', <<-ENDSCRIPT
@@ -129,20 +130,6 @@ namespace :rubber do
       sleep 5
     end
     
-    before "rubber:munin:custom_install", "rubber:mysql:custom_install_munin"
-
-    desc <<-DESC
-      Installs some extra munin graphs
-    DESC
-    task :custom_install_munin, :roles => [:mysql_master, :mysql_slave] do
-      rubber.sudo_script 'install_munin_mysql', <<-ENDSCRIPT
-        if [ ! -f /usr/share/munin/plugins/mysql_ ]; then
-          wget --no-check-certificate -qN -O /usr/share/munin/plugins/mysql_ https://github.com/kjellm/munin-mysql/raw/master/mysql_
-          wget --no-check-certificate -qN -O /etc/munin/plugin-conf.d/mysql_.conf https://github.com/kjellm/munin-mysql/raw/master/mysql_.conf
-        fi
-      ENDSCRIPT
-    end
-
     desc <<-DESC
       Starts the mysql daemons
     DESC
