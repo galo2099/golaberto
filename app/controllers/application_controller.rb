@@ -5,7 +5,7 @@ class ApplicationController < ActionController::Base
   include AuthenticatedSystem
   include Userstamp
 
-  before_filter :set_gettext_locale
+  before_filter :set_locale
   before_filter :set_current_user
   before_filter :update_last_login
 
@@ -33,6 +33,20 @@ class ApplicationController < ActionController::Base
         current_user.last_login = Time.now
         current_user.save!
       end
+    end
+  end
+
+  def set_locale
+    I18n.locale = extract_locale_from_tld || I18n.default_locale
+  end
+ 
+  # Get locale from top-level domain or return nil if such locale is not available
+  def extract_locale_from_tld
+    case request.host.split('.').last
+    when "br"
+      :pt_BR
+    else
+      :en_US
     end
   end
 end

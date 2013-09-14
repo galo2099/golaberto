@@ -1,12 +1,3 @@
-def scope_for_locales(&block)
-  locales_to_scope = I18n.available_locales - [ I18n.default_locale.to_s ]
-  scope ":locale", :constraints => { :locale => Regexp.new(locales_to_scope.join("|")) } do
-    yield
-  end
-  scope :defaults => { :locale => I18n.default_locale } do
-    yield
-  end
-end
 Golaberto::Application.routes.draw do
   # The priority is based upon order of creation:
   # first created -> highest priority.
@@ -68,8 +59,6 @@ Golaberto::Application.routes.draw do
   # You can have the root of your site routed by hooking up '' 
   # -- just remember to delete public/index.html.
   root :to => 'home#index'
-  scope_for_locales do
-  get '/' => "home#index"
 
   # map championship actions
   match 'championship/show/:id/phases/:phase' => 'championship#phases', via: :get
@@ -85,5 +74,4 @@ Golaberto::Application.routes.draw do
 
   # Install the default route as the lowest priority.
   match ':controller(/:action(/:id))(.:format)', via: [:get, :post, :patch]
-  end
 end

@@ -1,0 +1,11 @@
+development:
+  en_US_host: localhost
+  pt_BR_host: localhost.br
+
+test:
+  en_US_host: localhost
+  pt_BR_host: localhost.br
+
+production:
+  en_US_host: www.golaberto.com
+  pt_BR_host: www.golaberto.com.br
