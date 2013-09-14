@@ -6,7 +6,7 @@
 
   <% for team in @teams %>
     <tr>
-      <td><%= image_tag team.logo.url(:thumb) %>
+      <td><%= image_tag team.logo.url(:thumb), size: team.logo.styles[:thumb].geometry %>
         <%= link_to add_wbr_to_string(team.name), :action => :show, :id => team %></td>
       <td><%= _(team.country) %></td>
       <% if can? :manage, team %>

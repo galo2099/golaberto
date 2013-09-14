@@ -4,16 +4,17 @@ class User < ActiveRecord::Base
   model_stamper
 
   has_attached_file :avatar,
-      :styles => lambda { |attachment|
-        options = { :format => "png", :filter_background => attachment.instance.filter_image_background? }
-        { :medium => options.merge(:geometry => "100x100"),
-          :thumb => options.merge(:geometry => "15x15") }
+      styles: lambda { |attachment|
+        options = { format: "png", filter_background: attachment.instance.filter_image_background? }
+        { medium: options.merge(geometry: "100x100"),
+          thumb: options.merge(geometry: "15x15") }
       },
-      :processors => [ :logo ],
-      :storage => :s3,
-      :s3_credentials => "#{Rails.root}/config/s3.yml",
-      :s3_headers => { 'Cache-Control' => 'max-age=315576000', 'Expires' => 10.years.from_now.httpdate },
-      :path => ":class/:attachment/:id/:style.:extension"
+      processors: [ :logo ],
+      storage: :s3,
+      s3_credentials: "#{Rails.root}/config/s3.yml",
+      s3_headers: { 'Cache-Control' => 'max-age=315576000', 'Expires' => 10.years.from_now.httpdate },
+      default_url: ActionController::Base.helpers.image_path("blank.gif"), 
+      path: ":class/:attachment/:id/:style.:extension"
 
   # Virtual attribute to see if we should filter the image background
   attr_accessor :filter_image_background

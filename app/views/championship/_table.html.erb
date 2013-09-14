@@ -80,8 +80,7 @@
     image_logo = ""
     unless omit_logo
       image_logo = image_tag(team.logo.url(:thumb),
-                             :width => 15,
-                             :height => 15)
+                             size: team.logo.styles[:thumb].geometry)
     end
     title_popup = ""
     unless omit_popup

@@ -17,7 +17,7 @@ end %>
     </div>
   <% end %>
   <div class='home_logo'>
-    <%= image_tag game.home.logo.url(:thumb) %>
+    <%= image_tag game.home.logo.url(:thumb), size: game.home.logo.styles[:thumb].geometry %>
   </div>
   <div class='home_name'>
     <%= name_to_print(game.home, highlight_team) %>
@@ -34,7 +34,7 @@ end %>
       </div>
     <% end %>
     <div class='away_logo'>
-      <%= image_tag game.away.logo.url(:thumb) %>
+      <%= image_tag game.away.logo.url(:thumb), size: game.away.logo.styles[:thumb].geometry %>
     </div>
     <div class='away_name'>
       <%= name_to_print(game.away, highlight_team) %>

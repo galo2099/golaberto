@@ -47,13 +47,13 @@ function receiveDrop(drag, drop) {
   <%= hidden_field_tag "redirect", @redirect if @redirect %>
   <table>
     <tr>
-      <td rowspan=3><%= image_tag @game.home.logo.url(:medium) %></td>
+      <td rowspan=3><%= image_tag @game.home.logo.url(:medium), size: @game.home.logo.styles[:medium].geometry %></td>
       <td> <b><%= add_wbr_to_string(@game.home.name) %></b> </td>
       <td> <%= g.text_field :home_score, :size => 2 %> </td>
       <td>x</td>
       <td> <%= g.text_field :away_score, :size => 2 %> </td>
       <td> <b><%= add_wbr_to_string(@game.away.name) %></b> </td>
-      <td rowspan=3><%= image_tag @game.away.logo.url(:medium) %></td>
+      <td rowspan=3><%= image_tag @game.away.logo.url(:medium), size: @game.away.logo.styles[:medium].geometry %></td>
     </tr>
     <tr>
       <td>

@@ -23,8 +23,7 @@
                           ""
                         end %>
       <% image_logo = image_tag(team.logo.url(:thumb),
-                                :width => 15,
-                                :height => 15) %>
+                                size: team.logo.styles[:thumb].geometry) %>
       <td class='name'><%= (country_logo + " " + image_logo + " " +
                            link_to(add_wbr_to_string(team.name), :action => 'team',
                                               :id => @championship,
