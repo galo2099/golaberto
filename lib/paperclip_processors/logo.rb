@@ -3,8 +3,6 @@ module Paperclip
     include Magick
 
     def make
-      p @file.path
-      p File.open(@file.path, "r").size
       image = ImageList.new(@file.path)
       if @options[:filter_background]
         # make the background transparent
