@@ -31,10 +31,16 @@ class ChampionshipController < ApplicationController
 
   def show
     @championship = Championship.find(params["id"])
-    last_phase = @championship.phases[-1] unless @championship.phases.empty?
-    redirect_to :action => 'phases',
-                :id => @championship,
-                :phase => last_phase
+    respond_to do |format|
+      format.html {
+        last_phase = @championship.phases[-1] unless @championship.phases.empty?
+        redirect_to action: :phases,
+                    id: @championship,
+                    phase: last_phase
+      }
+      format.csv 
+    end
+
   end
 
   def phases
@@ -273,7 +279,7 @@ class ChampionshipController < ApplicationController
 
   def destroy
     Championship.find(params["id"]).destroy
-    redirect_to :action => "list"
+    redirect_to action: :list
   end
 
   def top_goalscorers

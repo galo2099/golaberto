@@ -1,0 +1,25 @@
+<%= @championship.full_name %>
+
+<% @championship.phases.each do |phase| %>
+<%= phase.name %>
+
+<% phase.groups.each do |group| %>
+<%= group.name %>
+
+<%= CSV.generate do |csv|
+    csv << ["pos","name","pts","w","d","l","gf","ga"]
+    pos = 0
+    group.team_table.each do |t|
+      pos += 1
+      csv << [pos, t[0].team.name, t[1].points, t[1].wins, t[1].draws, t[1].losses, t[1].goals_for, t[1].goals_against]
+    end
+end %>
+<% end %>
+
+<%= CSV.generate do |csv|
+  csv << [ "home", "away", "home_score", "away_score", "date", "time" ]
+  phase.games.each do |game|
+    csv << [ game.home.name, game.away.name, game.played ? game.home_score : nil, game.played ? game.away_score : nil, game.date, game.time.try(:strftime, "%H:%M") ]
+  end
+end %>
+<% end %>
