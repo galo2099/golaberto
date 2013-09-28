@@ -13,7 +13,7 @@ class User < ActiveRecord::Base
       storage: :s3,
       s3_credentials: "#{Rails.root}/config/s3.yml",
       s3_headers: { 'Cache-Control' => 'max-age=315576000', 'Expires' => 10.years.from_now.httpdate },
-      default_url: ActionController::Base.helpers.image_path("blank.gif"), 
+      default_url: ActionController::Base.helpers.asset_path("blank.gif"), 
       path: ":class/:attachment/:id/:style.:extension"
 
   # Virtual attribute to see if we should filter the image background
