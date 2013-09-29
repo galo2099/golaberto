@@ -113,7 +113,9 @@ type ChampionshipType struct {
 }
 
 type TeamType struct {
-  Id int
+  Team_id int
+  Add_sub int
+  Bias int
 }
 
 type GroupType struct {
@@ -121,7 +123,7 @@ type GroupType struct {
   Relegated int
   Phase *PhaseType
   Games []GameType
-  Teams []TeamType
+  Team_groups []TeamType
 }
 
 
@@ -339,10 +341,13 @@ type TeamOdds struct {
 
 func (group *GroupType) calculate_odds() map[string]*TeamOdds {
   odds := make([]GameOdds, 0, len(group.Games))
-  campaign := make(map[int]*TeamCampaign, len(group.Teams))
+  campaign := make(map[int]*TeamCampaign, len(group.Team_groups))
 
-  for _, t := range group.Teams {
-    campaign[t.Id] = &TeamCampaign{id: t.Id,
+  for _, t := range group.Team_groups {
+    campaign[t.Team_id] = &TeamCampaign{id: t.Team_id,
+      points: t.Add_sub,
+      bias: t.Bias,
+      add_sub: t.Add_sub,
       points_win: group.Phase.Championship.Point_win,
       points_draw: group.Phase.Championship.Point_draw,
       points_loss: group.Phase.Championship.Point_loss}
@@ -421,7 +426,7 @@ func serveRequests(c http.ResponseWriter, req *http.Request) {
   dec := json.NewDecoder(req.Body)
   var v GroupType
   if err := dec.Decode(&v); err != nil {
-    log.Println(err)
+    fmt.Println(err)
     return
   }
   team_odds := v.calculate_odds()
