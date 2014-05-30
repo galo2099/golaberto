@@ -193,6 +193,9 @@ func (group *GroupType) goal_distribution(
     side func (*GameType) int,
     score func (*GameType) int) []float64 {
   ret := make([]float64, 10)
+  ret[0] = 5;
+  ret[1] = 5;
+  ret[2] = 5;
   for _, g := range group.Phase.Championship.Games {
     if g.Played && side(&g) == team_id {
       for i := range ret {
