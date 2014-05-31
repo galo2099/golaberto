@@ -10,13 +10,13 @@ class PlayerController < ApplicationController
 
   def destroy_team
     team_player = TeamPlayer.find(params[:id])
-    goals = team_player.player.goals.find_all_by_team_id(team_player.team_id)
+    goals = team_player.player.goals.where(team_id: team_player.team_id)
     goals.each do |g|
       if g.game.phase.championship_id == team_player.championship_id
         g.destroy
       end
     end
-    player_games = team_player.player.player_games.find_all_by_team_id(team_player.team_id)
+    player_games = team_player.player.player_games.where(team_id: team_player.team_id)
     player_games.each do |pg|
       if pg.game.phase.championship_id == team_player.championship_id
         pg.destroy

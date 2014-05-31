@@ -130,6 +130,6 @@ class User < ActiveRecord::Base
     end
 
     def add_initial_roles
-      self.roles << Role.find_or_create_by_name("commenter")
+      self.roles << Role.find_or_create_by(name: "commenter")
     end
 end

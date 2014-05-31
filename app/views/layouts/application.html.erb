@@ -20,7 +20,7 @@
       <%= link_to image_tag("logo.png", :border => 0), :controller => :home %>
       <div class="navigation" style='position: absolute; top: 0px; right: 0px; background-color: #8f983b;'>
         <% case I18n.locale
-              when :"pt-BR" then %> <%= link_to ("English " + image_tag("flags/gb.png")).html_safe, params.merge(host: APP_CONFIG["en_US_host"]) %>
+              when :"pt_BR" then %> <%= link_to ("English " + image_tag("flags/gb.png")).html_safe, params.merge(host: APP_CONFIG["en_US_host"]) %>
            <% else %> <%= link_to ("Português " + image_tag("flags/br.png")).html_safe, params.merge(host: APP_CONFIG["pt_BR_host"]) %>
         <% end %>
       </div>

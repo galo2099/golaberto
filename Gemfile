@@ -46,7 +46,7 @@ gem "prototype-rails"
 gem "quilt"
 gem "rmagick", require: "RMagick"
 gem "rufus-scheduler"
-gem "userstamp", git: "https://github.com/delynn/userstamp.git"
+gem 'userstamp', :git => 'git://github.com/kimkong/userstamp.git'
 gem "will_paginate"
 
 # Deploy with Capistrano

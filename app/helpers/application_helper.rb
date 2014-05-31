@@ -8,7 +8,7 @@ module ApplicationHelper
   end
 
   def javascript_include_jquery
-    jquery_locale = case I18n.locale when :"pt-BR" then "pt-BR" else "" end
+    jquery_locale = case I18n.locale when :"pt_BR" then "pt-BR" else "" end
     ret = ""
     ret << stylesheet_link_tag("http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.18/themes/blitzer/jquery-ui.css")
     ret << google_jquery

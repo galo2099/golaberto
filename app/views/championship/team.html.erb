@@ -81,18 +81,27 @@
         <td><%= p[:own_goals] %></td>
         <td><%= p[:penalties] %></td>
         <td><% if can? :manage, Game %>
-          <%= link_to(_('Remove'), :url => { :controller => :player,
-                                          :action => :destroy_team,
-                                          :id => p[:team_player] },
+          <%= link_to(_('Remove'), { :controller => :player,
+                                     :action => :destroy_team,
+                                     :id => p[:team_player] },
+                                class: 'player-remove',
+                                data: {
                                 :remote => true,
                                 :confirm => _('Are you sure?'),
-                                :method => :post,
-                                :success => update_page {|p| p.redirect_to request.path },
-                                :failure => "alert('#{_('Error removing')}')") %>
+                                :method => :post}) %>
         <% end %></td>
       </tr>
     <% end %>
   </table>
+  <%= javascript_tag <<EOF
+  document.on('ajax:failure', '.player-remove', function(event) {
+    alert('#{_('Error removing')}');
+  });
+  document.on('ajax:success', '.player-remove', function(event) {
+    YAHOO.example.EnhanceFromMarkup.myDataTable.deleteRow(event.target.parentNode.parentNode.id);
+  });
+EOF
+%>
 </div>
 </div>
 
@@ -158,7 +167,8 @@ EOF
                                                  :id => @championship,
                                                  :phase => group.phase },
                                        :with => "'team=' + value",
-                                       :before => "if (!value) { filter_other_team(#{idx}); return true; } $('spinner#{idx}').setStyle({backgroundImage: 'url(/images/spinner.gif)'});",
+                                       :method => :get,
+                                       :before => "if (!value) { filter_other_team(#{idx}); return true; } $('spinner#{idx}').setStyle({backgroundImage: 'url(#{image_url "spinner.gif"})'});",
                                        :failure => "alert('#{_("Cant download data for team!")}');",
                                        :success => "plot_team_graph_data(request, #{idx})",
                                        :complete => "$('spinner#{idx}').setStyle({backgroundImage: ''})"

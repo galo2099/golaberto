@@ -38,8 +38,6 @@ class Game < ActiveRecord::Base
   # and Game::Version, created by acts_as_versioned
   module GameAssociations
     def self.included(base)
-      base.stampable
-
       base.has_many :comments,
 	            ->{ order(created_at: :asc) },
                     :as => :commentable,

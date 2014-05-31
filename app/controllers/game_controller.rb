@@ -37,7 +37,7 @@ class GameController < ApplicationController
     @category = @category.to_i
     phases = Phase.joins(:championship).where(:championships => { :category_id => @category })
     conditions[0] << " AND phase_id IN (?)"
-    conditions << phases
+    conditions << phases.map{|p|p.id}
 
     @date_range_start = params[:date_range_start] || default_start
     @date_range_end = params[:date_range_end] || default_end
@@ -247,15 +247,12 @@ class GameController < ApplicationController
   end
 
   def prepare_for_edit_squad
-    @home_squad = @game.home_player_games
-    @away_squad = @game.away_player_games
+    @home_squad = @game.home_player_games.order("players.name")
+    @away_squad = @game.away_player_games.order("players.name")
     @home_players.map!{|p| PlayerGame.new({ :game => @game, :team => @game.home, :player => p }) }
     @away_players.map!{|p| PlayerGame.new({ :game => @game, :team => @game.away, :player => p }) }
     @home_players = @home_players.select{|p| @home_squad.select{|pg| pg.player.id == p.player.id}.size == 0}
     @away_players = @away_players.select{|p| @away_squad.select{|pg| pg.player.id == p.player.id}.size == 0}
-
-    @home_squad.sort!
-    @away_squad.sort!
   end
 
   def game_params

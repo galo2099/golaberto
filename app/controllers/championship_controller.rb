@@ -187,19 +187,15 @@ class ChampionshipController < ApplicationController
       @group_json << json
     end
 
-    @played_games = @team.home_games.find_all_by_phase_id_and_played(
-        @championship.phase_ids, true)
-    @played_games += @team.away_games.find_all_by_phase_id_and_played(
-        @championship.phase_ids, true)
+    @played_games = @team.home_games.where(phase_id: @championship.phase_ids, played: true)
+    @played_games += @team.away_games.where(phase_id: @championship.phase_ids, played: true)
     @played_games.sort!{|a,b| a.date <=> b.date}
 
-    @scheduled_games = @team.home_games.find_all_by_phase_id_and_played(
-        @championship.phase_ids, false, :include => [ :home, :away ])
-    @scheduled_games += @team.away_games.find_all_by_phase_id_and_played(
-        @championship.phase_ids, false, :include => [ :home, :away ])
+    @scheduled_games = @team.home_games.where(phase_id: @championship.phase_ids, played: false).includes(:home, :away)
+    @scheduled_games += @team.away_games.where(phase_id: @championship.phase_ids, played: false).includes(:home, :away)
     @scheduled_games.sort!{|a,b| a.date <=> b.date}
 
-    @players = @team.team_players.find_all_by_championship_id(@championship.id)
+    @players = @team.team_players.where(championship_id: @championship.id).to_a
     @players.sort!{|a,b| a.player.name <=> b.player.name}.map! do |p|
       { :player => p.player,
         :team_player => p,
@@ -291,7 +287,7 @@ class ChampionshipController < ApplicationController
     offset = (page - 1) * per_page
     scorers = @championship.goals.group(:player).where(:own_goal => false).order("count_all DESC").count
     @scorer_pagination = WillPaginate::Collection.new(page, per_page, scorers.size)
-    @scorers = scorers.keys[offset, per_page].map{|k| [ k, scorers[k] ] }
+    @scorers = scorers.keys.sort{|a,b|scorers[b] <=> scorers[a]}[offset, per_page].map{|k| [ k, scorers[k] ] }
     players = @scorers.map{|p,c| p}
     @teams = @championship.goals.group(:player_id, :team_id).where(:own_goal => false).count.inject(Hash.new) do |h,t|
       player = Player.find(t[0][0])
