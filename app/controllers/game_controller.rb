@@ -16,16 +16,15 @@ class GameController < ApplicationController
     store_location
     items_per_page = 30
     @type = params[:type].to_sym || :scheduled
+    @games = Game
     if (@type == :scheduled)
-      conditions = [ "played = ?", false ]
-      order = "date ASC, phase_id, time ASC"
+      @games = @games.where(played: false).order("date ASC, phase_id, time ASC")
       post_sort = proc do |g|
         [(g.date.to_time.to_i), g.phase_id, (g.time.to_i), g.home.name]
       end
       default_start = (Date.today - 7.days)
     else
-      conditions = [ "played = ?", true ]
-      order = "date DESC, phase_id, time DESC"
+      @games = @games.where(played: true).order("date DESC, phase_id, time DESC")
       post_sort = proc do |g|
         [-(g.date.to_time.to_i), g.phase_id, -(g.time.to_i), g.home.name]
       end
@@ -35,22 +34,18 @@ class GameController < ApplicationController
     @categories = Category.all
     @category = params[:category] || 1
     @category = @category.to_i
-    phases = Phase.joins(:championship).where(:championships => { :category_id => @category })
-    conditions[0] << " AND phase_id IN (?)"
-    conditions << phases.map{|p|p.id}
+    @games = @games.joins(phase: :championship).where(championships: { category_id: @category })
 
     @date_range_start = params[:date_range_start] || default_start
     @date_range_end = params[:date_range_end] || default_end
     unless @date_range_start.nil? or @date_range_start.to_date.nil?
-      conditions[0] << " AND date >= ?"
-      conditions << @date_range_start.to_date
+      @games = @games.where(["date >= ?", @date_range_start.to_date])
     end
     unless @date_range_end.nil? or @date_range_end.to_date.nil?
-      conditions[0] << " AND date <= ?"
-      conditions << @date_range_end.to_date
+      @games = @games.where(["date <= ?", @date_range_end.to_date])
     end
 
-    @games = Game.where(conditions).page(params[:page]).order(order)
+    @games = @games.includes(:home, :away, :phase, :championship).page(params[:page])
     @sorted_games = @games.sort_by{|g|post_sort.call(g)}
   end
 
