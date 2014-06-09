@@ -371,7 +371,7 @@ func (group *GroupType) calculate_odds() map[string]*TeamOdds {
     }
   }
 
-  sort_order := strings.Split(group.Phase.Sort, ",")
+  sort_order := strings.Split(strings.Join(strings.Fields(group.Phase.Sort), ""), ",")
   team_odds := make(map[int]*TeamOdds, len(campaign))
   for k, _ := range campaign {
     team_odds[k] = new(TeamOdds)
