@@ -187,8 +187,8 @@ class ChampionshipController < ApplicationController
       @group_json << json
     end
 
-    @played_games = @team.home_games.where(phase_id: @championship.phase_ids, played: true)
-    @played_games += @team.away_games.where(phase_id: @championship.phase_ids, played: true)
+    @played_games = @team.home_games.where(phase_id: @championship.phase_ids, played: true).includes(:home, :away)
+    @played_games += @team.away_games.where(phase_id: @championship.phase_ids, played: true).includes(:home, :away)
     @played_games.sort!{|a,b| a.date <=> b.date}
 
     @scheduled_games = @team.home_games.where(phase_id: @championship.phase_ids, played: false).includes(:home, :away)

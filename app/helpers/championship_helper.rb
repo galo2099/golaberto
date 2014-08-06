@@ -155,7 +155,8 @@ module ChampionshipHelper
     end
 
     def next_game
-      Game.where("(home_id = ? OR away_id = ?) AND phase_id = ? AND played = ? AND date >= ?", @team_id, @team_id, @team_group.group.phase, false, Date.today).order(:date).first
+      Game.where("(home_id = ? OR away_id = ?) AND phase_id = ? AND played = ? AND date >= ?", @team_id, @team_id, @team_group.group.phase, false, Date.today)
+          .includes(:home, :away).order(:date).first
     end
   end
 end

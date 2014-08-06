@@ -124,7 +124,7 @@ class Group < ActiveRecord::Base
 
   def team_table
     @team_table ||= begin
-      played_games = games.where("played = ?", true).
+      played_games = games.where(played: true).
           includes(:phase, [:phase => :championship ]).
           order(:date)
       stats = Hash.new
