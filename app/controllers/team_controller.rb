@@ -1,4 +1,6 @@
 class TeamController < ApplicationController
+  include ApplicationHelper
+
   N_("Team")
 
   authorize_resource
@@ -46,9 +48,28 @@ class TeamController < ApplicationController
 
   def list
     @id = params[:id]
+    @country = params[:country]
     conditions = ["name LIKE ?", "%#{@id}%"] unless @id.nil?
 
+    # Hash from country to number of teams
+    countries_with_teams = { @country => 0 }
+    countries_with_teams.merge!(Team.where(conditions).group(:country).size)
+
+    countries_found = []
+    countries_not_found = []
+    golaberto_options_for_country_select.each do |translated_country, original_country|
+      count = countries_with_teams[original_country]
+      if count.nil? then
+        countries_not_found << [translated_country, original_country]
+      else
+        countries_found << [translated_country + " (#{count})", original_country]
+      end
+    end
+
+    @country_list = [[_("All") + " (#{Team.where(conditions).size})", ""]] + countries_found + countries_not_found
+
     @teams = Team.order(:name).where(conditions).page(params[:page])
+    @teams = @teams.where(country: @country) unless @country.blank?
     if @teams.size == 1
       redirect_to :action => :show, :id => @teams.first
     end

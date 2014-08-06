@@ -8,7 +8,9 @@
     <tr>
       <td><%= image_tag team.logo.url(:thumb), size: team.logo.styles[:thumb].geometry %>
         <%= link_to add_wbr_to_string(team.name), :action => :show, :id => team %></td>
-      <td><%= _(team.country) %></td>
+      <td>
+      <%= image_tag team.small_country_logo, width: 15, height: 15, title: _(team.country) %>
+      <%= _(team.country) %></td>
       <% if can? :manage, team %>
         <td><%= link_to _('Edit'), :action => 'edit', :id => team %></td>
         <td><%= link_to _('Destroy'), { :action => 'destroy', :id => team }, :confirm => _('Are you sure?'), :method => :post %></td>
