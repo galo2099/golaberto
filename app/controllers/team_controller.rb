@@ -37,7 +37,8 @@ class TeamController < ApplicationController
       @team.attributes = team_params
       @team.save!
       redirect_to :action => :show, :id => @team
-    rescue
+    rescue => e
+      flash[:notice] = e.message
       @stadiums = Stadium.order(:name)
       render :action => :edit
     end
