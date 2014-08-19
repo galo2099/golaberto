@@ -234,6 +234,7 @@ class ChampionshipController < ApplicationController
     end
 
     @games = games.order("date, round, time, teams.name").includes(:home, :away).page(params[:page]).references(:team)
+    @total_games = games.size
   end
 
   def edit

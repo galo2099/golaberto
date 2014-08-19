@@ -1,5 +1,6 @@
 <% cache [ "v1",
            I18n.locale,
+           @total_games,
            digest_cache_key(@games),
            digest_cache_key(@games.to_a.map{|g| [g.home, g.away]}.flatten.sort.uniq),
            digest_cache_key(@groups_to_show),
