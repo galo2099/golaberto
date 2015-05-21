@@ -5,14 +5,17 @@ class FuzzyTeamMatch
 
   # Inspired by http://seatgeek.com/blog/dev/fuzzywuzzy-fuzzy-string-matching-in-python
   def getDistance(a1, a2)
-    a1 = ActiveSupport::Inflector.transliterate(a1).downcase
-    a2 = ActiveSupport::Inflector.transliterate(a2).downcase
-    a1_tokens = a1.scan(/[[:alnum:]']+/).to_set
-    a2_tokens = a2.scan(/[[:alnum:]']+/).to_set
-    t0 = (a1_tokens & a2_tokens).sort
-    t1 = t0 + (a1_tokens - a2_tokens).to_a.sort
-    t2 = t0 + (a2_tokens - a1_tokens).to_a.sort
-    [ token_diff(t0, t1) / t1.size, token_diff(t0, t2) / t2.size, token_diff(t1, t2) ].sum
+    @distance ||= {}
+    @distance[[a1, a2]] ||= (
+      a1 = ActiveSupport::Inflector.transliterate(a1).downcase
+      a2 = ActiveSupport::Inflector.transliterate(a2).downcase
+      a1_tokens = a1.scan(/[[:alnum:]']+/).to_set
+      a2_tokens = a2.scan(/[[:alnum:]']+/).to_set
+      t0 = (a1_tokens & a2_tokens).sort
+      t1 = t0 + (a1_tokens - a2_tokens).to_a.sort
+      t2 = t0 + (a2_tokens - a1_tokens).to_a.sort
+      [ token_diff(t0, t1) / t1.size, token_diff(t0, t2) / t2.size, token_diff(t1, t2) ].sum
+    )
   end
 
   def token_diff(t0, t1)
