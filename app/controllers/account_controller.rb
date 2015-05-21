@@ -27,6 +27,28 @@ class AccountController < ApplicationController
     render :action => 'signup'
   end
 
+  def google_signin
+    auth = request.env["omniauth.auth"]
+
+    self.current_user = User.where(openid_connect_token: auth[:uid]).first
+    if not self.current_user
+      self.current_user = User.where(identity_url: auth[:extra][:id_info][:openid_id]).first
+      if not self.current_user
+        self.current_user = User.create(openid_connect_token: auth[:uid])
+      end
+      if self.current_user.name.nil?
+        self.current_user.name = auth[:info][:name]
+      end
+    end
+
+    successful_login
+  end
+
+  def failure
+    failed_login _("Username or password invalid")
+    redirect_to(controller: :account, action: :login)
+  end
+
   def logout
     self.current_user.forget_me if logged_in?
     cookies.delete :auth_token
@@ -69,8 +91,8 @@ class AccountController < ApplicationController
       cookies[:auth_token] = { :value => self.current_user.remember_token , :expires => self.current_user.remember_token_expires_at }
     end
     current_user.last_login = Time.now
-    current_user.save
-    redirect_back_or_default(:controller => :home)
+    current_user.save!
+    redirect_back_or_default(:controller => :user, :action => :show, :id => current_user.id)
     flash[:notice] = _("Logged in successfully")
   end
 

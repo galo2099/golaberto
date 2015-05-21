@@ -63,6 +63,9 @@ Golaberto::Application.routes.draw do
   # Legacy route to redirect old links to /en_US paths to the english route.
   get '/en_US/*other', to: redirect(host: APP_CONFIG["en_US_host"], path: '/%{other}')
 
+  get '/auth/google/callback', to: "account#google_signin"
+  get '/auth/failure', to: 'account#failure'
+
   # map championship actions
   match 'championship/show/:id/phases/:phase' => 'championship#phases', via: :get
   match 'championship/show/:id/phases/:phase/team_json/' => 'championship#team_json', via: :get

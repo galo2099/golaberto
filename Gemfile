@@ -39,6 +39,7 @@ gem "httparty"
 gem "hpricot"
 gem "jquery_datepicker", git: "https://github.com/galo2099/jquery_datepicker"
 gem "newrelic_rpm"
+gem "omniauth-google-oauth2", git: "https://github.com/zquestz/omniauth-google-oauth2"
 gem "open_id_authentication", git: "https://github.com/ndbradley730/open_id_authentication", branch: "controllermethods_name_error"
 gem "paperclip"
 gem 'prototype_legacy_helper', '0.0.0', :git => 'git://github.com/rails/prototype_legacy_helper.git'

@@ -12,8 +12,8 @@
   <div><ul class="providers"> 
   <li class="openid" title="OpenID"><%= image_tag "openid/openidW.png", alt: "icon" %> 
   <span><strong>http://{your-openid-url}</strong></span></li> 
-  <li class="direct" title="Google"> 
-		<%= image_tag "openid/googleW.png", alt: "icon" %><span>https://www.google.com/accounts/o8/id</span></li> 
+  <li title="Google">
+    <a href="/auth/google"><%= image_tag "openid/googleW.png", alt: "icon" %></a></li>
   <li class="direct" title="Yahoo"> 
 		<%= image_tag "openid/yahooW.png", alt: "icon" %><span>http://yahoo.com/</span></li> 
 		<li class="username" title="<%= _("AOL screen name") %>"> 
