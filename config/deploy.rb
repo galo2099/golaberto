@@ -125,12 +125,11 @@ namespace :deploy do
     layout = "#{release_path}/app/views/layouts/application.html.erb"
     run "sed -i 's#</body>##{stats}</body>#' #{layout}"
   end
+  task :symlink_config, roles: :app do
+    run "ln -nfs #{shared_path}/config/secrets.yml #{release_path}/config/secrets.yml"
+  end
+  after "deploy:finalize_update", "deploy:symlink_config"
 end
-
-task :symlink_config, roles: :app do
-  run "ln -nfs #{shared_path}/config/secrets.yml #{release_path}/config/secrets.yml"
-end
-after "deploy:finalize_update", "deploy:symlink_config"
 
 # We need to ensure that rubber:config runs before asset precompilation in Rails, as Rails tries to boot the environment,
 # which means needing to have DB access.  However, if rubber:config hasn't run yet, then the DB config will not have
