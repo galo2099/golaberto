@@ -11,7 +11,7 @@ class User < ActiveRecord::Base
       },
       processors: [ :logo ],
       storage: :s3,
-      s3_credentials: "#{Rails.root}/config/s3.yml",
+      s3_credentials: Rails.application.secrets.s3,
       s3_headers: { 'Cache-Control' => 'max-age=315576000', 'Expires' => 10.years.from_now.httpdate },
       default_url: ActionController::Base.helpers.asset_path("blank.gif"), 
       path: ":class/:attachment/:id/:style.:extension"
