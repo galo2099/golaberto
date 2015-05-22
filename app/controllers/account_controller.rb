@@ -33,7 +33,9 @@ class AccountController < ApplicationController
     self.current_user = User.where(openid_connect_token: auth[:uid]).first
     if not self.current_user
       self.current_user = User.where(identity_url: auth[:extra][:id_info][:openid_id]).first
-      if not self.current_user
+      if self.current_user
+        self.current_user.openid_connect_token = auth[:uid]
+      else
         self.current_user = User.create(openid_connect_token: auth[:uid])
       end
       if self.current_user.name.nil?
