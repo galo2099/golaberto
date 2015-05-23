@@ -43,7 +43,7 @@ gem "omniauth-google-oauth2", git: "https://github.com/zquestz/omniauth-google-o
 gem "open_id_authentication", git: "https://github.com/ndbradley730/open_id_authentication", branch: "controllermethods_name_error"
 gem "paperclip"
 gem 'prototype_legacy_helper', '0.0.0', :git => 'git://github.com/rails/prototype_legacy_helper.git'
-gem "prototype-rails"
+gem 'prototype-rails', github: 'rails/prototype-rails', branch: '4.2'
 gem "quilt"
 gem "rmagick", require: "RMagick"
 gem "rufus-scheduler"
