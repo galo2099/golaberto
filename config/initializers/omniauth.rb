@@ -3,8 +3,11 @@ Rails.application.config.middleware.use OmniAuth::Builder do
            Rails.application.secrets.google_api["client_id"],
            Rails.application.secrets.google_api["secret"],
            { name: "google",
-             openid_realm: Rails.application.secrets.google_api["openid_realm"],
              access_type: "online",
              scope: "openid",
+             setup: lambda do |env|
+               request = Rack::Request.new(env)
+               env['omniauth.strategy'].options[:openid_realm] = request.base_url
+             end,
            }
 end
