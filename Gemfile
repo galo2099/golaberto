@@ -10,6 +10,7 @@ gem 'mysql2'
 
 group :development do
   gem 'gettext', git: 'https://github.com/cameel/gettext.git', ref: 'c3a8373'
+  gem 'uglifier'
   gem 'wirble'
 end
 
@@ -47,7 +48,6 @@ gem 'prototype-rails', github: 'rails/prototype-rails', branch: '4.2'
 gem "quilt"
 gem "rmagick", require: "RMagick"
 gem "rufus-scheduler"
-gem 'uglifier'
 gem 'userstamp', :git => 'git://github.com/kimkong/userstamp.git'
 gem "will_paginate"
 
