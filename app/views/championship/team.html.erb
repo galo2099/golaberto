@@ -5,6 +5,8 @@
   <%= @championship.full_name %>
 <% end %>
 
+<%= javascript_include_jquery %>
+<%= javascript_include_tag "jquery.flot" %>
 <select id='team_select'>
   <%= options_from_collection_for_select @teams, "to_param", "name", @team.to_param %>
 </select>
@@ -106,42 +108,98 @@ EOF
 </div>
 
 <%= javascript_tag "data = new Array();" %>
-<%= javascript_tag "function load_graph_data0() { return Object.toJSON(data[0]); }" %>
 <%= javascript_tag <<EOF
   function plot_team_graph_data(request, idx) {
     var new_data = request.responseText.evalJSON();
-    var new_bar = new_data["elements"][2];
-    var new_line = new_data["elements"][3];
-    new_line["colour"] = "#006600";
 
     var current_data = data[idx];
-    var has_other_team = current_data["elements"][3].type == "bar_glass";
+    current_data["tooltips"][1] = new_data["tooltips"][0];
+    current_data["urls"][1] = new_data["urls"][0];
+    var has_other_team = current_data["data"].length > 4;
+
+    for (var i = 0; i < 3; ++i) {
+      var new_data_double_x = [];
+      for (var j = 0; j < new_data["data"][i]["data"].length; ++j) {
+        new_data_double_x.push(new_data["data"][i]["data"][j]);
+        new_data_double_x[j][0] -= 1;
+        new_data_double_x[j][0] *= 2;
+        new_data_double_x[j][0] += 0.95;
+      }
+      new_data["data"][i]["data"] = new_data_double_x;
+      new_data["data"][i]["xaxis"] = 2;
+      new_data["data"][i]["bars"]["barWidth"] = 0.8;
+    }
+    var new_data_double_line_x = [];
+    for (var j = 0; j < new_data["data"][3]["data"].length; ++j) {
+      new_data_double_line_x.push(new_data["data"][3]["data"][j]);
+      new_data_double_line_x[j][0] -= 1.0;
+      new_data_double_line_x[j][0] *= 2.0;
+      new_data_double_line_x[j][0] += 0.5;
+    }
+    new_data["data"][3]["data"] = new_data_double_line_x;
+    new_data["data"][3]["xaxis"] = 2;
+
     if (has_other_team) {
-      current_data["elements"][3] = new_bar;
-      current_data["elements"][5] = new_line;
+      for (var i = 0; i < 4; ++i) {
+        current_data["data"][4 + i] = new_data["data"][i];
+      }
     } else {
-      current_data["elements"].splice(3, 0, new_bar);
-      current_data["elements"].push(new_line);
+      for (var i = 0; i < 3; ++i) {
+        var current_data_double_x = [];
+        for (var j = 0; j < current_data["data"][i]["data"].length; ++j) {
+          current_data_double_x.push(current_data["data"][i]["data"][j]);
+          current_data_double_x[j][0] -= 1;
+          current_data_double_x[j][0] *= 2;
+          current_data_double_x[j][0] += 0.05;
+        }
+        current_data["data"][i]["data"] = current_data_double_x;
+        current_data["data"][i]["xaxis"] = 2;
+        current_data["data"][i]["bars"]["barWidth"] = 0.8;
+      }
+      var current_data_double_line_x = [];
+      for (var j = 0; j < current_data["data"][3]["data"].length; ++j) {
+        current_data_double_line_x.push(current_data["data"][3]["data"][j]);
+        current_data_double_line_x[j][0] -= 1.0;
+        current_data_double_line_x[j][0] *= 2.0;
+        current_data_double_line_x[j][0] += 0.5;
+      }
+      current_data["data"][3]["data"] = current_data_double_line_x;
+      current_data["data"][3]["xaxis"] = 2;
+
+      for (var i = 0; i < 4; ++i) {
+        current_data["data"].push(new_data["data"][i]);
+      }
     }
 
-    current_data["elements"][4].text = '#{@team.name}';
-    current_data["elements"][5].text = $('team_graph_select' + idx).options[$('team_graph_select' + idx).selectedIndex].text;
-    findSWF("campaign_graph").load(Object.toJSON(current_data));
+    current_data["data"][3]["label"] = '#{@team.name}';
+    current_data["data"][7]["label"] = $('team_graph_select' + idx).options[$('team_graph_select' + idx).selectedIndex].text;
+    jQuery("#placeholder" + idx).plot(current_data["data"], current_data["options"]);
   }
+
   function filter_other_team(idx) {
     var current_data = data[idx];
-    var has_other_team = current_data["elements"][3].type == "bar_glass";
+    var has_other_team = current_data["data"].length > 4;
     if (has_other_team) {
-      current_data["elements"][4].text = null;
-      current_data["elements"].splice(5, 1);
-      current_data["elements"].splice(3, 1);
-      findSWF("campaign_graph").load(Object.toJSON(current_data));
+      for (var i = 0; i < 4; ++i) {
+        var current_data_undo_double = [];
+        for (var j = 0; j < current_data["data"][i]["data"].length; ++j) {
+          current_data_undo_double.push(current_data["data"][i]["data"][j]);
+          current_data_undo_double[j][0] = j + 1;
+        }
+        current_data["data"][i]["data"] = current_data_undo_double;
+        current_data["data"][i]["xaxis"] = 1;
+      }
+
+      current_data["data"].pop();
+      current_data["data"].pop();
+      current_data["data"].pop();
+      current_data["data"].pop();
+      current_data["data"][3]["label"] = null;
+      jQuery("#placeholder" + idx).plot(current_data["data"], current_data["options"]);
     }
   }
 EOF
 %>
-
-<%= google_swfobject %>
 
 <div id="graphs">
   <div id="tabs">
@@ -150,10 +208,74 @@ EOF
     <% end %>
   </div>
   <div id="panel" class='panel'>
-    <%= @graph %>
     <% @groups.each_with_index do |group, idx| %>
       <%= javascript_tag "data[#{idx}] = #{@group_json[idx]};" %>
-      <div id="panel<%=idx%>" class="select-div <%= idx == 0 ? "active-tab-body" : "" %>">
+      <div id="panel<%=idx%>" class="<%= idx == 0 ? "active-tab-body" : "" %>">
+      <div>
+        <div id="placeholder<%=idx%>" style="width: 550px;
+          height: 300px;
+          font-size: 14px;
+          line-height: 1.2em;"></div>
+      </div>
+      <div id="legend<%=idx%>"></div>
+<script type="text/javascript">
+
+  jQuery(function() {
+
+    var graphDiv = jQuery("#placeholder<%=idx%>");
+    var options = data[<%=idx%>]["options"];
+    options["legend"] = {
+        container: '#legend<%=idx%>',
+        labelFormatter: function (label, series) {
+          return '<span style="color: #ccc">' + label + '</span>';
+        },
+    };
+    options["yaxes"][0]["transform"] = function (v) { return -v; };
+    options["yaxes"][0]["inverseTransform"] = function (v) { return -v; };
+    options["xaxes"][1]["ticks"] = function (axis) {
+      var res = [];
+      for (var i = 0.5; i < axis.max; i += 2) {
+        res.push([i,""]);
+      }
+      return res;
+    };
+
+    graphDiv.plot(data[<%=idx%>].data, options);
+
+    jQuery("<div id='tooltip'></div>").css({
+      position: "absolute",
+      display: "none",
+      border: "1px solid #fdd",
+      padding: "2px",
+      "background-color": "#fee",
+      opacity: 0.80,
+    }).appendTo("body");
+
+    graphDiv.bind("plothover", function (event, pos, item) {
+      if (item) {
+        var x = item.datapoint[0].toFixed(2);
+        var y = item.datapoint[1].toFixed(2);
+
+        jQuery('#placeholder<%=idx%>').css('cursor', 'pointer');
+        jQuery("#tooltip").html(data[<%=idx%>]["tooltips"][Math.floor(item.seriesIndex/4)][item.dataIndex])
+            .css({top: pos.pageY+5, left: pos.pageX+5})
+            .fadeIn(200);
+      } else {
+      jQuery('#placeholder<%=idx%>').css('cursor', 'default');
+        jQuery("#tooltip").hide();
+      }
+    });
+
+    graphDiv.bind("plotclick", function (event, pos, item) {
+      if (item) {
+      window.location.href = data[<%=idx%>]["urls"][Math.floor(item.seriesIndex/4)][item.dataIndex];
+      }
+    });
+    $('panel<%=idx%>').addClassName('select-div');
+  });
+
+  </script>
+
       <div id="spinner<%=idx%>" style="min-width: 30px; min-height: 30px; float: right;">&nbsp;</div>
       <%= _("Compare with other team:") %> <select id='team_graph_select<%=idx%>'>
         <option value="">-</option>
@@ -206,14 +328,6 @@ EOF
 <% N_("No records found.") %>
 
 <%= javascript_tag <<EOF
-function findSWF(movieName) {
-  if (navigator.appName.indexOf("Microsoft")!= -1) {
-    return window[movieName];
-  } else {
-    return document[movieName];
-  }
-}
-
 function load_graph_data(index) {
   tabs = $A($('tabs').getElementsByTagName('a'));
   divs = $A($('panel').getElementsByClassName('select-div'));
@@ -226,7 +340,6 @@ function load_graph_data(index) {
       divs[i].removeClassName('active-tab-body');
     }
   }
-  findSWF("campaign_graph").load(Object.toJSON(data[index]));
 }
 
 // Instantiate and configure Loader:
