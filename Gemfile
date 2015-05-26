@@ -47,6 +47,7 @@ gem 'prototype-rails', github: 'rails/prototype-rails', branch: '4.2'
 gem "quilt"
 gem "rmagick", require: "RMagick"
 gem "rufus-scheduler"
+gem 'uglifier'
 gem 'userstamp', :git => 'git://github.com/kimkong/userstamp.git'
 gem "will_paginate"
 
