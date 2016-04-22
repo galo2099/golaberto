@@ -27,6 +27,10 @@ class ChampionshipController < ApplicationController
 
   def list
     @championships = Championship.order("name, begin").page(params[:page])
+    @name = params[:name]
+    unless @name.nil?
+      @championships = @championships.where("name LIKE ?", "%#{@name}%")
+    end
   end
 
   def show

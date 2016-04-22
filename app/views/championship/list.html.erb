@@ -1,5 +1,14 @@
 <% content_for :main_title do %><%= _("Listing Championships") %><% end %>
 
+<%= form_tag({ :action => "list", :id => "" }, :method => "GET",
+            :style => "display: inline") do %>
+  <%= text_field_tag("name", @name, :size => 20) %>
+  <%= submit_tag(_("Search"), :name => nil) %>
+<% end %>
+  <p>
+  <%= will_paginate @championships %>
+  </p>
+
   <table>
     <tr>
       <th><%= _("Name") %></th>
@@ -25,6 +34,7 @@
   <%= will_paginate @championships %>
   </p>
 
+<%= javascript_tag "$('name').activate()" %>
 <% content_for :sidebar do %>
   <% if can? :create, Championship %>
     <%= link_to _('Create'), :action => :new %>
