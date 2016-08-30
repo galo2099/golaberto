@@ -119,8 +119,6 @@ type TeamType struct {
 }
 
 type GroupType struct {
-  Promoted int
-  Relegated int
   Phase *PhaseType
   Games []GameType
   Team_groups []TeamType
@@ -337,9 +335,7 @@ func compare_head_to_head(a, b *TeamCampaign, sort []string) int {
 }
 
 type TeamOdds struct {
-  First float64
-  Promoted float64
-  Relegated float64
+  Pos []float64
 }
 
 func (group *GroupType) calculate_odds() map[string]*TeamOdds {
@@ -375,6 +371,7 @@ func (group *GroupType) calculate_odds() map[string]*TeamOdds {
   team_odds := make(map[int]*TeamOdds, len(campaign))
   for k, _ := range campaign {
     team_odds[k] = new(TeamOdds)
+    team_odds[k].Pos = make([]float64, len(campaign))
   }
   const NUM_ITER = 10000
   for i := 0; i < NUM_ITER; i++ {
@@ -402,23 +399,15 @@ func (group *GroupType) calculate_odds() map[string]*TeamOdds {
     sorted_teams := TeamCampaignSorted{team_slice, sort_order}
     sort.Sort(sorted_teams)
     for i, v := range sorted_teams.t {
-      if i == 0 {
-        team_odds[v.id].First += 1
-      }
-      if i < group.Promoted {
-        team_odds[v.id].Promoted += 1
-      }
-      if i >= len(sorted_teams.t) - group.Relegated {
-        team_odds[v.id].Relegated += 1
-      }
+      team_odds[v.id].Pos[i] += 1.0
     }
   }
   json_team_odds := make(map[string]*TeamOdds, len(team_odds))
-  for k, v := range team_odds {
-    v.First /= NUM_ITER / 100
-    v.Promoted /= NUM_ITER / 100
-    v.Relegated /= NUM_ITER / 100
-    json_team_odds[strconv.Itoa(k)] = v
+  for team, odds := range team_odds {
+    for pos := range odds.Pos {
+      odds.Pos[pos] /= NUM_ITER / 100
+    }
+    json_team_odds[strconv.Itoa(team)] = odds
   }
   return json_team_odds
 }
