@@ -10,19 +10,19 @@
 
 <%= form_for @group, :url => { :action => :update, :id => @group } do |f| %>
   <table>
-    <tr><td><%= _("Name") %>:</td><td><%= f.text_field :name %></td></tr>
-    <tr><td><%= _("Promoted") %>:</td><td><%= f.text_field :promoted, :size => 2 %></td></tr>
-    <tr><td><%= _("Relegated") %>:</td><td><%= f.text_field :relegated, :size => 2 %></td></tr>
+    <tr><td><%= _("Name") %>:</td><td><%= f.text_field :name, tabindex: 1 %></td></tr>
+    <tr><td><%= _("Promoted") %>:</td><td><%= f.text_field :promoted, :size => 2, tabindex: 1 %></td></tr>
+    <tr><td><%= _("Relegated") %>:</td><td><%= f.text_field :relegated, :size => 2, tabindex: 1 %></td></tr>
   </table>
 
   <p>
   <%= _("Teams") %><br/>
   <%= _("Number of teams") %>:
-  <input type="text" id="team_number" value="<%= @group.team_groups.size %>" size="2"/><br/>
+  <input type="text" id="team_number" tabindex="1" value="<%= @group.team_groups.size %>" size="2"/><br/>
   <div id="team_select">
     <%= render :partial => "team_list" %>
   </div>
 
-  <%= submit_tag _("Update") %><br/>
+  <%= submit_tag _("Update"), tabindex: 6 %><br/>
 <% end %>
 <%= javascript_tag "$('group_name').activate()" %>
