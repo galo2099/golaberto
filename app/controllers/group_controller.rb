@@ -15,6 +15,7 @@ class GroupController < ApplicationController
 	@group.team_groups.clear
 
     params["team_group"].each do |key, value|
+      value = value.permit(:team_id, :add_sub, :bias, :comment)
       value["comment"] = nil if value["comment"].to_s.empty?
       @group.team_groups << TeamGroup.new(value.merge({:group_id => @group.id}))
     end unless params["team_group"].nil?
