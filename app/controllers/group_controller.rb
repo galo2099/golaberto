@@ -1,18 +1,25 @@
 class GroupController < ApplicationController
   N_("Group")
 
+  skip_before_filter :verify_authenticity_token, :only => [:team_list]
   authorize_resource
 
   def edit
     @group = Group.find(params["id"])
+  end
+
+  def team_list
     @teams = Team.order(:name)
+    respond_to do |format|
+      format.js
+    end
   end
 
   def update
     @group = Group.find(params["id"])
     @group.update_attributes(group_params)
 
-	@group.team_groups.clear
+	  @group.team_groups.clear
 
     params["team_group"].each do |key, value|
       value = value.permit(:team_id, :add_sub, :bias, :comment)

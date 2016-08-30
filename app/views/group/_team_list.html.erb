@@ -1,3 +1,4 @@
+<%= javascript_include_tag "/group/team_list.js" %>
 <style type="text/css">
   .ui-autocomplete {
     max-height: 220px;
@@ -13,7 +14,6 @@
 </table>
 <%= javascript_include_tag "edit_group" %>
 <script type="text/javascript">
-  <%= render :partial => "js_team_list" %>
 var current_data = [
 <% @group.team_groups.each do |t| %>
   <%= t.to_json.html_safe %>,

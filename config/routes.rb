@@ -66,6 +66,8 @@ Golaberto::Application.routes.draw do
   get '/auth/google/callback', to: "account#google_signin"
   get '/auth/failure', to: 'account#failure'
 
+  get 'groups/team_list.js' => 'group#team_list'
+
   # map championship actions
   match 'championship/show/:id/phases/:phase' => 'championship#phases', via: :get
   match 'championship/show/:id/phases/:phase/team_json/' => 'championship#team_json', via: :get
