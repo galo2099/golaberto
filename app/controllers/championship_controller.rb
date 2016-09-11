@@ -241,7 +241,7 @@ class ChampionshipController < ApplicationController
       games = games.where(:round => @current_round)
     end
 
-    @games = games.order("date, round, time, teams.name").includes(:home, :away).page(params[:page]).references(:team)
+    @games = games.order("date, round, teams.name").includes(:home, :away).page(params[:page]).references(:team)
     @total_games = games.size
   end
 

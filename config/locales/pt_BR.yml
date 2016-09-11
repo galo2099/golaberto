@@ -194,12 +194,12 @@ pt_BR:
       two_words_connector: ! ' e '
       words_connector: ! ', '
   time:
-    am: ''
     formats:
       default: ! '%A, %d de %B de %Y, %H:%M h'
       long: ! '%A, %d de %B de %Y, %H:%M h'
       short: ! '%d/%m, %H:%M h'
       hour_minute: ! '%H:%M'
+    am: ''
     pm: ''
   # remove these aliases after 'activemodel' and 'activerecord' namespaces are removed from Rails repository
   activemodel:

@@ -161,7 +161,7 @@ function receiveDrop(drag, drop) {
     <tr>
       <td><%= _("Date") %>:</td>
       <td>
-      <%= g.datepicker :date, :autoSize => true, :changeYear => true, :selectOtherMonths => true, :showButtonPanel => true, :showOn => "both", :showOtherMonths => true %>
+      <%= datepicker_tag "game_date", @game.formatted_date, :autoSize => true, :changeYear => true, :selectOtherMonths => true, :showButtonPanel => true, :showOn => "both", :showOtherMonths => true %>
       <script type="text/javascript">
       jQuery(document).ready(function() {
         jQuery('#game_date_datepicker_ui').datepicker().next('button').text('').button({icons:{primary : 'ui-icon-calendar'}});
@@ -173,8 +173,9 @@ function receiveDrop(drag, drop) {
     <tr>
       <td><%= s_("Game|Time") %>:</td>
       <td>
-        <%= select_hour @game.time, :include_blank => true, :field_name => 'time(4i)', :prefix => "game" %> :
-        <%= select_minute @game.time, :include_blank => true, :field_name => 'time(5i)', :prefix => "game" %>
+        <% time = if @game.has_time then @game.date end %>
+        <%= select_hour time, :include_blank => true, :field_name => 'hour', :prefix => "" %> :
+        <%= select_minute time, :include_blank => true, :field_name => 'minute', :prefix => "" %>
       </td>
     </tr>
     <tr>

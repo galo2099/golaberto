@@ -18,15 +18,15 @@ class GameController < ApplicationController
     @type = params[:type].to_sym || :scheduled
     @games = Game
     if (@type == :scheduled)
-      @games = @games.where(played: false).order("date ASC, phase_id, time ASC")
+      @games = @games.where(played: false).order("date ASC, phase_id")
       post_sort = proc do |g|
-        [(g.date.to_time.to_i), g.phase_id, (g.time.to_i), g.home.name]
+        [(g.date.to_time.to_i), g.phase_id, g.home.name]
       end
       default_start = (Date.today - 7.days)
     else
-      @games = @games.where(played: true).order("date DESC, phase_id, time DESC")
+      @games = @games.where(played: true).order("date DESC, phase_id")
       post_sort = proc do |g|
-        [-(g.date.to_time.to_i), g.phase_id, -(g.time.to_i), g.home.name]
+        [-(g.date.to_time.to_i), g.phase_id, g.home.name]
       end
       default_end = Date.today
     end
@@ -94,14 +94,13 @@ class GameController < ApplicationController
     @game = Game.find(params["id"])
     game_compare = @game.dup
 
-    # work around rails TIME bug
-    unless params[:game]["time(4i)"].to_s.empty? and params[:game]["time(5i)"].to_s.empty?
-      params[:game]["time(1i)"] = "2000"
-      params[:game]["time(2i)"] = "1"
-      params[:game]["time(3i)"] = "1"
-    end
-
     @game.attributes = game_params
+    @game.date = params["game_date"]
+    @game.has_time = false
+    unless params["hour"].empty?
+      @game.date = @game.date + params["hour"].to_i.hours + params["minute"].to_i.minute
+      @game.has_time = true
+    end
     # set score to sane values
     @game.home_score = 0 unless @game.home_score
     @game.away_score = 0 unless @game.away_score
@@ -254,6 +253,6 @@ class GameController < ApplicationController
     params.require("game").permit(
 	    "home_id", "away_id", "home_score", "away_score", "home_aet", "away_aet", "home_pen",
 	    "away_pen", "round", "attendance", "date", "time", "referee_id",
-	    "stadium_id", "played")
+	    "stadium_id", "played", "hour", "minute")
   end
 end

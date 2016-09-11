@@ -109,17 +109,18 @@ class Game < ActiveRecord::Base
 
     def formatted_date(day = false)
       unless date.nil?
+        date_to_show = if has_time then date.localtime else date end
         if day
-          I18n.l date, :format => :date_weekday
+          I18n.l date_to_show.to_date, :format => :date_weekday
         else
-          I18n.l date, :format => :default
+          I18n.l date_to_show.to_date, :format => :default
         end
       end
     end
 
     def formatted_time
-      unless time.nil?
-        I18n.l time, :format => :hour_minute
+      if has_time
+        I18n.l date.localtime, :format => :hour_minute
       end
     end
 
@@ -176,7 +177,7 @@ class Game < ActiveRecord::Base
   # The acts_as_versioned :extend option also includes the module in the main
   # class
   acts_as_versioned :extend => GameHelpers,
-                    :if_changed => [ :round, :attendance, :date, :time,
+                    :if_changed => [ :round, :attendance, :date, :has_time,
                                      :stadium_id, :referee_id, :home_score,
                                      :away_score, :home_pen, :away_pen,
                                      :home_aet, :away_aet, :played ]
@@ -209,7 +210,7 @@ class Game < ActiveRecord::Base
   # Field: round , SQL Definition:tinyint(4)
   # Field: attendance , SQL Definition:mediumint(9)
   # Field: date , SQL Definition:date
-  # Field: time , SQL Definition:time
+  # Field: has_time , SQL Definition:tinyint(1)
   # Field: stadium_id , SQL Definition:bigint(20)
   # Field: referee_id , SQL Definition:bigint(20)
   # Field: home_score , SQL Definition:tinyint(2)
