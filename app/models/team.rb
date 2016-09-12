@@ -71,7 +71,7 @@ class Team < ActiveRecord::Base
       cond[0] << " AND date >= ?"
       cond << options[:date]
     end
-    ret = n_games(n, cond, :asc)
+    n_games(n, cond, :asc)
   end
 
   def last_n_games(n, options = {})

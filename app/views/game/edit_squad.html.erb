@@ -89,7 +89,7 @@ EOF
         <table>
           <tr><td><%= _("Round") %>:</td><td><%= @game.round %></td></tr>
           <tr><td><%= _("Attendance") %>:</td><td><%= @game.attendance %></td></tr>
-          <tr><td><%= _("Date") %>:</td><td><%= @game.formatted_date.to_s + " - " + @game.formatted_time.to_s %></td></tr>
+          <tr><td><%= _("Date") %>:</td><td><%= formatted_date(@game).to_s + " - " + formatted_time(@game).to_s %></td></tr>
           <tr><td><%= _("Stadium") %>:</td><td><%= @game.stadium.name unless @game.stadium.nil? %></td></tr>
           <tr><td><%= _("Referee") %>:</td><td><%= "#{@game.referee.name} (#{@game.referee.location})" unless @game.referee.nil? %></td></tr>
         </table>

@@ -1,5 +1,22 @@
 # Methods added to this helper will be available to all templates in the application.
 module ApplicationHelper
+  def formatted_date(game, day = false)
+    date_to_show = if game.has_time then game.date.in_time_zone(cookie_timezone) else game.date end
+    unless game.date.nil?
+      if day
+        I18n.l date_to_show.to_date, :format => :date_weekday
+      else
+        I18n.l date_to_show.to_date, :format => :default
+      end
+    end
+  end
+
+  def formatted_time(game)
+    if game.has_time
+      I18n.l game.date.in_time_zone(cookie_timezone), :format => :hour_minute
+    end
+  end
+
   class RemoteLinkRenderer < WillPaginate::ActionView::LinkRenderer
     private
       def link(text, target, attributes = {})
@@ -32,6 +49,7 @@ module ApplicationHelper
   def formatted_diff(diff)
     ret = ""
     diff.each do |key, value|
+      name = Game.columns_hash[key.to_s] ? Game.human_attribute_name(key.to_s).downcase : key.to_s
       case key
       when :goals
         value.each do |hunk|
@@ -52,22 +70,29 @@ module ApplicationHelper
         end
       when :stadium_id
         if value[0].nil?
-          ret << sprintf(_("Added stadium: %s<br>"), h(Stadium.find(value[1]).name)) rescue nil
+          ret << sprintf(_("Added %s: %s<br>"), h(name), h(Stadium.find(value[1]).name)) rescue nil
         elsif value[1].nil?
-          ret << sprintf(_("Removed stadium: %s<br>"), h(Stadium.find(value[0]).name)) rescue nil
+          ret << sprintf(_("Removed %s: %s<br>"), h(name), h(Stadium.find(value[0]).name)) rescue nil
         else
-          ret << sprintf(_("Changed stadium: %s -> %s<br>"), h(Stadium.find(value[0]).name), h(Stadium.find(value[1]).name)) rescue nil
+          ret << sprintf(_("Changed %s: %s -> %s<br>"), h(name), h(Stadium.find(value[0]).name), h(Stadium.find(value[1]).name)) rescue nil
         end
       when :referee_id
         if value[0].nil?
-          ret << sprintf(_("Added referee: %s<br>"), h(Referee.find(value[1]).name)) rescue nil
+          ret << sprintf(_("Added %s: %s<br>"), h(name), h(Referee.find(value[1]).name)) rescue nil
         elsif value[1].nil?
-          ret << sprintf(_("Removed referee: %s<br>"), h(Referee.find(value[0]).name)) rescue nil
+          ret << sprintf(_("Removed %s: %s<br>"), h(name), h(Referee.find(value[0]).name)) rescue nil
         else
-          ret << sprintf(_("Changed referee: %s -> %s<br>"), h(Referee.find(value[0]).name), h(Referee.find(value[1]).name)) rescue nil
+          ret << sprintf(_("Changed %s: %s -> %s<br>"), h(name), h(Referee.find(value[0]).name), h(Referee.find(value[1]).name)) rescue nil
+        end
+      when :date
+        if value[0].nil?
+          ret << sprintf(_("Added %s: %s<br>"), h(name), h(value[1].in_time_zone(cookie_timezone)))
+        elsif value[1].nil?
+          ret << sprintf(_("Removed %s: %s<br>"), h(name), h(value[0].in_time_zone(cookie_timezone)))
+        else
+          ret << sprintf(_("Changed %s: %s -> %s<br>"), h(name), h(value[0].in_time_zone(cookie_timezone)), h(value[1].in_time_zone(cookie_timezone)))
         end
       else
-        name = Game.columns_hash[key.to_s] ? Game.human_attribute_name(key.to_s).downcase : key.to_s
         if value[0].nil?
           ret << sprintf(_("Added %s: %s<br>"), h(name), h(value[1]))
         elsif value[1].nil?

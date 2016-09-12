@@ -23,6 +23,19 @@
               when :"pt_BR" then %> <%= link_to ("English " + image_tag("flags/gb.png")).html_safe, params.merge(host: APP_CONFIG["en_US_host"]) %>
            <% else %> <%= link_to ("Português " + image_tag("flags/br.png")).html_safe, params.merge(host: APP_CONFIG["pt_BR_host"]) %>
         <% end %>
+        <br>
+        <script>
+function setCookie(cname, cvalue, exdays) {
+  var d = new Date();
+  d.setTime(d.getTime() + (exdays*24*60*60*1000));
+  var expires = "expires="+d.toUTCString();
+  document.cookie = cname + "=" + cvalue + "; " + expires + "; path=/";
+}
+        </script>
+        <select id="timezone_select">
+          <%= time_zone_options_for_select(cookie_timezone.name) %>
+        </select>
+        <%= observe_field "timezone_select", :function => "setCookie('timezone', value, 365); location.reload();" %>
       </div>
       <% if logged_in? %>
         <div class="navigation" style="position: absolute; bottom: 0px; right: 0px; background-color: #8f983b; width: 30%">

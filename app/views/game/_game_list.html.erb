@@ -4,10 +4,10 @@
 <% last_phase_id = nil %>
 <% last_date = nil %>
 <% @sorted_games.each do |game| %>
-  <% if game.formatted_date != last_date %>
-    <% last_date = game.formatted_date %>
+  <% if formatted_date(game) != last_date %>
+    <% last_date = formatted_date(game) %>
     <% last_phase_id = game.phase_id %>
-    <div class="game_date"><%= game.formatted_date(true) %></div>
+    <div class="game_date"><%= formatted_date(game, true) %></div>
     <div><%= link_to game.phase.championship.full_name, :controller => :championship, :action => :phases, :id => game.phase.championship, :phase => game.phase %></div>
   <% end %>
   <% if game.phase_id != last_phase_id %>

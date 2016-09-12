@@ -107,23 +107,6 @@ class Game < ActiveRecord::Base
       played? ? _("Played") : _("Scheduled")
     end
 
-    def formatted_date(day = false)
-      unless date.nil?
-        date_to_show = if has_time then date.localtime else date end
-        if day
-          I18n.l date_to_show.to_date, :format => :date_weekday
-        else
-          I18n.l date_to_show.to_date, :format => :default
-        end
-      end
-    end
-
-    def formatted_time
-      if has_time
-        I18n.l date.localtime, :format => :hour_minute
-      end
-    end
-
     def goal_distribution(team, side, score)
       phase.championship.games.order(:date)
           .select{|g| g.played? and g.send(side) == team and g.date < date}

@@ -28,7 +28,7 @@
     <% last_championship = game.phase.championship %>
     <div><%= link_to game.phase.championship.full_name, :controller => :championship, :action => :team, :id => game.phase.championship, :team => @team %></div>
   <% end %>
-  <div style='font-size: 11px'><%= game.formatted_date(true) %></div>
+  <div style='font-size: 11px'><%= formatted_date(game, true) %></div>
   <div class="table_row">
     <div class="table_cell" style="width: 100%">
       <%= render :partial => "championship/game_list",

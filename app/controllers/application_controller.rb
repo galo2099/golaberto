@@ -18,6 +18,11 @@ class ApplicationController < ActionController::Base
   end
   rescue_from ActiveRecord::RecordNotFound, :with => :record_not_found
 
+  def cookie_timezone
+    Time.find_zone(cookies[:timezone]) || Time.zone
+  end
+  helper_method :cookie_timezone
+
   private
   def record_not_found
     render :text => "404 Not Found", :status => 404

@@ -20,10 +20,10 @@
     <% if game.updater %>
       <div style="overflow: hidden; white-space: nowrap; width: 100%"><a href="<%= url_for(:controller => :user, :action => :show, :id => game.updater) %>"><small><%= image_tag game.updater.avatar.url(:thumb), :class => "user-logo" %> <%= game.updater.display_name %></small></a></div>
     <% end %>
-    <small><%= l game.updated_at %></small><br>
+    <small><%= l game.updated_at.in_time_zone(cookie_timezone) %></small><br>
     <div class="table_row">
       <div class="table_cell" style="width: 50%; text-align: left"><%= link_to game.phase.championship.full_name, :controller => :championship, :action => :show, :id => game.phase.championship %></div>
-      <div class="table_cell" style="width: 50%"><%= game.formatted_date(true) %></div>
+      <div class="table_cell" style="width: 50%"><%= formatted_date(game, true) %></div>
       <div class="clearer"></div>
     </div>
     <div class="table_row">

@@ -9,7 +9,7 @@
   <% @referee.played_games.first(5).each do |game| %>
     <div class="table_row">
       <div class="table_cell" style='width: 30%; text-align: left'>
-        <%= game.formatted_date %>
+        <%= formatted_date(game) %>
         <%= link_to game.phase.championship.full_name,
           { :action => "show",
             :controller => "championship",

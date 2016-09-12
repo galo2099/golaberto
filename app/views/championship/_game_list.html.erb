@@ -8,7 +8,7 @@ def name_to_print(team, highlight)
   name.html_safe
 end %>
 <div class='table_cell game_time'>
-  <%= game.formatted_time.to_s.empty? ? "&nbsp;".html_safe : game.formatted_time %>
+  <%= formatted_time(game).to_s.empty? ? "&nbsp;".html_safe : formatted_time(game) %>
 </div>
 <div class='table_cell home_team'>
   <% if show_country %>

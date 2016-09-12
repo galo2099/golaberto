@@ -40,7 +40,7 @@
 
 <div>
   <% @games.each do |game| %>
-    <div class='game_date'><%= game.formatted_date(true) %></div>
+    <div class='game_date'><%= formatted_date(game, true) %></div>
     <div><%= _("Attendance") %>: <%= game.attendance %></div>
     <div class='table_row'>
       <%= render :partial => "game_list",

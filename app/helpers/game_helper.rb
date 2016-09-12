@@ -43,7 +43,7 @@ module GameHelper
       if new_game.updater
         str << content_tag(:small, content_tag(:div, content_tag(:a, image_tag(new_game.updater.avatar.url(:thumb), :class => "user-logo") + " " + new_game.updater.display_name, :href => url_for(:controller => :user, :action => :show, :id => new_game.updater)), :style => "overflow: hidden; white-space: nowrap; width: 100%"))
       end
-      str << content_tag(:small, l(new_game.updated_at))
+      str << content_tag(:small, l(new_game.updated_at.in_time_zone(cookie_timezone)))
       str << content_tag(:br)
       str << formatted_diff(old_game.diff(new_game))
       diff_strings << str

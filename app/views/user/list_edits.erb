@@ -9,7 +9,7 @@
   <div class="updated-game">
     <div class="table_row">
       <div class="table_cell" style="width: 50%; text-align: left"><%= link_to edit.phase.championship.full_name, :controller => :championship, :action => :show, :id => edit.phase.championship %></div>
-      <div class="table_cell" style="width: 50%"><%= edit.formatted_date(true) %></div>
+      <div class="table_cell" style="width: 50%"><%= formatted_date(edit, true) %></div>
       <div class="clearer"></div>
     </div>
     <div class="table_row">
@@ -19,7 +19,7 @@
     </div>
     <div>
       <b><%= _("Version %{number}") % { :number => edit.version } %></b><br/>
-      <small><%= l edit.updated_at %></small>
+      <small><%= l edit.updated_at.in_time_zone(cookie_timezone) %></small>
       <br/>
       <%= formatted_diff((edit.previous || Game.new).diff(edit)) %>
     </div>
