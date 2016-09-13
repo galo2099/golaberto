@@ -1,4 +1,4 @@
-class AddMarkerToGames < ActiveRecord::Migration
+class ConvertDatetimeToUTC < ActiveRecord::Migration
   TZ_CHAMP = { ActiveSupport::TimeZone.new("Europe/London") => Championship.where("name LIKE 'England%' OR name = 'Champions League' OR name = 'Europa League' OR name = 'UEFA Cup' OR name = 'Dutch Eredivisie' OR name = 'France Ligue 1' OR name = 'Scotland Premier'").map(&:id),
                ActiveSupport::TimeZone.new("Europe/Madrid") => Championship.where("name LIKE 'España%'").map(&:id),
                ActiveSupport::TimeZone.new("Europe/Berlin") => Championship.where("name LIKE 'Bundesliga%'").map(&:id),

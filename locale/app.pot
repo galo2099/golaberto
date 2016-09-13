@@ -1,14 +1,15 @@
 # SOME DESCRIPTIVE TITLE.
 # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
-# This file is distributed under the same license as the PACKAGE package.
+# This file is distributed under the same license as the app package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: version 0.0.1\n"
-"POT-Creation-Date: 2013-09-11 01:54-0700\n"
-"PO-Revision-Date: 2012-02-26 08:31-0800\n"
+"Project-Id-Version: app 1.0.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2016-09-12 16:20-0700\n"
+"PO-Revision-Date: 2016-09-12 16:20-0700\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
@@ -21,9 +22,6 @@ msgid "%d%% done."
 msgstr ""
 
 msgid "%s - %d points<br>%s %d x %d %s"
-msgstr ""
-
-msgid "%s Campaign"
 msgstr ""
 
 msgid "%{num} day"
@@ -84,12 +82,6 @@ msgid "Added %s: %s<br>"
 msgstr ""
 
 msgid "Added goal "
-msgstr ""
-
-msgid "Added referee: %s<br>"
-msgstr ""
-
-msgid "Added stadium: %s<br>"
 msgstr ""
 
 msgid "Afghanistan"
@@ -242,6 +234,9 @@ msgstr ""
 msgid "Burundi"
 msgstr ""
 
+msgid "CSV"
+msgstr ""
+
 msgid "Cambodia"
 msgstr ""
 
@@ -312,12 +307,6 @@ msgid "Change password?"
 msgstr ""
 
 msgid "Changed %s: %s -> %s<br>"
-msgstr ""
-
-msgid "Changed referee: %s -> %s<br>"
-msgstr ""
-
-msgid "Changed stadium: %s -> %s<br>"
 msgstr ""
 
 msgid "Chile"
@@ -602,6 +591,9 @@ msgstr ""
 msgid "Game|Date"
 msgstr ""
 
+msgid "Game|Has time"
+msgstr ""
+
 msgid "Game|Home aet"
 msgstr ""
 
@@ -633,6 +625,9 @@ msgid "Ghana"
 msgstr ""
 
 msgid "Gibraltar"
+msgstr ""
+
+msgid "Goal"
 msgstr ""
 
 msgid "Goal difference equal to or bigger than"
@@ -1176,6 +1171,9 @@ msgstr ""
 msgid "Player Edit"
 msgstr ""
 
+msgid "Player game"
+msgstr ""
+
 msgid "Player was successfully created"
 msgstr ""
 
@@ -1292,13 +1290,10 @@ msgstr ""
 msgid "Removed goal "
 msgstr ""
 
-msgid "Removed referee: %s<br>"
-msgstr ""
-
-msgid "Removed stadium: %s<br>"
-msgstr ""
-
 msgid "Reunion"
+msgstr ""
+
+msgid "Role"
 msgstr ""
 
 msgid "Role|Name"
@@ -1481,6 +1476,9 @@ msgstr ""
 msgid "Team"
 msgstr ""
 
+msgid "Team group"
+msgstr ""
+
 msgid "TeamGroup"
 msgstr ""
 
@@ -1517,7 +1515,19 @@ msgstr ""
 msgid "Team|Full name"
 msgstr ""
 
-msgid "Team|Logo"
+msgid "Team|Legacy logo"
+msgstr ""
+
+msgid "Team|Logo content type"
+msgstr ""
+
+msgid "Team|Logo file name"
+msgstr ""
+
+msgid "Team|Logo file size"
+msgstr ""
+
+msgid "Team|Logo updated at"
 msgstr ""
 
 msgid "Team|Name"
@@ -1611,6 +1621,18 @@ msgstr ""
 msgid "User|About me"
 msgstr ""
 
+msgid "User|Avatar content type"
+msgstr ""
+
+msgid "User|Avatar file name"
+msgstr ""
+
+msgid "User|Avatar file size"
+msgstr ""
+
+msgid "User|Avatar updated at"
+msgstr ""
+
 msgid "User|Birthday"
 msgstr ""
 
@@ -1633,6 +1655,9 @@ msgid "User|Login"
 msgstr ""
 
 msgid "User|Name"
+msgstr ""
+
+msgid "User|Openid connect token"
 msgstr ""
 
 msgid "User|Password"
@@ -1740,25 +1765,10 @@ msgstr ""
 msgid "can't play with itself"
 msgstr ""
 
-msgid "category"
-msgstr ""
-
-msgid "championship"
-msgstr ""
-
-msgid "comment"
-msgstr ""
-
 msgid "comments"
 msgstr ""
 
 msgid "edits"
-msgstr ""
-
-msgid "game"
-msgstr ""
-
-msgid "goal"
 msgstr ""
 
 msgid "goal average"
@@ -1771,9 +1781,6 @@ msgid "goals away"
 msgstr ""
 
 msgid "goals for"
-msgstr ""
-
-msgid "group"
 msgstr ""
 
 msgid "head to head"
@@ -1800,34 +1807,7 @@ msgstr ""
 msgid "penalty goals"
 msgstr ""
 
-msgid "phase"
-msgstr ""
-
-msgid "player"
-msgstr ""
-
-msgid "player game"
-msgstr ""
-
 msgid "points"
-msgstr ""
-
-msgid "referee"
-msgstr ""
-
-msgid "role"
-msgstr ""
-
-msgid "stadium"
-msgstr ""
-
-msgid "team"
-msgstr ""
-
-msgid "team group"
-msgstr ""
-
-msgid "user"
 msgstr ""
 
 msgid "wins"

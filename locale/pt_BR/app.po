@@ -3,11 +3,9 @@
 # This file is distributed under the same license as the Golaberto package.
 # Robson Braga Araujo <robsonbraga@gmail.com>, 2008.
 #
-#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: version 0.0.1\n"
-"POT-Creation-Date: 2013-09-11 01:54-0700\n"
 "PO-Revision-Date: 2008-06-06 00:02-0300\n"
 "Last-Translator: Robson Braga Araujo <robsonbraga@gmail.com>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -22,9 +20,6 @@ msgstr "%d%% pronto."
 
 msgid "%s - %d points<br>%s %d x %d %s"
 msgstr "%s - %d pontos<br>%s %d x %d %s"
-
-msgid "%s Campaign"
-msgstr "Campanha de %s"
 
 msgid "%{num} day"
 msgid_plural "%{num} days"
@@ -86,12 +81,6 @@ msgstr "Adicionado %s: %s<br>"
 
 msgid "Added goal "
 msgstr "Adicionado gol "
-
-msgid "Added referee: %s<br>"
-msgstr "Adicionado árbitro: %s<br>"
-
-msgid "Added stadium: %s<br>"
-msgstr "Adicionado estádio: %s<br>"
 
 msgid "Afghanistan"
 msgstr "Afeganistão"
@@ -244,6 +233,9 @@ msgstr "Burkina Faso"
 msgid "Burundi"
 msgstr "Burundi"
 
+msgid "CSV"
+msgstr ""
+
 msgid "Cambodia"
 msgstr "Camboja"
 
@@ -328,12 +320,6 @@ msgstr "Mudar senha?"
 
 msgid "Changed %s: %s -> %s<br>"
 msgstr "Modificado %s: %s -> %s<br>"
-
-msgid "Changed referee: %s -> %s<br>"
-msgstr "Modificado árbitro: %s -> %s<br>"
-
-msgid "Changed stadium: %s -> %s<br>"
-msgstr "Modificado estádio: %s -> %s<br>"
 
 msgid "Chile"
 msgstr "Chile"
@@ -629,6 +615,10 @@ msgid "Game|Date"
 msgstr "Data"
 
 # app/models/game.rb:-
+msgid "Game|Has time"
+msgstr "Horário"
+
+# app/models/game.rb:-
 msgid "Game|Home aet"
 msgstr "Prorrogação casa"
 
@@ -668,6 +658,9 @@ msgstr "Gana"
 msgid "Gibraltar"
 msgstr "Gibraltar"
 
+msgid "Goal"
+msgstr "Gol"
+
 msgid "Goal difference equal to or bigger than"
 msgstr "Diferença de gols igual a ou maior que"
 
@@ -693,8 +686,15 @@ msgstr "Pênalti"
 msgid "Goal|Time"
 msgstr "Tempo"
 
-msgid "GolAberto is a collaborative site that is updated by its users. Registered users can give information by commenting on items. The top users are promoted to editors who can edit the site and create new championships."
-msgstr "GolAberto é um site colaborativo que é atualizado por seus usuários. Usuários registrados podem dar informações comentando nos itens. Os usuários mais destacados são promovidos a editores que podem editar o site e cadastrar novos campeonatos."
+msgid ""
+"GolAberto is a collaborative site that is updated by its users. Registered use"
+"rs can give information by commenting on items. The top users are promoted to "
+"editors who can edit the site and create new championships."
+msgstr ""
+"GolAberto é um site colaborativo que é atualizado por seus usuários. Usuários "
+"registrados podem dar informações comentando nos itens. Os usuários mais desta"
+"cados são promovidos a editores que podem editar o site e cadastrar novos camp"
+"eonatos."
 
 # app/models/referee.rb:-
 msgid "Greece"
@@ -769,8 +769,14 @@ msgstr "Hungria"
 msgid "Iceland"
 msgstr "Islândia"
 
-msgid "If you've already created an account, or if you have an %{openid_link} login, use one of the forms below to log in to the site. If you use your OpenID URL to log in, an account will be created for you automatically if necessary."
-msgstr "Se você já criou uma conta, ou se você possui um login %{openid_link}, use um dos formulários abaixo para se logar no site. Se você usar sua URL OpenID para se logar, uma conta será criada automaticamente para você se necessário."
+msgid ""
+"If you've already created an account, or if you have an %{openid_link} login, "
+"use one of the forms below to log in to the site. If you use your OpenID URL t"
+"o log in, an account will be created for you automatically if necessary."
+msgstr ""
+"Se você já criou uma conta, ou se você possui um login %{openid_link}, use um "
+"dos formulários abaixo para se logar no site. Se você usar sua URL OpenID para"
+" se logar, uma conta será criada automaticamente para você se necessário."
 
 msgid "India"
 msgstr "Índia"
@@ -1112,8 +1118,12 @@ msgstr "Marianas Setentrionais"
 msgid "Norway"
 msgstr "Noruega"
 
-msgid "Now you can <a href='%{signup_link}'>sign up</a> and leave comments on the site."
-msgstr "Você agora pode <a href='%{signup_link}'>se cadastrar</a> e deixar comentários no site."
+msgid ""
+"Now you can <a href='%{signup_link}'>sign up</a> and leave comments on the sit"
+"e."
+msgstr ""
+"Você agora pode <a href='%{signup_link}'>se cadastrar</a> e deixar comentários"
+" no site."
 
 msgid "Number of teams"
 msgstr "Número de equipes"
@@ -1233,6 +1243,10 @@ msgstr "Jogador"
 
 msgid "Player Edit"
 msgstr "Editar Jogador"
+
+# app/models/player_game.rb:-
+msgid "Player game"
+msgstr "jogador jogo"
 
 msgid "Player was successfully created"
 msgstr "Jogador foi criado com sucesso"
@@ -1366,14 +1380,12 @@ msgstr "Removido %s: %s<br>"
 msgid "Removed goal "
 msgstr "Removido gol "
 
-msgid "Removed referee: %s<br>"
-msgstr "Removido árbitro: %s<br>"
-
-msgid "Removed stadium: %s<br>"
-msgstr "Removido estádio: %s<br>"
-
 msgid "Reunion"
 msgstr "Reunião"
+
+# app/models/role.rb:-
+msgid "Role"
+msgstr "Função"
 
 # app/models/player.rb:-
 msgid "Role|Name"
@@ -1563,6 +1575,10 @@ msgid "Team"
 msgstr "Equipe"
 
 # app/models/team_group.rb:-
+msgid "Team group"
+msgstr "Equipe grupo"
+
+# app/models/team_group.rb:-
 msgid "TeamGroup"
 msgstr "EquipeGrupo"
 
@@ -1609,9 +1625,24 @@ msgstr "Fundação"
 msgid "Team|Full name"
 msgstr "Nome completo"
 
+msgid "Team|Legacy logo"
+msgstr "Logo antigo"
+
 # app/models/team.rb:-
-msgid "Team|Logo"
-msgstr "Logo"
+msgid "Team|Logo content type"
+msgstr "Tipo de logo"
+
+# app/models/team.rb:-
+msgid "Team|Logo file name"
+msgstr "Arquivo do logo"
+
+# app/models/team.rb:-
+msgid "Team|Logo file size"
+msgstr "Tamanho do logo"
+
+# app/models/team.rb:-
+msgid "Team|Logo updated at"
+msgstr "Logo atualizado"
 
 # app/models/team.rb:-
 msgid "Team|Name"
@@ -1708,6 +1739,22 @@ msgid "User|About me"
 msgstr "Sobre mim"
 
 # app/models/user.rb:-
+msgid "User|Avatar content type"
+msgstr "Tipo do avatar"
+
+# app/models/user.rb:-
+msgid "User|Avatar file name"
+msgstr "Arquivo do avatar"
+
+# app/models/user.rb:-
+msgid "User|Avatar file size"
+msgstr "Tamanho do avatar"
+
+# app/models/user.rb:-
+msgid "User|Avatar updated at"
+msgstr "Avatar atualizado"
+
+# app/models/user.rb:-
 msgid "User|Birthday"
 msgstr "Nascimento"
 
@@ -1738,6 +1785,10 @@ msgstr "Login"
 # app/models/phase.rb:-
 msgid "User|Name"
 msgstr "Nome"
+
+# app/models/user.rb:-
+msgid "User|Openid connect token"
+msgstr "Token do Openid"
 
 msgid "User|Password"
 msgstr "Senha"
@@ -1817,11 +1868,19 @@ msgstr "Iêmen"
 msgid "You can also <a href='%{signup}'>create an account for this site.</a>"
 msgstr "Você também pode <a href='%{signup}'>criar uma conta para este site.</a>"
 
-msgid "You can create an account for this site using the form below. If you have an %{openid_link} URL, you can <a href='%{login_link}'>log in with OpenID</a> rather than creating an account."
-msgstr "Você pode criar uma conta para este site usando o formulário abaixo. Se você possui uma URL %{openid_link}, você pode <a href='%{login_link}'>se logar com OpenID</a> ao invés de criar uma conta. "
+msgid ""
+"You can create an account for this site using the form below. If you have an %"
+"{openid_link} URL, you can <a href='%{login_link}'>log in with OpenID</a> rath"
+"er than creating an account."
+msgstr ""
+"Você pode criar uma conta para este site usando o formulário abaixo. Se você p"
+"ossui uma URL %{openid_link}, você pode <a href='%{login_link}'>se logar com O"
+"penID</a> ao invés de criar uma conta. "
 
 msgid "You can only leave a comment if you're <a href='%{signup_link}'>logged in</a>"
-msgstr "Voce só pode deixar um comentário se você <a href='%{signup_link}'>se logar</a>"
+msgstr ""
+"Voce só pode deixar um comentário se você <a href='%{signup_link}'>se logar</a"
+">"
 
 msgid "You have been logged out."
 msgstr "Você foi desconectado."
@@ -1847,32 +1906,12 @@ msgstr "vantagem"
 msgid "can't play with itself"
 msgstr "não pode jogar consigo mesmo"
 
-# app/models/category.rb:-
-msgid "category"
-msgstr "categoria"
-
-# app/models/championship.rb:-
-msgid "championship"
-msgstr "campeonato"
-
-# app/models/comment.rb:-
-msgid "comment"
-msgstr "comentário"
-
 # app/models/comment.rb:-
 msgid "comments"
 msgstr "comentários"
 
 msgid "edits"
 msgstr "edições"
-
-# app/models/game.rb:-
-msgid "game"
-msgstr "jogo"
-
-# app/models/goal.rb:-
-msgid "goal"
-msgstr "gol"
 
 msgid "goal average"
 msgstr "média de gols"
@@ -1886,10 +1925,6 @@ msgstr "gols fora"
 # app/models/goal.rb:-
 msgid "goals for"
 msgstr "gols a favor"
-
-# app/models/group.rb:-
-msgid "group"
-msgstr "grupo"
 
 msgid "head to head"
 msgstr "confronto direto"
@@ -1915,44 +1950,8 @@ msgstr "só usado para mostrar sua idade"
 msgid "penalty goals"
 msgstr "gols de pênalti"
 
-# app/models/phase.rb:-
-msgid "phase"
-msgstr "fase"
-
-# app/models/player.rb:-
-msgid "player"
-msgstr "jogador"
-
-# app/models/player_game.rb:-
-msgid "player game"
-msgstr "jogador jogo"
-
 msgid "points"
 msgstr "pontos"
-
-# app/models/referee.rb:-
-msgid "referee"
-msgstr "árbitro"
-
-# app/models/role.rb:-
-msgid "role"
-msgstr "função"
-
-# app/models/stadium.rb:-
-msgid "stadium"
-msgstr "estádio"
-
-# app/models/team.rb:-
-msgid "team"
-msgstr "equipe"
-
-# app/models/team_group.rb:-
-msgid "team group"
-msgstr "equipe grupo"
-
-# app/models/user.rb:-
-msgid "user"
-msgstr "usuário"
 
 msgid "wins"
 msgstr "vitórias"

@@ -9,7 +9,7 @@ gem 'sqlite3'
 gem 'mysql2'
 
 group :development do
-  gem 'gettext', git: 'https://github.com/cameel/gettext.git', ref: 'c3a8373'
+  gem 'gettext'
   gem 'uglifier'
   gem 'wirble'
 end
