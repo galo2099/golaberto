@@ -18,7 +18,7 @@
   <div class='container'>
     <div class='header'>
       <%= link_to image_tag("logo.png", :border => 0), :controller => :home %>
-      <div class="navigation" style='position: absolute; top: 0px; right: 0px; background-color: #8f983b;'>
+      <div class="navigation" style='position: absolute; top: 0px; right: 0px; background-color: #8f983b; text-align: right'>
         <% case I18n.locale
               when :"pt_BR" then %> <%= link_to ("English " + image_tag("flags/gb.png")).html_safe, params.merge(host: APP_CONFIG["en_US_host"]) %>
            <% else %> <%= link_to ("Português " + image_tag("flags/br.png")).html_safe, params.merge(host: APP_CONFIG["pt_BR_host"]) %>
@@ -31,9 +31,33 @@ function setCookie(cname, cvalue, exdays) {
   var expires = "expires="+d.toUTCString();
   document.cookie = cname + "=" + cvalue + "; " + expires + "; path=/";
 }
+function getCookie(cname) {
+  var name = cname + "=";
+  var ca = document.cookie.split(';');
+  for (var i = 0; i <ca.length; i++) {
+    var c = ca[i];
+    while (c.charAt(0)==' ') {
+      c = c.substring(1);
+    }
+    if (c.indexOf(name) == 0) {
+      return c.substring(name.length,c.length);
+    }
+  }
+  return "";
+}
+
+if (!getCookie("timezone")) {
+  var timezone = "<%= cookie_timezone.tzinfo.name %>";
+  var detected = jstz.determine().name();
+  setCookie('timezone', detected, 365);
+  if (timezone != detected) {
+    location.reload();
+  }
+}
         </script>
-        <select id="timezone_select">
-          <%= time_zone_options_for_select(cookie_timezone.name) %>
+        <a id="timezone_name" href="#" onclick="$('timezone_name').hide(); $('timezone_select').show();"><%= cookie_timezone.to_s %></a>
+        <select id="timezone_select" style="display: none">
+          <%= time_zone_options_for_select(cookie_timezone.name, ActiveSupport::TimeZone.all, TZInfo::Timezone) %>
         </select>
         <%= observe_field "timezone_select", :function => "setCookie('timezone', value, 365); location.reload();" %>
       </div>

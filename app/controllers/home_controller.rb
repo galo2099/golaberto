@@ -4,7 +4,7 @@ class HomeController < ApplicationController
   authorize_resource :class => false
 
   def index
-    @today = Date.today
+    @today = cookie_timezone.today
     @championships = Championship.where("begin <= ? AND end >= ?", @today+30, @today-30).
         order("category_id, name, begin")
     @comments = Comment.order("created_at DESC").limit(5)

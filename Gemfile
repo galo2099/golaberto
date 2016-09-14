@@ -39,6 +39,7 @@ gem "google_ajax_libraries_api", "0.0.0", git: "https://github.com/galo2099/goog
 gem "httparty"
 gem "hpricot"
 gem "jquery_datepicker", git: "https://github.com/galo2099/jquery_datepicker"
+gem "maxmind_geoip2", github: "envato/geoip2"
 gem "newrelic_rpm"
 gem "omniauth-google-oauth2", git: "https://github.com/zquestz/omniauth-google-oauth2"
 gem "open_id_authentication", git: "https://github.com/ndbradley730/open_id_authentication", branch: "controllermethods_name_error"

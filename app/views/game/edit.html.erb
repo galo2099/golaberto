@@ -161,7 +161,7 @@ function receiveDrop(drag, drop) {
     <tr>
       <td><%= _("Date") %>:</td>
       <td>
-      <%= datepicker_tag "game_date", formatted_date(@game), :autoSize => true, :changeYear => true, :selectOtherMonths => true, :showButtonPanel => true, :showOn => "both", :showOtherMonths => true %>
+      <%= datepicker_tag "game_date", game_date(@game).to_date, :autoSize => true, :changeYear => true, :selectOtherMonths => true, :showButtonPanel => true, :showOn => "both", :showOtherMonths => true %>
       <script type="text/javascript">
       jQuery(document).ready(function() {
         jQuery('#game_date_datepicker_ui').datepicker().next('button').text('').button({icons:{primary : 'ui-icon-calendar'}});

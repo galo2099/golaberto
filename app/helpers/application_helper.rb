@@ -1,12 +1,15 @@
 # Methods added to this helper will be available to all templates in the application.
 module ApplicationHelper
+  def game_date(game)
+    if game.has_time then game.date.in_time_zone(cookie_timezone) else game.date end
+  end
+
   def formatted_date(game, day = false)
-    date_to_show = if game.has_time then game.date.in_time_zone(cookie_timezone) else game.date end
     unless game.date.nil?
       if day
-        I18n.l date_to_show.to_date, :format => :date_weekday
+        I18n.l game_date(game).to_date, :format => :date_weekday
       else
-        I18n.l date_to_show.to_date, :format => :default
+        I18n.l game_date(game).to_date, :format => :default
       end
     end
   end

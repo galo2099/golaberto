@@ -110,7 +110,6 @@ ActiveRecord::Schema.define(version: 20160910155319) do
     t.integer  "away_aet",   limit: 4
     t.datetime "date",                                 null: false
     t.boolean  "has_time",   limit: 1, default: false
-    t.boolean  "marker",     limit: 1
   end
 
   add_index "games", ["away_id"], name: "index_games_on_away_id", using: :btree

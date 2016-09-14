@@ -19,7 +19,12 @@ class ApplicationController < ActionController::Base
   rescue_from ActiveRecord::RecordNotFound, :with => :record_not_found
 
   def cookie_timezone
-    Time.find_zone(cookies[:timezone]) || Time.zone
+    if not @timezone then
+      timezone_str = cookies[:timezone] || MaxmindGeoIP2.locate(request.remote_ip).try(:fetch, "time_zone")
+      timezone_str = ActiveSupport::TimeZone::MAPPING.key(timezone_str) || timezone_str
+      @timezone = Time.find_zone(timezone_str) || Time.zone
+    end
+    @timezone
   end
   helper_method :cookie_timezone
 

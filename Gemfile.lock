@@ -1,4 +1,10 @@
 GIT
+  remote: git://github.com/envato/geoip2.git
+  revision: b23eff08b8285c76d8b387a346e2ab6fac189667
+  specs:
+    maxmind_geoip2 (0.0.8)
+
+GIT
   remote: git://github.com/kimkong/userstamp.git
   revision: fbb35ccb5004bb04f87e01cbe9b7a5ccdd06b856
   specs:
@@ -331,6 +337,7 @@ DEPENDENCIES
   httparty
   jquery-rails
   jquery_datepicker!
+  maxmind_geoip2!
   mysql2
   newrelic_rpm
   omniauth-google-oauth2!

@@ -118,7 +118,7 @@ class Group < ActiveRecord::Base
   def create_home_and_away_games
     teams.each do |home|
       (teams - [home]).each do |away|
-        phase.games.build(:home => home, :away => away, :played => "0", :date => Date.today).save!
+        phase.games.build(:home => home, :away => away, :played => "0", :date => cookie_timezone.today).save!
       end
     end
   end

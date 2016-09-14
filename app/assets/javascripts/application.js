@@ -17,3 +17,4 @@
 //= require boxover
 //= require image_upload
 //= require ability
+//= require jstz

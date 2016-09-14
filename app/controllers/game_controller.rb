@@ -22,14 +22,14 @@ class GameController < ApplicationController
         [if g.has_time then g.date.in_time_zone(cookie_timezone).to_date.to_datetime.to_i else g.date.to_date.to_datetime.to_i end,
           g.phase_id, g.date.to_i, g.home.name]
       end
-      default_start = (Date.today - 7.days)
+      default_start = (cookie_timezone.today - 7.days)
     else
       @games = @games.where(played: true).order("DATE(IF(has_time, CONVERT_TZ(date, '+00:00', '#{ActiveSupport::TimeZone.seconds_to_utc_offset cookie_timezone.utc_offset}'), date)) DESC, phase_id, date DESC")
       post_sort = proc do |g|
         [if g.has_time then -g.date.in_time_zone(cookie_timezone).to_date.to_datetime.to_i else -g.date.to_date.to_datetime.to_i end,
           g.phase_id, -g.date.to_i, g.home.name]
       end
-      default_end = Date.today
+      default_end = cookie_timezone.today
     end
 
     @categories = Category.all
@@ -40,10 +40,10 @@ class GameController < ApplicationController
     @date_range_start = params[:date_range_start] || default_start
     @date_range_end = params[:date_range_end] || default_end
     unless @date_range_start.nil? or @date_range_start.to_date.nil?
-      @games = @games.where(["date >= ?", @date_range_start.in_time_zone])
+      @games = @games.where(["date >= ?", @date_range_start.in_time_zone(cookie_timezone)])
     end
     unless @date_range_end.nil? or @date_range_end.to_date.nil?
-      @games = @games.where(["date <= ?", @date_range_end.in_time_zone])
+      @games = @games.where(["date <= ?", @date_range_end.in_time_zone(cookie_timezone)])
     end
 
     @games = @games.includes(:home, :away, :phase, :championship).page(params[:page])
@@ -82,7 +82,7 @@ class GameController < ApplicationController
     @championship = Championship.find(params["championship"])
     @phase = Phase.find(params["phase"])
     @game = @phase.games.build(game_params)
-    @game.date = Date.today
+    @game.date = cookie_timezone.today
     if @game.save
       redirect_to :action => :edit, :id => @game
     else
