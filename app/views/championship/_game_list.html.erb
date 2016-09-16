@@ -23,9 +23,16 @@ end %>
     <%= name_to_print(game.home, highlight_team) %>
   </div>
 </div>
-<div class='table_cell home_score'><%= game.home_score if game.played? %></div>
-<div class='table_cell game_x'>x</div>
-<div class='table_cell away_score'><%= game.away_score if game.played? %></div>
+<% odds = game.odds %>
+<div class='table_cell home_score'><%= game.home_score if game.played? %>
+<span style="white-space: nowrap;">&#8203;
+  <%= content_tag :span, number_to_percentage(100*odds[0], precision: 0), class: "game_odds" if !game.played? and odds %></span></div>
+<div class='table_cell game_x'><%= "x" if game.played? || !odds %>
+<span style="white-space: nowrap;">&#8203;
+  <%= content_tag :span, number_to_percentage(100*odds[1], precision: 0), class: "game_odds" if !game.played? and odds %></span></div>
+<div class='table_cell away_score'><%= game.away_score if game.played? %>
+<span style="white-space: nowrap;">&#8203;
+  <%= content_tag :span, number_to_percentage(100*odds[2], precision: 0), class: "game_odds" if !game.played? and odds %></span></div>
 <div class='table_cell away_team'>
   <div style='width: 100%; align: right; position: relative'>
     <% if show_country %>

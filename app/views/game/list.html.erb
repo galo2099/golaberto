@@ -33,8 +33,8 @@ jQuery(document).ready(function() {
 <input type="submit" value="<%= _("Change date") %>">
 <% end %>
 <div id='table'>
-  <%= render :partial => "game_list",
-             :locals => { :game => @game } %>
+  <%= render partial: "game_list",
+             locals: { sorted_games: @sorted_games, games: @games } %>
 </div>
 
 <% content_for :sidebar do %>

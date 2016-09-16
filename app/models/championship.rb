@@ -38,4 +38,8 @@ class Championship < ActiveRecord::Base
     end
     name
   end
+
+  def avg_team_rating
+    phases.last.avg_team_rating
+  end
 end

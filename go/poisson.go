@@ -4,13 +4,16 @@ import _ "net/http/pprof"
 import "fmt"
 import "net/http"
 import "encoding/json"
+import "log"
 import "math"
 import "math/rand"
 import "os"
 import "sort"
 import "strconv"
 import "strings"
-import "log"
+import "time"
+
+var now int = int(time.Now().Unix())
 
 type TeamCampaign struct {
   id int
@@ -95,6 +98,8 @@ type GameType struct {
   Away_id int
   Home_score int
   Away_score int
+  Home_power float64
+  Away_power float64
   Played bool
 }
 
@@ -133,37 +138,6 @@ func factorial(x int) int {
   return ret
 }
 
-func find_poisson_mean(distribution []float64) float64 {
-  nn := 0.
-  for i := range distribution {
-    nn += distribution[i]
-  }
-
-  cs := 10000000000000000.
-  mean := 0.
-  rawp := make([]float64, len(distribution))
-  exp := make([]float64, len(distribution))
-
-  for i := 0; i < 15000; i++ {
-    csnew := 0.
-    mean += 0.01
-
-    for j := range distribution {
-      rawp[j] = math.Exp(-mean) * math.Pow(mean, float64(j)) / float64(factorial(j))
-      exp[j] = rawp[j] * nn;
-      csnew += math.Exp2(distribution[j] - exp[j])
-    }
-
-    if csnew < cs {
-      cs = csnew
-    } else {
-      mean -= 0.01
-      break
-    }
-  }
-  return mean
-}
-
 func p(mean float64, x int) float64 {
   return math.Pow(mean, float64(x)) * math.Exp(-mean) / float64(factorial(x))
 }
@@ -177,67 +151,6 @@ func poisson_rand(mean float64) int {
     accumlated_probability += p(mean, i)
   }
   return i
-}
-
-type GameOdds struct {
-  Home_id int
-  Away_id int
-  Home_mean float64
-  Away_mean float64
-}
-
-func (group *GroupType) goal_distribution(
-    team_id int,
-    side func (*GameType) int,
-    score func (*GameType) int) []float64 {
-  ret := make([]float64, 10)
-  ret[0] = 5;
-  ret[1] = 5;
-  ret[2] = 5;
-  for _, g := range group.Phase.Championship.Games {
-    if g.Played && side(&g) == team_id {
-      for i := range ret {
-        ret[i] = ret[i] * 0.8;
-      }
-      goals := score(&g)
-      if goals > 9 {
-        goals = 9
-      }
-      ret[goals] += 1
-    }
-  }
-  return ret
-}
-
-func (group *GroupType) home_for(team_id int) []float64 {
-  return group.goal_distribution(team_id,
-                           func (g *GameType) int { return g.Home_id },
-                           func (g *GameType) int { return g.Home_score})
-}
-
-func (group *GroupType) home_against(team_id int) []float64 {
-  return group.goal_distribution(team_id,
-                           func (g *GameType) int { return g.Home_id },
-                           func (g *GameType) int { return g.Away_score})
-}
-
-func (group *GroupType) away_for(team_id int) []float64 {
-  return group.goal_distribution(team_id,
-                           func (g *GameType) int { return g.Away_id },
-                           func (g *GameType) int { return g.Away_score})
-}
-
-func (group *GroupType) away_against(team_id int) []float64 {
-  return group.goal_distribution(team_id,
-                           func (g *GameType) int { return g.Away_id },
-                           func (g *GameType) int { return g.Home_score})
-}
-
-func add_slices(x, y []float64) []float64 {
-  for i := range x {
-    x[i] += y[i]
-  }
-  return x
 }
 
 type TeamCampaignSorted struct {
@@ -339,7 +252,6 @@ type TeamOdds struct {
 }
 
 func (group *GroupType) calculate_odds() map[string]*TeamOdds {
-  odds := make([]GameOdds, 0, len(group.Games))
   campaign := make(map[int]*TeamCampaign, len(group.Team_groups))
 
   for _, t := range group.Team_groups {
@@ -360,10 +272,6 @@ func (group *GroupType) calculate_odds() map[string]*TeamOdds {
       if campaign[group.Games[i].Away_id] != nil {
         campaign[group.Games[i].Away_id].add_game(&group.Games[i])
       }
-    } else {
-      odds = append(odds, GameOdds{group.Games[i].Home_id, group.Games[i].Away_id,
-        find_poisson_mean(add_slices(group.home_for(group.Games[i].Home_id), group.away_against(group.Games[i].Away_id))),
-        find_poisson_mean(add_slices(group.away_for(group.Games[i].Away_id), group.home_against(group.Games[i].Home_id))) })
     }
   }
 
@@ -380,14 +288,16 @@ func (group *GroupType) calculate_odds() map[string]*TeamOdds {
       simulated_campaign[k] = v.clone()
     }
 
-    for _, v := range odds {
-      home_score := poisson_rand(v.Home_mean)
-      away_score := poisson_rand(v.Away_mean)
-      if simulated_campaign[v.Home_id] != nil {
-        simulated_campaign[v.Home_id].add_game(&GameType{v.Home_id, v.Away_id, home_score, away_score, true})
-      }
-      if simulated_campaign[v.Away_id] != nil {
-        simulated_campaign[v.Away_id].add_game(&GameType{v.Home_id, v.Away_id, home_score, away_score, true})
+    for i := range group.Games {
+      if !group.Games[i].Played {
+        home_score := poisson_rand(group.Games[i].Home_power)
+        away_score := poisson_rand(group.Games[i].Away_power)
+        if simulated_campaign[group.Games[i].Home_id] != nil {
+          simulated_campaign[group.Games[i].Home_id].add_game(&GameType{group.Games[i].Home_id, group.Games[i].Away_id, home_score, away_score, 0.0, 0.0, true})
+        }
+        if simulated_campaign[group.Games[i].Away_id] != nil {
+          simulated_campaign[group.Games[i].Away_id].add_game(&GameType{group.Games[i].Home_id, group.Games[i].Away_id, home_score, away_score, 0.0, 0.0, true})
+        }
       }
     }
 
@@ -412,7 +322,7 @@ func (group *GroupType) calculate_odds() map[string]*TeamOdds {
   return json_team_odds
 }
 
-func serveRequests(c http.ResponseWriter, req *http.Request) {
+func calculateChampionshipOdds(c http.ResponseWriter, req *http.Request) {
   fmt.Printf("New Request\n")
   fmt.Println(req.Body)
   dec := json.NewDecoder(req.Body)
@@ -428,8 +338,121 @@ func serveRequests(c http.ResponseWriter, req *http.Request) {
   enc2.Encode(team_odds)
 }
 
+type GamesType struct {
+  Games [][]int
+  Off_rating map[string]float64
+  Def_rating map[string]float64
+}
+
+type TeamRating struct {
+  Offense float64
+  Defense float64
+}
+
+func squash_date(timestamp int) float64 {
+  x := float64(timestamp - now) / (730*24*60*60)
+  return 1 + (math.Exp(x)-math.Exp(-x))/(math.Exp(x)+math.Exp(-x))
+}
+
+func (all_games *GamesType) spi() map[string]*TeamRating {
+  AVG_BASE := 1.3350257653834494
+  HOME_ADV := 0.16133676871779334
+  off_rating := make(map[int]float64)
+  def_rating := make(map[int]float64)
+  NUM_ITER := 100000
+  log.Print(len(all_games.Games))
+  games := make(map[int]float64)
+  weights := make([]float64, len(all_games.Games))
+  for i, g := range all_games.Games {
+    off_rating[g[0]] = all_games.Off_rating[strconv.Itoa(g[0])]
+    if (off_rating[g[0]] == 0.0) {
+      off_rating[g[0]] = 1.0
+    }
+    off_rating[g[1]] = all_games.Off_rating[strconv.Itoa(g[1])]
+    if (off_rating[g[1]] == 0.0) {
+      off_rating[g[1]] = 1.0
+    }
+    def_rating[g[0]] = all_games.Def_rating[strconv.Itoa(g[0])]
+    if (def_rating[g[0]] == 0.0) {
+      def_rating[g[0]] = 1.0
+    }
+    def_rating[g[1]] = all_games.Def_rating[strconv.Itoa(g[1])]
+    if (def_rating[g[1]] == 0.0) {
+      def_rating[g[1]] = 1.0
+    }
+    weights[i] = squash_date(g[4])
+    games[g[0]] += weights[i]  // Game_weight
+    games[g[1]] += weights[i]  // Game_weight
+  }
+  for k, _ := range games {
+    games[k] += 1.0
+  }
+  for i := 0; i < NUM_ITER; i++ {
+    adjusted_goals_scored := make(map[int]float64)
+    adjusted_goals_allowed := make(map[int]float64)
+    for i, g := range all_games.Games {
+      adjusted_goals_scored[g[0]] += weights[i] * ((float64(g[2]) - (def_rating[g[1]]+HOME_ADV))/( math.Max(0.25, (def_rating[g[1]]+HOME_ADV)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
+      adjusted_goals_allowed[g[0]] += weights[i] * ((float64(g[3]) - (off_rating[g[1]]-HOME_ADV))/( math.Max(0.25, (off_rating[g[1]]-HOME_ADV)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
+      adjusted_goals_scored[g[1]] += weights[i] * ((float64(g[3]) - (def_rating[g[0]]-HOME_ADV))/( math.Max(0.25, (def_rating[g[0]]-HOME_ADV)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
+      adjusted_goals_allowed[g[1]] += weights[i] * ((float64(g[2]) - (off_rating[g[0]]+HOME_ADV))/( math.Max(0.25, (off_rating[g[0]]+HOME_ADV)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
+    }
+    error := 0.0
+    largest_k := 0
+    for k, _ := range games {
+      old_off := off_rating[k]
+      off_rating[k] = adjusted_goals_scored[k] / games[k]
+      this_error := math.Sqrt((old_off - off_rating[k])*(old_off - off_rating[k]))
+      if (this_error > error) {
+        error = this_error
+        largest_k = k
+      }
+      def_rating[k] = adjusted_goals_allowed[k] / games[k]
+    }
+    if (error < 0.0001) {
+      log.Print(i)
+      log.Printf("%d: %f", largest_k, error)
+      log.Printf("%d %.6f %.6f", largest_k, off_rating[largest_k], def_rating[largest_k])
+      break
+    }
+    if (i % 10 == 0 || i % 10 == 1) {
+      log.Print(i)
+      log.Printf("%d: %f", largest_k, error)
+      log.Printf("%d %.6f %.6f", largest_k, off_rating[largest_k], def_rating[largest_k])
+    }
+  }
+  ratings := make(map[string]*TeamRating)
+//  for k, _ := range games {
+//    off_rating[k] = (off_rating[k] * games[k] + 5*AVG_BASE) / (games[k] + 5)
+//    def_rating[k] = (def_rating[k] * games[k] + 5*AVG_BASE) / (games[k] + 5)
+//  }
+  for k, _ := range off_rating {
+    key := strconv.Itoa(k)
+    ratings[key] = new(TeamRating)
+    ratings[key].Offense = off_rating[k]
+    ratings[key].Defense = def_rating[k]
+  }
+  return ratings
+}
+
+func calculatePowerRanking(c http.ResponseWriter, req *http.Request) {
+  fmt.Printf("New Request\n")
+  fmt.Println(req.Body)
+  dec := json.NewDecoder(req.Body)
+  var v GamesType
+  if err := dec.Decode(&v); err != nil {
+    fmt.Println(err)
+    return
+  }
+  ratings := v.spi()
+//  enc2 := json.NewEncoder(os.Stdout)
+//  enc2.Encode(ratings)
+  enc := json.NewEncoder(c)
+  enc.Encode(ratings)
+}
+
 func main() {
   fmt.Printf("Starting http Server ... ")
-  http.Handle("/", http.HandlerFunc(serveRequests))
+  http.Handle("/odds", http.HandlerFunc(calculateChampionshipOdds))
+  http.Handle("/spi", http.HandlerFunc(calculatePowerRanking))
   log.Fatal(http.ListenAndServe(":6577", nil))
 }

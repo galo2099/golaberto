@@ -10,8 +10,8 @@
 
 <table class="game_show_score">
   <%= render :partial => "game_score" %>
-  <% if not @game.played? then %>
-    <% odds = @game.odds %>
+  <% odds = @game.odds %>
+  <% if !@game.played? && odds then %>
     <tr>
     <td colspan="4"><%= number_to_percentage(100*odds[0], :precision => 2) %></td>
     <td><%= number_to_percentage(100*odds[1], :precision => 2) %></td>

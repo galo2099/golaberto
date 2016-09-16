@@ -1,9 +1,9 @@
 <p>
-<%= will_paginate @games %>
+<%= will_paginate games %>
 </p>
 <% last_phase_id = nil %>
 <% last_date = nil %>
-<% @sorted_games.each do |game| %>
+<% sorted_games.each do |game| %>
   <% if formatted_date(game) != last_date %>
     <% last_date = formatted_date(game) %>
     <% last_phase_id = game.phase_id %>
@@ -15,11 +15,11 @@
     <div><%= link_to game.phase.championship.full_name, :controller => :championship, :action => :phases, :id => game.phase.championship, :phase => game.phase %></div>
   <% end %>
   <div class="table_row">
-    <%= render :partial => "championship/game_list",
-               :locals => { :game => game } %>
+    <%= render partial: "championship/game_list",
+               locals: { game: game, highlight_team: @team } %>
     <div class="clearer"></div>
   </div>
 <% end %>
 <p>
-<%= will_paginate @games %>
+<%= will_paginate games %>
 </p>

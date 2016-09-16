@@ -24,19 +24,11 @@ class Group < ActiveRecord::Base
   end
 
   def odds
-    req = Net::HTTP::Post.new("/", initheader = {'Content-Type' =>'application/json'})
+    req = Net::HTTP::Post.new("/odds", {'Content-Type' =>'application/json'})
     req.body = as_json(
       include: {
-        games: { only: [ :home_id, :away_id, :home_score, :away_score, :played ] },
-        phase: {
-          include: {
-            championship: {
-              include: {
-                games: { only: [ :home_id, :away_id, :home_score, :away_score, :played ] }
-              }
-            }
-          }
-        },
+        games: { methods: [:home_power, :away_power], only: [ :home_id, :away_id, :home_score, :away_score, :played ] },
+        phase: { include: :championship },
         team_groups: { only: [ :team_id, :add_sub, :bias ] }
       }).to_json
     response = Net::HTTP.new("localhost", 6577).start {|http| http.request(req) }

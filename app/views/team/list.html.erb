@@ -12,7 +12,8 @@
 
 <% content_for :sidebar do %>
   <% if can? :create, Team %>
-    <%= link_to _('New team'), :action => 'new' %>
+    <%= link_to _('New team'), :action => 'new' %><br>
+    <%= link_to _('Update rating'), :action => 'update_rating' %>
   <% end %>
 <% end %>
 <%= javascript_tag "$('id').activate()" %>

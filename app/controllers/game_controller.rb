@@ -17,14 +17,14 @@ class GameController < ApplicationController
     @type = params[:type].to_sym || :scheduled
     @games = Game
     if (@type == :scheduled)
-      @games = @games.where(played: false).order("DATE(IF(has_time, CONVERT_TZ(date, '+00:00', '#{ActiveSupport::TimeZone.seconds_to_utc_offset cookie_timezone.utc_offset}'), date)) ASC, phase_id, date ASC")
+      @games = @games.where(played: false).order("DATE(IF(has_time, CONVERT_TZ(date, '+00:00', '#{ActiveSupport::TimeZone.seconds_to_utc_offset cookie_timezone.now.utc_offset}'), date)) ASC, phase_id, date ASC")
       post_sort = proc do |g|
         [if g.has_time then g.date.in_time_zone(cookie_timezone).to_date.to_datetime.to_i else g.date.to_date.to_datetime.to_i end,
           g.phase_id, g.date.to_i, g.home.name]
       end
       default_start = (cookie_timezone.today - 7.days)
     else
-      @games = @games.where(played: true).order("DATE(IF(has_time, CONVERT_TZ(date, '+00:00', '#{ActiveSupport::TimeZone.seconds_to_utc_offset cookie_timezone.utc_offset}'), date)) DESC, phase_id, date DESC")
+      @games = @games.where(played: true).order("DATE(IF(has_time, CONVERT_TZ(date, '+00:00', '#{ActiveSupport::TimeZone.seconds_to_utc_offset cookie_timezone.now.utc_offset}'), date)) DESC, phase_id, date DESC")
       post_sort = proc do |g|
         [if g.has_time then -g.date.in_time_zone(cookie_timezone).to_date.to_datetime.to_i else -g.date.to_date.to_datetime.to_i end,
           g.phase_id, -g.date.to_i, g.home.name]
@@ -40,10 +40,10 @@ class GameController < ApplicationController
     @date_range_start = params[:date_range_start] || default_start
     @date_range_end = params[:date_range_end] || default_end
     unless @date_range_start.nil? or @date_range_start.to_date.nil?
-      @games = @games.where(["date >= ?", @date_range_start.in_time_zone(cookie_timezone)])
+      @games = @games.where("(has_time = true AND date >= ?) OR (has_time = false AND DATE(date) >= ?)", @date_range_start.in_time_zone(cookie_timezone).in_time_zone(Time.zone), @date_range_start)
     end
     unless @date_range_end.nil? or @date_range_end.to_date.nil?
-      @games = @games.where(["date <= ?", @date_range_end.in_time_zone(cookie_timezone)])
+      @games = @games.where("(has_time = true AND date < ?) OR (has_time = false AND DATE(date) <= ?)", @date_range_end.in_time_zone(cookie_timezone).in_time_zone(Time.zone) + 1.day, @date_range_end)
     end
 
     @games = @games.includes(:home, :away, :phase, :championship).page(params[:page])

@@ -9,6 +9,24 @@ class TeamController < ApplicationController
     redirect_to :action => :list
   end
 
+  def update_rating
+    all_games = Game.joins(phase: :championship).where(championships: { category_id: 1 }, played: true).where("date > ?", Date.today - 4.years).all
+    req = Net::HTTP::Post.new("/spi", {'Content-Type' =>'application/json'})
+    req.body = { games: all_games.map{|g| [ g.home_id, g.away_id, g.home_score, g.away_score, g.date.to_i ]},
+                 off_rating: Hash[Team.all.map{|t| [t.id, t.off_rating]}],
+                 def_rating: Hash[Team.all.map{|t| [t.id, t.def_rating]}]}.to_json
+    response = Net::HTTP.new("localhost", 6577).start {|http| http.read_timeout = 300; http.request(req) }
+    sql = "INSERT INTO teams (id,off_rating,def_rating,rating,created_at,updated_at) VALUES ";
+    now = Time.zone.now.to_s.chop.chop.chop.chop
+    ActiveSupport::JSON.decode(response.body).each do |k,v|
+      sql += "(#{k}, #{v["Offense"]}, #{v["Defense"]}, #{Team.calculate_rating2(v["Offense"], v["Defense"])}, '#{now}', '#{now}'),"
+    end
+    sql.chop!
+    sql += "ON DUPLICATE KEY UPDATE off_rating=VALUES(off_rating),def_rating=VALUES(def_rating),rating=VALUES(rating),updated_at=VALUES(updated_at);"
+    ActiveRecord::Base.connection.execute(sql)
+    redirect_to :back
+  end
+
   def show
     store_location
     @team = Team.find(params["id"])
@@ -68,7 +86,7 @@ class TeamController < ApplicationController
 
     @country_list = [[_("All") + " (#{Team.where(conditions).size})", ""]] + countries_found + countries_not_found
 
-    @teams = Team.order(:name).where(conditions).page(params[:page])
+    @teams = Team.order(rating: :desc, name: :asc).where(conditions).page(params[:page])
     @teams = @teams.where(country: @country) unless @country.blank?
     if @teams.size == 1
       redirect_to :action => :show, :id => @teams.first
@@ -93,7 +111,7 @@ class TeamController < ApplicationController
   end
 
   def destroy
-    team = Team.find(params[:id]).destroy
+    Team.find(params[:id]).destroy
     redirect_to :action => :list
   end
 
@@ -108,7 +126,6 @@ class TeamController < ApplicationController
   end
 
   private
-
   def team_params
     params.require(:team).permit(:name, :full_name, :city, :foundation, :country, :stadium_id, :filter_image_background, :logo)
   end

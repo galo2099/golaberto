@@ -6,7 +6,7 @@ gem 'rails', '~> 4'
 # gem 'rails', :git => 'git://github.com/rails/rails.git'
 
 gem 'sqlite3'
-gem 'mysql2'
+gem 'mysql2', '>=0.3.17'
 
 group :development do
   gem 'gettext'
@@ -49,16 +49,18 @@ gem 'prototype-rails', github: 'rails/prototype-rails', branch: '4.2'
 gem "quilt"
 gem "rmagick", require: "RMagick"
 gem "rufus-scheduler"
+gem "sprockets", "~>3"
+gem "sprockets-rails", "~>2"
 gem 'userstamp', :git => 'git://github.com/kimkong/userstamp.git'
 gem "will_paginate"
 
 # Deploy with Capistrano
-gem 'capistrano'
+gem 'capistrano', '~>2.12'
 
 # To use debugger
 # gem 'ruby-debug19', :require => 'ruby-debug'
 
-gem 'rubber'
+gem 'rubber', '~> 3.2.2'
 gem 'open4'
 gem 'gelf'
 gem 'graylog2_exceptions', :git => 'git://github.com/wr0ngway/graylog2_exceptions.git'

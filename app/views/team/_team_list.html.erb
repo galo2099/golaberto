@@ -2,10 +2,11 @@
 <%= will_paginate @teams %>
 </p>
 
-<table>
+<table style="width:100%">
   <tr>
     <th><%= _("Name") %></th>
     <th><%= _("Country") %></th>
+    <th><%= _("Rating") %></th>
   </tr>
 
   <% for team in @teams %>
@@ -15,6 +16,9 @@
       <td>
       <%= image_tag team.small_country_logo, width: 15, height: 15, title: _(team.country) %>
       <%= _(team.country) %></td>
+      <td>
+      <%= sprintf("%0.02f", team.rating || 0) %>
+      </td>
       <% if can? :manage, team %>
         <td><%= link_to _('Edit'), :action => 'edit', :id => team %></td>
         <td><%= link_to _('Destroy'), { :action => 'destroy', :id => team }, :confirm => _('Are you sure?'), :method => :post %></td>

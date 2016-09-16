@@ -37,4 +37,8 @@ class Phase < ActiveRecord::Base
   def to_param
     "#{id}-#{name.parameterize}"
   end
+
+  def avg_team_rating
+    @avg_team_rating ||= teams.map{|t|t.rating.to_f}.sum / teams.size
+  end
 end

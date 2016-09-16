@@ -3,6 +3,9 @@ require 'active_record/diff'
 require 'poisson'
 class Game < ActiveRecord::Base
 
+  AVG_BASE = 1.3350257653834494
+  HOME_ADV = 0.16133676871779334
+
   # This module implements a diff with knowledge of associations
   module GameDiff
     def self.included(base)
@@ -130,7 +133,28 @@ class Game < ActiveRecord::Base
       goal_distribution(away_id, :away_id, :home_score)
     end
 
+    def home_power
+      [0.01, (home.off_rating.to_f - AVG_BASE)/(AVG_BASE*0.424+0.548)*([0.25, (away.def_rating.to_f+HOME_ADV)*0.424+0.548].max)+(away.def_rating.to_f+HOME_ADV)].max
+    end
+
+    def away_power
+      [0.01, (away.off_rating.to_f - AVG_BASE)/(AVG_BASE*0.424+0.548)*([0.25, (home.def_rating.to_f-HOME_ADV)*0.424+0.548].max)+(home.def_rating.to_f-HOME_ADV)].max
+    end
+
     def odds
+      unless home.off_rating && home.def_rating && away.off_rating && away.def_rating then
+        return nil
+      end
+      goal_array = (0...20).to_a
+      hp = Poisson.new(home_power)
+      ap = Poisson.new(away_power)
+      probs = goal_array.map{|i| goal_array.map{|j| hp.p(i) * ap.p(j) }}
+      [ goal_array.map{|i| (0...i).to_a.map{|j| probs[i][j]}}.flatten.sum,
+        goal_array.map{|i| probs[i][i]}.sum,
+        goal_array.map{|i| (0...i).to_a.map{|j| probs[j][i]}}.flatten.sum ]
+    end
+
+    def odds_legacy
       #home_power = (mean_poisson(home_for) + mean_poisson(away_against)) / 2
       #away_power = (mean_poisson(home_against) + mean_poisson(away_for)) / 2
       home_power = Poisson.new(Poisson.find_mean_from(home_for.zip(away_against).map{|a,b| a+b}))
