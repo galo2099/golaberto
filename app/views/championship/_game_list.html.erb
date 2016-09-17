@@ -13,7 +13,7 @@ end %>
 <div class='table_cell home_team'>
   <% if show_country %>
     <div class='home_logo'>
-      <%= image_tag game.home.small_country_logo, :title => _(game.home.country) %>
+      <%= image_tag game.home.small_country_logo, :title => _(game.home.country), size: "15x15" %>
     </div>
   <% end %>
   <div class='home_logo'>
@@ -25,19 +25,25 @@ end %>
 </div>
 <% odds = game.odds %>
 <div class='table_cell home_score'><%= game.home_score if game.played? %>
-<span style="white-space: nowrap;">&#8203;
-  <%= content_tag :span, number_to_percentage(100*odds[0], precision: 0), class: "game_odds" if !game.played? and odds %></span></div>
+<% if !game.played? and odds %>
+  <%= content_tag :span, sprintf("%02.0f", 100*odds[0]), class: "game_odds" %>
+<% end %>
+</div>
 <div class='table_cell game_x'><%= "x" if game.played? || !odds %>
-<span style="white-space: nowrap;">&#8203;
-  <%= content_tag :span, number_to_percentage(100*odds[1], precision: 0), class: "game_odds" if !game.played? and odds %></span></div>
+<% if !game.played? and odds %>
+  <%= content_tag :span, sprintf("%02.0f", 100*odds[1]), class: "game_odds" %>
+<% end %>
+</div>
 <div class='table_cell away_score'><%= game.away_score if game.played? %>
-<span style="white-space: nowrap;">&#8203;
-  <%= content_tag :span, number_to_percentage(100*odds[2], precision: 0), class: "game_odds" if !game.played? and odds %></span></div>
+<% if !game.played? and odds %>
+  <%= content_tag :span, sprintf("%02.0f", 100*odds[2]), class: "game_odds" %>
+<% end %>
+</div>
 <div class='table_cell away_team'>
   <div style='width: 100%; align: right; position: relative'>
     <% if show_country %>
       <div class='away_logo'>
-        <%= image_tag game.away.small_country_logo, :title => _(game.away.country) %>
+        <%= image_tag game.away.small_country_logo, :title => _(game.away.country), size: "15x15" %>
       </div>
     <% end %>
     <div class='away_logo'>

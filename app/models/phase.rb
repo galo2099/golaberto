@@ -39,6 +39,6 @@ class Phase < ActiveRecord::Base
   end
 
   def avg_team_rating
-    @avg_team_rating ||= teams.map{|t|t.rating.to_f}.sum / teams.size
+    @avg_team_rating ||= begin teams.map{|t|t.rating.to_f}.sum / teams.size rescue 0 end
   end
 end
