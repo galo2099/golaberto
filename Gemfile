@@ -9,8 +9,13 @@ gem 'sqlite3'
 gem 'mysql2', '>=0.3.17'
 
 group :development do
+  # Deploy with Capistrano
+  gem 'capistrano', '~>3'
+  gem 'capistrano-bundler'
+  gem 'capistrano-rails'
+  gem 'capistrano-rbenv', github: "capistrano/rbenv"
+
   gem 'gettext'
-  gem 'uglifier'
   gem 'wirble'
 end
 
@@ -51,16 +56,13 @@ gem "rmagick", require: "RMagick"
 gem "rufus-scheduler"
 gem "sprockets", "~>3"
 gem "sprockets-rails", "~>2"
+gem 'uglifier'
 gem 'userstamp', :git => 'git://github.com/kimkong/userstamp.git'
 gem "will_paginate"
-
-# Deploy with Capistrano
-gem 'capistrano', '~>2.12'
 
 # To use debugger
 # gem 'ruby-debug19', :require => 'ruby-debug'
 
-gem 'rubber', '~> 3.2.2'
 gem 'open4'
 gem 'gelf'
 gem 'graylog2_exceptions', :git => 'git://github.com/wr0ngway/graylog2_exceptions.git'
