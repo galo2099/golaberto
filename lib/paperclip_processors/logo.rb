@@ -35,25 +35,25 @@ module Paperclip
         y_top = 0
         y_bottom = rows - 1
         cols.times do |i|
-          if image.get_pixels(i, 0, 1, rows).select{|p| p.opacity != MaxRGB}.size > 0
+          if image.get_pixels(i, 0, 1, rows).select{|p| p.opacity != QuantumRange}.size > 0
             x_left = i
             break
           end
         end
         (cols - 1).downto(0) do |i|
-          if image.get_pixels(i, 0, 1, rows).select{|p| p.opacity != MaxRGB}.size > 0
+          if image.get_pixels(i, 0, 1, rows).select{|p| p.opacity != QuantumRange}.size > 0
             x_right = i + 1
             break
           end
         end
         rows.times do |i|
-          if image.get_pixels(0, i, cols, 1).select{|p| p.opacity != MaxRGB}.size > 0
+          if image.get_pixels(0, i, cols, 1).select{|p| p.opacity != QuantumRange}.size > 0
             y_top = i
             break
           end
         end
         (rows - 1).downto(0) do |i|
-          if image.get_pixels(0, i, cols, 1).select{|p| p.opacity != MaxRGB}.size > 0
+          if image.get_pixels(0, i, cols, 1).select{|p| p.opacity != QuantumRange}.size > 0
             y_bottom = i + 1
             break
           end
@@ -69,7 +69,7 @@ module Paperclip
         cols = image.columns
         rows = image.rows
         background_pixel = image.get_pixels(0, 0, 1, 1).first
-        if background_pixel.opacity != MaxRGB
+        if background_pixel.opacity != QuantumRange
           rows.times do |row|
             if image.get_pixels(0, row, 1, 1).first == background_pixel
               image = image.matte_floodfill(0, row)

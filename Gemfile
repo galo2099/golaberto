@@ -52,7 +52,7 @@ gem "paperclip"
 gem 'prototype_legacy_helper', '0.0.0', :git => 'git://github.com/rails/prototype_legacy_helper.git'
 gem 'prototype-rails', github: 'rails/prototype-rails', branch: '4.2'
 gem "quilt"
-gem "rmagick", require: "RMagick"
+gem "rmagick"
 gem "rufus-scheduler"
 gem "sprockets", "~>3"
 gem "sprockets-rails", "~>2"

@@ -11,10 +11,12 @@ class User < ActiveRecord::Base
       },
       processors: [ :logo ],
       storage: :s3,
+      s3_region: 'us-east-1',
       s3_credentials: Rails.application.secrets.s3,
       s3_headers: { 'Cache-Control' => 'max-age=315576000', 'Expires' => 10.years.from_now.httpdate },
       default_url: ActionController::Base.helpers.asset_path("blank.gif"), 
       path: ":class/:attachment/:id/:style.:extension"
+  validates_attachment :avatar, content_type: { content_type: ["image/jpg", "image/jpeg", "image/png", "image/gif"] }
 
   # Virtual attribute to see if we should filter the image background
   attr_accessor :filter_image_background
@@ -120,7 +122,7 @@ class User < ActiveRecord::Base
         icon = Quilt::Identicon.new display_login, :size => 100
         tmpfile.binmode
         tmpfile.write icon.to_blob
-	tmpfile.flush
+        tmpfile.flush
         self.avatar = tmpfile
         save!
       ensure
