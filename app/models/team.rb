@@ -14,7 +14,7 @@ class Team < ActiveRecord::Base
       s3_region: 'us-east-1',
       s3_credentials: Rails.application.secrets.s3,
       s3_headers: { 'Cache-Control' => 'max-age=315576000', 'Expires' => 10.years.from_now.httpdate },
-      default_url: ActionController::Base.helpers.asset_path("blank.gif"), 
+      default_url: 'https://s3.amazonaws.com/:bucket/:style.png',
       path: ":class/:attachment/:id/:style.:extension"
   validates_attachment :logo, content_type: { content_type: ["image/jpg", "image/jpeg", "image/png", "image/gif"] }
 
@@ -51,17 +51,17 @@ class Team < ActiveRecord::Base
 
   def small_country_logo
     if country.nil?
-      '/images/logos/15.png'
+      "https://s3.amazonaws.com/#{Rails.application.secrets.s3["bucket"]}/thumb.png"
     else
-      "/images/countries/#{country.parameterize('_')}_15.png"
+      "https://s3.amazonaws.com/#{Rails.application.secrets.s3["bucket"]}/countries/flags/#{country.parameterize('_')}_15.png"
     end
   end
 
   def large_country_logo
     if country.nil?
-      '/images/logos/100.png'
+      "https://s3.amazonaws.com/#{Rails.application.secrets.s3["bucket"]}/medium.png"
     else
-      "/images/countries/#{country.parameterize('_')}_100.png"
+      "https://s3.amazonaws.com/#{Rails.application.secrets.s3["bucket"]}/countries/flags/#{country.parameterize('_')}_100.png"
     end
   end
 
