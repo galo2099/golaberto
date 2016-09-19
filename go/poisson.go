@@ -390,6 +390,10 @@ func (all_games *GamesType) spi() map[string]*TeamRating {
   for i := 0; i < NUM_ITER; i++ {
     adjusted_goals_scored := make(map[int]float64)
     adjusted_goals_allowed := make(map[int]float64)
+    for k, _ := range games {
+//      adjusted_goals_scored[k] += AVG_BASE
+      adjusted_goals_allowed[k] += AVG_BASE
+    }
     for i, g := range all_games.Games {
       adjusted_goals_scored[g[0]] += weights[i] * ((float64(g[2]) - (def_rating[g[1]]+HOME_ADV))/( math.Max(0.25, (def_rating[g[1]]+HOME_ADV)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
       adjusted_goals_allowed[g[0]] += weights[i] * ((float64(g[3]) - (off_rating[g[1]]-HOME_ADV))/( math.Max(0.25, (off_rating[g[1]]-HOME_ADV)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
@@ -417,7 +421,7 @@ func (all_games *GamesType) spi() map[string]*TeamRating {
     if (i % 10 == 0 || i % 10 == 1) {
       log.Print(i)
       log.Printf("%d: %f", largest_k, error)
-      log.Printf("%d %.6f %.6f", largest_k, off_rating[largest_k], def_rating[largest_k])
+      log.Printf("%d %.6f %.6f %.6f", largest_k, off_rating[largest_k], def_rating[largest_k], games[largest_k])
     }
   }
   ratings := make(map[string]*TeamRating)
