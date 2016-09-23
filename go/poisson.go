@@ -340,8 +340,7 @@ func calculateChampionshipOdds(c http.ResponseWriter, req *http.Request) {
 
 type GamesType struct {
   Games [][]int
-  Off_rating map[string]float64
-  Def_rating map[string]float64
+  Ratings map[string][]float64
 }
 
 type TeamRating struct {
@@ -364,19 +363,19 @@ func (all_games *GamesType) spi() map[string]*TeamRating {
   games := make(map[int]float64)
   weights := make([]float64, len(all_games.Games))
   for i, g := range all_games.Games {
-    off_rating[g[0]] = all_games.Off_rating[strconv.Itoa(g[0])]
+    off_rating[g[0]] = all_games.Ratings[strconv.Itoa(g[0])][0]
     if (off_rating[g[0]] == 0.0) {
       off_rating[g[0]] = 1.0
     }
-    off_rating[g[1]] = all_games.Off_rating[strconv.Itoa(g[1])]
+    off_rating[g[1]] = all_games.Ratings[strconv.Itoa(g[1])][0]
     if (off_rating[g[1]] == 0.0) {
       off_rating[g[1]] = 1.0
     }
-    def_rating[g[0]] = all_games.Def_rating[strconv.Itoa(g[0])]
+    def_rating[g[0]] = all_games.Ratings[strconv.Itoa(g[0])][1]
     if (def_rating[g[0]] == 0.0) {
       def_rating[g[0]] = 1.0
     }
-    def_rating[g[1]] = all_games.Def_rating[strconv.Itoa(g[1])]
+    def_rating[g[1]] = all_games.Ratings[strconv.Itoa(g[1])][1]
     if (def_rating[g[1]] == 0.0) {
       def_rating[g[1]] = 1.0
     }

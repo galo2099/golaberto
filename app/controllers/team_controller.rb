@@ -12,9 +12,9 @@ class TeamController < ApplicationController
   def update_rating
     all_games = Game.joins(phase: :championship).where(championships: { category_id: 1 }, played: true).where("date > ?", Date.today - 4.years).all
     req = Net::HTTP::Post.new("/spi", {'Content-Type' =>'application/json'})
+    teams = Team.where.not(off_rating: nil)
     req.body = { games: all_games.map{|g| [ g.home_id, g.away_id, g.home_score, g.away_score, g.date.to_i ]},
-                 off_rating: Hash[Team.all.map{|t| [t.id, t.off_rating]}],
-                 def_rating: Hash[Team.all.map{|t| [t.id, t.def_rating]}]}.to_json
+                 ratings: Hash[teams.map{|t| [t.id, [t.off_rating, t.def_rating]]}]}.to_json
     response = Net::HTTP.new("localhost", 6577).start {|http| http.read_timeout = 300; http.request(req) }
     sql = "INSERT INTO teams (id,off_rating,def_rating,rating,created_at,updated_at) VALUES ";
     now = Time.zone.now.to_s.chop.chop.chop.chop
