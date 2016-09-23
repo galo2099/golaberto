@@ -8,8 +8,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: app 1.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2016-09-12 16:20-0700\n"
-"PO-Revision-Date: 2016-09-12 16:20-0700\n"
+"POT-Creation-Date: 2016-09-19 04:10-0700\n"
+"PO-Revision-Date: 2016-09-19 04:10-0700\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
@@ -1254,6 +1254,9 @@ msgstr ""
 msgid "R%"
 msgstr ""
 
+msgid "Rating"
+msgstr ""
+
 msgid "Recalculate odds"
 msgstr ""
 
@@ -1604,6 +1607,9 @@ msgid "United States Minor Outlying Islands"
 msgstr ""
 
 msgid "Update"
+msgstr ""
+
+msgid "Update rating"
 msgstr ""
 
 msgid "Updating odds..."
