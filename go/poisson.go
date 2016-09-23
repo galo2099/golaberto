@@ -387,11 +387,12 @@ func (all_games *GamesType) spi() map[string]*TeamRating {
   for k, _ := range games {
     games[k] += 1.0
   }
+  good_iterations := 0
   for i := 0; i < NUM_ITER; i++ {
     adjusted_goals_scored := make(map[int]float64)
     adjusted_goals_allowed := make(map[int]float64)
     for k, _ := range games {
-//      adjusted_goals_scored[k] += AVG_BASE
+      adjusted_goals_scored[k] += AVG_BASE
       adjusted_goals_allowed[k] += AVG_BASE
     }
     for i, g := range all_games.Games {
@@ -413,6 +414,11 @@ func (all_games *GamesType) spi() map[string]*TeamRating {
       def_rating[k] = adjusted_goals_allowed[k] / games[k]
     }
     if (error < 0.0001) {
+      good_iterations += 1
+    } else {
+      good_iterations = 0
+    }
+    if (good_iterations > 10) {
       log.Print(i)
       log.Printf("%d: %f", largest_k, error)
       log.Printf("%d %.6f %.6f", largest_k, off_rating[largest_k], def_rating[largest_k])
