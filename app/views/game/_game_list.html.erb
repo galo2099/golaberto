@@ -1,5 +1,5 @@
 <p>
-<%= will_paginate games %>
+<%= will_paginate games if defined?(games) %>
 </p>
 <% last_phase_id = nil %>
 <% last_date = nil %>
@@ -21,5 +21,5 @@
   </div>
 <% end %>
 <p>
-<%= will_paginate games %>
+<%= will_paginate games if defined?(games) %>
 </p>

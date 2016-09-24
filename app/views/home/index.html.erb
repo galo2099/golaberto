@@ -6,6 +6,12 @@
 </div>
 <% end %>
 
+<div id="games">
+  <h3 style="margin-top: 0px"><%= _("Top games") %></h3>
+  <%= render partial: "game/game_list",
+             locals: { sorted_games: @top_games } %>
+</div>
+
 <div id="championship">
   <h3 style="margin-top: 0px"><%= _("Current championships") %></h3>
   <% @championships.each do |champ| %>

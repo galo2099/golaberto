@@ -1685,6 +1685,9 @@ msgstr "Tonga"
 msgid "Top Goalscorers"
 msgstr "Maiores Artilheiros"
 
+msgid "Top games"
+msgstr "Melhores jogos"
+
 msgid "Trinidad and Tobago"
 msgstr "Trindade e Tobago"
 

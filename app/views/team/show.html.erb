@@ -36,7 +36,7 @@
 <% unless @next_games.empty? %>
 <h2> <%= n_("Next game", "Next %{num} games", @next_games.size) % { :num => @next_games.size } %></h2>
 <div id="table">
-  <%= render :partial => "game/game_list", locals: { sorted_games: @next_games, games: WillPaginate::Collection.new(1,1,1) }  %>
+  <%= render :partial => "game/game_list", locals: { sorted_games: @next_games }  %>
 </div>
 <% end %>
 
