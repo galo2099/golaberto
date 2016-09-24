@@ -20,7 +20,7 @@ function update_team_groups(size, teams, ordered_teams, current_data) {
   } else if (size > current_size) {
     for (var i = current_size; i < size; ++i) {
       var team_group = jQuery("<tr class='team_group'></tr>")
-        .append("<td><img class='team_group_icon' src='/assets/blank.gif' height='15px' width='15px' /></td>")
+        .append("<td><img class='team_group_icon' src='https://s3.amazonaws.com/golaberto_production/thumb.png' height='15px' width='15px' /></td>")
         .append("<td><input tabindex='2' size='30' class='team_group_name' /><input type='hidden' class='team_group_id' name='team_group[" + i + "][team_id]' /></td>")
         .append("<td><input tabindex='3' size='2' class='team_group_add_sub' name='team_group[" + i + "][add_sub]' /></td>")
         .append("<td><input tabindex='4' size='2' class='team_group_bias' name='team_group[" + i + "][bias]' /></td>")
@@ -70,7 +70,7 @@ function initialize_team_group(team_group, teams, ordered_teams, current_data) {
       if (!ui.item) {
         id.val(null);
         name.val(null);
-        icon.attr('src', '/assets/blank.gif');
+        icon.attr('src', 'https://s3.amazonaws.com/golaberto_production/thumb.png');
       }
     },
     delay: 0,
