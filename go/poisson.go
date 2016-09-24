@@ -362,23 +362,12 @@ func (all_games *GamesType) spi() map[string]*TeamRating {
   log.Print(len(all_games.Games))
   games := make(map[int]float64)
   weights := make([]float64, len(all_games.Games))
+  for k, v := range all_games.Ratings {
+    id, _ := strconv.Atoi(k)
+    off_rating[id] = v[0]
+    def_rating[id] = v[1]
+  }
   for i, g := range all_games.Games {
-    off_rating[g[0]] = all_games.Ratings[strconv.Itoa(g[0])][0]
-    if (off_rating[g[0]] == 0.0) {
-      off_rating[g[0]] = 1.0
-    }
-    off_rating[g[1]] = all_games.Ratings[strconv.Itoa(g[1])][0]
-    if (off_rating[g[1]] == 0.0) {
-      off_rating[g[1]] = 1.0
-    }
-    def_rating[g[0]] = all_games.Ratings[strconv.Itoa(g[0])][1]
-    if (def_rating[g[0]] == 0.0) {
-      def_rating[g[0]] = 1.0
-    }
-    def_rating[g[1]] = all_games.Ratings[strconv.Itoa(g[1])][1]
-    if (def_rating[g[1]] == 0.0) {
-      def_rating[g[1]] = 1.0
-    }
     weights[i] = squash_date(g[4])
     games[g[0]] += weights[i]  // Game_weight
     games[g[1]] += weights[i]  // Game_weight
