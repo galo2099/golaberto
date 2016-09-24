@@ -4,7 +4,6 @@
 <% omit_popup = false if omit_popup.nil? %>
 <% show_country = false if show_country.nil? %>
 <% cache [ "v1",
-           Time.zone,
            I18n.locale,
            digest_cache_key(group.teams),
            group,
