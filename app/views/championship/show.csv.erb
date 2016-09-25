@@ -17,9 +17,9 @@ end %>
 <% end %>
 
 <%= CSV.generate do |csv|
-  csv << [ "round", "home", "away", "home_score", "away_score", "date", "time" ]
+  csv << [ "round", "home", "away", "home_score", "away_score", "date", "has_time" ]
   phase.games.each do |game|
-    csv << [ game.round, game.home.name, game.away.name, game.played ? game.home_score : nil, game.played ? game.away_score : nil, game.date, game.time.try(:strftime, "%H:%M") ]
+    csv << [ game.round, game.home.name, game.away.name, game.played ? game.home_score : nil, game.played ? game.away_score : nil, game.date, game.has_time ]
   end
 end %>
 <% end %>
