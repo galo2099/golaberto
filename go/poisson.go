@@ -13,8 +13,6 @@ import "strconv"
 import "strings"
 import "time"
 
-var now int = int(time.Now().Unix())
-
 type TeamCampaign struct {
   id int
   points int
@@ -348,7 +346,7 @@ type TeamRating struct {
   Defense float64
 }
 
-func squash_date(timestamp int) float64 {
+func squash_date(timestamp int, now int) float64 {
   x := float64(timestamp - now) / (730*24*60*60)
   return 1 + (math.Exp(x)-math.Exp(-x))/(math.Exp(x)+math.Exp(-x))
 }
@@ -367,8 +365,9 @@ func (all_games *GamesType) spi() map[string]*TeamRating {
     off_rating[id] = v[0]
     def_rating[id] = v[1]
   }
+  now := int(time.Now().Unix())
   for i, g := range all_games.Games {
-    weights[i] = squash_date(g[4])
+    weights[i] = squash_date(g[4], now)
     games[g[0]] += weights[i]  // Game_weight
     games[g[1]] += weights[i]  // Game_weight
   }
