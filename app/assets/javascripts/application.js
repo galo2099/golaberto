@@ -18,3 +18,4 @@
 //= require image_upload
 //= require ability
 //= require jstz
+//= require title-ellipsis
