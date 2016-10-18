@@ -222,6 +222,7 @@ module ApplicationHelper
       [ _("Kazakhstan"), "Kazakhstan" ],
       [ _("Kenya"), "Kenya" ],
       [ _("Kiribati"), "Kiribati" ],
+      [ _("Kosovo"), "Kosovo" ],
       [ _("Kuwait"), "Kuwait" ],
       [ _("Kyrgyzstan"), "Kyrgyzstan" ],
       [ _("Lao People's Democratic Republic"), "Lao People's Democratic Republic" ],
