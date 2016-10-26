@@ -8,8 +8,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: app 1.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2016-10-17 23:31-0700\n"
-"PO-Revision-Date: 2016-10-17 23:31-0700\n"
+"POT-Creation-Date: 2016-10-18 12:45-0700\n"
+"PO-Revision-Date: 2016-10-18 12:45-0700\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
@@ -370,9 +370,6 @@ msgid "Cook Islands"
 msgstr ""
 
 msgid "Costa Rica"
-msgstr ""
-
-msgid "Cote d'Ivoire"
 msgstr ""
 
 msgid "Country"
@@ -744,6 +741,9 @@ msgstr ""
 msgid "Italy"
 msgstr ""
 
+msgid "Ivory Coast"
+msgstr ""
+
 msgid "Jamaica"
 msgstr ""
 
@@ -923,7 +923,7 @@ msgstr ""
 msgid "Minimum"
 msgstr ""
 
-msgid "Moldova, Republic of"
+msgid "Moldova"
 msgstr ""
 
 msgid "Monaco"
