@@ -34,10 +34,8 @@ class Group < ActiveRecord::Base
     response = Net::HTTP.new("localhost", 6577).start {|http| http.request(req) }
     calculated_odds = ActiveSupport::JSON.decode(response.body)
     team_groups.each do |t|
-      p calculated_odds[t.team_id.to_s]
-      t.first_odds = calculated_odds[t.team_id.to_s]["Pos"][0]
-      t.promoted_odds = self.promoted.times.map{|i| calculated_odds[t.team_id.to_s]["Pos"][i]}.sum
-      t.relegated_odds = self.relegated.times.map{|i| calculated_odds[t.team_id.to_s]["Pos"][self.teams.size - 1 - i]}.sum
+      p calculated_odds[t.team_id.to_s]['Pos']
+      t.odds = calculated_odds[t.team_id.to_s]['Pos']
       t.save!
     end
     self.odds_progress = 100

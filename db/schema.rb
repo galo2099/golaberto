@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20160915031202) do
+ActiveRecord::Schema.define(version: 20161026193553) do
 
   create_table "categories", force: :cascade do |t|
     t.string "name", limit: 255
@@ -25,7 +25,7 @@ ActiveRecord::Schema.define(version: 20160915031202) do
     t.integer  "point_draw",   limit: 4,   default: 1,     null: false
     t.integer  "point_loss",   limit: 4,   default: 0,     null: false
     t.integer  "category_id",  limit: 4,   default: 0,     null: false
-    t.boolean  "show_country", limit: 1,   default: false, null: false
+    t.boolean  "show_country",             default: false, null: false
     t.datetime "created_at",                               null: false
     t.datetime "updated_at",                               null: false
   end
@@ -78,13 +78,13 @@ ActiveRecord::Schema.define(version: 20160915031202) do
     t.integer  "away_score", limit: 4, default: 0
     t.integer  "home_pen",   limit: 4
     t.integer  "away_pen",   limit: 4
-    t.boolean  "played",     limit: 1, default: false
+    t.boolean  "played",               default: false
     t.integer  "updater_id", limit: 4, default: 0,     null: false
     t.datetime "updated_at",                           null: false
     t.integer  "home_aet",   limit: 4
     t.integer  "away_aet",   limit: 4
     t.datetime "date",                                 null: false
-    t.boolean  "has_time",   limit: 1, default: false
+    t.boolean  "has_time",             default: false
   end
 
   add_index "game_versions", ["game_id"], name: "index_game_versions_on_game_id", using: :btree
@@ -102,14 +102,14 @@ ActiveRecord::Schema.define(version: 20160915031202) do
     t.integer  "away_score", limit: 4, default: 0,     null: false
     t.integer  "home_pen",   limit: 4
     t.integer  "away_pen",   limit: 4
-    t.boolean  "played",     limit: 1, default: false, null: false
+    t.boolean  "played",               default: false, null: false
     t.integer  "version",    limit: 4
     t.integer  "updater_id", limit: 4, default: 0,     null: false
     t.datetime "updated_at",                           null: false
     t.integer  "home_aet",   limit: 4
     t.integer  "away_aet",   limit: 4
     t.datetime "date",                                 null: false
-    t.boolean  "has_time",   limit: 1, default: false
+    t.boolean  "has_time",             default: false
   end
 
   add_index "games", ["away_id"], name: "index_games_on_away_id", using: :btree
@@ -122,9 +122,9 @@ ActiveRecord::Schema.define(version: 20160915031202) do
     t.integer  "game_id",    limit: 4, default: 0
     t.integer  "team_id",    limit: 4, default: 0,     null: false
     t.integer  "time",       limit: 4, default: 0,     null: false
-    t.boolean  "penalty",    limit: 1, default: false, null: false
-    t.boolean  "own_goal",   limit: 1, default: false, null: false
-    t.boolean  "aet",        limit: 1, default: false, null: false
+    t.boolean  "penalty",              default: false, null: false
+    t.boolean  "own_goal",             default: false, null: false
+    t.boolean  "aet",                  default: false, null: false
     t.datetime "created_at",                           null: false
     t.datetime "updated_at",                           null: false
   end
@@ -175,8 +175,8 @@ ActiveRecord::Schema.define(version: 20160915031202) do
     t.integer "team_id",   limit: 4, default: 0,     null: false
     t.integer "on",        limit: 4, default: 0,     null: false
     t.integer "off",       limit: 4, default: 0,     null: false
-    t.boolean "yellow",    limit: 1, default: false, null: false
-    t.boolean "red",       limit: 1, default: false, null: false
+    t.boolean "yellow",              default: false, null: false
+    t.boolean "red",                 default: false, null: false
   end
 
   create_table "players", force: :cascade do |t|
@@ -223,16 +223,14 @@ ActiveRecord::Schema.define(version: 20160915031202) do
   end
 
   create_table "team_groups", force: :cascade do |t|
-    t.integer  "group_id",       limit: 4,     default: 0, null: false
-    t.integer  "team_id",        limit: 4,     default: 0, null: false
-    t.integer  "add_sub",        limit: 4,     default: 0, null: false
-    t.integer  "bias",           limit: 4,     default: 0, null: false
-    t.text     "comment",        limit: 65535
-    t.float    "first_odds",     limit: 24
-    t.float    "promoted_odds",  limit: 24
-    t.float    "relegated_odds", limit: 24
-    t.datetime "created_at",                               null: false
-    t.datetime "updated_at",                               null: false
+    t.integer  "group_id",   limit: 4,     default: 0, null: false
+    t.integer  "team_id",    limit: 4,     default: 0, null: false
+    t.integer  "add_sub",    limit: 4,     default: 0, null: false
+    t.integer  "bias",       limit: 4,     default: 0, null: false
+    t.text     "comment",    limit: 65535
+    t.datetime "created_at",                           null: false
+    t.datetime "updated_at",                           null: false
+    t.text     "odds",       limit: 65535
   end
 
   add_index "team_groups", ["group_id", "team_id"], name: "group", unique: true, using: :btree

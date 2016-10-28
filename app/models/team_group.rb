@@ -1,4 +1,5 @@
 class TeamGroup < ActiveRecord::Base
+  serialize :odds
   belongs_to :group, :touch => true
   belongs_to :team
   validates_presence_of :group
@@ -16,5 +17,21 @@ class TeamGroup < ActiveRecord::Base
   # Field: bias , SQL Definition:tinyint(4)
   # Field: comment , SQL Definition:text
 
+  def first_odds
+    calculate_odds(0, 1)
+  end
+
+  def promoted_odds
+    calculate_odds(0, group.promoted)
+  end
+
+  def relegated_odds
+    calculate_odds(-group.relegated, group.relegated)
+  end
+
+  private
+  def calculate_odds(start, num)
+    odds.try(:slice, start, num).try(:sum)
+  end
 
 end
