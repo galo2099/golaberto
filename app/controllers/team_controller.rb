@@ -10,11 +10,17 @@ class TeamController < ApplicationController
   end
 
   def update_rating
-    all_games = Game.joins(phase: :championship).where(championships: { category_id: 1 }, played: true).where("date > ?", Date.today - 4.years).all
+    all_games = Game.joins(phase: :championship).where(championships: { category_id: 1 }, played: true).where("date > ?", Date.today - 4.years).order(:date).all
     req = Net::HTTP::Post.new("/spi", {'Content-Type' =>'application/json'})
     teams = Team.where.not(off_rating: nil)
-    req.body = { games: all_games.map{|g| [ g.home_id, g.away_id, g.home_score, g.away_score, g.date.to_i ]},
-                 ratings: Hash[teams.map{|t| [t.id, [t.off_rating, t.def_rating]]}]}.to_json
+    req.body = { games: all_games.order(:date).map{|g|
+        [ g.home_id,
+          g.away_id,
+          (g.home_score + g.home_aet.to_i).to_f / if g.home_aet.nil? then 1.0 else 4.0/3.0 end,
+          (g.away_score + g.away_aet.to_i).to_f / if g.home_aet.nil? then 1.0 else 4.0/3.0 end,
+          g.date.to_i,
+          if g.home_aet.nil? then 1.0 else 4.0/3.0 end ]
+    }, ratings: Hash[teams.map{|t| [t.id, [t.off_rating, t.def_rating]]}]}.to_json
     response = Net::HTTP.new("localhost", 6577).start {|http| http.read_timeout = 300; http.request(req) }
     sql = "INSERT INTO teams (id,off_rating,def_rating,rating,created_at,updated_at) VALUES ";
     now = Time.zone.now.to_s.chop.chop.chop.chop

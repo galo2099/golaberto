@@ -11,7 +11,6 @@ import "os"
 import "sort"
 import "strconv"
 import "strings"
-import "time"
 
 type TeamCampaign struct {
   id int
@@ -337,7 +336,7 @@ func calculateChampionshipOdds(c http.ResponseWriter, req *http.Request) {
 }
 
 type GamesType struct {
-  Games [][]int
+  Games [][]float64
   Ratings map[string][]float64
 }
 
@@ -346,7 +345,7 @@ type TeamRating struct {
   Defense float64
 }
 
-func squash_date(timestamp int, now int) float64 {
+func squash_date(timestamp float64, now float64) float64 {
   x := float64(timestamp - now) / (730*24*60*60)
   return 1 + (math.Exp(x)-math.Exp(-x))/(math.Exp(x)+math.Exp(-x))
 }
@@ -354,20 +353,20 @@ func squash_date(timestamp int, now int) float64 {
 func (all_games *GamesType) spi() map[string]*TeamRating {
   AVG_BASE := 1.3350257653834494
   HOME_ADV := 0.16133676871779334
-  off_rating := make(map[int]float64)
-  def_rating := make(map[int]float64)
+  off_rating := make(map[float64]float64)
+  def_rating := make(map[float64]float64)
   NUM_ITER := 100000
   log.Print(len(all_games.Games))
-  games := make(map[int]float64)
+  games := make(map[float64]float64)
   weights := make([]float64, len(all_games.Games))
   for k, v := range all_games.Ratings {
-    id, _ := strconv.Atoi(k)
+    id, _ := strconv.ParseFloat(k, 64)
     off_rating[id] = v[0]
     def_rating[id] = v[1]
   }
-  now := int(time.Now().Unix())
+  now := all_games.Games[len(all_games.Games)-1][4]
   for i, g := range all_games.Games {
-    weights[i] = squash_date(g[4], now)
+    weights[i] = g[5] * squash_date(g[4], now)
     games[g[0]] += weights[i]  // Game_weight
     games[g[1]] += weights[i]  // Game_weight
   }
@@ -376,8 +375,8 @@ func (all_games *GamesType) spi() map[string]*TeamRating {
   }
   good_iterations := 0
   for i := 0; i < NUM_ITER; i++ {
-    adjusted_goals_scored := make(map[int]float64)
-    adjusted_goals_allowed := make(map[int]float64)
+    adjusted_goals_scored := make(map[float64]float64)
+    adjusted_goals_allowed := make(map[float64]float64)
     for k, _ := range games {
       adjusted_goals_scored[k] += AVG_BASE
       adjusted_goals_allowed[k] += AVG_BASE
@@ -389,7 +388,7 @@ func (all_games *GamesType) spi() map[string]*TeamRating {
       adjusted_goals_allowed[g[1]] += weights[i] * ((float64(g[2]) - (off_rating[g[0]]+HOME_ADV))/( math.Max(0.25, (off_rating[g[0]]+HOME_ADV)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
     }
     error := 0.0
-    largest_k := 0
+    largest_k := 0.0
     for k, _ := range games {
       old_off := off_rating[k]
       off_rating[k] = adjusted_goals_scored[k] / games[k]
@@ -407,14 +406,14 @@ func (all_games *GamesType) spi() map[string]*TeamRating {
     }
     if (good_iterations > 10) {
       log.Print(i)
-      log.Printf("%d: %f", largest_k, error)
-      log.Printf("%d %.6f %.6f", largest_k, off_rating[largest_k], def_rating[largest_k])
+      log.Printf("%f: %f", largest_k, error)
+      log.Printf("%f %.6f %.6f", largest_k, off_rating[largest_k], def_rating[largest_k])
       break
     }
     if (i % 10 == 0 || i % 10 == 1) {
       log.Print(i)
-      log.Printf("%d: %f", largest_k, error)
-      log.Printf("%d %.6f %.6f %.6f", largest_k, off_rating[largest_k], def_rating[largest_k], games[largest_k])
+      log.Printf("%f: %f", largest_k, error)
+      log.Printf("%f %.6f %.6f %.6f", largest_k, off_rating[largest_k], def_rating[largest_k], games[largest_k])
     }
   }
   ratings := make(map[string]*TeamRating)
@@ -423,7 +422,7 @@ func (all_games *GamesType) spi() map[string]*TeamRating {
 //    def_rating[k] = (def_rating[k] * games[k] + 5*AVG_BASE) / (games[k] + 5)
 //  }
   for k, _ := range off_rating {
-    key := strconv.Itoa(k)
+    key := strconv.FormatFloat(k, 'f', -1, 64)
     ratings[key] = new(TeamRating)
     ratings[key].Offense = off_rating[k]
     ratings[key].Defense = def_rating[k]
