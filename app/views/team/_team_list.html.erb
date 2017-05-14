@@ -21,7 +21,7 @@
       </td>
       <% if can? :manage, team %>
         <td><%= link_to _('Edit'), :action => 'edit', :id => team %></td>
-        <td><%= link_to _('Destroy'), { :action => 'destroy', :id => team }, :confirm => _('Are you sure?'), :method => :post %></td>
+        <td><%= link_to _('Destroy'), { :action => 'destroy', :id => team }, data: { confirm: _('Are you sure?') }, :method => :post %></td>
       <% end %>
     </tr>
   <% end %>
