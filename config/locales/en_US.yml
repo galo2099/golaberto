@@ -204,6 +204,12 @@ en_US:
     errors:
       <<: *errors
   activerecord:
+    attributes:
+      game:
+        home_field:
+          left: left
+          neutral: neutral
+          right: right
     errors:
       <<: *errors
 

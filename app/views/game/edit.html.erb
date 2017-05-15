@@ -233,8 +233,15 @@ function receiveDrop(drag, drop) {
         </div>
       </td>
     </tr>
+    <tr>
+      <td style="width: 15%"><%= g.label :home_field %>:</td>
+      <td><%= g.select :home_field, Game.i18n_home_fields %></td>
+    </tr>
+    <tr>
+      <td><label for="game_played"><%= s_("GameEdit|Played") %>:</label></td>
+      <td><%= check_box :game, :played %></td>
+    </tr>
   </table>
-  <label for="game_played"><%= s_("GameEdit|Played") %>:</label> <%= check_box :game, :played %><br/>
   <%= submit_tag _("Update") %>
 <% end %>
 

@@ -95,6 +95,14 @@ module ApplicationHelper
         else
           ret << sprintf(_("Changed %s: %s -> %s<br>"), h(name), h(value[0].in_time_zone(cookie_timezone)), h(value[1].in_time_zone(cookie_timezone)))
         end
+      when :home_field
+        if value[0].nil?
+          ret << sprintf(_("Added %s: %s<br>"), h(name), h(I18n.t("activerecord.attributes.game.home_field.#{value[1]}")))
+        elsif value[1].nil?
+          ret << sprintf(_("Removed %s: %s<br>"), h(name), h(I18n.t("activerecord.attributes.game.home_field.#{value[0]}")))
+        else
+          ret << sprintf(_("Changed %s: %s -> %s<br>"), h(name), h(I18n.t("activerecord.attributes.game.home_field.#{value[0]}")), h(I18n.t("activerecord.attributes.game.home_field.#{value[1]}")))
+        end
       else
         if value[0].nil?
           ret << sprintf(_("Added %s: %s<br>"), h(name), h(value[1]))

@@ -206,6 +206,12 @@ pt_BR:
     errors:
       <<: *errors
   activerecord:
+    attributes:
+      game:
+        home_field:
+          left: esquerda
+          neutral: neutro
+          right: direita
     errors:
       <<: *errors
 

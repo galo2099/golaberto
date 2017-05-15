@@ -15,8 +15,8 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
 
-msgid "%d%% done."
-msgstr "%d%% pronto."
+msgid "wins"
+msgstr "vitórias"
 
 msgid "%s - %d points<br>%s %d x %d %s"
 msgstr "%s - %d pontos<br>%s %d x %d %s"
@@ -618,6 +618,10 @@ msgstr "Horário"
 # app/models/game.rb:-
 msgid "Game|Home aet"
 msgstr "Prorrogação casa"
+
+# app/models/game.rb:-
+msgid "Game|Home field"
+msgstr "Mando de campo"
 
 # app/models/game.rb:-
 msgid "Game|Home pen"
@@ -1601,16 +1605,8 @@ msgid "TeamGroup|Comment"
 msgstr "Comentário"
 
 # app/models/team_group.rb:-
-msgid "TeamGroup|First odds"
-msgstr "Chance primeiro"
-
-# app/models/team_group.rb:-
-msgid "TeamGroup|Promoted odds"
-msgstr "Chances de classificação"
-
-# app/models/team_group.rb:-
-msgid "TeamGroup|Relegated odds"
-msgstr "Chances de rebaixamento"
+msgid "TeamGroup|Odds"
+msgstr "Chances"
 
 msgid "Teams"
 msgstr "Equipes"
@@ -1622,6 +1618,9 @@ msgstr "Cidade"
 # app/models/team.rb:-
 msgid "Team|Country"
 msgstr "País"
+
+msgid "Team|Def rating"
+msgstr "Nota da defesa"
 
 # app/models/team.rb:-
 msgid "Team|Foundation"
@@ -1653,6 +1652,12 @@ msgstr "Logo atualizado"
 # app/models/team.rb:-
 msgid "Team|Name"
 msgstr "Nome"
+
+msgid "Team|Off rating"
+msgstr "Nota do ataque"
+
+msgid "Team|Rating"
+msgstr "Nota"
 
 msgid "Technorati user name"
 msgstr "usuário Technorati"
@@ -1965,5 +1970,5 @@ msgstr "gols de pênalti"
 msgid "points"
 msgstr "pontos"
 
-msgid "wins"
-msgstr "vitórias"
+msgid "%d%% done."
+msgstr "%d%% pronto."

@@ -48,6 +48,13 @@ GIT
       activesupport
 
 GIT
+  remote: https://github.com/galo2099/acts_as_versioned.git
+  revision: e9ee2346799ef900a97b97070e7026dbeb65b1da
+  specs:
+    acts_as_versioned (0.6.0)
+      activerecord (>= 3.0.0)
+
+GIT
   remote: https://github.com/galo2099/acts_as_versioned_association
   revision: 8c74ad20db472b1fad7826a63e53d444264595ee
   specs:
@@ -71,13 +78,6 @@ GIT
   revision: 7671bdf58ae6a0f268b511a35acea2759756cd66
   specs:
     jquery_datepicker (0.3.2)
-
-GIT
-  remote: https://github.com/luismreis/acts_as_versioned.git
-  revision: b26b8f8836836f2ec36d8c0525b4fae508fb0352
-  specs:
-    acts_as_versioned (0.6.0)
-      activerecord (>= 3.0.0)
 
 GIT
   remote: https://github.com/ndbradley730/open_id_authentication
@@ -361,3 +361,6 @@ DEPENDENCIES
   userstamp!
   will_paginate
   wirble
+
+BUNDLED WITH
+   1.14.6

@@ -2,7 +2,6 @@ require 'diff/lcs.rb'
 require 'active_record/diff'
 require 'poisson'
 class Game < ActiveRecord::Base
-
   AVG_BASE = 1.3350257653834494
   HOME_ADV = 0.16133676871779334
 
@@ -79,13 +78,23 @@ class Game < ActiveRecord::Base
       base.scope :team_games, lambda { |t|
         base.where("(home_id = ? or away_id = ?)", t, t)
       }
-
     end
   end
 
   # This helper methods are also shared between the main class and the
   # versioned class
   module GameMethods
+    def self.included(base)
+      base.enum home_field: [ :left, :neutral, :right ]
+      base.class_eval do
+        def self.i18n_home_fields
+          hash = {}
+          home_fields.keys.each { |key| hash[I18n.t("activerecord.attributes.game.home_field.#{key}")] = key }
+          hash
+        end
+      end
+    end
+
     def home_goals
       goals.where('(team_id = ? and own_goal = 0) or (team_id = ? and own_goal = 1)', home_id, away_id)
     end
@@ -133,12 +142,23 @@ class Game < ActiveRecord::Base
       goal_distribution(away_id, :away_id, :home_score)
     end
 
+    def left_advantage
+      case home_field
+      when "left"
+        HOME_ADV
+      when "neutral"
+        0.0
+      when "right"
+        -HOME_ADV
+      end
+    end
+
     def home_power
-      [0.01, (home.off_rating.to_f - AVG_BASE)/(AVG_BASE*0.424+0.548)*([0.25, (away.def_rating.to_f+HOME_ADV)*0.424+0.548].max)+(away.def_rating.to_f+HOME_ADV)].max
+      [0.01, (home.off_rating.to_f - AVG_BASE)/(AVG_BASE*0.424+0.548)*([0.25, (away.def_rating.to_f+left_advantage)*0.424+0.548].max)+(away.def_rating.to_f+left_advantage)].max
     end
 
     def away_power
-      [0.01, (away.off_rating.to_f - AVG_BASE)/(AVG_BASE*0.424+0.548)*([0.25, (home.def_rating.to_f-HOME_ADV)*0.424+0.548].max)+(home.def_rating.to_f-HOME_ADV)].max
+      [0.01, (away.off_rating.to_f - AVG_BASE)/(AVG_BASE*0.424+0.548)*([0.25, (home.def_rating.to_f-left_advantage)*0.424+0.548].max)+(home.def_rating.to_f-left_advantage)].max
     end
 
     def odds
@@ -187,7 +207,7 @@ class Game < ActiveRecord::Base
                     :if_changed => [ :round, :attendance, :date, :has_time,
                                      :stadium_id, :referee_id, :home_score,
                                      :away_score, :home_pen, :away_pen,
-                                     :home_aet, :away_aet, :played ]
+                                     :home_aet, :away_aet, :played, :home_field ]
 
   # The versioned association is not shared because it is added automatically
   # to the versioned class by the version_association method
@@ -203,9 +223,7 @@ class Game < ActiveRecord::Base
   def find_n_previous_games_by_team_versus_team(n)
     Game.limit(n).includes(:phase => :championship).order("date desc").
         where("((home_id = ? and away_id = ?) or (home_id = ? and away_id = ?)) and played = ? and championships.category_id = ? and date < ?",
-              self.home, self.away, self.away, self.home, true, self.phase.championship.category, self.date).
-	references(:championship)
-
+              self.home, self.away, self.away, self.home, true, self.phase.championship.category, self.date).references(:championship)
   end
 
   # Fields information, just FYI.

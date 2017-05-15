@@ -19,7 +19,8 @@ class TeamController < ApplicationController
           (g.home_score + g.home_aet.to_i).to_f / if g.home_aet.nil? then 1.0 else 4.0/3.0 end,
           (g.away_score + g.away_aet.to_i).to_f / if g.home_aet.nil? then 1.0 else 4.0/3.0 end,
           g.date.to_i,
-          if g.home_aet.nil? then 1.0 else 4.0/3.0 end ]
+          if g.home_aet.nil? then 1.0 else 4.0/3.0 end,
+          g.left_advantage ]
     }, ratings: Hash[teams.map{|t| [t.id, [t.off_rating, t.def_rating]]}]}.to_json
     response = Net::HTTP.new("localhost", 6577).start {|http| http.read_timeout = 300; http.request(req) }
     sql = "INSERT INTO teams (id,off_rating,def_rating,rating,created_at,updated_at) VALUES ";

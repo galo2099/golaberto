@@ -254,6 +254,6 @@ class GameController < ApplicationController
     params.require("game").permit(
 	    "home_id", "away_id", "home_score", "away_score", "home_aet", "away_aet", "home_pen",
 	    "away_pen", "round", "attendance", "date", "time", "referee_id",
-	    "stadium_id", "played", "hour", "minute")
+	    "stadium_id", "played", "hour", "minute", "home_field")
   end
 end

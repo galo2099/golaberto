@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20170514221749) do
+ActiveRecord::Schema.define(version: 20170515041130) do
 
   create_table "categories", force: :cascade do |t|
     t.string "name", limit: 255
@@ -85,6 +85,7 @@ ActiveRecord::Schema.define(version: 20170514221749) do
     t.integer  "away_aet",   limit: 4
     t.datetime "date",                                 null: false
     t.boolean  "has_time",             default: false
+    t.integer  "home_field", limit: 4, default: 0,     null: false
   end
 
   add_index "game_versions", ["game_id"], name: "index_game_versions_on_game_id", using: :btree
@@ -110,6 +111,7 @@ ActiveRecord::Schema.define(version: 20170514221749) do
     t.integer  "away_aet",   limit: 4
     t.datetime "date",                                 null: false
     t.boolean  "has_time",             default: false
+    t.integer  "home_field", limit: 4, default: 0,     null: false
   end
 
   add_index "games", ["away_id"], name: "index_games_on_away_id", using: :btree

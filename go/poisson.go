@@ -352,7 +352,6 @@ func squash_date(timestamp float64, now float64) float64 {
 
 func (all_games *GamesType) spi() map[string]*TeamRating {
   AVG_BASE := 1.3350257653834494
-  HOME_ADV := 0.16133676871779334
   off_rating := make(map[float64]float64)
   def_rating := make(map[float64]float64)
   NUM_ITER := 100000
@@ -382,10 +381,11 @@ func (all_games *GamesType) spi() map[string]*TeamRating {
       adjusted_goals_allowed[k] += AVG_BASE
     }
     for i, g := range all_games.Games {
-      adjusted_goals_scored[g[0]] += weights[i] * ((float64(g[2]) - (def_rating[g[1]]+HOME_ADV))/( math.Max(0.25, (def_rating[g[1]]+HOME_ADV)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
-      adjusted_goals_allowed[g[0]] += weights[i] * ((float64(g[3]) - (off_rating[g[1]]-HOME_ADV))/( math.Max(0.25, (off_rating[g[1]]-HOME_ADV)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
-      adjusted_goals_scored[g[1]] += weights[i] * ((float64(g[3]) - (def_rating[g[0]]-HOME_ADV))/( math.Max(0.25, (def_rating[g[0]]-HOME_ADV)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
-      adjusted_goals_allowed[g[1]] += weights[i] * ((float64(g[2]) - (off_rating[g[0]]+HOME_ADV))/( math.Max(0.25, (off_rating[g[0]]+HOME_ADV)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
+			home_adv := g[6]
+      adjusted_goals_scored[g[0]] += weights[i] * ((float64(g[2]) - (def_rating[g[1]]+home_adv))/( math.Max(0.25, (def_rating[g[1]]+home_adv)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
+      adjusted_goals_allowed[g[0]] += weights[i] * ((float64(g[3]) - (off_rating[g[1]]-home_adv))/( math.Max(0.25, (off_rating[g[1]]-home_adv)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
+      adjusted_goals_scored[g[1]] += weights[i] * ((float64(g[3]) - (def_rating[g[0]]-home_adv))/( math.Max(0.25, (def_rating[g[0]]-home_adv)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
+      adjusted_goals_allowed[g[1]] += weights[i] * ((float64(g[2]) - (off_rating[g[0]]+home_adv))/( math.Max(0.25, (off_rating[g[0]]+home_adv)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
     }
     error := 0.0
     largest_k := 0.0

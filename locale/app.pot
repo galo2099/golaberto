@@ -8,8 +8,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: app 1.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2016-10-18 12:45-0700\n"
-"PO-Revision-Date: 2016-10-18 12:45-0700\n"
+"POT-Creation-Date: 2017-05-14 22:44-0700\n"
+"PO-Revision-Date: 2017-05-14 22:44-0700\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
@@ -592,6 +592,9 @@ msgid "Game|Has time"
 msgstr ""
 
 msgid "Game|Home aet"
+msgstr ""
+
+msgid "Game|Home field"
 msgstr ""
 
 msgid "Game|Home pen"
@@ -1497,13 +1500,7 @@ msgstr ""
 msgid "TeamGroup|Comment"
 msgstr ""
 
-msgid "TeamGroup|First odds"
-msgstr ""
-
-msgid "TeamGroup|Promoted odds"
-msgstr ""
-
-msgid "TeamGroup|Relegated odds"
+msgid "TeamGroup|Odds"
 msgstr ""
 
 msgid "Teams"
@@ -1513,6 +1510,9 @@ msgid "Team|City"
 msgstr ""
 
 msgid "Team|Country"
+msgstr ""
+
+msgid "Team|Def rating"
 msgstr ""
 
 msgid "Team|Foundation"
@@ -1537,6 +1537,12 @@ msgid "Team|Logo updated at"
 msgstr ""
 
 msgid "Team|Name"
+msgstr ""
+
+msgid "Team|Off rating"
+msgstr ""
+
+msgid "Team|Rating"
 msgstr ""
 
 msgid "Technorati user name"
