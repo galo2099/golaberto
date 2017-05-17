@@ -61,4 +61,4 @@
 #   }
 
 set :stage, :production
-server '104.198.9.122', user: 'robsonbraga', roles: %w{web app}
+server 'golaberto.com', user: 'robsonbraga', roles: %w{web app}
