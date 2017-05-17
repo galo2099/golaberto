@@ -116,11 +116,7 @@ class Team < ActiveRecord::Base
   def calculate_rating
     self.rating = nil
     if off_rating && def_rating
-      ten_array = (0...20).to_a
-      home_power = Poisson.new([0.01, (off_rating - AVG_BASE)/(AVG_BASE*0.424+0.548)*([0.25, (AVG_BASE)*0.424+0.548].max)+(AVG_BASE)].max)
-      away_power = Poisson.new([0.01, def_rating].max)
-      probs = ten_array.map{|i| ten_array.map{|j| home_power.p(i) * away_power.p(j) }}
-      self.rating = (3 * ten_array.map{|i| (0...i).to_a.map{|j| probs[i][j]}}.flatten.sum + ten_array.map{|i| probs[i][i]}.sum) / 3 * 100
+      self.rating = calculate_rating2(off_rating, def_rating)
     end
   end
 end
