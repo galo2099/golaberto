@@ -23,6 +23,7 @@ end %><br/>
     :update => { :success => :team_stadium_id },
     :failure => "alert('#{ _('Could not insert stadium') }')" %>
 </div>
+<%= f.label :team_type %>: <%= f.select :team_type, Team.i18n_team_types %><br/>
 <%= f.label :logo, _("Logo") %>: <%= f.file_field :logo %><div id="preview" class="thumb-upload-input"></div>
 <%= f.label :filter_image_background, _("Filter image background?") %> <%= f.check_box :filter_image_background %><br/>
 

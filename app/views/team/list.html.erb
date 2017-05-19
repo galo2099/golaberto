@@ -3,7 +3,8 @@
 <%= form_tag({ :action => "list", :id => "" }, :method => "GET",
             :style => "display: inline") do %>
   <%= text_field_tag("id", @id, :size => 20) %>
-  <%= select_tag :country, options_for_select(@country_list, @country) %>
+
+  <%= select_tag :country, options_for_select(@country_list, @country) if @team_type == "club" %>
   <%= submit_tag(_("Search"), :name => nil) %>
 <% end %>
 <div id="table">
@@ -11,6 +12,9 @@
 </div>
 
 <% content_for :sidebar do %>
+  <%= link_to_unless @team_type == "club", _("Clubs"), team_type: "club" %><br/>
+  <%= link_to_unless @team_type == "national", _("National Teams"), team_type: "national" %><br/>
+  <br>
   <% if can? :create, Team %>
     <%= link_to _('New team'), :action => 'new' %><br>
     <%= link_to _('Update rating'), :action => 'update_rating' %>

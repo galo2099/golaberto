@@ -339,6 +339,9 @@ msgstr "usuário ClaimID"
 msgid "Close"
 msgstr "Fechar"
 
+msgid "Clubs"
+msgstr "Clubes"
+
 msgid "Cocos (Keeling) Islands"
 msgstr "Ilhas Cocos (Keeling)"
 
@@ -1030,6 +1033,9 @@ msgstr "Nome"
 msgid "Namibia"
 msgstr "Namíbia"
 
+msgid "National Teams"
+msgstr "Seleções"
+
 msgid "Nauru"
 msgstr "Nauru"
 
@@ -1658,6 +1664,9 @@ msgstr "Nota do ataque"
 
 msgid "Team|Rating"
 msgstr "Nota"
+
+msgid "Team|Team type"
+msgstr "Tipo de time"
 
 msgid "Technorati user name"
 msgstr "usuário Technorati"

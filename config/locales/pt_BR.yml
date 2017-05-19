@@ -212,6 +212,10 @@ pt_BR:
           left: esquerda
           neutral: neutro
           right: direita
+      team:
+        team_type:
+          club: clube
+          national: seleção
     errors:
       <<: *errors
 

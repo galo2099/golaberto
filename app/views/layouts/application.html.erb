@@ -72,7 +72,7 @@ if (!getCookie("timezone")) {
     <div class='navigation'>
       <%= link_to _("Home"), :controller => :home %> |
       <%= link_to _("Championships"), :controller => :championship, :action => :list %> |
-      <%= link_to _("Teams"), :controller => :team, :action => :list %> |
+      <%= link_to _("Teams"), :controller => :team, :action => :list, :team_type => :club %> |
       <%= link_to _("Games"), :controller => :game, :action => :list, :type => :scheduled %> |
       <%= link_to _("Players"), :controller => :player, :action => :list %> |
       <%= link_to _("Stadiums"), :controller => :stadium, :action => :list %> |

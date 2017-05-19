@@ -74,11 +74,15 @@ class TeamController < ApplicationController
   def list
     @id = params[:id]
     @country = params[:country]
-    conditions = ["name LIKE ?", "%#{@id}%"] unless @id.nil?
+    @team_type = params[:team_type] || "club"
+    teams = Team.where(team_type: Team.team_types[@team_type])
+    if @id
+      teams = teams.where(["name LIKE ?", "%#{@id}%"])
+    end
 
     # Hash from country to number of teams
     countries_with_teams = { @country => 0 }
-    countries_with_teams.merge!(Team.where(conditions).group(:country).size)
+    countries_with_teams.merge!(teams.group(:country).size)
 
     countries_found = []
     countries_not_found = []
@@ -91,9 +95,9 @@ class TeamController < ApplicationController
       end
     end
 
-    @country_list = [[_("All") + " (#{Team.where(conditions).size})", ""]] + countries_found + countries_not_found
+    @country_list = [[_("All") + " (#{teams.size})", ""]] + countries_found + countries_not_found
 
-    @teams = Team.order(rating: :desc, name: :asc).where(conditions).page(params[:page])
+    @teams = teams.order(rating: :desc, name: :asc).page(params[:page])
     @teams = @teams.where(country: @country) unless @country.blank?
     if @teams.size == 1
       redirect_to :action => :show, :id => @teams.first
@@ -134,6 +138,6 @@ class TeamController < ApplicationController
 
   private
   def team_params
-    params.require(:team).permit(:name, :full_name, :city, :foundation, :country, :stadium_id, :filter_image_background, :logo)
+    params.require(:team).permit(:name, :full_name, :city, :foundation, :country, :stadium_id, :filter_image_background, :logo, :team_type)
   end
 end

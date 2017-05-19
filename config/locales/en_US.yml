@@ -210,6 +210,10 @@ en_US:
           left: left
           neutral: neutral
           right: right
+      team:
+        team_type:
+          club: club
+          national: national
     errors:
       <<: *errors
 

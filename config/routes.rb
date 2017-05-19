@@ -79,6 +79,7 @@ Golaberto::Application.routes.draw do
   match 'game/list/played(/:type)(/cat/:category)(/p/:page)' => 'game#list', :constraints => { :page => /\d+/ }, :defaults => { :type => :played, :page => 1, :category => 1 }, via: :get
 
   match 'team/games/:type/:id(/cat/:category)(/p/:page)' => 'team#games', :constraints => { :page => /\d+/ }, :defaults => { :category => 1, :page => 1 }, via: :get
+  match 'team/list/:team_type(/p/:page)' => 'team#list', :constraints => { :page => /\d+/ }, :defaults => { :team_type => "club", :page => 1 }, via: :get
 
   # Install the default route as the lowest priority.
   match ':controller(/:action(/:id))(.:format)', via: [:get, :post, :patch]

@@ -8,8 +8,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: app 1.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-14 22:44-0700\n"
-"PO-Revision-Date: 2017-05-14 22:44-0700\n"
+"POT-Creation-Date: 2017-05-19 00:30-0700\n"
+"PO-Revision-Date: 2017-05-19 00:30-0700\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
@@ -325,6 +325,9 @@ msgid "ClaimID user name"
 msgstr ""
 
 msgid "Close"
+msgstr ""
+
+msgid "Clubs"
 msgstr ""
 
 msgid "Cocos (Keeling) Islands"
@@ -971,6 +974,9 @@ msgstr ""
 msgid "Namibia"
 msgstr ""
 
+msgid "National Teams"
+msgstr ""
+
 msgid "Nauru"
 msgstr ""
 
@@ -1543,6 +1549,9 @@ msgid "Team|Off rating"
 msgstr ""
 
 msgid "Team|Rating"
+msgstr ""
+
+msgid "Team|Team type"
 msgstr ""
 
 msgid "Technorati user name"

@@ -1,5 +1,6 @@
 require 'poisson'
 class Team < ActiveRecord::Base
+  enum team_type: [ :club, :national ]
 
   AVG_BASE = 1.3350257653834494
 
@@ -40,6 +41,12 @@ class Team < ActiveRecord::Base
   # Field: name , SQL Definition:varchar(255)
   # Field: country , SQL Definition:varchar(255)
   # Field: logo , SQL Definition:varchar(255)
+
+  def self.i18n_team_types
+    hash = {}
+    team_types.keys.each { |key| hash[I18n.t("activerecord.attributes.team.team_type.#{key}")] = key }
+    hash
+  end
 
   def filter_image_background?
     return filter_image_background == "1"
@@ -116,7 +123,7 @@ class Team < ActiveRecord::Base
   def calculate_rating
     self.rating = nil
     if off_rating && def_rating
-      self.rating = calculate_rating2(off_rating, def_rating)
+      self.rating = self.class.calculate_rating2(off_rating, def_rating)
     end
   end
 end
