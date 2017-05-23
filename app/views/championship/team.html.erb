@@ -18,6 +18,88 @@
   <%= link_to add_wbr_to_string(@team.name), :controller => :team, :action => :show, :id => @team %>
 </h2>
 
+<div id="odds" style="width: 550px;
+          height: 200px;
+          font-size: 14px;
+          line-height: 1.2em;">
+</div>
+
+<script type="text/javascript">
+  jQuery(function() {
+
+		jQuery("<div id='odds_tooltip'></div>").css({
+			position: "absolute",
+			display: "none",
+			border: "1px solid #fdd",
+			padding: "2px",
+			"background-color": "#fee",
+      opacity: 0.80,
+      zIndex: 0,
+		}).appendTo("body");
+
+    var graphDiv = jQuery("#odds");
+    var options = {
+      series: {
+        bars: {
+          show: true,
+          barWidth: 0.8,
+          align: "center",
+        },
+      },
+      xaxis: {
+        ticks: <%= (1..@groups[0].team_groups.size).to_a.map{|x|[x, x]}.to_json %>,
+      },
+      grid: {
+        hoverable: true,
+        clickable: true,
+      },
+      yaxis: { max: 100, min: 0 },
+    };
+    var plot = graphDiv.plot([ {
+      data: <%= (@groups[0].team_groups.select{|t|t.team_id == @team.id}.first.odds or []).map.with_index.map{|item,idx|[idx+1, item]} %>,
+    } ], options).data("plot");
+
+    graphDiv.bind("plothover", function (event, pos, item) {
+      var x = Math.round(pos.x);
+      if (x > 0 && x <= <%= @groups[0].team_groups.size %> &&
+          pos.y > 0 && pos.y < 100) {
+        var names = <%== (1..@groups[0].team_groups.size).map{|i|i.ordinalize}.to_json %>;
+        var value = plot.getData()[0].data[x-1][1].toFixed(2);
+        jQuery("#odds_tooltip").html(names[x-1] + ": " + value + "%")
+          .css({top: pos.pageY+5, left: pos.pageX+5})
+          .fadeIn(200);
+      } else {
+        jQuery("#odds_tooltip").hide();
+      }
+    });
+
+    var markings = <%== (1..@groups[0].team_groups.size).to_a.map{|x|nil}.to_json %>;
+    graphDiv.bind("plotclick", function (event, pos, item) {
+      var x = Math.round(pos.x);
+      if (x > 0 && x <= <%= @groups[0].team_groups.size %> &&
+          pos.y > 0 && pos.y < 100) {
+        var options = plot.getOptions();
+        if (markings[x-1] == null) {
+          markings[x-1] = { xaxis: { from: x - 0.5, to: x + 0.5 }, color: "#90EE90" };
+        } else {
+          markings[x-1] = null;
+        }
+        var total = 0;
+        options.grid.markings = jQuery.grep(markings, function(n, i){
+          if (n != null) {
+            total += plot.getData()[0].data[i][1];
+            return true;
+          }
+          return false;
+        });
+        console.log(total);
+        plot.draw();
+      }
+    });
+  });
+
+</script>
+
 <% if @played_games.size > 0 %>
 <h3><%= s_("ChampionshipTeam|Played") %></h3>
 <div class="game_score">
@@ -261,7 +343,7 @@ EOF
             .css({top: pos.pageY+5, left: pos.pageX+5})
             .fadeIn(200);
       } else {
-      jQuery('#placeholder<%=idx%>').css('cursor', 'default');
+        jQuery('#placeholder<%=idx%>').css('cursor', 'default');
         jQuery("#tooltip").hide();
       }
     });
