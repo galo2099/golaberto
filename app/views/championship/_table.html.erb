@@ -56,7 +56,7 @@
     <% if not omit_columns[:odds] then %>
       <%= content_tag :th, "", class: "odds_spacing" %>
       <%= content_tag :th, class: "odds", style: "text-align: center" do -%>
-        <select id="oddsSelect_<%= group.id %>">
+        <select id="oddsSelect_<%= group.id %>" tabindex=1>
         <% group.zones.each do |zone| %>
           <option value="<%= zone["name"] %>" data-title="<%= sprintf(_("odds of %s"), zone["name"])%>" data-color="<%= zone["color"]%>">▣</option>
         <% end %>
@@ -88,6 +88,21 @@
         </style>
         <script type="text/javascript">
           jQuery.widget("custom.iconselectmenu", jQuery.ui.selectmenu, {
+						_create: function() {
+							this._super();
+							this._setTabIndex();
+						},
+						_setTabIndex: function() {
+							this.button.attr( "tabindex",
+									this.options.disabled ? -1 :
+									this.element.attr( "tabindex" ) || 0 );
+						},
+						_setOption: function( key, value ) {
+							this._super( key, value );
+							if ( key === "disabled" ) {
+								this._setTabIndex();
+							}
+						},
             _renderButtonItem: function(item) {
               var buttonItem = jQuery("<span>");
               this._setText(buttonItem, item.label);
