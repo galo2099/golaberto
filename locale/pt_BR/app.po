@@ -18,6 +18,9 @@ msgstr ""
 msgid "wins"
 msgstr "vitórias"
 
+msgid "%d%% done."
+msgstr "%d%% pronto."
+
 msgid "%s - %d points<br>%s %d x %d %s"
 msgstr "%s - %d pontos<br>%s %d x %d %s"
 
@@ -48,9 +51,6 @@ msgstr "(gol contra)"
 
 msgid "(penalty)"
 msgstr "(pênalti)"
-
-msgid "1%"
-msgstr "1%"
 
 msgid "AOL screen name"
 msgstr "usuário AOL"
@@ -392,6 +392,9 @@ msgstr "País"
 
 msgid "Create"
 msgstr "Criar"
+
+msgid "Create a new zone"
+msgstr "Criar uma nova zona"
 
 msgid "Croatia"
 msgstr "Croácia"
@@ -1172,9 +1175,6 @@ msgstr "Contra"
 msgid "Own Goals"
 msgstr "Gols contra"
 
-msgid "P%"
-msgstr "C%"
-
 msgid "Pakistan"
 msgstr "Paquistão"
 
@@ -1337,9 +1337,6 @@ msgstr[1] "%d últimos jogos"
 msgid "Previous page"
 msgstr "Página anterior"
 
-msgid "Promoted"
-msgstr "Classificados"
-
 msgid "Pts"
 msgstr "Pts"
 
@@ -1348,9 +1345,6 @@ msgstr "Porto Rico"
 
 msgid "Qatar"
 msgstr "Qatar"
-
-msgid "R%"
-msgstr "R%"
 
 msgid "Rating"
 msgstr "Nota"
@@ -1383,9 +1377,6 @@ msgstr "Localidade"
 # app/models/referee.rb:-
 msgid "Referee|Name"
 msgstr "Nome"
-
-msgid "Relegated"
-msgstr "Rebaixados"
 
 msgid "Remove"
 msgstr "Remover"
@@ -1920,6 +1911,9 @@ msgstr "Zâmbia"
 msgid "Zimbabwe"
 msgstr "Zimbábue"
 
+msgid "Zones"
+msgstr "Zonas"
+
 msgid "aet goals"
 msgstr "gols na prorrogação"
 
@@ -1961,14 +1955,8 @@ msgstr "nome"
 msgid "never displayed, no spam, used for password recovery"
 msgstr "nunca mostrado, sem spam, usado para recuperar a senha"
 
-msgid "odds of finishing first"
-msgstr "chances de terminar em primeiro"
-
-msgid "odds of finishing in promotion zone"
-msgstr "chances de terminar na zona de classificação"
-
-msgid "odds of finishing in relegation zone"
-msgstr "chances de terminar na zona de rebaixamento"
+msgid "odds of %s"
+msgstr "chances de %s"
 
 msgid "only used to show your age"
 msgstr "só usado para mostrar sua idade"
@@ -1979,5 +1967,5 @@ msgstr "gols de pênalti"
 msgid "points"
 msgstr "pontos"
 
-msgid "%d%% done."
-msgstr "%d%% pronto."
+msgid "#"
+msgstr "#"

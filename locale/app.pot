@@ -8,8 +8,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: app 1.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-19 00:30-0700\n"
-"PO-Revision-Date: 2017-05-19 00:30-0700\n"
+"POT-Creation-Date: 2017-05-28 23:57-0700\n"
+"PO-Revision-Date: 2017-05-28 23:57-0700\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
@@ -17,6 +17,9 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+
+msgid "#"
+msgstr ""
 
 msgid "%d%% done."
 msgstr ""
@@ -49,9 +52,6 @@ msgid "(own_goal)"
 msgstr ""
 
 msgid "(penalty)"
-msgstr ""
-
-msgid "1%"
 msgstr ""
 
 msgid "AOL screen name"
@@ -379,6 +379,9 @@ msgid "Country"
 msgstr ""
 
 msgid "Create"
+msgstr ""
+
+msgid "Create a new zone"
 msgstr ""
 
 msgid "Croatia"
@@ -1108,9 +1111,6 @@ msgstr ""
 msgid "Own Goals"
 msgstr ""
 
-msgid "P%"
-msgstr ""
-
 msgid "Pakistan"
 msgstr ""
 
@@ -1251,9 +1251,6 @@ msgstr[1] ""
 msgid "Previous page"
 msgstr ""
 
-msgid "Promoted"
-msgstr ""
-
 msgid "Pts"
 msgstr ""
 
@@ -1261,9 +1258,6 @@ msgid "Puerto Rico"
 msgstr ""
 
 msgid "Qatar"
-msgstr ""
-
-msgid "R%"
 msgstr ""
 
 msgid "Rating"
@@ -1291,9 +1285,6 @@ msgid "Referee|Location"
 msgstr ""
 
 msgid "Referee|Name"
-msgstr ""
-
-msgid "Relegated"
 msgstr ""
 
 msgid "Remove"
@@ -1780,6 +1771,9 @@ msgstr ""
 msgid "Zimbabwe"
 msgstr ""
 
+msgid "Zones"
+msgstr ""
+
 msgid "aet goals"
 msgstr ""
 
@@ -1819,13 +1813,7 @@ msgstr ""
 msgid "never displayed, no spam, used for password recovery"
 msgstr ""
 
-msgid "odds of finishing first"
-msgstr ""
-
-msgid "odds of finishing in promotion zone"
-msgstr ""
-
-msgid "odds of finishing in relegation zone"
+msgid "odds of %s"
 msgstr ""
 
 msgid "only used to show your age"
