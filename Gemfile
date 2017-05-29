@@ -3,7 +3,7 @@ source 'http://rubygems.org'
 gem 'rails', '~> 4'
 
 # Bundle edge Rails instead:
-# gem 'rails', :git => 'git://github.com/rails/rails.git'
+# gem 'rails', :git => 'https://github.com/rails/rails.git'
 
 gem 'sqlite3'
 gem 'mysql2', '>=0.3.17'
@@ -13,7 +13,7 @@ group :development do
   gem 'capistrano', '~>3'
   gem 'capistrano-bundler'
   gem 'capistrano-rails'
-  gem 'capistrano-rbenv', github: "capistrano/rbenv"
+  gem 'capistrano-rbenv', git: "https://github.com/capistrano/rbenv"
 
   gem 'gettext'
   gem 'wirble'
@@ -44,20 +44,20 @@ gem "google_ajax_libraries_api", "0.0.0", git: "https://github.com/galo2099/goog
 gem "httparty"
 gem "hpricot"
 gem "jquery_datepicker", git: "https://github.com/galo2099/jquery_datepicker"
-gem "maxmind_geoip2", github: "envato/geoip2"
+gem "maxmind_geoip2", git: "https://github.com/envato/geoip2"
 gem "newrelic_rpm"
 gem "omniauth-google-oauth2", git: "https://github.com/zquestz/omniauth-google-oauth2"
 gem "open_id_authentication", git: "https://github.com/ndbradley730/open_id_authentication", branch: "controllermethods_name_error"
 gem "paperclip"
-gem 'prototype_legacy_helper', '0.0.0', :git => 'git://github.com/rails/prototype_legacy_helper.git'
-gem 'prototype-rails', github: 'rails/prototype-rails', branch: '4.2'
+gem 'prototype_legacy_helper', '0.0.0', git: 'https://github.com/rails/prototype_legacy_helper.git'
+gem 'prototype-rails', git: 'https://github.com/rails/prototype-rails', branch: '4.2'
 gem "quilt"
 gem "rmagick"
 gem "rufus-scheduler"
 gem "sprockets", "~>3"
 gem "sprockets-rails", "~>2"
 gem 'uglifier'
-gem 'userstamp', :git => 'git://github.com/kimkong/userstamp.git'
+gem 'userstamp', git: 'https://github.com/kimkong/userstamp.git'
 gem "will_paginate"
 
 # To use debugger
@@ -65,5 +65,5 @@ gem "will_paginate"
 
 gem 'open4'
 gem 'gelf'
-gem 'graylog2_exceptions', :git => 'git://github.com/wr0ngway/graylog2_exceptions.git'
+gem 'graylog2_exceptions', git: 'https://github.com/wr0ngway/graylog2_exceptions.git'
 gem 'graylog2-resque'

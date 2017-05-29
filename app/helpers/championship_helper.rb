@@ -7,7 +7,7 @@ module ChampionshipHelper
     attr_reader :points, :games, :wins, :draws, :losses,
                 :goals_for, :goals_against, :goals_aet, :goals_pen,
                 :goals_away, :last_game, :bias, :add_sub, :team_group,
-                :promoted_odds, :relegated_odds, :first_odds, :name, :home_games
+                :zones, :name, :home_games
 
     def initialize(team_group)
       @games = 0
@@ -27,9 +27,7 @@ module ChampionshipHelper
       @name = team_group.team.name
       @points += team_group.add_sub
       @bias = team_group.bias
-      @promoted_odds = team_group.promoted_odds
-      @relegated_odds = team_group.relegated_odds
-      @first_odds = team_group.first_odds
+      @odds = team_group.odds
       championship = team_group.group.phase.championship
       @points_for_win = championship.point_win
       @points_for_draw = championship.point_draw

@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20170519060926) do
+ActiveRecord::Schema.define(version: 20170523164617) do
 
   create_table "categories", force: :cascade do |t|
     t.string "name", limit: 255
@@ -134,13 +134,14 @@ ActiveRecord::Schema.define(version: 20170519060926) do
   add_index "goals", ["player_id", "game_id"], name: "player", using: :btree
 
   create_table "groups", force: :cascade do |t|
-    t.integer  "phase_id",      limit: 4,   default: 0,  null: false
-    t.string   "name",          limit: 255, default: "", null: false
-    t.integer  "promoted",      limit: 4,   default: 0,  null: false
-    t.integer  "relegated",     limit: 4,   default: 0,  null: false
+    t.integer  "phase_id",      limit: 4,     default: 0,  null: false
+    t.string   "name",          limit: 255,   default: "", null: false
+    t.integer  "promoted",      limit: 4,     default: 0,  null: false
+    t.integer  "relegated",     limit: 4,     default: 0,  null: false
     t.integer  "odds_progress", limit: 4
-    t.datetime "created_at",                             null: false
-    t.datetime "updated_at",                             null: false
+    t.datetime "created_at",                               null: false
+    t.datetime "updated_at",                               null: false
+    t.text     "zones",         limit: 65535
   end
 
   create_table "open_id_authentication_associations", force: :cascade do |t|

@@ -1,5 +1,6 @@
 require 'poisson'
 class Group < ActiveRecord::Base
+  serialize :zones, Array
   belongs_to :phase, :touch => true
   has_many :team_groups, :dependent => :delete_all
   has_many :teams, :through => :team_groups
@@ -19,10 +20,6 @@ class Group < ActiveRecord::Base
 
   NUM_ITER = 10000
 
-  def is_promoted?(pos)
-    return pos <= self.promoted
-  end
-
   def odds
     req = Net::HTTP::Post.new("/odds", {'Content-Type' =>'application/json'})
     req.body = as_json(
@@ -40,69 +37,6 @@ class Group < ActiveRecord::Base
     end
     self.odds_progress = 100
     self.save!
-  end
-
-  def odds_legacy
-    games_to_play = games.where(:played => false)
-    games_played = games.where(:played => true)
-    phase.sort.sub!("name", "rand")
-    poisson_hash = Hash.new{|h,k| h[k] = Poisson.new(k)}
-    odds = games_to_play.map do |g|
-      [ g.home_id,
-        g.away_id,
-        poisson_hash[Poisson.find_mean_from(g.home_for.zip(g.away_against).map{|a,b| a+b})],
-        poisson_hash[Poisson.find_mean_from(g.home_against.zip(g.away_for).map{|a,b| a+b})] ]
-    end
-    results = Hash.new{|h,k| h[k] = Hash.new{|hh,kk| hh[kk] = 0}}
-    fixed_stats = Hash.new
-    team_groups.each do |team_group|
-      fixed_stats[team_group.team_id] =
-          ChampionshipHelper::TeamCampaign.new(team_group)
-    end
-    games_played.each do |g|
-      fixed_stats[g.home_id].add_game g if fixed_stats[g.home_id]
-      fixed_stats[g.away_id].add_game g if fixed_stats[g.away_id]
-    end
-    NUM_ITER.times do |count|
-      if count % (NUM_ITER / 100) == 0
-        self.odds_progress = count / (NUM_ITER / 100)
-        self.save!
-      end
-      stats = Hash.new
-      fixed_stats.each do |k,v|
-        stats[k] = v.clone
-      end
-      odds.each do |o|
-        home_score = o[2].rand
-        away_score = o[3].rand
-        stats[o[0]].add_game_score_only o[0], o[1], home_score, away_score if stats[o[0]]
-        stats[o[1]].add_game_score_only o[0], o[1], home_score, away_score if stats[o[1]]
-      end
-      sort_teams(stats).each_with_index do |v,i|
-        if i == 0 then
-          results[:champ][v[0].team_id] += 1
-        end
-        if i < promoted then
-          results[:prom][v[0].team_id] += 1
-        end
-        if i >= stats.size - relegated then
-          results[:rele][v[0].team_id] += 1
-        end
-      end
-    end
-
-    team_groups.each do |t|
-      t.first_odds = results[:champ][t.team_id].to_f * 100 / NUM_ITER
-      t.promoted_odds = results[:prom][t.team_id].to_f * 100 / NUM_ITER
-      t.relegated_odds = results[:rele][t.team_id].to_f * 100 / NUM_ITER
-      t.save!
-    end
-    self.odds_progress = 100
-    self.save!
-  end
-
-  def is_relegated?(pos)
-    return pos > teams.size - self.relegated
   end
 
   def create_home_and_away_games

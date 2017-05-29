@@ -28,7 +28,7 @@
       h group.name
     end%></span></h3>
   </div>
-  <% if !(omit_columns[:OP] and omit_columns[:PP] and omit_columns[:RP]) then %>
+  <% if not omit_columns[:odds] then %>
     <div id="recalculate<%= group.id %>" style="position: absolute; bottom: 0px; right: 0px;" data-authorize="group">
       <% if group.odds_progress then %>
         <%= _("Odds being recalculated") %>. <%= sprintf _("%d%% done."), group.odds_progress %>
@@ -43,7 +43,7 @@
 
 <table class='class_table'>
   <tr class='table_head'>
-    <%= content_tag :th, _("Pos"), :class => "pos" unless omit_columns[:Pos] %>
+    <%= content_tag :th, _("#"), :class => "pos" unless omit_columns[:Pos] %>
     <%= content_tag :th, _("Name"), :class => "name" unless omit_columns[:Name] %>
     <%= content_tag :th, _("Pts") unless omit_columns[:Pts] %>
     <%= content_tag :th, _("G") unless omit_columns[:G] %>
@@ -53,9 +53,76 @@
     <%= content_tag :th, _("GF") unless omit_columns[:GF] %>
     <%= content_tag :th, _("GA") unless omit_columns[:GA] %>
     <%= content_tag :th, _("GD") unless omit_columns[:GD] %>
-    <%= content_tag :th, _("1%"), :title => _("odds of finishing first") unless omit_columns[:OP] || group.promoted == 1 %>
-    <%= content_tag :th, _("P%"), :title => _("odds of finishing in promotion zone") unless omit_columns[:PP] || group.promoted == 0 %>
-    <%= content_tag :th, _("R%"), :title => _("odds of finishing in relegation zone") unless omit_columns[:RP] || group.relegated == 0 %>
+    <% if not omit_columns[:odds] then %>
+      <%= content_tag :th, "", class: "odds_spacing" %>
+      <%= content_tag :th, class: "odds", style: "text-align: center" do -%>
+        <select id="oddsSelect_<%= group.id %>">
+        <% group.zones.each do |zone| %>
+          <option value="<%= zone["name"] %>" data-title="<%= sprintf(_("odds of %s"), zone["name"])%>" data-color="<%= zone["color"]%>">▣</option>
+        <% end %>
+        <% (1..group.teams.size).each do |i| %>
+          <option value="<%= i %>" title="<%= sprintf(_("odds of %s"), i)%>"><%=i%></option>
+        <% end %>
+        </select>
+        <style>
+        .ui-selectmenu-button.ui-button {
+          width: auto;
+        }
+        .ui-button:hover .ui-icon,
+        .ui-button:focus .ui-icon,
+        .ui-button .ui-icon {
+              background-image: url(https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/blitzer/images/ui-icons_004276_256x240.png);
+        }
+        .ui-selectmenu-button span.ui-selectmenu-text {
+          padding: 0 0 0 0.3em
+        }
+        .ui-selectmenu-button span.ui-icon {
+          right: 0.1em
+        }
+        .ui-button {
+          padding: 0
+        }
+        .ui-widget {
+          font-size: 1em
+        }
+        </style>
+        <script type="text/javascript">
+          jQuery.widget("custom.iconselectmenu", jQuery.ui.selectmenu, {
+            _renderButtonItem: function(item) {
+              var buttonItem = jQuery("<span>");
+              this._setText(buttonItem, item.label);
+              this._addClass(buttonItem, "ui-selectmenu-text");
+              buttonItem.css("color", item.element.attr("data-color"));
+              return buttonItem;
+            },
+            _renderItem: function(ul, item) {
+              var li = jQuery( "<li>" )
+                .css("color", item.element.attr("data-color"));
+              var wrapper = jQuery( "<div>", {
+                title: item.element.attr( "title" )
+              } );
+
+              if ( item.disabled ) {
+                this._addClass( li, null, "ui-state-disabled" );
+              }
+              this._setText( wrapper, item.label );
+              return li.append( wrapper ).appendTo( ul );
+            },
+          });
+          jQuery("#oddsSelect_<%=group.id%>").iconselectmenu({
+            width: false,
+            change: function(event, ui) {
+              jQuery("td[data-group-id=<%=group.id%>][data-zone-name]").each(function(index) {
+                jQuery(this).hide();
+              });
+              jQuery("td[data-group-id=<%=group.id%>][data-zone-name='" + ui.item.value + "']").each(function(index) {
+                jQuery(this).show();
+              });
+            }
+          });
+        </script>
+      <% end -%>
+    <% end %>
   </tr>
   <% pos = 0 %>
   <% notes = Array.new %>
@@ -71,8 +138,10 @@
     end
     pos += 1
     tr_class = 'table_line'
-    tr_class = 'relegated' if group.is_relegated?(pos)
-    tr_class = 'promoted' if group.is_promoted?(pos)
+    pos_style = ''
+    group.zones.each do |zone|
+      pos_style = "background-color: #{zone["color"]}" if zone["position"].try('include?', pos)
+    end
     country_logo = ""
     if show_country
       country_logo = image_tag(team.small_country_logo, :width => 15, :height => 15, :title => _(team.country))
@@ -104,8 +173,8 @@
       title_popup = "header=[] body=[#{header_body}] cssbody=[popupbody]"
     end
   %>
-  <tr class='<%= tr_class %>'>
-         <%= content_tag :td, pos, :class => "pos" unless omit_columns[:Pos] %>
+<tr class='<%= tr_class %>' style='<%= pos_style %>'>
+         <%= content_tag :td, pos, class: "pos" unless omit_columns[:Pos] %>
          <%= content_tag(:td,
                          (country_logo + " " + image_logo + " " +
                          link_to(add_wbr_to_string(team.name), :action => 'team',
@@ -123,9 +192,20 @@
          <%= content_tag :td, stats.goals_for unless omit_columns[:GF] %>
          <%= content_tag :td, stats.goals_against unless omit_columns[:GA] %>
          <%= content_tag :td, stats.goals_diff unless omit_columns[:GD] %>
-         <%= content_tag :td, stats.first_odds ? sprintf("%02.2f", stats.first_odds) : "", :class => "odds" unless omit_columns[:OP] || group.promoted == 1 %>
-         <%= content_tag :td, stats.promoted_odds ? sprintf("%02.2f", stats.promoted_odds) : "", :class => "odds" unless omit_columns[:PP] || group.promoted == 0 %>
-         <%= content_tag :td, stats.relegated_odds ? sprintf("%02.2f", stats.relegated_odds) : "", :class => "odds" unless omit_columns[:RP] || group.relegated == 0 %>
+         <% if not omit_columns[:odds] then %>
+           <%= content_tag :td, "", class: "odds_spacing" %>
+           <% first = true %>
+           <% group.zones.each do |zone| %>
+             <% odds = t[0].calculate_odds(zone["position"]) %>
+             <%= content_tag :td, odds ? sprintf("%02.2f", odds) : "", "data-group-id": group.id, "data-zone-name": zone["name"], class: "odds", style: "background-color: #{zone["color"]}; display: #{first ? "table-cell" : "none"}" %>
+             <% first = false %>
+           <% end %>
+           <% (1..group.teams.size).each do |i| %>
+             <% odds = if t[0].odds then t[0].odds[i-1] end %>
+             <%= content_tag :td, odds ? sprintf("%02.2f", odds) : "", "data-group-id": group.id, "data-zone-name": i, class: "odds", style: "background-color: lightgray; display: #{first ? "table-cell" : "none"}" %>
+             <% first = false %>
+           <% end %>
+         <% end %>
        </tr>
      <% end %>
    </table>

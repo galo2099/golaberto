@@ -1,4 +1,7 @@
 <%= javascript_include_jquery %>
+<%= javascript_include_tag "spectrum" %>
+<%= stylesheet_link_tag "spectrum" %>
+<%= stylesheet_link_tag("https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/overcast/jquery-ui.css") %>
 
 <% content_for :main_title do %>
   <%= @group.phase.championship.full_name %>
@@ -8,12 +11,164 @@
 
 <h2><%= @group.phase.name %></h2>
 
+<style>
+.zone {
+  background-color: #e3efca;
+  border: 2px solid #d3dfba;
+}
+.sp-preview {
+  height: 15px;
+  width: 15px;
+  margin-right: 2px;
+}
+.sp-replacer {
+  padding: 1px;
+}
+.sp-dd {
+  padding: 0;
+  height: 5px;
+  line-height: 11px;
+}
+.ui-sortable-handle {
+  cursor: hand;
+  cursor: -webkit-grab;
+  cursor: grab;
+}
+.ui-button {
+	padding: .1em .2em;
+  width: 40px;
+}
+.ui-widget {
+  font-size: 16px;
+}
+.ui-state-highlight {
+}
+</style>
+      <script>
+      function removeZone(zone) {
+        var zone = jQuery(zone);
+        zone.find("input[type='checkbox']").each(function(idx, c) {
+          if (c.checked) {
+            jQuery(c).click();
+          }
+        });
+        zone.remove();
+      }
+
+      var checked_positions = [];
+      function create_position_span(zone_id, i, positions) {
+        var position_span = jQuery("<span>");
+        var checked = jQuery.inArray(i, positions) != -1;
+        var disabled = checked_positions[i];;
+        if (checked) {
+          checked_positions[i] = checked;
+        }
+
+        var checkbox_id = 'group_zones_' + zone_id + '_position_' + i;
+        position_span.append('<label for="' + checkbox_id + '">' + i + '</label>');
+        position_span.append('<input type="checkbox" name="group[zones][][position][]" ' +
+            'id="' + checkbox_id + 
+            '" value="' + i + 
+            '" ' + (checked ? "checked" : "") +
+            ' ' + (disabled ? "disabled" : "") +
+            ' onclick="update_zone_checkbox(this)"' +
+            '>');
+        position_span.find("input").checkboxradio();
+
+        // Find any existing checkbox that needs to be disabled.
+        if (checked) {
+          jQuery("input[type='checkbox'][value='" + i + "'][id!='" + checkbox_id + "']").checkboxradio("option", "disabled", true);
+        }
+
+        return position_span;
+      }
+
+      function update_zone_checkbox(checkbox) {
+        checked_positions[checkbox.value] = checkbox.checked;
+        jQuery("input[type='checkbox'][value='" + checkbox.value + "'][id!='" + checkbox.id + "']").checkboxradio("option", "disabled", checkbox.checked);
+      }
+
+      var create_zone_next_id = 0;
+      function createZone(name, color, team_size, positions) {
+        var new_zone = jQuery('<li id="zone_' + create_zone_next_id + '" class="zone ui-sortable-handle"></li>');
+        new_zone.append('<label for="group_zones_' + create_zone_next_id + '_name"><%= _("Name") %>:</label>');
+        new_zone.append('<input type="text" name="group[zones][][name]" id="group_zones_' + create_zone_next_id + '_name" value="' + name + '">');
+        new_zone.append('<input type="text" name="group[zones][][color]" id="group_zones_' + create_zone_next_id + '_color" value="' + color + '">');
+        new_zone.append('<button onclick="removeZone(\'#zone_' + create_zone_next_id + '\'); return false;" style="float: right">X</button>');
+        var position_div = jQuery('<div class="zone_positions" data-zone-id=' + create_zone_next_id + '>');
+        for (var i = 0; i < team_size; ++i) {
+          position_div.append(create_position_span(create_zone_next_id, i+1, positions));
+        }
+        new_zone.append(position_div);
+
+        new_zone.find("#group_zones_" + create_zone_next_id + "_color").spectrum({
+          preferredFormat: "hex",
+          showPalette: true,
+          showButtons: false,
+          hideAfterPaletteSelect:true,
+          palette: [
+            ['#68E068', '#90EE90'],
+            ['#87CCE2', '#ADD8E6'],
+            ['#FF8397', '#FFB6C2'],
+          ]
+        });
+
+        new_zone.find('input').bind('keypress', function(e){
+          if(e.which == 13) { //Enter keycode
+            jQuery("#update").click();
+            return false;
+          } else {
+            return true;
+          }
+        });
+        jQuery("#zones").append(new_zone);
+        create_zone_next_id++;
+      }
+
+      function update_zone_positions(teams) {
+        jQuery(".zone_positions").each(function(i, z) {
+          var z = jQuery(z);
+          var length = z.children().length;
+          if (teams < length) {
+            for (var i = teams; i < length; ++i) {
+              var last = z.children().last();
+              last.find("input[type='checkbox']").each(function(idx, c) {
+                if (c.checked) {
+                  jQuery(c).click();
+                }
+              });
+              last.remove();
+            }
+          } else {
+            for (var i = length; i < teams; ++i) {
+              z.append(create_position_span(z[0].attributes["data-zone-id"].value, i+1, []));
+            }
+          }
+        });
+      }
+      </script>
+
 <%= form_for @group, :url => { :action => :update, :id => @group } do |f| %>
-  <table>
-    <tr><td><%= _("Name") %>:</td><td><%= f.text_field :name, tabindex: 1 %></td></tr>
-    <tr><td><%= _("Promoted") %>:</td><td><%= f.text_field :promoted, :size => 2, tabindex: 1 %></td></tr>
-    <tr><td><%= _("Relegated") %>:</td><td><%= f.text_field :relegated, :size => 2, tabindex: 1 %></td></tr>
-  </table>
+  <%= _("Name") %>: <%= f.text_field :name, tabindex: 1 %><br>
+	<%= _("Zones") %>:
+  <ul id="zones">
+	</ul>
+  <button onclick="createZone('', 'lightgreen', jQuery('#team_number')[0].value, []); return false;"><%= _("Create a new zone") %></button>
+  <script>
+jQuery("#zones").sortable({
+  placeholder: "ui-state-highlight",
+  forcePlaceholderSize: true,
+  start: function( event, ui ) {
+    ui.placeholder.
+      css("height", "" + ui.item.height() + "px").
+      css("width", ui.item.width());
+  },
+});
+jQuery("#zones").disableSelection();
+    <% @group.zones.each_with_index do |zone, idx| %>
+      createZone(<%== zone["name"].to_json %>, <%== zone["color"].to_json %>, <%= @group.team_groups.size %>, <%== zone["position"].to_json %>);
+     <% end %>
+  </script>
 
   <p>
   <%= _("Teams") %><br/>
@@ -23,6 +178,20 @@
     <%= render :partial => "team_list" %>
   </div>
 
-  <%= submit_tag _("Update"), tabindex: 6 %><br/>
+  <%= submit_tag _("Update"), tabindex: 6, id: "update" %><br/>
 <% end %>
+<script>
+jQuery("window").ready(function() {
+jQuery('input').bind('keypress', function(e){
+  if(e.which == 13) { //Enter keycode
+    jQuery("#update").click();
+    return false;
+  } else {
+    return true;
+  }
+});
+});
+</script>
+
 <%= javascript_tag "$('group_name').activate()" %>
+<%= observe_field "team_number", :function => "update_zone_positions(value);" %>

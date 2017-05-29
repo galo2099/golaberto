@@ -158,6 +158,7 @@ body {
 }
 .class_table
 {
+  table-layout: fixed;
   width: 100%;
 }
 .class_table .pos
@@ -166,8 +167,11 @@ body {
 }
 .class_table .name
 {
-  width: 40%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   text-align: left;
+  width: 45%;
 }
 span.game_odds {
   font-size: small;
@@ -176,6 +180,7 @@ span.game_odds {
 .class_table .odds
 {
   text-align: right;
+  width: 10%;
 }
 .class_table th
 {
@@ -183,8 +188,12 @@ span.game_odds {
 }
 .class_table td
 {
-  width: 5%;
   text-align: center;
+}
+.class_table .odds_spacing
+{
+  background-color: #e3efca;
+  width: 1px;
 }
 .class_table a:link, a:visited
 {
@@ -198,14 +207,6 @@ span.game_odds {
 {
 	background-color: white;
 }
-.promoted
-   {
-   background-color: lightgreen;
-   }
-.relegated
-   {
-   background-color: #FFA0A0;
-   }
 /**************** CLASSIFICACAO : END ************/
 
 .player_list {
@@ -567,7 +568,10 @@ img.user-logo {
 }
 
 .ui-datepicker { font-size: 0.8em !important; }
-.ui-datepicker-trigger { top: 5px !important; width: 2em !important; }
+.ui-datepicker-trigger {
+  width: 2em !important;
+  padding: 2px 0 0 0 !important;
+}
 
 .thumb-upload-input img {
   max-height: 100px;

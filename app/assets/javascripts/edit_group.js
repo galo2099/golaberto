@@ -1,18 +1,3 @@
-(function( $ ) {
-
-$( ".ui-autocomplete-input" ).live( "autocompleteopen", function() {
-  var autocomplete = $( this ).data( "autocomplete" ),
-      menu = autocomplete.menu;
-
-  if ( !autocomplete.options.selectFirst ) {
-    return;
-  }
-
-  menu.activate( $.Event({ type: "mouseenter" }), menu.element.children().first() );
-});
-
-}( jQuery ));
-
 function update_team_groups(size, teams, ordered_teams, current_data) {
   current_size = jQuery(".team_group").length;
   if (size < current_size) {
@@ -28,7 +13,15 @@ function update_team_groups(size, teams, ordered_teams, current_data) {
         .appendTo("#team_groups");
       initialize_team_group(team_group, teams, ordered_teams, current_data[i]);
     }
-    jQuery(".team_group:eq(" + current_size + ") .team_group_name").focus();
+    jQuery(".team_group:eq(0) .team_group_name").focus();
+    jQuery('input').bind('keypress', function(e){
+      if(e.which == 13) { //Enter keycode
+        jQuery("#update").click();
+        return false;
+      } else {
+        return true;
+      }
+    });
   }
 }
 
@@ -73,6 +66,7 @@ function initialize_team_group(team_group, teams, ordered_teams, current_data) {
         icon.attr('src', 'https://s3.amazonaws.com/golaberto_production/thumb.png');
       }
     },
+    autoFocus: true,
     delay: 0,
     minLength: 2,
     selectFirst: true,

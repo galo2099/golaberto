@@ -95,10 +95,7 @@ class ChampionshipController < ApplicationController
                   backgroundColor: "#FFFFFF",
                   hoverable: true,
                   clickable: true,
-                  markings: [ if group.promoted > 0 then { yaxis: { from: 0.5, to: group.promoted + 0.5 },
-                                                           color: "#90EE90" } end,
-                              if group.relegated > 0 then { yaxis: { from: group.team_groups.size - group.relegated + 0.5, },
-                                                            color: "#FFA0A0" } end ].select{|i|i},
+                  markings: group.zones.map{|z| z["position"].map{|p| { yaxis: { from: p-0.5, to: p+0.5 }, color: z["color"] } } }.flatten,
                 },
                 xaxes: [
                   { ticks: (1..data.size).to_a.map{|x|[x, ""]}, },

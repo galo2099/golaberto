@@ -27,6 +27,13 @@ class GroupController < ApplicationController
       @group.team_groups << TeamGroup.new(value.merge({:group_id => @group.id}))
     end unless params["team_group"].nil?
 
+    @group.zones = []
+    params["group"]["zones"].each do |value|
+      value = value.permit(:name, :color, position: [])
+      value[:position].map!{|p|p.to_i} if value[:position]
+      @group.zones.push(value.to_hash)
+    end unless params["group"]["zones"].nil?
+
     begin
       @group.save!
       redirect_to :controller => :championship, :action => :phases, :id => @group.phase.championship, :phase => @group.phase

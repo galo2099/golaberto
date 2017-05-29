@@ -18,15 +18,22 @@
   <%= link_to add_wbr_to_string(@team.name), :controller => :team, :action => :show, :id => @team %>
 </h2>
 
+<% if @groups[0].team_groups.select{|t|t.team_id == @team.id}.first.odds then %>
 <div id="odds" style="width: 550px;
           height: 200px;
           font-size: 14px;
           line-height: 1.2em;">
 </div>
 
+<% team_position = @groups[0].team_table.find_index{|t,s|t.team_id == @team.id} + 1 %>
+<style>
+div#odds div.flot-x-axis div.flot-tick-label:nth-child(<%=team_position%>) {
+  color: #ff0000;
+}
+</style>
+
 <script type="text/javascript">
   jQuery(function() {
-
 		jQuery("<div id='odds_tooltip'></div>").css({
 			position: "absolute",
 			display: "none",
@@ -42,22 +49,39 @@
       series: {
         bars: {
           show: true,
-          barWidth: 0.8,
+          barWidth: 0.7,
           align: "center",
+          fillColor: "rgba(255, 255, 255, 0.7)",
         },
       },
       xaxis: {
+        min: 0.5,
+        max: <%= @groups[0].team_groups.size + 0.5 %>,
         ticks: <%= (1..@groups[0].team_groups.size).to_a.map{|x|[x, x]}.to_json %>,
       },
       grid: {
         hoverable: true,
         clickable: true,
+        markings: <%== @groups[0].zones.map{|z| z["position"].map{|p| { xaxis: { from: p-0.5, to: p+0.5 }, color: z["color"] } } }.flatten.to_json %>,
       },
-      yaxis: { max: 100, min: 0 },
+      yaxis: {
+        min: 0,
+        max: 101,
+      },
+      colors: [ "#edc240", "#ff0000" ],
     };
-    var plot = graphDiv.plot([ {
-      data: <%= (@groups[0].team_groups.select{|t|t.team_id == @team.id}.first.odds or []).map.with_index.map{|item,idx|[idx+1, item]} %>,
-    } ], options).data("plot");
+    var plot = graphDiv.plot([
+    {
+      data: <%= @groups[0].team_groups.select{|t|t.team_id == @team.id}.first.odds.map.with_index.map{|item,idx|[idx+1, item]} %>,
+    },
+    {
+      data: [[<%=team_position%>, 0], [<%=team_position%>, 101]],
+      lines: { show: true, lineWidth: "1", color: "rgba(255, 0, 0, 1.0)", dashed: true, },
+      points: { show: false },
+      bars: {show: false},
+      highlightColor: "rgba(0,0,0,0)",
+    },
+    ], options).data("plot");
 
     graphDiv.bind("plothover", function (event, pos, item) {
       var x = Math.round(pos.x);
@@ -73,6 +97,9 @@
       }
     });
 
+    graphDiv.disableSelection();
+
+    /*
     var markings = <%== (1..@groups[0].team_groups.size).to_a.map{|x|nil}.to_json %>;
     graphDiv.bind("plotclick", function (event, pos, item) {
       var x = Math.round(pos.x);
@@ -96,9 +123,20 @@
         plot.draw();
       }
     });
+    */
   });
 
 </script>
+
+<table>
+  <% @groups[0].zones.each do |z| %>
+    <tr>
+      <td><span style="color: <%= z["color"]%>">▣</span> <%= z["name"] %>:</td>
+      <td><%= sprintf("%02.2f", @groups[0].team_groups.select{|t|t.team_id == @team.id}.first.calculate_odds(z["position"])) %>%</td>
+    </tr>
+  <% end %>
+</table>
+<% end %>
 
 <% if @played_games.size > 0 %>
 <h3><%= s_("ChampionshipTeam|Played") %></h3>
@@ -394,9 +432,7 @@ EOF
                                                  :L => true,
                                                  :GF => true,
                                                  :GA => true,
-                                                 :OP => true,
-                                                 :PP => true,
-                                                 :RP => true },
+                                                 :odds => true },
                               :omit_logo => true,
                               :omit_popup => true,
                               :omit_comments => true } %>
