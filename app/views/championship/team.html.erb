@@ -18,7 +18,7 @@
   <%= link_to add_wbr_to_string(@team.name), :controller => :team, :action => :show, :id => @team %>
 </h2>
 
-<% if @groups[0].team_groups.select{|t|t.team_id == @team.id}.first.odds then %>
+<% if @groups[0].team_groups.select{|t|t.team_id == @team.id}.first.odds and @groups[0].phase.games.where(played: false).size > 0 then %>
 <div id="odds" style="width: 550px;
           height: 200px;
           font-size: 14px;
