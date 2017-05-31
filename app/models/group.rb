@@ -2,7 +2,7 @@ require 'poisson'
 class Group < ActiveRecord::Base
   serialize :zones, Array
   belongs_to :phase, :touch => true
-  has_many :team_groups, :dependent => :delete_all
+  has_many :team_groups, -> { includes(:team).order("teams.name") }, :dependent => :delete_all
   has_many :teams, :through => :team_groups
   has_many :games, ->(group){ where([ "home_id IN (?) OR away_id IN (?)", group.teams.select(:id), group.teams.select(:id) ]) }, :through => :phase
   validates_length_of :name, :within => 1..40
