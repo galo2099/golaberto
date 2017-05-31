@@ -31,8 +31,8 @@ module ApplicationHelper
     jquery_locale = case I18n.locale when :"pt_BR" then "pt-BR" else "" end
     ret = ""
     ret << stylesheet_link_tag("https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/blitzer/jquery-ui.css")
-    ret << google_jquery(ssl: true, uncompressed: true)
-    ret << google_jqueryui(ssl: true, uncompressed: true)
+    ret << google_jquery(ssl: true)
+    ret << google_jqueryui(ssl: true)
     ret << javascript_include_tag("https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/i18n/jquery-ui-i18n.min.js")
     ret << javascript_tag("jQuery.noConflict();jQuery(function($){$.datepicker.setDefaults($.datepicker.regional['#{jquery_locale}'])});")
     ret.html_safe

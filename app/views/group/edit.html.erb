@@ -1,7 +1,6 @@
 <%= javascript_include_jquery %>
 <%= javascript_include_tag "spectrum" %>
 <%= stylesheet_link_tag "spectrum" %>
-<%= stylesheet_link_tag("https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/overcast/jquery-ui.css") %>
 
 <% content_for :main_title do %>
   <%= @group.phase.championship.full_name %>
@@ -41,7 +40,8 @@
 .ui-widget {
   font-size: 16px;
 }
-.ui-state-highlight {
+.ui-icon-background, .ui-state-active .ui-icon-background {
+  background-color: #eeeeee;
 }
 </style>
       <script>
