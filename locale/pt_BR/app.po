@@ -1858,7 +1858,7 @@ msgid "Wordpress blog name"
 msgstr "usuário Wordpress"
 
 msgid "World"
-msgstr "Mundo"
+msgstr "Mundial"
 
 # app/models/championship.rb:-
 msgid "World Championships"
