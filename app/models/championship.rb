@@ -1,4 +1,9 @@
 class Championship < ActiveRecord::Base
+  enum region: [ :world, :continental, :national ]
+  N_("World")
+  N_("Continental")
+  N_("National")
+
   has_many :phases, ->{ order :order_by }, :dependent => :destroy
   has_many :games, ->{ order :date }, :through => :phases
   has_many :goals, :through => :games
@@ -22,6 +27,12 @@ class Championship < ActiveRecord::Base
   # Field: point_win , SQL Definition:tinyint(4)
   # Field: point_draw , SQL Definition:tinyint(4)
   # Field: point_loss , SQL Definition:tinyint(4)
+
+  def self.regions_for_select
+    self.regions.map do |name, id|
+      [ _(name.capitalize), name ]
+    end
+  end
 
   def to_param
     "#{id}-#{full_name.parameterize}"

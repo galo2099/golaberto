@@ -1,0 +1,55 @@
+  <%= _("Name") %>:
+  <%= f.text_field "name", "size" => 40 %><br/>
+
+  <%= _("Begin") %>: <%= f.datepicker :begin, :autoSize => true, :changeYear => true, :selectOtherMonths => true, :showButtonPanel => true, :showOtherMonths => true %><br/>
+  <%= _("End") %>: <%= f.datepicker :end, :autoSize => true, :changeYear => true, :selectOtherMonths => true, :showButtonPanel => true, :showOtherMonths => true %><br/>
+
+  <%= _("Points for win") %>:
+  <%= f.text_field :point_win, :size => 2 %><br/>
+
+  <%= _("Points for draw") %>:
+  <%= f.text_field :point_draw, :size => 2 %><br/>
+
+  <%= _("Points for loss") %>:
+  <%= f.text_field :point_loss, :size => 2 %><br/>
+
+  <%= _("Region") %>:
+  <%= f.select :region, Championship.regions_for_select, {}, { onchange: "changeRegion(this);" } %>
+  <%= f.hidden_field :region_name, value: "World", disabled: @championship.region != "world", id: "region_name_world" %>
+  <%= f.select :region_name, ApplicationHelper::Continent.options_for_select, {}, { id: "region_name_continent", disabled: @championship.region != "continental", style: "width: 167px; display: #{if @championship.region == 'continental' then 'inline' else 'none' end}" } %>
+  <%= f.select :region_name, golaberto_options_for_country_select, {}, { id: "region_name_country", disabled: @championship.region != "national", style: "width: 167px; display: #{if @championship.region == 'national' then 'inline' else 'none' end}" } %>
+  <br/>
+  <script>
+function changeRegion(select) {
+  if (select.value == "national") {
+    $("region_name_country").enable();
+    $("region_name_country").show();
+    $("region_name_continent").disable();
+    $("region_name_continent").hide();
+    $("region_name_world").disable();
+    $("region_name_world").hide();
+  } else if (select.value == "continental") {
+    $("region_name_country").disable();
+    $("region_name_country").hide();
+    $("region_name_continent").enable();
+    $("region_name_continent").show();
+    $("region_name_world").disable();
+    $("region_name_world").hide();
+  } else {
+    $("region_name_country").disable();
+    $("region_name_country").hide();
+    $("region_name_continent").disable();
+    $("region_name_continent").hide();
+    $("region_name_world").enable();
+    $("region_name_world").show();
+  }
+}
+  </script>
+
+  <%= _("Category") %>:
+  <select id="championship_category_id" name="championship[category_id]">
+    <%= options_from_collection_for_select @categories, "id", "name", @championship.category_id %>
+  </select><br/>
+
+  <%= f.label :show_country, _("Show country flags") %>:
+  <%= f.check_box :show_country %><br/>

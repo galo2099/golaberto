@@ -8,8 +8,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: app 1.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-28 23:57-0700\n"
-"PO-Revision-Date: 2017-05-28 23:57-0700\n"
+"POT-Creation-Date: 2017-06-12 23:43-0700\n"
+"PO-Revision-Date: 2017-06-12 23:43-0700\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
@@ -87,6 +87,9 @@ msgstr ""
 msgid "Afghanistan"
 msgstr ""
 
+msgid "Africa"
+msgstr ""
+
 msgid "Age"
 msgstr ""
 
@@ -139,6 +142,9 @@ msgid "Armenia"
 msgstr ""
 
 msgid "Aruba"
+msgstr ""
+
+msgid "Asia"
 msgstr ""
 
 msgid "Attendance"
@@ -219,10 +225,7 @@ msgstr ""
 msgid "Brazil"
 msgstr ""
 
-msgid "British Indian Ocean Territory"
-msgstr ""
-
-msgid "Brunei Darussalam"
+msgid "Brunei"
 msgstr ""
 
 msgid "Bulgaria"
@@ -315,9 +318,6 @@ msgstr ""
 msgid "China"
 msgstr ""
 
-msgid "Christmas Island"
-msgstr ""
-
 msgid "City"
 msgstr ""
 
@@ -328,9 +328,6 @@ msgid "Close"
 msgstr ""
 
 msgid "Clubs"
-msgstr ""
-
-msgid "Cocos (Keeling) Islands"
 msgstr ""
 
 msgid "Colombia"
@@ -363,10 +360,16 @@ msgstr ""
 msgid "Congo"
 msgstr ""
 
-msgid "Congo, the Democratic Republic of the"
+msgid "Contact:"
 msgstr ""
 
-msgid "Contact:"
+msgid "Continental"
+msgstr ""
+
+msgid "Continental Championships"
+msgstr ""
+
+msgid "Continent|All"
 msgstr ""
 
 msgid "Cook Islands"
@@ -376,6 +379,9 @@ msgid "Costa Rica"
 msgstr ""
 
 msgid "Country"
+msgstr ""
+
+msgid "Country|All"
 msgstr ""
 
 msgid "Create"
@@ -403,6 +409,9 @@ msgid "Czech Republic"
 msgstr ""
 
 msgid "D"
+msgstr ""
+
+msgid "DR Congo"
 msgstr ""
 
 msgid "Date"
@@ -498,13 +507,13 @@ msgstr ""
 msgid "Ethiopia"
 msgstr ""
 
+msgid "Europe"
+msgstr ""
+
 msgid "Extra time"
 msgstr ""
 
 msgid "Extra time:"
-msgstr ""
-
-msgid "Falkland Islands"
 msgstr ""
 
 msgid "Faroe Islands"
@@ -532,9 +541,6 @@ msgid "French Guiana"
 msgstr ""
 
 msgid "French Polynesia"
-msgstr ""
-
-msgid "French Southern Territories"
 msgstr ""
 
 msgid "From"
@@ -706,9 +712,6 @@ msgid "Guyana"
 msgstr ""
 
 msgid "Haiti"
-msgstr ""
-
-msgid "Heard and Mc Donald Islands"
 msgstr ""
 
 msgid "Home"
@@ -902,9 +905,6 @@ msgstr ""
 msgid "Malta"
 msgstr ""
 
-msgid "Marshall Islands"
-msgstr ""
-
 msgid "Martinique"
 msgstr ""
 
@@ -917,16 +917,10 @@ msgstr ""
 msgid "Maximum"
 msgstr ""
 
-msgid "Mayotte"
-msgstr ""
-
 msgid "Member for"
 msgstr ""
 
 msgid "Mexico"
-msgstr ""
-
-msgid "Micronesia, Federated States of"
 msgstr ""
 
 msgid "Minimum"
@@ -977,10 +971,13 @@ msgstr ""
 msgid "Namibia"
 msgstr ""
 
-msgid "National Teams"
+msgid "National"
 msgstr ""
 
-msgid "Nauru"
+msgid "National Championships"
+msgstr ""
+
+msgid "National Teams"
 msgstr ""
 
 msgid "Nepal"
@@ -1060,10 +1057,10 @@ msgstr ""
 msgid "No records found."
 msgstr ""
 
-msgid "Norfolk Island"
+msgid "North Korea"
 msgstr ""
 
-msgid "North Korea"
+msgid "North/Central America & Caribbean"
 msgstr ""
 
 msgid "Northern Ireland"
@@ -1082,6 +1079,9 @@ msgid "Number of teams"
 msgstr ""
 
 msgid "Observation"
+msgstr ""
+
+msgid "Oceania"
 msgstr ""
 
 msgid "Odds being recalculated"
@@ -1112,9 +1112,6 @@ msgid "Own Goals"
 msgstr ""
 
 msgid "Pakistan"
-msgstr ""
-
-msgid "Palau"
 msgstr ""
 
 msgid "Palestine"
@@ -1169,9 +1166,6 @@ msgid "Philippines"
 msgstr ""
 
 msgid "Picture"
-msgstr ""
-
-msgid "Pitcairn"
 msgstr ""
 
 msgid "Played"
@@ -1287,6 +1281,12 @@ msgstr ""
 msgid "Referee|Name"
 msgstr ""
 
+msgid "Region"
+msgstr ""
+
+msgid "Region|All"
+msgstr ""
+
 msgid "Remove"
 msgstr ""
 
@@ -1329,7 +1329,7 @@ msgstr ""
 msgid "Saint Vincent and the Grenadines"
 msgstr ""
 
-msgid "Samoa (Independent)"
+msgid "Samoa"
 msgstr ""
 
 msgid "San Marino"
@@ -1398,7 +1398,7 @@ msgstr ""
 msgid "South Africa"
 msgstr ""
 
-msgid "South Georgia and the South Sandwich Islands"
+msgid "South America"
 msgstr ""
 
 msgid "South Korea"
@@ -1408,12 +1408,6 @@ msgid "Spain"
 msgstr ""
 
 msgid "Sri Lanka"
-msgstr ""
-
-msgid "St. Helena"
-msgstr ""
-
-msgid "St. Pierre and Miquelon"
 msgstr ""
 
 msgid "Stadium"
@@ -1450,9 +1444,6 @@ msgid "Sudan"
 msgstr ""
 
 msgid "Suriname"
-msgstr ""
-
-msgid "Svalbard and Jan Mayen Islands"
 msgstr ""
 
 msgid "Swaziland"
@@ -1570,9 +1561,6 @@ msgstr ""
 msgid "Togo"
 msgstr ""
 
-msgid "Tokelau"
-msgstr ""
-
 msgid "Tonga"
 msgstr ""
 
@@ -1613,9 +1601,6 @@ msgid "United Kingdom"
 msgstr ""
 
 msgid "United States"
-msgstr ""
-
-msgid "United States Minor Outlying Islands"
 msgstr ""
 
 msgid "Update"
@@ -1696,9 +1681,6 @@ msgstr ""
 msgid "Vanuatu"
 msgstr ""
 
-msgid "Vatican City State (Holy See)"
-msgstr ""
-
 msgid "Venezuela"
 msgstr ""
 
@@ -1738,13 +1720,13 @@ msgstr ""
 msgid "Wales"
 msgstr ""
 
-msgid "Wallis and Futuna Islands"
-msgstr ""
-
-msgid "Western Sahara"
-msgstr ""
-
 msgid "Wordpress blog name"
+msgstr ""
+
+msgid "World"
+msgstr ""
+
+msgid "World Championships"
 msgstr ""
 
 msgid "Yemen"

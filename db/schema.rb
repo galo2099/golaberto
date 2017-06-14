@@ -11,23 +11,25 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20170523164617) do
+ActiveRecord::Schema.define(version: 20170606055102) do
 
   create_table "categories", force: :cascade do |t|
     t.string "name", limit: 255
   end
 
   create_table "championships", force: :cascade do |t|
-    t.string   "name",         limit: 255, default: "",    null: false
-    t.date     "begin",                                    null: false
-    t.date     "end",                                      null: false
-    t.integer  "point_win",    limit: 4,   default: 3,     null: false
-    t.integer  "point_draw",   limit: 4,   default: 1,     null: false
-    t.integer  "point_loss",   limit: 4,   default: 0,     null: false
-    t.integer  "category_id",  limit: 4,   default: 0,     null: false
-    t.boolean  "show_country",             default: false, null: false
-    t.datetime "created_at",                               null: false
-    t.datetime "updated_at",                               null: false
+    t.string   "name",         limit: 255,   default: "",    null: false
+    t.date     "begin",                                      null: false
+    t.date     "end",                                        null: false
+    t.integer  "point_win",    limit: 4,     default: 3,     null: false
+    t.integer  "point_draw",   limit: 4,     default: 1,     null: false
+    t.integer  "point_loss",   limit: 4,     default: 0,     null: false
+    t.integer  "category_id",  limit: 4,     default: 0,     null: false
+    t.boolean  "show_country",               default: false, null: false
+    t.datetime "created_at",                                 null: false
+    t.datetime "updated_at",                                 null: false
+    t.integer  "region",       limit: 4,     default: 0,     null: false
+    t.text     "region_name",  limit: 65535
   end
 
   create_table "collation_test", id: false, force: :cascade do |t|

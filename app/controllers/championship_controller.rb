@@ -1,6 +1,8 @@
 require 'digest/sha1'
 
 class ChampionshipController < ApplicationController
+  include ApplicationHelper
+
   N_("Championship")
 
   authorize_resource
@@ -26,11 +28,61 @@ class ChampionshipController < ApplicationController
   end
 
   def list
-    @championships = Championship.order("name, begin").page(params[:page])
+    @championships = Championship.order("region, region_name, name, begin")
     @name = params[:name]
-    unless @name.nil?
+    unless @name.blank?
       @championships = @championships.where("name LIKE ?", "%#{@name}%")
     end
+    @categories = Category.all
+    @category = params[:category] || 1
+    unless @category.nil?
+      @championships = @championships.where(category: @category)
+    end
+
+    countries_with_championships = { @country => 0 }
+    countries_with_championships.merge!(@championships.where(region: Championship.regions["national"]).group(:region_name).size)
+    countries_found = []
+    countries_not_found = []
+    golaberto_options_for_country_select.each do |translated_country, original_country|
+      count = countries_with_championships[original_country]
+      unless @continent.blank?
+        if not Continent::ALL[@continent].countries.include? original_country
+          next
+        end
+      end
+      if count.nil? then
+        countries_not_found << [translated_country, original_country]
+      else
+        countries_found << [translated_country + " (#{count})", original_country]
+      end
+    end
+
+    @country_list = [[s_("Country|All") + " (#{@championships.where(region: Championship.regions["national"]).size})", ""]] + countries_found + countries_not_found
+    @countries = {}
+    @countries[""] = @country_list
+    ApplicationHelper::Continent::ALL.each do |name, c|
+      @countries[name] = [[s_("Country|All") + " (#{@championships.where(region_name: c.countries).size})", ""]] + @country_list.select{|_, n| ApplicationHelper::Continent.country_to_continent[n] == c}
+    end
+
+    @region = params[:region]
+    unless @region.blank?
+      @championships = @championships.where(region: Championship.regions[@region])
+    end
+    @country_name = params[:country_name] || ""
+    @continent_name = params[:continent_name] || ""
+    @continent = ApplicationHelper::Continent::ALL[@continent_name]
+    if @continent
+      @country_name = nil unless @continent.countries.include? @country_name
+    end
+    if (@region == "national" && !@country_name.blank?) then
+      @championships = @championships.where(region_name: @country_name)
+    elsif (@region == "national" && @continent) then
+      @championships = @championships.where(region_name: @continent.countries)
+    elsif @region == "continental" && !@continent_name.blank? then
+      @championships = @championships.where(region_name: @continent_name)
+    end
+
+    @championships = @championships.page(params[:page])
   end
 
   def show
@@ -84,10 +136,7 @@ class ChampionshipController < ApplicationController
       end
     end
 
-    point_win = championship.point_win
-
     points_for_1st_place = team_table[0][1].points
-    #points_for_1st_place = data.size * point_win
 
     chart = { options: {
                 colors: [ "#0000ff", "#696969", "#ff0000", "#000000", "#0000ff", "#696969", "#ff0000", "#ffff80" ],
@@ -165,7 +214,7 @@ class ChampionshipController < ApplicationController
     team = Team.find(params["team"])
     phase = Phase.find(params["phase"])
     group = phase.groups.select{|g| g.teams.include? team}.first
-    json, table = generate_team_json(championship, phase, group, team)
+    json, _ = generate_team_json(championship, phase, group, team)
 
     render :text => json, :layout => false
   end
@@ -188,7 +237,7 @@ class ChampionshipController < ApplicationController
 
     @group_json = []
     @groups.each_with_index do |g, idx|
-      json, table = generate_team_json(@championship, g.phase, g, @team)
+      json, _ = generate_team_json(@championship, g.phase, g, @team)
       @group_json << json
     end
 
@@ -307,7 +356,7 @@ class ChampionshipController < ApplicationController
 
   private
   def championship_params
-    params.require(:championship).permit(:name, :begin, :end, :point_win, :point_draw, :point_loss, :category_id, :show_country)
+    params.require(:championship).permit(:name, :begin, :end, :point_win, :point_draw, :point_loss, :category_id, :show_country, :region, :region_name)
   end
 
   def phase_params

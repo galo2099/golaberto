@@ -14,8 +14,14 @@
 
 <div id="championship">
   <h3 style="margin-top: 0px"><%= _("Current championships") %></h3>
-  <% @championships.each do |champ| %>
-    <%= link_to champ.full_name, :controller => :championship, :action => :phases, :id => champ, :phase => champ.phases.try(:last) %><br>
+  <% @continents.each do |cont| %>
+    <h4><%= _(cont.name) %></h4>
+    <% @championships.each do |champ| %>
+      <% continent = ApplicationHelper::Continent.country_to_continent[champ.teams[0].country] %>
+      <% if continent == cont %>
+        <%= link_to champ.full_name, :controller => :championship, :action => :phases, :id => champ, :phase => champ.phases.try(:last)%> <br>
+      <% end %>
+    <% end %>
   <% end %>
 </div>
 

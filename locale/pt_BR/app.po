@@ -85,6 +85,9 @@ msgstr "Adicionado gol "
 msgid "Afghanistan"
 msgstr "Afeganistão"
 
+msgid "Africa"
+msgstr "África"
+
 msgid "Age"
 msgstr "Idade"
 
@@ -139,6 +142,9 @@ msgstr "Armênia"
 
 msgid "Aruba"
 msgstr "Aruba"
+
+msgid "Asia"
+msgstr "Ásia"
 
 msgid "Attendance"
 msgstr "Público"
@@ -218,10 +224,7 @@ msgstr "Botswana"
 msgid "Brazil"
 msgstr "Brasil"
 
-msgid "British Indian Ocean Territory"
-msgstr "Território Britânico do Oceano Índico"
-
-msgid "Brunei Darussalam"
+msgid "Brunei"
 msgstr "Brunei"
 
 msgid "Bulgaria"
@@ -234,7 +237,7 @@ msgid "Burundi"
 msgstr "Burundi"
 
 msgid "CSV"
-msgstr ""
+msgstr "CSV"
 
 msgid "Cambodia"
 msgstr "Camboja"
@@ -327,9 +330,6 @@ msgstr "Chile"
 msgid "China"
 msgstr "China"
 
-msgid "Christmas Island"
-msgstr "Ilha Christmas"
-
 msgid "City"
 msgstr "Cidade"
 
@@ -341,9 +341,6 @@ msgstr "Fechar"
 
 msgid "Clubs"
 msgstr "Clubes"
-
-msgid "Cocos (Keeling) Islands"
-msgstr "Ilhas Cocos (Keeling)"
 
 msgid "Colombia"
 msgstr "Colômbia"
@@ -375,11 +372,18 @@ msgstr "Confirmar Senha"
 msgid "Congo"
 msgstr "Congo"
 
-msgid "Congo, the Democratic Republic of the"
-msgstr "Congo, República Democrática do"
-
 msgid "Contact:"
 msgstr "Contato:"
+
+msgid "Continental"
+msgstr "Continental"
+
+# app/models/championship.rb:-
+msgid "Continental Championships"
+msgstr "Campeonatos Continentais"
+
+msgid "Continent|All"
+msgstr "Todos"
 
 msgid "Cook Islands"
 msgstr "Ilhas Cook"
@@ -389,6 +393,9 @@ msgstr "Costa Rica"
 
 msgid "Country"
 msgstr "País"
+
+msgid "Country|All"
+msgstr "Todos"
 
 msgid "Create"
 msgstr "Criar"
@@ -417,6 +424,9 @@ msgstr "República Checa"
 
 msgid "D"
 msgstr "E"
+
+msgid "DR Congo"
+msgstr "Congo RD"
 
 msgid "Date"
 msgstr "Data"
@@ -513,14 +523,14 @@ msgstr "Estônia"
 msgid "Ethiopia"
 msgstr "Etiópia"
 
+msgid "Europe"
+msgstr "Europa"
+
 msgid "Extra time"
 msgstr "Prorrogação"
 
 msgid "Extra time:"
 msgstr "Prorrogação:"
-
-msgid "Falkland Islands"
-msgstr "Ilhas Malvinas"
 
 msgid "Faroe Islands"
 msgstr "Ilhas Feroe"
@@ -548,9 +558,6 @@ msgstr "Guiana Francesa"
 
 msgid "French Polynesia"
 msgstr "Polinésia Francesa"
-
-msgid "French Southern Territories"
-msgstr "Terras Austrais e Antárticas Francesas"
 
 msgid "From"
 msgstr "De"
@@ -758,9 +765,6 @@ msgstr "Guiana"
 msgid "Haiti"
 msgstr "Haiti"
 
-msgid "Heard and Mc Donald Islands"
-msgstr "Ilha Heard e as Ilhas McDonald"
-
 msgid "Home"
 msgstr "Principal"
 
@@ -960,9 +964,6 @@ msgstr "Mali"
 msgid "Malta"
 msgstr "Malta"
 
-msgid "Marshall Islands"
-msgstr "Ilhas Marshall"
-
 msgid "Martinique"
 msgstr "Martinica"
 
@@ -975,17 +976,11 @@ msgstr "Maurício"
 msgid "Maximum"
 msgstr "Máximo"
 
-msgid "Mayotte"
-msgstr "Mayotte"
-
 msgid "Member for"
 msgstr "Membro por"
 
 msgid "Mexico"
 msgstr "México"
-
-msgid "Micronesia, Federated States of"
-msgstr "Micronésia"
 
 msgid "Minimum"
 msgstr "Mínimo"
@@ -1036,11 +1031,15 @@ msgstr "Nome"
 msgid "Namibia"
 msgstr "Namíbia"
 
+msgid "National"
+msgstr "Nacional"
+
+# app/models/championship.rb:-
+msgid "National Championships"
+msgstr "Campeonatos Nacionais"
+
 msgid "National Teams"
 msgstr "Seleções"
-
-msgid "Nauru"
-msgstr "Nauru"
 
 msgid "Nepal"
 msgstr "Nepal"
@@ -1119,11 +1118,11 @@ msgstr "Sem jogadores nesta lista"
 msgid "No records found."
 msgstr "Nenhum registro encontrado."
 
-msgid "Norfolk Island"
-msgstr "Ilha Norfolk"
-
 msgid "North Korea"
 msgstr "Coréia do Norte"
+
+msgid "North/Central America & Caribbean"
+msgstr "América do Norte, Central & Caribe"
 
 msgid "Northern Ireland"
 msgstr "Irlanda do Norte"
@@ -1147,6 +1146,9 @@ msgstr "Número de equipes"
 # app/models/user.rb:-
 msgid "Observation"
 msgstr "Observação"
+
+msgid "Oceania"
+msgstr "Oceania"
 
 msgid "Odds being recalculated"
 msgstr "Chances sendo calculadas"
@@ -1177,9 +1179,6 @@ msgstr "Gols contra"
 
 msgid "Pakistan"
 msgstr "Paquistão"
-
-msgid "Palau"
-msgstr "Palau"
 
 msgid "Palestine"
 msgstr "Palestina"
@@ -1242,9 +1241,6 @@ msgstr "Filipinas"
 
 msgid "Picture"
 msgstr "Imagem"
-
-msgid "Pitcairn"
-msgstr "Pitcairn"
 
 # app/models/player.rb:-
 msgid "Played"
@@ -1378,6 +1374,12 @@ msgstr "Localidade"
 msgid "Referee|Name"
 msgstr "Nome"
 
+msgid "Region"
+msgstr "Região"
+
+msgid "Region|All"
+msgstr "Todos"
+
 msgid "Remove"
 msgstr "Remover"
 
@@ -1422,7 +1424,7 @@ msgstr "Santa Lúcia"
 msgid "Saint Vincent and the Grenadines"
 msgstr "São Vicente e Granadinas"
 
-msgid "Samoa (Independent)"
+msgid "Samoa"
 msgstr "Samoa"
 
 msgid "San Marino"
@@ -1491,8 +1493,8 @@ msgstr "Ordenação"
 msgid "South Africa"
 msgstr "África do Sul"
 
-msgid "South Georgia and the South Sandwich Islands"
-msgstr "Ilhas Geórgia do Sul e Sandwich do Sul"
+msgid "South America"
+msgstr "América do Sul"
 
 msgid "South Korea"
 msgstr "Coréia do Sul"
@@ -1502,12 +1504,6 @@ msgstr "Espanha"
 
 msgid "Sri Lanka"
 msgstr "Sri Lanka"
-
-msgid "St. Helena"
-msgstr "Santa Helena"
-
-msgid "St. Pierre and Miquelon"
-msgstr "Saint-Pierre e Miquelon"
 
 # app/models/stadium.rb:-
 msgid "Stadium"
@@ -1550,9 +1546,6 @@ msgstr "Sudão"
 
 msgid "Suriname"
 msgstr "Suriname"
-
-msgid "Svalbard and Jan Mayen Islands"
-msgstr "Svalbard e Jan Mayen"
 
 msgid "Swaziland"
 msgstr "Suazilândia"
@@ -1684,9 +1677,6 @@ msgstr "Até"
 msgid "Togo"
 msgstr "Togo"
 
-msgid "Tokelau"
-msgstr "Tokelau"
-
 msgid "Tonga"
 msgstr "Tonga"
 
@@ -1728,9 +1718,6 @@ msgstr "Reino Unido"
 
 msgid "United States"
 msgstr "Estados Unidos"
-
-msgid "United States Minor Outlying Islands"
-msgstr "Ilhas Menores Distantes dos Estados Unidos"
 
 msgid "Update"
 msgstr "Atualizar"
@@ -1828,9 +1815,6 @@ msgstr "Uzbequistão"
 msgid "Vanuatu"
 msgstr "Vanuatu"
 
-msgid "Vatican City State (Holy See)"
-msgstr "Cidade do Vaticano"
-
 msgid "Venezuela"
 msgstr "Venezuela"
 
@@ -1870,14 +1854,15 @@ msgstr "V"
 msgid "Wales"
 msgstr "País de Gales"
 
-msgid "Wallis and Futuna Islands"
-msgstr "Wallis e Futuna"
-
-msgid "Western Sahara"
-msgstr "Saara Ocidental"
-
 msgid "Wordpress blog name"
 msgstr "usuário Wordpress"
+
+msgid "World"
+msgstr "Mundo"
+
+# app/models/championship.rb:-
+msgid "World Championships"
+msgstr "Campeonatos Mundiais"
 
 msgid "Yemen"
 msgstr "Iêmen"

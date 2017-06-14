@@ -5,28 +5,7 @@
 <%= javascript_include_jquery %>
 
 <%= form_for @championship, :url => { :action => :update, :id => @championship } do |f| %>
-  <%= _("Name") %>:
-  <%= f.text_field "name", "size" => 40 %><br/>
-
-  <%= _("Begin") %>: <%= f.datepicker :begin, :autoSize => true, :changeYear => true, :selectOtherMonths => true, :showButtonPanel => true, :showOtherMonths => true %><br/>
-  <%= _("End") %>: <%= f.datepicker :end, :autoSize => true, :changeYear => true, :selectOtherMonths => true, :showButtonPanel => true, :showOtherMonths => true %><br/>
-
-  <%= _("Points for win") %>:
-  <%= f.text_field :point_win, :size => 2 %><br/>
-
-  <%= _("Points for draw") %>:
-  <%= f.text_field :point_draw, :size => 2 %><br/>
-
-  <%= _("Points for loss") %>:
-  <%= f.text_field :point_loss, :size => 2 %><br/>
-
-  <%= _("Category") %>:
-  <select id="championship_category_id" name="championship[category_id]">
-    <%= options_from_collection_for_select @categories, "id", "name", @championship.category_id %>
-  </select><br/>
-
-  <%= f.label :show_country, _("Show country flags") %>:
-  <%= f.check_box :show_country %><br/>
+  <%= render partial: "form", locals: { f: f } %>
 
   <p><%= _("Phases") %></p>
 

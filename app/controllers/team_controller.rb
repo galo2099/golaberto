@@ -75,6 +75,7 @@ class TeamController < ApplicationController
     @id = params[:id]
     @country = params[:country]
     @team_type = params[:team_type] || "club"
+    @continent = params[:continent] || ""
     teams = Team.where(team_type: Team.team_types[@team_type])
     if @id
       teams = teams.where(["name LIKE ?", "%#{@id}%"])
@@ -95,7 +96,19 @@ class TeamController < ApplicationController
       end
     end
 
-    @country_list = [[_("All") + " (#{teams.size})", ""]] + countries_found + countries_not_found
+    @country_list = [[s_("Country|All") + " (#{teams.size})", ""]] + countries_found + countries_not_found
+    @countries = {}
+    @countries[""] = @country_list
+    ApplicationHelper::Continent::ALL.each do |name, c|
+      @countries[name] = [[s_("Country|All") + " (#{teams.where(country: c.countries).size})", ""]] + @country_list.select{|_, n| ApplicationHelper::Continent.country_to_continent[n] == c}
+    end
+
+    unless @continent.blank?
+      teams = teams.where(country: Continent::ALL[@continent].countries)
+      unless Continent::ALL[@continent].countries.include? @country
+        @country = nil
+      end
+    end
 
     @teams = teams.order(rating: :desc, name: :asc).page(params[:page])
     @teams = @teams.where(country: @country) unless @country.blank?

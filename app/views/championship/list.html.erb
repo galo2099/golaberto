@@ -2,9 +2,52 @@
 
 <%= form_tag({ :action => "list", :id => "" }, :method => "GET",
             :style => "display: inline") do %>
-  <%= text_field_tag("name", @name, :size => 20) %>
+  <%= text_field_tag("name", @name, :size => 45, style: "width: 399px") %>
+  <select id="category" name="category" style="width: 101px">
+    <%= options_from_collection_for_select @categories, "id", "name", @category %>
+  </select>
+  <div>
+    <%= select_tag :region, options_for_select(
+      [
+        [s_("Region|All"), ""],
+        [ _("National Championships"), "national" ],
+        [ _("Continental Championships"), "continental" ],
+        [ _("World Championships"), "world"],
+      ], @region), onchange: "changeRegion(this);", style: "width: 167px" %>
+    <span id="continent_name_line">
+      <%= select_tag :continent_name, options_for_select([[s_("Continent|All"), ""]] + ApplicationHelper::Continent.options_for_select, @continent_name), disabled: (@region != "continental" && @region != "national"), onchange: "changeContinent(this);", style: "width: 167px" %>
+    </span>
+    <span id="country_name_line">
+      <%= select_tag :country_name, options_for_select(@countries[@continent_name], @country_name), disabled: @region != "national", style: "width: 167px" %>
+    </span>
+  </div>
   <%= submit_tag(_("Search"), :name => nil) %>
 <% end %>
+<script>
+var countries = {
+  "": <%== options_for_select(@countries[""]).to_json %>,
+  <% ApplicationHelper::Continent::ALL.each do |name, c| %>
+      "<%== name %>": <%== options_for_select(@countries[name]).to_json %>,
+  <% end %>
+};
+
+function changeContinent(select) {
+  $("country_name").update(countries[select.value]);
+}
+
+function changeRegion(select) {
+  if (select.value == "national") {
+    $("country_name").enable();
+    $("continent_name").enable();
+  } else if (select.value == "continental") {
+    $("country_name").disable();
+    $("continent_name").enable();
+  } else {
+    $("country_name").disable();
+    $("continent_name").disable();
+  }
+}
+</script>
   <p>
   <%= will_paginate @championships %>
   </p>
@@ -12,12 +55,14 @@
   <table>
     <tr>
       <th><%= _("Name") %></th>
+      <th><%= _("Region") %></th>
       <th><%= _("Category") %></th>
     </tr>
 
     <% for championship in @championships %>
       <tr>
         <td><%= link_to championship.full_name, :action => 'show', :id => championship %></td>
+        <td><%= _(championship.region_name) %></td>
         <td><%= championship.category.name %></td>
         <% if can? :manage, championship %>
           <td><%= link_to _('Edit'), :action => 'edit', :id => championship %></td>

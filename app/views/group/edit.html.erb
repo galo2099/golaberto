@@ -1,6 +1,10 @@
-<%= javascript_include_jquery %>
-<%= javascript_include_tag "spectrum" %>
-<%= stylesheet_link_tag "spectrum" %>
+<% content_for :header do %>
+  <%= javascript_include_tag "/group/team_list.js" %>
+  <%= javascript_include_tag "edit_group" %>
+  <%= javascript_include_jquery %>
+  <%= javascript_include_tag "spectrum" %>
+  <%= stylesheet_link_tag "spectrum" %>
+<% end %>
 
 <% content_for :main_title do %>
   <%= @group.phase.championship.full_name %>
