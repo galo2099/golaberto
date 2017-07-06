@@ -1421,6 +1421,9 @@ msgstr "São Cristóvão e Neves"
 msgid "Saint Lucia"
 msgstr "Santa Lúcia"
 
+msgid "Saint Martin"
+msgstr "São Martinho (França)"
+
 msgid "Saint Vincent and the Grenadines"
 msgstr "São Vicente e Granadinas"
 
@@ -1471,6 +1474,9 @@ msgstr "Inscrever"
 
 msgid "Singapore"
 msgstr "Cingapura"
+
+msgid "Sint Maarten"
+msgstr "São Martinho (Holanda)"
 
 msgid "Slovakia"
 msgstr "Eslováquia"
