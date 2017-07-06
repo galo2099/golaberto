@@ -325,7 +325,7 @@ class ChampionshipController < ApplicationController
     @maximum = @championship.games.group(:home).maximum(:attendance)
     @minimum = @championship.games.group(:home).minimum(:attendance)
     @count = @championship.games.group(:home).count(:attendance)
-    @games = @championship.games.order("attendance DESC").page(params[:page]).per_page(10)
+    @games = @championship.games.reorder("attendance DESC").page(params[:page]).per_page(10)
   end
 
   def destroy
