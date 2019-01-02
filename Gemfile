@@ -6,7 +6,7 @@ gem 'rails', '~> 4'
 # gem 'rails', :git => 'https://github.com/rails/rails.git'
 
 gem 'sqlite3'
-gem 'mysql2', '>=0.3.17'
+gem 'mysql2', '~> 0.4.10'
 
 group :development do
   # Deploy with Capistrano
