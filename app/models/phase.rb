@@ -39,6 +39,7 @@ class Phase < ActiveRecord::Base
   end
 
   def avg_team_rating
-    @avg_team_rating ||= begin teams.map{|t|t.rating.to_f}.sum / teams.size rescue 0 end
+#    @avg_team_rating ||= begin teams.map{|t|t.rating.to_f}.sum / teams.size rescue 0 end
+    @avg_team_rating ||= teams.reorder(rating: :desc).each_with_index.map{|t,i|t.rating.to_f * (0.7)**i}.sum / teams.each_with_index.map{|t,i| 0.7**i}.sum
   end
 end

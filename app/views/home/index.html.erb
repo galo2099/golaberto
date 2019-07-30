@@ -16,10 +16,25 @@
   <h3 style="margin-top: 0px"><%= _("Current championships") %></h3>
   <% @regions.each do |region| %>
     <h4><%= _(region.capitalize) %></h4>
+    <% if region == "national" %>
+    <table>
+    <% end %>
     <% @championships.each do |champ| %>
       <% if champ.region == region %>
+        <% if region == "national" %>
+          <tr><td>
+          <%= image_tag "https://s3.amazonaws.com/#{Rails.application.secrets.s3["bucket"]}/countries/flags/#{champ.region_name.parameterize('_')}_15.png" , :title => _(champ.region_name), size: "15x15" %>
+          <%= "#{_(champ.region_name)}"%>
+          </td><td>
+        <% end %>
         <%= link_to champ.full_name, :controller => :championship, :action => :phases, :id => champ, :phase => champ.phases.try(:last)%> <br>
+        <% if region == "national" %>
+          </td><td><%= sprintf("%0.02f", champ.avg_team_rating) %></td></tr>
+        <% end %>
       <% end %>
+    <% end %>
+    <% if region == "national" %>
+    </table>
     <% end %>
   <% end %>
 </div>
