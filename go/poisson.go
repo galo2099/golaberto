@@ -358,11 +358,6 @@ func (all_games *GamesType) spi() map[string]*TeamRating {
   log.Print(len(all_games.Games))
   games := make(map[float64]float64)
   weights := make([]float64, len(all_games.Games))
-  for k, v := range all_games.Ratings {
-    id, _ := strconv.ParseFloat(k, 64)
-    off_rating[id] = v[0]
-    def_rating[id] = v[1]
-  }
   now := all_games.Games[len(all_games.Games)-1][4]
   for i, g := range all_games.Games {
     weights[i] = g[5] * squash_date(g[4], now)
@@ -371,6 +366,11 @@ func (all_games *GamesType) spi() map[string]*TeamRating {
   }
   for k, _ := range games {
     games[k] += 1.0
+  }
+  for k, v := range all_games.Ratings {
+    id, _ := strconv.ParseFloat(k, 64)
+    off_rating[id] = upper_bound(v[0], games[id])
+    def_rating[id] = lower_bound(v[1], games[id])
   }
   good_iterations := 0
   for i := 0; i < NUM_ITER; i++ {
@@ -424,10 +424,18 @@ func (all_games *GamesType) spi() map[string]*TeamRating {
   for k, _ := range off_rating {
     key := strconv.FormatFloat(k, 'f', -1, 64)
     ratings[key] = new(TeamRating)
-    ratings[key].Offense = off_rating[k]
-    ratings[key].Defense = def_rating[k]
+    ratings[key].Offense = lower_bound(off_rating[k], games[k])
+    ratings[key].Defense = upper_bound(def_rating[k], games[k])
   }
   return ratings
+}
+
+func lower_bound(avg float64, sample float64) float64 {
+  return avg / (1.0 + math.Exp(-sample / 4))
+}
+
+func upper_bound(avg float64, sample float64) float64 {
+  return avg * (1.0 + math.Exp(-sample / 4))
 }
 
 func calculatePowerRanking(c http.ResponseWriter, req *http.Request) {
