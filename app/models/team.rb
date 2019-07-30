@@ -56,6 +56,10 @@ class Team < ActiveRecord::Base
     "#{id}-#{name.parameterize}"
   end
 
+  def games
+    Game.where("home_id = ? OR away_id = ?", self.id, self.id)
+  end
+
   def small_country_logo
     if country.nil?
       "https://s3.amazonaws.com/#{Rails.application.secrets.s3["bucket"]}/thumb.png"
