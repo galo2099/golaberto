@@ -9,7 +9,7 @@
 </style>
 
 <table id="team_groups">
-  <tr><th></th><th><%= _("Team") %></th><th><%= _("Bonus") %></th><th><%= _("Bias") %></th><th><%= _("Observation") %></th></tr>
+  <tr><th><%= _("Country") %></th><th></th><th><%= _("Team") %></th><th><%= _("Bonus") %></th><th><%= _("Bias") %></th><th><%= _("Observation") %></th></tr>
 </table>
 <script type="text/javascript">
 var current_data = [
@@ -17,6 +17,11 @@ var current_data = [
   <%= t.to_json.html_safe %>,
 <% end %>
 ];
-jQuery("window").ready(function() { update_team_groups(<%= @group.team_groups.size %>, teams, ordered_teams, current_data); });
+<% if @group.phase.championship.region == "national" then %>
+var default_country = "<%= @group.phase.championship.region_name %>";
+<% else %>
+var default_country = "";
+<% end %>
+jQuery("window").ready(function() { update_team_groups(<%= @group.team_groups.size %>, teams, ordered_teams, current_data, default_country); });
 </script>
-<%= observe_field "team_number", :function => "update_team_groups(value, teams, ordered_teams, current_data);" %>
+<%= observe_field "team_number", :function => "update_team_groups(value, teams, ordered_teams, current_data, default_country);" %>

@@ -1,10 +1,20 @@
-function update_team_groups(size, teams, ordered_teams, current_data) {
+function country_options(countries, default_country) {
+  var ret = jQuery("<div/>");
+  for (var x = 0; x < countries.size(); x++) {
+    ret.append("<option value='" + countries[x][1] + "'" + (countries[x][1] == default_country ? " selected" : "") + ">" + countries[x][0] + "</option>");
+  }
+  return ret.html();
+}
+
+function update_team_groups(size, teams, ordered_teams, current_data, default_country) {
+  var country_options_str = country_options(countries, default_country);
   current_size = jQuery(".team_group").length;
   if (size < current_size) {
     jQuery(".team_group:gt(" + size + "), .team_group:eq(" + size + ")").remove();
   } else if (size > current_size) {
     for (var i = current_size; i < size; ++i) {
       var team_group = jQuery("<tr class='team_group'></tr>")
+        .append("<td><select class='team_group_country' style='width: 50px'>" + country_options_str + "</select></td>")
         .append("<td><img class='team_group_icon' src='https://s3.amazonaws.com/golaberto_production/thumb.png' height='15px' width='15px' /></td>")
         .append("<td><input tabindex='2' size='30' class='team_group_name' /><input type='hidden' class='team_group_id' name='team_group[" + i + "][team_id]' /></td>")
         .append("<td><input tabindex='3' size='2' class='team_group_add_sub' name='team_group[" + i + "][add_sub]' /></td>")
@@ -32,11 +42,18 @@ function initialize_team_group(team_group, teams, ordered_teams, current_data) {
   var comment = team_group.find(".team_group_comment");
   var icon = team_group.find(".team_group_icon");
   var name = team_group.find(".team_group_name");
+  var country = team_group.find(".team_group_country");
 
   name.autocomplete({
     source: function(request, response) {
       var matcher = new RegExp(request.term.latinize(), "i");
-      response(ordered_teams.map(function(key) {
+      var selected = new Set(jQuery("input[name^='team_group['][name$='][team_id]'").map(function(x, i){return i.value;}));
+      var country = team_group.find(".team_group_country")[0].value;
+      response(ordered_teams.filter(function(key) {
+        return country == "" || teams[key].country == country;
+      }).filter(function(key) {
+         return !selected.has(key.toString());
+      }).map(function(key) {
         var team = teams[key];
         if (!team.latinized) {
           team.latinized = team.name.latinize();
@@ -79,6 +96,7 @@ function initialize_team_group(team_group, teams, ordered_teams, current_data) {
     id.val(current_data.team_id);
     name.val(teams[current_data.team_id].name);
     icon.attr('src', teams[current_data.team_id].icon);
+    country.val(teams[current_data.team_id].country);
   }
 }
 
