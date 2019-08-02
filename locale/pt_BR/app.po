@@ -15,8 +15,8 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
 
-msgid "wins"
-msgstr "vitórias"
+msgid "#"
+msgstr "#"
 
 msgid "%d%% done."
 msgstr "%d%% pronto."
@@ -51,6 +51,9 @@ msgstr "(gol contra)"
 
 msgid "(penalty)"
 msgstr "(pênalti)"
+
+msgid "AET"
+msgstr "Pro"
 
 msgid "AOL screen name"
 msgstr "usuário AOL"
@@ -1958,5 +1961,5 @@ msgstr "gols de pênalti"
 msgid "points"
 msgstr "pontos"
 
-msgid "#"
-msgstr "#"
+msgid "wins"
+msgstr "vitórias"

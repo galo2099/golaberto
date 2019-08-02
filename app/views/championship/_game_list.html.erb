@@ -24,17 +24,33 @@ end %>
   </div>
 </div>
 <% odds = game.odds %>
-<div class='table_cell home_score'><%= game.home_score if game.played? %>
+<div class='table_cell home_score'><%= "*" if game.home_pen.to_i > game.away_pen.to_i %><%= game.home_score + game.home_aet.to_i if game.played? %>
 <% if !game.played? and odds %>
   <%= content_tag :span, sprintf("%02.0f", 100*odds[0]), class: "game_odds" %>
 <% end %>
 </div>
-<div class='table_cell game_x'><%= "x" if game.played? || !odds %>
-<% if !game.played? and odds %>
-  <%= content_tag :span, sprintf("%02.0f", 100*odds[1]), class: "game_odds" %>
-<% end %>
+<div class='table_cell game_x'>
+<%=
+if game.played? then
+  if game.home_pen != nil then
+    pen = _("Pen")
+    "<div style='font-size: 50%; padding-top: 5px;'>#{pen}</div>".html_safe
+  elsif game.home_aet != nil then
+    aet = _("AET")
+    "<div style='font-size: 50%; padding-top: 5px;'>#{aet}</div>".html_safe
+  else
+    "x"
+  end
+else
+  if !odds then
+    "x"
+  else
+    content_tag :span, sprintf("%02.0f", 100*odds[1]), class: "game_odds"
+  end
+end
+%>
 </div>
-<div class='table_cell away_score'><%= game.away_score if game.played? %>
+<div class='table_cell away_score'><%= game.away_score + game.away_aet.to_i if game.played? %><%= "*" if game.home_pen.to_i < game.away_pen.to_i %>
 <% if !game.played? and odds %>
   <%= content_tag :span, sprintf("%02.0f", 100*odds[2]), class: "game_odds" %>
 <% end %>
