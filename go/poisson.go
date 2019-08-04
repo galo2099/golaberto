@@ -357,10 +357,21 @@ func (all_games *GamesType) spi() map[string]*TeamRating {
   NUM_ITER := 100000
   log.Print(len(all_games.Games))
   games := make(map[float64]float64)
+  team_weights := make(map[float64]float64)
   weights := make([]float64, len(all_games.Games))
   now := all_games.Games[len(all_games.Games)-1][4]
   for i, g := range all_games.Games {
     weights[i] = g[5] * squash_date(g[4], now)
+    games[g[0]] += weights[i]  // Game_weight
+    games[g[1]] += weights[i]  // Game_weight
+  }
+  for k, _ := range games {
+    team_weights[k] = team_weight(games[k])
+    games[k] = 0
+    log.Printf("Team: %0.0f Weight: %0.02f", k, team_weights[k])
+  }
+  for i, g := range all_games.Games {
+    weights[i] *= team_weights[g[0]] * team_weights[g[1]]
     games[g[0]] += weights[i]  // Game_weight
     games[g[1]] += weights[i]  // Game_weight
   }
@@ -392,12 +403,12 @@ func (all_games *GamesType) spi() map[string]*TeamRating {
     for k, _ := range games {
       old_off := off_rating[k]
       off_rating[k] = adjusted_goals_scored[k] / games[k]
+      def_rating[k] = adjusted_goals_allowed[k] / games[k]
       this_error := math.Sqrt((old_off - off_rating[k])*(old_off - off_rating[k]))
       if (this_error > error) {
         error = this_error
         largest_k = k
       }
-      def_rating[k] = adjusted_goals_allowed[k] / games[k]
     }
     if (error < 0.0001) {
       good_iterations += 1
@@ -436,6 +447,10 @@ func lower_bound(avg float64, sample float64) float64 {
 
 func upper_bound(avg float64, sample float64) float64 {
   return avg * (1.0 + math.Exp(-sample / 4))
+}
+
+func team_weight(games float64) float64 {
+  return  1 / (1.0 + math.Exp(-games / 4)) * 2 - 1
 }
 
 func calculatePowerRanking(c http.ResponseWriter, req *http.Request) {
