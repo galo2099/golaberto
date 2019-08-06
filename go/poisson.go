@@ -358,6 +358,7 @@ func (all_games *GamesType) spi() map[string]*TeamRating {
   log.Print(len(all_games.Games))
   games := make(map[float64]float64)
   team_weights := make(map[float64]float64)
+  team_penalties := make(map[float64]float64)
   weights := make([]float64, len(all_games.Games))
   now := all_games.Games[len(all_games.Games)-1][4]
   for i, g := range all_games.Games {
@@ -367,8 +368,9 @@ func (all_games *GamesType) spi() map[string]*TeamRating {
   }
   for k, _ := range games {
     team_weights[k] = team_weight(games[k])
+    team_penalties[k] = team_penalty(games[k])
+    log.Printf("Team: %0.0f Weight: %0.02f penalty: %0.02f games: %0.02f", k, team_weights[k], team_penalties[k], games[k])
     games[k] = 0
-    log.Printf("Team: %0.0f Weight: %0.02f", k, team_weights[k])
   }
   for i, g := range all_games.Games {
     weights[i] *= team_weights[g[0]] * team_weights[g[1]]
@@ -392,11 +394,11 @@ func (all_games *GamesType) spi() map[string]*TeamRating {
       adjusted_goals_allowed[k] += AVG_BASE
     }
     for i, g := range all_games.Games {
-			home_adv := g[6]
-      adjusted_goals_scored[g[0]] += weights[i] * ((float64(g[2]) - (def_rating[g[1]]+home_adv))/( math.Max(0.25, (def_rating[g[1]]+home_adv)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
-      adjusted_goals_allowed[g[0]] += weights[i] * ((float64(g[3]) - (off_rating[g[1]]-home_adv))/( math.Max(0.25, (off_rating[g[1]]-home_adv)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
-      adjusted_goals_scored[g[1]] += weights[i] * ((float64(g[3]) - (def_rating[g[0]]-home_adv))/( math.Max(0.25, (def_rating[g[0]]-home_adv)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
-      adjusted_goals_allowed[g[1]] += weights[i] * ((float64(g[2]) - (off_rating[g[0]]+home_adv))/( math.Max(0.25, (off_rating[g[0]]+home_adv)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
+      home_adv := g[6]
+      adjusted_goals_scored[g[0]] += team_penalties[g[0]] * weights[i] * ((float64(g[2]) - (def_rating[g[1]]+home_adv))/( math.Max(0.25, (def_rating[g[1]]+home_adv)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
+      adjusted_goals_allowed[g[0]] += (1/team_penalties[g[0]]) * weights[i] * ((float64(g[3]) - (off_rating[g[1]]-home_adv))/( math.Max(0.25, (off_rating[g[1]]-home_adv)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
+      adjusted_goals_scored[g[1]] += team_penalties[g[1]] * weights[i] * ((float64(g[3]) - (def_rating[g[0]]-home_adv))/( math.Max(0.25, (def_rating[g[0]]-home_adv)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
+      adjusted_goals_allowed[g[1]] += (1/team_penalties[g[1]]) * weights[i] * ((float64(g[2]) - (off_rating[g[0]]+home_adv))/( math.Max(0.25, (off_rating[g[0]]+home_adv)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
     }
     error := 0.0
     largest_k := 0.0
@@ -451,6 +453,10 @@ func upper_bound(avg float64, sample float64) float64 {
 
 func team_weight(games float64) float64 {
   return  1 / (1.0 + math.Exp(-games / 4)) * 2 - 1
+}
+
+func team_penalty(games float64) float64 {
+  return  1 / (1.0 + math.Exp(-games / 4)) / 2.5 + 0.6
 }
 
 func calculatePowerRanking(c http.ResponseWriter, req *http.Request) {
