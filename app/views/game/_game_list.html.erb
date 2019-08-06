@@ -8,11 +8,21 @@
     <% last_date = formatted_date(game) %>
     <% last_phase_id = game.phase_id %>
     <div class="game_date"><%= formatted_date(game, true) %></div>
-    <div><%= link_to game.phase.championship.full_name, :controller => :championship, :action => :phases, :id => game.phase.championship, :phase => game.phase %></div>
+    <div>
+      <% if game.phase.championship.region == "national" then %>
+        <%= image_tag "https://s3.amazonaws.com/#{Rails.application.secrets.s3["bucket"]}/countries/flags/#{game.phase.championship.region_name.parameterize('_')}_15.png" , :title => _(game.phase.championship.region_name), size: "15x15" %>
+      <% end %>
+      <%= link_to game.phase.championship.full_name, :controller => :championship, :action => :phases, :id => game.phase.championship, :phase => game.phase %>
+    </div>
   <% end %>
   <% if game.phase_id != last_phase_id %>
     <% last_phase_id = game.phase_id %>
-    <div><%= link_to game.phase.championship.full_name, :controller => :championship, :action => :phases, :id => game.phase.championship, :phase => game.phase %></div>
+    <div>
+      <% if game.phase.championship.region == "national" then %>
+        <%= image_tag "https://s3.amazonaws.com/#{Rails.application.secrets.s3["bucket"]}/countries/flags/#{game.phase.championship.region_name.parameterize('_')}_15.png" , :title => _(game.phase.championship.region_name), size: "15x15" %>
+      <% end %>
+      <%= link_to game.phase.championship.full_name, :controller => :championship, :action => :phases, :id => game.phase.championship, :phase => game.phase %>
+    </div>
   <% end %>
   <div class="table_row">
     <%= render partial: "championship/game_list",

@@ -1,6 +1,8 @@
 <%
 highlight_team = defined?(highlight_team) ? highlight_team : nil
-show_country = defined?(show_country) ? show_country : nil
+if not defined?(show_country)
+  show_country = game.phase.championship.show_country
+end
 game_id = game.class == Game::Version ? game.game.id : game.id
 def name_to_print(team, highlight)
   name = add_wbr_to_string team.name
@@ -13,11 +15,11 @@ end %>
 <div class='table_cell home_team'>
   <% if show_country %>
     <div class='home_logo'>
-      <%= image_tag game.home.small_country_logo, :title => _(game.home.country), size: "15x15" %>
+      <%= image_tag game.home.small_country_logo, title: _(game.home.country), size: "15x15", alt: "." %>
     </div>
   <% end %>
   <div class='home_logo'>
-    <%= image_tag game.home.logo.url(:thumb), size: game.home.logo.styles[:thumb].geometry %>
+    <%= image_tag game.home.logo.url(:thumb), size: game.home.logo.styles[:thumb].geometry, alt: "." %>
   </div>
   <div class='home_name'>
     <%= name_to_print(game.home, highlight_team) %>
@@ -59,11 +61,11 @@ end
   <div style='width: 100%; align: right; position: relative'>
     <% if show_country %>
       <div class='away_logo'>
-        <%= image_tag game.away.small_country_logo, :title => _(game.away.country), size: "15x15" %>
+        <%= image_tag game.away.small_country_logo, :title => _(game.away.country), size: "15x15", alt: "." %>
       </div>
     <% end %>
     <div class='away_logo'>
-      <%= image_tag game.away.logo.url(:thumb), size: game.away.logo.styles[:thumb].geometry %>
+      <%= image_tag game.away.logo.url(:thumb), size: game.away.logo.styles[:thumb].geometry, alt: "." %>
     </div>
     <div class='away_name'>
       <%= name_to_print(game.away, highlight_team) %>

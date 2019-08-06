@@ -11,10 +11,10 @@
 
   <% for team in @teams %>
     <tr>
-      <td><%= image_tag team.logo.url(:thumb), size: team.logo.styles[:thumb].geometry %>
+      <td><%= image_tag team.logo.url(:thumb), size: team.logo.styles[:thumb].geometry, alt: "" %>
         <%= link_to add_wbr_to_string(team.name), :action => :show, :id => team %></td>
       <td>
-      <%= image_tag team.small_country_logo, width: 15, height: 15, title: _(team.country) %>
+      <%= image_tag team.small_country_logo, width: 15, height: 15, title: _(team.country), alt: "" %>
       <%= _(team.country) %></td>
       <td>
       <%= sprintf("%0.02f", team.rating || 0) %>

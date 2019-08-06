@@ -39,7 +39,7 @@ class Championship < ActiveRecord::Base
   end
 
   def full_name
-    name = self.name + " " + self.begin.year.to_s
+    name = "#{_(self.region_name)} - #{self.name} #{self.begin.year.to_s}"
     if self.begin.year != self.end.year
       name += "/" + self.end.year.to_s
     end
