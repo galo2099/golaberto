@@ -26,7 +26,7 @@
   <% @games.each do |game| %>
   <% if last_championship != game.phase.championship %>
     <% last_championship = game.phase.championship %>
-    <div><%= link_to game.phase.championship.full_name, :controller => :championship, :action => :team, :id => game.phase.championship, :team => @team %></div>
+    <%= championship_name(game.phase.championship, {:controller => :championship, :action => :team, :id => game.phase.championship, :team => @team}) %>
   <% end %>
   <div style='font-size: 11px'><%= formatted_date(game, true) %></div>
   <div class="table_row">

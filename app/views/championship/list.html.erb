@@ -61,7 +61,7 @@ function changeRegion(select) {
 
     <% for championship in @championships %>
       <tr>
-        <td><%= link_to championship.full_name, :action => 'show', :id => championship %></td>
+        <td><%= championship_name championship, :action => 'show', :id => championship %></td>
         <td><%= _(championship.region_name) %></td>
         <td><%= championship.category.name %></td>
         <% if can? :manage, championship %>

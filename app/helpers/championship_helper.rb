@@ -3,6 +3,40 @@ module ChampionshipHelper
     collection.inject(Digest::SHA256.new){|digest,obj| digest << obj.cache_key}.hexdigest
   end
 
+  def region_flag_url(region, name)
+    filename = ""
+    if region == "national" then
+      filename = name.parameterize('_')
+    else
+      if region == "world" then
+        filename = "fifa"
+      else
+        case name
+        when "Africa"
+          filename = "caf"
+        when "Asia"
+          filename = "afc"
+        when "North/Central America & Caribbean"
+          filename = "concacaf"
+        when "Europe"
+          filename = "uefa"
+        when "Oceania"
+          filename = "ofc"
+        when "South America"
+          filename = "conmebol"
+        end
+      end
+    end
+    "https://s3.amazonaws.com/#{Rails.application.secrets.s3["bucket"]}/countries/flags/#{filename}_15.png"
+  end
+
+  def championship_name(champ, params)
+    prefix = link_to(image_tag(region_flag_url(champ.region, champ.region_name) , :title => _(champ.region_name), size: "15x15"), params) + link_to(("&nbsp;" * 6).html_safe, params, class: "championship_name_spacer")
+    content_tag :div, class: "championship_name" do
+      prefix.html_safe + link_to(champ.full_name, params)
+    end
+  end
+
   class TeamCampaign
     attr_reader :points, :games, :wins, :draws, :losses,
                 :goals_for, :goals_against, :goals_aet, :goals_pen,
