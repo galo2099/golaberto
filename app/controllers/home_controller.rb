@@ -10,6 +10,10 @@ class HomeController < ApplicationController
     @comments = Comment.includes(:user).order("created_at DESC").limit(5)
     @games = Game.includes(:home, :away, :updater, {phase: :championship}).where("updater_id != 0").order(updated_at: :desc).limit(5)
     @top_games = Game.includes(:home, :away).select("games.*, 2*teams.rating*aways_games.rating/(teams.rating+aways_games.rating) as quality").order("quality desc, date desc").where(played: false).where("date > ?", Time.now - 3.hours).where("date < ?", Time.now + 1.day - 3.hours).where(has_time: true).limit(20).references(:home, :away)
-    @top_games = @top_games.sort_by{|a|[a.date.in_time_zone(cookie_timezone).to_date, -a.phase.championship.avg_team_rating, a.date]}
+    top_quality_championship = {}
+    @top_games.each do |g|
+      top_quality_championship[g.phase.id] = g.game_quality if g.game_quality > top_quality_championship[g.phase.id].to_f
+    end
+    @top_games = @top_games.sort_by{|a|[a.date.in_time_zone(cookie_timezone).to_date, -top_quality_championship[a.phase.id], a.date, -a.game_quality]}
   end
 end

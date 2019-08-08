@@ -174,6 +174,10 @@ class Game < ActiveRecord::Base
         goal_array.map{|i| (0...i).to_a.map{|j| probs[j][i]}}.flatten.sum ]
     end
 
+    def game_quality
+      2 * home.rating * away.rating / (home.rating + away.rating)
+    end
+
     def odds_legacy
       #home_power = (mean_poisson(home_for) + mean_poisson(away_against)) / 2
       #away_power = (mean_poisson(home_against) + mean_poisson(away_for)) / 2
