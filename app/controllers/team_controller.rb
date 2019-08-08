@@ -37,9 +37,9 @@ class TeamController < ApplicationController
   def show
     store_location
     @team = Team.find(params["id"])
-    @championships = @team.team_groups.map{|t| t.group.phase.championship}.uniq.sort{|a,b| b.begin <=> a.begin}
-    @next_games = @team.next_n_games(5, cookie_timezone.today)
-    @last_games = @team.last_n_games(5, cookie_timezone.today)
+    @championships = Championship.joins(phases: {groups: :team_groups}).where(team_groups: {team_id: @team}).order(begin: :desc).uniq
+    @next_games = @team.next_n_games(5, cookie_timezone.today).includes({phase: :championship}, :home, :away)
+    @last_games = @team.last_n_games(5, cookie_timezone.today).includes({phase: :championship}, :home, :away).reverse
   end
 
   def edit

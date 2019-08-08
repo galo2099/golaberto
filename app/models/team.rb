@@ -81,7 +81,7 @@ class Team < ActiveRecord::Base
   end
 
   def last_n_games(n, date)
-    games.joins(phase: :championship).where(championships: { category_id: Category::DEFAULT_CATEGORY }).where("date <= ?", date).order(date: :desc).limit(n).reverse
+    games.joins(phase: :championship).where(championships: { category_id: Category::DEFAULT_CATEGORY }).where("date <= ?", date).order(date: :desc).limit(n)
   end
 
   def self.calculate_rating2(off, deff)
