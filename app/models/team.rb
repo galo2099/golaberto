@@ -76,36 +76,12 @@ class Team < ActiveRecord::Base
     end
   end
 
-  def next_n_games(n, options = {})
-    cond = [ "played = ?", false ]
-    if options[:phase].nil?
-      cond[0] << " AND championships.category_id = ?";
-      cond << Category::DEFAULT_CATEGORY
-    else
-      cond[0] << " AND phase_id = ?"
-      cond << phase.id
-    end
-    if options[:date]
-      cond[0] << " AND date >= ?"
-      cond << options[:date]
-    end
-    n_games(n, cond, :asc)
+  def next_n_games(n, date)
+    games.joins(phase: :championship).where(championships: { category_id: Category::DEFAULT_CATEGORY }).where("date >= ?", date).order(date: :asc).limit(n)
   end
 
-  def last_n_games(n, options = {})
-    cond = [ "played = ?", true ]
-    if options[:phase].nil?
-      cond[0] << " AND championships.category_id = ?";
-      cond << Category::DEFAULT_CATEGORY
-    else
-      cond[0] << " AND phase_id = ?"
-      cond << options[:phase].id
-    end
-    if options[:date]
-      cond[0] << " AND date <= ?"
-      cond << options[:date]
-    end
-    n_games(n, cond, :desc)
+  def last_n_games(n, date)
+    games.joins(phase: :championship).where(championships: { category_id: Category::DEFAULT_CATEGORY }).where("date <= ?", date).order(date: :desc).limit(n).reverse
   end
 
   def self.calculate_rating2(off, deff)
@@ -117,13 +93,6 @@ class Team < ActiveRecord::Base
   end
 
   private
-  def n_games(n, condition, order)
-    condition[0] << " AND (home_id = ? OR away_id = ?)"
-    condition << id
-    condition << id
-    Game.where(condition).order(date: order).includes({ :phase => :championship }).limit(n).references(:championship).to_a
-  end
-
   def calculate_rating
     self.rating = nil
     if off_rating && def_rating

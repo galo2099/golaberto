@@ -27,16 +27,27 @@
 </div>
 
 <% unless @last_games.empty? %>
-<h2> <%= n_("Last game", "Last %{num} games", @last_games.size) % { :num => @last_games.size } %></h2>
+<h2> <%= link_to _("Games"), :action => :games, :id => @team, :type => :played %></h2>
 <div id="table">
-  <%= render :partial => "game/game_list", locals: { sorted_games: @last_games, games: WillPaginate::Collection.new(1,1,1) }  %>
+<div class="game_score">
+  <% last_championship = nil %>
+  <% (@last_games+@next_games).each do |game| %>
+  <% if last_championship != game.phase.championship %>
+    <% last_championship = game.phase.championship %>
+    <%= championship_name(game.phase.championship, {:controller => :championship, :action => :team, :id => game.phase.championship, :team => @team}) %>
+  <% end %>
+  <div style='font-size: 11px'><%= formatted_date(game, true) %></div>
+  <div class="table_row">
+    <div class="table_cell" style="width: 100%">
+      <%= render :partial => "championship/game_list",
+      :locals => { :highlight_team => @team,
+      :game => game } %>
+      <div class="clearer"></div>
+    </div>
+    <div class="clearer"></div>
+  </div>
+  <% end %>
 </div>
-<% end %>
-
-<% unless @next_games.empty? %>
-<h2> <%= n_("Next game", "Next %{num} games", @next_games.size) % { :num => @next_games.size } %></h2>
-<div id="table">
-  <%= render :partial => "game/game_list", locals: { sorted_games: @next_games }  %>
 </div>
 <% end %>
 
