@@ -13,27 +13,19 @@
 </div>
 
 <div id="championship">
-  <h3 style="margin-top: 0px"><%= _("Current championships") %></h3>
+  <h3 style="margin-top: 0px; margin-bottom: 0px"><%= _("Current championships") %></h3>
+  <table>
   <% @regions.each do |region| %>
-    <h4><%= _(region.capitalize) %></h4>
-    <% if region == "national" %>
-    <table>
-    <% end %>
+    <tr><td colspan='2'><h4><%= _(region.capitalize) %></h4></td></tr>
     <% @championships.each do |champ| %>
       <% if champ.region == region %>
-        <% if region == "national" %>
-          <tr><td>
-        <% end %>
+        <tr><td>
         <%= championship_name champ, :controller => :championship, :action => :phases, :id => champ, :phase => champ.phases.try(:last)%> <br>
-        <% if region == "national" %>
-          </td><td><%= sprintf("%0.02f", champ.avg_team_rating) %></td></tr>
-        <% end %>
+	</td><td><%= sprintf("%0.02f", champ.avg_team_rating) %></td></tr>
       <% end %>
     <% end %>
-    <% if region == "national" %>
-    </table>
-    <% end %>
   <% end %>
+  </table>
 </div>
 
 <div id="edits">
