@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20170606055102) do
+ActiveRecord::Schema.define(version: 20190812202152) do
 
   create_table "categories", force: :cascade do |t|
     t.string "name", limit: 255
@@ -67,53 +67,57 @@ ActiveRecord::Schema.define(version: 20170606055102) do
   end
 
   create_table "game_versions", force: :cascade do |t|
-    t.integer  "game_id",    limit: 4
-    t.integer  "version",    limit: 4
-    t.integer  "home_id",    limit: 4, default: 0
-    t.integer  "away_id",    limit: 4, default: 0
-    t.integer  "phase_id",   limit: 4
-    t.integer  "round",      limit: 4
-    t.integer  "attendance", limit: 4
-    t.integer  "stadium_id", limit: 4
-    t.integer  "referee_id", limit: 4
-    t.integer  "home_score", limit: 4, default: 0
-    t.integer  "away_score", limit: 4, default: 0
-    t.integer  "home_pen",   limit: 4
-    t.integer  "away_pen",   limit: 4
-    t.boolean  "played",               default: false
-    t.integer  "updater_id", limit: 4, default: 0,     null: false
-    t.datetime "updated_at",                           null: false
-    t.integer  "home_aet",   limit: 4
-    t.integer  "away_aet",   limit: 4
-    t.datetime "date",                                 null: false
-    t.boolean  "has_time",             default: false
-    t.integer  "home_field", limit: 4, default: 0,     null: false
+    t.integer  "game_id",         limit: 4
+    t.integer  "version",         limit: 4
+    t.integer  "home_id",         limit: 4,  default: 0
+    t.integer  "away_id",         limit: 4,  default: 0
+    t.integer  "phase_id",        limit: 4
+    t.integer  "round",           limit: 4
+    t.integer  "attendance",      limit: 4
+    t.integer  "stadium_id",      limit: 4
+    t.integer  "referee_id",      limit: 4
+    t.integer  "home_score",      limit: 4,  default: 0
+    t.integer  "away_score",      limit: 4,  default: 0
+    t.integer  "home_pen",        limit: 4
+    t.integer  "away_pen",        limit: 4
+    t.boolean  "played",                     default: false
+    t.integer  "updater_id",      limit: 4,  default: 0,     null: false
+    t.datetime "updated_at",                                 null: false
+    t.integer  "home_aet",        limit: 4
+    t.integer  "away_aet",        limit: 4
+    t.datetime "date",                                       null: false
+    t.boolean  "has_time",                   default: false
+    t.integer  "home_field",      limit: 4,  default: 0,     null: false
+    t.float    "home_importance", limit: 24
+    t.float    "away_importance", limit: 24
   end
 
   add_index "game_versions", ["game_id"], name: "index_game_versions_on_game_id", using: :btree
   add_index "game_versions", ["updater_id"], name: "index_game_versions_on_updater_id", using: :btree
 
   create_table "games", force: :cascade do |t|
-    t.integer  "home_id",    limit: 4, default: 0,     null: false
-    t.integer  "away_id",    limit: 4, default: 0,     null: false
-    t.integer  "phase_id",   limit: 4
-    t.integer  "round",      limit: 4
-    t.integer  "attendance", limit: 4
-    t.integer  "stadium_id", limit: 4
-    t.integer  "referee_id", limit: 4
-    t.integer  "home_score", limit: 4, default: 0,     null: false
-    t.integer  "away_score", limit: 4, default: 0,     null: false
-    t.integer  "home_pen",   limit: 4
-    t.integer  "away_pen",   limit: 4
-    t.boolean  "played",               default: false, null: false
-    t.integer  "version",    limit: 4
-    t.integer  "updater_id", limit: 4, default: 0,     null: false
-    t.datetime "updated_at",                           null: false
-    t.integer  "home_aet",   limit: 4
-    t.integer  "away_aet",   limit: 4
-    t.datetime "date",                                 null: false
-    t.boolean  "has_time",             default: false
-    t.integer  "home_field", limit: 4, default: 0,     null: false
+    t.integer  "home_id",         limit: 4,  default: 0,     null: false
+    t.integer  "away_id",         limit: 4,  default: 0,     null: false
+    t.integer  "phase_id",        limit: 4
+    t.integer  "round",           limit: 4
+    t.integer  "attendance",      limit: 4
+    t.integer  "stadium_id",      limit: 4
+    t.integer  "referee_id",      limit: 4
+    t.integer  "home_score",      limit: 4,  default: 0,     null: false
+    t.integer  "away_score",      limit: 4,  default: 0,     null: false
+    t.integer  "home_pen",        limit: 4
+    t.integer  "away_pen",        limit: 4
+    t.boolean  "played",                     default: false, null: false
+    t.integer  "version",         limit: 4
+    t.integer  "updater_id",      limit: 4,  default: 0,     null: false
+    t.datetime "updated_at",                                 null: false
+    t.integer  "home_aet",        limit: 4
+    t.integer  "away_aet",        limit: 4
+    t.datetime "date",                                       null: false
+    t.boolean  "has_time",                   default: false
+    t.integer  "home_field",      limit: 4,  default: 0,     null: false
+    t.float    "home_importance", limit: 24
+    t.float    "away_importance", limit: 24
   end
 
   add_index "games", ["away_id"], name: "index_games_on_away_id", using: :btree
