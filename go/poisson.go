@@ -1,8 +1,11 @@
 package main
 
+import "github.com/dgryski/go-metro"
+
 import _ "net/http/pprof"
 import "fmt"
 import "net/http"
+import "encoding/binary"
 import "encoding/json"
 import "log"
 import "math"
@@ -368,10 +371,16 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
       uses_head = true
     }
   }
-  campaign := make(map[int]*TeamCampaign, len(group.Team_groups))
+  campaign := make([]*TeamCampaign, len(group.Team_groups))
+
+  all_team_ids := make([]uint32, len(group.Team_groups))
+  for i, t := range group.Team_groups {
+    all_team_ids[i] = uint32(t.Team_id)
+  }
+  table := NewTable(all_team_ids)
 
   for _, t := range group.Team_groups {
-    campaign[t.Team_id] = &TeamCampaign{id: t.Team_id,
+    campaign[table.Query(uint32(t.Team_id))] = &TeamCampaign{id: t.Team_id,
       points: t.Add_sub,
       bias: t.Bias,
       add_sub: t.Add_sub,
@@ -383,31 +392,35 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
 
   for _, g := range group.Games {
     if g.Played {
-      if campaign[g.Home_id] != nil {
-        campaign[g.Home_id].add_game(&g)
+      home := table.Query(uint32(g.Home_id))
+      away := table.Query(uint32(g.Away_id))
+      if campaign[home] != nil {
+        campaign[home].add_game(&g)
       }
-      if campaign[g.Away_id] != nil {
-        campaign[g.Away_id].add_game(&g)
+      if campaign[away] != nil {
+        campaign[away].add_game(&g)
       }
     }
   }
 
-  team_odds := make(map[int]*OddsType)
-  for k, _ := range campaign {
-    team_odds[k] = &OddsType{&TeamOdds{0, make([]float64, len(campaign))}, make([]*GameOdds, 0)}
+  team_odds := make([]OddsType, len(group.Team_groups))
+  for k, _ := range group.Team_groups {
+    team_odds[k] = OddsType{&TeamOdds{0, make([]float64, len(campaign))}, make([]*GameOdds, 0)}
   }
 
   for i, g := range group.Games {
     if !g.Played {
-      team_odds[g.Home_id].games = append(team_odds[g.Home_id].games, &GameOdds{i, make([]*TeamOdds, 100)})
-      team_odds[g.Away_id].games = append(team_odds[g.Away_id].games, &GameOdds{i, make([]*TeamOdds, 100)})
+      home := table.Query(uint32(g.Home_id))
+      away := table.Query(uint32(g.Away_id))
+      team_odds[home].games = append(team_odds[home].games, &GameOdds{i, make([]*TeamOdds, 100)})
+      team_odds[away].games = append(team_odds[away].games, &GameOdds{i, make([]*TeamOdds, 100)})
     }
   }
 
   var elapsed time.Duration
   simulated_scores := make([]SimulatedScore, len(group.Games))
   odds_rest := make([]float64, len(campaign))
-  simulated_campaign := make(map[int]*TeamCampaign)
+  simulated_campaign := make([]*TeamCampaign, len(campaign))
   team_slice := make([]*TeamCampaign, len(campaign));
   const NUM_ITER = 10000
   for i := 0; i < NUM_ITER; i++ {
@@ -420,11 +433,13 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
         home_score := poisson_rand(g.Home_power)
         away_score := poisson_rand(g.Away_power)
         simulated_scores[i] = SimulatedScore{home_score, away_score}
-        if simulated_campaign[g.Home_id] != nil {
-          simulated_campaign[g.Home_id].add_game(&GameType{g.Id, g.Home_id, g.Away_id, home_score, away_score, 0.0, 0.0, true})
+        home := table.Query(uint32(g.Home_id))
+        away := table.Query(uint32(g.Away_id))
+        if simulated_campaign[home] != nil {
+          simulated_campaign[home].add_game(&GameType{g.Id, g.Home_id, g.Away_id, home_score, away_score, 0.0, 0.0, true})
         }
-        if simulated_campaign[g.Away_id] != nil {
-          simulated_campaign[g.Away_id].add_game(&GameType{g.Id, g.Home_id, g.Away_id, home_score, away_score, 0.0, 0.0, true})
+        if simulated_campaign[away] != nil {
+          simulated_campaign[away].add_game(&GameType{g.Id, g.Home_id, g.Away_id, home_score, away_score, 0.0, 0.0, true})
         }
       }
     }
@@ -442,7 +457,7 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
 
     start := time.Now()
     for i, v := range sorted_teams.t {
-      team := team_odds[v.id]
+      team := team_odds[table.Query(uint32(v.id))]
       team.team.Pos[i] += 1.0
       for k, g := range team.games {
         odds := g.scores[make_index_from_simulated_score(simulated_scores[g.game_index])]
@@ -459,11 +474,12 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
 
   result := make(map[string]interface{})
   json_team_odds := make(map[int]*TeamOdds, len(team_odds))
-  for team, odds := range team_odds {
-    for pos := range odds.team.Pos {
-      odds.team.Pos[pos] /= NUM_ITER / 100
+  for _, team := range campaign {
+    index := table.Query(uint32(team.id))
+    for pos := range team_odds[index].team.Pos {
+      team_odds[index].team.Pos[pos] /= NUM_ITER / 100
     }
-    json_team_odds[team] = odds.team
+    json_team_odds[team.id] = team_odds[index].team
   }
   result["team_odds"] = json_team_odds
   game_importances := make(map[int]float64)
@@ -472,8 +488,10 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
   start2 := time.Now()
   for i, g := range group.Games {
     if !g.Played {
+      home := table.Query(uint32(g.Home_id))
+      away := table.Query(uint32(g.Away_id))
       var home_importance float64
-      for _, x := range team_odds[g.Home_id].games {
+      for _, x := range team_odds[home].games {
         if x.game_index != i {
           continue;
         }
@@ -484,8 +502,8 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
           for j, _ := range v.Pos {
             v.Pos[j] /= float64(v.count) / 100
           }
-          odds := team_odds[g.Home_id]
-          for i, o := range odds.team.Pos {
+          odds := team_odds[home].team
+          for i, o := range odds.Pos {
             odds_rest[i] = (o * NUM_ITER / 100 - v.Pos[i] * float64(v.count) / 100) / (float64(NUM_ITER) - float64(v.count)) * 100
             if odds_rest[i] < 0 {
               odds_rest[i] = 0
@@ -502,7 +520,7 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
         }
       }
       var away_importance float64
-      for _, x := range team_odds[g.Away_id].games {
+      for _, x := range team_odds[away].games {
         if x.game_index != i {
           continue;
         }
@@ -513,9 +531,9 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
           for j, _ := range v.Pos {
             v.Pos[j] /= float64(v.count) / 100
           }
-          odds := team_odds[g.Away_id]
+          odds := team_odds[away].team
           odds_rest := make([]float64, len(v.Pos))
-          for i, o := range odds.team.Pos {
+          for i, o := range odds.Pos {
             odds_rest[i] = (o * NUM_ITER / 100 - v.Pos[i] * float64(v.count) / 100) / (float64(NUM_ITER) - float64(v.count)) * 100
             if odds_rest[i] < 0 {
               odds_rest[i] = 0
@@ -732,6 +750,145 @@ func calculatePowerRanking(c http.ResponseWriter, req *http.Request) {
 //  enc2.Encode(ratings)
   enc := json.NewEncoder(c)
   enc.Encode(ratings)
+}
+
+
+// MPH
+
+
+// Table stores the values for the hash function
+type Table struct {
+    values []int32
+    seeds  []int32
+}
+
+type entry struct {
+    idx  int32
+    hash uint64
+}
+
+// NewTable constructs a minimal perfect hash function for the set of keys which returns the index of item in the keys array.
+func NewTable(keys []uint32) *Table {
+    size := uint64(nextPower2(len(keys)))
+
+    h := make([][]entry, size)
+    for idx, k := range keys {
+        var bs [4]byte
+        binary.LittleEndian.PutUint32(bs[:], k)
+        hash := metro.Hash64(bs[:], 0)
+        i := hash % size
+        // idx+1 so we can identify empty entries in the table with 0
+        h[i] = append(h[i], entry{int32(idx) + 1, hash})
+    }
+
+    sort.Slice(h, func(i, j int) bool { return len(h[i]) > len(h[j]) })
+
+    values := make([]int32, size)
+    seeds := make([]int32, size)
+
+    var hidx int
+    for hidx = 0; hidx < len(h) && len(h[hidx]) > 1; hidx++ {
+        subkeys := h[hidx]
+
+        var seed uint64
+        entries := make(map[uint64]int32)
+
+    newseed:
+        for {
+            seed++
+            for _, k := range subkeys {
+                i := xorshiftMult64(k.hash+seed) % size
+                if entries[i] == 0 && values[i] == 0 {
+                    // looks free, claim it
+                    entries[i] = k.idx
+                    continue
+                }
+
+                // found a collision, reset and try a new seed
+                for k := range entries {
+                    delete(entries, k)
+                }
+                continue newseed
+            }
+
+            // made it through; everything got placed
+            break
+        }
+
+        // mark subkey spaces as claimed
+        for k, v := range entries {
+            values[k] = v
+        }
+
+        // and assign this seed value for every subkey
+        for _, k := range subkeys {
+            i := k.hash % size
+            seeds[i] = int32(seed)
+        }
+    }
+
+    // find the unassigned entries in the table
+    var free []int
+    for i := range values {
+        if values[i] == 0 {
+            free = append(free, i)
+        } else {
+            // decrement idx as this is now the final value for the table
+            values[i]--
+        }
+    }
+
+    for len(h[hidx]) > 0 {
+        k := h[hidx][0]
+        i := k.hash % size
+        hidx++
+
+        // take a free slot
+        dst := free[0]
+        free = free[1:]
+
+        // claim it; -1 because of the +1 at the start
+        values[dst] = k.idx - 1
+
+        // store offset in seed as a negative; -1 so even slot 0 is negative
+        seeds[i] = -int32(dst + 1)
+    }
+
+    return &Table{
+        values: values,
+        seeds:  seeds,
+    }
+}
+
+// Query looks up an entry in the table and return the index.
+func (t *Table) Query(k uint32) int32 {
+    size := uint64(len(t.values))
+    var bs [4]byte
+    binary.LittleEndian.PutUint32(bs[:], k)
+    hash := metro.Hash64(bs[:], 0)
+    i := hash & (size - 1)
+    seed := t.seeds[i]
+    if seed < 0 {
+        return t.values[-seed-1]
+    }
+
+    i = xorshiftMult64(uint64(seed)+hash) & (size - 1)
+    return t.values[i]
+}
+
+func xorshiftMult64(x uint64) uint64 {
+    x ^= x >> 12 // a
+    x ^= x << 25 // b
+    x ^= x >> 27 // c
+    return x * 2685821657736338717
+}
+
+func nextPower2(n int) int {
+    i := 1
+    for i < n {
+        i *= 2
+    }
+    return i
 }
 
 func main() {
