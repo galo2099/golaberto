@@ -32,18 +32,51 @@ class Group < ActiveRecord::Base
     ActiveRecord::Base.transaction do
       team_groups.each do |t|
         t.odds = calculated_odds["team_odds"][t.team_id.to_s]['Pos']
-        t.save!
+        t.save
       end
       now = Time.zone.now.to_s.chop.chop.chop.chop
-      calculated_odds["game_importance"].each do |game, importance|
-        g = Game.find(game)
-        if importance[0] != nil then
-          g.home_importance = importance[0]
+      importance = calculated_odds["game_importance"]
+      sql = ""
+      importance.each do |k,v|
+        if v[0] != nil and v[1] == nil then
+          if sql.empty? then
+            sql = "INSERT INTO games (id,home_importance,date,updated_at) VALUES "
+          end
+	  sql += "(#{k}, #{v[0]}, '#{now}', '#{now}'),"
         end
-        if importance[1] != nil then
-          g.away_importance = importance[1]
+      end
+      if not sql.empty? then
+        sql.chop!
+        sql += "ON DUPLICATE KEY UPDATE home_importance=VALUES(home_importance),updated_at=VALUES(updated_at);"
+        ActiveRecord::Base.connection.execute(sql)
+      end
+      sql = ""
+      importance.each do |k,v|
+        if v[0] == nil and v[1] != nil then
+          if sql.empty? then
+            sql = "INSERT INTO games (id,away_importance,date,updated_at) VALUES "
+          end
+	  sql += "(#{k}, #{v[1]}, '#{now}', '#{now}'),"
         end
-        g.save_without_revision
+      end
+      if not sql.empty? then
+        sql.chop!
+        sql += "ON DUPLICATE KEY UPDATE away_importance=VALUES(away_importance),updated_at=VALUES(updated_at);"
+        ActiveRecord::Base.connection.execute(sql)
+      end
+      sql = ""
+      importance.each do |k,v|
+        if v[0] != nil and v[1] != nil then
+          if sql.empty? then
+            sql = "INSERT INTO games (id,home_importance,away_importance,date,updated_at) VALUES "
+          end
+	  sql += "(#{k}, #{v[0]}, #{v[1]}, '#{now}', '#{now}'),"
+        end
+      end
+      if not sql.empty? then
+        sql.chop!
+        sql += "ON DUPLICATE KEY UPDATE home_importance=VALUES(home_importance),away_importance=VALUES(away_importance),updated_at=VALUES(updated_at);"
+        ActiveRecord::Base.connection.execute(sql)
       end
       self.odds_progress = 100
       self.save
