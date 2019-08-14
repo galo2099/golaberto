@@ -154,11 +154,11 @@ class Game < ActiveRecord::Base
     end
 
     def home_power
-      [0.01, (home.off_rating.to_f - AVG_BASE)/(AVG_BASE*0.424+0.548)*([0.25, (away.def_rating.to_f+left_advantage)*0.424+0.548].max)+(away.def_rating.to_f+left_advantage)].max
+      [10.0, [0.01, (home.off_rating.to_f - AVG_BASE)/(AVG_BASE*0.424+0.548)*([0.25, (away.def_rating.to_f+left_advantage)*0.424+0.548].max)+(away.def_rating.to_f+left_advantage)].max].min
     end
 
     def away_power
-      [0.01, (away.off_rating.to_f - AVG_BASE)/(AVG_BASE*0.424+0.548)*([0.25, (home.def_rating.to_f-left_advantage)*0.424+0.548].max)+(home.def_rating.to_f-left_advantage)].max
+      [10.0, [0.01, (away.off_rating.to_f - AVG_BASE)/(AVG_BASE*0.424+0.548)*([0.25, (home.def_rating.to_f-left_advantage)*0.424+0.548].max)+(home.def_rating.to_f-left_advantage)].max].min
     end
 
     def odds

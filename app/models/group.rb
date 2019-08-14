@@ -34,17 +34,20 @@ class Group < ActiveRecord::Base
         t.odds = calculated_odds["team_odds"][t.team_id.to_s]['Pos']
         t.save!
       end
+      now = Time.zone.now.to_s.chop.chop.chop.chop
+      calculated_odds["game_importance"].each do |game, importance|
+        g = Game.find(game)
+        if importance[0] != nil then
+          g.home_importance = importance[0]
+        end
+        if importance[1] != nil then
+          g.away_importance = importance[1]
+        end
+        g.save_without_revision
+      end
+      self.odds_progress = 100
+      self.save
     end
-    now = Time.zone.now.to_s.chop.chop.chop.chop
-    sql = "INSERT INTO games (id,home_importance,away_importance,updated_at,date) VALUES ";
-    calculated_odds["game_importance"].each do |key, val|
-      sql += "(#{key}, #{val[0]}, #{val[1]}, '#{now}', '#{now}'),"
-    end
-    sql.chop!
-    sql += "ON DUPLICATE KEY UPDATE home_importance=VALUES(home_importance),away_importance=VALUES(away_importance),updated_at=VALUES(updated_at);"
-    ActiveRecord::Base.connection.execute(sql)
-    self.odds_progress = 100
-    self.save!
   end
 
   def create_home_and_away_games

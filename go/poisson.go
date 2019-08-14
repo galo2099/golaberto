@@ -42,6 +42,9 @@ func (campaign *TeamCampaign) goals_average() float64 {
 }
 
 func (campaign *TeamCampaign) clone() *TeamCampaign {
+  if campaign == nil {
+    return nil
+  }
   t := new(TeamCampaign)
   t.id = campaign.id
   t.points = campaign.points
@@ -108,6 +111,8 @@ type GameType struct {
   Home_power float64
   Away_power float64
   Played bool
+  home_table_index int32
+  away_table_index int32
 }
 
 type PhaseType struct {
@@ -134,33 +139,24 @@ type ZoneType struct {
 }
 
 type GroupType struct {
+  Id int
   Zones []ZoneType
   Phase *PhaseType
-  Games []GameType
+  Games []*GameType
   Team_groups []TeamType
 }
 
-func factorial(x int) int {
-  ret := 1
-  for i := 2; i <= x; i++  {
-    ret *= i
-  }
-  return ret
-}
-
-func p(mean float64, x int) float64 {
-  return math.Pow(mean, float64(x)) * math.Exp(-mean) / float64(factorial(x))
-}
-
 func poisson_rand(mean float64) int {
-  die := rand.Float64()
-  i := 0
-  accumlated_probability := p(mean, i)
-  for die > accumlated_probability {
-    i += 1
-    accumlated_probability += p(mean, i)
+  var em int
+  t := 0.0
+  for {
+    t += rand.ExpFloat64()
+    if t >= mean {
+      break
+    }
+    em++
   }
-  return i
+  return em
 }
 
 type SortType int
@@ -371,14 +367,31 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
       uses_head = true
     }
   }
-  campaign := make([]*TeamCampaign, len(group.Team_groups))
-
-  all_team_ids := make([]uint32, len(group.Team_groups))
-  for i, t := range group.Team_groups {
-    all_team_ids[i] = uint32(t.Team_id)
+  all_team_ids_map := make(map[int]struct{})
+  // Some teams may appear in games but not the group
+  for _, g := range group.Games {
+    all_team_ids_map[g.Home_id] = struct{}{}
+    all_team_ids_map[g.Away_id] = struct{}{}
+  }
+  // Some teams may appear in the group but not games
+  for _, t := range group.Team_groups {
+    all_team_ids_map[t.Team_id] = struct{}{}
+  }
+  // hack to avoid crash when only two keys
+  if len(all_team_ids_map) == 2 || len(all_team_ids_map) == 4 {
+    all_team_ids_map[-1] = struct{}{}
+  }
+  all_team_ids := make([]uint32, 0, len(group.Team_groups))
+  for k, _ := range all_team_ids_map {
+    all_team_ids = append(all_team_ids, uint32(k))
   }
   table := NewTable(all_team_ids)
+  for _, g := range group.Games {
+    g.home_table_index = table.Query(uint32(g.Home_id))
+    g.away_table_index = table.Query(uint32(g.Away_id))
+  }
 
+  campaign := make([]*TeamCampaign, len(all_team_ids))
   for _, t := range group.Team_groups {
     campaign[table.Query(uint32(t.Team_id))] = &TeamCampaign{id: t.Team_id,
       points: t.Add_sub,
@@ -392,63 +405,64 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
 
   for _, g := range group.Games {
     if g.Played {
-      home := table.Query(uint32(g.Home_id))
-      away := table.Query(uint32(g.Away_id))
-      if campaign[home] != nil {
-        campaign[home].add_game(&g)
+      if campaign[g.home_table_index] != nil {
+        campaign[g.home_table_index].add_game(g)
       }
-      if campaign[away] != nil {
-        campaign[away].add_game(&g)
+      if campaign[g.away_table_index] != nil {
+        campaign[g.away_table_index].add_game(g)
       }
     }
   }
 
-  team_odds := make([]OddsType, len(group.Team_groups))
-  for k, _ := range group.Team_groups {
-    team_odds[k] = OddsType{&TeamOdds{0, make([]float64, len(campaign))}, make([]*GameOdds, 0)}
+  team_odds := make([]OddsType, len(all_team_ids))
+  for k := range team_odds {
+    team_odds[k] = OddsType{&TeamOdds{0, make([]float64, len(group.Team_groups))}, nil}
   }
 
   for i, g := range group.Games {
     if !g.Played {
-      home := table.Query(uint32(g.Home_id))
-      away := table.Query(uint32(g.Away_id))
-      team_odds[home].games = append(team_odds[home].games, &GameOdds{i, make([]*TeamOdds, 100)})
-      team_odds[away].games = append(team_odds[away].games, &GameOdds{i, make([]*TeamOdds, 100)})
+      team_odds[g.home_table_index].games = append(team_odds[g.home_table_index].games, &GameOdds{i, make([]*TeamOdds, 100)})
+      team_odds[g.away_table_index].games = append(team_odds[g.away_table_index].games, &GameOdds{i, make([]*TeamOdds, 100)})
     }
   }
 
   var elapsed time.Duration
+  var elapsed2 time.Duration
   simulated_scores := make([]SimulatedScore, len(group.Games))
-  odds_rest := make([]float64, len(campaign))
-  simulated_campaign := make([]*TeamCampaign, len(campaign))
-  team_slice := make([]*TeamCampaign, len(campaign));
+  odds_rest := make([]float64, len(all_team_ids))
+  simulated_campaign := make([]*TeamCampaign, len(all_team_ids))
+  team_slice := make([]*TeamCampaign, len(group.Team_groups));
   const NUM_ITER = 10000
   for i := 0; i < NUM_ITER; i++ {
     for k, v := range campaign {
       simulated_campaign[k] = v.clone()
     }
 
+    start3 := time.Now()
     for i, g := range group.Games {
       if !g.Played {
         home_score := poisson_rand(g.Home_power)
         away_score := poisson_rand(g.Away_power)
         simulated_scores[i] = SimulatedScore{home_score, away_score}
-        home := table.Query(uint32(g.Home_id))
-        away := table.Query(uint32(g.Away_id))
+        home := g.home_table_index
+        away := g.away_table_index
         if simulated_campaign[home] != nil {
-          simulated_campaign[home].add_game(&GameType{g.Id, g.Home_id, g.Away_id, home_score, away_score, 0.0, 0.0, true})
+          simulated_campaign[home].add_game(&GameType{g.Id, g.Home_id, g.Away_id, home_score, away_score, 0.0, 0.0, true, home, away})
         }
         if simulated_campaign[away] != nil {
-          simulated_campaign[away].add_game(&GameType{g.Id, g.Home_id, g.Away_id, home_score, away_score, 0.0, 0.0, true})
+          simulated_campaign[away].add_game(&GameType{g.Id, g.Home_id, g.Away_id, home_score, away_score, 0.0, 0.0, true, home, away})
         }
       }
     }
+    elapsed2 += time.Since(start3)
 
     {
       i := 0
       for _, v := range simulated_campaign {
-        team_slice[i] = v
-        i += 1
+        if v != nil {
+          team_slice[i] = v
+          i += 1
+        }
       }
     }
 
@@ -475,6 +489,9 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
   result := make(map[string]interface{})
   json_team_odds := make(map[int]*TeamOdds, len(team_odds))
   for _, team := range campaign {
+    if team == nil {
+      continue
+    }
     index := table.Query(uint32(team.id))
     for pos := range team_odds[index].team.Pos {
       team_odds[index].team.Pos[pos] /= NUM_ITER / 100
@@ -488,8 +505,8 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
   start2 := time.Now()
   for i, g := range group.Games {
     if !g.Played {
-      home := table.Query(uint32(g.Home_id))
-      away := table.Query(uint32(g.Away_id))
+      home := g.home_table_index
+      away := g.away_table_index
       var home_importance float64
       for _, x := range team_odds[home].games {
         if x.game_index != i {
@@ -500,18 +517,18 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
             continue
           }
           for j, _ := range v.Pos {
-            v.Pos[j] /= float64(v.count) / 100
+            v.Pos[j] /= float64(v.count)
           }
           odds := team_odds[home].team
           for i, o := range odds.Pos {
-            odds_rest[i] = (o * NUM_ITER / 100 - v.Pos[i] * float64(v.count) / 100) / (float64(NUM_ITER) - float64(v.count)) * 100
+            odds_rest[i] = (o * NUM_ITER / 100 - v.Pos[i] * float64(v.count)) / (float64(NUM_ITER) - float64(v.count))
             if odds_rest[i] < 0 {
               odds_rest[i] = 0
             }
           }
           //distance := calculateEuclidianDistance(group.odds_to_zone_odds(odds_rest), group.odds_to_zone_odds(v.Pos))
           distance := calculateSimilarity(group.odds_to_zone_odds(odds_rest), group.odds_to_zone_odds(v.Pos))
-          if g.Id == 273785 {
+          if g.Id == 1258628 {
             log.Printf("%d %d %v %v %v\n", g.Id, g.Home_id, k, v.count, group.odds_to_zone_odds(v.Pos))
             log.Printf("%d %d %v %v\n", g.Id, g.Home_id, NUM_ITER - v.count, group.odds_to_zone_odds(odds_rest))
             log.Printf("distance %v\n", distance)
@@ -529,19 +546,19 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
             continue
           }
           for j, _ := range v.Pos {
-            v.Pos[j] /= float64(v.count) / 100
+            v.Pos[j] /= float64(v.count)
           }
           odds := team_odds[away].team
           odds_rest := make([]float64, len(v.Pos))
           for i, o := range odds.Pos {
-            odds_rest[i] = (o * NUM_ITER / 100 - v.Pos[i] * float64(v.count) / 100) / (float64(NUM_ITER) - float64(v.count)) * 100
+            odds_rest[i] = (o * NUM_ITER / 100 - v.Pos[i] * float64(v.count)) / (float64(NUM_ITER) - float64(v.count))
             if odds_rest[i] < 0 {
               odds_rest[i] = 0
             }
           }
           //distance := calculateEuclidianDistance(group.odds_to_zone_odds(odds_rest), group.odds_to_zone_odds(v.Pos))
           distance := calculateSimilarity(group.odds_to_zone_odds(odds_rest), group.odds_to_zone_odds(v.Pos))
-          if g.Id == 273785 {
+          if g.Id == 1258628 {
             log.Printf("%d %d %v %v %v\n", g.Id, g.Away_id, k, v.count, group.odds_to_zone_odds(v.Pos))
             log.Printf("%d %d %v %v\n", g.Id, g.Away_id, NUM_ITER - v.count, group.odds_to_zone_odds(odds_rest))
             log.Printf("distance %v\n", distance)
@@ -555,13 +572,30 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
     }
   }
   log.Println("second", time.Since(start2))
-  importances := make(map[int][2]float64)
-  for k, _ := range game_importances {
-    importances[k] = [2]float64{home_importances[k], away_importances[k]}
+  importances := make(map[int]interface{})
+  teams_in_group := make(map[int]struct{})
+  // We'll only update the importance for teams that are in the group
+  for _, t := range group.Team_groups {
+    teams_in_group[t.Team_id] = struct{}{}
+  }
+  for _, g := range group.Games {
+    if !g.Played {
+      _, home := teams_in_group[g.Home_id]
+      _, away := teams_in_group[g.Away_id]
+      if home && away {
+        importances[g.Id] = [2]float64{home_importances[g.Id], away_importances[g.Id]}
+      } else if home {
+        importances[g.Id] = [2]interface{}{home_importances[g.Id], nil}
+      } else if away {
+        importances[g.Id] = [2]interface{}{nil, away_importances[g.Id]}
+      }
+    }
   }
   result["game_importance"] = importances
   log.Println("time elapsed", elapsed)
+  log.Println("time elapsed", elapsed2)
   log.Println("time elapsed", time.Since(start_func))
+  log.Println("Group", group.Id)
   return result
 }
 
@@ -588,8 +622,8 @@ func calculateSimilarity(a, b []float64) float64 {
   var similarity float64
   var divisor1, divisor2 float64
   for i, _ := range a {
-    x := math.Pow(a[i] / 100, 0.5)
-    y := math.Pow(b[i] / 100, 0.5)
+    x := math.Pow(a[i], 0.5)
+    y := math.Pow(b[i], 0.5)
     similarity += x*y
     divisor1 += x*x
     divisor2 += y*y
