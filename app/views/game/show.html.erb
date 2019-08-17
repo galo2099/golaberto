@@ -6,17 +6,79 @@
   <%= @game.phase.championship.full_name %>
 <% end %>
 
+<%= javascript_include_tag "gauge" %>
+
 <h2><%= link_to @game.phase.name, :controller => :championship, :action => :games, :id => @game.phase.championship, :phase => @game.phase %></h2>
+
+<%
+# The importance is a number between 0 and 1 but tends to be clustered around
+# 0.1 and never go much over 0.7. This function takes this values and
+# transforms them into another set of values between 0 and 1 that discriminate much
+# better when the original values are in the lower end.
+def calculate_importance(x)
+  # shortcut zero to avoid floating point innacuracies taking us below 0.
+  if x == 0 then return 0 end
+  ((x + 0.11547005383)**2 / ((x + 0.11547005383)**2 + 0.2**2) - 0.25) / 0.71885398488
+end
+home_importance = calculate_importance(@game.home_importance.to_f)
+away_importance = calculate_importance(@game.away_importance.to_f)
+%>
 
 <table class="game_show_score">
   <%= render :partial => "game_score" %>
   <% odds = @game.odds %>
   <% if !@game.played? && odds then %>
     <tr>
-    <td colspan="4"><%= number_to_percentage(100*odds[0], :precision => 2) %></td>
-    <td><%= number_to_percentage(100*odds[1], :precision => 2) %></td>
-    <td colspan="4" align="right"><%= number_to_percentage(100*odds[2], :precision => 2) %></td>
+    <tr><td colspan="100"><b><%= _("Odds") %></td></tr>
+    <td align="center"><%= number_to_percentage(100*odds[0], :precision => 2) %></td>
+    <td colspan="3"/>
+    <td align="center"><%= number_to_percentage(100*odds[1], :precision => 2) %></td>
+    <td colspan="3"/>
+    <td align="center"><%= number_to_percentage(100*odds[2], :precision => 2) %></td>
     </tr>
+  <% end %>
+  <% if !@game.played? and (@game.home_importance != nil or @game.away_importance != nil) then %>
+    <tr><td colspan="100"><b><%= _("Importance") %></td></tr>
+    <tr>
+    <td align="center"><canvas title="<%= sprintf("%0.02f", home_importance) %>" style="width: 100px" id="gauge_home"/></td>
+    <td colspan="7"/>
+    <td align="center"><canvas title="<%= sprintf("%0.02f", away_importance) %>" style="width: 100px" id="gauge_away"/></td>
+    </tr>
+<script type="text/javascript">
+
+var gradient = ["#F2F663", "#F3F75D", "#F3F756", "#F4F850", "#F5F84A", "#F6F944", "#F7F93E", "#F7FA37", "#F8FA31", "#F9FB2B", "#FAFB25", "#FBFC1F", "#FBFC18", "#FCFD12", "#FDFD0C", "#FEFE06", "#FFFF00", "#FFFB00", "#FFF700", "#FFF300", "#FFEF00", "#FFEB00", "#FFE700", "#FFE300", "#FFDF00", "#FFDB00", "#FFD700", "#FFD300", "#FFCF00", "#FFCC00", "#FFC800", "#FFC400", "#FFC000", "#FFBC00", "#FFB800", "#FFB400", "#FFB000", "#FFAC00", "#FFA800", "#FFA400", "#FFA000", "#FF9C00", "#FF9900", "#FF9500", "#FF9100", "#FF8D00", "#FF8900", "#FF8500", "#FF8100", "#FF7D00", "#FF7900", "#FF7500", "#FF7100", "#FF6D00", "#FF6900", "#FF6600", "#FF6200", "#FF5E00", "#FF5A00", "#FF5600", "#FF5200", "#FF4E00", "#FF4A00", "#FF4600", "#FF4200", "#FF3E00", "#FF3A00", "#FF3600", "#FF3200", "#FF2F00", "#FF2B00", "#FF2700", "#FF2300", "#FF1F00", "#FF1B00", "#FF1700", "#FF1300", "#FF0F00", "#FF0B00", "#FF0700", "#FF0300", "#FF0000"];
+var zones = gradient.map(function(x, i) { return {strokeStyle: x, min: 1.0 / gradient.length * i, max: 1.0 / gradient.length * (i + 1)}; });
+var opts = {
+  angle: -0.2, // The span of the gauge arc
+  lineWidth: 0.2, // The line thickness
+  radiusScale: 1, // Relative radius
+  pointer: {
+    length: 0.4, // // Relative to gauge radius
+    strokeWidth: 0.035, // The thickness
+    color: '#000000' // Fill color
+  },
+  limitMax: false,     // If false, max value increases automatically if value > maxValue
+  limitMin: false,     // If true, the min value of the gauge will be fixed
+  colorStart: '#6FADCF',   // Colors
+  colorStop: '#8FC0DA',    // just experiment with them
+  strokeColor: '#E0E0E0',  // to see which ones work best for you
+  generateGradient: true,
+  highDpiSupport: true,     // High resolution support
+  staticZones: zones,
+};
+var target = document.getElementById('gauge_home'); // your canvas element
+var gauge_home = new Gauge(target).setOptions(opts); // create sexy gauge!
+gauge_home.maxValue = 1.0; // set max gauge value
+gauge_home.setMinValue(0);  // Prefer setter over gauge.minValue = 0
+gauge_home.animationSpeed = 18; // set animation speed (32 is default value)
+gauge_home.set(<%= home_importance %>); // set actual value
+var target = document.getElementById('gauge_away'); // your canvas element
+var gauge_away = new Gauge(target).setOptions(opts); // create sexy gauge!
+gauge_away.maxValue = 1.0; // set max gauge value
+gauge_away.setMinValue(0);  // Prefer setter over gauge.minValue = 0
+gauge_away.animationSpeed = 18; // set animation speed (32 is default value)
+gauge_away.set(<%= away_importance %>); // set actual value
+</script>
   <% end %>
 
   <% player_scored = Hash.new %>

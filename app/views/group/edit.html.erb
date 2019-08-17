@@ -106,14 +106,16 @@
         new_zone.append(position_div);
 
         new_zone.find("#group_zones_" + create_zone_next_id + "_color").spectrum({
+          showInput: true,
           preferredFormat: "hex",
           showPalette: true,
           showButtons: false,
-          hideAfterPaletteSelect:true,
+          hideAfterPaletteSelect: true,
           palette: [
-            ['#68E068', '#90EE90'],
-            ['#87CCE2', '#ADD8E6'],
-            ['#FF8397', '#FFB6C2'],
+            ['#1EC21E', '#4FE34F', '#90EE90'],
+            ['#3A9BBB', '#73BCD4', '#ADD8E6'],
+            ['#FF1F44', '#FF7088', '#FFB6C2'],
+            ['#B6D733', '#CEE477', '#E4F0B4'],
           ]
         });
 

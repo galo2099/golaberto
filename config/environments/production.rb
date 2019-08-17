@@ -48,7 +48,7 @@ Golaberto::Application.configure do
   config.assets.js_compressor = :uglifier
 
   # Precompile additional assets (application.js, application.css, and all non-JS/CSS are already added)
-  config.assets.precompile += %w(jquery.openid.js edit_group.js jquery.flot.js spectrum.js spectrum.css)
+  config.assets.precompile += %w(gauge.js jquery.openid.js edit_group.js jquery.flot.js spectrum.js spectrum.css)
 
   # Disable delivery errors, bad email addresses will be ignored
   # config.action_mailer.raise_delivery_errors = false
