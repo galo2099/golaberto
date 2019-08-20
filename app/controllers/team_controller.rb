@@ -100,12 +100,12 @@ class TeamController < ApplicationController
     @countries = {}
     @countries[""] = @country_list
     ApplicationHelper::Continent::ALL.each do |name, c|
-      @countries[name] = [[s_("Country|All") + " (#{teams.where(country: c.countries).size})", ""]] + @country_list.select{|_, n| ApplicationHelper::Continent.country_to_continent[n] == c}
+      @countries[name] = [[s_("Country|All") + " (#{teams.where(country: c.countries.map{|c|c.name}).size})", ""]] + @country_list.select{|_, n| ApplicationHelper::Continent.country_to_continent[n] == c}
     end
 
     unless @continent.blank?
-      teams = teams.where(country: Continent::ALL[@continent].countries)
-      unless Continent::ALL[@continent].countries.include? @country
+      teams = teams.where(country: Continent::ALL[@continent].countries.map{|c|c.name})
+      unless Continent::ALL[@continent].countries.map{|c|c.name}.include? @country
         @country = nil
       end
     end

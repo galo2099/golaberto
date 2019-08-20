@@ -11,15 +11,18 @@
 <h2><%= link_to @game.phase.name, :controller => :championship, :action => :games, :id => @game.phase.championship, :phase => @game.phase %></h2>
 
 <%
+def squash1(x, h)
+  ret = ((x + h/3**0.5)**2 / ((x + h/3**0.5)**2 + h**2) - 0.25) / ((1 + h/3**0.5)**2 / ((1 + h/3**0.5)**2 + h**2) - 0.25)
+  # shortcut zero to avoid floating point innacuracies taking us below 0.
+  if ret < 0.0 then ret = 0.0 end
+  ret
+end
 # The importance is a number between 0 and 1 but tends to be clustered around
 # 0.1 and never go much over 0.7. This function takes this values and
 # transforms them into another set of values between 0 and 1 that discriminate much
 # better when the original values are in the lower end.
 def calculate_importance(x)
-  ret = ((x + 0.11547005383)**2 / ((x + 0.11547005383)**2 + 0.2**2) - 0.25) / 0.71885398488
-  # shortcut zero to avoid floating point innacuracies taking us below 0.
-  if ret < 0.0 then ret = 0.0 end
-  ret
+  squash1(x, 0.2)
 end
 home_importance = calculate_importance(@game.home_importance.to_f)
 away_importance = calculate_importance(@game.away_importance.to_f)

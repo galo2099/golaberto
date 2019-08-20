@@ -528,7 +528,7 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
           }
           //distance := calculateEuclidianDistance(group.odds_to_zone_odds(odds_rest), group.odds_to_zone_odds(v.Pos))
           distance := calculateSimilarity(group.odds_to_zone_odds(odds_rest), group.odds_to_zone_odds(v.Pos))
-          if g.Id == 273769 {
+          if g.Id == 252636 {
             log.Printf("%d %d %v %v %v\n", g.Id, g.Home_id, k, v.count, group.odds_to_zone_odds(v.Pos))
             log.Printf("%d %d %v %v\n", g.Id, g.Home_id, NUM_ITER - v.count, group.odds_to_zone_odds(odds_rest))
             log.Printf("distance %v\n", distance)
@@ -558,7 +558,7 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
           }
           //distance := calculateEuclidianDistance(group.odds_to_zone_odds(odds_rest), group.odds_to_zone_odds(v.Pos))
           distance := calculateSimilarity(group.odds_to_zone_odds(odds_rest), group.odds_to_zone_odds(v.Pos))
-          if g.Id == 273769 {
+          if g.Id == 252636 {
             log.Printf("%d %d %v %v %v\n", g.Id, g.Away_id, k, v.count, group.odds_to_zone_odds(v.Pos))
             log.Printf("%d %d %v %v\n", g.Id, g.Away_id, NUM_ITER - v.count, group.odds_to_zone_odds(odds_rest))
             log.Printf("distance %v\n", distance)

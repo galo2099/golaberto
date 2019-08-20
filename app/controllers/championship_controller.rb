@@ -46,7 +46,7 @@ class ChampionshipController < ApplicationController
     golaberto_options_for_country_select.each do |translated_country, original_country|
       count = countries_with_championships[original_country]
       unless @continent.blank?
-        if not Continent::ALL[@continent].countries.include? original_country
+        unless Continent::ALL[@continent].countries.map{|c|c.name}.include? original_country
           next
         end
       end
@@ -61,7 +61,7 @@ class ChampionshipController < ApplicationController
     @countries = {}
     @countries[""] = @country_list
     ApplicationHelper::Continent::ALL.each do |name, c|
-      @countries[name] = [[s_("Country|All") + " (#{@championships.where(region_name: c.countries).size})", ""]] + @country_list.select{|_, n| ApplicationHelper::Continent.country_to_continent[n] == c}
+      @countries[name] = [[s_("Country|All") + " (#{@championships.where(region_name: c.countries.map{|c|c.name}).size})", ""]] + @country_list.select{|_, n| ApplicationHelper::Continent.country_to_continent[n] == c}
     end
 
     @region = params[:region]
@@ -72,12 +72,12 @@ class ChampionshipController < ApplicationController
     @continent_name = params[:continent_name] || ""
     @continent = ApplicationHelper::Continent::ALL[@continent_name]
     if @continent
-      @country_name = nil unless @continent.countries.include? @country_name
+      @country_name = nil unless @continent.countries.map{|c|c.name}.include? @country_name
     end
     if (@region == "national" && !@country_name.blank?) then
       @championships = @championships.where(region_name: @country_name)
     elsif (@region == "national" && @continent) then
-      @championships = @championships.where(region_name: @continent.countries)
+      @championships = @championships.where(region_name: @continent.countries.map{|c|c.name})
     elsif @region == "continental" && !@continent_name.blank? then
       @championships = @championships.where(region_name: @continent_name)
     end
