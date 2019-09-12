@@ -22,7 +22,7 @@ end
 # transforms them into another set of values between 0 and 1 that discriminate much
 # better when the original values are in the lower end.
 def calculate_importance(x)
-  squash1(x, 0.2)
+  squash1(x, 0.5)
 end
 home_importance = calculate_importance(@game.home_importance.to_f)
 away_importance = calculate_importance(@game.away_importance.to_f)
