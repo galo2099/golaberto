@@ -354,6 +354,29 @@ class ChampionshipController < ApplicationController
     @penalty = @championship.goals.group(:player).where(:penalty => true, :player_id => players).count
   end
 
+  def spi_eval
+    @championship = Championship.find(params["id"])
+    start_date = @championship.games.where(played: true).first.date
+    end_date = @championship.games.where(played: true).last.date
+    all_games = Game.joins(phase: :championship).select(:home_id, :away_id, :phase_id, :home_score, :home_aet, :away_score, :away_aet, :date, :home_field).where(championships: { category_id: 1 }, played: true).where("date > ?", start_date - 4.years).where("date <= ?", end_date).order(:date)
+    json_map = { phases_to_eval: @championship.phases.map{|p|p.id},
+	    games: all_games.pluck(:home_id, :away_id, :phase_id, :home_score, :home_aet, :away_score, :away_aet, :date, :home_field)
+		    .map{|home_id, away_id, phase_id, home_score, home_aet, away_score, away_aet, date, home_field|
+        { home_id: home_id,
+          away_id: away_id,
+          phase_id: phase_id,
+          home_score: (home_score + home_aet.to_i).to_f / if home_aet.nil? then 1.0 else 4.0/3.0 end,
+          away_score: (away_score + away_aet.to_i).to_f / if home_aet.nil? then 1.0 else 4.0/3.0 end,
+          timestamp: date.to_i,
+          length: if home_aet.nil? then 1.0 else 4.0/3.0 end,
+          advantage: if home_field == Game.home_fields["left"] then Game::HOME_ADV elsif home_field == Game.home_fields["neutral"] then 0.0 else -Game::HOME_ADV end }
+    }, ratings: Team.all.pluck(:id, :off_rating, :def_rating).map{|id, off_rating, def_rating| {id: id, offense: off_rating, defense: def_rating} }}
+    req = Net::HTTP::Post.new("/eval", {'Content-Type' =>'application/json'})
+    req.body = Oj.dump(json_map, mode: :compat)
+    response = Net::HTTP.new("localhost", 6577).start {|http| http.read_timeout = 300; http.request(req) }
+    render plain: ActiveSupport::JSON.decode(response.body)
+  end
+
   private
   def championship_params
     params.require(:championship).permit(:name, :begin, :end, :point_win, :point_draw, :point_loss, :category_id, :show_country, :region, :region_name)

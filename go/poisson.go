@@ -11,9 +11,12 @@ import "log"
 import "math"
 import "math/rand"
 import "sort"
-import "strconv"
 import "strings"
 import "time"
+
+const (
+  AVG_BASE = 1.3350257653834494
+)
 
 type TeamCampaign struct {
   id int
@@ -144,6 +147,18 @@ type GroupType struct {
   Phase *PhaseType
   Games []*GameType
   Team_groups []TeamType
+}
+
+func factorial(x float64) float64 {
+  ret := 1.0
+  for i := 1.0; i <= x; i++ {
+    ret *= i
+  }
+  return ret
+}
+
+func poisson_pmf(mean, x float64) float64 {
+  return math.Pow(mean, x)*math.Exp(-mean)/factorial(x)
 }
 
 func poisson_rand(mean float64) int {
@@ -667,12 +682,27 @@ func calculateChampionshipOdds(c http.ResponseWriter, req *http.Request) {
   enc.Encode(team_odds)
 }
 
+type SpiGameType struct {
+  Phase_Id int
+  Home_Id float64
+  Away_Id float64
+  Home_Score float64
+  Away_Score float64
+  Timestamp float64
+  Length float64
+  Advantage float64
+  home_table_index int32
+  away_table_index int32
+}
+
 type GamesType struct {
-  Games [][]float64
-  Ratings map[string][]float64
+  Phases_To_Eval []int
+  Games []SpiGameType
+  Ratings []*TeamRating
 }
 
 type TeamRating struct {
+  Id int
   Offense float64
   Defense float64
 }
@@ -682,62 +712,193 @@ func squash_date(timestamp float64, now float64) float64 {
   return 1 + (math.Exp(x)-math.Exp(-x))/(math.Exp(x)+math.Exp(-x))
 }
 
-func (all_games *GamesType) spi() map[string]*TeamRating {
-  AVG_BASE := 1.3350257653834494
-  off_rating := make(map[float64]float64)
-  def_rating := make(map[float64]float64)
+func (g *SpiGameType) home_power(r map[int]*TeamRating) float64 {
+  off_rating := AVG_BASE / 2
+  if r[int(g.Home_Id)] != nil {
+    off_rating = r[int(g.Home_Id)].Offense
+  }
+  def_rating := AVG_BASE * 2
+  if r[int(g.Away_Id)] != nil {
+    def_rating = r[int(g.Away_Id)].Defense
+  }
+  return math.Min(10.0, math.Max(0.01, (off_rating - AVG_BASE)/(AVG_BASE*0.424+0.548)*(math.Max(0.25, (def_rating+g.Advantage)*0.424+0.548))+(def_rating+g.Advantage)))
+}
+
+func (g *SpiGameType) away_power(r map[int]*TeamRating) float64 {
+  off_rating := AVG_BASE / 2
+  if r[int(g.Away_Id)] != nil {
+    off_rating = r[int(g.Away_Id)].Offense
+  }
+  def_rating := AVG_BASE * 2
+  if r[int(g.Home_Id)] != nil {
+    def_rating = r[int(g.Home_Id)].Defense
+  }
+  return math.Min(10.0, math.Max(0.01, (off_rating - AVG_BASE)/(AVG_BASE*0.424+0.548)*(math.Max(0.25, (def_rating-g.Advantage)*0.424+0.548))+(def_rating-g.Advantage)))
+}
+
+func (g *SpiGameType) odds(r map[int]*TeamRating) (float64, float64, float64) {
+  var home, draw, away float64
+  home_power := g.home_power(r)
+  away_power := g.away_power(r)
+  for i := 0; i < 10; i++ {
+    for j := 0; j < 10; j++ {
+      p := poisson_pmf(home_power, float64(i)) * poisson_pmf(away_power, float64(j))
+      if (i > j) {
+        home += p
+      } else if (i == j) {
+        draw += p
+      } else {
+        away += p
+      }
+    }
+  }
+  return home, draw, away
+}
+
+func (g *SpiGameType) observed_pmf() (float64, float64, float64) {
+  if g.Home_Score > g.Away_Score {
+    return 1.0, 0.0, 0.0
+  } else if g.Home_Score == g.Away_Score {
+    return 0.0, 1.0, 0.0
+  } else {
+    return 0.0, 0.0, 1.0
+  }
+}
+
+func (g *SpiGameType) rps(r map[int]*TeamRating) float64 {
+  home, draw, _ := g.odds(r)
+  observed_home, observed_draw, _ := g.observed_pmf()
+
+  return (math.Pow(home - observed_home, 2.0) + math.Pow(home + draw - observed_home - observed_draw, 2.0)) / 2.0
+}
+
+func checkItemInSlice(a int, list []int) bool {
+  for _, b := range list {
+    if b == a {
+      return true
+    }
+  }
+  return false
+}
+
+func (all_games *GamesType) eval() map[string]interface{} {
+  rps_per_team := make(map[int]float64)
+  games_per_team := make(map[int]int)
+  ratings := make(map[int]*TeamRating, len(all_games.Ratings))
+  for _, v := range all_games.Ratings {
+    ratings[v.Id] = v
+  }
+
+  all_team_ids := make([]uint32, 0, len(ratings))
+  for k, _ := range ratings {
+    all_team_ids = append(all_team_ids, uint32(k))
+  }
+  table := NewTable(all_team_ids)
+
+  ranked_score := 0.0
+  games := 0
+  var gamesDeque []*SpiGameType
+  var last_spi time.Time
+  for i, _ := range all_games.Games {
+    g := &all_games.Games[i]
+    g.home_table_index = table.Query(uint32(g.Home_Id))
+    g.away_table_index = table.Query(uint32(g.Away_Id))
+    if checkItemInSlice(g.Phase_Id, all_games.Phases_To_Eval) {
+      if time.Unix(int64(g.Timestamp), 0).Day() != last_spi.Day() {
+        log.Println(time.Unix(int64(g.Timestamp), 0))
+        log.Println("rps", ranked_score / float64(games), games)
+        ratings = spi(gamesDeque, ratings, table)
+        last_spi = time.Unix(int64(g.Timestamp), 0)
+      }
+      rps := g.rps(ratings)
+      rps_per_team[int(g.Home_Id)] += rps
+      games_per_team[int(g.Home_Id)] += 1
+      rps_per_team[int(g.Away_Id)] += rps
+      games_per_team[int(g.Away_Id)] += 1
+      ranked_score += rps
+      games++
+    }
+    gamesDeque = append(gamesDeque, g)
+    for gamesDeque[0].Timestamp < g.Timestamp - 4*365*24*3600 {
+      gamesDeque = gamesDeque[1:]
+    }
+  }
+  for k, _ := range rps_per_team {
+    rps_per_team[k] /= float64(games_per_team[k])
+  }
+  return map[string]interface{} {
+    "rps": ranked_score / float64(games),
+    "team_rps": rps_per_team,
+  }
+}
+
+func spi(games []*SpiGameType, ratings map[int]*TeamRating, table *Table) map[int]*TeamRating {
   NUM_ITER := 100000
-  log.Print(len(all_games.Games))
-  games := make(map[float64]float64)
-  team_weights := make(map[float64]float64)
-  team_penalties := make(map[float64]float64)
-  weights := make([]float64, len(all_games.Games))
-  now := all_games.Games[len(all_games.Games)-1][4]
-  for i, g := range all_games.Games {
-    weights[i] = g[5] * squash_date(g[4], now)
-    games[g[0]] += weights[i]  // Game_weight
-    games[g[1]] += weights[i]  // Game_weight
+  off_rating := make([]float64, len(ratings))
+  def_rating := make([]float64, len(ratings))
+  log.Println(len(games))
+  gamesCount := make([]float64, len(ratings))
+  team_weights := make([]float64, len(ratings))
+  team_penalties := make([]float64, len(ratings))
+  weights := make([]float64, len(games))
+  now := games[len(games)-1].Timestamp
+  for i := 0; i < len(games); i++ {
+    g := games[i]
+    weights[i] = g.Length * squash_date(g.Timestamp, now)
+    gamesCount[g.home_table_index] += weights[i]  // Game_weight
+    gamesCount[g.away_table_index] += weights[i]  // Game_weight
   }
-  for k, _ := range games {
-    team_weights[k] = team_weight(games[k])
-    team_penalties[k] = team_penalty(games[k])
-    log.Printf("Team: %0.0f Weight: %0.02f penalty: %0.02f games: %0.02f", k, team_weights[k], team_penalties[k], games[k])
-    games[k] = 0
+  for k, _ := range gamesCount {
+    team_weights[k] = team_weight(gamesCount[k])
+    team_penalties[k] = team_penalty(gamesCount[k])
+//    log.Printf("Team: %0.0f Weight: %0.02f penalty: %0.02f games: %0.02f", k, team_weights[k], team_penalties[k], games[k])
+    gamesCount[k] = 0
   }
-  for i, g := range all_games.Games {
-    weights[i] *= team_weights[g[0]] * team_weights[g[1]]
-    games[g[0]] += weights[i]  // Game_weight
-    games[g[1]] += weights[i]  // Game_weight
+  for i := 0; i < len(games); i++ {
+    g := games[i]
+    weights[i] *= team_weights[g.home_table_index] * team_weights[g.away_table_index]
+    gamesCount[g.home_table_index] += weights[i]  // Game_weight
+    gamesCount[g.away_table_index] += weights[i]  // Game_weight
   }
-  for k, _ := range games {
-    games[k] += 1.0
+  for k, _ := range gamesCount {
+    gamesCount[k] += 1.0
   }
-  for k, v := range all_games.Ratings {
-    id, _ := strconv.ParseFloat(k, 64)
-    off_rating[id] = upper_bound(v[0], games[id])
-    def_rating[id] = lower_bound(v[1], games[id])
+  for k, v := range ratings {
+    if v != nil {
+      k := table.Query(uint32(k))
+      off_rating[k] = upper_bound(v.Offense, gamesCount[k])
+      def_rating[k] = lower_bound(v.Defense, gamesCount[k])
+    }
   }
   good_iterations := 0
+  adjusted_goals_scored := make([]float64, len(ratings))
+  adjusted_goals_allowed := make([]float64, len(ratings))
+  timer := time.Now()
   for i := 0; i < NUM_ITER; i++ {
-    adjusted_goals_scored := make(map[float64]float64)
-    adjusted_goals_allowed := make(map[float64]float64)
-    for k, _ := range games {
-      adjusted_goals_scored[k] += AVG_BASE
-      adjusted_goals_allowed[k] += AVG_BASE
+    for k, _ := range gamesCount {
+      adjusted_goals_scored[k] = AVG_BASE
+      adjusted_goals_allowed[k] = AVG_BASE
     }
-    for i, g := range all_games.Games {
-      home_adv := g[6]
-      adjusted_goals_scored[g[0]] += team_penalties[g[0]] * weights[i] * ((float64(g[2]) - (def_rating[g[1]]+home_adv))/( math.Max(0.25, (def_rating[g[1]]+home_adv)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
-      adjusted_goals_allowed[g[0]] += (1/team_penalties[g[0]]) * weights[i] * ((float64(g[3]) - (off_rating[g[1]]-home_adv))/( math.Max(0.25, (off_rating[g[1]]-home_adv)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
-      adjusted_goals_scored[g[1]] += team_penalties[g[1]] * weights[i] * ((float64(g[3]) - (def_rating[g[0]]-home_adv))/( math.Max(0.25, (def_rating[g[0]]-home_adv)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
-      adjusted_goals_allowed[g[1]] += (1/team_penalties[g[1]]) * weights[i] * ((float64(g[2]) - (off_rating[g[0]]+home_adv))/( math.Max(0.25, (off_rating[g[0]]+home_adv)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
+    for i, g := range games {
+      home_adv := g.Advantage
+      h_off := off_rating[g.home_table_index]
+      h_def := def_rating[g.home_table_index]
+      a_off := off_rating[g.away_table_index]
+      a_def := def_rating[g.away_table_index]
+      w := weights[i]
+      h_penalty := team_penalties[g.home_table_index]
+      a_penalty := team_penalties[g.away_table_index]
+      adjusted_goals_scored[g.home_table_index] += h_penalty * w * ((g.Home_Score - (a_def+home_adv))/( math.Max(0.25, (a_def+home_adv)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
+      adjusted_goals_allowed[g.home_table_index] += (1/h_penalty) * w * ((g.Away_Score - (a_off-home_adv))/( math.Max(0.25, (a_off-home_adv)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
+      adjusted_goals_scored[g.away_table_index] += a_penalty * w * ((g.Away_Score - (h_def-home_adv))/( math.Max(0.25, (h_def-home_adv)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
+      adjusted_goals_allowed[g.away_table_index] += (1/a_penalty) * w * ((g.Home_Score - (h_off+home_adv))/( math.Max(0.25, (h_off+home_adv)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
     }
     error := 0.0
-    largest_k := 0.0
-    for k, _ := range games {
+    var largest_k int
+    for k, _ := range gamesCount {
       old_off := off_rating[k]
-      off_rating[k] = adjusted_goals_scored[k] / games[k]
-      def_rating[k] = adjusted_goals_allowed[k] / games[k]
+      off_rating[k] = adjusted_goals_scored[k] / gamesCount[k]
+      def_rating[k] = adjusted_goals_allowed[k] / gamesCount[k]
       this_error := math.Sqrt((old_off - off_rating[k])*(old_off - off_rating[k]))
       if (this_error > error) {
         error = this_error
@@ -751,28 +912,38 @@ func (all_games *GamesType) spi() map[string]*TeamRating {
     }
     if (good_iterations > 10) {
       log.Print(i)
-      log.Printf("%f: %f", largest_k, error)
-      log.Printf("%f %.6f %.6f", largest_k, off_rating[largest_k], def_rating[largest_k])
+      log.Printf("%d: %f", largest_k, error)
+      log.Printf("%d %.6f %.6f", largest_k, off_rating[largest_k], def_rating[largest_k])
+      log.Println("time per 100 iter 90k games:", time.Since(timer).Seconds() / float64(i) / float64(len(games)) * 100.0 * 90000)
       break
     }
-    if (i % 10 == 0 || i % 10 == 1) {
+    if (i == 0) {
       log.Print(i)
-      log.Printf("%f: %f", largest_k, error)
-      log.Printf("%f %.6f %.6f %.6f", largest_k, off_rating[largest_k], def_rating[largest_k], games[largest_k])
+      log.Printf("%d: %f", largest_k, error)
+      log.Printf("%d %.6f %.6f %.6f", largest_k, off_rating[largest_k], def_rating[largest_k], gamesCount[largest_k])
+    }
+    if (i % 10 == 0 || i % 10 == 1) {
+//      log.Print(i)
+//      log.Printf("%f: %f", largest_k, error)
+//      log.Printf("%f %.6f %.6f %.6f", largest_k, off_rating[largest_k], def_rating[largest_k], gamesCount[largest_k])
     }
   }
-  ratings := make(map[string]*TeamRating)
-//  for k, _ := range games {
-//    off_rating[k] = (off_rating[k] * games[k] + 5*AVG_BASE) / (games[k] + 5)
-//    def_rating[k] = (def_rating[k] * games[k] + 5*AVG_BASE) / (games[k] + 5)
+  new_ratings := make(map[int]*TeamRating)
+//  for k, _ := range gamesCount {
+//    off_rating[k] = (off_rating[k] * gamesCount[k] + 5*AVG_BASE) / (gamesCount[k] + 5)
+//    def_rating[k] = (def_rating[k] * gamesCount[k] + 5*AVG_BASE) / (gamesCount[k] + 5)
 //  }
-  for k, _ := range off_rating {
-    key := strconv.FormatFloat(k, 'f', -1, 64)
-    ratings[key] = new(TeamRating)
-    ratings[key].Offense = lower_bound(off_rating[k], games[k])
-    ratings[key].Defense = upper_bound(def_rating[k], games[k])
+  for k, _ := range ratings {
+    index := table.Query(uint32(k))
+    if gamesCount[index] == 1.0 {
+      new_ratings[k] = nil
+    } else {
+      new_ratings[k] = new(TeamRating)
+      new_ratings[k].Offense = lower_bound(off_rating[index], gamesCount[index])
+      new_ratings[k].Defense = upper_bound(def_rating[index], gamesCount[index])
+    }
   }
-  return ratings
+  return new_ratings
 }
 
 func lower_bound(avg float64, sample float64) float64 {
@@ -800,16 +971,41 @@ func calculatePowerRanking(c http.ResponseWriter, req *http.Request) {
     fmt.Println(err)
     return
   }
-  ratings := v.spi()
+  ratings := make(map[int]*TeamRating, len(v.Ratings))
+  all_team_ids := make([]uint32, 0, len(v.Ratings))
+  for _, v := range v.Ratings {
+    ratings[v.Id] = v
+    all_team_ids = append(all_team_ids, uint32(v.Id))
+  }
+  table := NewTable(all_team_ids)
+  var q []*SpiGameType
+  for i, _ := range v.Games {
+    g := &v.Games[i]
+    g.home_table_index = table.Query(uint32(g.Home_Id))
+    g.away_table_index = table.Query(uint32(g.Away_Id))
+    q = append(q, g)
+  }
+  ratings = spi(q, ratings, table)
 //  enc2 := json.NewEncoder(os.Stdout)
 //  enc2.Encode(ratings)
   enc := json.NewEncoder(c)
   enc.Encode(ratings)
 }
 
+func evalPredictions(c http.ResponseWriter, req *http.Request) {
+  log.Println("New Request")
+  dec := json.NewDecoder(req.Body)
+  var v GamesType
+  if err := dec.Decode(&v); err != nil {
+    fmt.Println(err)
+    return
+  }
+  rps := v.eval()
+  enc := json.NewEncoder(c)
+  enc.Encode(rps)
+}
 
 // MPH
-
 
 // Table stores the values for the hash function
 type Table struct {
@@ -950,5 +1146,6 @@ func main() {
   fmt.Printf("Starting http Server ... ")
   http.Handle("/odds", http.HandlerFunc(calculateChampionshipOdds))
   http.Handle("/spi", http.HandlerFunc(calculatePowerRanking))
+  http.Handle("/eval", http.HandlerFunc(evalPredictions))
   log.Fatal(http.ListenAndServe(":6577", nil))
 }
