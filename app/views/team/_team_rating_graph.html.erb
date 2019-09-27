@@ -19,7 +19,7 @@ data = teams.map{|t|HistoricalRating.connection.select_all("select LEAST(FROM_UN
     var ratingOptions = {
       xaxis: {
         mode: "time",
-        timeformat: "%Y/%m/%d",
+        timeformat: "%Y/%m",
         max: Date.now() / 1000 + 2000000,
         min: Date.now() / 1000 - <%= 4.years.to_i %> - 2000000,
       },
@@ -48,7 +48,6 @@ data = teams.map{|t|HistoricalRating.connection.select_all("select LEAST(FROM_UN
       $("#tooltip").html(
         "<table>" +
         points.reduce(function(acc, cur) {
-          console.log(cur);
           if (cur.point[1] == "null") return acc;
           var div = '<tr><td><div style="border:1px solid #ccc;padding:1px"><div style="width:4px;height:0;border:5px solid ' + cur.color + ';overflow:hidden"></div></div></td>';
           return acc + div + "<td>" + cur.label + "</td><td>" + cur.point[1].toFixed(2) + "</td></tr>";
@@ -131,7 +130,7 @@ data = teams.map{|t|HistoricalRating.connection.select_all("select LEAST(FROM_UN
           plot.highlight(series, closest);
           ys.push({label: series.label, point: closest, color: series.color});
         }
-        ys.sort(function(a, b) { return b.point[1] - a.point[1] });
+        ys.sort(function(a, b) { return parseInt("0" + b.point[1]) - parseInt("0" + a.point[1]); });
         writeTooltip(pos, ys);
       });
 
