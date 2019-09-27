@@ -20,7 +20,13 @@
 </div>
 
 <div>
-  <%= _("Latest championships") %>:<br/>
+  <h2><%= _("Rating") %></h2>
+  <input type="checkbox" checked name=<%= @team.id %> class="ratingSelector" style="display: none">
+  <%= render partial: "team_rating_graph", locals: {teams: [@team]} %>
+</div>
+
+<div>
+  <h2><%= _("Latest championships") %></h2>
   <% @championships.each do |c| %>
     <%= championship_name c, :controller => :championship, :action => :team, :id => c, :team => @team %><br/>
   <% end %>

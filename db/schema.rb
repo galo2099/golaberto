@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20190812202152) do
+ActiveRecord::Schema.define(version: 20190925021436) do
 
   create_table "categories", force: :cascade do |t|
     t.string "name", limit: 255
@@ -149,6 +149,15 @@ ActiveRecord::Schema.define(version: 20190812202152) do
     t.datetime "updated_at",                               null: false
     t.text     "zones",         limit: 65535
   end
+
+  create_table "historical_ratings", force: :cascade do |t|
+    t.integer "team_id",      limit: 4,  null: false
+    t.float   "rating",       limit: 24, null: false
+    t.date    "measure_date",            null: false
+  end
+
+  add_index "historical_ratings", ["team_id", "measure_date"], name: "index_historical_ratings_on_team_id_and_measure_date", unique: true, using: :btree
+  add_index "historical_ratings", ["team_id"], name: "index_historical_ratings_on_team_id", using: :btree
 
   create_table "open_id_authentication_associations", force: :cascade do |t|
     t.integer "issued",     limit: 4
@@ -295,4 +304,5 @@ ActiveRecord::Schema.define(version: 20190812202152) do
     t.string   "openid_connect_token",      limit: 255
   end
 
+  add_foreign_key "historical_ratings", "teams"
 end

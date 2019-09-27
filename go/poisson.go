@@ -684,11 +684,11 @@ func calculateChampionshipOdds(c http.ResponseWriter, req *http.Request) {
 
 type SpiGameType struct {
   Phase_Id int
-  Home_Id float64
-  Away_Id float64
+  Home_Id int
+  Away_Id int
   Home_Score float64
   Away_Score float64
-  Timestamp float64
+  Timestamp int64
   Length float64
   Advantage float64
   home_table_index int32
@@ -705,11 +705,16 @@ type TeamRating struct {
   Id int
   Offense float64
   Defense float64
+  Team float64
 }
 
 func squash_date(timestamp float64, now float64) float64 {
   x := float64(timestamp - now) / (730*24*60*60)
   return 1 + (math.Exp(x)-math.Exp(-x))/(math.Exp(x)+math.Exp(-x))
+}
+
+func calculate_power(off_rating, def_rating, advantage float64) float64 {
+  return math.Min(10.0, math.Max(0.01, (off_rating - AVG_BASE)/(AVG_BASE*0.424+0.548)*((def_rating+advantage)*0.424+0.548)+(def_rating+advantage)))
 }
 
 func (g *SpiGameType) home_power(r map[int]*TeamRating) float64 {
@@ -721,7 +726,7 @@ func (g *SpiGameType) home_power(r map[int]*TeamRating) float64 {
   if r[int(g.Away_Id)] != nil {
     def_rating = r[int(g.Away_Id)].Defense
   }
-  return math.Min(10.0, math.Max(0.01, (off_rating - AVG_BASE)/(AVG_BASE*0.424+0.548)*(math.Max(0.25, (def_rating+g.Advantage)*0.424+0.548))+(def_rating+g.Advantage)))
+  return calculate_power(off_rating, def_rating, g.Advantage)
 }
 
 func (g *SpiGameType) away_power(r map[int]*TeamRating) float64 {
@@ -733,15 +738,13 @@ func (g *SpiGameType) away_power(r map[int]*TeamRating) float64 {
   if r[int(g.Home_Id)] != nil {
     def_rating = r[int(g.Home_Id)].Defense
   }
-  return math.Min(10.0, math.Max(0.01, (off_rating - AVG_BASE)/(AVG_BASE*0.424+0.548)*(math.Max(0.25, (def_rating-g.Advantage)*0.424+0.548))+(def_rating-g.Advantage)))
+  return calculate_power(off_rating, def_rating, g.Advantage)
 }
 
-func (g *SpiGameType) odds(r map[int]*TeamRating) (float64, float64, float64) {
+func calculate_game_odds(home_power, away_power float64) (float64, float64, float64) {
   var home, draw, away float64
-  home_power := g.home_power(r)
-  away_power := g.away_power(r)
-  for i := 0; i < 10; i++ {
-    for j := 0; j < 10; j++ {
+  for i := 0; i < 20; i++ {
+    for j := 0; j < 20; j++ {
       p := poisson_pmf(home_power, float64(i)) * poisson_pmf(away_power, float64(j))
       if (i > j) {
         home += p
@@ -753,6 +756,12 @@ func (g *SpiGameType) odds(r map[int]*TeamRating) (float64, float64, float64) {
     }
   }
   return home, draw, away
+}
+
+func (g *SpiGameType) odds(r map[int]*TeamRating) (float64, float64, float64) {
+  home_power := g.home_power(r)
+  away_power := g.away_power(r)
+  return calculate_game_odds(home_power, away_power)
 }
 
 func (g *SpiGameType) observed_pmf() (float64, float64, float64) {
@@ -779,6 +788,58 @@ func checkItemInSlice(a int, list []int) bool {
     }
   }
   return false
+}
+
+func team_rating(r *TeamRating) float64 {
+  if r == nil {
+    return 0.0
+  }
+  home_power := calculate_power(r.Offense, AVG_BASE, 0.0)
+  away_power := calculate_power(AVG_BASE, r.Defense, 0.0)
+  h, d, _ := calculate_game_odds(home_power, away_power)
+  return (h * 3 + d) / 3 * 100
+}
+
+func (all_games *GamesType) historicRatings() map[string]interface{} {
+  dates := make([]time.Time, 0)
+  ratings_per_team := make(map[int][]float64)
+  ratings := make(map[int]*TeamRating, len(all_games.Ratings))
+  for _, v := range all_games.Ratings {
+    ratings[v.Id] = v
+  }
+
+  all_team_ids := make([]uint32, 0, len(ratings))
+  for k, _ := range ratings {
+    all_team_ids = append(all_team_ids, uint32(k))
+  }
+  table := NewTable(all_team_ids)
+
+  weeks := int64(4 * 52 * 7 * 24 * 60 * 60)
+  start_date := all_games.Games[0].Timestamp
+  var gamesDeque []*SpiGameType
+  for i, _ := range all_games.Games {
+    g := &all_games.Games[i]
+    g.home_table_index = table.Query(uint32(g.Home_Id))
+    g.away_table_index = table.Query(uint32(g.Away_Id))
+    gamesDeque = append(gamesDeque, g)
+    for gamesDeque[0].Timestamp < g.Timestamp - 4*365*24*3600 {
+      gamesDeque = gamesDeque[1:]
+    }
+    if g.Timestamp - start_date > weeks || i == len(all_games.Games) - 1 {
+      weeks += 7 * 24 * 60 * 60
+      dateUTC := time.Unix(g.Timestamp, 0).UTC()
+      dates = append(dates, dateUTC)
+      log.Println(dateUTC)
+      ratings = spi(gamesDeque, ratings, table)
+      for k, v := range ratings {
+        ratings_per_team[k] = append(ratings_per_team[k], team_rating(v))
+      }
+    }
+  }
+  return map[string]interface{} {
+    "ratings": ratings_per_team,
+    "dates": dates,
+  }
 }
 
 func (all_games *GamesType) eval() map[string]interface{} {
@@ -844,7 +905,7 @@ func spi(games []*SpiGameType, ratings map[int]*TeamRating, table *Table) map[in
   now := games[len(games)-1].Timestamp
   for i := 0; i < len(games); i++ {
     g := games[i]
-    weights[i] = g.Length * squash_date(g.Timestamp, now)
+    weights[i] = g.Length * squash_date(float64(g.Timestamp), float64(now))
     gamesCount[g.home_table_index] += weights[i]  // Game_weight
     gamesCount[g.away_table_index] += weights[i]  // Game_weight
   }
@@ -861,7 +922,7 @@ func spi(games []*SpiGameType, ratings map[int]*TeamRating, table *Table) map[in
     gamesCount[g.away_table_index] += weights[i]  // Game_weight
   }
   for k, _ := range gamesCount {
-    gamesCount[k] += 1.0
+    gamesCount[k] += math.Min(1.0, gamesCount[k])
   }
   for k, v := range ratings {
     if v != nil {
@@ -876,8 +937,8 @@ func spi(games []*SpiGameType, ratings map[int]*TeamRating, table *Table) map[in
   timer := time.Now()
   for i := 0; i < NUM_ITER; i++ {
     for k, _ := range gamesCount {
-      adjusted_goals_scored[k] = AVG_BASE
-      adjusted_goals_allowed[k] = AVG_BASE
+      adjusted_goals_scored[k] = AVG_BASE * math.Min(1.0, gamesCount[k]/2)
+      adjusted_goals_allowed[k] = AVG_BASE * math.Min(1.0, gamesCount[k]/2)
     }
     for i, g := range games {
       home_adv := g.Advantage
@@ -888,61 +949,61 @@ func spi(games []*SpiGameType, ratings map[int]*TeamRating, table *Table) map[in
       w := weights[i]
       h_penalty := team_penalties[g.home_table_index]
       a_penalty := team_penalties[g.away_table_index]
-      adjusted_goals_scored[g.home_table_index] += h_penalty * w * ((g.Home_Score - (a_def+home_adv))/( math.Max(0.25, (a_def+home_adv)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
-      adjusted_goals_allowed[g.home_table_index] += (1/h_penalty) * w * ((g.Away_Score - (a_off-home_adv))/( math.Max(0.25, (a_off-home_adv)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
-      adjusted_goals_scored[g.away_table_index] += a_penalty * w * ((g.Away_Score - (h_def-home_adv))/( math.Max(0.25, (h_def-home_adv)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
-      adjusted_goals_allowed[g.away_table_index] += (1/a_penalty) * w * ((g.Home_Score - (h_off+home_adv))/( math.Max(0.25, (h_off+home_adv)*0.424+0.548) )*(AVG_BASE*0.424+0.548)+AVG_BASE)
+      adjusted_goals_scored[g.home_table_index] += h_penalty * w * ((g.Home_Score - (a_def+home_adv))/((a_def+home_adv)*0.424+0.548)*(AVG_BASE*0.424+0.548)+AVG_BASE)
+      adjusted_goals_allowed[g.home_table_index] += (1/h_penalty) * w * ((g.Away_Score - (a_off-home_adv))/((a_off-home_adv)*0.424+0.548)*(AVG_BASE*0.424+0.548)+AVG_BASE)
+      adjusted_goals_scored[g.away_table_index] += a_penalty * w * ((g.Away_Score - (h_def-home_adv))/((h_def-home_adv)*0.424+0.548)*(AVG_BASE*0.424+0.548)+AVG_BASE)
+      adjusted_goals_allowed[g.away_table_index] += (1/a_penalty) * w * ((g.Home_Score - (h_off+home_adv))/((h_off+home_adv)*0.424+0.548)*(AVG_BASE*0.424+0.548)+AVG_BASE)
     }
-    error := 0.0
+    max_error := 0.0
     var largest_k int
     for k, _ := range gamesCount {
       old_off := off_rating[k]
+      //old_def := def_rating[k]
       off_rating[k] = adjusted_goals_scored[k] / gamesCount[k]
       def_rating[k] = adjusted_goals_allowed[k] / gamesCount[k]
-      this_error := math.Sqrt((old_off - off_rating[k])*(old_off - off_rating[k]))
-      if (this_error > error) {
-        error = this_error
+      this_error := math.Sqrt((old_off - off_rating[k])*(old_off - off_rating[k])) //+ math.Sqrt((old_def - def_rating[k])*(old_def - def_rating[k]))
+      if (this_error > max_error) {
+        max_error = this_error
         largest_k = k
       }
     }
-    if (error < 0.0001) {
+    if (max_error < 0.0001) {
       good_iterations += 1
     } else {
       good_iterations = 0
     }
     if (good_iterations > 10) {
       log.Print(i)
-      log.Printf("%d: %f", largest_k, error)
+      log.Printf("%d: %f", largest_k, max_error)
       log.Printf("%d %.6f %.6f", largest_k, off_rating[largest_k], def_rating[largest_k])
       log.Println("time per 100 iter 90k games:", time.Since(timer).Seconds() / float64(i) / float64(len(games)) * 100.0 * 90000)
       break
     }
     if (i == 0) {
       log.Print(i)
-      log.Printf("%d: %f", largest_k, error)
+      log.Printf("%d: %f", largest_k, max_error)
       log.Printf("%d %.6f %.6f %.6f", largest_k, off_rating[largest_k], def_rating[largest_k], gamesCount[largest_k])
     }
     if (i % 10 == 0 || i % 10 == 1) {
 //      log.Print(i)
-//      log.Printf("%f: %f", largest_k, error)
+//      log.Printf("%f: %f", largest_k, max_error)
 //      log.Printf("%f %.6f %.6f %.6f", largest_k, off_rating[largest_k], def_rating[largest_k], gamesCount[largest_k])
     }
   }
   new_ratings := make(map[int]*TeamRating)
-//  for k, _ := range gamesCount {
-//    off_rating[k] = (off_rating[k] * gamesCount[k] + 5*AVG_BASE) / (gamesCount[k] + 5)
-//    def_rating[k] = (def_rating[k] * gamesCount[k] + 5*AVG_BASE) / (gamesCount[k] + 5)
-//  }
   for k, _ := range ratings {
     index := table.Query(uint32(k))
-    if gamesCount[index] == 1.0 {
+    if gamesCount[index] == 0.0 {
       new_ratings[k] = nil
     } else {
       new_ratings[k] = new(TeamRating)
+      new_ratings[k].Id = k
       new_ratings[k].Offense = lower_bound(off_rating[index], gamesCount[index])
       new_ratings[k].Defense = upper_bound(def_rating[index], gamesCount[index])
+      new_ratings[k].Team = team_rating(new_ratings[k])
     }
   }
+  log.Println(time.Unix(games[0].Timestamp, 0))
   return new_ratings
 }
 
@@ -987,9 +1048,28 @@ func calculatePowerRanking(c http.ResponseWriter, req *http.Request) {
   }
   ratings = spi(q, ratings, table)
 //  enc2 := json.NewEncoder(os.Stdout)
-//  enc2.Encode(ratings)
+//  err := enc2.Encode(ratings)
+//  if err != nil {
+//    panic(err)
+//  }
   enc := json.NewEncoder(c)
-  enc.Encode(ratings)
+  err := enc.Encode(ratings)
+  if err != nil {
+    panic(err)
+  }
+}
+
+func historicRatings(c http.ResponseWriter, req *http.Request) {
+  log.Println("New Request")
+  dec := json.NewDecoder(req.Body)
+  var v GamesType
+  if err := dec.Decode(&v); err != nil {
+    fmt.Println(err)
+    return
+  }
+  rps := v.historicRatings()
+  enc := json.NewEncoder(c)
+  enc.Encode(rps)
 }
 
 func evalPredictions(c http.ResponseWriter, req *http.Request) {
@@ -1147,5 +1227,6 @@ func main() {
   http.Handle("/odds", http.HandlerFunc(calculateChampionshipOdds))
   http.Handle("/spi", http.HandlerFunc(calculatePowerRanking))
   http.Handle("/eval", http.HandlerFunc(evalPredictions))
+  http.Handle("/historic_ratings", http.HandlerFunc(historicRatings))
   log.Fatal(http.ListenAndServe(":6577", nil))
 }

@@ -83,7 +83,7 @@ div#odds div.flot-x-axis div.flot-tick-label:nth-child(<%=team_position%>) {
     },
     ], options).data("plot");
 
-    graphDiv.bind("plothover", function (event, pos, item) {
+    graphDiv.bind("plothover", function(event, pos, item) {
       var x = Math.round(pos.x);
       if (x > 0 && x <= <%= @groups[0].team_groups.size %> &&
           pos.y > 0 && pos.y < 100) {

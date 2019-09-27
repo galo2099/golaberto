@@ -2,15 +2,21 @@
 <%= will_paginate @teams %>
 </p>
 
+<% if @teams.size > 0 then %>
+  <%= render partial: "team_rating_graph", locals: {teams: @teams} %>
+<% end %>
+
 <table style="width:100%">
   <tr>
+    <th/>
     <th><%= _("Name") %></th>
     <th><%= _("Country") %></th>
     <th><%= _("Rating") %></th>
   </tr>
 
-  <% for team in @teams %>
+  <% @teams.each_with_index do |team, i| %>
     <tr>
+      <td><input type="checkbox" <%= if i < 3 then "checked" end %> name="<%= team.id %>" class="ratingSelector"></td>
       <td><%= image_tag team.logo.url(:thumb), size: team.logo.styles[:thumb].geometry, alt: "" %>
         <%= link_to add_wbr_to_string(team.name), :action => :show, :id => team %></td>
       <td>

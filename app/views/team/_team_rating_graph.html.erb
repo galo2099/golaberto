@@ -1,0 +1,156 @@
+<%= javascript_include_jquery %>
+<%= javascript_include_tag "jquery.flot" %>
+<%= javascript_include_tag "jquery.flot.saturated" %>
+<%= javascript_include_tag "jquery.flot.time" %>
+
+<%
+data = teams.map{|t|HistoricalRating.connection.select_all("select LEAST(FROM_UNIXTIME((unix_timestamp(measure_date) div (#{4.years.to_i/20}) + 1) * (#{4.years.to_i/20})), NOW()) as d, SUBSTRING_INDEX(group_concat(rating order by measure_date desc), ',', 1) as r from historical_ratings where team_id=#{t.id} and measure_date > '#{DateTime.now - 4.years}' group by d").to_a.map{|x|x.map{|k,v| v }}.map{|x| x[0] = x[0].to_time.to_i; x[1] = x[1].to_f; x[1] = "null" if x[1] == 0; x}}
+%>
+
+<div id="rating" style="width: 550px;
+          height: 200px;
+          font-size: 14px;
+          line-height: 1.2em;">
+</div>
+
+<script type="text/javascript">
+  jQuery(function() {
+    var $ = jQuery;
+    var ratingOptions = {
+      xaxis: {
+        mode: "time",
+        timeformat: "%Y/%m/%d",
+        max: Date.now() / 1000 + 2000000,
+        min: Date.now() / 1000 - <%= 4.years.to_i %> - 2000000,
+      },
+      grid: {
+        hoverable: true,
+        clickable: true,
+      },
+      legend: {
+        show: false,
+      },
+      colors: [ "#edc240", "#ff0000" ],
+    };
+    var ratingData = {
+<% teams.each_with_index do |t,i| %>
+      <%= t.id %>: {
+        data: <%= data[i].to_s.html_safe %>,
+        label: "<%= t.name %>",
+        lines: { show: true, lineWidth: "1", color: "rgba(255, 0, 0, 1.0)", dashed: true, },
+        points: { show: true },
+        bars: {show: false},
+      },
+<% end %>
+    };
+
+    var writeTooltip = function(pos, points) {
+      $("#tooltip").html(
+        "<table>" +
+        points.reduce(function(acc, cur) {
+          console.log(cur);
+          if (cur.point[1] == "null") return acc;
+          var div = '<tr><td><div style="border:1px solid #ccc;padding:1px"><div style="width:4px;height:0;border:5px solid ' + cur.color + ';overflow:hidden"></div></div></td>';
+          return acc + div + "<td>" + cur.label + "</td><td>" + cur.point[1].toFixed(2) + "</td></tr>";
+        }, "") +
+        "<tr><td colspan=3 style='text-align: center'>" + new Date(points[0].point[0]*1000).toISOString().slice(0, 10) + "</tr>"
+      ).css({top: pos.pageY + 10, left: pos.pageX + 10}).fadeIn(200);
+    };
+
+    var plotRatings = function() {
+      var graphDiv = $("#rating");
+      var data = [];
+      var min = 100;
+      var max = 0;
+
+      $("input:checked").each(function () {
+        var key = $(this).attr("name");
+        if (key && ratingData[key]) {
+          data.push(ratingData[key]);
+          ratingData[key].data.each(function (x) {
+            if (x[1] > max) max = x[1];
+            if (x[1] < min) min = x[1];
+          });
+        }
+      });
+
+      delta = max - min;
+      if (delta < 1) delta = 1;
+      min = min - delta * 0.1;
+      max = max + delta * 0.1;
+
+      if (min < 0) {
+        min = 0;
+      }
+      if (max > 100) {
+        max = 100;
+      }
+
+      ratingOptions.yaxis = {max: max, min: min};
+      plot = graphDiv.plot(data, ratingOptions).data("plot");
+      graphDiv.bind("plothover", function(event, pos, item) {
+        plot.unhighlight();
+        if (item) {
+          for (var i = 0; i < item.series.datapoints.points.length; i++) {
+            plot.highlight(item.series, i);
+          }
+          writeTooltip(pos, [{label: item.series.label, point: item.datapoint, color: item.series.color}]);
+          return;
+        }
+
+        var axes = plot.getAxes();
+        if (pos.x < axes.xaxis.min || pos.x > axes.xaxis.max ||
+          pos.y < axes.yaxis.min || pos.y > axes.yaxis.max) {
+          $("#tooltip").hide();
+          return;
+        }
+
+        var i, j, dataset = plot.getData();
+
+        var ys = [];
+        for (i = 0; i < dataset.length; ++i) {
+          var series = dataset[i];
+          // Find the nearest points, x-wise
+          for (j = 0; j < series.data.length; ++j) {
+            if (series.data[j][0] > pos.x) {
+              break;
+            }
+          }
+          var closest,
+            p1 = series.data[j - 1],
+            p2 = series.data[j];
+          if (p1 == null && p2 == null) {
+            continue;
+          } else if (p1 == null) {
+            closest = p2;
+          } else if (p2 == null) {
+            closest = p1;
+          } else {
+            closest = pos.x - p1[0] < p2[0] - pos.x ? p1 : p2;
+          }
+          plot.highlight(series, closest);
+          ys.push({label: series.label, point: closest, color: series.color});
+        }
+        ys.sort(function(a, b) { return b.point[1] - a.point[1] });
+        writeTooltip(pos, ys);
+      });
+
+      graphDiv.bind("plotclick", function (event, pos, item) {});
+   }
+
+    $("<div id='tooltip'></div>").css({
+      position: "absolute",
+      display: "none",
+      border: "1px solid #fdd",
+      padding: "2px",
+      "text-align": "left",
+      "background-color": "#fee",
+      opacity: 1.00,
+      zIndex: 0,
+    }).appendTo("body");
+
+    $("input.ratingSelector").change(plotRatings);
+    plotRatings();
+  });
+
+</script>

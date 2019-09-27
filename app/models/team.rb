@@ -4,6 +4,8 @@ class Team < ActiveRecord::Base
 
   AVG_BASE = 1.3350257653834494
 
+  has_many :historical_ratings
+
   has_attached_file :logo,
       styles: lambda { |attachment|
         options = { format: "png", filter_background: attachment.instance.filter_image_background? }
@@ -32,8 +34,6 @@ class Team < ActiveRecord::Base
   validates_length_of :name, :within => 1..40
   validates_length_of :country, :within => 1..40
   validates_uniqueness_of :name, :message => "already exists"
-
-  before_save :calculate_rating
 
   # Fields information, just FYI.
   #
@@ -82,21 +82,5 @@ class Team < ActiveRecord::Base
 
   def last_n_games(n, date)
     games.joins(phase: :championship).where(championships: { category_id: Category::DEFAULT_CATEGORY }).where("date < ?", date).order(date: :desc).limit(n)
-  end
-
-  def self.calculate_rating2(off, deff)
-    ten_array = (0...20).to_a
-    home_power = Poisson.new([0.01, (off - AVG_BASE)/(AVG_BASE*0.424+0.548)*([0.25, (AVG_BASE)*0.424+0.548].max)+(AVG_BASE)].max)
-    away_power = Poisson.new([0.01, deff].max)
-    probs = ten_array.map{|i| ten_array.map{|j| home_power.p(i) * away_power.p(j) }}
-    (3 * ten_array.map{|i| (0...i).to_a.map{|j| probs[i][j]}}.flatten.sum + ten_array.map{|i| probs[i][i]}.sum) / 3 * 100
-  end
-
-  private
-  def calculate_rating
-    self.rating = nil
-    if off_rating && def_rating
-      self.rating = self.class.calculate_rating2(off_rating, def_rating)
-    end
   end
 end
