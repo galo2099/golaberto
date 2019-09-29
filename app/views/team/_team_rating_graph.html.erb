@@ -4,7 +4,7 @@
 <%= javascript_include_tag "jquery.flot.time" %>
 
 <%
-data = teams.map{|t|HistoricalRating.connection.select_all("select LEAST(FROM_UNIXTIME((unix_timestamp(measure_date) div (#{4.years.to_i/20}) + 1) * (#{4.years.to_i/20})), NOW()) as d, SUBSTRING_INDEX(group_concat(rating order by measure_date desc), ',', 1) as r from historical_ratings where team_id=#{t.id} and measure_date > '#{DateTime.now - 4.years}' group by d").to_a.map{|x|x.map{|k,v| v }}.map{|x| x[0] = x[0].to_time.to_i; x[1] = x[1].to_f; x[1] = "null" if x[1] == 0; x}}
+data = teams.map{|t|HistoricalRating.connection.select_all("select LEAST(FROM_UNIXTIME((unix_timestamp(measure_date) div (#{4.years.to_i/20}) + 1) * (#{4.years.to_i/20})), NOW()) as d, SUBSTRING_INDEX(group_concat(rating order by measure_date desc), ',', 1) as r from historical_ratings where team_id=#{t.id} and measure_date > '#{DateTime.now - 4.years}' group by d").to_a.map{|x|x.map{|k,v| v }}.map{|x| x[0] = x[0].to_time.to_i; x[1] = x[1].to_f; x[1] = nil if x[1] == 0; x}}
 %>
 
 <div id="rating" style="width: 550px;
@@ -35,7 +35,7 @@ data = teams.map{|t|HistoricalRating.connection.select_all("select LEAST(FROM_UN
     var ratingData = {
 <% teams.each_with_index do |t,i| %>
       <%= t.id %>: {
-        data: <%= data[i].to_s.html_safe %>,
+        data: <%= data[i].to_json.html_safe %>,
         label: "<%= t.name %>",
         lines: { show: true, lineWidth: "1", color: "rgba(255, 0, 0, 1.0)", dashed: true, },
         points: { show: true },
@@ -48,7 +48,7 @@ data = teams.map{|t|HistoricalRating.connection.select_all("select LEAST(FROM_UN
       $("#tooltip").html(
         "<table>" +
         points.reduce(function(acc, cur) {
-          if (cur.point[1] == "null") return acc;
+          if (cur.point[1] == null) return acc;
           var div = '<tr><td><div style="border:1px solid #ccc;padding:1px"><div style="width:4px;height:0;border:5px solid ' + cur.color + ';overflow:hidden"></div></div></td>';
           return acc + div + "<td>" + cur.label + "</td><td>" + cur.point[1].toFixed(2) + "</td></tr>";
         }, "") +
@@ -127,10 +127,12 @@ data = teams.map{|t|HistoricalRating.connection.select_all("select LEAST(FROM_UN
           } else {
             closest = pos.x - p1[0] < p2[0] - pos.x ? p1 : p2;
           }
-          plot.highlight(series, closest);
-          ys.push({label: series.label, point: closest, color: series.color});
+          if (closest[1] != null) {
+            plot.highlight(series, closest);
+            ys.push({label: series.label, point: closest, color: series.color});
+          }
         }
-        ys.sort(function(a, b) { return parseInt("0" + b.point[1]) - parseInt("0" + a.point[1]); });
+        ys.sort(function(a, b) { return b.point[1] - a.point[1]; });
         writeTooltip(pos, ys);
       });
 

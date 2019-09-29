@@ -71,8 +71,8 @@ func (campaign *TeamCampaign) clone() *TeamCampaign {
 }
 
 func (campaign *TeamCampaign) add_game(game *GameType) {
-	is_home := campaign.id == game.Home_id
-	if game.Home_score > game.Away_score {
+	is_home := campaign.id == game.HomeId
+	if game.HomeScore > game.AwayScore {
 		if is_home {
 			campaign.wins += 1
 			campaign.points += campaign.points_win
@@ -80,7 +80,7 @@ func (campaign *TeamCampaign) add_game(game *GameType) {
 			campaign.losses += 1
 			campaign.points += campaign.points_loss
 		}
-	} else if game.Home_score < game.Away_score {
+	} else if game.HomeScore < game.AwayScore {
 		if is_home {
 			campaign.losses += 1
 			campaign.points += campaign.points_loss
@@ -96,24 +96,24 @@ func (campaign *TeamCampaign) add_game(game *GameType) {
 		if campaign.uses_head {
 			campaign.home_games = append(campaign.home_games, game)
 		}
-		campaign.goals_for += game.Home_score
-		campaign.goals_against += game.Away_score
+		campaign.goals_for += game.HomeScore
+		campaign.goals_against += game.AwayScore
 	} else {
-		campaign.goals_for += game.Away_score
-		campaign.goals_against += game.Home_score
-		campaign.goals_away += game.Away_score
+		campaign.goals_for += game.AwayScore
+		campaign.goals_against += game.HomeScore
+		campaign.goals_away += game.AwayScore
 	}
 }
 
 type GameType struct {
-	Id               int
-	Home_id          int
-	Away_id          int
-	Home_score       int
-	Away_score       int
-	Home_power       float64
-	Away_power       float64
-	Played           bool
+	Id               int     `json:"id"`
+	HomeId           int     `json:"home_id"`
+	AwayId           int     `json:"away_id"`
+	HomeScore        int     `json:"home_score"`
+	AwayScore        int     `json:"away_score"`
+	HomePower        float64 `json:"home_power"`
+	AwayPower        float64 `json:"away_power"`
+	Played           bool    `json:"played"`
 	home_table_index int32
 	away_table_index int32
 }
@@ -290,13 +290,13 @@ func compare_head_to_head(a, b *TeamCampaign, sort []SortType) int {
 		points_loss: a.points_loss,
 		uses_head:   false}
 	for i := range a.home_games {
-		if a.home_games[i].Away_id == b.id {
+		if a.home_games[i].AwayId == b.id {
 			head_to_head_campaign[0].add_game(a.home_games[i])
 			head_to_head_campaign[1].add_game(a.home_games[i])
 		}
 	}
 	for i := range b.home_games {
-		if b.home_games[i].Away_id == a.id {
+		if b.home_games[i].AwayId == a.id {
 			head_to_head_campaign[0].add_game(b.home_games[i])
 			head_to_head_campaign[1].add_game(b.home_games[i])
 		}
@@ -417,8 +417,8 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
 	all_team_ids_map := make(map[int]struct{})
 	// Some teams may appear in games but not the group
 	for _, g := range group.Games {
-		all_team_ids_map[g.Home_id] = struct{}{}
-		all_team_ids_map[g.Away_id] = struct{}{}
+		all_team_ids_map[g.HomeId] = struct{}{}
+		all_team_ids_map[g.AwayId] = struct{}{}
 	}
 	// Some teams may appear in the group but not games
 	for _, t := range group.Team_groups {
@@ -434,8 +434,8 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
 	}
 	table := NewTable(all_team_ids)
 	for _, g := range group.Games {
-		g.home_table_index = table.Query(uint32(g.Home_id))
-		g.away_table_index = table.Query(uint32(g.Away_id))
+		g.home_table_index = table.Query(uint32(g.HomeId))
+		g.away_table_index = table.Query(uint32(g.AwayId))
 	}
 
 	campaign := make([]*TeamCampaign, len(all_team_ids))
@@ -487,16 +487,16 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
 		start3 := time.Now()
 		for i, g := range group.Games {
 			if !g.Played {
-				home_score := poisson_rand(g.Home_power)
-				away_score := poisson_rand(g.Away_power)
+				home_score := poisson_rand(g.HomePower)
+				away_score := poisson_rand(g.AwayPower)
 				simulated_scores[i] = SimulatedScore{home_score, away_score}
 				home := g.home_table_index
 				away := g.away_table_index
 				if simulated_campaign[home] != nil {
-					simulated_campaign[home].add_game(&GameType{g.Id, g.Home_id, g.Away_id, home_score, away_score, 0.0, 0.0, true, home, away})
+					simulated_campaign[home].add_game(&GameType{g.Id, g.HomeId, g.AwayId, home_score, away_score, 0.0, 0.0, true, home, away})
 				}
 				if simulated_campaign[away] != nil {
-					simulated_campaign[away].add_game(&GameType{g.Id, g.Home_id, g.Away_id, home_score, away_score, 0.0, 0.0, true, home, away})
+					simulated_campaign[away].add_game(&GameType{g.Id, g.HomeId, g.AwayId, home_score, away_score, 0.0, 0.0, true, home, away})
 				}
 			}
 		}
@@ -604,8 +604,8 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
 	}
 	for _, g := range group.Games {
 		if !g.Played {
-			_, home := teams_in_group[g.Home_id]
-			_, away := teams_in_group[g.Away_id]
+			_, home := teams_in_group[g.HomeId]
+			_, away := teams_in_group[g.AwayId]
 			if home && away {
 				importances[g.Id] = [2]float64{home_importances[g.Id], away_importances[g.Id]}
 			} else if home {
