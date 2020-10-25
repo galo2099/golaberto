@@ -10,6 +10,9 @@
   <h3 style="margin-top: 0px"><%= _("Top games") %></h3>
   <%= render partial: "game/game_list",
              locals: { sorted_games: @top_games } %>
+  <h3 style="margin-top: 0px"><%= _("Top games") %></h3>
+  <%= render partial: "game/game_list",
+             locals: { sorted_games: @top_played_games } %>
 </div>
 
 <div id="championship">
@@ -20,7 +23,7 @@
     <% @championships.each do |champ| %>
       <% if champ.region == region %>
         <tr><td>
-        <%= championship_name champ, :controller => :championship, :action => :phases, :id => champ, :phase => champ.phases.try(:last)%> <br>
+	<%= championship_name champ, :controller => :championship, :action => :phases, :id => champ, :phase => champ.phases.try(:last)%> <br>
 	</td><td><%= sprintf("%0.02f", champ.avg_team_rating) %></td></tr>
       <% end %>
     <% end %>

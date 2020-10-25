@@ -3,6 +3,7 @@ class User < ActiveRecord::Base
   cattr_accessor :current_user
   model_stamper
 
+  attr_reader :avatar_remote_url
   has_attached_file :avatar,
       styles: lambda { |attachment|
         options = { format: "png", filter_background: attachment.instance.filter_image_background? }
@@ -44,6 +45,14 @@ class User < ActiveRecord::Base
   before_save :encrypt_password
   after_create :create_logo
   after_create :add_initial_roles
+
+  def avatar_remote_url=(url_value)
+    self.avatar = URI.parse(url_value)
+    # Assuming url_value is http://example.com/photos/face.png
+    # avatar_file_name == "face.png"
+    # avatar_content_type == "image/png"
+    @avatar_remote_url = url_value
+  end
 
   # Authenticates a user by their login name and unencrypted password.  Returns the user or nil.
   def self.authenticate(login, password)

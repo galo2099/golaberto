@@ -14,6 +14,15 @@ data = teams.map{|t|HistoricalRating.connection.select_all("select LEAST(FROM_UN
 <script type="text/javascript">
   jQuery(function() {
     var $ = jQuery;
+
+    var getColor = function(index) {
+      var colorValues = [ "#cb4b4b", "#4da74d", "#9440ed", "#afd8f8", "#edc240" ];
+      var arrayIndex = index % colorValues.length;
+      var variationIndex = Math.floor(index / colorValues.length);
+      var variation = Math.pow(-1, variationIndex) * 0.2 * Math.floor((variationIndex + 1) / 2);
+      return $.color.parse(colorValues[arrayIndex]).scale('rgb', 1 + variation).toString();
+    };
+
     var ratingData = {
 <% teams.each_with_index do |t,i| %>
       <%= t.id %>: {
@@ -21,6 +30,7 @@ data = teams.map{|t|HistoricalRating.connection.select_all("select LEAST(FROM_UN
         label: "<%= t.name %>",
         lines: { show: true, lineWidth: "1" },
         points: { show: false },
+        color: getColor(<%= i %>),
       },
 <% end %>
     };
@@ -63,6 +73,7 @@ data = teams.map{|t|HistoricalRating.connection.select_all("select LEAST(FROM_UN
             label: ratingData[key].label,
             lines: ratingData[key].lines,
             points: ratingData[key].points,
+            color: ratingData[key].color,
           });
           d.each(function (p) {
             x_values.add(p[0]);
@@ -82,7 +93,7 @@ data = teams.map{|t|HistoricalRating.connection.select_all("select LEAST(FROM_UN
           if (series.data.length == next_point || series.data[next_point][0] != x) {
             series.data.splice(next_point, 0, [x, null]);
           }
-	  next_point++;
+          next_point++;
         });
       });
 
@@ -101,7 +112,7 @@ data = teams.map{|t|HistoricalRating.connection.select_all("select LEAST(FROM_UN
       var ratingOptions = {
         selection: {
           mode: "x"
-	},
+        },
         xaxis: {
           mode: "time",
           min: Math.max(xmin, from),
@@ -125,7 +136,7 @@ data = teams.map{|t|HistoricalRating.connection.select_all("select LEAST(FROM_UN
 
       graphDiv.off("plothover");
       graphDiv.on("plothover", function(event, pos, item) {
-	plot.getOptions().grid.markings = [];
+        plot.getOptions().grid.markings = [];
         plot.getData().each(function(x) {
           x.lines.lineWidth = 1;
         });
@@ -177,8 +188,8 @@ data = teams.map{|t|HistoricalRating.connection.select_all("select LEAST(FROM_UN
         }
         ys.sort(function(a, b) { return b.point[1] - a.point[1]; });
         writeTooltip(pos, ys);
-	plot.getOptions().grid.markings = [{ xaxis: { from: ys[0].point[0], to: ys[0].point[0] }, color: "rgba(0,0,0,0.15)" }];
-	plot.draw();
+        plot.getOptions().grid.markings = [{ xaxis: { from: ys[0].point[0], to: ys[0].point[0] }, color: "rgba(0,0,0,0.15)" }];
+        plot.draw();
       });
 
       graphDiv.off("plotselected");
@@ -197,6 +208,8 @@ data = teams.map{|t|HistoricalRating.connection.select_all("select LEAST(FROM_UN
       graphDiv.dblclick(function (event) {
         plotRatings();
       });
+      $("input.ratingSelector").off("change");
+      $("input.ratingSelector").change(function() {plotRatings(from, to);});
    }
 
     $("<div id='tooltip'></div>").css({
@@ -210,7 +223,6 @@ data = teams.map{|t|HistoricalRating.connection.select_all("select LEAST(FROM_UN
       zIndex: 0,
     }).appendTo("body");
 
-    $("input.ratingSelector").change(function() {plotRatings();});
     plotRatings();
   });
 

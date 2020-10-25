@@ -60,7 +60,9 @@ class TeamController < ApplicationController
     now = Time.zone.now.to_s.chop.chop.chop.chop
     Oj.load(response.body, bigdecimal_load: :float).each do |k,v|
       sql << "(#{k}, #{v ? v["Offense"] : "NULL"}, #{v ? v["Defense"] : "NULL"}, #{v ? v["Team"] : "NULL"}, '#{now}', '#{now}'),"
-      sql2 << "(#{k}, #{v ? v["Team"] : 0.0}, '#{Date.today.strftime(Date::DATE_FORMATS[:db])}'),"
+      if v != nil then
+         sql2 << "(#{k}, #{v["Team"]}, '#{Date.today.strftime(Date::DATE_FORMATS[:db])}'),"
+      end
     end
     sql.chop!
     sql2.chop!
