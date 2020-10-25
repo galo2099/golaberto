@@ -13,8 +13,8 @@
 development:
   adapter: mysql2
   database: GolAberto_development
-  username: test
-  password: test
+  username: root
+  password:
   host: localhost
   encoding: utf8
   collation: utf8_unicode_ci

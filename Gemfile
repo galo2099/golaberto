@@ -1,12 +1,13 @@
 source 'http://rubygems.org'
 
-gem 'rails', '~> 4'
+gem 'rails', '4.2.8'
 
 # Bundle edge Rails instead:
 # gem 'rails', :git => 'https://github.com/rails/rails.git'
 
 gem 'sqlite3'
 gem 'mysql2', '~> 0.4.10'
+gem 'json', github: 'flori/json', branch: 'v1.8'
 
 group :development do
   # Deploy with Capistrano
