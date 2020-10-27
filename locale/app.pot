@@ -8,8 +8,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: app 1.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-02 01:17-0700\n"
-"PO-Revision-Date: 2019-08-02 01:17-0700\n"
+"POT-Creation-Date: 2020-10-27 11:16-0700\n"
+"PO-Revision-Date: 2020-10-27 11:16-0700\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
@@ -75,6 +75,9 @@ msgstr ""
 msgid "Add Comment"
 msgstr ""
 
+msgid "Add goal"
+msgstr ""
+
 msgid "Add new group"
 msgstr ""
 
@@ -85,6 +88,9 @@ msgid "Added %s: %s<br>"
 msgstr ""
 
 msgid "Added goal "
+msgstr ""
+
+msgid "Added time"
 msgstr ""
 
 msgid "Afghanistan"
@@ -405,6 +411,9 @@ msgstr ""
 msgid "Current championships"
 msgstr ""
 
+msgid "Current time"
+msgstr ""
+
 msgid "Cyprus"
 msgstr ""
 
@@ -442,6 +451,9 @@ msgid "Dominica"
 msgstr ""
 
 msgid "Dominican Republic"
+msgstr ""
+
+msgid "Draw"
 msgstr ""
 
 msgid "East Timor"
@@ -735,6 +747,9 @@ msgstr ""
 msgid "If you've already created an account, or if you have an %{openid_link} login, use one of the forms below to log in to the site. If you use your OpenID URL to log in, an account will be created for you automatically if necessary."
 msgstr ""
 
+msgid "Importance"
+msgstr ""
+
 msgid "India"
 msgstr ""
 
@@ -791,11 +806,6 @@ msgstr ""
 
 msgid "Lao People's Democratic Republic"
 msgstr ""
-
-msgid "Last game"
-msgid_plural "Last %{num} games"
-msgstr[0] ""
-msgstr[1] ""
 
 msgid "Last seen"
 msgstr ""
@@ -855,6 +865,9 @@ msgid "Listing users"
 msgstr ""
 
 msgid "Lithuania"
+msgstr ""
+
+msgid "Live Odds"
 msgstr ""
 
 msgid "LiveJournal blog name"
@@ -1031,11 +1044,6 @@ msgstr ""
 msgid "New team_group"
 msgstr ""
 
-msgid "Next game"
-msgid_plural "Next %{num} games"
-msgstr[0] ""
-msgstr[1] ""
-
 msgid "Next page"
 msgstr ""
 
@@ -1085,6 +1093,9 @@ msgid "Observation"
 msgstr ""
 
 msgid "Oceania"
+msgstr ""
+
+msgid "Odds"
 msgstr ""
 
 msgid "Odds being recalculated"
@@ -1444,6 +1455,9 @@ msgid "Stadium|Full name"
 msgstr ""
 
 msgid "Stadium|Name"
+msgstr ""
+
+msgid "Start time"
 msgstr ""
 
 msgid "Stats"
@@ -1814,6 +1828,9 @@ msgid "penalty goals"
 msgstr ""
 
 msgid "points"
+msgstr ""
+
+msgid "time"
 msgstr ""
 
 msgid "wins"

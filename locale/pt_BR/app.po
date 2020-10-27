@@ -15,8 +15,8 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
 
-msgid "#"
-msgstr "#"
+msgid "wins"
+msgstr "vitórias"
 
 msgid "%d%% done."
 msgstr "%d%% pronto."
@@ -73,6 +73,9 @@ msgstr "Adicionar 4 grupos mais"
 msgid "Add Comment"
 msgstr "Adicionar Comentário"
 
+msgid "Add goal"
+msgstr "Adicionar gol"
+
 msgid "Add new group"
 msgstr "Adicionar novo grupo"
 
@@ -84,6 +87,9 @@ msgstr "Adicionado %s: %s<br>"
 
 msgid "Added goal "
 msgstr "Adicionado gol "
+
+msgid "Added time"
+msgstr "Acréscimos"
 
 msgid "Afghanistan"
 msgstr "Afeganistão"
@@ -419,6 +425,9 @@ msgstr "Cuba"
 msgid "Current championships"
 msgstr "Campeonatos atuais"
 
+msgid "Current time"
+msgstr "Tempo atual"
+
 msgid "Cyprus"
 msgstr "Chipre"
 
@@ -457,6 +466,9 @@ msgstr "Dominica"
 
 msgid "Dominican Republic"
 msgstr "República Dominicana"
+
+msgid "Draw"
+msgstr "Empate"
 
 msgid "East Timor"
 msgstr "Timor Leste"
@@ -792,6 +804,9 @@ msgstr ""
 "dos formulários abaixo para se logar no site. Se você usar sua URL OpenID para"
 " se logar, uma conta será criada automaticamente para você se necessário."
 
+msgid "Importance"
+msgstr "Importância"
+
 msgid "India"
 msgstr "Índia"
 
@@ -848,11 +863,6 @@ msgstr "D"
 
 msgid "Lao People's Democratic Republic"
 msgstr "Laos"
-
-msgid "Last game"
-msgid_plural "Last %{num} games"
-msgstr[0] "Último jogo"
-msgstr[1] "Últimos %{num} jogos"
 
 msgid "Last seen"
 msgstr "Visto por último"
@@ -915,6 +925,9 @@ msgstr "Listando usuários"
 
 msgid "Lithuania"
 msgstr "Lituânia"
+
+msgid "Live Odds"
+msgstr "Chances ao Vivo"
 
 msgid "LiveJournal blog name"
 msgstr "usuário LiveJournal"
@@ -1092,11 +1105,6 @@ msgstr "Nova equipe"
 msgid "New team_group"
 msgstr "Novo equipe_grupo"
 
-msgid "Next game"
-msgid_plural "Next %{num} games"
-msgstr[0] "Próximo jogo"
-msgstr[1] "Próximos %{num} jogos"
-
 msgid "Next page"
 msgstr "Próxima página"
 
@@ -1152,6 +1160,9 @@ msgstr "Observação"
 
 msgid "Oceania"
 msgstr "Oceania"
+
+msgid "Odds"
+msgstr "Chances"
 
 msgid "Odds being recalculated"
 msgstr "Chances sendo calculadas"
@@ -1546,6 +1557,9 @@ msgstr "Nome completo"
 # app/models/stadium.rb:-
 msgid "Stadium|Name"
 msgstr "Nome"
+
+msgid "Start time"
+msgstr "Iniciar tempo"
 
 msgid "Stats"
 msgstr "Estatísticas"
@@ -1961,5 +1975,8 @@ msgstr "gols de pênalti"
 msgid "points"
 msgstr "pontos"
 
-msgid "wins"
-msgstr "vitórias"
+msgid "time"
+msgstr "tempo"
+
+msgid "#"
+msgstr "#"

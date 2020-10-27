@@ -1,0 +1,302 @@
+
+<%= javascript_include_jquery %>
+<%= javascript_include_tag "jquery.flot.all" %>
+<script type="text/javascript">
+function poisson(k, lambda) {
+    var exponential = 2.718281828;
+    exponentialPower = Math.pow(exponential, -lambda); // negative power k
+    lambdaPowerK = Math.pow(lambda, k); // Lambda elevated k
+    numerator = exponentialPower * lambdaPowerK;
+    denominator = fact(k); // factorial of k.
+    return (numerator / denominator);
+}
+
+function fact(x) {
+   if(x==0) {
+      return 1;
+   }
+   return x * fact(x-1);
+}
+
+var odds_goal_list = [];
+jQuery(function() {
+  var $ = jQuery;
+  var rebuild_odds_goals = function() {
+    $('#odds_goal_list').html(
+      odds_goal_list.reduce(function(acc, g, idx) {
+        return acc +
+"<%= _("time") %>: <input class='odds_selector' type='text' size='3' id='odds_goal_time_" + idx + "' value='" + g.time + "'> <input class='odds_selector' name='odds_goal_" + idx + "' type='radio' value='home' " + (g.checked == "home" ? "checked" : "") + "> <%= @game.home.name %> <input class='odds_selector' name='odds_goal_" + idx + "' type='radio' value='away' " + (g.checked == "away" ? "checked" : "") + "> <%= @game.away.name %> <input id='odds_goal_remove_" + idx + "' type='button' value='x'><br>"
+      }, "")
+    );
+    for (let i = 0; i < odds_goal_list.length; i++) {
+      $('#odds_goal_remove_' + i).click(function() {
+        odds_goal_list.splice(i, 1);
+	rebuild_odds_goals();
+        plotRatings();
+      });
+    }
+    $("input.odds_selector").change(function() {plotRatings();});
+  };
+  $('#odds_add_goal').click(function() {
+    odds_goal_list.push({time: 0});
+    rebuild_odds_goals();
+  });
+});
+
+function compute_odds(hp, ap, home_adv, away_adv) {
+  var probs = [...Array(40).keys()].map(function(i) {
+    return [...Array(40).keys()].map(function(j) {
+      return poisson(i, hp) * poisson(j, ap);
+    });
+  });
+  var goal_array = [...Array(20).keys()];
+  return [
+    goal_array.filter(function(i) { return i >= away_adv; }).map(function(i) {
+      return [...Array(i+home_adv-away_adv).keys()].map(function(j) {
+        return probs[i][j];
+      });
+    }).flat().reduce(function(total, num) {
+      return total + num;
+    }),
+    goal_array.map(function(i) {
+      return probs[i+away_adv][i+home_adv];
+    }).reduce(function(total, num) {
+      return total + num;
+    }),
+    goal_array.filter(function(i) { return i >= home_adv; }).map(function(i) {
+      return [...Array(i+away_adv-home_adv).keys()].map(function(j) {
+        return probs[j][i];
+      });
+    }).flat().reduce(function(total, num) {
+      return total + num;
+    }),
+  ];
+}
+
+var myTimer;
+var plotRatings;
+
+jQuery(function() {
+  var $ = jQuery;
+  var graphDiv = $("#moving_odds");
+  var graphOptions = {
+    selection: {
+      mode: "x"
+    },
+    xaxes: [
+      {},
+      {
+        position: "top",
+        min: 0,
+      },
+    ],
+    yaxis: {
+      //min: ymin,
+      max: 1.0,
+    },
+    grid: {
+      markings: [],
+      hoverable: true,
+      clickable: true,
+      autoHighlight: false,
+    },
+    legend: {
+      show: true,
+      container: $('#odds_legend'),
+    },
+  };
+
+  var current_time = 1000*60;
+  plotRatings = function() {
+    var home_power = <%= @game.home_power %>;
+    var away_power = <%= @game.away_power %>
+
+    var added_time = parseInt($('#odds_added_time').val(), 10);
+    if ($('#odds_set_time').val() != "") {
+      current_time = parseInt($('#odds_set_time').val(), 10) * 60;
+      $('#odds_set_time').val("");
+    }
+    var total_time = 90 + added_time;
+    graphOptions.xaxes[1].max = total_time;
+
+    var score_array = [...Array(total_time+1).keys()].map(function(x) { return 0; });
+
+    var markings = [{
+      xaxis: { from: 0, to: 0 }, color: "rgba(0,0,0,0.15)"
+    }, {
+      xaxis: { from: 0, to: 0 }, color: "rgba(0,0,0,0.15)"
+    }];
+    var ticks = [];
+    var home_score = 0;
+    var away_score = 0;
+    for (var i = 0; i < odds_goal_list.length; i++) {
+      if ($('input[name=odds_goal_' + i + ']:checked').val() == "home") {
+        odds_goal_list[i].checked = "home";
+        var time = parseInt($('#odds_goal_time_' + i).val(), 10);
+        odds_goal_list[i].time = time;
+        home_score += 1;
+        markings.push({ xaxis: { from: time, to: time }, color: "rgba(237,195,64,0.8)" });
+        ticks.push([time, "" + home_score + "-" + away_score]);
+        for (var j = time; j < total_time + 1; j++) {
+          score_array[j] += 1;
+        }
+      }
+      if ($('input[name=odds_goal_' + i + ']:checked').val() == "away") {
+        odds_goal_list[i].checked = "away";
+        var time = parseInt($('#odds_goal_time_' + i).val(), 10);
+        odds_goal_list[i].time = time;
+        away_score += 1;
+        markings.push({ xaxis: { from: time, to: time }, color: "rgba(202,76,75,0.8)" });
+        ticks.push([time, "" + home_score + "-" + away_score]);
+        for (var j = time; j < total_time + 1; j++) {
+          score_array[j] -= 1;
+        }
+      }
+    }
+    graphOptions.grid.markings = markings;
+    graphOptions.xaxes[1].ticks = ticks;
+
+    var odds_data = [...Array(total_time+1).keys()].map(function(x) {
+      var hp = home_power / 95 * (total_time - x);
+      var ap = away_power / 95 * (total_time - x);
+      var home_adv = 0;
+      var away_adv = 0;
+      if (score_array[x] > 0) {
+        home_adv = score_array[x];
+      }
+      if (score_array[x] < 0) {
+        away_adv = -score_array[x];
+      }
+      return [x].concat(compute_odds(hp, ap, home_adv, away_adv));
+   });
+
+    <% odds = @game.odds %>
+    var data = [
+      {data: odds_data.map(function(x) { return [ x[0], x[1] ]; }), label: "<%= @game.home.name %>: <%= number_to_percentage(100*odds[0], :precision => 2) %>"},
+      {data: odds_data.map(function(x) { return [ x[0], x[2] ]; }), label: "<%= _("Draw") %>: <%= number_to_percentage(100*odds[1], :precision => 2) %>"},
+      {data: odds_data.map(function(x) { return [ x[0], x[3] ]; }), label: "<%= @game.away.name %>: <%= number_to_percentage(100*odds[2], :precision => 2) %>"},
+      {data: [], xaxis: 2},
+    ];
+    plot = graphDiv.plot(data, graphOptions).data("plot");
+
+    var writeTooltip = function(pos, points) {
+      $("#tooltip").html(
+        "<table>" +
+        points.reduce(function(acc, cur) {
+          if (cur.point[1] == null) return acc;
+          var div = '<tr><td><div style="border:1px solid #ccc;padding:1px"><div style="width:4px;height:0;border:5px solid ' + cur.color + ';overflow:hidden"></div></div></td>';
+          return acc + div + "<td>" + cur.label.substr(0, cur.label.lastIndexOf(":")) + "</td><td style='text-align: right'>" + (cur.point[1] * 100).toFixed(2) + "%" + "</td></tr>";
+        }, "") +
+        "<tr><td colspan=3 style='text-align: center'>" + points[0].point[0] + "</tr>"
+     ).css({top: pos.pageY + 10, left: pos.pageX + 10}).fadeIn(200);
+    };
+
+    graphDiv.off("plothover");
+    graphDiv.on("plothover", function(event, pos, item) {
+      plot.getOptions().grid.markings[0] = {
+      xaxis: { from: -1, to: -1 }, color: "rgba(0,0,0,0.15)"
+};
+      var axes = plot.getAxes();
+      if (pos.x < axes.xaxis.min || pos.x > axes.xaxis.max ||
+        pos.y < axes.yaxis.min || pos.y > axes.yaxis.max) {
+        $("#tooltip").hide();
+        plot.draw();
+        return;
+      }
+
+      var i, j, dataset = plot.getData();
+
+            var ys = [];
+        for (i = 0; i < dataset.length; ++i) {
+          var series = dataset[i];
+          // Find the nearest points, x-wise
+          for (j = 0; j < series.data.length; ++j) {
+            if (series.data[j][0] > pos.x) {
+              break;
+            }
+          }
+          var closest,
+            p1 = series.data[j - 1],
+            p2 = series.data[j];
+          if (p1 == null && p2 == null) {
+            continue;
+          } else if (p1 == null) {
+            closest = p2;
+          } else if (p2 == null) {
+            closest = p1;
+          } else {
+            closest = pos.x - p1[0] < p2[0] - pos.x ? p1 : p2;
+          }
+          if (closest[1] != null) {
+            ys.push({label: series.label, point: closest, color: series.color});
+          }
+        }
+        writeTooltip(pos, ys);
+        plot.getOptions().grid.markings[0] = { xaxis: { from: ys[0].point[0], to: ys[0].point[0] }, color: "rgba(0,0,0,0.15)" };
+        plot.draw();
+    });
+
+    clearInterval(myTimer);
+    var timer = function() {
+      current_time += 1.0;
+      if (current_time <= 90*60 + added_time*60) {
+        var hp = home_power / (95*60) * (total_time*60 - current_time);
+        var ap = away_power / (95*60) * (total_time*60 - current_time);
+        var home_adv = 0;
+        var away_adv = 0;
+        if (score_array[Math.floor(current_time/60)] > 0) {
+          home_adv = score_array[Math.floor(current_time/60)];
+        }
+        if (score_array[Math.floor(current_time/60)] < 0) {
+          away_adv = -score_array[Math.floor(current_time/60)];
+        }
+        var odds = compute_odds(hp, ap, home_adv, away_adv);
+        $('#odds_current_time').text(("" + Math.floor(current_time / 60)).padStart(2, '0') + ":" + ("" + (current_time % 60)).padStart(2, '0'));
+        plot.getOptions().grid.markings[1] = { xaxis: { from: current_time / 60, to: current_time/60 }, color: "rgba(0,0,0,0.15)" };
+        plot.getData()[0].label = "<%= @game.home.name %>: " + (odds[0] * 100).toFixed(2) + "%";
+        plot.getData()[1].label = "Draw: " + (odds[1] * 100).toFixed(2) + "%";
+        plot.getData()[2].label = "<%= @game.away.name %>: " + (odds[2] * 100).toFixed(2) + "%";
+        plot.setupGrid();
+        plot.draw();
+      }
+    };
+    timer();
+    myTimer = setInterval(timer, 1000);
+  };
+
+  $("input.odds_selector").change(function() {plotRatings();});
+
+  $("<div id='tooltip'></div>").css({
+    position: "absolute",
+    display: "none",
+    border: "1px solid #fdd",
+    padding: "2px",
+    "text-align": "left",
+    "background-color": "#fee",
+    opacity: 1.00,
+    zIndex: 0,
+  }).appendTo("body");
+
+  plotRatings();
+});
+</script>
+
+<div>
+<h4><%= _("Live Odds") %></h4>
+<div id="moving_odds" style="width: 550px;
+          height: 200px;
+          font-size: 14px;
+          line-height: 1.2em;">
+</div>
+<div id="odds_legend"></div>
+<%= _("Current time") %>: <span id="odds_current_time">0</span><br>
+<br>
+<%= _("Added time") %>: <input class="odds_selector" id="odds_added_time" type="text" size="3" value="5"><br>
+<%= _("Start time") %>: <input class="odds_selector" id="odds_set_time" type="text" size="3" value="">
+<div>
+<input type="button" value="<%= _("Add goal") %>" id="odds_add_goal"><br>
+</div>
+
+<div id='odds_goal_list'>
+</div>
+</div>
