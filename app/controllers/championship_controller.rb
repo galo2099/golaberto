@@ -255,7 +255,12 @@ class ChampionshipController < ApplicationController
         :team_player => p,
         :goals => p.player.goals.joins("LEFT JOIN games ON games.id = game_id").where("own_goal = ? AND games.phase_id IN (?) AND team_id = ?", false, @championship.phase_ids, @team).count,
         :penalties => p.player.goals.joins("LEFT JOIN games ON games.id = game_id").where("own_goal = ? AND penalty = ? AND games.phase_id IN (?) AND team_id = ?", false, true, @championship.phase_ids, @team).count,
-        :own_goals => p.player.goals.joins("LEFT JOIN games ON games.id = game_id").where("own_goal = ? AND games.phase_id IN (?) AND team_id = ?", true, @championship.phase_ids, @team).count
+        :own_goals => p.player.goals.joins("LEFT JOIN games ON games.id = game_id").where("own_goal = ? AND games.phase_id IN (?) AND team_id = ?", true, @championship.phase_ids, @team).count,
+        :appearances => PlayerGame.where(player_id: p.player_id, team_id: p.team_id, game_id: @played_games).map{|pg| if pg.off > 0 then 1 else 0 end}.sum,
+        :sub => PlayerGame.where(player_id: p.player_id, team_id: p.team_id, game_id: @played_games).map{|pg| if pg.on > 0 then 1 else 0 end}.sum,
+        :reds => PlayerGame.where(player_id: p.player_id, team_id: p.team_id, game_id: @played_games).map{|pg| if pg.red then 1 else 0 end}.sum,
+        :yellows => PlayerGame.where(player_id: p.player_id, team_id: p.team_id, game_id: @played_games).map{|pg| if pg.yellow then 1 else 0 end}.sum,
+        :minutes => PlayerGame.where(player_id: p.player_id, team_id: p.team_id, game_id: @played_games).map{|pg| pg.off - pg.on}.sum,
       }
     end
   end

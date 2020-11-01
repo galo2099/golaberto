@@ -17,6 +17,9 @@ class Championship
 end
 
 def fix_name(str)
+  if str == "PSG"
+    return "Paris Saint-Germain"
+  end
   if str == "Atlético Mineiro"
     return "Atlético-MG"
   end
@@ -191,59 +194,174 @@ def rounds_to_update(phase)
 end
 
 def scrape(phase, round_id, competition_id, options = {})
-phase = Phase.find phase
-fuzzy_match = FuzzyTeamMatch.new
+  phase = Phase.find phase
+  fuzzy_match = FuzzyTeamMatch.new
 
-altered = false
-count = 0
-round = 0
-date = Date.today
-rounds = nil
-if options[:rounds] then
-  rounds = options[:rounds]
-else
-  rounds = rounds_to_update(phase)
-end
-rounds.each do |i|
-Championship.matches(round_id, competition_id, i).each do |match|
-    round = i
-    datetime = Time.at(match.attributes["data-timestamp"].to_i).to_datetime.in_time_zone("UTC")
-    home_name = fix_name(match.search("td[2]//text()").to_s)
-    away_name = fix_name(match.search("td[4]//text()").to_s)
-    home = phase.teams.map{|t| [t, fuzzy_match.getDistance(t.name, home_name)]}.sort{|a,b|b[1] <=> a[1]}[0][0]
-    away = phase.teams.map{|t| [t, fuzzy_match.getDistance(t.name, away_name)]}.sort{|a,b|b[1] <=> a[1]}[0][0]
-    p "#{home_name} #{home.name}"
-    p "#{away_name} #{away.name}"
-    g = phase.games.where(:home_id => home.id, :away_id => away.id, :round => round).first
-    unless g
-      g = phase.games.build({:home_id => home.id, :away_id => away.id})
+  altered = false
+  count = 0
+  round = 0
+  date = Date.today
+  rounds = nil
+  if options[:rounds] then
+    rounds = options[:rounds]
+  else
+    rounds = rounds_to_update(phase)
+  end
+  rounds.each do |i|
+    Championship.matches(round_id, competition_id, i).each do |match|
+      round = i
+      datetime = Time.at(match.attributes["data-timestamp"].to_i).to_datetime.in_time_zone("UTC")
+      home_name = fix_name(match.search("td[2]//text()").to_s)
+      away_name = fix_name(match.search("td[4]//text()").to_s)
+      home = phase.teams.map{|t| [t, fuzzy_match.getDistance(t.name, home_name)]}.sort{|a,b|b[1] <=> a[1]}[0][0]
+      away = phase.teams.map{|t| [t, fuzzy_match.getDistance(t.name, away_name)]}.sort{|a,b|b[1] <=> a[1]}[0][0]
+      p "#{home_name} #{home.name}"
+      p "#{away_name} #{away.name}"
+      g = phase.games.where(:home_id => home.id, :away_id => away.id, :round => round).includes(:goals).first
+      unless g
+        g = phase.games.build({:home_id => home.id, :away_id => away.id})
+      end
+      if g
+        game_compare = g.dup
+        game_compare.goals = g.goals
+        g.date = datetime
+        g.has_time = true
+        g.round = round
+        g.played = "0"
+        if match.search("td[3]//text()").to_s =~ /PSTP/
+          g.has_time = false
+        end
+        if match.search("td[3]//text()").to_s =~ /(\d+) - (\d+)/
+          g.home_score = $1.to_i
+          g.away_score = $2.to_i
+          g.played = true
+        end
+        if match.search("td[1]//text()").to_s !~ /FT/
+          g.played = false
+        end
+        if g.diff(game_compare).size > 0
+          p g
+          p game_compare.diff(g)
+          g.valid? || raise(g.errors.to_xml.to_s)
+          altered = g.save! || altered
+        end
+        if g.played
+          get_scorers(g, "https://us.soccerway.com" + match.search("td[3]/a").first.attributes["href"])
+        end
+      end
+      count = count + 1
     end
-    if g
-      game_compare = g.dup
-      g.date = datetime
-      g.has_time = true
-      g.round = round
-      g.played = "0"
-      if match.search("td[3]//text()").to_s =~ /PSTP/
-        g.has_time = false
-      end
-      if match.search("td[3]//text()").to_s =~ /(\d+) - (\d+)/
-        g.home_score = $1.to_i
-        g.away_score = $2.to_i
-        g.played = true
-      end
-      if match.search("td[1]//text()").to_s !~ /FT/
-        g.played = false
-      end
-      if g.diff(game_compare).size > 0
-        p g
-        p game_compare.diff(g)
-        g.valid? || raise(g.errors.to_xml.to_s)
-        altered = g.save! || altered
-      end
-    end
-    count = count + 1
-end
+  end
 end
 
+def get_scorers(game, url)
+  body = HTTParty.get(url, { headers: {"User-Agent" => "curl/7.47.0"}}).body
+  data = Hpricot(body)
+  game.goals.clear
+  game.player_games.clear
+  players = {}
+  if not data.search('//*[@id="yui-main"]//div[@class="combined-lineups-container"]').first
+    return
+  end
+  data.search('//*[@id="yui-main"]//div[@class="combined-lineups-container"]')[0].search('/div[1]/table/tbody/tr').each do |s|
+    player = process_player(s, game, game.home_id, players, true)
+    players[player.player.soccerway_id] = player if player
+  end
+  data.search('//*[@id="yui-main"]//div[@class="combined-lineups-container"]')[0].search('/div[2]/table/tbody/tr').each do |s|
+    player = process_player(s, game, game.away_id, players, true)
+    players[player.player.soccerway_id] = player if player
+  end
+  data.search('//*[@id="yui-main"]//div[@class="combined-lineups-container"]')[1].search('/div[2]/table/tbody/tr').each do |s|
+    player = process_player(s, game, game.home_id, players, false)
+    players[player.player.soccerway_id] = player if player
+  end
+  data.search('//*[@id="yui-main"]//div[@class="combined-lineups-container"]')[1].search('/div[3]/table/tbody/tr').each do |s|
+    player = process_player(s, game, game.away_id, players, false)
+    players[player.player.soccerway_id] = player if player
+  end
+  players.values.each do |p|
+    p.save!
+  end
+end
+
+def process_player(s, game, team_id, players, starter)
+  link = s.search('/td.player.large-link//a[1]').first
+  if not link
+    return
+  end
+  soccerway_url = link.attributes['href']
+  soccerway_id = soccerway_url.gsub(/.*?(\d+).$/, '\1')
+  player = Player.where(soccerway_id: soccerway_id).first
+  if not player
+    player = create_player("https://us.soccerway.com" + soccerway_url, soccerway_id)
+  end
+  TeamPlayer.new(team_id: team_id, player_id: player.id, championship_id: game.phase.championship_id).save
+  yc = false
+  rc = false
+  off = 0
+  if starter
+    off = 90
+  end
+  s.search('/td.bookings/span').each do |span|
+    if span.search('/img').first.attributes['src'] =~ /\bG.png\b/
+      minute = span.search('text()').first.to_s.gsub(/.*?(\d+).*/m, '\1')
+      Goal.new(player_id: player.id, game_id: game.id, team_id: team_id, time: minute, penalty: false, own_goal: false).save!
+    end
+    if span.search('/img').first.attributes['src'] =~ /\bPG.png\b/
+      minute = span.search('text()').first.to_s.gsub(/.*?(\d+).*/m, '\1')
+      Goal.new(player_id: player.id, game_id: game.id, team_id: team_id, time: minute, penalty: true, own_goal: false).save!
+    end
+    if span.search('/img').first.attributes['src'] =~ /\bOG.png\b/
+      minute = span.search('text()').first.to_s.gsub(/.*?(\d+).*/m, '\1')
+      Goal.new(player_id: player.id, game_id: game.id, team_id: team_id, time: minute, penalty: false, own_goal: true).save!
+    end
+    if span.search('/img').first.attributes['src'] =~ /\bYC.png\b/
+      yc = true
+    end
+    if span.search('/img').first.attributes['src'] =~ /\bRC.png\b/
+      rc = true
+      off = span.search('text()').first.to_s.gsub(/.*?(\d+).*/m, '\1')
+    end
+    if span.search('/img').first.attributes['src'] =~ /\bY2C.png\b/
+      rc = true
+      off = span.search('text()').first.to_s.gsub(/.*?(\d+).*/m, '\1')
+    end
+  end
+  out = s.search('/td.player.large-link/p.substitute-out').first
+  on = 0
+  if out
+    out_id = out.search('/a').first.attributes['href'].gsub(/.*?(\d+).$/, '\1')
+    minute = out.search('/text()').to_s.gsub(/.*?(\d+).*/m, '\1')
+    players[out_id].off = minute
+    on = minute
+    off = 90
+  end
+  return PlayerGame.new(player_id: player.id, game_id: game.id, team_id: team_id, on: on, off: off, yellow: yc, red: rc)
+end
+
+def create_player(url, soccerway_id)
+  data = HTTParty.get(url, { headers: {"User-Agent" => "curl/7.47.0"}}).body
+  player_info = Hpricot(data)
+  name = player_info.search('//*[@id="subheading"]/h1//text()').to_s
+  full_name = player_info.search('//*[@id="page_player_1_block_player_passport_3"]/div/div/div[1]/div/dl/dd[@data-first_name="first_name"]//text()').to_s + " " + player_info.search('//*[@id="page_player_1_block_player_passport_3"]/div/div/div[1]/div/dl/dd[@data-last_name="last_name"]//text()').to_s
+  birthday = player_info.search('//*[@id="page_player_1_block_player_passport_3"]/div/div/div[1]/div/dl/dd[@data-date_of_birth="date_of_birth"]//text()').to_s
+  position = player_info.search('//*[@id="page_player_1_block_player_passport_3"]/div/div/div[1]/div/dl/dd[@data-position="position"]//text()').to_s
+  country = player_info.search('//*[@id="page_player_1_block_player_passport_3"]/div/div/div[1]/div/dl/dd[@data-nationality="nationality"]//text()').to_s
+
+  player = Player.new(name: name, birth: birthday.to_date, country: country, full_name: full_name, soccerway_id: soccerway_id)
+  if position =~ /Goalkeeper/
+    player.position = "g"
+  end
+  if position =~ /Defender/
+    player.position = "dc"
+  end
+  if position =~ /Midfielder/
+    player.position = "cm"
+  end
+  if position =~ /Attacker/
+    player.position = "fw"
+  end
+  player.save!
+  puts player.name
+  return player
 end

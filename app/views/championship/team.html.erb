@@ -119,7 +119,6 @@ div#odds div.flot-x-axis div.flot-tick-label:nth-child(<%=team_position%>) {
           }
           return false;
         });
-        console.log(total);
         plot.draw();
       }
     });
@@ -179,53 +178,6 @@ div#odds div.flot-x-axis div.flot-tick-label:nth-child(<%=team_position%>) {
     <% end %>
 </div>
 <% end %>
-
-<h3><%= _("Players") %></h3>
-<div class="yui-skin-sam">
-<div id="pag" class="yui-dt-paginator"></div>
-<div id="players">
-  <table id="player_table">
-  <thead>
-    <tr>
-      <th><%= _("Name") %></th>
-      <th><%= _("Pos") %></th>
-      <th><%= _("Goals") %></th>
-      <th><%= _("Own Goals") %></th>
-      <th><%= _("Penalties") %></th>
-      <th></th>
-    </tr>
-  </thead>
-    <% @players.each do |p| %>
-      <tr>
-        <td><%= link_to p[:player].name, :controller => :player, :action => :show, :id => p[:player] %></td>
-        <td><%= p[:player].position %></td>
-        <td><%= p[:goals] %></td>
-        <td><%= p[:own_goals] %></td>
-        <td><%= p[:penalties] %></td>
-        <td><% if can? :manage, Game %>
-          <%= link_to(_('Remove'), { :controller => :player,
-                                     :action => :destroy_team,
-                                     :id => p[:team_player] },
-                                class: 'player-remove',
-                                data: {
-                                :remote => true,
-                                :confirm => _('Are you sure?'),
-                                :method => :post}) %>
-        <% end %></td>
-      </tr>
-    <% end %>
-  </table>
-  <%= javascript_tag <<EOF
-  document.on('ajax:failure', '.player-remove', function(event) {
-    alert('#{_('Error removing')}');
-  });
-  document.on('ajax:success', '.player-remove', function(event) {
-    YAHOO.example.EnhanceFromMarkup.myDataTable.deleteRow(event.target.parentNode.parentNode.id);
-  });
-EOF
-%>
-</div>
-</div>
 
 <%= javascript_tag "data = new Array();" %>
 <%= javascript_tag <<EOF
@@ -441,9 +393,66 @@ EOF
 <% end %>
 
 <!-- Load the YUI Loader script: -->
-<script src="http://yui.yahooapis.com/2.5.2/build/yuiloader/yuiloader-beta-min.js"></script>
+<script src="https://yui-s.yahooapis.com/2.9.0/build/yuiloader/yuiloader-min.js"></script>
 
 <% N_("No records found.") %>
+
+<h3><%= _("Players") %></h3>
+<div class="yui-skin-sam">
+<div id="pag" class="yui-dt-paginator"></div>
+<div id="players">
+  <table id="player_table">
+  <thead>
+    <tr>
+      <th><%= _("Name") %></th>
+      <th><%= _("Pos") %></th>
+      <th><%= image_tag "goal.png" %></th>
+      <th><%= _("OG") %></th>
+      <th><%= _("PG") %></th>
+      <th><%= _("App") %></th>
+      <th><%= _("Sub") %></th>
+      <th><%= _("Y") %></th>
+      <th><%= _("R") %></th>
+      <th><%= _("Min") %></th>
+      <th></th>
+    </tr>
+  </thead>
+    <% @players.each do |p| %>
+      <tr>
+        <td><%= link_to p[:player].name, :controller => :player, :action => :show, :id => p[:player] %></td>
+        <td><%= p[:player].position %></td>
+        <td><%= p[:goals] %></td>
+        <td><%= p[:own_goals] %></td>
+        <td><%= p[:penalties] %></td>
+        <td><%= p[:appearances] %></td>
+        <td><%= p[:sub] %></td>
+        <td><%= p[:yellows] %></td>
+        <td><%= p[:reds] %></td>
+        <td><%= p[:minutes] %></td>
+        <td><% if can? :manage, Game %>
+          <%= link_to(_('Remove'), { :controller => :player,
+                                     :action => :destroy_team,
+                                     :id => p[:team_player] },
+                                class: 'player-remove',
+                                data: {
+                                :remote => true,
+                                :confirm => _('Are you sure?'),
+                                :method => :post}) %>
+        <% end %></td>
+      </tr>
+    <% end %>
+  </table>
+  <%= javascript_tag <<EOF
+  document.on('ajax:failure', '.player-remove', function(event) {
+    alert('#{_('Error removing')}');
+  });
+  document.on('ajax:success', '.player-remove', function(event) {
+    YAHOO.example.EnhanceFromMarkup.myDataTable.deleteRow(event.target.parentNode.parentNode.id);
+  });
+EOF
+%>
+</div>
+</div>
 
 <%= javascript_tag <<EOF
 function load_graph_data(index) {
@@ -462,10 +471,11 @@ function load_graph_data(index) {
 
 // Instantiate and configure Loader:
 var loader = new YAHOO.util.YUILoader({
+    base: 'https://yui-s.yahooapis.com/2.9.0/build/',
 
     // Identify the components you want to load.  Loader will automatically identify
     // any additional dependencies required for the specified components.
-    require: ["datatable"],
+    require: ["datatable", "paginator"],
 
     // The function to call when all script/css resources have been loaded
     onSuccess: function() {
@@ -473,9 +483,14 @@ var loader = new YAHOO.util.YUILoader({
             var myColumnDefs = [
                 {key:"name",label:"#{_("Name")}",sortable:true},
                 {key:"pos",label:"#{_("Pos")}", sortable:true},
-                {key:"goals",label:"#{_("Goals")}",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
-                {key:"own",label:"#{_("Own Goals")}",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
-                {key:"penalties",label:"#{_("Penalties")}",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
+                {key:"goals",label:"#{escape_javascript image_tag 'goal.png'}",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
+                {key:"own",label:"#{_("OG")}",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
+                {key:"penalties",label:"#{_("PG")}",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
+                {key:"appearances",label:"#{_("App")}",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
+                {key:"sub",label:"#{_("Sub")}",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
+                {key:"yellows",label:"#{escape_javascript image_tag 'yells.gif'}",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
+                {key:"reds",label:"#{escape_javascript image_tag 'reds.gif'}",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
+                {key:"minutes",label:"#{_("Min")}",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
                 {key:"remove",label:"",sortable:false},
             ];
 
@@ -494,13 +509,18 @@ var loader = new YAHOO.util.YUILoader({
                         {key:"goals", parser:YAHOO.util.DataSource.parseNumber},
                         {key:"own", parser:YAHOO.util.DataSource.parseNumber},
                         {key:"penalties", parser:YAHOO.util.DataSource.parseNumber},
+                        {key:"appearances", parser:YAHOO.util.DataSource.parseNumber},
+                        {key:"sub", parser:YAHOO.util.DataSource.parseNumber},
+                        {key:"yellows", parser:YAHOO.util.DataSource.parseNumber},
+                        {key:"reds", parser:YAHOO.util.DataSource.parseNumber},
+                        {key:"minutes", parser:YAHOO.util.DataSource.parseNumber},
                         {key:"remove"},
                 ]
             };
 
             var config = {
               paginator: new YAHOO.widget.Paginator({
-                rowsPerPage: 10,
+                rowsPerPage: 50,
                 template: '{PreviousPageLink} {NextPageLink}',
                 containers: 'pag',
                 previousPageLinkLabel: '#{_("&laquo; Previous")}',
