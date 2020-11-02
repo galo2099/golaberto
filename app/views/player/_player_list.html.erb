@@ -1,12 +1,16 @@
 <table>
   <tr>
     <th><%= _("Name") %></th>
+    <th><%= _("Country") %></th>
     <th><%= _("Position") %></th>
   </tr>
 
   <% for player in @players %>
     <tr>
       <td><%= link_to player.name, :action => :show, :id => player %></td>
+      <td>
+      <%= image_tag player.small_country_logo, width: 15, height: 15, title: _(player.country), alt: "" %>
+      <%= _(player.country) %></td>
       <td><%= player.position %></td>
       <% if can? :manage, player %>
         <td><%= link_to _('Edit'), :action => 'edit', :id => player %></td>

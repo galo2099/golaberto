@@ -1,4 +1,6 @@
 class PlayerController < ApplicationController
+  include ApplicationHelper
+
   N_("Player")
 
   authorize_resource
@@ -28,9 +30,45 @@ class PlayerController < ApplicationController
 
   def list
     @id = params[:id]
-    conditions = ["name LIKE ?", "%#{@id}%"] unless @id.nil?
+    @country = params[:country]
+    @continent = params[:continent] || ""
+    @players = Player.order(:name)
+    @players = @players.where(["name LIKE ?", "%#{@id}%"]) unless @id.nil?
 
-    @players = Player.order(:name).where(conditions).page(params[:page])
+    countries_with_players = { @country => 0 }
+    countries_with_players.merge!(@players.group(:country).size)
+
+    countries_found = []
+    countries_not_found = []
+    golaberto_options_for_country_select.each do |translated_country, original_country|
+      count = countries_with_players[original_country]
+      if count.nil? then
+        countries_not_found << [translated_country, original_country]
+      else
+        countries_found << [translated_country + " (#{count})", original_country]
+      end
+    end
+
+    @country_list = [[s_("Country|All") + " (#{@players.size})", ""]] + countries_found + countries_not_found
+    @countries = {}
+    @countries[""] = @country_list
+    ApplicationHelper::Continent::ALL.each do |name, c|
+      @countries[name] = [[s_("Country|All") + " (#{@players.where(country: c.countries.map{|c|c.name}).size})", ""]] + @country_list.select{|_, n| ApplicationHelper::Continent.country_to_continent[n] == c}
+    end
+
+    unless @continent.blank?
+      @players = @players.where(country: Continent::ALL[@continent].countries.map{|c|c.name})
+      unless Continent::ALL[@continent].countries.map{|c|c.name}.include? @country
+        @country = nil
+      end
+    end
+
+    @players = @players.page(params[:page])
+    @players = @players.where(country: @country) unless @country.blank?
+    puts @players.first
+    if @players.size == 1
+      redirect_to :action => :show, :id => @players.first
+    end
   end
 
   def show

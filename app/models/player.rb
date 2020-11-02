@@ -33,4 +33,12 @@ class Player < ActiveRecord::Base
   def to_param
     "#{id}-#{name.parameterize}"
   end
+
+  def small_country_logo
+    if country.nil?
+      "https://s3.amazonaws.com/#{Rails.application.secrets.s3["bucket"]}/thumb.png"
+    else
+      "https://s3.amazonaws.com/#{Rails.application.secrets.s3["bucket"]}/countries/flags/#{country.parameterize('_')}_15.png"
+    end
+  end
 end

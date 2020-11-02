@@ -3,9 +3,24 @@
 <p>
 <%= form_tag({ :action => "list", :id => "" }, :method => "GET",
             :style => "display: inline") do %>
-  <%= text_field_tag("id", @id, :size => 20) %>
+            <%= text_field_tag("id", @id, :size => 66) %><br>
+
+  <%= select_tag :continent, options_for_select([[s_("Continent|All"), ""]] + ApplicationHelper::Continent.options_for_select, @continent), onchange: "changeContinent(this);", style: "width: 30%" %>
+  <%= select_tag :country, options_for_select(@countries[@continent], @country), style: "width: 30%" %>
   <%= submit_tag(_("Search"), :name => nil) %>
 <% end %>
+<script>
+var countries = {
+  "": <%== options_for_select(@countries[""]).to_json %>,
+  <% ApplicationHelper::Continent::ALL.each do |name, c| %>
+      "<%== name %>": <%== options_for_select(@countries[name]).to_json %>,
+  <% end %>
+};
+
+function changeContinent(select) {
+  $("country").update(countries[select.value]);
+}
+</script>
 
 </p>
 
