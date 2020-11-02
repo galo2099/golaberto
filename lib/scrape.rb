@@ -4,7 +4,7 @@ require 'httparty'
 require 'hpricot'
 require 'fuzzy/fuzzy'
 
-class Championship
+class ChampionshipGet
   include HTTParty
 
   def self.matches(round_id, competition_id, round = 0)
@@ -152,6 +152,9 @@ def fix_name(str)
   if str == "Korea Republic"
     return "South Korea"
   end
+  if str == "Korea DPR"
+    return "North Korea"
+  end
   if str == "UAE"
     return "United Arab Emirates"
   end
@@ -190,7 +193,8 @@ end
 
 def rounds_to_update(phase)
   (phase.games.where(date: (Date.today..Date.today+30.days)).group(:round).size.keys +
-   phase.games.where(played: false).where("date < ?", Time.now).map{|g|g.round}).sort.uniq
+   phase.games.where(played: false).where("date < ?", Time.now).map{|g|g.round} +
+   phase.games.where(played: true).includes(:player_games).select{|g|g.player_games.size == 0}.map{|g|g.round}).sort.uniq
 end
 
 def scrape(phase, round_id, competition_id, options = {})
@@ -208,7 +212,7 @@ def scrape(phase, round_id, competition_id, options = {})
     rounds = rounds_to_update(phase)
   end
   rounds.each do |i|
-    Championship.matches(round_id, competition_id, i).each do |match|
+    ChampionshipGet.matches(round_id, competition_id, i).each do |match|
       round = i
       datetime = Time.at(match.attributes["data-timestamp"].to_i).to_datetime.in_time_zone("UTC")
       home_name = fix_name(match.search("td[2]//text()").to_s)
@@ -245,7 +249,7 @@ def scrape(phase, round_id, competition_id, options = {})
           g.valid? || raise(g.errors.to_xml.to_s)
           altered = g.save! || altered
         end
-        if g.played
+        if g.played and g.player_games.size == 0
           get_scorers(g, "https://us.soccerway.com" + match.search("td[3]/a").first.attributes["href"])
         end
       end
@@ -347,6 +351,52 @@ def create_player(url, soccerway_id)
   birthday = player_info.search('//*[@id="page_player_1_block_player_passport_3"]/div/div/div[1]/div/dl/dd[@data-date_of_birth="date_of_birth"]//text()').to_s
   position = player_info.search('//*[@id="page_player_1_block_player_passport_3"]/div/div/div[1]/div/dl/dd[@data-position="position"]//text()').to_s
   country = player_info.search('//*[@id="page_player_1_block_player_passport_3"]/div/div/div[1]/div/dl/dd[@data-nationality="nationality"]//text()').to_s
+
+  if country == "Côte d'Ivoire"
+    country = "Ivory Coast"
+  end
+  if country == "Cape Verde Islands"
+    country = "Cape Verde"
+  end
+  if country == "Cape Verde Islands"
+    country = "Cape Verde"
+  end
+  if country == "North Macedonia"
+    country = "Macedonia"
+  end
+  if country == "Congo DR"
+    country = "DR Congo"
+  end
+  if country == "USA"
+    country = "United States"
+  end
+  if country == "Republic of Ireland"
+    country = "Ireland"
+  end
+  if country == "St. Kitts and Nevis"
+    country = "Saint Kitts and Nevis"
+  end
+  if country == "Korea Republic"
+    country = "South Korea"
+  end
+  if country == "Curaçao"
+    country = "Netherlands Antilles"
+  end
+  if country == "China PR"
+    country = "China"
+  end
+  if country == "St. Lucia"
+    country = "Saint Lucia"
+  end
+  if country == "British Virgin Islands"
+    country = "Virgin Islands (British)"
+  end
+  if country == "Chinese Taipei"
+    country = "Taiwan"
+  end
+  if country == "Kyrgyz Republic"
+    country = "Kyrgyzstan"
+  end
 
   player = Player.new(name: name, birth: birthday.to_date, country: country, full_name: full_name, soccerway_id: soccerway_id)
   if position =~ /Goalkeeper/

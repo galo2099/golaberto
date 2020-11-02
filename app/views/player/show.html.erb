@@ -1,9 +1,34 @@
 <% content_for :main_title do %><%= _("Player") %><% end %>
 
 <h2><%= @player.name %> - <%= @player.full_name %></h2>
-<% @player.team_players.each do |tp| %>
-  <%= link_to add_wbr_to_string(tp.team.name), action: :team, controller: :championship, id: tp.championship_id, team: tp.team_id %> - <%= tp.championship.full_name %><br/>
+<div>
+<table>
+  <thead>
+    <tr>
+      <th><%= _("Team") %></th>
+      <th><%= _("Championship") %></th>
+      <th>App</th>
+      <th>Min</th>
+      <th><%= image_tag "goal.png" %></th>
+      <th>P</th>
+      <th><%= image_tag "yells.gif" %></th>
+      <th><%= image_tag "reds.gif" %></th>
+    </tr>
+  </thead>
+<% @player.player_games.joins(game: {phase: :championship}).group("phases.championship_id, team_id").select("championship_id, team_id, player_games.id, SUM(off-`on`) as minutes, SUM(yellow = 1) as yellows, SUM(red = 1) as reds, SUM(IF(off > 0, 1, 0)) as appearances, MAX(games.date) as latest, player_games.game_id").order("latest DESC").each do |p| %>
+  <tr>
+    <td><%= link_to add_wbr_to_string(p.team.name), action: :team, controller: :championship, id: p.championship_id, team: p.team_id %></td>
+    <td><%= p.game.championship.full_name %></td>
+    <td><%= p.appearances %></td>
+    <td><%= p.minutes %></td>
+    <td><%= @player.goals.joins(:game).where(own_goal: false, game: p.game.championship.games, team: p.team_id).count %></td>
+    <td><%= @player.goals.joins(:game).where(penalty: true, game: p.game.championship.games, team: p.team_id).count %></td>
+    <td><%= p.yellows %></td>
+    <td><%= p.reds %></td>
+  </tr>
 <% end %>
+</table>
+</div>
 
 <br>
 
