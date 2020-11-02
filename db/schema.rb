@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20201102061750) do
+ActiveRecord::Schema.define(version: 20201102222607) do
 
   create_table "categories", force: :cascade do |t|
     t.string "name", limit: 255
@@ -199,6 +199,8 @@ ActiveRecord::Schema.define(version: 20201102061750) do
     t.boolean "yellow",              default: false, null: false
     t.boolean "red",                 default: false, null: false
   end
+
+  add_index "player_games", ["player_id", "game_id", "team_id"], name: "index_player_games_on_player_id_and_game_id_and_team_id", unique: true, using: :btree
 
   create_table "players", force: :cascade do |t|
     t.string   "name",         limit: 255, default: "", null: false
