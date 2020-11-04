@@ -200,7 +200,7 @@ ActiveRecord::Schema.define(version: 20201102222607) do
     t.boolean "red",                 default: false, null: false
   end
 
-  add_index "player_games", ["player_id", "game_id", "team_id"], name: "index_player_games_on_player_id_and_game_id_and_team_id", unique: true, using: :btree
+  add_index "player_games", ["game_id", "team_id", "player_id"], name: "index_player_games_on_game_id_and_team_id_and_player_id", unique: true, using: :btree
 
   create_table "players", force: :cascade do |t|
     t.string   "name",         limit: 255, default: "", null: false
