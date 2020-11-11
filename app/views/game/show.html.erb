@@ -161,9 +161,7 @@ gauge_away.set(<%= away_importance %>); // set actual value
 
 </table>
 
-<% if not @game.played? %>
-  <%= render :partial => "game_odds" %>
-<% end %>
+<%= render :partial => "game_odds" %>
 
 <% if not @last_games.empty? %>
 <h2><%= sprintf(n_("Previous game", "Previous %d games", @last_games.size), @last_games.size) %></h2>

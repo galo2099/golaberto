@@ -41,6 +41,10 @@ jQuery(function() {
     odds_goal_list.push({time: 0});
     rebuild_odds_goals();
   });
+  <% @game.goals.each do |goal| %>
+  odds_goal_list.push({time: <%= goal.time %>, checked: <%= ((goal.team_id == @game.home_id and not goal.own_goal) or (goal.team_id == @game.away and goal.own_goal)) ? '"home"'.html_safe : '"away"'.html_safe %>});
+  <% end %>
+  rebuild_odds_goals();
 });
 
 function compute_odds(hp, ap, home_adv, away_adv) {
@@ -172,9 +176,9 @@ jQuery(function() {
 
     <% odds = @game.odds %>
     var data = [
-      {data: odds_data.map(function(x) { return [ x[0], x[1] ]; }), label: "<%= @game.home.name %>: <%= number_to_percentage(100*odds[0], :precision => 2) %>"},
-      {data: odds_data.map(function(x) { return [ x[0], x[2] ]; }), label: "<%= _("Draw") %>: <%= number_to_percentage(100*odds[1], :precision => 2) %>"},
-      {data: odds_data.map(function(x) { return [ x[0], x[3] ]; }), label: "<%= @game.away.name %>: <%= number_to_percentage(100*odds[2], :precision => 2) %>"},
+      {data: odds_data.map(function(x) { return [ x[0], x[1] ]; }), label: "<%= @game.home.name %> <% if not @game.played %>: <%= number_to_percentage(100*odds[0], :precision => 2) %> <% end %>"},
+      {data: odds_data.map(function(x) { return [ x[0], x[2] ]; }), label: "<%= _("Draw") %><% if not @game.played %>: <%= number_to_percentage(100*odds[1], :precision => 2) %><% end %>"},
+      {data: odds_data.map(function(x) { return [ x[0], x[3] ]; }), label: "<%= @game.away.name %><% if not @game.played %>: <%= number_to_percentage(100*odds[2], :precision => 2) %><% end %>"},
       {data: [], xaxis: 2},
     ];
     plot = graphDiv.plot(data, graphOptions).data("plot");
@@ -185,7 +189,11 @@ jQuery(function() {
         points.reduce(function(acc, cur) {
           if (cur.point[1] == null) return acc;
           var div = '<tr><td><div style="border:1px solid #ccc;padding:1px"><div style="width:4px;height:0;border:5px solid ' + cur.color + ';overflow:hidden"></div></div></td>';
-          return acc + div + "<td>" + cur.label.substr(0, cur.label.lastIndexOf(":")) + "</td><td style='text-align: right'>" + (cur.point[1] * 100).toFixed(2) + "%" + "</td></tr>";
+          var indexToRemove = cur.label.lastIndexOf(":");
+          if (indexToRemove == -1) {
+            indexToRemove = cur.label.length;
+          }
+          return acc + div + "<td>" + cur.label.substr(0, indexToRemove) + "</td><td style='text-align: right'>" + (cur.point[1] * 100).toFixed(2) + "%" + "</td></tr>";
         }, "") +
         "<tr><td colspan=3 style='text-align: center'>" + points[0].point[0] + "</tr>"
      ).css({top: pos.pageY + 10, left: pos.pageX + 10}).fadeIn(200);
@@ -289,14 +297,16 @@ jQuery(function() {
           line-height: 1.2em;">
 </div>
 <div id="odds_legend"></div>
+<div style="display: <%= @game.played? ? "none" : "block" %>">
 <%= _("Current time") %>: <span id="odds_current_time">0</span><br>
 <br>
 <%= _("Added time") %>: <input class="odds_selector" id="odds_added_time" type="text" size="3" value="5"><br>
 <%= _("Start time") %>: <input class="odds_selector" id="odds_set_time" type="text" size="3" value="">
 <div>
 <input type="button" value="<%= _("Add goal") %>" id="odds_add_goal"><br>
-</div>
-
 <div id='odds_goal_list'>
 </div>
+</div>
+</div>
+
 </div>
