@@ -1,21 +1,27 @@
 package main
 
-import "github.com/dgryski/go-metro"
+import (
+	"database/sql"
+	"encoding/binary"
+	"encoding/json"
+	"fmt"
+	"log"
+	"math"
+	"math/rand"
+	"net/http"
+	_ "net/http/pprof"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
 
-import _ "net/http/pprof"
-import "fmt"
-import "net/http"
-import "encoding/binary"
-import "encoding/json"
-import "log"
-import "math"
-import "math/rand"
-import "sort"
-import "strings"
-import "time"
+	"github.com/dgryski/go-metro"
+	_ "github.com/go-sql-driver/mysql"
+)
 
 const (
 	AVG_BASE = 1.3350257653834494
+	HOME_ADV = 0.16133676871779334
 )
 
 type TeamCampaign struct {
@@ -1223,11 +1229,382 @@ func nextPower2(n int) int {
 	return i
 }
 
+type gameP struct {
+	id        int
+	date      time.Time
+	homeScore int
+	awayScore int
+	homeAet   sql.NullInt32
+	awayAet   sql.NullInt32
+	homeField int
+	homeId    int
+	awayId    int
+}
+
+type teamP struct {
+	offRating sql.NullFloat64
+	defRating sql.NullFloat64
+}
+
+type goalP struct {
+	playerId int
+	teamId   int
+	time     int
+	penalty  bool
+	ownGoal  bool
+}
+
+type playerP struct {
+	playerId int
+	teamId   int
+	on       int
+	off      int
+	yellow   bool
+	red      bool
+	position sql.NullString
+}
+
+func loadGames() []*gameP {
+	// Execute the query
+	results, err := db.Query("SELECT `games`.`id`, `games`.`date`, `games`.`home_score`, `games`.`away_score`, `games`.`home_aet`, `games`.`away_aet`, `games`.`home_field`, `games`.`home_id`, `games`.`away_id` FROM `games` INNER JOIN `phases` ON `phases`.`id` = `games`.`phase_id` INNER JOIN `championships` ON `championships`.`id` = `phases`.`championship_id` WHERE (date > ?) AND `games`.`played` = 1 AND `championships`.`category_id` = 1", time.Now().Add(-time.Hour * 24 * 365 * 4))
+	if err != nil {
+		panic(err.Error()) // proper error handling instead of panic in your app
+	}
+	var games []*gameP
+	for results.Next() {
+		var game gameP
+		// for each row, scan the result into our tag composite object
+		err = results.Scan(&game.id, &game.date, &game.homeScore, &game.awayScore, &game.homeAet, &game.awayAet, &game.homeField, &game.homeId, &game.awayId)
+		if err != nil {
+			panic(err.Error()) // proper error handling instead of panic in your app
+		}
+		games = append(games, &game)
+	}
+
+	return games
+}
+
+func loadTeams() map[int]*teamP {
+	results, err := db.Query("SELECT id, off_rating, def_rating FROM teams")
+	if err != nil {
+		panic(err.Error()) // proper error handling instead of panic in your app
+	}
+	teams := make(map[int]*teamP)
+	for results.Next() {
+		var team teamP
+		var id int
+		// for each row, scan the result into our tag composite object
+		err = results.Scan(&id, &team.offRating, &team.defRating)
+		if err != nil {
+			panic(err.Error()) // proper error handling instead of panic in your app
+		}
+		teams[id] = &team
+	}
+
+	return teams
+}
+
+func loadGoals(games []*gameP) map[int][]*goalP {
+	gameIds := make([]string, len(games))
+	for i, g := range games {
+		gameIds[i] = strconv.Itoa(g.id)
+	}
+	results, err := db.Query("SELECT player_id, game_id, team_id, `time`, penalty, own_goal from goals where game_id in (" + strings.Join(gameIds, ",") + ")")
+	if err != nil {
+		panic(err.Error()) // proper error handling instead of panic in your app
+	}
+	goals := make(map[int][]*goalP)
+	for results.Next() {
+		var goal goalP
+		var gameId int
+		// for each row, scan the result into our tag composite object
+		err = results.Scan(&goal.playerId, &gameId, &goal.teamId, &goal.time, &goal.penalty, &goal.ownGoal)
+		if err != nil {
+			panic(err.Error()) // proper error handling instead of panic in your app
+		}
+		goals[gameId] = append(goals[gameId], &goal)
+	}
+
+	return goals
+}
+
+func loadPlayers(games []*gameP) map[int][]*playerP {
+	gameIds := make([]string, len(games))
+	for i, g := range games {
+		gameIds[i] = strconv.Itoa(g.id)
+	}
+	results, err := db.Query("select player_id, game_id, team_id, `on`, off, yellow, red, players.position from player_games INNER JOIN `players` ON `players`.`id` = `player_games`.`player_id` where off > 0 and game_id in (" + strings.Join(gameIds, ",") + ")")
+	if err != nil {
+		panic(err.Error()) // proper error handling instead of panic in your app
+	}
+	players := make(map[int][]*playerP)
+	for results.Next() {
+		var player playerP
+		var gameId int
+		// for each row, scan the result into our tag composite object
+		err = results.Scan(&player.playerId, &gameId, &player.teamId, &player.on, &player.off, &player.yellow, &player.red, &player.position)
+		if err != nil {
+			panic(err.Error()) // proper error handling instead of panic in your app
+		}
+		players[gameId] = append(players[gameId], &player)
+	}
+
+	return players
+}
+
+func filterPlayer(vs []*playerP, f func(p *playerP) bool) []*playerP {
+	vsf := make([]*playerP, 0)
+	for _, v := range vs {
+		if f(v) {
+			vsf = append(vsf, v)
+		}
+	}
+	return vsf
+}
+
+func filterGoal(vs []*goalP, f func(p *goalP) bool) []*goalP {
+	vsf := make([]*goalP, 0)
+	for _, v := range vs {
+		if f(v) {
+			vsf = append(vsf, v)
+		}
+	}
+	return vsf
+}
+
+func findIntervals(players []*playerP) []int {
+	intervals := make(map[int]struct{})
+	for _, player := range players {
+		intervals[player.on] = struct{}{}
+		intervals[player.off] = struct{}{}
+	}
+	ret := make([]int, 0, len(intervals))
+	for k, _ := range intervals {
+		ret = append(ret, k)
+	}
+	sort.Ints(ret)
+	return ret
+}
+
+func playerRatings(c http.ResponseWriter, req *http.Request) {
+	startFunc := time.Now()
+	games := loadGames()
+	log.Println(time.Since(startFunc))
+	goals := loadGoals(games)
+	log.Println(time.Since(startFunc))
+	teams := loadTeams()
+	log.Println(time.Since(startFunc))
+	players := loadPlayers(games)
+	log.Println(time.Since(startFunc))
+
+	playerRatings := make(map[int]struct{
+		off, def, minutes float64
+	})
+
+	now := time.Now()
+
+	for _, game := range games {
+		if len(players[game.id]) == 0 {
+			continue
+		}
+		homeAdv := 0.0
+		if game.homeField == 0 {
+			homeAdv = HOME_ADV
+		}
+		if game.homeField == 2 {
+			homeAdv = -HOME_ADV
+		}
+
+		weight := squash_date(float64(game.date.Unix()), float64(now.Unix()))
+		length := 90.0
+		if game.homeAet.Valid {
+			length = 120
+		}
+
+		homeForZeroPer90 := -(teams[game.awayId].defRating.Float64+homeAdv)/((teams[game.awayId].defRating.Float64+homeAdv)*0.424+0.548)*(AVG_BASE*0.424+0.548) / length / 11
+		homeForGoalWeight := 1 / ((teams[game.awayId].defRating.Float64+homeAdv)*0.424+0.548)*(AVG_BASE*0.424+0.548)
+		homeAggZeroPer90 := (teams[game.awayId].offRating.Float64-homeAdv)/((teams[game.awayId].offRating.Float64-homeAdv)*0.424+0.548)*(AVG_BASE*0.424+0.548) / length / 11
+		homeAggGoalWeight := -1 / ((teams[game.awayId].offRating.Float64-homeAdv)*0.424+0.548)*(AVG_BASE*0.424+0.548)
+
+		awayForZeroPer90 := -(teams[game.homeId].defRating.Float64-homeAdv)/((teams[game.homeId].defRating.Float64-homeAdv)*0.424+0.548)*(AVG_BASE*0.424+0.548) / length / 11
+		awayForGoalWeight := 1 / ((teams[game.homeId].defRating.Float64-homeAdv)*0.424+0.548)*(AVG_BASE*0.424+0.548)
+		awayAggZeroPer90 := (teams[game.homeId].offRating.Float64+homeAdv)/((teams[game.homeId].offRating.Float64+homeAdv)*0.424+0.548)*(AVG_BASE*0.424+0.548) / length / 11
+		awayAggGoalWeight := -1 / ((teams[game.homeId].offRating.Float64+homeAdv)*0.424+0.548)*(AVG_BASE*0.424+0.548)
+
+		homePlayers := filterPlayer(players[game.id], func(pg *playerP) bool { return pg.teamId == game.homeId })
+		awayPlayers := filterPlayer(players[game.id], func(pg *playerP) bool { return pg.teamId == game.awayId })
+
+		homeGoals := filterGoal(goals[game.id], func(goal *goalP) bool {
+			return (goal.teamId == game.awayId && goal.ownGoal == true) || (goal.teamId == game.homeId && goal.ownGoal == false)
+		})
+		awayGoals := filterGoal(goals[game.id], func(goal *goalP) bool {
+			return (goal.teamId == game.homeId && goal.ownGoal == true) || (goal.teamId == game.awayId && goal.ownGoal == false)
+		})
+
+		intervals := findIntervals(homePlayers)
+		for i := 0; i < len(intervals) - 1; i++ {
+			from := intervals[i]
+			to := intervals[i+1]
+			hp := filterPlayer(homePlayers, func(p *playerP) bool {
+				return math.Max(float64(from), float64(p.on)) < math.Min(float64(to), float64(p.off))
+			})
+			pos := make(map[string]float64)
+			for _, p := range hp {
+				pos[p.position.String] += 1
+			}
+			offWIndividual := float64(len(hp)) / (pos["g"] * 0.3 + pos["dc"] * 0.7 + pos["cm"] + pos["fw"] * 1.0 + pos[""])
+			offW := map[string]float64 {"g": offWIndividual * 0.3, "dc": offWIndividual * 0.7, "cm": offWIndividual, "fw": offWIndividual * 1.0, "": offWIndividual}
+			defWIndividual := float64(len(hp)) / (pos["g"] * 4.0 + pos["dc"] * 2.0 + pos["cm"] + pos["fw"] * 0.5 + pos[""])
+			defW := map[string]float64{ "g": defWIndividual * 4.0, "dc": defWIndividual * 2.0, "cm": defWIndividual, "fw": defWIndividual * 0.5, "": defWIndividual }
+			homeGoalsInterval := filterGoal(homeGoals, func(g *goalP) bool {
+				return g.time > from && g.time <= to
+			})
+			awayGoalsInterval := 0.0
+			for _, g := range awayGoals {
+				if g.time > from && g.time <= to {
+					awayGoalsInterval += 1
+				}
+			}
+			homeGoalsOwn := float64(0)
+			for _, g := range homeGoalsInterval {
+				if g.ownGoal {
+					homeGoalsOwn += 1
+				}
+			}
+			homeGoalsRegular := filterGoal(homeGoalsInterval, func(g *goalP) bool {
+				return !g.ownGoal && !g.penalty
+			})
+			homeGoalsPenalty := filterGoal(homeGoalsInterval, func(g *goalP) bool {
+				return !g.ownGoal && g.penalty
+			})
+			for _, v := range hp {
+				playerRating := playerRatings[v.playerId]
+				minutes := float64(to - from)
+				playerRating.minutes += minutes * weight
+				offPlayerWeight := offW[v.position.String]
+				regularGoals := 0.0
+				for _, g := range homeGoalsRegular {
+					if g.playerId == v.playerId {
+						regularGoals += 1
+					}
+				}
+				penaltyGoals := 0.0
+				for _, g := range homeGoalsPenalty {
+					if g.playerId == v.playerId {
+						penaltyGoals += 1
+					}
+				}
+				playerRating.off += (minutes * homeForZeroPer90 * offPlayerWeight +
+					homeGoalsOwn * homeForGoalWeight * offPlayerWeight / float64(len(hp)) +
+					float64(len(homeGoalsRegular)) * homeForGoalWeight * offPlayerWeight / float64(len(hp)) / 4 * 3 +
+					float64(len(homeGoalsPenalty)) * homeForGoalWeight * offPlayerWeight / float64(len(hp)) / 6 * 5 +
+					regularGoals * homeForGoalWeight / 4 +
+					penaltyGoals * homeForGoalWeight / 6) * weight
+				playerRating.def += (minutes * homeAggZeroPer90 + awayGoalsInterval * homeAggGoalWeight / float64(len(hp))) * defW[v.position.String] * weight
+
+				playerRatings[v.playerId] = playerRating
+			}
+		}
+
+		intervals = findIntervals(awayPlayers)
+		for i := 0; i < len(intervals) - 1; i++ {
+			from := intervals[i]
+			to := intervals[i+1]
+			ap := filterPlayer(awayPlayers, func(p *playerP) bool {
+				return math.Max(float64(from), float64(p.on)) < math.Min(float64(to), float64(p.off))
+			})
+			pos := make(map[string]float64)
+			for _, p := range ap {
+				pos[p.position.String] += 1
+			}
+			offWIndividual := float64(len(ap)) / (pos["g"] * 0.3 + pos["dc"] * 0.7 + pos["cm"] + pos["fw"] * 1.0 + pos[""])
+			offW := map[string]float64 {"g": offWIndividual * 0.3, "dc": offWIndividual * 0.7, "cm": offWIndividual, "fw": offWIndividual * 1.0, "": offWIndividual}
+			defWIndividual := float64(len(ap)) / (pos["g"] * 4.0 + pos["dc"] * 2.0 + pos["cm"] + pos["fw"] * 0.5 + pos[""])
+			defW := map[string]float64{ "g": defWIndividual * 4.0, "dc": defWIndividual * 2.0, "cm": defWIndividual, "fw": defWIndividual * 0.5, "": defWIndividual }
+			awayGoalsInterval := filterGoal(awayGoals, func(g *goalP) bool {
+				return g.time > from && g.time <= to
+			})
+			homeGoalsInterval := 0.0
+			for _, g := range homeGoals {
+				if g.time > from && g.time <= to {
+					homeGoalsInterval += 1
+				}
+			}
+			awayGoalsOwn := float64(0)
+			for _, g := range awayGoalsInterval {
+				if g.ownGoal {
+					awayGoalsOwn += 1
+				}
+			}
+			awayGoalsRegular := filterGoal(awayGoalsInterval, func(g *goalP) bool {
+				return !g.ownGoal && !g.penalty
+			})
+			awayGoalsPenalty := filterGoal(awayGoalsInterval, func(g *goalP) bool {
+				return !g.ownGoal && g.penalty
+			})
+			for _, v := range ap {
+				playerRating := playerRatings[v.playerId]
+				minutes := float64(to - from)
+				playerRating.minutes += minutes * weight
+				offPlayerWeight := offW[v.position.String]
+				regularGoals := 0.0
+				for _, g := range awayGoalsRegular {
+					if g.playerId == v.playerId {
+						regularGoals += 1
+					}
+				}
+				penaltyGoals := 0.0
+				for _, g := range awayGoalsPenalty {
+					if g.playerId == v.playerId {
+						penaltyGoals += 1
+					}
+				}
+				playerRating.off += (minutes * awayForZeroPer90 * offPlayerWeight +
+					awayGoalsOwn * awayForGoalWeight * offPlayerWeight / float64(len(ap)) +
+					float64(len(awayGoalsRegular)) * awayForGoalWeight* offPlayerWeight / float64(len(ap)) / 4 * 3 +
+					float64(len(awayGoalsPenalty)) * awayForGoalWeight* offPlayerWeight / float64(len(ap)) / 6 * 5 +
+					regularGoals *awayForGoalWeight/ 4 +
+					penaltyGoals *awayForGoalWeight/ 6) * weight
+				playerRating.def += (minutes * awayAggZeroPer90 + homeGoalsInterval * awayAggGoalWeight / float64(len(ap))) * defW[v.position.String] * weight
+
+				playerRatings[v.playerId] = playerRating
+			}
+		}
+	}
+	log.Println(time.Since(startFunc))
+
+	var insertSql strings.Builder
+	insertSql.WriteString("INSERT INTO players (id,off_rating,def_rating,rating,created_at,updated_at) VALUES ")
+	first := true
+	for k, v := range playerRatings {
+		if first {
+			first = false
+		} else {
+			insertSql.WriteString(",")
+		}
+		insertSql.WriteString(fmt.Sprintf("(%d, %f, %f, %f, '%s', '%s')", k, v.off / v.minutes * 90, v.def / v.minutes * 90, (v.off + v.def) / (v.minutes + 900) * 90, now.Format("2006-01-02 15:04:05"), now.Format("2006-01-02 15:04:05")))
+	}
+	insertSql.WriteString(" ON DUPLICATE KEY UPDATE off_rating=VALUES(off_rating),def_rating=VALUES(def_rating),rating=VALUES(rating),updated_at=VALUES(updated_at)")
+	log.Println(time.Since(startFunc))
+	_, err := db.Exec(insertSql.String())
+	if err != nil {
+		panic(err.Error()) // proper error handling instead of panic in your app
+	}
+	log.Println(time.Since(startFunc))
+}
+
+var db, _ = sql.Open("mysql", "root@tcp(127.0.0.1:3306)/GolAberto_development?parseTime=true")
+
 func main() {
+	// defer the close till after the main function has finished
+	// executing
+	defer db.Close()
+
 	fmt.Printf("Starting http Server ... ")
 	http.Handle("/odds", http.HandlerFunc(calculateChampionshipOdds))
 	http.Handle("/spi", http.HandlerFunc(calculatePowerRanking))
 	http.Handle("/eval", http.HandlerFunc(evalPredictions))
 	http.Handle("/historic_ratings", http.HandlerFunc(historicRatings))
+	http.Handle("/player_ratings", http.HandlerFunc(playerRatings))
 	log.Fatal(http.ListenAndServe(":6577", nil))
 }

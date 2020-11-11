@@ -87,11 +87,10 @@ module GameHelper
       html << "    #{h goal.time}'" if home_goal
       html << "  </td>"
       html << "  <td class='game_show_home_score'>"
-      html << "    (#{count_home}-#{count_away})" if home_goal
       html << "  </td>"
       html << "  <td></td>"
       html << "  <td class='game_show_away_score'>"
-      html << "    (#{count_home}-#{count_away})" if away_goal
+      html << "  </td>"
       html << "  <td class='game_show_away_score'>"
       html << "    #{h goal.time}'" if away_goal
       html << "  </td>"
