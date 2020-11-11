@@ -31,7 +31,8 @@ function changeContinent(select) {
 
 <% content_for :sidebar do %>
   <% if can? :create, Player %>
-    <%= link_to _('New player'), :action => 'new' %>
+    <%= link_to _('New player'), :action => 'new' %><br>
+    <%= link_to _('Update rating'), :action => 'update_rating' %>
   <% end %>
 <% end %>
 

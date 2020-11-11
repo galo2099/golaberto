@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20201102222607) do
+ActiveRecord::Schema.define(version: 20201111012135) do
 
   create_table "categories", force: :cascade do |t|
     t.string "name", limit: 255
@@ -201,6 +201,7 @@ ActiveRecord::Schema.define(version: 20201102222607) do
   end
 
   add_index "player_games", ["game_id", "team_id", "player_id"], name: "index_player_games_on_game_id_and_team_id_and_player_id", unique: true, using: :btree
+  add_index "player_games", ["player_id"], name: "index_player_games_on_player_id", using: :btree
 
   create_table "players", force: :cascade do |t|
     t.string   "name",         limit: 255, default: "", null: false
@@ -211,8 +212,12 @@ ActiveRecord::Schema.define(version: 20201102222607) do
     t.datetime "created_at",                            null: false
     t.datetime "updated_at",                            null: false
     t.string   "soccerway_id", limit: 255
+    t.float    "rating",       limit: 24
+    t.float    "off_rating",   limit: 24
+    t.float    "def_rating",   limit: 24
   end
 
+  add_index "players", ["rating"], name: "index_players_on_rating", using: :btree
   add_index "players", ["soccerway_id"], name: "index_players_on_soccerway_id", unique: true, using: :btree
 
   create_table "referee_champs", force: :cascade do |t|

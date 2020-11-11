@@ -8,8 +8,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: app 1.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-27 11:16-0700\n"
-"PO-Revision-Date: 2020-10-27 11:16-0700\n"
+"POT-Creation-Date: 2020-11-10 18:24-0800\n"
+"PO-Revision-Date: 2020-11-10 18:24-0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
@@ -126,6 +126,9 @@ msgstr ""
 msgid "Antigua And Barbuda"
 msgstr ""
 
+msgid "App"
+msgstr ""
+
 msgid "Are you sure you want to add this player?"
 msgstr ""
 
@@ -193,6 +196,9 @@ msgid "Belgium"
 msgstr ""
 
 msgid "Belize"
+msgstr ""
+
+msgid "Ben"
 msgstr ""
 
 msgid "Benin"
@@ -336,6 +342,9 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
+msgid "Club"
+msgstr ""
+
 msgid "Clubs"
 msgstr ""
 
@@ -427,6 +436,9 @@ msgid "DR Congo"
 msgstr ""
 
 msgid "Date"
+msgstr ""
+
+msgid "Def"
 msgstr ""
 
 msgid "Delete"
@@ -939,6 +951,9 @@ msgstr ""
 msgid "Mexico"
 msgstr ""
 
+msgid "Min"
+msgstr ""
+
 msgid "Minimum"
 msgstr ""
 
@@ -1089,6 +1104,9 @@ msgstr ""
 msgid "Number of teams"
 msgstr ""
 
+msgid "OG"
+msgstr ""
+
 msgid "Observation"
 msgstr ""
 
@@ -1123,6 +1141,12 @@ msgid "Own"
 msgstr ""
 
 msgid "Own Goals"
+msgstr ""
+
+msgid "P"
+msgstr ""
+
+msgid "PG"
 msgstr ""
 
 msgid "Pakistan"
@@ -1212,6 +1236,9 @@ msgstr ""
 msgid "PlayerGame|Yellow"
 msgstr ""
 
+msgid "PlayerList|Off"
+msgstr ""
+
 msgid "Players"
 msgstr ""
 
@@ -1266,6 +1293,9 @@ msgid "Puerto Rico"
 msgstr ""
 
 msgid "Qatar"
+msgstr ""
+
+msgid "R"
 msgstr ""
 
 msgid "Rating"
@@ -1461,6 +1491,9 @@ msgid "Start time"
 msgstr ""
 
 msgid "Stats"
+msgstr ""
+
+msgid "Sub"
 msgstr ""
 
 msgid "Sudan"
@@ -1750,6 +1783,9 @@ msgid "World"
 msgstr ""
 
 msgid "World Championships"
+msgstr ""
+
+msgid "Y"
 msgstr ""
 
 msgid "Yemen"

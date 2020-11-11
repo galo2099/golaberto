@@ -411,6 +411,7 @@ EOF
       <th><%= _("PG") %></th>
       <th><%= _("App") %></th>
       <th><%= _("Sub") %></th>
+      <th><%= _("Ben") %></th>
       <th><%= _("Y") %></th>
       <th><%= _("R") %></th>
       <th><%= _("Min") %></th>
@@ -426,6 +427,7 @@ EOF
         <td><%= p[:penalties] %></td>
         <td><%= p[:appearances] %></td>
         <td><%= p[:sub] %></td>
+        <td><%= p[:bench] %></td>
         <td><%= p[:yellows] %></td>
         <td><%= p[:reds] %></td>
         <td><%= p[:minutes] %></td>
@@ -488,6 +490,7 @@ var loader = new YAHOO.util.YUILoader({
                 {key:"penalties",label:"#{_("PG")}",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
                 {key:"appearances",label:"#{_("App")}",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
                 {key:"sub",label:"#{_("Sub")}",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
+                {key:"bench",label:"#{_("Ben")}",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
                 {key:"yellows",label:"#{escape_javascript image_tag 'yells.gif'}",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
                 {key:"reds",label:"#{escape_javascript image_tag 'reds.gif'}",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
                 {key:"minutes",label:"#{_("Min")}",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
@@ -511,6 +514,7 @@ var loader = new YAHOO.util.YUILoader({
                         {key:"penalties", parser:YAHOO.util.DataSource.parseNumber},
                         {key:"appearances", parser:YAHOO.util.DataSource.parseNumber},
                         {key:"sub", parser:YAHOO.util.DataSource.parseNumber},
+                        {key:"bench", parser:YAHOO.util.DataSource.parseNumber},
                         {key:"yellows", parser:YAHOO.util.DataSource.parseNumber},
                         {key:"reds", parser:YAHOO.util.DataSource.parseNumber},
                         {key:"minutes", parser:YAHOO.util.DataSource.parseNumber},

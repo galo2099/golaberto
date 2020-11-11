@@ -261,6 +261,7 @@ class ChampionshipController < ApplicationController
         :penalties => goals.select{|g|g.penalty == true}.size,
         :own_goals => goals.select{|g|g.own_goal == true}.size,
         :appearances => games.select{|pg| pg.off > 0}.size,
+        :bench => games.select{|pg| pg.off == 0 and pg.on == 0}.size,
         :sub => games.select{|pg| pg.on > 0}.size,
         :reds => games.select{|pg| pg.red}.size,
         :yellows => games.select{|pg| pg.yellow}.size,
