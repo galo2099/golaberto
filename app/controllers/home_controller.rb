@@ -10,8 +10,8 @@ class HomeController < ApplicationController
     @regions = Championship.regions.keys
     @comments = Comment.includes(:user).order("created_at DESC").limit(5)
     @games = Game.includes(:home, :away, :updater, {phase: :championship}).where("updater_id != 0").order(updated_at: :desc).limit(5)
-    @top_games = games_by_quality(Game.includes(:home, :away).select("games.*, 2*teams.rating*aways_games.rating/(teams.rating+aways_games.rating)*(1+(IFNULL(home_importance,0)+IFNULL(away_importance,0))/2) as quality").order("quality desc, date desc").where(played: false).where("date > ?", now).where("date < ?", now + 5.days).where(has_time: true).references(:home, :away), now)
-    @top_played_games = played_games_by_quality(Game.includes(:home, :away).select("games.*, 2*teams.rating*aways_games.rating/(teams.rating+aways_games.rating)*(1+(IFNULL(home_importance,0)+IFNULL(away_importance,0))/2) as quality").order("quality desc, date desc").where(played: true).where("date > ?", now - 5.days).where(has_time: true).references(:home, :away), now)
+    @top_games = games_by_quality(Game.includes(:home, :away, {phase: :championship}).select("games.*, 2*teams.rating*aways_games.rating/(teams.rating+aways_games.rating)*(1+(IFNULL(home_importance,0)+IFNULL(away_importance,0))/2) as quality").order("quality desc, date desc").where(played: false).where("date > ?", now).where("date < ?", now + 5.days).where(has_time: true).references(:home, :away), now)
+    @top_played_games = played_games_by_quality(Game.includes(:home, :away, {phase: :championship}).select("games.*, 2*teams.rating*aways_games.rating/(teams.rating+aways_games.rating)*(1+(IFNULL(home_importance,0)+IFNULL(away_importance,0))/2) as quality").order("quality desc, date desc").where(played: true).where("date > ?", now - 5.days).where("date < ?", now + 5.days).where(has_time: true).references(:home, :away), now)
   end
 
   private

@@ -191,6 +191,9 @@ def fix_name(str)
   if str == "Unión"
     return "Unión de Santa Fe"
   end
+  if str == "Eswatini"
+    return "Swaziland"
+  end
   str
 end
 

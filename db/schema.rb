@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20201111012135) do
+ActiveRecord::Schema.define(version: 20201112081157) do
 
   create_table "categories", force: :cascade do |t|
     t.string "name", limit: 255
@@ -123,6 +123,7 @@ ActiveRecord::Schema.define(version: 20201111012135) do
   end
 
   add_index "games", ["away_id"], name: "index_games_on_away_id", using: :btree
+  add_index "games", ["date"], name: "index_games_on_date", using: :btree
   add_index "games", ["home_id"], name: "index_games_on_home_id", using: :btree
   add_index "games", ["phase_id"], name: "index_games_on_phase_id", using: :btree
   add_index "games", ["played"], name: "index_games_on_played", using: :btree
@@ -157,6 +158,8 @@ ActiveRecord::Schema.define(version: 20201111012135) do
     t.integer "team_id",      limit: 4,  null: false
     t.float   "rating",       limit: 24, null: false
     t.date    "measure_date",            null: false
+    t.float   "off_rating",   limit: 24, null: false
+    t.float   "def_rating",   limit: 24, null: false
   end
 
   add_index "historical_ratings", ["team_id", "measure_date"], name: "index_historical_ratings_on_team_id_and_measure_date", unique: true, using: :btree

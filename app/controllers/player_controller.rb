@@ -32,7 +32,11 @@ class PlayerController < ApplicationController
     @id = params[:id]
     @country = params[:country]
     @continent = params[:continent] || ""
+    @position = params[:position] || ""
     @players = Player.order("rating DESC")
+    if not @position.empty?
+      @players = @players.where(position: @position)
+    end
     @players = @players.where(["name LIKE ?", "%#{@id}%"]) unless @id.nil?
 
     countries_with_players = { @country => 0 }

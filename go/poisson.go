@@ -810,6 +810,8 @@ func team_rating(r *TeamRating) float64 {
 func (all_games *GamesType) historicRatings() map[string]interface{} {
 	dates := make([]time.Time, 0)
 	ratings_per_team := make(map[int][]float64)
+	offense_per_team := make(map[int][]float64)
+	defense_per_team := make(map[int][]float64)
 	ratings := make(map[int]*TeamRating, len(all_games.Ratings))
 	for _, v := range all_games.Ratings {
 		ratings[v.Id] = v
@@ -833,19 +835,64 @@ func (all_games *GamesType) historicRatings() map[string]interface{} {
 			gamesDeque = gamesDeque[1:]
 		}
 		if g.Timestamp-start_date > weeks || i == len(all_games.Games)-1 {
-			weeks += 7 * 24 * 60 * 60
+			weeks += 1 * 24 * 60 * 60
 			dateUTC := time.Unix(g.Timestamp, 0).UTC()
 			dates = append(dates, dateUTC)
 			log.Println(dateUTC)
 			ratings = spi(gamesDeque, ratings, table)
 			for k, v := range ratings {
 				ratings_per_team[k] = append(ratings_per_team[k], team_rating(v))
+				if v == nil {
+					offense_per_team[k] = append(offense_per_team[k], 0.0)
+					defense_per_team[k] = append(defense_per_team[k], 0.0)
+				} else {
+					offense_per_team[k] = append(offense_per_team[k], v.Offense)
+					defense_per_team[k] = append(defense_per_team[k], v.Defense)
+				}
 			}
 		}
 	}
+
+	startFunc := time.Now()
+	count := 0
+	var insertSql strings.Builder
+	insertSql.WriteString("INSERT INTO historical_ratings (team_id,off_rating,def_rating,rating,measure_date) VALUES ")
+	first := true
+	for k, v := range ratings_per_team {
+		for i, r := range v {
+			if first {
+				first = false
+			} else {
+				insertSql.WriteString(",")
+			}
+			insertSql.WriteString(fmt.Sprintf("(%d, %f, %f, %f, '%s')", k, offense_per_team[k][i], defense_per_team[k][i], r, dates[i].Format("2006-01-02")))
+		}
+		count += 1
+		if count % 10 == 0 {
+			insertSql.WriteString(" ON DUPLICATE KEY UPDATE off_rating=VALUES(off_rating),def_rating=VALUES(def_rating),rating=VALUES(rating);")
+			_, err := db.Exec(insertSql.String())
+			if err != nil {
+				panic(err.Error()) // proper error handling instead of panic in your app
+			}
+			insertSql.Reset()
+			insertSql.WriteString("INSERT INTO historical_ratings (team_id,off_rating,def_rating,rating,measure_date) VALUES ")
+			first = true
+			log.Println(time.Since(startFunc))
+		}
+	}
+	insertSql.WriteString(" ON DUPLICATE KEY UPDATE off_rating=VALUES(off_rating),def_rating=VALUES(def_rating),rating=VALUES(rating);")
+	log.Println(time.Since(startFunc))
+	_, err := db.Exec(insertSql.String())
+	if err != nil {
+		panic(err.Error()) // proper error handling instead of panic in your app
+	}
+	log.Println(time.Since(startFunc))
+
 	return map[string]interface{}{
-		"ratings": ratings_per_team,
-		"dates":   dates,
+		"ratings": map[string]interface{}{},
+		"offense": map[string]interface{}{},
+		"defense": map[string]interface{}{},
+		"dates":   []interface{}{},
 	}
 }
 

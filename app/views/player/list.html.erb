@@ -3,7 +3,9 @@
 <p>
 <%= form_tag({ :action => "list", :id => "" }, :method => "GET",
             :style => "display: inline") do %>
-            <%= text_field_tag("id", @id, :size => 66) %><br>
+            <%= text_field_tag("id", @id, :size => 50) %>
+  <%= select_tag :position, options_for_select([[_("All"), ""]] + Player::Positions, @position), style: "width: 10%" %>
+<br>
 
   <%= select_tag :continent, options_for_select([[s_("Continent|All"), ""]] + ApplicationHelper::Continent.options_for_select, @continent), onchange: "changeContinent(this);", style: "width: 30%" %>
   <%= select_tag :country, options_for_select(@countries[@continent], @country), style: "width: 30%" %>

@@ -42,7 +42,7 @@ jQuery(function() {
     rebuild_odds_goals();
   });
   <% @game.goals.each do |goal| %>
-  odds_goal_list.push({time: <%= goal.time %>, checked: <%= ((goal.team_id == @game.home_id and not goal.own_goal) or (goal.team_id == @game.away and goal.own_goal)) ? '"home"'.html_safe : '"away"'.html_safe %>});
+  odds_goal_list.push({time: <%= goal.time %>, checked: <%= ((goal.team_id == @game.home_id and not goal.own_goal?) or (goal.team_id == @game.away_id and goal.own_goal?)) ? '"home"'.html_safe : '"away"'.html_safe %>});
   <% end %>
   rebuild_odds_goals();
 });
@@ -139,8 +139,12 @@ jQuery(function() {
         var time = parseInt($('#odds_goal_time_' + i).val(), 10);
         odds_goal_list[i].time = time;
         home_score += 1;
-        markings.push({ xaxis: { from: time, to: time }, color: "rgba(237,195,64,0.8)" });
-        ticks.push([time, "" + home_score + "-" + away_score]);
+        markings.push({ xaxis: { from: time, to: time }, color: "rgba(237,195,64,0.2)" });
+        if (ticks.length == 0 || time - ticks[ticks.length - 1][0] > 3) {
+          ticks.push([time, "" + home_score + "-" + away_score]);
+        } else if (i == odds_goal_list.length - 1) {
+          ticks[ticks.length-1] = [time, "" + home_score + "-" + away_score];
+        }
         for (var j = time; j < total_time + 1; j++) {
           score_array[j] += 1;
         }
@@ -150,8 +154,12 @@ jQuery(function() {
         var time = parseInt($('#odds_goal_time_' + i).val(), 10);
         odds_goal_list[i].time = time;
         away_score += 1;
-        markings.push({ xaxis: { from: time, to: time }, color: "rgba(202,76,75,0.8)" });
-        ticks.push([time, "" + home_score + "-" + away_score]);
+        markings.push({ xaxis: { from: time, to: time }, color: "rgba(202,76,75,0.2)" });
+        if (ticks.length == 0 || time - ticks[ticks.length - 1][0] > 3) {
+          ticks.push([time, "" + home_score + "-" + away_score]);
+        } else if (i == odds_goal_list.length - 1) {
+          ticks[ticks.length-1] = [time, "" + home_score + "-" + away_score];
+        }
         for (var j = time; j < total_time + 1; j++) {
           score_array[j] -= 1;
         }
