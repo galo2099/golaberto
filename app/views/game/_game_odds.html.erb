@@ -140,11 +140,7 @@ jQuery(function() {
         odds_goal_list[i].time = time;
         home_score += 1;
         markings.push({ xaxis: { from: time, to: time }, color: "rgba(237,195,64,0.2)" });
-        if (ticks.length == 0 || time - ticks[ticks.length - 1][0] > 3) {
-          ticks.push([time, "" + home_score + "-" + away_score]);
-        } else if (i == odds_goal_list.length - 1) {
-          ticks[ticks.length-1] = [time, "" + home_score + "-" + away_score];
-        }
+	ticks.push([time, "" + home_score + "-" + away_score]);
         for (var j = time; j < total_time + 1; j++) {
           score_array[j] += 1;
         }
@@ -155,16 +151,19 @@ jQuery(function() {
         odds_goal_list[i].time = time;
         away_score += 1;
         markings.push({ xaxis: { from: time, to: time }, color: "rgba(202,76,75,0.2)" });
-        if (ticks.length == 0 || time - ticks[ticks.length - 1][0] > 3) {
-          ticks.push([time, "" + home_score + "-" + away_score]);
-        } else if (i == odds_goal_list.length - 1) {
-          ticks[ticks.length-1] = [time, "" + home_score + "-" + away_score];
-        }
+	ticks.push([time, "" + home_score + "-" + away_score]);
         for (var j = time; j < total_time + 1; j++) {
           score_array[j] -= 1;
         }
       }
     }
+    // Remove ticks that are too close together
+    for (var i = ticks.length - 1; i > 0; i--) {
+      if (ticks[i][0] - ticks[i-1][0] <= 3) {
+        ticks.splice(i-1, 1);
+      }
+    }
+
     graphOptions.grid.markings = markings;
     graphOptions.xaxes[1].ticks = ticks;
 
