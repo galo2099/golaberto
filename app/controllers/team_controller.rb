@@ -154,7 +154,6 @@ class TeamController < ApplicationController
     if @teams.size == 1
       redirect_to :action => :show, :id => @teams.first
     end
-    @teams = @teams.includes(:historical_ratings)
   end
 
   def new
