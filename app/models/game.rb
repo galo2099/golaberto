@@ -154,20 +154,32 @@ class Game < ActiveRecord::Base
     end
 
     def home_power
-      [10.0, [0.01, (home.off_rating.to_f - AVG_BASE)/(AVG_BASE*0.424+0.548)*([0.25, (away.def_rating.to_f+left_advantage)*0.424+0.548].max)+(away.def_rating.to_f+left_advantage)].max].min
+      home_rating = home.historical_ratings.where("measure_date < ?", date).order(measure_date: :desc).limit(1).first
+      away_rating = away.historical_ratings.where("measure_date < ?", date).order(measure_date: :desc).limit(1).first
+      if home_rating.nil? or away_rating.nil?
+        return nil
+      end
+      [10.0, [0.01, (home_rating.off_rating.to_f - AVG_BASE)/(AVG_BASE*0.424+0.548)*([0.25, (away_rating.def_rating.to_f+left_advantage)*0.424+0.548].max)+(away_rating.def_rating.to_f+left_advantage)].max].min
     end
 
     def away_power
-      [10.0, [0.01, (away.off_rating.to_f - AVG_BASE)/(AVG_BASE*0.424+0.548)*([0.25, (home.def_rating.to_f-left_advantage)*0.424+0.548].max)+(home.def_rating.to_f-left_advantage)].max].min
+      home_rating = home.historical_ratings.where("measure_date < ?", date).order(measure_date: :desc).limit(1).first
+      away_rating = away.historical_ratings.where("measure_date < ?", date).order(measure_date: :desc).limit(1).first
+      if home_rating.nil? or away_rating.nil?
+        return nil
+      end
+      [10.0, [0.01, (away_rating.off_rating.to_f - AVG_BASE)/(AVG_BASE*0.424+0.548)*([0.25, (home_rating.def_rating.to_f-left_advantage)*0.424+0.548].max)+(home_rating.def_rating.to_f-left_advantage)].max].min
     end
 
     def odds
-      unless home.off_rating && home.def_rating && away.off_rating && away.def_rating then
+      goal_array = (0...20).to_a
+      h = home_power
+      a = away_power
+      if h.nil? or a.nil?
         return nil
       end
-      goal_array = (0...20).to_a
-      hp = Poisson.new(home_power)
-      ap = Poisson.new(away_power)
+      hp = Poisson.new(h)
+      ap = Poisson.new(a)
       probs = goal_array.map{|i| goal_array.map{|j| hp.p(i) * ap.p(j) }}
       [ goal_array.map{|i| (0...i).to_a.map{|j| probs[i][j]}}.flatten.sum,
         goal_array.map{|i| probs[i][i]}.sum,
