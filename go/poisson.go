@@ -860,18 +860,22 @@ func (all_games *GamesType) historicRatings() map[string]interface{} {
 	first := true
 	for k, v := range ratings_per_team {
 		for i, r := range v {
-			if first {
-				first = false
-			} else {
-				insertSql.WriteString(",")
+			if r != 0.0 {
+				if first {
+					first = false
+				} else {
+					insertSql.WriteString(",")
+				}
+				insertSql.WriteString(fmt.Sprintf("(%d, %f, %f, %f, '%s')", k, offense_per_team[k][i], defense_per_team[k][i], r, dates[i].Format("2006-01-02")))
 			}
-			insertSql.WriteString(fmt.Sprintf("(%d, %f, %f, %f, '%s')", k, offense_per_team[k][i], defense_per_team[k][i], r, dates[i].Format("2006-01-02")))
+			count += 1
 		}
-		count += 1
-		if count % 10 == 0 {
+		if count > 3000 {
+			count = 0
 			insertSql.WriteString(" ON DUPLICATE KEY UPDATE off_rating=VALUES(off_rating),def_rating=VALUES(def_rating),rating=VALUES(rating);")
 			_, err := db.Exec(insertSql.String())
 			if err != nil {
+				log.Println(insertSql.String())
 				panic(err.Error()) // proper error handling instead of panic in your app
 			}
 			insertSql.Reset()
@@ -880,13 +884,15 @@ func (all_games *GamesType) historicRatings() map[string]interface{} {
 			log.Println(time.Since(startFunc))
 		}
 	}
-	insertSql.WriteString(" ON DUPLICATE KEY UPDATE off_rating=VALUES(off_rating),def_rating=VALUES(def_rating),rating=VALUES(rating);")
-	log.Println(time.Since(startFunc))
-	_, err := db.Exec(insertSql.String())
-	if err != nil {
-		panic(err.Error()) // proper error handling instead of panic in your app
+	if count > 0 {
+		insertSql.WriteString(" ON DUPLICATE KEY UPDATE off_rating=VALUES(off_rating),def_rating=VALUES(def_rating),rating=VALUES(rating);")
+		_, err := db.Exec(insertSql.String())
+		if err != nil {
+			log.Println(insertSql.String())
+			panic(err.Error()) // proper error handling instead of panic in your app
+		}
+		log.Println(time.Since(startFunc))
 	}
-	log.Println(time.Since(startFunc))
 
 	return map[string]interface{}{
 		"ratings": map[string]interface{}{},
