@@ -1320,6 +1320,9 @@ msgstr "Amarelo"
 msgid "PlayerList|Off"
 msgstr "Ata"
 
+msgid "PlayerList|Rat"
+msgstr "Nota"
+
 # app/models/player.rb:-
 msgid "Players"
 msgstr "Jogadores"

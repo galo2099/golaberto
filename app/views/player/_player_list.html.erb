@@ -4,27 +4,26 @@
 <table>
   <tr>
     <th><%= _("Name") %></th>
-    <th><%= _("Country") %></th>
     <th><%= _("Club") %></th>
     <th><%= _("Pos") %></th>
+    <th><%= s_("PlayerList|Rat") %></th>
     <th><%= s_("PlayerList|Off") %></th>
     <th><%= _("Def") %></th>
   </tr>
 
   <% for player in @players %>
     <tr>
-      <td><%= link_to player.name, :action => :show, :id => player %></td>
-      <td>
-      <%= image_tag player.small_country_logo, width: 15, height: 15, title: _(player.country), alt: "" %>
-      <%= _(player.country) %></td>
+      <td><%= image_tag player.small_country_logo, width: 15, height: 15, title: _(player.country), alt: "" %>
+      <%= link_to player.name, :action => :show, :id => player %></td>
       <td><% player.player_games.joins(:game).joins(:team).includes(:team).where(teams: {team_type: "club"}).order("games.date DESC").limit(1).first.try(:team).try(:tap) do |team| %>
         <%= image_tag team.small_country_logo, width: 15, height: 15, title: _(team.country), alt: "" %>
         <%= image_tag team.logo.url(:thumb), size: team.logo.styles[:thumb].geometry, alt: "" %>
         <%= team.name %>
       <% end %></td>
       <td><%= player.position %></td>
-      <td><%= number_with_precision(player.off_rating, :precision => 2) %></td>
-      <td><%= number_with_precision(player.def_rating, :precision => 2) %></td>
+      <td><%= number_with_precision(player.rating, :precision => 3) %></td>
+      <td><%= number_with_precision(player.off_rating, :precision => 3) %></td>
+      <td><%= number_with_precision(player.def_rating, :precision => 3) %></td>
       <% if can? :manage, player %>
         <td><%= link_to _('Edit'), :action => 'edit', :id => player %></td>
         <td><%= link_to _('Destroy'), { :action => 'destroy', :id => player }, :confirm => _('Are you sure?'), :post => true %></td>
