@@ -84,6 +84,12 @@ jQuery(function() {
   var $ = jQuery;
   var graphDiv = $("#moving_odds");
   var graphOptions = {
+    series: {
+      stack: true,
+      lines: {
+        fill: true,
+      },
+    },
     selection: {
       mode: "x"
     },
@@ -106,6 +112,7 @@ jQuery(function() {
     },
     legend: {
       show: true,
+      sorted: "reverse",
       container: $('#odds_legend'),
     },
   };
@@ -193,7 +200,7 @@ jQuery(function() {
     var writeTooltip = function(pos, points) {
       $("#tooltip").html(
         "<table>" +
-        points.reduce(function(acc, cur) {
+        points.reverse().reduce(function(acc, cur) {
           if (cur.point[1] == null) return acc;
           var div = '<tr><td><div style="border:1px solid #ccc;padding:1px"><div style="width:4px;height:0;border:5px solid ' + cur.color + ';overflow:hidden"></div></div></td>';
           var indexToRemove = cur.label.lastIndexOf(":");
