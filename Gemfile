@@ -1,13 +1,13 @@
 source 'http://rubygems.org'
 
-gem 'rails', '~> 5.0'
+gem 'rails', '~> 6.0'
 gem 'bootsnap'
 
 # Bundle edge Rails instead:
 # gem 'rails', :git => 'https://github.com/rails/rails.git'
 
 gem 'sqlite3'
-gem 'mysql2', '~> 0.4.10'
+gem 'mysql2'
 gem 'json', git: 'https://github.com/flori/json', branch: 'v1.8'
 
 group :development do

@@ -2,21 +2,21 @@
 # of editing this file, please use the migrations feature of Active Record to
 # incrementally modify your database, and then regenerate this schema definition.
 #
-# Note that this schema.rb definition is the authoritative source for your
-# database schema. If you need to create the application database on another
-# system, you should be using db:schema:load, not running all the migrations
-# from scratch. The latter is a flawed and unsustainable approach (the more migrations
-# you'll amass, the slower it'll run and the greater likelihood for issues).
+# This file is the source Rails uses to define your schema when running `bin/rails
+# db:schema:load`. When creating a new database, `bin/rails db:schema:load` tends to
+# be faster and is potentially less error prone than running all of your
+# migrations from scratch. Old migrations may fail to apply correctly if those
+# migrations use external dependencies or application code.
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2020_11_12_081157) do
+ActiveRecord::Schema.define(version: 2022_12_14_004101) do
 
-  create_table "categories", id: :integer, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci", force: :cascade do |t|
+  create_table "categories", id: :integer, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
     t.string "name"
   end
 
-  create_table "championships", id: :integer, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci", force: :cascade do |t|
+  create_table "championships", id: :integer, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
     t.string "name", default: "", null: false
     t.date "begin", null: false
     t.date "end", null: false
@@ -31,11 +31,11 @@ ActiveRecord::Schema.define(version: 2020_11_12_081157) do
     t.text "region_name"
   end
 
-  create_table "collation_test", id: false, options: "ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci", force: :cascade do |t|
+  create_table "collation_test", id: false, charset: "utf8", collation: "utf8_unicode_ci", options: "ENGINE=MyISAM", force: :cascade do |t|
     t.string "name", null: false
   end
 
-  create_table "comments", id: :integer, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci", force: :cascade do |t|
+  create_table "comments", id: :integer, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
     t.string "title", limit: 50, default: ""
     t.text "comment"
     t.datetime "created_at", null: false
@@ -45,7 +45,7 @@ ActiveRecord::Schema.define(version: 2020_11_12_081157) do
     t.index ["user_id"], name: "fk_comments_user"
   end
 
-  create_table "delayed_jobs", id: :integer, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci", force: :cascade do |t|
+  create_table "delayed_jobs", id: :integer, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
     t.integer "priority", default: 0
     t.integer "attempts", default: 0
     t.text "handler"
@@ -59,12 +59,12 @@ ActiveRecord::Schema.define(version: 2020_11_12_081157) do
     t.string "queue"
   end
 
-  create_table "game_goals_versions", id: false, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci", force: :cascade do |t|
+  create_table "game_goals_versions", id: false, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
     t.integer "game_version_id", default: 0, null: false
     t.integer "goal_id", default: 0, null: false
   end
 
-  create_table "game_versions", id: :integer, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci", force: :cascade do |t|
+  create_table "game_versions", id: :integer, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
     t.integer "game_id"
     t.integer "version"
     t.integer "home_id", default: 0
@@ -93,7 +93,7 @@ ActiveRecord::Schema.define(version: 2020_11_12_081157) do
     t.index ["updater_id"], name: "index_game_versions_on_updater_id"
   end
 
-  create_table "games", id: :integer, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci", force: :cascade do |t|
+  create_table "games", id: :integer, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
     t.integer "home_id", default: 0, null: false
     t.integer "away_id", default: 0, null: false
     t.integer "phase_id"
@@ -125,7 +125,7 @@ ActiveRecord::Schema.define(version: 2020_11_12_081157) do
     t.index ["soccerway_id"], name: "index_games_on_soccerway_id", unique: true
   end
 
-  create_table "goals", id: :integer, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci", force: :cascade do |t|
+  create_table "goals", id: :integer, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
     t.integer "player_id", default: 0, null: false
     t.integer "game_id", default: 0
     t.integer "team_id", default: 0, null: false
@@ -138,7 +138,7 @@ ActiveRecord::Schema.define(version: 2020_11_12_081157) do
     t.index ["player_id", "game_id"], name: "player"
   end
 
-  create_table "groups", id: :integer, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci", force: :cascade do |t|
+  create_table "groups", id: :integer, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
     t.integer "phase_id", default: 0, null: false
     t.string "name", default: "", null: false
     t.integer "promoted", default: 0, null: false
@@ -149,7 +149,7 @@ ActiveRecord::Schema.define(version: 2020_11_12_081157) do
     t.text "zones"
   end
 
-  create_table "historical_ratings", id: :integer, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci", force: :cascade do |t|
+  create_table "historical_ratings", id: :integer, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
     t.integer "team_id", null: false
     t.float "rating", null: false
     t.date "measure_date", null: false
@@ -159,7 +159,7 @@ ActiveRecord::Schema.define(version: 2020_11_12_081157) do
     t.index ["team_id"], name: "index_historical_ratings_on_team_id"
   end
 
-  create_table "open_id_authentication_associations", id: :integer, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci", force: :cascade do |t|
+  create_table "open_id_authentication_associations", id: :integer, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
     t.integer "issued"
     t.integer "lifetime"
     t.string "handle"
@@ -168,13 +168,13 @@ ActiveRecord::Schema.define(version: 2020_11_12_081157) do
     t.binary "secret"
   end
 
-  create_table "open_id_authentication_nonces", id: :integer, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci", force: :cascade do |t|
+  create_table "open_id_authentication_nonces", id: :integer, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
     t.integer "timestamp", null: false
     t.string "server_url"
     t.string "salt", null: false
   end
 
-  create_table "phases", id: :integer, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci", force: :cascade do |t|
+  create_table "phases", id: :integer, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
     t.integer "championship_id", default: 0, null: false
     t.string "name", default: "", null: false
     t.integer "order_by", default: 0, null: false
@@ -186,7 +186,7 @@ ActiveRecord::Schema.define(version: 2020_11_12_081157) do
     t.index ["championship_id"], name: "championship"
   end
 
-  create_table "player_games", id: :integer, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci", force: :cascade do |t|
+  create_table "player_games", id: :integer, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
     t.integer "player_id", default: 0, null: false
     t.integer "game_id", default: 0, null: false
     t.integer "team_id", default: 0, null: false
@@ -198,7 +198,7 @@ ActiveRecord::Schema.define(version: 2020_11_12_081157) do
     t.index ["player_id"], name: "index_player_games_on_player_id"
   end
 
-  create_table "players", id: :integer, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci", force: :cascade do |t|
+  create_table "players", id: :integer, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
     t.string "name", default: "", null: false
     t.string "position", limit: 3
     t.date "birth"
@@ -214,30 +214,30 @@ ActiveRecord::Schema.define(version: 2020_11_12_081157) do
     t.index ["soccerway_id"], name: "index_players_on_soccerway_id", unique: true
   end
 
-  create_table "referee_champs", id: :integer, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci", force: :cascade do |t|
+  create_table "referee_champs", id: :integer, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
     t.integer "referee_id", default: 0, null: false
     t.integer "championship_id", default: 0, null: false
   end
 
-  create_table "referees", id: :integer, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci", force: :cascade do |t|
+  create_table "referees", id: :integer, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
     t.string "name", default: "", null: false
     t.string "location"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
 
-  create_table "roles", id: :integer, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci", force: :cascade do |t|
+  create_table "roles", id: :integer, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
     t.string "name"
   end
 
-  create_table "roles_users", id: false, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci", force: :cascade do |t|
+  create_table "roles_users", id: false, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
     t.integer "role_id"
     t.integer "user_id"
     t.index ["role_id"], name: "index_roles_users_on_role_id"
     t.index ["user_id"], name: "index_roles_users_on_user_id"
   end
 
-  create_table "stadia", id: :integer, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci", force: :cascade do |t|
+  create_table "stadia", id: :integer, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
     t.string "name", default: "", null: false
     t.string "full_name"
     t.string "city"
@@ -246,7 +246,7 @@ ActiveRecord::Schema.define(version: 2020_11_12_081157) do
     t.datetime "updated_at", null: false
   end
 
-  create_table "team_groups", id: :integer, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci", force: :cascade do |t|
+  create_table "team_groups", id: :integer, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
     t.integer "group_id", default: 0, null: false
     t.integer "team_id", default: 0, null: false
     t.integer "add_sub", default: 0, null: false
@@ -259,7 +259,7 @@ ActiveRecord::Schema.define(version: 2020_11_12_081157) do
     t.index ["id"], name: "id"
   end
 
-  create_table "team_players", id: :integer, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci", force: :cascade do |t|
+  create_table "team_players", id: :integer, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
     t.integer "team_id", default: 0, null: false
     t.integer "player_id", default: 0, null: false
     t.integer "championship_id", default: 0, null: false
@@ -267,7 +267,7 @@ ActiveRecord::Schema.define(version: 2020_11_12_081157) do
     t.datetime "updated_at", null: false
   end
 
-  create_table "teams", id: :integer, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci", force: :cascade do |t|
+  create_table "teams", id: :integer, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
     t.string "name", default: "", null: false
     t.string "country", default: "", null: false
     t.string "legacy_logo"
@@ -287,7 +287,7 @@ ActiveRecord::Schema.define(version: 2020_11_12_081157) do
     t.integer "team_type", default: 0, null: false
   end
 
-  create_table "users", id: :integer, options: "ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci", force: :cascade do |t|
+  create_table "users", id: :integer, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
     t.string "login"
     t.string "email"
     t.string "crypted_password", limit: 40
