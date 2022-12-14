@@ -1,4 +1,4 @@
-class TeamGroup < ActiveRecord::Base
+class TeamGroup < ApplicationRecord
   serialize :odds
   belongs_to :group, :touch => true
   belongs_to :team

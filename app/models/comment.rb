@@ -1,4 +1,4 @@
-class Comment < ActiveRecord::Base
+class Comment < ApplicationRecord
   belongs_to :commentable, :polymorphic => true
   
   # NOTE: install the acts_as_votable plugin if you 

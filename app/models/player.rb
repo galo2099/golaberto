@@ -1,4 +1,4 @@
-class Player < ActiveRecord::Base
+class Player < ApplicationRecord
   has_many :comments, ->{order(created_at: :asc) }, :as => :commentable, :dependent => :destroy
   has_many :goals, :dependent => :delete_all
   has_many :team_players, :dependent => :delete_all

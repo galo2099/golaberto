@@ -1,5 +1,5 @@
 require 'digest/sha1'
-class User < ActiveRecord::Base
+class User < ApplicationRecord
   cattr_accessor :current_user
   model_stamper
 

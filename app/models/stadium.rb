@@ -1,4 +1,4 @@
-class Stadium < ActiveRecord::Base
+class Stadium < ApplicationRecord
   has_many :comments, ->{ order(created_at: :asc) }, :as => :commentable, :dependent => :destroy
   has_many :games, :dependent => :nullify
   has_many :played_games,

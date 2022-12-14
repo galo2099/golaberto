@@ -1,5 +1,5 @@
 require 'poisson'
-class Group < ActiveRecord::Base
+class Group < ApplicationRecord
   serialize :zones, Array
   belongs_to :phase, :touch => true
   has_many :team_groups, -> { includes(:team).order("teams.name") }, :dependent => :delete_all

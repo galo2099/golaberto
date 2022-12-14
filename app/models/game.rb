@@ -1,7 +1,7 @@
 require 'diff/lcs.rb'
 require 'active_record/diff'
 require 'poisson'
-class Game < ActiveRecord::Base
+class Game < ApplicationRecord
   AVG_BASE = 1.3350257653834494
   HOME_ADV = 0.16133676871779334
 

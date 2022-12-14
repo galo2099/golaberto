@@ -1,4 +1,4 @@
-class Phase < ActiveRecord::Base
+class Phase < ApplicationRecord
   belongs_to :championship, :touch => true
   has_many   :groups, ->{ order :id }, :dependent => :destroy
   has_many   :team_groups, :through => :groups

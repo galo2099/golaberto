@@ -1,4 +1,4 @@
-class RefereeChamp < ActiveRecord::Base
+class RefereeChamp < ApplicationRecord
 
 
   # Fields information, just FYI.

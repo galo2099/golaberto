@@ -1,5 +1,5 @@
 require 'poisson'
-class Team < ActiveRecord::Base
+class Team < ApplicationRecord
   enum team_type: [ :club, :national ]
 
   AVG_BASE = 1.3350257653834494

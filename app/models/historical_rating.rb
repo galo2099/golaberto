@@ -1,3 +1,3 @@
-class HistoricalRating < ActiveRecord::Base
+class HistoricalRating < ApplicationRecord
   belongs_to :team
 end
