@@ -14,8 +14,8 @@ module Paperclip
         img.resize!(cols, rows)
       end
       square_dimension = [image.columns, image.rows].max
-      background = Image.new(square_dimension, square_dimension) do
-        self.background_color = "transparent"
+      background = Image.new(square_dimension, square_dimension) do |x|
+        x.background_color = "transparent"
       end
       background.format = @options[:format]
       image = background.composite(image, CenterGravity, OverCompositeOp)
@@ -35,25 +35,25 @@ module Paperclip
         y_top = 0
         y_bottom = rows - 1
         cols.times do |i|
-          if image.get_pixels(i, 0, 1, rows).select{|p| p.opacity != QuantumRange}.size > 0
+          if image.get_pixels(i, 0, 1, rows).select{|p| p.alpha != 0}.size > 0
             x_left = i
             break
           end
         end
         (cols - 1).downto(0) do |i|
-          if image.get_pixels(i, 0, 1, rows).select{|p| p.opacity != QuantumRange}.size > 0
+          if image.get_pixels(i, 0, 1, rows).select{|p| p.alpha != 0}.size > 0
             x_right = i + 1
             break
           end
         end
         rows.times do |i|
-          if image.get_pixels(0, i, cols, 1).select{|p| p.opacity != QuantumRange}.size > 0
+          if image.get_pixels(0, i, cols, 1).select{|p| p.alpha != 0}.size > 0
             y_top = i
             break
           end
         end
         (rows - 1).downto(0) do |i|
-          if image.get_pixels(0, i, cols, 1).select{|p| p.opacity != QuantumRange}.size > 0
+          if image.get_pixels(0, i, cols, 1).select{|p| p.alpha != 0}.size > 0
             y_bottom = i + 1
             break
           end
@@ -69,7 +69,7 @@ module Paperclip
         cols = image.columns
         rows = image.rows
         background_pixel = image.get_pixels(0, 0, 1, 1).first
-        if background_pixel.opacity != QuantumRange
+        if background_pixel.alpha != 0
           rows.times do |row|
             if image.get_pixels(0, row, 1, 1).first == background_pixel
               image = image.matte_floodfill(0, row)

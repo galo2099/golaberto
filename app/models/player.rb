@@ -36,9 +36,9 @@ class Player < ActiveRecord::Base
 
   def small_country_logo
     if country.nil?
-      "https://s3.amazonaws.com/#{Rails.application.secrets.s3["bucket"]}/thumb.png"
+      "https://s3.amazonaws.com/#{Rails.application.secrets.s3[:bucket]}/thumb.png"
     else
-      "https://s3.amazonaws.com/#{Rails.application.secrets.s3["bucket"]}/countries/flags/#{country.parameterize('_')}_15.png"
+      "https://s3.amazonaws.com/#{Rails.application.secrets.s3[:bucket]}/countries/flags/#{country.parameterize(separator: '_')}_15.png"
     end
   end
 end

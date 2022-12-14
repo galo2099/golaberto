@@ -6,7 +6,7 @@ module ChampionshipHelper
   def region_flag_url(region, name)
     filename = ""
     if region == "national" then
-      filename = name.parameterize('_')
+      filename = name.parameterize(separator: '_')
     else
       if region == "world" then
         filename = "fifa"
@@ -27,7 +27,7 @@ module ChampionshipHelper
         end
       end
     end
-    "https://s3.amazonaws.com/#{Rails.application.secrets.s3["bucket"]}/countries/flags/#{filename}_15.png"
+    "https://s3.amazonaws.com/#{Rails.application.secrets.s3[:bucket]}/countries/flags/#{filename}_15.png"
   end
 
   def championship_name(champ, params)

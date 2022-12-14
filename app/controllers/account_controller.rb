@@ -3,7 +3,7 @@ class AccountController < ApplicationController
 
   skip_before_action :verify_authenticity_token, only: [:login]
   skip_authorization_check
-  before_filter :login_from_cookie
+  before_action :login_from_cookie
 
   def login
     @user = User.new(params.fetch(:user, {}).permit(:login, :password))

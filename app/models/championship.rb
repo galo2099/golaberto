@@ -8,12 +8,11 @@ class Championship < ActiveRecord::Base
   has_many :games, ->{ order :date }, :through => :phases
   has_many :goals, :through => :games
   has_many :team_players, :dependent => :delete_all
-  has_many :teams, ->{ uniq }, :through => :phases
+  has_many :teams, ->{ distinct }, :through => :phases
   belongs_to :category
   validates_presence_of :name
   validates_presence_of :begin
   validates_presence_of :end
-  validates_presence_of :category
   validates_numericality_of :point_win, :only_integer => true
   validates_numericality_of :point_draw, :only_integer => true
   validates_numericality_of :point_loss, :only_integer => true

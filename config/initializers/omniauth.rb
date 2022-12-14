@@ -1,7 +1,9 @@
+OmniAuth.config.allowed_request_methods = [:get, :post]
+
 Rails.application.config.middleware.use OmniAuth::Builder do
   provider :google_oauth2,
-           Rails.application.secrets.google_api["client_id"],
-           Rails.application.secrets.google_api["secret"],
+           Rails.application.secrets.google_api[:client_id],
+           Rails.application.secrets.google_api[:secret],
            { name: "google",
              access_type: "online",
              scope: "openid",

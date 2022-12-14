@@ -2,8 +2,6 @@ class TeamGroup < ActiveRecord::Base
   serialize :odds
   belongs_to :group, :touch => true
   belongs_to :team
-  validates_presence_of :group
-  validates_presence_of :team
   validates_numericality_of :add_sub, :only_integer => true
   validates_numericality_of :bias, :only_integer => true
   validates_uniqueness_of :team_id, :scope => :group_id

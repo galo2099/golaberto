@@ -3,9 +3,6 @@ class PlayerGame < ActiveRecord::Base
   belongs_to :game
   belongs_to :team
 
-  validates_presence_of :player
-  validates_presence_of :game
-  validates_presence_of :team
   validates_inclusion_of :yellow, :in => [ true, false ]
   validates_inclusion_of :red, :in => [ true, false ]
 

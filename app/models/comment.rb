@@ -7,7 +7,6 @@ class Comment < ActiveRecord::Base
   
   # NOTE: Comments belong to a user
   belongs_to :user
-  validates_presence_of :user
 
   # Limit comment size
   validates_length_of :comment, :within => 1..4000

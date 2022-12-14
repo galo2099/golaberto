@@ -5,9 +5,9 @@ class ApplicationController < ActionController::Base
   include AuthenticatedSystem
   include Userstamp
 
-  before_filter :set_locale
-  before_filter :set_current_user
-  before_filter :update_last_login
+  before_action :set_locale
+  before_action :set_current_user
+  before_action :update_last_login
 
   check_authorization
   protect_from_forgery

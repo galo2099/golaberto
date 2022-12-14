@@ -1,7 +1,7 @@
 class GroupController < ApplicationController
   N_("Group")
 
-  skip_before_filter :verify_authenticity_token, :only => [:team_list]
+  skip_before_action :verify_authenticity_token, :only => [:team_list]
   authorize_resource
 
   def edit

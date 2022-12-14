@@ -151,7 +151,7 @@ class GameController < ApplicationController
     @game = Game.find(params["game"])
     @team = Team.find(params["team"])
     @home_away = @game.home.id == @team.id ? "home" : "away"
-    @total = Player.count :conditions => conditions
+    @total = Player.where(conditions).count
     @players = Player.order(:name).where(conditions).paginate(:per_page => items_per_page, :page => params[:page])
   end
 

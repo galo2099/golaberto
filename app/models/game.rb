@@ -48,16 +48,13 @@ class Game < ActiveRecord::Base
       base.belongs_to :away, :class_name => "Team", :foreign_key => "away_id"
       base.belongs_to :phase, :touch => true
       base.has_one :championship, through: :phase
-      base.belongs_to :stadium
-      base.belongs_to :referee
+      base.belongs_to :stadium, optional: true
+      base.belongs_to :referee, optional: true
 
       base.has_many :player_games,
                     ->{ includes :player },
                     :dependent => :delete_all
 
-      base.validates_presence_of :home
-      base.validates_presence_of :away
-      base.validates_presence_of :phase
       base.validates_presence_of :date
       base.validates_inclusion_of :played, :in => [ true, false ]
       base.validates_numericality_of :home_score, :only_integer => true
@@ -213,6 +210,7 @@ class Game < ActiveRecord::Base
         include GameDiff
         include GameAssociations
         include GameMethods
+        stampable
       end
     end
   end

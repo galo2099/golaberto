@@ -36,7 +36,7 @@ class TeamController < ApplicationController
     sql.chop!
     sql << "ON DUPLICATE KEY UPDATE off_rating=VALUES(off_rating),def_rating=VALUES(def_rating),rating=VALUES(rating);"
     ActiveRecord::Base.connection.execute(sql)
-    redirect_to :back
+    redirect_back(fallback_location: root_path)
   end
 
   def update_rating
@@ -70,7 +70,7 @@ class TeamController < ApplicationController
     sql2 << "ON DUPLICATE KEY UPDATE off_rating=VALUES(off_rating),def_rating=VALUES(def_rating),rating=VALUES(rating);"
     ActiveRecord::Base.connection.execute(sql)
     ActiveRecord::Base.connection.execute(sql2)
-    redirect_to :back
+    redirect_back(fallback_location: root_path)
   end
 
   def show

@@ -669,4 +669,20 @@ module ApplicationHelper
       [ _("Zimbabwe"), "Zimbabwe" ],
     ].sort{|a,b| ActiveSupport::Inflector.transliterate(a[0]) <=> ActiveSupport::Inflector.transliterate(b[0])}
   end
+
+  def draggable_element(element_id, options = {})
+    javascript_tag(draggable_element_js(element_id, options).chop!)
+  end
+
+  def draggable_element_js(element_id, options = {}) #:nodoc:
+    %(new Draggable(#{ActiveSupport::JSON.encode(element_id)}, #{options_for_javascript(options)});)
+  end
+
+  def options_for_javascript(options)
+    if options.empty?
+      '{}'
+    else
+      "{#{options.keys.map { |k| "#{k}:#{options[k]}" }.sort.join(', ')}}"
+    end
+  end
 end

@@ -24,7 +24,7 @@ class Team < ActiveRecord::Base
   # Virtual attribute to see if we should filter the image background
   attr_accessor :filter_image_background
 
-  belongs_to :stadium
+  belongs_to :stadium, optional: true
   has_many :comments, ->{ order(created_at: :asc) }, :as => :commentable, :dependent => :destroy
   has_many :team_groups, :dependent => :delete_all
   has_many :groups, :through => :team_groups
@@ -62,17 +62,17 @@ class Team < ActiveRecord::Base
 
   def small_country_logo
     if country.nil?
-      "https://s3.amazonaws.com/#{Rails.application.secrets.s3["bucket"]}/thumb.png"
+      "https://s3.amazonaws.com/#{Rails.application.secrets.s3[:bucket]}/thumb.png"
     else
-      "https://s3.amazonaws.com/#{Rails.application.secrets.s3["bucket"]}/countries/flags/#{country.parameterize('_')}_15.png"
+      "https://s3.amazonaws.com/#{Rails.application.secrets.s3[:bucket]}/countries/flags/#{country.parameterize(separator: '_')}_15.png"
     end
   end
 
   def large_country_logo
     if country.nil?
-      "https://s3.amazonaws.com/#{Rails.application.secrets.s3["bucket"]}/medium.png"
+      "https://s3.amazonaws.com/#{Rails.application.secrets.s3[:bucket]}/medium.png"
     else
-      "https://s3.amazonaws.com/#{Rails.application.secrets.s3["bucket"]}/countries/flags/#{country.parameterize('_')}_100.png"
+      "https://s3.amazonaws.com/#{Rails.application.secrets.s3[:bucket]}/countries/flags/#{country.parameterize(separator: '_')}_100.png"
     end
   end
 

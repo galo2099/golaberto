@@ -18,6 +18,8 @@ development:
   host: localhost
   encoding: utf8
   collation: utf8_unicode_ci
+  variables:
+    sql_mode: TRADITIONAL
 
 # Warning: The database defined as 'test' will be erased and
 # re-generated from your development database when you run 'rake'.
@@ -30,6 +32,8 @@ test:
   host: localhost
   encoding: utf8
   collation: utf8_unicode_ci
+  variables:
+    sql_mode: TRADITIONAL
 
 production:
   adapter: mysql2
@@ -39,3 +43,5 @@ production:
   host: localhost
   encoding: utf8
   collation: utf8_unicode_ci
+  variables:
+    sql_mode: TRADITIONAL
