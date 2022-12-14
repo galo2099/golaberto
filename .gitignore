@@ -21,3 +21,5 @@ public/images/logos
 public/images/users/*.png
 public/javascripts/base_packaged.js
 public/stylesheets/base_packaged.css
+
+/config/master.key
