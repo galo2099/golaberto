@@ -10,7 +10,12 @@ class ChampionshipGet
   def self.matches(round_id, competition_id, round = 0)
     date ||= DateTime.now
     data = ActiveSupport::JSON.decode(get( "https://us.soccerway.com/a/block_competition_matches_summary?block_id=page_competition_1_block_competition_matches_summary_6&callback_params=%7B%22page%22%3A34%2C%22block_service_id%22%3A%22competition_summary_block_competitionmatchessummary%22%2C%22round_id%22%3A#{round_id}%2C%22outgroup%22%3Afalse%2C%22view%22%3A1%2C%22competition_id%22%3A#{competition_id}%2C%22bookmaker_urls%22%3A%5B%5D%7D&action=changePage&params=%7B%22page%22%3A#{round-1}%7D", {
-      headers: {"User-Agent" => "curl/7.47.0"},
+      headers: {"user-agent" => "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36",
+                "authority" => "us.soccerway.com",
+                "accept" => "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+                "accept-language" => "en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7,es;q=0.6",
+                "accept-encoding" => "deflate, gzip",
+                "connection" => "", },
     }).body)
     Hpricot(data["commands"][0]["parameters"]["content"]).search("table/tbody/tr.match")
   end
@@ -101,8 +106,8 @@ def fix_name(str)
   if str == "1860 München"
     return "1860 Munich"
   end
-  if str == "Internacional SC"
-    return "Inter de Lages-SC"
+  if str == "Inter Milan"
+    return "Internazionale"
   end
   if str == "7 de Setembro"
     return "Sete de Dourados"
@@ -161,6 +166,9 @@ def fix_name(str)
   if str == "Rīgas FS"
     return "RFS"
   end
+  if str == "Rigas FS"
+    return "RFS"
+  end
   if str == "Žalgiris"
     return "Žalgiris Vilnius"
   end
@@ -193,6 +201,9 @@ def fix_name(str)
   end
   if str == "Eswatini"
     return "Swaziland"
+  end
+  if str == "Côte d'Ivoire"
+    str = "Ivory Coast"
   end
   str
 end
@@ -275,7 +286,12 @@ def parse_match(phase, round, match)
 end
 
 def get_scorers(game, url)
-  body = HTTParty.get(url, { headers: {"User-Agent" => "curl/7.47.0"}}).body
+  body = HTTParty.get(url, { headers: {"user-agent" => "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36",
+                "authority" => "us.soccerway.com",
+                "accept" => "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+                "accept-language" => "en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7,es;q=0.6",
+                "accept-encoding" => "deflate, gzip",
+                "connection" => "", } }).body
   data = Hpricot(body)
   game.goals.clear
   game.player_games.clear
@@ -283,20 +299,25 @@ def get_scorers(game, url)
   if not data.search('//*[@id="yui-main"]//div[@class="combined-lineups-container"]').first
     return
   end
+  state = data.search('//*[@id="page_match_1_block_match_info_5"]//span.match-state/text()').first.to_s
+  off = 90
+  if state == "AET"
+    off = 120
+  end
   data.search('//*[@id="yui-main"]//div[@class="combined-lineups-container"]')[0].search('/div[1]/table/tbody/tr').each do |s|
-    player = process_player(s, game, game.home_id, players, true)
+    player = process_player(s, game, game.home_id, players, true, off)
     players[player.player.soccerway_id] = player if player
   end
   data.search('//*[@id="yui-main"]//div[@class="combined-lineups-container"]')[0].search('/div[2]/table/tbody/tr').each do |s|
-    player = process_player(s, game, game.away_id, players, true)
+    player = process_player(s, game, game.away_id, players, true, off)
     players[player.player.soccerway_id] = player if player
   end
   data.search('//*[@id="yui-main"]//div[@class="combined-lineups-container"]')[1].search('/div[2]/table/tbody/tr').each do |s|
-    player = process_player(s, game, game.home_id, players, false)
+    player = process_player(s, game, game.home_id, players, false, off)
     players[player.player.soccerway_id] = player if player
   end
   data.search('//*[@id="yui-main"]//div[@class="combined-lineups-container"]')[1].search('/div[3]/table/tbody/tr').each do |s|
-    player = process_player(s, game, game.away_id, players, false)
+    player = process_player(s, game, game.away_id, players, false, off)
     players[player.player.soccerway_id] = player if player
   end
   players.values.each do |p|
@@ -304,7 +325,7 @@ def get_scorers(game, url)
   end
 end
 
-def process_player(s, game, team_id, players, starter)
+def process_player(s, game, team_id, players, starter, end_of_match)
   link = s.search('/td.player.large-link//a[1]').first
   if not link
     return
@@ -320,20 +341,20 @@ def process_player(s, game, team_id, players, starter)
   rc = false
   off = 0
   if starter
-    off = 90
+    off = end_of_match
   end
   s.search('/td.bookings/span').each do |span|
     if span.search('/img').first.attributes['src'] =~ /\bG.png\b/
-      minute = span.search('text()').first.to_s.gsub(/.*?(\d+).*/m, '\1')
-      Goal.new(player_id: player.id, game_id: game.id, team_id: team_id, time: minute, penalty: false, own_goal: false).save!
+      minute = span.search('text()').first.to_s.gsub(/.*?(\d+).*/m, '\1').to_i
+      Goal.new(player_id: player.id, game_id: game.id, team_id: team_id, time: minute, penalty: false, own_goal: false, aet: minute > 90).save!
     end
     if span.search('/img').first.attributes['src'] =~ /\bPG.png\b/
-      minute = span.search('text()').first.to_s.gsub(/.*?(\d+).*/m, '\1')
-      Goal.new(player_id: player.id, game_id: game.id, team_id: team_id, time: minute, penalty: true, own_goal: false).save!
+      minute = span.search('text()').first.to_s.gsub(/.*?(\d+).*/m, '\1').to_i
+      Goal.new(player_id: player.id, game_id: game.id, team_id: team_id, time: minute, penalty: true, own_goal: false, aet: minute > 90).save!
     end
     if span.search('/img').first.attributes['src'] =~ /\bOG.png\b/
-      minute = span.search('text()').first.to_s.gsub(/.*?(\d+).*/m, '\1')
-      Goal.new(player_id: player.id, game_id: game.id, team_id: team_id, time: minute, penalty: false, own_goal: true).save!
+      minute = span.search('text()').first.to_s.gsub(/.*?(\d+).*/m, '\1').to_i
+      Goal.new(player_id: player.id, game_id: game.id, team_id: team_id, time: minute, penalty: false, own_goal: true, aet: minute > 90).save!
     end
     if span.search('/img').first.attributes['src'] =~ /\bYC.png\b/
       yc = true
@@ -354,13 +375,18 @@ def process_player(s, game, team_id, players, starter)
     minute = out.search('/text()').to_s.gsub(/.*?(\d+).*/m, '\1')
     players[out_id].off = minute
     on = minute
-    off = 90
+    off = end_of_match
   end
   return PlayerGame.new(player_id: player.id, game_id: game.id, team_id: team_id, on: on, off: off, yellow: yc, red: rc)
 end
 
 def create_player(url, soccerway_id)
-  data = HTTParty.get(url, { headers: {"User-Agent" => "curl/7.47.0"}}).body
+  data = HTTParty.get(url, { headers: {"user-agent" => "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36",
+                "authority" => "us.soccerway.com",
+                "accept" => "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+                "accept-language" => "en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7,es;q=0.6",
+                "accept-encoding" => "deflate, gzip",
+                "connection" => "", }}).body
   player_info = Hpricot(data)
   name = player_info.search('//*[@id="subheading"]/h1//text()').to_s
   full_name = player_info.search('//*[@id="page_player_1_block_player_passport_3"]/div/div/div[1]/div/dl/dd[@data-first_name="first_name"]//text()').to_s + " " + player_info.search('//*[@id="page_player_1_block_player_passport_3"]/div/div/div[1]/div/dl/dd[@data-last_name="last_name"]//text()').to_s
