@@ -41,13 +41,6 @@ GIT
     acts_as_versioned_association (0.0.0)
 
 GIT
-  remote: https://github.com/galo2099/gettext_i18n_rails
-  revision: eed81cad7f6166236c2d0f3f0027da621ff90917
-  specs:
-    gettext_i18n_rails (1.0.5)
-      fast_gettext (>= 0.4.8)
-
-GIT
   remote: https://github.com/galo2099/google_ajax_libraries_api
   revision: fc2d21df28b76b4b9ec6125c917cd86a71a96d78
   specs:
@@ -1560,6 +1553,8 @@ GEM
       locale (>= 2.0.5)
       prime
       text (>= 1.3.0)
+    gettext_i18n_rails (1.9.0)
+      fast_gettext (>= 0.9.0)
     globalid (1.0.0)
       activesupport (>= 5.0)
     graylog2-resque (0.5.1)
@@ -1769,7 +1764,7 @@ DEPENDENCIES
   forwardable (= 1.2.0)
   gelf
   gettext
-  gettext_i18n_rails!
+  gettext_i18n_rails
   google_ajax_libraries_api (= 0.0.0)!
   graylog2-resque
   graylog2_exceptions!

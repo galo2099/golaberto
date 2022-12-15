@@ -54,9 +54,9 @@ class ApplicationController < ActionController::Base
   def extract_locale_from_tld
     case request.host.split('.').last
     when "br"
-      :"pt_BR"
+      :"pt-BR"
     else
-      :"en_US"
+      :"en-US"
     end
   end
 end

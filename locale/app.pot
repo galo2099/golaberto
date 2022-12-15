@@ -8,8 +8,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: app 1.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-09-07 18:21-0700\n"
-"PO-Revision-Date: 2022-09-07 18:21-0700\n"
+"POT-Creation-Date: 2022-12-15 02:06-0800\n"
+"PO-Revision-Date: 2022-12-15 02:06-0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
@@ -46,6 +46,9 @@ msgid "%{num} years"
 msgstr ""
 
 msgid "%{time} ago"
+msgstr ""
+
+msgid "&laquo; Previous"
 msgstr ""
 
 msgid "(own_goal)"
@@ -270,6 +273,9 @@ msgstr ""
 msgid "Cant calculate odds"
 msgstr ""
 
+msgid "Cant download data for team!"
+msgstr ""
+
 msgid "Cape Verde"
 msgstr ""
 
@@ -394,6 +400,15 @@ msgid "Cook Islands"
 msgstr ""
 
 msgid "Costa Rica"
+msgstr ""
+
+msgid "Could not insert player"
+msgstr ""
+
+msgid "Could not insert referee"
+msgstr ""
+
+msgid "Could not insert stadium"
 msgstr ""
 
 msgid "Country"
@@ -526,6 +541,9 @@ msgid "Equatorial Guinea"
 msgstr ""
 
 msgid "Eritrea"
+msgstr ""
+
+msgid "Error removing"
 msgstr ""
 
 msgid "Estonia"
@@ -1059,6 +1077,9 @@ msgstr ""
 msgid "New team_group"
 msgstr ""
 
+msgid "Next &raquo;"
+msgstr ""
+
 msgid "Next page"
 msgstr ""
 
@@ -1356,9 +1377,6 @@ msgid "Romania"
 msgstr ""
 
 msgid "Round"
-msgstr ""
-
-msgid "Round "
 msgstr ""
 
 msgid "Russia"

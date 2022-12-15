@@ -15,8 +15,8 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
 
-msgid "wins"
-msgstr "vitórias"
+msgid "#"
+msgstr "#"
 
 msgid "%d%% done."
 msgstr "%d%% pronto."
@@ -44,6 +44,9 @@ msgstr "%{num} anos"
 
 msgid "%{time} ago"
 msgstr "%{time} atrás"
+
+msgid "&laquo; Previous"
+msgstr "&laquo; Anterior"
 
 # app/models/goal.rb:-
 msgid "(own_goal)"
@@ -270,6 +273,9 @@ msgstr "Cancelar"
 msgid "Cant calculate odds"
 msgstr "Erro ao recalcular chances"
 
+msgid "Cant download data for team!"
+msgstr "Não é possível baixar os dados do time!"
+
 msgid "Cape Verde"
 msgstr "Cabo Verde"
 
@@ -409,6 +415,15 @@ msgstr "Ilhas Cook"
 msgid "Costa Rica"
 msgstr "Costa Rica"
 
+msgid "Could not insert player"
+msgstr "Não é possível inserir o jogador"
+
+msgid "Could not insert referee"
+msgstr "Não é possível inserir o árbitro"
+
+msgid "Could not insert stadium"
+msgstr "Não é possível inserir o estádio"
+
 msgid "Country"
 msgstr "País"
 
@@ -543,6 +558,9 @@ msgstr "Guiné Equatorial"
 
 msgid "Eritrea"
 msgstr "Eritréia"
+
+msgid "Error removing"
+msgstr "Erro ao remover"
 
 msgid "Estonia"
 msgstr "Estônia"
@@ -727,15 +745,8 @@ msgstr "Pênalti"
 msgid "Goal|Time"
 msgstr "Tempo"
 
-msgid ""
-"GolAberto is a collaborative site that is updated by its users. Registered use"
-"rs can give information by commenting on items. The top users are promoted to "
-"editors who can edit the site and create new championships."
-msgstr ""
-"GolAberto é um site colaborativo que é atualizado por seus usuários. Usuários "
-"registrados podem dar informações comentando nos itens. Os usuários mais desta"
-"cados são promovidos a editores que podem editar o site e cadastrar novos camp"
-"eonatos."
+msgid "GolAberto is a collaborative site that is updated by its users. Registered users can give information by commenting on items. The top users are promoted to editors who can edit the site and create new championships."
+msgstr "GolAberto é um site colaborativo que é atualizado por seus usuários. Usuários registrados podem dar informações comentando nos itens. Os usuários mais destacados são promovidos a editores que podem editar o site e cadastrar novos campeonatos."
 
 # app/models/referee.rb:-
 msgid "Greece"
@@ -807,14 +818,8 @@ msgstr "Hungria"
 msgid "Iceland"
 msgstr "Islândia"
 
-msgid ""
-"If you've already created an account, or if you have an %{openid_link} login, "
-"use one of the forms below to log in to the site. If you use your OpenID URL t"
-"o log in, an account will be created for you automatically if necessary."
-msgstr ""
-"Se você já criou uma conta, ou se você possui um login %{openid_link}, use um "
-"dos formulários abaixo para se logar no site. Se você usar sua URL OpenID para"
-" se logar, uma conta será criada automaticamente para você se necessário."
+msgid "If you've already created an account, or if you have an %{openid_link} login, use one of the forms below to log in to the site. If you use your OpenID URL to log in, an account will be created for you automatically if necessary."
+msgstr "Se você já criou uma conta, ou se você possui um login %{openid_link}, use um dos formulários abaixo para se logar no site. Se você usar sua URL OpenID para se logar, uma conta será criada automaticamente para você se necessário."
 
 msgid "Importance"
 msgstr "Importância"
@@ -1120,6 +1125,9 @@ msgstr "Nova equipe"
 msgid "New team_group"
 msgstr "Novo equipe_grupo"
 
+msgid "Next &raquo;"
+msgstr "Próximo &raquo;"
+
 msgid "Next page"
 msgstr "Próxima página"
 
@@ -1159,12 +1167,8 @@ msgstr "Marianas Setentrionais"
 msgid "Norway"
 msgstr "Noruega"
 
-msgid ""
-"Now you can <a href='%{signup_link}'>sign up</a> and leave comments on the sit"
-"e."
-msgstr ""
-"Você agora pode <a href='%{signup_link}'>se cadastrar</a> e deixar comentários"
-" no site."
+msgid "Now you can <a href='%{signup_link}'>sign up</a> and leave comments on the site."
+msgstr "Você agora pode <a href='%{signup_link}'>se cadastrar</a> e deixar comentários no site."
 
 msgid "Number of teams"
 msgstr "Número de equipes"
@@ -1452,9 +1456,6 @@ msgstr "Romênia"
 
 msgid "Round"
 msgstr "Rodada"
-
-msgid "Round "
-msgstr "Rodada "
 
 msgid "Russia"
 msgstr "Rússia"
@@ -1932,19 +1933,11 @@ msgstr "Iêmen"
 msgid "You can also <a href='%{signup}'>create an account for this site.</a>"
 msgstr "Você também pode <a href='%{signup}'>criar uma conta para este site.</a>"
 
-msgid ""
-"You can create an account for this site using the form below. If you have an %"
-"{openid_link} URL, you can <a href='%{login_link}'>log in with OpenID</a> rath"
-"er than creating an account."
-msgstr ""
-"Você pode criar uma conta para este site usando o formulário abaixo. Se você p"
-"ossui uma URL %{openid_link}, você pode <a href='%{login_link}'>se logar com O"
-"penID</a> ao invés de criar uma conta. "
+msgid "You can create an account for this site using the form below. If you have an %{openid_link} URL, you can <a href='%{login_link}'>log in with OpenID</a> rather than creating an account."
+msgstr "Você pode criar uma conta para este site usando o formulário abaixo. Se você possui uma URL %{openid_link}, você pode <a href='%{login_link}'>se logar com OpenID</a> ao invés de criar uma conta. "
 
 msgid "You can only leave a comment if you're <a href='%{signup_link}'>logged in</a>"
-msgstr ""
-"Voce só pode deixar um comentário se você <a href='%{signup_link}'>se logar</a"
-">"
+msgstr "Voce só pode deixar um comentário se você <a href='%{signup_link}'>se logar</a>"
 
 msgid "You have been logged out."
 msgstr "Você foi desconectado."
@@ -2017,5 +2010,5 @@ msgstr "pontos"
 msgid "time"
 msgstr "tempo"
 
-msgid "#"
-msgstr "#"
+msgid "wins"
+msgstr "vitórias"
