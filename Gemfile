@@ -63,6 +63,7 @@ gem "sprockets-rails", "~>2"
 gem 'uglifier'
 gem 'userstamp', git: 'https://github.com/kimkong/userstamp.git', branch: 'rails-6-fix'
 gem "will_paginate"
+gem "forwardable", "1.2.0"
 
 # To use debugger
 # gem 'ruby-debug19', :require => 'ruby-debug'

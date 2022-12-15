@@ -93,7 +93,7 @@ Rails.application.configure do
   config.active_record.dump_schema_after_migration = false
 end
 
-Rails.Application.config.middleware.use ExceptionNotification::Rack,
+Rails.application.config.middleware.use ExceptionNotification::Rack,
   email: {
     email_prefix: "[GolAberto] ",
     sender_address: %{"notifier" <notifier@golaberto.com.br>},
