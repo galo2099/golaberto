@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2022_12_14_004101) do
+ActiveRecord::Schema.define(version: 2022_12_16_071526) do
 
   create_table "categories", id: :integer, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
     t.string "name"
@@ -135,6 +135,7 @@ ActiveRecord::Schema.define(version: 2022_12_14_004101) do
     t.boolean "aet", default: false, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["game_id"], name: "index_goals_on_game_id"
     t.index ["player_id", "game_id"], name: "player"
   end
 
