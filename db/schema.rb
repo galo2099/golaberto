@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2022_12_16_211037) do
+ActiveRecord::Schema.define(version: 2022_12_16_213315) do
 
   create_table "categories", id: :integer, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
     t.string "name"
@@ -122,7 +122,9 @@ ActiveRecord::Schema.define(version: 2022_12_16_211037) do
     t.index ["home_id"], name: "index_games_on_home_id"
     t.index ["phase_id"], name: "index_games_on_phase_id"
     t.index ["played"], name: "index_games_on_played"
+    t.index ["referee_id"], name: "index_games_on_referee_id"
     t.index ["soccerway_id"], name: "index_games_on_soccerway_id", unique: true
+    t.index ["stadium_id"], name: "index_games_on_stadium_id"
     t.index ["updated_at", "updater_id"], name: "index_games_on_updated_at_and_updater_id"
   end
 
