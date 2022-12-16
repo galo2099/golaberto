@@ -108,6 +108,14 @@ class Game < ApplicationRecord
       player_games.where(:team_id => away_id)
     end
 
+    def home_rating
+      team_rating(home)
+    end
+
+    def away_rating
+      team_rating(away)
+    end
+
     def validate
       errors.add(:home, _("can't play with itself")) if home_id == away_id
     end
@@ -151,8 +159,6 @@ class Game < ApplicationRecord
     end
 
     def home_power
-      home_rating = home.historical_ratings.where("measure_date < ?", date).order(measure_date: :desc).limit(1).first
-      away_rating = away.historical_ratings.where("measure_date < ?", date).order(measure_date: :desc).limit(1).first
       if home_rating.nil? or away_rating.nil?
         return nil
       end
@@ -160,8 +166,6 @@ class Game < ApplicationRecord
     end
 
     def away_power
-      home_rating = home.historical_ratings.where("measure_date < ?", date).order(measure_date: :desc).limit(1).first
-      away_rating = away.historical_ratings.where("measure_date < ?", date).order(measure_date: :desc).limit(1).first
       if home_rating.nil? or away_rating.nil?
         return nil
       end
@@ -198,6 +202,12 @@ class Game < ApplicationRecord
       [ ten_array.map{|i| (0...i).to_a.map{|j| probs[i][j]}}.flatten.sum,
         ten_array.map{|i| probs[i][i]}.sum,
         ten_array.map{|i| (0...i).to_a.map{|j| probs[j][i]}}.flatten.sum ]
+    end
+
+    private
+
+    def team_rating(team)
+      HistoricalRating.where(team_id: team.id).where("measure_date < ?", date).order(measure_date: :desc).first
     end
   end
 

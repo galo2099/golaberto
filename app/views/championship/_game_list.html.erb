@@ -25,7 +25,7 @@ end %>
     <%= name_to_print(game.home, highlight_team) %>
   </div>
 </div>
-<% odds = game.odds %>
+<% odds = game.odds if !game.played? %>
 <div class='table_cell home_score'><%= "*" if game.home_pen.to_i > game.away_pen.to_i %><%= game.home_score + game.home_aet.to_i if game.played? %>
 <% if !game.played? and odds %>
   <%= content_tag :span, sprintf("%02.0f", 100*odds[0]), class: "game_odds" %>
