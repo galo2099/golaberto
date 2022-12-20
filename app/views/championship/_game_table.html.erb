@@ -25,7 +25,7 @@ observe_field_function << "}\n"
 <%= observe_field 'round_select', :function => observe_field_function %>
 </p>
 <p>
-<%= will_paginate @games %>
+<%== pagy_nav @pagy if @pagy.pages > 1 %>
 </p>
 <div>
 <% last_played = nil
@@ -55,7 +55,7 @@ observe_field_function << "}\n"
 <% end %>
 </div>
 <p>
-<%= will_paginate @games %>
+<%== pagy_nav @pagy if @pagy.pages > 1 %>
 </p>
 
 <% end %>

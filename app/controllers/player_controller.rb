@@ -67,11 +67,12 @@ class PlayerController < ApplicationController
       end
     end
 
-    @players = @players.page(params[:page])
+    @players = @players
     @players = @players.where(country: @country) unless @country.blank?
     if @players.size == 1
       redirect_to :action => :show, :id => @players.first
     end
+    @pagy, @players = pagy(@players, items: 20)
   end
 
   def show

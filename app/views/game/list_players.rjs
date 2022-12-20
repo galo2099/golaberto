@@ -3,8 +3,8 @@ page.replace_html div_id
 unless @total == 0
   page.insert_html :bottom, div_id, :partial => "player",
                                     :collection => @players
-  if @players.total_pages > 1
+  if @pagy.pages > 1
     page_options = { :action => :list_players, :team => @team, :game => @game, :name => @name, :partial => @partial }
-    page.insert_html :bottom, div_id, will_paginate(@players, :renderer => ApplicationHelper::RemoteLinkRenderer, :params => page_options)
+    page.insert_html :bottom, div_id, pagy_nav(@pagy, link_extra: 'data-remote="true"')
   end
 end

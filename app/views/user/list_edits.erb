@@ -2,7 +2,7 @@
 
 <div><%= image_tag @user.avatar.url(:thumb), :class => "user-logo" %> <%= h @user.display_name %></div>
 <br/>
-<%= will_paginate @edits %>
+<%== pagy_nav @pagy if @pagy.pages > 1 %>
 <br/>
 
 <% @edits.each do |edit| %>
@@ -27,7 +27,7 @@
 
 <% end %>
 
-<%= will_paginate @edits %>
+<%== pagy_nav @pagy if @pagy.pages > 1 %>
 
 <% content_for :sidebar do %>
   <%= link_to _("View user"), :action => :show, :id => @user %><br/>

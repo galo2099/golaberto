@@ -11,7 +11,7 @@ class RefereeController < ApplicationController
     @name = params[:name]
     conditions = ["name LIKE ?", "%#{@name}%"] unless @name.nil?
 
-    @referees = Referee.order(:name).where(conditions).page(params[:page])
+    @pagy, @referees = pagy(Referee.order(:name).where(conditions), items: 30)
   end
 
   def show

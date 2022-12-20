@@ -52,7 +52,7 @@
   <% end %>
 </div>
 <br>
-<%= will_paginate @games %>
+<%== pagy_nav @pagy if @pagy.pages > 1 %>
 
 <% content_for :sidebar do %>
   <%= render :partial => "nav_side" %>

@@ -11,7 +11,7 @@ class StadiumController < ApplicationController
     @name = params[:name]
     conditions = ["name LIKE ?", "%#{@name}%"] unless @name.nil?
 
-    @stadia = Stadium.order(:name).where(conditions).page(params[:page])
+    @pagy, @stadia = pagy(Stadium.order(:name).where(conditions), items: 30)
   end
 
   def show

@@ -22,13 +22,6 @@ module ApplicationHelper
     end
   end
 
-  class RemoteLinkRenderer < WillPaginate::ActionView::LinkRenderer
-    private
-      def link(text, target, attributes = {})
-        super(text, target, attributes.merge("data-remote" => "true"))
-      end
-  end
-
   def javascript_include_jquery
     jquery_locale = I18n.locale
     ret = ""

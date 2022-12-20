@@ -1,5 +1,5 @@
 <p>
-<%= will_paginate @teams %>
+<%== pagy_nav @pagy if @pagy.pages > 1 %>
 </p>
 
 <% if @teams.size > 0 then %>
@@ -34,5 +34,5 @@
 </table>
 
 <p>
-<%= will_paginate @teams %>
+<%== pagy_nav @pagy if @pagy.pages > 1 %>
 </p>

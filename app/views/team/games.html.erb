@@ -20,7 +20,7 @@
 </select>
 <br/>
 <br/>
-<%= will_paginate @games %>
+<%== pagy_nav @pagy if @pagy.pages > 1 %>
 <br/>
 <div class="game_score">
   <% @games.each do |game| %>
@@ -43,7 +43,7 @@
 
 <br>
 
-<%= will_paginate @games %>
+<%== pagy_nav @pagy if @pagy.pages > 1 %>
 
 <%
 observe_field_function = "switch(value) {\n";

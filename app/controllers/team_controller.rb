@@ -94,7 +94,7 @@ class TeamController < ApplicationController
     @type = params[:type].to_s
     @played = @type == "played"
     order = !!@played ? "date DESC" : "date ASC"
-    @games = Game.team_games(@team).includes(:phase => :championship).where("played = ? and championships.category_id = ?", @played, @category).order(order).page(params[:page]).references(:championship)
+    @pagy, @games = pagy(Game.team_games(@team).includes(:phase => :championship).where("played = ? and championships.category_id = ?", @played, @category).order(order).references(:championship), items: 30)
   end
 
   def update
@@ -149,11 +149,12 @@ class TeamController < ApplicationController
       end
     end
 
-    @teams = teams.order(rating: :desc, name: :asc).page(params[:page])
+    @teams = teams.order(rating: :desc, name: :asc)
     @teams = @teams.where(country: @country) unless @country.blank?
     if @teams.size == 1
       redirect_to :action => :show, :id => @teams.first
     end
+    @pagy, @teams = pagy(@teams, items: 30)
   end
 
   def new

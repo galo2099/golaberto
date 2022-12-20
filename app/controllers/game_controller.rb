@@ -138,7 +138,6 @@ class GameController < ApplicationController
   end
 
   def list_players
-    items_per_page = 10
     @partial = params[:partial]
     @name = params[:name]
     conditions = ["name LIKE ?", "%#{@name}%"] unless @name.nil?
@@ -147,7 +146,7 @@ class GameController < ApplicationController
     @team = Team.find(params["team"])
     @home_away = @game.home.id == @team.id ? "home" : "away"
     @total = Player.where(conditions).count
-    @players = Player.order(:name).where(conditions).paginate(:per_page => items_per_page, :page => params[:page])
+    @pagy, @players = pagy Player.order(:name).where(conditions)
   end
 
   def create_stadium_for_edit

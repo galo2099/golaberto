@@ -16,4 +16,4 @@
   <% end %>
 </table>
 
-<%= will_paginate @referees %>
+<%== pagy_nav @pagy if @pagy.pages > 1 %>

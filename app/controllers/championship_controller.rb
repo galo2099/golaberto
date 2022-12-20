@@ -82,7 +82,7 @@ class ChampionshipController < ApplicationController
       @championships = @championships.where(region_name: @continent_name)
     end
 
-    @championships = @championships.page(params[:page])
+    @pagy, @championships = pagy(@championships, items: 30)
   end
 
   def show
@@ -297,7 +297,7 @@ class ChampionshipController < ApplicationController
       games = games.where(:round => @current_round)
     end
 
-    @games = games.order("date, round, teams.name").includes(:home, :away).page(params[:page]).references(:team)
+    @pagy, @games = pagy(games.order("date, round, teams.name").includes(:home, :away).references(:team), items: 30)
     @total_games = games.size
   end
 
@@ -335,7 +335,7 @@ class ChampionshipController < ApplicationController
     @maximum = @championship.games.group(:home).maximum(:attendance)
     @minimum = @championship.games.group(:home).minimum(:attendance)
     @count = @championship.games.group(:home).count(:attendance)
-    @games = @championship.games.reorder("attendance DESC").page(params[:page]).per_page(10)
+    @pagy, @games = pagy(@championship.games.reorder("attendance DESC"), items: 10)
   end
 
   def destroy
@@ -345,23 +345,19 @@ class ChampionshipController < ApplicationController
 
   def top_goalscorers
     @championship = Championship.find(params["id"])
-    # we do pagination by hand because will_paginate doesn't like the
-    # OrderedHash returned by the count method
-    page = (params[:page] || 1).to_i
-    per_page = 30
-    offset = (page - 1) * per_page
-    scorers = @championship.goals.group(:player).where(:own_goal => false).order("count_all DESC").count
-    @scorer_pagination = WillPaginate::Collection.new(page, per_page, scorers.size)
-    @scorers = scorers.keys.sort{|a,b|scorers[b] <=> scorers[a]}[offset, per_page].map{|k| [ k, scorers[k] ] }
-    players = @scorers.map{|p,c| p}
-    @teams = @championship.goals.group(:player_id, :team_id).where(:own_goal => false).count.inject(Hash.new) do |h,t|
-      player = Player.find(t[0][0])
-      team = Team.find(t[0][1])
+    @scorers = @championship.goals.group(:player_id).where(own_goal: false).reorder("count_all DESC").count.to_a
+    @pagy, @scorers = pagy_array(@scorers, items: 30)
+    @players = Player.find(@scorers.map{|p,c| p}).map{|p| [p.id, p]}.to_h
+    player_team_count = @championship.goals.group(:player_id, :team_id).where(own_goal: false, player_id: @players.keys).count
+    teams = Team.where(id: player_team_count.map{|t| t[0][1]}).map{|t|[t.id, t]}.to_h
+    @teams = player_team_count.inject(Hash.new) do |h,t|
+      player = @players[t[0][0]]
+      team = teams[t[0][1]]
       h[player] = [ team ] + h[player].to_a
       h
     end
-    @own = @championship.goals.group(:player).where(:own_goal => true, :player_id => players).count
-    @penalty = @championship.goals.group(:player).where(:penalty => true, :player_id => players).count
+    @own = @championship.goals.group(:player_id).where(:own_goal => true, :player_id => @players.keys).count
+    @penalty = @championship.goals.group(:player_id).where(:penalty => true, :player_id => @players.keys).count
   end
 
   def spi_eval

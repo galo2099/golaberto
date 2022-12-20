@@ -49,7 +49,7 @@ function changeRegion(select) {
 }
 </script>
   <p>
-  <%= will_paginate @championships %>
+  <%== pagy_nav @pagy if @pagy.pages > 1 %>
   </p>
 
   <table>
@@ -76,7 +76,7 @@ function changeRegion(select) {
   </table>
 
   <p>
-  <%= will_paginate @championships %>
+  <%== pagy_nav @pagy if @pagy.pages > 1 %>
   </p>
 
 <%= javascript_tag "$('name').activate()" %>

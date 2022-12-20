@@ -1,4 +1,4 @@
-<%= will_paginate @players %>
+<%== pagy_nav @pagy if @pagy.pages > 1 %>
 <br>
 
 <table>
@@ -32,4 +32,4 @@
   <% end %>
 </table>
 
-<%= will_paginate @players %>
+<%== pagy_nav @pagy if @pagy.pages > 1 %>
