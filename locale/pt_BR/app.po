@@ -336,9 +336,6 @@ msgstr "Pontos por vitória"
 msgid "Championship|Show country"
 msgstr "Mostrar país"
 
-msgid "Change date"
-msgstr "Mudar data"
-
 msgid "Change password?"
 msgstr "Mudar senha?"
 
@@ -603,9 +600,6 @@ msgstr "Guiana Francesa"
 
 msgid "French Polynesia"
 msgstr "Polinésia Francesa"
-
-msgid "From"
-msgstr "De"
 
 msgid "Full Name"
 msgstr "Nome completo"
@@ -1730,9 +1724,6 @@ msgid "This user has made %{num_edits} edit to this date."
 msgid_plural "This user has made %{num_edits} edits to this date."
 msgstr[0] "Este usuário fez %{num_edits} edição até hoje."
 msgstr[1] "Este usuário fez %{num_edits} edições até hoje."
-
-msgid "To"
-msgstr "Até"
 
 msgid "Togo"
 msgstr "Togo"

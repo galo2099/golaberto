@@ -2,6 +2,7 @@
 # Likewise, all the methods added will be available for all controllers.
 require 'authenticated_system'
 class ApplicationController < ActionController::Base
+  include Pagy::Backend
   include AuthenticatedSystem
   include Userstamp
 

@@ -7,34 +7,48 @@
 </select>
 <br/>
 <br/>
-<%= form_tag({ :action => :list, :type => @type }, :method => :get) do -%>
-<% options_for_datepicker = { :autoSize => true, :changeYear => true, :selectOtherMonths => true, :showButtonPanel => true, :showOtherMonths => true, :numberOfMonths => 2 } %>
-<%= _("From") %>: <%= datepicker_tag "date_range_start", @date_range_start, options_for_datepicker %>
-<%= _("To") %>: <%= datepicker_tag "date_range_end", @date_range_end, options_for_datepicker %>
-<script type="text/javascript">
-function datepickerOnSelect(selectedDate) {
-  var option = this.id == "date_range_start_datepicker_ui" ? "minDate" : "maxDate";
-  var instance = jQuery(this).data( "datepicker" );
-  var date = jQuery.datepicker.parseDate(
-          instance.settings.dateFormat ||
-          jQuery.datepicker._defaults.dateFormat,
-          selectedDate, instance.settings );
-  jQuery(this.id == "date_range_start_datepicker_ui" ? "#date_range_end_datepicker_ui" : "#date_range_start_datepicker_ui").datepicker("option", option, date);
-}
-jQuery(document).ready(function() {
-  jQuery('#date_range_start_datepicker_ui').datepicker("option", "maxDate", jQuery.datepicker.parseDate('yy-mm-dd', '<%= @date_range_end %>'));
-  jQuery('#date_range_start_datepicker_ui').datepicker("option", "onSelect", datepickerOnSelect);
-  jQuery('#date_range_end_datepicker_ui').datepicker("option", "minDate", jQuery.datepicker.parseDate('yy-mm-dd', '<%= @date_range_start %>'));
-  jQuery('#date_range_end_datepicker_ui').datepicker("option", "onSelect", datepickerOnSelect);
-});
-</script>
-<%= hidden_field_tag(:category, @category) %>
-<%= hidden_field_tag(:type, @type) %>
-<input type="submit" value="<%= _("Change date") %>">
-<% end %>
 <div id='table'>
+  <%= link_to raw(t("pagy.nav.prev")), url_for(:page => 1, :played => @played, :category => @category, week_page: @calendar[:week].page - 1) if @calendar[:week].page > 1 %>
+  <%= datepicker_tag "selected_week", @calendar[:week].from, { firstDay: 1,
+      showButtonPanel: true,
+      defaultDate: @calendar[:week].from.strftime('%Y-%m-%d'),
+      changeYear: true,
+      showOtherMonths: true,
+      numberOfMonths: 2,
+      selectOtherMonths: true,
+      size: 10,
+   } %>
+  <%= link_to raw(t("pagy.nav.next")), url_for(:page => 1, :played => @played, :category => @category, week_page: @calendar[:week].page + 1) if @calendar[:week].page < @calendar[:week].last %>
+
   <%= render partial: "game_list",
              locals: { sorted_games: @sorted_games, games: @games } %>
+  <%== pagy_info(@pagy) if @pagy.count == 0 %><br>
+
+<script>
+jQuery(document).ready(function() {
+  var startDate = new Date('<%= @calendar[:week].from %>');
+  var endDate = new Date('<%= @calendar[:week].to %>');;
+
+  jQuery('#selected_week_datepicker_ui').datepicker("option", "onSelect", function(dateText, inst) {
+          var date = jQuery(this).datepicker('getDate');
+          var dateFormat = inst.settings.dateFormat || jQuery.datepicker._defaults.dateFormat;
+          var week = (date - new Date('<%= @min.to_date %>') + 48 * 3600 * 1000) / (7 * 24 * 3600 * 1000) + 1;
+          window.location.href = '<%= url_for type: @type, category: @category, page: 1 %>?week_page=' + Math.floor(week);
+          jQuery('#selected_week_datepicker_ui').datepicker("setDate", new Date(date - ((date.getDay() + 6) % 7) * 24 * 3600 * 1000 + 2 * 3600 * 1000));
+      });
+  jQuery('#selected_week_datepicker_ui').datepicker("option", "beforeShowDay", function(date) {
+          var cssClass = '';
+          if(date >= startDate && date < endDate) {
+              cssClass = 'ui-state-active';
+          }
+          return [true, cssClass];
+      });
+  // We have to select the 'a' element to override the default mouseenter event.
+  jQuery('#ui-datepicker-div').on('mouseenter', '.ui-datepicker-calendar tr td a', function(event) { jQuery(this).parent().parent().find('td a').addClass('ui-state-hover'); });
+  jQuery('#ui-datepicker-div').on('mouseleave', '.ui-datepicker-calendar tr td a', function(event) { jQuery(this).parent().parent().find('td a').removeClass('ui-state-hover'); });
+});
+
+</script>
 </div>
 
 <% content_for :sidebar do %>

@@ -16,38 +16,33 @@ class GameController < ApplicationController
     store_location
     @type = params[:type].to_sym || :scheduled
     @games = Game
-    if (@type == :scheduled)
-      @games = @games.where(played: false).order(Arel.sql("DATE(IF(has_time, CONVERT_TZ(date, '+00:00', '#{ActiveSupport::TimeZone.seconds_to_utc_offset cookie_timezone.now.utc_offset}'), date)) ASC, phase_id, date ASC"))
+    @categories = Category.all
+    @category = params[:category] || 1
+    @category = @category.to_i
+    @games = @games.joins(phase: :championship).where(championships: { category_id: @category }, played: @type != :scheduled)
+
+    @min, @max = pagy_calendar_period(@games)
+    if not params[:week_page] then
+      params[:week_page] = ((Date.today + 2 - @min.to_date) / 7 + 1).to_i
+    end
+
+    @calendar, @pagy, @games = pagy_calendar(@games, week: {}, pagy: { items: 30 })
+
+    if @type == :scheduled
+      @games = @games.order(Arel.sql("DATE(IF(has_time, CONVERT_TZ(date, '+00:00', '#{ActiveSupport::TimeZone.seconds_to_utc_offset cookie_timezone.now.utc_offset}'), date)) ASC, phase_id, date ASC"))
       post_sort = proc do |g|
         [if g.has_time then g.date.in_time_zone(cookie_timezone).to_date.to_datetime.to_i else g.date.to_date.to_datetime.to_i end,
           g.phase_id, g.date.to_i, g.home.name]
       end
-      default_start = (cookie_timezone.today - 7.days)
     else
-      @games = @games.where(played: true).order(Arel.sql("DATE(IF(has_time, CONVERT_TZ(date, '+00:00', '#{ActiveSupport::TimeZone.seconds_to_utc_offset cookie_timezone.now.utc_offset}'), date)) DESC, phase_id, date DESC"))
+      @games = @games.order(Arel.sql("DATE(IF(has_time, CONVERT_TZ(date, '+00:00', '#{ActiveSupport::TimeZone.seconds_to_utc_offset cookie_timezone.now.utc_offset}'), date)) DESC, phase_id, date DESC"))
       post_sort = proc do |g|
         [if g.has_time then -g.date.in_time_zone(cookie_timezone).to_date.to_datetime.to_i else -g.date.to_date.to_datetime.to_i end,
           g.phase_id, -g.date.to_i, g.home.name]
       end
-      default_end = cookie_timezone.today
     end
 
-    @categories = Category.all
-    @category = params[:category] || 1
-    @category = @category.to_i
-    @games = @games.joins(phase: :championship).where(championships: { category_id: @category })
-
-    @date_range_start = params[:date_range_start] || default_start
-    @date_range_end = params[:date_range_end] || default_end
-    unless @date_range_start.nil? or @date_range_start.to_date.nil?
-      @games = @games.where("(has_time = true AND date >= ?) OR (has_time = false AND DATE(date) >= ?)", @date_range_start.in_time_zone(cookie_timezone).in_time_zone(Time.zone), @date_range_start)
-    end
-    unless @date_range_end.nil? or @date_range_end.to_date.nil?
-      @games = @games.where("(has_time = true AND date < ?) OR (has_time = false AND DATE(date) <= ?)", @date_range_end.in_time_zone(cookie_timezone).in_time_zone(Time.zone) + 1.day, @date_range_end)
-    end
-
-    @games = @games.includes(:home, :away, :phase, :championship).page(params[:page])
-    @sorted_games = @games.sort_by{|g|post_sort.call(g)}
+    @sorted_games = @games.includes(:home, :away, :phase, :championship).sort_by{|g|post_sort.call(g)}
   end
 
   def destroy
@@ -255,5 +250,15 @@ class GameController < ApplicationController
 	    "home_id", "away_id", "home_score", "away_score", "home_aet", "away_aet", "home_pen",
 	    "away_pen", "round", "attendance", "date", "time", "referee_id",
 	    "stadium_id", "played", "hour", "minute", "home_field")
+  end
+
+  def pagy_calendar_period(collection)
+#    minmax = collection.pluck('MIN(date)', 'MAX(date)').first
+#    minmax = [ (minmax[0]&.in_time_zone(cookie_timezone) or DateTime.now.in_time_zone(cookie_timezone)), (minmax[1]&.in_time_zone(cookie_timezone) or (DateTime.now+1).in_time_zone(cookie_timezone)) ]
+     [ ("1800-01-01".to_date).in_time_zone(cookie_timezone), ("2500-01-01".to_date).in_time_zone(cookie_timezone) ]
+  end
+
+  def pagy_calendar_filter(collection, from, to)
+    collection.where(date: from...to)
   end
 end

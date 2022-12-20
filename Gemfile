@@ -52,6 +52,7 @@ gem "newrelic_rpm"
 gem "omniauth-google-oauth2", git: "https://github.com/zquestz/omniauth-google-oauth2"
 gem "oj"
 gem "open_id_authentication", git: "https://github.com/ndbradley730/open_id_authentication", branch: "controllermethods_name_error"
+gem "pagy"
 gem "paperclip"
 gem 'prototype_legacy_helper', '0.0.0', git: 'https://github.com/rails/prototype_legacy_helper.git'
 gem 'prototype-rails', git: 'https://github.com/voxmedia/prototype-rails'

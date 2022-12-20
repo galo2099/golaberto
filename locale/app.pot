@@ -8,8 +8,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: app 1.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-12-15 02:06-0800\n"
-"PO-Revision-Date: 2022-12-15 02:06-0800\n"
+"POT-Creation-Date: 2022-12-19 16:05-0800\n"
+"PO-Revision-Date: 2022-12-19 16:05-0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
@@ -324,9 +324,6 @@ msgstr ""
 msgid "Championship|Show country"
 msgstr ""
 
-msgid "Change date"
-msgstr ""
-
 msgid "Change password?"
 msgstr ""
 
@@ -586,9 +583,6 @@ msgid "French Guiana"
 msgstr ""
 
 msgid "French Polynesia"
-msgstr ""
-
-msgid "From"
 msgstr ""
 
 msgid "Full Name"
@@ -1631,9 +1625,6 @@ msgid "This user has made %{num_edits} edit to this date."
 msgid_plural "This user has made %{num_edits} edits to this date."
 msgstr[0] ""
 msgstr[1] ""
-
-msgid "To"
-msgstr ""
 
 msgid "Togo"
 msgstr ""

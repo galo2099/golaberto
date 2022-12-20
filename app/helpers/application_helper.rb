@@ -1,5 +1,7 @@
 # Methods added to this helper will be available to all templates in the application.
 module ApplicationHelper
+  include Pagy::Frontend
+
   def game_date(game)
     if game.has_time then game.date.in_time_zone(cookie_timezone) else game.date end
   end
@@ -684,5 +686,11 @@ module ApplicationHelper
     else
       "{#{options.keys.map { |k| "#{k}:#{options[k]}" }.sort.join(', ')}}"
     end
+  end
+
+  def pagy_url_for(pagy, page, absolute: false, html_escaped: false)  # it was (page, pagy) in previous versions
+    pagy_params = params.merge(pagy.vars[:page_param] => page, only_path: !absolute )
+    pagy_params.permit!
+    html_escaped ? url_for(pagy_params).gsub('&', '&amp;') : url_for(pagy_params)
   end
 end
