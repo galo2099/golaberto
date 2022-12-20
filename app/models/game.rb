@@ -55,6 +55,9 @@ class Game < ApplicationRecord
                     ->{ includes :player },
                     :dependent => :delete_all
 
+      base.has_one :home_rating, ->(game){where("measure_date < ?", game.date).order(measure_date: :desc)}, through: :home, source: :historical_ratings
+      base.has_one :away_rating, ->(game){where("measure_date < ?", game.date).order(measure_date: :desc)}, through: :away, source: :historical_ratings
+
       base.validates_presence_of :date
       base.validates_inclusion_of :played, :in => [ true, false ]
       base.validates_numericality_of :home_score, :only_integer => true
@@ -106,14 +109,6 @@ class Game < ApplicationRecord
 
     def away_player_games
       player_games.where(:team_id => away_id)
-    end
-
-    def home_rating
-      team_rating(home)
-    end
-
-    def away_rating
-      team_rating(away)
     end
 
     def validate
@@ -202,12 +197,6 @@ class Game < ApplicationRecord
       [ ten_array.map{|i| (0...i).to_a.map{|j| probs[i][j]}}.flatten.sum,
         ten_array.map{|i| probs[i][i]}.sum,
         ten_array.map{|i| (0...i).to_a.map{|j| probs[j][i]}}.flatten.sum ]
-    end
-
-    private
-
-    def team_rating(team)
-      HistoricalRating.where(team_id: team.id).where("measure_date < ?", date).order(measure_date: :desc).first
     end
   end
 
