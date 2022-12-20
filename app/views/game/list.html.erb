@@ -8,7 +8,7 @@
 <br/>
 <br/>
 <div id='table'>
-  <%= link_to raw(t("pagy.nav.prev")), url_for(:page => 1, :played => @played, :category => @category, week_page: @calendar[:week].page - 1) if @calendar[:week].page > 1 %>
+  <%= link_to raw(t("pagy.nav.prev")), url_for(:page => 1, :played => @played, :category => @category, week: (@calendar[:week].from - 7.days).to_date) if @calendar[:week].page > 1 %>
   <%= datepicker_tag "selected_week", @calendar[:week].from, { firstDay: 1,
       showButtonPanel: true,
       defaultDate: @calendar[:week].from.strftime('%Y-%m-%d'),
@@ -18,7 +18,7 @@
       selectOtherMonths: true,
       size: 10,
    } %>
-  <%= link_to raw(t("pagy.nav.next")), url_for(:page => 1, :played => @played, :category => @category, week_page: @calendar[:week].page + 1) if @calendar[:week].page < @calendar[:week].last %>
+  <%= link_to raw(t("pagy.nav.next")), url_for(:page => 1, :played => @played, :category => @category, week: (@calendar[:week].from + 7.days).to_date) if @calendar[:week].page < @calendar[:week].last %>
 
   <%= render partial: "game_list",
              locals: { sorted_games: @sorted_games, games: @games } %>
@@ -32,9 +32,9 @@ jQuery(document).ready(function() {
   jQuery('#selected_week_datepicker_ui').datepicker("option", "onSelect", function(dateText, inst) {
           var date = jQuery(this).datepicker('getDate');
           var dateFormat = inst.settings.dateFormat || jQuery.datepicker._defaults.dateFormat;
-          var week = (date - new Date('<%= @min.to_date %>') + 48 * 3600 * 1000) / (7 * 24 * 3600 * 1000) + 1;
-          window.location.href = '<%= url_for type: @type, category: @category, page: 1 %>?week_page=' + Math.floor(week);
-          jQuery('#selected_week_datepicker_ui').datepicker("setDate", new Date(date - ((date.getDay() + 6) % 7) * 24 * 3600 * 1000 + 2 * 3600 * 1000));
+          startDate = new Date(date - ((date.getDay() + 6) % 7) * 24 * 3600 * 1000 + 2 * 3600 * 1000);
+          window.location.href = '<%= url_for type: @type, category: @category, page: 1 %>?week=' + startDate.toLocaleDateString('en-CA');
+          jQuery('#selected_week_datepicker_ui').datepicker("setDate", startDate);
       });
   jQuery('#selected_week_datepicker_ui').datepicker("option", "beforeShowDay", function(date) {
           var cssClass = '';

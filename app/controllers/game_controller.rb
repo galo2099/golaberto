@@ -22,11 +22,13 @@ class GameController < ApplicationController
     @games = @games.joins(phase: :championship).where(championships: { category_id: @category }, played: @type != :scheduled)
 
     @min, @max = pagy_calendar_period(@games)
-    if not params[:week_page] then
+    if not params[:week] then
       params[:week_page] = ((Date.today + 2 - @min.to_date) / 7 + 1).to_i
+    else
+      params[:week_page] = ((params[:week].to_date + 2 - @min.to_date) / 7 + 1).to_i
     end
-
     @calendar, @pagy, @games = pagy_calendar(@games, week: {}, pagy: { items: 30 })
+    params.delete(:week_page)
 
     if @type == :scheduled
       @games = @games.order(Arel.sql("DATE(IF(has_time, CONVERT_TZ(date, '+00:00', '#{ActiveSupport::TimeZone.seconds_to_utc_offset cookie_timezone.now.utc_offset}'), date)) ASC, phase_id, date ASC"))
