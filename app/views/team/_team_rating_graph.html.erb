@@ -2,7 +2,7 @@
 <%= javascript_include_tag "jquery.flot.all" %>
 
 <%
-data = teams.map{|t|HistoricalRating.connection.select_all("select LEAST(FROM_UNIXTIME((unix_timestamp(measure_date) div (#{1.years.to_i/26}) + 1) * (#{1.years.to_i/26})), NOW()) as d, SUBSTRING_INDEX(group_concat(rating order by measure_date desc), ',', 1) as r from historical_ratings where team_id=#{t.id} group by d").to_a.map{|x|x.map{|k,v| v }}.map{|x| x[0] = x[0].to_time.to_i; x[1] = x[1].to_f; x[1] = nil if x[1] == 0; x}}
+data = teams[0,3].map{|t| Team.get_historical_ratings_2_weeks(t.id)  }
 %>
 
 <div id="rating" style="width: 550px;
@@ -51,6 +51,29 @@ data = teams.map{|t|HistoricalRating.connection.select_all("select LEAST(FROM_UN
       ).css({top: pos.pageY + 10, left: pos.pageX + 10}).fadeIn(200);
     };
 
+    var getMissingDataAndPlotRatings = function(from, to) {
+      var pending = false;
+      $("input:checked").each(function () {
+        var key = $(this).attr("name");
+        var rating = ratingData[key];
+        if (key && rating) {
+          if (rating.data == null) {
+            pending = true;
+            $.ajax({
+              url: "<%= url_for action: :historical_rating %>/" + key,
+              dataType: "json",
+            }).done(function(data) {
+              rating.data = data;
+              plotRatings(from, to);
+            });
+          }
+        }
+      });
+      if (!pending) {
+        plotRatings(from, to);
+      }
+    };
+
     var plotRatings = function(from, to) {
       if (from === undefined) {
         from = Number.NEGATIVE_INFINITY;
@@ -66,14 +89,15 @@ data = teams.map{|t|HistoricalRating.connection.select_all("select LEAST(FROM_UN
 
       $("input:checked").each(function () {
         var key = $(this).attr("name");
-        if (key && ratingData[key]) {
-          var d = ratingData[key].data.filter(function(x) { return x[0] >= from && x[0] <= to; });
+        var rating = ratingData[key];
+        if (key && rating) {
+          var d = rating.data.filter(function(x) { return x[0] >= from && x[0] <= to; });
           data.push({
             data: d,
-            label: ratingData[key].label,
-            lines: ratingData[key].lines,
-            points: ratingData[key].points,
-            color: ratingData[key].color,
+            label: rating.label,
+            lines: rating.lines,
+            points: rating.points,
+            color: rating.color,
           });
           d.each(function (p) {
             x_values.add(p[0]);
@@ -86,10 +110,10 @@ data = teams.map{|t|HistoricalRating.connection.select_all("select LEAST(FROM_UN
       });
 
       // Add missing points
-      x_values = [...x_values].sort()
+      var x_values_sorted = [...x_values].sort()
       data.each(function(series) {
         var next_point = 0;
-        x_values.each(function(x) {
+        x_values_sorted.each(function(x) {
           if (series.data.length == next_point || series.data[next_point][0] != x) {
             series.data.splice(next_point, 0, [x, null]);
           }
@@ -206,10 +230,10 @@ data = teams.map{|t|HistoricalRating.connection.select_all("select LEAST(FROM_UN
 
       graphDiv.off("dblclick");
       graphDiv.dblclick(function (event) {
-        plotRatings();
+        getMissingDataAndPlotRatings();
       });
       $("input.ratingSelector").off("change");
-      $("input.ratingSelector").change(function() {plotRatings(from, to);});
+      $("input.ratingSelector").change(function() {getMissingDataAndPlotRatings(from, to);});
    }
 
     $("<div id='tooltip'></div>").css({
@@ -225,5 +249,4 @@ data = teams.map{|t|HistoricalRating.connection.select_all("select LEAST(FROM_UN
 
     plotRatings();
   });
-
 </script>

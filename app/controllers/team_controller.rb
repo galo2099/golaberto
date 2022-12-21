@@ -73,6 +73,13 @@ class TeamController < ApplicationController
     redirect_back(fallback_location: root_path)
   end
 
+  def historical_rating
+    team_id = params["id"]
+    respond_to do |format|
+      format.js { render js: Team.get_historical_ratings_2_weeks(team_id).to_json }
+    end
+  end
+
   def show
     store_location
     @team = Team.find(params["id"])
