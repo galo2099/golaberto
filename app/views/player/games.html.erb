@@ -1,0 +1,69 @@
+<% content_for :title do %>
+  <%= @player.name %> - <%= _("Games") %>
+<% end %>
+<% content_for :main_title do %>
+  <%= h @player.name %>
+<% end %>
+
+<% content_for :sidebar do %>
+  <%= link_to _("Player"), :action => :show, :id => @player %><br/>
+  <%= link_to _("Games"), :action => :games, :id => @player, :type => :played %><br/>
+  <br/>
+  <%= link_to_unless @played, _("Played"), :action => :games, :id => @player, :type => :played, :category => @category, :page => 1 %><br/>
+  <%= link_to_unless !@played, _("Scheduled"), :action => :games, :id => @player, :type => :scheduled, :category => @category, :page => 1 %><br/>
+<% end %>
+
+<% last_championship = nil %>
+
+<%= _("Category") %>: <select id='category_select'>
+  <%= options_from_collection_for_select @categories, "id", "name", @category.id %>
+</select>
+<br/>
+<br/>
+<%== pagy_nav @pagy if @pagy.pages > 1 %>
+<br/>
+<div class="game_score">
+  <% @player_games.each do |pg| %>
+  <% game = pg.game %>
+  <% if last_championship != game.phase.championship %>
+    <% last_championship = game.phase.championship %>
+    <%= championship_name(game.phase.championship, {:controller => :championship, :action => :team, :id => game.phase.championship, :team => pg.team}) %>
+  <% end %>
+  <div style='font-size: 11px'><%= formatted_date(game, true) %></div>
+  <div class="table_row">
+    <div class="table_cell" style="width: 100%">
+      <%= render :partial => "championship/game_list",
+      :locals => { :highlight_team => pg.team,
+      :game => game } %>
+      <div class="clearer"></div>
+    </div>
+    <div class="clearer"></div>
+  </div>
+    <div class="<%= cycle "table_line_even", "table_line_odd" %> table_row">
+      <div class="table_cell" style="width: 92%">
+        <div class="clearer"></div>
+        <div class='table_cell' style='width: 10%'></div>
+        <div class='table_cell' style='width: 10%'>On: <%= pg.on %></div>
+        <div class='table_cell' style='width: 10%'>Off: <%= pg.off %></div>
+        <div class='table_cell' style='color: rgb(237,194,64); width: 5%'><% if pg.yellow %><%= image_tag "yells.gif" %><% end %></div>
+        <div class='table_cell' style='color: rgb(255,0,0); width: 5%'><% if pg.red %><%= image_tag "reds.gif" %><% end %></div>
+        <div class='table_cell' style='font-size: 10px'><%= pg.game.goals.where(player_id: @player.id, own_goal: false).map{|x| "#{image_tag('goal.png')} #{x.time}' "}.join.html_safe %></div>
+        <div class="clearer"></div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  <% end %>
+</div>
+
+<br>
+
+<%== pagy_nav @pagy if @pagy.pages > 1 %>
+
+<%
+observe_field_function = "switch(value) {\n";
+@categories.each do |cat|
+  observe_field_function << "case '#{cat.id}': document.location = '#{url_for(:type => @type, :page => 1, :category => cat)}';break;\n"
+end
+observe_field_function << "}\n"
+%>
+<%= observe_field "category_select", :function => observe_field_function %>

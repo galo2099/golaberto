@@ -3,6 +3,7 @@ class Player < ApplicationRecord
   has_many :goals, :dependent => :delete_all
   has_many :team_players, :dependent => :delete_all
   has_many :player_games, :dependent => :delete_all
+  has_many :games, through: :player_games
 
   validates_length_of :name, :within => 1..40
 

@@ -30,11 +30,11 @@
 </table>
 </div>
 
-<br>
+<h2> <%= link_to _("Games"), :action => :games, :id => @player, :type => :played %></h2>
 
 <div class="game_score">
   <% last_championship = nil %>
-<% @player.player_games.includes(:game).order("games.date DESC").each do |pg| %>
+<% @player.player_games.includes(:game).order("games.date DESC").limit(10).each do |pg| %>
   <% if last_championship != pg.game.phase.championship %>
     <% last_championship = pg.game.phase.championship %>
     <%= championship_name(pg.game.phase.championship, {:controller => :championship, :action => :team, :id => pg.game.phase.championship, :team => pg.team}) %>
@@ -64,7 +64,6 @@
       </div>
     </div>
 <br>
-<br>
 <% end %>
 </div>
 
@@ -75,4 +74,6 @@
     <%= link_to _("Edit"), :action => :edit, :id => @player %><br/>
     <%= link_to _("Delete"), { :action => :destroy, :id => @player }, :confirm => _('Are you sure?'), :method => :post %><br/>
   <% end %>
+  <%= link_to _("Player"), :action => :show, :id => @player %><br/>
+  <%= link_to _("Games"), :action => :games, :id => @player, :type => :played %><br/>
 <% end %>
