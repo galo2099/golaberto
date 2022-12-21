@@ -57,7 +57,7 @@ class PlayerController < ApplicationController
     @countries = {}
     @countries[""] = @country_list
     ApplicationHelper::Continent::ALL.each do |name, c|
-      @countries[name] = [[s_("Country|All") + " (#{@players.where(country: c.countries.map{|c|c.name}).size})", ""]] + @country_list.select{|_, n| ApplicationHelper::Continent.country_to_continent[n] == c}
+      @countries[name] = [[s_("Country|All") + " (#{countries_with_players.select{|k,v| ApplicationHelper::Continent.country_to_continent[k] == c}.map{|k,v|v}.sum})", ""]] + @country_list.select{|_, n| ApplicationHelper::Continent.country_to_continent[n] == c}
     end
 
     unless @continent.blank?
