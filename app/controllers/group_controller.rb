@@ -17,7 +17,7 @@ class GroupController < ApplicationController
 
   def update
     @group = Group.find(params["id"])
-    @group.update_attributes(group_params)
+    @group.update(group_params)
 
 	  @group.team_groups.clear
 
