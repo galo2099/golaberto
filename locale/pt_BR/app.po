@@ -129,7 +129,13 @@ msgid "Antigua And Barbuda"
 msgstr "Antígua e Barbuda"
 
 msgid "App"
-msgstr "Jog"
+msgstr "Esc"
+
+msgid "Appearances"
+msgstr "Escalações"
+
+msgid "Appearances|A"
+msgstr "E"
 
 msgid "Are you sure you want to add this player?"
 msgstr "Tem certeza que quer adicionar esse jogador?"
@@ -1015,6 +1021,12 @@ msgstr "Min"
 msgid "Minimum"
 msgstr "Mínimo"
 
+msgid "Minutes"
+msgstr "Minutos"
+
+msgid "Minutes|M"
+msgstr "M"
+
 msgid "Moldova"
 msgstr "Moldávia"
 
@@ -1205,10 +1217,10 @@ msgid "Own"
 msgstr "Contra"
 
 msgid "Own Goals"
-msgstr "Gols contra"
+msgstr "Gols Contra"
 
-msgid "P"
-msgstr "P"
+msgid "OwnGoals|O"
+msgstr "C"
 
 msgid "PG"
 msgstr "GP"
@@ -1239,6 +1251,9 @@ msgstr "Pênaltis"
 
 msgid "Penalties:"
 msgstr "Pênaltis:"
+
+msgid "Penalties|P"
+msgstr "P"
 
 # app/models/player.rb:-
 msgid "Peru"
@@ -1281,6 +1296,10 @@ msgstr "Imagem"
 # app/models/player.rb:-
 msgid "Played"
 msgstr "Jogados"
+
+# app/models/player.rb:-
+msgid "Played|P"
+msgstr "J"
 
 # app/models/player.rb:-
 msgid "Player"
@@ -1393,6 +1412,9 @@ msgstr "Nota"
 msgid "Recalculate odds"
 msgstr "Recalcular chances"
 
+msgid "Reds"
+msgstr "Vermelhos"
+
 # app/models/referee.rb:-
 msgid "Referee"
 msgstr "Árbitro"
@@ -1489,6 +1511,9 @@ msgstr "Escócia"
 
 msgid "Search"
 msgstr "Procurar"
+
+msgid "Season"
+msgstr "Ano"
 
 msgid "Senegal"
 msgstr "Senegal"
@@ -1737,6 +1762,9 @@ msgstr "Maiores Artilheiros"
 msgid "Top games"
 msgstr "Melhores jogos"
 
+msgid "Total"
+msgstr "Total"
+
 msgid "Trinidad and Tobago"
 msgstr "Trindade e Tobago"
 
@@ -1917,6 +1945,9 @@ msgstr "Campeonatos Mundiais"
 
 msgid "Y"
 msgstr "A"
+
+msgid "Yellows"
+msgstr "Amarelos"
 
 msgid "Yemen"
 msgstr "Iêmen"

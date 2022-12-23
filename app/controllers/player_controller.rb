@@ -78,6 +78,10 @@ class PlayerController < ApplicationController
   def show
     store_location
     @player = Player.find(params["id"])
+
+    stats_by_game = @player.player_games.joins(:game).joins("LEFT JOIN `goals` ON `goals`.`game_id` = `games`.`id` and goals.player_id = player_games.player_id").group("player_games.id").select("player_games.id as id, SUM(IF(own_goal = 0, 1, 0)) as goals, SUM(IF(own_goal = 1, 1, 0)) as own_goals, SUM(IF(penalty = 1, 1, 0)) as penalties")
+
+    @player_stats = @player.player_games.includes(:team, game: { phase: :championship }).joins("INNER JOIN (#{stats_by_game.to_sql}) g1 on g1.id = player_games.id").joins(game: {phase: :championship}).group("phases.championship_id, team_id").select("championship_id, player_games.team_id, player_games.id, SUM(off-`on`) as minutes, SUM(yellow = 1) as yellows, SUM(red = 1) as reds, COUNT(*) as appearances, SUM(IF(off > 0, 1, 0)) as played, SUM(goals) as goals, SUM(own_goals) as own_goals, SUM(penalties) as penalties, MAX(date) as latest, player_games.game_id").order("latest DESC")
   end
 
   def games

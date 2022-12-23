@@ -37,11 +37,22 @@ class Championship < ApplicationRecord
     "#{id}-#{full_name.parameterize}"
   end
 
-  def full_name
-    name = "#{_(self.region_name)} - #{self.name} #{self.begin.year.to_s}"
+  def season
+    s = self.begin.year.to_s
     if self.begin.year != self.end.year
-      name += "/" + self.end.year.to_s
+      s += "/" + self.end.year.to_s
     end
+    s
+  end
+
+  def full_name(include_region = true, include_season = true)
+    region = if include_region then "#{_(self.region_name)} - " else "" end
+    season_suffix = if include_season then
+      " #{self.begin.year.to_s}" + (if self.begin.year != self.end.year then "/#{self.end.year}" else "" end)
+    else
+      ""
+    end
+    name = "#{region}#{self.name}#{season_suffix}"
 
     if self.category_id != Category::DEFAULT_CATEGORY
       name += " - " + self.category.name

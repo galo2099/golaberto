@@ -30,10 +30,10 @@ module ChampionshipHelper
     "https://s3.amazonaws.com/#{Rails.application.secrets.s3[:bucket]}/countries/flags/#{filename}_15.png"
   end
 
-  def championship_name(champ, params)
+  def championship_name(champ, include_region = true, include_season = true, params)
     prefix = link_to(image_tag(region_flag_url(champ.region, champ.region_name) , :title => _(champ.region_name), size: "15x15"), params) + link_to(("&nbsp;" * 6).html_safe, params, class: "championship_name_spacer")
     content_tag :div, class: "championship_name" do
-      prefix.html_safe + link_to(champ.full_name, params)
+      prefix.html_safe + link_to(champ.full_name(include_region, include_season), params)
     end
   end
 

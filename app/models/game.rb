@@ -225,7 +225,7 @@ class Game < ApplicationRecord
   # The versioned association is not shared because it is added automatically
   # to the versioned class by the version_association method
   has_many :goals,
-	   ->{ order(:time).includes(:player) }
+	   ->{ order(:time) }
   version_association :goals
 
   # Always save the version. We check if it the game has really changed before saving it.

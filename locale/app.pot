@@ -8,8 +8,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: app 1.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-12-19 16:05-0800\n"
-"PO-Revision-Date: 2022-12-19 16:05-0800\n"
+"POT-Creation-Date: 2022-12-23 12:05-0800\n"
+"PO-Revision-Date: 2022-12-23 12:05-0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
@@ -130,6 +130,12 @@ msgid "Antigua And Barbuda"
 msgstr ""
 
 msgid "App"
+msgstr ""
+
+msgid "Appearances"
+msgstr ""
+
+msgid "Appearances|A"
 msgstr ""
 
 msgid "Are you sure you want to add this player?"
@@ -969,6 +975,12 @@ msgstr ""
 msgid "Minimum"
 msgstr ""
 
+msgid "Minutes"
+msgstr ""
+
+msgid "Minutes|M"
+msgstr ""
+
 msgid "Moldova"
 msgstr ""
 
@@ -1158,7 +1170,7 @@ msgstr ""
 msgid "Own Goals"
 msgstr ""
 
-msgid "P"
+msgid "OwnGoals|O"
 msgstr ""
 
 msgid "PG"
@@ -1189,6 +1201,9 @@ msgid "Penalties"
 msgstr ""
 
 msgid "Penalties:"
+msgstr ""
+
+msgid "Penalties|P"
 msgstr ""
 
 msgid "Peru"
@@ -1222,6 +1237,9 @@ msgid "Picture"
 msgstr ""
 
 msgid "Played"
+msgstr ""
+
+msgid "Played|P"
 msgstr ""
 
 msgid "Player"
@@ -1322,6 +1340,9 @@ msgstr ""
 msgid "Recalculate odds"
 msgstr ""
 
+msgid "Reds"
+msgstr ""
+
 msgid "Referee"
 msgstr ""
 
@@ -1410,6 +1431,9 @@ msgid "Scotland"
 msgstr ""
 
 msgid "Search"
+msgstr ""
+
+msgid "Season"
 msgstr ""
 
 msgid "Senegal"
@@ -1638,6 +1662,9 @@ msgstr ""
 msgid "Top games"
 msgstr ""
 
+msgid "Total"
+msgstr ""
+
 msgid "Trinidad and Tobago"
 msgstr ""
 
@@ -1798,6 +1825,9 @@ msgid "World Championships"
 msgstr ""
 
 msgid "Y"
+msgstr ""
+
+msgid "Yellows"
 msgstr ""
 
 msgid "Yemen"
