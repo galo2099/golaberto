@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2022_12_16_213315) do
+ActiveRecord::Schema.define(version: 2022_12_23_215524) do
 
   create_table "categories", id: :integer, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
     t.string "name"
@@ -151,6 +151,7 @@ ActiveRecord::Schema.define(version: 2022_12_16_213315) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.text "zones"
+    t.index ["phase_id"], name: "index_groups_on_phase_id"
   end
 
   create_table "historical_ratings", id: :integer, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|

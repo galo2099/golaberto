@@ -4,7 +4,7 @@ class Group < ApplicationRecord
   belongs_to :phase, :touch => true
   has_many :team_groups, -> { includes(:team).order("teams.name") }, :dependent => :delete_all
   has_many :teams, :through => :team_groups
-  has_many :games, ->(group){ where([ "home_id IN (?) OR away_id IN (?)", group.teams.select(:id), group.teams.select(:id) ]) }, :through => :phase
+  has_many :games, ->(group){ from('games USE INDEX(index_games_on_phase_id)').where([ "home_id IN (?) OR away_id IN (?)", group.teams.select(:id), group.teams.select(:id) ]) }, :through => :phase
   validates_length_of :name, :within => 1..40
   validates_uniqueness_of :name, :scope => :phase_id
   validates_numericality_of :promoted, :only_integer => true
