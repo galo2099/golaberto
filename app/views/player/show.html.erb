@@ -125,30 +125,18 @@ td:nth-child(n+5) {
     <%= championship_name(pg.game.phase.championship, {:controller => :championship, :action => :team, :id => pg.game.phase.championship, :team => pg.team}) %>
   <% end %>
   <div style='font-size: 11px'><%= formatted_date(pg.game, true) %></div>
-      <div class="<%= cycle "table_line_even", "table_line_odd" %> table_row">
-        <div class="table_cell" style="width: 92%">
-          <%= render :partial => "championship/game_list",
-                     :locals => { :highlight_team => pg.team,
-                                  :game => pg.game,
-                                  :show_country => pg.game.phase.championship.show_country,
-                                } %>
-          <div class="clearer"></div>
-        </div>
-        <div class="clearer"></div>
-      </div>
-      <div class="<%= cycle "table_line_even", "table_line_odd" %> table_row">
-        <div class="table_cell" style="width: 92%">
-        <div class="clearer"></div>
-        <div class='table_cell' style='width: 10%'></div>
-        <div class='table_cell' style='width: 10%'>On: <%= pg.on %></div>
-        <div class='table_cell' style='width: 10%'>Off: <%= pg.off %></div>
-	<div class='table_cell' style='color: rgb(237,194,64); width: 5%'><% if pg.yellow %><%= image_tag "yells.gif" %><% end %></div>
-	<div class='table_cell' style='color: rgb(255,0,0); width: 5%'><% if pg.red %><%= image_tag "reds.gif" %><% end %></div>
-	<div class='table_cell' style='font-size: 10px'><%= pg.game.goals.where(player_id: @player.id, own_goal: false).map{|x| "#{image_tag('goal.png')} #{x.time}' "}.join.html_safe %></div>
-	<div class="clearer"></div>
-      </div>
+  <div class="<%= cycle "table_line_even", "table_line_odd" %> table_row">
+    <div class="table_cell" style="width: 92%">
+      <%= render :partial => "championship/game_list",
+                 :locals => { :highlight_team => pg.team,
+                              :game => pg.game,
+                              :show_country => pg.game.phase.championship.show_country,
+                            } %>
+      <div class="clearer"></div>
     </div>
-<br>
+    <div class="clearer"></div>
+  </div>
+  <%= render :partial => "player/game_detail", :locals => { :pg => pg } %>
 <% end %>
 </div>
 
@@ -158,6 +146,7 @@ td:nth-child(n+5) {
   <% if can? :manage, @player %>
     <%= link_to _("Edit"), :action => :edit, :id => @player %><br/>
     <%= link_to _("Delete"), { :action => :destroy, :id => @player }, :confirm => _('Are you sure?'), :method => :post %><br/>
+    <br>
   <% end %>
   <%= link_to _("Player"), :action => :show, :id => @player %><br/>
   <%= link_to _("Games"), :action => :games, :id => @player, :type => :played %><br/>
