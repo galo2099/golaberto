@@ -398,6 +398,26 @@ EOF
 <% N_("No records found.") %>
 
 <h3><%= _("Players") %></h3>
+<style>
+.yui-skin-sam tr.yui-dt-even {
+  background-color: #E3EFCA;
+}
+
+.yui-skin-sam tr.yui-dt-even td.yui-dt-asc, .yui-skin-sam tr.yui-dt-even td.yui-dt-desc {
+  background-color: #CEE3A3;
+}
+
+.yui-skin-sam tr.yui-dt-odd {
+  background-color: #CEE3A3;
+}
+
+.yui-skin-sam tr.yui-dt-odd td.yui-dt-asc, .yui-skin-sam tr.yui-dt-odd td.yui-dt-desc {
+  background: #B9D77C;
+}
+#players {
+  overflow: auto;
+}
+</style>
 <div class="yui-skin-sam">
 <div id="pag" class="yui-dt-paginator"></div>
 <div id="players">
@@ -415,7 +435,9 @@ EOF
       <th><%= _("Y") %></th>
       <th><%= _("R") %></th>
       <th><%= _("Min") %></th>
-      <th></th>
+      <% if can? :manage, Game %>
+        <th></th>
+      <% end %>
     </tr>
   </thead>
     <% @players.each do |p| %>
@@ -431,7 +453,8 @@ EOF
         <td><%= p[:yellows] %></td>
         <td><%= p[:reds] %></td>
         <td><%= p[:minutes] %></td>
-        <td><% if can? :manage, Game %>
+        <% if can? :manage, Game %>
+          <td>
           <%= link_to(_('Remove'), { :controller => :player,
                                      :action => :destroy_team,
                                      :id => p[:team_player] },
@@ -440,7 +463,8 @@ EOF
                                 :remote => true,
                                 :confirm => _('Are you sure?'),
                                 :method => :post}) %>
-        <% end %></td>
+          </td>
+        <% end %>
       </tr>
     <% end %>
   </table>
@@ -456,7 +480,7 @@ EOF
 </div>
 </div>
 
-<%= javascript_tag <<EOF
+<%= javascript_tag do %>
 function load_graph_data(index) {
   tabs = $A($('tabs').getElementsByTagName('a'));
   divs = $A($('panel').getElementsByClassName('select-div'));
@@ -483,18 +507,20 @@ var loader = new YAHOO.util.YUILoader({
     onSuccess: function() {
         YAHOO.example.EnhanceFromMarkup = new function() {
             var myColumnDefs = [
-                {key:"name",label:"#{_("Name")}",sortable:true},
-                {key:"pos",label:"#{_("Pos")}", sortable:true},
-                {key:"goals",label:"#{escape_javascript image_tag 'goal.png'}",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
-                {key:"own",label:"#{_("OG")}",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
-                {key:"penalties",label:"#{_("PG")}",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
-                {key:"appearances",label:"#{_("App")}",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
-                {key:"sub",label:"#{_("Sub")}",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
-                {key:"bench",label:"#{_("Ben")}",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
-                {key:"yellows",label:"#{escape_javascript image_tag 'yells.gif'}",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
-                {key:"reds",label:"#{escape_javascript image_tag 'reds.gif'}",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
-                {key:"minutes",label:"#{_("Min")}",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
+                {key:"name",label:"<%= _("Name") %>",sortable:true},
+                {key:"pos",label:"<%= _("Pos") %>", sortable:true},
+                {key:"goals",label:"<%= escape_javascript image_tag 'goal.png' %>",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
+                {key:"own",label:"<%= _("OG") %>",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
+                {key:"penalties",label:"<%= _("PG") %>",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
+                {key:"appearances",label:"<%= _("App") %>",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
+                {key:"sub",label:"<%= _("Sub") %>",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
+                {key:"bench",label:"<%= _("Ben") %>",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
+                {key:"yellows",label:"<%= escape_javascript image_tag 'yells.gif' %>",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
+                {key:"reds",label:"<%= escape_javascript image_tag 'reds.gif' %>",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
+                {key:"minutes",label:"<%= _("Min") %>",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
+        <% if can? :manage, Game %>
                 {key:"remove",label:"",sortable:false},
+        <% end %>
             ];
 
             this.parseStringFromLink = function(sString) {
@@ -518,7 +544,9 @@ var loader = new YAHOO.util.YUILoader({
                         {key:"yellows", parser:YAHOO.util.DataSource.parseNumber},
                         {key:"reds", parser:YAHOO.util.DataSource.parseNumber},
                         {key:"minutes", parser:YAHOO.util.DataSource.parseNumber},
+        <% if can? :manage, Game %>
                         {key:"remove"},
+        <% end %>
                 ]
             };
 
@@ -527,13 +555,13 @@ var loader = new YAHOO.util.YUILoader({
                 rowsPerPage: 50,
                 template: '{PreviousPageLink} {NextPageLink}',
                 containers: 'pag',
-                previousPageLinkLabel: '#{_("&laquo; Previous")}',
-                nextPageLinkLabel: '#{_("Next &raquo;")}',
+                previousPageLinkLabel: '<%= _("&laquo; Previous") %>',
+                nextPageLinkLabel: '<%= _("Next &raquo;") %>',
                 alwaysVisible: false
               }),
               sortedBy:{ key:"name", dir:"asc" }
             };
-            YAHOO.widget.DataTable.MSG_EMPTY = '#{_("No records found.")}';
+            YAHOO.widget.DataTable.MSG_EMPTY = '<%= _("No records found.") %>';
             this.myDataTable = new YAHOO.widget.DataTable("players", myColumnDefs, this.myDataSource, config);
         };
     }
@@ -544,5 +572,4 @@ var loader = new YAHOO.util.YUILoader({
 // the constructor, so we don't need to pass anything to insert().
 loader.insert();
 
-EOF
-%>
+<% end %>
