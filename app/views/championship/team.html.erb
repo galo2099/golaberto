@@ -480,7 +480,7 @@ EOF
 </div>
 </div>
 
-<%= javascript_tag do %>
+<script>
 function load_graph_data(index) {
   tabs = $A($('tabs').getElementsByTagName('a'));
   divs = $A($('panel').getElementsByClassName('select-div'));
@@ -571,5 +571,4 @@ var loader = new YAHOO.util.YUILoader({
 // configuration object, and in this case we have configured everything in
 // the constructor, so we don't need to pass anything to insert().
 loader.insert();
-
-<% end %>
+</script>
