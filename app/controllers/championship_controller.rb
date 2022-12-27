@@ -252,7 +252,7 @@ class ChampionshipController < ApplicationController
     @players = @team.team_players.where(championship_id: @championship.id).includes(:player).to_a
     player_games = PlayerGame.where(player_id: @players.map{|p|p.player_id}, team_id: @team.id, game_id: @played_games)
     player_goals = Goal.where(player_id: @players.map{|p|p.player_id}, game: @played_games, team_id: @team.id)
-    @players.sort!{|a,b| a.player.name <=> b.player.name}.map! do |p|
+    @players.map! do |p|
       goals = player_goals.select{|player|player.player_id == p.player_id}
       games = player_games.select{|player|player.player_id == p.player_id}
       { :player => p.player,

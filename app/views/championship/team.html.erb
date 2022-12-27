@@ -179,8 +179,8 @@ div#odds div.flot-x-axis div.flot-tick-label:nth-child(<%=team_position%>) {
 </div>
 <% end %>
 
-<%= javascript_tag "data = new Array();" %>
-<%= javascript_tag <<EOF
+<script>
+  data = new Array();
   function plot_team_graph_data(request, idx) {
     var new_data = request.responseText.evalJSON();
 
@@ -270,8 +270,7 @@ div#odds div.flot-x-axis div.flot-tick-label:nth-child(<%=team_position%>) {
       jQuery("#placeholder" + idx).plot(current_data["data"], current_data["options"]);
     }
   }
-EOF
-%>
+</script>
 
 <div id="graphs">
   <div id="tabs">
@@ -392,34 +391,44 @@ EOF
   </div>
 <% end %>
 
-<!-- Load the YUI Loader script: -->
-<script src="https://yui-s.yahooapis.com/2.9.0/build/yuiloader/yuiloader-min.js"></script>
-
 <% N_("No records found.") %>
 
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/dt-1.13.1/fc-4.2.1/fh-3.3.1/datatables.min.css"/>
+<script type="text/javascript" src="https://cdn.datatables.net/v/dt/dt-1.13.1/fc-4.2.1/fh-3.3.1/datatables.min.js"></script>
 <h3><%= _("Players") %></h3>
 <style>
-.yui-skin-sam tr.yui-dt-even {
+table.dataTable thead tr th.dtfc-fixed-left {
   background-color: #E3EFCA;
 }
-
-.yui-skin-sam tr.yui-dt-even td.yui-dt-asc, .yui-skin-sam tr.yui-dt-even td.yui-dt-desc {
+table.dataTable tbody tr td.dtfc-fixed-left, table.dataTable thead tr th.dtfc-fixed-left {
+  border-right: 1px solid rgba(0, 0, 0, 0.3);
+}
+table.dataTable tbody tr.even td.dtfc-fixed-left {
+  background-color: #E3EFCA;
+}
+table.dataTable tbody tr.even {
+  background-color: #E3EFCA;
+}
+table.dataTable tbody tr.even td.sorting_1 {
+  background-color: #CEE3A3;
+}
+table.dataTable tbody tr.odd {
+  background-color: #CEE3A3;
+}
+table.dataTable tbody tr.odd td.dtfc-fixed-left {
   background-color: #CEE3A3;
 }
 
-.yui-skin-sam tr.yui-dt-odd {
-  background-color: #CEE3A3;
-}
-
-.yui-skin-sam tr.yui-dt-odd td.yui-dt-asc, .yui-skin-sam tr.yui-dt-odd td.yui-dt-desc {
+table.dataTable tbody tr.odd td.sorting_1 {
   background: #B9D77C;
+}
+div.dtfc-right-top-blocker {
+  background-color: rgba(0, 0, 0, 0);
 }
 #players {
   overflow: auto;
 }
 </style>
-<div class="yui-skin-sam">
-<div id="pag" class="yui-dt-paginator"></div>
 <div id="players">
   <table id="player_table">
   <thead>
@@ -478,7 +487,6 @@ EOF
 EOF
 %>
 </div>
-</div>
 
 <script>
 function load_graph_data(index) {
@@ -494,81 +502,57 @@ function load_graph_data(index) {
     }
   }
 }
+</script>
+<script>
+jQuery(document).ready( function () {
+  jQuery.fn.dataTable.ext.order.intl = function ( locales, options ) {
+    if ( window.Intl ) {
+        var collator = new Intl.Collator( locales, options );
+        var types = jQuery.fn.dataTable.ext.type;
 
-// Instantiate and configure Loader:
-var loader = new YAHOO.util.YUILoader({
-    base: 'https://yui-s.yahooapis.com/2.9.0/build/',
-
-    // Identify the components you want to load.  Loader will automatically identify
-    // any additional dependencies required for the specified components.
-    require: ["datatable", "paginator"],
-
-    // The function to call when all script/css resources have been loaded
-    onSuccess: function() {
-        YAHOO.example.EnhanceFromMarkup = new function() {
-            var myColumnDefs = [
-                {key:"name",label:"<%= _("Name") %>",sortable:true},
-                {key:"pos",label:"<%= _("Pos") %>", sortable:true},
-                {key:"goals",label:"<%= escape_javascript image_tag 'goal.png' %>",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
-                {key:"own",label:"<%= _("OG") %>",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
-                {key:"penalties",label:"<%= _("PG") %>",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
-                {key:"appearances",label:"<%= _("App") %>",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
-                {key:"sub",label:"<%= _("Sub") %>",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
-                {key:"bench",label:"<%= _("Ben") %>",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
-                {key:"yellows",label:"<%= escape_javascript image_tag 'yells.gif' %>",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
-                {key:"reds",label:"<%= escape_javascript image_tag 'reds.gif' %>",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
-                {key:"minutes",label:"<%= _("Min") %>",formatter:YAHOO.widget.DataTable.formatNumber,sortable:true, sortOptions:{defaultDir:YAHOO.widget.DataTable.CLASS_DESC}},
-        <% if can? :manage, Game %>
-                {key:"remove",label:"",sortable:false},
-        <% end %>
-            ];
-
-            this.parseStringFromLink = function(sString) {
-              // Remove the link tag
-              var name = sString.replace(/<.*?>/g, "");
-              sortSpan = '<span style="display: none">' + name + '</span>';
-              return sortSpan + sString;
-            };
-
-            this.myDataSource = new YAHOO.util.DataSource(YAHOO.util.Dom.get("player_table"));
-            this.myDataSource.responseType = YAHOO.util.DataSource.TYPE_HTMLTABLE;
-            this.myDataSource.responseSchema = {
-                fields: [{key:"name", parser:this.parseStringFromLink},
-                        {key:"pos"},
-                        {key:"goals", parser:YAHOO.util.DataSource.parseNumber},
-                        {key:"own", parser:YAHOO.util.DataSource.parseNumber},
-                        {key:"penalties", parser:YAHOO.util.DataSource.parseNumber},
-                        {key:"appearances", parser:YAHOO.util.DataSource.parseNumber},
-                        {key:"sub", parser:YAHOO.util.DataSource.parseNumber},
-                        {key:"bench", parser:YAHOO.util.DataSource.parseNumber},
-                        {key:"yellows", parser:YAHOO.util.DataSource.parseNumber},
-                        {key:"reds", parser:YAHOO.util.DataSource.parseNumber},
-                        {key:"minutes", parser:YAHOO.util.DataSource.parseNumber},
-        <% if can? :manage, Game %>
-                        {key:"remove"},
-        <% end %>
-                ]
-            };
-
-            var config = {
-              paginator: new YAHOO.widget.Paginator({
-                rowsPerPage: 50,
-                template: '{PreviousPageLink} {NextPageLink}',
-                containers: 'pag',
-                previousPageLinkLabel: '<%= _("&laquo; Previous") %>',
-                nextPageLinkLabel: '<%= _("Next &raquo;") %>',
-                alwaysVisible: false
-              }),
-              sortedBy:{ key:"name", dir:"asc" }
-            };
-            YAHOO.widget.DataTable.MSG_EMPTY = '<%= _("No records found.") %>';
-            this.myDataTable = new YAHOO.widget.DataTable("players", myColumnDefs, this.myDataSource, config);
+        delete types.order['string-pre'];
+        types.order['string-asc'] = collator.compare;
+        types.order['string-desc'] = function ( a, b ) {
+            return collator.compare( a, b ) * -1;
         };
     }
-});
+};
 
-// Load the files using the insert() method. The insert method takes an optional
-// configuration object, and in this case we have configured everything in
-// the constructor, so we don't need to pass anything to insert().
-loader.insert();
+jQuery.fn.dataTable.ext.order.htmlIntl = function ( locales, options ) {
+    if ( window.Intl ) {
+        var collator = new Intl.Collator( locales, options );
+        var types = jQuery.fn.dataTable.ext.type;
+
+        delete types.order['html-pre'];
+        types.order['html-asc'] = function ( a, b ) {
+            a = a.replace(/<.*?>/g, '');
+            b = b.replace(/<.*?>/g, '');
+            return collator.compare( a, b );
+        };
+        types.order['html-desc'] = function ( a, b ) {
+            a = a.replace(/<.*?>/g, '');
+            b = b.replace(/<.*?>/g, '');
+            return collator.compare( a, b ) * -1;
+        };
+    }
+};
+  jQuery.fn.dataTable.ext.order.intl(undefined , {sensitivity: 'base'});
+  jQuery.fn.dataTable.ext.order.htmlIntl(undefined , {sensitivity: 'base'});
+  jQuery('#player_table').DataTable({
+    language: { url: 'https://cdn.datatables.net/plug-ins/1.13.1/i18n/<%= I18n.locale %>.json' },
+    fixedHeader: true,
+    fixedColumns: true,
+    searching: false,
+    info: false,
+    paging: false,
+    scrollY: 400,
+    scrollX: true,
+    columnDefs: [
+        { targets: [2,3,4,5,6,7,8,9,10], orderSequence: ["desc", "asc"]},
+<% if can? :manage, Game %>
+        { targets: [11], orderable: false},
+<% end %>
+    ],
+  });
+});
 </script>
