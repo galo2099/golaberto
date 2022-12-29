@@ -393,11 +393,11 @@ div#odds div.flot-x-axis div.flot-tick-label:nth-child(<%=team_position%>) {
 
 <% N_("No records found.") %>
 
-<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/dt-1.13.1/fc-4.2.1/fh-3.3.1/datatables.min.css"/>
-<script type="text/javascript" src="https://cdn.datatables.net/v/dt/dt-1.13.1/fc-4.2.1/fh-3.3.1/datatables.min.js"></script>
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/dt-1.13.1/fc-4.2.1/datatables.min.css"/>
+<script type="text/javascript" src="https://cdn.datatables.net/v/dt/dt-1.13.1/fc-4.2.1/datatables.min.js"></script>
 <h3><%= _("Players") %></h3>
 <style>
-table.dataTable thead tr th.dtfc-fixed-left {
+table.dataTable thead tr th.dtfc-fixed-left, table.dataTable tfoot tr th.dtfc-fixed-left {
   background-color: #E3EFCA;
 }
 table.dataTable tbody tr td.dtfc-fixed-left, table.dataTable thead tr th.dtfc-fixed-left {
@@ -424,6 +424,12 @@ table.dataTable tbody tr.odd td.sorting_1 {
 }
 div.dtfc-right-top-blocker {
   background-color: rgba(0, 0, 0, 0);
+}
+td:nth-child(n+2), th:nth-child(n+2) {
+  text-align: right;
+}
+table.dataTable tfoot th {
+  text-align: right;
 }
 #players {
   overflow: auto;
@@ -476,6 +482,22 @@ div.dtfc-right-top-blocker {
         <% end %>
       </tr>
     <% end %>
+    <tfoot><tr>
+      <th><%= _("Total") %></th>
+      <th></th>
+      <th><%= @players.map{|p|p[:goals]}.sum %></th>
+      <th><%= @players.map{|p|p[:own_goals]}.sum %></th>
+      <th><%= @players.map{|p|p[:penalties]}.sum %></th>
+      <th><%= @players.map{|p|p[:appearances]}.sum %></th>
+      <th><%= @players.map{|p|p[:sub]}.sum %></th>
+      <th><%= @players.map{|p|p[:bench]}.sum %></th>
+      <th><%= @players.map{|p|p[:yellows]}.sum %></th>
+      <th><%= @players.map{|p|p[:reds]}.sum %></th>
+      <th><%= @players.map{|p|p[:minutes]}.sum %></th>
+      <% if can? :manage, Game %>
+        <th></th>
+      <% end %>
+    </tr></tfoot>
   </table>
   <%= javascript_tag <<EOF
   document.on('ajax:failure', '.player-remove', function(event) {
@@ -540,12 +562,12 @@ jQuery.fn.dataTable.ext.order.htmlIntl = function ( locales, options ) {
   jQuery.fn.dataTable.ext.order.htmlIntl(undefined , {sensitivity: 'base'});
   jQuery('#player_table').DataTable({
     language: { url: 'https://cdn.datatables.net/plug-ins/1.13.1/i18n/<%= I18n.locale %>.json' },
-    fixedHeader: true,
     fixedColumns: true,
     searching: false,
     info: false,
     paging: false,
     scrollY: 400,
+    scrollCollapse: true,
     scrollX: true,
     columnDefs: [
         { targets: [2,3,4,5,6,7,8,9,10], orderSequence: ["desc", "asc"]},
