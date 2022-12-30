@@ -86,7 +86,7 @@ table.dataTable tfoot th {
   <tbody>
 <% @player_stats.each do |p| %>
   <tr>
-    <td data-order="<%= p.game.date.to_i %>"><%= p.game.phase.championship.season %></td>
+    <td data-order="<%= p.latest.to_i %>"><%= p.game.phase.championship.season %></td>
     <td class="ellipsis">
       <%= image_tag p.team.small_country_logo, title: _(p.team.country), size: "15x15", alt: "." %>
       <%= image_tag p.team.logo.url(:thumb), size: p.team.logo.styles[:thumb].geometry, alt: "." %>
@@ -140,7 +140,6 @@ jQuery(document).ready( function () {
     order: [[ 0, 'desc' ]],
     columnDefs: [
         { targets: [0,3,4,5,6,7,8,9,10,11], orderSequence: ["desc", "asc"]},
-        { width: "21px", targets: [7] },
     ],
   });
 });

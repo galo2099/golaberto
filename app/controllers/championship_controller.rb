@@ -249,25 +249,7 @@ class ChampionshipController < ApplicationController
     @scheduled_games += @team.away_games.where(phase_id: @championship.phase_ids, played: false).includes(:home, :away)
     @scheduled_games.sort!{|a,b| a.date <=> b.date}
 
-    @players = @team.team_players.where(championship_id: @championship.id).includes(:player).to_a
-    player_games = PlayerGame.where(player_id: @players.map{|p|p.player_id}, team_id: @team.id, game_id: @played_games)
-    player_goals = Goal.where(player_id: @players.map{|p|p.player_id}, game: @played_games, team_id: @team.id)
-    @players.map! do |p|
-      goals = player_goals.select{|player|player.player_id == p.player_id}
-      games = player_games.select{|player|player.player_id == p.player_id}
-      { :player => p.player,
-        :team_player => p,
-        :goals => goals.select{|g|g.own_goal == false}.size,
-        :penalties => goals.select{|g|g.penalty == true}.size,
-        :own_goals => goals.select{|g|g.own_goal == true}.size,
-        :appearances => games.select{|pg| pg.off > 0}.size,
-        :bench => games.select{|pg| pg.off == 0 and pg.on == 0}.size,
-        :sub => games.select{|pg| pg.on > 0}.size,
-        :reds => games.select{|pg| pg.red}.size,
-        :yellows => games.select{|pg| pg.yellow}.size,
-        :minutes => games.map{|pg| pg.off - pg.on}.sum,
-      }
-    end
+    @player_stats = TeamPlayer.stats(game: @played_games, team_id: @team.id)
   end
 
   def new_game

@@ -455,24 +455,27 @@ table.dataTable tfoot th {
       <% end %>
     </tr>
   </thead>
-    <% @players.each do |p| %>
+    <% @player_stats.each do |p| %>
       <tr>
-        <td><%= link_to p[:player].name, :controller => :player, :action => :show, :id => p[:player] %></td>
-        <td><%= p[:player].position %></td>
-        <td><%= p[:goals] %></td>
-        <td><%= p[:own_goals] %></td>
-        <td><%= p[:penalties] %></td>
-        <td><%= p[:appearances] %></td>
-        <td><%= p[:sub] %></td>
-        <td><%= p[:bench] %></td>
-        <td><%= p[:yellows] %></td>
-        <td><%= p[:reds] %></td>
-        <td><%= p[:minutes] %></td>
+        <td>
+	  <%= image_tag p.player.small_country_logo, title: _(p.player.country), size: "15x15", alt: "." %>
+	  <%= link_to p.player.name, :controller => :player, :action => :show, :id => p.player %>
+	</td>
+        <td><%= p.player.position %></td>
+        <td><%= p.goals %></td>
+        <td><%= p.own_goals %></td>
+        <td><%= p.penalties %></td>
+        <td><%= p.appearances %></td>
+        <td><%= p.sub %></td>
+        <td><%= p.bench %></td>
+        <td><%= p.yellows %></td>
+        <td><%= p.reds %></td>
+        <td><%= p.minutes %></td>
         <% if can? :manage, Game %>
           <td>
           <%= link_to(_('Remove'), { :controller => :player,
                                      :action => :destroy_team,
-                                     :id => p[:team_player] },
+                                     :id => p.team_player },
                                 class: 'player-remove',
                                 data: {
                                 :remote => true,
@@ -485,15 +488,15 @@ table.dataTable tfoot th {
     <tfoot><tr>
       <th><%= _("Total") %></th>
       <th></th>
-      <th><%= @players.map{|p|p[:goals]}.sum %></th>
-      <th><%= @players.map{|p|p[:own_goals]}.sum %></th>
-      <th><%= @players.map{|p|p[:penalties]}.sum %></th>
-      <th><%= @players.map{|p|p[:appearances]}.sum %></th>
-      <th><%= @players.map{|p|p[:sub]}.sum %></th>
-      <th><%= @players.map{|p|p[:bench]}.sum %></th>
-      <th><%= @players.map{|p|p[:yellows]}.sum %></th>
-      <th><%= @players.map{|p|p[:reds]}.sum %></th>
-      <th><%= @players.map{|p|p[:minutes]}.sum %></th>
+      <th><%= @player_stats.map{|p|p.goals}.sum %></th>
+      <th><%= @player_stats.map{|p|p.own_goals}.sum %></th>
+      <th><%= @player_stats.map{|p|p.penalties}.sum %></th>
+      <th><%= @player_stats.map{|p|p.appearances}.sum %></th>
+      <th><%= @player_stats.map{|p|p.sub}.sum %></th>
+      <th><%= @player_stats.map{|p|p.bench}.sum %></th>
+      <th><%= @player_stats.map{|p|p.yellows}.sum %></th>
+      <th><%= @player_stats.map{|p|p.reds}.sum %></th>
+      <th><%= @player_stats.map{|p|p.minutes}.sum %></th>
       <% if can? :manage, Game %>
         <th></th>
       <% end %>
