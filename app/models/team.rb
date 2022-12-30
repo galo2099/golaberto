@@ -85,6 +85,6 @@ class Team < ApplicationRecord
   end
 
   def self.get_historical_ratings_2_weeks(team_id)
-    HistoricalRating.connection.select_all("select LEAST(FROM_UNIXTIME((unix_timestamp(measure_date) div (#{2.weeks.to_i}) + 1) * (#{2.weeks.to_i})), NOW()) as d, AVG(rating) as r from historical_ratings where team_id=#{team_id} group by d").to_a.map{|x|x.map{|k,v| v }}.map{|x| x[0] = x[0].to_time.to_i; x[1] = x[1].to_f; x[1] = nil if x[1] == 0; x}
+    HistoricalRating.connection.select_all("select LEAST(FROM_UNIXTIME((unix_timestamp(measure_date) div (#{2.weeks.to_i}) + 1) * (#{2.weeks.to_i})), NOW()) as d, AVG(rating) as r from historical_ratings where team_id=#{team_id} group by d order by measure_date").to_a.map{|x|x.map{|k,v| v }}.map{|x| x[0] = x[0].to_time.to_i; x[1] = x[1].to_f; x[1] = nil if x[1] == 0; x}
   end
 end
