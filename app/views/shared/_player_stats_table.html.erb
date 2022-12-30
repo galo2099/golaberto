@@ -1,0 +1,182 @@
+<%
+text_columns = Set[:season, :team, :championship, :name, :position]
+asc_columns = Set[:team, :championship, :name, :position]
+default_options = {
+  columns_to_show: [:name, :position, :minutes, :goals, :goals_per_90, :own_goals, :penalties, :appearances, :played, :substituted_in, :bench, :yellows, :reds]
+}
+options = default_options.merge(options || {})
+text_columns_selected = options[:columns_to_show].to_set.intersection(text_columns).size
+targets = options[:columns_to_show].each_with_index.map{|x,i| i unless asc_columns.include?(x) }.select{|x| not x.nil?}
+datatable_options = {
+    language: { url: "https://cdn.datatables.net/plug-ins/1.13.1/i18n/#{I18n.locale}.json" },
+    fixedColumns: true,
+    searching: false,
+    info: false,
+    paging: false,
+    scrollY: 400,
+    scrollCollapse: true,
+    scrollX: true,
+    columnDefs: [
+        {targets: targets, orderSequence: ["desc", "asc"]},
+    ],
+  }.merge(datatable_options || {})
+%>
+
+<style>
+table.dataTable thead tr th.dtfc-fixed-left, table.dataTable tfoot tr th.dtfc-fixed-left {
+  background-color: #E3EFCA;
+}
+table.dataTable tbody tr td.dtfc-fixed-left, table.dataTable thead tr th.dtfc-fixed-left {
+  border-right: 1px solid rgba(0, 0, 0, 0.3);
+}
+table.dataTable tbody tr.even td.dtfc-fixed-left {
+  background-color: #E3EFCA;
+}
+table.dataTable tbody tr.even {
+  background-color: #E3EFCA;
+}
+table.dataTable tbody tr.even td.sorting_1 {
+  background-color: #CEE3A3;
+}
+table.dataTable tbody tr.odd {
+  background-color: #CEE3A3;
+}
+table.dataTable tbody tr.odd td.dtfc-fixed-left {
+  background-color: #CEE3A3;
+}
+
+table.dataTable tbody tr.odd td.sorting_1 {
+  background: #B9D77C;
+}
+div.dtfc-right-top-blocker {
+  background-color: rgba(0, 0, 0, 0);
+}
+table.dataTable tfoot th {
+  text-align: right;
+}
+#players_stats_table_div {
+  overflow: auto;
+}
+td:nth-child(n+<%= text_columns_selected+1 %>), th:nth-child(n+<%= text_columns_selected+1 %>) {
+  text-align: right;
+}
+</style>
+<div id="players_stats_table_div">
+  <table id="player_stats_table">
+  <thead>
+    <tr>
+      <% options[:columns_to_show].each do |column| %>
+      <% if column == :season %><th><%= _("Season") %></th><% end %>
+      <% if column == :team %><th><%= _("Team") %></th><% end %>
+      <% if column == :championship %><th><%= _("Championship") %></th><% end %>
+      <% if column == :name %><th><%= _("Name") %></th><% end %>
+      <% if column == :position %><th title="<%= _("Position") %>"><%= s_("Position|P") %></th><% end %>
+      <% if column == :goals %><th title="<%= _("Goals") %>"><%= image_tag "goal.png" %></th><% end %>
+      <% if column == :goals_per_90 %><th title="<%= _("Goals per 90 minutes") %>"><%= image_tag "goal.png", size: "8x8" %><span style="font-size: xx-small">/90</span></th><% end %>
+      <% if column == :own_goals %><th title="<%= _("Own Goals") %>"><%= s_("OwnGoals|O") %></th><% end %>
+      <% if column == :penalties %><th title="<%= _("Penalties") %>"><%= s_("Penalties|P") %></th><% end %>
+      <% if column == :appearances %><th title="<%= _("Appearances") %>"><%= s_("Appearances|A") %></th><% end %>
+      <% if column == :played %><th title="<%= _("Played") %>"><%= s_("Played|P") %></th><% end %>
+      <% if column == :substituted_in %><th title="<%= _("Substituted In") %>"><%= s_("Substituted In|S") %></th><% end %>
+      <% if column == :bench %><th title="<%= _("Bench")%>"><%= s_("Bench|B") %></th><% end %>
+      <% if column == :yellows %><th title="<%= _("Yellows") %>"><%= image_tag "yells.gif" %></th><% end %>
+      <% if column == :reds %><th title="<%= _("Reds") %>"><%= image_tag "reds.gif" %></th><% end %>
+      <% if column == :minutes %><th title="<%= _("Minutes") %>"><%= s_("Minutes|M") %></th><% end %>
+      <% end %>
+    </tr>
+  </thead>
+    <% player_stats.each do |p| %>
+      <tr>
+      <% options[:columns_to_show].each do |column| %>
+    <% if column == :season %><td data-order="<%= p.latest.to_i %>"><%= p.game.phase.championship.season %></td><% end %>
+    <% if column == :team %><td>
+      <%= image_tag p.team.small_country_logo, title: _(p.team.country), size: "15x15", alt: "." %>
+      <%= image_tag p.team.logo.url(:thumb), size: p.team.logo.styles[:thumb].geometry, alt: "." %>
+      <%= link_to add_wbr_to_string(p.team.name), action: :team, controller: :championship, id: p.game.phase.championship, team: p.team %>
+    </td><% end %>
+    <% if column == :championship %><td>
+      <%= championship_name(p.game.phase.championship, false, false, {:controller => :championship, :action => :team, :id => p.game.phase.championship, team: p.team}) %>
+    </td><% end %>
+        <% if column == :name %><td>
+	  <%= image_tag p.player.small_country_logo, title: _(p.player.country), size: "15x15", alt: "." %>
+	  <%= link_to p.player.name, :controller => :player, :action => :show, :id => p.player %>
+	</td><% end %>
+        <% if column == :position %><td><%= p.player.position %></td><% end %>
+        <% if column == :goals %><td><%= p.goals %></td><% end %>
+        <% if column == :goals_per_90 %><td><%= number_with_precision(p.goals.to_f / (p.minutes.to_f.nonzero? || 1) * 90, precision: 2) %></td><% end %>
+        <% if column == :own_goals %><td><%= p.own_goals %></td><% end %>
+        <% if column == :penalties %><td><%= p.penalties %></td><% end %>
+        <% if column == :appearances %><td><%= p.appearances %></td><% end %>
+	<% if column == :played %><td><%= p.played %></td><% end %>
+        <% if column == :substituted_in %><td><%= p.sub %></td><% end %>
+        <% if column == :bench %><td><%= p.bench %></td><% end %>
+        <% if column == :yellows %><td><%= p.yellows %></td><% end %>
+        <% if column == :reds %><td><%= p.reds %></td><% end %>
+        <% if column == :minutes %><td><%= p.minutes %></td><% end %>
+        <% end %>
+      </tr>
+    <% end %>
+    <tfoot><tr>
+      <% options[:columns_to_show].each do |column| %>
+      <% if column == :season %><th></th><% end %>
+      <% if column == :team %><th></th><% end %>
+      <% if column == :championship %><th></th><% end %>
+      <% if column == :name %><th></th><% end %>
+      <% if column == :position %><th></th><% end %>
+      <% if column == :goals %><th><%= player_stats.map{|p|p.goals}.sum %></th><% end %>
+      <% if column == :goals_per_90 %><th><%= number_with_precision(@player_stats.map{|p|p.goals}.sum.to_f / (@player_stats.map{|p|p.minutes}.sum.nonzero? || 1) * 90, precision: 2) %></th><% end %>
+      <% if column == :own_goals %><th><%= player_stats.map{|p|p.own_goals}.sum %></th><% end %>
+      <% if column == :penalties %><th><%= player_stats.map{|p|p.penalties}.sum %></th><% end %>
+      <% if column == :appearances %><th><%= player_stats.map{|p|p.appearances}.sum %></th><% end %>
+      <% if column == :played %><th><%= player_stats.map{|p|p.played}.sum %></th><% end %>
+      <% if column == :substituted_in %><th><%= player_stats.map{|p|p.sub}.sum %></th><% end %>
+      <% if column == :bench %><th><%= player_stats.map{|p|p.bench}.sum %></th><% end %>
+      <% if column == :yellows %><th><%= player_stats.map{|p|p.yellows}.sum %></th><% end %>
+      <% if column == :reds %><th><%= player_stats.map{|p|p.reds}.sum %></th><% end %>
+      <% if column == :minutes %><th><%= player_stats.map{|p|p.minutes}.sum %></th><% end %>
+      <% end %>
+    </tr></tfoot>
+  </table>
+</div>
+
+<script>
+jQuery(document).ready(function ($) {
+  $.fn.dataTable.ext.order.intl = function (locales, options) {
+    if (window.Intl) {
+      var collator = new Intl.Collator(locales, options);
+      var types = $.fn.dataTable.ext.type;
+
+      delete types.order['string-pre'];
+      types.order['string-asc'] = collator.compare;
+      types.order['string-desc'] = function (a, b) {
+        return collator.compare(a, b) * -1;
+      };
+    }
+  };
+
+  $.fn.dataTable.ext.order.htmlIntl = function (locales, options) {
+    if (window.Intl) {
+      var collator = new Intl.Collator(locales, options);
+      var types = $.fn.dataTable.ext.type;
+
+      delete types.order['html-pre'];
+      types.order['html-asc'] = function (a, b) {
+        a = a.replace(/<.*?>/g, '');
+        b = b.replace(/<.*?>/g, '');
+        return collator.compare(a, b);
+      };
+      types.order['html-desc'] = function (a, b) {
+        a = a.replace(/<.*?>/g, '');
+        b = b.replace(/<.*?>/g, '');
+        return collator.compare(a, b) * -1;
+      };
+    }
+  };
+
+  $.fn.dataTable.ext.order.intl(undefined , {sensitivity: 'base'});
+  $.fn.dataTable.ext.order.htmlIntl(undefined , {sensitivity: 'base'});
+  $('#player_stats_table').DataTable({
+     ...<%== datatable_options.to_json %>,
+   });
+});
+</script>
