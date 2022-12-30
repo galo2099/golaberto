@@ -450,9 +450,6 @@ table.dataTable tfoot th {
       <th><%= _("Y") %></th>
       <th><%= _("R") %></th>
       <th><%= _("Min") %></th>
-      <% if can? :manage, Game %>
-        <th></th>
-      <% end %>
     </tr>
   </thead>
     <% @player_stats.each do |p| %>
@@ -471,18 +468,6 @@ table.dataTable tfoot th {
         <td><%= p.yellows %></td>
         <td><%= p.reds %></td>
         <td><%= p.minutes %></td>
-        <% if can? :manage, Game %>
-          <td>
-          <%= link_to(_('Remove'), { :controller => :player,
-                                     :action => :destroy_team,
-                                     :id => p.team_player },
-                                class: 'player-remove',
-                                data: {
-                                :remote => true,
-                                :confirm => _('Are you sure?'),
-                                :method => :post}) %>
-          </td>
-        <% end %>
       </tr>
     <% end %>
     <tfoot><tr>
@@ -497,20 +482,8 @@ table.dataTable tfoot th {
       <th><%= @player_stats.map{|p|p.yellows}.sum %></th>
       <th><%= @player_stats.map{|p|p.reds}.sum %></th>
       <th><%= @player_stats.map{|p|p.minutes}.sum %></th>
-      <% if can? :manage, Game %>
-        <th></th>
-      <% end %>
     </tr></tfoot>
   </table>
-  <%= javascript_tag <<EOF
-  document.on('ajax:failure', '.player-remove', function(event) {
-    alert('#{_('Error removing')}');
-  });
-  document.on('ajax:success', '.player-remove', function(event) {
-    YAHOO.example.EnhanceFromMarkup.myDataTable.deleteRow(event.target.parentNode.parentNode.id);
-  });
-EOF
-%>
 </div>
 
 <script>
@@ -574,9 +547,6 @@ jQuery.fn.dataTable.ext.order.htmlIntl = function ( locales, options ) {
     scrollX: true,
     columnDefs: [
         { targets: [2,3,4,5,6,7,8,9,10], orderSequence: ["desc", "asc"]},
-<% if can? :manage, Game %>
-        { targets: [11], orderable: false},
-<% end %>
     ],
   });
 });
