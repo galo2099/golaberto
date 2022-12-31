@@ -45,9 +45,6 @@ msgstr "%{num} anos"
 msgid "%{time} ago"
 msgstr "%{time} atrás"
 
-msgid "&laquo; Previous"
-msgstr "&laquo; Anterior"
-
 # app/models/goal.rb:-
 msgid "(own_goal)"
 msgstr "(gol contra)"
@@ -128,9 +125,6 @@ msgstr "Anguilla"
 msgid "Antigua And Barbuda"
 msgstr "Antígua e Barbuda"
 
-msgid "App"
-msgstr "Esc"
-
 msgid "Appearances"
 msgstr "Escalações"
 
@@ -206,8 +200,11 @@ msgstr "Bélgica"
 msgid "Belize"
 msgstr "Belize"
 
-msgid "Ben"
-msgstr "Ban"
+msgid "Bench"
+msgstr "Banco"
+
+msgid "Bench|B"
+msgstr "B"
 
 msgid "Benin"
 msgstr "Benin"
@@ -562,9 +559,6 @@ msgstr "Guiné Equatorial"
 msgid "Eritrea"
 msgstr "Eritréia"
 
-msgid "Error removing"
-msgstr "Erro ao remover"
-
 msgid "Estonia"
 msgstr "Estônia"
 
@@ -726,8 +720,8 @@ msgstr "Diferença de gols igual a ou maior que"
 msgid "Goals"
 msgstr "Gols"
 
-msgid "Goalscorers"
-msgstr "Artilheiros"
+msgid "Goals per 90 minutes"
+msgstr "Gols por 90 minutos"
 
 # app/models/goal.rb:-
 msgid "Goal|Aet"
@@ -1015,9 +1009,6 @@ msgstr "Membro por"
 msgid "Mexico"
 msgstr "México"
 
-msgid "Min"
-msgstr "Min"
-
 msgid "Minimum"
 msgstr "Mínimo"
 
@@ -1131,9 +1122,6 @@ msgstr "Nova equipe"
 msgid "New team_group"
 msgstr "Novo equipe_grupo"
 
-msgid "Next &raquo;"
-msgstr "Próximo &raquo;"
-
 msgid "Next page"
 msgstr "Próxima página"
 
@@ -1151,9 +1139,6 @@ msgstr "Niue"
 
 msgid "No phases found"
 msgstr "Nenhuma fase encontrada"
-
-msgid "No players in this list"
-msgstr "Sem jogadores nesta lista"
 
 msgid "No records found."
 msgstr "Nenhum registro encontrado."
@@ -1178,9 +1163,6 @@ msgstr "Você agora pode <a href='%{signup_link}'>se cadastrar</a> e deixar come
 
 msgid "Number of teams"
 msgstr "Número de equipes"
-
-msgid "OG"
-msgstr "GC"
 
 # app/models/user.rb:-
 msgid "Observation"
@@ -1221,9 +1203,6 @@ msgstr "Gols Contra"
 
 msgid "OwnGoals|O"
 msgstr "C"
-
-msgid "PG"
-msgstr "GP"
 
 msgid "Pakistan"
 msgstr "Paquistão"
@@ -1386,6 +1365,9 @@ msgstr "Pos"
 msgid "Position"
 msgstr "Posição"
 
+msgid "Position|P"
+msgstr "P"
+
 msgid "Previous game"
 msgid_plural "Previous %d games"
 msgstr[0] "Último jogo"
@@ -1402,9 +1384,6 @@ msgstr "Porto Rico"
 
 msgid "Qatar"
 msgstr "Qatar"
-
-msgid "R"
-msgstr "V"
 
 msgid "Rating"
 msgstr "Nota"
@@ -1446,9 +1425,6 @@ msgstr "Região"
 
 msgid "Region|All"
 msgstr "Todos"
-
-msgid "Remove"
-msgstr "Remover"
 
 msgid "Removed %s: %s<br>"
 msgstr "Removido %s: %s<br>"
@@ -1617,8 +1593,11 @@ msgstr "Iniciar tempo"
 msgid "Stats"
 msgstr "Estatísticas"
 
-msgid "Sub"
-msgstr "Sub"
+msgid "Substituted In"
+msgstr "Substituto"
+
+msgid "Substituted In|S"
+msgstr "S"
 
 msgid "Sudan"
 msgstr "Sudão"
@@ -1755,9 +1734,6 @@ msgstr "Togo"
 
 msgid "Tonga"
 msgstr "Tonga"
-
-msgid "Top Goalscorers"
-msgstr "Maiores Artilheiros"
 
 msgid "Top games"
 msgstr "Melhores jogos"
@@ -1942,9 +1918,6 @@ msgstr "Mundial"
 # app/models/championship.rb:-
 msgid "World Championships"
 msgstr "Campeonatos Mundiais"
-
-msgid "Y"
-msgstr "A"
 
 msgid "Yellows"
 msgstr "Amarelos"

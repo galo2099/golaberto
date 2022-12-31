@@ -252,6 +252,14 @@ class ChampionshipController < ApplicationController
     @player_stats = TeamPlayer.stats(game: @played_games, team_id: @team.id)
   end
 
+  def players
+    store_location
+    @championship = Championship.includes(:phases => [ :teams, { :groups => :teams }]).find(params["id"])
+
+    @player_stats = TeamPlayer.stats("games.phase_id": @championship.phases.pluck(:id))
+    @player_stats = @player_stats.to_a.sort{|a,b| b.goals <=> a.goals}
+  end
+
   def new_game
     @championship = Championship.find(params["id"])
     @current_phase = @championship.phases.find(params["phase"])
@@ -323,23 +331,6 @@ class ChampionshipController < ApplicationController
   def destroy
     Championship.find(params["id"]).destroy
     redirect_to action: :list
-  end
-
-  def top_goalscorers
-    @championship = Championship.find(params["id"])
-    @scorers = @championship.goals.group(:player_id).where(own_goal: false).reorder("count_all DESC").count.to_a
-    @pagy, @scorers = pagy_array(@scorers, items: 30)
-    @players = Player.find(@scorers.map{|p,c| p}).map{|p| [p.id, p]}.to_h
-    player_team_count = @championship.goals.group(:player_id, :team_id).where(own_goal: false, player_id: @players.keys).count
-    teams = Team.where(id: player_team_count.map{|t| t[0][1]}).map{|t|[t.id, t]}.to_h
-    @teams = player_team_count.inject(Hash.new) do |h,t|
-      player = @players[t[0][0]]
-      team = teams[t[0][1]]
-      h[player] = [ team ] + h[player].to_a
-      h
-    end
-    @own = @championship.goals.group(:player_id).where(:own_goal => true, :player_id => @players.keys).count
-    @penalty = @championship.goals.group(:player_id).where(:penalty => true, :player_id => @players.keys).count
   end
 
   def spi_eval

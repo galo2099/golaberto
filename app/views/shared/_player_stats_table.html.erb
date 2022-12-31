@@ -7,6 +7,7 @@ default_options = {
 options = default_options.merge(options || {})
 text_columns_selected = options[:columns_to_show].to_set.intersection(text_columns).size
 targets = options[:columns_to_show].each_with_index.map{|x,i| i unless asc_columns.include?(x) }.select{|x| not x.nil?}
+text_targets = options[:columns_to_show].each_with_index.map{|x,i| i if text_columns.include?(x) }.select{|x| not x.nil?}
 datatable_options = {
     language: { url: "https://cdn.datatables.net/plug-ins/1.13.1/i18n/#{I18n.locale}.json" },
     fixedColumns: true,
@@ -18,6 +19,7 @@ datatable_options = {
     scrollX: true,
     columnDefs: [
         {targets: targets, orderSequence: ["desc", "asc"]},
+        {targets: text_targets, className: "textColumn"},
     ],
   }.merge(datatable_options || {})
 %>
@@ -60,9 +62,15 @@ table.dataTable tfoot th {
 td:nth-child(n+<%= text_columns_selected+1 %>), th:nth-child(n+<%= text_columns_selected+1 %>) {
   text-align: right;
 }
+table.dataTable td.textColumn {
+  white-space: nowrap;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 </style>
 <div id="players_stats_table_div">
-  <table id="player_stats_table">
+  <table id="player_stats_table" class="dataTable">
   <thead>
     <tr>
       <% options[:columns_to_show].each do |column| %>
@@ -95,7 +103,10 @@ td:nth-child(n+<%= text_columns_selected+1 %>), th:nth-child(n+<%= text_columns_
       <%= link_to add_wbr_to_string(p.team.name), action: :team, controller: :championship, id: p.game.phase.championship, team: p.team %>
     </td><% end %>
     <% if column == :championship %><td>
-      <%= championship_name(p.game.phase.championship, false, false, {:controller => :championship, :action => :team, :id => p.game.phase.championship, team: p.team}) %>
+      <% p.game.phase.championship.tap do |champ| %>
+        <%= image_tag(region_flag_url(champ.region, champ.region_name) , :title => _(champ.region_name), size: "15x15") %>
+        <%= link_to(champ.full_name(false, false), {:controller => :championship, :action => :team, :id => champ, team: p.team}) %>
+      <% end %>
     </td><% end %>
         <% if column == :name %><td>
 	  <%= image_tag p.player.small_country_logo, title: _(p.player.country), size: "15x15", alt: "." %>
@@ -117,12 +128,16 @@ td:nth-child(n+<%= text_columns_selected+1 %>), th:nth-child(n+<%= text_columns_
       </tr>
     <% end %>
     <tfoot><tr>
+      <% total_th = false %>
       <% options[:columns_to_show].each do |column| %>
-      <% if column == :season %><th></th><% end %>
-      <% if column == :team %><th></th><% end %>
-      <% if column == :championship %><th></th><% end %>
-      <% if column == :name %><th></th><% end %>
-      <% if column == :position %><th></th><% end %>
+      <% if column == :season or column == :team or column == :championship or column == :name or column == :position %>
+        <% if not total_th %>
+          <th><%= _("Total") %></th>
+          <% total_th = true %>
+        <% else %>
+          <th></th>
+        <% end %>
+      <% end %>
       <% if column == :goals %><th><%= player_stats.map{|p|p.goals}.sum %></th><% end %>
       <% if column == :goals_per_90 %><th><%= number_with_precision(@player_stats.map{|p|p.goals}.sum.to_f / (@player_stats.map{|p|p.minutes}.sum.nonzero? || 1) * 90, precision: 2) %></th><% end %>
       <% if column == :own_goals %><th><%= player_stats.map{|p|p.own_goals}.sum %></th><% end %>

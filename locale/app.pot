@@ -8,8 +8,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: app 1.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-12-23 12:05-0800\n"
-"PO-Revision-Date: 2022-12-23 12:05-0800\n"
+"POT-Creation-Date: 2022-12-31 00:48-0800\n"
+"PO-Revision-Date: 2022-12-31 00:48-0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
@@ -46,9 +46,6 @@ msgid "%{num} years"
 msgstr ""
 
 msgid "%{time} ago"
-msgstr ""
-
-msgid "&laquo; Previous"
 msgstr ""
 
 msgid "(own_goal)"
@@ -129,9 +126,6 @@ msgstr ""
 msgid "Antigua And Barbuda"
 msgstr ""
 
-msgid "App"
-msgstr ""
-
 msgid "Appearances"
 msgstr ""
 
@@ -207,7 +201,10 @@ msgstr ""
 msgid "Belize"
 msgstr ""
 
-msgid "Ben"
+msgid "Bench"
+msgstr ""
+
+msgid "Bench|B"
 msgstr ""
 
 msgid "Benin"
@@ -546,9 +543,6 @@ msgstr ""
 msgid "Eritrea"
 msgstr ""
 
-msgid "Error removing"
-msgstr ""
-
 msgid "Estonia"
 msgstr ""
 
@@ -693,7 +687,7 @@ msgstr ""
 msgid "Goals"
 msgstr ""
 
-msgid "Goalscorers"
+msgid "Goals per 90 minutes"
 msgstr ""
 
 msgid "Goal|Aet"
@@ -969,9 +963,6 @@ msgstr ""
 msgid "Mexico"
 msgstr ""
 
-msgid "Min"
-msgstr ""
-
 msgid "Minimum"
 msgstr ""
 
@@ -1083,9 +1074,6 @@ msgstr ""
 msgid "New team_group"
 msgstr ""
 
-msgid "Next &raquo;"
-msgstr ""
-
 msgid "Next page"
 msgstr ""
 
@@ -1102,9 +1090,6 @@ msgid "Niue"
 msgstr ""
 
 msgid "No phases found"
-msgstr ""
-
-msgid "No players in this list"
 msgstr ""
 
 msgid "No records found."
@@ -1129,9 +1114,6 @@ msgid "Now you can <a href='%{signup_link}'>sign up</a> and leave comments on th
 msgstr ""
 
 msgid "Number of teams"
-msgstr ""
-
-msgid "OG"
 msgstr ""
 
 msgid "Observation"
@@ -1171,9 +1153,6 @@ msgid "Own Goals"
 msgstr ""
 
 msgid "OwnGoals|O"
-msgstr ""
-
-msgid "PG"
 msgstr ""
 
 msgid "Pakistan"
@@ -1314,6 +1293,9 @@ msgstr ""
 msgid "Position"
 msgstr ""
 
+msgid "Position|P"
+msgstr ""
+
 msgid "Previous game"
 msgid_plural "Previous %d games"
 msgstr[0] ""
@@ -1329,9 +1311,6 @@ msgid "Puerto Rico"
 msgstr ""
 
 msgid "Qatar"
-msgstr ""
-
-msgid "R"
 msgstr ""
 
 msgid "Rating"
@@ -1368,9 +1347,6 @@ msgid "Region"
 msgstr ""
 
 msgid "Region|All"
-msgstr ""
-
-msgid "Remove"
 msgstr ""
 
 msgid "Removed %s: %s<br>"
@@ -1532,7 +1508,10 @@ msgstr ""
 msgid "Stats"
 msgstr ""
 
-msgid "Sub"
+msgid "Substituted In"
+msgstr ""
+
+msgid "Substituted In|S"
 msgstr ""
 
 msgid "Sudan"
@@ -1654,9 +1633,6 @@ msgid "Togo"
 msgstr ""
 
 msgid "Tonga"
-msgstr ""
-
-msgid "Top Goalscorers"
 msgstr ""
 
 msgid "Top games"
@@ -1822,9 +1798,6 @@ msgid "World"
 msgstr ""
 
 msgid "World Championships"
-msgstr ""
-
-msgid "Y"
 msgstr ""
 
 msgid "Yellows"
