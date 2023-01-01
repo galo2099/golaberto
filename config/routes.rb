@@ -75,6 +75,8 @@ Rails.application.routes.draw do
   match 'championship/show/:id/games/:phase(/group/:group)(/round/:round)(/p/:page)' => 'championship#games', :constraints => { :page => /\d+/ }, :defaults => { :page => 1 }, via: :get
   match 'championship/show/:id/new_game/:phase' => 'championship#new_game', via: :get
   match 'championship/show/:id/team/:team' => 'championship#team', via: :get
+  match 'championship/show/:id/team/:team/player/:player' => 'championship#player_show', via: :get
+  match 'championship/show/:id/players/list' => 'championship#player_list', via: :get
 
   match 'game/list(/:type)(/cat/:category)(/p/:page)' => 'game#list', :constraints => { :page => /\d+/ }, :defaults => { :type => :scheduled, :page => 1, :category => 1 }, via: :get
   match 'game/list/played(/:type)(/cat/:category)(/p/:page)' => 'game#list', :constraints => { :page => /\d+/ }, :defaults => { :type => :played, :page => 1, :category => 1 }, via: :get

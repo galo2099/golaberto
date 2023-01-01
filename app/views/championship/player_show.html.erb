@@ -1,0 +1,44 @@
+<% content_for :title do %>
+  <%= @championship.full_name %> - <%= @player.name %>
+<% end %>
+<% content_for :main_title do %>
+  <%= @championship.full_name %>
+<% end %>
+
+<%= javascript_include_jquery %>
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/dt-1.13.1/fc-4.2.1/datatables.min.css"/>
+<script type="text/javascript" src="https://cdn.datatables.net/v/dt/dt-1.13.1/fc-4.2.1/datatables.min.js"></script>
+
+<h2><%= link_to @player.name, controller: :player, action: :show, id: @player %> - <%= link_to @team.name, controller: :championship, action: :team, id: @championship, team: @team %></h2>
+
+<%= render partial: "shared/player_stats_table", :locals => {
+  player_stats:  [@player_stats],
+  options: {
+    columns_to_show: [:position, :minutes, :goals, :goals_per_90, :own_goals, :penalties, :appearances, :played, :substituted_in, :bench, :yellows, :reds],
+    show_total: false,
+  },
+  datatable_options: { ordering: false, fixedColumns: false, scrollY: false, scrollCollapse: false, scrollX: false },
+ } %>
+
+<h2> <%= _("Games") %></h2>
+<div class="game_score">
+<% @player.player_games.joins(game: { phase: :championship }).includes(game: { phase: :championship }).includes(game: [:home, :away, :goals]).includes(:team).order("games.date DESC").where("championships.id": @championship).each do |pg| %>
+  <div style='font-size: 11px'><%= formatted_date(pg.game, true) %></div>
+  <div class="<%= cycle "table_line_even", "table_line_odd" %> table_row">
+    <div class="table_cell" style="width: 92%">
+      <%= render :partial => "championship/game_list",
+                 :locals => { :highlight_team => pg.team,
+                              :game => pg.game,
+                              :show_country => pg.game.phase.championship.show_country,
+                            } %>
+      <div class="clearer"></div>
+    </div>
+    <div class="clearer"></div>
+  </div>
+  <%= render :partial => "player/game_detail", :locals => { :pg => pg } %>
+<% end %>
+</div>
+
+<% content_for :sidebar do %>
+  <%= render :partial => "nav_side" %>
+<% end %>

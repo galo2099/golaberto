@@ -252,12 +252,24 @@ class ChampionshipController < ApplicationController
     @player_stats = TeamPlayer.stats(game: @played_games, team_id: @team.id)
   end
 
-  def players
+  def player_list
     store_location
     @championship = Championship.includes(:phases => [ :teams, { :groups => :teams }]).find(params["id"])
 
     @player_stats = TeamPlayer.stats("games.phase_id": @championship.phases.pluck(:id))
     @player_stats = @player_stats.to_a.sort{|a,b| b.goals <=> a.goals}
+  end
+
+  def player_show
+    store_location
+    @championship = Championship.find(params["id"])
+    @player = Player.find(params[:player])
+    @team = Team.find(params[:team])
+
+    @player_stats = TeamPlayer.stats("games.phase_id": @championship.phases.pluck(:id), player: @player)
+    @player_stats = @player_stats.to_a.sort{|a,b| b.goals <=> a.goals}.first
+
+    @games = @player.games.where(phase: @championship.phases).includes(:goals)
   end
 
   def new_game

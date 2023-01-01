@@ -16,7 +16,7 @@
 
 <div class="game_score">
   <% last_championship = nil %>
-<% @player.player_games.includes(game: { phase: :championship }).includes(game: [:home, :away]).includes(:team).order("games.date DESC").limit(10).each do |pg| %>
+<% @player.player_games.includes(game: { phase: :championship }).includes(game: [:home, :away, :goals]).includes(:team).order("games.date DESC").limit(10).each do |pg| %>
   <% if last_championship != pg.game.phase.championship %>
     <% last_championship = pg.game.phase.championship %>
     <%= championship_name(pg.game.phase.championship, {:controller => :championship, :action => :team, :id => pg.game.phase.championship, :team => pg.team}) %>

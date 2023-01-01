@@ -90,7 +90,7 @@ class PlayerController < ApplicationController
     @type = params[:type].to_s
     @played = @type == "played"
     order = !!@played ? "date DESC" : "date ASC"
-    @pagy, @player_games = pagy(@player.player_games.includes(game: {phase: :championship}).where("played = ? and championships.category_id = ?", @played, @category).order(order).references(:championship), items: 20)
+    @pagy, @player_games = pagy(@player.player_games.includes(:team).includes(game: {phase: :championship}).includes(game: [:home, :away, :goals]).where("played = ? and championships.category_id = ?", @played, @category).order(order).references(:championship), items: 20)
   end
 
   def edit

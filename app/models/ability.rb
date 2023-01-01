@@ -16,7 +16,7 @@ class Ability
     end
 
     can :read, :all
-    can [ :phases, :crowd, :team, :games, :team_json, :players ], Championship
+    can [ :phases, :crowd, :team, :games, :team_json, :player_list, :player_show ], Championship
     can [ :games, :historical_rating ], Team
     can [ :games ], Player
     can [ :create, :list_edits ], User

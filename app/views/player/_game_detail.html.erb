@@ -6,7 +6,7 @@
         <div class='table_cell' style='width: 15%'><%= _("Off") %>: <%= pg.off %></div>
         <div class='table_cell' style='color: rgb(237,194,64); width: 5%'><% if pg.yellow %><%= image_tag "yells.gif" %><% end %></div>
         <div class='table_cell' style='color: rgb(255,0,0); width: 5%'><% if pg.red %><%= image_tag "reds.gif" %><% end %></div>
-        <div class='table_cell' style='font-size: 10px'><%= pg.game.goals.where(player_id: @player.id, own_goal: false).map{|x| "#{image_tag('goal.png')} #{x.time}' "}.join.html_safe %></div>
+        <div class='table_cell' style='font-size: 10px'><%= pg.game.goals.to_a.select{|g|g.player_id == @player.id and not g.own_goal}.map{|x| "#{image_tag('goal.png')} #{x.time}' "}.join.html_safe %></div>
         <div class="clearer"></div>
       </div>
       <div class="clearer"></div>

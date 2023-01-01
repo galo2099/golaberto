@@ -2,7 +2,8 @@
 text_columns = Set[:season, :team, :championship, :name, :position]
 asc_columns = Set[:team, :championship, :name, :position]
 default_options = {
-  columns_to_show: [:name, :position, :minutes, :goals, :goals_per_90, :own_goals, :penalties, :appearances, :played, :substituted_in, :bench, :yellows, :reds]
+  columns_to_show: [:name, :position, :minutes, :goals, :goals_per_90, :own_goals, :penalties, :appearances, :played, :substituted_in, :bench, :yellows, :reds],
+  show_total: true,
 }
 options = default_options.merge(options || {})
 text_columns_selected = options[:columns_to_show].to_set.intersection(text_columns).size
@@ -34,7 +35,7 @@ columns_def = {
     body: ->(p) { "<td>" +
       image_tag(p.team.small_country_logo, title: _(p.team.country), size: "15x15", alt: ".") +
       image_tag(p.team.logo.url(:thumb), size: p.team.logo.styles[:thumb].geometry, alt: ".") +
-      link_to(add_wbr_to_string(p.team.name), action: :team, controller: :championship, id: p.game.phase.championship, team: p.team) +
+      link_to(add_wbr_to_string(p.team.name), action: :player_show, controller: :championship, id: p.game.phase.championship, team: p.team, player: p.player) +
       "</td>" },
     footer: ->(stats, first) { if first then "<th>#{_("Total")}</th>" else "<th></th>" end },
   },
@@ -44,7 +45,7 @@ columns_def = {
       champ = p.game.phase.championship
       "<td>" +
         image_tag(region_flag_url(champ.region, champ.region_name) , :title => _(champ.region_name), size: "15x15") +
-        link_to(champ.full_name(false, false), {:controller => :championship, :action => :team, :id => champ, team: p.team}) +
+        link_to(champ.full_name(false, false), {:controller => :championship, :action => :player_show, :id => champ, team: p.team, player: p.player}) +
         "</td>"
      },
     footer: ->(stats, first) { if first then "<th>#{_("Total")}</th>" else "<th></th>" end },
@@ -53,68 +54,68 @@ columns_def = {
     header: "<th>#{_("Name")}</th>",
     body: ->(p) { "<td>" +
       image_tag(p.player.small_country_logo, title: _(p.player.country), size: "15x15", alt: ".") +
-      link_to(p.player.name, :controller => :player, :action => :show, :id => p.player) +
+      link_to(p.player.name, controller: :championship, action: :player_show, id: p.game.phase.championship, team: p.team, player: p.player) +
       "</td>"
     },
     footer: ->(stats, first) { if first then "<th>#{_("Total")}</th>" else "<th></th>" end },
   },
   position: {
-    header: "<th tile='#{_("Position")}'>#{s_("Position|P")}</th>",
+    header: "<th title='#{_("Position")}'>#{s_("Position|P")}</th>",
     body: ->(p) { "<td>#{p.player.position}</td>" },
     footer: ->(stats, first) { if first then "<th>#{_("Total")}</th>" else "<th></th>" end },
   },
   goals: {
-    header: "<th tile='#{_("Goals")}'>#{image_tag "goal.png"}</th>",
+    header: "<th title='#{_("Goals")}'>#{image_tag "goal.png"}</th>",
     body: ->(p) { "<td>#{p.goals}</td>" },
     footer: ->(stats, first) { "<th>#{stats.map{|p|p.goals}.sum}</th>" },
   },
   goals_per_90: {
-    header: "<th tile='#{_("Goals per 90 minutes")}'>#{image_tag "goal.png", size: "8x8"}<span style='font-size: xx-small'>/90</span></th>",
+    header: "<th title='#{_("Goals per 90 minutes")}'>#{image_tag "goal.png", size: "8x8"}<span style='font-size: xx-small'>/90</span></th>",
     body: ->(p) { "<td>#{number_with_precision(p.goals.to_f / (p.minutes.to_f.nonzero? || 1) * 90, precision: 2)}</td>" },
     footer: ->(stats, first) { "<th>#{number_with_precision(stats.map{|p|p.goals}.sum.to_f / (stats.map{|p|p.minutes}.sum.nonzero? || 1) * 90, precision: 2)}</th>" },
   },
   own_goals: {
-    header: "<th tile='#{_("Own Goals")}'>#{s_("OwnGoals|O")}</th>",
+    header: "<th title='#{_("Own Goals")}'>#{s_("OwnGoals|O")}</th>",
     body: ->(p) { "<td>#{p.own_goals}</td>" },
     footer: ->(stats, first) { "<th>#{stats.map{|p|p.own_goals}.sum}</th>" },
   },
   penalties: {
-    header: "<th tile='#{_("Penalties")}'>#{s_("Penalties|P")}</th>",
+    header: "<th title='#{_("Penalties")}'>#{s_("Penalties|P")}</th>",
     body: ->(p) { "<td>#{p.penalties}</td>" },
     footer: ->(stats, first) { "<th>#{stats.map{|p|p.penalties}.sum}</th>" },
   },
   appearances: {
-    header: "<th tile='#{_("Appearances")}'>#{s_("Appearances|A")}</th>",
+    header: "<th title='#{_("Appearances")}'>#{s_("Appearances|A")}</th>",
     body: ->(p) { "<td>#{p.appearances}</td>" },
     footer: ->(stats, first) { "<th>#{stats.map{|p|p.appearances}.sum}</th>" },
   },
   played: {
-    header: "<th tile='#{_("Played")}'>#{s_("Played|P")}</th>",
+    header: "<th title='#{_("Played")}'>#{s_("Played|P")}</th>",
     body: ->(p) { "<td>#{p.played}</td>" },
     footer: ->(stats, first) { "<th>#{stats.map{|p|p.played}.sum}</th>" },
   },
   substituted_in: {
-    header: "<th tile='#{_("Substituted In")}'>#{s_("Substituted In|S")}</th>",
+    header: "<th title='#{_("Substituted In")}'>#{s_("Substituted In|S")}</th>",
     body: ->(p) { "<td>#{p.sub}</td>" },
     footer: ->(stats, first) { "<th>#{stats.map{|p|p.sub}.sum}</th>" },
   },
   bench: {
-    header: "<th tile='#{_("Bench")}'>#{s_("Bench|B")}</th>",
+    header: "<th title='#{_("Bench")}'>#{s_("Bench|B")}</th>",
     body: ->(p) { "<td>#{p.bench}</td>" },
     footer: ->(stats, first) { "<th>#{stats.map{|p|p.bench}.sum}</th>" },
   },
   yellows: {
-    header: "<th tile='#{_("Yellows")}'>#{image_tag "yells.gif"}</th>",
+    header: "<th title='#{_("Yellows")}'>#{image_tag "yells.gif"}</th>",
     body: ->(p) { "<td>#{p.yellows}</td>" },
     footer: ->(stats, first) { "<th>#{stats.map{|p|p.yellows}.sum}</th>" },
   },
   reds: {
-    header: "<th tile='#{_("Reds")}'>#{image_tag "reds.gif"}</th>",
+    header: "<th title='#{_("Reds")}'>#{image_tag "reds.gif"}</th>",
     body: ->(p) { "<td>#{p.reds}</td>" },
     footer: ->(stats, first) { "<th>#{stats.map{|p|p.reds}.sum}</th>" },
   },
   minutes: {
-    header: "<th tile='#{_("Minutes")}'>#{s_("Minutes|M")}</th>",
+    header: "<th title='#{_("Minutes")}'>#{s_("Minutes|M")}</th>",
     body: ->(p) { "<td>#{p.minutes}</td>" },
     footer: ->(stats, first) { "<th>#{stats.map{|p|p.minutes}.sum}</th>" },
   },
@@ -151,7 +152,7 @@ table.dataTable tbody tr.odd td.sorting_1 {
 div.dtfc-right-top-blocker {
   background-color: rgba(0, 0, 0, 0);
 }
-table.dataTable tfoot th {
+table.dataTable tfoot th, table.dataTable thead th {
   text-align: right;
 }
 #players_stats_table_div {
@@ -183,13 +184,15 @@ table.dataTable td.textColumn {
       <% end %>
       </tr>
     <% end %>
-    <tfoot><tr>
-      <% first = true %>
-      <% options[:columns_to_show].each do |column| %>
-        <%== columns_def[column][:footer].call(@player_stats, first) %>
-	<% first = false %>
-      <% end %>
-    </tr></tfoot>
+    <% if options[:show_total] %>
+      <tfoot><tr>
+        <% first = true %>
+        <% options[:columns_to_show].each do |column| %>
+          <%== columns_def[column][:footer].call(player_stats, first) %>
+          <% first = false %>
+        <% end %>
+      </tr></tfoot>
+    <% end %>
   </table>
 </div>
 
