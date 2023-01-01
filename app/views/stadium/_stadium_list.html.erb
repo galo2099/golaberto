@@ -5,10 +5,10 @@
 
   <% @stadia.each do |stadium| %>
     <tr>
-      <td><%= link_to stadium.name, :action => :show, :id => stadium %></td>
+      <td><%= link_to stadium.name, action: :show, id: stadium %></td>
       <% if can? :manage, stadium %>
-        <td><%= link_to _('Edit'), :action => 'edit', :id => stadium %></td>
-        <td><%= link_to _('Destroy'), { :action => 'destroy', :id => stadium }, :confirm => _('Are you sure?'), :post => true %></td>
+        <td><%= link_to image_tag('icons/pencil.png', alt: _('Edit')), action: 'edit', id: stadium %></td>
+        <td><%= link_to image_tag('icons/bin.png', alt: _('Destroy')), { action: 'destroy', id: stadium }, data: { confirm: _('Are you sure?') }, post: true %></td>
       <% end %>
     </tr>
   <% end %>
