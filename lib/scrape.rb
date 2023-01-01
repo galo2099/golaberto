@@ -34,6 +34,9 @@ def fix_name(str)
   if str == "Krasnodar"
     return "FC Krasnodar"
   end
+  if str == "Nacional Asunción"
+    return "Nacional-PAR"
+  end
   if str == "Nacional"
     return "Nacional-URU"
   end
