@@ -268,8 +268,6 @@ class ChampionshipController < ApplicationController
 
     @player_stats = TeamPlayer.stats("games.phase_id": @championship.phases.pluck(:id), player: @player)
     @player_stats = @player_stats.to_a.sort{|a,b| b.goals <=> a.goals}.first
-
-    @games = @player.games.where(phase: @championship.phases).includes(:goals)
   end
 
   def new_game
