@@ -11,12 +11,19 @@ class StadiumController < ApplicationController
     @name = params[:name]
     conditions = ["name LIKE ?", "%#{@name}%"] unless @name.nil?
 
-    @pagy, @stadia = pagy(Stadium.order(:name).where(conditions), items: 30)
+    @pagy, @stadia = pagy(Stadium.where(conditions).left_joins(:games).group(:id).select("stadia.*, count(games.id) as games_count").order(games_count: :desc), items: 20, count: Stadium.where(conditions).count)
   end
 
   def show
     store_location
     @stadium = Stadium.find(params[:id])
+  end
+
+  def games
+    store_location
+    @stadium = Stadium.find(params[:id])
+
+    @pagy, @games = pagy(@stadium.games.order(date: :desc), items: 10)
   end
 
   def edit

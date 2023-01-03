@@ -2,12 +2,14 @@
   <tr>
     <th><%= _("Name") %></th>
     <th><%= _("Location") %></th>
+    <th><%= _("Games") %></th>
   </tr>
 
   <% @referees.each do |referee| %>
     <tr>
       <td><%= link_to referee.name, action: :show, id: referee %></td>
       <td><%= referee.location %></td>
+      <td style='text-align: right'><%= referee.games_count %></td>
       <% if can? :manage, referee %>
         <td><%= link_to image_tag('icons/pencil.png', alt: _('Edit')), action: 'edit', id: referee %></td>
         <td><%= link_to image_tag('icons/bin.png', alt: _('Destroy')), { action: 'destroy', id: referee }, data: { confirm: _('Are you sure?') }, post: true %></td>
@@ -16,4 +18,5 @@
   <% end %>
 </table>
 
+<br>
 <%== pagy_nav @pagy if @pagy.pages > 1 %>

@@ -2,10 +2,10 @@
 
 <h2><%= @stadium.name %></h2>
 
-<h2><%= link_to _("Games"), action: :games, id: @stadium %></h2>
+<h2><%= _("Games") %></h2>
 <div class="game_score">
-  <% last_championship = nil %>
-  <% @stadium.played_games.order(date: :desc).first(5).each do |game| %>
+<% last_championship = nil %>
+  <% @games.each do |game| %>
     <% if last_championship != game.phase.championship %>
       <% last_championship = game.phase.championship %>
       <%= championship_name(game.phase.championship, {:controller => :championship, :action => :show, :id => game.phase.championship}) %>
@@ -22,14 +22,10 @@
   <% end %>
 </div>
 
-<%= render :partial => "comment/comments", :locals => { :object => @stadium } %>
+<br>
+<%== pagy_nav @pagy if @pagy.pages > 1 %>
 
 <% content_for :sidebar do %>
-  <% if can? :manage, @stadium %>
-    <%= link_to _("Edit"), :action => :edit, :id => @stadium %><br>
-    <%= link_to _("Delete"), { :action => :destroy, :id => @stadium }, data: {:confirm => _('Are you sure?')}, :method => :post %><br/>
-    <br>
-  <% end %>
   <%= link_to _("Stadium"), action: :show, id: @stadium %><br>
   <%= link_to _("Games"), action: :games, id: @stadium %><br>
 <% end %>

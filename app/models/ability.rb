@@ -19,6 +19,8 @@ class Ability
     can [ :phases, :crowd, :team, :games, :team_json, :player_list, :player_show ], Championship
     can [ :games, :historical_rating ], Team
     can [ :games ], Player
+    can [ :games ], Referee
+    can [ :games ], Stadium
     can [ :create, :list_edits ], User
     can :update, User, :id => user.id
   end

@@ -4,19 +4,17 @@
   <h2><%= @referee.name %></h2>
   <h3><%= _("Location") %>: <%= @referee.location %></h3>
 
-<div class="game_score" style='font-size: 12px'>
-  <h3><%= _("Games") %></h3>
-  <% @referee.played_games.first(5).each do |game| %>
+<h2><%= link_to _("Games"), action: :games, id: @referee %></h2>
+<div class="game_score">
+  <% last_championship = nil %>
+  <% @referee.played_games.order(date: :desc).first(5).each do |game| %>
+    <% if last_championship != game.phase.championship %>
+      <% last_championship = game.phase.championship %>
+      <%= championship_name(game.phase.championship, {:controller => :championship, :action => :show, :id => game.phase.championship}) %>
+    <% end %>
+    <div style='font-size: 11px'><%= formatted_date(game, true) %></div>
     <div class="table_row">
-      <div class="table_cell" style='width: 30%; text-align: left'>
-        <%= formatted_date(game) %>
-        <%= link_to game.phase.championship.full_name,
-          { :action => "show",
-            :controller => "championship",
-            :id => game.phase.championship,
-        } %><br/>
-      </div>
-      <div class="table_cell" style='width: 70%; text-align: left'>
+      <div class="table_cell" style='width: 100%; text-align: left'>
         <%= render :partial => "championship/game_list",
                    :locals => { :game => game } %>
         <div class="clearer"></div>
@@ -31,6 +29,9 @@
 <%= content_for :sidebar do %>
   <% if can? :manage, @referee %>
     <%= link_to _("Edit"), :action => :edit, :id => @referee %><br/>
-    <%= link_to _("Delete"), { :action => :destroy, :id => @referee }, :confirm => _('Are you sure?'), :method => :post %><br/>
+    <%= link_to _("Delete"), { :action => :destroy, :id => @referee }, data: {:confirm => _('Are you sure?')}, :method => :post %><br/>
+    <br/>
   <% end %>
+  <%= link_to _("Referee"), action: :show, id: @referee %><br>
+  <%= link_to _("Games"), action: :games, id: @referee %><br>
 <% end %>

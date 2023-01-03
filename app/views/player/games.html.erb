@@ -13,8 +13,6 @@
   <%= link_to_unless !@played, _("Scheduled"), :action => :games, :id => @player, :type => :scheduled, :category => @category, :page => 1 %><br/>
 <% end %>
 
-<% last_championship = nil %>
-
 <%= _("Category") %>: <select id='category_select'>
   <%= options_from_collection_for_select @categories, "id", "name", @category.id %>
 </select>
@@ -23,6 +21,7 @@
 <%== pagy_nav @pagy if @pagy.pages > 1 %>
 <br/>
 <div class="game_score">
+  <% last_championship = nil %>
   <% @player_games.each do |pg| %>
   <% game = pg.game %>
   <% if last_championship != game.phase.championship %>

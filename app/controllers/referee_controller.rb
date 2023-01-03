@@ -11,12 +11,19 @@ class RefereeController < ApplicationController
     @name = params[:name]
     conditions = ["name LIKE ?", "%#{@name}%"] unless @name.nil?
 
-    @pagy, @referees = pagy(Referee.order(:name).where(conditions), items: 30)
+    @pagy, @referees = pagy(Referee.where(conditions).left_joins(:games).group(:id).select("referees.*, count(games.id) as games_count").order(games_count: :desc), items: 20, count: Referee.where(conditions).count)
   end
 
   def show
     store_location
     @referee = Referee.find(params[:id])
+  end
+
+  def games
+    store_location
+    @referee = Referee.find(params[:id])
+
+    @pagy, @games = pagy(@referee.games.order(date: :desc), items: 10)
   end
 
   def edit
