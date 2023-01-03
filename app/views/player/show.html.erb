@@ -23,7 +23,7 @@
   <% end %>
   <div style='font-size: 11px'><%= formatted_date(pg.game, true) %></div>
   <div class="<%= cycle "table_line_even", "table_line_odd" %> table_row">
-    <div class="table_cell" style="width: 92%">
+    <div class="table_cell" style="width: 100%">
       <%= render :partial => "championship/game_list",
                  :locals => { :highlight_team => pg.team,
                               :game => pg.game,
