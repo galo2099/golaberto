@@ -4,7 +4,7 @@
 
 <%= javascript_include_jquery %>
 
-<%= form_for @championship, :url => { :action => :update, :id => @championship } do |f| %>
+<%= form_for @championship, url: { action: :update, id: @championship } do |f| %>
   <%= render partial: "form", locals: { f: f } %>
 
   <p><%= _("Phases") %></p>
@@ -13,8 +13,8 @@
   <p>
   <% @championship.phases.each do |phase| %>
     <%= _("Name") %>: <%= phase.name %>
-    <%= link_to _("Edit"), :controller => :phase, :action => :edit, :id => phase %>
-    <%= link_to _("Delete"), { :controller => :phase, :action => :destroy, :id => phase }, :confirm => _('Are you sure?'), :post => true %>
+    <%= link_to _("Edit"), controller: :phase, action: :edit, id: phase %>
+    <%= link_to _("Delete"), { controller: :phase, action: :destroy, id: phase }, data: {confirm: _('Are you sure?')}, post: true %>
     <br/>
     <% last_order_by = phase.order_by %>
   <% end %>

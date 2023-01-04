@@ -1,4 +1,6 @@
 pt-BR:
+  add_more_groups:
+    html: 'Adicionar mais %{number} grupos'
   date:
     abbr_day_names:
     - Dom

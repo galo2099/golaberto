@@ -2,7 +2,7 @@
   <p><%= _("Groups") %></p>
   <% group_list.groups.each do |group| %>
     <%= _("Name") %>: <%= group.name %>
-    <%= link_to _("Edit"), :controller => :group, :action => :edit, :id => group %>
-    <%= link_to _("Delete"), { :controller => :group, :action => :destroy, :id => group }, :confirm => 'Are you sure?', :post => true %><br/>
+    <%= link_to _("Edit"), controller: :group, action: :edit, id: group %>
+    <%= link_to _("Delete"), { controller: :group, action: :destroy, id: group }, data: { confirm: 'Are you sure?' }, post: true %><br/>
   <% end %>
 </div>

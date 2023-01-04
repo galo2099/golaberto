@@ -24,7 +24,11 @@ class PhaseController < ApplicationController
   def add_groups
     phase = Phase.find(params["id"])
     last_group = phase.groups[-1]
-    4.times do
+    count = params[:count].to_i
+    if count >= 100
+      raise "Can't add too many groups"
+    end
+    count.times do
       tokens = last_group.name.split(" ")
       tokens[-1].succ!
       new_name = tokens.join " "
@@ -32,7 +36,7 @@ class PhaseController < ApplicationController
       last_group.name = new_name
       last_group.save!
     end
-    render :partial => "group_list", :object => phase
+    render :js => "window.location = '#{url_for action: :edit, id: phase}'"
   end
 
   def update

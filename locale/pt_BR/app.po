@@ -67,9 +67,6 @@ msgstr "Conta"
 msgid "Add"
 msgstr "Adicionar"
 
-msgid "Add 4 more groups"
-msgstr "Adicionar 4 grupos mais"
-
 msgid "Add Comment"
 msgstr "Adicionar Comentário"
 
@@ -142,9 +139,6 @@ msgstr "Tem certeza que quer criar um novo árbitro?"
 
 msgid "Are you sure you want to create a new stadium?"
 msgstr "Tem certeza que quer criar um novo estádio?"
-
-msgid "Are you sure you want to delete this game?"
-msgstr "Tem certeza que quer apagar este jogo?"
 
 msgid "Are you sure?"
 msgstr "Tem certeza?"
@@ -476,9 +470,6 @@ msgstr "Apagar"
 msgid "Delete team"
 msgstr "Apagar equipe"
 
-msgid "Delete this game"
-msgstr "Apagar este jogo"
-
 msgid "Denmark"
 msgstr "Dinamarca"
 
@@ -522,9 +513,6 @@ msgstr "Editar perfil"
 
 msgid "Edit team"
 msgstr "Editar equipe"
-
-msgid "Edit this game"
-msgstr "Editar este jogo"
 
 msgid "Edit user"
 msgstr "Editar usuário"
@@ -1035,9 +1023,6 @@ msgstr "Montserrat"
 
 msgid "More groups can be added later"
 msgstr "Mais grupos podem ser adicionados depois"
-
-msgid "More information"
-msgstr "Mais informações"
 
 msgid "More phases can be added later"
 msgstr "Mais fases podem ser adicionadas depois"
