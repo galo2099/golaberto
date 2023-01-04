@@ -43,7 +43,7 @@
   <%= render partial: "group_list", object: @phase %>
   <% if @phase.groups.size > 0 %>
     <%= t('add_more_groups.html', number: '<input id="groups_to_add" type="number" size="2" min="1" max="99" value="3" style="width: 2.5em">'.html_safe) %>
-    <%= button_to_remote "Add", with: "'count=' + $('groups_to_add').value", remote: true, url: { action: :add_groups, id: @phase }, failure: 'alert("Error");'  %>
+    <%= button_to_remote _("Add"), with: "'count=' + $('groups_to_add').value", remote: true, url: { action: :add_groups, id: @phase }, failure: 'alert("Error");'  %>
   <% end %>
   <p><%= _("Add new group") %>: (<%= _("More groups can be added later") %>)<br />
   <input type="text" id="group[name]" name="group[name]" value="">
