@@ -28,6 +28,12 @@ def fix_name(str)
   if str == "Atlético Mineiro"
     return "Atlético-MG"
   end
+  if str == "Juventude"
+    return "Juventude-RS"
+  end
+  if str == "Atlético Goianiense"
+    return "Atlético-GO"
+  end
   if str == "Athletico Paranaense"
     return "Atlético-PR"
   end
