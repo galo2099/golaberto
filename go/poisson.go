@@ -867,8 +867,8 @@ func (all_games *GamesType) historicRatings() map[string]interface{} {
 					insertSql.WriteString(",")
 				}
 				insertSql.WriteString(fmt.Sprintf("(%d, %f, %f, %f, '%s')", k, offense_per_team[k][i], defense_per_team[k][i], r, dates[i].Format("2006-01-02")))
+				count += 1
 			}
-			count += 1
 		}
 		if count > 3000 {
 			count = 0
