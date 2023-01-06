@@ -249,14 +249,14 @@ class ChampionshipController < ApplicationController
     @scheduled_games += @team.away_games.where(phase_id: @championship.phase_ids, played: false).includes(:home, :away)
     @scheduled_games.sort!{|a,b| a.date <=> b.date}
 
-    @player_stats = TeamPlayer.stats(game: @played_games, team_id: @team.id)
+    @player_stats = TeamPlayer.stats(game: @played_games, team_id: @team.id).includes(:player)
   end
 
   def player_list
     store_location
     @championship = Championship.includes(:phases => [ :teams, { :groups => :teams }]).find(params["id"])
 
-    @player_stats = TeamPlayer.stats("games.phase_id": @championship.phases.pluck(:id))
+    @player_stats = TeamPlayer.stats("games.phase_id": @championship.phases.pluck(:id)).includes(:player, :team, :game)
     @player_stats = @player_stats.to_a.sort{|a,b| b.goals <=> a.goals}
   end
 

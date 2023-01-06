@@ -9,6 +9,145 @@ options = default_options.merge(options || {})
 text_columns_selected = options[:columns_to_show].to_set.intersection(text_columns).size
 targets = options[:columns_to_show].each_with_index.map{|x,i| i unless asc_columns.include?(x) }.select{|x| not x.nil?}
 text_targets = options[:columns_to_show].each_with_index.map{|x,i| i if text_columns.include?(x) }.select{|x| not x.nil?}
+
+columns_def = {
+  season: {
+    header: "<th>#{_("Season")}</th>",
+    body: ->(p) { { order: p.latest.to_i, display: p.game.phase.championship.season } },
+    footer: ->(stats, first) { if first then "<th>#{_("Total")}</th>" else "<th></th>" end },
+    render: "(" + { display: "display", sort: "order" }.to_json + ")",
+  },
+  team: {
+    header: "<th>#{_("Team")}</th>",
+    body: ->(p) { p.id },
+    footer: ->(stats, first) { if first then "<th>#{_("Total")}</th>" else "<th></th>" end },
+    render: "render_team",
+  },
+  championship: {
+    header: "<th>#{_("Championship")}</th>",
+    body: ->(p) { p.id },
+    footer: ->(stats, first) { if first then "<th>#{_("Total")}</th>" else "<th></th>" end },
+    render: "render_championship",
+  },
+  name: {
+    header: "<th>#{_("Name")}</th>",
+    body: ->(p) { p.id },
+    footer: ->(stats, first) { if first then "<th>#{_("Total")}</th>" else "<th></th>" end },
+    render: "render_player",
+  },
+  position: {
+    header: "<th title='#{_("Position")}'>#{s_("Position|P")}</th>",
+    body: ->(p) { p.player.position },
+    footer: ->(stats, first) { if first then "<th>#{_("Total")}</th>" else "<th></th>" end },
+  },
+  goals: {
+    header: "<th title='#{_("Goals")}'>#{image_tag "goal.png"}</th>",
+    body: ->(p) { p.goals },
+    footer: ->(stats, first) { "<th>#{stats.map{|p|p.goals}.sum}</th>" },
+  },
+  goals_per_90: {
+    header: "<th title='#{_("Goals per 90 minutes")}'>#{image_tag "goal.png", size: "8x8"}<span style='font-size: xx-small'>/90</span></th>",
+    body: ->(p) { number_with_precision(p.goals.to_f / (p.minutes.to_f.nonzero? || 1) * 90, precision: 2) },
+    footer: ->(stats, first) { "<th>#{number_with_precision(stats.map{|p|p.goals}.sum.to_f / (stats.map{|p|p.minutes}.sum.nonzero? || 1) * 90, precision: 2)}</th>" },
+  },
+  own_goals: {
+    header: "<th title='#{_("Own Goals")}'>#{s_("OwnGoals|O")}</th>",
+    body: ->(p) { p.own_goals },
+    footer: ->(stats, first) { "<th>#{stats.map{|p|p.own_goals}.sum}</th>" },
+  },
+  penalties: {
+    header: "<th title='#{_("Penalties")}'>#{s_("Penalties|P")}</th>",
+    body: ->(p) { p.penalties },
+    footer: ->(stats, first) { "<th>#{stats.map{|p|p.penalties}.sum}</th>" },
+  },
+  appearances: {
+    header: "<th title='#{_("Appearances")}'>#{s_("Appearances|A")}</th>",
+    body: ->(p) { p.appearances },
+    footer: ->(stats, first) { "<th>#{stats.map{|p|p.appearances}.sum}</th>" },
+  },
+  played: {
+    header: "<th title='#{_("Played")}'>#{s_("Played|P")}</th>",
+    body: ->(p) { p.played },
+    footer: ->(stats, first) { "<th>#{stats.map{|p|p.played}.sum}</th>" },
+  },
+  substituted_in: {
+    header: "<th title='#{_("Substituted In")}'>#{s_("Substituted In|S")}</th>",
+    body: ->(p) { p.sub },
+    footer: ->(stats, first) { "<th>#{stats.map{|p|p.sub}.sum}</th>" },
+  },
+  bench: {
+    header: "<th title='#{_("Bench")}'>#{s_("Bench|B")}</th>",
+    body: ->(p) { p.bench },
+    footer: ->(stats, first) { "<th>#{stats.map{|p|p.bench}.sum}</th>" },
+  },
+  yellows: {
+    header: "<th title='#{_("Yellows")}'>#{image_tag "yells.gif"}</th>",
+    body: ->(p) { p.yellows },
+    footer: ->(stats, first) { "<th>#{stats.map{|p|p.yellows}.sum}</th>" },
+  },
+  reds: {
+    header: "<th title='#{_("Reds")}'>#{image_tag "reds.gif"}</th>",
+    body: ->(p) { p.reds },
+    footer: ->(stats, first) { "<th>#{stats.map{|p|p.reds}.sum}</th>" },
+  },
+  minutes: {
+    header: "<th title='#{_("Minutes")}'>#{s_("Minutes|M")}</th>",
+    body: ->(p) { p.minutes },
+    footer: ->(stats, first) { "<th>#{stats.map{|p|p.minutes}.sum}</th>" },
+  },
+}
+
+teams = {}
+countries = {}
+players = {}
+championships = {}
+pg = {}
+
+player_stats.each do |p|
+  champ = p.game.phase.championship
+  championships[champ.id] = {
+    name: champ.full_name(false, false),
+    region: _(champ.region_name),
+    region_flag: region_flag_url(champ.region, champ.region_name),
+    param: champ.to_param,
+  }
+  teams[p.team_id] ||= {
+    name: p.team.name,
+    logo: p.team.logo.url(:thumb),
+    param: p.team.to_param,
+    country: p.team.country,
+  }
+  countries[p.team.country] ||= {
+    name: _(p.team.country),
+    logo: p.team.small_country_logo,
+  }
+  countries[p.player.country] ||= {
+    name: _(p.player.country),
+    logo: p.player.small_country_logo,
+  }
+  players[p.player_id] ||= {
+    name: p.player.name,
+    param: p.player.to_param,
+    country: p.player.country,
+  }
+  pg[p.id] = {
+    team: p.team_id,
+    championship: champ.id,
+    player: p.player_id,
+  }
+end
+
+
+data = player_stats.map do |p|
+  options[:columns_to_show].map do |column|
+    columns_def[column][:body].call(p)
+  end
+end
+
+text_targets_render = options[:columns_to_show].each_with_index.map do |x,i|
+  { targets: i, render: columns_def[x][:render] } if columns_def[x][:render]
+end.select{|x| not x.nil?}
+
 datatable_options = {
     language: { url: "https://cdn.datatables.net/plug-ins/1.13.1/i18n/#{I18n.locale}.json" },
     fixedColumns: true,
@@ -18,109 +157,12 @@ datatable_options = {
     scrollY: 400,
     scrollCollapse: true,
     scrollX: true,
+    data: data,
     columnDefs: [
         {targets: targets, orderSequence: ["desc", "asc"]},
         {targets: text_targets, className: "textColumn"},
     ],
   }.merge(datatable_options || {})
-
-columns_def = {
-  season: {
-    header: "<th>#{_("Season")}</th>",
-    body: ->(p) { "<td data-order='#{p.latest.to_i}'>#{p.game.phase.championship.season}</td>" },
-    footer: ->(stats, first) { if first then "<th>#{_("Total")}</th>" else "<th></th>" end },
-  },
-  team: {
-    header: "<th>#{_("Team")}</th>",
-    body: ->(p) { "<td>" +
-      image_tag(p.team.small_country_logo, title: _(p.team.country), size: "15x15", alt: ".") +
-      image_tag(p.team.logo.url(:thumb), size: p.team.logo.styles[:thumb].geometry, alt: ".") +
-      link_to(add_wbr_to_string(p.team.name), action: :player_show, controller: :championship, id: p.game.phase.championship, team: p.team, player: p.player) +
-      "</td>" },
-    footer: ->(stats, first) { if first then "<th>#{_("Total")}</th>" else "<th></th>" end },
-  },
-  championship: {
-    header: "<th>#{_("Championship")}</th>",
-    body: ->(p) {
-      champ = p.game.phase.championship
-      "<td>" +
-        image_tag(region_flag_url(champ.region, champ.region_name) , :title => _(champ.region_name), size: "15x15") +
-        link_to(champ.full_name(false, false), {:controller => :championship, :action => :player_show, :id => champ, team: p.team, player: p.player}) +
-        "</td>"
-     },
-    footer: ->(stats, first) { if first then "<th>#{_("Total")}</th>" else "<th></th>" end },
-  },
-  name: {
-    header: "<th>#{_("Name")}</th>",
-    body: ->(p) { "<td>" +
-      image_tag(p.player.small_country_logo, title: _(p.player.country), size: "15x15", alt: ".") +
-      link_to(p.player.name, controller: :championship, action: :player_show, id: p.game.phase.championship, team: p.team, player: p.player) +
-      "</td>"
-    },
-    footer: ->(stats, first) { if first then "<th>#{_("Total")}</th>" else "<th></th>" end },
-  },
-  position: {
-    header: "<th title='#{_("Position")}'>#{s_("Position|P")}</th>",
-    body: ->(p) { "<td>#{p.player.position}</td>" },
-    footer: ->(stats, first) { if first then "<th>#{_("Total")}</th>" else "<th></th>" end },
-  },
-  goals: {
-    header: "<th title='#{_("Goals")}'>#{image_tag "goal.png"}</th>",
-    body: ->(p) { "<td>#{p.goals}</td>" },
-    footer: ->(stats, first) { "<th>#{stats.map{|p|p.goals}.sum}</th>" },
-  },
-  goals_per_90: {
-    header: "<th title='#{_("Goals per 90 minutes")}'>#{image_tag "goal.png", size: "8x8"}<span style='font-size: xx-small'>/90</span></th>",
-    body: ->(p) { "<td>#{number_with_precision(p.goals.to_f / (p.minutes.to_f.nonzero? || 1) * 90, precision: 2)}</td>" },
-    footer: ->(stats, first) { "<th>#{number_with_precision(stats.map{|p|p.goals}.sum.to_f / (stats.map{|p|p.minutes}.sum.nonzero? || 1) * 90, precision: 2)}</th>" },
-  },
-  own_goals: {
-    header: "<th title='#{_("Own Goals")}'>#{s_("OwnGoals|O")}</th>",
-    body: ->(p) { "<td>#{p.own_goals}</td>" },
-    footer: ->(stats, first) { "<th>#{stats.map{|p|p.own_goals}.sum}</th>" },
-  },
-  penalties: {
-    header: "<th title='#{_("Penalties")}'>#{s_("Penalties|P")}</th>",
-    body: ->(p) { "<td>#{p.penalties}</td>" },
-    footer: ->(stats, first) { "<th>#{stats.map{|p|p.penalties}.sum}</th>" },
-  },
-  appearances: {
-    header: "<th title='#{_("Appearances")}'>#{s_("Appearances|A")}</th>",
-    body: ->(p) { "<td>#{p.appearances}</td>" },
-    footer: ->(stats, first) { "<th>#{stats.map{|p|p.appearances}.sum}</th>" },
-  },
-  played: {
-    header: "<th title='#{_("Played")}'>#{s_("Played|P")}</th>",
-    body: ->(p) { "<td>#{p.played}</td>" },
-    footer: ->(stats, first) { "<th>#{stats.map{|p|p.played}.sum}</th>" },
-  },
-  substituted_in: {
-    header: "<th title='#{_("Substituted In")}'>#{s_("Substituted In|S")}</th>",
-    body: ->(p) { "<td>#{p.sub}</td>" },
-    footer: ->(stats, first) { "<th>#{stats.map{|p|p.sub}.sum}</th>" },
-  },
-  bench: {
-    header: "<th title='#{_("Bench")}'>#{s_("Bench|B")}</th>",
-    body: ->(p) { "<td>#{p.bench}</td>" },
-    footer: ->(stats, first) { "<th>#{stats.map{|p|p.bench}.sum}</th>" },
-  },
-  yellows: {
-    header: "<th title='#{_("Yellows")}'>#{image_tag "yells.gif"}</th>",
-    body: ->(p) { "<td>#{p.yellows}</td>" },
-    footer: ->(stats, first) { "<th>#{stats.map{|p|p.yellows}.sum}</th>" },
-  },
-  reds: {
-    header: "<th title='#{_("Reds")}'>#{image_tag "reds.gif"}</th>",
-    body: ->(p) { "<td>#{p.reds}</td>" },
-    footer: ->(stats, first) { "<th>#{stats.map{|p|p.reds}.sum}</th>" },
-  },
-  minutes: {
-    header: "<th title='#{_("Minutes")}'>#{s_("Minutes|M")}</th>",
-    body: ->(p) { "<td>#{p.minutes}</td>" },
-    footer: ->(stats, first) { "<th>#{stats.map{|p|p.minutes}.sum}</th>" },
-  },
-}
-
 %>
 
 <style>
@@ -177,13 +219,6 @@ table.dataTable td.textColumn {
       <% end %>
     </tr>
   </thead>
-    <% player_stats.each do |p| %>
-      <tr>
-      <% options[:columns_to_show].each do |column| %>
-        <%== columns_def[column][:body].call(p) %>
-      <% end %>
-      </tr>
-    <% end %>
     <% if options[:show_total] %>
       <tfoot><tr>
         <% first = true %>
@@ -197,6 +232,51 @@ table.dataTable td.textColumn {
 </div>
 
 <script>
+
+var players = <%== Oj.dump(players, mode: :compat) %>;
+var teams = <%== Oj.dump(teams, mode: :compat) %>;
+var championships = <%== Oj.dump(championships, mode: :compat) %>;
+var countries = <%== Oj.dump(countries, mode: :compat) %>;
+var pg = <%== Oj.dump(pg, mode: :compat) %>;
+
+function render_player(data, type, row) {
+  var p = pg[data];
+  var player = players[p.player];
+  if ( type === 'display') {
+    var team = teams[p.team];
+    var country = countries[player.country];
+    var champ = championships[p.championship];
+    return '<img size="15x15" title="' + country.name + '" src="' + country.logo + '"> ' +
+      '<a href="/championship/show/' + champ.param + '/team/' + team.param + '/player/' + player.param + '">' + player.name + '</a>';
+  }
+  return player.name;
+}
+
+function render_championship(data, type, row) {
+  var p = pg[data];
+  var champ = championships[p.championship];
+  if ( type === 'display') {
+    var team = teams[p.team];
+    var player = players[p.player];
+    return '<img size="15x15" title="' + champ.region + '" src="' + champ.region_flag + '"> ' +
+      '<a href="/championship/show/' + champ.param + '/team/' + team.param + '/player/' + player.param + '">' + champ.name + '</a>';
+  }
+  return champ.name;
+}
+
+function render_team(data, type, row) {
+  var p = pg[data];
+  var team = teams[p.team];
+  if ( type === 'display') {
+    var country = countries[team.country];
+    var player = players[p.player];
+    var champ = championships[p.championship];
+    return '<img size="15x15" title="' + country.name + '" src="' + country.logo + '"> ' +
+      '<img size="15x15" src="' + team.logo + '"> ' + '<a href="/championship/show/' + champ.param + '/team/' + team.param + '/player/' + player.param + '">' + team.name + '</a>';
+  }
+  return team.name;
+}
+
 jQuery(document).ready(function ($) {
   $.fn.dataTable.ext.order.intl = function (locales, options) {
     if (window.Intl) {
@@ -232,8 +312,18 @@ jQuery(document).ready(function ($) {
 
   $.fn.dataTable.ext.order.intl(undefined , {sensitivity: 'base'});
   $.fn.dataTable.ext.order.htmlIntl(undefined , {sensitivity: 'base'});
-  $('#player_stats_table').DataTable({
-     ...<%== datatable_options.to_json %>,
-   });
+  var options = <%== Oj.dump(datatable_options, mode: :compat) %>;
+  var text_targets_render = <%== Oj.dump(text_targets_render, mode: :compat) %>;
+  options.columnDefs.push(...text_targets_render.map(function(x) {
+    x.render = eval(x.render);
+    return x;
+  }));
+  $('#player_stats_table').DataTable(options);
+  $('table.dataTable').on('mouseenter', 'tr td', function(e) {
+    var item = e.target;
+    if (item.offsetWidth < item.scrollWidth && !$(item).attr('title')){
+      $(item).attr('title', item.innerText);
+    }
+  });
 });
 </script>
