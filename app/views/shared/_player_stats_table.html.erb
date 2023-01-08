@@ -154,6 +154,7 @@ datatable_options = {
     searching: false,
     info: false,
     paging: false,
+    deferRender: true,
     scrollY: 400,
     scrollCollapse: true,
     scrollX: true,
@@ -246,7 +247,7 @@ function render_player(data, type, row) {
     var team = teams[p.team];
     var country = countries[player.country];
     var champ = championships[p.championship];
-    return '<img size="15x15" title="' + country.name + '" src="' + country.logo + '"> ' +
+    return '<img width="15" height="15" title="' + country.name + '" src="' + country.logo + '"> ' +
       '<a href="/championship/show/' + champ.param + '/team/' + team.param + '/player/' + player.param + '">' + player.name + '</a>';
   }
   return player.name;
@@ -258,7 +259,7 @@ function render_championship(data, type, row) {
   if ( type === 'display') {
     var team = teams[p.team];
     var player = players[p.player];
-    return '<img size="15x15" title="' + champ.region + '" src="' + champ.region_flag + '"> ' +
+    return '<img width="15" height="15" title="' + champ.region + '" src="' + champ.region_flag + '"> ' +
       '<a href="/championship/show/' + champ.param + '/team/' + team.param + '/player/' + player.param + '">' + champ.name + '</a>';
   }
   return champ.name;
@@ -271,8 +272,8 @@ function render_team(data, type, row) {
     var country = countries[team.country];
     var player = players[p.player];
     var champ = championships[p.championship];
-    return '<img size="15x15" title="' + country.name + '" src="' + country.logo + '"> ' +
-      '<img size="15x15" src="' + team.logo + '"> ' + '<a href="/championship/show/' + champ.param + '/team/' + team.param + '/player/' + player.param + '">' + team.name + '</a>';
+    return '<img width="15" height="15" title="' + country.name + '" src="' + country.logo + '"> ' +
+      '<img width="15" height="15" src="' + team.logo + '"> ' + '<a href="/championship/show/' + champ.param + '/team/' + team.param + '/player/' + player.param + '">' + team.name + '</a>';
   }
   return team.name;
 }
