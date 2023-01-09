@@ -149,21 +149,24 @@ text_targets_render = options[:columns_to_show].each_with_index.map do |x,i|
 end.select{|x| not x.nil?}
 
 datatable_options = {
-    language: { url: "https://cdn.datatables.net/plug-ins/1.13.1/i18n/#{I18n.locale}.json" },
-    fixedColumns: true,
-    searching: false,
-    info: false,
-    paging: false,
-    deferRender: true,
-    scrollY: 400,
-    scrollCollapse: true,
-    scrollX: true,
-    data: data,
-    columnDefs: [
-        {targets: targets, orderSequence: ["desc", "asc"]},
-        {targets: text_targets, className: "textColumn"},
-    ],
-  }.merge(datatable_options || {})
+  language: {
+    url: "https://cdn.datatables.net/plug-ins/1.13.1/i18n/#{I18n.locale}.json",
+    lengthMenu: _("_MENU_ records"),
+   },
+  fixedColumns: true,
+  searching: false,
+  info: false,
+  paging: false,
+  deferRender: true,
+  scrollY: 400,
+  scrollCollapse: true,
+  scrollX: true,
+  data: data,
+  columnDefs: [
+      {targets: targets, orderSequence: ["desc", "asc"]},
+      {targets: text_targets, className: "textColumn"},
+  ],
+}.merge(datatable_options || {})
 %>
 
 <style>
@@ -319,12 +322,77 @@ jQuery(document).ready(function ($) {
     x.render = eval(x.render);
     return x;
   }));
-  $('#player_stats_table').DataTable(options);
+  var tableEl = $('#player_stats_table');
+  var table = tableEl.DataTable(options);
   $('table.dataTable').on('mouseenter', 'tr td', function(e) {
     var item = e.target;
     if (item.offsetWidth < item.scrollWidth && !$(item).attr('title')){
       $(item).attr('title', item.innerText);
     }
+  });
+
+  tableEl.on('init.dt', function() {
+        // Now that the DataTable is initialized, the plugin has finished making DOM
+        // modifications. Let's search for their INPUT and add our own before it.
+        var tableId = tableEl.attr('id');
+        var searchInput = tableEl
+              .parents('.dataTables_wrapper')
+              .find('input[type=search]');
+        var ourInput = $(document.createElement('input'))
+              .attr({
+                id: 'minute_filter',
+                type: 'number',
+                value: 0,
+                min: 0,
+                'class': 'form-control form-control-sm',
+                style: 'width: 4em',
+                'aria-controls': tableId,
+              })
+
+        // Add ourInput to the page
+        $(document.createElement('div'))
+          .addClass('dataTables_filter')
+          .css('float', 'left')
+          .css('margin-left', '10%')
+          .append(
+            $(document.createElement('label'))
+              .addClass('mdl-textfield mdl-js-textfield mdl-textfield--floating-label')
+              .append(
+                $(document.createElement('span'))
+                  .addClass('mdl-textfield__label')
+                  .text('<%= _('Minutes') %>'))
+              .append(
+                ourInput.addClass('mdl-textfield__input')))
+          .insertBefore(searchInput.parent().parent());
+
+        function findSiblingNonelements(element) {
+          let children = element.parentNode.childNodes,
+              j = children.length,
+              siblings = [],
+              el;
+          while (el = children[--j]) {
+            if (el.nodeType !== 1) {
+              siblings.push(el);
+            }
+          }
+          return siblings;
+        }
+
+	// Event listener to the two range filtering inputs to redraw on input
+        $('#minute_filter').on('input', function () {
+          table.draw();
+        });
+  });
+
+  /* Custom filtering function which will search data in column four between two values */
+  $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
+    var min = parseInt($('#minute_filter').val(), 10);
+    var minutes = parseFloat(data[3]) || 0; // use data for the age column
+
+    if (isNaN(min) || min <= minutes) {
+        return true;
+    }
+    return false;
   });
 });
 </script>

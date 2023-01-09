@@ -1934,6 +1934,9 @@ msgstr "Zimbábue"
 msgid "Zones"
 msgstr "Zonas"
 
+msgid "_MENU_ records"
+msgstr "_MENU_ registros"
+
 msgid "aet goals"
 msgstr "gols na prorrogação"
 
