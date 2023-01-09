@@ -127,6 +127,7 @@ player_stats.each do |p|
   }
   players[p.player_id] ||= {
     name: p.player.name,
+    full_name: p.player.full_name,
     param: p.player.to_param,
     country: p.player.country,
   }
@@ -253,7 +254,7 @@ function render_player(data, type, row) {
     return '<img width="15" height="15" title="' + country.name + '" src="' + country.logo + '"> ' +
       '<a href="/championship/show/' + champ.param + '/team/' + team.param + '/player/' + player.param + '">' + player.name + '</a>';
   }
-  return player.name;
+  return player.name + " " + player.full_name;
 }
 
 function render_championship(data, type, row) {
@@ -383,6 +384,14 @@ jQuery(document).ready(function ($) {
           table.draw();
         });
   });
+
+  $.fn.DataTable.ext.type.search.string = function (s) {
+    if (s) {
+      return s.normalize("NFD").replace(/\p{Diacritic}/gu, "");
+    } else {
+      return "";
+    }
+  };
 
   /* Custom filtering function which will search data in column four between two values */
   $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
