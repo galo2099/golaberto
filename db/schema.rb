@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2022_12_23_215524) do
+ActiveRecord::Schema.define(version: 2023_01_10_222431) do
 
   create_table "categories", id: :integer, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
     t.string "name"
@@ -199,6 +199,8 @@ ActiveRecord::Schema.define(version: 2022_12_23_215524) do
     t.integer "off", default: 0, null: false
     t.boolean "yellow", default: false, null: false
     t.boolean "red", default: false, null: false
+    t.float "off_rating"
+    t.float "def_rating"
     t.index ["game_id", "team_id", "player_id"], name: "index_player_games_on_game_id_and_team_id_and_player_id", unique: true
     t.index ["player_id"], name: "index_player_games_on_player_id"
   end

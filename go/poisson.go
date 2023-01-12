@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/dgryski/go-metro"
@@ -23,6 +24,63 @@ const (
 	AVG_BASE = 1.3350257653834494
 	HOME_ADV = 0.16133676871779334
 )
+
+type BatchInserter struct {
+	prefix     string
+	suffix     string
+	valuesStr  []string
+	values     []interface{}
+	count      int
+	db         *sql.DB
+	flushLimit int
+	wg         sync.WaitGroup
+}
+
+func (b *BatchInserter) AddValues(a ...interface{}) {
+	var dollarStrings []string
+	for i := 0; i < len(a); i++ {
+		dollarStrings = append(dollarStrings, "?")
+	}
+	b.valuesStr = append(b.valuesStr, fmt.Sprintf("(%s)", strings.Join(dollarStrings, ",")))
+	b.values = append(b.values, a...)
+	b.count += len(a)
+
+	if b.count >= b.flushLimit {
+		b.flush()
+	}
+}
+
+func ExecParallel(db *sql.DB, query string, args ...interface{}) {
+	_, err := db.Exec(query, args...)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (b *BatchInserter) flush() {
+	if len(b.values) == 0 {
+		return
+	}
+	query := fmt.Sprintf("%s %s %s", b.prefix, strings.Join(b.valuesStr, ","), b.suffix)
+
+	log.Println("flushing", len(b.values))
+	values := b.values
+	b.wg.Add(1)
+	go func() {
+		defer b.wg.Done()
+		ExecParallel(db, query, values...)
+	}()
+
+	b.values = nil
+	b.valuesStr = nil
+	b.count = 0
+}
+
+func (b *BatchInserter) Close() error {
+	b.flush()
+	b.wg.Wait()
+	return nil
+}
 
 type TeamCampaign struct {
 	id            int
@@ -1294,11 +1352,6 @@ type gameP struct {
 	awayId    int
 }
 
-type teamP struct {
-	offRating sql.NullFloat64
-	defRating sql.NullFloat64
-}
-
 type goalP struct {
 	playerId int
 	teamId   int
@@ -1308,18 +1361,26 @@ type goalP struct {
 }
 
 type playerP struct {
-	playerId int
-	teamId   int
-	on       int
-	off      int
-	yellow   bool
-	red      bool
-	position sql.NullString
+	playerGameId int
+	playerId     int
+	teamId       int
+	on           int
+	off          int
+	yellow       bool
+	red          bool
+	position     sql.NullString
+}
+
+type ratingP struct {
+	teamId      int
+	measureDate time.Time
+	offRating   float64
+	defRating   float64
 }
 
 func loadGames() []*gameP {
 	// Execute the query
-	results, err := db.Query("SELECT `games`.`id`, `games`.`date`, `games`.`home_score`, `games`.`away_score`, `games`.`home_aet`, `games`.`away_aet`, `games`.`home_field`, `games`.`home_id`, `games`.`away_id` FROM `games` INNER JOIN `phases` ON `phases`.`id` = `games`.`phase_id` INNER JOIN `championships` ON `championships`.`id` = `phases`.`championship_id` WHERE (date > ?) AND `games`.`played` = 1 AND `championships`.`category_id` = 1", time.Now().Add(-time.Hour * 24 * 365 * 4))
+	results, err := db.Query("SELECT `games`.`id`, `games`.`date`, `games`.`home_score`, `games`.`away_score`, `games`.`home_aet`, `games`.`away_aet`, `games`.`home_field`, `games`.`home_id`, `games`.`away_id` FROM `games` INNER JOIN `phases` ON `phases`.`id` = `games`.`phase_id` INNER JOIN `championships` ON `championships`.`id` = `phases`.`championship_id` WHERE (date > ?) AND `games`.`played` = 1 AND `championships`.`category_id` = 1 order by date", time.Now().Add(-time.Hour*24*365*4))
 	if err != nil {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
@@ -1335,26 +1396,6 @@ func loadGames() []*gameP {
 	}
 
 	return games
-}
-
-func loadTeams() map[int]*teamP {
-	results, err := db.Query("SELECT id, off_rating, def_rating FROM teams")
-	if err != nil {
-		panic(err.Error()) // proper error handling instead of panic in your app
-	}
-	teams := make(map[int]*teamP)
-	for results.Next() {
-		var team teamP
-		var id int
-		// for each row, scan the result into our tag composite object
-		err = results.Scan(&id, &team.offRating, &team.defRating)
-		if err != nil {
-			panic(err.Error()) // proper error handling instead of panic in your app
-		}
-		teams[id] = &team
-	}
-
-	return teams
 }
 
 func loadGoals(games []*gameP) map[int][]*goalP {
@@ -1381,12 +1422,42 @@ func loadGoals(games []*gameP) map[int][]*goalP {
 	return goals
 }
 
+func loadRatings(games []*gameP) map[int][]*ratingP {
+	teamIds := make(map[int]struct{})
+	for _, g := range games {
+		teamIds[g.homeId] = struct{}{}
+		teamIds[g.awayId] = struct{}{}
+	}
+	var teamIdsArr []string
+	for k, _ := range teamIds {
+		teamIdsArr = append(teamIdsArr, strconv.Itoa(k))
+	}
+
+	// 4 extra days
+	results, err := db.Query(fmt.Sprintf("select team_id, measure_date, off_rating, def_rating from historical_ratings WHERE measure_date > ? and team_id in (%s) order by measure_date", strings.Join(teamIdsArr, ",")), time.Now().Add(-time.Hour*24*366*4))
+	if err != nil {
+		panic(err.Error()) // proper error handling instead of panic in your app
+
+	}
+
+	ret := make(map[int][]*ratingP)
+	for results.Next() {
+		var rat ratingP
+		err = results.Scan(&rat.teamId, &rat.measureDate, &rat.offRating, &rat.defRating)
+		if err != nil {
+			panic(err.Error()) // proper error handling instead of panic in your app
+		}
+		ret[rat.teamId] = append(ret[rat.teamId], &rat)
+	}
+	return ret
+}
+
 func loadPlayers(games []*gameP) map[int][]*playerP {
 	gameIds := make([]string, len(games))
 	for i, g := range games {
 		gameIds[i] = strconv.Itoa(g.id)
 	}
-	results, err := db.Query("select player_id, game_id, team_id, `on`, off, yellow, red, players.position from player_games INNER JOIN `players` ON `players`.`id` = `player_games`.`player_id` where off > 0 and game_id in (" + strings.Join(gameIds, ",") + ")")
+	results, err := db.Query("select player_games.id, player_id, game_id, team_id, `on`, off, yellow, red, players.position from player_games INNER JOIN `players` ON `players`.`id` = `player_games`.`player_id` where off > 0 and game_id in (" + strings.Join(gameIds, ",") + ")")
 	if err != nil {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}
@@ -1395,7 +1466,7 @@ func loadPlayers(games []*gameP) map[int][]*playerP {
 		var player playerP
 		var gameId int
 		// for each row, scan the result into our tag composite object
-		err = results.Scan(&player.playerId, &gameId, &player.teamId, &player.on, &player.off, &player.yellow, &player.red, &player.position)
+		err = results.Scan(&player.playerGameId, &player.playerId, &gameId, &player.teamId, &player.on, &player.off, &player.yellow, &player.red, &player.position)
 		if err != nil {
 			panic(err.Error()) // proper error handling instead of panic in your app
 		}
@@ -1445,17 +1516,21 @@ func playerRatings(c http.ResponseWriter, req *http.Request) {
 	log.Println(time.Since(startFunc))
 	goals := loadGoals(games)
 	log.Println(time.Since(startFunc))
-	teams := loadTeams()
-	log.Println(time.Since(startFunc))
 	players := loadPlayers(games)
 	log.Println(time.Since(startFunc))
+	historicalRatings := loadRatings(games)
+	log.Println(time.Since(startFunc))
 
-	playerRatings := make(map[int]struct{
+	playerRatings := make(map[int]struct {
+		off, def, minutes float64
+	})
+	playerGameRatings := make(map[int]struct {
 		off, def, minutes float64
 	})
 
 	now := time.Now()
 
+	log.Println(len(games))
 	for _, game := range games {
 		if len(players[game.id]) == 0 {
 			continue
@@ -1474,15 +1549,29 @@ func playerRatings(c http.ResponseWriter, req *http.Request) {
 			length = 120
 		}
 
-		homeForZeroPer90 := -(teams[game.awayId].defRating.Float64+homeAdv)/((teams[game.awayId].defRating.Float64+homeAdv)*0.424+0.548)*(AVG_BASE*0.424+0.548) / length / 11
-		homeForGoalWeight := 1 / ((teams[game.awayId].defRating.Float64+homeAdv)*0.424+0.548)*(AVG_BASE*0.424+0.548)
-		homeAggZeroPer90 := (teams[game.awayId].offRating.Float64-homeAdv)/((teams[game.awayId].offRating.Float64-homeAdv)*0.424+0.548)*(AVG_BASE*0.424+0.548) / length / 11
-		homeAggGoalWeight := -1 / ((teams[game.awayId].offRating.Float64-homeAdv)*0.424+0.548)*(AVG_BASE*0.424+0.548)
+		homeR := historicalRatings[game.homeId]
+		for len(homeR) > 1 && game.date.Unix() > homeR[1].measureDate.Unix() {
+			homeR = homeR[1:]
+		}
+		homeRating := homeR[0]
+		historicalRatings[game.homeId] = homeR
 
-		awayForZeroPer90 := -(teams[game.homeId].defRating.Float64-homeAdv)/((teams[game.homeId].defRating.Float64-homeAdv)*0.424+0.548)*(AVG_BASE*0.424+0.548) / length / 11
-		awayForGoalWeight := 1 / ((teams[game.homeId].defRating.Float64-homeAdv)*0.424+0.548)*(AVG_BASE*0.424+0.548)
-		awayAggZeroPer90 := (teams[game.homeId].offRating.Float64+homeAdv)/((teams[game.homeId].offRating.Float64+homeAdv)*0.424+0.548)*(AVG_BASE*0.424+0.548) / length / 11
-		awayAggGoalWeight := -1 / ((teams[game.homeId].offRating.Float64+homeAdv)*0.424+0.548)*(AVG_BASE*0.424+0.548)
+		awayR := historicalRatings[game.awayId]
+		for len(awayR) > 1 && game.date.Unix() > awayR[1].measureDate.Unix() {
+			awayR = awayR[1:]
+		}
+		awayRating := awayR[0]
+		historicalRatings[game.awayId] = awayR
+
+		homeForZeroPer90 := -(awayRating.defRating + homeAdv) / ((awayRating.defRating+homeAdv)*0.424 + 0.548) * (AVG_BASE*0.424 + 0.548) / length / 11
+		homeForGoalWeight := 1 / ((awayRating.defRating+homeAdv)*0.424 + 0.548) * (AVG_BASE*0.424 + 0.548)
+		homeAggZeroPer90 := (awayRating.offRating - homeAdv) / ((awayRating.offRating-homeAdv)*0.424 + 0.548) * (AVG_BASE*0.424 + 0.548) / length / 11
+		homeAggGoalWeight := -1 / ((awayRating.offRating-homeAdv)*0.424 + 0.548) * (AVG_BASE*0.424 + 0.548)
+
+		awayForZeroPer90 := -(homeRating.defRating - homeAdv) / ((homeRating.defRating-homeAdv)*0.424 + 0.548) * (AVG_BASE*0.424 + 0.548) / length / 11
+		awayForGoalWeight := 1 / ((homeRating.defRating-homeAdv)*0.424 + 0.548) * (AVG_BASE*0.424 + 0.548)
+		awayAggZeroPer90 := (homeRating.offRating + homeAdv) / ((homeRating.offRating+homeAdv)*0.424 + 0.548) * (AVG_BASE*0.424 + 0.548) / length / 11
+		awayAggGoalWeight := -1 / ((homeRating.offRating+homeAdv)*0.424 + 0.548) * (AVG_BASE*0.424 + 0.548)
 
 		homePlayers := filterPlayer(players[game.id], func(pg *playerP) bool { return pg.teamId == game.homeId })
 		awayPlayers := filterPlayer(players[game.id], func(pg *playerP) bool { return pg.teamId == game.awayId })
@@ -1495,7 +1584,7 @@ func playerRatings(c http.ResponseWriter, req *http.Request) {
 		})
 
 		intervals := findIntervals(homePlayers)
-		for i := 0; i < len(intervals) - 1; i++ {
+		for i := 0; i < len(intervals)-1; i++ {
 			from := intervals[i]
 			to := intervals[i+1]
 			hp := filterPlayer(homePlayers, func(p *playerP) bool {
@@ -1505,10 +1594,10 @@ func playerRatings(c http.ResponseWriter, req *http.Request) {
 			for _, p := range hp {
 				pos[p.position.String] += 1
 			}
-			offWIndividual := float64(len(hp)) / (pos["g"] * 0.3 + pos["dc"] * 0.7 + pos["cm"] + pos["fw"] * 1.0 + pos[""])
-			offW := map[string]float64 {"g": offWIndividual * 0.3, "dc": offWIndividual * 0.7, "cm": offWIndividual, "fw": offWIndividual * 1.0, "": offWIndividual}
-			defWIndividual := float64(len(hp)) / (pos["g"] * 4.0 + pos["dc"] * 2.0 + pos["cm"] + pos["fw"] * 0.5 + pos[""])
-			defW := map[string]float64{ "g": defWIndividual * 4.0, "dc": defWIndividual * 2.0, "cm": defWIndividual, "fw": defWIndividual * 0.5, "": defWIndividual }
+			offWIndividual := float64(len(hp)) / (pos["g"]*0.3 + pos["dc"]*0.7 + pos["cm"] + pos["fw"]*1.0 + pos[""])
+			offW := map[string]float64{"g": offWIndividual * 0.3, "dc": offWIndividual * 0.7, "cm": offWIndividual, "fw": offWIndividual * 1.0, "": offWIndividual}
+			defWIndividual := float64(len(hp)) / (pos["g"]*4.0 + pos["dc"]*2.0 + pos["cm"] + pos["fw"]*0.5 + pos[""])
+			defW := map[string]float64{"g": defWIndividual * 4.0, "dc": defWIndividual * 2.0, "cm": defWIndividual, "fw": defWIndividual * 0.5, "": defWIndividual}
 			homeGoalsInterval := filterGoal(homeGoals, func(g *goalP) bool {
 				return g.time > from && g.time <= to
 			})
@@ -1532,8 +1621,10 @@ func playerRatings(c http.ResponseWriter, req *http.Request) {
 			})
 			for _, v := range hp {
 				playerRating := playerRatings[v.playerId]
+				playerGameRating := playerGameRatings[v.playerGameId]
 				minutes := float64(to - from)
 				playerRating.minutes += minutes * weight
+				playerGameRating.minutes += minutes
 				offPlayerWeight := offW[v.position.String]
 				regularGoals := 0.0
 				for _, g := range homeGoalsRegular {
@@ -1547,20 +1638,26 @@ func playerRatings(c http.ResponseWriter, req *http.Request) {
 						penaltyGoals += 1
 					}
 				}
-				playerRating.off += (minutes * homeForZeroPer90 * offPlayerWeight +
-					homeGoalsOwn * homeForGoalWeight * offPlayerWeight / float64(len(hp)) +
-					float64(len(homeGoalsRegular)) * homeForGoalWeight * offPlayerWeight / float64(len(hp)) / 4 * 3 +
-					float64(len(homeGoalsPenalty)) * homeForGoalWeight * offPlayerWeight / float64(len(hp)) / 6 * 5 +
-					regularGoals * homeForGoalWeight / 4 +
-					penaltyGoals * homeForGoalWeight / 6) * weight
-				playerRating.def += (minutes * homeAggZeroPer90 + awayGoalsInterval * homeAggGoalWeight / float64(len(hp))) * defW[v.position.String] * weight
+
+				off := (minutes*homeForZeroPer90*offPlayerWeight +
+					homeGoalsOwn*homeForGoalWeight*offPlayerWeight/float64(len(hp)) +
+					float64(len(homeGoalsRegular))*homeForGoalWeight*offPlayerWeight/float64(len(hp))/4*3 +
+					float64(len(homeGoalsPenalty))*homeForGoalWeight*offPlayerWeight/float64(len(hp))/6*5 +
+					regularGoals*homeForGoalWeight/4 +
+					penaltyGoals*homeForGoalWeight/6)
+				def := (minutes*homeAggZeroPer90 + awayGoalsInterval*homeAggGoalWeight/float64(len(hp))) * defW[v.position.String]
+				playerRating.off += off * weight
+				playerRating.def += def * weight
+				playerGameRating.off += off
+				playerGameRating.def += def
 
 				playerRatings[v.playerId] = playerRating
+				playerGameRatings[v.playerGameId] = playerGameRating
 			}
 		}
 
 		intervals = findIntervals(awayPlayers)
-		for i := 0; i < len(intervals) - 1; i++ {
+		for i := 0; i < len(intervals)-1; i++ {
 			from := intervals[i]
 			to := intervals[i+1]
 			ap := filterPlayer(awayPlayers, func(p *playerP) bool {
@@ -1570,10 +1667,10 @@ func playerRatings(c http.ResponseWriter, req *http.Request) {
 			for _, p := range ap {
 				pos[p.position.String] += 1
 			}
-			offWIndividual := float64(len(ap)) / (pos["g"] * 0.3 + pos["dc"] * 0.7 + pos["cm"] + pos["fw"] * 1.0 + pos[""])
-			offW := map[string]float64 {"g": offWIndividual * 0.3, "dc": offWIndividual * 0.7, "cm": offWIndividual, "fw": offWIndividual * 1.0, "": offWIndividual}
-			defWIndividual := float64(len(ap)) / (pos["g"] * 4.0 + pos["dc"] * 2.0 + pos["cm"] + pos["fw"] * 0.5 + pos[""])
-			defW := map[string]float64{ "g": defWIndividual * 4.0, "dc": defWIndividual * 2.0, "cm": defWIndividual, "fw": defWIndividual * 0.5, "": defWIndividual }
+			offWIndividual := float64(len(ap)) / (pos["g"]*0.3 + pos["dc"]*0.7 + pos["cm"] + pos["fw"]*1.0 + pos[""])
+			offW := map[string]float64{"g": offWIndividual * 0.3, "dc": offWIndividual * 0.7, "cm": offWIndividual, "fw": offWIndividual * 1.0, "": offWIndividual}
+			defWIndividual := float64(len(ap)) / (pos["g"]*4.0 + pos["dc"]*2.0 + pos["cm"] + pos["fw"]*0.5 + pos[""])
+			defW := map[string]float64{"g": defWIndividual * 4.0, "dc": defWIndividual * 2.0, "cm": defWIndividual, "fw": defWIndividual * 0.5, "": defWIndividual}
 			awayGoalsInterval := filterGoal(awayGoals, func(g *goalP) bool {
 				return g.time > from && g.time <= to
 			})
@@ -1597,8 +1694,10 @@ func playerRatings(c http.ResponseWriter, req *http.Request) {
 			})
 			for _, v := range ap {
 				playerRating := playerRatings[v.playerId]
+				playerGameRating := playerGameRatings[v.playerGameId]
 				minutes := float64(to - from)
 				playerRating.minutes += minutes * weight
+				playerGameRating.minutes += minutes
 				offPlayerWeight := offW[v.position.String]
 				regularGoals := 0.0
 				for _, g := range awayGoalsRegular {
@@ -1612,19 +1711,40 @@ func playerRatings(c http.ResponseWriter, req *http.Request) {
 						penaltyGoals += 1
 					}
 				}
-				playerRating.off += (minutes * awayForZeroPer90 * offPlayerWeight +
-					awayGoalsOwn * awayForGoalWeight * offPlayerWeight / float64(len(ap)) +
-					float64(len(awayGoalsRegular)) * awayForGoalWeight* offPlayerWeight / float64(len(ap)) / 4 * 3 +
-					float64(len(awayGoalsPenalty)) * awayForGoalWeight* offPlayerWeight / float64(len(ap)) / 6 * 5 +
-					regularGoals *awayForGoalWeight/ 4 +
-					penaltyGoals *awayForGoalWeight/ 6) * weight
-				playerRating.def += (minutes * awayAggZeroPer90 + homeGoalsInterval * awayAggGoalWeight / float64(len(ap))) * defW[v.position.String] * weight
+				off := (minutes*awayForZeroPer90*offPlayerWeight +
+					awayGoalsOwn*awayForGoalWeight*offPlayerWeight/float64(len(ap)) +
+					float64(len(awayGoalsRegular))*awayForGoalWeight*offPlayerWeight/float64(len(ap))/4*3 +
+					float64(len(awayGoalsPenalty))*awayForGoalWeight*offPlayerWeight/float64(len(ap))/6*5 +
+					regularGoals*awayForGoalWeight/4 +
+					penaltyGoals*awayForGoalWeight/6)
+				def := (minutes*awayAggZeroPer90 + homeGoalsInterval*awayAggGoalWeight/float64(len(ap))) * defW[v.position.String]
+				playerRating.off += off * weight
+				playerRating.def += def * weight
+				playerGameRating.off += off
+				playerGameRating.def += def
 
 				playerRatings[v.playerId] = playerRating
+				playerGameRatings[v.playerGameId] = playerGameRating
 			}
 		}
 	}
 	log.Println(time.Since(startFunc))
+	log.Println(len(playerGameRatings))
+
+	insertPG := &BatchInserter{
+		prefix:     "INSERT INTO player_games (id, off_rating, def_rating) VALUES",
+		suffix:     "ON DUPLICATE KEY UPDATE off_rating=VALUES(off_rating),def_rating=VALUES(def_rating)",
+		flushLimit: 65535,
+		db:         db,
+	}
+
+	for k, v := range playerGameRatings {
+		insertPG.AddValues(k, v.off, v.def)
+	}
+	err := insertPG.Close()
+	if err != nil {
+		panic(err)
+	}
 
 	var insertSql strings.Builder
 	insertSql.WriteString("INSERT INTO players (id,off_rating,def_rating,rating,created_at,updated_at) VALUES ")
@@ -1635,11 +1755,11 @@ func playerRatings(c http.ResponseWriter, req *http.Request) {
 		} else {
 			insertSql.WriteString(",")
 		}
-		insertSql.WriteString(fmt.Sprintf("(%d, %f, %f, %f, '%s', '%s')", k, v.off / v.minutes * 90, v.def / v.minutes * 90, (v.off + v.def) / (v.minutes + 900) * 90, now.Format("2006-01-02 15:04:05"), now.Format("2006-01-02 15:04:05")))
+		insertSql.WriteString(fmt.Sprintf("(%d, %f, %f, %f, '%s', '%s')", k, v.off/v.minutes*90, v.def/v.minutes*90, (v.off+v.def)/(v.minutes+900)*90, now.Format("2006-01-02 15:04:05"), now.Format("2006-01-02 15:04:05")))
 	}
 	insertSql.WriteString(" ON DUPLICATE KEY UPDATE off_rating=VALUES(off_rating),def_rating=VALUES(def_rating),rating=VALUES(rating),updated_at=VALUES(updated_at)")
 	log.Println(time.Since(startFunc))
-	_, err := db.Exec(insertSql.String())
+	_, err = db.Exec(insertSql.String())
 	if err != nil {
 		panic(err.Error()) // proper error handling instead of panic in your app
 	}

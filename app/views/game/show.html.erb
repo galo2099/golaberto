@@ -101,6 +101,7 @@ gauge_away.set(<%= away_importance %>); // set actual value
           <th><%= _("Pos") %></th>
           <th><%= _("On") %></th>
           <th><%= _("Off") %></th>
+          <th title="<%= _("Rating") %>"><%= s_("Rating|R") %></th>
           <th></th>
           <th></th>
           <th></th>
@@ -111,6 +112,7 @@ gauge_away.set(<%= away_importance %>); // set actual value
             <td><%= player_game.player.position %></td>
             <td><%= player_game.on %></td>
             <td><%= player_game.off %></td>
+            <td style="text-align: right"><%= number_with_precision(player_game.off_rating.to_f + player_game.def_rating.to_f, precision: 2) %></td>
             <td><%= image_tag "yells.gif" if player_game.yellow? %></td>
             <td><%= image_tag "reds.gif" if player_game.red? %></td>
             <td><%= image_tag "goal.png" if player_scored[player_game.player.id] %></td>
@@ -128,6 +130,7 @@ gauge_away.set(<%= away_importance %>); // set actual value
           <th><%= _("Pos") %></th>
           <th><%= _("On") %></th>
           <th><%= _("Off") %></th>
+          <th title="<%= _("Rating") %>"><%= s_("Rating|R") %></th>
           <th></th>
           <th></th>
           <th></th>
@@ -138,6 +141,7 @@ gauge_away.set(<%= away_importance %>); // set actual value
             <td><%= player_game.player.position %></td>
             <td><%= player_game.on %></td>
             <td><%= player_game.off %></td>
+            <td style="text-align: right"><%= number_with_precision(player_game.off_rating.to_f + player_game.def_rating.to_f, precision: 2) %></td>
             <td><%= image_tag "yells.gif" if player_game.yellow? %></td>
             <td><%= image_tag "reds.gif" if player_game.red? %></td>
             <td><%= image_tag "goal.png" if player_scored[player_game.player.id] %></td>

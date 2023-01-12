@@ -464,6 +464,15 @@ msgstr "Data"
 msgid "Def"
 msgstr "Def"
 
+msgid "Defensive Rating"
+msgstr "Nota Defensiva"
+
+msgid "Defensive Rating|D"
+msgstr "D"
+
+msgid "Defensive|Def"
+msgstr "Def"
+
 msgid "Delete"
 msgstr "Apagar"
 
@@ -1168,6 +1177,15 @@ msgstr "Chances sendo calculadas. "
 msgid "Off"
 msgstr "Saiu"
 
+msgid "Offensive Rating"
+msgstr "Nota Ofensiva"
+
+msgid "Offensive Rating|O"
+msgstr "O"
+
+msgid "Offensive|Off"
+msgstr "Ata"
+
 msgid "Oman"
 msgstr "Omã"
 
@@ -1372,6 +1390,18 @@ msgstr "Qatar"
 
 msgid "Rating"
 msgstr "Nota"
+
+msgid "Rating per 90 minutes"
+msgstr "Nota por 90 minutos"
+
+msgid "Rating|R"
+msgstr "N"
+
+msgid "Rating|R/90"
+msgstr "N/90"
+
+msgid "Rating|Rat"
+msgstr "Not"
 
 msgid "Recalculate odds"
 msgstr "Recalcular chances"

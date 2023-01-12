@@ -11,7 +11,7 @@
 <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/dt-1.13.1/fc-4.2.1/datatables.min.css"/>
 <script type="text/javascript" src="https://cdn.datatables.net/v/dt/dt-1.13.1/fc-4.2.1/datatables.min.js"></script>
 <%= render :partial => "shared/player_stats_table", :locals => { :player_stats => @player_stats,
-   options: { columns_to_show: [:name, :team, :position, :minutes, :goals, :goals_per_90, :own_goals, :penalties, :appearances, :played, :substituted_in, :bench, :yellows, :reds] },
+   options: { columns_to_show: [:name, :team, :position, :minutes, :goals, :goals_per_90, :rating, :rating_per_90, :off_rating, :def_rating, :own_goals, :penalties, :appearances, :played, :substituted_in, :bench, :yellows, :reds] },
    datatable_options: { order: [[ 4, 'desc' ]], paging: true, scrollY: false, searching: true },
  } %>
 

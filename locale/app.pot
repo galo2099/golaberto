@@ -8,8 +8,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: app 1.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-01-08 22:06-0800\n"
-"PO-Revision-Date: 2023-01-08 22:06-0800\n"
+"POT-Creation-Date: 2023-01-11 22:23-0800\n"
+"PO-Revision-Date: 2023-01-11 22:23-0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
@@ -448,6 +448,15 @@ msgid "Date"
 msgstr ""
 
 msgid "Def"
+msgstr ""
+
+msgid "Defensive Rating"
+msgstr ""
+
+msgid "Defensive Rating|D"
+msgstr ""
+
+msgid "Defensive|Def"
 msgstr ""
 
 msgid "Delete"
@@ -1119,6 +1128,15 @@ msgstr ""
 msgid "Off"
 msgstr ""
 
+msgid "Offensive Rating"
+msgstr ""
+
+msgid "Offensive Rating|O"
+msgstr ""
+
+msgid "Offensive|Off"
+msgstr ""
+
 msgid "Oman"
 msgstr ""
 
@@ -1299,6 +1317,18 @@ msgid "Qatar"
 msgstr ""
 
 msgid "Rating"
+msgstr ""
+
+msgid "Rating per 90 minutes"
+msgstr ""
+
+msgid "Rating|R"
+msgstr ""
+
+msgid "Rating|R/90"
+msgstr ""
+
+msgid "Rating|Rat"
 msgstr ""
 
 msgid "Recalculate odds"

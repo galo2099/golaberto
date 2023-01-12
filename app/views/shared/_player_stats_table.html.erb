@@ -6,6 +6,7 @@ default_options = {
   show_total: true,
 }
 options = default_options.merge(options || {})
+id_suffix = id_suffix || ""
 text_columns_selected = options[:columns_to_show].to_set.intersection(text_columns).size
 targets = options[:columns_to_show].each_with_index.map{|x,i| i unless asc_columns.include?(x) }.select{|x| not x.nil?}
 text_targets = options[:columns_to_show].each_with_index.map{|x,i| i if text_columns.include?(x) }.select{|x| not x.nil?}
@@ -94,6 +95,26 @@ columns_def = {
     header: "<th title='#{_("Minutes")}'>#{s_("Minutes|M")}</th>",
     body: ->(p) { p.minutes },
     footer: ->(stats, first) { "<th>#{stats.map{|p|p.minutes}.sum}</th>" },
+  },
+  off_rating: {
+    header: "<th title='#{_("Offensive Rating")}'>#{s_("Offensive Rating|O")}</th>",
+    body: ->(p) { number_with_precision(p.off_rating, precision: 2) },
+    footer: ->(stats, first) { "<th>#{number_with_precision(stats.map{|p|p.off_rating}.sum, precision: 2)}</th>" },
+  },
+  def_rating: {
+    header: "<th title='#{_("Defensive Rating")}'>#{s_("Defensive Rating|D")}</th>",
+    body: ->(p) { number_with_precision(p.def_rating, precision: 2) },
+    footer: ->(stats, first) { "<th>#{number_with_precision(stats.map{|p|p.def_rating}.sum, precision: 2)}</th>" },
+  },
+  rating: {
+    header: "<th title='#{_("Rating")}'>#{s_("Rating|R")}</th>",
+    body: ->(p) { number_with_precision(p.off_rating + p.def_rating, precision: 2) },
+    footer: ->(stats, first) { "<th>#{number_with_precision(stats.map{|p|p.off_rating + p.def_rating}.sum, precision: 2)}</th>" },
+  },
+  rating_per_90: {
+    header: "<th title='#{_("Rating per 90 minutes")}'>#{s_("Rating|R/90")}</th>",
+    body: ->(p) { number_with_precision((p.off_rating + p.def_rating).to_f / (p.minutes.to_f.nonzero? || 1) * 90, precision: 2) },
+    footer: ->(stats, first) { "<th>#{number_with_precision(stats.map{|p|p.off_rating+p.def_rating}.sum.to_f / (stats.map{|p|p.minutes}.sum.nonzero? || 1) * 90, precision: 2)}</th>" },
   },
 }
 
@@ -202,7 +223,7 @@ div.dtfc-right-top-blocker {
 table.dataTable tfoot th, table.dataTable thead th {
   text-align: right;
 }
-#players_stats_table_div {
+#players_stats_table_div<%= id_suffix %> {
   overflow: auto;
 }
 td:nth-child(n+<%= text_columns_selected+1 %>), th:nth-child(n+<%= text_columns_selected+1 %>) {
@@ -215,8 +236,8 @@ table.dataTable td.textColumn {
   text-overflow: ellipsis;
 }
 </style>
-<div id="players_stats_table_div">
-  <table id="player_stats_table" class="dataTable">
+<div id="players_stats_table_div<%= id_suffix %>">
+  <table id="player_stats_table<%= id_suffix %>" class="dataTable">
   <thead>
     <tr>
       <% options[:columns_to_show].each do |column| %>
@@ -323,7 +344,7 @@ jQuery(document).ready(function ($) {
     x.render = eval(x.render);
     return x;
   }));
-  var tableEl = $('#player_stats_table');
+  var tableEl = $('#player_stats_table<%= id_suffix %>');
   var table = tableEl.DataTable(options);
   $('table.dataTable').on('mouseenter', 'tr td', function(e) {
     var item = e.target;

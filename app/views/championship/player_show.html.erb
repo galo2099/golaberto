@@ -14,7 +14,17 @@
 <%= render partial: "shared/player_stats_table", :locals => {
   player_stats:  [@player_stats],
   options: {
-    columns_to_show: [:position, :minutes, :goals, :goals_per_90, :own_goals, :penalties, :appearances, :played, :substituted_in, :bench, :yellows, :reds],
+    columns_to_show: [:position, :minutes, :appearances, :played, :substituted_in, :bench, :yellows, :reds],
+    show_total: false,
+  },
+  datatable_options: { ordering: false, fixedColumns: false, scrollY: false, scrollCollapse: false, scrollX: false },
+ } %>
+
+<%= render partial: "shared/player_stats_table", :locals => {
+  player_stats:  [@player_stats],
+  id_suffix: 2,
+  options: {
+    columns_to_show: [:goals, :goals_per_90, :own_goals, :penalties, :rating, :rating_per_90, :off_rating, :def_rating],
     show_total: false,
   },
   datatable_options: { ordering: false, fixedColumns: false, scrollY: false, scrollCollapse: false, scrollX: false },
@@ -25,12 +35,12 @@
 <% @player.player_games.joins(game: { phase: :championship }).includes(game: { phase: :championship }).includes(game: [:home, :away, :goals]).includes(:team).order("games.date DESC").where("championships.id": @championship).each do |pg| %>
   <div style='font-size: 11px'><%= formatted_date(pg.game, true) %></div>
   <div class="<%= cycle "table_line_even", "table_line_odd" %> table_row">
-    <div class="table_cell" style="width: 92%">
-      <%= render :partial => "championship/game_list",
-                 :locals => { :highlight_team => pg.team,
-                              :game => pg.game,
-                              :show_country => pg.game.phase.championship.show_country,
-                            } %>
+    <div class="table_cell" style="width: 100%">
+      <%= render partial: "championship/game_list",
+                 locals: { highlight_team: pg.team,
+                           game: pg.game,
+                           show_country: pg.game.phase.championship.show_country,
+                         } %>
       <div class="clearer"></div>
     </div>
     <div class="clearer"></div>

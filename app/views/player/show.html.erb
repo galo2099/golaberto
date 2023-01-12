@@ -8,7 +8,7 @@
 <h2><%= @player.name %> - <%= @player.full_name %></h2>
 <%= render :partial => "shared/player_stats_table", :locals => {
    player_stats: @player_stats,
-   options: { columns_to_show: [:season, :team, :championship, :minutes, :goals, :goals_per_90, :own_goals, :penalties, :appearances, :played, :substituted_in, :bench, :yellows, :reds] },
+   options: { columns_to_show: [:season, :team, :championship, :minutes, :goals, :goals_per_90, :rating, :rating_per_90, :own_goals, :penalties, :appearances, :played, :substituted_in, :bench, :yellows, :reds] },
    datatable_options: { order: [[ 0, 'desc' ]] },
 } %>
 

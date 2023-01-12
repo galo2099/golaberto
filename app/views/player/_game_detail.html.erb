@@ -1,12 +1,20 @@
     <div class="<%= cycle "table_line_even", "table_line_odd" %> table_row">
-      <div class="table_cell" style="width: 92%">
+      <div class="table_cell" style="width: 100%">
         <div class="clearer"></div>
-        <div class='table_cell' style='width: 10%'></div>
         <div class='table_cell' style='width: 15%'><%= _("On") %>: <%= pg.on %></div>
         <div class='table_cell' style='width: 15%'><%= _("Off") %>: <%= pg.off %></div>
         <div class='table_cell' style='color: rgb(237,194,64); width: 5%'><% if pg.yellow %><%= image_tag "yells.gif" %><% end %></div>
         <div class='table_cell' style='color: rgb(255,0,0); width: 5%'><% if pg.red %><%= image_tag "reds.gif" %><% end %></div>
-        <div class='table_cell' style='font-size: 10px'><%= pg.game.goals.to_a.select{|g|g.player_id == @player.id and not g.own_goal}.map{|x| "#{image_tag('goal.png')} #{x.time}' "}.join.html_safe %></div>
+        <div class='table_cell' style='width: 15%; font-size: 10px'><%= pg.game.goals.order(:time).to_a.select{|g|g.player_id == @player.id and not g.own_goal}.map{|x| "<span style='white-space: nowrap'>#{image_tag('goal.png')} #{x.time}'</span> "}.join("").html_safe %></div>
+        <div class='table_cell' style='width: 15%'>
+            <%= s_("Offensive|Off") %>: <b><%= number_with_precision pg.off_rating.to_f, precision: 2 %></b>
+        </div>
+        <div class='table_cell' style='width: 15%'>
+            <%= s_("Defensive|Def") %>: <b><%= number_with_precision pg.def_rating.to_f, precision: 2 %></b>
+        </div>
+        <div class='table_cell' style='width: 15%'>
+            <%= s_("Rating|Rat") %>: <b><%= number_with_precision pg.off_rating.to_f + pg.def_rating.to_f, precision: 2 %></b>
+        </div>
         <div class="clearer"></div>
       </div>
       <div class="clearer"></div>
