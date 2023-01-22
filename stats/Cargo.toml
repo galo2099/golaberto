@@ -6,9 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-diesel = { version = "2.0.2", features = ["mysql", "chrono"] }
-diesel-async = { version = "0.2.0", features = ["mysql", "mobc"] }
+diesel = { version = "2.0.2", features = ["mysql", "chrono", "r2d2"] }
 dotenv = "0.15.0"
 chrono = "0.4.23"
-futures = "0.3.25"
-tokio = { version = "1", features = ["full"] }
+itertools = "0.10.5"

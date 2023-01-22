@@ -2,12 +2,12 @@
 
 #![allow(unused)]
 #![allow(clippy::all)]
-use diesel::{Queryable, Associations, Identifiable, deserialize, FromSqlRow, Selectable};
 use crate::schema::*;
+use diesel::{deserialize, Associations, FromSqlRow, Identifiable, Queryable, Selectable};
 
-use diesel::deserialize::FromSql;
 use chrono::NaiveDate;
 use chrono::NaiveDateTime;
+use diesel::deserialize::FromSql;
 use diesel::mysql::Mysql;
 use diesel::sql_types::Date;
 
@@ -150,7 +150,7 @@ pub struct Phase {
     // pub updated_at: NaiveDateTime,
 }
 
-#[derive(Queryable, Debug, Identifiable)]
+#[derive(Queryable, Debug, Identifiable, Selectable)]
 pub struct PlayerGame {
     pub id: i32,
     pub player_id: i32,
@@ -164,7 +164,7 @@ pub struct PlayerGame {
     pub def_rating: Option<f32>,
 }
 
-#[derive(Queryable, Debug, Identifiable)]
+#[derive(Queryable, Debug, Identifiable, Selectable)]
 pub struct Player {
     pub id: i32,
     pub name: String,
@@ -282,4 +282,3 @@ pub struct User {
     pub avatar_updated_at: Option<NaiveDateTime>,
     pub openid_connect_token: Option<String>,
 }
-
