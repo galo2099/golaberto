@@ -23,3 +23,8 @@ public/javascripts/base_packaged.js
 public/stylesheets/base_packaged.css
 
 /config/master.key
+
+/stats/.env
+/stats/.idea/
+/stats/stats.iml
+/stats/target/

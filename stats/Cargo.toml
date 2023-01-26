@@ -10,3 +10,4 @@ diesel = { version = "2.0.2", features = ["mysql", "chrono", "r2d2"] }
 dotenv = "0.15.0"
 chrono = "0.4.23"
 itertools = "0.10.5"
+smallvec = "1.10.0"

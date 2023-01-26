@@ -13,6 +13,7 @@ use diesel::RunQueryDsl;
 use diesel::{debug_query, sql_query, ExpressionMethods, JoinOnDsl, SelectableHelper};
 use dotenv::dotenv;
 use itertools::Itertools;
+use smallvec::{smallvec, SmallVec};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 use std::time::Instant;
@@ -54,7 +55,7 @@ fn load_games(conn: &mut MysqlConnection) -> Vec<Game> {
         .expect("champ")
 }
 
-fn load_goals(conn: &mut MysqlConnection, games: &[Game]) -> HashMap<i32, Vec<Goal>> {
+fn load_goals(conn: &mut MysqlConnection, games: &[Game]) -> HashMap<i32, SmallVec<[Goal; 4]>> {
     let s = Instant::now();
     let x1 = goals::table
         .select(Goal::as_select())
@@ -68,12 +69,12 @@ fn load_goals(conn: &mut MysqlConnection, games: &[Game]) -> HashMap<i32, Vec<Go
         )))
         .load_iter::<Goal, DefaultLoadingMode>(conn)
         .expect("goal")
-        .fold(HashMap::<i32, Vec<Goal>>::new(), |mut h, x| {
+        .fold(HashMap::<i32, SmallVec<[_; 4]>>::new(), |mut h, x| {
             let x = x.unwrap();
             match h.get_mut(&x.game_id.unwrap()) {
                 Some(v) => v.push(x),
                 None => {
-                    h.insert(x.game_id.unwrap(), vec![x]);
+                    h.insert(x.game_id.unwrap(), smallvec![x]);
                 }
             };
             h
@@ -277,7 +278,7 @@ fn main() {
             .filter(|x| x.pg.team_id == game.away_id)
             .collect::<Vec<_>>();
 
-        let empty_vec = Vec::new();
+        let empty_vec = SmallVec::<[_; 4]>::new();
         let home_goals = goals
             .get(&game.id)
             .unwrap_or(&empty_vec)
@@ -286,7 +287,7 @@ fn main() {
                 (goal.team_id == game.away_id && goal.own_goal)
                     || (goal.team_id == game.home_id && !goal.own_goal)
             })
-            .collect::<Vec<_>>();
+            .collect::<SmallVec<[_; 4]>>();
         let away_goals = goals
             .get(&game.id)
             .unwrap_or(&empty_vec)
@@ -295,7 +296,7 @@ fn main() {
                 (goal.team_id == game.home_id && goal.own_goal)
                     || (goal.team_id == game.away_id && !goal.own_goal)
             })
-            .collect::<Vec<_>>();
+            .collect::<SmallVec<[_; 4]>>();
 
         let intervals = home_players
             .iter()
@@ -305,6 +306,7 @@ fn main() {
         for (from, to) in intervals.tuple_windows() {
             let hp = home_players
                 .iter()
+                .copied()
                 .filter(|x| std::cmp::max(from, x.pg.on) < std::cmp::min(to, x.pg.off))
                 .collect::<Vec<_>>();
             let pos = hp.iter().fold(
@@ -335,23 +337,26 @@ fn main() {
 
             let home_goals_interval = home_goals
                 .iter()
-                .filter(|g| g.time > from && g.time <= to)
-                .collect::<Vec<_>>();
+                .copied()
+                .filter(|g| goal_interval_filter(g, from, to))
+                .collect::<SmallVec<[_; 4]>>();
             let away_goals_interval = away_goals
                 .iter()
-                .filter(|g| g.time > from && g.time <= to)
+                .filter(|g| goal_interval_filter(g, from, to))
                 .count();
             let home_goals_own = home_goals_interval.iter().filter(|g| g.own_goal).count();
             let home_goals_regular = home_goals_interval
                 .iter()
+                .copied()
                 .filter(|g| !g.own_goal && !g.penalty)
-                .collect::<Vec<_>>();
+                .collect::<SmallVec<[_; 4]>>();
             let home_goals_penalty = home_goals_interval
                 .iter()
+                .copied()
                 .filter(|g| !g.own_goal && g.penalty)
-                .collect::<Vec<_>>();
+                .collect::<SmallVec<[_; 4]>>();
 
-            for v in &hp {
+            for &v in &hp {
                 let player_rating = player_ratings
                     .entry(v.pg.player_id)
                     .or_insert(PlayerRating {
@@ -409,6 +414,7 @@ fn main() {
         for (from, to) in intervals.tuple_windows() {
             let ap = away_players
                 .iter()
+                .copied()
                 .filter(|x| std::cmp::max(from, x.pg.on) < std::cmp::min(to, x.pg.off))
                 .collect::<Vec<_>>();
             let pos = ap.iter().fold(
@@ -439,23 +445,26 @@ fn main() {
 
             let away_goals_interval = away_goals
                 .iter()
-                .filter(|g| g.time > from && g.time <= to)
-                .collect::<Vec<_>>();
+                .copied()
+                .filter(|g| goal_interval_filter(g, from, to))
+                .collect::<SmallVec<[_; 4]>>();
             let home_goals_interval = home_goals
                 .iter()
-                .filter(|g| g.time > from && g.time <= to)
+                .filter(|g| goal_interval_filter(g, from, to))
                 .count();
             let away_goals_own = away_goals_interval.iter().filter(|g| g.own_goal).count();
             let away_goals_regular = away_goals_interval
                 .iter()
+                .copied()
                 .filter(|g| !g.own_goal && !g.penalty)
-                .collect::<Vec<_>>();
+                .collect::<SmallVec<[_; 4]>>();
             let away_goals_penalty = away_goals_interval
                 .iter()
+                .copied()
                 .filter(|g| !g.own_goal && g.penalty)
-                .collect::<Vec<_>>();
+                .collect::<SmallVec<[_; 4]>>();
 
-            for v in &ap {
+            for &v in &ap {
                 let player_rating = player_ratings
                     .entry(v.pg.player_id)
                     .or_insert(PlayerRating {
@@ -564,6 +573,10 @@ fn main() {
     // println!("{} {} {} {}", x[2].0, x[2].1.off, x[2].1.def, x[2].1.minutes);
     println!("{:?}", player_ratings.len());
     println!("{:?}", start.elapsed());
+}
+
+fn goal_interval_filter(g: &Goal, from: i32, to: i32) -> bool {
+    g.time >= from && (g.time < to || (g.time == 90 && to == 90) || (g.time == 45 && to == 45))
 }
 
 fn get_rating(ratings: &mut HashMap<i32, VecDeque<HistoricalRating>>, date: NaiveDate, id: i32) {
