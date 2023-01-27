@@ -303,7 +303,11 @@ fn main() {
             .flat_map(|x| [x.pg.on, x.pg.off])
             .unique()
             .sorted();
+        let mut off_penalty = 0.0;
+        let mut def_penalty = 0.0;
         for (from, to) in intervals.tuple_windows() {
+            let off_penalty_interval = off_penalty;
+            let def_penalty_interval = def_penalty;
             let hp = home_players
                 .iter()
                 .copied()
@@ -370,6 +374,14 @@ fn main() {
                         def: 0.0,
                         minutes: 0.0,
                     });
+                if v.pg.off == to && v.pg.red {
+                    player_game_rating.off -= 0.3 * (90.0 - v.pg.off as f32) / 90.0;
+                    player_game_rating.def -= 0.5 * (90.0 - v.pg.off as f32) / 90.0;
+                    player_rating.off -= 0.3 * (90.0 - v.pg.off as f32) / 90.0 * weight;
+                    player_rating.def -= 0.5 * (90.0 - v.pg.off as f32) / 90.0 * weight;
+                    off_penalty += 0.3 / 90.0;
+                    def_penalty += 0.5 / 90.0;
+                }
                 let minutes = (to - from) as f32;
                 player_rating.minutes += minutes * weight;
                 player_game_rating.minutes += minutes;
@@ -383,7 +395,7 @@ fn main() {
                     .filter(|x| x.player_id == v.pg.player_id)
                     .count();
 
-                let off = minutes * home_for_zero_per90 * off_player_weight
+                let off = off_penalty_interval * minutes / (hp.len() as f32) + minutes * home_for_zero_per90 * off_player_weight
                     + home_goals_own as f32 * home_for_goal_weight * off_player_weight
                         / (hp.len() as f32)
                     + (home_goals_regular.len() as f32) * home_for_goal_weight * off_player_weight
@@ -396,7 +408,7 @@ fn main() {
                         * 5.0
                     + regular_goals as f32 * home_for_goal_weight / 4.0
                     + penalty_goals as f32 * home_for_goal_weight / 6.0;
-                let def = (minutes * home_agg_zero_per90
+                let def = def_penalty_interval * minutes / (hp.len() as f32) + (minutes * home_agg_zero_per90
                     + away_goals_interval as f32 * home_agg_goal_weight / (hp.len() as f32))
                     * def_w[&*v.pos];
                 player_rating.off += off * weight;
@@ -411,7 +423,11 @@ fn main() {
             .flat_map(|x| [x.pg.on, x.pg.off])
             .unique()
             .sorted();
+        let mut off_penalty = 0.0;
+        let mut def_penalty = 0.0;
         for (from, to) in intervals.tuple_windows() {
+            let off_penalty_interval = off_penalty;
+            let def_penalty_interval = def_penalty;
             let ap = away_players
                 .iter()
                 .copied()
@@ -478,6 +494,14 @@ fn main() {
                         def: 0.0,
                         minutes: 0.0,
                     });
+                if v.pg.off == to && v.pg.red {
+                    player_game_rating.off -= 0.3 * (90.0 - v.pg.off as f32) / 90.0;
+                    player_game_rating.def -= 0.5 * (90.0 - v.pg.off as f32) / 90.0;
+                    player_rating.off -= 0.3 * (90.0 - v.pg.off as f32) / 90.0 * weight;
+                    player_rating.def -= 0.5 * (90.0 - v.pg.off as f32) / 90.0 * weight;
+                    off_penalty += 0.3 / 90.0;
+                    def_penalty += 0.5 / 90.0;
+                }
                 let minutes = (to - from) as f32;
                 player_rating.minutes += minutes * weight;
                 player_game_rating.minutes += minutes;
@@ -491,7 +515,7 @@ fn main() {
                     .filter(|x| x.player_id == v.pg.player_id)
                     .count();
 
-                let off = minutes * away_for_zero_per90 * off_player_weight
+                let off = off_penalty_interval * minutes / (ap.len() as f32) + minutes * away_for_zero_per90 * off_player_weight
                     + away_goals_own as f32 * away_for_goal_weight * off_player_weight
                         / (ap.len() as f32)
                     + (away_goals_regular.len() as f32) * away_for_goal_weight * off_player_weight
@@ -504,7 +528,7 @@ fn main() {
                         * 5.0
                     + regular_goals as f32 * away_for_goal_weight / 4.0
                     + penalty_goals as f32 * away_for_goal_weight / 6.0;
-                let def = (minutes * away_agg_zero_per90
+                let def = def_penalty_interval * minutes / (ap.len() as f32) + (minutes * away_agg_zero_per90
                     + home_goals_interval as f32 * away_agg_goal_weight / (ap.len() as f32))
                     * def_w[&*v.pos];
                 player_rating.off += off * weight;
