@@ -61,6 +61,138 @@ function watch_odds(group_id) {
 
 <% end %>
 
+    <style>
+        #map {
+            height: 400px;
+            width: 100%;
+        }
+    </style>
+    <div id="map"></div>
+
+<script src="https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js"></script>
+<style>
+button.gm-ui-hover-effect {
+    visibility: hidden;
+}
+</style>
+
+<script>
+// List of city names
+const cities = [
+<% @current_phase.teams.each do |team| %>
+    [ '<%= team.city %>, <%= team.country %>', '<%= team.name %>', '<%= team.logo.url(:thumb) %>' ],
+<% end %>
+];
+
+function initMap() {
+    const map = new google.maps.Map(document.getElementById('map'), {
+        zoomControl: false,
+        mapTypeControl: false,
+        scaleControl: false,
+        streetViewControl: false,
+        rotateControl: false,
+        fullscreenControl: false
+    });
+
+    // Create an empty LatLngBounds object to encompass all markers
+    const bounds = new google.maps.LatLngBounds();
+
+    // Create an array to hold the markers
+    const markers = [];
+
+    // Geocode and create markers for each city
+    cities.forEach(cityName => {
+        const geocoder = new google.maps.Geocoder();
+        geocoder.geocode({ address: cityName[0] }, (results, status) => {
+            if (status === google.maps.GeocoderStatus.OK) {
+                var location = results[0].geometry.location;
+
+                for (i=0; i < markers.length; i++) {
+                        var existingMarker = markers[i];
+                        var pos = existingMarker.getPosition();
+                        if (location.equals(pos)) {
+                            var a = 3.0;
+                            var newLat = pos.lat() + -.00000 * Math.cos((+a*i) / 180 * Math.PI);  //X
+                            var newLng = pos.lng() + 0.0006;
+                            location = new google.maps.LatLng(newLat,newLng);
+                        }
+                    }
+
+                // Create a marker for the city and add it to the map
+                const marker = new google.maps.Marker({
+                    position: location,
+                    optimized: false,
+                });
+
+                // Extend the bounds to include this marker
+                bounds.extend(marker.getPosition());
+
+                // Create an InfoWindow with the city name
+                const infoWindow = new google.maps.InfoWindow({
+                    content: `<div class="info-window">
+                                 <h3><img src="${cityName[2]}">${cityName[1]}</h3>
+                                 <h3>${results[0].formatted_address}</h3>
+                              </div>`,
+                    maxWidth: 200,
+                    disableAutoPan: true,
+                });
+
+                // Open the InfoWindow when the marker is clicked
+                marker.addListener('mouseover', () => {
+                    infoWindow.open(map, marker);
+                });
+                marker.addListener('mouseout', () => {
+                    infoWindow.close();
+                });
+                marker.addListener('click', () => {
+                    map.setCenter(marker.getPosition());
+                });
+
+                // Push the marker to the markers array
+                markers.push(marker);
+            } else {
+                console.error(`Geocoding failed for ${cityName[0]}: ${status}`);
+            }
+
+            // Fit the map to the bounds after all markers have been added
+            map.fitBounds(bounds);
+
+            // Create a MarkerClusterer to cluster the markers
+            new markerClusterer.MarkerClusterer({markers, map});
+        });
+    });
+
+    // Create a button element
+    const resetButton = document.createElement('button');
+    resetButton.setAttribute('id', 'resetButton');
+    resetButton.textContent = '<%= _("Reset Map") %>';
+
+    // Create a custom control element to hold the button
+    const customControl = document.createElement('div');
+    customControl.className = 'custom-control';
+
+    // Append the button to the custom control element
+    customControl.appendChild(resetButton);
+
+    // Add the custom control to the map's UI
+    map.controls[google.maps.ControlPosition.TOP_RIGHT].push(customControl);
+
+    // Add a click event listener to the reset button
+    resetButton.addEventListener('click', function() {
+        map.fitBounds(bounds);
+    });
+}
+
+</script>
+
+
+<% maps_script_url = "https://maps.googleapis.com/maps/api/js?key=AIzaSyCT_RQIGXyWC6LEKwGVkiIAyXJjWfuKJkE&callback=initMap" %>
+<% case I18n.locale when :"pt-BR" then %>
+  <script src="<%= maps_script_url %>&region=br&language=pt" async defer></script>
+<% else %>
+  <script src="<%= maps_script_url %>" async defer></script>
+<% end %>
+
 <% content_for :title do %>
   <%= @championship.full_name %> - <%= @current_phase.name %> - <%= _("Table") %>
 <% end %>

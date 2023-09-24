@@ -1447,6 +1447,9 @@ msgstr "Removido %s: %s<br>"
 msgid "Removed goal "
 msgstr "Removido gol "
 
+msgid "Reset Map"
+msgstr "Resetar Mapa"
+
 msgid "Reunion"
 msgstr "Reunião"
 
