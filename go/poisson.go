@@ -1599,11 +1599,11 @@ func playerRatings(c http.ResponseWriter, req *http.Request) {
 			defWIndividual := float64(len(hp)) / (pos["g"]*4.0 + pos["dc"]*2.0 + pos["cm"] + pos["fw"]*0.5 + pos[""])
 			defW := map[string]float64{"g": defWIndividual * 4.0, "dc": defWIndividual * 2.0, "cm": defWIndividual, "fw": defWIndividual * 0.5, "": defWIndividual}
 			homeGoalsInterval := filterGoal(homeGoals, func(g *goalP) bool {
-				return g.time > from && g.time <= to
+				return g.time >= from && g.time < to
 			})
 			awayGoalsInterval := 0.0
 			for _, g := range awayGoals {
-				if g.time > from && g.time <= to {
+				if g.time >= from && g.time < to {
 					awayGoalsInterval += 1
 				}
 			}
@@ -1672,11 +1672,11 @@ func playerRatings(c http.ResponseWriter, req *http.Request) {
 			defWIndividual := float64(len(ap)) / (pos["g"]*4.0 + pos["dc"]*2.0 + pos["cm"] + pos["fw"]*0.5 + pos[""])
 			defW := map[string]float64{"g": defWIndividual * 4.0, "dc": defWIndividual * 2.0, "cm": defWIndividual, "fw": defWIndividual * 0.5, "": defWIndividual}
 			awayGoalsInterval := filterGoal(awayGoals, func(g *goalP) bool {
-				return g.time > from && g.time <= to
+				return g.time >= from && g.time < to
 			})
 			homeGoalsInterval := 0.0
 			for _, g := range homeGoals {
-				if g.time > from && g.time <= to {
+				if g.time >= from && g.time < to {
 					homeGoalsInterval += 1
 				}
 			}

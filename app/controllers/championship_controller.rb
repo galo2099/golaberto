@@ -266,7 +266,7 @@ class ChampionshipController < ApplicationController
     @player = Player.find(params[:player])
     @team = Team.find(params[:team])
 
-    @player_stats = TeamPlayer.stats("games.phase_id": @championship.phases.pluck(:id), player: @player)
+    @player_stats = TeamPlayer.stats("games.phase_id": @championship.phases.pluck(:id), player: @player, team: @team)
     @player_stats = @player_stats.to_a.sort{|a,b| b.goals <=> a.goals}.first
   end
 

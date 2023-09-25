@@ -32,7 +32,7 @@
 
 <h2> <%= _("Games") %></h2>
 <div class="game_score">
-<% @player.player_games.joins(game: { phase: :championship }).includes(game: { phase: :championship }).includes(game: [:home, :away, :goals]).includes(:team).order("games.date DESC").where("championships.id": @championship).each do |pg| %>
+<% @player.player_games.joins(game: { phase: :championship }).includes(game: { phase: :championship }).includes(game: [:home, :away, :goals]).includes(:team).order("games.date DESC").where("championships.id": @championship, team_id: @team).each do |pg| %>
   <div style='font-size: 11px'><%= formatted_date(pg.game, true) %></div>
   <div class="<%= cycle "table_line_even", "table_line_odd" %> table_row">
     <div class="table_cell" style="width: 100%">
