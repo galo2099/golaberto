@@ -28,12 +28,54 @@ home_importance = calculate_importance(@game.home_importance.to_f)
 away_importance = calculate_importance(@game.away_importance.to_f)
 %>
 
+<style>
+.current_form span {
+  display: inline-block;
+  color: #e3efca;
+  width: 15px;
+  height: 15px;
+  font-size: small;
+}
+.current_form .W {
+  background-color: green;
+}
+.current_form .D {
+  background-color: #edc240;
+}
+.current_form .L {
+  background-color: red;
+}
+</style>
+
 <table class="game_show_score">
   <%= render :partial => "game_score" %>
+  <tr class='current_form'>
+    <td align="center">
+      <% @game.home.games.where(played: true).where("date < ?", @game.date).order(date: :desc).limit(5).reverse.each do |g| %>
+        <span title="header=[] body=[<%= g.home.name %> <%= g.home_score %> x <%= g.away_score %> <%= g.away.name %>] cssbody=[popupbody]">
+        <% us, them = g.home_score, g.away_score %>
+        <% if g.home != @game.home then us, them = them, us end %>
+        <% if us > them then res = "W" elsif us == them then res = "D" else res = "L" end %>
+        <span class="<%= res %>"><%= res %></span>
+        </span>
+      <% end %>
+    </td>
+    <td colspan="7"/>
+    <td align="center">
+      <% @game.away.games.where(played: true).where("date < ?", @game.date).order(date: :desc).limit(5).reverse.each do |g| %>
+        <span title="header=[] body=[<%= g.home.name %> <%= g.home_score %> x <%= g.away_score %> <%= g.away.name %>] cssbody=[popupbody]">
+        <% us, them = g.home_score, g.away_score %>
+        <% if g.home != @game.away then us, them = them, us end %>
+        <% if us > them then res = "W" elsif us == them then res = "D" else res = "L" end %>
+        <span class="<%= res %>"><%= res %></span>
+        </span>
+      <% end %>
+    </td>
+  </tr>
   <% odds = @game.odds %>
   <% if !@game.played? && odds then %>
-    <tr>
     <tr><td colspan="100"><b><%= _("Odds") %></td></tr>
+    <tr>
     <td align="center"><%= number_to_percentage(100*odds[0], :precision => 2) %></td>
     <td colspan="3"/>
     <td align="center"><%= number_to_percentage(100*odds[1], :precision => 2) %></td>
