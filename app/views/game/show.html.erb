@@ -45,6 +45,10 @@ away_importance = calculate_importance(@game.away_importance.to_f)
 .current_form .L {
   background-color: red;
 }
+.current_form a {
+  text-decoration: inherit;
+  color: inherit;
+}
 </style>
 
 <table class="game_show_score">
@@ -56,7 +60,7 @@ away_importance = calculate_importance(@game.away_importance.to_f)
         <% us, them = g.home_score, g.away_score %>
         <% if g.home != @game.home then us, them = them, us end %>
         <% if us > them then res = "W" elsif us == them then res = "D" else res = "L" end %>
-        <span class="<%= res %>"><%= res %></span>
+        <span class="<%= res %>"><%= link_to res, id: g %></span>
         </span>
       <% end %>
     </td>
@@ -67,7 +71,7 @@ away_importance = calculate_importance(@game.away_importance.to_f)
         <% us, them = g.home_score, g.away_score %>
         <% if g.home != @game.away then us, them = them, us end %>
         <% if us > them then res = "W" elsif us == them then res = "D" else res = "L" end %>
-        <span class="<%= res %>"><%= res %></span>
+        <span class="<%= res %>"><%= link_to res, id: g %></span>
         </span>
       <% end %>
     </td>
