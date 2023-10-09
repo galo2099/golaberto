@@ -52,29 +52,11 @@ away_importance = calculate_importance(@game.away_importance.to_f)
 </style>
 
 <table class="game_show_score">
-  <%= render :partial => "game_score" %>
+  <%= render partial: "game_score" %>
   <tr class='current_form'>
-    <td align="center">
-      <% @game.home.games.where(played: true).where("date < ?", @game.date).order(date: :desc).limit(5).reverse.each do |g| %>
-        <span title="header=[] body=[<%= g.home.name %> <%= g.home_score %> x <%= g.away_score %> <%= g.away.name %>] cssbody=[popupbody]">
-        <% us, them = g.home_score, g.away_score %>
-        <% if g.home != @game.home then us, them = them, us end %>
-        <% if us > them then res = "W" elsif us == them then res = "D" else res = "L" end %>
-        <span class="<%= res %>"><%= link_to res, id: g %></span>
-        </span>
-      <% end %>
-    </td>
+    <%= render partial: "game_form", locals: { team: @game.home } %>
     <td colspan="7"/>
-    <td align="center">
-      <% @game.away.games.where(played: true).where("date < ?", @game.date).order(date: :desc).limit(5).reverse.each do |g| %>
-        <span title="header=[] body=[<%= g.home.name %> <%= g.home_score %> x <%= g.away_score %> <%= g.away.name %>] cssbody=[popupbody]">
-        <% us, them = g.home_score, g.away_score %>
-        <% if g.home != @game.away then us, them = them, us end %>
-        <% if us > them then res = "W" elsif us == them then res = "D" else res = "L" end %>
-        <span class="<%= res %>"><%= link_to res, id: g %></span>
-        </span>
-      <% end %>
-    </td>
+    <%= render partial: "game_form", locals: { team: @game.away } %>
   </tr>
   <% odds = @game.odds %>
   <% if !@game.played? && odds then %>
