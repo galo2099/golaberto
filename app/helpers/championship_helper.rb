@@ -41,7 +41,7 @@ module ChampionshipHelper
     attr_reader :points, :games, :wins, :draws, :losses,
                 :goals_for, :goals_against, :goals_aet, :goals_pen,
                 :goals_away, :last_game, :bias, :add_sub, :team_group,
-                :zones, :name, :home_games
+                :zones, :name, :home_games, :form
 
     def initialize(team_group)
       @games = 0
@@ -55,6 +55,7 @@ module ChampionshipHelper
       @goals_pen = 0
       @goals_away = 0
       @home_games = Hash.new
+      @form = Array.new
       @last_game = nil
       @team_group = team_group
       @team_id = team_group.team_id
@@ -145,20 +146,24 @@ module ChampionshipHelper
       if home_score > away_score then
         if (home_id == @team_id) then
           @wins += 1
+          @form.push("w")
           @points += @points_for_win
           if home_score - away_score >= @bonus_threshold then
             @points += @bonus
           end
         else
           @losses += 1
+          @form.push("l")
           @points += @points_for_loss
         end
       elsif home_score < away_score then
         if (home_id == @team_id) then
           @losses += 1
+          @form.push("l")
           @points += @points_for_loss
         else
           @wins += 1
+          @form.push("w")
           @points += @points_for_win
           if away_score - home_score >= @bonus_threshold then
             @points += @bonus
@@ -166,6 +171,7 @@ module ChampionshipHelper
         end
       else
         @draws += 1
+        @form.push("d")
         @points += @points_for_draw
       end
       if (home_id == @team_id) then

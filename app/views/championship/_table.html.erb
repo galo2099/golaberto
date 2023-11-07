@@ -43,8 +43,8 @@
 
 <table class='class_table'>
   <tr class='table_head'>
-    <%= content_tag :th, _("#"), :class => "pos" unless omit_columns[:Pos] %>
-    <%= content_tag :th, _("Name"), :class => "name" unless omit_columns[:Name] %>
+    <%= content_tag :th, _("#"), class: "pos" unless omit_columns[:Pos] %>
+    <%= content_tag :th, _("Name"), class: "name" unless omit_columns[:Name] %>
     <%= content_tag :th, _("Pts") unless omit_columns[:Pts] %>
     <%= content_tag :th, _("G") unless omit_columns[:G] %>
     <%= content_tag :th, _("W") unless omit_columns[:W] %>
@@ -141,6 +141,11 @@
   </tr>
   <% pos = 0 %>
   <% notes = Array.new %>
+  <% max_form = 0 %>
+  <% group.team_table.each do |t|
+    stats = t[1]
+    max_form = [stats.form.last(5).size, max_form].max
+  end %>
   <% group.team_table.each do |t|
     team = t[0].team
     stats = t[1]
@@ -150,6 +155,25 @@
         notes.push t[0].comment
         note_number = " (#{notes.size})"
       end
+    end
+    form = ""
+    unless omit_columns[:Form]
+      last_5_form = stats.form.last(5)
+      while last_5_form.size < max_form do
+        last_5_form.push(nil)
+      end
+      form = last_5_form.map do |f|
+        case f
+        when "w"
+          "<span style='color: green; font-size: x-small'>\u2688</span>"
+        when "d"
+          "<span style='color: yellow; font-size: x-small'>\u2688</span>"
+        when "l"
+          "<span style='color: red; font-size: x-small'>\u2688</span>"
+        else
+          "<span style='color: #00000000; font-size: x-small'>\u2688</span>"
+        end
+      end.join
     end
     pos += 1
     tr_class = 'table_line'
@@ -191,7 +215,7 @@
 <tr class='<%= tr_class %>' style='<%= pos_style %>'>
          <%= content_tag :td, pos, class: "pos" unless omit_columns[:Pos] %>
          <%= content_tag(:td,
-                         (country_logo + " " + image_logo + " " +
+                         ((content_tag :span, form.html_safe) + " " + country_logo + " " + image_logo + " " +
                          link_to(add_wbr_to_string(team.name), :action => 'team',
                                             :id => group.phase.championship,
                                             :team => team) +
