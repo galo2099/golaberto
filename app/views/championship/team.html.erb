@@ -243,7 +243,7 @@ div#odds div.flot-x-axis div.flot-tick-label:nth-child(<%=team_position%>) {
       }
     }
 
-    current_data["data"][3]["label"] = '#{@team.name}';
+    current_data["data"][3]["label"] = '<%= @team.name %>';
     current_data["data"][7]["label"] = $('team_graph_select' + idx).options[$('team_graph_select' + idx).selectedIndex].text;
     jQuery("#placeholder" + idx).plot(current_data["data"], current_data["options"]);
   }
