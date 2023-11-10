@@ -216,7 +216,7 @@ class ChampionshipController < ApplicationController
     group = phase.groups.select{|g| g.teams.include? team}.first
     json, _ = generate_team_json(championship, phase, group, team)
 
-    render :text => json, :layout => false
+    render json: json
   end
 
   def team
