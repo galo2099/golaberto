@@ -402,7 +402,7 @@ def process_player(s, game, team_id, players, starter, end_of_match)
       players[out_id].off = minute
     end
     on = minute
-    off = end_of_match
+    off = end_of_match unless rc
   end
   return PlayerGame.new(player_id: player.id, game_id: game.id, team_id: team_id, on: on, off: off, yellow: yc, red: rc)
 end
