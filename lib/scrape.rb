@@ -227,6 +227,9 @@ def fix_name(str)
   if str == "Côte d'Ivoire"
     str = "Ivory Coast"
   end
+  if str == "Türkiye"
+    str = "Turkey"
+  end
   str
 end
 
@@ -465,6 +468,9 @@ def create_player(url, soccerway_id)
   end
   if country == "Kyrgyz Republic"
     country = "Kyrgyzstan"
+  end
+  if country == "Türkiye"
+    country = "Turkey"
   end
 
   player = Player.new(name: name, birth: birthday.to_date, country: country, full_name: full_name, soccerway_id: soccerway_id)
