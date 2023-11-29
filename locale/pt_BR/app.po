@@ -1566,6 +1566,9 @@ msgstr "América do Sul"
 msgid "South Korea"
 msgstr "Coréia do Sul"
 
+msgid "South Sudan"
+msgstr "Sudão do Sul"
+
 msgid "Spain"
 msgstr "Espanha"
 
