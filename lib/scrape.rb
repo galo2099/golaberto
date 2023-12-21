@@ -424,6 +424,9 @@ def create_player(url, soccerway_id)
   p name
   p soccerway_id
 
+  if country == "Brunei Darussalam"
+    country = "Brunei"
+  end
   if country == "Côte d'Ivoire"
     country = "Ivory Coast"
   end
@@ -433,11 +436,20 @@ def create_player(url, soccerway_id)
   if country == "Cape Verde Islands"
     country = "Cape Verde"
   end
+  if country == "Czechia"
+    country = "Czech Republic"
+  end
+  if country == "Eswatini"
+    country = "Swaziland"
+  end
   if country == "North Macedonia"
     country = "Macedonia"
   end
   if country == "Congo DR"
     country = "DR Congo"
+  end
+  if country == "Hong Kong, China"
+    country = "Hong Kong"
   end
   if country == "USA"
     country = "United States"
@@ -450,6 +462,9 @@ def create_player(url, soccerway_id)
   end
   if country == "Korea Republic"
     country = "South Korea"
+  end
+  if country == "Korea DPR"
+    country = "North Korea"
   end
   if country == "Curaçao"
     country = "Netherlands Antilles"
@@ -466,11 +481,17 @@ def create_player(url, soccerway_id)
   if country == "Chinese Taipei"
     country = "Taiwan"
   end
+  if country == "São Tomé e Príncipe"
+    country = "Sao Tome and Principe"
+  end
   if country == "Kyrgyz Republic"
     country = "Kyrgyzstan"
   end
   if country == "Türkiye"
     country = "Turkey"
+  end
+  if country == "Vietnam"
+    country = "Viet Nam"
   end
 
   player = Player.new(name: name, birth: birthday.to_date, country: country, full_name: full_name, soccerway_id: soccerway_id)
