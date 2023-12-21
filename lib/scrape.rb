@@ -368,6 +368,17 @@ def process_player(s, game, team_id, players, starter, end_of_match)
   if starter
     off = end_of_match
   end
+  out = s.search('/td.player.large-link/p.substitute-out').first
+  on = 0
+  if out
+    out_id = out.search('/a').first.attributes['href'].gsub(/.*?(\d+).$/, '\1')
+    minute = out.search('/text()').to_s.gsub(/.*?(\d+).*/m, '\1')
+    if players[out_id]
+      players[out_id].off = minute
+    end
+    on = minute
+    off = end_of_match
+  end
   s.search('/td.bookings/span').each do |span|
     if span.search('/img').first.attributes['src'] =~ /\bG.png\b/
       minute = span.search('text()').first.to_s.gsub(/.*?(\d+).*/m, '\1').to_i
@@ -386,23 +397,12 @@ def process_player(s, game, team_id, players, starter, end_of_match)
     end
     if span.search('/img').first.attributes['src'] =~ /\bRC.png\b/
       rc = true
-      off = span.search('text()').first.to_s.gsub(/.*?(\d+).*/m, '\1')
+      off = span.search('text()').first.to_s.gsub(/.*?(\d+).*/m, '\1') if off != 0
     end
     if span.search('/img').first.attributes['src'] =~ /\bY2C.png\b/
       rc = true
-      off = span.search('text()').first.to_s.gsub(/.*?(\d+).*/m, '\1')
+      off = span.search('text()').first.to_s.gsub(/.*?(\d+).*/m, '\1') if off != 0
     end
-  end
-  out = s.search('/td.player.large-link/p.substitute-out').first
-  on = 0
-  if out
-    out_id = out.search('/a').first.attributes['href'].gsub(/.*?(\d+).$/, '\1')
-    minute = out.search('/text()').to_s.gsub(/.*?(\d+).*/m, '\1')
-    if players[out_id]
-      players[out_id].off = minute
-    end
-    on = minute
-    off = end_of_match unless rc
   end
   return PlayerGame.new(player_id: player.id, game_id: game.id, team_id: team_id, on: on, off: off, yellow: yc, red: rc)
 end
