@@ -121,7 +121,6 @@ function initMap() {
     // Create an array to hold the markers
     const markers = [];
 
-
     cities.forEach(cityName => {
       geocodeLocal(cityName[0], function(results) {
         var location = results[0].geometry.location;
@@ -202,7 +201,7 @@ function initMap() {
 </script>
 
 
-<% maps_script_url = "https://maps.googleapis.com/maps/api/js?key=AIzaSyCT_RQIGXyWC6LEKwGVkiIAyXJjWfuKJkE&callback=initMap" %>
+<% maps_script_url = "https://maps.googleapis.com/maps/api/js?v=quarterly&key=AIzaSyCT_RQIGXyWC6LEKwGVkiIAyXJjWfuKJkE&callback=initMap" %>
 <% case I18n.locale when :"pt-BR" then %>
   <script src="<%= maps_script_url %>&region=br&language=pt" async defer></script>
 <% else %>
