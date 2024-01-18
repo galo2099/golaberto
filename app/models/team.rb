@@ -35,6 +35,8 @@ class Team < ApplicationRecord
   validates_length_of :country, :within => 1..40
   validates_uniqueness_of :name, :message => "already exists"
 
+  before_save :retrieve_geocode
+
   # Fields information, just FYI.
   #
   # Field: id , SQL Definition:bigint(20)
@@ -86,5 +88,13 @@ class Team < ApplicationRecord
 
   def self.get_historical_ratings_2_weeks(team_id)
     HistoricalRating.connection.select_all("select LEAST(FROM_UNIXTIME((unix_timestamp(measure_date) div (#{2.weeks.to_i}) + 1) * (#{2.weeks.to_i})), NOW()) as d, AVG(rating) as r from historical_ratings where team_id=#{team_id} group by d order by measure_date").to_a.map{|x|x.map{|k,v| v }}.map{|x| x[0] = x[0].to_time.to_i; x[1] = x[1].to_f; x[1] = nil if x[1] == 0; x}
+  end
+
+  def retrieve_geocode
+    url = "https://nominatim.openstreetmap.org/search.php?q=#{CGI.escape(city.to_s + ", " + country)}&format=jsonv2&namedetails=1&layer=address"
+    uri = URI(url)
+    response = Net::HTTP.get(uri)
+    self.geocode = JSON.parse(response)
+    return true
   end
 end

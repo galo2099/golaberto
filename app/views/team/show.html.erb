@@ -20,6 +20,10 @@
 </div>
 
 <div>
+<%= render partial: "geolocation", locals: { teams: [ @team ], maxzoom: 13 } %>
+</div>
+
+<div>
   <h2><%= _("Rating") %></h2>
   <input type="checkbox" checked name=<%= @team.id %> class="ratingSelector" style="display: none">
   <%= render partial: "team_rating_graph", locals: {teams: [@team]} %>

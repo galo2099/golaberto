@@ -10,7 +10,11 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2023_01_10_222431) do
+ActiveRecord::Schema.define(version: 2024_01_18_083839) do
+
+  create_table "__diesel_schema_migrations", primary_key: "version", id: { type: :string, limit: 50 }, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
+    t.timestamp "run_on", default: -> { "CURRENT_TIMESTAMP" }, null: false
+  end
 
   create_table "categories", id: :integer, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
     t.string "name"
@@ -292,6 +296,7 @@ ActiveRecord::Schema.define(version: 2023_01_10_222431) do
     t.float "off_rating"
     t.float "def_rating"
     t.integer "team_type", default: 0, null: false
+    t.json "geocode"
   end
 
   create_table "users", id: :integer, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
