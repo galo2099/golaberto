@@ -36,7 +36,7 @@ class Team < ApplicationRecord
   validates_length_of :country, :within => 1..40
   validates_uniqueness_of :name, :message => "already exists"
 
-  before_save :retrieve_geocode
+  after_save :retrieve_geocode
 
   # Fields information, just FYI.
   #
@@ -95,7 +95,8 @@ class Team < ApplicationRecord
     url = "https://nominatim.openstreetmap.org/search.php?q=#{CGI.escape(city.to_s + ", " + country)}&format=jsonv2&namedetails=1&layer=address"
     uri = URI(url)
     response = Net::HTTP.get(uri)
-    self.geocode = JSON.parse(response)
+    self.build_team_geocode unless self.team_geocode
+    self.team_geocode.update(data: JSON.parse(response))
     return true
   end
 end
