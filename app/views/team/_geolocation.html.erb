@@ -17,7 +17,7 @@ button.gm-ui-hover-effect {
 // List of city names
 const cities = [
 <% teams.each do |team| %>
-  [ '<%= team.city %>, <%= team.country %>', '<%= team.name %>', '<%= team.logo.url(:thumb) %>', <%= team.geocode.try(:at, 0).try(:to_json).try(:html_safe) %>, '<%= _(team.country) %>' ],
+  [ '<%= team.city %>, <%= team.country %>', '<%= team.name %>', '<%= team.logo.url(:thumb) %>', <%= team.team_geocode.try(:data).try(:at, 0).try(:to_json).try(:html_safe) %>, '<%= _(team.country) %>' ],
 <% end %>
 ];
 

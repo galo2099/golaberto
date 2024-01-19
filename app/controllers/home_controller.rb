@@ -6,7 +6,7 @@ class HomeController < ApplicationController
   def index
     now = DateTime.now - 3.hours
     today = cookie_timezone.today
-    @championships = Championship.where("begin <= ? AND end >= ?", today+30, today-30).sort_by{|a| -a.avg_team_rating }
+    @championships = Championship.where("begin <= ? AND end >= ?", today+30, today-30).includes(:teams).sort_by{|a| -a.avg_team_rating }
     @regions = Championship.regions.keys
     @comments = Comment.includes(:user).order("created_at DESC").limit(5)
     @games = Game.includes(:home, :away, :updater, {phase: :championship}).where("updater_id != 0").order(updated_at: :desc).limit(5)

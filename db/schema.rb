@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2024_01_18_083839) do
+ActiveRecord::Schema.define(version: 2024_01_19_032437) do
 
   create_table "__diesel_schema_migrations", primary_key: "version", id: { type: :string, limit: 50 }, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
     t.timestamp "run_on", default: -> { "CURRENT_TIMESTAMP" }, null: false
@@ -257,6 +257,12 @@ ActiveRecord::Schema.define(version: 2024_01_18_083839) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "team_geocodes", charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
+    t.json "data"
+    t.integer "team_id", null: false
+    t.index ["team_id"], name: "index_team_geocodes_on_team_id"
+  end
+
   create_table "team_groups", id: :integer, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
     t.integer "group_id", default: 0, null: false
     t.integer "team_id", default: 0, null: false
@@ -296,7 +302,6 @@ ActiveRecord::Schema.define(version: 2024_01_18_083839) do
     t.float "off_rating"
     t.float "def_rating"
     t.integer "team_type", default: 0, null: false
-    t.json "geocode"
   end
 
   create_table "users", id: :integer, charset: "utf8", collation: "utf8_unicode_ci", force: :cascade do |t|
@@ -322,4 +327,5 @@ ActiveRecord::Schema.define(version: 2024_01_18_083839) do
   end
 
   add_foreign_key "historical_ratings", "teams"
+  add_foreign_key "team_geocodes", "teams"
 end
