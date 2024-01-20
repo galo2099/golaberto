@@ -1,4 +1,6 @@
 class Player < ApplicationRecord
+  include Country
+
   has_many :comments, ->{order(created_at: :asc) }, :as => :commentable, :dependent => :destroy
   has_many :goals, :dependent => :delete_all
   has_many :team_players, :dependent => :delete_all
@@ -36,10 +38,6 @@ class Player < ApplicationRecord
   end
 
   def small_country_logo
-    if country.nil?
-      "https://s3.amazonaws.com/#{Rails.application.secrets.s3[:bucket]}/thumb.png"
-    else
-      "https://s3.amazonaws.com/#{Rails.application.secrets.s3[:bucket]}/countries/flags/#{country.parameterize(separator: '_')}_15.png"
-    end
+    Player.small_country_flag(country)
   end
 end

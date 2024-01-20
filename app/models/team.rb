@@ -1,5 +1,6 @@
 require 'poisson'
 class Team < ApplicationRecord
+  include Country
   enum team_type: [ :club, :national ]
 
   AVG_BASE = 1.3350257653834494
@@ -14,8 +15,7 @@ class Team < ApplicationRecord
           thumb: options.merge(geometry: "15x15") }
       },
       processors: [ :logo ],
-      s3_headers: { 'Cache-Control' => 'max-age=315576000', 'Expires' => 10.years.from_now.httpdate },
-      default_url: 'https://s3.amazonaws.com/:bucket/:style.png',
+      default_url: "#{Rails.configuration.golaberto_image_url_prefix}/:style.png",
       path: ":class/:attachment/:id/:style.:extension"
   validates_attachment :logo, content_type: { content_type: ["image/jpg", "image/jpeg", "image/png", "image/gif"] }
 
@@ -61,19 +61,11 @@ class Team < ApplicationRecord
   end
 
   def small_country_logo
-    if country.nil?
-      "https://s3.amazonaws.com/#{Rails.application.secrets.s3[:bucket]}/thumb.png"
-    else
-      "https://s3.amazonaws.com/#{Rails.application.secrets.s3[:bucket]}/countries/flags/#{country.parameterize(separator: '_')}_15.png"
-    end
+    Team.small_country_flag(country)
   end
 
   def large_country_logo
-    if country.nil?
-      "https://s3.amazonaws.com/#{Rails.application.secrets.s3[:bucket]}/medium.png"
-    else
-      "https://s3.amazonaws.com/#{Rails.application.secrets.s3[:bucket]}/countries/flags/#{country.parameterize(separator: '_')}_100.png"
-    end
+    Team.large_country_flag(country)
   end
 
   def next_n_games(n, date)

@@ -88,11 +88,15 @@ Rails.application.configure do
   # Do not dump schema after migrations.
   config.active_record.dump_schema_after_migration = false
 
+  config.golaberto_cloudfront_url = 'd24oxbyqb2c11t.cloudfront.net'
+
   # In prod serve images from cloudfront
   config.paperclip_defaults.merge!({
     url: ':s3_alias_url',
-    s3_host_alias: 'd24oxbyqb2c11t.cloudfront.net',
+    s3_host_alias: config.golaberto_cloudfront_url,
   })
+
+  config.golaberto_image_url_prefix = "https://#{config.golaberto_cloudfront_url}"
 end
 
 Rails.application.config.middleware.use ExceptionNotification::Rack,

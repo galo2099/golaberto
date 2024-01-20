@@ -27,7 +27,7 @@ module ChampionshipHelper
         end
       end
     end
-    "https://s3.amazonaws.com/#{Rails.application.secrets.s3[:bucket]}/countries/flags/#{filename}_15.png"
+    "#{Rails.configuration.golaberto_image_url_prefix}/countries/flags/#{filename}_15.png"
   end
 
   def championship_name(champ, include_region = true, include_season = true, params)

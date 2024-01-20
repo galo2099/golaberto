@@ -11,8 +11,7 @@ class User < ApplicationRecord
           thumb: options.merge(geometry: "15x15") }
       },
       processors: [ :logo ],
-      s3_headers: { 'Cache-Control' => 'max-age=315576000', 'Expires' => 10.years.from_now.httpdate },
-      default_url: 'https://s3.amazonaws.com/:bucket/:style.png',
+      default_url: "#{Rails.configuration.golaberto_image_url_prefix}/:style.png",
       path: ":class/:attachment/:id/:style.:extension"
   validates_attachment :avatar, content_type: { content_type: ["image/jpg", "image/jpeg", "image/png", "image/gif"] }
 
