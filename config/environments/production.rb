@@ -87,6 +87,12 @@ Rails.application.configure do
 
   # Do not dump schema after migrations.
   config.active_record.dump_schema_after_migration = false
+
+  # In prod serve images from cloudfront
+  config.paperclip_defaults.merge!({
+    url: ':s3_alias_url',
+    s3_host_alias: 'd24oxbyqb2c11t.cloudfront.net',
+  })
 end
 
 Rails.application.config.middleware.use ExceptionNotification::Rack,

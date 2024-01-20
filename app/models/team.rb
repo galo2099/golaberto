@@ -14,9 +14,6 @@ class Team < ApplicationRecord
           thumb: options.merge(geometry: "15x15") }
       },
       processors: [ :logo ],
-      storage: :s3,
-      s3_region: 'us-east-1',
-      s3_credentials: Rails.application.secrets.s3,
       s3_headers: { 'Cache-Control' => 'max-age=315576000', 'Expires' => 10.years.from_now.httpdate },
       default_url: 'https://s3.amazonaws.com/:bucket/:style.png',
       path: ":class/:attachment/:id/:style.:extension"

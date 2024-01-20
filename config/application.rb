@@ -57,5 +57,11 @@ module Golaberto
 
     # Version of your assets, change this if you want to expire all your assets
     config.assets.version = '1.0'
+
+    config.paperclip_defaults = {
+      storage: :s3,
+      s3_region: 'us-east-1',
+      s3_credentials: Rails.application.secrets.s3,
+    }
   end
 end
