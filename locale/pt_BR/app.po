@@ -439,6 +439,9 @@ msgstr "Público"
 msgid "Cuba"
 msgstr "Cuba"
 
+msgid "Curacao"
+msgstr "Curaçao"
+
 # app/models/championship.rb:-
 msgid "Current championships"
 msgstr "Campeonatos atuais"
@@ -1073,9 +1076,6 @@ msgstr "Nepal"
 
 msgid "Netherlands"
 msgstr "Holanda"
-
-msgid "Netherlands Antilles"
-msgstr "Antilhas Holandesas"
 
 msgid "New"
 msgstr "Novo"
