@@ -31,7 +31,7 @@ class ApplicationController < ActionController::Base
 
   private
   def record_not_found
-    render :text => "404 Not Found", :status => 404
+    render plain: "404 Not Found", status: 404
   end
 
   def set_current_user
