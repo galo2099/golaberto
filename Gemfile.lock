@@ -29,7 +29,7 @@ GIT
 
 GIT
   remote: https://github.com/galo2099/acts_as_versioned.git
-  revision: e9ee2346799ef900a97b97070e7026dbeb65b1da
+  revision: 50322051662c5ba0924e5bc0cd954df7cdbad655
   specs:
     acts_as_versioned (0.6.0)
       activerecord (>= 3.0.0)
