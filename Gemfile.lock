@@ -1,4 +1,11 @@
 GIT
+  remote: https://github.com/Velir/open_id_authentication
+  revision: 4f0ebc18b3bc4f076959ccd58002d89ce929e12c
+  specs:
+    open_id_authentication (1.1.0)
+      rack-openid (~> 1.3)
+
+GIT
   remote: https://github.com/capistrano/rbenv
   revision: 1fdb93a6dd4a4ab3fb786c995055cf6949daf7a4
   specs:
@@ -59,14 +66,6 @@ GIT
   branch: rails-6-fix
   specs:
     userstamp (2.0.2)
-
-GIT
-  remote: https://github.com/ndbradley730/open_id_authentication
-  revision: 59edb6e36b3c0e2d4e8eb2e81e2edeac97fa380c
-  branch: controllermethods_name_error
-  specs:
-    open_id_authentication (1.1.0)
-      rack-openid (~> 1.3)
 
 GIT
   remote: https://github.com/rails/prototype_legacy_helper.git
