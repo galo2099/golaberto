@@ -13,7 +13,7 @@
           end
         },
         ordinalized: -> (_key, number:, **_options) {
-          "#{number}#{I18n.t("number.nth.ordinals", _options.merge(number: number))}"
+          "#{number}#{I18n.t("number.nth.ordinals", **_options.merge(number: number))}"
         },
       },
     },
