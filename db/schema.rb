@@ -10,8 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2024_01_24_010934) do
-
+ActiveRecord::Schema[7.1].define(version: 2024_01_24_032056) do
   create_table "__diesel_schema_migrations", primary_key: "version", id: { type: :string, limit: 50 }, charset: "utf8mb3", collation: "utf8mb3_unicode_ci", force: :cascade do |t|
     t.timestamp "run_on", default: -> { "CURRENT_TIMESTAMP" }, null: false
   end
@@ -29,8 +28,8 @@ ActiveRecord::Schema.define(version: 2024_01_24_010934) do
     t.integer "point_loss", default: 0, null: false
     t.integer "category_id", default: 0, null: false
     t.boolean "show_country", default: false, null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.integer "region", default: 0, null: false
     t.text "region_name"
   end
@@ -42,7 +41,7 @@ ActiveRecord::Schema.define(version: 2024_01_24_010934) do
   create_table "comments", id: :integer, charset: "utf8mb3", collation: "utf8mb3_unicode_ci", force: :cascade do |t|
     t.string "title", limit: 50, default: ""
     t.text "comment"
-    t.datetime "created_at", null: false
+    t.datetime "created_at", precision: nil, null: false
     t.integer "commentable_id", default: 0, null: false
     t.string "commentable_type", limit: 15, default: "", null: false
     t.integer "user_id", default: 0, null: false
@@ -54,12 +53,12 @@ ActiveRecord::Schema.define(version: 2024_01_24_010934) do
     t.integer "attempts", default: 0
     t.text "handler"
     t.string "last_error"
-    t.datetime "run_at"
-    t.datetime "locked_at"
-    t.datetime "failed_at"
+    t.datetime "run_at", precision: nil
+    t.datetime "locked_at", precision: nil
+    t.datetime "failed_at", precision: nil
     t.string "locked_by"
-    t.datetime "created_at"
-    t.datetime "updated_at"
+    t.datetime "created_at", precision: nil
+    t.datetime "updated_at", precision: nil
     t.string "queue"
   end
 
@@ -84,10 +83,10 @@ ActiveRecord::Schema.define(version: 2024_01_24_010934) do
     t.integer "away_pen"
     t.boolean "played", default: false
     t.integer "updater_id", default: 0, null: false
-    t.datetime "updated_at", null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.integer "home_aet"
     t.integer "away_aet"
-    t.datetime "date", null: false
+    t.datetime "date", precision: nil, null: false
     t.boolean "has_time", default: false
     t.integer "home_field", default: 0, null: false
     t.float "home_importance"
@@ -112,10 +111,10 @@ ActiveRecord::Schema.define(version: 2024_01_24_010934) do
     t.boolean "played", default: false, null: false
     t.integer "version"
     t.integer "updater_id", default: 0, null: false
-    t.datetime "updated_at", null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.integer "home_aet"
     t.integer "away_aet"
-    t.datetime "date", null: false
+    t.datetime "date", precision: nil, null: false
     t.boolean "has_time", default: false
     t.integer "home_field", default: 0, null: false
     t.float "home_importance"
@@ -140,8 +139,8 @@ ActiveRecord::Schema.define(version: 2024_01_24_010934) do
     t.boolean "penalty", default: false, null: false
     t.boolean "own_goal", default: false, null: false
     t.boolean "aet", default: false, null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.index ["game_id"], name: "index_goals_on_game_id"
     t.index ["player_id", "game_id"], name: "player"
   end
@@ -150,8 +149,8 @@ ActiveRecord::Schema.define(version: 2024_01_24_010934) do
     t.integer "phase_id", default: 0, null: false
     t.string "name", default: "", null: false
     t.integer "odds_progress"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.text "zones"
     t.index ["phase_id"], name: "index_groups_on_phase_id"
   end
@@ -188,8 +187,8 @@ ActiveRecord::Schema.define(version: 2024_01_24_010934) do
     t.string "sort", default: "pt, w, gd, gf, gp, g_away, name", null: false
     t.integer "bonus_points", default: 0, null: false
     t.integer "bonus_points_threshold", default: 0, null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.index ["championship_id"], name: "championship"
   end
 
@@ -213,8 +212,8 @@ ActiveRecord::Schema.define(version: 2024_01_24_010934) do
     t.date "birth"
     t.string "country"
     t.string "full_name"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.string "soccerway_id"
     t.float "rating"
     t.float "off_rating"
@@ -231,8 +230,8 @@ ActiveRecord::Schema.define(version: 2024_01_24_010934) do
   create_table "referees", id: :integer, charset: "utf8mb3", collation: "utf8mb3_unicode_ci", force: :cascade do |t|
     t.string "name", default: "", null: false
     t.string "location"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
   end
 
   create_table "roles", id: :integer, charset: "utf8mb3", collation: "utf8mb3_unicode_ci", force: :cascade do |t|
@@ -251,8 +250,8 @@ ActiveRecord::Schema.define(version: 2024_01_24_010934) do
     t.string "full_name"
     t.string "city"
     t.string "country"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
   end
 
   create_table "team_geocodes", charset: "utf8mb3", collation: "utf8mb3_unicode_ci", force: :cascade do |t|
@@ -267,8 +266,8 @@ ActiveRecord::Schema.define(version: 2024_01_24_010934) do
     t.integer "add_sub", default: 0, null: false
     t.integer "bias", default: 0, null: false
     t.text "comment"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.text "odds"
     t.index ["group_id", "team_id"], name: "group", unique: true
     t.index ["id"], name: "id"
@@ -278,8 +277,8 @@ ActiveRecord::Schema.define(version: 2024_01_24_010934) do
     t.integer "team_id", default: 0, null: false
     t.integer "player_id", default: 0, null: false
     t.integer "championship_id", default: 0, null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
   end
 
   create_table "teams", id: :integer, charset: "utf8mb3", collation: "utf8mb3_unicode_ci", force: :cascade do |t|
@@ -293,9 +292,9 @@ ActiveRecord::Schema.define(version: 2024_01_24_010934) do
     t.string "logo_file_name"
     t.string "logo_content_type"
     t.integer "logo_file_size"
-    t.datetime "logo_updated_at"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.datetime "logo_updated_at", precision: nil
+    t.datetime "created_at", precision: nil, null: false
+    t.datetime "updated_at", precision: nil, null: false
     t.float "rating"
     t.float "off_rating"
     t.float "def_rating"
@@ -307,20 +306,20 @@ ActiveRecord::Schema.define(version: 2024_01_24_010934) do
     t.string "email"
     t.string "crypted_password", limit: 40
     t.string "salt", limit: 40
-    t.datetime "created_at"
-    t.datetime "updated_at"
+    t.datetime "created_at", precision: nil
+    t.datetime "updated_at", precision: nil
     t.string "remember_token"
-    t.datetime "remember_token_expires_at"
+    t.datetime "remember_token_expires_at", precision: nil
     t.string "identity_url"
     t.string "name", limit: 30
     t.string "location", limit: 100
     t.date "birthday"
     t.text "about_me"
-    t.datetime "last_login"
+    t.datetime "last_login", precision: nil
     t.string "avatar_file_name"
     t.string "avatar_content_type"
     t.integer "avatar_file_size"
-    t.datetime "avatar_updated_at"
+    t.datetime "avatar_updated_at", precision: nil
     t.string "openid_connect_token"
   end
 
