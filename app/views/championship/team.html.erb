@@ -62,7 +62,7 @@ div#odds div.flot-x-axis div.flot-tick-label:nth-child(<%=team_position%>) {
       grid: {
         hoverable: true,
         clickable: true,
-        markings: <%== @groups[0].zones.map{|z| z["position"].map{|p| { xaxis: { from: p-0.5, to: p+0.5 }, color: z["color"] } } }.flatten.to_json %>,
+        markings: <%== @groups[0].zones.select{|z| not z["position"].nil?}.map{|z| z["position"].map{|p| { xaxis: { from: p-0.5, to: p+0.5 }, color: z["color"] } } }.flatten.to_json %>,
       },
       yaxis: {
         min: 0,
@@ -131,7 +131,7 @@ div#odds div.flot-x-axis div.flot-tick-label:nth-child(<%=team_position%>) {
   <% @groups[0].zones.each do |z| %>
     <tr>
       <td><span style="color: <%= z["color"]%>">▣</span> <%= z["name"] %>:</td>
-      <td><%= sprintf("%02.2f", @groups[0].team_groups.select{|t|t.team_id == @team.id}.first.calculate_odds(z["position"])) %>%</td>
+      <td><%= sprintf("%02.2f", @groups[0].team_groups.select{|t|t.team_id == @team.id}.first.calculate_odds(z["position"]).to_f) %>%</td>
     </tr>
   <% end %>
 </table>

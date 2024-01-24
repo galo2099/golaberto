@@ -16,7 +16,7 @@ class TeamGroup < ApplicationRecord
   # Field: comment , SQL Definition:text
 
   def calculate_odds(positions)
-    return nil if not odds
+    return nil if not odds or positions.nil?
     positions.map{|p| odds[p-1]}.sum
   end
 end

@@ -144,7 +144,7 @@ class ChampionshipController < ApplicationController
                   backgroundColor: "#FFFFFF",
                   hoverable: true,
                   clickable: true,
-                  markings: group.zones.map{|z| z["position"].map{|p| { yaxis: { from: p-0.5, to: p+0.5 }, color: z["color"] } } }.flatten,
+                  markings: group.zones.select{|z| not z["position"].nil? }.map{|z| z["position"].map{|p| { yaxis: { from: p-0.5, to: p+0.5 }, color: z["color"] } } }.flatten,
                 },
                 xaxes: [
                   { ticks: (1..data.size).to_a.map{|x|[x, ""]}, },
