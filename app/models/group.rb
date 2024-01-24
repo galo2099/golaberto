@@ -7,16 +7,12 @@ class Group < ApplicationRecord
   has_many :games, ->(group){ from('games USE INDEX(index_games_on_phase_id)').where([ "home_id IN (?) OR away_id IN (?)", group.teams.select(:id), group.teams.select(:id) ]) }, :through => :phase
   validates_length_of :name, :within => 1..40
   validates_uniqueness_of :name, :scope => :phase_id
-  validates_numericality_of :promoted, :only_integer => true
-  validates_numericality_of :relegated, :only_integer => true
 
   # Fields information, just FYI.
   #
   # Field: id , SQL Definition:bigint(20)
   # Field: phase_id , SQL Definition:bigint(20)
   # Field: name , SQL Definition:varchar(255)
-  # Field: promoted , SQL Definition:tinyint(2)
-  # Field: relegated , SQL Definition:tinyint(2)
 
   NUM_ITER = 10000
 
