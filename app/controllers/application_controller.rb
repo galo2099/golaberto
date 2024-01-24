@@ -17,7 +17,7 @@ class ApplicationController < ActionController::Base
     flash[:notice] = _("Access denied!")
     redirect_to root_url
   end
-  rescue_from ActiveRecord::RecordNotFound, :with => :record_not_found
+  rescue_from ActiveRecord::RecordNotFound, Pagy::OverflowError, :with => :record_not_found
 
   def cookie_timezone
     if not @timezone then
