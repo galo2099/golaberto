@@ -87,5 +87,5 @@ Rails.application.routes.draw do
   match 'player/games/:type/:id(/cat/:category)(/p/:page)' => 'player#games', :constraints => { :page => /\d+/ }, :defaults => { :category => 1, :page => 1 }, via: :get
 
   # Install the default route as the lowest priority.
-  match ':controller(/:action(/:id))(.:format)', via: [:get, :post, :patch]
+  match ':controller(/:action(/:id))(.:format)', via: [:get, :post, :patch], constraints: { controller: /\w+/, action: /\w+/ }
 end
