@@ -210,9 +210,11 @@ data = teams[0,3].map{|t| Team.get_historical_ratings_2_weeks(t.id)  }
             ys.push({label: series.label, point: closest, color: series.color});
           }
         }
-        ys.sort(function(a, b) { return b.point[1] - a.point[1]; });
-        writeTooltip(pos, ys);
-        plot.getOptions().grid.markings = [{ xaxis: { from: ys[0].point[0], to: ys[0].point[0] }, color: "rgba(0,0,0,0.15)" }];
+        if (ys.len > 0) {
+          ys.sort(function(a, b) { return b.point[1] - a.point[1]; });
+          writeTooltip(pos, ys);
+          plot.getOptions().grid.markings = [{ xaxis: { from: ys[0].point[0], to: ys[0].point[0] }, color: "rgba(0,0,0,0.15)" }];
+        }
         plot.draw();
       });
 
