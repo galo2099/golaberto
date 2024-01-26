@@ -1573,8 +1573,8 @@ GEM
       resque
     hashie (5.0.0)
     hpricot (0.8.6)
-    httparty (0.20.0)
-      mime-types (~> 3.0)
+    httparty (0.21.0)
+      mini_mime (>= 1.0.0)
       multi_xml (>= 0.5.2)
     i18n (1.14.1)
       concurrent-ruby (~> 1.0)
