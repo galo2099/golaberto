@@ -86,6 +86,10 @@ Rails.application.routes.draw do
 
   match 'player/games/:type/:id(/cat/:category)(/p/:page)' => 'player#games', :constraints => { :page => /\d+/ }, :defaults => { :category => 1, :page => 1 }, via: :get
 
+  get 'championship/top_goalscorers/:id', to: redirect { |_params, _request|
+    Rails.application.routes.url_helpers.url_for host: _request.host, port: _request.port, controller: :championship, action: :player_list, id: _params[:id]
+  }
+
   # Install the default route as the lowest priority.
   match ':controller(/:action(/:id))(.:format)', via: [:get, :post, :patch], constraints: { controller: /\w+/, action: /\w+/ }
 end

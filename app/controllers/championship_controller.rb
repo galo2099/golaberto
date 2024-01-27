@@ -366,10 +366,6 @@ class ChampionshipController < ApplicationController
     render plain: ActiveSupport::JSON.decode(response.body)
   end
 
-  def top_goalscorers
-    redirect_to action: 'player_list'
-  end
-
   private
   def championship_params
     params.require(:championship).permit(:name, :begin, :end, :point_win, :point_draw, :point_loss, :category_id, :show_country, :region, :region_name)
