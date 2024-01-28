@@ -38,7 +38,7 @@ observe_field_function << "}\n"
   <% end %>
   <% if last_round != game.round %>
     <% last_round = game.round %>
-    <div class='game_round'><%= t :round, round: game.round %></div>
+    <div class='game_round'><%= t :round, round: game.round.to_i %></div>
     <% last_date = formatted_date(game) %>
     <div class='game_date'><%= formatted_date(game, true) %></div>
   <% end %>
