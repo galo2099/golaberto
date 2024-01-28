@@ -1546,7 +1546,6 @@ GEM
     exception_notification (4.5.0)
       actionmailer (>= 5.2, < 8)
       activesupport (>= 5.2, < 8)
-    execjs (2.8.1)
     faraday (2.7.1)
       faraday-net_http (>= 2.0, < 3.1)
       ruby2_keywords (>= 0.0.4)
@@ -1767,8 +1766,6 @@ GEM
     timeout (0.4.1)
     tzinfo (2.0.6)
       concurrent-ruby (~> 1.0)
-    uglifier (4.2.0)
-      execjs (>= 0.3.0, < 3)
     version_gem (1.1.1)
     webrick (1.8.1)
     websocket-driver (0.7.6)
@@ -1827,7 +1824,6 @@ DEPENDENCIES
   sprockets (~> 3)
   sprockets-rails (~> 2)
   sqlite3
-  uglifier
   userstamp!
   webrick
   wirble
