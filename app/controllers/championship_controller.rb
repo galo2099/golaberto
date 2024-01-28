@@ -211,8 +211,8 @@ class ChampionshipController < ApplicationController
 
   def team_json
     championship = Championship.find(params["id"])
-    team = Team.find(params["team"])
-    phase = Phase.find(params["phase"])
+    team = championship.teams.find(params["team"])
+    phase = championship.phases.find(params["phase"])
     group = phase.groups.select{|g| g.teams.include? team}.first
     json, _ = generate_team_json(championship, phase, group, team)
 
@@ -230,7 +230,7 @@ class ChampionshipController < ApplicationController
     if params["team"].blank?
       params["team"] = @teams.first.id unless @teams.empty?
     end
-    @team = Team.find(params["team"])
+    @team = @championship.teams.find(params["team"])
 
     # Find every group that this team belonged to
     @groups = @championship.phases.map{|p| p.groups}.flatten.select{|g| g.teams.include? @team}.reverse
@@ -263,11 +263,12 @@ class ChampionshipController < ApplicationController
   def player_show
     store_location
     @championship = Championship.find(params["id"])
+    @team = @championship.teams.find(params[:team])
     @player = Player.find(params[:player])
-    @team = Team.find(params[:team])
 
     @player_stats = TeamPlayer.stats("games.phase_id": @championship.phases.pluck(:id), player: @player, team: @team)
     @player_stats = @player_stats.to_a.sort{|a,b| b.goals <=> a.goals}.first
+    raise ActiveRecord::RecordNotFound if @player_stats.nil?
   end
 
   def new_game
