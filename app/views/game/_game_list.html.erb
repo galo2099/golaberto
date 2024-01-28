@@ -1,3 +1,4 @@
+<% @games_to_highlight = defined?(@games_to_highlight) ? @games_to_highlight : [] %>
 <p>
 <%== pagy_nav @pagy if defined? @pagy and @pagy.pages > 1 %>
 </p>
