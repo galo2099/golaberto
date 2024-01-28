@@ -14,7 +14,7 @@
     <% last_phase_id = game.phase_id %>
     <%= championship_name(game.phase.championship, {:controller => :championship, :action => :phases, :id => game.phase.championship, :phase => game.phase}) %>
   <% end %>
-  <div class="table_row">
+  <div class="table_row <%= "highlighted_game" if @games_to_highlight.include?(game.id) %>">
     <%= render partial: "championship/game_list",
                locals: { game: game, highlight_team: @team } %>
     <div class="clearer"></div>
