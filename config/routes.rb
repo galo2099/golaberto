@@ -91,5 +91,5 @@ Rails.application.routes.draw do
   }
 
   # Install the default route as the lowest priority.
-  match ':controller(/:action(/:id))(.:format)', via: [:get, :post, :patch], constraints: { controller: /\w+/, action: /\w+/ }
+  match ':controller(/:action(/:id))(.:format)', via: [:get, :post, :patch], constraints: { controller: /[a-zA-Z]\w*/, action: /[a-zA-Z]\w*/ }
 end
