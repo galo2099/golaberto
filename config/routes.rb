@@ -90,6 +90,10 @@ Rails.application.routes.draw do
     Rails.application.routes.url_helpers.url_for host: _request.host, port: _request.port, controller: :championship, action: :player_list, id: _params[:id]
   }
 
+  get 'championship/players/:id', to: redirect {  |_params, _request|
+    Rails.application.routes.url_helpers.url_for host: _request.host, port: _request.port, controller: :championship, action: :player_list, id: _params[:id]
+  }
+
   # Install the default route as the lowest priority.
   match ':controller(/:action(/:id))(.:format)', via: [:get, :post, :patch], constraints: { controller: /[a-zA-Z]\w*/, action: /[a-zA-Z]\w*/ }
 end
