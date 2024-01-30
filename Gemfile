@@ -65,6 +65,8 @@ gem "sprockets", "~>3"
 gem "sprockets-rails", "~>2"
 gem 'userstamp', git: 'https://github.com/kimkong/userstamp.git', branch: 'rails-6-fix'
 gem "forwardable", "~>1.3.0"
+gem "terser"
+gem "yui-compressor"
 
 # To use debugger
 # gem 'ruby-debug19', :require => 'ruby-debug'
