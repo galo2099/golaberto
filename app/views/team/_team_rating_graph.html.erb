@@ -1,4 +1,3 @@
-<%= javascript_include_jquery %>
 <%= javascript_include_tag "jquery.flot.all" %>
 
 <%
@@ -12,9 +11,7 @@ data = teams[0,3].map{|t| Team.get_historical_ratings_2_weeks(t.id)  }
 </div>
 
 <script type="text/javascript">
-  jQuery(function() {
-    var $ = jQuery;
-
+  jQuery(function($) {
     var getColor = function(index) {
       var colorValues = [ "#cb4b4b", "#4da74d", "#9440ed", "#afd8f8", "#edc240" ];
       var arrayIndex = index % colorValues.length;
@@ -99,7 +96,7 @@ data = teams[0,3].map{|t| Team.get_historical_ratings_2_weeks(t.id)  }
             points: rating.points,
             color: rating.color,
           });
-          d.each(function (p) {
+          d.forEach(function (p) {
             x_values.add(p[0]);
             if (p[0] > xmax) xmax = p[0];
             if (p[0] < xmin) xmin = p[0];
@@ -111,9 +108,9 @@ data = teams[0,3].map{|t| Team.get_historical_ratings_2_weeks(t.id)  }
 
       // Add missing points
       var x_values_sorted = [...x_values].sort()
-      data.each(function(series) {
+      data.forEach(function(series) {
         var next_point = 0;
-        x_values_sorted.each(function(x) {
+        x_values_sorted.forEach(function(x) {
           if (series.data.length == next_point || series.data[next_point][0] != x) {
             series.data.splice(next_point, 0, [x, null]);
           }
@@ -161,7 +158,7 @@ data = teams[0,3].map{|t| Team.get_historical_ratings_2_weeks(t.id)  }
       graphDiv.off("plothover");
       graphDiv.on("plothover", function(event, pos, item) {
         plot.getOptions().grid.markings = [];
-        plot.getData().each(function(x) {
+        plot.getData().forEach(function(x) {
           x.lines.lineWidth = 1;
         });
         plot.draw();
@@ -210,7 +207,7 @@ data = teams[0,3].map{|t| Team.get_historical_ratings_2_weeks(t.id)  }
             ys.push({label: series.label, point: closest, color: series.color});
           }
         }
-        if (ys.len > 0) {
+        if (ys.length > 0) {
           ys.sort(function(a, b) { return b.point[1] - a.point[1]; });
           writeTooltip(pos, ys);
           plot.getOptions().grid.markings = [{ xaxis: { from: ys[0].point[0], to: ys[0].point[0] }, color: "rgba(0,0,0,0.15)" }];
@@ -236,7 +233,7 @@ data = teams[0,3].map{|t| Team.get_historical_ratings_2_weeks(t.id)  }
       });
       $("input.ratingSelector").off("change");
       $("input.ratingSelector").change(function() {getMissingDataAndPlotRatings(from, to);});
-   }
+    }
 
     $("<div id='tooltip'></div>").css({
       position: "absolute",

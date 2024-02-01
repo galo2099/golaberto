@@ -34,7 +34,7 @@
         <%= _("Odds being recalculated") %>. <%= sprintf _("%d%% done."), group.odds_progress %>
         <%= javascript_tag "watch_odds(#{group.id})" %>
       <% else %>
-        <%= button_to_function _("Recalculate odds"), "recalculate_odds(#{group.id})" %>
+        <%= button_tag _("Recalculate odds"), onclick: "recalculate_odds(#{group.id}); return false;" %>
       <% end %>
     </div>
   <% end %>

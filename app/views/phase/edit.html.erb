@@ -25,7 +25,7 @@
         </div>
         <%= p.hidden_field :sort %>
     </td></tr>
-    <tr><td><label for="enable_bonus"><%= _("Bonus points for win?") %></label></td><td><%= check_box_tag "enable_bonus", "1", @phase.bonus_points > 0, onChange: "if (this.checked) { $('phase_bonus_points').enable(); $('phase_bonus_points_threshold').enable(); } else { $('phase_bonus_points').disable(); $('phase_bonus_points_threshold').disable(); }" %></td></tr>
+    <tr><td><label for="enable_bonus"><%= _("Bonus points for win?") %></label></td><td><%= check_box_tag "enable_bonus", "1", @phase.bonus_points > 0, onChange: "if (this.checked) { jQuery('#phase_bonus_points, #phase_bonus_points_threshold').prop('disabled', false); } else { jQuery('#phase_bonus_points, #phase_bonus_points_threshold').prop('disabled', true); }".html_safe %></td></tr>
     <tr><td><label for="phase_bonus_points"><%= _("Bonus") %>:</label></td>
       <td>
         <%= p.hidden_field :bonus_points, value: 0, id: "phase_bonus_points_hidden" %>
@@ -43,7 +43,7 @@
   <%= render partial: "group_list", object: @phase %>
   <% if @phase.groups.size > 0 %>
     <%= t('add_more_groups.html', number: '<input id="groups_to_add" type="number" size="2" min="1" max="99" value="3" style="width: 2.5em">'.html_safe) %>
-    <%= button_to_remote _("Add"), with: "'count=' + $('groups_to_add').value", remote: true, url: { action: :add_groups, id: @phase }, failure: 'alert("Error");'  %>
+    <%= button_tag _("Add"), type: "button", onclick: remote_function(with: "'count=' + jQuery('#groups_to_add').val()", remote: true, url: { action: :add_groups, id: @phase }, failure: "alert('#{_('Error')}');")  %>
   <% end %>
   <p><%= _("Add new group") %>: (<%= _("More groups can be added later") %>)<br />
   <input type="text" id="group[name]" name="group[name]" value="">
@@ -53,11 +53,16 @@
 <% end %>
 
 <script type="text/javascript">
-  function updateSortOptions(sortable) {
-    $('phase_sort').value = Sortable.sequence('selected_options').join(",");
-  }
+function updateSortOptions() {
+  jQuery('#phase_sort').val(jQuery('#selected_options').sortable('toArray').map((x) => x.replace('sort_', '')).join(','));
+}
 
-  Sortable.SERIALIZE_RULE = /^[^_\-](?:[A-Za-z0-9\-\_]*?)[_](.*)$/;
-  Sortable.create('selected_options', {constraint:false, containment:['selected_options', 'unselected_options'], dropOnEmpty:true, onUpdate:updateSortOptions, tag:'div'})
-  Sortable.create('unselected_options', {constraint:false, containment:['selected_options', 'unselected_options'], dropOnEmpty:true, onUpdate:updateSortOptions, tag:'div'})
+jQuery(function($) {
+  $('#selected_options, #unselected_options').sortable({
+    connectWith: ['.sort_options'],
+    dropOnEmpty: true,
+    update: updateSortOptions,
+  }).disableSelection();
+});
+
 </script>

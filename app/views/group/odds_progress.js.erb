@@ -1,0 +1,5 @@
+<% if @group.odds_progress %>
+  jQuery("#recalculate<%= @group.id %>").html("<%= _("Odds being recalculated. ") + sprintf(_("%d%% done."), @group.odds_progress) %>");
+<% else %>
+  window.location.reload();
+<% end %>

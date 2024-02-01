@@ -41,12 +41,6 @@ GIT
     acts_as_versioned_association (0.0.0)
 
 GIT
-  remote: https://github.com/galo2099/google_ajax_libraries_api
-  revision: fc2d21df28b76b4b9ec6125c917cd86a71a96d78
-  specs:
-    google_ajax_libraries_api (0.0.0)
-
-GIT
   remote: https://github.com/galo2099/jquery_datepicker
   revision: d174fa36b8d81a2ae7af20c4c5193caa2be70496
   ref: d174fa36b8d81a2ae7af20c4c5193caa2be70496
@@ -59,19 +53,6 @@ GIT
   branch: rails-6-fix
   specs:
     userstamp (2.0.2)
-
-GIT
-  remote: https://github.com/rails/prototype_legacy_helper.git
-  revision: a2cd95c3e3c1a4f7a9566efdab5ce59c886cb05f
-  specs:
-    prototype_legacy_helper (0.0.0)
-
-GIT
-  remote: https://github.com/voxmedia/prototype-rails
-  revision: a679ef34b3747fc66f010cb62648508995074e8c
-  specs:
-    prototype-rails (4.2.1)
-      rails (>= 4.2)
 
 GIT
   remote: https://github.com/wr0ngway/graylog2_exceptions.git
@@ -1800,7 +1781,6 @@ DEPENDENCIES
   gelf
   gettext
   gettext_i18n_rails
-  google_ajax_libraries_api (= 0.0.0)!
   graylog2-resque
   graylog2_exceptions!
   hpricot
@@ -1818,8 +1798,6 @@ DEPENDENCIES
   open_id_authentication!
   pagy
   paperclip
-  prototype-rails!
-  prototype_legacy_helper (= 0.0.0)!
   quilt
   rails (~> 7.0)
   rexml

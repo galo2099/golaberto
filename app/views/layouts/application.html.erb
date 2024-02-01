@@ -5,6 +5,7 @@
   <%= javascript_tag do %>
     var current_user = <%= (current_user || User.new).as_json(:root => false, :only => :id, :include => :roles).to_json.html_safe %>;
   <% end %>
+  <%= javascript_include_jquery %>
   <%= stylesheet_link_tag "application" %>
   <%= javascript_include_tag "application" %>
   <%= yield :header %>
@@ -24,41 +25,53 @@
         <% end %>
         <br>
         <script>
-function setCookie(cname, cvalue, exdays) {
-  var d = new Date();
-  d.setTime(d.getTime() + (exdays*24*60*60*1000));
-  var expires = "expires="+d.toUTCString();
-  document.cookie = cname + "=" + cvalue + "; " + expires + "; path=/";
-}
-function getCookie(cname) {
-  var name = cname + "=";
-  var ca = document.cookie.split(';');
-  for (var i = 0; i <ca.length; i++) {
-    var c = ca[i];
-    while (c.charAt(0)==' ') {
-      c = c.substring(1);
-    }
-    if (c.indexOf(name) == 0) {
-      return c.substring(name.length,c.length);
-    }
-  }
-  return "";
-}
+          jQuery(document).ready(function ($) {
+            function setCookie(cname, cvalue, exdays) {
+              var d = new Date();
+              d.setTime(d.getTime() + (exdays * 24 * 60 * 60 * 1000));
+              var expires = "expires=" + d.toUTCString();
+              document.cookie = cname + "=" + cvalue + "; " + expires + "; path=/";
+            }
 
-if (!getCookie("timezone")) {
-  var timezone = "<%= cookie_timezone.tzinfo.name %>";
-  var detected = jstz.determine().name();
-  setCookie('timezone', detected, 365);
-  if (timezone != detected) {
-    location.reload();
-  }
-}
+            function getCookie(cname) {
+              var name = cname + "=";
+              var ca = document.cookie.split(';');
+              for (var i = 0; i < ca.length; i++) {
+                var c = ca[i];
+                while (c.charAt(0) == ' ') {
+                  c = c.substring(1);
+                }
+                if (c.indexOf(name) == 0) {
+                  return c.substring(name.length, c.length);
+                }
+              }
+              return "";
+            }
+
+            if (!getCookie("timezone")) {
+              var timezone = "<%= cookie_timezone.tzinfo.name %>";
+              var detected = jstz.determine().name();
+              setCookie('timezone', detected, 365);
+              if (timezone != detected) {
+                location.reload();
+              }
+            }
+
+            $("#timezone_name").click(function () {
+              $(this).hide();
+              $("#timezone_select").show();
+            });
+
+            $("#timezone_select").change(function () {
+              setCookie('timezone', $(this).val(), 365);
+              location.reload();
+            });
+          });
         </script>
-        <a id="timezone_name" href="#" onclick="$('timezone_name').hide(); $('timezone_select').show();"><%= cookie_timezone.to_s %></a>
+        <a id="timezone_name" href="#"><%= cookie_timezone.to_s %></a>
         <select id="timezone_select" style="display: none">
           <%= time_zone_options_for_select(cookie_timezone.name, ActiveSupport::TimeZone.all, TZInfo::Timezone) %>
         </select>
-        <%= observe_field "timezone_select", :function => "setCookie('timezone', value, 365); location.reload();" %>
       </div>
       <% if logged_in? %>
         <div class="navigation" style="position: absolute; bottom: 0px; right: 0px; background-color: #8f983b; width: 30%">

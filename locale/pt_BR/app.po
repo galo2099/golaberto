@@ -559,6 +559,9 @@ msgstr "Guiné Equatorial"
 msgid "Eritrea"
 msgstr "Eritréia"
 
+msgid "Error"
+msgstr "Erro"
+
 msgid "Estonia"
 msgstr "Estônia"
 

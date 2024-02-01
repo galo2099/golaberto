@@ -32,19 +32,20 @@ function recalculate_odds(group_id) {
                     :action => :update_odds },
           :with => "'id=' + group_id",
           :failure => "alert('#{error_message}')",
-          :before => "$('recalculate'+group_id).innerHTML = '#{update_message}'") %>
+          :before => "jQuery('recalculate'+group_id).innerHTML = '#{update_message}'") %>
   watch_odds(group_id);
 }
 
 function watch_odds(group_id) {
-  new PeriodicalExecuter(function() {
+  var periodicalUpdater = function() {
       <%= remote_function(
               :url => { :controller => :group,
                         :action => :odds_progress },
               :with => "'id=' + group_id",
               :failure => "alert('#{error_message}')",
-              :before => "$('recalculate'+group_id).innerHTML = '#{update_message}'") %>
-      }, 5);
+              :before => "jQuery('recalculate'+group_id).innerHTML = '#{update_message}'") %>
+      };
+   setInterval(periodicalUpdater, 5000);
 }
 </script>
 <%= javascript_include_jquery %>

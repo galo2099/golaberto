@@ -2,27 +2,30 @@
 
 <%= form_tag({ :action => "list", :id => "" }, :method => "GET",
             :style => "display: inline") do %>
-            <%= text_field_tag("id", @id, :size => 66) %><br>
+  <%= text_field_tag("id", @id, :size => 66) %><br>
 
-  <%= select_tag :continent, options_for_select([[s_("Continent|All"), ""]] + ApplicationHelper::Continent.options_for_select, @continent), onchange: "changeContinent(this);", style: "width: 30%" %>
+  <%= select_tag :continent, options_for_select([[s_("Continent|All"), ""]] + ApplicationHelper::Continent.options_for_select, @continent), class: "continent-select", style: "width: 30%" %>
   <%= select_tag :country, options_for_select(@countries[@continent], @country), style: "width: 30%" if @team_type == "club" %>
   <%= submit_tag(_("Search"), :name => nil) %>
 <% end %>
 <script>
 var countries = {
-  "": <%== options_for_select(@countries[""]).to_json %>,
+  "": <%= raw(options_for_select(@countries[""]).to_json) %>,
   <% ApplicationHelper::Continent::ALL.each do |name, c| %>
-      "<%== name %>": <%== options_for_select(@countries[name]).to_json %>,
+      "<%= raw(name) %>": <%= raw(options_for_select(@countries[name]).to_json) %>,
   <% end %>
 };
 
-function changeContinent(select) {
-  $("country").update(countries[select.value]);
-}
+jQuery(document).ready(function ($) {
+  $(".continent-select").on("change", function () {
+    var selectedContinent = $(this).val();
+    $("#country").html(countries[selectedContinent]);
+  });
+});
 </script>
 
 <div id="table">
-<%= render :partial => "team_list" %>
+  <%= render :partial => "team_list" %>
 </div>
 
 <% content_for :sidebar do %>
@@ -34,4 +37,4 @@ function changeContinent(select) {
     <%= link_to _('Update rating'), :action => 'update_rating' %>
   <% end %>
 <% end %>
-<%= javascript_tag "$('id').activate()" %>
+<%= javascript_tag "jQuery('#id').focus()" %>

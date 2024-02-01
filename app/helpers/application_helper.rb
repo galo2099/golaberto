@@ -25,9 +25,9 @@ module ApplicationHelper
   def javascript_include_jquery
     jquery_locale = I18n.locale
     ret = ""
-    ret << stylesheet_link_tag("https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/blitzer/jquery-ui.css")
-    ret << google_jquery(ssl: true)
-    ret << google_jqueryui(ssl: true)
+    ret << stylesheet_link_tag("https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/themes/blitzer/jquery-ui.min.css")
+    ret << javascript_include_tag("https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js")
+    ret << javascript_include_tag("https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js")
     ret << javascript_include_tag("https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/i18n/jquery-ui-i18n.min.js")
     ret << javascript_tag("jQuery.noConflict();jQuery(function($){$.datepicker.setDefaults($.datepicker.regional['#{jquery_locale}'])});")
     ret.html_safe
@@ -687,5 +687,32 @@ module ApplicationHelper
     pagy_params = params.merge(pagy.vars[:page_param] => page, only_path: !absolute )
     pagy_params.permit!
     html_escaped ? url_for(pagy_params).gsub('&', '&amp;') : url_for(pagy_params)
+  end
+
+  def remote_function(options)
+    ("jQuery.ajax({url: '#{ url_for(options[:url]) }', type: '#{ options[:method] || 'GET' }', " +
+    "data: #{ options[:with] ? options[:with] + '+ "&"' : '' } + " +
+    "'authenticity_token=' + encodeURIComponent('#{ form_authenticity_token }')" +
+    (options[:data_type] ? ", dataType: '" + options[:data_type] + "'" : "") +
+    (options[:success] ? ", success: function(response) {" + options[:success] + "}" : "") +
+    (options[:failure] ? ", error: function(response) {" + options[:failure] + "}" : "") +
+    (options[:before] ? ", beforeSend: function(data) {" + options[:before] + "}" : "") + "});").html_safe
+  end
+
+  def observe_field(id, options)
+    if options[:url]
+      raise StandardError.new "This is an exception"
+    end
+    str = <<JS
+    <script>
+    jQuery(document).ready(function($) {
+      $('##{id}').change(function() {
+        var value = $(this).val();
+        #{options[:function]}
+      });
+    });
+    </script>
+JS
+    str.html_safe
   end
 end

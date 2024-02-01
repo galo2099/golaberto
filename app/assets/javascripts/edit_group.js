@@ -1,6 +1,6 @@
 function country_options(countries, default_country) {
   var ret = jQuery("<div/>");
-  for (var x = 0; x < countries.size(); x++) {
+  for (var x = 0; x < countries.length; x++) {
     ret.append("<option value='" + countries[x][1] + "'" + (countries[x][1] == default_country ? " selected" : "") + ">" + countries[x][0] + "</option>");
   }
   return ret.html();
@@ -19,7 +19,7 @@ function update_team_groups(size, teams, ordered_teams, current_data, default_co
         .append("<td><input tabindex='2' size='30' class='team_group_name' /><input type='hidden' class='team_group_id' name='team_group[" + i + "][team_id]' /></td>")
         .append("<td><input tabindex='3' size='2' class='team_group_add_sub' name='team_group[" + i + "][add_sub]' /></td>")
         .append("<td><input tabindex='4' size='2' class='team_group_bias' name='team_group[" + i + "][bias]' /></td>")
-        .append("<td><textarea tabindex='5' class='team_group_comment' name='team_group[" + i + "][comment]' /></td>")
+        .append("<td><textarea tabindex='5' class='team_group_comment' name='team_group[" + i + "][comment]'></textarea></td>")
         .appendTo("#team_groups");
       initialize_team_group(team_group, teams, ordered_teams, current_data[i]);
     }
