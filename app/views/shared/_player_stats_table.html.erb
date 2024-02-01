@@ -136,7 +136,7 @@ player_stats.each do |p|
     name: p.team.name,
     logo: p.team.logo.url(:thumb),
     param: p.team.to_param,
-    country: p.team.country,
+    country: p.team.country.to_s,
   }
   countries[p.team.country] ||= {
     name: _(p.team.country),
@@ -150,7 +150,7 @@ player_stats.each do |p|
     name: p.player.name,
     full_name: p.player.full_name,
     param: p.player.to_param,
-    country: p.player.country,
+    country: p.player.country.to_s,
   }
   pg[p.id] = {
     team: p.team_id,
