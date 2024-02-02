@@ -1,8 +1,15 @@
 <%= javascript_tag <<EOF
 function finishPlayerAdd(home_away) {
-  $('add_player_' + home_away).hide();
-  $('link_player_' + home_away).show();
-  Sortable.create(home_away + "_player_list", {constraint:false, containment:[home_away + '_player_list', home_away + '_squad'], dropOnEmpty:true, handle:'draggable', onUpdate:dropPlayerDetails, only:'player_squad', tag:'div'})
+  jQuery('add_player_' + home_away).hide();
+  jQuery('link_player_' + home_away).show();
+  jQuery('#' + home_away + '_player_list').sortable({
+    cursor: 'move',
+    dropOnEmpty: true,
+    connectWith: '#' + home_away + '_squad',
+    handle: '.draggable',
+    items: '> div.player_squad',
+    update: dropPlayerDetails
+  });
 }
 
 function ignoreEnter(event) {
@@ -10,25 +17,27 @@ function ignoreEnter(event) {
   return true;
 }
 
-function addPlayerDetails(container) {
-  attr = container.getElementsByClassName("player_attributes");
+function addPlayerDetails(event, ui) {
+  var container = ui.item;
+  var attr = container.find(".player_attributes");
   for (i = 0; i < attr.length; ++i) {
-    children = attr[i].immediateDescendants();
-    for (j = 0; j < children.size(); ++j) {
-      children[j].enable();
+    var children = attr[i].children;
+    for (j = 0; j < children.length; ++j) {
+      jQuery(children[j]).prop('disabled', false);
     }
-    attr[i].show();
+    jQuery(attr[i]).show();
   }
 }
 
-function dropPlayerDetails(container) {
-  attr = container.getElementsByClassName("player_attributes");
+function dropPlayerDetails(event, ui) {
+  var container = ui.item;
+  var attr = container.find(".player_attributes");
   for (i = 0; i < attr.length; ++i) {
-    children = attr[i].immediateDescendants();
-    for (j = 0; j < children.size(); ++j) {
-      children[j].disable();
+    var children = attr[i].children;
+    for (j = 0; j < children.length; ++j) {
+      jQuery(children[j]).prop('disabled', true);
     }
-    attr[i].hide();
+    jQuery(attr[i]).hide();
   }
 }
 EOF
@@ -61,8 +70,24 @@ EOF
           <%= render :partial => "player_squad", :collection => @home_squad, :locals => { :disabled => false } %>
         </div>
       </td>
-      <%= sortable_element "home_player_list", :dropOnEmpty => true, :containment => [ "home_player_list", "home_squad" ], :only => "player_squad", :constraint => false, :tag => "div", :onUpdate => "dropPlayerDetails", :handle => "draggable" %>
-      <%= sortable_element "home_squad", :dropOnEmpty => true, :containment => [ "home_player_list", "home_squad" ], :only => "player_squad", :constraint => false, :tag => "div", :onUpdate => "addPlayerDetails", :handle => "draggable" %>
+<script>
+jQuery(function($) {
+ $("#home_player_list").sortable({
+    cursor: "move",
+    dropOnEmpty: true,
+    connectWith: "#home_squad",
+    handle: ".draggable",
+    update: dropPlayerDetails,
+  });
+  $("#home_squad").sortable({
+    cursor: "move",
+    dropOnEmpty: true,
+    connectWith: "#home_player_list",
+    handle: ".draggable",
+    update: addPlayerDetails,
+  });
+});
+</script>
       <td></td>
       <td colspan="4" class="players">
         <h3><%= _("Players") %></h3>
@@ -81,8 +106,26 @@ EOF
             :locals => { :team => @game.away, :game => @game, :home_away => "away", :partial => "player_squad" } %>
         </div>
       </td>
-      <%= sortable_element "away_player_list", :dropOnEmpty => true, :containment => [ "away_player_list", "away_squad" ], :only => "player_squad", :constraint => false, :tag => "div", :onUpdate => "dropPlayerDetails", :handle => "draggable" %>
-      <%= sortable_element "away_squad", :dropOnEmpty => true, :containment => [ "away_player_list", "away_squad" ], :only => "player_squad", :constraint => false, :tag => "div", :onUpdate => "addPlayerDetails", :handle => "draggable" %>
+<script>
+jQuery(function($) {
+ $("#away_player_list").sortable({
+    cursor: "move",
+    dropOnEmpty: true,
+    connectWith: "#away_squad",
+    handle: ".draggable",
+    update: dropPlayerDetails,
+    items: "> div.player_squad"
+  });
+  $("#away_squad").sortable({
+    cursor: "move",
+    dropOnEmpty: true,
+    connectWith: "#away_player_list",
+    handle: ".draggable",
+    update: addPlayerDetails,
+    items: "> div.player_squad"
+  });
+});
+</script>
     </tr>
 
     <tr><td colspan="10">

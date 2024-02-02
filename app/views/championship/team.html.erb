@@ -181,9 +181,7 @@ div#odds div.flot-x-axis div.flot-tick-label:nth-child(<%=team_position%>) {
 
 <script>
   data = new Array();
-  function plot_team_graph_data(request, idx) {
-    var new_data = request.responseText.evalJSON();
-
+  function plot_team_graph_data(new_data, idx) {
     var current_data = data[idx];
     current_data["tooltips"][1] = new_data["tooltips"][0];
     current_data["urls"][1] = new_data["urls"][0];
@@ -244,7 +242,7 @@ div#odds div.flot-x-axis div.flot-tick-label:nth-child(<%=team_position%>) {
     }
 
     current_data["data"][3]["label"] = '<%= @team.name %>';
-    current_data["data"][7]["label"] = $('team_graph_select' + idx).options[$('team_graph_select' + idx).selectedIndex].text;
+    current_data["data"][7]["label"] = jQuery('#team_graph_select' + idx + ' option:selected').text();
     jQuery("#placeholder" + idx).plot(current_data["data"], current_data["options"]);
   }
 
@@ -342,7 +340,7 @@ div#odds div.flot-x-axis div.flot-tick-label:nth-child(<%=team_position%>) {
       window.location.href = data[<%=idx%>]["urls"][Math.floor(item.seriesIndex/4)][item.dataIndex];
       }
     });
-    $('panel<%=idx%>').addClassName('select-div');
+    jQuery('#panel<%=idx%>').addClass('select-div');
   });
 
   </script>
@@ -361,10 +359,10 @@ div#odds div.flot-x-axis div.flot-tick-label:nth-child(<%=team_position%>) {
                                                  :phase => group.phase },
                                        :with => "'team=' + value",
                                        :method => :get,
-                                       :before => "if (!value) { filter_other_team(#{idx}); return true; } $('spinner#{idx}').setStyle({backgroundImage: 'url(#{image_url "spinner.gif"})'});",
+                                       :before => "if (!value) { filter_other_team(#{idx}); return true; } jQuery('#spinner#{idx}').css('background-image', 'url(#{image_url "spinner.gif"})');",
                                        :failure => "alert('#{_("Cant download data for team!")}');",
-                                       :success => "plot_team_graph_data(request, #{idx})",
-                                       :complete => "$('spinner#{idx}').setStyle({backgroundImage: ''})"
+                                       :success => "plot_team_graph_data(response, #{idx})",
+                                       :complete => "jQuery('#spinner#{idx}').css('background-image', '')"
                                      ) %>
     <% end %>
   </div>

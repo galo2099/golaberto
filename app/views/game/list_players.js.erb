@@ -1,0 +1,9 @@
+<% div_id = "##{@home_away}_add_player_list" %>
+jQuery('<%= div_id %>').html("");
+<% unless @total == 0 %>
+  jQuery('<%= div_id %>').append("<%= (render :partial => 'player', :collection => @players).to_json.to_s %>");
+  <% if @pagy.pages > 1 %>
+    <% page_options = { :action => :list_players, :team => @team, :game => @game, :name => @name, :partial => @partial } %>
+    jQuery('<%= div_id %>').append("<%= pagy_nav(@pagy, link_extra: 'data-remote="true"').to_json %>");
+  <% end %>
+<% end %>

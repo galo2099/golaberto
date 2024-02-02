@@ -672,7 +672,7 @@ module ApplicationHelper
   end
 
   def draggable_element_js(element_id, options = {}) #:nodoc:
-    %(new Draggable(#{ActiveSupport::JSON.encode(element_id)}, #{options_for_javascript(options)});)
+    %(jQuery("##{element_id}").draggable(#{options_for_javascript(options)});)
   end
 
   def options_for_javascript(options)
@@ -690,29 +690,66 @@ module ApplicationHelper
   end
 
   def remote_function(options)
-    ("jQuery.ajax({url: '#{ url_for(options[:url]) }', type: '#{ options[:method] || 'GET' }', " +
+    function = ("jQuery.ajax({url: '#{ url_for(options[:url]) }', type: '#{ options[:method] || 'GET' }', " +
     "data: #{ options[:with] ? options[:with] + '+ "&"' : '' } + " +
     "'authenticity_token=' + encodeURIComponent('#{ form_authenticity_token }')" +
     (options[:data_type] ? ", dataType: '" + options[:data_type] + "'" : "") +
+    (options[:complete] ? ", complete: function(response) {" + options[:complete] + "}" : "") +
     (options[:success] ? ", success: function(response) {" + options[:success] + "}" : "") +
     (options[:failure] ? ", error: function(response) {" + options[:failure] + "}" : "") +
-    (options[:before] ? ", beforeSend: function(data) {" + options[:before] + "}" : "") + "});").html_safe
+    (options[:before] ? ", beforeSend: function(data) {" + options[:before] + "}" : "") + "});")
+    function = "if (confirm('#{escape_javascript(options[:confirm])}')) { #{function}; }" if options[:confirm]
+    function.html_safe
   end
 
   def observe_field(id, options)
-    if options[:url]
-      raise StandardError.new "This is an exception"
+    if options[:with] && (options[:with] !~ /[\{=(.]/)
+      options[:with] = "'#{options[:with]}=' + encodeURIComponent(value)"
+    else
+      options[:with] ||= 'value' unless options[:function]
     end
-    str = <<JS
-    <script>
+
+    callback = options[:function] || remote_function(options)
+    javascript = <<JS
     jQuery(document).ready(function($) {
       $('##{id}').change(function() {
         var value = $(this).val();
-        #{options[:function]}
+        #{callback}
       });
     });
-    </script>
 JS
-    str.html_safe
+    javascript_tag(javascript)
+  end
+
+  def submit_to_remote(name, value, options = {})
+    options[:with] ||= 'jQuery(this.form).serialize()'
+
+    html_options = options.delete(:html) || {}
+    html_options[:name] = name
+
+    button_to_remote(value, options, html_options)
+  end
+
+  def button_to_remote(name, options = {}, html_options = {})
+    button_to_function(name, remote_function(options), html_options)
+  end
+
+    def button_to_function(name, *args)
+    html_options = args.extract_options!.symbolize_keys
+
+    function = args[0] || ''
+    onclick = "#{"#{html_options[:onclick]}; " if html_options[:onclick]}#{function};"
+
+    tag(:input, html_options.merge(:type => 'button', :value => name, :onclick => onclick.html_safe))
+  end
+
+  def link_to_function(name, *args)
+    html_options = args.extract_options!.symbolize_keys
+
+    function = args[0] || ''
+    onclick = "#{"#{html_options[:onclick]}; " if html_options[:onclick]}#{function}; return false;"
+    href = html_options[:href] || '#'
+
+    content_tag(:a, name, html_options.merge(:href => href, :onclick => onclick))
   end
 end

@@ -162,7 +162,7 @@ class GameController < ApplicationController
   end
 
   def create_referee_for_edit
-    @referee = Referee.new(params[:referee])
+    @referee = Referee.new(params.require("referee").permit("name", "location"))
     if @referee.save
       @referees = Referee.order(:name).map do |r|
         [ "#{r.name} (#{r.location})", r.id ]
@@ -201,7 +201,7 @@ class GameController < ApplicationController
 
   def update_squad
     @game = Game.find(params[:id])
-    @game.player_games = params[:player_game].values.map{|v| PlayerGame.new(v)}
+    @game.player_games = params.require(:player_game).values.map{|v| PlayerGame.new(v.permit(:player_id, :game_id, :team_id, :on, :off, :yellow, :red))}
     redirect_to :action => :show, :id => @game
   end
 

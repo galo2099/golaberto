@@ -15,3 +15,13 @@
 //= require ability
 //= require jstz
 //= require title-ellipsis
+
+// this is now my preferred way of dealing with confirmation dialog
+// it is just much simpler than Turbo way
+document.addEventListener("click", event => {
+  const element = event.target.closest("[data-confirm]")
+
+  if (element && !confirm(element.dataset.confirm)) {
+    event.preventDefault()
+  }
+})

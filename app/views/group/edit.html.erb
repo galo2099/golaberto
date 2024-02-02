@@ -2,8 +2,9 @@
   <%= javascript_include_tag "/group/team_list.js" %>
   <%= javascript_include_tag "edit_group" %>
   <%= javascript_include_jquery %>
-  <%= javascript_include_tag "spectrum" %>
-  <%= stylesheet_link_tag "spectrum" %>
+  <script src="https://cdn.jsdelivr.net/npm/spectrum-colorpicker2/dist/spectrum.min.js"></script>
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/spectrum-colorpicker2/dist/spectrum.min.css" />
+
 <% end %>
 
 <% content_for :main_title do %>
@@ -19,18 +20,8 @@
   background-color: #e3efca;
   border: 2px solid #d3dfba;
 }
-.sp-preview {
-  height: 15px;
-  width: 15px;
-  margin-right: 2px;
-}
 .sp-replacer {
   padding: 1px;
-}
-.sp-dd {
-  padding: 0;
-  height: 5px;
-  line-height: 11px;
 }
 .ui-sortable-handle {
   cursor: hand;
@@ -105,7 +96,17 @@
         }
         new_zone.append(position_div);
 
+        new_zone.find('input').bind('keypress', function(e){
+          if(e.which == 13) { //Enter keycode
+            jQuery("#update").click();
+            return false;
+          } else {
+            return true;
+          }
+        });
+        jQuery("#zones").append(new_zone);
         new_zone.find("#group_zones_" + create_zone_next_id + "_color").spectrum({
+          type: "color",
           showInput: true,
           preferredFormat: "hex",
           showPalette: true,
@@ -119,15 +120,6 @@
           ]
         });
 
-        new_zone.find('input').bind('keypress', function(e){
-          if(e.which == 13) { //Enter keycode
-            jQuery("#update").click();
-            return false;
-          } else {
-            return true;
-          }
-        });
-        jQuery("#zones").append(new_zone);
         create_zone_next_id++;
       }
 

@@ -1,7 +1,7 @@
-<%= link_to(_("Add"), '#', :id => "link_player_#{home_away}", onclick: 'jQuery("#link_player_#{home_away}").hide(); jQuery("#add_player_#{home_away}").show(); jQuery("##{home_away}_player_name").focus()') %>
+<%= link_to(_("Add"), '#', :id => "link_player_#{home_away}", onclick: "jQuery('#link_player_#{home_away}').hide(); jQuery('#add_player_#{home_away}').show(); jQuery('##{home_away}_player_name').focus(); return false".html_safe) %>
 <div id="add_player_<%= home_away %>" style="display: none">
   <%= text_field_tag "#{home_away}_player_name", "", :onkeypress => "return ignoreEnter(event)", :size => 10 %><br/>
-  <%= button_tag _("Cancel"), onclick: 'jQuery("#link_player_#{home_away}").show(); jQuery("#add_player_#{home_away}").hide();' %>
+  <%= button_tag _("Cancel"), onclick: "jQuery('#link_player_#{home_away}').show(); jQuery('#add_player_#{home_away}').hide(); return false" %>
   <%= button_tag _("New"), onclick: remote_function(
           :url => { :action => :insert_team_player, :id => game,
                     "team_player[championship_id]"=> game.phase.championship.id,
