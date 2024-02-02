@@ -41,9 +41,10 @@ class HomeController < ApplicationController
       end
     end
     games = games.sort_by{|a|[-game_quality[a.id]]}[0,20]
-    games = games.sort_by{|a|[a.date.in_time_zone(cookie_timezone).to_date, -top_quality_championship[[a.phase_id, a.date.in_time_zone(cookie_timezone).to_date]], a.date, -game_quality[a.id]]}[0,20]
     if played
-      games.reverse!
+      games = games.sort_by{|a|[-a.date.in_time_zone(cookie_timezone).to_date.to_time.to_i, -top_quality_championship[[a.phase_id, a.date.in_time_zone(cookie_timezone).to_date]], -a.date.to_i, -game_quality[a.id]]}[0,20]
+    else
+      games = games.sort_by{|a|[a.date.in_time_zone(cookie_timezone).to_date, -top_quality_championship[[a.phase_id, a.date.in_time_zone(cookie_timezone).to_date]], a.date, -game_quality[a.id]]}[0,20]
     end
     return games, games_to_highlight.values
   end
