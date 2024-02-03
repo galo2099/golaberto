@@ -20,7 +20,7 @@ var countries = {
 };
 
 function changeContinent(select) {
-  $("country").update(countries[select.value]);
+  jQuery("#country").html(countries[select.value]);
 }
 </script>
 
@@ -38,4 +38,4 @@ function changeContinent(select) {
   <% end %>
 <% end %>
 
-<%= javascript_tag "$('id').activate()" %>
+<%= javascript_tag "jQuery('#id').focus()" %>
