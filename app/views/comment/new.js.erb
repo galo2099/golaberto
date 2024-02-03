@@ -1,0 +1,9 @@
+<% if @comment.valid? %>
+  jQuery("#comments").append(`<%= render(:partial => "comment/comment", :locals => { :comment => @comment }) %>`);
+  jQuery("#comments").animate({ backgroundColor: "#FFFF99" }, 3000, function() {
+    // Animation complete.
+    jQuery(this).css("background-color", ""); // Reset background color after animation
+  });
+<% else %>
+  alert(`<%= @comment.errors.full_messages %>`);
+<% end %>

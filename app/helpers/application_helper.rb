@@ -691,13 +691,15 @@ module ApplicationHelper
 
   def remote_function(options)
     function = ("jQuery.ajax({url: '#{ url_for(options[:url]) }', type: '#{ options[:method] || 'GET' }', " +
-    "data: #{ options[:with] ? options[:with] + '+ "&"' : '' } + " +
+    "data: #{ options[:with] ? options[:with] + "+ '&'" : '' } + " +
     "'authenticity_token=' + encodeURIComponent('#{ form_authenticity_token }')" +
     (options[:data_type] ? ", dataType: '" + options[:data_type] + "'" : "") +
     (options[:complete] ? ", complete: function(response) {" + options[:complete] + "}" : "") +
     (options[:success] ? ", success: function(response) {" + options[:success] + "}" : "") +
     (options[:failure] ? ", error: function(response) {" + options[:failure] + "}" : "") +
     (options[:before] ? ", beforeSend: function(data) {" + options[:before] + "}" : "") + "});")
+    function = "#{function}; #{options[:after]}"  if options[:after]
+    function = "if (#{options[:condition]}) { #{function}; }" if options[:condition]
     function = "if (confirm('#{escape_javascript(options[:confirm])}')) { #{function}; }" if options[:confirm]
     function.html_safe
   end
@@ -741,6 +743,10 @@ JS
     onclick = "#{"#{html_options[:onclick]}; " if html_options[:onclick]}#{function};"
 
     tag(:input, html_options.merge(:type => 'button', :value => name, :onclick => onclick.html_safe))
+  end
+
+  def link_to_remote(name, options = {}, html_options = {})
+    link_to_function(name, remote_function(options), html_options)
   end
 
   def link_to_function(name, *args)

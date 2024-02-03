@@ -6,7 +6,7 @@ class CommentController < ApplicationController
   def new
     type = params[:type].classify.constantize
     object = type.find(params[:id])
-    @comment = Comment.new(comment_params)
+    @comment = Comment.new(comment: params[:comment])
     @comment.created_at = Time.now
     @comment.user = current_user
     authorize! :create, @comment
@@ -18,10 +18,5 @@ class CommentController < ApplicationController
     @comment = Comment.find(params[:id])
     authorize! :destroy, @comment
     @comment.destroy
-  end
-
-  private
-  def comment_params
-    params.require(:comment).permit(:comment)
   end
 end

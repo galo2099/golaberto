@@ -7,17 +7,18 @@
 
 <h4><%= _("Leave a comment") %></h4>
 <% if can? :create, Comment %>
-  <%= form_for :comment, :url => { :controller => :comment, :action => :new, :type => object.class, :id => object },
-                         :remote => true,
-                         :condition => "! $('comment_comment').value.blank()",
-                         :before => "$('submit_comment').disable();",
-                         :after => "$('comment_comment').disable();",
-                         :complete => "$('comment_comment').enable(); $('submit_comment').enable()",
-                         :success => "$('comment_comment').value = ''" do |f| %>
     <%= _("Comment") %>:<br>
-    <%= f.text_area :comment, :rows => 5, :cols => 35 %><br>
-    <%= submit_tag _("Add Comment"), :id => "submit_comment" %>
-  <% end %>
+    <%= text_area_tag :comment, "", :rows => 5, :cols => 35 %><br>
+    <%= submit_to_remote "add_comment", _("Add Comment"),
+      :id => "submit_comment",
+      :url => { :controller => :comment, :action => :new, :type => object.class, :id => object },
+      :with => "jQuery('#comment').serialize()",
+      :condition => "!jQuery.trim(jQuery('#comment').val()) == ''",
+      :before => "jQuery('#submit_comment').prop('disabled', true);",
+      :after => "jQuery('#comment').prop('disabled', true);",
+      :complete => "jQuery('#comment').prop('disabled', false); jQuery('#submit_comment').prop('disabled', false)",
+      :success => "jQuery('#comment').val('')"
+%>
 <% else %>
   <%= (_("You can only leave a comment if you're <a href='%{signup_link}'>logged in</a>") % { :signup_link => url_for(:controller => :account, :action => :login) }).html_safe %>
 <% end %>

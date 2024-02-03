@@ -196,7 +196,7 @@ function receiveDrop(event, ui) {
           <%= _("Name") %>: <%= text_field_tag "referee_name", "", :onkeypress => "return ignoreEnter(event)", :name => "referee[name]" %>
           <br/>
           <%= _("Location") %>: <%= text_field_tag "referee_location", "", :onkeypress => "return ignoreEnter(event)", :name => "referee[location]" %><br/>
-          <%= submit_to_remote _("Create"), "Create",
+          <%= submit_to_remote "Create", _("Create"),
             :url => { :action => :create_referee_for_edit },
             :method => 'POST',
             :with => "jQuery('#referee_name, #referee_location').serialize()",
@@ -221,7 +221,7 @@ function receiveDrop(event, ui) {
       <td><div>
           <%= _("Name") %>: <%= text_field_tag "stadium_name", "", :onkeypress => "return ignoreEnter(event)", :name => "stadium[name]" %>
           <br/>
-          <%= submit_to_remote _("Create"), "Create",
+          <%= submit_to_remote "Create", _("Create"),
             :url => { :action => :create_stadium_for_edit },
             :method => 'POST',
             :with => "jQuery('#stadium_name').serialize()",
