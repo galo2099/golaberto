@@ -5,7 +5,7 @@ class Team < ApplicationRecord
 
   AVG_BASE = 1.3350257653834494
 
-  has_one :team_geocode
+  has_one :team_geocode, dependent: :destroy
   has_many :historical_ratings
 
   has_attached_file :logo,
