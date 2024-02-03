@@ -22,26 +22,26 @@
   <script>
 function changeRegion(select) {
   if (select.value == "national") {
-    $("region_name_country").enable();
-    $("region_name_country").show();
-    $("region_name_continent").disable();
-    $("region_name_continent").hide();
-    $("region_name_world").disable();
-    $("region_name_world").hide();
+    jQuery("#region_name_country").prop("disabled", false);
+    jQuery("#region_name_country").show();
+    jQuery("#region_name_continent").prop("disabled", true);
+    jQuery("#region_name_continent").hide();
+    jQuery("#region_name_world").prop("disabled", true);
+    jQuery("#region_name_world").hide();
   } else if (select.value == "continental") {
-    $("region_name_country").disable();
-    $("region_name_country").hide();
-    $("region_name_continent").enable();
-    $("region_name_continent").show();
-    $("region_name_world").disable();
-    $("region_name_world").hide();
+    jQuery("#region_name_country").prop("disabled", true);
+    jQuery("#region_name_country").hide();
+    jQuery("#region_name_continent").prop("disabled", false);
+    jQuery("#region_name_continent").show();
+    jQuery("#region_name_world").prop("disabled", true);
+    jQuery("#region_name_world").hide();
   } else {
-    $("region_name_country").disable();
-    $("region_name_country").hide();
-    $("region_name_continent").disable();
-    $("region_name_continent").hide();
-    $("region_name_world").enable();
-    $("region_name_world").show();
+    jQuery("#region_name_country").prop("disabled", true);
+    jQuery("#region_name_country").hide();
+    jQuery("#region_name_continent").prop("disabled", true);
+    jQuery("#region_name_continent").hide();
+    jQuery("#region_name_world").prop("disabled", false);
+    jQuery("#region_name_world").show();
   }
 }
   </script>

@@ -734,7 +734,7 @@ JS
     button_to_function(name, remote_function(options), html_options)
   end
 
-    def button_to_function(name, *args)
+  def button_to_function(name, *args)
     html_options = args.extract_options!.symbolize_keys
 
     function = args[0] || ''
