@@ -9,7 +9,7 @@
                     "home_away" => home_away,
                     "partial" => partial },
           :confirm => _("Are you sure you want to create a new player?"),
-          :with => "'name='+$(#{home_away}_player_name).value",
+          :with => "'name='+jQuery(##{home_away}_player_name).val()",
           :complete => "finishPlayerAdd('#{home_away}')",
           :failure => "alert('#{_('Could not insert player')}')") %>
   <%= observe_field "#{home_away}_player_name",

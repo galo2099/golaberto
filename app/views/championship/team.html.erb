@@ -397,17 +397,14 @@ div#odds div.flot-x-axis div.flot-tick-label:nth-child(<%=team_position%>) {
 <h3><%= _("Players") %></h3>
 <script>
 function load_graph_data(index) {
-  tabs = $A($('tabs').getElementsByTagName('a'));
-  divs = $A($('panel').getElementsByClassName('select-div'));
-  for (i = 0; i < tabs.length; ++i) {
-    if (i == index) {
-      tabs[i].addClassName('active-tab');
-      divs[i].addClassName('active-tab-body');
-    } else {
-      tabs[i].removeClassName('active-tab');
-      divs[i].removeClassName('active-tab-body');
-    }
-  }
+  var tabs = jQuery('#tabs a');
+  var divs = jQuery('#panel .select-div');
+
+  tabs.removeClass('active-tab');
+  divs.removeClass('active-tab-body');
+
+  tabs.eq(index).addClass('active-tab');
+  divs.eq(index).addClass('active-tab-body');
 }
 </script>
 <%= render partial: "shared/player_stats_table", locals: {
