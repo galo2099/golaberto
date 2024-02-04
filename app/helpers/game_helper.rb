@@ -11,7 +11,7 @@ module GameHelper
       html << "&nbsp;"
     end
     html << "</div></td>"
-    html << javascript_tag("jQuery('##{home_away}_#{aet}_goal_player_#{i}').droppable({ hoverClass: 'drop_receiving', drop: receiveDrop });")
+    html << javascript_tag("$('##{home_away}_#{aet}_goal_player_#{i}').droppable({ hoverClass: 'drop_receiving', drop: receiveDrop });")
     html << "<td>"
     html << text_field_tag("#{home_away}_#{aet}_goal[#{i}][time]",
                            goal && goal.time, :size => 2)

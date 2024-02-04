@@ -11,7 +11,7 @@ data = teams[0,3].map{|t| Team.get_historical_ratings_2_weeks(t.id)  }
 </div>
 
 <script type="text/javascript">
-  jQuery(function($) {
+  $(function() {
     var getColor = function(index) {
       var colorValues = [ "#cb4b4b", "#4da74d", "#9440ed", "#afd8f8", "#edc240" ];
       var arrayIndex = index % colorValues.length;

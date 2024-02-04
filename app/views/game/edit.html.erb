@@ -8,26 +8,26 @@
 
 <script type="text/javascript">
 function finishPlayerAdd(home_away) {
-  jQuery('add_player_' + home_away).hide();
-  jQuery('link_player_' + home_away).show();
+  $('add_player_' + home_away).hide();
+  $('link_player_' + home_away).show();
 }
 
 function receiveDrop(event, ui) {
-  var drop = jQuery(this);
+  var drop = $(this);
   var drag = ui.draggable;
   var home_away = drop.attr('id').replace(/_(regulation|aet)_goal_player_.*/, "");
   var aet = drop.attr('id').replace(/.*_(regulation|aet)_.*/, "$1");
   var idx = drop.attr('id').replace(/.*_goal_player_/, "");
   drop.html(drag.html());
-  penalty = jQuery('input[type=checkbox]#' + home_away + "_" + aet + "_goal_" + idx + "_penalty");
+  penalty = $('input[type=checkbox]#' + home_away + "_" + aet + "_goal_" + idx + "_penalty");
   if (drag.attr('id').match(home_away)) {
     penalty.prop('disabled', false);
   } else {
     penalty.prop('disabled', true);
     penalty.prop('checked', false);
   }
-  own_check = jQuery('#' + home_away + "_" + aet + "_goal_" + idx + "_own_goal_check");
-  own = jQuery('#' + home_away + "_" + aet + "_goal_" + idx + "_own_goal");
+  own_check = $('#' + home_away + "_" + aet + "_goal_" + idx + "_own_goal_check");
+  own = $('#' + home_away + "_" + aet + "_goal_" + idx + "_own_goal");
   if (drag.attr('id').match(home_away)) {
     own_check.prop('checked', false);
     own.val("0");
@@ -35,7 +35,7 @@ function receiveDrop(event, ui) {
     own_check.prop('checked', true);
     own.val("1");
   }
-  input = jQuery('#' + home_away + "_" + aet + "_goal_" + idx + "_player_id");
+  input = $('#' + home_away + "_" + aet + "_goal_" + idx + "_player_id");
   input.val(drag.attr('id').replace(/.*_player_/, ""));
 }
 </script>
@@ -59,7 +59,7 @@ function receiveDrop(event, ui) {
     </tr>
     <tr>
       <td>
-        <label for="aet"><small><%= _("Extra time") %>:</small></label> <%= check_box_tag "aet", "1", @game.home_aet, :onChange => "if (this.checked) { jQuery('#game_home_aet').prop('disabled', false); jQuery('#game_away_aet').prop('disabled', false); } else { jQuery('#game_home_aet').prop('disabled', true); jQuery('#game_away_aet').prop('disabled', true); }" %>
+        <label for="aet"><small><%= _("Extra time") %>:</small></label> <%= check_box_tag "aet", "1", @game.home_aet, :onChange => "if (this.checked) { $('#game_home_aet').prop('disabled', false); $('#game_away_aet').prop('disabled', false); } else { $('#game_home_aet').prop('disabled', true); $('#game_away_aet').prop('disabled', true); }" %>
       </td>
       <td>
         <%= hidden_field_tag "game[home_aet]", "", :id => "game_home_aet_hidden" %>
@@ -74,7 +74,7 @@ function receiveDrop(event, ui) {
     </tr>
     <tr>
       <td>
-        <label for="penalties"><small><%= _("Penalties") %>:</small></label> <%= check_box_tag "penalties", "1", @game.home_pen, :onChange => "if (this.checked) { jQuery('#game_home_pen').prop('disabled', false); jQuery('#game_away_pen').prop('disabled', false); } else { jQuery('#game_home_pen').prop('disabled', true); jQuery('#game_away_pen').prop('disabled', true); }" %>
+        <label for="penalties"><small><%= _("Penalties") %>:</small></label> <%= check_box_tag "penalties", "1", @game.home_pen, :onChange => "if (this.checked) { $('#game_home_pen').prop('disabled', false); $('#game_away_pen').prop('disabled', false); } else { $('#game_home_pen').prop('disabled', true); $('#game_away_pen').prop('disabled', true); }" %>
       </td>
       <td>
         <%= hidden_field_tag "game[home_pen]", "", :id => "game_home_pen_hidden" %>
@@ -165,8 +165,8 @@ function receiveDrop(event, ui) {
       <td>
       <%= datepicker_tag "game_date", game_date(@game).to_date, :autoSize => true, :changeYear => true, :selectOtherMonths => true, :showButtonPanel => true, :showOn => "both", :showOtherMonths => true %>
       <script type="text/javascript">
-      jQuery(document).ready(function() {
-        jQuery('#game_date_datepicker_ui').datepicker().next('button').text('').button({icons:{primary : 'ui-icon-calendar'}});
+      $(document).ready(function() {
+        $('#game_date_datepicker_ui').datepicker().next('button').text('').button({icons:{primary : 'ui-icon-calendar'}});
       });
       </script>
       </td>
@@ -187,7 +187,7 @@ function receiveDrop(event, ui) {
           <option value=""></option>
           <%= options_for_select @referees, @game.referee_id %>
         </select>
-        <%= link_to _("New"), '#', onclick: 'jQuery("#add_referee").toggle(); jQuery("#referee_name").focus(); return false' %>
+        <%= link_to _("New"), '#', onclick: '$("#add_referee").toggle(); $("#referee_name").focus(); return false' %>
       </td>
     </tr>
     <tr id="add_referee" style="display: none">
@@ -199,9 +199,9 @@ function receiveDrop(event, ui) {
           <%= submit_to_remote "Create", _("Create"),
             :url => { :action => :create_referee_for_edit },
             :method => 'POST',
-            :with => "jQuery('#referee_name, #referee_location').serialize()",
+            :with => "$('#referee_name, #referee_location').serialize()",
             :confirm => _("Are you sure you want to create a new referee?"),
-            :success => 'jQuery("#game_referee_id").html(response); jQuery("#add_referee").toggle();',
+            :success => '$("#game_referee_id").html(response); $("#add_referee").toggle();',
             :failure => "alert('#{_('Could not insert referee')}')" %>
         </div>
       </td>
@@ -213,7 +213,7 @@ function receiveDrop(event, ui) {
           <option value=""></option>
           <%= options_from_collection_for_select @stadiums, "id", "name", @selected_stadium %>
         </select>
-        <%= link_to _("New"), '#', onclick: 'jQuery("#add_stadium").toggle(); jQuery("stadium_name").focus(); return false' %>
+        <%= link_to _("New"), '#', onclick: '$("#add_stadium").toggle(); $("stadium_name").focus(); return false' %>
       </td>
     </tr>
     <tr id="add_stadium" style="display: none">
@@ -224,9 +224,9 @@ function receiveDrop(event, ui) {
           <%= submit_to_remote "Create", _("Create"),
             :url => { :action => :create_stadium_for_edit },
             :method => 'POST',
-            :with => "jQuery('#stadium_name').serialize()",
+            :with => "$('#stadium_name').serialize()",
             :confirm => _("Are you sure you want to create a new stadium?"),
-            :success => 'jQuery("#game_stadium_id").html(response); jQuery("#add_stadium").toggle();',
+            :success => '$("#game_stadium_id").html(response); $("#add_stadium").toggle();',
             :failure => "alert('#{_('Could not insert stadium')}')" %>
         </div>
       </td>
@@ -249,7 +249,7 @@ function receiveDrop(event, ui) {
 
 <%= javascript_tag <<EOF
 function updateGoalTable(home_away, aet, value) {
-  $ = jQuery;
+  $ = $;
   var i = 0;
   var prefix = home_away + "_" + aet;
   if (aet == 'aet') {
@@ -340,14 +340,14 @@ function ignoreEnter(event) {
 EOF
 %>
 
-<%= observe_field 'game_home_score', :function => "updateGoalTable('home', 'regulation', value); jQuery('#game_played').prop('checked', true);" %>
-<%= observe_field 'game_away_score', :function => "updateGoalTable('away', 'regulation', value); jQuery('#game_played').prop('checked', true);" %>
-<%= observe_field 'game_home_aet', :function => "updateGoalTable('home', 'aet', value); jQuery('#game_played').prop('checked', true);" %>
-<%= observe_field 'game_away_aet', :function => "updateGoalTable('away', 'aet', value); jQuery('#game_played').prop('checked', true);" %>
-<%= observe_field 'game_home_pen', :function => "jQuery('#game_played').prop('checked', true);" %>
-<%= observe_field 'game_away_pen', :function => "jQuery('#game_played').prop('checked', true);" %>
+<%= observe_field 'game_home_score', :function => "updateGoalTable('home', 'regulation', value); $('#game_played').prop('checked', true);" %>
+<%= observe_field 'game_away_score', :function => "updateGoalTable('away', 'regulation', value); $('#game_played').prop('checked', true);" %>
+<%= observe_field 'game_home_aet', :function => "updateGoalTable('home', 'aet', value); $('#game_played').prop('checked', true);" %>
+<%= observe_field 'game_away_aet', :function => "updateGoalTable('away', 'aet', value); $('#game_played').prop('checked', true);" %>
+<%= observe_field 'game_home_pen', :function => "$('#game_played').prop('checked', true);" %>
+<%= observe_field 'game_away_pen', :function => "$('#game_played').prop('checked', true);" %>
 <script>
-jQuery(document).ready(function($) {
+$(document).ready(function() {
 $("#game_home_score").select();
 });
 </script>

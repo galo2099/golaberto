@@ -33,8 +33,8 @@ div#odds div.flot-x-axis div.flot-tick-label:nth-child(<%=team_position%>) {
 </style>
 
 <script type="text/javascript">
-  jQuery(function() {
-		jQuery("<div id='odds_tooltip'></div>").css({
+  $(function() {
+		$("<div id='odds_tooltip'></div>").css({
 			position: "absolute",
 			display: "none",
 			border: "1px solid #fdd",
@@ -44,7 +44,7 @@ div#odds div.flot-x-axis div.flot-tick-label:nth-child(<%=team_position%>) {
       zIndex: 0,
 		}).appendTo("body");
 
-    var graphDiv = jQuery("#odds");
+    var graphDiv = $("#odds");
     var options = {
       series: {
         bars: {
@@ -89,11 +89,11 @@ div#odds div.flot-x-axis div.flot-tick-label:nth-child(<%=team_position%>) {
           pos.y > 0 && pos.y < 100) {
         var names = <%== (1..@groups[0].team_groups.size).map{|i|i.ordinalize}.to_json %>;
         var value = plot.getData()[0].data[x-1][1].toFixed(2);
-        jQuery("#odds_tooltip").html(names[x-1] + ": " + value + "%")
+        $("#odds_tooltip").html(names[x-1] + ": " + value + "%")
           .css({top: pos.pageY+5, left: pos.pageX+5})
           .fadeIn(200);
       } else {
-        jQuery("#odds_tooltip").hide();
+        $("#odds_tooltip").hide();
       }
     });
 
@@ -112,7 +112,7 @@ div#odds div.flot-x-axis div.flot-tick-label:nth-child(<%=team_position%>) {
           markings[x-1] = null;
         }
         var total = 0;
-        options.grid.markings = jQuery.grep(markings, function(n, i){
+        options.grid.markings = $.grep(markings, function(n, i){
           if (n != null) {
             total += plot.getData()[0].data[i][1];
             return true;
@@ -242,8 +242,8 @@ div#odds div.flot-x-axis div.flot-tick-label:nth-child(<%=team_position%>) {
     }
 
     current_data["data"][3]["label"] = '<%= @team.name %>';
-    current_data["data"][7]["label"] = jQuery('#team_graph_select' + idx + ' option:selected').text();
-    jQuery("#placeholder" + idx).plot(current_data["data"], current_data["options"]);
+    current_data["data"][7]["label"] = $('#team_graph_select' + idx + ' option:selected').text();
+    $("#placeholder" + idx).plot(current_data["data"], current_data["options"]);
   }
 
   function filter_other_team(idx) {
@@ -265,7 +265,7 @@ div#odds div.flot-x-axis div.flot-tick-label:nth-child(<%=team_position%>) {
       current_data["data"].pop();
       current_data["data"].pop();
       current_data["data"][3]["label"] = null;
-      jQuery("#placeholder" + idx).plot(current_data["data"], current_data["options"]);
+      $("#placeholder" + idx).plot(current_data["data"], current_data["options"]);
     }
   }
 </script>
@@ -289,9 +289,9 @@ div#odds div.flot-x-axis div.flot-tick-label:nth-child(<%=team_position%>) {
       <div id="legend<%=idx%>"></div>
 <script type="text/javascript">
 
-  jQuery(function() {
+  $(function() {
 
-    var graphDiv = jQuery("#placeholder<%=idx%>");
+    var graphDiv = $("#placeholder<%=idx%>");
     var options = data[<%=idx%>]["options"];
     options["legend"] = {
         container: '#legend<%=idx%>',
@@ -311,7 +311,7 @@ div#odds div.flot-x-axis div.flot-tick-label:nth-child(<%=team_position%>) {
 
     graphDiv.plot(data[<%=idx%>].data, options);
 
-    jQuery("<div id='tooltip'></div>").css({
+    $("<div id='tooltip'></div>").css({
       position: "absolute",
       display: "none",
       border: "1px solid #fdd",
@@ -325,13 +325,13 @@ div#odds div.flot-x-axis div.flot-tick-label:nth-child(<%=team_position%>) {
         var x = item.datapoint[0].toFixed(2);
         var y = item.datapoint[1].toFixed(2);
 
-        jQuery('#placeholder<%=idx%>').css('cursor', 'pointer');
-        jQuery("#tooltip").html(data[<%=idx%>]["tooltips"][Math.floor(item.seriesIndex/4)][item.dataIndex])
+        $('#placeholder<%=idx%>').css('cursor', 'pointer');
+        $("#tooltip").html(data[<%=idx%>]["tooltips"][Math.floor(item.seriesIndex/4)][item.dataIndex])
             .css({top: pos.pageY+5, left: pos.pageX+5})
             .fadeIn(200);
       } else {
-        jQuery('#placeholder<%=idx%>').css('cursor', 'default');
-        jQuery("#tooltip").hide();
+        $('#placeholder<%=idx%>').css('cursor', 'default');
+        $("#tooltip").hide();
       }
     });
 
@@ -340,7 +340,7 @@ div#odds div.flot-x-axis div.flot-tick-label:nth-child(<%=team_position%>) {
       window.location.href = data[<%=idx%>]["urls"][Math.floor(item.seriesIndex/4)][item.dataIndex];
       }
     });
-    jQuery('#panel<%=idx%>').addClass('select-div');
+    $('#panel<%=idx%>').addClass('select-div');
   });
 
   </script>
@@ -359,10 +359,10 @@ div#odds div.flot-x-axis div.flot-tick-label:nth-child(<%=team_position%>) {
                                                  :phase => group.phase },
                                        :with => "'team=' + value",
                                        :method => :get,
-                                       :before => "if (!value) { filter_other_team(#{idx}); return true; } jQuery('#spinner#{idx}').css('background-image', 'url(#{image_url "spinner.gif"})');",
+                                       :before => "if (!value) { filter_other_team(#{idx}); return true; } $('#spinner#{idx}').css('background-image', 'url(#{image_url "spinner.gif"})');",
                                        :failure => "alert('#{_("Cant download data for team!")}');",
                                        :success => "plot_team_graph_data(response, #{idx})",
-                                       :complete => "jQuery('#spinner#{idx}').css('background-image', '')"
+                                       :complete => "$('#spinner#{idx}').css('background-image', '')"
                                      ) %>
     <% end %>
   </div>
@@ -397,8 +397,8 @@ div#odds div.flot-x-axis div.flot-tick-label:nth-child(<%=team_position%>) {
 <h3><%= _("Players") %></h3>
 <script>
 function load_graph_data(index) {
-  var tabs = jQuery('#tabs a');
-  var divs = jQuery('#panel .select-div');
+  var tabs = $('#tabs a');
+  var divs = $('#panel .select-div');
 
   tabs.removeClass('active-tab');
   divs.removeClass('active-tab-body');

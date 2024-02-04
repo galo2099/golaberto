@@ -1,4 +1,4 @@
-jQuery(document).ready(function ($) {
+$(document).ready(function() {
   $('.home_name, .away_name, .name, table.dataTable tr td, .ellipsis, .championship_name').each(function () {
     $(this).on('mouseenter', function (event) {
       var $this = $(this);

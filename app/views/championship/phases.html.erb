@@ -32,7 +32,7 @@ function recalculate_odds(group_id) {
                     :action => :update_odds },
           :with => "'id=' + group_id",
           :failure => "alert('#{error_message}')",
-          :before => "jQuery('recalculate'+group_id).innerHTML = '#{update_message}'") %>
+          :before => "$('#recalculate'+group_id).html('#{update_message}')") %>
   watch_odds(group_id);
 }
 
@@ -43,7 +43,7 @@ function watch_odds(group_id) {
                         :action => :odds_progress },
               :with => "'id=' + group_id",
               :failure => "alert('#{error_message}')",
-              :before => "jQuery('recalculate'+group_id).innerHTML = '#{update_message}'") %>
+              :before => "$('#recalculate'+group_id).html('#{update_message}')") %>
       };
    setInterval(periodicalUpdater, 5000);
 }

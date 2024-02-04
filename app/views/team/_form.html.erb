@@ -9,16 +9,16 @@
   <option value=""></option>
   <%= options_from_collection_for_select @stadiums, "id", "name", @team.stadium_id %>
 </select>
-<%= link_to_function _("New"), onclick: 'jQuery("#add_stadium").toggle(); jQuery("#stadium_name").focus(); return false;' %>
+<%= link_to_function _("New"), onclick: '$("#add_stadium").toggle(); $("#stadium_name").focus(); return false;' %>
 <br/>
 <div id="add_stadium" style="display: none">
   <%= _("Name") %>: <%= text_field_tag "stadium_name", "", :onkeypress => "return ignoreEnter(event)", :name => "stadium[name]" %>
   <br/>
   <%= submit_to_remote _("Create"), "Create",
     :url => { :controller => :game, :action => :create_stadium_for_edit },
-    :with => "jQuery('#stadium_name').serialize()",
+    :with => "$('#stadium_name').serialize()",
     :confirm => _("Are you sure you want to create a new stadium?"),
-    :success => 'jQuery("#team_stadium_id").html(response); jQuery("#add_stadium").toggle();',
+    :success => '$("#team_stadium_id").html(response); $("#add_stadium").toggle();',
     :failure => "alert('#{ _('Could not insert stadium') }')" %>
 </div>
 <%= f.label :team_type %>: <%= f.select :team_type, Team.i18n_team_types %><br/>

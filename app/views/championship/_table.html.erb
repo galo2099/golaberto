@@ -87,7 +87,7 @@
         }
         </style>
         <script type="text/javascript">
-          jQuery.widget("custom.iconselectmenu", jQuery.ui.selectmenu, {
+          $.widget("custom.iconselectmenu", $.ui.selectmenu, {
 						_create: function() {
 							this._super();
 							this._setTabIndex();
@@ -104,16 +104,16 @@
 							}
 						},
             _renderButtonItem: function(item) {
-              var buttonItem = jQuery("<span>");
+              var buttonItem = $("<span>");
               this._setText(buttonItem, item.label);
               this._addClass(buttonItem, "ui-selectmenu-text");
               buttonItem.css("color", item.element.attr("data-color"));
               return buttonItem;
             },
             _renderItem: function(ul, item) {
-              var li = jQuery( "<li>" )
+              var li = $( "<li>" )
                 .css("color", item.element.attr("data-color"));
-              var wrapper = jQuery( "<div>", {
+              var wrapper = $( "<div>", {
                 title: item.element.attr( "title" )
               } );
 
@@ -124,14 +124,14 @@
               return li.append( wrapper ).appendTo( ul );
             },
           });
-          jQuery("#oddsSelect_<%=group.id%>").iconselectmenu({
+          $("#oddsSelect_<%=group.id%>").iconselectmenu({
             width: false,
             change: function(event, ui) {
-              jQuery("td[data-group-id=<%=group.id%>][data-zone-name]").each(function(index) {
-                jQuery(this).hide();
+              $("td[data-group-id=<%=group.id%>][data-zone-name]").each(function(index) {
+                $(this).hide();
               });
-              jQuery("td[data-group-id=<%=group.id%>][data-zone-name='" + ui.item.value + "']").each(function(index) {
-                jQuery(this).show();
+              $("td[data-group-id=<%=group.id%>][data-zone-name='" + ui.item.value + "']").each(function(index) {
+                $(this).show();
               });
             }
           });

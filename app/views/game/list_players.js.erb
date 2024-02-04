@@ -1,9 +1,9 @@
 <% div_id = "##{@home_away}_add_player_list" %>
-jQuery('<%= div_id %>').html("");
+$('<%= div_id %>').html("");
 <% unless @total == 0 %>
-  jQuery('<%= div_id %>').append(`<%= (render :partial => 'player', :collection => @players) %>`);
+  $('<%= div_id %>').append(`<%= (render :partial => 'player', :collection => @players) %>`);
   <% if @pagy.pages > 1 %>
     <% page_options = { :action => :list_players, :team => @team, :game => @game, :name => @name, :partial => @partial } %>
-    jQuery('<%= div_id %>').append(`<%= pagy_nav(@pagy, link_extra: 'data-remote="true"').html_safe %>`);
+    $('<%= div_id %>').append(`<%= pagy_nav(@pagy, link_extra: 'data-remote="true"').html_safe %>`);
   <% end %>
 <% end %>

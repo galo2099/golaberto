@@ -77,7 +77,7 @@ end
 <div class="clearer"></div>
 </div>
 <script>
-jQuery('#game_id_<%= game_id %>').click(function() {
+$('#game_id_<%= game_id %>').click(function() {
   window.location = '<%= url_for controller: :game, action: :show, id: game_id %>';
 });
 </script>

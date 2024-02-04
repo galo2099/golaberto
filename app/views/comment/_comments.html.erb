@@ -12,12 +12,12 @@
     <%= submit_to_remote "add_comment", _("Add Comment"),
       :id => "submit_comment",
       :url => { :controller => :comment, :action => :new, :type => object.class, :id => object },
-      :with => "jQuery('#comment').serialize()",
-      :condition => "!jQuery.trim(jQuery('#comment').val()) == ''",
-      :before => "jQuery('#submit_comment').prop('disabled', true);",
-      :after => "jQuery('#comment').prop('disabled', true);",
-      :complete => "jQuery('#comment').prop('disabled', false); jQuery('#submit_comment').prop('disabled', false)",
-      :success => "jQuery('#comment').val('')"
+      :with => "$('#comment').serialize()",
+      :condition => "!$.trim($('#comment').val()) == ''",
+      :before => "$('#submit_comment').prop('disabled', true);",
+      :after => "$('#comment').prop('disabled', true);",
+      :complete => "$('#comment').prop('disabled', false); $('#submit_comment').prop('disabled', false)",
+      :success => "$('#comment').val('')"
 %>
 <% else %>
   <%= (_("You can only leave a comment if you're <a href='%{signup_link}'>logged in</a>") % { :signup_link => url_for(:controller => :account, :action => :login) }).html_safe %>

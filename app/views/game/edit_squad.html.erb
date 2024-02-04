@@ -1,8 +1,8 @@
 <%= javascript_tag <<EOF
 function finishPlayerAdd(home_away) {
-  jQuery('add_player_' + home_away).hide();
-  jQuery('link_player_' + home_away).show();
-  jQuery('#' + home_away + '_player_list').sortable({
+  $('add_player_' + home_away).hide();
+  $('link_player_' + home_away).show();
+  $('#' + home_away + '_player_list').sortable({
     cursor: 'move',
     dropOnEmpty: true,
     connectWith: '#' + home_away + '_squad',
@@ -23,9 +23,9 @@ function addPlayerDetails(event, ui) {
   for (i = 0; i < attr.length; ++i) {
     var children = attr[i].children;
     for (j = 0; j < children.length; ++j) {
-      jQuery(children[j]).prop('disabled', false);
+      $(children[j]).prop('disabled', false);
     }
-    jQuery(attr[i]).show();
+    $(attr[i]).show();
   }
 }
 
@@ -35,9 +35,9 @@ function dropPlayerDetails(event, ui) {
   for (i = 0; i < attr.length; ++i) {
     var children = attr[i].children;
     for (j = 0; j < children.length; ++j) {
-      jQuery(children[j]).prop('disabled', true);
+      $(children[j]).prop('disabled', true);
     }
-    jQuery(attr[i]).hide();
+    $(attr[i]).hide();
   }
 }
 EOF
@@ -71,7 +71,7 @@ EOF
         </div>
       </td>
 <script>
-jQuery(function($) {
+$(function() {
  $("#home_player_list").sortable({
     cursor: "move",
     dropOnEmpty: true,
@@ -107,7 +107,7 @@ jQuery(function($) {
         </div>
       </td>
 <script>
-jQuery(function($) {
+$(function() {
  $("#away_player_list").sortable({
     cursor: "move",
     dropOnEmpty: true,

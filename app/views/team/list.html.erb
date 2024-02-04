@@ -16,7 +16,7 @@ var countries = {
   <% end %>
 };
 
-jQuery(document).ready(function ($) {
+$(document).ready(function() {
   $(".continent-select").on("change", function () {
     var selectedContinent = $(this).val();
     $("#country").html(countries[selectedContinent]);
@@ -37,4 +37,4 @@ jQuery(document).ready(function ($) {
     <%= link_to _('Update rating'), :action => 'update_rating' %>
   <% end %>
 <% end %>
-<%= javascript_tag "jQuery('#id').focus()" %>
+<%= javascript_tag "$('#id').focus()" %>

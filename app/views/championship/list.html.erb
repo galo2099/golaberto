@@ -32,19 +32,19 @@ var countries = {
 };
 
 function changeContinent(select) {
-  jQuery("#country_name").html(countries[select.value]);
+  $("#country_name").html(countries[select.value]);
 }
 
 function changeRegion(select) {
   if (select.value == "national") {
-    jQuery("#country_name").prop("disabled", false);
-    jQuery("#continent_name").prop("disabled", false);
+    $("#country_name").prop("disabled", false);
+    $("#continent_name").prop("disabled", false);
   } else if (select.value == "continental") {
-    jQuery("#country_name").prop("disabled", true);
-    jQuery("#continent_name").prop("disabled", false);
+    $("#country_name").prop("disabled", true);
+    $("#continent_name").prop("disabled", false);
   } else {
-    jQuery("#country_name").prop("disabled", true);
-    jQuery("#continent_name").prop("disabled", true);
+    $("#country_name").prop("disabled", true);
+    $("#continent_name").prop("disabled", true);
   }
 }
 </script>
@@ -79,7 +79,7 @@ function changeRegion(select) {
   <%== pagy_nav @pagy if @pagy.pages > 1 %>
   </p>
 
-<%= javascript_tag "jQuery('#name').focus()" %>
+<%= javascript_tag "$('#name').focus()" %>
 <% content_for :sidebar do %>
   <% if can? :create, Championship %>
     <%= link_to _('Create'), :action => :new %>

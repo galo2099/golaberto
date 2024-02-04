@@ -29,7 +29,7 @@ module ApplicationHelper
     ret << javascript_include_tag("https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js")
     ret << javascript_include_tag("https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js")
     ret << javascript_include_tag("https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/i18n/jquery-ui-i18n.min.js")
-    ret << javascript_tag("jQuery.noConflict();jQuery(function($){$.datepicker.setDefaults($.datepicker.regional['#{jquery_locale}'])});")
+    ret << javascript_tag("$(function(){$.datepicker.setDefaults($.datepicker.regional['#{jquery_locale}'])});")
     ret.html_safe
   end
 
@@ -672,7 +672,7 @@ module ApplicationHelper
   end
 
   def draggable_element_js(element_id, options = {}) #:nodoc:
-    %(jQuery("##{element_id}").draggable(#{options_for_javascript(options)});)
+    %($("##{element_id}").draggable(#{options_for_javascript(options)});)
   end
 
   def options_for_javascript(options)
@@ -690,7 +690,7 @@ module ApplicationHelper
   end
 
   def remote_function(options)
-    function = ("jQuery.ajax({url: '#{ url_for(options[:url]) }', type: '#{ options[:method] || 'GET' }', " +
+    function = ("$.ajax({url: '#{ url_for(options[:url]) }', type: '#{ options[:method] || 'GET' }', " +
     "data: #{ options[:with] ? options[:with] + "+ '&'" : '' } + " +
     "'authenticity_token=' + encodeURIComponent('#{ form_authenticity_token }')" +
     (options[:data_type] ? ", dataType: '" + options[:data_type] + "'" : "") +
@@ -713,7 +713,7 @@ module ApplicationHelper
 
     callback = options[:function] || remote_function(options)
     javascript = <<JS
-    jQuery(document).ready(function($) {
+    $(document).ready(function() {
       $('##{id}').change(function() {
         var value = $(this).val();
         #{callback}
@@ -724,7 +724,7 @@ JS
   end
 
   def submit_to_remote(name, value, options = {})
-    options[:with] ||= 'jQuery(this.form).serialize()'
+    options[:with] ||= '$(this.form).serialize()'
 
     html_options = options.delete(:html) || {}
     html_options[:name] = name

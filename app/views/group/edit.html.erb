@@ -41,10 +41,10 @@
 </style>
       <script>
       function removeZone(zone) {
-        var zone = jQuery(zone);
+        var zone = $(zone);
         zone.find("input[type='checkbox']").each(function(idx, c) {
           if (c.checked) {
-            jQuery(c).click();
+            $(c).click();
           }
         });
         zone.remove();
@@ -52,8 +52,8 @@
 
       var checked_positions = [];
       function create_position_span(zone_id, i, positions) {
-        var position_span = jQuery("<span>");
-        var checked = jQuery.inArray(i, positions) != -1;
+        var position_span = $("<span>");
+        var checked = $.inArray(i, positions) != -1;
         var disabled = checked_positions[i];;
         if (checked) {
           checked_positions[i] = checked;
@@ -72,7 +72,7 @@
 
         // Find any existing checkbox that needs to be disabled.
         if (checked) {
-          jQuery("input[type='checkbox'][value='" + i + "'][id!='" + checkbox_id + "']").checkboxradio("option", "disabled", true);
+          $("input[type='checkbox'][value='" + i + "'][id!='" + checkbox_id + "']").checkboxradio("option", "disabled", true);
         }
 
         return position_span;
@@ -80,17 +80,17 @@
 
       function update_zone_checkbox(checkbox) {
         checked_positions[checkbox.value] = checkbox.checked;
-        jQuery("input[type='checkbox'][value='" + checkbox.value + "'][id!='" + checkbox.id + "']").checkboxradio("option", "disabled", checkbox.checked);
+        $("input[type='checkbox'][value='" + checkbox.value + "'][id!='" + checkbox.id + "']").checkboxradio("option", "disabled", checkbox.checked);
       }
 
       var create_zone_next_id = 0;
       function createZone(name, color, team_size, positions) {
-        var new_zone = jQuery('<li id="zone_' + create_zone_next_id + '" class="zone ui-sortable-handle"></li>');
+        var new_zone = $('<li id="zone_' + create_zone_next_id + '" class="zone ui-sortable-handle"></li>');
         new_zone.append('<label for="group_zones_' + create_zone_next_id + '_name"><%= _("Name") %>:</label>');
         new_zone.append('<input type="text" name="group[zones][][name]" id="group_zones_' + create_zone_next_id + '_name" value="' + name + '">');
         new_zone.append('<input type="text" name="group[zones][][color]" id="group_zones_' + create_zone_next_id + '_color" value="' + color + '">');
         new_zone.append('<button onclick="removeZone(\'#zone_' + create_zone_next_id + '\'); return false;" style="float: right">X</button>');
-        var position_div = jQuery('<div class="zone_positions" data-zone-id=' + create_zone_next_id + '>');
+        var position_div = $('<div class="zone_positions" data-zone-id=' + create_zone_next_id + '>');
         for (var i = 0; i < team_size; ++i) {
           position_div.append(create_position_span(create_zone_next_id, i+1, positions));
         }
@@ -98,13 +98,13 @@
 
         new_zone.find('input').bind('keypress', function(e){
           if(e.which == 13) { //Enter keycode
-            jQuery("#update").click();
+            $("#update").click();
             return false;
           } else {
             return true;
           }
         });
-        jQuery("#zones").append(new_zone);
+        $("#zones").append(new_zone);
         new_zone.find("#group_zones_" + create_zone_next_id + "_color").spectrum({
           type: "color",
           showInput: true,
@@ -124,15 +124,15 @@
       }
 
       function update_zone_positions(teams) {
-        jQuery(".zone_positions").each(function(i, z) {
-          var z = jQuery(z);
+        $(".zone_positions").each(function(i, z) {
+          var z = $(z);
           var length = z.children().length;
           if (teams < length) {
             for (var i = teams; i < length; ++i) {
               var last = z.children().last();
               last.find("input[type='checkbox']").each(function(idx, c) {
                 if (c.checked) {
-                  jQuery(c).click();
+                  $(c).click();
                 }
               });
               last.remove();
@@ -151,9 +151,9 @@
 	<%= _("Zones") %>:
   <ul id="zones">
 	</ul>
-  <button onclick="createZone('', 'lightgreen', jQuery('#team_number')[0].value, []); return false;"><%= _("Create a new zone") %></button>
+  <button onclick="createZone('', 'lightgreen', $('#team_number')[0].value, []); return false;"><%= _("Create a new zone") %></button>
   <script>
-jQuery("#zones").sortable({
+$("#zones").sortable({
   placeholder: "ui-state-highlight",
   forcePlaceholderSize: true,
   start: function( event, ui ) {
@@ -162,7 +162,7 @@ jQuery("#zones").sortable({
       css("width", ui.item.width());
   },
 });
-jQuery("#zones").disableSelection();
+$("#zones").disableSelection();
     <% @group.zones.each_with_index do |zone, idx| %>
       createZone(<%== zone["name"].to_json %>, <%== zone["color"].to_json %>, <%= @group.team_groups.size %>, <%== zone["position"].to_json %>);
      <% end %>
@@ -179,10 +179,10 @@ jQuery("#zones").disableSelection();
   <%= submit_tag _("Update"), tabindex: 6, id: "update" %><br/>
 <% end %>
 <script>
-jQuery("window").ready(function() {
-jQuery('input').bind('keypress', function(e){
+$("window").ready(function() {
+$('input').bind('keypress', function(e){
   if(e.which == 13) { //Enter keycode
-    jQuery("#update").click();
+    $("#update").click();
     return false;
   } else {
     return true;
@@ -191,5 +191,5 @@ jQuery('input').bind('keypress', function(e){
 });
 </script>
 
-<%= javascript_tag "jQuery('group_name').focus()" %>
+<%= javascript_tag "$('group_name').focus()" %>
 <%= observe_field "team_number", :function => "update_zone_positions(value);" %>

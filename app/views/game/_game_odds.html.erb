@@ -19,7 +19,7 @@ function fact(x) {
 }
 
 var odds_goal_list = [];
-jQuery(function($) {
+$(function() {
   var rebuild_odds_goals = function() {
     $('#odds_goal_list').html(
       odds_goal_list.reduce(function(acc, g, idx) {
@@ -79,7 +79,7 @@ function compute_odds(hp, ap, home_adv, away_adv) {
 var myTimer;
 var plotRatings;
 
-jQuery(function($) {
+$(function() {
   var graphDiv = $("#moving_odds");
   var graphOptions = {
     series: {

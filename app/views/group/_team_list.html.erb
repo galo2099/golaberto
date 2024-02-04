@@ -22,6 +22,6 @@ var default_country = "<%= @group.phase.championship.region_name %>";
 <% else %>
 var default_country = "";
 <% end %>
-jQuery("window").ready(function() { update_team_groups(<%= @group.team_groups.size %>, teams, ordered_teams, current_data, default_country); });
+$("window").ready(function() { update_team_groups(<%= @group.team_groups.size %>, teams, ordered_teams, current_data, default_country); });
 </script>
 <%= observe_field "team_number", :function => "update_team_groups(value, teams, ordered_teams, current_data, default_country);" %>

@@ -25,18 +25,18 @@
   <%== pagy_info(@pagy) if @pagy.count == 0 %><br>
 
 <script>
-jQuery(document).ready(function() {
+$(document).ready(function() {
   var startDate = new Date('<%= @calendar[:week].from %>');
   var endDate = new Date('<%= @calendar[:week].to %>');;
 
-  jQuery('#selected_week_datepicker_ui').datepicker("option", "onSelect", function(dateText, inst) {
-          var date = jQuery(this).datepicker('getDate');
-          var dateFormat = inst.settings.dateFormat || jQuery.datepicker._defaults.dateFormat;
+  $('#selected_week_datepicker_ui').datepicker("option", "onSelect", function(dateText, inst) {
+          var date = $(this).datepicker('getDate');
+          var dateFormat = inst.settings.dateFormat || $.datepicker._defaults.dateFormat;
           startDate = new Date(date - ((date.getDay() + 6) % 7) * 24 * 3600 * 1000 + 2 * 3600 * 1000);
           window.location.href = '<%= url_for type: @type, category: @category, page: 1 %>?week=' + startDate.toLocaleDateString('en-CA');
-          jQuery('#selected_week_datepicker_ui').datepicker("setDate", startDate);
+          $('#selected_week_datepicker_ui').datepicker("setDate", startDate);
       });
-  jQuery('#selected_week_datepicker_ui').datepicker("option", "beforeShowDay", function(date) {
+  $('#selected_week_datepicker_ui').datepicker("option", "beforeShowDay", function(date) {
           var cssClass = '';
           if(date >= startDate && date < endDate) {
               cssClass = 'ui-state-active';
@@ -44,8 +44,8 @@ jQuery(document).ready(function() {
           return [true, cssClass];
       });
   // We have to select the 'a' element to override the default mouseenter event.
-  jQuery('#ui-datepicker-div').on('mouseenter', '.ui-datepicker-calendar tr td a', function(event) { jQuery(this).parent().parent().find('td a').addClass('ui-state-hover'); });
-  jQuery('#ui-datepicker-div').on('mouseleave', '.ui-datepicker-calendar tr td a', function(event) { jQuery(this).parent().parent().find('td a').removeClass('ui-state-hover'); });
+  $('#ui-datepicker-div').on('mouseenter', '.ui-datepicker-calendar tr td a', function(event) { $(this).parent().parent().find('td a').addClass('ui-state-hover'); });
+  $('#ui-datepicker-div').on('mouseleave', '.ui-datepicker-calendar tr td a', function(event) { $(this).parent().parent().find('td a').removeClass('ui-state-hover'); });
 });
 
 </script>
