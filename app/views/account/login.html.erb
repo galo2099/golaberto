@@ -1,7 +1,5 @@
 <% content_for :main_title do %> <%= _("Log in") %><% end %>
 
-<%= javascript_include_jquery %>
-
 <small><%= (_("If you've already created an account, or if you have an %{openid_link} login, use one of the forms below to log in to the site. If you use your OpenID URL to log in, an account will be created for you automatically if necessary.") % { :openid_link => link_to(_("OpenID"), "http://openid.net/")}).html_safe %></small>
 
 <p><small><%= (_("You can also <a href='%{signup}'>create an account for this site.</a>") % { :signup => url_for(:action => :signup) }).html_safe %></small></p>

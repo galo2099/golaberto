@@ -48,7 +48,6 @@ function watch_odds(group_id) {
    setInterval(periodicalUpdater, 5000);
 }
 </script>
-<%= javascript_include_jquery %>
 <% @current_phase.groups.each do |group| %>
   <%= render :partial => "table",
              :locals => { :group => group,

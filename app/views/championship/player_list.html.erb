@@ -7,7 +7,6 @@
 
 <h2><%= _("Players") %></h2>
 
-<%= javascript_include_jquery %>
 <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/dt-1.13.1/fc-4.2.1/datatables.min.css"/>
 <script type="text/javascript" src="https://cdn.datatables.net/v/dt/dt-1.13.1/fc-4.2.1/datatables.min.js"></script>
 <%= render :partial => "shared/player_stats_table", :locals => { :player_stats => @player_stats,

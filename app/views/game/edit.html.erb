@@ -4,8 +4,6 @@
   <%= tag "br" unless goal.errors.full_messages.empty? %>
 <% end unless @goals.nil? %>
 
-<%= javascript_include_jquery %>
-
 <script type="text/javascript">
 function finishPlayerAdd(home_away) {
   $('add_player_' + home_away).hide();

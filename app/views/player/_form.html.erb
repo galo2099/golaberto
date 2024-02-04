@@ -1,5 +1,3 @@
-<%= javascript_include_jquery %>
-
 <%= _("Name") %>: <%= f.text_field :name %><br/>
 <%= _("Position") %>: <%= f.select :position, Player::Positions, :include_blank => true %><br/>
 <%= _("Birth") %>: <%= f.datepicker :birth, :autoSize => true, :changeYear => true, :selectOtherMonths => true, :showButtonPanel => true, :showOtherMonths => true %><br/>

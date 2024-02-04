@@ -2,8 +2,6 @@
 
 <%= error_messages_for 'championship', 'phase' %>
 
-<%= javascript_include_jquery %>
-
 <%= form_for @championship, url: { action: :update, id: @championship } do |f| %>
   <%= render partial: "form", locals: { f: f } %>
 
