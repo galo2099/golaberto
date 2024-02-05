@@ -1,4 +1,4 @@
-<%= javascript_include_tag "jquery.flot.all" %>
+<script src="https://cdn.jsdelivr.net/npm/flot@4.2.6/dist/es5/jquery.flot.min.js"></script>
 <script type="text/javascript">
 function poisson(k, lambda) {
     var exponential = 2.718281828;
@@ -83,6 +83,7 @@ $(function() {
     series: {
       stack: true,
       lines: {
+        lineWidth: 3,
         fill: true,
       },
     },
@@ -90,15 +91,21 @@ $(function() {
       mode: "x"
     },
     xaxes: [
-      {},
+      {
+        showTicks: false,
+      },
       {
         position: "top",
         min: 0,
+        show: true,
+        showTicks: false,
       },
     ],
     yaxis: {
-      //min: ymin,
+      min: 0.0,
       max: 1.0,
+      autoScale: false,
+      showTicks: false,
     },
     grid: {
       markings: [],
@@ -109,7 +116,7 @@ $(function() {
     legend: {
       show: true,
       sorted: "reverse",
-      container: $('#odds_legend'),
+      container: document.getElementById('odds_legend'),
     },
     colors: ['#47C5F7', '#edc240', '#F398B2'],
   };
@@ -139,21 +146,21 @@ $(function() {
     }, {
       xaxis: { from: 0, to: 0 }, color: "rgba(0,0,0,0.15)"
     }];
-    var ticks = [];
+    var ticks = [[0, ''], [95, '']];
     var home_score = 0;
     var away_score = 0;
     for (var i = 0; i < home_red.length; i++) {
       if (home_red[i] == 1) {
         var time = i;
         markings.push({ xaxis: { from: time, to: time }, color: "rgba(237,195,64,0.2)" });
-        ticks.push([time, '<%= image_tag "reds.gif" %>']);
+        ticks.push([time, "\u2588"]);
       }
     }
     for (var i = 0; i < away_red.length; i++) {
       if (away_red[i] == 1) {
         var time = i;
         markings.push({ xaxis: { from: time, to: time }, color: "rgba(237,195,64,0.2)" });
-        ticks.push([time, '<%= image_tag "reds.gif" %>']);
+        ticks.push([time, "\u2588"]);
       }
     }
     for (var i = 0; i < odds_goal_list.length; i++) {
@@ -220,7 +227,6 @@ $(function() {
       {data: odds_data.map(function(x) { return [ x[0], x[1] ]; }), label: "<%= @game.home.name %> <% if not @game.played %>: <%= number_to_percentage(100*odds[0], :precision => 2) %> <% end %>"},
       {data: odds_data.map(function(x) { return [ x[0], x[2] ]; }), label: "<%= _("Draw") %><% if not @game.played %>: <%= number_to_percentage(100*odds[1], :precision => 2) %><% end %>"},
       {data: odds_data.map(function(x) { return [ x[0], x[3] ]; }), label: "<%= @game.away.name %><% if not @game.played %>: <%= number_to_percentage(100*odds[2], :precision => 2) %><% end %>"},
-      {data: [], xaxis: 2},
     ];
     plot = graphDiv.plot(data, graphOptions).data("plot");
 
@@ -243,8 +249,8 @@ $(function() {
     graphDiv.off("plothover");
     graphDiv.on("plothover", function(event, pos, item) {
       plot.getOptions().grid.markings[0] = {
-      xaxis: { from: -1, to: -1 }, color: "rgba(0,0,0,0.15)"
-};
+        xaxis: { from: -1, to: -1 }, color: "rgba(0,0,0,0.15)"
+      };
       var axes = plot.getAxes();
       if (pos.x < axes.xaxis.min || pos.x > axes.xaxis.max ||
         pos.y < axes.yaxis.min || pos.y > axes.yaxis.max) {
@@ -255,7 +261,7 @@ $(function() {
 
       var i, j, dataset = plot.getData();
 
-            var ys = [];
+      var ys = [];
         for (i = 0; i < dataset.length; ++i) {
           var series = dataset[i];
           // Find the nearest points, x-wise
@@ -327,17 +333,39 @@ $(function() {
   }).appendTo("body");
 
   plotRatings();
+  // CSS doesn't support selecting an element with a specific text, so setting the
+  // red card to red via jquery.
+  $('text:contains(\u2588)').css({
+    "fill": "rgba(255, 0, 0, 1)",
+    "text-shadow": "1px 1px 1px black"});
 });
 </script>
 
 <div>
 <h4><%= _("Live Odds") %></h4>
-<div id="moving_odds" style="width: 550px;
-          height: 200px;
-          font-size: 14px;
-          line-height: 1.2em;">
+<div id="moving_odds" style="width: 550px; height: 200px;">
 </div>
 <div id="odds_legend"></div>
+<style>
+#odds_legend {
+  width: 100% !important;
+}
+.legendLayer .background {
+  fill: rgba(227, 239, 202, 1);
+  stroke: rgba(0, 0, 0, 0);
+}
+.legendLayer g {
+  font-size: 12px;
+  fill: rgba(84, 84, 84);
+}
+.flot-x-axis, .flot-y-axis {
+  font-size: 12px;
+  fill: rgb(84, 84, 84);
+}
+.flot-x2-axis {
+  font-size: 10px;
+}
+</style>
 <div style="display: <%= @game.played? ? "none" : "block" %>">
 <%= _("Current time") %>: <span id="odds_current_time">0</span><br>
 <br>

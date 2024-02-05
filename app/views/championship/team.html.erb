@@ -5,7 +5,7 @@
   <%= @championship.full_name %>
 <% end %>
 
-<%= javascript_include_tag "jquery.flot" %>
+<script src="https://cdn.jsdelivr.net/npm/flot@4.2.6/dist/es5/jquery.flot.min.js"></script>
 <select id='team_select'>
   <%= options_from_collection_for_select @teams, "to_param", "name", @team.to_param %>
 </select>

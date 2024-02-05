@@ -1,4 +1,4 @@
-<%= javascript_include_tag "jquery.flot.all" %>
+<script src="https://cdn.jsdelivr.net/npm/flot@4.2.6/dist/es5/jquery.flot.min.js"></script>
 
 <%
 data = teams[0,3].map{|t| Team.get_historical_ratings_2_weeks(t.id)  }
@@ -25,7 +25,7 @@ data = teams[0,3].map{|t| Team.get_historical_ratings_2_weeks(t.id)  }
       <%= t.id %>: {
         data: <%= data[i].to_json.html_safe %>,
         label: "<%= t.name %>",
-        lines: { show: true, lineWidth: "1" },
+        lines: { show: true, lineWidth: "2" },
         points: { show: false },
         color: getColor(<%= i %>),
       },
@@ -81,8 +81,8 @@ data = teams[0,3].map{|t| Team.get_historical_ratings_2_weeks(t.id)  }
       var graphDiv = $("#rating");
       var data = [];
       var x_values = new Set();
-      var ymin = Number.POSITIVE_INFINITY, xmin = Number.POSITIVE_INFINITY;
-      var ymax = Number.NEGATIVE_INFINITY, xmax = Number.NEGATIVE_INFINITY;
+      var ymin = 100, xmin = Number.POSITIVE_INFINITY;
+      var ymax = 0, xmax = Number.NEGATIVE_INFINITY;
 
       $("input:checked").each(function () {
         var key = $(this).attr("name");
@@ -138,10 +138,13 @@ data = teams[0,3].map{|t| Team.get_historical_ratings_2_weeks(t.id)  }
           mode: "time",
           min: Math.max(xmin, from),
           max: Math.min(xmax, to),
+          showTicks: false,
         },
         yaxis: {
           min: ymin,
           max: ymax,
+          showTicks: false,
+          labelWidth: 30,
         },
         grid: {
           hoverable: true,
@@ -159,7 +162,7 @@ data = teams[0,3].map{|t| Team.get_historical_ratings_2_weeks(t.id)  }
       graphDiv.on("plothover", function(event, pos, item) {
         plot.getOptions().grid.markings = [];
         plot.getData().forEach(function(x) {
-          x.lines.lineWidth = 1;
+          x.lines.lineWidth = 2;
         });
         plot.draw();
 
@@ -249,3 +252,9 @@ data = teams[0,3].map{|t| Team.get_historical_ratings_2_weeks(t.id)  }
     plotRatings();
   });
 </script>
+<style>
+.flot-x-axis, .flot-y-axis {
+  font-size: 12px;
+  fill: rgb(84, 84, 84);
+}
+</style>
