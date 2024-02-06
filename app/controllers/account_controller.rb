@@ -27,6 +27,20 @@ class AccountController < ApplicationController
     render :action => 'signup'
   end
 
+  def google_onetap
+    if g_csrf_token_valid?
+      payload = Google::Auth::IDTokens.verify_oidc(params[:credential], aud: Rails.application.credentials.google_api[:client_id])
+      self.current_user = User.find_or_create_by!(openid_connect_token: payload['sub']) do |user|
+        user.name = payload['name']
+        user.avatar_remote_url = payload['picture']
+        user.email = payload['email']
+      end
+      redirect_to(root_path)
+    else
+      redirect_to(user_session_path, notice: 'sign in failed')
+    end
+  end
+
   def google_signin
     auth = request.env["omniauth.auth"]
 
@@ -96,5 +110,9 @@ class AccountController < ApplicationController
 
   def failed_login(message)
     flash[:notice] = message
+  end
+
+  def g_csrf_token_valid?
+    cookies['g_csrf_token'] == params['g_csrf_token']
   end
 end

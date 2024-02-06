@@ -43,7 +43,7 @@ class User < ApplicationRecord
   after_create :add_initial_roles
 
   def avatar_remote_url=(url_value)
-    self.avatar = URI.parse(url_value)
+    self.avatar = URI.open(url_value)
     # Assuming url_value is http://example.com/photos/face.png
     # avatar_file_name == "face.png"
     # avatar_content_type == "image/png"
@@ -122,6 +122,7 @@ class User < ApplicationRecord
     end
 
     def create_logo
+      return unless self.avatar.nil?
       tmpfile = Tempfile.new("user_#{id}_icon")
       begin
         icon = Quilt::Identicon.new display_login, :size => 100

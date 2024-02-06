@@ -65,6 +65,7 @@ Rails.application.routes.draw do
   get '/en_US/*other', to: redirect(host: APP_CONFIG["en_US_host"], path: '/%{other}')
 
   get '/auth/google/callback', to: "account#google_signin"
+  post '/auth/google/onetap_callback', to: "account#google_onetap"
   get '/auth/failure', to: 'account#failure'
 
   get 'groups/team_list.js' => 'group#team_list'
