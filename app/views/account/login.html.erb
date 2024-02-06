@@ -7,6 +7,15 @@
 <%= form_tag({}, { class: :openid }) do -%>
 
 <div>
+<div class="g_id_signin"
+     data-type="standard"
+     data-shape="pill"
+     data-theme="filled_blue"
+     data-text="signin"
+     data-size="medium"
+     data-logo_alignment="left">
+  </div>
+
   <div><ul class="providers"> 
   <li class="openid" title="OpenID"><%= image_tag "openid/openidW.png", alt: "icon" %> 
   <span><strong>http://{your-openid-url}</strong></span></li> 

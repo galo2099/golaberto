@@ -106,6 +106,21 @@
         <%= yield %>
       </div>
       <div class="nav_side">
+  <% if current_user.nil? %>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <div id="g_id_onload"
+      data-client_id="<%= Rails.application.credentials.google_api[:client_id] %>"
+      data-login_uri="<%= "/auth/google/onetap_callback" %>"
+      data-context="signup"
+      data-ux_mode="popup"
+      data-auto_prompt="true"
+      data-auto_select="false"
+      data-itp_support="true"
+      data-authenticity_token="<%= form_authenticity_token %>"
+    >
+  </div>
+    <% end %>
+
         <%= yield :sidebar %>
       </div>
       <div class='clearer'></div>
