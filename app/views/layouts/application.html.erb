@@ -107,7 +107,7 @@
       </div>
       <div class="nav_side">
   <% if current_user.nil? %>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://accounts.google.com/gsi/client?hl=<%= I18n.locale %>" async defer></script>
     <div id="g_id_onload"
       data-client_id="<%= Rails.application.credentials.google_api[:client_id] %>"
       data-login_uri="<%= "/auth/google/onetap_callback" %>"
@@ -116,6 +116,7 @@
       data-auto_prompt="true"
       data-auto_select="false"
       data-itp_support="true"
+      data-locale="<%= I18n.locale %>"
       data-authenticity_token="<%= form_authenticity_token %>"
     >
   </div>
