@@ -147,19 +147,33 @@ class ChampionshipController < ApplicationController
                   markings: group.zones.select{|z| not z["position"].nil? }.map{|z| z["position"].map{|p| { yaxis: { from: p-0.5, to: p+0.5 }, color: z["color"] } } }.flatten,
                 },
                 xaxes: [
-                  { ticks: (1..data.size).to_a.map{|x|[x, ""]}, },
-                  { },
+                  {
+                    ticks: (1..data.size).to_a.map{|x|[x, ""]},
+                    min: 0.5,
+                    max: data.size + 0.5,
+                    autoScale: false,
+                  },
+                  {
+                    autoScale: false,
+                    min: 0.5,
+                    max: data.size + 0.5,
+                  },
                 ],
                 yaxes: [
                   {
-                    ticks: (1..group.team_groups.size).to_a.map{|x|[x, x]},
-                    font: {
-                      color: "#FFFFFF",
-                    },
+                    ticks: (1..group.team_groups.size).to_a.map{|x|[x, x.to_s]},
+                    showTicks: false,
+                    showTickLabels: "major",
+                    autoScale: false,
+                    min: 1,
+                    max: group.team_groups.size,
                   },
                   {
                     show: false,
+                    showTicks: false,
+                    min: 0,
                     max: points_for_1st_place,
+                    autoScale: false,
                   },
                 ]
               },
@@ -169,24 +183,18 @@ class ChampionshipController < ApplicationController
             }
 
     bar = [
-      { data: [], yaxis: 2, bars: { show: true, barWidth: 0.8, align: "center" } },
-      { data: [], yaxis: 2, bars: { show: true, barWidth: 0.8, align: "center" } },
-      { data: [], yaxis: 2, bars: { show: true, barWidth: 0.8, align: "center" } },
+      { data: [[-3,0],[-2,0]], yaxis: 2, bars: { show: true, barWidth: 0.8, align: "center" } },
+      { data: [[-3,0],[-2,0]], yaxis: 2, bars: { show: true, barWidth: 0.8, align: "center" } },
+      { data: [[-3,0],[-2,0]], yaxis: 2, bars: { show: true, barWidth: 0.8, align: "center" } },
     ]
     data.each_with_index do |d,index|
       value = [ index + 1, d[:points] ]
       case d[:type]
       when "w"
         bar[0][:data] << value
-        bar[1][:data] << []
-        bar[2][:data] << []
       when "d"
-        bar[0][:data] << []
         bar[1][:data] << value
-        bar[2][:data] << []
       when "l"
-        bar[0][:data] << []
-        bar[1][:data] << []
         bar[2][:data] << value
       end
     end
