@@ -192,9 +192,15 @@ class ChampionshipController < ApplicationController
       case d[:type]
       when "w"
         bar[0][:data] << value
+        bar[1][:data] << []
+        bar[2][:data] << []
       when "d"
+        bar[0][:data] << []
         bar[1][:data] << value
+        bar[2][:data] << []
       when "l"
+        bar[0][:data] << []
+        bar[1][:data] << []
         bar[2][:data] << value
       end
     end

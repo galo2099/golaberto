@@ -293,7 +293,6 @@ div#odds div.flot-x-axis div.flot-tick-label:nth-child(<%=team_position%>) {
 <script type="text/javascript">
 
   $(function() {
-
     var graphDiv = $("#placeholder<%=idx%>");
     var options = data[<%=idx%>]["options"];
     options["legend"] = {
@@ -329,7 +328,12 @@ div#odds div.flot-x-axis div.flot-tick-label:nth-child(<%=team_position%>) {
         var y = item.datapoint[1].toFixed(2);
 
         $('#placeholder<%=idx%>').css('cursor', 'pointer');
-        $("#tooltip").html(data[<%=idx%>]["tooltips"][Math.floor(item.seriesIndex/4)][item.dataIndex])
+        // account for the phantom items inserted to make the bars look right
+        var index = item.dataIndex;
+        if (item.seriesIndex % 4 < 3) {
+          index -= 2;
+        }
+        $("#tooltip").html(data[<%=idx%>]["tooltips"][Math.floor(item.seriesIndex/4)][index])
             .css({top: pos.pageY+5, left: pos.pageX+5})
             .fadeIn(200);
       } else {
@@ -340,7 +344,12 @@ div#odds div.flot-x-axis div.flot-tick-label:nth-child(<%=team_position%>) {
 
     graphDiv.bind("plotclick", function (event, pos, item) {
       if (item) {
-      window.location.href = data[<%=idx%>]["urls"][Math.floor(item.seriesIndex/4)][item.dataIndex];
+        // account for the phantom items inserted to make the bars look right
+        var index = item.dataIndex;
+        if (item.seriesIndex % 4 < 3) {
+          index -= 2;
+        }
+        window.location.href = data[<%=idx%>]["urls"][Math.floor(item.seriesIndex/4)][index];
       }
     });
     $('#panel<%=idx%>').addClass('select-div');
