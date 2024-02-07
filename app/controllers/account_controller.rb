@@ -35,7 +35,7 @@ class AccountController < ApplicationController
         user.avatar_remote_url = payload['picture']
         user.email = payload['email']
       end
-      redirect_to(root_path)
+      redirect_back(fallback_location: root_path)
     else
       redirect_to(root_path, notice: _("sign in failed"))
     end
@@ -66,7 +66,7 @@ class AccountController < ApplicationController
     cookies.delete :auth_token
     reset_session
     flash[:notice] = _("You have been logged out.")
-    redirect_to(:back) rescue redirect_to("/")
+    redirect_back(fallback_location: root_path)
   end
 
   private
@@ -104,7 +104,7 @@ class AccountController < ApplicationController
     end
     current_user.last_login = Time.now
     current_user.save!
-    redirect_back_or_default(:controller => :user, :action => :show, :id => current_user.id)
+    redirect_to(:controller => :user, :action => :show, :id => current_user.id)
     flash[:notice] = _("Logged in successfully")
   end
 
