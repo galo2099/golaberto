@@ -37,7 +37,7 @@ class AccountController < ApplicationController
       end
       redirect_to(root_path)
     else
-      redirect_to(user_session_path, notice: 'sign in failed')
+      redirect_to(root_path, notice: _("sign in failed"))
     end
   end
 
