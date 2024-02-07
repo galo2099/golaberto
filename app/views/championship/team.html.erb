@@ -25,11 +25,6 @@
 </div>
 
 <% team_position = @groups[0].team_table.find_index{|t,s|t.team_id == @team.id} + 1 %>
-<style>
-div#odds div.flot-x-axis div.flot-tick-label:nth-child(<%=team_position%>) {
-  color: #ff0000;
-}
-</style>
 
 <script type="text/javascript">
   $(function() {
@@ -101,6 +96,11 @@ div#odds div.flot-x-axis div.flot-tick-label:nth-child(<%=team_position%>) {
     });
 
     graphDiv.disableSelection();
+
+    // Color the label in the xaxis for the current position in red
+    $('div#odds .flot-x1-axis text').filter((i, x) => $(x).text() == "<%=team_position%>").css({
+      "fill": "red",
+    });
 
     /*
     var markings = <%== (1..@groups[0].team_groups.size).to_a.map{|x|nil}.to_json %>;
