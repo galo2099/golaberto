@@ -27,167 +27,136 @@
 <% team_position = @groups[0].team_table.find_index{|t,s|t.team_id == @team.id} + 1 %>
 
 <script type="text/javascript">
-  $(function() {
-		$("<div id='odds_tooltip'></div>").css({
-			position: "absolute",
-			display: "none",
-			border: "1px solid #fdd",
-			padding: "2px",
-			"background-color": "#fee",
-      opacity: 0.80,
-      zIndex: 0,
-		}).appendTo("body");
-      var div_selection = $("<div id='odds_selection'></div>").css({
-			position: "absolute",
-			display: "none",
-			border: "1px solid #fdd",
-			padding: "2px",
-			"background-color": "#fee",
-      opacity: 0.80,
-      zIndex: 0,
-		})
+$(function() {
+  $("<div id='odds_tooltip'></div>").css({
+    position: "absolute",
+    display: "none",
+    border: "1px solid #fdd",
+    padding: "2px",
+    "background-color": "#fee",
+    opacity: 0.80,
+    zIndex: 0,
+  }).appendTo("body");
+  var div_selection = $("<div id='odds_selection'></div>").css({
+    position: "absolute",
+    display: "none",
+    border: "1px solid #fdd",
+    padding: "2px",
+    "background-color": "#fee",
+    opacity: 0.80,
+    zIndex: 0,
+  })
 
-    var graphDiv = $("#odds");
-    var options = {
-        selection: {
-          mode: "x"
-        },
-      series: {
-        bars: {
-          show: true,
-          barWidth: 0.7,
-          align: "center",
-          fillColor: "rgba(255, 255, 255, 0.7)",
-        },
-      },
-      xaxis: {
-        min: 0.5,
-        max: <%= @groups[0].team_groups.size + 0.5 %>,
-        ticks: <%= (1..@groups[0].team_groups.size).to_a.map{|x|[x, x.to_s]}.to_json.html_safe %>,
-        showTicks: false,
-        autoScale: false,
-      },
-      grid: {
-        hoverable: true,
-        clickable: true,
-        markings: <%== @groups[0].zones.select{|z| not z["position"].nil?}.map{|z| z["position"].map{|p| { xaxis: { from: p-0.5, to: p+0.5 }, color: z["color"] } } }.flatten.to_json %>,
-      },
-      yaxis: {
-        min: 0,
-        max: 101,
-        autoScale: false,
-        showTicks: false,
-      },
-      colors: [ "#edc240", "#ff0000" ],
-    };
-    var plot = graphDiv.plot([
-    {
-      data: <%= @groups[0].team_groups.select{|t|t.team_id == @team.id}.first.odds.map.with_index.map{|item,idx|[idx+1, item]} %>,
+  var graphDiv = $("#odds");
+  var options = {
+    selection: {
+      mode: "x"
     },
-    {
-      data: [[<%=team_position%>, 0], [<%=team_position%>, 101]],
-      lines: { show: true, lineWidth: "1", color: "rgba(255, 0, 0, 1.0)", dashed: true, },
-      points: { show: false },
-      bars: {show: false},
-      highlightColor: "rgba(0,0,0,0)",
+    series: {
+      bars: {
+        show: true,
+        barWidth: 0.7,
+        align: "center",
+        fillColor: "rgba(255, 255, 255, 0.7)",
+      },
     },
-    ], options).data("plot");
+    xaxis: {
+      min: 0.5,
+      max: <%= @groups[0].team_groups.size + 0.5 %>,
+      ticks: <%= (1..@groups[0].team_groups.size).to_a.map{|x|[x, x.to_s]}.to_json.html_safe %>,
+      showTicks: false,
+      autoScale: false,
+    },
+    grid: {
+      hoverable: true,
+      clickable: true,
+      markings: <%== @groups[0].zones.select{|z| not z["position"].nil?}.map{|z| z["position"].map{|p| { xaxis: { from: p-0.5, to: p+0.5 }, color: z["color"] } } }.flatten.to_json %>,
+    },
+    yaxis: {
+      min: 0,
+      max: 101,
+      autoScale: false,
+      showTicks: false,
+    },
+    colors: [ "#edc240", "#ff0000" ],
+  };
+  var plot = graphDiv.plot([
+  {
+    data: <%= @groups[0].team_groups.select{|t|t.team_id == @team.id}.first.odds.map.with_index.map{|item,idx|[idx+1, item]} %>,
+  },
+  {
+    data: [[<%=team_position%>, 0], [<%=team_position%>, 101]],
+    lines: { show: true, lineWidth: "1", color: "rgba(255, 0, 0, 1.0)", dashed: true, },
+    points: { show: false },
+    bars: {show: false},
+    highlightColor: "rgba(0,0,0,0)",
+  },
+  ], options).data("plot");
 
-    graphDiv.append(div_selection);
+  graphDiv.append(div_selection);
 
-    graphDiv.bind("plothover", function(event, pos, item) {
-      var x = Math.round(pos.x);
-      if (x > 0 && x <= <%= @groups[0].team_groups.size %> &&
-          pos.y > 0 && pos.y < 100) {
-        var names = <%== (1..@groups[0].team_groups.size).map{|i|i.ordinalize}.to_json %>;
-        var value = plot.getData()[0].data[x-1][1].toFixed(2);
-        $("#odds_tooltip").html(names[x-1] + ": " + value + "%")
-          .css({top: pos.pageY+5, left: pos.pageX+5})
-          .fadeIn(200);
-      } else {
-        $("#odds_tooltip").hide();
-      }
-    });
-
-    const isValid = (amount) => {
-      return (amount * 10).toFixed(0) % 10 === 5
+  graphDiv.bind("plothover", function(event, pos, item) {
+    var x = Math.round(pos.x);
+    if (x > 0 && x <= <%= @groups[0].team_groups.size %> &&
+        pos.y > 0 && pos.y < 100) {
+      var names = <%== (1..@groups[0].team_groups.size).map{|i|i.ordinalize}.to_json %>;
+      var value = plot.getData()[0].data[x-1][1].toFixed(2);
+      $("#odds_tooltip").html(names[x-1] + ": " + value + "%")
+        .css({top: pos.pageY+5, left: pos.pageX+5})
+        .fadeIn(200);
+    } else {
+      $("#odds_tooltip").hide();
     }
-
-    const roundToClosestFive = (num) => {
-      let lower = Math.floor(num / 10) * 10;
-      let upper = Math.ceil(num / 10) * 10;
-      let lowerWithFive = lower + 5;
-      let upperWithFive = upper - 5;
-
-      // Determine which is closer to the original number
-      if (num - lowerWithFive < upperWithFive - num) {
-          return lowerWithFive;
-      } else {
-          return upperWithFive;
-      }
-    }
-
-
-      graphDiv.on("plotselected", function (event, ranges) {
-        if (!isValid(ranges.xaxis.from) || !isValid(ranges.xaxis.to)) {
-          var newFrom = roundToClosestFive(ranges.xaxis.from * 10) / 10;
-          var newTo = roundToClosestFive(ranges.xaxis.to * 10) / 10;
-          if (newFrom == newTo) {
-            plot.clearSelection();
-          } else {
-            plot.setSelection({
-              xaxis: {
-                from: roundToClosestFive(ranges.xaxis.from * 10) / 10,
-                to: roundToClosestFive(ranges.xaxis.to * 10) / 10,
-              }
-            });
-          }
-          return;
-        }
-        var fromIndex = Math.round(ranges.xaxis.from) - 1;
-        var toIndex = Math.round(ranges.xaxis.to) - 1;
-        var value = plot.getData()[0].data.slice(fromIndex, toIndex).reduce((a, b) => a + b[1], 0).toFixed(2);
-        var posFrom = plot.pointOffset({x: ranges.xaxis.from, y: ranges.yaxis.to});
-        var posTo = plot.pointOffset({x: ranges.xaxis.to, y: ranges.yaxis.to});
-        var odds_selection = $("#odds_selection").html("<%= _("Selected:") %> " + value + "%");
-        odds_selection.css({top: posFrom.top+5, left: (posFrom.left+posTo.left)/2 - odds_selection.width()/2})
-          .fadeIn(200);
-      });
-      graphDiv.on("plotunselected", function (event) {
-        $("#odds_selection").hide();
-      });
-
-
-    // Color the label in the xaxis for the current position in red
-    $('div#odds .flot-x1-axis text').filter((i, x) => $(x).text() == "<%=team_position%>").css({
-      "fill": "red",
-    });
-
-    /*
-    var markings = <%== (1..@groups[0].team_groups.size).to_a.map{|x|nil}.to_json %>;
-    graphDiv.bind("plotclick", function (event, pos, item) {
-      var x = Math.round(pos.x);
-      if (x > 0 && x <= <%= @groups[0].team_groups.size %> &&
-          pos.y > 0 && pos.y < 100) {
-        var options = plot.getOptions();
-        if (markings[x-1] == null) {
-          markings[x-1] = { xaxis: { from: x - 0.5, to: x + 0.5 }, color: "#90EE90" };
-        } else {
-          markings[x-1] = null;
-        }
-        var total = 0;
-        options.grid.markings = $.grep(markings, function(n, i){
-          if (n != null) {
-            total += plot.getData()[0].data[i][1];
-            return true;
-          }
-          return false;
-        });
-        plot.draw();
-      }
-    });
-    */
   });
+
+  const roundToClosestFive = (num) => {
+    let lower = Math.floor(num / 10) * 10;
+    let upper = Math.ceil(num / 10) * 10;
+    let lowerWithFive = lower + 5;
+    let upperWithFive = upper - 5;
+
+    // Determine which is closer to the original number
+    if (num - lowerWithFive < upperWithFive - num) {
+        return lowerWithFive;
+    } else {
+        return upperWithFive;
+    }
+  }
+
+  graphDiv.on("plotselected", function (event, ranges) {
+    var newFrom = roundToClosestFive(ranges.xaxis.from * 10) / 10;
+    var newTo = roundToClosestFive(ranges.xaxis.to * 10) / 10;
+    if (newFrom != ranges.xaxis.from || newTo != ranges.xaxis.to) {
+      if (newFrom == newTo) {
+        plot.clearSelection();
+      } else {
+        plot.setSelection({
+          xaxis: {
+            from: roundToClosestFive(ranges.xaxis.from * 10) / 10,
+            to: roundToClosestFive(ranges.xaxis.to * 10) / 10,
+          }
+        });
+      }
+      return;
+    }
+    var fromIndex = Math.round(ranges.xaxis.from) - 1;
+    var toIndex = Math.round(ranges.xaxis.to) - 1;
+    var value = plot.getData()[0].data.slice(fromIndex, toIndex).reduce((a, b) => a + b[1], 0).toFixed(2);
+    var posFrom = plot.pointOffset({x: ranges.xaxis.from, y: ranges.yaxis.to});
+    var posTo = plot.pointOffset({x: ranges.xaxis.to, y: ranges.yaxis.to});
+    var odds_selection = $("#odds_selection").html("<%= _("Selected:") %> " + value + "%");
+    odds_selection.css({top: posFrom.top+5, left: (posFrom.left+posTo.left)/2 - odds_selection.width()/2})
+      .fadeIn(200);
+  });
+  graphDiv.on("plotunselected", function (event) {
+    $("#odds_selection").hide();
+  });
+
+  // Color the label in the xaxis for the current position in red
+  $('div#odds .flot-x1-axis text').filter((i, x) => $(x).text() == "<%=team_position%>").css({
+    "fill": "red",
+  });
+});
 
 </script>
 
