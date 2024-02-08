@@ -11,4 +11,4 @@ Rails.application.config.assets.paths << Rails.root.join('node_modules')
 # Precompile additional assets.
 # application.js, application.css, and all non-JS/CSS in the app/assets
 # folder are already added.
-Rails.application.config.assets.precompile += %w(gauge.js jquery.openid.js edit_group.js jquery.flot.all.js spectrum.js spectrum.css)
+Rails.application.config.assets.precompile += %w(gauge.js jquery.openid.js edit_group.js jquery.event.drag.js spectrum.js main.css openid.css spectrum.css)
