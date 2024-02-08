@@ -1,4 +1,4 @@
-<script src="https://cdn.jsdelivr.net/npm/flot@4.2.6/dist/es5/jquery.flot.min.js"></script>
+<%= javascript_include_flot %>
 <script type="text/javascript">
 function poisson(k, lambda) {
     var exponential = 2.718281828;
@@ -86,9 +86,6 @@ $(function() {
         lineWidth: 3,
         fill: true,
       },
-    },
-    selection: {
-      mode: "x"
     },
     xaxes: [
       {

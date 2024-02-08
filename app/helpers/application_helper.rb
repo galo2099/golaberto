@@ -33,6 +33,13 @@ module ApplicationHelper
     ret.html_safe
   end
 
+  def javascript_include_flot
+    ret = ""
+    ret << javascript_include_tag("jquery.event.drag.js")
+    ret << javascript_include_tag("https://cdn.jsdelivr.net/npm/flot@4.2.6/dist/es5/jquery.flot.min.js")
+    ret.html_safe
+  end
+
   def add_wbr_to_string(str, strings_to_break_after = [ '/' ])
     ret = String.new(str)
     ret = h(ret) unless str.html_safe?

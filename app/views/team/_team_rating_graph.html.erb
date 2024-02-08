@@ -1,4 +1,4 @@
-<script src="https://cdn.jsdelivr.net/npm/flot@4.2.6/dist/es5/jquery.flot.min.js"></script>
+<%= javascript_include_flot %>
 
 <%
 data = teams[0,3].map{|t| Team.get_historical_ratings_2_weeks(t.id)  }

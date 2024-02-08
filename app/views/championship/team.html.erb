@@ -5,7 +5,7 @@
   <%= @championship.full_name %>
 <% end %>
 
-<script src="https://cdn.jsdelivr.net/npm/flot@4.2.6/dist/es5/jquery.flot.min.js"></script>
+<%= javascript_include_flot %>
 <select id='team_select'>
   <%= options_from_collection_for_select @teams, "to_param", "name", @team.to_param %>
 </select>
@@ -37,9 +37,21 @@
       opacity: 0.80,
       zIndex: 0,
 		}).appendTo("body");
+      var div_selection = $("<div id='odds_selection'></div>").css({
+			position: "absolute",
+			display: "none",
+			border: "1px solid #fdd",
+			padding: "2px",
+			"background-color": "#fee",
+      opacity: 0.80,
+      zIndex: 0,
+		})
 
     var graphDiv = $("#odds");
     var options = {
+        selection: {
+          mode: "x"
+        },
       series: {
         bars: {
           show: true,
@@ -81,6 +93,8 @@
     },
     ], options).data("plot");
 
+    graphDiv.append(div_selection);
+
     graphDiv.bind("plothover", function(event, pos, item) {
       var x = Math.round(pos.x);
       if (x > 0 && x <= <%= @groups[0].team_groups.size %> &&
@@ -95,7 +109,54 @@
       }
     });
 
-    graphDiv.disableSelection();
+    const isValid = (amount) => {
+      return (amount * 10).toFixed(0) % 10 === 5
+    }
+
+    const roundToClosestFive = (num) => {
+      let lower = Math.floor(num / 10) * 10;
+      let upper = Math.ceil(num / 10) * 10;
+      let lowerWithFive = lower + 5;
+      let upperWithFive = upper - 5;
+
+      // Determine which is closer to the original number
+      if (num - lowerWithFive < upperWithFive - num) {
+          return lowerWithFive;
+      } else {
+          return upperWithFive;
+      }
+    }
+
+
+      graphDiv.on("plotselected", function (event, ranges) {
+        if (!isValid(ranges.xaxis.from) || !isValid(ranges.xaxis.to)) {
+          var newFrom = roundToClosestFive(ranges.xaxis.from * 10) / 10;
+          var newTo = roundToClosestFive(ranges.xaxis.to * 10) / 10;
+          if (newFrom == newTo) {
+            plot.clearSelection();
+          } else {
+            plot.setSelection({
+              xaxis: {
+                from: roundToClosestFive(ranges.xaxis.from * 10) / 10,
+                to: roundToClosestFive(ranges.xaxis.to * 10) / 10,
+              }
+            });
+          }
+          return;
+        }
+        var fromIndex = Math.round(ranges.xaxis.from) - 1;
+        var toIndex = Math.round(ranges.xaxis.to) - 1;
+        var value = plot.getData()[0].data.slice(fromIndex, toIndex).reduce((a, b) => a + b[1], 0).toFixed(2);
+        var posFrom = plot.pointOffset({x: ranges.xaxis.from, y: ranges.yaxis.to});
+        var posTo = plot.pointOffset({x: ranges.xaxis.to, y: ranges.yaxis.to});
+        var odds_selection = $("#odds_selection").html("<%= _("Selected:") %> " + value + "%");
+        odds_selection.css({top: posFrom.top+5, left: (posFrom.left+posTo.left)/2 - odds_selection.width()/2})
+          .fadeIn(200);
+      });
+      graphDiv.on("plotunselected", function (event) {
+        $("#odds_selection").hide();
+      });
+
 
     // Color the label in the xaxis for the current position in red
     $('div#odds .flot-x1-axis text').filter((i, x) => $(x).text() == "<%=team_position%>").css({
