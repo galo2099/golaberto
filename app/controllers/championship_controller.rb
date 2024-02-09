@@ -165,14 +165,14 @@ class ChampionshipController < ApplicationController
                     showTicks: false,
                     showTickLabels: "major",
                     autoScale: false,
-                    min: 1,
-                    max: group.team_groups.size,
+                    min: 0.5,
+                    max: group.team_groups.size + 0.5,
                   },
                   {
                     show: false,
                     showTicks: false,
                     min: 0,
-                    max: points_for_1st_place,
+                    max: points_for_1st_place + 1,
                     autoScale: false,
                   },
                 ]
@@ -183,9 +183,9 @@ class ChampionshipController < ApplicationController
             }
 
     bar = [
-      { data: [[-3,0],[-2,0]], yaxis: 2, bars: { show: true, barWidth: 0.8, align: "center" } },
-      { data: [[-3,0],[-2,0]], yaxis: 2, bars: { show: true, barWidth: 0.8, align: "center" } },
-      { data: [[-3,0],[-2,0]], yaxis: 2, bars: { show: true, barWidth: 0.8, align: "center" } },
+      { data: [], yaxis: 2, bars: { show: true, barWidth: [0.8, true], align: "center" } },
+      { data: [], yaxis: 2, bars: { show: true, barWidth: [0.8, true], align: "center" } },
+      { data: [], yaxis: 2, bars: { show: true, barWidth: [0.8, true], align: "center" } },
     ]
     data.each_with_index do |d,index|
       value = [ index + 1, d[:points] ]

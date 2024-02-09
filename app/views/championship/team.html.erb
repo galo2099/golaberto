@@ -221,26 +221,9 @@ $(function() {
     var has_other_team = current_data["data"].length > 4;
 
     for (var i = 0; i < 3; ++i) {
-      var new_data_double_x = [];
-      for (var j = 0; j < new_data["data"][i]["data"].length; ++j) {
-        new_data_double_x.push(new_data["data"][i]["data"][j]);
-        new_data_double_x[j][0] -= 1;
-        new_data_double_x[j][0] *= 2;
-        new_data_double_x[j][0] += 0.95;
-      }
-      new_data["data"][i]["data"] = new_data_double_x;
-      new_data["data"][i]["xaxis"] = 2;
-      new_data["data"][i]["bars"]["barWidth"] = 0.8;
+      new_data["data"][i]["bars"]["align"] = "left";
+      new_data["data"][i]["bars"]["barWidth"] = [0.4, true];
     }
-    var new_data_double_line_x = [];
-    for (var j = 0; j < new_data["data"][3]["data"].length; ++j) {
-      new_data_double_line_x.push(new_data["data"][3]["data"][j]);
-      new_data_double_line_x[j][0] -= 1.0;
-      new_data_double_line_x[j][0] *= 2.0;
-      new_data_double_line_x[j][0] += 0.5;
-    }
-    new_data["data"][3]["data"] = new_data_double_line_x;
-    new_data["data"][3]["xaxis"] = 2;
 
     if (has_other_team) {
       for (var i = 0; i < 4; ++i) {
@@ -248,27 +231,9 @@ $(function() {
       }
     } else {
       for (var i = 0; i < 3; ++i) {
-        var current_data_double_x = [];
-        for (var j = 0; j < current_data["data"][i]["data"].length; ++j) {
-          current_data_double_x.push(current_data["data"][i]["data"][j]);
-          current_data_double_x[j][0] -= 1;
-          current_data_double_x[j][0] *= 2;
-          current_data_double_x[j][0] += 0.05;
-        }
-        current_data["data"][i]["data"] = current_data_double_x;
-        current_data["data"][i]["xaxis"] = 2;
-        current_data["data"][i]["bars"]["barWidth"] = 0.8;
+        current_data["data"][i]["bars"]["align"] = "right";
+        current_data["data"][i]["bars"]["barWidth"] = [0.4, true];
       }
-      var current_data_double_line_x = [];
-      for (var j = 0; j < current_data["data"][3]["data"].length; ++j) {
-        current_data_double_line_x.push(current_data["data"][3]["data"][j]);
-        current_data_double_line_x[j][0] -= 1.0;
-        current_data_double_line_x[j][0] *= 2.0;
-        current_data_double_line_x[j][0] += 0.5;
-      }
-      current_data["data"][3]["data"] = current_data_double_line_x;
-      current_data["data"][3]["xaxis"] = 2;
-
       for (var i = 0; i < 4; ++i) {
         current_data["data"].push(new_data["data"][i]);
       }
@@ -276,6 +241,8 @@ $(function() {
 
     current_data["data"][3]["label"] = '<%= @team.name %>';
     current_data["data"][7]["label"] = $('#team_graph_select' + idx + ' option:selected').text();
+    current_data["options"]["xaxes"][0].max = Math.max(current_data["data"][0].data.length, current_data["data"][4].data.length) + 0.5;
+
     $("#placeholder" + idx).plot(current_data["data"], current_data["options"]);
   }
 
@@ -283,21 +250,16 @@ $(function() {
     var current_data = data[idx];
     var has_other_team = current_data["data"].length > 4;
     if (has_other_team) {
-      for (var i = 0; i < 4; ++i) {
-        var current_data_undo_double = [];
-        for (var j = 0; j < current_data["data"][i]["data"].length; ++j) {
-          current_data_undo_double.push(current_data["data"][i]["data"][j]);
-          current_data_undo_double[j][0] = j + 1;
-        }
-        current_data["data"][i]["data"] = current_data_undo_double;
-        current_data["data"][i]["xaxis"] = 1;
-      }
-
       current_data["data"].pop();
       current_data["data"].pop();
       current_data["data"].pop();
       current_data["data"].pop();
       current_data["data"][3]["label"] = null;
+      for (var i = 0; i < 3; ++i) {
+        current_data["data"][i]["bars"]["align"] = "center";
+        current_data["data"][i]["bars"]["barWidth"] = [0.8, true];
+      }
+      current_data["options"]["xaxes"][0].max = current_data["data"][0].data.length + 0.5;
       $("#placeholder" + idx).plot(current_data["data"], current_data["options"]);
     }
   }
@@ -358,12 +320,7 @@ $(function() {
         var y = item.datapoint[1].toFixed(2);
 
         $('#placeholder<%=idx%>').css('cursor', 'pointer');
-        // account for the phantom items inserted to make the bars look right
-        var index = item.dataIndex;
-        if (item.seriesIndex % 4 < 3) {
-          index -= 2;
-        }
-        $("#tooltip").html(data[<%=idx%>]["tooltips"][Math.floor(item.seriesIndex/4)][index])
+        $("#tooltip").html(data[<%=idx%>]["tooltips"][Math.floor(item.seriesIndex/4)][item.dataIndex])
             .css({top: pos.pageY+5, left: pos.pageX+5})
             .fadeIn(200);
       } else {
@@ -374,12 +331,7 @@ $(function() {
 
     graphDiv.bind("plotclick", function (event, pos, item) {
       if (item) {
-        // account for the phantom items inserted to make the bars look right
-        var index = item.dataIndex;
-        if (item.seriesIndex % 4 < 3) {
-          index -= 2;
-        }
-        window.location.href = data[<%=idx%>]["urls"][Math.floor(item.seriesIndex/4)][index];
+        window.location.href = data[<%=idx%>]["urls"][Math.floor(item.seriesIndex/4)][item.dataIndex];
       }
     });
     $('#panel<%=idx%>').addClass('select-div');
@@ -401,7 +353,7 @@ $(function() {
                                                  :phase => group.phase },
                                        :with => "'team=' + value",
                                        :method => :get,
-                                       :before => "if (!value) { filter_other_team(#{idx}); return true; } $('#spinner#{idx}').css('background-image', 'url(#{image_url "spinner.gif"})');",
+                                       :before => "if (!value) { filter_other_team(#{idx}); return false; } $('#spinner#{idx}').css('background-image', 'url(#{image_url "spinner.gif"})');",
                                        :failure => "alert('#{_("Cant download data for team!")}');",
                                        :success => "plot_team_graph_data(response, #{idx})",
                                        :complete => "$('#spinner#{idx}').css('background-image', '')"
