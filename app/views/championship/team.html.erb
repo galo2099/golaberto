@@ -221,8 +221,11 @@ $(function() {
     var has_other_team = current_data["data"].length > 4;
 
     for (var i = 0; i < 3; ++i) {
+      for (var j = 0; j < new_data["data"][i]["data"].length; j++) {
+        new_data["data"][i]["data"][j][0] = new_data["data"][i]["data"][j][0]+0.02;
+      }
       new_data["data"][i]["bars"]["align"] = "left";
-      new_data["data"][i]["bars"]["barWidth"] = [0.4, true];
+      new_data["data"][i]["bars"]["barWidth"] = [0.38, true];
     }
 
     if (has_other_team) {
@@ -231,8 +234,11 @@ $(function() {
       }
     } else {
       for (var i = 0; i < 3; ++i) {
+        for (var j = 0; j < current_data["data"][i]["data"].length; j++) {
+          current_data["data"][i]["data"][j][0] = current_data["data"][i]["data"][j][0]-0.02;
+        }
         current_data["data"][i]["bars"]["align"] = "right";
-        current_data["data"][i]["bars"]["barWidth"] = [0.4, true];
+        current_data["data"][i]["bars"]["barWidth"] = [0.38, true];
       }
       for (var i = 0; i < 4; ++i) {
         current_data["data"].push(new_data["data"][i]);
@@ -254,8 +260,10 @@ $(function() {
       current_data["data"].pop();
       current_data["data"].pop();
       current_data["data"].pop();
-      current_data["data"][3]["label"] = null;
       for (var i = 0; i < 3; ++i) {
+        for (var j = 0; j < current_data["data"][i]["data"].length; j++) {
+          current_data["data"][i]["data"][j][0] = current_data["data"][i]["data"][j][0]+0.02;
+        }
         current_data["data"][i]["bars"]["align"] = "center";
         current_data["data"][i]["bars"]["barWidth"] = [0.8, true];
       }
@@ -282,16 +290,26 @@ $(function() {
           line-height: 1.2em;"></div>
       </div>
       <div id="legend<%=idx%>"></div>
+<style>
+#legend {
+  width: 100% !important;
+}
+.legendLayer .background {
+  fill: #3e3e3e;
+  stroke: rgba(0, 0, 0, 0);
+}
+.legendLayer text {
+  fill: #ccc;
+}
+</style>
 <script type="text/javascript">
 
   $(function() {
     var graphDiv = $("#placeholder<%=idx%>");
     var options = data[<%=idx%>]["options"];
     options["legend"] = {
-        container: '#legend<%=idx%>',
-        labelFormatter: function (label, series) {
-          return '<span style="color: #ccc">' + label + '</span>';
-        },
+        container: document.getElementById('legend<%=idx%>'),
+        show: true,
     };
     options["yaxes"][0]["transform"] = function (v) { return -v; };
     options["yaxes"][0]["inverseTransform"] = function (v) { return -v; };

@@ -139,7 +139,7 @@ class ChampionshipController < ApplicationController
     points_for_1st_place = team_table[0][1].points
 
     chart = { options: {
-                colors: [ "#0000ff", "#696969", "#ff0000", "#000000", "#0000ff", "#696969", "#ff0000", "#ffff80" ],
+                colors: [ "#0000ff", "#696969", "#ff0000", "#000000", "#0000ff", "#696969", "#ff0000", "#b00baa" ],
                 grid: {
                   backgroundColor: "#FFFFFF",
                   hoverable: true,
@@ -183,9 +183,9 @@ class ChampionshipController < ApplicationController
             }
 
     bar = [
-      { data: [], yaxis: 2, bars: { show: true, barWidth: [0.8, true], align: "center" } },
-      { data: [], yaxis: 2, bars: { show: true, barWidth: [0.8, true], align: "center" } },
-      { data: [], yaxis: 2, bars: { show: true, barWidth: [0.8, true], align: "center" } },
+      { data: [], yaxis: 2, bars: { show: true, barWidth: [0.8, true], align: "center" }, label: nil },
+      { data: [], yaxis: 2, bars: { show: true, barWidth: [0.8, true], align: "center" }, label: nil },
+      { data: [], yaxis: 2, bars: { show: true, barWidth: [0.8, true], align: "center" }, label: nil },
     ]
     data.each_with_index do |d,index|
       value = [ index + 1, d[:points] ]
@@ -211,6 +211,7 @@ class ChampionshipController < ApplicationController
     line = { data: [],
              lines: { show: true, },
              points: { show: true, },
+             label: team.name,
            }
     data.each_with_index do |d,index|
       value = [ index + 1, d[:position] ]
