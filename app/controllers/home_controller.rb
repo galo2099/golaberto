@@ -13,8 +13,10 @@ class HomeController < ApplicationController
     @games_to_highlight = []
     @top_games, to_highlight = games_by_quality(Game.includes(:home, :away, {phase: :championship}).select("games.*, 2*teams.rating*aways_games.rating/(teams.rating+aways_games.rating)*(1+(IFNULL(home_importance,0)+IFNULL(away_importance,0))/2) as quality").order("quality desc, date desc").where(played: false).where("date > ?", now).where("date < ?", now + 7.days).where(has_time: true).references(:home, :away), now)
     @games_to_highlight.push(*to_highlight)
+    @games_to_highlight.push(*@top_games.sort{|t1,t2| t2.game_quality <=> t1.game_quality}.map{|t|t.id}[0,5])
     @top_played_games, to_highlight = played_games_by_quality(Game.includes(:home, :away, {phase: :championship}).select("games.*, 2*teams.rating*aways_games.rating/(teams.rating+aways_games.rating)*(1+(IFNULL(home_importance,0)+IFNULL(away_importance,0))/2) as quality").order("quality desc, date desc").where(played: true).where("date > ?", now - 7.days).where("date < ?", now + 7.days).where(has_time: true).references(:home, :away), now)
     @games_to_highlight.push(*to_highlight)
+    @games_to_highlight.push(*@top_played_games.sort{|t1,t2| t2.game_quality <=> t1.game_quality}.map{|t|t.id}[0,5])
   end
 
   private
