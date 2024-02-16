@@ -338,7 +338,7 @@ function ignoreEnter(event) {
 EOF
 %>
 
-<%= observe_field 'game_home_score', :function => "updateGoalTable('home', 'regulation', value); $('#game_played').prop('checked', true); return false" %>
+<%= observe_field 'game_home_score', :function => "updateGoalTable('home', 'regulation', value); $('#game_played').prop('checked', true);" %>
 <%= observe_field 'game_away_score', :function => "updateGoalTable('away', 'regulation', value); $('#game_played').prop('checked', true);" %>
 <%= observe_field 'game_home_aet', :function => "updateGoalTable('home', 'aet', value); $('#game_played').prop('checked', true);" %>
 <%= observe_field 'game_away_aet', :function => "updateGoalTable('away', 'aet', value); $('#game_played').prop('checked', true);" %>
