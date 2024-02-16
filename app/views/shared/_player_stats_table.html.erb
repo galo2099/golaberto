@@ -82,12 +82,12 @@ columns_def = {
     footer: ->(stats, first) { "<th>#{stats.map{|p|p.bench}.sum}</th>" },
   },
   yellows: {
-    header: "<th title='#{_("Yellows")}'>#{image_tag "yells.gif"}</th>",
+    header: "<th title='#{_("Yellows")}'>#{span_for_yellow_card}</th>",
     body: ->(p) { p.yellows },
     footer: ->(stats, first) { "<th>#{stats.map{|p|p.yellows}.sum}</th>" },
   },
   reds: {
-    header: "<th title='#{_("Reds")}'>#{image_tag "reds.gif"}</th>",
+    header: "<th title='#{_("Reds")}'>#{span_for_red_card}</th>",
     body: ->(p) { p.reds },
     footer: ->(stats, first) { "<th>#{stats.map{|p|p.reds}.sum}</th>" },
   },

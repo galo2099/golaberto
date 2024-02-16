@@ -51,6 +51,13 @@ module ApplicationHelper
     ret.html_safe
   end
 
+  def span_for_yellow_card
+    content_tag :span, "\u2588", style: "color: #edc240; text-shadow: 1px 1px 1px black;"
+  end
+  def span_for_red_card
+    content_tag :span, "\u2588", style: "color: red; text-shadow: 1px 1px 1px black;"
+  end
+
   def formatted_diff(diff)
     ret = ""
     diff.each do |key, value|

@@ -3,8 +3,8 @@
         <div class="clearer"></div>
         <div class='table_cell' style='width: 15%'><%= _("On") %>: <%= pg.on %></div>
         <div class='table_cell' style='width: 15%'><%= _("Off") %>: <%= pg.off %></div>
-        <div class='table_cell' style='color: rgb(237,194,64); width: 5%'><% if pg.yellow %><%= image_tag "yells.gif" %><% end %></div>
-        <div class='table_cell' style='color: rgb(255,0,0); width: 5%'><% if pg.red %><%= image_tag "reds.gif" %><% end %></div>
+        <div class='table_cell' style='color: rgb(237,194,64); width: 5%'><% if pg.yellow %><%= span_for_yellow_card %><% end %></div>
+        <div class='table_cell' style='color: rgb(255,0,0); width: 5%'><% if pg.red %><%= span_for_red_card %><% end %></div>
         <div class='table_cell' style='width: 15%; font-size: 10px'><%= pg.game.goals.order(:time).to_a.select{|g|g.player_id == @player.id and not g.own_goal}.map{|x| "<span style='white-space: nowrap'>#{image_tag('goal.png')} #{x.time}'</span> "}.join("").html_safe %></div>
         <div class='table_cell' style='width: 15%'>
             <%= s_("Offensive|Off") %>: <b><%= number_with_precision pg.off_rating.to_f, precision: 2 %></b>
