@@ -1,17 +1,17 @@
-<%= link_to(_("Add"), '#', :id => "link_player_#{home_away}", onclick: "$('#link_player_#{home_away}').hide(); $('#add_player_#{home_away}').show(); $('##{home_away}_player_name').focus(); return false".html_safe) %>
+<%= link_to_function(_("Add"), :id => "link_player_#{home_away}", onclick: "$('#link_player_#{home_away}').hide(); $('#add_player_#{home_away}').show(); $('##{home_away}_player_name').focus();") %>
 <div id="add_player_<%= home_away %>" style="display: none">
   <%= text_field_tag "#{home_away}_player_name", "", :onkeypress => "return ignoreEnter(event)", :size => 10 %><br/>
-  <%= button_tag _("Cancel"), onclick: "$('#link_player_#{home_away}').show(); $('#add_player_#{home_away}').hide(); return false" %>
-  <%= button_tag _("New"), onclick: remote_function(
+  <%= link_to_function _("Cancel"), onclick: "$('#link_player_#{home_away}').show(); $('#add_player_#{home_away}').hide();" %>
+  <%= link_to_remote _("New"),
           :url => { :action => :insert_team_player, :id => game,
                     "team_player[championship_id]"=> game.phase.championship.id,
                     "team_player[team_id]" => team.id,
                     "home_away" => home_away,
                     "partial" => partial },
           :confirm => _("Are you sure you want to create a new player?"),
-          :with => "'name='+$(##{home_away}_player_name).val()",
+          :with => "'name='+$('##{home_away}_player_name').val()",
           :complete => "finishPlayerAdd('#{home_away}')",
-          :failure => "alert('#{_('Could not insert player')}')") %>
+          :failure => "alert('#{_('Could not insert player')}')" %>
   <%= observe_field "#{home_away}_player_name",
     :url => { :action => :list_players,
               :team => team,
