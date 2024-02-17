@@ -1,10 +1,7 @@
-page.insert_html(
-  :bottom,
-  "#{@home_away}_player_list",
-  :partial => @partial,
+$('#<%=@home_away%>_player_list').append(`<%= render :partial => @partial,
   :locals => {
     :home_away => @home_away,
     :player_list => @player,
     :player_squad => PlayerGame.new({:game => @game, :team => @game.send(@home_away), :player => @player}),
     :disabled => true
-  })
+  } %>`);
