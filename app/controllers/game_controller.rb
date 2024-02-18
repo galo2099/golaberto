@@ -111,7 +111,6 @@ class GameController < ApplicationController
     all_valid &&= update_goals("away", "score", params["away_regulation_goal"])
     all_valid &&= update_goals("home", "aet", params["home_aet_goal"]) if @game.home_aet
     all_valid &&= update_goals("away", "aet", params["away_aet_goal"]) if @game.away_aet
-    puts @goals
 
     all_valid &&= @game.valid?
 
