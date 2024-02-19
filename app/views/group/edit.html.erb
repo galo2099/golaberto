@@ -190,5 +190,5 @@ $('input').bind('keypress', function(e){
 });
 </script>
 
-<%= javascript_tag "$('group_name').focus()" %>
+<%= javascript_tag "$('#group_name').focus()" %>
 <%= observe_field "team_number", :function => "update_zone_positions(value);" %>
