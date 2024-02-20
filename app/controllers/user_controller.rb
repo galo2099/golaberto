@@ -1,12 +1,14 @@
 class UserController < ApplicationController
-  load_and_authorize_resource
+  authorize_resource
 
   def show
+    @user = User.find(params["id"])
     @comment_number = @user.comments.count
     @edit_number = @user.game_edits.count
   end
 
   def list_edits
+    @user = User.find(params["id"])
     @pagy, @edits = pagy(@user.game_edits.where("version > 1").order("updated_at DESC"), items: 10)
   end
 
@@ -18,9 +20,11 @@ class UserController < ApplicationController
   end
 
   def edit
+    @user = User.find(params["id"])
   end
 
   def update
+    @user = User.find(params["id"])
     @user.attributes = user_params
     @user.save!
     flash[:notice] = _("Your profile was saved")
