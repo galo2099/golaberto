@@ -111,6 +111,7 @@
     <div id="g_id_onload"
       data-client_id="<%= Rails.application.credentials.google_api[:client_id] %>"
       data-login_uri="<%= "/auth/google/onetap_callback" %>"
+      data-use_fedcm_for_prompt="true"
       data-context="signup"
       data-ux_mode="popup"
       data-auto_prompt="true"
