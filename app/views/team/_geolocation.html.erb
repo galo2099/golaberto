@@ -9,19 +9,46 @@
     }
 </style>
 <div id="map">
-<% points = teams.map do |t|
-    { geometry: { coordinates: [t.team_geocode.try(:data).try(:at, 0).try(:fetch, "lon").to_f, t.team_geocode.try(:data).try(:at, 0).try(:fetch, "lat").to_f] } }
+<%
+points = teams.map do |t|
+  { geometry: { coordinates: [t.team_geocode.try(:data).try(:at, 0).try(:fetch, "lon").to_f, t.team_geocode.try(:data).try(:at, 0).try(:fetch, "lat").to_f] } }
 end
-   bounds = {
-     northeast: { lat: points.map{|p| p[:geometry][:coordinates][1] }.max, lng: points.map{|p| p[:geometry][:coordinates][0] }.max},
-     southwest: { lat: points.map{|p| p[:geometry][:coordinates][1] }.min, lng: points.map{|p| p[:geometry][:coordinates][0] }.min},
-   }
-   zoom = GeoClusterer.get_bounds_zoom_level(bounds, { height: 400, width: 560 })
-   clusters = GeoClusterer.cluster(points, zoom)
-%>
-<% markers = clusters.map do |c|
-    "markers=#{ "anchor:center|icon:#{Rails.configuration.golaberto_image_url_prefix}/markers/#{[c[2], 100].min}.png|" if c[2] > 1 }#{c[1]},#{c[0]}"
-  end.join("&")
+bounds = {
+  northeast: { lat: points.map{|p| p[:geometry][:coordinates][1] }.max, lng: points.map{|p| p[:geometry][:coordinates][0] }.max},
+  southwest: { lat: points.map{|p| p[:geometry][:coordinates][1] }.min, lng: points.map{|p| p[:geometry][:coordinates][0] }.min},
+}
+zoom = GeoClusterer.get_bounds_zoom_level(bounds, { height: 400, width: 560 })
+clusters = GeoClusterer.cluster(points, zoom)
+clusters = clusters.sort{|a,b|b[2]<=>a[2]}.map{|c| [c[0], c[1], [c[2], 100].min]}.group_by{|c|c[2]}
+
+max_numbered_icons = 5
+max_numbered_icons = 4 if clusters.keys.select{|x|x>9}.size > 5
+numbered_icons_used = 0
+
+markers = clusters.sort{|a,b|b[0]<=>a[0]}.map do |size,points|
+  style = ""
+  coords = points.map{|p| "#{p[1]},#{p[0]}"}.join("|")
+  if size > 9
+    style = "anchor:center|icon:"
+    if numbered_icons_used < max_numbered_icons then
+      style << "#{Rails.configuration.golaberto_image_url_prefix}/markers/#{size}.png"
+      numbered_icons_used += 1
+    else
+      style << "#{Rails.configuration.golaberto_image_url_prefix}/markers/blank.png"
+    end
+  elsif size > 1
+    if numbered_icons_used < max_numbered_icons then
+      style = "anchor:center|icon:"
+      style << "#{Rails.configuration.golaberto_image_url_prefix}/markers/#{size}.png"
+      numbered_icons_used += 1
+    else
+      style = "size:mid|label:#{size}"
+    end
+  else
+    style = "size:mid"
+  end
+  "markers=#{style}|#{coords}"
+end.join("&")
 %>
 <script src="https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js"></script>
 <style>
