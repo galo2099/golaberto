@@ -1,11 +1,28 @@
+<% return if teams.size == 0 %>
+<% require 'geo_clusterer' %>
+<% require 'google_url_signer' %>
+
 <style>
     #map {
         height: 400px;
         width: 100%;
     }
 </style>
-<div id="map"></div>
-
+<div id="map">
+<% points = teams.map do |t|
+    { geometry: { coordinates: [t.team_geocode.try(:data).try(:at, 0).try(:fetch, "lon").to_f, t.team_geocode.try(:data).try(:at, 0).try(:fetch, "lat").to_f] } }
+end
+   bounds = {
+     northeast: { lat: points.map{|p| p[:geometry][:coordinates][1] }.max, lng: points.map{|p| p[:geometry][:coordinates][0] }.max},
+     southwest: { lat: points.map{|p| p[:geometry][:coordinates][1] }.min, lng: points.map{|p| p[:geometry][:coordinates][0] }.min},
+   }
+   zoom = GeoClusterer.get_bounds_zoom_level(bounds, { height: 400, width: 560 })
+   clusters = GeoClusterer.cluster(points, zoom)
+%>
+<% markers = clusters.map do |c|
+    "markers=#{ "anchor:center|icon:#{Rails.configuration.golaberto_image_url_prefix}/markers/#{[c[2], 100].min}.png|" if c[2] > 1 }#{c[1]},#{c[0]}"
+  end.join("&")
+%>
 <script src="https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js"></script>
 <style>
 button.gm-ui-hover-effect {
@@ -121,12 +138,29 @@ function initMap() {
     });
 }
 
-</script>
-
-
-<% maps_script_url = "https://maps.googleapis.com/maps/api/js?v=quarterly&key=AIzaSyCT_RQIGXyWC6LEKwGVkiIAyXJjWfuKJkE&callback=initMap" %>
+  (g=>{var h,a,k,p="The Google Maps JavaScript API",c="google",l="importLibrary",q="__ib__",m=document,b=window;b=b[c]||(b[c]={});var d=b.maps||(b.maps={}),r=new Set,e=new URLSearchParams,u=()=>h||(h=new Promise(async(f,n)=>{await (a=m.createElement("script"));e.set("libraries",[...r]+"");for(k in g)e.set(k.replace(/[A-Z]/g,t=>"_"+t[0].toLowerCase()),g[k]);e.set("callback",c+".maps."+q);a.src=`https://maps.${c}apis.com/maps/api/js?`+e;d[q]=f;a.onerror=()=>h=n(Error(p+" could not load."));a.nonce=m.querySelector("script[nonce]")?.nonce||"";m.head.append(a)}));d[l]?console.warn(p+" only loads once. Ignoring:",g):d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))})({
+    key: "AIzaSyCT_RQIGXyWC6LEKwGVkiIAyXJjWfuKJkE",
+    v: "weekly",
 <% case I18n.locale when :"pt-BR" then %>
-  <script src="<%= maps_script_url %>&region=br&language=pt" async defer></script>
-<% else %>
-  <script src="<%= maps_script_url %>" async defer></script>
+    region: "br",
+    language: "pt"
 <% end %>
+    // Use the 'v' parameter to indicate the version to use (weekly, beta, alpha, etc.).
+    // Add other bootstrap parameters as needed, using camel case.
+  });
+
+$(function() {
+  async function start() {
+    const { Map } = await google.maps.importLibrary("maps");
+    initMap(Map);
+  }
+  $('#static_map').on("click", async function() {
+    await start();
+    $('#static_map').hide();
+  });
+});
+
+</script>
+<img id=static_map width=560 height=400 src="<%= GoogleUrlSigner.sign "https://maps.googleapis.com/maps/api/staticmap?#{markers}&zoom=#{maxzoom}&#{"region=br&language=pt&" if I18n.locale == :"pt-BR" }size=560x400&scale=2&format=jpg&key=AIzaSyCT_RQIGXyWC6LEKwGVkiIAyXJjWfuKJkE", Rails.application.credentials.google_api[:secret_sign] %>" />
+
+</div>
