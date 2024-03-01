@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2024_01_24_032056) do
+ActiveRecord::Schema[7.1].define(version: 2024_03_01_032846) do
   create_table "__diesel_schema_migrations", primary_key: "version", id: { type: :string, limit: 50 }, charset: "utf8mb3", collation: "utf8mb3_unicode_ci", force: :cascade do |t|
     t.timestamp "run_on", default: -> { "CURRENT_TIMESTAMP" }, null: false
   end
@@ -311,7 +311,7 @@ ActiveRecord::Schema[7.1].define(version: 2024_01_24_032056) do
     t.string "remember_token"
     t.datetime "remember_token_expires_at", precision: nil
     t.string "identity_url"
-    t.string "name", limit: 30
+    t.string "name", limit: 100
     t.string "location", limit: 100
     t.date "birthday"
     t.text "about_me"
