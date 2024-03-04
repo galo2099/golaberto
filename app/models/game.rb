@@ -183,7 +183,8 @@ class Game < ApplicationRecord
     end
 
     def game_quality
-      2 * home.rating.to_f * away.rating.to_f / (home.rating.to_f + away.rating.to_f) * (1 + (home_importance.to_f + away_importance.to_f) / 2)
+      # add EPSILON to avoid division by zero
+      2 * home.rating.to_f * away.rating.to_f / (home.rating.to_f + away.rating.to_f + Float::EPSILON) * (1 + (home_importance.to_f + away_importance.to_f) / 2)
     end
 
     def odds_legacy
