@@ -4,7 +4,31 @@ module GeoClusterer
   RADIUS = 60
   EXTENT = 512
 
+  # Earth's radius in km
+  EARTH_RADIUS_KM = 6371
+
   class << self
+  def haversine_distance(lat1, lon1, lat2, lon2)
+    # Convert latitude and longitude from degrees to radians
+    lat1_rad = lat1 * Math::PI / 180
+    lon1_rad = lon1 * Math::PI / 180
+    lat2_rad = lat2 * Math::PI / 180
+    lon2_rad = lon2 * Math::PI / 180
+
+    # Difference in coordinates
+    dlat = lat2_rad - lat1_rad
+    dlon = lon2_rad - lon1_rad
+
+    # Haversine formula
+    a = Math.sin(dlat / 2) ** 2 + Math.cos(lat1_rad) * Math.cos(lat2_rad) * Math.sin(dlon / 2) ** 2
+    c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+
+    # Distance in km
+    distance_km = EARTH_RADIUS_KM * c
+
+    return distance_km
+  end
+
   def get_bounds_zoom_level(bounds, map)
     max_zoom = 21
     min_zoom = 0

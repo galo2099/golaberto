@@ -488,6 +488,9 @@ msgstr "Dinamarca"
 msgid "Destroy"
 msgstr "Destruir"
 
+msgid "Distance"
+msgstr "Distância"
+
 msgid "Djibouti"
 msgstr "Djibouti"
 

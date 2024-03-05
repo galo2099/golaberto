@@ -1,3 +1,5 @@
+<% require 'geo_clusterer' %>
+
 <% content_for :title do %>
   <%= @game.phase.championship.full_name %> - <%= @game.phase.name %> - <%= @game.home.name %> x <%= @game.away.name %>
 <% end %>
@@ -188,10 +190,12 @@ gauge_away.set(<%= away_importance %>); // set actual value
         <tr><td><%= s_("Game|Time") %>:</td><td><%= formatted_time(@game) %></td></tr>
         <tr><td><%= _("Stadium") %>:</td><td><%= @game.stadium.name unless @game.stadium.nil? %></td></tr>
         <tr><td><%= _("Referee") %>:</td><td><%= "#{@game.referee.name} (#{@game.referee.location})" unless @game.referee.nil? %></td></tr>
+        <tr><td><%= _("Distance") %>:</td><td><%= t(:distance, distance: GeoClusterer.haversine_distance(@game.home.team_geocode.data[0]["lat"].to_f, @game.home.team_geocode.data[0]["lon"].to_f, @game.away.team_geocode.data[0]["lat"].to_f, @game.away.team_geocode.data[0]["lon"].to_f)) rescue 0 %></td></tr>
       </table>
   </td></tr>
 
 </table>
+<%= render partial: "team/geolocation", locals: { teams: [ @game.home, @game.away ], show_path: true } %>
 
 <% if not @game.odds.nil? %>
   <%= render :partial => "game_odds" %>

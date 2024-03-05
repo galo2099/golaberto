@@ -1,3 +1,4 @@
+<%# locals: (maxzoom: "null", show_path: false, teams:) -%>
 <% return if teams.size == 0 %>
 <% require 'geo_clusterer' %>
 <% require 'google_url_signer' %>
@@ -49,6 +50,10 @@ markers = clusters.sort{|a,b|b[0]<=>a[0]}.map do |size,points|
   end
   "markers=#{style}|#{coords}"
 end.join("&")
+path = ""
+if show_path then
+  path = "&path=color:0xff0000|weight:5|#{points.map{|p|"#{p[:geometry][:coordinates][1]},#{p[:geometry][:coordinates][0]}"}.join("|")}"
+end
 %>
 <script src="https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js"></script>
 <style>
@@ -144,6 +149,17 @@ function initMap() {
     // Create a MarkerClusterer to cluster the markers
     new markerClusterer.MarkerClusterer({markers, map});
 
+    <% if show_path then %>
+    new google.maps.Polyline({
+      path: markers.map(marker => marker.getPosition()),
+      geodesic: true,
+      strokeColor: "#FF0000",
+      strokeOpacity: 0.5,
+      strokeWeight: 5,
+      map: map,
+    });
+    <% end %>
+
     // Create a button element
     const resetButton = document.createElement('button');
     resetButton.setAttribute('id', 'resetButton');
@@ -188,6 +204,6 @@ $(function() {
 });
 
 </script>
-<img id=static_map width=560 height=400 src="<%= GoogleUrlSigner.sign "https://maps.googleapis.com/maps/api/staticmap?#{markers}&zoom=#{maxzoom}&#{"region=br&language=pt&" if I18n.locale == :"pt-BR" }size=560x400&scale=2&format=jpg&key=AIzaSyCT_RQIGXyWC6LEKwGVkiIAyXJjWfuKJkE", Rails.application.credentials.google_api[:secret_sign] %>" />
+<img id=static_map width=560 height=400 src="<%= GoogleUrlSigner.sign "https://maps.googleapis.com/maps/api/staticmap?#{markers}#{path}&zoom=#{maxzoom}&#{"region=br&language=pt&" if I18n.locale == :"pt-BR" }size=560x400&scale=2&format=jpg&key=AIzaSyCT_RQIGXyWC6LEKwGVkiIAyXJjWfuKJkE", Rails.application.credentials.google_api[:secret_sign] %>" />
 
 </div>
