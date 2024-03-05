@@ -4,13 +4,18 @@
 <script type="text/javascript" src="https://cdn.datatables.net/v/dt/dt-1.13.1/fc-4.2.1/datatables.min.js"></script>
 
 <h2><%= @player.name %> - <%= @player.full_name %></h2>
+<h3><%= _("Bio") %></h3>
+<%= _("Birthday") %>: <%= l @player.birth, format: :long %> (<%= time_ago_in_words(@player.birth) %>)<br>
+<%= _("Country") %>: <%= image_tag @player.small_country_logo, alt: _(@player.country) %> <%= _(@player.country) %><br>
+<%= _("Position") %>: <%= position_to_string @player.position, :long %>
+<h3><%= _("Stats") %></h3>
 <%= render :partial => "shared/player_stats_table", :locals => {
    player_stats: @player_stats,
    options: { columns_to_show: [:season, :team, :championship, :minutes, :goals, :goals_per_90, :rating, :rating_per_90, :own_goals, :penalties, :appearances, :played, :substituted_in, :bench, :yellows, :reds] },
    datatable_options: { order: [[ 0, 'desc' ]] },
 } %>
 
-<h2> <%= link_to _("Games"), :action => :games, :id => @player, :type => :played %></h2>
+<h3> <%= link_to _("Games"), :action => :games, :id => @player, :type => :played %></h3>
 
 <div class="game_score">
   <% last_championship = nil %>

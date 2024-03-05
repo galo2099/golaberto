@@ -8,8 +8,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: app 1.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-03-04 22:25-0800\n"
-"PO-Revision-Date: 2024-03-04 22:25-0800\n"
+"POT-Creation-Date: 2024-03-05 14:49-0800\n"
+"PO-Revision-Date: 2024-03-05 14:49-0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
@@ -216,7 +216,13 @@ msgstr ""
 msgid "Bias"
 msgstr ""
 
+msgid "Bio"
+msgstr ""
+
 msgid "Birth"
+msgstr ""
+
+msgid "Birthday"
 msgstr ""
 
 msgid "Blogger blog name"
@@ -1912,6 +1918,54 @@ msgid "penalty goals"
 msgstr ""
 
 msgid "points"
+msgstr ""
+
+msgid "position|am"
+msgstr ""
+
+msgid "position|attacking midfielder"
+msgstr ""
+
+msgid "position|center midfielder"
+msgstr ""
+
+msgid "position|central defender"
+msgstr ""
+
+msgid "position|cm"
+msgstr ""
+
+msgid "position|dc"
+msgstr ""
+
+msgid "position|defensive midfielder"
+msgstr ""
+
+msgid "position|dl"
+msgstr ""
+
+msgid "position|dm"
+msgstr ""
+
+msgid "position|dr"
+msgstr ""
+
+msgid "position|forward"
+msgstr ""
+
+msgid "position|fw"
+msgstr ""
+
+msgid "position|g"
+msgstr ""
+
+msgid "position|goalkeeper"
+msgstr ""
+
+msgid "position|left defender"
+msgstr ""
+
+msgid "position|right defender"
 msgstr ""
 
 msgid "sign in failed"

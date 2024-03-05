@@ -215,8 +215,14 @@ msgstr "Butão"
 msgid "Bias"
 msgstr "Vantagem"
 
+msgid "Bio"
+msgstr "Biografia"
+
 msgid "Birth"
 msgstr "Nascimento"
+
+msgid "Birthday"
+msgstr "Data de Nascimento"
 
 msgid "Blogger blog name"
 msgstr "usuário Blogger"
@@ -2034,6 +2040,54 @@ msgstr "gols de pênalti"
 
 msgid "points"
 msgstr "pontos"
+
+msgid "position|am"
+msgstr "ma"
+
+msgid "position|attacking midfielder"
+msgstr "meia atacante"
+
+msgid "position|center midfielder"
+msgstr "meio campista"
+
+msgid "position|central defender"
+msgstr "zagueiro"
+
+msgid "position|cm"
+msgstr "mc"
+
+msgid "position|dc"
+msgstr "za"
+
+msgid "position|defensive midfielder"
+msgstr "volante"
+
+msgid "position|dl"
+msgstr "le"
+
+msgid "position|dm"
+msgstr "vo"
+
+msgid "position|dr"
+msgstr "ld"
+
+msgid "position|forward"
+msgstr "atacante"
+
+msgid "position|fw"
+msgstr "at"
+
+msgid "position|g"
+msgstr "g"
+
+msgid "position|goalkeeper"
+msgstr "goleiro"
+
+msgid "position|left defender"
+msgstr "lateral esquerdo"
+
+msgid "position|right defender"
+msgstr "lateral direito"
 
 msgid "sign in failed"
 msgstr "cadastro falhou"

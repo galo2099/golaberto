@@ -38,7 +38,7 @@ columns_def = {
   },
   position: {
     header: "<th title='#{_("Position")}'>#{s_("Position|P")}</th>",
-    body: ->(p) { p.player.position },
+    body: ->(p) { s_("position|#{p.player.position}") },
     footer: ->(stats, first) { if first then "<th>#{_("Total")}</th>" else "<th></th>" end },
   },
   goals: {
