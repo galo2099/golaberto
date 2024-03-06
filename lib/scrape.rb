@@ -144,7 +144,7 @@ def fix_name(str)
     return "Patrocinense-MG"
   end
   if str == "CEOV Operário"
-    return "Operário Várzea-Grandense-MS"
+    return "Operário-MT"
   end
   if str == "Guarany de Sobral"
     return "Guarany-CE"
@@ -417,7 +417,7 @@ def create_player(url, soccerway_id)
   player_info = Hpricot(data)
   name = player_info.search('//*[@id="subheading"]/h1//text()').to_s
   full_name = player_info.search('//*[@id="page_player_1_block_player_passport_3"]/div/div/div[1]/div/dl/dd[@data-first_name="first_name"]//text()').to_s + " " + player_info.search('//*[@id="page_player_1_block_player_passport_3"]/div/div/div[1]/div/dl/dd[@data-last_name="last_name"]//text()').to_s
-  height = player_info.search('//*[@id="page_player_1_block_player_passport_3"]/div/div/div[1]/div/dl/dd[@data-height="height"]//text()').to_s
+  height = player_info.search('//*[@id="page_player_1_block_player_passport_3"]/div/div/div[1]/div/dl/dd[@data-height="height"]//text()')
   birthday = player_info.search('//*[@id="page_player_1_block_player_passport_3"]/div/div/div[1]/div/dl/dd[@data-date_of_birth="date_of_birth"]//text()').to_s
   position = player_info.search('//*[@id="page_player_1_block_player_passport_3"]/div/div/div[1]/div/dl/dd[@data-position="position"]//text()').to_s
   country = player_info.search('//*[@id="page_player_1_block_player_passport_3"]/div/div/div[1]/div/dl/dd[@data-nationality="nationality"]//text()').to_s
