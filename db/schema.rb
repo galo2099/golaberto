@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2024_03_01_032846) do
+ActiveRecord::Schema[7.1].define(version: 2024_03_05_235453) do
   create_table "__diesel_schema_migrations", primary_key: "version", id: { type: :string, limit: 50 }, charset: "utf8mb3", collation: "utf8mb3_unicode_ci", force: :cascade do |t|
     t.timestamp "run_on", default: -> { "CURRENT_TIMESTAMP" }, null: false
   end
@@ -218,6 +218,7 @@ ActiveRecord::Schema[7.1].define(version: 2024_03_01_032846) do
     t.float "rating"
     t.float "off_rating"
     t.float "def_rating"
+    t.integer "height"
     t.index ["rating"], name: "index_players_on_rating"
     t.index ["soccerway_id"], name: "index_players_on_soccerway_id", unique: true
   end

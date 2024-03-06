@@ -809,6 +809,9 @@ msgstr "Guiana"
 msgid "Haiti"
 msgstr "Haiti"
 
+msgid "Height"
+msgstr "Altura"
+
 msgid "Home"
 msgstr "Principal"
 
