@@ -407,7 +407,7 @@ def process_player(s, game, team_id, players, starter, end_of_match)
   return PlayerGame.new(player_id: player.id, game_id: game.id, team_id: team_id, on: on, off: off, yellow: yc, red: rc)
 end
 
-def create_player(url, soccerway_id)
+def create_player(url, soccerway_id, player = Player.new)
   data = with_http_retries { HTTParty.get(url, { headers: {"user-agent" => "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36",
                 "authority" => "us.soccerway.com",
                 "accept" => "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
@@ -495,7 +495,7 @@ def create_player(url, soccerway_id)
     country = "Viet Nam"
   end
 
-  player = Player.new(name: name, birth: birthday.to_date, country: country, full_name: full_name, soccerway_id: soccerway_id, height: height.try(:to_i))
+  player.update(name: name, birth: birthday.to_date, country: country, full_name: full_name, soccerway_id: soccerway_id, height: height[0].try(:to_s).try(:to_i))
   if position =~ /Goalkeeper/
     player.position = "g"
   end
@@ -509,6 +509,6 @@ def create_player(url, soccerway_id)
     player.position = "fw"
   end
   player.save!
-  puts player.name
+  p player
   return player
 end

@@ -51,7 +51,7 @@
         fraction = [0,1]
       end
 
-      "#{feet.floor}′ #{inches.floor if inches.floor > 0 || fraction[0] == 0}#{"#{fractions["#{fraction[0]}/#{fraction[1]}"]}" if fraction[0] != 0}″"
+      "#{feet.floor}′ #{inches.floor}#{"#{fractions["#{fraction[0]}/#{fraction[1]}"]}" if fraction[0] != 0}″"
     },
     "distance": -> (_key, distance:, **_options) {
       options = { precision: 0 }.merge(_options)
