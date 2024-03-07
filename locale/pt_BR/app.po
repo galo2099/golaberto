@@ -222,7 +222,7 @@ msgid "Birth"
 msgstr "Nascimento"
 
 msgid "Birthday"
-msgstr "Data de Nascimento"
+msgstr "Nascimento"
 
 msgid "Blogger blog name"
 msgstr "usuário Blogger"

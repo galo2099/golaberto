@@ -6,9 +6,13 @@
 <h2><%= @player.name %> - <%= @player.full_name %></h2>
 <h3><%= _("Bio") %></h3>
 <%= _("Country") %>: <%= image_tag @player.small_country_logo, alt: _(@player.country) %> <%= _(@player.country) %><br>
+<% if @player.birth %>
 <%= _("Birthday") %>: <%= l @player.birth, format: :long %> (<%= time_ago_in_words(@player.birth) %>)<br>
+<% end %>
 <%= _("Position") %>: <%= position_to_string @player.position, :long %><br>
-<%= _("Height") %>: <%= t(:height, height: @player.height) %>
+<% if @player.height %>
+<%= _("Height") %>: <%= t(:height, height: @player.height) %><br>
+<% end %>
 <h3><%= _("Stats") %></h3>
 <%= render :partial => "shared/player_stats_table", :locals => {
    player_stats: @player_stats,
