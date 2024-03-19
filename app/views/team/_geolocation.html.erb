@@ -52,7 +52,7 @@ markers = clusters.sort{|a,b|b[0]<=>a[0]}.map do |size,points|
 end.join("&")
 path = ""
 if show_path then
-  path = "&path=color:0xff0000|weight:5|#{points.map{|p|"#{p[:geometry][:coordinates][1]},#{p[:geometry][:coordinates][0]}"}.join("|")}"
+  path = "&path=color:0xff0000|weight:5|geodesic:true|#{points.map{|p|"#{p[:geometry][:coordinates][1]},#{p[:geometry][:coordinates][0]}"}.join("|")}"
 end
 %>
 <script src="https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js"></script>
