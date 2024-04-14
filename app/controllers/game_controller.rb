@@ -22,7 +22,7 @@ class GameController < ApplicationController
     @games = @games.joins(phase: :championship).where(championships: { category_id: @category }, played: @type != :scheduled)
 
     @min, @max = pagy_calendar_period(@games)
-    if not params[:week] then
+    if params[:week].blank? then
       params[:week_page] = ((Date.today + 2 - @min.to_date) / 7 + 1).to_i
     else
       params[:week_page] = ((params[:week].to_date + 2 - @min.to_date) / 7 + 1).to_i
