@@ -236,12 +236,12 @@
            <% first = true %>
            <% group.zones.each do |zone| %>
              <% odds = t[0].calculate_odds(zone["position"]) %>
-             <%= content_tag :td, odds ? sprintf("%02.2f", odds) : "", "data-group-id": group.id, "data-zone-name": zone["name"], class: "odds", style: "background-color: #{zone["color"]}; display: #{first ? "table-cell" : "none"}" %>
+             <%= content_tag :td, odds ? number_to_rounded(odds, precision: 2) : "", "data-group-id": group.id, "data-zone-name": zone["name"], class: "odds", style: "background-color: #{zone["color"]}; display: #{first ? "table-cell" : "none"}" %>
              <% first = false %>
            <% end %>
            <% (1..group.teams.size).each do |i| %>
              <% odds = if t[0].odds then t[0].odds[i-1] end %>
-             <%= content_tag :td, odds ? sprintf("%02.2f", odds) : "", "data-group-id": group.id, "data-zone-name": i, class: "odds", style: "background-color: lightgray; display: #{first ? "table-cell" : "none"}" %>
+             <%= content_tag :td, odds ? number_to_rounded(odds, precision: 2) : "", "data-group-id": group.id, "data-zone-name": i, class: "odds", style: "background-color: lightgray; display: #{first ? "table-cell" : "none"}" %>
              <% first = false %>
            <% end %>
          <% end %>

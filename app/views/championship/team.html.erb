@@ -164,7 +164,7 @@ $(function() {
   <% @groups[0].zones.each do |z| %>
     <tr>
       <td><span style="color: <%= z["color"]%>">▣</span> <%= z["name"] %>:</td>
-      <td><%= sprintf("%02.2f", @groups[0].team_groups.select{|t|t.team_id == @team.id}.first.calculate_odds(z["position"]).to_f) %>%</td>
+      <td><%= number_to_percentage(@groups[0].team_groups.select{|t|t.team_id == @team.id}.first.calculate_odds(z["position"]).to_f, precision: 2) %></td>
     </tr>
   <% end %>
 </table>

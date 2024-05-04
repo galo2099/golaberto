@@ -23,7 +23,7 @@
       <%= image_tag team.small_country_logo, width: 15, height: 15, title: _(team.country), alt: "" %>
       <%= _(team.country) %></td>
       <td>
-      <%= sprintf("%0.02f", team.rating || 0) %>
+      <%= number_to_rounded(team.rating || 0, precision: 2) %>
       </td>
       <% if can? :manage, team %>
         <td><%= link_to _('Edit'), :action => 'edit', :id => team %></td>

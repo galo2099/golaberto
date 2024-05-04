@@ -6,6 +6,8 @@ class ApplicationController < ActionController::Base
   include AuthenticatedSystem
   include Userstamp
 
+  helper ActiveSupport::NumberHelper
+
   before_action :set_locale
   before_action :set_current_user
   before_action :update_last_login

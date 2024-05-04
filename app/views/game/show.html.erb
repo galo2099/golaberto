@@ -74,9 +74,9 @@ away_importance = calculate_importance(@game.away_importance.to_f)
   <% if !@game.played? and (@game.home_importance != nil or @game.away_importance != nil) then %>
     <tr><td colspan="100"><b><%= _("Importance") %></td></tr>
     <tr>
-    <td align="center"><canvas title="<%= sprintf("%0.02f", home_importance) %>" style="width: 100px" id="gauge_home"/></td>
+    <td align="center"><canvas title="<%= number_to_rounded(home_importance, precision: 2) %>" style="width: 100px" id="gauge_home"/></td>
     <td colspan="7"/>
-    <td align="center"><canvas title="<%= sprintf("%0.02f", away_importance) %>" style="width: 100px" id="gauge_away"/></td>
+    <td align="center"><canvas title="<%= number_to_rounded(away_importance, precision: 2) %>" style="width: 100px" id="gauge_away"/></td>
     </tr>
 <script type="text/javascript">
 

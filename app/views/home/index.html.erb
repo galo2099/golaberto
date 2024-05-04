@@ -24,7 +24,7 @@
         <% if champ.region == region %>
           <tr><td>
             <%= championship_name champ, :controller => :championship, :action => :phases, :id => champ, :phase => champ.phases.try(:last)%> <br>
-          </td><td><%= sprintf("%0.02f", champ.avg_team_rating) %></td></tr>
+          </td><td><%= number_to_rounded(champ.avg_team_rating, precision: 2) %></td></tr>
         <% end %>
       <% end %>
     <% end %>
