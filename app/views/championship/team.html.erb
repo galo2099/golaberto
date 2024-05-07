@@ -100,7 +100,7 @@ $(function() {
     if (x > 0 && x <= <%= @groups[0].team_groups.size %> &&
         pos.y > 0 && pos.y < 100) {
       var names = <%== (1..@groups[0].team_groups.size).map{|i|i.ordinalize}.to_json %>;
-      var value = plot.getData()[0].data[x-1][1].toFixed(2);
+      var value = plot.getData()[0].data[x-1][1].toLocaleString("<%= I18n.locale %>")
       $("#odds_tooltip").html(names[x-1] + ": " + value + "%")
         .css({top: pos.pageY+5, left: pos.pageX+5})
         .fadeIn(200);
@@ -141,7 +141,7 @@ $(function() {
     }
     var fromIndex = Math.round(ranges.xaxis.from) - 1;
     var toIndex = Math.round(ranges.xaxis.to) - 1;
-    var value = plot.getData()[0].data.slice(fromIndex, toIndex).reduce((a, b) => a + b[1], 0).toFixed(2);
+    var value = plot.getData()[0].data.slice(fromIndex, toIndex).reduce((a, b) => a + b[1], 0).toLocaleString("<%= I18n.locale %>");
     var posFrom = plot.pointOffset({x: ranges.xaxis.from, y: ranges.yaxis.to});
     var posTo = plot.pointOffset({x: ranges.xaxis.to, y: ranges.yaxis.to});
     var odds_selection = $("#odds_selection").html("<%= _("Selected:") %> " + value + "%");
