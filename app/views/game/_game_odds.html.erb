@@ -237,7 +237,7 @@ $(function() {
           if (indexToRemove == -1) {
             indexToRemove = cur.label.length;
           }
-          return acc + div + "<td>" + cur.label.substr(0, indexToRemove) + "</td><td style='text-align: right'>" + (cur.point[1] * 100).toFixed(2) + "%" + "</td></tr>";
+          return acc + div + "<td>" + cur.label.substr(0, indexToRemove) + "</td><td style='text-align: right'>" + (cur.point[1] * 100).toLocaleString("<%= I18n.locale %>",  { minimumFractionDigits: 2, maximumFractionDigits: 2, }) + "%" + "</td></tr>";
         }, "") +
         "<tr><td colspan=3 style='text-align: center'>" + points[0].point[0] + "</tr>"
      ).css({top: pos.pageY + 10, left: pos.pageX + 10}).fadeIn(200);
@@ -305,9 +305,9 @@ $(function() {
         var odds = compute_odds(hp, ap, home_adv, away_adv);
         $('#odds_current_time').text(("" + Math.floor(current_time / 60)).padStart(2, '0') + ":" + ("" + (current_time % 60)).padStart(2, '0'));
         plot.getOptions().grid.markings[1] = { xaxis: { from: current_time / 60, to: current_time/60 }, color: "rgba(0,0,0,0.15)" };
-        plot.getData()[0].label = "<%= @game.home.name %>: " + (odds[0] * 100).toFixed(2) + "%";
-        plot.getData()[1].label = "Draw: " + (odds[1] * 100).toFixed(2) + "%";
-        plot.getData()[2].label = "<%= @game.away.name %>: " + (odds[2] * 100).toFixed(2) + "%";
+        plot.getData()[0].label = "<%= @game.home.name %>: " + (odds[0] * 100).toLocaleString("<%= I18n.locale %>",  { minimumFractionDigits: 2, maximumFractionDigits: 2, }) + "%";
+        plot.getData()[1].label = "Draw: " + (odds[1] * 100).toLocaleString("<%= I18n.locale %>",  { minimumFractionDigits: 2, maximumFractionDigits: 2, }) + "%";
+        plot.getData()[2].label = "<%= @game.away.name %>: " + (odds[2] * 100).toLocaleString("<%= I18n.locale %>",  { minimumFractionDigits: 2, maximumFractionDigits: 2, }) + "%";
         plot.setupGrid();
         plot.draw();
       }

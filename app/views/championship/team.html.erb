@@ -100,7 +100,7 @@ $(function() {
     if (x > 0 && x <= <%= @groups[0].team_groups.size %> &&
         pos.y > 0 && pos.y < 100) {
       var names = <%== (1..@groups[0].team_groups.size).map{|i|i.ordinalize}.to_json %>;
-      var value = plot.getData()[0].data[x-1][1].toLocaleString("<%= I18n.locale %>")
+      var value = plot.getData()[0].data[x-1][1].toLocaleString("<%= I18n.locale %>",  { minimumFractionDigits: 2, maximumFractionDigits: 2, })
       $("#odds_tooltip").html(names[x-1] + ": " + value + "%")
         .css({top: pos.pageY+5, left: pos.pageX+5})
         .fadeIn(200);
@@ -141,7 +141,7 @@ $(function() {
     }
     var fromIndex = Math.round(ranges.xaxis.from) - 1;
     var toIndex = Math.round(ranges.xaxis.to) - 1;
-    var value = plot.getData()[0].data.slice(fromIndex, toIndex).reduce((a, b) => a + b[1], 0).toLocaleString("<%= I18n.locale %>");
+    var value = plot.getData()[0].data.slice(fromIndex, toIndex).reduce((a, b) => a + b[1], 0).toLocaleString("<%= I18n.locale %>", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     var posFrom = plot.pointOffset({x: ranges.xaxis.from, y: ranges.yaxis.to});
     var posTo = plot.pointOffset({x: ranges.xaxis.to, y: ranges.yaxis.to});
     var odds_selection = $("#odds_selection").html("<%= _("Selected:") %> " + value + "%");
@@ -334,9 +334,6 @@ $(function() {
 
     graphDiv.bind("plothover", function (event, pos, item) {
       if (item) {
-        var x = item.datapoint[0].toFixed(2);
-        var y = item.datapoint[1].toFixed(2);
-
         $('#placeholder<%=idx%>').css('cursor', 'pointer');
         $("#tooltip").html(data[<%=idx%>]["tooltips"][Math.floor(item.seriesIndex/4)][item.dataIndex])
             .css({top: pos.pageY+5, left: pos.pageX+5})

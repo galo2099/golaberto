@@ -42,7 +42,7 @@ data = teams[0,3].map{|t| Team.get_historical_ratings_2_weeks(t.id)  }
         points.reduce(function(acc, cur) {
           if (cur.point[1] == null) return acc;
           var div = '<tr><td><div style="border:1px solid #ccc;padding:1px"><div style="width:4px;height:0;border:5px solid ' + cur.color + ';overflow:hidden"></div></div></td>';
-          return acc + div + "<td>" + cur.label + "</td><td>" + cur.point[1].toFixed(2) + "</td></tr>";
+          return acc + div + "<td>" + cur.label + "</td><td>" + cur.point[1].toLocaleString("<%= I18n.locale %>",  { minimumFractionDigits: 2, maximumFractionDigits: 2, }) + "</td></tr>";
         }, "") +
         "<tr><td colspan=3 style='text-align: center'>" + new Date(points[0].point[0]*1000).toISOString().slice(0, 10) + "</tr>"
       ).css({top: pos.pageY + 10, left: pos.pageX + 10}).fadeIn(200);
