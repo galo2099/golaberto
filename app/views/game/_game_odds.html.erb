@@ -135,8 +135,8 @@ $(function() {
     var home_red = [...Array(total_time+1).keys()].map(function(x) { return 0; });
     var away_red = [...Array(total_time+1).keys()].map(function(x) { return 0; });
 
-    <%= @game.player_games.where(red: true, team_id: @game.home_id).where("off > 0").pluck(:off) %>.map(function(x) { home_red[x] = 1; });
-    <%= @game.player_games.where(red: true, team_id: @game.away_id).where("off > 0").pluck(:off) %>.map(function(x) { away_red[x] = 1; });
+    <%= @game.player_games.where(red: true, team_id: @game.home_id).where("off > 0").pluck(:off) %>.map(function(x) { home_red[x] += 1; });
+    <%= @game.player_games.where(red: true, team_id: @game.away_id).where("off > 0").pluck(:off) %>.map(function(x) { away_red[x] += 1; });
 
     var markings = [{
       xaxis: { from: 0, to: 0 }, color: "rgba(0,0,0,0.15)"
@@ -147,14 +147,14 @@ $(function() {
     var home_score = 0;
     var away_score = 0;
     for (var i = 0; i < home_red.length; i++) {
-      if (home_red[i] == 1) {
+      if (home_red[i] >= 1) {
         var time = i;
         markings.push({ xaxis: { from: time, to: time }, color: "rgba(237,195,64,0.2)" });
         ticks.push([time, "\u2588"]);
       }
     }
     for (var i = 0; i < away_red.length; i++) {
-      if (away_red[i] == 1) {
+      if (away_red[i] >= 1) {
         var time = i;
         markings.push({ xaxis: { from: time, to: time }, color: "rgba(237,195,64,0.2)" });
         ticks.push([time, "\u2588"]);
@@ -198,13 +198,13 @@ $(function() {
     graphOptions.xaxes[1].ticks = ticks;
 
     var odds_data = [...Array(total_time+1).keys()].map(function(x) {
-      if (home_red[x] == 1) {
-        home_power *= 0.75;
-        away_power *= 1.25;
+      if (home_red[x] >= 1) {
+        home_power *= 0.8 ** home_red[x];
+        away_power *= 1.25 ** home_red[x];
       }
-      if (away_red[x] == 1) {
-        home_power *= 1.25;
-        away_power *= 0.75;
+      if (away_red[x] >= 1) {
+        home_power *= 1.25 ** away_red[x];
+        away_power *= 0.8 ** away_red[x];
       }
       var hp = home_power / 95 * (total_time - x);
       var ap = away_power / 95 * (total_time - x);
