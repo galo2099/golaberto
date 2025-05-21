@@ -71,57 +71,44 @@ $(function() {
       hoverable: true,
       clickable: true,
 <%
-  # Get all valid zones defined for the group.
+  # Get all valid zones defined for the group; their order determines layer order.
   all_defined_zones = []
   if @groups[0]&.zones.is_a?(Array)
     all_defined_zones = @groups[0].zones.select do |z|
       z.is_a?(Hash) && z["position"].is_a?(Array) && z["color"].present?
     end
   end
-  
+
+  num_total_zone_layers = all_defined_zones.size
   num_ranks = @groups[0]&.team_groups&.size || 0 # Number of teams/positions
   flot_markings = []
-
-  # Proceed only if there are defined zones and ranks to draw them on.
-  if !all_defined_zones.empty? && num_ranks > 0
+  
+  # Proceed only if there are layers to draw and ranks to draw them on
+  if num_total_zone_layers > 0 && num_ranks > 0
     graph_max_y = 101.0 # Y-axis height of the graph
+    fixed_segment_height = graph_max_y / num_total_zone_layers
 
     # Iterate through each rank position on the x-axis
     (1..num_ranks).each do |p_rank|
-      # Identify all zones that are active for the current rank (p_rank)
-      zones_for_p_rank = []
-      all_defined_zones.each do |zone|
-        if zone["position"].include?(p_rank)
-          zones_for_p_rank << zone
-        end
-      end
+      # Iterate through each defined zone, treating it as a horizontal layer
+      # The order in all_defined_zones determines the stacking order (index 0 is bottom layer)
+      all_defined_zones.each_with_index do |zone_j, j|
+        # Calculate the y-coordinates for this specific layer
+        layer_y_from = j * fixed_segment_height
+        layer_y_to = (j + 1) * fixed_segment_height
 
-      if zones_for_p_rank.size == 1
-        # This rank belongs to only one zone: marking spans full height.
-        flot_markings << {
-          xaxis: { from: p_rank - 0.5, to: p_rank + 0.5 },
-          yaxis: { from: 0, to: graph_max_y }, # Full y-axis span
-          color: zones_for_p_rank[0]["color"]
-        }
-      elsif zones_for_p_rank.size > 1
-        # This rank belongs to multiple zones: create horizontal stripes of equal height for this rank.
-        # Segment height is dynamic, based on the number of zones overlapping AT THIS RANK.
-        segment_height = graph_max_y / zones_for_p_rank.size 
-        
-        # Sort the zones active for this rank to ensure consistent stripe order.
-        sorted_zones_for_p_rank = zones_for_p_rank.sort_by { |z| [z["color"], z["name"]] }
-        
-        sorted_zones_for_p_rank.each_with_index do |zone, i|
-          segment_y_from = i * segment_height
-          segment_y_to = (i + 1) * segment_height
+        # Check if the current rank (p_rank) is part of this zone_j's positions
+        if zone_j["position"].include?(p_rank)
+          # If yes, create a marking for this layer at this rank
           flot_markings << {
-            xaxis: { from: p_rank - 0.5, to: p_rank + 0.5 }, # Full x-width for the rank
-            yaxis: { from: segment_y_from, to: segment_y_to },   # Dynamically segmented y-axis
-            color: zone["color"]
+            xaxis: { from: p_rank - 0.5, to: p_rank + 0.5 }, # Full width for the rank
+            yaxis: { from: layer_y_from, to: layer_y_to },   # Specific y-slice for this layer
+            color: zone_j["color"]
           }
         end
+        # If p_rank is not in zone_j["position"], no marking is added for this layer at this rank,
+        # leaving it transparent or showing the graph's base background.
       end
-      # If zones_for_p_rank.size is 0 (rank is in no zones), no markings are added for this rank.
     end
   end
 %>
