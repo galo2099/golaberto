@@ -228,41 +228,48 @@ class GroupsTest < ApplicationSystemTestCase
 
     # Expected order for Rank 1 segments (Blue, Green, Red) due to sort_by { |z| [z["color"], z["name"]] }
     # 'rgb(0,0,255)' (Blue) < 'rgb(0,255,0)' (Green) < 'rgb(255,0,0)' (Red)
-
-    # Rank 1 - Segment 1 (Blue)
-    marking_r1_s1 = markings_data.find { |m| m["xaxis"]["from"] == 0.5 && m["color"] == 'rgb(0,0,255)' }
-    assert_not_nil marking_r1_s1, "Marking for Rank 1, Segment 1 (Blue) not found"
-    assert_in_delta 0.5, marking_r1_s1["xaxis"]["from"]
-    assert_in_delta 0.5 + (1.0/3.0), marking_r1_s1["xaxis"]["to"]
-    assert_equal 'rgb(0,0,255)', marking_r1_s1["color"]
-
-    # Rank 1 - Segment 2 (Green)
-    # Need to find based on 'from' as color alone isn't unique for the whole set
-    marking_r1_s2 = markings_data.find { |m| m["color"] == 'rgb(0,255,0)' && m["xaxis"]["from"] > 0.5 && m["xaxis"]["from"] < 1.0 }
-    assert_not_nil marking_r1_s2, "Marking for Rank 1, Segment 2 (Green) not found"
-    assert_in_delta 0.5 + (1.0/3.0), marking_r1_s2["xaxis"]["from"]
-    assert_in_delta 0.5 + 2.0*(1.0/3.0), marking_r1_s2["xaxis"]["to"]
-    assert_equal 'rgb(0,255,0)', marking_r1_s2["color"]
     
-    # Rank 1 - Segment 3 (Red)
-    marking_r1_s3 = markings_data.find { |m| m["color"] == 'rgb(255,0,0)' && m["xaxis"]["from"] > (0.5 + (1.0/3.0)) && m["xaxis"]["from"] < 1.5 }
-    assert_not_nil marking_r1_s3, "Marking for Rank 1, Segment 3 (Red) not found"
-    assert_in_delta 0.5 + 2.0*(1.0/3.0), marking_r1_s3["xaxis"]["from"]
-    assert_in_delta 1.5, marking_r1_s3["xaxis"]["to"]
-    assert_equal 'rgb(255,0,0)', marking_r1_s3["color"]
+    graph_max_y = 101.0
+    segment_height_third = graph_max_y / 3.0
 
-    # Rank 2 (Blue)
-    marking_r2 = markings_data.find { |m| m["xaxis"]["from"] == 1.5 }
+    # Rank 1 Markings (Horizontal Stripes)
+    rank_1_markings = markings_data.select { |m| m["xaxis"]["from"] == 0.5 && m["xaxis"]["to"] == 1.5 }
+    assert_equal 3, rank_1_markings.count, "Expected 3 markings for Rank 1"
+
+    # Stripe 1 (Blue) for Rank 1
+    stripe1_blue = rank_1_markings.find { |m| m["color"] == 'rgb(0,0,255)' }
+    assert_not_nil stripe1_blue, "Stripe 1 (Blue) for Rank 1 not found"
+    assert_in_delta 0.0, stripe1_blue["yaxis"]["from"]
+    assert_in_delta segment_height_third, stripe1_blue["yaxis"]["to"]
+
+    # Stripe 2 (Green) for Rank 1
+    stripe2_green = rank_1_markings.find { |m| m["color"] == 'rgb(0,255,0)' }
+    assert_not_nil stripe2_green, "Stripe 2 (Green) for Rank 1 not found"
+    assert_in_delta segment_height_third, stripe2_green["yaxis"]["from"]
+    assert_in_delta 2.0 * segment_height_third, stripe2_green["yaxis"]["to"]
+
+    # Stripe 3 (Red) for Rank 1
+    stripe3_red = rank_1_markings.find { |m| m["color"] == 'rgb(255,0,0)' }
+    assert_not_nil stripe3_red, "Stripe 3 (Red) for Rank 1 not found"
+    assert_in_delta 2.0 * segment_height_third, stripe3_red["yaxis"]["from"]
+    assert_in_delta graph_max_y, stripe3_red["yaxis"]["to"] # Should go up to graph_max_y
+
+    # Rank 2 (Single Zone: Blue)
+    marking_r2 = markings_data.find { |m| m["xaxis"]["from"] == 1.5 && m["color"] == 'rgb(0,0,255)' }
     assert_not_nil marking_r2, "Marking for Rank 2 (Blue) not found"
     assert_in_delta 1.5, marking_r2["xaxis"]["from"]
     assert_in_delta 2.5, marking_r2["xaxis"]["to"]
+    assert_in_delta 0.0, marking_r2["yaxis"]["from"]
+    assert_in_delta graph_max_y, marking_r2["yaxis"]["to"]
     assert_equal 'rgb(0,0,255)', marking_r2["color"]
     
-    # Rank 3 (Red)
-    marking_r3 = markings_data.find { |m| m["xaxis"]["from"] == 2.5 }
+    # Rank 3 (Single Zone: Red)
+    marking_r3 = markings_data.find { |m| m["xaxis"]["from"] == 2.5 && m["color"] == 'rgb(255,0,0)' }
     assert_not_nil marking_r3, "Marking for Rank 3 (Red) not found"
     assert_in_delta 2.5, marking_r3["xaxis"]["from"]
     assert_in_delta 3.5, marking_r3["xaxis"]["to"]
+    assert_in_delta 0.0, marking_r3["yaxis"]["from"]
+    assert_in_delta graph_max_y, marking_r3["yaxis"]["to"]
     assert_equal 'rgb(255,0,0)', marking_r3["color"]
   end
 end

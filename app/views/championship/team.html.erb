@@ -93,23 +93,28 @@ $(function() {
 
       if zones_for_p_rank.size == 1
         # Single zone for this rank
-        flot_markings << { xaxis: { from: p_rank - 0.5, to: p_rank + 0.5 }, color: zones_for_p_rank[0]["color"] }
+        flot_markings << {
+          xaxis: { from: p_rank - 0.5, to: p_rank + 0.5 },
+          yaxis: { from: 0, to: 101.0 }, # Define full y-axis span
+          color: zones_for_p_rank[0]["color"]
+        }
       elsif zones_for_p_rank.size > 1
-        # Multiple zones for this rank (overlapping)
-        segment_width = 1.0 / zones_for_p_rank.size
+        # Multiple zones for this rank (overlapping) - now horizontal stripes
+        graph_max_y = 101.0
+        segment_height = graph_max_y / zones_for_p_rank.size
+        
         # Sort by color to ensure consistent ordering for the same set of overlapping zones
-        # This helps in making the visual output deterministic if colors have any inherent order preference
-        # or if not sorting leads to flickering/changing segment order on re-renders with identical data.
-        # Using zone name as a secondary sort key if colors are identical.
         sorted_zones_for_p_rank = zones_for_p_rank.sort_by { |z| [z["color"], z["name"]] }
         
         sorted_zones_for_p_rank.each_with_index do |zone, i|
-          segment_from = (p_rank - 0.5) + (i * segment_width)
-          segment_to = (p_rank - 0.5) + ((i + 1) * segment_width)
-          # Ensure segments don't have infinitesimal width or from == to, which Flot might ignore or error on.
-          # This is unlikely with segment_width > 0, but good to be mindful.
-          # Flot generally handles from/to being very close.
-          flot_markings << { xaxis: { from: segment_from, to: segment_to }, color: zone["color"] }
+          segment_y_from = i * segment_height
+          segment_y_to = (i + 1) * segment_height
+          
+          flot_markings << {
+            xaxis: { from: p_rank - 0.5, to: p_rank + 0.5 }, # Full x-width for the rank
+            yaxis: { from: segment_y_from, to: segment_y_to }, # Segmented y-axis
+            color: zone["color"]
+          }
         end
       end
     end
