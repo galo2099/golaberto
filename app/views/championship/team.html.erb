@@ -71,80 +71,92 @@ $(function() {
       hoverable: true,
       clickable: true,
 <%
-  # --- Part 1: Lane Allocation ---
-  all_defined_zones = []
+  # --- Part 0: Initial Zone Processing (add _original_idx for stable sorting) ---
+  initial_zones_with_idx = []
   if @groups[0]&.zones.is_a?(Array)
-    all_defined_zones = @groups[0].zones.select do |z|
-      z.is_a?(Hash) && z["position"].is_a?(Array) && z["color"].present?
+    @groups[0].zones.each_with_index do |z, idx|
+      if z.is_a?(Hash) && z["position"].is_a?(Array) && z["color"].present? && z["position"].all?{|pos| pos.is_a?(Integer)}
+        # Ensure positions are integers for '&' operator
+        initial_zones_with_idx << z.merge('_original_idx' => idx)
+      end
     end
   end
 
-  allocated_lanes = [] # This will be an array of arrays, each inner array is a lane of zone objects.
-  
-  if !all_defined_zones.empty?
-    # Sort zones by the minimum position to try and pack more efficiently,
-    # though simple greedy based on input order is also acceptable.
-    # This is an optional optimization. For now, let's stick to input order for simplicity
-    # as specified in the algorithm design.
-    # sorted_input_zones = all_defined_zones.sort_by { |z| z["position"].min || Float::INFINITY }
-    # Using all_defined_zones directly maintains original processing order.
+  # --- Part 1: Zone Grouping (Connected Components) ---
+  zone_components = []
+  visited_indices_for_components = Set.new # Uses index from initial_zones_with_idx
 
-    all_defined_zones.each do |current_zone|
-      placed_in_existing_lane = false
-      allocated_lanes.each do |lane|
-        can_be_added_to_this_lane = true
-        lane.each do |existing_zone_in_lane|
-          # Check for rank overlap
-          if !(current_zone["position"] & existing_zone_in_lane["position"]).empty?
-            can_be_added_to_this_lane = false
-            break
+  initial_zones_with_idx.each_with_index do |zone_i_obj, i|
+    if visited_indices_for_components.include?(i)
+      next
+    end
+
+    current_component_zones = []
+    q = [zone_i_obj] # Queue for BFS-like traversal
+    visited_indices_for_components.add(i)
+
+    head = 0
+    while head < q.size # Manual queue for Ruby array
+      current_member = q[head]
+      head += 1
+      
+      current_component_zones << current_member
+
+      initial_zones_with_idx.each_with_index do |zone_j_obj, j|
+        if !visited_indices_for_components.include?(j)
+          # Check for rank overlap: (array1 & array2).any?
+          if !(current_member["position"] & zone_j_obj["position"]).empty?
+            visited_indices_for_components.add(j)
+            q << zone_j_obj
           end
         end
-        
-        if can_be_added_to_this_lane
-          lane << current_zone
-          placed_in_existing_lane = true
-          break
-        end
-      end
-      
-      unless placed_in_existing_lane
-        allocated_lanes << [current_zone] # Create a new lane with the current zone
       end
     end
+    # Sort zones within this discovered component by their original definition order
+    current_component_zones.sort_by! { |z| z['_original_idx'] }
+    zone_components << current_component_zones
   end
-  
-  num_active_lanes = allocated_lanes.size
+
+  # Sort the components themselves by the original index of their first zone
+  # This ensures a stable vertical stacking order for the groups
+  zone_components.sort_by! { |component| component.first['_original_idx'] }
+
+  # --- Part 2: Vertical Space Allocation & Marking Generation ---
+  num_overall_groups = zone_components.size
   num_ranks = @groups[0]&.team_groups&.size || 0
   flot_markings = []
 
-  # --- Part 2: Marking Generation ---
-  if num_active_lanes > 0 && num_ranks > 0
+  if num_overall_groups > 0 && num_ranks > 0
     graph_max_y = 101.0
-    fixed_lane_height = graph_max_y / num_active_lanes
+    height_per_group = graph_max_y / num_overall_groups # Equal height for each major component/group
 
-    (1..num_ranks).each do |p_rank| # For each rank column
-      allocated_lanes.each_with_index do |lane_content, lane_idx| # For each allocated lane
-        # Determine y-coordinates for this current lane
-        layer_y_from = lane_idx * fixed_lane_height
-        layer_y_to = (lane_idx + 1) * fixed_lane_height
+    zone_components.each_with_index do |component_content, group_idx|
+      y_group_start = group_idx * height_per_group # Y-offset for the current group
+      
+      num_zones_in_this_component = component_content.size
+      if num_zones_in_this_component == 0
+        next # Should ideally not happen if components are formed correctly
+      end
+      
+      # Height for sub-lanes within this specific group
+      sub_lane_height = height_per_group / num_zones_in_this_component 
 
-        # Find which zone in THIS lane (if any) is active for p_rank
-        active_zone_in_this_lane_for_prank = nil
-        lane_content.each do |zone_in_lane|
-          if zone_in_lane["position"].include?(p_rank)
-            active_zone_in_this_lane_for_prank = zone_in_lane
-            break # Since zones in the same lane don't overlap by rank, only one can be active
+      (1..num_ranks).each do |p_rank| # For each rank column
+        # Zones within component_content are already sorted by _original_idx
+        component_content.each_with_index do |zone_k_in_component, k_idx_in_component|
+          
+          # Y-coordinates for this specific zone's sub-lane within its group's allocated space
+          y_sub_lane_from = y_group_start + (k_idx_in_component * sub_lane_height)
+          y_sub_lane_to = y_group_start + ((k_idx_in_component + 1) * sub_lane_height)
+
+          # Check if the current rank (p_rank) is part of this zone's positions
+          if zone_k_in_component["position"].include?(p_rank)
+            flot_markings << {
+              xaxis: { from: p_rank - 0.5, to: p_rank + 0.5 },
+              yaxis: { from: y_sub_lane_from, to: y_sub_lane_to },
+              color: zone_k_in_component["color"]
+            }
           end
-        end
-
-        if active_zone_in_this_lane_for_prank
-          # If a zone in this lane is active for p_rank, create a marking
-          flot_markings << {
-            xaxis: { from: p_rank - 0.5, to: p_rank + 0.5 },
-            yaxis: { from: layer_y_from, to: layer_y_to },
-            color: active_zone_in_this_lane_for_prank["color"]
-          }
         end
       end
     end

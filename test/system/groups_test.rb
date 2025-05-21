@@ -224,80 +224,79 @@ class GroupsTest < ApplicationSystemTestCase
     markings_data = JSON.parse(markings_json_string)
 
     # 4. Assertions
-    # 4. Assertions
+    # 4. Assertions for 'Connected Components' Logic
     assert_equal 8, markings_data.count, "Unexpected total number of markings"
-
     graph_max_y = 101.0
-    num_active_lanes = 2 # Expected from the greedy algorithm
-    fixed_lane_height = graph_max_y / num_active_lanes
     
-    # Helper to find a specific marking
-    find_marking = ->(rank_from, y_from_coord, color) {
+    # Expected: C1 = [ZoneA, ZoneB, ZoneC], C2 = [ZoneD]
+    # num_overall_groups = 2
+    height_per_group = graph_max_y / 2.0 # 50.5
+
+    # C1: 3 zones (A, B, C based on original_idx)
+    sub_lane_height_C1 = height_per_group / 3.0 # approx 16.83
+    # C2: 1 zone (D)
+    sub_lane_height_C2 = height_per_group / 1.0 # 50.5
+
+    # Helper to find a specific marking more precisely
+    find_marking_detail = ->(rank_val, y_from_expected, y_to_expected, color_expected) {
       markings_data.find { |m|
-        (m["xaxis"]["from"] - rank_from).abs < 0.001 &&
-        (m["yaxis"]["from"] - y_from_coord).abs < 0.001 &&
-        m["color"] == color
+        (m["xaxis"]["from"] - (rank_val - 0.5)).abs < 0.001 &&
+        (m["xaxis"]["to"] - (rank_val + 0.5)).abs < 0.001 &&
+        (m["yaxis"]["from"] - y_from_expected).abs < 0.001 &&
+        (m["yaxis"]["to"] - y_to_expected).abs < 0.001 &&
+        m["color"] == color_expected
       }
     }
 
-    # Rank 1 (xaxis: from 0.5)
-    rank1_markings_count = markings_data.count { |m| (m["xaxis"]["from"] - 0.5).abs < 0.001 }
-    assert_equal 2, rank1_markings_count, "Expected 2 markings for Rank 1"
+    # --- Rank 1 (xaxis: from 0.5, to 1.5) ---
+    # C1, ZoneA (Green, original_idx 0 -> sub-lane 0 of C1)
+    # C1, ZoneC (Red,   original_idx 2 -> sub-lane 2 of C1)
+    r1_markings_count = markings_data.count { |m| (m["xaxis"]["from"] - 0.5).abs < 0.001 }
+    assert_equal 2, r1_markings_count, "Expected 2 markings for Rank 1"
+
+    m_r1_c1_za = find_marking_detail.call(1, 0 * sub_lane_height_C1, 1 * sub_lane_height_C1, 'rgb(0,255,0)')
+    assert_not_nil m_r1_c1_za, "Rank 1, C1-ZoneA (Green) not found"
     
-    # Lane 0 (ZoneA Green)
-    m_r1_l0_za = find_marking.call(0.5, 0 * fixed_lane_height, 'rgb(0,255,0)')
-    assert_not_nil m_r1_l0_za, "Rank 1, Lane 0 (ZoneA Green) not found"
-    assert_in_delta 1.5, m_r1_l0_za["xaxis"]["to"]
-    assert_in_delta 1 * fixed_lane_height, m_r1_l0_za["yaxis"]["to"]
+    m_r1_c1_zc = find_marking_detail.call(1, 2 * sub_lane_height_C1, 3 * sub_lane_height_C1, 'rgb(255,0,0)')
+    assert_not_nil m_r1_c1_zc, "Rank 1, C1-ZoneC (Red) not found"
 
-    # Lane 1 (ZoneC Red)
-    m_r1_l1_zc = find_marking.call(0.5, 1 * fixed_lane_height, 'rgb(255,0,0)')
-    assert_not_nil m_r1_l1_zc, "Rank 1, Lane 1 (ZoneC Red) not found"
-    assert_in_delta 1.5, m_r1_l1_zc["xaxis"]["to"]
-    assert_in_delta 2 * fixed_lane_height, m_r1_l1_zc["yaxis"]["to"] # which is graph_max_y
+    # --- Rank 2 (xaxis: from 1.5, to 2.5) ---
+    # C1, ZoneA (Green, original_idx 0 -> sub-lane 0 of C1)
+    r2_markings_count = markings_data.count { |m| (m["xaxis"]["from"] - 1.5).abs < 0.001 }
+    assert_equal 1, r2_markings_count, "Expected 1 marking for Rank 2"
+    m_r2_c1_za = find_marking_detail.call(2, 0 * sub_lane_height_C1, 1 * sub_lane_height_C1, 'rgb(0,255,0)')
+    assert_not_nil m_r2_c1_za, "Rank 2, C1-ZoneA (Green) not found"
 
-    # Rank 2 (xaxis: from 1.5)
-    rank2_markings_count = markings_data.count { |m| (m["xaxis"]["from"] - 1.5).abs < 0.001 }
-    assert_equal 1, rank2_markings_count, "Expected 1 marking for Rank 2"
-    m_r2_l0_za = find_marking.call(1.5, 0 * fixed_lane_height, 'rgb(0,255,0)')
-    assert_not_nil m_r2_l0_za, "Rank 2, Lane 0 (ZoneA Green) not found"
-    assert_in_delta 2.5, m_r2_l0_za["xaxis"]["to"]
-    assert_in_delta 1 * fixed_lane_height, m_r2_l0_za["yaxis"]["to"]
-    
-    # Rank 3 (xaxis: from 2.5)
-    rank3_markings_count = markings_data.count { |m| (m["xaxis"]["from"] - 2.5).abs < 0.001 }
-    assert_equal 2, rank3_markings_count, "Expected 2 markings for Rank 3"
-    m_r3_l0_zb = find_marking.call(2.5, 0 * fixed_lane_height, 'rgb(0,0,255)')
-    assert_not_nil m_r3_l0_zb, "Rank 3, Lane 0 (ZoneB Blue) not found"
-    assert_in_delta 3.5, m_r3_l0_zb["xaxis"]["to"]
-    assert_in_delta 1 * fixed_lane_height, m_r3_l0_zb["yaxis"]["to"]
-    m_r3_l1_zc = find_marking.call(2.5, 1 * fixed_lane_height, 'rgb(255,0,0)')
-    assert_not_nil m_r3_l1_zc, "Rank 3, Lane 1 (ZoneC Red) not found"
-    assert_in_delta 3.5, m_r3_l1_zc["xaxis"]["to"]
-    assert_in_delta 2 * fixed_lane_height, m_r3_l1_zc["yaxis"]["to"]
+    # --- Rank 3 (xaxis: from 2.5, to 3.5) ---
+    # C1, ZoneB (Blue, original_idx 1 -> sub-lane 1 of C1)
+    # C1, ZoneC (Red,  original_idx 2 -> sub-lane 2 of C1)
+    r3_markings_count = markings_data.count { |m| (m["xaxis"]["from"] - 2.5).abs < 0.001 }
+    assert_equal 2, r3_markings_count, "Expected 2 markings for Rank 3"
+    m_r3_c1_zb = find_marking_detail.call(3, 1 * sub_lane_height_C1, 2 * sub_lane_height_C1, 'rgb(0,0,255)')
+    assert_not_nil m_r3_c1_zb, "Rank 3, C1-ZoneB (Blue) not found"
+    m_r3_c1_zc = find_marking_detail.call(3, 2 * sub_lane_height_C1, 3 * sub_lane_height_C1, 'rgb(255,0,0)')
+    assert_not_nil m_r3_c1_zc, "Rank 3, C1-ZoneC (Red) not found"
 
-    # Rank 4 (xaxis: from 3.5)
-    rank4_markings_count = markings_data.count { |m| (m["xaxis"]["from"] - 3.5).abs < 0.001 }
-    assert_equal 1, rank4_markings_count, "Expected 1 marking for Rank 4"
-    m_r4_l0_zb = find_marking.call(3.5, 0 * fixed_lane_height, 'rgb(0,0,255)')
-    assert_not_nil m_r4_l0_zb, "Rank 4, Lane 0 (ZoneB Blue) not found"
-    assert_in_delta 4.5, m_r4_l0_zb["xaxis"]["to"]
-    assert_in_delta 1 * fixed_lane_height, m_r4_l0_zb["yaxis"]["to"]
+    # --- Rank 4 (xaxis: from 3.5, to 4.5) ---
+    # C1, ZoneB (Blue, original_idx 1 -> sub-lane 1 of C1)
+    r4_markings_count = markings_data.count { |m| (m["xaxis"]["from"] - 3.5).abs < 0.001 }
+    assert_equal 1, r4_markings_count, "Expected 1 marking for Rank 4"
+    m_r4_c1_zb = find_marking_detail.call(4, 1 * sub_lane_height_C1, 2 * sub_lane_height_C1, 'rgb(0,0,255)')
+    assert_not_nil m_r4_c1_zb, "Rank 4, C1-ZoneB (Blue) not found"
 
-    # Rank 5 (xaxis: from 4.5)
-    rank5_markings_count = markings_data.count { |m| (m["xaxis"]["from"] - 4.5).abs < 0.001 }
-    assert_equal 1, rank5_markings_count, "Expected 1 marking for Rank 5"
-    m_r5_l1_zd = find_marking.call(4.5, 1 * fixed_lane_height, 'rgb(255,255,0)')
-    assert_not_nil m_r5_l1_zd, "Rank 5, Lane 1 (ZoneD Yellow) not found"
-    assert_in_delta 5.5, m_r5_l1_zd["xaxis"]["to"]
-    assert_in_delta 2 * fixed_lane_height, m_r5_l1_zd["yaxis"]["to"]
+    # --- Rank 5 (xaxis: from 4.5, to 5.5) ---
+    # C2, ZoneD (Yellow, original_idx 3 -> sub-lane 0 of C2)
+    r5_markings_count = markings_data.count { |m| (m["xaxis"]["from"] - 4.5).abs < 0.001 }
+    assert_equal 1, r5_markings_count, "Expected 1 marking for Rank 5"
+    y_c2_start = height_per_group # Start of Component 2's y-space
+    m_r5_c2_zd = find_marking_detail.call(5, y_c2_start + 0 * sub_lane_height_C2, y_c2_start + 1 * sub_lane_height_C2, 'rgb(255,255,0)')
+    assert_not_nil m_r5_c2_zd, "Rank 5, C2-ZoneD (Yellow) not found"
 
-    # Rank 6 (xaxis: from 5.5)
-    rank6_markings_count = markings_data.count { |m| (m["xaxis"]["from"] - 5.5).abs < 0.001 }
-    assert_equal 1, rank6_markings_count, "Expected 1 marking for Rank 6"
-    m_r6_l1_zd = find_marking.call(5.5, 1 * fixed_lane_height, 'rgb(255,255,0)')
-    assert_not_nil m_r6_l1_zd, "Rank 6, Lane 1 (ZoneD Yellow) not found"
-    assert_in_delta 6.5, m_r6_l1_zd["xaxis"]["to"]
-    assert_in_delta 2 * fixed_lane_height, m_r6_l1_zd["yaxis"]["to"]
+    # --- Rank 6 (xaxis: from 5.5, to 6.5) ---
+    # C2, ZoneD (Yellow, original_idx 3 -> sub-lane 0 of C2)
+    r6_markings_count = markings_data.count { |m| (m["xaxis"]["from"] - 5.5).abs < 0.001 }
+    assert_equal 1, r6_markings_count, "Expected 1 marking for Rank 6"
+    m_r6_c2_zd = find_marking_detail.call(6, y_c2_start + 0 * sub_lane_height_C2, y_c2_start + 1 * sub_lane_height_C2, 'rgb(255,255,0)')
+    assert_not_nil m_r6_c2_zd, "Rank 6, C2-ZoneD (Yellow) not found"
   end
 end
