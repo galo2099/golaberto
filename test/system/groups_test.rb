@@ -174,23 +174,23 @@ class GroupsTest < ApplicationSystemTestCase
       phase: graph_phase
     )
 
-    # Create 3 teams
-    team_g_a = Team.create!(name: "GraphTeam A", country: "GTA")
-    team_g_b = Team.create!(name: "GraphTeam B", country: "GTB")
-    team_g_c = Team.create!(name: "GraphTeam C", country: "GTC")
-
-    # Add teams to the group
-    TeamGroup.create!(group: graph_group, team: team_g_a)
-    TeamGroup.create!(group: graph_group, team: team_g_b)
-    TeamGroup.create!(group: graph_group, team: team_g_c)
+    # Create 6 teams for num_ranks = 6
+    @graph_teams = []
+    (1..6).each do |i|
+      team = Team.create!(name: "GraphTeam #{i}", country: "GT#{i}")
+      @graph_teams << team
+      TeamGroup.create!(group: graph_group, team: team)
+    end
+    team_g_a = @graph_teams.first # Team to visit its page
 
     # Define group.zones (ensure group is reloaded if teams were just added)
     graph_group.reload
-    # Order of zones in this array determines layer order (bottom to top) for 'uniform global layer height'
+    # Order of zones in this array is important for the greedy lane allocation.
     graph_group.zones = [
-      { 'name' => 'Zone Green', 'color' => 'rgb(0,255,0)', 'position' => [1] },      # Layer 0
-      { 'name' => 'Zone Blue',  'color' => 'rgb(0,0,255)', 'position' => [1, 2] }, # Layer 1
-      { 'name' => 'Zone Red',   'color' => 'rgb(255,0,0)', 'position' => [1, 3] }  # Layer 2
+      { 'name' => 'ZoneA Green', 'color' => 'rgb(0,255,0)', 'position' => [1,2] },
+      { 'name' => 'ZoneB Blue',  'color' => 'rgb(0,0,255)', 'position' => [3,4] },
+      { 'name' => 'ZoneC Red',   'color' => 'rgb(255,0,0)', 'position' => [1,3] },
+      { 'name' => 'ZoneD Yellow','color' => 'rgb(255,255,0)', 'position' => [5,6] }
     ]
     graph_group.save!
 
@@ -225,70 +225,79 @@ class GroupsTest < ApplicationSystemTestCase
 
     # 4. Assertions
     # 4. Assertions
-    # Total expected markings based on the 'uniform global layer height' logic:
-    # Rank 1: ZoneG (Layer 0), ZoneB (Layer 1), ZoneR (Layer 2) -> 3 markings
-    # Rank 2: ZoneB (Layer 1) -> 1 marking
-    # Rank 3: ZoneR (Layer 2) -> 1 marking
-    # Total = 3 + 1 + 1 = 5
-    assert_equal 5, markings_data.count, "Unexpected total number of markings"
+    assert_equal 8, markings_data.count, "Unexpected total number of markings"
 
     graph_max_y = 101.0
-    num_total_zone_layers = 3 # Based on graph_group.zones.size
-    fixed_segment_height = graph_max_y / num_total_zone_layers
-
-    # --- Assertions for Rank 1 (p_rank = 1) ---
-    # Layer 0 (Green)
-    r1_l0_green = markings_data.find { |m| 
-      (m["xaxis"]["from"] - 0.5).abs < 0.001 && 
-      m["color"] == 'rgb(0,255,0)' &&
-      (m["yaxis"]["from"] - (0 * fixed_segment_height)).abs < 0.001 
-    }
-    assert_not_nil r1_l0_green, "Rank 1, Layer 0 (Green) not found"
-    assert_in_delta 1.5, r1_l0_green["xaxis"]["to"]
-    assert_in_delta 1 * fixed_segment_height, r1_l0_green["yaxis"]["to"]
-
-    # Layer 1 (Blue)
-    r1_l1_blue = markings_data.find { |m| 
-      (m["xaxis"]["from"] - 0.5).abs < 0.001 && 
-      m["color"] == 'rgb(0,0,255)' &&
-      (m["yaxis"]["from"] - (1 * fixed_segment_height)).abs < 0.001 
-    }
-    assert_not_nil r1_l1_blue, "Rank 1, Layer 1 (Blue) not found"
-    assert_in_delta 1.5, r1_l1_blue["xaxis"]["to"]
-    assert_in_delta 2 * fixed_segment_height, r1_l1_blue["yaxis"]["to"]
-
-    # Layer 2 (Red)
-    r1_l2_red = markings_data.find { |m| 
-      (m["xaxis"]["from"] - 0.5).abs < 0.001 && 
-      m["color"] == 'rgb(255,0,0)' &&
-      (m["yaxis"]["from"] - (2 * fixed_segment_height)).abs < 0.001 
-    }
-    assert_not_nil r1_l2_red, "Rank 1, Layer 2 (Red) not found"
-    assert_in_delta 1.5, r1_l2_red["xaxis"]["to"]
-    assert_in_delta graph_max_y, r1_l2_red["yaxis"]["to"] # The last layer goes to graph_max_y
-
-    # --- Assertions for Rank 2 (p_rank = 2) ---
-    # Expected: Only Layer 1 (Blue) should have a marking for Rank 2.
-    rank_2_markings = markings_data.select { |m| (m["xaxis"]["from"] - 1.5).abs < 0.001 }
-    assert_equal 1, rank_2_markings.count, "Expected 1 marking for Rank 2"
+    num_active_lanes = 2 # Expected from the greedy algorithm
+    fixed_lane_height = graph_max_y / num_active_lanes
     
-    # Layer 1 (Blue)
-    r2_l1_blue = rank_2_markings.find { |m| m["color"] == 'rgb(0,0,255)' }
-    assert_not_nil r2_l1_blue, "Rank 2, Layer 1 (Blue) not found"
-    assert_in_delta 2.5, r2_l1_blue["xaxis"]["to"]
-    assert_in_delta 1 * fixed_segment_height, r2_l1_blue["yaxis"]["from"]
-    assert_in_delta 2 * fixed_segment_height, r2_l1_blue["yaxis"]["to"]
+    # Helper to find a specific marking
+    find_marking = ->(rank_from, y_from_coord, color) {
+      markings_data.find { |m|
+        (m["xaxis"]["from"] - rank_from).abs < 0.001 &&
+        (m["yaxis"]["from"] - y_from_coord).abs < 0.001 &&
+        m["color"] == color
+      }
+    }
 
-    # --- Assertions for Rank 3 (p_rank = 3) ---
-    # Expected: Only Layer 2 (Red) should have a marking for Rank 3.
-    rank_3_markings = markings_data.select { |m| (m["xaxis"]["from"] - 2.5).abs < 0.001 }
-    assert_equal 1, rank_3_markings.count, "Expected 1 marking for Rank 3"
+    # Rank 1 (xaxis: from 0.5)
+    rank1_markings_count = markings_data.count { |m| (m["xaxis"]["from"] - 0.5).abs < 0.001 }
+    assert_equal 2, rank1_markings_count, "Expected 2 markings for Rank 1"
+    
+    # Lane 0 (ZoneA Green)
+    m_r1_l0_za = find_marking.call(0.5, 0 * fixed_lane_height, 'rgb(0,255,0)')
+    assert_not_nil m_r1_l0_za, "Rank 1, Lane 0 (ZoneA Green) not found"
+    assert_in_delta 1.5, m_r1_l0_za["xaxis"]["to"]
+    assert_in_delta 1 * fixed_lane_height, m_r1_l0_za["yaxis"]["to"]
 
-    # Layer 2 (Red)
-    r3_l2_red = rank_3_markings.find { |m| m["color"] == 'rgb(255,0,0)' }
-    assert_not_nil r3_l2_red, "Rank 3, Layer 2 (Red) not found"
-    assert_in_delta 3.5, r3_l2_red["xaxis"]["to"]
-    assert_in_delta 2 * fixed_segment_height, r3_l2_red["yaxis"]["from"]
-    assert_in_delta graph_max_y, r3_l2_red["yaxis"]["to"]
+    # Lane 1 (ZoneC Red)
+    m_r1_l1_zc = find_marking.call(0.5, 1 * fixed_lane_height, 'rgb(255,0,0)')
+    assert_not_nil m_r1_l1_zc, "Rank 1, Lane 1 (ZoneC Red) not found"
+    assert_in_delta 1.5, m_r1_l1_zc["xaxis"]["to"]
+    assert_in_delta 2 * fixed_lane_height, m_r1_l1_zc["yaxis"]["to"] # which is graph_max_y
+
+    # Rank 2 (xaxis: from 1.5)
+    rank2_markings_count = markings_data.count { |m| (m["xaxis"]["from"] - 1.5).abs < 0.001 }
+    assert_equal 1, rank2_markings_count, "Expected 1 marking for Rank 2"
+    m_r2_l0_za = find_marking.call(1.5, 0 * fixed_lane_height, 'rgb(0,255,0)')
+    assert_not_nil m_r2_l0_za, "Rank 2, Lane 0 (ZoneA Green) not found"
+    assert_in_delta 2.5, m_r2_l0_za["xaxis"]["to"]
+    assert_in_delta 1 * fixed_lane_height, m_r2_l0_za["yaxis"]["to"]
+    
+    # Rank 3 (xaxis: from 2.5)
+    rank3_markings_count = markings_data.count { |m| (m["xaxis"]["from"] - 2.5).abs < 0.001 }
+    assert_equal 2, rank3_markings_count, "Expected 2 markings for Rank 3"
+    m_r3_l0_zb = find_marking.call(2.5, 0 * fixed_lane_height, 'rgb(0,0,255)')
+    assert_not_nil m_r3_l0_zb, "Rank 3, Lane 0 (ZoneB Blue) not found"
+    assert_in_delta 3.5, m_r3_l0_zb["xaxis"]["to"]
+    assert_in_delta 1 * fixed_lane_height, m_r3_l0_zb["yaxis"]["to"]
+    m_r3_l1_zc = find_marking.call(2.5, 1 * fixed_lane_height, 'rgb(255,0,0)')
+    assert_not_nil m_r3_l1_zc, "Rank 3, Lane 1 (ZoneC Red) not found"
+    assert_in_delta 3.5, m_r3_l1_zc["xaxis"]["to"]
+    assert_in_delta 2 * fixed_lane_height, m_r3_l1_zc["yaxis"]["to"]
+
+    # Rank 4 (xaxis: from 3.5)
+    rank4_markings_count = markings_data.count { |m| (m["xaxis"]["from"] - 3.5).abs < 0.001 }
+    assert_equal 1, rank4_markings_count, "Expected 1 marking for Rank 4"
+    m_r4_l0_zb = find_marking.call(3.5, 0 * fixed_lane_height, 'rgb(0,0,255)')
+    assert_not_nil m_r4_l0_zb, "Rank 4, Lane 0 (ZoneB Blue) not found"
+    assert_in_delta 4.5, m_r4_l0_zb["xaxis"]["to"]
+    assert_in_delta 1 * fixed_lane_height, m_r4_l0_zb["yaxis"]["to"]
+
+    # Rank 5 (xaxis: from 4.5)
+    rank5_markings_count = markings_data.count { |m| (m["xaxis"]["from"] - 4.5).abs < 0.001 }
+    assert_equal 1, rank5_markings_count, "Expected 1 marking for Rank 5"
+    m_r5_l1_zd = find_marking.call(4.5, 1 * fixed_lane_height, 'rgb(255,255,0)')
+    assert_not_nil m_r5_l1_zd, "Rank 5, Lane 1 (ZoneD Yellow) not found"
+    assert_in_delta 5.5, m_r5_l1_zd["xaxis"]["to"]
+    assert_in_delta 2 * fixed_lane_height, m_r5_l1_zd["yaxis"]["to"]
+
+    # Rank 6 (xaxis: from 5.5)
+    rank6_markings_count = markings_data.count { |m| (m["xaxis"]["from"] - 5.5).abs < 0.001 }
+    assert_equal 1, rank6_markings_count, "Expected 1 marking for Rank 6"
+    m_r6_l1_zd = find_marking.call(5.5, 1 * fixed_lane_height, 'rgb(255,255,0)')
+    assert_not_nil m_r6_l1_zd, "Rank 6, Lane 1 (ZoneD Yellow) not found"
+    assert_in_delta 6.5, m_r6_l1_zd["xaxis"]["to"]
+    assert_in_delta 2 * fixed_lane_height, m_r6_l1_zd["yaxis"]["to"]
   end
 end

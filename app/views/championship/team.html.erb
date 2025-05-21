@@ -71,7 +71,7 @@ $(function() {
       hoverable: true,
       clickable: true,
 <%
-  # Get all valid zones defined for the group; their order determines layer order.
+  # --- Part 1: Lane Allocation ---
   all_defined_zones = []
   if @groups[0]&.zones.is_a?(Array)
     all_defined_zones = @groups[0].zones.select do |z|
@@ -79,40 +79,78 @@ $(function() {
     end
   end
 
-  num_total_zone_layers = all_defined_zones.size
-  num_ranks = @groups[0]&.team_groups&.size || 0 # Number of teams/positions
-  flot_markings = []
+  allocated_lanes = [] # This will be an array of arrays, each inner array is a lane of zone objects.
   
-  # Proceed only if there are layers to draw and ranks to draw them on
-  if num_total_zone_layers > 0 && num_ranks > 0
-    graph_max_y = 101.0 # Y-axis height of the graph
-    fixed_segment_height = graph_max_y / num_total_zone_layers
+  if !all_defined_zones.empty?
+    # Sort zones by the minimum position to try and pack more efficiently,
+    # though simple greedy based on input order is also acceptable.
+    # This is an optional optimization. For now, let's stick to input order for simplicity
+    # as specified in the algorithm design.
+    # sorted_input_zones = all_defined_zones.sort_by { |z| z["position"].min || Float::INFINITY }
+    # Using all_defined_zones directly maintains original processing order.
 
-    # Iterate through each rank position on the x-axis
-    (1..num_ranks).each do |p_rank|
-      # Iterate through each defined zone, treating it as a horizontal layer
-      # The order in all_defined_zones determines the stacking order (index 0 is bottom layer)
-      all_defined_zones.each_with_index do |zone_j, j|
-        # Calculate the y-coordinates for this specific layer
-        layer_y_from = j * fixed_segment_height
-        layer_y_to = (j + 1) * fixed_segment_height
+    all_defined_zones.each do |current_zone|
+      placed_in_existing_lane = false
+      allocated_lanes.each do |lane|
+        can_be_added_to_this_lane = true
+        lane.each do |existing_zone_in_lane|
+          # Check for rank overlap
+          if !(current_zone["position"] & existing_zone_in_lane["position"]).empty?
+            can_be_added_to_this_lane = false
+            break
+          end
+        end
+        
+        if can_be_added_to_this_lane
+          lane << current_zone
+          placed_in_existing_lane = true
+          break
+        end
+      end
+      
+      unless placed_in_existing_lane
+        allocated_lanes << [current_zone] # Create a new lane with the current zone
+      end
+    end
+  end
+  
+  num_active_lanes = allocated_lanes.size
+  num_ranks = @groups[0]&.team_groups&.size || 0
+  flot_markings = []
 
-        # Check if the current rank (p_rank) is part of this zone_j's positions
-        if zone_j["position"].include?(p_rank)
-          # If yes, create a marking for this layer at this rank
+  # --- Part 2: Marking Generation ---
+  if num_active_lanes > 0 && num_ranks > 0
+    graph_max_y = 101.0
+    fixed_lane_height = graph_max_y / num_active_lanes
+
+    (1..num_ranks).each do |p_rank| # For each rank column
+      allocated_lanes.each_with_index do |lane_content, lane_idx| # For each allocated lane
+        # Determine y-coordinates for this current lane
+        layer_y_from = lane_idx * fixed_lane_height
+        layer_y_to = (lane_idx + 1) * fixed_lane_height
+
+        # Find which zone in THIS lane (if any) is active for p_rank
+        active_zone_in_this_lane_for_prank = nil
+        lane_content.each do |zone_in_lane|
+          if zone_in_lane["position"].include?(p_rank)
+            active_zone_in_this_lane_for_prank = zone_in_lane
+            break # Since zones in the same lane don't overlap by rank, only one can be active
+          end
+        end
+
+        if active_zone_in_this_lane_for_prank
+          # If a zone in this lane is active for p_rank, create a marking
           flot_markings << {
-            xaxis: { from: p_rank - 0.5, to: p_rank + 0.5 }, # Full width for the rank
-            yaxis: { from: layer_y_from, to: layer_y_to },   # Specific y-slice for this layer
-            color: zone_j["color"]
+            xaxis: { from: p_rank - 0.5, to: p_rank + 0.5 },
+            yaxis: { from: layer_y_from, to: layer_y_to },
+            color: active_zone_in_this_lane_for_prank["color"]
           }
         end
-        # If p_rank is not in zone_j["position"], no marking is added for this layer at this rank,
-        # leaving it transparent or showing the graph's base background.
       end
     end
   end
 %>
-      markings: <%== flot_markings.to_json.html_safe %>, // This line uses the generated flot_markings
+      markings: <%== flot_markings.to_json.html_safe %>,
     },
     yaxis: {
       min: 0,
