@@ -186,12 +186,15 @@ class GroupsTest < ApplicationSystemTestCase
 
     # Define group.zones (ensure group is reloaded if teams were just added)
     graph_group.reload
+    # Order of zones in this array determines layer order (bottom to top)
     graph_group.zones = [
-      { 'name' => 'Zone1 Green', 'color' => 'rgb(0,255,0)', 'position' => [1] },
-      { 'name' => 'Zone2 Blue',  'color' => 'rgb(0,0,255)', 'position' => [1, 2] },
-      { 'name' => 'Zone3 Red',   'color' => 'rgb(255,0,0)', 'position' => [1, 3] }
+      { 'name' => 'Zone Green', 'color' => 'rgb(0,255,0)', 'position' => [1] },      # Layer 0
+      { 'name' => 'Zone Blue',  'color' => 'rgb(0,0,255)', 'position' => [1, 2] }, # Layer 1
+      { 'name' => 'Zone Red',   'color' => 'rgb(255,0,0)', 'position' => [1, 3] }  # Layer 2
     ]
     graph_group.save!
+    
+    # Expected: num_total_zone_layers = 3
 
     # 2. Navigate to the page
     # We need to visit the team page of one of the teams in this group.
@@ -223,53 +226,70 @@ class GroupsTest < ApplicationSystemTestCase
     markings_data = JSON.parse(markings_json_string)
 
     # 4. Assertions
-    # Total expected markings: 3 for Rank 1 (3 segments) + 1 for Rank 2 + 1 for Rank 3 = 5
+    # 4. Assertions
+    # Total expected markings:
+    # Rank 1: Green, Blue, Red (3 markings)
+    # Rank 2: Blue (1 marking)
+    # Rank 3: Red (1 marking)
+    # Total = 3 + 1 + 1 = 5
     assert_equal 5, markings_data.count, "Unexpected total number of markings"
 
-    # Expected order for Rank 1 segments (Blue, Green, Red) due to sort_by { |z| [z["color"], z["name"]] }
-    # 'rgb(0,0,255)' (Blue) < 'rgb(0,255,0)' (Green) < 'rgb(255,0,0)' (Red)
-    
     graph_max_y = 101.0
-    segment_height_third = graph_max_y / 3.0
+    num_total_zone_layers = 3 # Based on the setup of graph_group.zones
+    fixed_segment_height = graph_max_y / num_total_zone_layers
 
-    # Rank 1 Markings (Horizontal Stripes)
-    rank_1_markings = markings_data.select { |m| m["xaxis"]["from"] == 0.5 && m["xaxis"]["to"] == 1.5 }
-    assert_equal 3, rank_1_markings.count, "Expected 3 markings for Rank 1"
+    # Markings for Rank 1 (p_rank = 1)
+    # Layer 0 (Green)
+    r1_l0_green = markings_data.find { |m| 
+      m["xaxis"]["from"] == 0.5 && m["color"] == 'rgb(0,255,0)' && 
+      (m["yaxis"]["from"] - (0 * fixed_segment_height)).abs < 0.001 
+    }
+    assert_not_nil r1_l0_green, "Rank 1, Layer 0 (Green) not found"
+    assert_in_delta 0.5, r1_l0_green["xaxis"]["from"]
+    assert_in_delta 1.5, r1_l0_green["xaxis"]["to"]
+    assert_in_delta 0 * fixed_segment_height, r1_l0_green["yaxis"]["from"]
+    assert_in_delta 1 * fixed_segment_height, r1_l0_green["yaxis"]["to"]
 
-    # Stripe 1 (Blue) for Rank 1
-    stripe1_blue = rank_1_markings.find { |m| m["color"] == 'rgb(0,0,255)' }
-    assert_not_nil stripe1_blue, "Stripe 1 (Blue) for Rank 1 not found"
-    assert_in_delta 0.0, stripe1_blue["yaxis"]["from"]
-    assert_in_delta segment_height_third, stripe1_blue["yaxis"]["to"]
+    # Layer 1 (Blue)
+    r1_l1_blue = markings_data.find { |m| 
+      m["xaxis"]["from"] == 0.5 && m["color"] == 'rgb(0,0,255)' &&
+      (m["yaxis"]["from"] - (1 * fixed_segment_height)).abs < 0.001 
+    }
+    assert_not_nil r1_l1_blue, "Rank 1, Layer 1 (Blue) not found"
+    assert_in_delta 1 * fixed_segment_height, r1_l1_blue["yaxis"]["from"]
+    assert_in_delta 2 * fixed_segment_height, r1_l1_blue["yaxis"]["to"]
 
-    # Stripe 2 (Green) for Rank 1
-    stripe2_green = rank_1_markings.find { |m| m["color"] == 'rgb(0,255,0)' }
-    assert_not_nil stripe2_green, "Stripe 2 (Green) for Rank 1 not found"
-    assert_in_delta segment_height_third, stripe2_green["yaxis"]["from"]
-    assert_in_delta 2.0 * segment_height_third, stripe2_green["yaxis"]["to"]
+    # Layer 2 (Red)
+    r1_l2_red = markings_data.find { |m| 
+      m["xaxis"]["from"] == 0.5 && m["color"] == 'rgb(255,0,0)' &&
+      (m["yaxis"]["from"] - (2 * fixed_segment_height)).abs < 0.001 
+    }
+    assert_not_nil r1_l2_red, "Rank 1, Layer 2 (Red) not found"
+    assert_in_delta 2 * fixed_segment_height, r1_l2_red["yaxis"]["from"]
+    assert_in_delta graph_max_y, r1_l2_red["yaxis"]["to"] # The last layer goes to graph_max_y
 
-    # Stripe 3 (Red) for Rank 1
-    stripe3_red = rank_1_markings.find { |m| m["color"] == 'rgb(255,0,0)' }
-    assert_not_nil stripe3_red, "Stripe 3 (Red) for Rank 1 not found"
-    assert_in_delta 2.0 * segment_height_third, stripe3_red["yaxis"]["from"]
-    assert_in_delta graph_max_y, stripe3_red["yaxis"]["to"] # Should go up to graph_max_y
-
-    # Rank 2 (Single Zone: Blue)
-    marking_r2 = markings_data.find { |m| m["xaxis"]["from"] == 1.5 && m["color"] == 'rgb(0,0,255)' }
-    assert_not_nil marking_r2, "Marking for Rank 2 (Blue) not found"
-    assert_in_delta 1.5, marking_r2["xaxis"]["from"]
-    assert_in_delta 2.5, marking_r2["xaxis"]["to"]
-    assert_in_delta 0.0, marking_r2["yaxis"]["from"]
-    assert_in_delta graph_max_y, marking_r2["yaxis"]["to"]
-    assert_equal 'rgb(0,0,255)', marking_r2["color"]
+    # Markings for Rank 2 (p_rank = 2)
+    # Expected: Only Layer 1 (Blue)
+    rank_2_markings = markings_data.select { |m| m["xaxis"]["from"] == 1.5 }
+    assert_equal 1, rank_2_markings.count, "Expected 1 marking for Rank 2"
     
-    # Rank 3 (Single Zone: Red)
-    marking_r3 = markings_data.find { |m| m["xaxis"]["from"] == 2.5 && m["color"] == 'rgb(255,0,0)' }
-    assert_not_nil marking_r3, "Marking for Rank 3 (Red) not found"
-    assert_in_delta 2.5, marking_r3["xaxis"]["from"]
-    assert_in_delta 3.5, marking_r3["xaxis"]["to"]
-    assert_in_delta 0.0, marking_r3["yaxis"]["from"]
-    assert_in_delta graph_max_y, marking_r3["yaxis"]["to"]
-    assert_equal 'rgb(255,0,0)', marking_r3["color"]
+    r2_l1_blue = rank_2_markings.find { |m| m["color"] == 'rgb(0,0,255)' }
+    assert_not_nil r2_l1_blue, "Rank 2, Layer 1 (Blue) not found"
+    assert_in_delta 1.5, r2_l1_blue["xaxis"]["from"]
+    assert_in_delta 2.5, r2_l1_blue["xaxis"]["to"]
+    assert_in_delta 1 * fixed_segment_height, r2_l1_blue["yaxis"]["from"]
+    assert_in_delta 2 * fixed_segment_height, r2_l1_blue["yaxis"]["to"]
+
+    # Markings for Rank 3 (p_rank = 3)
+    # Expected: Only Layer 2 (Red)
+    rank_3_markings = markings_data.select { |m| m["xaxis"]["from"] == 2.5 }
+    assert_equal 1, rank_3_markings.count, "Expected 1 marking for Rank 3"
+
+    r3_l2_red = rank_3_markings.find { |m| m["color"] == 'rgb(255,0,0)' }
+    assert_not_nil r3_l2_red, "Rank 3, Layer 2 (Red) not found"
+    assert_in_delta 2.5, r3_l2_red["xaxis"]["from"]
+    assert_in_delta 3.5, r3_l2_red["xaxis"]["to"]
+    assert_in_delta 2 * fixed_segment_height, r3_l2_red["yaxis"]["from"]
+    assert_in_delta graph_max_y, r3_l2_red["yaxis"]["to"]
   end
 end
