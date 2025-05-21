@@ -70,7 +70,52 @@ $(function() {
     grid: {
       hoverable: true,
       clickable: true,
-      markings: <%== @groups[0].zones.select{|z| not z["position"].nil?}.map{|z| z["position"].map{|p| { xaxis: { from: p-0.5, to: p+0.5 }, color: z["color"] } } }.flatten.to_json %>,
+<%
+  # Safely preprocess zones and get the number of ranks
+  processed_zones = []
+  if @groups[0]&.zones.is_a?(Array)
+    processed_zones = @groups[0].zones.select do |z|
+      z.is_a?(Hash) && z["position"].is_a?(Array) && z["color"].present?
+    end
+  end
+  
+  num_ranks = @groups[0]&.team_groups&.size || 0 # Default to 0 if anything in the chain is nil
+  flot_markings = []
+
+  if num_ranks > 0 # Proceed only if there are ranks to process
+    (1..num_ranks).each do |p_rank| # Changed variable name from p to p_rank to avoid conflict if p is used elsewhere
+      zones_for_p_rank = []
+      processed_zones.each do |zone|
+        if zone["position"].include?(p_rank)
+          zones_for_p_rank << zone
+        end
+      end
+
+      if zones_for_p_rank.size == 1
+        # Single zone for this rank
+        flot_markings << { xaxis: { from: p_rank - 0.5, to: p_rank + 0.5 }, color: zones_for_p_rank[0]["color"] }
+      elsif zones_for_p_rank.size > 1
+        # Multiple zones for this rank (overlapping)
+        segment_width = 1.0 / zones_for_p_rank.size
+        # Sort by color to ensure consistent ordering for the same set of overlapping zones
+        # This helps in making the visual output deterministic if colors have any inherent order preference
+        # or if not sorting leads to flickering/changing segment order on re-renders with identical data.
+        # Using zone name as a secondary sort key if colors are identical.
+        sorted_zones_for_p_rank = zones_for_p_rank.sort_by { |z| [z["color"], z["name"]] }
+        
+        sorted_zones_for_p_rank.each_with_index do |zone, i|
+          segment_from = (p_rank - 0.5) + (i * segment_width)
+          segment_to = (p_rank - 0.5) + ((i + 1) * segment_width)
+          # Ensure segments don't have infinitesimal width or from == to, which Flot might ignore or error on.
+          # This is unlikely with segment_width > 0, but good to be mindful.
+          # Flot generally handles from/to being very close.
+          flot_markings << { xaxis: { from: segment_from, to: segment_to }, color: zone["color"] }
+        end
+      end
+    end
+  end
+%>
+      markings: <%== flot_markings.to_json.html_safe %>,
     },
     yaxis: {
       min: 0,

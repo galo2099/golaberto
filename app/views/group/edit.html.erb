@@ -53,7 +53,6 @@
       function create_position_span(zone_id, i, positions) {
         var position_span = $("<span>");
         var checked = $.inArray(i, positions) != -1;
-        var disabled = checked_positions[i];;
         if (checked) {
           checked_positions[i] = checked;
         }
@@ -64,22 +63,15 @@
             'id="' + checkbox_id + 
             '" value="' + i + 
             '" ' + (checked ? "checked" : "") +
-            ' ' + (disabled ? "disabled" : "") +
             ' onclick="update_zone_checkbox(this)"' +
             '>');
         position_span.find("input").checkboxradio();
-
-        // Find any existing checkbox that needs to be disabled.
-        if (checked) {
-          $("input[type='checkbox'][value='" + i + "'][id!='" + checkbox_id + "']").checkboxradio("option", "disabled", true);
-        }
 
         return position_span;
       }
 
       function update_zone_checkbox(checkbox) {
         checked_positions[checkbox.value] = checkbox.checked;
-        $("input[type='checkbox'][value='" + checkbox.value + "'][id!='" + checkbox.id + "']").checkboxradio("option", "disabled", checkbox.checked);
       }
 
       var create_zone_next_id = 0;
