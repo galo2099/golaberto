@@ -116,46 +116,44 @@ class GroupsTest < ApplicationSystemTestCase
     # Game 3: B vs C (B wins) -> B=3, C=0
     Game.create!(phase: @display_phase, home: team_b, away: team_c, home_score: 1, away_score: 0, played: true, date: Date.today - 1.day)
 
+    # Zone definitions - order is important for gradient
     @display_group.zones = [
-      { 'name' => 'Top Tier', 'color' => 'rgb(0, 255, 0)', 'position' => [1, 2] }, # Green
-      { 'name' => 'Mid Tier', 'color' => 'rgb(0, 0, 255)', 'position' => [2, 3] }  # Blue
+      { 'name' => 'ZoneA Green', 'color' => 'rgb(0,255,0)', 'position' => [1,2] },
+      { 'name' => 'ZoneB Blue',  'color' => 'rgb(0,0,255)', 'position' => [3,4] }, # Note: Pos 4 not used by teams
+      { 'name' => 'ZoneC Red',   'color' => 'rgb(255,0,0)', 'position' => [1,3] }
     ]
     @display_group.save!
     
-    # Ensure team_table calculates correctly - this might require some waiting or a refresh
-    # For system tests, visiting the page usually triggers all necessary calculations.
+    visit championship_path(@championship)
 
-    visit championship_path(@championship) # Or phase_path(@display_phase) or group_path(@display_group) if those are where the table is rendered
-
-    # Find the table for @display_group specifically if multiple groups are on the page
     group_table_selector = "div:has(h3 > span > a[href*='#{group_path(@display_group)}']) table.class_table"
-    # If the link is not to group_path, adjust: e.g. to find by group name text
-    # group_table_selector = "div:has(h3:contains('#{@display_group.name}')) table.class_table"
-
 
     within find(group_table_selector) do
-      # Team A (Pos 1)
+      # Team A (Rank 1: ZoneA Green, ZoneC Red)
+      # Gradient: Green 0-50%, Red 50-100%
       team_a_row = find("tr:has(td.name:contains('#{team_a.name}'))")
-      assert_match /background-color: rgb\(0, 255, 0\);/, team_a_row['style'], "Team A row background color mismatch"
+      expected_gradient_a = "background-image: linear-gradient(to right, rgb(0,255,0) 0.00%, rgb(0,255,0) 50.00%, rgb(255,0,0) 50.00%, rgb(255,0,0) 100.00%);"
+      assert_equal expected_gradient_a, team_a_row['style'], "Team A (Rank 1) gradient mismatch. Style: #{team_a_row['style']}"
       pos_1_cell = team_a_row.find("td.pos")
-      assert_equal "1", pos_1_cell.text.strip # Check position number, ensure no markers
-      assert_not pos_1_cell.has_css?("span.additional-zone-marker"), "Team A (Pos 1) should have no additional markers"
+      assert_equal "1", pos_1_cell.text.strip
+      assert_not pos_1_cell.has_css?("span.additional-zone-marker"), "Team A (Rank 1) should have no additional markers"
 
-      # Team B (Pos 2)
+      # Team B (Rank 2: ZoneA Green only)
       team_b_row = find("tr:has(td.name:contains('#{team_b.name}'))")
-      assert_match /background-color: rgb\(0, 255, 0\);/, team_b_row['style'], "Team B row background color mismatch (should be Top Tier)"
+      expected_style_b = "background-color: rgb(0,255,0);"
+      assert_equal expected_style_b, team_b_row['style'], "Team B (Rank 2) style mismatch. Style: #{team_b_row['style']}"
       pos_2_cell = team_b_row.find("td.pos")
-      assert_match /^2\s/, pos_2_cell.text.strip, "Team B (Pos 2) cell should start with '2'"
-      marker = pos_2_cell.find("span.additional-zone-marker")
-      assert_match /background-color: rgb\(0, 0, 255\);/, marker['style'], "Team B marker color mismatch"
-      assert_equal "Mid Tier", marker['title'], "Team B marker title mismatch"
+      assert_equal "2", pos_2_cell.text.strip
+      assert_not pos_2_cell.has_css?("span.additional-zone-marker"), "Team B (Rank 2) should have no additional markers"
 
-      # Team C (Pos 3)
+      # Team C (Rank 3: ZoneB Blue, ZoneC Red)
+      # Gradient: Blue 0-50%, Red 50-100%
       team_c_row = find("tr:has(td.name:contains('#{team_c.name}'))")
-      assert_match /background-color: rgb\(0, 0, 255\);/, team_c_row['style'], "Team C row background color mismatch"
+      expected_gradient_c = "background-image: linear-gradient(to right, rgb(0,0,255) 0.00%, rgb(0,0,255) 50.00%, rgb(255,0,0) 50.00%, rgb(255,0,0) 100.00%);"
+      assert_equal expected_gradient_c, team_c_row['style'], "Team C (Rank 3) gradient mismatch. Style: #{team_c_row['style']}"
       pos_3_cell = team_c_row.find("td.pos")
-      assert_equal "3", pos_3_cell.text.strip # Check position number, ensure no markers
-      assert_not pos_3_cell.has_css?("span.additional-zone-marker"), "Team C (Pos 3) should have no additional markers"
+      assert_equal "3", pos_3_cell.text.strip
+      assert_not pos_3_cell.has_css?("span.additional-zone-marker"), "Team C (Rank 3) should have no additional markers"
     end
   end
 

@@ -128,23 +128,26 @@ $(function() {
 
   if num_overall_groups > 0 && num_ranks > 0
     graph_max_y = 101.0
+    height_per_group = graph_max_y / num_overall_groups # Equal height for each major component/group
 
     zone_components.each_with_index do |component_content, group_idx|
+      y_group_start = group_idx * height_per_group # Y-offset for the current group
+      
       num_zones_in_this_component = component_content.size
       if num_zones_in_this_component == 0
         next # Should ideally not happen if components are formed correctly
       end
       
       # Height for sub-lanes within this specific group
-      sub_lane_height = graph_max_y / num_zones_in_this_component 
+      sub_lane_height = height_per_group / num_zones_in_this_component 
 
       (1..num_ranks).each do |p_rank| # For each rank column
         # Zones within component_content are already sorted by _original_idx
         component_content.each_with_index do |zone_k_in_component, k_idx_in_component|
           
           # Y-coordinates for this specific zone's sub-lane within its group's allocated space
-          y_sub_lane_from = k_idx_in_component * sub_lane_height
-          y_sub_lane_to = (k_idx_in_component + 1) * sub_lane_height
+          y_sub_lane_from = y_group_start + (k_idx_in_component * sub_lane_height)
+          y_sub_lane_to = y_group_start + ((k_idx_in_component + 1) * sub_lane_height)
 
           # Check if the current rank (p_rank) is part of this zone's positions
           if zone_k_in_component["position"].include?(p_rank)

@@ -177,24 +177,38 @@
     end
     pos += 1
     tr_class = 'table_line'
-    primary_zone_color = nil
-    additional_zone_markers = []
-    if group.zones.is_a?(Array) # Check if zones is an array
+    # New logic for row_style_attribute_value
+    active_zones_for_row = []
+    # Ensure group.zones exists and is an array before iterating.
+    # The order of zones in group.zones will determine the order of colors in the gradient.
+    if group.zones.is_a?(Array) # Use group here as it's the local variable for the current group
       group.zones.each do |zone|
-        if zone.is_a?(Hash) && zone["position"].is_a?(Array) && zone["position"].include?(pos) # Check for valid zone and position
-          if primary_zone_color.nil?
-            primary_zone_color = zone["color"]
-          else
-            # Make sure zone["name"] and zone["color"] are not nil before using them
-            marker_title = zone["name"] ? ERB::Util.html_escape(zone["name"]) : ""
-            marker_color = zone["color"] ? zone["color"] : "#ccc" # Default color if nil
-            additional_zone_markers << content_tag(:span, "", class: "additional-zone-marker", style: "background-color: #{marker_color};", title: marker_title)
-          end
+        # Ensure zone is a hash and its properties are of expected types before accessing
+        if zone.is_a?(Hash) && zone["position"].is_a?(Array) && zone["color"].is_a?(String) && zone["position"].include?(pos)
+          active_zones_for_row << zone
         end
       end
     end
-    row_style = primary_zone_color ? "background-color: #{primary_zone_color};" : ""
-    markers_html = additional_zone_markers.join(" ").html_safe
+
+    row_style_attribute_value = "" # Initialize to empty string
+
+    if active_zones_for_row.size == 1
+      # Single zone: simple background color
+      row_style_attribute_value = "background-color: #{active_zones_for_row[0]['color']};"
+    elsif active_zones_for_row.size > 1
+      # Multiple zones: create a linear gradient
+      num_active = active_zones_for_row.size
+      gradient_parts = []
+      active_zones_for_row.each_with_index do |zone, i|
+        color = zone['color']
+        start_percent = i * (100.0 / num_active)
+        end_percent = (i + 1) * (100.0 / num_active)
+        # Using sprintf to format percentages, e.g., "33.33%"
+        gradient_parts << "#{color} #{sprintf('%.2f%%', start_percent)}, #{color} #{sprintf('%.2f%%', end_percent)}"
+      end
+      row_style_attribute_value = "background-image: linear-gradient(to right, #{gradient_parts.join(', ')});"
+    end
+    # Note: text_color_class logic omitted for this specific task focusing on background.
     country_logo = ""
     if show_country
       country_logo = image_tag(team.small_country_logo, :width => 15, :height => 15, :title => _(team.country))
@@ -226,8 +240,8 @@
       title_popup = "header=[] body=[#{header_body}] cssbody=[popupbody]"
     end
   %>
-<tr class='<%= tr_class %>' style="<%= row_style %>">
-         <%= content_tag :td, "#{pos} #{markers_html}".html_safe, class: "pos" unless omit_columns[:Pos] %>
+<tr class='<%= tr_class %>' style="<%= row_style_attribute_value %>">
+         <%= content_tag :td, pos, class: "pos" unless omit_columns[:Pos] %>
          <%= content_tag(:td,
                          ((content_tag :span, form.html_safe) + " " + country_logo + " " + image_logo + " " +
                          link_to(add_wbr_to_string(team.name), :action => 'team',
@@ -268,14 +282,3 @@
      <%= "(#{count}) #{n}" %><br/>
    <% end %>
 <% end  # caching %>
-<style>
-  .additional-zone-marker {
-    display: inline-block;
-    width: 8px; /* Smaller now */
-    height: 8px;
-    margin-left: 2px; /* Space from position number or previous marker */
-    border: 1px solid #555;
-    vertical-align: middle; /* Align with text/number */
-    border-radius: 50%; /* Makes it a dot */
-  }
-</style>
