@@ -70,7 +70,50 @@ $(function() {
     grid: {
       hoverable: true,
       clickable: true,
-      markings: <%== @groups[0].zones.select{|z| not z["position"].nil?}.map{|z| z["position"].map{|p| { xaxis: { from: p-0.5, to: p+0.5 }, color: z["color"] } } }.flatten.to_json %>,
+<%
+  # This replaces the complex zone grouping and marking generation logic
+
+  # Initial zone processing: ensure zones are valid and have original index if needed for stable 'first' finding.
+  # Using initial_zones_with_idx to respect original definition order if @groups[0].zones might be an unordered set later.
+  # For this task, direct iteration on @groups[0].zones is assumed to follow definition order.
+
+  processed_zones = []
+  if @groups[0]&.zones.is_a?(Array)
+    @groups[0].zones.each do |z|
+      if z.is_a?(Hash) && z["position"].is_a?(Array) && z["color"].present? && z["position"].all?{|p| p.is_a?(Integer)}
+        processed_zones << z
+      end
+    end
+  end
+
+  num_ranks = @groups[0]&.team_groups&.size || 0
+  flot_markings = []
+
+  if !processed_zones.empty? && num_ranks > 0
+    graph_max_y = 101.0
+
+    (1..num_ranks).each do |p_rank|
+      first_matching_zone_for_rank = nil
+      # Iterate through processed_zones (which respect original order) to find the FIRST match
+      processed_zones.each do |zone|
+        if zone["position"].include?(p_rank)
+          first_matching_zone_for_rank = zone
+          break # Found the first one
+        end
+      end
+
+      if first_matching_zone_for_rank
+        flot_markings << {
+          xaxis: { from: p_rank - 0.5, to: p_rank + 0.5 },
+          yaxis: { from: 0, to: graph_max_y }, # Full height
+          color: first_matching_zone_for_rank["color"]
+        }
+      end
+      # If no zone contains p_rank, no marking is added for this rank.
+    end
+  end
+%>
+      markings: <%== flot_markings.to_json.html_safe %>,
     },
     yaxis: {
       min: 0,
@@ -162,12 +205,154 @@ $(function() {
 
 <table>
   <% @groups[0].zones.each do |z| %>
-    <tr>
+    <tr class="odds-graph-legend-item" data-zone-name="<%= ERB::Util.html_escape(z['name']) %>" data-group-id="<%= @groups[0].id %>">
       <td><span style="color: <%= z["color"]%>">▣</span> <%= z["name"] %>:</td>
       <td><%= number_to_percentage(@groups[0].team_groups.select{|t|t.team_id == @team.id}.first.calculate_odds(z["position"]).to_f, precision: 2) %></td>
     </tr>
   <% end %>
 </table>
+
+<script type="text/javascript">
+  // Ensure the global object exists
+  window.flotGraphZoneData = window.flotGraphZoneData || {};
+  // Store data for the current group's graph
+  // Assuming @groups[0] is the primary group for this graph context
+  window.flotGraphZoneData['group_<%= @groups[0].id %>'] = {
+    zones: <%== @groups[0].zones.select{|z| z.is_a?(Hash) && z['name'].is_a?(String) && z['position'].is_a?(Array) && z['color'].is_a?(String)}.map{|z| {name: z['name'], color: z['color'], positions: z['position']}}.to_json.html_safe %>,
+    defaultMarkings: <%== flot_markings.to_json.html_safe %>, // Store the ERB-generated default markings
+    numRanks: <%== (@groups[0]&.team_groups&.size || 0) %> // Store num_ranks
+  };
+
+$(document).ready(function() {
+  var graphDiv = $("#odds"); // ID of the Flot Odds Graph container
+  var plot = null;
+
+  function initOddsGraphInteraction() {
+    plot = graphDiv.data('plot');
+    if (!plot) {
+      setTimeout(function() { // Retry in case Flot init is delayed
+        plot = graphDiv.data('plot');
+        if (!plot) {
+          console.warn("Flot plot object not found for Odds Graph interactivity.");
+          return;
+        }
+        attachOddsGraphLegendHandlers();
+      }, 1000);
+    } else {
+      attachOddsGraphLegendHandlers();
+    }
+  }
+
+  function attachOddsGraphLegendHandlers() {
+    // Assuming only one Odds Graph and its legend table per page for this simplified selector.
+    // If multiple, group_id would be more critical in selectors.
+    var groupId = $('.odds-graph-legend-item').first().data('groupId');
+    var graphData;
+
+    if (groupId && window.flotGraphZoneData && window.flotGraphZoneData['group_' + groupId]) {
+      graphData = window.flotGraphZoneData['group_' + groupId];
+      if (!graphData.defaultMarkings || !graphData.zones || typeof graphData.numRanks === 'undefined') {
+        console.warn("Required data (defaultMarkings, zones, or numRanks) not found for Odds Graph group: " + groupId);
+        return;
+      }
+    } else {
+      console.warn("Global Flot graph zone data or group ID not found for Odds Graph. Retrying once...");
+      // Retry once, as data might be loaded by another script.
+      setTimeout(function() {
+        // Re-fetch groupId in case the DOM was not ready for the first attempt.
+        groupId = $('.odds-graph-legend-item').first().data('groupId');
+        if (groupId && window.flotGraphZoneData && window.flotGraphZoneData['group_' + groupId]) {
+          graphData = window.flotGraphZoneData['group_' + groupId];
+          if (!graphData.defaultMarkings || !graphData.zones || typeof graphData.numRanks === 'undefined') {
+            console.warn("Required data not found for Odds Graph group (after delay): " + groupId);
+            return;
+          }
+          // If data loaded, proceed with attaching handlers
+          // This recursive call might be problematic if the condition for data loading isn't met, leading to potential infinite loop.
+          // A better approach would be a limited number of retries or a different event to trigger this.
+          // For now, this is a simplified retry.
+          // To avoid potential infinite loop, we'll just proceed if data is found, and log if not.
+        } else {
+          console.warn("Graph zone data still not found for group (after delay): " + groupId);
+          return; // Exit if still not found
+        }
+         // Ensure handlers are attached only if graphData is now valid
+        if (!graphData || !graphData.defaultMarkings || !graphData.zones || typeof graphData.numRanks === 'undefined') {
+            return;
+        }
+        // Re-select and attach to avoid issues if elements were not fully ready on first attempt.
+        $('tr.odds-graph-legend-item[data-group-id="' + groupId + '"]').off('mouseenter mouseleave').on('mouseenter', mouseEnterHandler).on('mouseleave', mouseLeaveHandler);
+
+      }, 2000);
+      // If graphData not immediately available, and not after 2s, then handlers won't be attached.
+      if (!graphData || !graphData.defaultMarkings || !graphData.zones || typeof graphData.numRanks === 'undefined') {
+        return;
+      }
+    }
+
+    function mouseEnterHandler() {
+        if (!plot || !graphData) return;
+
+        var hoveredZoneName = $(this).data('zoneName');
+        var hoveredZone = graphData.zones.find(function(z) { return z.name === hoveredZoneName; });
+
+        if (!hoveredZone) return;
+
+        var newMarkings = [];
+        var numRanks = graphData.numRanks;
+        var graphMaxY = 101.0;
+
+        for (var pRank = 1; pRank <= numRanks; pRank++) {
+            var colorForThisRank = null;
+            // Find the default marking for this rank.
+            // Using toFixed(1) for robust floating point comparison.
+            var defaultMarkingForRank = graphData.defaultMarkings.find(function(m) {
+            return m.xaxis && typeof m.xaxis.from === 'number' &&
+                    (pRank - 0.5).toFixed(1) === m.xaxis.from.toFixed(1);
+            });
+
+            if (hoveredZone.positions.map(Number).includes(pRank)) { // Ensure positions are numbers
+            colorForThisRank = hoveredZone.color;
+            } else {
+            if (defaultMarkingForRank) {
+                colorForThisRank = defaultMarkingForRank.color;
+            }
+            }
+
+            if (colorForThisRank) {
+            newMarkings.push({
+                xaxis: { from: pRank - 0.5, to: pRank + 0.5 },
+                yaxis: { from: 0, to: graphMaxY },
+                color: colorForThisRank
+            });
+            }
+        }
+
+        var options = plot.getOptions();
+        options.grid.markings = newMarkings;
+        plot.setupGrid();
+        plot.draw();
+    }
+
+    function mouseLeaveHandler() {
+        if (!plot || !graphData || !graphData.defaultMarkings) return;
+
+        var options = plot.getOptions();
+        options.grid.markings = graphData.defaultMarkings; // Restore original
+        plot.setupGrid();
+        plot.draw();
+    }
+
+    $('tr.odds-graph-legend-item[data-group-id="' + groupId + '"]').on('mouseenter', mouseEnterHandler).on('mouseleave', mouseLeaveHandler);
+  }
+
+  if (graphDiv.length > 0) {
+    initOddsGraphInteraction();
+  }
+});
+
+</script>
+
 <% end %>
 
 <% if @played_games.size > 0 %>
