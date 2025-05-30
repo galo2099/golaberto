@@ -62,10 +62,10 @@ module Golaberto
     config.paperclip_defaults = {
       storage: :s3,
       s3_region: 'us-east-1',
-      s3_credentials: Hash[Rails.application.credentials.s3],
+      s3_credentials: Rails.application.credentials.s3,
       s3_headers: { 'Cache-Control' => 'max-age=315576000', 'Expires' => 10.years.from_now.httpdate },
     }
 
-    config.golaberto_image_url_prefix = "https://s3.amazonaws.com/#{Rails.application.credentials.s3[:bucket]}"
+    # config.golaberto_image_url_prefix = "https://s3.amazonaws.com/#{Rails.application.credentials.s3[:bucket]}"
   end
 end

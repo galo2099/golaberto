@@ -18,11 +18,14 @@ class Group < ApplicationRecord
 
   def odds
     req = Net::HTTP::Post.new("/odds", {'Content-Type' =>'application/json'})
-    req.body = as_json(
+    payload = as_json(
       include: {
         phase: { include: :championship },
         team_groups: { only: [ :team_id, :add_sub, :bias ] }
-      }).merge(games: games.includes(:home, :away).as_json(methods: [:home_power, :away_power], only: [ :id, :home_id, :away_id, :home_score, :away_score, :played ])).to_json
+      }
+    ).merge(games: games.includes(:home, :away).as_json(methods: [:home_power, :away_power], only: [ :id, :home_id, :away_id, :home_score, :away_score, :played ]))
+    payload[:elimination_phase] = self.phase.elimination_phase
+    req.body = payload.to_json
     response = Net::HTTP.new("localhost", 6577).start {|http| http.request(req) }
     calculated_odds = ActiveSupport::JSON.decode(response.body)
     ActiveRecord::Base.transaction do
@@ -88,6 +91,8 @@ class Group < ApplicationRecord
   end
 
   def team_table
+    return [] if phase.elimination_phase # Return empty array if it's an elimination phase
+
     @team_table ||= begin
       played_games = games.where(played: true).
           includes(:phase, [:phase => :championship ]).

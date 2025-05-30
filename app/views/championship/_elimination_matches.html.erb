@@ -1,0 +1,79 @@
+<h3><%= group.name %></h3>
+
+<%
+  # Fetch all games for the group.
+  # The games association in Group model is defined as:
+  # games, ->(group){ from('games USE INDEX(index_games_on_phase_id)').where([ "home_id IN (?) OR away_id IN (?)", group.teams.select(:id), group.teams.select(:id) ]) }, :through => :phase
+  # This should correctly scope games where at least one team from the group participated in the phase.
+  # For two-legged ties, we need games where *both* home and away are in this specific group.
+  # A more specific query might be needed if group.games is too broad.
+  # However, the subsequent find logic (g.home_id == team1.id && g.away_id == team2.id) will filter effectively.
+  all_games_for_phase = group.phase.games.includes(:home, :away).order(:date)
+  
+  # Filter for games strictly within this group for these pairings
+  games_in_group = all_games_for_phase.select { |g| group.team_ids.include?(g.home_id) && group.team_ids.include?(g.away_id) }
+
+  processed_pairs = []
+%>
+
+<% group.teams.each do |team1| %>
+  <% group.teams.each do |team2| %>
+    <% next if team1.id >= team2.id # Avoid duplicates and self-pairing by only processing (team1, team2) where team1.id < team2.id %>
+    <%# This also implicitly handles processed_pairs logic for simple pairs %>
+
+    <%
+      game1 = games_in_group.find { |g| g.home_id == team1.id && g.away_id == team2.id }
+      game2 = games_in_group.find { |g| g.home_id == team2.id && g.away_id == team1.id }
+
+      total_team1_goals = 0
+      total_team2_goals = 0
+      played_games_for_agg_count = 0
+
+      # Game 1: team1 (home) vs team2 (away)
+      if game1 && game1.played
+        total_team1_goals += (game1.home_score || 0)
+        total_team2_goals += (game1.away_score || 0)
+        played_games_for_agg_count += 1
+      end
+
+      # Game 2: team2 (home) vs team1 (away)
+      if game2 && game2.played
+        total_team1_goals += (game2.away_score || 0) # team1 is away
+        total_team2_goals += (game2.home_score || 0) # team2 is home
+        played_games_for_agg_count += 1
+      end
+    %>
+
+    <div style="margin-bottom: 15px; border: 1px solid #eee; padding: 10px;">
+      <strong><%= team1.name %> vs <%= team2.name %></strong>
+      <ul>
+        <li>
+          Leg 1 (<%= team1.name %> at home):
+          <% if game1 %>
+            <%= game1.home_score.nil? ? '-' : game1.home_score %> - <%= game1.away_score.nil? ? '-' : game1.away_score %>
+            <em><%= game1.played ? "(Played)" : "(Not played)" %></em>
+          <% else %>
+            Match not scheduled/found
+          <% end %>
+        </li>
+        <li>
+          Leg 2 (<%= team2.name %> at home):
+          <% if game2 %>
+            <%= game2.home_score.nil? ? '-' : game2.home_score %> - <%= game2.away_score.nil? ? '-' : game2.away_score %>
+            <em><%= game2.played ? "(Played)" : "(Not played)" %></em>
+          <% else %>
+            Match not scheduled/found
+          <% end %>
+        </li>
+        <li>
+          Aggregate:
+          <% if played_games_for_agg_count > 0 %>
+            <strong><%= total_team1_goals %> - <%= total_team2_goals %></strong>
+          <% else %>
+            -
+          <% end %>
+        </li>
+      </ul>
+    </div>
+  <% end %>
+<% end %>

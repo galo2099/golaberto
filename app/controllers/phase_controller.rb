@@ -66,7 +66,7 @@ class PhaseController < ApplicationController
 
   private
   def phase_params
-    params.require(:phase).permit(:name, :order_by, :sort, :bonus_points, :bonus_points_threshold)
+    params.require(:phase).permit(:name, :order_by, :sort, :bonus_points, :bonus_points_threshold, :elimination_phase)
   end
 
   def group_params

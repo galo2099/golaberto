@@ -49,11 +49,15 @@ function watch_odds(group_id) {
 }
 </script>
 <% @current_phase.groups.each do |group| %>
-  <%= render :partial => "table",
-             :locals => { :group => group,
-                          :link_to_group => @current_phase.groups.size > 1,
-                          :show_country => @championship.show_country,
-                          :omit_columns => { :odds => @display_odds } } %>
+  <% if group.phase.elimination_phase %>
+    <%= render :partial => "elimination_matches", :locals => { :group => group } %>
+  <% else %>
+    <%= render :partial => "table",
+               :locals => { :group => group,
+                            :link_to_group => @current_phase.groups.size > 1,
+                            :show_country => @championship.show_country,
+                            :omit_columns => { :odds => @display_odds } } %>
+  <% end %>
   <% group.zones.each do |zone| %>
     <div><span style="font-size: small"><span style="color: <%= zone["color"] %>">▣</span> <%= zone["name"] %>: <%= zone["position"] %></span></div>
   <% end %>
