@@ -9,23 +9,45 @@ class ChampionshipGet
 
   def self.matches(round_id, competition_id, round = 0)
     date ||= DateTime.now
-    data = with_http_retries { ActiveSupport::JSON.decode(get( "https://us.soccerway.com/a/block_competition_matches_summary?block_id=page_competition_1_block_competition_matches_summary_6&callback_params=%7B%22page%22%3A34%2C%22block_service_id%22%3A%22competition_summary_block_competitionmatchessummary%22%2C%22round_id%22%3A#{round_id}%2C%22outgroup%22%3Afalse%2C%22view%22%3A1%2C%22competition_id%22%3A#{competition_id}%2C%22bookmaker_urls%22%3A%5B%5D%7D&action=changePage&params=%7B%22page%22%3A#{round-1}%7D", {
-      headers: {"user-agent" => "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36",
-                "authority" => "us.soccerway.com",
-                "accept" => "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
-                "accept-language" => "en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7,es;q=0.6",
-                "accept-encoding" => "deflate, gzip",
-                "connection" => "", },
-    }).body) }
+    body = with_http_retries("https://us.soccerway.com/a/block_competition_matches_summary?block_id=page_competition_1_block_competition_matches_summary_6&callback_params=%7B%22page%22%3A34%2C%22block_service_id%22%3A%22competition_summary_block_competitionmatchessummary%22%2C%22round_id%22%3A#{round_id}%2C%22outgroup%22%3Afalse%2C%22view%22%3A1%2C%22competition_id%22%3A#{competition_id}%2C%22bookmaker_urls%22%3A%5B%5D%7D&action=changePage&params=%7B%22page%22%3A#{round-1}%7D")
+    data = ActiveSupport::JSON.decode(body)
     Hpricot(data["commands"][0]["parameters"]["content"]).search("table/tbody/tr.match")
   end
 end
 
-def with_http_retries(&block)
+def with_http_retries(url)
   begin
-    yield
+    ret = ""
+    loop do
+      ret = HTTParty.get( url, {
+        cookies: { 'OptanonConsent': 'isGpcEnabled' },
+        headers: {
+          "accept": "text/javascript, text/html, application/xml, text/xml, */*",
+          "accept-language": "accept-language: en-US,en;q=0.9",
+          "cache-control": "no-cache",
+          "pragma": "no-cache",
+          "priority": "u=1, i",
+          "referer": url,
+          "user-agent" => "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+          "authority" => "us.soccerway.com",
+          "accept-encoding" => "deflate, gzip",
+          'sec-ch-ua' => '"Not)A;Brand";v="99", "Google Chrome";v="127", "Chromium";v="127"',
+          'sec-ch-ua-mobile' => '?0',
+          'sec-ch-ua-platform' => '"macOS"',
+          'sec-fetch-dest' => 'document',
+          'sec-fetch-mode' => 'navigate',
+          "connection" => "", },
+      }).body
+
+      if not ret.include?("You don't have permission to access")
+        break
+      end
+      p "Permission error in [#{url}]. Retrying in 1 seconds."
+      sleep 1
+    end
+    return ret
   rescue Errno::ECONNREFUSED, SocketError, Net::ReadTimeout, Net::OpenTimeout
-    p "Cannot reach [#{@service_url}]. Retrying in #{@retry_seconds} seconds."
+    p "Cannot reach [#{url}]. Retrying in 1 seconds."
     sleep 1
     retry
   end
@@ -230,6 +252,21 @@ def fix_name(str)
   if str == "Türkiye"
     str = "Turkey"
   end
+  if str == "Czechia"
+    str = "Czech Republic"
+  end
+  if str == "Racing"
+    str = "Racing Montevideo"
+  end
+  if str == "Dinamo Kiev"
+    str = "Dynamo Kyiv"
+  end
+  if str == "Inter de Limeira"
+    str = "Internacional-SP"
+  end
+  if str == "Botafogo"
+    str = "Botafogo-RJ"
+  end
   str
 end
 
@@ -311,12 +348,7 @@ def parse_match(phase, round, match)
 end
 
 def get_scorers(game, url)
-  body = with_http_retries { HTTParty.get(url, { headers: {"user-agent" => "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36",
-                "authority" => "us.soccerway.com",
-                "accept" => "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
-                "accept-language" => "en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7,es;q=0.6",
-                "accept-encoding" => "deflate, gzip",
-                "connection" => "", } }).body }
+  body = with_http_retries(url)
   data = Hpricot(body)
   game.goals.clear
   game.player_games.clear
@@ -408,12 +440,7 @@ def process_player(s, game, team_id, players, starter, end_of_match)
 end
 
 def create_player(url, soccerway_id, player = Player.new)
-  data = with_http_retries { HTTParty.get(url, { headers: {"user-agent" => "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36",
-                "authority" => "us.soccerway.com",
-                "accept" => "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
-                "accept-language" => "en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7,es;q=0.6",
-                "accept-encoding" => "deflate, gzip",
-                "connection" => "", }}).body }
+  data = with_http_retries(url)
   player_info = Hpricot(data)
   name = player_info.search('//*[@id="subheading"]/h1//text()').to_s
   full_name = player_info.search('//*[@id="page_player_1_block_player_passport_3"]/div/div/div[1]/div/dl/dd[@data-first_name="first_name"]//text()').to_s + " " + player_info.search('//*[@id="page_player_1_block_player_passport_3"]/div/div/div[1]/div/dl/dd[@data-last_name="last_name"]//text()').to_s
