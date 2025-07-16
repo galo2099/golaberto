@@ -8,7 +8,6 @@ class ChampionshipGet
   include HTTParty
 
   def self.matches(round_id, competition_id, round = 0)
-    date ||= DateTime.now
     body = with_http_retries("https://us.soccerway.com/a/block_competition_matches_summary?block_id=page_competition_1_block_competition_matches_summary_6&callback_params=%7B%22page%22%3A34%2C%22block_service_id%22%3A%22competition_summary_block_competitionmatchessummary%22%2C%22round_id%22%3A#{round_id}%2C%22outgroup%22%3Afalse%2C%22view%22%3A1%2C%22competition_id%22%3A#{competition_id}%2C%22bookmaker_urls%22%3A%5B%5D%7D&action=changePage&params=%7B%22page%22%3A#{round-1}%7D")
     data = ActiveSupport::JSON.decode(body)
     Hpricot(data["commands"][0]["parameters"]["content"]).search("table/tbody/tr.match")
@@ -125,9 +124,6 @@ def fix_name(str)
   end
   if str == "Universitatea &hellip;"
     return "CS U Craiova"
-  end
-  if str == "Olympiakos Piraeus"
-    return "Olympiakos"
   end
   if str == "Swarovski Tirol"
     return "WSG Wattens"
@@ -448,9 +444,10 @@ def create_player(url, soccerway_id, player = Player.new)
   birthday = player_info.search('//*[@id="page_player_1_block_player_passport_3"]/div/div/div[1]/div/dl/dd[@data-date_of_birth="date_of_birth"]//text()').to_s
   position = player_info.search('//*[@id="page_player_1_block_player_passport_3"]/div/div/div[1]/div/dl/dd[@data-position="position"]//text()').to_s
   country = player_info.search('//*[@id="page_player_1_block_player_passport_3"]/div/div/div[1]/div/dl/dd[@data-nationality="nationality"]//text()').to_s
-
   p name
   p soccerway_id
+
+
 
   if country == "Brunei Darussalam"
     country = "Brunei"
