@@ -83,7 +83,7 @@ class Team < ApplicationRecord
   def retrieve_geocode
     url = "https://nominatim.openstreetmap.org/search.php?q=#{CGI.escape(city.to_s + ", " + country)}&format=jsonv2&namedetails=1&layer=address"
     uri = URI(url)
-    response = Net::HTTP.get(uri)
+    response = Net::HTTP.get(uri, {'User-Agent' => "GolAberto (www.golaberto.com)"})
     self.build_team_geocode unless self.team_geocode
     self.team_geocode.update(data: JSON.parse(response))
     return true
