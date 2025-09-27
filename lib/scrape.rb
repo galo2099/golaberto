@@ -7,11 +7,9 @@ require 'fuzzy/fuzzy'
 class ChampionshipGet
   include HTTParty
 
-  def self.matches(round_id, competition_id, round = 0)
-    date ||= DateTime.now
-    body = with_http_retries("https://us.soccerway.com/a/block_competition_matches_summary?block_id=page_competition_1_block_competition_matches_summary_6&callback_params=%7B%22page%22%3A34%2C%22block_service_id%22%3A%22competition_summary_block_competitionmatchessummary%22%2C%22round_id%22%3A#{round_id}%2C%22outgroup%22%3Afalse%2C%22view%22%3A1%2C%22competition_id%22%3A#{competition_id}%2C%22bookmaker_urls%22%3A%5B%5D%7D&action=changePage&params=%7B%22page%22%3A#{round-1}%7D")
-    data = ActiveSupport::JSON.decode(body)
-    Hpricot(data["commands"][0]["parameters"]["content"]).search("table/tbody/tr.match")
+  def self.get(url)
+    body = with_http_retries(url)
+    ActiveSupport::JSON.decode(body)
   end
 end
 
@@ -39,7 +37,7 @@ def with_http_retries(url)
           "connection" => "", },
       }).body
 
-      if not ret.include?("You don't have permission to access")
+      if not ret.include?("Service Unavailable") and not ret.include?("Internal Server Error")
         break
       end
       p "Permission error in [#{url}]. Retrying in 1 seconds."
@@ -54,6 +52,15 @@ def with_http_retries(url)
 end
 
 def fix_name(str)
+  if str == "Dinamo"
+    return "Dinamo Tirana"
+  end
+  if str == "Aris"
+    return "Aris Thessaloniki"
+  end
+  if str == "TNS"
+    return "The New Saints"
+  end
   if str == "TSC"
     return "Bačka Topola"
   end
@@ -94,6 +101,9 @@ def fix_name(str)
     return "Rad"
   end
   if str == "Crvena Zvezda"
+    return "Red Star Belgrade"
+  end
+  if str == "Crvena zvezda"
     return "Red Star Belgrade"
   end
   if str == "Torpedo BelAZ"
@@ -138,6 +148,12 @@ def fix_name(str)
   if str == "Republic of Ireland"
     return "Ireland"
   end
+  if str == "Rep. Ireland"
+    return "Ireland"
+  end
+  if str == "N. Ireland"
+    return "Northern Ireland"
+  end
   if str == "CSKA 1948 Sofia"
     return "CSKA 1948"
   end
@@ -150,7 +166,7 @@ def fix_name(str)
   if str == "1860 München"
     return "1860 Munich"
   end
-  if str == "Inter Milan"
+  if str == "Inter"
     return "Internazionale"
   end
   if str == "7 de Setembro"
@@ -199,6 +215,9 @@ def fix_name(str)
     return "Taiwan"
   end
   if str == "Korea Republic"
+    return "South Korea"
+  end
+  if str == "Korea Rep"
     return "South Korea"
   end
   if str == "Korea DPR"
@@ -267,7 +286,38 @@ def fix_name(str)
   if str == "Botafogo"
     str = "Botafogo-RJ"
   end
+  if str == "Sounders"
+    str = "Seattle"
+  end
+  if str == "ES Tunis"
+    str = "Espérance"
+  end
+  if str == "Tunis"
+    str = "Espérance"
+  end
+  if str == "LAFC"
+    str = "Los Angeles FC"
+  end
+  if str == "WAC"
+    str = "Wolfsberger"
+  end
   str
+end
+
+def scrape(phase, url, options = {})
+  phase = Phase.find phase
+
+  rounds = nil
+  if options[:rounds] then
+    rounds = options[:rounds]
+  else
+    rounds = rounds_to_update(phase)
+  end
+  altered = false
+  data = ChampionshipGet.get(url)
+  data["matches"].each do |match|
+    parse_match(phase, data, match, rounds)
+  end
 end
 
 def rounds_to_update(phase)
@@ -276,42 +326,53 @@ def rounds_to_update(phase)
    phase.games.where(played: true).includes(:player_games).select{|g|g.player_games.size == 0}.map{|g|g.round}).sort.uniq
 end
 
-def scrape(phase, round_id, competition_id, options = {})
-  phase = Phase.find phase
-
-  altered = false
-  round = 0
-  date = Date.today
-  rounds = nil
-  if options[:rounds] then
-    rounds = options[:rounds]
-  else
-    rounds = rounds_to_update(phase)
-  end
-  rounds.each do |i|
-    puts "Round #{i}"
-    ChampionshipGet.matches(round_id, competition_id, i).each do |match|
-      parse_match(phase, i, match)
-    end
-  end
-end
-
-def parse_match(phase, round, match)
+def parse_match(phase, data, match, rounds, create_groups = false)
   fuzzy_match = FuzzyTeamMatch.new
-  datetime = Time.at(match.attributes["data-timestamp"].to_i).to_datetime.in_time_zone("UTC")
-  home_name = fix_name(match.search("td[2]//text()").to_s.gsub(/^\s+/, "").gsub(/\s+$/, ""))
-  away_name = fix_name(match.search("td[4]//text()").to_s.gsub(/^\s+/, "").gsub(/\s+$/, ""))
-  home = phase.teams.map{|t| [t, fuzzy_match.getDistance(t.name, home_name)]}.sort{|a,b|b[1] <=> a[1]}[0][0]
-  away = phase.teams.map{|t| [t, fuzzy_match.getDistance(t.name, away_name)]}.sort{|a,b|b[1] <=> a[1]}[0][0]
+  datetime = Time.at(match["start"].to_i).to_datetime
+  if match["teams"][0]["pos"] == 0
+    home_team = match["teams"][0]
+    away_team = match["teams"][1]
+  else
+    home_team = match["teams"][1]
+    away_team = match["teams"][0]
+  end
+  home_name = fix_name(home_team["name"].gsub(/^\s+/, "").gsub(/\s+$/, ""))
+  away_name = fix_name(away_team["name"].gsub(/^\s+/, "").gsub(/\s+$/, ""))
+
+  if create_groups
+    p home_team["country"]["cname"]
+    p away_team["country"]["cname"]
+    home = Team.where(country: fix_country(home_team["country"]["cname"])).map{|t| [t, fuzzy_match.getDistance(t.name, home_name)]}.sort{|a,b|b[1] <=> a[1]}[0][0]
+    away = Team.where(country: fix_country(away_team["country"]["cname"])).map{|t| [t, fuzzy_match.getDistance(t.name, away_name)]}.sort{|a,b|b[1] <=> a[1]}[0][0]
+    group = phase.groups.select{|g| g.teams.pluck(:id).sort == [ home.id, away.id ].sort }.first
+    if group.nil?
+      last_group = phase.groups.last.try(:name) || "Group 0"
+      tokens = last_group.split(" ")
+      tokens[-1].succ!
+      new_name = tokens.join " "
+      group = phase.groups.build
+      group.name = new_name
+      group.save!
+      group.team_groups << TeamGroup.new(team_id: home.id)
+      group.team_groups << TeamGroup.new(team_id: away.id)
+    end
+  else
+    home = phase.teams.map{|t| [t, fuzzy_match.getDistance(t.name, home_name)]}.sort{|a,b|b[1] <=> a[1]}[0][0]
+    away = phase.teams.map{|t| [t, fuzzy_match.getDistance(t.name, away_name)]}.sort{|a,b|b[1] <=> a[1]}[0][0]
+  end
+
   p "#{home_name} #{home.name}"
   p "#{away_name} #{away.name}"
   g = nil
-  soccerway_url = match.search("td[3]/a").first.attributes["href"]
-  soccerway_id = soccerway_url.gsub(/.*?(\d+).$/, '\1')
+  soccerway_id = match["id"]
   g = phase.games.where(soccerway_id: soccerway_id).includes(:goals).first
   # legacy
+  round = match["round"].try("to_i")
   unless g
     g = phase.games.where(home_id: home.id, away_id: away.id, round: round, soccerway_id: nil).includes(:goals).first
+  end
+  unless g
+    g = phase.games.where(home_id: home.id, away_id: away.id, round: round).where("soccerway_id LIKE 'I%'").includes(:goals).first
   end
   unless g
     g = phase.games.build({:home_id => home.id, :away_id => away.id})
@@ -319,79 +380,187 @@ def parse_match(phase, round, match)
   if g
     game_compare = g.dup
     game_compare.goals = g.goals
+    g.home_id = home.id
+    g.away_id = away.id
     g.date = datetime
     g.soccerway_id = soccerway_id
     g.has_time = true
     g.round = round
-    g.played = "0"
-    if match.search("td[3]//text()").to_s =~ /PSTP/
-      g.has_time = false
+    g.home_score = 0
+    g.away_score = 0
+
+    home_score = home_team["scores"]
+    away_score = away_team["scores"]
+    if home_score
+      g.home_score = home_score["FINAL_RESULT"].to_i
+      g.away_score = away_score["FINAL_RESULT"].to_i
+      if home_score["EXTRA_TIME"]
+        g.home_aet = home_score["EXTRA_TIME"].to_i - home_score["FINAL_RESULT"].to_i
+        g.away_aet = away_score["EXTRA_TIME"].to_i - away_score["FINAL_RESULT"].to_i
+      end
+      if home_score["SHOOTOUT"]
+        g.home_pen = home_score["SHOOTOUT"]
+        g.away_pen = away_score["SHOOTOUT"]
+      end
     end
-    if match.search("td[3]//text()").to_s =~ /(\d+) - (\d+)/
-      g.home_score = $1.to_i
-      g.away_score = $2.to_i
-      g.played = true
-    end
-    if match.search("td[1]//text()").to_s !~ /FT/
-      g.played = false
-    end
+    g.played = match["status"] == "FINISHED_AFTER_FULL_TIME"
     if g.diff(game_compare).size > 0
       p g
       p game_compare.diff(g)
       g.valid? || raise(g.errors.to_xml.to_s)
       altered = g.save! || altered
     end
-    if g.played
-      get_scorers(g, "https://us.soccerway.com" + match.search("td[3]/a").first.attributes["href"])
+    if g.played and rounds.include?(round)
+      get_scorers(g, "https://us.soccerway.com/v1/english/match/soccer/full/#{soccerway_id}?region=US")
     end
   end
 end
 
 def get_scorers(game, url)
-  body = with_http_retries(url)
-  data = Hpricot(body)
+  data = ChampionshipGet.get(url)
+  if data["lineup"].nil?
+    p "No lineups found for #{url}"
+    return
+  end
+  home_lineup = nil
+  away_lineup = nil
+  data["lineup"].each do |l|
+    home_lineup = l if l["pos"] == 0
+    away_lineup = l if l["pos"] == 1
+  end
+  if home_lineup.nil?
+    p "Missing home lineup for #{url}"
+    return
+  end
+  if away_lineup.nil?
+    p "Missing away lineup for #{url}"
+    return
+  end
+  if data["incs"].nil?
+    p "No incs found for #{url}"
+    return
+  end
   game.goals.clear
   game.player_games.clear
   players = {}
-  if not data.search('//*[@id="yui-main"]//div[@class="combined-lineups-container"]').first
+  players_by_name = { 0 => {}, 1 => {} }
+  players_by_id = {}
+  off = data["elapsed"].to_i
+  off = 90 if off == 0
+
+  missing_player = false
+
+  proc_player = lambda do |s, game, team_id, starter, end_of_match, is_home|
+    name, player = process_player(s, game, team_id, starter, end_of_match)
+    if player
+      players[player.player.soccerway_id] = player
+      players_by_name[is_home ? 0 : 1][name] = player
+      players_by_id[s["id"]] = player if s["id"]
+    else
+      missing_player = true
+    end
+  end
+
+  home_lineup["starting"].each do |s|
+    proc_player.call(s, game, game.home_id, true, off, true)
+  end
+  away_lineup["starting"].each do |s|
+    proc_player.call(s, game, game.away_id, true, off, false)
+  end
+  home_lineup["substitutes"].each do |s|
+    proc_player.call(s, game, game.home_id, false, off, true)
+  end
+  away_lineup["substitutes"].each do |s|
+    proc_player.call(s, game, game.away_id, false, off, false)
+  end
+
+  if players.size == 0
     return
   end
-  state = data.search('//*[@id="page_match_1_block_match_info_5"]//span.match-state/text()').first.to_s
-  off = 90
-  if state == "AET"
-    off = 120
-  end
-  data.search('//*[@id="yui-main"]//div[@class="combined-lineups-container"]')[0].search('/div[1]/table/tbody/tr').each do |s|
-    player = process_player(s, game, game.home_id, players, true, off)
-    players[player.player.soccerway_id] = player if player
-  end
-  data.search('//*[@id="yui-main"]//div[@class="combined-lineups-container"]')[0].search('/div[2]/table/tbody/tr').each do |s|
-    player = process_player(s, game, game.away_id, players, true, off)
-    players[player.player.soccerway_id] = player if player
-  end
-  data.search('//*[@id="yui-main"]//div[@class="combined-lineups-container"]')[1].search('/div[2]/table/tbody/tr').each do |s|
-    player = process_player(s, game, game.home_id, players, false, off)
-    players[player.player.soccerway_id] = player if player
-  end
-  data.search('//*[@id="yui-main"]//div[@class="combined-lineups-container"]')[1].search('/div[3]/table/tbody/tr').each do |s|
-    player = process_player(s, game, game.away_id, players, false, off)
-    players[player.player.soccerway_id] = player if player
+
+  fuzzy_match = FuzzyTeamMatch.new
+  data["incs"].each do |s|
+    minute = s["elapsed"]
+    if s["type"] == "REGULAR_GOAL"
+      player = players_by_name[s["pos"]][s["pl_name"]]
+      if player.nil? and not missing_player
+        best_match = players_by_name[s["pos"]].keys.map{|t| [t, fuzzy_match.getDistance(t, s["pl_name"])]}.sort{|a,b|b[1] <=> a[1]}[0][0]
+        player = players_by_name[s["pos"]][best_match]
+        p "#{s["pl_name"]} - #{best_match}"
+      end
+      Goal.new(player_id: player.player_id, game_id: game.id, team_id: player.team_id, time: minute, penalty: false, own_goal: false, aet: minute > 90).save! if player
+    end
+    if s["type"] == "PENALTY"
+      player = players_by_name[s["pos"]][s["pl_name"]]
+      if player.nil? and not missing_player
+        best_match = players_by_name[s["pos"]].keys.map{|t| [t, fuzzy_match.getDistance(t, s["pl_name"])]}.sort{|a,b|b[1] <=> a[1]}[0][0]
+        player = players_by_name[s["pos"]][best_match]
+        p "#{s["pl_name"]} - #{best_match}"
+      end
+      Goal.new(player_id: player.player_id, game_id: game.id, team_id: player.team_id, time: minute, penalty: true, own_goal: false, aet: minute > 90).save! if player
+    end
+    if s["type"] == "OWN_GOAL"
+      player = players_by_name[1 - s["pos"]][s["pl_name"]]
+      if player.nil? and not missing_player
+        best_match = players_by_name[1 - s["pos"]].keys.map{|t| [t, fuzzy_match.getDistance(t, s["pl_name"])]}.sort{|a,b|b[1] <=> a[1]}[0][0]
+        player = players_by_name[1 - s["pos"]][best_match]
+        p "#{s["pl_name"]} - #{best_match}"
+      end
+      Goal.new(player_id: player.player_id, game_id: game.id, team_id: player.team_id, time: minute, penalty: false, own_goal: true, aet: minute > 90).save! if player
+    end
+    if s["type"] == "YELLOW_CARD"
+      player = players[s["pl_int_id"]]
+      # May be a coach
+      player.yellow = true if player
+    end
+    if s["type"] == "RED_CARD" || s["type"] == "SECOND_YELLOW_CARD"
+      player = players[s["pl_int_id"]]
+      # May be a coach
+      if player
+        player.red = true
+        player.off = minute if minute < player.off
+      end
+    end
+    if s["type"] == "SUBSTITUTION" and s["pl_name_o"]
+      player = players[s["pl_int_id"]]
+      if player.nil?
+        player = players_by_id[s["pl_id"]]
+      end
+      if player.nil? and not missing_player
+        best_match = players_by_name[s["pos"]].keys.map{|t| [t, fuzzy_match.getDistance(t, s["pl_name"])]}.sort{|a,b|b[1] <=> a[1]}[0][0]
+        player = players_by_name[s["pos"]][best_match]
+        p "#{s["pl_name"]} - #{best_match}"
+      end
+      next if not player
+      player.on = minute
+      player.off = off
+      player_out = players_by_id[s["pl_id_o"]]
+      if player_out.nil?
+        player_out = players_by_name[s["pos"]][s["pl_name_o"]]
+      end
+      if (player and player_out.nil?) or (player_out.nil? and not missing_player)
+        best_match = players_by_name[s["pos"]].keys.map{|t| [t, fuzzy_match.getDistance(t, s["pl_name_o"])]}.sort{|a,b|b[1] <=> a[1]}[0][0]
+        player_out = players_by_name[s["pos"]][best_match]
+        p "#{s["pl_name_o"]} - #{best_match}"
+      end
+      player_out.off = minute
+    end
   end
   players.values.each do |p|
     p.save!
   end
 end
 
-def process_player(s, game, team_id, players, starter, end_of_match)
-  link = s.search('/td.player.large-link//a[1]').first
-  if not link
-    return
+def process_player(s, game, team_id, starter, end_of_match)
+  soccerway_id = s["int_id"]
+  if soccerway_id.nil?
+    return nil, nil
   end
-  soccerway_url = link.attributes['href']
-  soccerway_id = soccerway_url.gsub(/.*?(\d+).$/, '\1')
+  name = s["name"]
+  link = "https://us.soccerway.com/v1/english/player/soccer/full/#{soccerway_id}"
   player = Player.where(soccerway_id: soccerway_id).first
   if not player
-    player = create_player("https://us.soccerway.com" + soccerway_url, soccerway_id)
+    player = create_player(link, soccerway_id, name)
   end
   TeamPlayer.new(team_id: team_id, player_id: player.id, championship_id: game.phase.championship_id).save
   yc = false
@@ -400,129 +569,23 @@ def process_player(s, game, team_id, players, starter, end_of_match)
   if starter
     off = end_of_match
   end
-  out = s.search('/td.player.large-link/p.substitute-out').first
   on = 0
-  if out
-    out_id = out.search('/a').first.attributes['href'].gsub(/.*?(\d+).$/, '\1')
-    minute = out.search('/text()').to_s.gsub(/.*?(\d+).*/m, '\1')
-    if players[out_id]
-      players[out_id].off = minute
-    end
-    on = minute
-    off = end_of_match
-  end
-  s.search('/td.bookings/span').each do |span|
-    if span.search('/img').first.attributes['src'] =~ /\bG.png\b/
-      minute = span.search('text()').first.to_s.gsub(/.*?(\d+).*/m, '\1').to_i
-      Goal.new(player_id: player.id, game_id: game.id, team_id: team_id, time: minute, penalty: false, own_goal: false, aet: minute > 90).save!
-    end
-    if span.search('/img').first.attributes['src'] =~ /\bPG.png\b/
-      minute = span.search('text()').first.to_s.gsub(/.*?(\d+).*/m, '\1').to_i
-      Goal.new(player_id: player.id, game_id: game.id, team_id: team_id, time: minute, penalty: true, own_goal: false, aet: minute > 90).save!
-    end
-    if span.search('/img').first.attributes['src'] =~ /\bOG.png\b/
-      minute = span.search('text()').first.to_s.gsub(/.*?(\d+).*/m, '\1').to_i
-      Goal.new(player_id: player.id, game_id: game.id, team_id: team_id, time: minute, penalty: false, own_goal: true, aet: minute > 90).save!
-    end
-    if span.search('/img').first.attributes['src'] =~ /\bYC.png\b/
-      yc = true
-    end
-    if span.search('/img').first.attributes['src'] =~ /\bRC.png\b/
-      rc = true
-      off = span.search('text()').first.to_s.gsub(/.*?(\d+).*/m, '\1') if off != 0
-    end
-    if span.search('/img').first.attributes['src'] =~ /\bY2C.png\b/
-      rc = true
-      off = span.search('text()').first.to_s.gsub(/.*?(\d+).*/m, '\1') if off != 0
-    end
-  end
-  return PlayerGame.new(player_id: player.id, game_id: game.id, team_id: team_id, on: on, off: off, yellow: yc, red: rc)
+  return s["name"], PlayerGame.new(player_id: player.id, game_id: game.id, team_id: team_id, on: on, off: off, yellow: yc, red: rc)
 end
 
-def create_player(url, soccerway_id, player = Player.new)
-  data = with_http_retries(url)
-  player_info = Hpricot(data)
-  name = player_info.search('//*[@id="subheading"]/h1//text()').to_s
-  full_name = player_info.search('//*[@id="page_player_1_block_player_passport_3"]/div/div/div[1]/div/dl/dd[@data-first_name="first_name"]//text()').to_s + " " + player_info.search('//*[@id="page_player_1_block_player_passport_3"]/div/div/div[1]/div/dl/dd[@data-last_name="last_name"]//text()').to_s
-  height = player_info.search('//*[@id="page_player_1_block_player_passport_3"]/div/div/div[1]/div/dl/dd[@data-height="height"]//text()')
-  birthday = player_info.search('//*[@id="page_player_1_block_player_passport_3"]/div/div/div[1]/div/dl/dd[@data-date_of_birth="date_of_birth"]//text()').to_s
-  position = player_info.search('//*[@id="page_player_1_block_player_passport_3"]/div/div/div[1]/div/dl/dd[@data-position="position"]//text()').to_s
-  country = player_info.search('//*[@id="page_player_1_block_player_passport_3"]/div/div/div[1]/div/dl/dd[@data-nationality="nationality"]//text()').to_s
+def create_player(url, soccerway_id, name)
+  player = Player.new
+  data = ChampionshipGet.get(url)
+  full_name = data["name"]
+  height = data["height"].to_i
+  birthday = Time.at(data["date_of_birth"].to_i)
+  position = data["pos_name"]
+  country = fix_country(data["country"]["cname"])
 
   p name
   p soccerway_id
 
-  if country == "Brunei Darussalam"
-    country = "Brunei"
-  end
-  if country == "Côte d'Ivoire"
-    country = "Ivory Coast"
-  end
-  if country == "Cape Verde Islands"
-    country = "Cape Verde"
-  end
-  if country == "Cape Verde Islands"
-    country = "Cape Verde"
-  end
-  if country == "Czechia"
-    country = "Czech Republic"
-  end
-  if country == "Eswatini"
-    country = "Swaziland"
-  end
-  if country == "North Macedonia"
-    country = "Macedonia"
-  end
-  if country == "Congo DR"
-    country = "DR Congo"
-  end
-  if country == "Hong Kong, China"
-    country = "Hong Kong"
-  end
-  if country == "USA"
-    country = "United States"
-  end
-  if country == "Republic of Ireland"
-    country = "Ireland"
-  end
-  if country == "St. Kitts and Nevis"
-    country = "Saint Kitts and Nevis"
-  end
-  if country == "Korea Republic"
-    country = "South Korea"
-  end
-  if country == "Korea DPR"
-    country = "North Korea"
-  end
-  if country == "Curaçao"
-    country = "Netherlands Antilles"
-  end
-  if country == "China PR"
-    country = "China"
-  end
-  if country == "St. Lucia"
-    country = "Saint Lucia"
-  end
-  if country == "British Virgin Islands"
-    country = "Virgin Islands (British)"
-  end
-  if country == "Chinese Taipei"
-    country = "Taiwan"
-  end
-  if country == "São Tomé e Príncipe"
-    country = "Sao Tome and Principe"
-  end
-  if country == "Kyrgyz Republic"
-    country = "Kyrgyzstan"
-  end
-  if country == "Türkiye"
-    country = "Turkey"
-  end
-  if country == "Vietnam"
-    country = "Viet Nam"
-  end
-
-  player.update(name: name, birth: birthday.to_date, country: country, full_name: full_name, soccerway_id: soccerway_id, height: height[0].try(:to_s).try(:to_i))
+  player.update(name: name, birth: birthday.to_date, country: country, full_name: full_name, soccerway_id: soccerway_id, height: height)
   if position =~ /Goalkeeper/
     player.position = "g"
   end
@@ -538,4 +601,80 @@ def create_player(url, soccerway_id, player = Player.new)
   player.save!
   p player
   return player
+end
+
+def fix_country(c)
+  if c == "Andorra CF"
+    return "Andorra"
+  end
+  if c == "Brunei Darussalam"
+    return "Brunei"
+  end
+  if c == "Côte d'Ivoire"
+    return "Ivory Coast"
+  end
+  if c == "Cape Verde Islands"
+    return "Cape Verde"
+  end
+  if c == "Cape Verde Islands"
+    return "Cape Verde"
+  end
+  if c == "Czechia"
+    return "Czech Republic"
+  end
+  if c == "Eswatini"
+    return "Swaziland"
+  end
+  if c == "North Macedonia"
+    return "Macedonia"
+  end
+  if c == "Congo DR"
+    return "DR Congo"
+  end
+  if c == "Hong Kong, China"
+    return "Hong Kong"
+  end
+  if c == "USA"
+    return "United States"
+  end
+  if c == "Republic of Ireland"
+    return "Ireland"
+  end
+  if c == "St. Kitts and Nevis"
+    return "Saint Kitts and Nevis"
+  end
+  if c == "Korea Republic"
+    return "South Korea"
+  end
+  if c == "Korea DPR"
+    return "North Korea"
+  end
+  if c == "Curaçao"
+    return "Netherlands Antilles"
+  end
+  if c == "China PR"
+    return "China"
+  end
+  if c == "St. Lucia"
+    return "Saint Lucia"
+  end
+  if c == "British Virgin Islands"
+    return "Virgin Islands (British)"
+  end
+  if c == "Chinese Taipei"
+    return "Taiwan"
+  end
+  if c == "São Tomé e Príncipe"
+    return "Sao Tome and Principe"
+  end
+  if c == "Kyrgyz Republic"
+    return "Kyrgyzstan"
+  end
+  if c == "Türkiye"
+    return "Turkey"
+  end
+  if c == "Vietnam"
+    return "Viet Nam"
+  end
+  return c
 end
