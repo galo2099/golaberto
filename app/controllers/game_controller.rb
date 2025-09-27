@@ -14,7 +14,7 @@ class GameController < ApplicationController
 
   def list
     store_location
-    @type = params[:type].to_sym || :scheduled
+    @type = params[:type]&.to_sym || :scheduled
     @games = Game
     @categories = Category.all
     @category = params[:category] || 1
