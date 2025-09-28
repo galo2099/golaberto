@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2024_03_05_235453) do
+ActiveRecord::Schema[7.2].define(version: 2025_09_27_204305) do
   create_table "__diesel_schema_migrations", primary_key: "version", id: { type: :string, limit: 50 }, charset: "utf8mb3", collation: "utf8mb3_unicode_ci", force: :cascade do |t|
     t.timestamp "run_on", default: -> { "CURRENT_TIMESTAMP" }, null: false
   end
@@ -92,6 +92,7 @@ ActiveRecord::Schema[7.1].define(version: 2024_03_05_235453) do
     t.float "home_importance"
     t.float "away_importance"
     t.string "soccerway_id"
+    t.string "sofascore_id"
     t.index ["game_id"], name: "index_game_versions_on_game_id"
     t.index ["updater_id"], name: "index_game_versions_on_updater_id"
   end
@@ -120,6 +121,7 @@ ActiveRecord::Schema[7.1].define(version: 2024_03_05_235453) do
     t.float "home_importance"
     t.float "away_importance"
     t.string "soccerway_id"
+    t.string "sofascore_id"
     t.index ["away_id"], name: "index_games_on_away_id"
     t.index ["date"], name: "index_games_on_date"
     t.index ["home_id"], name: "index_games_on_home_id"
@@ -189,6 +191,8 @@ ActiveRecord::Schema[7.1].define(version: 2024_03_05_235453) do
     t.integer "bonus_points_threshold", default: 0, null: false
     t.datetime "created_at", precision: nil, null: false
     t.datetime "updated_at", precision: nil, null: false
+    t.integer "phase_type", default: 0
+    t.boolean "elimination_phase", default: false
     t.index ["championship_id"], name: "championship"
   end
 
@@ -219,6 +223,7 @@ ActiveRecord::Schema[7.1].define(version: 2024_03_05_235453) do
     t.float "off_rating"
     t.float "def_rating"
     t.integer "height"
+    t.string "sofascore_id"
     t.index ["rating"], name: "index_players_on_rating"
     t.index ["soccerway_id"], name: "index_players_on_soccerway_id", unique: true
   end
