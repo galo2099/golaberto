@@ -76,7 +76,7 @@ class TeamController < ApplicationController
   def historical_rating
     team_id = params["id"]
     respond_to do |format|
-      format.js { render js: Team.get_historical_ratings_2_weeks(team_id).to_json }
+      format.js { render js: Team.get_historical_ratings(team_id).to_json }
     end
   end
 
