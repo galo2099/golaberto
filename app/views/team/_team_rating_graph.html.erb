@@ -106,18 +106,6 @@ data = teams[0,3].map{|t| Team.get_historical_ratings(t.id)  }
         }
       });
 
-      // Add missing points
-      var x_values_sorted = [...x_values].sort()
-      data.forEach(function(series) {
-        var next_point = 0;
-        x_values_sorted.forEach(function(x) {
-          if (series.data.length == next_point || series.data[next_point][0] != x) {
-            series.data.splice(next_point, 0, [x, null]);
-          }
-          next_point++;
-        });
-      });
-
       var ydelta = ymax - ymin;
       if (ydelta < 1) ydelta = 1;
       ymin = ymin - ydelta * 0.1;
