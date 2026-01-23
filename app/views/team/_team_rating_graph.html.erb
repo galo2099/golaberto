@@ -1,7 +1,7 @@
 <%= javascript_include_flot %>
 
 <%
-data = teams[0,3].map{|t| Team.get_historical_ratings_2_weeks(t.id)  }
+data = teams[0,3].map{|t| Team.get_historical_ratings(t.id)  }
 %>
 
 <div id="rating" style="width: 550px;

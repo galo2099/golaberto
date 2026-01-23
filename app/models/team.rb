@@ -1,4 +1,5 @@
 require 'poisson'
+require 'lttb'
 class Team < ApplicationRecord
   include Country
   enum team_type: [ :club, :national ]
@@ -76,8 +77,9 @@ class Team < ApplicationRecord
     games.joins(phase: :championship).where(championships: { category_id: Category::DEFAULT_CATEGORY }).where("date < ?", date).order(date: :desc).limit(n)
   end
 
-  def self.get_historical_ratings_2_weeks(team_id)
-    HistoricalRating.connection.select_all("select LEAST(FROM_UNIXTIME((unix_timestamp(measure_date) div (#{2.weeks.to_i}) + 1) * (#{2.weeks.to_i})), NOW()) as d, AVG(rating) as r from historical_ratings where team_id=#{team_id} group by d order by measure_date").to_a.map{|x|x.map{|k,v| v }}.map{|x| x[0] = x[0].to_time.to_i; x[1] = x[1].to_f; x[1] = nil if x[1] == 0; x}
+  def self.get_historical_ratings(team_id, threshold = 300)
+    data = HistoricalRating.where(team_id: team_id).order(:measure_date).pluck(:measure_date, :rating).map { |d, r| [d.to_time.to_i, r.to_f] }
+    LTTB.downsample(data, threshold)
   end
 
   def retrieve_geocode
