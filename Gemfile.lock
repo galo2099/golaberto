@@ -1598,6 +1598,7 @@ GEM
       nokogiri (~> 1)
       rake
     mini_mime (1.1.5)
+    mini_portile2 (2.8.9)
     minitest (5.25.1)
     mono_logger (1.1.2)
     msgpack (1.6.0)
@@ -1620,7 +1621,9 @@ GEM
     net-ssh (7.0.1)
     newrelic_rpm (9.7.0)
     nio4r (2.7.3)
-    nokogiri (1.16.7-arm64-darwin)
+    nokogiri (1.18.9-arm64-darwin)
+      racc (~> 1.4)
+    nokogiri (1.18.9-x86_64-linux-gnu)
       racc (~> 1.4)
     oauth2 (2.0.9)
       faraday (>= 0.17.3, < 3.0)
@@ -1752,6 +1755,8 @@ GEM
       actionpack (>= 3.0)
       activesupport (>= 3.0)
       sprockets (>= 2.8, < 4.0)
+    sqlite3 (1.7.0)
+      mini_portile2 (~> 2.8.0)
     sqlite3 (1.7.0-arm64-darwin)
     sshkit (1.21.3)
       net-scp (>= 1.1.2)
@@ -1779,6 +1784,7 @@ GEM
 
 PLATFORMS
   arm64-darwin-25
+  x86_64-linux
 
 DEPENDENCIES
   activerecord-diff!
