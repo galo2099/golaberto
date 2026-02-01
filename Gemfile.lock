@@ -1,11 +1,4 @@
 GIT
-  remote: https://github.com/Velir/open_id_authentication
-  revision: 4f0ebc18b3bc4f076959ccd58002d89ce929e12c
-  specs:
-    open_id_authentication (1.1.0)
-      rack-openid (~> 1.3)
-
-GIT
   remote: https://github.com/capistrano/rbenv
   revision: 1fdb93a6dd4a4ab3fb786c995055cf6949daf7a4
   specs:
@@ -1568,7 +1561,6 @@ GEM
       gelf
       resque
     hashie (5.0.0)
-    hpricot (0.8.6)
     httparty (0.21.0)
       mini_mime (>= 1.0.0)
       multi_xml (>= 0.5.2)
@@ -1606,7 +1598,6 @@ GEM
       nokogiri (~> 1)
       rake
     mini_mime (1.1.5)
-    mini_portile2 (2.8.7)
     minitest (5.25.1)
     mono_logger (1.1.2)
     msgpack (1.6.0)
@@ -1629,8 +1620,7 @@ GEM
     net-ssh (7.0.1)
     newrelic_rpm (9.7.0)
     nio4r (2.7.3)
-    nokogiri (1.16.7)
-      mini_portile2 (~> 2.8.2)
+    nokogiri (1.16.7-arm64-darwin)
       racc (~> 1.4)
     oauth2 (2.0.9)
       faraday (>= 0.17.3, < 3.0)
@@ -1648,6 +1638,9 @@ GEM
       oauth2 (>= 1.4, < 3)
       omniauth (~> 2.0)
     open4 (1.3.4)
+    open_id_authentication (2.0.2)
+      rack-openid2 (~> 2.0, >= 2.0.2)
+      version_gem (~> 1.1, >= 1.1.4)
     os (1.1.4)
     pagy (6.4.3)
     paperclip (6.1.0)
@@ -1666,10 +1659,11 @@ GEM
     quilt (0.1.0)
     raabro (1.4.0)
     racc (1.8.1)
-    rack (2.2.9)
-    rack-openid (1.4.2)
-      rack (>= 1.1.0)
-      ruby-openid (>= 2.1.8)
+    rack (2.2.21)
+    rack-openid2 (2.0.3)
+      rack (>= 2.2)
+      ruby-openid2 (~> 3.1, >= 3.1.0)
+      version_gem (~> 1.1, >= 1.1.4)
     rack-protection (3.2.0)
       base64 (>= 0.1.0)
       rack (~> 2.2, >= 2.2.4)
@@ -1731,7 +1725,8 @@ GEM
     rexml (3.2.6)
     rmagick (5.3.0)
       pkg-config (~> 1.4)
-    ruby-openid (2.9.2)
+    ruby-openid2 (3.1.0)
+      version_gem (~> 1.1, >= 1.1.4)
     ruby2_keywords (0.0.5)
     rufus-scheduler (3.8.2)
       fugit (~> 1.1, >= 1.1.6)
@@ -1757,8 +1752,7 @@ GEM
       actionpack (>= 3.0)
       activesupport (>= 3.0)
       sprockets (>= 2.8, < 4.0)
-    sqlite3 (1.7.0)
-      mini_portile2 (~> 2.8.0)
+    sqlite3 (1.7.0-arm64-darwin)
     sshkit (1.21.3)
       net-scp (>= 1.1.2)
       net-ssh (>= 2.8.0)
@@ -1774,7 +1768,7 @@ GEM
     tzinfo (2.0.6)
       concurrent-ruby (~> 1.0)
     useragent (0.16.10)
-    version_gem (1.1.1)
+    version_gem (1.1.9)
     webrick (1.8.1)
     websocket-driver (0.7.6)
       websocket-extensions (>= 0.1.0)
@@ -1784,7 +1778,7 @@ GEM
     zeitwerk (2.6.17)
 
 PLATFORMS
-  ruby
+  arm64-darwin-25
 
 DEPENDENCIES
   activerecord-diff!
@@ -1809,7 +1803,6 @@ DEPENDENCIES
   googleauth
   graylog2-resque
   graylog2_exceptions!
-  hpricot
   httparty
   jquery-rails
   jquery_datepicker!
@@ -1821,7 +1814,7 @@ DEPENDENCIES
   oj
   omniauth-google-oauth2!
   open4
-  open_id_authentication!
+  open_id_authentication
   pagy
   paperclip
   quilt
