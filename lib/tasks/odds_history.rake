@@ -8,13 +8,11 @@ namespace :odds_history do
     to_date = ENV["TO"].present? ? Date.parse(ENV["TO"]) : nil
     reset = ENV["RESET"].to_s == "true"
 
-    if championship_id.blank?
-      raise "CHAMPIONSHIP_ID is required"
-    end
+    raise "CHAMPIONSHIP_ID is required" if championship_id.blank?
 
-    groups = Group.joins(:phase).
-      where(phases: { championship_id: championship_id }).
-      includes(:team_groups, :games)
+    groups = Group.joins(:phase)
+      .where(phases: { championship_id: championship_id })
+      .includes(:team_groups)
     groups = groups.where(phase_id: phase_id) if phase_id.present?
     groups = groups.where(id: group_id) if group_id.present?
 
@@ -23,57 +21,55 @@ namespace :odds_history do
     groups.find_each do |group|
       puts "-> Group ##{group.id} (#{group.name})"
 
-      group.team_groups.each do |team_group|
-        team_group.odds_histories.delete_all if reset
+      if reset
+        group.team_groups.find_each { |team_group| team_group.odds_histories.delete_all }
       end
 
-      games = group.games.select(:id, :date, :played).to_a
-      original_played_by_id = games.each_with_object({}) { |game, hash| hash[game.id] = game.played }
-      played_game_ids = original_played_by_id.select { |_, played| played }.keys
+      base_games_json = group.games.includes(:home, :away).as_json(
+        methods: [:home_power, :away_power],
+        only: [ :id, :home_id, :away_id, :home_score, :away_score, :played, :date ]
+      )
 
-      game_days = games.
-        select { |game| game.date.present? && original_played_by_id[game.id] }.
-        map(&:date).
-        uniq.
-        sort
+      game_days = base_games_json
+        .select { |game| game["played"] && game["date"].present? }
+        .map { |game| Date.parse(game["date"].to_s) }
+        .uniq
+        .sort
 
-      if from_date
-        game_days = game_days.select { |day| day >= from_date }
-      end
-      if to_date
-        game_days = game_days.select { |day| day <= to_date }
-      end
+      game_days = game_days.select { |day| day >= from_date } if from_date
+      game_days = game_days.select { |day| day <= to_date } if to_date
 
       if game_days.empty?
         puts "   no played game dates found, skipping"
         next
       end
 
-      begin
-        game_days.each_with_index do |day, idx|
-          past_ids = games.select { |game| game.date.present? && game.date <= day && original_played_by_id[game.id] }.map(&:id)
-          future_ids = played_game_ids - past_ids
+      game_days.each_with_index do |day, idx|
+        games_json_for_day = base_games_json.map do |game|
+          game_date = game["date"].present? ? Date.parse(game["date"].to_s) : nil
+          should_be_played = game["played"] && game_date.present? && game_date <= day
 
-          unless past_ids.empty?
-            Game.where(id: past_ids).update_all(played: true)
-          end
-          unless future_ids.empty?
-            Game.where(id: future_ids).update_all(played: false)
-          end
-
-          group.reload
-          group.odds(snapshot_time: day.end_of_day)
-
-          puts "   [#{idx + 1}/#{game_days.size}] #{day}"
+          {
+            "id" => game["id"],
+            "home_id" => game["home_id"],
+            "away_id" => game["away_id"],
+            "home_score" => game["home_score"],
+            "away_score" => game["away_score"],
+            "played" => should_be_played,
+            "home_power" => game["home_power"],
+            "away_power" => game["away_power"],
+          }
         end
-      ensure
-        true_ids = original_played_by_id.select { |_, played| played }.keys
-        false_ids = original_played_by_id.select { |_, played| !played }.keys
-        Game.where(id: true_ids).update_all(played: true) unless true_ids.empty?
-        Game.where(id: false_ids).update_all(played: false) unless false_ids.empty?
+
+        group.odds(
+          games_json: games_json_for_day,
+          snapshot_time: day.end_of_day,
+          persist_game_importance: false
+        )
+
+        puts "   [#{idx + 1}/#{game_days.size}] #{day}"
       end
 
-      group.reload
       group.odds
       puts "   finished and restored current odds"
     end
