@@ -16,7 +16,7 @@ class Group < ApplicationRecord
 
   NUM_ITER = 10000
 
-  def odds
+  def odds(snapshot_time: Time.zone.now)
     req = Net::HTTP::Post.new("/odds", {'Content-Type' =>'application/json'})
     req.body = as_json(
       include: {
@@ -25,7 +25,6 @@ class Group < ApplicationRecord
       }).merge(games: games.includes(:home, :away).as_json(methods: [:home_power, :away_power], only: [ :id, :home_id, :away_id, :home_score, :away_score, :played ])).to_json
     response = Net::HTTP.new("localhost", 6577).start {|http| http.request(req) }
     calculated_odds = ActiveSupport::JSON.decode(response.body)
-    snapshot_time = Time.zone.now
     ActiveRecord::Base.transaction do
       team_groups.each do |t|
         t.odds = calculated_odds["team_odds"][t.team_id.to_s]['Pos']
