@@ -531,8 +531,8 @@ $(document).ready(function() {
 
       $.plot($("#odds_history_placeholder<%=idx%>"), oddsHistory.series, {
         xaxis: { mode: "time", timeBase: "milliseconds", min: xMin, max: xMax },
-        yaxis: { min: 0, max: 100, autoScale: false },
-        yaxes: [{ min: 0, max: 100, autoScale: false }],
+        yaxis: { min: 0, max: 100, autoScale: false, reserveSpace: true, ticks: [0, 20, 40, 60, 80, 100] },
+        yaxes: [{ min: 0, max: 100, autoScale: false, reserveSpace: true, ticks: [0, 20, 40, 60, 80, 100] }],
         lines: { show: true, lineWidth: 2 },
         points: { show: true, radius: 2 },
         legend: {
@@ -542,6 +542,7 @@ $(document).ready(function() {
         grid: {
           hoverable: true,
           clickable: false,
+          margin: { left: 12 },
         },
       });
     } else {
