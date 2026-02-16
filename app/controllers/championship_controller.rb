@@ -312,10 +312,13 @@ class ChampionshipController < ApplicationController
     positions_count = group.team_groups.size
     color_by_position = {}
     zone_name_by_position = {}
+    zone_names_by_position = {}
     (1..positions_count).each do |position|
-      zone = zones.find { |item| item["position"].map(&:to_i).include?(position) }
+      matching_zones = zones.select { |item| item["position"].map(&:to_i).include?(position) }
+      zone = matching_zones.first
       color_by_position[position] = zone ? zone["color"] : "#999999"
       zone_name_by_position[position] = zone ? zone["name"] : nil
+      zone_names_by_position[position] = matching_zones.map { |item| item["name"] }
     end
 
     series = positions_count.downto(1).map do |position|
@@ -344,6 +347,7 @@ class ChampionshipController < ApplicationController
       {
         label: position.ordinalize,
         zone_name: zone_name_by_position[position],
+        zone_names: zone_names_by_position[position] || [],
         color: color_by_position[position],
         data: points,
         point_meta: points_meta,

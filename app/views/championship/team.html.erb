@@ -549,7 +549,7 @@ $(document).ready(function() {
       function renderOddsHistorySeries() {
         var seriesToRender = allOddsHistorySeries
           .filter(function(series) {
-            return !selectedOddsHistoryZoneName || normalizeZoneName(series.zone_name) === selectedOddsHistoryZoneName;
+            return !selectedOddsHistoryZoneName || ((series.zone_names || []).map(normalizeZoneName).includes(selectedOddsHistoryZoneName));
           })
           .map(function(series) {
             var seriesCopy = $.extend({}, series);
