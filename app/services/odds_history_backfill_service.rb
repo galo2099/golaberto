@@ -112,7 +112,9 @@ class OddsHistoryBackfillService
         group.odds(
           games_json: games_json_for_day,
           snapshot_time: day.end_of_day,
-          persist_game_importance: false
+          persist_game_importance: false,
+          persist_team_odds: false,
+          persist_group_progress: false
         )
 
         puts "   [#{idx + 1}/#{game_days.size}] #{day}"

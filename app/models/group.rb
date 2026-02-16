@@ -16,7 +16,7 @@ class Group < ApplicationRecord
 
   NUM_ITER = 10000
 
-  def odds(games_json: nil, snapshot_time: Time.zone.now, persist_game_importance: true)
+  def odds(games_json: nil, snapshot_time: Time.zone.now, persist_game_importance: true, persist_team_odds: true, persist_group_progress: true)
     req = Net::HTTP::Post.new("/odds", {'Content-Type' =>'application/json'})
     games_json ||= games.includes(:home, :away).as_json(
       methods: [:home_power, :away_power],
@@ -32,7 +32,7 @@ class Group < ApplicationRecord
     ActiveRecord::Base.transaction do
       team_groups.each do |t|
         t.odds = calculated_odds["team_odds"][t.team_id.to_s]['Pos']
-        t.save
+        t.save if persist_team_odds
         t.record_odds_snapshot!(snapshot_time)
       end
       if persist_game_importance
@@ -81,8 +81,10 @@ class Group < ApplicationRecord
         ActiveRecord::Base.connection.execute(sql)
       end
       end
-      self.odds_progress = 100
-      self.save
+      if persist_group_progress
+        self.odds_progress = 100
+        self.save
+      end
     end
   end
 

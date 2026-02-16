@@ -65,4 +65,61 @@ class GroupTest < ActiveSupport::TestCase
     assert_kind_of Array, retrieved_group.zones, "Zones attribute should be an Array"
   end
 
+
+  test 'odds backfill mode only writes odds history' do
+    category = Category.create!(name: 'Backfill Category')
+    championship = Championship.create!(
+      name: 'Backfill Championship',
+      region: :national,
+      category_id: category.id,
+      begin: Date.today,
+      end: Date.today + 30.days,
+      point_win: 3,
+      point_draw: 1,
+      point_loss: 0
+    )
+    phase = Phase.create!(
+      name: 'Backfill Phase',
+      championship: championship,
+      order_by: 1,
+      sort: 'pt,gd'
+    )
+    group = Group.create!(name: 'Backfill Group', phase: phase)
+    home = Team.create!(name: 'Backfill FC', country: 'Brazil')
+    away = Team.create!(name: 'Snapshot United', country: 'Brazil')
+    tg_home = TeamGroup.create!(group: group, team: home, add_sub: 0, bias: 0)
+    tg_away = TeamGroup.create!(group: group, team: away, add_sub: 0, bias: 0)
+
+    response = Struct.new(:body).new({
+      'team_odds' => {
+        home.id.to_s => { 'Pos' => [0.65, 0.35] },
+        away.id.to_s => { 'Pos' => [0.35, 0.65] }
+      },
+      'game_importance' => {}
+    }.to_json)
+
+    fake_http = Object.new
+    fake_http.define_singleton_method(:request) { |_req| response }
+    fake_client = Object.new
+    fake_client.define_singleton_method(:start) { |&block| block.call(fake_http) }
+
+    group_progress_before = group.odds_progress
+
+    assert_difference 'TeamGroupOddsHistory.count', +2 do
+      Net::HTTP.stub(:new, fake_client) do
+        group.odds(
+          games_json: [],
+          snapshot_time: Time.zone.parse('2024-06-01 10:00:00'),
+          persist_game_importance: false,
+          persist_team_odds: false,
+          persist_group_progress: false
+        )
+      end
+    end
+
+    assert_nil tg_home.reload.odds
+    assert_nil tg_away.reload.odds
+    assert_equal group_progress_before, group.reload.odds_progress
+  end
+
 end
