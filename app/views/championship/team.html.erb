@@ -547,15 +547,17 @@ $(document).ready(function() {
 
       function renderOddsHistorySeries() {
         var seriesToRender = allOddsHistorySeries.map(function(series) {
+          var seriesCopy = $.extend({}, series);
+
           if (!selectedOddsHistorySeriesLabel || (series.label || "").trim() === selectedOddsHistorySeriesLabel) {
-            return $.extend(true, {}, series);
+            seriesCopy.data = (series.data || []).slice();
+            seriesCopy.point_meta = (series.point_meta || []).slice();
+            return seriesCopy;
           }
 
-          return $.extend(true, {}, series, {
-            data: [],
-            point_meta: [],
-            color: "#777777",
-          });
+          seriesCopy.data = [];
+          seriesCopy.point_meta = [];
+          return seriesCopy;
         });
 
         oddsHistoryPlot = $.plot(oddsHistoryPlaceholder, seriesToRender, {
