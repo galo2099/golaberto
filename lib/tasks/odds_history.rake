@@ -30,11 +30,17 @@ namespace :odds_history do
         only: [ :id, :home_id, :away_id, :home_score, :away_score, :played, :date ]
       )
 
-      game_days = base_games_json
+      played_game_days = base_games_json
         .select { |game| game["played"] && game["date"].present? }
         .map { |game| Date.parse(game["date"].to_s) }
         .uniq
         .sort
+
+      game_days = played_game_days.dup
+      if played_game_days.any?
+        first_snapshot_day = played_game_days.first - 1.day
+        game_days.unshift(first_snapshot_day)
+      end
 
       game_days = game_days.select { |day| day >= from_date } if from_date
       game_days = game_days.select { |day| day <= to_date } if to_date
