@@ -8,8 +8,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: app 1.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-03-06 20:22-0800\n"
-"PO-Revision-Date: 2024-03-06 20:22-0800\n"
+"POT-Creation-Date: 2026-02-16 20:07+0000\n"
+"PO-Revision-Date: 2026-02-16 20:07+0000\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
@@ -171,6 +171,9 @@ msgstr ""
 msgid "Azerbaijan"
 msgstr ""
 
+msgid "Backfill odds history"
+msgstr ""
+
 msgid "Bahamas"
 msgstr ""
 
@@ -258,9 +261,6 @@ msgstr ""
 msgid "Burundi"
 msgstr ""
 
-msgid "CSV"
-msgstr ""
-
 msgid "Cambodia"
 msgstr ""
 
@@ -277,6 +277,9 @@ msgid "Cant calculate odds"
 msgstr ""
 
 msgid "Cant download data for team!"
+msgstr ""
+
+msgid "Cant start odds history backfill"
 msgstr ""
 
 msgid "Cape Verde"
@@ -795,6 +798,9 @@ msgstr ""
 msgid "Indonesia"
 msgstr ""
 
+msgid "Invalid date range"
+msgstr ""
+
 msgid "Iran"
 msgstr ""
 
@@ -1138,6 +1144,15 @@ msgid "Odds being recalculated"
 msgstr ""
 
 msgid "Odds being recalculated. "
+msgstr ""
+
+msgid "Odds evolution"
+msgstr ""
+
+msgid "Odds history backfill is already running."
+msgstr ""
+
+msgid "Odds history backfill started in background."
 msgstr ""
 
 msgid "Off"
@@ -1542,6 +1557,9 @@ msgid "Stadium|Name"
 msgstr ""
 
 msgid "Start time"
+msgstr ""
+
+msgid "Starting odds history backfill..."
 msgstr ""
 
 msgid "Stats"
