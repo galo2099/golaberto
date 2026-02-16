@@ -531,7 +531,8 @@ $(document).ready(function() {
 
       $.plot($("#odds_history_placeholder<%=idx%>"), oddsHistory.series, {
         xaxis: { mode: "time", timeBase: "milliseconds", min: xMin, max: xMax },
-        yaxis: { min: 0, max: 100 },
+        yaxis: { min: 0, max: 100, autoScale: false },
+        yaxes: [{ min: 0, max: 100, autoScale: false }],
         lines: { show: true, lineWidth: 2 },
         points: { show: true, radius: 2 },
         legend: {

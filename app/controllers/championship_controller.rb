@@ -282,12 +282,12 @@ class ChampionshipController < ApplicationController
 
 
     series = zones.map do |zone|
-      positions = zone["position"].map(&:to_i)
+      positions = zone["position"].map(&:to_i).uniq
       points = history_by_day.map do |recorded_on, odds|
         next if odds.nil?
 
         value = positions.sum { |position| odds[position - 1].to_f }
-        [recorded_on.to_time.to_i * 1000, value.round(4)]
+        [recorded_on.to_time.to_i * 1000, [value, 100.0].min.round(4)]
       end.compact
 
       {
