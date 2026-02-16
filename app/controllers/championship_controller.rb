@@ -304,6 +304,7 @@ class ChampionshipController < ApplicationController
         value = positions.sum { |position| odds[position - 1].to_f }
         {
           name: zone["name"],
+          color: zone["color"],
           value: [value, 100.0].min.round(2),
         }
       end

@@ -540,6 +540,7 @@ $(document).ready(function() {
         "background-color": "#fee",
         opacity: 0.90,
         zIndex: 0,
+        textAlign: "left",
       }).appendTo("body");
 
       var allOddsHistorySeries = oddsHistory.series;
@@ -626,7 +627,9 @@ $(document).ready(function() {
         var oddValue = seriesPoint[1].toLocaleString("<%= I18n.locale %>", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
         var zoneOddsLines = (pointMeta.zone_odds || []).map(function(zoneOdd) {
-          return (zoneOdd.name || "") + ": " + (zoneOdd.value || 0).toLocaleString("<%= I18n.locale %>", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%";
+          var zoneColor = zoneOdd.color || "#999999";
+          var zoneValue = (zoneOdd.value || 0).toLocaleString("<%= I18n.locale %>", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          return "<span style=\"color:" + zoneColor + "\">▣</span> " + (zoneOdd.name || "") + ": " + zoneValue + "%";
         });
 
         oddsHistoryTooltip.html(
