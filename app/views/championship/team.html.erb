@@ -545,7 +545,19 @@ $(document).ready(function() {
       var allOddsHistorySeries = oddsHistory.series;
       var selectedOddsHistorySeriesLabel = null;
 
-      function renderOddsHistorySeries(seriesToRender) {
+      function renderOddsHistorySeries() {
+        var seriesToRender = allOddsHistorySeries.map(function(series) {
+          if (!selectedOddsHistorySeriesLabel || (series.label || "").trim() === selectedOddsHistorySeriesLabel) {
+            return $.extend(true, {}, series);
+          }
+
+          return $.extend(true, {}, series, {
+            data: [],
+            point_meta: [],
+            color: "#777777",
+          });
+        });
+
         oddsHistoryPlot = $.plot(oddsHistoryPlaceholder, seriesToRender, {
           xaxis: { mode: "time", timeBase: "milliseconds", min: xMin, max: xMax },
           yaxis: { min: 0, max: 100, autoScale: false, reserveSpace: true, ticks: [0, 20, 40, 60, 80, 100] },
@@ -569,17 +581,24 @@ $(document).ready(function() {
           var clickedLabel = $(this).text().trim();
           if (selectedOddsHistorySeriesLabel === clickedLabel) {
             selectedOddsHistorySeriesLabel = null;
-            renderOddsHistorySeries(allOddsHistorySeries);
+            renderOddsHistorySeries();
           } else {
             selectedOddsHistorySeriesLabel = clickedLabel;
-            renderOddsHistorySeries(allOddsHistorySeries.filter(function(series) {
-              return (series.label || "").trim() === clickedLabel;
-            }));
+            renderOddsHistorySeries();
           }
         });
+
+        labels.css({ opacity: 1.0 });
+        if (selectedOddsHistorySeriesLabel) {
+          labels.each(function() {
+            if ($(this).text().trim() !== selectedOddsHistorySeriesLabel) {
+              $(this).css({ opacity: 0.45 });
+            }
+          });
+        }
       }
 
-      renderOddsHistorySeries(allOddsHistorySeries);
+      renderOddsHistorySeries();
 
       oddsHistoryPlaceholder.bind("plothover", function(event, pos, item) {
         if (!item) {
