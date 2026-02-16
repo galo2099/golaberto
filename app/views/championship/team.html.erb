@@ -578,8 +578,14 @@ $(document).ready(function() {
         });
 
         var labels = $("#odds_history_legend<%=idx%> .legendLayer text");
-        labels.css({ cursor: "pointer" });
-        labels.off("click").on("click", function() {
+        labels.css({ cursor: "pointer" }).attr("style", function(_, currentStyle) {
+          return (currentStyle || "") + ";cursor:pointer;";
+        });
+        labels.parent("g").css({ cursor: "pointer" });
+        labels.off("mouseenter mouseleave click")
+          .on("mouseenter", function() { $(this).css({ cursor: "pointer" }); })
+          .on("mouseleave", function() { $(this).css({ cursor: "pointer" }); })
+          .on("click", function() {
           var clickedLabel = $(this).text().trim();
           if (selectedOddsHistorySeriesLabel === clickedLabel) {
             selectedOddsHistorySeriesLabel = null;
