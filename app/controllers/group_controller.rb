@@ -77,6 +77,26 @@ class GroupController < ApplicationController
     render :action => :odds_progress
   end
 
+
+  def start_odds_history_backfill
+    championship_id = params["id"]
+    phase_id = params["phase"].presence
+    from_date = params["from"].present? ? Date.parse(params["from"]) : nil
+    to_date = params["to"].present? ? Date.parse(params["to"]) : nil
+    reset = params["reset"].to_s == "true"
+
+    @backfill_started = OddsHistoryBackfillService.start_async(
+      championship_id: championship_id,
+      phase_id: phase_id,
+      from_date: from_date,
+      to_date: to_date,
+      reset: reset,
+    ) == :started
+  rescue ArgumentError
+    @backfill_started = false
+    @backfill_invalid_params = true
+  end
+
   private
   def group_params
     params.require(:group).permit(:name)

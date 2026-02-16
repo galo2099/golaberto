@@ -1,0 +1,7 @@
+<% if @backfill_invalid_params %>
+  $("#backfill_odds_history_status").html("<%= j _('Invalid date range') %>");
+<% elsif @backfill_started %>
+  $("#backfill_odds_history_status").html("<%= j _('Odds history backfill started in background.') %>");
+<% else %>
+  $("#backfill_odds_history_status").html("<%= j _('Odds history backfill is already running.') %>");
+<% end %>
