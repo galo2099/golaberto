@@ -547,19 +547,16 @@ $(document).ready(function() {
       var normalizeZoneName = function(name) { return (name || "").toString().trim(); };
 
       function renderOddsHistorySeries() {
-        var seriesToRender = allOddsHistorySeries.map(function(series) {
-          var seriesCopy = $.extend({}, series);
-
-          if (!selectedOddsHistoryZoneName || normalizeZoneName(series.zone_name) === selectedOddsHistoryZoneName) {
+        var seriesToRender = allOddsHistorySeries
+          .filter(function(series) {
+            return !selectedOddsHistoryZoneName || normalizeZoneName(series.zone_name) === selectedOddsHistoryZoneName;
+          })
+          .map(function(series) {
+            var seriesCopy = $.extend({}, series);
             seriesCopy.data = (series.data || []).slice();
             seriesCopy.point_meta = (series.point_meta || []).slice();
             return seriesCopy;
-          }
-
-          seriesCopy.data = [];
-          seriesCopy.point_meta = [];
-          return seriesCopy;
-        });
+          });
 
         oddsHistoryPlot = $.plot(oddsHistoryPlaceholder, seriesToRender, {
           xaxis: { mode: "time", timeBase: "milliseconds", min: xMin, max: xMax },
