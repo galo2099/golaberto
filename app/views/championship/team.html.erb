@@ -585,7 +585,7 @@ $(document).ready(function() {
           var zoneName = normalizeZoneName(zone.name || "");
           var item = $("<span class='odds-history-zone-legend-item' style='display:inline-block;margin-right:12px;cursor:pointer;'></span>");
           item.attr("data-zone-name", zoneName);
-          item.append($("<span></span>").css({ color: zone.color || "#999999" }).text("▁"));
+          item.append($("<span></span>").css({ color: zone.color || "#999999" }).text("▣"));
           item.append(" ");
           item.append($("<span class='odds-history-zone-legend-label'></span>").text(zoneName));
           legendContainer.append(item);
