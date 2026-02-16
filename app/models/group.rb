@@ -29,6 +29,7 @@ class Group < ApplicationRecord
       team_groups.each do |t|
         t.odds = calculated_odds["team_odds"][t.team_id.to_s]['Pos']
         t.save
+        HistoricalOdds.find_or_initialize_by(team_group_id: t.id, measure_date: Date.today).update(odds: t.odds)
       end
       now = Time.zone.now.to_s.chop.chop.chop.chop
       importance = calculated_odds["game_importance"]

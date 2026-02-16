@@ -475,6 +475,13 @@ $(document).ready(function() {
           line-height: 1.2em;"></div>
       </div>
       <div id="legend<%=idx%>"></div>
+      <div style="margin-top: 20px;">
+        <h3><%= _("Odds Evolution") %></h3>
+        <div id="odds_evolution<%=idx%>" style="width: 550px;
+          height: 300px;
+          font-size: 14px;
+          line-height: 1.2em;"></div>
+      </div>
 <style>
 #legend {
   width: 100% !important;
@@ -507,6 +514,55 @@ $(document).ready(function() {
     };
 
     graphDiv.plot(data[<%=idx%>].data, options);
+
+    var oddsEvolutionDiv = $("#odds_evolution<%=idx%>");
+    var oddsData = data[<%=idx%>]["odds_evolution"];
+    var oddsOptions = {
+      xaxis: {
+        mode: "time",
+        timeformat: "%d/%m",
+      },
+      yaxis: {
+        min: 0,
+        max: 100,
+        ticks: 10,
+        tickFormatter: function(v) { return v + "%"; }
+      },
+      series: {
+        lines: { show: true },
+        points: { show: true }
+      },
+      grid: {
+        hoverable: true,
+        backgroundColor: "#FFFFFF",
+      },
+    };
+    if (oddsData && oddsData.some(d => d.data.length > 0)) {
+      $.plot(oddsEvolutionDiv, oddsData, oddsOptions);
+      $("<div id='odds_evolution_tooltip<%=idx%>'></div>").css({
+        position: "absolute",
+        display: "none",
+        border: "1px solid #fdd",
+        padding: "2px",
+        "background-color": "#fee",
+        opacity: 0.80,
+      }).appendTo("body");
+
+      oddsEvolutionDiv.bind("plothover", function (event, pos, item) {
+        if (item) {
+          var date = new Date(item.datapoint[0]);
+          var dateStr = date.getDate() + "/" + (date.getMonth() + 1);
+          var val = item.datapoint[1].toFixed(2) + "%";
+          $("#odds_evolution_tooltip<%=idx%>").html(item.series.label + " (" + dateStr + "): " + val)
+              .css({top: pos.pageY+5, left: pos.pageX+5})
+              .fadeIn(200);
+        } else {
+          $("#odds_evolution_tooltip<%=idx%>").hide();
+        }
+      });
+    } else {
+      oddsEvolutionDiv.parent().hide();
+    }
 
     $("<div id='tooltip'></div>").css({
       position: "absolute",

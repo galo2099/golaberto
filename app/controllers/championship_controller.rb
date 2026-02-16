@@ -221,6 +221,16 @@ class ChampionshipController < ApplicationController
     end
     chart[:data] << line
 
+    team_group = group.team_groups.find_by(team_id: team.id)
+    historical_odds = team_group.historical_odds.order(:measure_date)
+    chart[:odds_evolution] = group.zones.map do |zone|
+      {
+        label: zone["name"],
+        color: zone["color"],
+        data: historical_odds.map { |ho| [ho.measure_date.to_time.to_i * 1000, (ho.calculate_odds(zone["position"]) || 0) * 100] }
+      }
+    end
+
     return chart.to_json, team_table
   end
 
