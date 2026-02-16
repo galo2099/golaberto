@@ -26,8 +26,6 @@
 <script type="text/javascript">
 <% update_message = _("Updating odds...") %>
 <% error_message = _("Cant calculate odds") %>
-<% backfill_start_message = _("Starting odds history backfill...") %>
-<% backfill_error_message = _("Cant start odds history backfill") %>
 function recalculate_odds(group_id) {
   <%= remote_function(
           :url => { :controller => :group,
@@ -36,16 +34,6 @@ function recalculate_odds(group_id) {
           :failure => "alert('#{error_message}')",
           :before => "$('#recalculate'+group_id).html('#{update_message}')") %>
   watch_odds(group_id);
-}
-
-
-function start_backfill_odds_history() {
-  <%= remote_function(
-          :url => { :controller => :group,
-                    :action => :start_odds_history_backfill,
-                    :id => @championship },
-          :failure => "alert('#{backfill_error_message}')",
-          :before => "$('#backfill_odds_history_status').html('#{backfill_start_message}')") %>
 }
 
 function watch_odds(group_id) {
@@ -60,7 +48,6 @@ function watch_odds(group_id) {
    setInterval(periodicalUpdater, 5000);
 }
 </script>
-
 <% @current_phase.groups.each do |group| %>
   <%= render :partial => "table",
              :locals => { :group => group,

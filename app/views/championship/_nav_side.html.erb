@@ -1,13 +1,23 @@
 <% @current_phase ||= @championship.phases[-1] %>
 <% if can? :manage, @championship %>
-  <%= link_to _("Edit championship"), :action => "edit", :id => @championship %><br/>
+  <% backfill_start_message = _("Starting odds history backfill...") %>
+  <% backfill_error_message = _("Cant start odds history backfill") %>
+<script type="text/javascript">
+ function start_backfill_odds_history() {
+  <%= remote_function(
+          :url => { :controller => :group,
+                    :action => :start_odds_history_backfill,
+                    :id => @championship },
+          :failure => "alert('#{backfill_error_message}')",
+          :before => "$('#backfill_odds_history_status').html('#{backfill_start_message}')") %>
+}
+</script>
+
+ <%= link_to _("Edit championship"), :action => "edit", :id => @championship %><br/>
   <%= link_to _("New game"), :action => :new_game, :id => @championship,
 	  :phase => @current_phase %><br/>
-  <%= link_to _("CSV"), :action => :show, :id => @championship, :format => :csv %><br/>
-  <% if controller.action_name == "phases" %>
-    <a href="javascript:start_backfill_odds_history()"><%= _("Backfill odds history") %></a><br/>
-    <div id="backfill_odds_history_status"></div>
-  <% end %>
+  <a href="javascript:start_backfill_odds_history()"><%= _("Backfill odds history") %></a><br/>
+  <div id="backfill_odds_history_status"></div>
 <br/>
 <% end %>
 <%= link_to _("Table"), :action => :phases, :id => @championship,
