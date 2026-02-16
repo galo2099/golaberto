@@ -251,9 +251,11 @@ class ChampionshipController < ApplicationController
     @groups = @championship.phases.map{|p| p.groups}.flatten.select{|g| g.teams.include? @team}.reverse
 
     @group_json = []
+    @odds_history_json = []
     @groups.each_with_index do |g, idx|
       json, _ = generate_team_json(@championship, g.phase, g, @team)
       @group_json << json
+      @odds_history_json << generate_odds_history_json(g, @team)
     end
 
     @played_games = @team.home_games.where(phase_id: @championship.phase_ids, played: true).includes(:home, :away)
@@ -265,6 +267,97 @@ class ChampionshipController < ApplicationController
     @scheduled_games.sort!{|a,b| a.date <=> b.date}
 
     @player_stats = TeamPlayer.stats(game: @played_games, team_id: @team.id).includes(:player)
+  end
+
+  def generate_odds_history_json(group, team)
+    team_group = group.team_groups.find_by(team_id: team.id)
+    return { series: [], has_data: false }.to_json if team_group.nil?
+
+    zones = group.zones.is_a?(Array) ? group.zones.select { |z| z.is_a?(Hash) && z["position"].is_a?(Array) } : []
+    snapshots = team_group.odds_histories.order(:recorded_on)
+
+    history_by_day = snapshots.map do |snapshot|
+      [snapshot.recorded_on, snapshot.captured_at || snapshot.recorded_on.end_of_day, snapshot.odds]
+    end
+
+    played_team_games = group.games
+      .where(played: true)
+      .where("home_id = :team_id OR away_id = :team_id", team_id: team.id)
+      .includes(:home, :away)
+      .order(:date, :id)
+      .to_a
+
+    latest_game_by_timestamp = {}
+    game_idx = 0
+    latest_game = nil
+    history_by_day.each do |_, snapshot_time, _|
+      while game_idx < played_team_games.size && played_team_games[game_idx].date && played_team_games[game_idx].date <= snapshot_time
+        latest_game = played_team_games[game_idx]
+        game_idx += 1
+      end
+      latest_game_by_timestamp[snapshot_time] = latest_game
+    end
+
+    zone_odds_by_snapshot = history_by_day.map do |_, _, odds|
+      zones.map do |zone|
+        positions = zone["position"].map(&:to_i).uniq
+        value = positions.sum { |position| odds[position - 1].to_f }
+        {
+          name: zone["name"],
+          color: zone["color"],
+          value: [value, 100.0].min.round(2),
+        }
+      end
+    end
+
+    positions_count = group.team_groups.size
+    color_by_position = {}
+    zone_name_by_position = {}
+    zone_names_by_position = {}
+    (1..positions_count).each do |position|
+      matching_zones = zones.select { |item| item["position"].map(&:to_i).include?(position) }
+      zone = matching_zones.first
+      color_by_position[position] = zone ? zone["color"] : "#999999"
+      zone_name_by_position[position] = zone ? zone["name"] : nil
+      zone_names_by_position[position] = matching_zones.map { |item| item["name"] }
+    end
+
+    series = positions_count.downto(1).map do |position|
+      points = []
+      points_meta = []
+
+      history_by_day.each_with_index do |(recorded_on, snapshot_time, odds), history_index|
+        next if odds.nil?
+
+        value = odds[position - 1].to_f
+        points << [recorded_on.to_time.to_i * 1000, [value, 100.0].min.round(4)]
+
+        game = latest_game_by_timestamp[snapshot_time]
+        points_meta << {
+          recorded_on: recorded_on.to_s,
+          game_date: game&.date&.to_s,
+          game_label: if game
+                        "#{game.home.name} #{game.home_score}-#{game.away_score} #{game.away.name}"
+                      else
+                        nil
+                      end,
+          zone_odds: zone_odds_by_snapshot[history_index],
+        }
+      end
+
+      {
+        label: position.ordinalize,
+        zone_name: zone_name_by_position[position],
+        zone_names: zone_names_by_position[position] || [],
+        color: color_by_position[position],
+        data: points,
+        point_meta: points_meta,
+      }
+    end
+
+    zone_legend = zones.map { |zone| { name: zone["name"], color: zone["color"] } }
+
+    { series: series, zones: zone_legend, has_data: series.any? { |item| item[:data].any? } }.to_json
   end
 
   def player_list

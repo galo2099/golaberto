@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_09_27_204305) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_16_100000) do
   create_table "categories", id: :integer, charset: "utf8mb3", collation: "utf8mb3_unicode_ci", force: :cascade do |t|
     t.string "name"
   end
@@ -261,6 +261,16 @@ ActiveRecord::Schema[8.1].define(version: 2025_09_27_204305) do
     t.index ["team_id"], name: "index_team_geocodes_on_team_id"
   end
 
+  create_table "team_group_odds_histories", charset: "utf8mb3", collation: "utf8mb3_unicode_ci", force: :cascade do |t|
+    t.datetime "captured_at", null: false
+    t.datetime "created_at", null: false
+    t.text "odds", null: false
+    t.date "recorded_on", null: false
+    t.integer "team_group_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["team_group_id", "recorded_on"], name: "index_tg_odds_histories_on_team_group_and_day", unique: true
+  end
+
   create_table "team_groups", id: :integer, charset: "utf8mb3", collation: "utf8mb3_unicode_ci", force: :cascade do |t|
     t.integer "add_sub", default: 0, null: false
     t.integer "bias", default: 0, null: false
@@ -326,4 +336,5 @@ ActiveRecord::Schema[8.1].define(version: 2025_09_27_204305) do
 
   add_foreign_key "historical_ratings", "teams"
   add_foreign_key "team_geocodes", "teams"
+  add_foreign_key "team_group_odds_histories", "team_groups"
 end

@@ -467,7 +467,16 @@ $(document).ready(function() {
   <div id="panel" class='panel'>
     <% @groups.each_with_index do |group, idx| %>
       <%= javascript_tag "data[#{idx}] = #{@group_json[idx]};" %>
+      <%= javascript_tag "window.oddsHistoryData = window.oddsHistoryData || {}; window.oddsHistoryData[#{idx}] = #{@odds_history_json[idx]};" %>
       <div id="panel<%=idx%>" class="<%= idx == 0 ? "active-tab-body" : "" %>">
+      <div class="odds-history-wrapper" id="odds-history-wrapper-<%=idx%>">
+        <h3><%= _("Odds evolution") %></h3>
+        <div id="odds_history_placeholder<%=idx%>" style="width: 550px;
+          height: 220px;
+          font-size: 14px;
+          line-height: 1.2em;"></div>
+        <div id="odds_history_legend<%=idx%>"></div>
+      </div>
       <div>
         <div id="placeholder<%=idx%>" style="width: 550px;
           height: 300px;
@@ -505,6 +514,135 @@ $(document).ready(function() {
       }
       return res;
     };
+
+    var oddsHistory = window.oddsHistoryData[<%=idx%>];
+    if (oddsHistory && oddsHistory.has_data) {
+      var allPoints = []
+      oddsHistory.series.forEach(function(item) {
+        allPoints = allPoints.concat(item.data || []);
+      });
+      var xMin = null;
+      var xMax = null;
+      if (allPoints.length > 0) {
+        var timestamps = allPoints.map(function(point) { return point[0]; });
+        xMin = Math.min.apply(null, timestamps);
+        xMax = Math.max.apply(null, timestamps);
+      }
+
+      var oddsHistoryPlaceholder = $("#odds_history_placeholder<%=idx%>");
+      var oddsHistoryPlot;
+
+      var oddsHistoryTooltip = $("<div id='odds_history_tooltip_<%=idx%>'></div>").css({
+        position: "absolute",
+        display: "none",
+        border: "1px solid #fdd",
+        padding: "4px",
+        "background-color": "#fee",
+        opacity: 0.90,
+        zIndex: 0,
+        textAlign: "left",
+      }).appendTo("body");
+
+      var allOddsHistorySeries = oddsHistory.series;
+      var selectedOddsHistoryZoneName = null;
+      var normalizeZoneName = function(name) { return (name || "").toString().trim(); };
+
+      function renderOddsHistorySeries() {
+        var seriesToRender = allOddsHistorySeries
+          .filter(function(series) {
+            return !selectedOddsHistoryZoneName || ((series.zone_names || []).map(normalizeZoneName).includes(selectedOddsHistoryZoneName));
+          })
+          .map(function(series) {
+            var seriesCopy = $.extend({}, series);
+            seriesCopy.data = (series.data || []).slice();
+            seriesCopy.point_meta = (series.point_meta || []).slice();
+            return seriesCopy;
+          });
+
+        oddsHistoryPlot = $.plot(oddsHistoryPlaceholder, seriesToRender, {
+          xaxis: { mode: "time", timeBase: "milliseconds", min: xMin, max: xMax },
+          yaxis: { min: 0, max: 100, autoScale: false, reserveSpace: true, ticks: [0, 20, 40, 60, 80, 100] },
+          yaxes: [{ min: 0, max: 100, autoScale: false, reserveSpace: true, ticks: [0, 20, 40, 60, 80, 100] }],
+          series: {
+            stack: true,
+            lines: { show: true, fill: 0.85, lineWidth: 1 },
+            points: { show: false },
+          },
+          legend: {
+            container: document.getElementById('odds_history_legend<%=idx%>'),
+            show: false,
+          },
+          grid: {
+            hoverable: true,
+            clickable: false,
+            margin: { left: 12 },
+          },
+        });
+
+        var zoneLegend = oddsHistory.zones || [];
+        var legendContainer = $("#odds_history_legend<%=idx%>");
+        legendContainer.empty();
+        zoneLegend.forEach(function(zone) {
+          var zoneName = normalizeZoneName(zone.name || "");
+          var item = $("<span class='odds-history-zone-legend-item' style='display:inline-block;margin-right:12px;cursor:pointer;'></span>");
+          item.attr("data-zone-name", zoneName);
+          item.append($("<span></span>").css({ color: zone.color || "#999999" }).text("▣"));
+          item.append(" ");
+          item.append($("<span class='odds-history-zone-legend-label'></span>").text(zoneName));
+          legendContainer.append(item);
+        });
+
+        var labels = $("#odds_history_legend<%=idx%> .odds-history-zone-legend-item");
+        labels.off("click").on("click", function() {
+          var clickedZone = normalizeZoneName($(this).attr("data-zone-name"));
+          if (selectedOddsHistoryZoneName === clickedZone) {
+            selectedOddsHistoryZoneName = null;
+          } else {
+            selectedOddsHistoryZoneName = clickedZone;
+          }
+          renderOddsHistorySeries();
+        });
+
+        labels.css({ opacity: 1.0 });
+        if (selectedOddsHistoryZoneName) {
+          labels.each(function() {
+            if (normalizeZoneName($(this).attr("data-zone-name")) !== selectedOddsHistoryZoneName) {
+              $(this).css({ opacity: 0.45 });
+            }
+          });
+        }
+      }
+
+      renderOddsHistorySeries();
+
+      oddsHistoryPlaceholder.bind("plothover", function(event, pos, item) {
+        if (!item) {
+          oddsHistoryTooltip.hide();
+          return;
+        }
+
+        var series = oddsHistoryPlot.getData()[item.seriesIndex];
+        var pointMeta = (series.point_meta || [])[item.dataIndex] || {};
+        var seriesPoint = (series.data || [])[item.dataIndex] || [null, 0];
+        var oddValue = seriesPoint[1].toLocaleString("<%= I18n.locale %>", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        var zoneOddsLines = (pointMeta.zone_odds || []).map(function(zoneOdd) {
+          var zoneColor = zoneOdd.color || "#999999";
+          var zoneValue = (zoneOdd.value || 0).toLocaleString("<%= I18n.locale %>", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          return "<span style=\"color:" + zoneColor + "\">▣</span> " + (zoneOdd.name || "") + ": " + zoneValue + "%";
+        });
+
+        oddsHistoryTooltip.html(
+          (series.label || "") + "<br>" +
+          (pointMeta.recorded_on || "-") + "<br>" +
+          oddValue + "%<br>" +
+          (pointMeta.game_label || "-") +
+          (zoneOddsLines.length > 0 ? "<br>" + zoneOddsLines.join("<br>") : "")
+        ).css({ top: pos.pageY + 5, left: pos.pageX + 5 }).fadeIn(200);
+      });
+    } else {
+      $("#odds-history-wrapper-<%=idx%>").hide();
+    }
 
     graphDiv.plot(data[<%=idx%>].data, options);
 

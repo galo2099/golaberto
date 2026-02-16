@@ -16,22 +16,28 @@ class Group < ApplicationRecord
 
   NUM_ITER = 10000
 
-  def odds
+  def odds(games_json: nil, snapshot_time: Time.zone.now, persist_game_importance: true)
     req = Net::HTTP::Post.new("/odds", {'Content-Type' =>'application/json'})
+    games_json ||= games.includes(:home, :away).as_json(
+      methods: [:home_power, :away_power],
+      only: [ :id, :home_id, :away_id, :home_score, :away_score, :played ]
+    )
     req.body = as_json(
       include: {
         phase: { include: :championship },
         team_groups: { only: [ :team_id, :add_sub, :bias ] }
-      }).merge(games: games.includes(:home, :away).as_json(methods: [:home_power, :away_power], only: [ :id, :home_id, :away_id, :home_score, :away_score, :played ])).to_json
+      }).merge(games: games_json).to_json
     response = Net::HTTP.new("localhost", 6577).start {|http| http.request(req) }
     calculated_odds = ActiveSupport::JSON.decode(response.body)
     ActiveRecord::Base.transaction do
       team_groups.each do |t|
         t.odds = calculated_odds["team_odds"][t.team_id.to_s]['Pos']
         t.save
+        t.record_odds_snapshot!(snapshot_time)
       end
-      now = Time.zone.now.to_s.chop.chop.chop.chop
-      importance = calculated_odds["game_importance"]
+      if persist_game_importance
+        now = snapshot_time.to_s.chop.chop.chop.chop
+        importance = calculated_odds["game_importance"]
       sql = ""
       importance.each do |k,v|
         if v[0] != nil and v[1] == nil then
@@ -73,6 +79,7 @@ class Group < ApplicationRecord
         sql.chop!
         sql += "ON DUPLICATE KEY UPDATE home_importance=VALUES(home_importance),away_importance=VALUES(away_importance),updated_at=VALUES(updated_at);"
         ActiveRecord::Base.connection.execute(sql)
+      end
       end
       self.odds_progress = 100
       self.save
