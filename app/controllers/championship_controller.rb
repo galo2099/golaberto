@@ -298,6 +298,17 @@ class ChampionshipController < ApplicationController
       latest_game_by_timestamp[snapshot_time] = latest_game
     end
 
+    zone_odds_by_snapshot = history_by_day.map do |_, _, odds|
+      zones.map do |zone|
+        positions = zone["position"].map(&:to_i).uniq
+        value = positions.sum { |position| odds[position - 1].to_f }
+        {
+          name: zone["name"],
+          value: [value, 100.0].min.round(2),
+        }
+      end
+    end
+
     positions_count = group.team_groups.size
     color_by_position = {}
     (1..positions_count).each do |position|
@@ -309,7 +320,7 @@ class ChampionshipController < ApplicationController
       points = []
       points_meta = []
 
-      history_by_day.each do |recorded_on, snapshot_time, odds|
+      history_by_day.each_with_index do |(recorded_on, snapshot_time, odds), history_index|
         next if odds.nil?
 
         value = odds[position - 1].to_f
@@ -324,6 +335,7 @@ class ChampionshipController < ApplicationController
                       else
                         nil
                       end,
+          zone_odds: zone_odds_by_snapshot[history_index],
         }
       end
 

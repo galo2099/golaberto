@@ -622,11 +622,16 @@ $(document).ready(function() {
         var seriesPoint = (series.data || [])[item.dataIndex] || [null, 0];
         var oddValue = seriesPoint[1].toLocaleString("<%= I18n.locale %>", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+        var zoneOddsLines = (pointMeta.zone_odds || []).map(function(zoneOdd) {
+          return (zoneOdd.name || "") + ": " + (zoneOdd.value || 0).toLocaleString("<%= I18n.locale %>", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%";
+        });
+
         oddsHistoryTooltip.html(
           (series.label || "") + "<br>" +
           (pointMeta.recorded_on || "-") + "<br>" +
           oddValue + "%<br>" +
-          (pointMeta.game_label || "-")
+          (pointMeta.game_label || "-") +
+          (zoneOddsLines.length > 0 ? "<br>" + zoneOddsLines.join("<br>") : "")
         ).css({ top: pos.pageY + 5, left: pos.pageX + 5 }).fadeIn(200);
       });
     } else {
