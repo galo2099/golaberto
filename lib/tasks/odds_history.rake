@@ -70,8 +70,7 @@ namespace :odds_history do
         puts "   [#{idx + 1}/#{game_days.size}] #{day}"
       end
 
-      group.odds
-      puts "   finished and restored current odds"
+      puts "   finished backfill up to #{game_days.last}"
     end
   end
 end
