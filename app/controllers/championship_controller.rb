@@ -251,9 +251,11 @@ class ChampionshipController < ApplicationController
     @groups = @championship.phases.map{|p| p.groups}.flatten.select{|g| g.teams.include? @team}.reverse
 
     @group_json = []
+    @odds_history_json = []
     @groups.each_with_index do |g, idx|
       json, _ = generate_team_json(@championship, g.phase, g, @team)
       @group_json << json
+      @odds_history_json << generate_odds_history_json(g, @team)
     end
 
     @played_games = @team.home_games.where(phase_id: @championship.phase_ids, played: true).includes(:home, :away)
@@ -265,6 +267,42 @@ class ChampionshipController < ApplicationController
     @scheduled_games.sort!{|a,b| a.date <=> b.date}
 
     @player_stats = TeamPlayer.stats(game: @played_games, team_id: @team.id).includes(:player)
+  end
+
+  def generate_odds_history_json(group, team)
+    team_group = group.team_groups.find_by(team_id: team.id)
+    return { series: [], has_data: false }.to_json if team_group.nil?
+
+    zones = group.zones.is_a?(Array) ? group.zones.select { |z| z.is_a?(Hash) && z["position"].is_a?(Array) } : []
+    snapshots = team_group.odds_histories.order(:recorded_on)
+
+    history_by_day = snapshots.map do |snapshot|
+      [snapshot.recorded_on, snapshot.odds]
+    end
+
+    if team_group.odds.present?
+      today = Time.zone.today
+      history_by_day.reject! { |recorded_on, _| recorded_on == today }
+      history_by_day << [today, team_group.odds]
+    end
+
+    series = zones.map do |zone|
+      positions = zone["position"].map(&:to_i)
+      points = history_by_day.map do |recorded_on, odds|
+        next if odds.nil?
+
+        value = positions.sum { |position| odds[position - 1].to_f }
+        [recorded_on.to_time.to_i * 1000, value.round(4)]
+      end.compact
+
+      {
+        label: zone["name"],
+        color: zone["color"],
+        data: points,
+      }
+    end
+
+    { series: series, has_data: series.any? { |item| item[:data].any? } }.to_json
   end
 
   def player_list

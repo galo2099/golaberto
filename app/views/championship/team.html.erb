@@ -467,7 +467,16 @@ $(document).ready(function() {
   <div id="panel" class='panel'>
     <% @groups.each_with_index do |group, idx| %>
       <%= javascript_tag "data[#{idx}] = #{@group_json[idx]};" %>
+      <%= javascript_tag "window.oddsHistoryData = window.oddsHistoryData || {}; window.oddsHistoryData[#{idx}] = #{@odds_history_json[idx]};" %>
       <div id="panel<%=idx%>" class="<%= idx == 0 ? "active-tab-body" : "" %>">
+      <div class="odds-history-wrapper" id="odds-history-wrapper-<%=idx%>">
+        <h3><%= _("Odds evolution") %></h3>
+        <div id="odds_history_placeholder<%=idx%>" style="width: 550px;
+          height: 220px;
+          font-size: 14px;
+          line-height: 1.2em;"></div>
+        <div id="odds_history_legend<%=idx%>"></div>
+      </div>
       <div>
         <div id="placeholder<%=idx%>" style="width: 550px;
           height: 300px;
@@ -505,6 +514,26 @@ $(document).ready(function() {
       }
       return res;
     };
+
+    var oddsHistory = window.oddsHistoryData[<%=idx%>];
+    if (oddsHistory && oddsHistory.has_data) {
+      $.plot($("#odds_history_placeholder<%=idx%>"), oddsHistory.series, {
+        xaxis: { mode: "time", timeBase: "milliseconds" },
+        yaxis: { min: 0, max: 100 },
+        lines: { show: true, lineWidth: 2 },
+        points: { show: true, radius: 2 },
+        legend: {
+          container: document.getElementById('odds_history_legend<%=idx%>'),
+          show: true,
+        },
+        grid: {
+          hoverable: true,
+          clickable: false,
+        },
+      });
+    } else {
+      $("#odds-history-wrapper-<%=idx%>").hide();
+    }
 
     graphDiv.plot(data[<%=idx%>].data, options);
 

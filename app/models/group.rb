@@ -25,12 +25,14 @@ class Group < ApplicationRecord
       }).merge(games: games.includes(:home, :away).as_json(methods: [:home_power, :away_power], only: [ :id, :home_id, :away_id, :home_score, :away_score, :played ])).to_json
     response = Net::HTTP.new("localhost", 6577).start {|http| http.request(req) }
     calculated_odds = ActiveSupport::JSON.decode(response.body)
+    snapshot_time = Time.zone.now
     ActiveRecord::Base.transaction do
       team_groups.each do |t|
         t.odds = calculated_odds["team_odds"][t.team_id.to_s]['Pos']
         t.save
+        t.record_odds_snapshot!(snapshot_time)
       end
-      now = Time.zone.now.to_s.chop.chop.chop.chop
+      now = snapshot_time.to_s.chop.chop.chop.chop
       importance = calculated_odds["game_importance"]
       sql = ""
       importance.each do |k,v|
