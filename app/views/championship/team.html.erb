@@ -563,17 +563,17 @@ $(document).ready(function() {
           },
         });
 
-        var labels = $("#odds_history_legend<%=idx%> .legendLabel");
+        var labels = $("#odds_history_legend<%=idx%> .legendLayer text");
         labels.css({ cursor: "pointer" });
         labels.off("click").on("click", function() {
-          var clickedLabel = $(this).text();
+          var clickedLabel = $(this).text().trim();
           if (selectedOddsHistorySeriesLabel === clickedLabel) {
             selectedOddsHistorySeriesLabel = null;
             renderOddsHistorySeries(allOddsHistorySeries);
           } else {
             selectedOddsHistorySeriesLabel = clickedLabel;
             renderOddsHistorySeries(allOddsHistorySeries.filter(function(series) {
-              return series.label === clickedLabel;
+              return (series.label || "").trim() === clickedLabel;
             }));
           }
         });
