@@ -85,7 +85,7 @@ class Game < ApplicationRecord
   # versioned class
   module GameMethods
     def self.included(base)
-      base.enum home_field: [ :left, :neutral, :right ]
+      base.enum :home_field, [ :left, :neutral, :right ]
       base.class_eval do
         def self.i18n_home_fields
           hash = {}

@@ -1,7 +1,8 @@
 require 'poisson'
+require 'lttb'
 class Team < ApplicationRecord
   include Country
-  enum team_type: [ :club, :national ]
+  enum :team_type, [ :club, :national ]
 
   AVG_BASE = 1.3350257653834494
 

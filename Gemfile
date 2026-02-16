@@ -1,6 +1,6 @@
 source 'http://rubygems.org'
 
-gem 'rails', '~> 7.0'
+gem 'rails', '~> 8.0'
 gem 'bootsnap'
 
 # Bundle edge Rails instead:
@@ -64,8 +64,8 @@ gem 'paperclip'
 gem 'quilt'
 gem 'rmagick'
 gem 'rufus-scheduler'
-gem 'sprockets', '~>3'
-gem 'sprockets-rails', '~>2'
+gem 'sprockets'
+gem 'sprockets-rails'
 gem 'terser'
 gem 'userstamp', git: 'https://github.com/kimkong/userstamp.git', branch: 'rails-6-fix'
 gem 'yui-compressor'

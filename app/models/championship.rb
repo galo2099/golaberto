@@ -1,5 +1,5 @@
 class Championship < ApplicationRecord
-  enum region: [ :world, :continental, :national ]
+  enum :region, [ :world, :continental, :national ]
   N_("World")
   N_("Continental")
   N_("National")
