@@ -568,11 +568,9 @@ $(document).ready(function() {
         var oddValue = item.datapoint[1].toLocaleString("<%= I18n.locale %>", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
         oddsHistoryTooltip.html(
-          "<strong>" + (series.label || "") + "</strong><br>" +
-          "<%= _('Snapshot date') %>: " + (pointMeta.recorded_on || "-") + "<br>" +
-          "<%= _('Odd') %>: " + oddValue + "%<br>" +
-          "<%= _('Latest game') %>: " + (pointMeta.game_label || "-") + "<br>" +
-          "<%= _('Game date') %>: " + (pointMeta.game_date || "-")
+          (pointMeta.recorded_on || "-") + "<br>" +
+          oddValue + "%<br>" +
+          (pointMeta.game_label || "-")
         ).css({ top: pos.pageY + 5, left: pos.pageX + 5 }).fadeIn(200);
       });
     } else {
