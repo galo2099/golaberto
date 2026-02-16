@@ -316,7 +316,7 @@ class ChampionshipController < ApplicationController
       color_by_position[position] = zone ? zone["color"] : "#999999"
     end
 
-    series = (1..positions_count).map do |position|
+    series = positions_count.downto(1).map do |position|
       points = []
       points_meta = []
 
