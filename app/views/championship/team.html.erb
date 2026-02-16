@@ -530,22 +530,7 @@ $(document).ready(function() {
       }
 
       var oddsHistoryPlaceholder = $("#odds_history_placeholder<%=idx%>");
-      var oddsHistoryPlot = $.plot(oddsHistoryPlaceholder, oddsHistory.series, {
-        xaxis: { mode: "time", timeBase: "milliseconds", min: xMin, max: xMax },
-        yaxis: { min: 0, max: 100, autoScale: false, reserveSpace: true, ticks: [0, 20, 40, 60, 80, 100] },
-        yaxes: [{ min: 0, max: 100, autoScale: false, reserveSpace: true, ticks: [0, 20, 40, 60, 80, 100] }],
-        lines: { show: true, lineWidth: 2 },
-        points: { show: true, radius: 2 },
-        legend: {
-          container: document.getElementById('odds_history_legend<%=idx%>'),
-          show: true,
-        },
-        grid: {
-          hoverable: true,
-          clickable: false,
-          margin: { left: 12 },
-        },
-      });
+      var oddsHistoryPlot;
 
       var oddsHistoryTooltip = $("<div id='odds_history_tooltip_<%=idx%>'></div>").css({
         position: "absolute",
@@ -556,6 +541,45 @@ $(document).ready(function() {
         opacity: 0.90,
         zIndex: 0,
       }).appendTo("body");
+
+      var allOddsHistorySeries = oddsHistory.series;
+      var selectedOddsHistorySeriesLabel = null;
+
+      function renderOddsHistorySeries(seriesToRender) {
+        oddsHistoryPlot = $.plot(oddsHistoryPlaceholder, seriesToRender, {
+          xaxis: { mode: "time", timeBase: "milliseconds", min: xMin, max: xMax },
+          yaxis: { min: 0, max: 100, autoScale: false, reserveSpace: true, ticks: [0, 20, 40, 60, 80, 100] },
+          yaxes: [{ min: 0, max: 100, autoScale: false, reserveSpace: true, ticks: [0, 20, 40, 60, 80, 100] }],
+          lines: { show: true, lineWidth: 2 },
+          points: { show: true, radius: 2 },
+          legend: {
+            container: document.getElementById('odds_history_legend<%=idx%>'),
+            show: true,
+          },
+          grid: {
+            hoverable: true,
+            clickable: false,
+            margin: { left: 12 },
+          },
+        });
+
+        var labels = $("#odds_history_legend<%=idx%> .legendLabel");
+        labels.css({ cursor: "pointer" });
+        labels.off("click").on("click", function() {
+          var clickedLabel = $(this).text();
+          if (selectedOddsHistorySeriesLabel === clickedLabel) {
+            selectedOddsHistorySeriesLabel = null;
+            renderOddsHistorySeries(allOddsHistorySeries);
+          } else {
+            selectedOddsHistorySeriesLabel = clickedLabel;
+            renderOddsHistorySeries(allOddsHistorySeries.filter(function(series) {
+              return series.label === clickedLabel;
+            }));
+          }
+        });
+      }
+
+      renderOddsHistorySeries(allOddsHistorySeries);
 
       oddsHistoryPlaceholder.bind("plothover", function(event, pos, item) {
         if (!item) {
