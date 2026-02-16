@@ -280,20 +280,52 @@ class ChampionshipController < ApplicationController
       [snapshot.recorded_on, snapshot.odds]
     end
 
+    played_team_games = group.games
+      .where(played: true)
+      .where("home_id = :team_id OR away_id = :team_id", team_id: team.id)
+      .includes(:home, :away)
+      .order(:date, :id)
+      .to_a
+
+    latest_game_by_day = {}
+    game_idx = 0
+    latest_game = nil
+    history_by_day.each do |recorded_on, _|
+      while game_idx < played_team_games.size && played_team_games[game_idx].date && played_team_games[game_idx].date <= recorded_on
+        latest_game = played_team_games[game_idx]
+        game_idx += 1
+      end
+      latest_game_by_day[recorded_on] = latest_game
+    end
 
     series = zones.map do |zone|
       positions = zone["position"].map(&:to_i).uniq
-      points = history_by_day.map do |recorded_on, odds|
+      points = []
+      points_meta = []
+
+      history_by_day.each do |recorded_on, odds|
         next if odds.nil?
 
         value = positions.sum { |position| odds[position - 1].to_f }
-        [recorded_on.to_time.to_i * 1000, [value, 100.0].min.round(4)]
-      end.compact
+        points << [recorded_on.to_time.to_i * 1000, [value, 100.0].min.round(4)]
+
+        game = latest_game_by_day[recorded_on]
+        points_meta << {
+          recorded_on: recorded_on.to_s,
+          game_date: game&.date&.to_s,
+          game_label: if game
+                        "#{game.home.name} #{game.home_score}-#{game.away_score} #{game.away.name}"
+                      else
+                        nil
+                      end,
+        }
+      end
 
       {
         label: zone["name"],
         color: zone["color"],
         data: points,
+        point_meta: points_meta,
       }
     end
 

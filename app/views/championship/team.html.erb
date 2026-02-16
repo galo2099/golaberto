@@ -529,7 +529,8 @@ $(document).ready(function() {
         xMax = Math.max.apply(null, timestamps);
       }
 
-      $.plot($("#odds_history_placeholder<%=idx%>"), oddsHistory.series, {
+      var oddsHistoryPlaceholder = $("#odds_history_placeholder<%=idx%>");
+      var oddsHistoryPlot = $.plot(oddsHistoryPlaceholder, oddsHistory.series, {
         xaxis: { mode: "time", timeBase: "milliseconds", min: xMin, max: xMax },
         yaxis: { min: 0, max: 100, autoScale: false, reserveSpace: true, ticks: [0, 20, 40, 60, 80, 100] },
         yaxes: [{ min: 0, max: 100, autoScale: false, reserveSpace: true, ticks: [0, 20, 40, 60, 80, 100] }],
@@ -544,6 +545,35 @@ $(document).ready(function() {
           clickable: false,
           margin: { left: 12 },
         },
+      });
+
+      var oddsHistoryTooltip = $("<div id='odds_history_tooltip_<%=idx%>'></div>").css({
+        position: "absolute",
+        display: "none",
+        border: "1px solid #fdd",
+        padding: "4px",
+        "background-color": "#fee",
+        opacity: 0.90,
+        zIndex: 0,
+      }).appendTo("body");
+
+      oddsHistoryPlaceholder.bind("plothover", function(event, pos, item) {
+        if (!item) {
+          oddsHistoryTooltip.hide();
+          return;
+        }
+
+        var series = oddsHistoryPlot.getData()[item.seriesIndex];
+        var pointMeta = (series.point_meta || [])[item.dataIndex] || {};
+        var oddValue = item.datapoint[1].toLocaleString("<%= I18n.locale %>", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        oddsHistoryTooltip.html(
+          "<strong>" + (series.label || "") + "</strong><br>" +
+          "<%= _('Snapshot date') %>: " + (pointMeta.recorded_on || "-") + "<br>" +
+          "<%= _('Odd') %>: " + oddValue + "%<br>" +
+          "<%= _('Latest game') %>: " + (pointMeta.game_label || "-") + "<br>" +
+          "<%= _('Game date') %>: " + (pointMeta.game_date || "-")
+        ).css({ top: pos.pageY + 5, left: pos.pageX + 5 }).fadeIn(200);
       });
     } else {
       $("#odds-history-wrapper-<%=idx%>").hide();
