@@ -62,9 +62,15 @@ class GroupController < ApplicationController
     if @group.odds_progress == nil
       @group.odds_progress = 0
       @group.save!
+      snapshot_date = @group.games.where(played: true).maximum(:date)
+      snapshot_time = if snapshot_date
+                        snapshot_date.end_of_day
+                      else
+                        Time.zone.now
+                      end
       Thread.new do
         ActiveRecord::Base.connection_pool.with_connection do
-          @group.odds
+          @group.odds(snapshot_time: snapshot_time)
         end
       end
     end
