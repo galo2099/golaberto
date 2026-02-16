@@ -43,8 +43,7 @@ function start_backfill_odds_history() {
   <%= remote_function(
           :url => { :controller => :group,
                     :action => :start_odds_history_backfill,
-                    :id => @championship,
-                    :phase => @current_phase.id },
+                    :id => @championship },
           :failure => "alert('#{backfill_error_message}')",
           :before => "$('#backfill_odds_history_status').html('#{backfill_start_message}')") %>
 }
@@ -61,11 +60,6 @@ function watch_odds(group_id) {
    setInterval(periodicalUpdater, 5000);
 }
 </script>
-
-<div id="backfill_odds_history_controls" style="margin-bottom: 10px;">
-  <%= button_tag _("Backfill odds history"), onclick: "start_backfill_odds_history(); return false;" %>
-  <div id="backfill_odds_history_status"></div>
-</div>
 
 <% @current_phase.groups.each do |group| %>
   <%= render :partial => "table",
