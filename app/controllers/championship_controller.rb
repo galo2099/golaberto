@@ -280,11 +280,6 @@ class ChampionshipController < ApplicationController
       [snapshot.recorded_on, snapshot.odds]
     end
 
-    if team_group.odds.present?
-      today = Time.zone.today
-      history_by_day.reject! { |recorded_on, _| recorded_on == today }
-      history_by_day << [today, team_group.odds]
-    end
 
     series = zones.map do |zone|
       positions = zone["position"].map(&:to_i)
