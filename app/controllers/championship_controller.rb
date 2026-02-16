@@ -277,7 +277,7 @@ class ChampionshipController < ApplicationController
     snapshots = team_group.odds_histories.order(:recorded_on)
 
     history_by_day = snapshots.map do |snapshot|
-      [snapshot.recorded_on, snapshot.odds]
+      [snapshot.recorded_on, snapshot.captured_at || snapshot.recorded_on.end_of_day, snapshot.odds]
     end
 
     played_team_games = group.games
@@ -287,15 +287,15 @@ class ChampionshipController < ApplicationController
       .order(:date, :id)
       .to_a
 
-    latest_game_by_day = {}
+    latest_game_by_timestamp = {}
     game_idx = 0
     latest_game = nil
-    history_by_day.each do |recorded_on, _|
-      while game_idx < played_team_games.size && played_team_games[game_idx].date && played_team_games[game_idx].date <= recorded_on
+    history_by_day.each do |_, snapshot_time, _|
+      while game_idx < played_team_games.size && played_team_games[game_idx].date && played_team_games[game_idx].date <= snapshot_time
         latest_game = played_team_games[game_idx]
         game_idx += 1
       end
-      latest_game_by_day[recorded_on] = latest_game
+      latest_game_by_timestamp[snapshot_time] = latest_game
     end
 
     series = zones.map do |zone|
@@ -303,13 +303,13 @@ class ChampionshipController < ApplicationController
       points = []
       points_meta = []
 
-      history_by_day.each do |recorded_on, odds|
+      history_by_day.each do |recorded_on, snapshot_time, odds|
         next if odds.nil?
 
         value = positions.sum { |position| odds[position - 1].to_f }
         points << [recorded_on.to_time.to_i * 1000, [value, 100.0].min.round(4)]
 
-        game = latest_game_by_day[recorded_on]
+        game = latest_game_by_timestamp[snapshot_time]
         points_meta << {
           recorded_on: recorded_on.to_s,
           game_date: game&.date&.to_s,
