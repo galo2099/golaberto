@@ -298,15 +298,21 @@ class ChampionshipController < ApplicationController
       latest_game_by_timestamp[snapshot_time] = latest_game
     end
 
-    series = zones.map do |zone|
-      positions = zone["position"].map(&:to_i).uniq
+    positions_count = group.team_groups.size
+    color_by_position = {}
+    (1..positions_count).each do |position|
+      zone = zones.find { |item| item["position"].map(&:to_i).include?(position) }
+      color_by_position[position] = zone ? zone["color"] : "#999999"
+    end
+
+    series = (1..positions_count).map do |position|
       points = []
       points_meta = []
 
       history_by_day.each do |recorded_on, snapshot_time, odds|
         next if odds.nil?
 
-        value = positions.sum { |position| odds[position - 1].to_f }
+        value = odds[position - 1].to_f
         points << [recorded_on.to_time.to_i * 1000, [value, 100.0].min.round(4)]
 
         game = latest_game_by_timestamp[snapshot_time]
@@ -322,8 +328,8 @@ class ChampionshipController < ApplicationController
       end
 
       {
-        label: zone["name"],
-        color: zone["color"],
+        label: position.ordinalize,
+        color: color_by_position[position],
         data: points,
         point_meta: points_meta,
       }

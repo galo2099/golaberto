@@ -564,8 +564,11 @@ $(document).ready(function() {
           xaxis: { mode: "time", timeBase: "milliseconds", min: xMin, max: xMax },
           yaxis: { min: 0, max: 100, autoScale: false, reserveSpace: true, ticks: [0, 20, 40, 60, 80, 100] },
           yaxes: [{ min: 0, max: 100, autoScale: false, reserveSpace: true, ticks: [0, 20, 40, 60, 80, 100] }],
-          lines: { show: true, lineWidth: 2 },
-          points: { show: true, radius: 2 },
+          series: {
+            stack: true,
+            lines: { show: true, fill: 0.85, lineWidth: 1 },
+            points: { show: false },
+          },
           legend: {
             container: document.getElementById('odds_history_legend<%=idx%>'),
             show: true,
@@ -616,7 +619,8 @@ $(document).ready(function() {
 
         var series = oddsHistoryPlot.getData()[item.seriesIndex];
         var pointMeta = (series.point_meta || [])[item.dataIndex] || {};
-        var oddValue = item.datapoint[1].toLocaleString("<%= I18n.locale %>", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        var seriesPoint = (series.data || [])[item.dataIndex] || [null, 0];
+        var oddValue = seriesPoint[1].toLocaleString("<%= I18n.locale %>", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
         oddsHistoryTooltip.html(
           (series.label || "") + "<br>" +
