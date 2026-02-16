@@ -18,9 +18,8 @@ class GroupController < ApplicationController
   def update
     @group = Group.find(params["id"])
     @group.update(group_params)
-
-	  @group.team_groups.clear
-
+    @group.team_groups.each{|t|t.destroy}
+    
     params["team_group"].each do |key, value|
       value = value.permit(:team_id, :add_sub, :bias, :comment)
       value["comment"] = nil if value["comment"].to_s.empty?
