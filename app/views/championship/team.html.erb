@@ -523,10 +523,30 @@ $(document).ready(function() {
       });
       var xMin = null;
       var xMax = null;
+      var xValueMap = {};
+      var xTickLabels = {};
+      var timestampMetaMap = {};
+      oddsHistory.series.forEach(function(series) {
+        (series.data || []).forEach(function(point, pointIndex) {
+          var pointMeta = (series.point_meta || [])[pointIndex] || {};
+          if (!timestampMetaMap[point[0]] && pointMeta.recorded_on) {
+            timestampMetaMap[point[0]] = pointMeta.recorded_on;
+          }
+        });
+      });
       if (allPoints.length > 0) {
         var timestamps = allPoints.map(function(point) { return point[0]; });
-        xMin = Math.min.apply(null, timestamps);
-        xMax = Math.max.apply(null, timestamps);
+        var uniqueSortedTimestamps = timestamps.filter(function(timestamp, index, arr) {
+          return arr.indexOf(timestamp) === index;
+        }).sort(function(a, b) { return a - b; });
+
+        uniqueSortedTimestamps.forEach(function(timestamp, index) {
+          xValueMap[timestamp] = index;
+          xTickLabels[index] = timestampMetaMap[timestamp] || "";
+        });
+
+        xMin = 0;
+        xMax = Math.max(uniqueSortedTimestamps.length - 1, 0);
       }
 
       var oddsHistoryPlaceholder = $("#odds_history_placeholder<%=idx%>");
@@ -554,13 +574,24 @@ $(document).ready(function() {
           })
           .map(function(series) {
             var seriesCopy = $.extend({}, series);
-            seriesCopy.data = (series.data || []).slice();
+            seriesCopy.data = (series.data || []).map(function(point) {
+              var timestamp = point[0];
+              var fixedX = Object.prototype.hasOwnProperty.call(xValueMap, timestamp) ? xValueMap[timestamp] : timestamp;
+              return [fixedX, point[1]];
+            });
             seriesCopy.point_meta = (series.point_meta || []).slice();
             return seriesCopy;
           });
 
         oddsHistoryPlot = $.plot(oddsHistoryPlaceholder, seriesToRender, {
-          xaxis: { mode: "time", timeBase: "milliseconds", min: xMin, max: xMax },
+          xaxis: {
+            min: xMin,
+            max: xMax,
+            tickDecimals: 0,
+            tickFormatter: function(value) {
+              return xTickLabels[Math.round(value)] || "";
+            },
+          },
           yaxis: { min: 0, max: 100, autoScale: false, reserveSpace: true, ticks: [0, 20, 40, 60, 80, 100] },
           yaxes: [{ min: 0, max: 100, autoScale: false, reserveSpace: true, ticks: [0, 20, 40, 60, 80, 100] }],
           series: {
