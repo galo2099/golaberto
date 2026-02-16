@@ -90,7 +90,7 @@ $(function() {
   flot_markings = []
 
   if !processed_zones.empty? && num_ranks > 0
-    graph_max_y = 100.0
+    graph_max_y = 101.0
 
     (1..num_ranks).each do |p_rank|
       first_matching_zone_for_rank = nil
@@ -117,7 +117,7 @@ $(function() {
     },
     yaxis: {
       min: 0,
-      max: 100,
+      max: 101,
       autoScale: false,
       showTicks: false,
     },
@@ -128,7 +128,7 @@ $(function() {
     data: <%= @groups[0].team_groups.select{|t|t.team_id == @team.id}.first.odds.map.with_index.map{|item,idx|[idx+1, item]} %>,
   },
   {
-    data: [[<%=team_position%>, 0], [<%=team_position%>, 100]],
+    data: [[<%=team_position%>, 0], [<%=team_position%>, 101]],
     lines: { show: true, lineWidth: "1", color: "rgba(255, 0, 0, 1.0)", dashed: true, },
     points: { show: false },
     bars: {show: false},
@@ -141,7 +141,7 @@ $(function() {
   graphDiv.bind("plothover", function(event, pos, item) {
     var x = Math.round(pos.x);
     if (x > 0 && x <= <%= @groups[0].team_groups.size %> &&
-        pos.y > 0 && pos.y <= 100) {
+        pos.y > 0 && pos.y < 100) {
       var names = <%== (1..@groups[0].team_groups.size).map{|i|i.ordinalize}.to_json %>;
       var value = plot.getData()[0].data[x-1][1].toLocaleString("<%= I18n.locale %>",  { minimumFractionDigits: 2, maximumFractionDigits: 2, })
       $("#odds_tooltip").html(names[x-1] + ": " + value + "%")
@@ -300,7 +300,7 @@ $(document).ready(function() {
 
         var newMarkings = [];
         var numRanks = graphData.numRanks;
-        var graphMaxY = 100.0;
+        var graphMaxY = 101.0;
 
         for (var pRank = 1; pRank <= numRanks; pRank++) {
             var colorForThisRank = null;
