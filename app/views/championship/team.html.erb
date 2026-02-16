@@ -517,8 +517,20 @@ $(document).ready(function() {
 
     var oddsHistory = window.oddsHistoryData[<%=idx%>];
     if (oddsHistory && oddsHistory.has_data) {
+      var allPoints = []
+      oddsHistory.series.forEach(function(item) {
+        allPoints = allPoints.concat(item.data || []);
+      });
+      var xMin = null;
+      var xMax = null;
+      if (allPoints.length > 0) {
+        var timestamps = allPoints.map(function(point) { return point[0]; });
+        xMin = Math.min.apply(null, timestamps);
+        xMax = Math.max.apply(null, timestamps);
+      }
+
       $.plot($("#odds_history_placeholder<%=idx%>"), oddsHistory.series, {
-        xaxis: { mode: "time", timeBase: "milliseconds" },
+        xaxis: { mode: "time", timeBase: "milliseconds", min: xMin, max: xMax },
         yaxis: { min: 0, max: 100 },
         lines: { show: true, lineWidth: 2 },
         points: { show: true, radius: 2 },
