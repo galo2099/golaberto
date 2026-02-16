@@ -568,6 +568,7 @@ $(document).ready(function() {
         var oddValue = item.datapoint[1].toLocaleString("<%= I18n.locale %>", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
         oddsHistoryTooltip.html(
+          (series.label || "") + "<br>" +
           (pointMeta.recorded_on || "-") + "<br>" +
           oddValue + "%<br>" +
           (pointMeta.game_label || "-")
