@@ -5,6 +5,7 @@ Guidance for coding agents working in this repository.
 ## Project Snapshot
 
 - Application: `Golaberto` (Ruby on Rails).
+- Auxiliary service: Go HTTP service in `go/poisson.go` for odds and ratings.
 - Rails config: `config/application.rb` (app defaults are legacy-compatible).
 - Database: MySQL (`mysql2` adapter in `config/database.yml`).
 - Tests: Minitest with fixtures under `test/`.
@@ -14,6 +15,7 @@ Guidance for coding agents working in this repository.
 - `app/models`: domain models (teams, players, games, championships, etc.).
 - `app/controllers`: controller layer (legacy naming includes singular controllers like `team_controller.rb`).
 - `config/routes.rb`: mixed modern + legacy routes with a catch-all route at the end.
+- `go/poisson.go`: standalone service used for championship odds and team/player rating calculations.
 - `db/`: schema and migrations.
 - `test/`: `unit`, `functional`, `system`, fixtures, and test helpers.
 
@@ -63,6 +65,17 @@ bin/rake test
 - Respect localization defaults (`pt-BR` with fallback locales) when adding user-facing strings.
 - Add or update tests when behavior changes.
 - Do not commit secrets, credentials, or environment-specific files.
+
+## Go Odds/Rating Service Notes
+
+- Service entrypoint: `go/poisson.go`.
+- The service listens on `localhost:6577`.
+- Key endpoints used by Rails:
+  - `POST /odds` (championship odds simulation)
+  - `POST /spi` (team power/rating calculations)
+  - Also exposed: `/eval`, `/historic_ratings`, `/player_ratings`
+- Rails has direct call sites to this service (for example in `app/models/group.rb` and controllers like `team_controller.rb` and `championship_controller.rb`).
+- If you change request/response JSON shapes in the Go service, update all Ruby call sites in the same change.
 
 ## Data and Schema Changes
 
