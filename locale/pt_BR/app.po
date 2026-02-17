@@ -1398,6 +1398,9 @@ msgstr "Pos"
 msgid "Position"
 msgstr "Posição"
 
+msgid "Position and points evolution"
+msgstr "Evolução da posição e dos pontos"
+
 msgid "Position|P"
 msgstr "P"
 
