@@ -507,6 +507,19 @@ $(document).ready(function() {
     };
     options["yaxes"][0]["transform"] = function (v) { return -v; };
     options["yaxes"][0]["inverseTransform"] = function (v) { return -v; };
+    if (options["yaxes"] && options["yaxes"][0]) {
+      if ($.isArray(options["yaxes"][0]["ticks"])) {
+        options["yaxes"][0]["ticks"] = options["yaxes"][0]["ticks"].map(function(tick) {
+          if ($.isArray(tick)) {
+            return [tick[0], ""];
+          }
+          return [tick, ""];
+        });
+      } else {
+        options["yaxes"][0]["tickFormatter"] = function() { return ""; };
+      }
+      options["yaxes"][0]["showTickLabels"] = "none";
+    }
     options["xaxes"][1]["ticks"] = function (axis) {
       var res = [];
       for (var i = 0.5; i < axis.max; i += 2) {
