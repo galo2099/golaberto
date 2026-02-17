@@ -93,9 +93,32 @@ class OddsHistoryBackfillService
       end
 
       game_days.each_with_index do |day, idx|
-        games_json_for_day = base_games_json.map do |game|
+        games_with_state = base_games_json.map do |game|
           game_date = game["date"].present? ? Date.parse(game["date"].to_s) : nil
           should_be_played = game["played"] && game_date.present? && game_date <= day
+
+          game.merge(
+            "_snapshot_date" => game_date,
+            "_snapshot_played" => should_be_played,
+          )
+        end
+
+        last_played_game = games_with_state
+          .select { |game| game["_snapshot_played"] }
+          .max_by { |game| [ game["_snapshot_date"], game["id"] ] }
+
+        games_json_for_day = games_with_state.map do |game|
+          home_power = if !game["_snapshot_played"] && last_played_game.present?
+            last_played_game["home_power"]
+          else
+            game["home_power"]
+          end
+
+          away_power = if !game["_snapshot_played"] && last_played_game.present?
+            last_played_game["away_power"]
+          else
+            game["away_power"]
+          end
 
           {
             "id" => game["id"],
@@ -103,9 +126,9 @@ class OddsHistoryBackfillService
             "away_id" => game["away_id"],
             "home_score" => game["home_score"],
             "away_score" => game["away_score"],
-            "played" => should_be_played,
-            "home_power" => game["home_power"],
-            "away_power" => game["away_power"],
+            "played" => game["_snapshot_played"],
+            "home_power" => home_power,
+            "away_power" => away_power,
           }
         end
 
