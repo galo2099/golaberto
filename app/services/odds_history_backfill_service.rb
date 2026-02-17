@@ -71,6 +71,7 @@ class OddsHistoryBackfillService
         methods: [:home_power, :away_power],
         only: [ :id, :home_id, :away_id, :home_score, :away_score, :played, :date ]
       )
+      base_games_json = base_games_json.uniq { |game| game["id"] }
 
       played_game_days = base_games_json
         .select { |game| game["played"] && game["date"].present? }

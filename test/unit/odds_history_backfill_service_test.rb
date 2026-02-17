@@ -85,6 +85,17 @@ class OddsHistoryBackfillServiceTest < ActiveSupport::TestCase
         "away_power" => 0.9,
       },
       {
+        "id" => 1,
+        "home_id" => 10,
+        "away_id" => 20,
+        "home_score" => 1,
+        "away_score" => 0,
+        "played" => true,
+        "date" => "2024-06-01",
+        "home_power" => 9.9,
+        "away_power" => 9.9,
+      },
+      {
         "id" => 2,
         "home_id" => 30,
         "away_id" => 40,
@@ -121,6 +132,7 @@ class OddsHistoryBackfillServiceTest < ActiveSupport::TestCase
     june_tenth_snapshot = fake_group.captured_games_json[3]
 
     assert_equal false, pre_play_snapshot.find { |game| game["id"] == 1 }["played"]
+    assert_equal 3, pre_play_snapshot.size
 
     pre_play_unplayed_game = pre_play_snapshot.find { |game| game["id"] == 3 }
     june_first_unplayed_game = june_first_snapshot.find { |game| game["id"] == 3 }
