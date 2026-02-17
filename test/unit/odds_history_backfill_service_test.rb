@@ -71,7 +71,17 @@ class OddsHistoryBackfillServiceTest < ActiveSupport::TestCase
     end
   end
 
-  test "uses powers from first unplayed game and includes a pre-play snapshot" do
+  class FakeHistoricalScope
+    def initialize(ratings)
+      @ratings = ratings
+    end
+
+    def order(*_args)
+      @ratings.sort_by(&:measure_date)
+    end
+  end
+
+  test "uses ratings from day after last played game when backfilling each snapshot" do
     base_games_json = [
       {
         "id" => 1,
@@ -81,19 +91,9 @@ class OddsHistoryBackfillServiceTest < ActiveSupport::TestCase
         "away_score" => 0,
         "played" => true,
         "date" => "2024-06-01",
+        "home_field" => "left",
         "home_power" => 1.1,
         "away_power" => 0.9,
-      },
-      {
-        "id" => 1,
-        "home_id" => 10,
-        "away_id" => 20,
-        "home_score" => 1,
-        "away_score" => 0,
-        "played" => true,
-        "date" => "2024-06-01",
-        "home_power" => 9.9,
-        "away_power" => 9.9,
       },
       {
         "id" => 2,
@@ -103,6 +103,7 @@ class OddsHistoryBackfillServiceTest < ActiveSupport::TestCase
         "away_score" => 1,
         "played" => true,
         "date" => "2024-06-05",
+        "home_field" => "left",
         "home_power" => 2.2,
         "away_power" => 1.1,
       },
@@ -114,42 +115,58 @@ class OddsHistoryBackfillServiceTest < ActiveSupport::TestCase
         "away_score" => 0,
         "played" => true,
         "date" => "2024-06-10",
+        "home_field" => "left",
         "home_power" => 3.3,
         "away_power" => 1.4,
       },
+    ]
+
+    rating = Struct.new(:team_id, :measure_date, :off_rating, :def_rating)
+    all_ratings = [
+      rating.new(50, Date.parse("2024-05-30"), 1.2, 1.0),
+      rating.new(60, Date.parse("2024-05-30"), 1.1, 0.9),
+      rating.new(50, Date.parse("2024-06-01"), 1.8, 1.2),
+      rating.new(60, Date.parse("2024-06-01"), 1.6, 1.4),
+      rating.new(50, Date.parse("2024-06-05"), 2.6, 1.8),
+      rating.new(60, Date.parse("2024-06-05"), 2.1, 1.9),
     ]
 
     fake_group = FakeGroup.new(base_games_json)
     fake_relation = FakeRelation.new(fake_group)
 
     Group.stub(:joins, fake_relation) do
-      OddsHistoryBackfillService.run_unlocked(championship_id: 1)
+      HistoricalRating.stub(:where, FakeHistoricalScope.new(all_ratings)) do
+        OddsHistoryBackfillService.run_unlocked(championship_id: 1)
+      end
     end
 
-    pre_play_snapshot = fake_group.captured_games_json[0]
-    june_first_snapshot = fake_group.captured_games_json[1]
-    june_fifth_snapshot = fake_group.captured_games_json[2]
-    june_tenth_snapshot = fake_group.captured_games_json[3]
+    pre_play_snapshot = fake_group.captured_games_json[0].find { |game| game["id"] == 3 }
+    june_first_snapshot = fake_group.captured_games_json[1].find { |game| game["id"] == 3 }
+    june_fifth_snapshot = fake_group.captured_games_json[2].find { |game| game["id"] == 3 }
 
-    assert_equal false, pre_play_snapshot.find { |game| game["id"] == 1 }["played"]
-    assert_equal 3, pre_play_snapshot.size
+    expected_pre = OddsHistoryBackfillService.calculate_powers_for_snapshot(
+      home_rating: all_ratings[0],
+      away_rating: all_ratings[1],
+      home_field: "left",
+    )
+    expected_june_first = OddsHistoryBackfillService.calculate_powers_for_snapshot(
+      home_rating: all_ratings[2],
+      away_rating: all_ratings[3],
+      home_field: "left",
+    )
+    expected_june_fifth = OddsHistoryBackfillService.calculate_powers_for_snapshot(
+      home_rating: all_ratings[4],
+      away_rating: all_ratings[5],
+      home_field: "left",
+    )
 
-    pre_play_unplayed_game = pre_play_snapshot.find { |game| game["id"] == 3 }
-    june_first_unplayed_game = june_first_snapshot.find { |game| game["id"] == 3 }
-    june_fifth_unplayed_game = june_fifth_snapshot.find { |game| game["id"] == 3 }
-    june_tenth_played_game = june_tenth_snapshot.find { |game| game["id"] == 3 }
+    assert_in_delta expected_pre[0], pre_play_snapshot["home_power"], 0.000001
+    assert_in_delta expected_pre[1], pre_play_snapshot["away_power"], 0.000001
 
-    assert_equal 1.1, pre_play_unplayed_game["home_power"]
-    assert_equal 0.9, pre_play_unplayed_game["away_power"]
+    assert_in_delta expected_june_first[0], june_first_snapshot["home_power"], 0.000001
+    assert_in_delta expected_june_first[1], june_first_snapshot["away_power"], 0.000001
 
-    assert_equal 2.2, june_first_unplayed_game["home_power"]
-    assert_equal 1.1, june_first_unplayed_game["away_power"]
-
-    assert_equal 3.3, june_fifth_unplayed_game["home_power"]
-    assert_equal 1.4, june_fifth_unplayed_game["away_power"]
-
-    assert_equal true, june_tenth_played_game["played"]
-    assert_equal 3.3, june_tenth_played_game["home_power"]
-    assert_equal 1.4, june_tenth_played_game["away_power"]
+    assert_in_delta expected_june_fifth[0], june_fifth_snapshot["home_power"], 0.000001
+    assert_in_delta expected_june_fifth[1], june_fifth_snapshot["away_power"], 0.000001
   end
 end

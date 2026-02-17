@@ -51,6 +51,31 @@ class OddsHistoryBackfillService
     end
   end
 
+  def self.left_advantage_for(home_field)
+    case home_field.to_s
+    when "left", "0"
+      Game::HOME_ADV
+    when "neutral", "1"
+      0.0
+    when "right", "2"
+      -Game::HOME_ADV
+    else
+      Game::HOME_ADV
+    end
+  end
+
+  def self.calculate_powers_for_snapshot(home_rating:, away_rating:, home_field:)
+    return [ nil, nil ] if home_rating.nil? || away_rating.nil?
+
+    left_advantage = left_advantage_for(home_field)
+    avg_base = Game::AVG_BASE
+
+    home_power = [10.0, [0.01, (home_rating.off_rating.to_f - avg_base) / (avg_base * 0.424 + 0.548) * ([0.25, (away_rating.def_rating.to_f + left_advantage) * 0.424 + 0.548].max) + (away_rating.def_rating.to_f + left_advantage)].max].min
+    away_power = [10.0, [0.01, (away_rating.off_rating.to_f - avg_base) / (avg_base * 0.424 + 0.548) * ([0.25, (home_rating.def_rating.to_f - left_advantage) * 0.424 + 0.548].max) + (home_rating.def_rating.to_f - left_advantage)].max].min
+
+    [ home_power, away_power ]
+  end
+
   def self.run_unlocked(championship_id:, phase_id: nil, group_id: nil, from_date: nil, to_date: nil, reset: false)
     groups = Group.joins(:phase)
       .where(phases: { championship_id: championship_id })
@@ -69,15 +94,17 @@ class OddsHistoryBackfillService
 
       base_games_json = group.games.includes(:home, :away).as_json(
         methods: [:home_power, :away_power],
-        only: [ :id, :home_id, :away_id, :home_score, :away_score, :played, :date ]
+        only: [ :id, :home_id, :away_id, :home_score, :away_score, :played, :date, :home_field ]
       )
-      base_games_json = base_games_json.uniq { |game| game["id"] }
 
       played_game_days = base_games_json
         .select { |game| game["played"] && game["date"].present? }
         .map { |game| Date.parse(game["date"].to_s) }
         .uniq
         .sort
+
+      team_ids = base_games_json.flat_map { |game| [ game["home_id"], game["away_id"] ] }.compact.uniq
+      ratings_by_team = HistoricalRating.where(team_id: team_ids).order(:measure_date).group_by(&:team_id)
 
       game_days = played_game_days.dup
       if played_game_days.any?
@@ -104,21 +131,28 @@ class OddsHistoryBackfillService
           )
         end
 
-        first_unplayed_game = games_with_state
-          .reject { |game| game["_snapshot_played"] }
-          .min_by { |game| [ game["_snapshot_date"] || Date.new(9999, 12, 31), game["id"] ] }
+        last_played_date = games_with_state
+          .select { |game| game["_snapshot_played"] }
+          .map { |game| game["_snapshot_date"] }
+          .compact
+          .max
+        rating_reference_date = last_played_date.present? ? (last_played_date + 1.day) : (day + 1.day)
 
         games_json_for_day = games_with_state.map do |game|
-          home_power = if !game["_snapshot_played"] && first_unplayed_game.present?
-            first_unplayed_game["home_power"]
-          else
-            game["home_power"]
-          end
+          home_power = game["home_power"]
+          away_power = game["away_power"]
 
-          away_power = if !game["_snapshot_played"] && first_unplayed_game.present?
-            first_unplayed_game["away_power"]
-          else
-            game["away_power"]
+          unless game["_snapshot_played"]
+            home_rating = ratings_by_team.fetch(game["home_id"], []).select { |rating| rating.measure_date < rating_reference_date }.max_by(&:measure_date)
+            away_rating = ratings_by_team.fetch(game["away_id"], []).select { |rating| rating.measure_date < rating_reference_date }.max_by(&:measure_date)
+            snapshot_home_power, snapshot_away_power = calculate_powers_for_snapshot(
+              home_rating: home_rating,
+              away_rating: away_rating,
+              home_field: game["home_field"],
+            )
+
+            home_power = snapshot_home_power unless snapshot_home_power.nil?
+            away_power = snapshot_away_power unless snapshot_away_power.nil?
           end
 
           {
