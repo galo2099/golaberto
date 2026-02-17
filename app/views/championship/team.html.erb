@@ -569,12 +569,12 @@ $(document).ready(function() {
 
       function renderOddsHistorySeries() {
         var oddsHistoryYAxisTicks = [
-          [0.0, "0.0"],
-          [0.2, "0.2"],
-          [0.4, "0.4"],
-          [0.6, "0.6"],
-          [0.8, "0.8"],
-          [1.0, "1.0"],
+          [0, "0.0"],
+          [20, "0.2"],
+          [40, "0.4"],
+          [60, "0.6"],
+          [80, "0.8"],
+          [100, "1.0"],
         ];
 
         var seriesToRender = allOddsHistorySeries
@@ -601,8 +601,8 @@ $(document).ready(function() {
               return xTickLabels[Math.round(value)] || "";
             },
           },
-          yaxis: { min: 0, max: 1, autoScale: false, reserveSpace: true, tickDecimals: 1, ticks: oddsHistoryYAxisTicks },
-          yaxes: [{ min: 0, max: 1, autoScale: false, reserveSpace: true, tickDecimals: 1, ticks: oddsHistoryYAxisTicks }],
+          yaxis: { min: 0, max: 100, autoScale: false, reserveSpace: true, ticks: oddsHistoryYAxisTicks },
+          yaxes: [{ min: 0, max: 100, autoScale: false, reserveSpace: true, ticks: oddsHistoryYAxisTicks }],
           series: {
             stack: true,
             lines: { show: true, fill: 0.85, lineWidth: 1 },
