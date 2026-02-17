@@ -631,6 +631,14 @@ $(document).ready(function() {
       var allOddsHistorySeries = oddsHistory.series;
       var selectedOddsHistoryZoneName = null;
       var normalizeZoneName = function(name) { return (name || "").toString().trim(); };
+      var darkenColor = function(color, factor) {
+        if (!color || !$.color || !$.color.parse) { return color; }
+        return $.color.parse(color).scale("rgb", factor).toString();
+      };
+      var colorWithAlpha = function(color, alpha) {
+        if (!color || !$.color || !$.color.parse) { return color; }
+        return $.color.parse(color).scale("a", alpha).toString();
+      };
 
       function renderOddsHistorySeries() {
         var oddsHistoryYAxisTicks = [
@@ -648,12 +656,18 @@ $(document).ready(function() {
           })
           .map(function(series) {
             var seriesCopy = $.extend({}, series);
+            var baseSeriesColor = series.color || "#999999";
             seriesCopy.data = (series.data || []).map(function(point) {
               var timestamp = point[0];
               var fixedX = Object.prototype.hasOwnProperty.call(xValueMap, timestamp) ? xValueMap[timestamp] : timestamp;
               return [fixedX, point[1]];
             });
             seriesCopy.point_meta = (series.point_meta || []).slice();
+            seriesCopy.color = darkenColor(baseSeriesColor, 0.72);
+            seriesCopy.lines = $.extend({}, series.lines || {}, {
+              fillColor: colorWithAlpha(baseSeriesColor, 0.85),
+              lineWidth: 1.2,
+            });
             return seriesCopy;
           });
 
