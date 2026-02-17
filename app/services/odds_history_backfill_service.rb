@@ -81,8 +81,7 @@ class OddsHistoryBackfillService
         group.team_groups.find_each { |team_group| team_group.odds_histories.delete_all }
       end
 
-      base_games_json = group.games.includes(:home, :away).as_json(
-        methods: [:home_power, :away_power],
+      base_games_json = group.games.as_json(
         only: [ :id, :home_id, :away_id, :home_score, :away_score, :played, :date, :home_field ]
       )
 
@@ -128,18 +127,21 @@ class OddsHistoryBackfillService
         snapshot_ratings_by_team = {}
 
         games_json_for_day = games_with_state.map do |game|
-          home_power = game["home_power"]
-          away_power = game["away_power"]
+          game_reference_date = if game["_snapshot_played"]
+            game["_snapshot_date"]
+          else
+            rating_reference_date
+          end
 
-          unless game["_snapshot_played"]
-            home_rating = snapshot_ratings_by_team[game["home_id"]] ||= latest_rating_before(ratings_by_team.fetch(game["home_id"], []), rating_reference_date)
-            away_rating = snapshot_ratings_by_team[game["away_id"]] ||= latest_rating_before(ratings_by_team.fetch(game["away_id"], []), rating_reference_date)
+          home_power = nil
+          away_power = nil
+          if game_reference_date.present?
+            snapshot_team_ratings = snapshot_ratings_by_team[game_reference_date] ||= {}
+            home_rating = snapshot_team_ratings[game["home_id"]] ||= latest_rating_before(ratings_by_team.fetch(game["home_id"], []), game_reference_date)
+            away_rating = snapshot_team_ratings[game["away_id"]] ||= latest_rating_before(ratings_by_team.fetch(game["away_id"], []), game_reference_date)
             power_game = Game.new(home_field: game["home_field"])
-            snapshot_home_power = power_game.home_power(home_rating, away_rating)
-            snapshot_away_power = power_game.away_power(home_rating, away_rating)
-
-            home_power = snapshot_home_power unless snapshot_home_power.nil?
-            away_power = snapshot_away_power unless snapshot_away_power.nil?
+            home_power = power_game.home_power(home_rating, away_rating)
+            away_power = power_game.away_power(home_rating, away_rating)
           end
 
           {

@@ -38,6 +38,16 @@ class OddsHistoryBackfillServiceTest < ActiveSupport::TestCase
   end
 
   class FakeTeamGroups
+    def initialize(team_ids)
+      @team_ids = team_ids
+    end
+
+    def map
+      return enum_for(:map) unless block_given?
+
+      @team_ids.map { |team_id| yield Struct.new(:team_id).new(team_id) }
+    end
+
     def find_each
     end
   end
@@ -59,7 +69,8 @@ class OddsHistoryBackfillServiceTest < ActiveSupport::TestCase
     end
 
     def team_groups
-      FakeTeamGroups.new
+      ids = @games.as_json.flat_map { |game| [ game["home_id"], game["away_id"] ] }.compact.uniq
+      FakeTeamGroups.new(ids)
     end
 
     def games
