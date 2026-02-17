@@ -95,8 +95,10 @@ class GameController < ApplicationController
     @game.attributes = game_params
     @game.date = params["game_date"]
     @game.has_time = false
-    unless params["hour"].empty?
-      @game.date = cookie_timezone.local_to_utc(@game.date + params["hour"].to_i.hours + params["minute"].to_i.minute)
+    hour = params["hour"] || params["[hour]"]
+    minute = params["minute"] || params["[minute]"]
+    unless hour.to_s.empty?
+      @game.date = cookie_timezone.local_to_utc(@game.date + hour.to_i.hours + minute.to_i.minute)
       @game.has_time = true
     end
     # set score to sane values
