@@ -103,19 +103,19 @@ class OddsHistoryBackfillService
           )
         end
 
-        last_played_game = games_with_state
-          .select { |game| game["_snapshot_played"] }
-          .max_by { |game| [ game["_snapshot_date"], game["id"] ] }
+        first_unplayed_game = games_with_state
+          .reject { |game| game["_snapshot_played"] }
+          .min_by { |game| [ game["_snapshot_date"] || Date.new(9999, 12, 31), game["id"] ] }
 
         games_json_for_day = games_with_state.map do |game|
-          home_power = if !game["_snapshot_played"] && last_played_game.present?
-            last_played_game["home_power"]
+          home_power = if !game["_snapshot_played"] && first_unplayed_game.present?
+            first_unplayed_game["home_power"]
           else
             game["home_power"]
           end
 
-          away_power = if !game["_snapshot_played"] && last_played_game.present?
-            last_played_game["away_power"]
+          away_power = if !game["_snapshot_played"] && first_unplayed_game.present?
+            first_unplayed_game["away_power"]
           else
             game["away_power"]
           end
