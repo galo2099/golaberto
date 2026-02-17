@@ -317,7 +317,7 @@ class ChampionshipController < ApplicationController
     (1..positions_count).each do |position|
       matching_zones = zones.select { |item| item["position"].map(&:to_i).include?(position) }
       zone = matching_zones.first
-      color_by_position[position] = zone ? zone["color"] : "#999999"
+      color_by_position[position] = zone ? zone["color"] : "#FFFFFF"
       zone_name_by_position[position] = zone ? zone["name"] : nil
       zone_names_by_position[position] = matching_zones.map { |item| item["name"] }
     end
