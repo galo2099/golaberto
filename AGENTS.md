@@ -16,6 +16,7 @@ Guidance for coding agents working in this repository.
 - `app/controllers`: controller layer (legacy naming includes singular controllers like `team_controller.rb`).
 - `config/routes.rb`: mixed modern + legacy routes with a catch-all route at the end.
 - `go/poisson.go`: standalone service used for championship odds and team/player rating calculations.
+- `lib/`: important Ruby modules, helpers, and rake tasks used across the app.
 - `db/`: schema and migrations.
 - `test/`: `unit`, `functional`, `system`, fixtures, and test helpers.
 
@@ -76,6 +77,24 @@ bin/rake test
   - Also exposed: `/eval`, `/historic_ratings`, `/player_ratings`
 - Rails has direct call sites to this service (for example in `app/models/group.rb` and controllers like `team_controller.rb` and `championship_controller.rb`).
 - If you change request/response JSON shapes in the Go service, update all Ruby call sites in the same change.
+
+## Important Ruby Files in `lib/`
+
+Treat `lib/` as production code in this repository. Key files include:
+
+- `lib/poisson.rb`: Poisson distribution utility used by models.
+- `lib/lttb.rb`: timeseries downsampling utility (covered by `test/unit/lttb_test.rb`).
+- `lib/authenticated_system.rb`: authentication mixin required by `ApplicationController`.
+- `lib/geo_clusterer.rb` and `lib/google_url_signer.rb`: geospatial/map helpers used by views.
+- `lib/image_upload.rb` and `lib/paperclip_processors/logo.rb`: image upload and processing logic.
+- `lib/scrape.rb`: external data ingestion/scraping and normalization routines.
+- `lib/tasks/*.rake`: operational rake tasks (for example `odds_history:backfill`).
+
+When editing `lib/` files:
+
+- Search for all call sites (`require` and method/module usage) and update them together.
+- Add/update tests when possible; at minimum run affected tests/tasks.
+- Be careful with encoding and locale-sensitive strings in scraping/normalization code.
 
 ## Data and Schema Changes
 
