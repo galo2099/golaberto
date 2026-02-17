@@ -501,10 +501,19 @@ $(document).ready(function() {
   $(function() {
     var graphDiv = $("#placeholder<%=idx%>");
     var options = data[<%=idx%>]["options"];
+    options["grid"] = options["grid"] || {};
+    options["grid"]["borderWidth"] = 1;
+    options["grid"]["labelMargin"] = 0;
+    options["grid"]["axisMargin"] = 0;
     options["legend"] = {
         container: document.getElementById('legend<%=idx%>'),
         show: true,
     };
+    if (options["xaxes"]) {
+      for (var axisIndex = 0; axisIndex < options["xaxes"].length; axisIndex++) {
+        options["xaxes"][axisIndex]["tickLength"] = "full";
+      }
+    }
     options["yaxes"][0]["transform"] = function (v) { return -v; };
     options["yaxes"][0]["inverseTransform"] = function (v) { return -v; };
     if (options["yaxes"] && options["yaxes"][0]) {
@@ -518,6 +527,8 @@ $(document).ready(function() {
       } else {
         options["yaxes"][0]["tickFormatter"] = function() { return ""; };
       }
+      options["yaxes"][0]["labelWidth"] = 0;
+      options["yaxes"][0]["tickLength"] = "full";
       options["yaxes"][0]["showTickLabels"] = "none";
     }
     options["xaxes"][1]["ticks"] = function (axis) {
@@ -651,9 +662,10 @@ $(document).ready(function() {
             max: xMax,
             tickDecimals: 0,
             ticks: xAxisTicks,
+            tickLength: "full",
           },
-          yaxis: { min: 0, max: 100, autoScale: false, reserveSpace: true, ticks: oddsHistoryYAxisTicks },
-          yaxes: [{ min: 0, max: 100, autoScale: false, reserveSpace: true, ticks: oddsHistoryYAxisTicks }],
+          yaxis: { min: 0, max: 100, autoScale: false, reserveSpace: true, ticks: oddsHistoryYAxisTicks, labelWidth: 0, tickLength: "full" },
+          yaxes: [{ min: 0, max: 100, autoScale: false, reserveSpace: true, ticks: oddsHistoryYAxisTicks, labelWidth: 0, tickLength: "full" }],
           series: {
             stack: true,
             lines: { show: true, fill: 0.85, lineWidth: 1 },
@@ -667,6 +679,8 @@ $(document).ready(function() {
             hoverable: true,
             clickable: false,
             borderWidth: 1,
+            labelMargin: 0,
+            axisMargin: 0,
             backgroundColor: "#fff",
           },
         });
