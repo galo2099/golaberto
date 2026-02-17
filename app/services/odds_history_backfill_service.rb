@@ -68,9 +68,13 @@ class OddsHistoryBackfillService
     groups = groups.where(phase_id: phase_id) if phase_id.present?
     groups = groups.where(id: group_id) if group_id.present?
 
-    puts "Backfilling odds history for #{groups.size} group(s)"
+    group_records = groups.to_a
+    puts "Backfilling odds history for #{group_records.size} group(s)"
 
-    groups.find_each do |group|
+    all_team_ids = group_records.flat_map { |group| group.team_groups.map(&:team_id) }.uniq
+    ratings_by_team = HistoricalRating.where(team_id: all_team_ids).order(:measure_date).group_by(&:team_id)
+
+    group_records.each do |group|
       puts "-> Group ##{group.id} (#{group.name})"
 
       if reset
@@ -88,8 +92,6 @@ class OddsHistoryBackfillService
         .uniq
         .sort
 
-      team_ids = base_games_json.flat_map { |game| [ game["home_id"], game["away_id"] ] }.compact.uniq
-      ratings_by_team = HistoricalRating.where(team_id: team_ids).order(:measure_date).group_by(&:team_id)
 
       game_days = played_game_days.dup
       if played_game_days.any?
