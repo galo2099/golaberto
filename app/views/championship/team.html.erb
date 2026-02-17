@@ -663,7 +663,7 @@ $(document).ready(function() {
               return [fixedX, point[1]];
             });
             seriesCopy.point_meta = (series.point_meta || []).slice();
-            seriesCopy.color = darkenColor(baseSeriesColor, 0.72);
+            seriesCopy.color = darkenColor(baseSeriesColor, 0.82);
             seriesCopy.lines = $.extend({}, series.lines || {}, {
               fillColor: colorWithAlpha(baseSeriesColor, 0.85),
               lineWidth: 1.2,
