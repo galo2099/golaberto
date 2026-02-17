@@ -6,6 +6,7 @@ Guidance for coding agents working in this repository.
 
 - Application: `Golaberto` (Ruby on Rails).
 - Auxiliary service: Go HTTP service in `go/poisson.go` for odds and ratings.
+- Auxiliary batch pipeline: Rust code in `stats/` computes and persists player ratings.
 - Rails config: `config/application.rb` (app defaults are legacy-compatible).
 - Database: MySQL (`mysql2` adapter in `config/database.yml`).
 - Tests: Minitest with fixtures under `test/`.
@@ -16,6 +17,7 @@ Guidance for coding agents working in this repository.
 - `app/controllers`: controller layer (legacy naming includes singular controllers like `team_controller.rb`).
 - `config/routes.rb`: mixed modern + legacy routes with a catch-all route at the end.
 - `go/poisson.go`: standalone service used for championship odds and team/player rating calculations.
+- `stats/`: Rust + Diesel batch code for player rating computation and DB updates.
 - `lib/`: important Ruby modules, helpers, and rake tasks used across the app.
 - `db/`: schema and migrations.
 - `test/`: `unit`, `functional`, `system`, fixtures, and test helpers.
@@ -35,6 +37,14 @@ bundle install
 bin/rails db:prepare
 bin/rails server
 ```
+
+Rust player-ratings pipeline (from `stats/`):
+
+```bash
+cd stats && cargo run --release
+```
+
+It requires `DATABASE_URL` (MySQL) in the environment.
 
 ## Test Commands
 
@@ -77,6 +87,20 @@ bin/rake test
   - Also exposed: `/eval`, `/historic_ratings`, `/player_ratings`
 - Rails has direct call sites to this service (for example in `app/models/group.rb` and controllers like `team_controller.rb` and `championship_controller.rb`).
 - If you change request/response JSON shapes in the Go service, update all Ruby call sites in the same change.
+
+## Rust Player Ratings (`stats/`) Notes
+
+- Main entrypoint: `stats/src/main.rs`.
+- Data models/schema: `stats/src/models.rs` and `stats/src/schema.rs`.
+- Runtime/deps: Rust 2021 + Diesel (MySQL), configured by `stats/Cargo.toml`.
+- Reads match/player/goal/historical rating data and upserts computed ratings into:
+  - `players` (`off_rating`, `def_rating`, `rating`)
+  - `player_games` (`off_rating`, `def_rating`)
+- Uses `DATABASE_URL`; local env files under `stats/` are gitignored.
+- If changing rating formulas, keep behavior aligned with other rating implementations (especially `go/poisson.go` `/player_ratings`) unless divergence is intentional and documented.
+- For changes in `stats/`, run at least:
+  - `cargo check`
+  - `cargo fmt` (when formatting is needed)
 
 ## Important Ruby Files in `lib/`
 
