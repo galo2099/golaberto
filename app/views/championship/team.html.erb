@@ -472,12 +472,13 @@ $(document).ready(function() {
       <div class="odds-history-wrapper" id="odds-history-wrapper-<%=idx%>">
         <h3><%= _("Odds evolution") %></h3>
         <div id="odds_history_placeholder<%=idx%>" style="width: 550px;
-          height: 220px;
+          height: 300px;
           font-size: 14px;
           line-height: 1.2em;"></div>
-        <div id="odds_history_legend<%=idx%>"></div>
+        <div id="odds_history_legend<%=idx%>" class="odds-history-legend"></div>
       </div>
       <div>
+        <h3><%= _("Position and points evolution") %></h3>
         <div id="placeholder<%=idx%>" style="width: 550px;
           height: 300px;
           font-size: 14px;
@@ -501,12 +502,36 @@ $(document).ready(function() {
   $(function() {
     var graphDiv = $("#placeholder<%=idx%>");
     var options = data[<%=idx%>]["options"];
+    options["grid"] = options["grid"] || {};
+    options["grid"]["borderWidth"] = 1;
+    options["grid"]["labelMargin"] = 0;
+    options["grid"]["axisMargin"] = 0;
     options["legend"] = {
         container: document.getElementById('legend<%=idx%>'),
         show: true,
     };
+    if (options["xaxes"]) {
+      for (var axisIndex = 0; axisIndex < options["xaxes"].length; axisIndex++) {
+        options["xaxes"][axisIndex]["tickLength"] = "full";
+      }
+    }
     options["yaxes"][0]["transform"] = function (v) { return -v; };
     options["yaxes"][0]["inverseTransform"] = function (v) { return -v; };
+    if (options["yaxes"] && options["yaxes"][0]) {
+      if ($.isArray(options["yaxes"][0]["ticks"])) {
+        options["yaxes"][0]["ticks"] = options["yaxes"][0]["ticks"].map(function(tick) {
+          if ($.isArray(tick)) {
+            return [tick[0], ""];
+          }
+          return [tick, ""];
+        });
+      } else {
+        options["yaxes"][0]["tickFormatter"] = function() { return ""; };
+      }
+      options["yaxes"][0]["labelWidth"] = 0;
+      options["yaxes"][0]["tickLength"] = "full";
+      options["yaxes"][0]["showTickLabels"] = "none";
+    }
     options["xaxes"][1]["ticks"] = function (axis) {
       var res = [];
       for (var i = 0.5; i < axis.max; i += 2) {
@@ -524,8 +549,39 @@ $(document).ready(function() {
       var xMin = null;
       var xMax = null;
       var xValueMap = {};
-      var xTickLabels = {};
+      var xAxisTicks = [];
       var timestampMetaMap = {};
+      var oddsHistoryLocale = "<%= I18n.locale %>".toString().replace(/_/g, "-");
+      var fullDateFormatter = null;
+
+      if (window.Intl && Intl.DateTimeFormat) {
+        try {
+          fullDateFormatter = new Intl.DateTimeFormat(oddsHistoryLocale, { year: "numeric", month: "2-digit", day: "2-digit" });
+        } catch (error) {
+          fullDateFormatter = null;
+        }
+      }
+
+      function parseOddsHistoryDate(value) {
+        if (!value) { return null; }
+        var parts = value.toString().split("-");
+        if (parts.length !== 3) { return null; }
+        var year = parseInt(parts[0], 10);
+        var month = parseInt(parts[1], 10) - 1;
+        var day = parseInt(parts[2], 10);
+        if (isNaN(year) || isNaN(month) || isNaN(day)) { return null; }
+        return new Date(year, month, day);
+      }
+
+      function formatOddsHistoryDate(value, formatter, includeYear) {
+        if (!value) { return ""; }
+        var parsedDate = parseOddsHistoryDate(value);
+        if (!parsedDate) { return value; }
+        if (formatter) { return formatter.format(parsedDate); }
+        var day = parsedDate.getDate() < 10 ? "0" + parsedDate.getDate() : parsedDate.getDate().toString();
+        var month = (parsedDate.getMonth() + 1) < 10 ? "0" + (parsedDate.getMonth() + 1) : (parsedDate.getMonth() + 1).toString();
+        return includeYear ? day + "/" + month + "/" + parsedDate.getFullYear() : day + "/" + month;
+      }
       oddsHistory.series.forEach(function(series) {
         (series.data || []).forEach(function(point, pointIndex) {
           var pointMeta = (series.point_meta || [])[pointIndex] || {};
@@ -542,11 +598,20 @@ $(document).ready(function() {
 
         uniqueSortedTimestamps.forEach(function(timestamp, index) {
           xValueMap[timestamp] = index;
-          xTickLabels[index] = timestampMetaMap[timestamp] || "";
         });
 
         xMin = 0;
         xMax = Math.max(uniqueSortedTimestamps.length - 1, 0);
+        var maxXAxisLabelCount = 6;
+        var totalPoints = uniqueSortedTimestamps.length;
+        var denominator = Math.max(maxXAxisLabelCount - 1, 1);
+        var tickStep = Math.max(1, Math.ceil((totalPoints - 1) / denominator));
+        for (var tickPosition = 0; tickPosition < totalPoints; tickPosition += tickStep) {
+          xAxisTicks.push([tickPosition, ""]);
+        }
+        if (xAxisTicks.length === 0 || xAxisTicks[xAxisTicks.length - 1][0] !== totalPoints - 1) {
+          xAxisTicks.push([totalPoints - 1, ""]);
+        }
       }
 
       var oddsHistoryPlaceholder = $("#odds_history_placeholder<%=idx%>");
@@ -566,20 +631,43 @@ $(document).ready(function() {
       var allOddsHistorySeries = oddsHistory.series;
       var selectedOddsHistoryZoneName = null;
       var normalizeZoneName = function(name) { return (name || "").toString().trim(); };
+      var darkenColor = function(color, factor) {
+        if (!color || !$.color || !$.color.parse) { return color; }
+        return $.color.parse(color).scale("rgb", factor).toString();
+      };
+      var colorWithAlpha = function(color, alpha) {
+        if (!color || !$.color || !$.color.parse) { return color; }
+        return $.color.parse(color).scale("a", alpha).toString();
+      };
 
       function renderOddsHistorySeries() {
+        var oddsHistoryYAxisTicks = [
+          [0, ""],
+          [20, ""],
+          [40, ""],
+          [60, ""],
+          [80, ""],
+          [100, ""],
+        ];
+
         var seriesToRender = allOddsHistorySeries
           .filter(function(series) {
             return !selectedOddsHistoryZoneName || ((series.zone_names || []).map(normalizeZoneName).includes(selectedOddsHistoryZoneName));
           })
           .map(function(series) {
             var seriesCopy = $.extend({}, series);
+            var baseSeriesColor = series.color || "#999999";
             seriesCopy.data = (series.data || []).map(function(point) {
               var timestamp = point[0];
               var fixedX = Object.prototype.hasOwnProperty.call(xValueMap, timestamp) ? xValueMap[timestamp] : timestamp;
               return [fixedX, point[1]];
             });
             seriesCopy.point_meta = (series.point_meta || []).slice();
+            seriesCopy.color = darkenColor(baseSeriesColor, 0.82);
+            seriesCopy.lines = $.extend({}, series.lines || {}, {
+              fillColor: colorWithAlpha(baseSeriesColor, 0.85),
+              lineWidth: 1.2,
+            });
             return seriesCopy;
           });
 
@@ -588,12 +676,11 @@ $(document).ready(function() {
             min: xMin,
             max: xMax,
             tickDecimals: 0,
-            tickFormatter: function(value) {
-              return xTickLabels[Math.round(value)] || "";
-            },
+            ticks: xAxisTicks,
+            tickLength: "full",
           },
-          yaxis: { min: 0, max: 100, autoScale: false, reserveSpace: true, ticks: [0, 20, 40, 60, 80, 100] },
-          yaxes: [{ min: 0, max: 100, autoScale: false, reserveSpace: true, ticks: [0, 20, 40, 60, 80, 100] }],
+          yaxis: { min: 0, max: 100, autoScale: false, reserveSpace: true, ticks: oddsHistoryYAxisTicks, labelWidth: 0, tickLength: "full" },
+          yaxes: [{ min: 0, max: 100, autoScale: false, reserveSpace: true, ticks: oddsHistoryYAxisTicks, labelWidth: 0, tickLength: "full" }],
           series: {
             stack: true,
             lines: { show: true, fill: 0.85, lineWidth: 1 },
@@ -606,7 +693,9 @@ $(document).ready(function() {
           grid: {
             hoverable: true,
             clickable: false,
-            margin: { left: 12 },
+            borderWidth: 1,
+            labelMargin: 0,
+            axisMargin: 0,
             backgroundColor: "#fff",
           },
         });
@@ -666,7 +755,7 @@ $(document).ready(function() {
 
         oddsHistoryTooltip.html(
           (series.label || "") + "<br>" +
-          (pointMeta.recorded_on || "-") + "<br>" +
+          (formatOddsHistoryDate(pointMeta.recorded_on, fullDateFormatter, true) || "-") + "<br>" +
           oddValue + "%<br>" +
           (pointMeta.game_label || "-") +
           (zoneOddsLines.length > 0 ? "<br>" + zoneOddsLines.join("<br>") : "")
@@ -779,6 +868,12 @@ function load_graph_data(index) {
 #panel .flot-x-axis, #panel .flot-y-axis {
   font-size: 12px;
   fill: rgb(255, 255, 255);
+}
+.odds-history-legend {
+  margin-top: 12px;
+}
+.odds-history-wrapper {
+  margin-bottom: 24px;
 }
 </style>
 <%= render partial: "shared/player_stats_table", locals: {
