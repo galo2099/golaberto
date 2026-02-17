@@ -51,31 +51,6 @@ class OddsHistoryBackfillService
     end
   end
 
-  def self.left_advantage_for(home_field)
-    case home_field.to_s
-    when "left", "0"
-      Game::HOME_ADV
-    when "neutral", "1"
-      0.0
-    when "right", "2"
-      -Game::HOME_ADV
-    else
-      Game::HOME_ADV
-    end
-  end
-
-  def self.calculate_powers_for_snapshot(home_rating:, away_rating:, home_field:)
-    return [ nil, nil ] if home_rating.nil? || away_rating.nil?
-
-    left_advantage = left_advantage_for(home_field)
-    avg_base = Game::AVG_BASE
-
-    home_power = [10.0, [0.01, (home_rating.off_rating.to_f - avg_base) / (avg_base * 0.424 + 0.548) * ([0.25, (away_rating.def_rating.to_f + left_advantage) * 0.424 + 0.548].max) + (away_rating.def_rating.to_f + left_advantage)].max].min
-    away_power = [10.0, [0.01, (away_rating.off_rating.to_f - avg_base) / (avg_base * 0.424 + 0.548) * ([0.25, (home_rating.def_rating.to_f - left_advantage) * 0.424 + 0.548].max) + (home_rating.def_rating.to_f - left_advantage)].max].min
-
-    [ home_power, away_power ]
-  end
-
   def self.run_unlocked(championship_id:, phase_id: nil, group_id: nil, from_date: nil, to_date: nil, reset: false)
     groups = Group.joins(:phase)
       .where(phases: { championship_id: championship_id })
@@ -145,11 +120,9 @@ class OddsHistoryBackfillService
           unless game["_snapshot_played"]
             home_rating = ratings_by_team.fetch(game["home_id"], []).select { |rating| rating.measure_date < rating_reference_date }.max_by(&:measure_date)
             away_rating = ratings_by_team.fetch(game["away_id"], []).select { |rating| rating.measure_date < rating_reference_date }.max_by(&:measure_date)
-            snapshot_home_power, snapshot_away_power = calculate_powers_for_snapshot(
-              home_rating: home_rating,
-              away_rating: away_rating,
-              home_field: game["home_field"],
-            )
+            power_game = Game.new(home_field: game["home_field"])
+            snapshot_home_power = power_game.home_power(home_rating, away_rating)
+            snapshot_away_power = power_game.away_power(home_rating, away_rating)
 
             home_power = snapshot_home_power unless snapshot_home_power.nil?
             away_power = snapshot_away_power unless snapshot_away_power.nil?

@@ -144,21 +144,20 @@ class OddsHistoryBackfillServiceTest < ActiveSupport::TestCase
     june_first_snapshot = fake_group.captured_games_json[1].find { |game| game["id"] == 3 }
     june_fifth_snapshot = fake_group.captured_games_json[2].find { |game| game["id"] == 3 }
 
-    expected_pre = OddsHistoryBackfillService.calculate_powers_for_snapshot(
-      home_rating: all_ratings[0],
-      away_rating: all_ratings[1],
-      home_field: "left",
-    )
-    expected_june_first = OddsHistoryBackfillService.calculate_powers_for_snapshot(
-      home_rating: all_ratings[2],
-      away_rating: all_ratings[3],
-      home_field: "left",
-    )
-    expected_june_fifth = OddsHistoryBackfillService.calculate_powers_for_snapshot(
-      home_rating: all_ratings[4],
-      away_rating: all_ratings[5],
-      home_field: "left",
-    )
+    game_for_power = Game.new(home_field: "left")
+
+    expected_pre = [
+      game_for_power.home_power(all_ratings[0], all_ratings[1]),
+      game_for_power.away_power(all_ratings[0], all_ratings[1]),
+    ]
+    expected_june_first = [
+      game_for_power.home_power(all_ratings[2], all_ratings[3]),
+      game_for_power.away_power(all_ratings[2], all_ratings[3]),
+    ]
+    expected_june_fifth = [
+      game_for_power.home_power(all_ratings[4], all_ratings[5]),
+      game_for_power.away_power(all_ratings[4], all_ratings[5]),
+    ]
 
     assert_in_delta expected_pre[0], pre_play_snapshot["home_power"], 0.000001
     assert_in_delta expected_pre[1], pre_play_snapshot["away_power"], 0.000001
