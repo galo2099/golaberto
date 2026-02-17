@@ -475,7 +475,7 @@ $(document).ready(function() {
           height: 220px;
           font-size: 14px;
           line-height: 1.2em;"></div>
-        <div id="odds_history_legend<%=idx%>"></div>
+        <div id="odds_history_legend<%=idx%>" class="odds-history-legend"></div>
       </div>
       <div>
         <div id="placeholder<%=idx%>" style="width: 550px;
@@ -568,6 +568,15 @@ $(document).ready(function() {
       var normalizeZoneName = function(name) { return (name || "").toString().trim(); };
 
       function renderOddsHistorySeries() {
+        var oddsHistoryYAxisTicks = [
+          [0.0, "0.0"],
+          [0.2, "0.2"],
+          [0.4, "0.4"],
+          [0.6, "0.6"],
+          [0.8, "0.8"],
+          [1.0, "1.0"],
+        ];
+
         var seriesToRender = allOddsHistorySeries
           .filter(function(series) {
             return !selectedOddsHistoryZoneName || ((series.zone_names || []).map(normalizeZoneName).includes(selectedOddsHistoryZoneName));
@@ -592,8 +601,8 @@ $(document).ready(function() {
               return xTickLabels[Math.round(value)] || "";
             },
           },
-          yaxis: { min: 0, max: 100, autoScale: false, reserveSpace: true, ticks: [0, 20, 40, 60, 80, 100] },
-          yaxes: [{ min: 0, max: 100, autoScale: false, reserveSpace: true, ticks: [0, 20, 40, 60, 80, 100] }],
+          yaxis: { min: 0, max: 1, autoScale: false, reserveSpace: true, tickDecimals: 1, ticks: oddsHistoryYAxisTicks },
+          yaxes: [{ min: 0, max: 1, autoScale: false, reserveSpace: true, tickDecimals: 1, ticks: oddsHistoryYAxisTicks }],
           series: {
             stack: true,
             lines: { show: true, fill: 0.85, lineWidth: 1 },
@@ -606,7 +615,8 @@ $(document).ready(function() {
           grid: {
             hoverable: true,
             clickable: false,
-            margin: { left: 12 },
+            borderWidth: 1,
+            margin: { left: 8 },
             backgroundColor: "#fff",
           },
         });
@@ -779,6 +789,12 @@ function load_graph_data(index) {
 #panel .flot-x-axis, #panel .flot-y-axis {
   font-size: 12px;
   fill: rgb(255, 255, 255);
+}
+.odds-history-legend {
+  margin-top: 12px;
+}
+.odds-history-wrapper {
+  margin-bottom: 24px;
 }
 </style>
 <%= render partial: "shared/player_stats_table", locals: {
