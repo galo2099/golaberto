@@ -51,6 +51,16 @@ class OddsHistoryBackfillService
     end
   end
 
+  def self.latest_rating_before(ratings, reference_date)
+    return nil if ratings.blank?
+
+    idx = ratings.bsearch_index { |rating| rating.measure_date >= reference_date }
+    return ratings.last if idx.nil?
+    return nil if idx.zero?
+
+    ratings[idx - 1]
+  end
+
   def self.run_unlocked(championship_id:, phase_id: nil, group_id: nil, from_date: nil, to_date: nil, reset: false)
     groups = Group.joins(:phase)
       .where(phases: { championship_id: championship_id })
@@ -113,13 +123,15 @@ class OddsHistoryBackfillService
           .max
         rating_reference_date = last_played_date.present? ? (last_played_date + 1.day) : (day + 1.day)
 
+        snapshot_ratings_by_team = {}
+
         games_json_for_day = games_with_state.map do |game|
           home_power = game["home_power"]
           away_power = game["away_power"]
 
           unless game["_snapshot_played"]
-            home_rating = ratings_by_team.fetch(game["home_id"], []).select { |rating| rating.measure_date < rating_reference_date }.max_by(&:measure_date)
-            away_rating = ratings_by_team.fetch(game["away_id"], []).select { |rating| rating.measure_date < rating_reference_date }.max_by(&:measure_date)
+            home_rating = snapshot_ratings_by_team[game["home_id"]] ||= latest_rating_before(ratings_by_team.fetch(game["home_id"], []), rating_reference_date)
+            away_rating = snapshot_ratings_by_team[game["away_id"]] ||= latest_rating_before(ratings_by_team.fetch(game["away_id"], []), rating_reference_date)
             power_game = Game.new(home_field: game["home_field"])
             snapshot_home_power = power_game.home_power(home_rating, away_rating)
             snapshot_away_power = power_game.away_power(home_rating, away_rating)
