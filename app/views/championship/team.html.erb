@@ -524,19 +524,15 @@ $(document).ready(function() {
       var xMin = null;
       var xMax = null;
       var xValueMap = {};
-      var xTickLabels = {};
       var xAxisTicks = [];
       var timestampMetaMap = {};
       var oddsHistoryLocale = "<%= I18n.locale %>".toString().replace(/_/g, "-");
-      var compactDateFormatter = null;
       var fullDateFormatter = null;
 
       if (window.Intl && Intl.DateTimeFormat) {
         try {
-          compactDateFormatter = new Intl.DateTimeFormat(oddsHistoryLocale, { day: "2-digit", month: "2-digit" });
           fullDateFormatter = new Intl.DateTimeFormat(oddsHistoryLocale, { year: "numeric", month: "2-digit", day: "2-digit" });
         } catch (error) {
-          compactDateFormatter = null;
           fullDateFormatter = null;
         }
       }
@@ -577,7 +573,6 @@ $(document).ready(function() {
 
         uniqueSortedTimestamps.forEach(function(timestamp, index) {
           xValueMap[timestamp] = index;
-          xTickLabels[index] = formatOddsHistoryDate(timestampMetaMap[timestamp], compactDateFormatter, false);
         });
 
         xMin = 0;
@@ -587,10 +582,10 @@ $(document).ready(function() {
         var denominator = Math.max(maxXAxisLabelCount - 1, 1);
         var tickStep = Math.max(1, Math.ceil((totalPoints - 1) / denominator));
         for (var tickPosition = 0; tickPosition < totalPoints; tickPosition += tickStep) {
-          xAxisTicks.push([tickPosition, xTickLabels[tickPosition] || ""]);
+          xAxisTicks.push([tickPosition, ""]);
         }
         if (xAxisTicks.length === 0 || xAxisTicks[xAxisTicks.length - 1][0] !== totalPoints - 1) {
-          xAxisTicks.push([totalPoints - 1, xTickLabels[totalPoints - 1] || ""]);
+          xAxisTicks.push([totalPoints - 1, ""]);
         }
       }
 
