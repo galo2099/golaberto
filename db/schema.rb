@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_18_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_18_200000) do
   create_table "categories", id: :integer, charset: "utf8mb3", collation: "utf8mb3_unicode_ci", force: :cascade do |t|
     t.string "name"
   end
@@ -187,6 +187,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_18_100000) do
     t.integer "order_by", default: 0, null: false
     t.integer "phase_type", default: 0
     t.string "scrape_url"
+    t.boolean "scrape_single_page", default: false, null: false
     t.string "sort", default: "pt, w, gd, gf, gp, g_away, name", null: false
     t.datetime "updated_at", precision: nil, null: false
     t.index ["championship_id"], name: "championship"

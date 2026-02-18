@@ -50,8 +50,10 @@ class GameDataScrapeService
   end
 
   def self.scrape_phase(phase)
-    puts "-> Scraping phase ##{phase.id} (#{phase.name}) url=#{phase.scrape_url}"
-    scrape(phase.id, phase.scrape_url)
+    puts "-> Scraping phase ##{phase.id} (#{phase.name}) url=#{phase.scrape_url} single_page=#{phase.scrape_single_page}"
+    options = {}
+    options[:single_page] = true if phase.scrape_single_page
+    scrape(phase.id, phase.scrape_url, options)
     puts "   done phase ##{phase.id}"
   rescue => e
     puts "   ERROR phase ##{phase.id}: #{e.class}: #{e.message}"

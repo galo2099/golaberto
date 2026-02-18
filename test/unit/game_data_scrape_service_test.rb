@@ -17,12 +17,13 @@ class GameDataScrapeServiceTest < ActiveSupport::TestCase
   end
 
   class FakePhase
-    attr_reader :id, :name, :scrape_url, :scraped
+    attr_reader :id, :name, :scrape_url, :scrape_single_page, :scraped
 
-    def initialize(id:, name:, scrape_url:, has_pending_games: true)
+    def initialize(id:, name:, scrape_url:, has_pending_games: true, scrape_single_page: false)
       @id = id
       @name = name
       @scrape_url = scrape_url
+      @scrape_single_page = scrape_single_page
       @has_pending_games = has_pending_games
       @scraped = false
     end
@@ -76,16 +77,16 @@ class GameDataScrapeServiceTest < ActiveSupport::TestCase
   test "run_unlocked calls scrape for each phase with pending games" do
     phase = FakePhase.new(id: 42, name: "Liga", scrape_url: "http://sofascore.com/api/v1/unique-tournament/17/season/76986/events/round/", has_pending_games: true)
 
-    scraped_calls = Mutex.new
+    mu = Mutex.new
     scraped_list = []
-    fake_scrape = lambda { |phase_id, url|
-      scraped_calls.synchronize { scraped_list << { phase_id: phase_id, url: url } }
+    fake_scrape = lambda { |phase_id, url, opts|
+      mu.synchronize { scraped_list << { phase_id: phase_id, url: url, opts: opts } }
     }
 
     GameDataScrapeService.stub(:phases_to_scrape, [phase]) do
       original_method = method(:scrape) rescue nil
       begin
-        Object.send(:define_method, :scrape) { |pid, url, _opts = {}| fake_scrape.call(pid, url) }
+        Object.send(:define_method, :scrape) { |pid, url, opts = {}| fake_scrape.call(pid, url, opts) }
         GameDataScrapeService.run_unlocked
       ensure
         if original_method
@@ -99,17 +100,50 @@ class GameDataScrapeServiceTest < ActiveSupport::TestCase
     assert_equal 1, scraped_list.size
     assert_equal 42, scraped_list[0][:phase_id]
     assert_equal "http://sofascore.com/api/v1/unique-tournament/17/season/76986/events/round/", scraped_list[0][:url]
+    assert_empty scraped_list[0][:opts]
+  end
+
+  test "run_unlocked passes single_page option for single-page phases" do
+    per_round = FakePhase.new(id: 1, name: "League", scrape_url: "http://example.com/round/", scrape_single_page: false)
+    single_pg = FakePhase.new(id: 2, name: "Qualification", scrape_url: "http://example.com/slug/qual", scrape_single_page: true)
+
+    mu = Mutex.new
+    scraped_list = []
+    fake_scrape = lambda { |phase_id, url, opts|
+      mu.synchronize { scraped_list << { phase_id: phase_id, url: url, opts: opts } }
+    }
+
+    GameDataScrapeService.stub(:phases_to_scrape, [per_round, single_pg]) do
+      original_method = method(:scrape) rescue nil
+      begin
+        Object.send(:define_method, :scrape) { |pid, url, opts = {}| fake_scrape.call(pid, url, opts) }
+        GameDataScrapeService.run_unlocked
+      ensure
+        if original_method
+          Object.send(:define_method, :scrape, original_method)
+        else
+          Object.send(:remove_method, :scrape) rescue nil
+        end
+      end
+    end
+
+    assert_equal 2, scraped_list.size
+    round_call = scraped_list.find { |c| c[:phase_id] == 1 }
+    single_call = scraped_list.find { |c| c[:phase_id] == 2 }
+
+    assert_empty round_call[:opts], "Per-round phase should not pass single_page"
+    assert_equal({ single_page: true }, single_call[:opts], "Single-page phase should pass single_page: true")
   end
 
   test "run_unlocked handles scrape errors gracefully and continues" do
     phase1 = FakePhase.new(id: 1, name: "Phase1", scrape_url: "http://example.com/1/", has_pending_games: true)
     phase2 = FakePhase.new(id: 2, name: "Phase2", scrape_url: "http://example.com/2/", has_pending_games: true)
 
-    scraped_calls = Mutex.new
+    mu = Mutex.new
     scraped_list = []
     fake_scrape = lambda { |phase_id, url|
       raise "network timeout" if phase_id == 1
-      scraped_calls.synchronize { scraped_list << { phase_id: phase_id, url: url } }
+      mu.synchronize { scraped_list << { phase_id: phase_id, url: url } }
     }
 
     GameDataScrapeService.stub(:phases_to_scrape, [phase1, phase2]) do
