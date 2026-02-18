@@ -88,5 +88,29 @@ class GameDataScrapeService
 
     workers.each(&:join)
     puts "Game data scrape finished"
+
+    begin
+      puts "Updating team ratings..."
+      Team.update_ratings
+      puts "Team ratings updated"
+    rescue => e
+      puts "ERROR updating team ratings: #{e.class}: #{e.message}"
+    end
+
+    begin
+      puts "Updating group odds for recently played games..."
+      Game.where(played: true).where("games.updated_at > ?", 1.hour.ago)
+        .map { |g| g.phase }.sort.uniq
+        .each do |phase|
+          phase.groups.each do |g|
+            g.odds
+            g.odds_progress = nil
+            g.save!
+          end
+        end
+      puts "Group odds updated"
+    rescue => e
+      puts "ERROR updating group odds: #{e.class}: #{e.message}"
+    end
   end
 end
