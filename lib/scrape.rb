@@ -1,7 +1,6 @@
 # encoding: utf-8
 
 require 'httparty'
-require 'hpricot'
 require 'fuzzy/fuzzy'
 
 class ChampionshipGet
@@ -52,11 +51,23 @@ def with_http_retries(url)
 end
 
 def fix_name(str)
+  if str == "1. FC Köln"
+    return "FC Cologne"
+  end
   if str == "Dinamo"
     return "Dinamo Tirana"
   end
+  if str == "Stade Rennais"
+    return "Rennes"
+  end
+  if str == "Stade Brestois"
+    return "Brest"
+  end
   if str == "Aris"
     return "Aris Thessaloniki"
+  end
+  if str == "AVS - Futebol SAD"
+    return "AVS"
   end
   if str == "TNS"
     return "The New Saints"
@@ -101,6 +112,9 @@ def fix_name(str)
     return "Rad"
   end
   if str == "Crvena Zvezda"
+    return "Red Star Belgrade"
+  end
+  if str == "FK Crvena zvezda"
     return "Red Star Belgrade"
   end
   if str == "Crvena zvezda"
@@ -301,6 +315,12 @@ def fix_name(str)
   if str == "WAC"
     str = "Wolfsberger"
   end
+  if str == "USA"
+    str = "United States"
+  end
+  if str == "Montevideo City Torque"
+    str = "Torque"
+  end
   str
 end
 
@@ -315,10 +335,11 @@ def scrape(phase, url, options = {})
   end
   altered = false
   rounds.each do |r|
+    p r
     data = ChampionshipGet.get("#{url}#{r}")
     data["events"].each do |match|
       parse_match(phase, data, match, rounds)
-    end
+    end if data["events"]
   end
 end
 
@@ -329,6 +350,9 @@ def rounds_to_update(phase)
 end
 
 def parse_match(phase, data, match, rounds, create_groups = false)
+  if match["status"]["type"] == "postponed" or match["status"]["type"] == "canceled"
+    return
+  end
   fuzzy_match = FuzzyTeamMatch.new
   datetime = Time.at(match["startTimestamp"].to_i).to_datetime
   home_team = match["homeTeam"]
@@ -364,7 +388,7 @@ def parse_match(phase, data, match, rounds, create_groups = false)
   sofascore_id = match["id"]
   g = phase.games.where(sofascore_id: sofascore_id).includes(:goals).first
   # legacy
-  round = match["roundInfo"]["round"].try("to_i")
+  round = match.dig("roundInfo", "round")&.to_i
   unless g
     g = phase.games.where(home_id: home.id, away_id: away.id, round: round, sofascore_id: nil).includes(:goals).first
   end
@@ -386,15 +410,15 @@ def parse_match(phase, data, match, rounds, create_groups = false)
     home_score = match["homeScore"]
     away_score = match["awayScore"]
     if home_score
-      g.home_score = home_score["current"].to_i
-      g.away_score = away_score["current"].to_i
+      g.home_score = home_score["display"].to_i
+      g.away_score = away_score["display"].to_i
       if home_score["EXTRA_TIME"]
         g.home_aet = home_score["EXTRA_TIME"].to_i - home_score["FINAL_RESULT"].to_i
         g.away_aet = away_score["EXTRA_TIME"].to_i - away_score["FINAL_RESULT"].to_i
       end
-      if home_score["SHOOTOUT"]
-        g.home_pen = home_score["SHOOTOUT"]
-        g.away_pen = away_score["SHOOTOUT"]
+      if home_score["penalties"]
+        g.home_pen = home_score["penalties"]
+        g.away_pen = away_score["penalties"]
       end
     end
     g.played = match["status"]["type"] == "finished"
@@ -404,8 +428,8 @@ def parse_match(phase, data, match, rounds, create_groups = false)
       g.valid? || raise(g.errors.to_xml.to_s)
       altered = g.save! || altered
     end
-    if g.played and rounds.include?(round)
-      get_scorers(g, "https://www.sofascore.com/api/v1/event/#{sofascore_id}/lineups", "https://www.sofascore.com/api/v1/event/#{sofascore_id}/incidents")
+    if g.played and rounds.include?(round.to_i)
+      get_scorers(g, "http://www.sofascore.com/api/v1/event/#{sofascore_id}/lineups", "http://www.sofascore.com/api/v1/event/#{sofascore_id}/incidents")
     end
   end
 end
@@ -430,7 +454,7 @@ def get_scorers(game, lineup_url, incidents_url)
   players_by_id = {}
   off = 0
   incidents["incidents"].each do |s|
-    if s["incidentType"] == "period"
+    if s["incidentType"] == "period" and s["time"] < 999
       minute = s["time"]
       if not minute
         minute = s["timeSeconds"] / 60 + 1
@@ -468,10 +492,10 @@ def get_scorers(game, lineup_url, incidents_url)
   fuzzy_match = FuzzyTeamMatch.new
   incidents["incidents"].each do |s|
     minute = s["time"]
-    if not minute
+    if not minute and s["timeSeconds"]
       minute = s["timeSeconds"] / 60 + 1
     end
-    if s["incidentType"] == "goal" and s["incidentClass"] == "regular"
+    if s["incidentType"] == "goal" and s["incidentClass"] == "regular" and not s["player"].nil?
       player = players[s["player"]["id"]]
       if player.nil? and not missing_player
         best_match = players_by_name[s["pos"]].keys.map{|t| [t, fuzzy_match.getDistance(t, s["pl_name"])]}.sort{|a,b|b[1] <=> a[1]}[0][0]
@@ -480,7 +504,7 @@ def get_scorers(game, lineup_url, incidents_url)
       end
       Goal.new(player_id: player.player_id, game_id: game.id, team_id: player.team_id, time: minute, penalty: false, own_goal: false, aet: minute > 90).save! if player
     end
-    if s["incidentType"] == "goal" and s["incidentClass"] == "penalty"
+    if s["incidentType"] == "goal" and s["incidentClass"] == "penalty" and not s["player"].nil?
       player = players[s["player"]["id"]]
       if player.nil? and not missing_player
         best_match = players_by_name[s["pos"]].keys.map{|t| [t, fuzzy_match.getDistance(t, s["pl_name"])]}.sort{|a,b|b[1] <=> a[1]}[0][0]
@@ -504,6 +528,9 @@ def get_scorers(game, lineup_url, incidents_url)
         next
       end
       player = players[s["player"]["id"]]
+      if not player
+        next
+      end
       player.yellow = true
     end
     if s["incidentType"] == "card" and (s["incidentClass"] == "red" || s["incidentClass"] == "yellowRed")
@@ -513,9 +540,10 @@ def get_scorers(game, lineup_url, incidents_url)
       end
       player = players[s["player"]["id"]]
       player.red = true
-      player.off = minute if minute < player.off
+      player.off = minute if minute < player.off and minute > 0
     end
     if s["incidentType"] == "substitution"
+      next if not s["playerIn"] # may be missing
       player = players[s["playerIn"]["id"]]
       next if not player
       player.on = minute
@@ -542,19 +570,30 @@ def process_player(s, game, team_id, end_of_match, starter)
   player = Player.where(sofascore_id: sofascore_id).first
   full_name = s["name"]
   name = s["shortName"]
-  #country = fix_country(s["country"]["name"])
   birth = Time.at(s["dateOfBirthTimestamp"].to_i).utc.to_datetime
   if not player
-    player = Player.where(full_name: full_name, birth: birth).first
+#    player = Player.where(full_name: full_name, birth: birth).first
   end
   if not player
-    player = Player.where(full_name: full_name, birth: birth - 1.day).first
+#    player = Player.where(full_name: full_name, birth: birth - 1.day).first
   end
   if not player
-    player = Player.where(name: name, birth: birth).first
+#    player = Player.where(full_name: full_name, birth: nil).first
   end
   if not player
-    player = Player.where(name: name, birth: birth - 1.day).first
+#    player = Player.where(name: name, birth: birth).first
+  end
+  if not player
+#    player = Player.where(name: name, birth: birth - 1.day).first
+  end
+  if not player
+#    player = Player.where(name: name, birth: nil).first
+  end
+  if not player
+#    player = Player.where("name like '%#{name.to_s.strip.split(/\s+/).last}%'").where(birth: birth).first
+  end
+  if not player
+#    player = Player.where("name like '%#{name.to_s.strip.split(/\s+/).last}%'").where(birth: birth - 1.day).first
   end
   if not player
     player = create_player(s)
