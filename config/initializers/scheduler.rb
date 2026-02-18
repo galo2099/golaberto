@@ -5,13 +5,8 @@ return if defined?(Rails::Console) || Rails.env.test? || File.basename($0) == "r
 scheduler = Rufus::Scheduler.singleton
 
 scheduler.every '1h', first_in: '5m' do
-  Rails.logger.info "[scheduler] Starting periodic game data scrape"
-  result = GameDataScrapeService.start_async
+  refetch = Time.current.hour == 3
+  Rails.logger.info "[scheduler] Starting periodic game data scrape (refetch=#{refetch})"
+  result = GameDataScrapeService.start_async(refetch: refetch)
   Rails.logger.info "[scheduler] Game data scrape result: #{result}"
-end
-
-scheduler.cron '0 3 * * *' do
-  Rails.logger.info "[scheduler] Starting daily full refetch scrape"
-  result = GameDataScrapeService.start_async(refetch: true)
-  Rails.logger.info "[scheduler] Daily full refetch result: #{result}"
 end
