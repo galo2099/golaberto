@@ -15,6 +15,8 @@ use dotenv::dotenv;
 use itertools::Itertools;
 use smallvec::{smallvec, SmallVec};
 use std::collections::{HashMap, HashSet, VecDeque};
+use std::io::{BufRead, BufReader, Write};
+use std::net::TcpListener;
 use std::sync::Arc;
 use std::time::Instant;
 use std::{env, thread};
@@ -174,8 +176,7 @@ fn squash_date(timestamp: i64, now: i64) -> f32 {
     1.0 + (E.powf(x) - E.powf(-x)) / (E.powf(x) + E.powf(-x))
 }
 
-fn main() {
-    let pool = establish_connection();
+fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
     let start = Instant::now();
     let games = Arc::new(load_games(&mut pool.get().unwrap()));
     println!("{:?}", start.elapsed());
@@ -556,12 +557,8 @@ fn main() {
                     .collect::<Vec<String>>()
                     .join(",") +
                 " ON DUPLICATE KEY UPDATE off_rating=VALUES(off_rating),def_rating=VALUES(def_rating),rating=VALUES(rating),updated_at=VALUES(updated_at)");
-        // let sql = debug_query::<Mysql, _>(&statement).to_string();
-        // println!("{}", sql);
         handles.push(thread::spawn(move || {
-            // println!("thread");
             statement.execute(&mut pool.get().unwrap()).unwrap();
-            // println!("thread done");
         }));
     }
 
@@ -578,25 +575,76 @@ fn main() {
                 .collect::<Vec<String>>()
                 .join(",") +
             " ON DUPLICATE KEY UPDATE off_rating=VALUES(off_rating),def_rating=VALUES(def_rating)");
-        // let sql = debug_query::<Mysql, _>(&statement).to_string();
-        // println!("{}", sql);
         handles.push(thread::spawn(move || {
-            // println!("thread pgr");
             statement.execute(&mut pool.get().unwrap()).unwrap();
-            // println!("thread pgr done");
         }));
     }
 
     for h in handles {
         h.join().unwrap();
     }
-    // let mut x = player_ratings.iter().collect::<Vec<_>>();
-    // x.sort_by(|a,b| b.1.off.partial_cmp(&a.1.off).unwrap());
-    // println!("{} {} {} {}", x[0].0, x[0].1.off, x[0].1.def, x[0].1.minutes);
-    // println!("{} {} {} {}", x[1].0, x[1].1.off, x[1].1.def, x[1].1.minutes);
-    // println!("{} {} {} {}", x[2].0, x[2].1.off, x[2].1.def, x[2].1.minutes);
     println!("{:?}", player_ratings.len());
     println!("{:?}", start.elapsed());
+}
+
+fn main() {
+    let pool = establish_connection();
+
+    let port = env::var("STATS_PORT").unwrap_or_else(|_| "6578".to_string());
+    let addr = format!("0.0.0.0:{}", port);
+    let listener = TcpListener::bind(&addr).expect("Failed to bind TCP listener");
+    println!("Stats server listening on {}", addr);
+
+    for stream in listener.incoming() {
+        let mut stream = match stream {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("Connection error: {}", e);
+                continue;
+            }
+        };
+
+        let mut reader = BufReader::new(stream.try_clone().unwrap());
+        let mut request_line = String::new();
+        if reader.read_line(&mut request_line).is_err() {
+            continue;
+        }
+
+        let parts: Vec<&str> = request_line.split_whitespace().collect();
+        if parts.len() < 2 {
+            continue;
+        }
+        let method = parts[0];
+        let path = parts[1];
+
+        // Drain remaining headers
+        loop {
+            let mut line = String::new();
+            if reader.read_line(&mut line).is_err() || line.trim().is_empty() {
+                break;
+            }
+        }
+
+        if method == "POST" && path == "/player_ratings" {
+            println!("Received player_ratings request, computing...");
+            compute_ratings(&pool);
+            let body = "{\"status\":\"ok\"}";
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            let _ = stream.write_all(response.as_bytes());
+        } else {
+            let body = "{\"error\":\"not found\"}";
+            let response = format!(
+                "HTTP/1.1 404 Not Found\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            let _ = stream.write_all(response.as_bytes());
+        }
+    }
 }
 
 fn goal_interval_filter(g: &Goal, from: i32, to: i32) -> bool {
