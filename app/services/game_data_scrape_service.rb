@@ -4,7 +4,7 @@ class GameDataScrapeService
   LOCK_PATH = Rails.root.join("tmp", "game_data_scrape.lock")
   MAX_CONCURRENCY = 3
 
-  def self.start_async
+  def self.start_async(refetch: false)
     lock_file = File.open(LOCK_PATH, "w")
     unless lock_file.flock(File::LOCK_EX | File::LOCK_NB)
       lock_file.close
@@ -14,7 +14,7 @@ class GameDataScrapeService
     Thread.new do
       ActiveRecord::Base.connection_pool.with_connection do
         begin
-          run_unlocked
+          run_unlocked(refetch: refetch)
         ensure
           lock_file.flock(File::LOCK_UN) rescue nil
           lock_file.close rescue nil
@@ -25,7 +25,7 @@ class GameDataScrapeService
     :started
   end
 
-  def self.run
+  def self.run(refetch: false)
     lock_file = File.open(LOCK_PATH, "w")
     unless lock_file.flock(File::LOCK_EX | File::LOCK_NB)
       lock_file.close
@@ -33,7 +33,7 @@ class GameDataScrapeService
     end
 
     begin
-      run_unlocked
+      run_unlocked(refetch: refetch)
     ensure
       lock_file.flock(File::LOCK_UN) rescue nil
       lock_file.close rescue nil
@@ -49,28 +49,29 @@ class GameDataScrapeService
       .select { |phase| phase.games.where(played: false).where("date < ?", Time.now).exists? }
   end
 
-  def self.scrape_phase(phase, rounds: nil)
-    puts "-> Scraping phase ##{phase.id} (#{phase.name}) url=#{phase.scrape_url} rounds=#{rounds.inspect}"
+  def self.scrape_phase(phase, rounds: nil, refetch: false)
+    puts "-> Scraping phase ##{phase.id} (#{phase.name}) url=#{phase.scrape_url} rounds=#{rounds.inspect} refetch=#{refetch}"
     options = {}
     options[:rounds] = rounds if rounds
+    options[:refetch] = true if refetch
     scrape(phase.id, phase.scrape_url, options)
     puts "   done phase ##{phase.id}"
   rescue => e
     puts "   ERROR phase ##{phase.id}: #{e.class}: #{e.message}"
   end
 
-  def self.scrape_phase_async(phase, rounds: nil)
+  def self.scrape_phase_async(phase, rounds: nil, refetch: false)
     Thread.new do
       ActiveRecord::Base.connection_pool.with_connection do
-        scrape_phase(phase, rounds: rounds)
+        scrape_phase(phase, rounds: rounds, refetch: refetch)
       end
     end
     :started
   end
 
-  def self.run_unlocked
+  def self.run_unlocked(refetch: false)
     phases = phases_to_scrape
-    puts "Found #{phases.size} phase(s) with pending games to scrape"
+    puts "Found #{phases.size} phase(s) with pending games to scrape (refetch=#{refetch})"
 
     queue = Queue.new
     phases.each { |phase| queue << phase }
@@ -79,7 +80,7 @@ class GameDataScrapeService
       Thread.new do
         ActiveRecord::Base.connection_pool.with_connection do
           while (phase = queue.pop(true) rescue nil)
-            scrape_phase(phase)
+            scrape_phase(phase, refetch: refetch)
           end
         end
       end

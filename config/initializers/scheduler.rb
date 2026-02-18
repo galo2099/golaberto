@@ -9,3 +9,9 @@ scheduler.every '1h', first_in: '5m' do
   result = GameDataScrapeService.start_async
   Rails.logger.info "[scheduler] Game data scrape result: #{result}"
 end
+
+scheduler.cron '0 3 * * *' do
+  Rails.logger.info "[scheduler] Starting daily full refetch scrape"
+  result = GameDataScrapeService.start_async(refetch: true)
+  Rails.logger.info "[scheduler] Daily full refetch result: #{result}"
+end

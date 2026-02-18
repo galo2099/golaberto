@@ -81,7 +81,7 @@ class PhaseController < ApplicationController
       end
     end
 
-    GameDataScrapeService.scrape_phase_async(@phase, rounds: rounds)
+    GameDataScrapeService.scrape_phase_async(@phase, rounds: rounds, refetch: true)
     @scrape_started = true
   end
 

@@ -326,6 +326,7 @@ end
 
 def scrape(phase, url, options = {})
   phase = Phase.find phase
+  refetch = options[:refetch]
 
   if url.end_with?('/')
     rounds = nil
@@ -339,13 +340,13 @@ def scrape(phase, url, options = {})
       p r
       data = ChampionshipGet.get("#{url}#{r}")
       data["events"].each do |match|
-        parse_match(phase, data, match, rounds)
+        parse_match(phase, data, match, rounds, false, refetch)
       end if data["events"]
     end
   else
     data = ChampionshipGet.get(url)
     data["events"].each do |match|
-      parse_match(phase, data, match, (1..999999))
+      parse_match(phase, data, match, (1..999999), false, refetch)
     end if data["events"]
   end
 end
@@ -356,7 +357,7 @@ def rounds_to_update(phase)
    phase.games.where(played: true).includes(:player_games).select{|g|g.player_games.size == 0}.map{|g|g.round}).sort.uniq
 end
 
-def parse_match(phase, data, match, rounds, create_groups = false)
+def parse_match(phase, data, match, rounds, create_groups = false, refetch = false)
   if match["status"]["type"] == "postponed" or match["status"]["type"] == "canceled"
     return
   end
@@ -435,7 +436,7 @@ def parse_match(phase, data, match, rounds, create_groups = false)
       g.valid? || raise(g.errors.to_xml.to_s)
       altered = g.save! || altered
     end
-    if g.played and rounds.include?(round.to_i) and g.player_games.empty?
+    if g.played and rounds.include?(round.to_i) and (refetch or g.player_games.empty?)
       get_scorers(g, "http://www.sofascore.com/api/v1/event/#{sofascore_id}/lineups", "http://www.sofascore.com/api/v1/event/#{sofascore_id}/incidents")
     end
   end
