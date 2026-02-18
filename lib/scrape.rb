@@ -327,12 +327,7 @@ end
 def scrape(phase, url, options = {})
   phase = Phase.find phase
 
-  if options[:single_page]
-    data = ChampionshipGet.get(url)
-    data["events"].each do |match|
-      parse_match(phase, data, match, (1..999999))
-    end if data["events"]
-  else
+  if url.end_with?('/')
     rounds = nil
     if options[:rounds] then
       rounds = options[:rounds]
@@ -347,6 +342,11 @@ def scrape(phase, url, options = {})
         parse_match(phase, data, match, rounds)
       end if data["events"]
     end
+  else
+    data = ChampionshipGet.get(url)
+    data["events"].each do |match|
+      parse_match(phase, data, match, (1..999999))
+    end if data["events"]
   end
 end
 
