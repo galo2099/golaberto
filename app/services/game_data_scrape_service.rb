@@ -99,7 +99,7 @@ class GameDataScrapeService
 
     begin
       puts "Updating group odds for recently played games..."
-      Game.where(played: true).where("date > ?", DateTime.now - 1.hour)
+      Game.where(played: true).where("games.updated_at > ?", 1.hour.ago)
         .map { |g| g.phase }.sort.uniq
         .each do |phase|
           phase.groups.each do |g|
