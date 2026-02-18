@@ -49,6 +49,10 @@ class GameDataScrapeServiceTest < ActiveSupport::TestCase
       self
     end
 
+    def not(*_args)
+      self
+    end
+
     def distinct
       @phases
     end
