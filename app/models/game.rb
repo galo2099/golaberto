@@ -153,18 +153,18 @@ class Game < ApplicationRecord
       end
     end
 
-    def home_power
-      if home_rating.nil? or away_rating.nil?
+    def home_power(home_rating_arg = home_rating, away_rating_arg = away_rating)
+      if home_rating_arg.nil? or away_rating_arg.nil?
         return nil
       end
-      [10.0, [0.01, (home_rating.off_rating.to_f - AVG_BASE)/(AVG_BASE*0.424+0.548)*([0.25, (away_rating.def_rating.to_f+left_advantage)*0.424+0.548].max)+(away_rating.def_rating.to_f+left_advantage)].max].min
+      [10.0, [0.01, (home_rating_arg.off_rating.to_f - AVG_BASE)/(AVG_BASE*0.424+0.548)*([0.25, (away_rating_arg.def_rating.to_f+left_advantage)*0.424+0.548].max)+(away_rating_arg.def_rating.to_f+left_advantage)].max].min
     end
 
-    def away_power
-      if home_rating.nil? or away_rating.nil?
+    def away_power(home_rating_arg = home_rating, away_rating_arg = away_rating)
+      if home_rating_arg.nil? or away_rating_arg.nil?
         return nil
       end
-      [10.0, [0.01, (away_rating.off_rating.to_f - AVG_BASE)/(AVG_BASE*0.424+0.548)*([0.25, (home_rating.def_rating.to_f-left_advantage)*0.424+0.548].max)+(home_rating.def_rating.to_f-left_advantage)].max].min
+      [10.0, [0.01, (away_rating_arg.off_rating.to_f - AVG_BASE)/(AVG_BASE*0.424+0.548)*([0.25, (home_rating_arg.def_rating.to_f-left_advantage)*0.424+0.548].max)+(home_rating_arg.def_rating.to_f-left_advantage)].max].min
     end
 
     def odds
