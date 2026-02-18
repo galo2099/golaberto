@@ -1,0 +1,9 @@
+<% if @scrape_error %>
+  $("#scrape_status").html("<%= j _('Phase has no scrape URL configured.') %>");
+<% elsif @scrape_invalid_rounds %>
+  $("#scrape_status").html("<%= j _('Invalid rounds. Enter comma-separated round numbers.') %>");
+<% elsif @scrape_started %>
+  $("#scrape_status").html("<%= j _('Scrape started in background.') %>");
+<% else %>
+  $("#scrape_status").html("<%= j _('Could not start scrape.') %>");
+<% end %>

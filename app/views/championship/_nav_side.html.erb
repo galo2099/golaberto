@@ -18,6 +18,27 @@
 	  :phase => @current_phase %><br/>
   <a href="javascript:start_backfill_odds_history()"><%= _("Backfill odds history") %></a><br/>
   <div id="backfill_odds_history_status"></div>
+<% if @current_phase && @current_phase.scrape_url.present? %>
+  <% scrape_start_message = _("Starting scrape...") %>
+  <% scrape_error_message = _("Cant start scrape") %>
+<script type="text/javascript">
+function start_phase_scrape() {
+  <%= remote_function(
+          :url => { :controller => :phase,
+                    :action => :start_scrape,
+                    :id => @current_phase },
+          :method => 'POST',
+          :with => "'rounds=' + encodeURIComponent($('#scrape_rounds').val())",
+          :failure => "alert('#{scrape_error_message}')",
+          :before => "$('#scrape_status').html('#{scrape_start_message}')") %>
+}
+</script>
+  <br/>
+  <label for="scrape_rounds"><%= _("Scrape rounds") %>:</label><br/>
+  <input type="text" id="scrape_rounds" size="14" placeholder="<%= _("e.g. 1, 2, 3") %>" />
+  <button type="button" onclick="start_phase_scrape()"><%= _("Scrape") %></button>
+  <div id="scrape_status"></div>
+<% end %>
 <br/>
 <% end %>
 <%= link_to _("Table"), :action => :phases, :id => @championship,

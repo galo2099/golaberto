@@ -49,12 +49,23 @@ class GameDataScrapeService
       .select { |phase| phase.games.where(played: false).where("date < ?", Time.now).exists? }
   end
 
-  def self.scrape_phase(phase)
-    puts "-> Scraping phase ##{phase.id} (#{phase.name}) url=#{phase.scrape_url}"
-    scrape(phase.id, phase.scrape_url)
+  def self.scrape_phase(phase, rounds: nil)
+    puts "-> Scraping phase ##{phase.id} (#{phase.name}) url=#{phase.scrape_url} rounds=#{rounds.inspect}"
+    options = {}
+    options[:rounds] = rounds if rounds
+    scrape(phase.id, phase.scrape_url, options)
     puts "   done phase ##{phase.id}"
   rescue => e
     puts "   ERROR phase ##{phase.id}: #{e.class}: #{e.message}"
+  end
+
+  def self.scrape_phase_async(phase, rounds: nil)
+    Thread.new do
+      ActiveRecord::Base.connection_pool.with_connection do
+        scrape_phase(phase, rounds: rounds)
+      end
+    end
+    :started
   end
 
   def self.run_unlocked
