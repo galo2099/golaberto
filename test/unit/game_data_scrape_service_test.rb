@@ -76,13 +76,13 @@ class GameDataScrapeServiceTest < ActiveSupport::TestCase
   test "run_unlocked calls scrape for each phase with pending games" do
     phase = FakePhase.new(id: 42, name: "Liga", scrape_url: "http://sofascore.com/api/v1/unique-tournament/17/season/76986/events/round/", has_pending_games: true)
 
-    scraped_calls = []
+    scraped_calls = Mutex.new
+    scraped_list = []
     fake_scrape = lambda { |phase_id, url|
-      scraped_calls << { phase_id: phase_id, url: url }
+      scraped_calls.synchronize { scraped_list << { phase_id: phase_id, url: url } }
     }
 
     GameDataScrapeService.stub(:phases_to_scrape, [phase]) do
-      # Redefine scrape at top-level for the duration of the test
       original_method = method(:scrape) rescue nil
       begin
         Object.send(:define_method, :scrape) { |pid, url, _opts = {}| fake_scrape.call(pid, url) }
@@ -96,19 +96,20 @@ class GameDataScrapeServiceTest < ActiveSupport::TestCase
       end
     end
 
-    assert_equal 1, scraped_calls.size
-    assert_equal 42, scraped_calls[0][:phase_id]
-    assert_equal "http://sofascore.com/api/v1/unique-tournament/17/season/76986/events/round/", scraped_calls[0][:url]
+    assert_equal 1, scraped_list.size
+    assert_equal 42, scraped_list[0][:phase_id]
+    assert_equal "http://sofascore.com/api/v1/unique-tournament/17/season/76986/events/round/", scraped_list[0][:url]
   end
 
   test "run_unlocked handles scrape errors gracefully and continues" do
     phase1 = FakePhase.new(id: 1, name: "Phase1", scrape_url: "http://example.com/1/", has_pending_games: true)
     phase2 = FakePhase.new(id: 2, name: "Phase2", scrape_url: "http://example.com/2/", has_pending_games: true)
 
-    scraped_calls = []
+    scraped_calls = Mutex.new
+    scraped_list = []
     fake_scrape = lambda { |phase_id, url|
       raise "network timeout" if phase_id == 1
-      scraped_calls << { phase_id: phase_id, url: url }
+      scraped_calls.synchronize { scraped_list << { phase_id: phase_id, url: url } }
     }
 
     GameDataScrapeService.stub(:phases_to_scrape, [phase1, phase2]) do
@@ -125,8 +126,50 @@ class GameDataScrapeServiceTest < ActiveSupport::TestCase
       end
     end
 
-    assert_equal 1, scraped_calls.size
-    assert_equal 2, scraped_calls[0][:phase_id]
+    assert_equal 1, scraped_list.size
+    assert_equal 2, scraped_list[0][:phase_id]
+  end
+
+  test "run_unlocked scrapes all phases with at most MAX_CONCURRENCY threads" do
+    phases = 6.times.map { |i| FakePhase.new(id: i + 1, name: "Phase#{i + 1}", scrape_url: "http://example.com/#{i + 1}/") }
+
+    mu = Mutex.new
+    scraped_ids = []
+    max_concurrent = 0
+    current_concurrent = 0
+
+    fake_scrape = lambda { |phase_id, _url|
+      mu.synchronize do
+        current_concurrent += 1
+        max_concurrent = [max_concurrent, current_concurrent].max
+      end
+      sleep 0.05
+      mu.synchronize do
+        scraped_ids << phase_id
+        current_concurrent -= 1
+      end
+    }
+
+    GameDataScrapeService.stub(:phases_to_scrape, phases) do
+      original_method = method(:scrape) rescue nil
+      begin
+        Object.send(:define_method, :scrape) { |pid, url, _opts = {}| fake_scrape.call(pid, url) }
+        GameDataScrapeService.run_unlocked
+      ensure
+        if original_method
+          Object.send(:define_method, :scrape, original_method)
+        else
+          Object.send(:remove_method, :scrape) rescue nil
+        end
+      end
+    end
+
+    assert_equal 6, scraped_ids.size, "All 6 phases should be scraped"
+    assert_equal (1..6).to_a, scraped_ids.sort
+    assert max_concurrent <= GameDataScrapeService::MAX_CONCURRENCY,
+      "Expected at most #{GameDataScrapeService::MAX_CONCURRENCY} concurrent scrapes, got #{max_concurrent}"
+    assert max_concurrent > 1,
+      "Expected parallel execution (got max concurrency of #{max_concurrent})"
   end
 
   test "run raises when already locked" do

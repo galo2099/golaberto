@@ -2,6 +2,7 @@ require 'scrape'
 
 class GameDataScrapeService
   LOCK_PATH = Rails.root.join("tmp", "game_data_scrape.lock")
+  MAX_CONCURRENCY = 3
 
   def self.start_async
     lock_file = File.open(LOCK_PATH, "w")
@@ -48,20 +49,32 @@ class GameDataScrapeService
       .select { |phase| phase.games.where(played: false).where("date < ?", Time.now).exists? }
   end
 
+  def self.scrape_phase(phase)
+    puts "-> Scraping phase ##{phase.id} (#{phase.name}) url=#{phase.scrape_url}"
+    scrape(phase.id, phase.scrape_url)
+    puts "   done phase ##{phase.id}"
+  rescue => e
+    puts "   ERROR phase ##{phase.id}: #{e.class}: #{e.message}"
+  end
+
   def self.run_unlocked
     phases = phases_to_scrape
     puts "Found #{phases.size} phase(s) with pending games to scrape"
 
-    phases.each do |phase|
-      puts "-> Scraping phase ##{phase.id} (#{phase.name}) url=#{phase.scrape_url}"
-      begin
-        scrape(phase.id, phase.scrape_url)
-        puts "   done"
-      rescue => e
-        puts "   ERROR: #{e.class}: #{e.message}"
+    queue = Queue.new
+    phases.each { |phase| queue << phase }
+
+    workers = [MAX_CONCURRENCY, phases.size].min.times.map do
+      Thread.new do
+        ActiveRecord::Base.connection_pool.with_connection do
+          while (phase = queue.pop(true) rescue nil)
+            scrape_phase(phase)
+          end
+        end
       end
     end
 
+    workers.each(&:join)
     puts "Game data scrape finished"
   end
 end
