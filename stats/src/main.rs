@@ -35,7 +35,8 @@ struct PlayerGamePos {
 fn establish_connection() -> Pool<ConnectionManager<MysqlConnection>> {
     dotenv().ok();
 
-    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let database_url = env::var("DATABASE_URL")
+        .unwrap_or_else(|_| "mysql://localhost/GolAberto_production".to_string());
     let manager = ConnectionManager::<MysqlConnection>::new(database_url);
     Pool::builder()
         .connection_timeout(std::time::Duration::from_secs(300))
