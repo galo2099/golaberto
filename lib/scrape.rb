@@ -393,11 +393,11 @@ def parse_match(phase, data, match, rounds, create_groups = false)
   p "#{away_name} #{away.name}"
   g = nil
   sofascore_id = match["id"]
-  g = phase.games.where(sofascore_id: sofascore_id).includes(:goals).first
+  g = phase.games.where(sofascore_id: sofascore_id).includes(:goals, :player_games).first
   # legacy
   round = match.dig("roundInfo", "round")&.to_i
   unless g
-    g = phase.games.where(home_id: home.id, away_id: away.id, round: round, sofascore_id: nil).includes(:goals).first
+    g = phase.games.where(home_id: home.id, away_id: away.id, round: round, sofascore_id: nil).includes(:goals, :player_games).first
   end
   unless g
     g = phase.games.build({:home_id => home.id, :away_id => away.id})
@@ -435,7 +435,7 @@ def parse_match(phase, data, match, rounds, create_groups = false)
       g.valid? || raise(g.errors.to_xml.to_s)
       altered = g.save! || altered
     end
-    if g.played and rounds.include?(round.to_i)
+    if g.played and rounds.include?(round.to_i) and g.player_games.empty?
       get_scorers(g, "http://www.sofascore.com/api/v1/event/#{sofascore_id}/lineups", "http://www.sofascore.com/api/v1/event/#{sofascore_id}/incidents")
     end
   end
