@@ -64,9 +64,30 @@ class PhaseController < ApplicationController
     redirect_to :controller => :championship, :action => :edit, :id => phase.championship
   end
 
+  def start_scrape
+    @phase = Phase.find(params["id"])
+    if @phase.scrape_url.blank?
+      @scrape_error = true
+      return
+    end
+
+    rounds_param = params["rounds"].to_s.strip
+    rounds = nil
+    unless rounds_param.empty?
+      rounds = rounds_param.split(/[\s,]+/).map(&:to_i).select { |r| r > 0 }.uniq.sort
+      if rounds.empty?
+        @scrape_invalid_rounds = true
+        return
+      end
+    end
+
+    GameDataScrapeService.scrape_phase_async(@phase, rounds: rounds, refetch: true)
+    @scrape_started = true
+  end
+
   private
   def phase_params
-    params.require(:phase).permit(:name, :order_by, :sort, :bonus_points, :bonus_points_threshold)
+    params.require(:phase).permit(:name, :order_by, :sort, :bonus_points, :bonus_points_threshold, :scrape_url)
   end
 
   def group_params

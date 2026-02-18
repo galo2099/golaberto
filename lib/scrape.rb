@@ -326,19 +326,27 @@ end
 
 def scrape(phase, url, options = {})
   phase = Phase.find phase
+  refetch = options[:refetch]
 
-  rounds = nil
-  if options[:rounds] then
-    rounds = options[:rounds]
+  if url.end_with?('/')
+    rounds = nil
+    if options[:rounds] then
+      rounds = options[:rounds]
+    else
+      rounds = rounds_to_update(phase)
+    end
+    altered = false
+    rounds.each do |r|
+      p r
+      data = ChampionshipGet.get("#{url}#{r}")
+      data["events"].each do |match|
+        parse_match(phase, data, match, rounds, false, refetch)
+      end if data["events"]
+    end
   else
-    rounds = rounds_to_update(phase)
-  end
-  altered = false
-  rounds.each do |r|
-    p r
-    data = ChampionshipGet.get("#{url}#{r}")
+    data = ChampionshipGet.get(url)
     data["events"].each do |match|
-      parse_match(phase, data, match, rounds)
+      parse_match(phase, data, match, (1..999999), false, refetch)
     end if data["events"]
   end
 end
@@ -349,7 +357,7 @@ def rounds_to_update(phase)
    phase.games.where(played: true).includes(:player_games).select{|g|g.player_games.size == 0}.map{|g|g.round}).sort.uniq
 end
 
-def parse_match(phase, data, match, rounds, create_groups = false)
+def parse_match(phase, data, match, rounds, create_groups = false, refetch = false)
   if match["status"]["type"] == "postponed" or match["status"]["type"] == "canceled"
     return
   end
@@ -386,11 +394,11 @@ def parse_match(phase, data, match, rounds, create_groups = false)
   p "#{away_name} #{away.name}"
   g = nil
   sofascore_id = match["id"]
-  g = phase.games.where(sofascore_id: sofascore_id).includes(:goals).first
+  g = phase.games.where(sofascore_id: sofascore_id).includes(:goals, :player_games).first
   # legacy
   round = match.dig("roundInfo", "round")&.to_i
   unless g
-    g = phase.games.where(home_id: home.id, away_id: away.id, round: round, sofascore_id: nil).includes(:goals).first
+    g = phase.games.where(home_id: home.id, away_id: away.id, round: round, sofascore_id: nil).includes(:goals, :player_games).first
   end
   unless g
     g = phase.games.build({:home_id => home.id, :away_id => away.id})
@@ -428,7 +436,7 @@ def parse_match(phase, data, match, rounds, create_groups = false)
       g.valid? || raise(g.errors.to_xml.to_s)
       altered = g.save! || altered
     end
-    if g.played and rounds.include?(round.to_i)
+    if g.played and rounds.include?(round.to_i) and (refetch or g.player_games.empty?)
       get_scorers(g, "http://www.sofascore.com/api/v1/event/#{sofascore_id}/lineups", "http://www.sofascore.com/api/v1/event/#{sofascore_id}/incidents")
     end
   end
