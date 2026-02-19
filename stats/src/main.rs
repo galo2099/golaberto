@@ -15,11 +15,10 @@ use dotenv::dotenv;
 use itertools::Itertools;
 use smallvec::{smallvec, SmallVec};
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::io::{BufRead, BufReader, Write};
-use std::net::TcpListener;
 use std::sync::Arc;
 use std::time::Instant;
 use std::{env, thread};
+use tiny_http::{Header, Method, Response, Server};
 
 pub mod models;
 pub mod schema;
@@ -588,62 +587,35 @@ fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
     println!("{:?}", start.elapsed());
 }
 
+fn json_header() -> Header {
+    "Content-Type: application/json".parse().unwrap()
+}
+
 fn main() {
     let pool = establish_connection();
 
     let port = env::var("STATS_PORT").unwrap_or_else(|_| "6578".to_string());
     let addr = format!("0.0.0.0:{}", port);
-    let listener = TcpListener::bind(&addr).expect("Failed to bind TCP listener");
+    let server = Server::http(&addr).expect("Failed to start HTTP server");
     println!("Stats server listening on {}", addr);
 
-    for stream in listener.incoming() {
-        let mut stream = match stream {
-            Ok(s) => s,
-            Err(e) => {
-                eprintln!("Connection error: {}", e);
-                continue;
+    for request in server.incoming_requests() {
+        match (request.method(), request.url()) {
+            (&Method::Post, "/player_ratings") => {
+                println!("Received player_ratings request, computing...");
+                compute_ratings(&pool);
+                let _ = request.respond(
+                    Response::from_string("{\"status\":\"ok\"}")
+                        .with_header(json_header()),
+                );
             }
-        };
-
-        let mut reader = BufReader::new(stream.try_clone().unwrap());
-        let mut request_line = String::new();
-        if reader.read_line(&mut request_line).is_err() {
-            continue;
-        }
-
-        let parts: Vec<&str> = request_line.split_whitespace().collect();
-        if parts.len() < 2 {
-            continue;
-        }
-        let method = parts[0];
-        let path = parts[1];
-
-        // Drain remaining headers
-        loop {
-            let mut line = String::new();
-            if reader.read_line(&mut line).is_err() || line.trim().is_empty() {
-                break;
+            _ => {
+                let _ = request.respond(
+                    Response::from_string("{\"error\":\"not found\"}")
+                        .with_status_code(404)
+                        .with_header(json_header()),
+                );
             }
-        }
-
-        if method == "POST" && path == "/player_ratings" {
-            println!("Received player_ratings request, computing...");
-            compute_ratings(&pool);
-            let body = "{\"status\":\"ok\"}";
-            let response = format!(
-                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                body.len(),
-                body
-            );
-            let _ = stream.write_all(response.as_bytes());
-        } else {
-            let body = "{\"error\":\"not found\"}";
-            let response = format!(
-                "HTTP/1.1 404 Not Found\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                body.len(),
-                body
-            );
-            let _ = stream.write_all(response.as_bytes());
         }
     }
 }
