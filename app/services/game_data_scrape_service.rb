@@ -50,14 +50,14 @@ class GameDataScrapeService
   end
 
   def self.scrape_phase(phase, rounds: nil, refetch: false)
-    puts "-> Scraping phase ##{phase.id} (#{phase.name}) url=#{phase.scrape_url} rounds=#{rounds.inspect} refetch=#{refetch}"
+    Rails.logger.info "-> Scraping phase ##{phase.id} (#{phase.name}) url=#{phase.scrape_url} rounds=#{rounds.inspect} refetch=#{refetch}"
     options = {}
     options[:rounds] = rounds if rounds
     options[:refetch] = true if refetch
     scrape(phase.id, phase.scrape_url, options)
-    puts "   done phase ##{phase.id}"
+    Rails.logger.info "   done phase ##{phase.id}"
   rescue => e
-    puts "   ERROR phase ##{phase.id}: #{e.class}: #{e.message}"
+    Rails.logger.error "   ERROR phase ##{phase.id}: #{e.class}: #{e.message}"
   end
 
   def self.scrape_phase_async(phase, rounds: nil, refetch: false)
@@ -71,7 +71,7 @@ class GameDataScrapeService
 
   def self.run_unlocked(refetch: false)
     phases = phases_to_scrape
-    puts "Found #{phases.size} phase(s) with pending games to scrape (refetch=#{refetch})"
+    Rails.logger.info "Found #{phases.size} phase(s) with pending games to scrape (refetch=#{refetch})"
 
     queue = Queue.new
     phases.each { |phase| queue << phase }
@@ -87,18 +87,18 @@ class GameDataScrapeService
     end
 
     workers.each(&:join)
-    puts "Game data scrape finished"
+    Rails.logger.info "Game data scrape finished"
 
     begin
-      puts "Updating team ratings..."
+      Rails.logger.info "Updating team ratings..."
       Team.update_ratings
-      puts "Team ratings updated"
+      Rails.logger.info "Team ratings updated"
     rescue => e
-      puts "ERROR updating team ratings: #{e.class}: #{e.message}"
+      Rails.logger.error "ERROR updating team ratings: #{e.class}: #{e.message}"
     end
 
     begin
-      puts "Updating group odds for recently played games..."
+      Rails.logger.info "Updating group odds for recently played games..."
       Game.where(played: true).where("games.updated_at > ?", 1.hour.ago)
         .map { |g| g.phase }.sort.uniq
         .each do |phase|
@@ -108,9 +108,9 @@ class GameDataScrapeService
             g.save!
           end
         end
-      puts "Group odds updated"
+      Rails.logger.info "Group odds updated"
     rescue => e
-      puts "ERROR updating group odds: #{e.class}: #{e.message}"
+      Rails.logger.error "ERROR updating group odds: #{e.class}: #{e.message}"
     end
   end
 end

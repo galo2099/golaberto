@@ -24,10 +24,10 @@ class FuzzyTeamMatch
       t0, t1 = t1, t0
     end
     j = JaroWinklerPure.new
-    token_scores = t0.map{|a| [a].product(t1).tap{|t| p t if DEBUG }.
+    token_scores = t0.map{|a| [a].product(t1).tap{|t| Rails.logger.debug t.inspect if DEBUG }.
         # Get the JaroWinkler score between the string and scale it to the string size 
         map{|a,b|j.getDistance(a,b) * [ a.size, b.size ].min } }
-    p token_scores if DEBUG
+    Rails.logger.debug token_scores.inspect if DEBUG
 
     t1.size.times.to_a.permutation(t0.size).map{|x| x.zip(token_scores).map{|i,s| s[i]}.sum }.max
   end

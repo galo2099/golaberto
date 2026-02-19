@@ -39,12 +39,12 @@ def with_http_retries(url)
       if not ret.include?("Service Unavailable") and not ret.include?("Internal Server Error")
         break
       end
-      p "Permission error in [#{url}]. Retrying in 1 seconds."
+      Rails.logger.info "Permission error in [#{url}]. Retrying in 1 seconds."
       sleep 1
     end
     return ret
   rescue Errno::ECONNREFUSED, SocketError, Net::ReadTimeout, Net::OpenTimeout
-    p "Cannot reach [#{url}]. Retrying in 1 seconds."
+    Rails.logger.info "Cannot reach [#{url}]. Retrying in 1 seconds."
     sleep 1
     retry
   end
@@ -337,7 +337,7 @@ def scrape(phase, url, options = {})
     end
     altered = false
     rounds.each do |r|
-      p r
+      Rails.logger.info r.inspect
       data = ChampionshipGet.get("#{url}#{r}")
       data["events"].each do |match|
         parse_match(phase, data, match, rounds, false, refetch)
@@ -369,8 +369,8 @@ def parse_match(phase, data, match, rounds, create_groups = false, refetch = fal
   away_name = fix_name(away_team["name"].gsub(/^\s+/, "").gsub(/\s+$/, ""))
 
   if create_groups
-    p home_team["country"]["name"]
-    p away_team["country"]["name"]
+    Rails.logger.info home_team["country"]["name"]
+    Rails.logger.info away_team["country"]["name"]
     home = Team.where(country: fix_country(home_team["country"]["name"])).map{|t| [t, fuzzy_match.getDistance(t.name, home_name)]}.sort{|a,b|b[1] <=> a[1]}[0][0]
     away = Team.where(country: fix_country(away_team["country"]["name"])).map{|t| [t, fuzzy_match.getDistance(t.name, away_name)]}.sort{|a,b|b[1] <=> a[1]}[0][0]
     group = phase.groups.select{|g| g.teams.pluck(:id).sort == [ home.id, away.id ].sort }.first
@@ -390,8 +390,8 @@ def parse_match(phase, data, match, rounds, create_groups = false, refetch = fal
     away = phase.teams.map{|t| [t, fuzzy_match.getDistance(t.name, away_name)]}.sort{|a,b|b[1] <=> a[1]}[0][0]
   end
 
-  p "#{home_name} #{home.name}"
-  p "#{away_name} #{away.name}"
+  Rails.logger.info "#{home_name} #{home.name}"
+  Rails.logger.info "#{away_name} #{away.name}"
   g = nil
   sofascore_id = match["id"]
   g = phase.games.where(sofascore_id: sofascore_id).includes(:goals, :player_games).first
@@ -431,8 +431,8 @@ def parse_match(phase, data, match, rounds, create_groups = false, refetch = fal
     end
     g.played = match["status"]["type"] == "finished"
     if g.diff(game_compare).size > 0
-      p g
-      p game_compare.diff(g)
+      Rails.logger.info g.inspect
+      Rails.logger.info game_compare.diff(g).inspect
       g.valid? || raise(g.errors.to_xml.to_s)
       altered = g.save! || altered
     end
@@ -447,11 +447,11 @@ def get_scorers(game, lineup_url, incidents_url)
   home_lineup = lineup["home"]
   away_lineup = lineup["away"]
   if home_lineup.nil?
-    p "Missing home lineup for #{lineup_url}"
+    Rails.logger.info "Missing home lineup for #{lineup_url}"
     return
   end
   if away_lineup.nil?
-    p "Missing away lineup for #{lineup_url}"
+    Rails.logger.info "Missing away lineup for #{lineup_url}"
     return
   end
   incidents = ChampionshipGet.get(incidents_url)
@@ -508,7 +508,7 @@ def get_scorers(game, lineup_url, incidents_url)
       if player.nil? and not missing_player
         best_match = players_by_name[s["pos"]].keys.map{|t| [t, fuzzy_match.getDistance(t, s["pl_name"])]}.sort{|a,b|b[1] <=> a[1]}[0][0]
         player = players_by_name[s["pos"]][best_match]
-        p "#{s["pl_name"]} - #{best_match}"
+        Rails.logger.info "#{s["pl_name"]} - #{best_match}"
       end
       Goal.new(player_id: player.player_id, game_id: game.id, team_id: player.team_id, time: minute, penalty: false, own_goal: false, aet: minute > 90).save! if player
     end
@@ -517,7 +517,7 @@ def get_scorers(game, lineup_url, incidents_url)
       if player.nil? and not missing_player
         best_match = players_by_name[s["pos"]].keys.map{|t| [t, fuzzy_match.getDistance(t, s["pl_name"])]}.sort{|a,b|b[1] <=> a[1]}[0][0]
         player = players_by_name[s["pos"]][best_match]
-        p "#{s["pl_name"]} - #{best_match}"
+        Rails.logger.info "#{s["pl_name"]} - #{best_match}"
       end
       Goal.new(player_id: player.player_id, game_id: game.id, team_id: player.team_id, time: minute, penalty: true, own_goal: false, aet: minute > 90).save! if player
     end
@@ -526,7 +526,7 @@ def get_scorers(game, lineup_url, incidents_url)
       if player.nil? and not missing_player
         best_match = players_by_name[1 - s["pos"]].keys.map{|t| [t, fuzzy_match.getDistance(t, s["pl_name"])]}.sort{|a,b|b[1] <=> a[1]}[0][0]
         player = players_by_name[1 - s["pos"]][best_match]
-        p "#{s["pl_name"]} - #{best_match}"
+        Rails.logger.info "#{s["pl_name"]} - #{best_match}"
       end
       Goal.new(player_id: player.player_id, game_id: game.id, team_id: player.team_id, time: minute, penalty: false, own_goal: true, aet: minute > 90).save! if player
     end
@@ -560,7 +560,7 @@ def get_scorers(game, lineup_url, incidents_url)
       if (player and player_out.nil?) or (player_out.nil? and not missing_player)
         best_match = players_by_name[s["pos"]].keys.map{|t| [t, fuzzy_match.getDistance(t, s["pl_name_o"])]}.sort{|a,b|b[1] <=> a[1]}[0][0]
         player_out = players_by_name[s["pos"]][best_match]
-        p "#{s["pl_name_o"]} - #{best_match}"
+        Rails.logger.info "#{s["pl_name_o"]} - #{best_match}"
       end
       player_out.off = minute
     end
@@ -632,8 +632,8 @@ def create_player(data)
   position = data["position"]
   country = fix_country(data["country"]["name"])
 
-  p name
-  p sofascore_id
+  Rails.logger.info name.inspect
+  Rails.logger.info sofascore_id.inspect
 
   player.update(name: name, birth: birthday.to_date, country: country, full_name: full_name, sofascore_id: sofascore_id, height: height)
   if position =~ /G/
@@ -649,7 +649,7 @@ def create_player(data)
     player.position = "fw"
   end
   player.save!
-  p player
+  Rails.logger.info player.inspect
   return player
 end
 
