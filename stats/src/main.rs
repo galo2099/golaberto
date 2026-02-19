@@ -18,6 +18,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 use std::time::Instant;
 use std::{env, thread};
+use tiny_http::{Header, Method, Response, Server};
 
 pub mod models;
 pub mod schema;
@@ -33,7 +34,8 @@ struct PlayerGamePos {
 fn establish_connection() -> Pool<ConnectionManager<MysqlConnection>> {
     dotenv().ok();
 
-    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let database_url = env::var("DATABASE_URL")
+        .unwrap_or_else(|_| "mysql://localhost/GolAberto_production".to_string());
     let manager = ConnectionManager::<MysqlConnection>::new(database_url);
     Pool::builder()
         .connection_timeout(std::time::Duration::from_secs(300))
@@ -174,8 +176,7 @@ fn squash_date(timestamp: i64, now: i64) -> f32 {
     1.0 + (E.powf(x) - E.powf(-x)) / (E.powf(x) + E.powf(-x))
 }
 
-fn main() {
-    let pool = establish_connection();
+fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
     let start = Instant::now();
     let games = Arc::new(load_games(&mut pool.get().unwrap()));
     println!("{:?}", start.elapsed());
@@ -556,12 +557,8 @@ fn main() {
                     .collect::<Vec<String>>()
                     .join(",") +
                 " ON DUPLICATE KEY UPDATE off_rating=VALUES(off_rating),def_rating=VALUES(def_rating),rating=VALUES(rating),updated_at=VALUES(updated_at)");
-        // let sql = debug_query::<Mysql, _>(&statement).to_string();
-        // println!("{}", sql);
         handles.push(thread::spawn(move || {
-            // println!("thread");
             statement.execute(&mut pool.get().unwrap()).unwrap();
-            // println!("thread done");
         }));
     }
 
@@ -578,25 +575,49 @@ fn main() {
                 .collect::<Vec<String>>()
                 .join(",") +
             " ON DUPLICATE KEY UPDATE off_rating=VALUES(off_rating),def_rating=VALUES(def_rating)");
-        // let sql = debug_query::<Mysql, _>(&statement).to_string();
-        // println!("{}", sql);
         handles.push(thread::spawn(move || {
-            // println!("thread pgr");
             statement.execute(&mut pool.get().unwrap()).unwrap();
-            // println!("thread pgr done");
         }));
     }
 
     for h in handles {
         h.join().unwrap();
     }
-    // let mut x = player_ratings.iter().collect::<Vec<_>>();
-    // x.sort_by(|a,b| b.1.off.partial_cmp(&a.1.off).unwrap());
-    // println!("{} {} {} {}", x[0].0, x[0].1.off, x[0].1.def, x[0].1.minutes);
-    // println!("{} {} {} {}", x[1].0, x[1].1.off, x[1].1.def, x[1].1.minutes);
-    // println!("{} {} {} {}", x[2].0, x[2].1.off, x[2].1.def, x[2].1.minutes);
     println!("{:?}", player_ratings.len());
     println!("{:?}", start.elapsed());
+}
+
+fn json_header() -> Header {
+    "Content-Type: application/json".parse().unwrap()
+}
+
+fn main() {
+    let pool = establish_connection();
+
+    let port = env::var("STATS_PORT").unwrap_or_else(|_| "6578".to_string());
+    let addr = format!("0.0.0.0:{}", port);
+    let server = Server::http(&addr).expect("Failed to start HTTP server");
+    println!("Stats server listening on {}", addr);
+
+    for request in server.incoming_requests() {
+        match (request.method(), request.url()) {
+            (&Method::Post, "/player_ratings") => {
+                println!("Received player_ratings request, computing...");
+                compute_ratings(&pool);
+                let _ = request.respond(
+                    Response::from_string("{\"status\":\"ok\"}")
+                        .with_header(json_header()),
+                );
+            }
+            _ => {
+                let _ = request.respond(
+                    Response::from_string("{\"error\":\"not found\"}")
+                        .with_status_code(404)
+                        .with_header(json_header()),
+                );
+            }
+        }
+    }
 }
 
 fn goal_interval_filter(g: &Goal, from: i32, to: i32) -> bool {
