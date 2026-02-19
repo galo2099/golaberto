@@ -69,13 +69,13 @@ class OddsHistoryBackfillService
     groups = groups.where(id: group_id) if group_id.present?
 
     group_records = groups.to_a
-    puts "Backfilling odds history for #{group_records.size} group(s)"
+    Rails.logger.info "Backfilling odds history for #{group_records.size} group(s)"
 
     all_team_ids = group_records.flat_map { |group| group.team_groups.map(&:team_id) }.uniq
     ratings_by_team = HistoricalRating.where(team_id: all_team_ids).order(:measure_date).group_by(&:team_id)
 
     group_records.each do |group|
-      puts "-> Group ##{group.id} (#{group.name})"
+      Rails.logger.info "-> Group ##{group.id} (#{group.name})"
 
       if reset
         group.team_groups.find_each { |team_group| team_group.odds_histories.delete_all }
@@ -102,7 +102,7 @@ class OddsHistoryBackfillService
       game_days = game_days.select { |day| day <= to_date } if to_date
 
       if game_days.empty?
-        puts "   no played game dates found, skipping"
+        Rails.logger.info "   no played game dates found, skipping"
         next
       end
 
@@ -164,10 +164,10 @@ class OddsHistoryBackfillService
           persist_group_progress: false
         )
 
-        puts "   [#{idx + 1}/#{game_days.size}] #{day}"
+        Rails.logger.info "   [#{idx + 1}/#{game_days.size}] #{day}"
       end
 
-      puts "   finished backfill up to #{game_days.last}"
+      Rails.logger.info "   finished backfill up to #{game_days.last}"
     end
   end
 end
