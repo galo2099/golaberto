@@ -288,6 +288,7 @@ class ChampionshipController < ApplicationController
       .to_a
 
     latest_game_by_timestamp = {}
+    matches_played_by_timestamp = {}
     game_idx = 0
     latest_game = nil
     history_by_day.each do |_, snapshot_time, _|
@@ -296,6 +297,7 @@ class ChampionshipController < ApplicationController
         game_idx += 1
       end
       latest_game_by_timestamp[snapshot_time] = latest_game
+      matches_played_by_timestamp[snapshot_time] = game_idx
     end
 
     zone_odds_by_snapshot = history_by_day.map do |_, _, odds|
@@ -335,6 +337,7 @@ class ChampionshipController < ApplicationController
         game = latest_game_by_timestamp[snapshot_time]
         points_meta << {
           recorded_on: recorded_on.to_s,
+          matches_played: matches_played_by_timestamp[snapshot_time] || 0,
           game_date: game&.date&.to_s,
           game_label: if game
                         "#{game.home.name} #{game.home_score}-#{game.away_score} #{game.away.name}"
