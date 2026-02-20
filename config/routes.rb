@@ -100,7 +100,8 @@ Rails.application.routes.draw do
   # deprecated dynamic :controller/:action route segments.
   #
   # The list below is intentionally explicit (not auto-generated) and limited
-  # to legacy controller/actions that have matching view templates.
+  # to legacy controller/actions with matching view templates plus required
+  # inline-rendered endpoints still used by the UI.
   legacy_verbs = [:get, :post, :patch]
   match 'account/login(/:id)(.:format)', to: 'account#login', via: legacy_verbs, as: nil
   match 'account/signup(/:id)(.:format)', to: 'account#signup', via: legacy_verbs, as: nil
@@ -115,10 +116,13 @@ Rails.application.routes.draw do
   match 'championship/player_list(/:id)(.:format)', to: 'championship#player_list', via: legacy_verbs, as: nil
   match 'championship/player_show(/:id)(.:format)', to: 'championship#player_show', via: legacy_verbs, as: nil
   match 'championship/show(/:id)(.:format)', to: 'championship#show', via: legacy_verbs, as: nil
+  match 'championship/spi_eval(/:id)(.:format)', to: 'championship#spi_eval', via: legacy_verbs, as: nil
   match 'championship/team(/:id)(.:format)', to: 'championship#team', via: legacy_verbs, as: nil
 
   match 'comment/new(/:id)(.:format)', to: 'comment#new', via: legacy_verbs, as: nil
 
+  match 'game/create_referee_for_edit(/:id)(.:format)', to: 'game#create_referee_for_edit', via: legacy_verbs, as: nil
+  match 'game/create_stadium_for_edit(/:id)(.:format)', to: 'game#create_stadium_for_edit', via: legacy_verbs, as: nil
   match 'game/edit(/:id)(.:format)', to: 'game#edit', via: legacy_verbs, as: nil
   match 'game/edit_squad(/:id)(.:format)', to: 'game#edit_squad', via: legacy_verbs, as: nil
   match 'game/insert_team_player(/:id)(.:format)', to: 'game#insert_team_player', via: legacy_verbs, as: nil
@@ -134,10 +138,12 @@ Rails.application.routes.draw do
   match 'home(.:format)', to: 'home#index', via: legacy_verbs, as: nil
   match 'home/index(/:id)(.:format)', to: 'home#index', via: legacy_verbs, as: nil
 
+  match 'phase/add_groups(/:id)(.:format)', to: 'phase#add_groups', via: legacy_verbs, as: nil
   match 'phase/edit(/:id)(.:format)', to: 'phase#edit', via: legacy_verbs, as: nil
   match 'phase/new(/:id)(.:format)', to: 'phase#new', via: legacy_verbs, as: nil
   match 'phase/start_scrape(/:id)(.:format)', to: 'phase#start_scrape', via: legacy_verbs, as: nil
 
+  match 'player/destroy_team(/:id)(.:format)', to: 'player#destroy_team', via: legacy_verbs, as: nil
   match 'player/edit(/:id)(.:format)', to: 'player#edit', via: legacy_verbs, as: nil
   match 'player/games(/:id)(.:format)', to: 'player#games', via: legacy_verbs, as: nil
   match 'player/list(/:id)(.:format)', to: 'player#list', via: legacy_verbs, as: nil
@@ -158,6 +164,7 @@ Rails.application.routes.draw do
 
   match 'team/edit(/:id)(.:format)', to: 'team#edit', via: legacy_verbs, as: nil
   match 'team/games(/:id)(.:format)', to: 'team#games', via: legacy_verbs, as: nil
+  match 'team/historical_rating(/:id)(.:format)', to: 'team#historical_rating', via: legacy_verbs, as: nil
   match 'team/list(/:id)(.:format)', to: 'team#list', via: legacy_verbs, as: nil
   match 'team/new(/:id)(.:format)', to: 'team#new', via: legacy_verbs, as: nil
   match 'team/show(/:id)(.:format)', to: 'team#show', via: legacy_verbs, as: nil
