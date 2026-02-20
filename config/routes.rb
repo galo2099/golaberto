@@ -95,6 +95,30 @@ Rails.application.routes.draw do
     Rails.application.routes.url_helpers.url_for host: _request.host, port: _request.port, controller: :championship, action: :player_list, id: _params[:id]
   }
 
-  # Install the default route as the lowest priority.
-  match ':controller(/:action(/:id))(.:format)', via: [:get, :post, :patch], constraints: { controller: /[a-zA-Z]\w*/, action: /[a-zA-Z]\w*/ }
+  # Install explicit legacy routes as the lowest priority.
+  # This preserves old /controller/action(/id) links without relying on
+  # deprecated dynamic :controller/:action route segments.
+  legacy_verbs = [:get, :post, :patch]
+  controller_name_pattern = /\A[a-zA-Z]\w*\z/
+  action_name_pattern = /\A[a-zA-Z]\w*\z/
+
+  Dir[Rails.root.join('app/controllers/*_controller.rb')].sort.each do |controller_file|
+    controller_name = File.basename(controller_file, '_controller.rb')
+    next if controller_name == 'application'
+    next unless controller_name.match?(controller_name_pattern)
+
+    controller_class = "#{controller_name.camelize}Controller".safe_constantize
+    next unless controller_class && controller_class <= ActionController::Metal
+
+    actions = controller_class.action_methods.sort.select { |name| name.match?(action_name_pattern) }
+    next if actions.empty?
+
+    if actions.include?('index')
+      match "#{controller_name}(.:format)", to: "#{controller_name}#index", via: legacy_verbs, as: nil
+    end
+
+    actions.each do |action_name|
+      match "#{controller_name}/#{action_name}(/:id)(.:format)", to: "#{controller_name}##{action_name}", via: legacy_verbs, as: nil
+    end
+  end
 end
