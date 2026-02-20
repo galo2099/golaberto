@@ -33,10 +33,17 @@ module AuthenticatedTestHelper
   #    end
   #  end
   # 
-  def assert_difference(object, method = nil, difference = 1)
-    initial_value = object.send(method)
-    yield
-    assert_equal initial_value + difference, object.send(method), "#{object}##{method}"
+  def assert_difference(object, method = nil, difference = 1, &block)
+    if method && (method.is_a?(Symbol) || object.respond_to?(method))
+      initial_value = object.public_send(method)
+      result = block.call
+      assert_equal initial_value + difference, object.public_send(method), "#{object}##{method}"
+      result
+    elsif method.nil?
+      super(object, &block)
+    else
+      super(object, method, difference, &block)
+    end
   end
 
   def assert_no_difference(object, method, &block)
