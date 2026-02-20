@@ -21,6 +21,10 @@ class OddsHistoryBackfillServiceTest < ActiveSupport::TestCase
     def find_each
       yield @group
     end
+
+    def to_a
+      [@group]
+    end
   end
 
   class FakeGames

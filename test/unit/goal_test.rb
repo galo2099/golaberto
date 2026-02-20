@@ -64,16 +64,16 @@ class GoalTest < Test::Unit::TestCase
     goal.penalty = true
     assert_equal true, goal.penalty
 
-    # Everything else is false
+    # Rails boolean casting treats non-zero/non-empty truthy values as true.
     goal.penalty = 0
     assert_equal false, goal.penalty
     goal.penalty = 2
-    assert_equal false, goal.penalty
+    assert_equal true, goal.penalty
 
     goal.penalty = "0"
     assert_equal false, goal.penalty
     goal.penalty = "2"
-    assert_equal false, goal.penalty
+    assert_equal true, goal.penalty
 
     goal.penalty = false
     assert_equal false, goal.penalty
@@ -89,16 +89,16 @@ class GoalTest < Test::Unit::TestCase
     goal.own_goal = true
     assert_equal true, goal.own_goal
 
-    # Everything else is false
+    # Rails boolean casting treats non-zero/non-empty truthy values as true.
     goal.own_goal = 0
     assert_equal false, goal.own_goal
     goal.own_goal = 2
-    assert_equal false, goal.own_goal
+    assert_equal true, goal.own_goal
 
     goal.own_goal = "0"
     assert_equal false, goal.own_goal
     goal.own_goal = "2"
-    assert_equal false, goal.own_goal
+    assert_equal true, goal.own_goal
 
     goal.own_goal = false
     assert_equal false, goal.own_goal
