@@ -110,8 +110,7 @@ class PlayerController < ApplicationController
   end
 
   def update_rating
-    req = Net::HTTP::Post.new("/player_ratings", {'Content-Type' =>'application/json'})
-    response = Net::HTTP.new("localhost", 6578).start {|http| http.read_timeout = 300; http.request(req) }
+    PlayerRatingUpdateService.run
     redirect_back(fallback_location: root_path)
   end
 
