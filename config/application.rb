@@ -59,13 +59,17 @@ module Golaberto
     # Version of your assets, change this if you want to expire all your assets
     config.assets.version = '1.0'
 
+    raw_s3_credentials = Rails.application.credentials.s3
+    s3_credentials = raw_s3_credentials.respond_to?(:to_h) ? raw_s3_credentials.to_h : {}
+
     config.paperclip_defaults = {
       storage: :s3,
       s3_region: 'us-east-1',
-      s3_credentials: Hash[Rails.application.credentials.s3],
+      s3_credentials: s3_credentials,
       s3_headers: { 'Cache-Control' => 'max-age=315576000', 'Expires' => 10.years.from_now.httpdate },
     }
 
-    config.golaberto_image_url_prefix = "https://s3.amazonaws.com/#{Rails.application.credentials.s3[:bucket]}"
+    bucket = s3_credentials[:bucket] || s3_credentials['bucket']
+    config.golaberto_image_url_prefix = bucket ? "https://s3.amazonaws.com/#{bucket}" : ''
   end
 end
