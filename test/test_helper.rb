@@ -11,3 +11,11 @@ class ActiveSupport::TestCase
 
   # Add more helper methods to be used by all tests here...
 end
+
+# Legacy tests in this codebase still inherit from Test::Unit::TestCase.
+# Map it to ActiveSupport::TestCase for compatibility with modern Minitest.
+module Test
+  module Unit
+    TestCase = ActiveSupport::TestCase unless const_defined?(:TestCase)
+  end
+end
