@@ -119,7 +119,11 @@ class GroupTest < ActiveSupport::TestCase
 
     assert_nil tg_home.reload.odds
     assert_nil tg_away.reload.odds
-    assert_equal group_progress_before, group.reload.odds_progress
+    if group_progress_before.nil?
+      assert_nil group.reload.odds_progress
+    else
+      assert_equal group_progress_before, group.reload.odds_progress
+    end
   end
 
 end
