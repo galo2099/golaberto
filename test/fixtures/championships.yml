@@ -1,5 +1,11 @@
 # Read about fixtures at http://ar.rubyonrails.org/classes/Fixtures.html
 first:
   id: 1
+  begin: 2020-01-01
+  end: 2020-12-31
+  name: Campeonato A
 another:
   id: 2
+  begin: 2021-01-01
+  end: 2021-12-31
+  name: Campeonato B
