@@ -1,0 +1,7 @@
+{
+  "setup": [
+    "sudo apt-get update && sudo apt-get install -y build-essential ruby-full libyaml-dev libffi-dev libssl-dev libreadline-dev zlib1g-dev libgdbm-dev libmysqlclient-dev default-libmysqlclient-dev libsqlite3-dev libmagickwand-dev libmaxminddb-dev imagemagick mysql-server mysql-client",
+    "sudo mysqld --user=mysql --datadir=/var/lib/mysql & sleep 3 && sudo chmod 755 /var/run/mysqld && sudo mysql -e \"ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY ''; FLUSH PRIVILEGES;\"",
+    "sudo chown -R $(whoami) /var/lib/gems/ /usr/local/bin/ && sudo gem install bundler -v 2.5.5 && bundle install"
+  ]
+}
