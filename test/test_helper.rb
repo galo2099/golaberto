@@ -46,7 +46,7 @@ if defined?(ActionController::TestRequest)
     alias_method :new_without_legacy_compat, :new unless method_defined?(:new_without_legacy_compat)
 
     def new(*args, **kwargs, &block)
-      return create if args.empty? && kwargs.empty?
+      return create(ActionController::Base) if args.empty? && kwargs.empty?
 
       new_without_legacy_compat(*args, **kwargs, &block)
     end
