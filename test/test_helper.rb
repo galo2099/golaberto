@@ -53,6 +53,10 @@ if defined?(ActionController::TestRequest)
   end
 end
 
+if defined?(ActionDispatch::TestResponse) && !defined?(ActionController::TestResponse)
+  ActionController.const_set(:TestResponse, ActionDispatch::TestResponse)
+end
+
 # Minimal Object#stub support for older tests.
 unless Object.method_defined?(:stub)
   class Object
