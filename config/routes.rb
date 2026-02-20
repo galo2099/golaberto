@@ -95,6 +95,89 @@ Rails.application.routes.draw do
     Rails.application.routes.url_helpers.url_for host: _request.host, port: _request.port, controller: :championship, action: :player_list, id: _params[:id]
   }
 
-  # Install the default route as the lowest priority.
-  match ':controller(/:action(/:id))(.:format)', via: [:get, :post, :patch], constraints: { controller: /[a-zA-Z]\w*/, action: /[a-zA-Z]\w*/ }
+  # Install explicit legacy routes as the lowest priority.
+  # This preserves old /controller/action(/id) links without relying on
+  # deprecated dynamic :controller/:action route segments.
+  #
+  # The list below is intentionally explicit (not auto-generated) and limited
+  # to legacy controller/actions with matching view templates plus required
+  # inline-rendered endpoints still used by the UI.
+  legacy_verbs = [:get, :post, :patch]
+  match 'account/failure(/:id)(.:format)', to: 'account#failure', via: legacy_verbs, as: nil
+  match 'account/google_onetap(/:id)(.:format)', to: 'account#google_onetap', via: legacy_verbs, as: nil
+  match 'account/google_signin(/:id)(.:format)', to: 'account#google_signin', via: legacy_verbs, as: nil
+  match 'account/login(/:id)(.:format)', to: 'account#login', via: legacy_verbs, as: nil
+  match 'account/logout(/:id)(.:format)', to: 'account#logout', via: legacy_verbs, as: nil
+  match 'account/signup(/:id)(.:format)', to: 'account#signup', via: legacy_verbs, as: nil
+
+  match 'championship/crowd(/:id)(.:format)', to: 'championship#crowd', via: legacy_verbs, as: nil
+  match 'championship/edit(/:id)(.:format)', to: 'championship#edit', via: legacy_verbs, as: nil
+  match 'championship/games(/:id)(.:format)', to: 'championship#games', via: legacy_verbs, as: nil
+  match 'championship/list(/:id)(.:format)', to: 'championship#list', via: legacy_verbs, as: nil
+  match 'championship/new(/:id)(.:format)', to: 'championship#new', via: legacy_verbs, as: nil
+  match 'championship/new_game(/:id)(.:format)', to: 'championship#new_game', via: legacy_verbs, as: nil
+  match 'championship/phases(/:id)(.:format)', to: 'championship#phases', via: legacy_verbs, as: nil
+  match 'championship/player_list(/:id)(.:format)', to: 'championship#player_list', via: legacy_verbs, as: nil
+  match 'championship/player_show(/:id)(.:format)', to: 'championship#player_show', via: legacy_verbs, as: nil
+  match 'championship/show(/:id)(.:format)', to: 'championship#show', via: legacy_verbs, as: nil
+  match 'championship/spi_eval(/:id)(.:format)', to: 'championship#spi_eval', via: legacy_verbs, as: nil
+  match 'championship/team(/:id)(.:format)', to: 'championship#team', via: legacy_verbs, as: nil
+
+  match 'comment/new(/:id)(.:format)', to: 'comment#new', via: legacy_verbs, as: nil
+
+  match 'game/create_referee_for_edit(/:id)(.:format)', to: 'game#create_referee_for_edit', via: legacy_verbs, as: nil
+  match 'game/create_stadium_for_edit(/:id)(.:format)', to: 'game#create_stadium_for_edit', via: legacy_verbs, as: nil
+  match 'game/edit(/:id)(.:format)', to: 'game#edit', via: legacy_verbs, as: nil
+  match 'game/edit_squad(/:id)(.:format)', to: 'game#edit_squad', via: legacy_verbs, as: nil
+  match 'game/insert_team_player(/:id)(.:format)', to: 'game#insert_team_player', via: legacy_verbs, as: nil
+  match 'game/list(/:id)(.:format)', to: 'game#list', via: legacy_verbs, as: nil
+  match 'game/list_players(/:id)(.:format)', to: 'game#list_players', via: legacy_verbs, as: nil
+  match 'game/show(/:id)(.:format)', to: 'game#show', via: legacy_verbs, as: nil
+
+  match 'group/edit(/:id)(.:format)', to: 'group#edit', via: legacy_verbs, as: nil
+  match 'group/odds_progress(/:id)(.:format)', to: 'group#odds_progress', via: legacy_verbs, as: nil
+  match 'group/start_odds_history_backfill(/:id)(.:format)', to: 'group#start_odds_history_backfill', via: legacy_verbs, as: nil
+  match 'group/team_list(/:id)(.:format)', to: 'group#team_list', via: legacy_verbs, as: nil
+
+  match 'home(.:format)', to: 'home#index', via: legacy_verbs, as: nil
+  match 'home/index(/:id)(.:format)', to: 'home#index', via: legacy_verbs, as: nil
+
+  match 'phase/add_groups(/:id)(.:format)', to: 'phase#add_groups', via: legacy_verbs, as: nil
+  match 'phase/edit(/:id)(.:format)', to: 'phase#edit', via: legacy_verbs, as: nil
+  match 'phase/new(/:id)(.:format)', to: 'phase#new', via: legacy_verbs, as: nil
+  match 'phase/start_scrape(/:id)(.:format)', to: 'phase#start_scrape', via: legacy_verbs, as: nil
+
+  match 'player/destroy_team(/:id)(.:format)', to: 'player#destroy_team', via: legacy_verbs, as: nil
+  match 'player/edit(/:id)(.:format)', to: 'player#edit', via: legacy_verbs, as: nil
+  match 'player/games(/:id)(.:format)', to: 'player#games', via: legacy_verbs, as: nil
+  match 'player/list(/:id)(.:format)', to: 'player#list', via: legacy_verbs, as: nil
+  match 'player/new(/:id)(.:format)', to: 'player#new', via: legacy_verbs, as: nil
+  match 'player/show(/:id)(.:format)', to: 'player#show', via: legacy_verbs, as: nil
+
+  match 'referee/edit(/:id)(.:format)', to: 'referee#edit', via: legacy_verbs, as: nil
+  match 'referee/games(/:id)(.:format)', to: 'referee#games', via: legacy_verbs, as: nil
+  match 'referee/list(/:id)(.:format)', to: 'referee#list', via: legacy_verbs, as: nil
+  match 'referee/new(/:id)(.:format)', to: 'referee#new', via: legacy_verbs, as: nil
+  match 'referee/show(/:id)(.:format)', to: 'referee#show', via: legacy_verbs, as: nil
+
+  match 'stadium/edit(/:id)(.:format)', to: 'stadium#edit', via: legacy_verbs, as: nil
+  match 'stadium/games(/:id)(.:format)', to: 'stadium#games', via: legacy_verbs, as: nil
+  match 'stadium/list(/:id)(.:format)', to: 'stadium#list', via: legacy_verbs, as: nil
+  match 'stadium/new(/:id)(.:format)', to: 'stadium#new', via: legacy_verbs, as: nil
+  match 'stadium/show(/:id)(.:format)', to: 'stadium#show', via: legacy_verbs, as: nil
+
+  match 'team/edit(/:id)(.:format)', to: 'team#edit', via: legacy_verbs, as: nil
+  match 'team/games(/:id)(.:format)', to: 'team#games', via: legacy_verbs, as: nil
+  match 'team/historical_rating(/:id)(.:format)', to: 'team#historical_rating', via: legacy_verbs, as: nil
+  match 'team/list(/:id)(.:format)', to: 'team#list', via: legacy_verbs, as: nil
+  match 'team/new(/:id)(.:format)', to: 'team#new', via: legacy_verbs, as: nil
+  match 'team/show(/:id)(.:format)', to: 'team#show', via: legacy_verbs, as: nil
+
+  match 'team_group/list(/:id)(.:format)', to: 'team_group#list', via: legacy_verbs, as: nil
+
+  match 'user/edit(/:id)(.:format)', to: 'user#edit', via: legacy_verbs, as: nil
+  match 'user/list(/:id)(.:format)', to: 'user#list', via: legacy_verbs, as: nil
+  match 'user/list_edits(/:id)(.:format)', to: 'user#list_edits', via: legacy_verbs, as: nil
+  match 'user/show(/:id)(.:format)', to: 'user#show', via: legacy_verbs, as: nil
+  match 'user/update(/:id)(.:format)', to: 'user#update', via: legacy_verbs, as: nil
 end
