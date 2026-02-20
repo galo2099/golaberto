@@ -1,7 +1,6 @@
 ENV["RAILS_ENV"] = "test"
 require File.expand_path('../../config/environment', __FILE__)
 require 'rails/test_help'
-require 'minitest/mock'
 require Rails.root.join('lib/authenticated_test_helper')
 
 class ActiveSupport::TestCase
@@ -50,6 +49,33 @@ if defined?(ActionController::TestRequest)
       return create if args.empty? && kwargs.empty?
 
       new_without_legacy_compat(*args, **kwargs, &block)
+    end
+  end
+end
+
+# Minimal Object#stub support for older tests.
+unless Object.method_defined?(:stub)
+  class Object
+    def stub(name, value = nil, &block)
+      metaclass = class << self; self; end
+      had_method = respond_to?(name, true)
+      previous_method = method(name) if had_method
+
+      metaclass.send(:define_method, name) do |*args, **kwargs, &inner_block|
+        if value.respond_to?(:call)
+          value.call(*args, **kwargs, &inner_block)
+        else
+          value
+        end
+      end
+
+      block.call
+    ensure
+      if had_method
+        metaclass.send(:define_method, name, previous_method)
+      else
+        metaclass.send(:remove_method, name) rescue nil
+      end
     end
   end
 end
