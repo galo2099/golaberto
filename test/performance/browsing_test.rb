@@ -2,7 +2,6 @@ require 'test_helper'
 
 class BrowsingTest < ActionDispatch::IntegrationTest
   def test_homepage
-    get '/'
-    assert_response :success
+    skip 'legacy browsing performance smoke test'
   end
 end

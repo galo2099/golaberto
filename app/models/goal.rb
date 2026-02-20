@@ -10,6 +10,22 @@ class Goal < ApplicationRecord
   scope :regulation, ->{ where(:aet => 0) }
   scope :aet, ->{ where(:aet => 1) }
 
+  def penalty=(value)
+    super(normalize_legacy_boolean(value))
+  end
+
+  def own_goal=(value)
+    super(normalize_legacy_boolean(value))
+  end
+
+  private
+
+    def normalize_legacy_boolean(value)
+      return nil if value.nil?
+
+      value == true || value.to_s == '1'
+    end
+
   # Fields information, just FYI.
   #
   # Field: id , SQL Definition:bigint(20)

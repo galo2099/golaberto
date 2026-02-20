@@ -34,7 +34,7 @@ module AuthenticatedTestHelper
   #  end
   # 
   def assert_difference(object, method = nil, difference = 1, &block)
-    if method && (method.is_a?(Symbol) || object.respond_to?(method))
+    if method.is_a?(Symbol) || (method.is_a?(String) && object.respond_to?(method))
       initial_value = object.public_send(method)
       result = block.call
       assert_equal initial_value + difference, object.public_send(method), "#{object}##{method}"
