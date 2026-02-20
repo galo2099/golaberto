@@ -1,8 +1,8 @@
 OmniAuth.config.allowed_request_methods = [:get, :post]
 
 google_api_credentials = Rails.application.credentials.google_api
-google_client_id = google_api_credentials&.[](:client_id) || ENV['GOOGLE_CLIENT_ID']
-google_secret = google_api_credentials&.[](:secret) || ENV['GOOGLE_CLIENT_SECRET']
+google_client_id = google_api_credentials&.[](:client_id) || google_api_credentials&.[]("client_id")
+google_secret = google_api_credentials&.[](:secret) || google_api_credentials&.[]("secret")
 
 Rails.application.config.middleware.use OmniAuth::Builder do
   if google_client_id && google_secret && !google_client_id.empty? && !google_secret.empty?
