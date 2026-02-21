@@ -67,6 +67,8 @@ Rails.application.routes.draw do
   get '/auth/google/callback', to: "account#google_signin"
   post '/auth/google/onetap_callback', to: "account#google_onetap"
   get '/auth/failure', to: 'account#failure'
+  get '/account/login', to: 'account#login'
+  post '/account/login', to: 'account#login'
 
   get 'groups/team_list.js' => 'group#team_list'
 
