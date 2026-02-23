@@ -1636,7 +1636,8 @@ GEM
     net-smtp (0.5.1)
       net-protocol
     net-ssh (7.0.1)
-    newrelic_rpm (9.7.0)
+    newrelic_rpm (10.2.0)
+      logger
     nio4r (2.7.5)
     nokogiri (1.19.1-arm64-darwin)
       racc (~> 1.4)
