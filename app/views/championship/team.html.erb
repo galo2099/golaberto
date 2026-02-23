@@ -640,6 +640,75 @@ $(document).ready(function() {
         return $.color.parse(color).scale("a", alpha).toString();
       };
 
+      function buildGamePositionSeries(seriesToRender) {
+        var mainChartData = data[<%=idx%>] || {};
+        var positionSeries = (mainChartData.data || [])[3] || {};
+        var positionPoints = positionSeries.data || [];
+        var gameUrls = ((mainChartData.urls || [])[0]) || [];
+        var firstSnapshotByGameId = {};
+
+        seriesToRender.forEach(function(series) {
+          (series.point_meta || []).forEach(function(pointMeta, pointIndex) {
+            var gameId = pointMeta.game_id;
+            if (!gameId || Object.prototype.hasOwnProperty.call(firstSnapshotByGameId, gameId)) { return; }
+            firstSnapshotByGameId[gameId] = pointIndex;
+          });
+        });
+
+        var plotPoints = [];
+        var plotPointMeta = [];
+
+        positionPoints.forEach(function(positionPoint, gameIndex) {
+          var gameUrl = gameUrls[gameIndex] || "";
+          var gameIdMatch = gameUrl.toString().match(/(\d+)(?:\D*)$/);
+          if (!gameIdMatch) { return; }
+
+          var gameId = parseInt(gameIdMatch[1], 10);
+          if (!Object.prototype.hasOwnProperty.call(firstSnapshotByGameId, gameId)) { return; }
+
+          var snapshotIndex = firstSnapshotByGameId[gameId];
+          var position = parseInt(positionPoint[1], 10);
+          if (isNaN(position)) { return; }
+
+          var valueForPosition = 0;
+          var offsetFromBottom = 0;
+
+          seriesToRender.forEach(function(series) {
+            var seriesPosition = parseInt(series.position, 10);
+            var snapshotPoint = (series.data || [])[snapshotIndex] || [null, 0];
+            var oddValue = snapshotPoint[1] || 0;
+
+            if (seriesPosition === position) {
+              valueForPosition = oddValue;
+            }
+            if (seriesPosition > position) {
+              offsetFromBottom += oddValue;
+            }
+          });
+
+          var pointMeta = ((seriesToRender[0] || {}).point_meta || [])[snapshotIndex] || {};
+          var timestamp = (((seriesToRender[0] || {}).data || [])[snapshotIndex] || [null])[0];
+          if (timestamp === null) { return; }
+
+          plotPoints.push([timestamp, offsetFromBottom + (valueForPosition / 2.0)]);
+          plotPointMeta.push($.extend({}, pointMeta, {
+            position: position,
+            value_for_position: valueForPosition,
+          }));
+        });
+
+        return {
+          label: "<%= j(_("Position after each game")) %>",
+          data: plotPoints,
+          point_meta: plotPointMeta,
+          color: "#111111",
+          lines: { show: true, lineWidth: 2, fill: false },
+          points: { show: true, radius: 3, lineWidth: 1, fillColor: "#ffffff" },
+          stack: false,
+          shadowSize: 0,
+        };
+      }
+
       function renderOddsHistorySeries() {
         var oddsHistoryYAxisTicks = [
           [0, ""],
@@ -670,6 +739,11 @@ $(document).ready(function() {
             });
             return seriesCopy;
           });
+
+        var gamePositionSeries = buildGamePositionSeries(seriesToRender);
+        if ((gamePositionSeries.data || []).length > 0) {
+          seriesToRender.push(gamePositionSeries);
+        }
 
         oddsHistoryPlot = $.plot(oddsHistoryPlaceholder, seriesToRender, {
           xaxis: {
@@ -746,6 +820,7 @@ $(document).ready(function() {
         var pointMeta = (series.point_meta || [])[item.dataIndex] || {};
         var seriesPoint = (series.data || [])[item.dataIndex] || [null, 0];
         var oddValue = seriesPoint[1].toLocaleString("<%= I18n.locale %>", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        var isGamePositionSeries = series.label === "<%= j(_("Position after each game")) %>";
 
         var zoneOddsLines = (pointMeta.zone_odds || []).map(function(zoneOdd) {
           var zoneColor = zoneOdd.color || "#999999";
@@ -753,12 +828,14 @@ $(document).ready(function() {
           return "<span style=\"color:" + zoneColor + "\">▣</span> " + (zoneOdd.name || "") + ": " + zoneValue + "%";
         });
 
+        var valueLine = isGamePositionSeries ? ((pointMeta.position || "-") + "º") : (oddValue + "%");
+
         oddsHistoryTooltip.html(
           (series.label || "") + "<br>" +
           (formatOddsHistoryDate(pointMeta.recorded_on, fullDateFormatter, true) || "-") + "<br>" +
-          oddValue + "%<br>" +
+          valueLine + "<br>" +
           (pointMeta.game_label || "-") +
-          (zoneOddsLines.length > 0 ? "<br>" + zoneOddsLines.join("<br>") : "")
+          (!isGamePositionSeries && zoneOddsLines.length > 0 ? "<br>" + zoneOddsLines.join("<br>") : "")
         ).css({ top: pos.pageY + 5, left: pos.pageX + 5 }).fadeIn(200);
       });
     } else {
