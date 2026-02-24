@@ -1,0 +1,9 @@
+#!/usr/bin/env ruby
+
+APP_ROOT = File.expand_path('..', __dir__)
+
+require File.expand_path('config/environment', APP_ROOT)
+require 'rufus-scheduler'
+require File.expand_path('lib/rufus_scheduler_runner', APP_ROOT)
+
+RufusSchedulerRunner.start
