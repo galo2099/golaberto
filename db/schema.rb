@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_18_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_24_000000) do
   create_table "categories", id: :integer, charset: "utf8mb3", collation: "utf8mb3_unicode_ci", force: :cascade do |t|
     t.string "name"
   end
@@ -194,7 +194,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_18_100000) do
 
   create_table "player_games", id: :integer, charset: "utf8mb3", collation: "utf8mb3_unicode_ci", force: :cascade do |t|
     t.float "def_rating"
-    t.integer "game_id", default: 0, null: false
+    t.integer "game_id", null: false
     t.integer "off", default: 0, null: false
     t.float "off_rating"
     t.integer "on", default: 0, null: false
@@ -336,6 +336,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_18_100000) do
   end
 
   add_foreign_key "historical_ratings", "teams"
+  add_foreign_key "player_games", "games", on_delete: :cascade
   add_foreign_key "team_geocodes", "teams"
   add_foreign_key "team_group_odds_histories", "team_groups"
 end
