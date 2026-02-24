@@ -1,0 +1,13 @@
+#!/usr/bin/env ruby
+
+APP_ROOT = File.expand_path('..', __dir__)
+
+require File.expand_path('config/environment', APP_ROOT)
+require 'rufus-scheduler'
+require File.expand_path('lib/rufus_scheduler_runner', APP_ROOT)
+
+stdout_logger = ActiveSupport::Logger.new($stdout)
+stdout_logger.formatter = Rails.logger.formatter if Rails.logger.respond_to?(:formatter)
+Rails.logger = ActiveSupport::TaggedLogging.new(stdout_logger)
+
+RufusSchedulerRunner.start
