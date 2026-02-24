@@ -4,7 +4,7 @@ class RufusSchedulerRunner
   end
 
   def start
-    scheduler.every '1h', first_in: '5m' do
+    scheduler.every '1h', first_in: '0s' do
       refetch = Time.current.hour == 3
       Rails.logger.info "[scheduler] Starting periodic game data scrape (refetch=#{refetch})"
       result = GameDataScrapeService.start_async(refetch: refetch)
