@@ -440,21 +440,18 @@ def parse_match(phase, data, match, rounds, create_groups = false, refetch = fal
     g.round = round
     g.home_score = 0
     g.away_score = 0
+    g.home_aet = nil
+    g.away_aet = nil
+    g.home_pen = nil
+    g.away_pen = nil
 
-    home_score = match["homeScore"]
-    away_score = match["awayScore"]
-    if home_score
-      g.home_score = home_score["display"].to_i
-      g.away_score = away_score["display"].to_i
-      if home_score["EXTRA_TIME"]
-        g.home_aet = home_score["EXTRA_TIME"].to_i - home_score["FINAL_RESULT"].to_i
-        g.away_aet = away_score["EXTRA_TIME"].to_i - away_score["FINAL_RESULT"].to_i
-      end
-      if home_score["penalties"]
-        g.home_pen = home_score["penalties"]
-        g.away_pen = away_score["penalties"]
-      end
-    end
+    score_data = extract_sofascore_scores(match["homeScore"], match["awayScore"])
+    g.home_score = score_data[:full_time_home] || score_data[:final_home] || 0
+    g.away_score = score_data[:full_time_away] || score_data[:final_away] || 0
+    g.home_aet = score_data[:aet_home]
+    g.away_aet = score_data[:aet_away]
+    g.home_pen = score_data[:pen_home]
+    g.away_pen = score_data[:pen_away]
     g.played = match["status"]["type"] == "finished"
     if g.diff(game_compare).size > 0
       Rails.logger.info g.inspect
@@ -489,10 +486,7 @@ def get_scorers(game, lineup_url, incidents_url)
   off = 0
   incidents["incidents"].each do |s|
     if s["incidentType"] == "period" and s["time"] < 999
-      minute = s["time"]
-      if not minute
-        minute = s["timeSeconds"] / 60 + 1
-      end
+      minute = incident_minute(s)
       off = [off, minute].max
       off = [120, off].min
     end
@@ -525,10 +519,7 @@ def get_scorers(game, lineup_url, incidents_url)
 
   fuzzy_match = FuzzyTeamMatch.new
   incidents["incidents"].each do |s|
-    minute = s["time"]
-    if not minute and s["timeSeconds"]
-      minute = s["timeSeconds"] / 60 + 1
-    end
+    minute = incident_minute(s)
     if s["incidentType"] == "goal" and s["incidentClass"] == "regular" and not s["player"].nil?
       player = players[s["player"]["id"]]
       if player.nil? and not missing_player
@@ -536,7 +527,7 @@ def get_scorers(game, lineup_url, incidents_url)
         player = players_by_name[s["pos"]][best_match]
         Rails.logger.info "#{s["pl_name"]} - #{best_match}"
       end
-      Goal.new(player_id: player.player_id, game_id: game.id, team_id: player.team_id, time: minute, penalty: false, own_goal: false, aet: minute > 90).save! if player
+      Goal.new(player_id: player.player_id, game_id: game.id, team_id: player.team_id, time: minute, penalty: false, own_goal: false, aet: incident_extra_time?(s)).save! if player
     end
     if s["incidentType"] == "goal" and s["incidentClass"] == "penalty" and not s["player"].nil?
       player = players[s["player"]["id"]]
@@ -545,7 +536,7 @@ def get_scorers(game, lineup_url, incidents_url)
         player = players_by_name[s["pos"]][best_match]
         Rails.logger.info "#{s["pl_name"]} - #{best_match}"
       end
-      Goal.new(player_id: player.player_id, game_id: game.id, team_id: player.team_id, time: minute, penalty: true, own_goal: false, aet: minute > 90).save! if player
+      Goal.new(player_id: player.player_id, game_id: game.id, team_id: player.team_id, time: minute, penalty: true, own_goal: false, aet: incident_extra_time?(s)).save! if player
     end
     if s["incidentType"] == "goal" and s["incidentClass"] == "ownGoal"
       player = players[s["player"]["id"]]
@@ -554,7 +545,7 @@ def get_scorers(game, lineup_url, incidents_url)
         player = players_by_name[1 - s["pos"]][best_match]
         Rails.logger.info "#{s["pl_name"]} - #{best_match}"
       end
-      Goal.new(player_id: player.player_id, game_id: game.id, team_id: player.team_id, time: minute, penalty: false, own_goal: true, aet: minute > 90).save! if player
+      Goal.new(player_id: player.player_id, game_id: game.id, team_id: player.team_id, time: minute, penalty: false, own_goal: true, aet: incident_extra_time?(s)).save! if player
     end
     if s["incidentType"] == "card" and s["incidentClass"] == "yellow"
       # May be a coach
@@ -594,6 +585,57 @@ def get_scorers(game, lineup_url, incidents_url)
   players.values.each do |p|
     p.save!
   end
+end
+
+def incident_minute(incident)
+  minute = incident["time"]
+  if not minute and incident["timeSeconds"]
+    minute = incident["timeSeconds"] / 60 + 1
+  end
+  minute || 0
+end
+
+def incident_extra_time?(incident)
+  incident_minute(incident) > 90
+end
+
+def extract_sofascore_scores(home_score, away_score)
+  full_time_home = score_value(home_score, ["normaltime", "NORMAL_TIME", "FINAL_RESULT", "finalResult"])
+  full_time_away = score_value(away_score, ["normaltime", "NORMAL_TIME", "FINAL_RESULT", "finalResult"])
+
+  extra_total_home = score_value(home_score, ["afterExtraTime", "extraTime", "EXTRA_TIME", "overtime", "OVER_TIME"])
+  extra_total_away = score_value(away_score, ["afterExtraTime", "extraTime", "EXTRA_TIME", "overtime", "OVER_TIME"])
+
+  final_home = score_value(home_score, ["current", "display"])
+  final_away = score_value(away_score, ["current", "display"])
+
+  aet_home = nil
+  aet_away = nil
+  if !full_time_home.nil? && !full_time_away.nil? && !extra_total_home.nil? && !extra_total_away.nil?
+    aet_home = [extra_total_home - full_time_home, 0].max
+    aet_away = [extra_total_away - full_time_away, 0].max
+  end
+
+  {
+    full_time_home: full_time_home,
+    full_time_away: full_time_away,
+    final_home: final_home,
+    final_away: final_away,
+    aet_home: aet_home,
+    aet_away: aet_away,
+    pen_home: score_value(home_score, ["penalties", "PENALTIES"]),
+    pen_away: score_value(away_score, ["penalties", "PENALTIES"]),
+  }
+end
+
+def score_value(score, keys)
+  return nil unless score
+
+  keys.each do |key|
+    value = score[key]
+    return value.to_i unless value.nil?
+  end
+  nil
 end
 
 def process_player(s, game, team_id, end_of_match, starter)
