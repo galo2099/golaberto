@@ -81,7 +81,7 @@ fn load_goals(conn: &mut MysqlConnection, games: &[Game]) -> HashMap<i32, SmallV
             };
             h
         });
-    println!("goals {:?}", s.elapsed());
+    println!("Loaded goals grouped by game in {:?}", s.elapsed());
     x1
 }
 
@@ -124,7 +124,7 @@ fn load_ratings(
                 h
             },
         );
-    println!("ratings {:?}", s.elapsed());
+    println!("Loaded historical team ratings in {:?}", s.elapsed());
     x1
 }
 
@@ -166,7 +166,10 @@ fn load_players(conn: &mut MysqlConnection, games: &[Game]) -> HashMap<i32, Vec<
             }
             h
         });
-    println!("players {:?}", s.elapsed());
+    println!(
+        "Loaded player game records (with positions) in {:?}",
+        s.elapsed()
+    );
     x1
 }
 
@@ -179,7 +182,7 @@ fn squash_date(timestamp: i64, now: i64) -> f32 {
 fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
     let start = Instant::now();
     let games = Arc::new(load_games(&mut pool.get().unwrap()));
-    println!("{:?}", start.elapsed());
+    println!("Loaded games from DB in {:?}", start.elapsed());
 
     let (goals, mut ratings, players) = thread::scope(|s| {
         let g1 = games.clone();
@@ -201,11 +204,14 @@ fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
         )
     });
 
-    println!("{:?}", start.elapsed());
-    println!("{:?}", games.len());
-    println!("{:?}", goals.len());
-    println!("{:?}", ratings.len());
-    println!("{:?}", players.len());
+    println!(
+        "Loaded goals, ratings, and player records in parallel in {:?}",
+        start.elapsed()
+    );
+    println!("Loaded {} games for player rating computation", games.len());
+    println!("Loaded goal maps for {} games", goals.len());
+    println!("Loaded rating histories for {} teams", ratings.len());
+    println!("Loaded player entries for {} games", players.len());
 
     struct PlayerRating {
         off: f32,
@@ -546,7 +552,10 @@ fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
         }
     }
 
-    println!("{:?}", start.elapsed());
+    println!(
+        "Computed player and player-game ratings in {:?}",
+        start.elapsed()
+    );
 
     let now = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S");
     let mut handles = Vec::new();
@@ -568,7 +577,10 @@ fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
         }));
     }
 
-    println!("{}", player_game_ratings.len());
+    println!(
+        "Prepared {} player_game rating rows for upsert",
+        player_game_ratings.len()
+    );
     for c in &player_game_ratings.iter().chunks(50000) {
         let statement = sql_query("INSERT INTO player_games (id, game_id, off_rating, def_rating) VALUES ".to_owned() +
             &c.map(
@@ -590,8 +602,8 @@ fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
     for h in handles {
         h.join().unwrap();
     }
-    println!("{:?}", player_ratings.len());
-    println!("{:?}", start.elapsed());
+    println!("Upserted ratings for {} players", player_ratings.len());
+    println!("Finished compute_ratings in {:?}", start.elapsed());
 }
 
 fn json_header() -> Header {
