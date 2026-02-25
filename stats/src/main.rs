@@ -213,7 +213,7 @@ fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
         minutes: f32,
     }
     let mut player_ratings = HashMap::<i32, PlayerRating>::new();
-    let mut player_game_ratings = HashMap::<i32, PlayerRating>::new();
+    let mut player_game_ratings = HashMap::<(i32, i32), PlayerRating>::new();
     for game in games.iter() {
         if players.get(&game.id).is_none() {
             continue;
@@ -369,8 +369,9 @@ fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
                         def: 0.0,
                         minutes: 0.0,
                     });
-                let player_game_rating =
-                    player_game_ratings.entry(v.pg.id).or_insert(PlayerRating {
+                let player_game_rating = player_game_ratings
+                    .entry((v.pg.id, v.pg.game_id))
+                    .or_insert(PlayerRating {
                         off: 0.0,
                         def: 0.0,
                         minutes: 0.0,
@@ -491,8 +492,9 @@ fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
                         def: 0.0,
                         minutes: 0.0,
                     });
-                let player_game_rating =
-                    player_game_ratings.entry(v.pg.id).or_insert(PlayerRating {
+                let player_game_rating = player_game_ratings
+                    .entry((v.pg.id, v.pg.game_id))
+                    .or_insert(PlayerRating {
                         off: 0.0,
                         def: 0.0,
                         minutes: 0.0,
@@ -568,32 +570,18 @@ fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
 
     println!("{}", player_game_ratings.len());
     for c in &player_game_ratings.iter().chunks(50000) {
-        let chunk = c.collect::<Vec<(&i32, &PlayerRating)>>();
-        if chunk.is_empty() {
-            continue;
-        }
-
-        let ids = chunk
-            .iter()
-            .map(|(k, _)| k.to_string())
-            .collect::<Vec<String>>()
-            .join(",");
-        let off_cases = chunk
-            .iter()
-            .map(|(k, v)| format!("WHEN {} THEN {}", k, v.off))
-            .collect::<Vec<String>>()
-            .join(" ");
-        let def_cases = chunk
-            .iter()
-            .map(|(k, v)| format!("WHEN {} THEN {}", k, v.def))
-            .collect::<Vec<String>>()
-            .join(" ");
-
+        let statement = sql_query("INSERT INTO player_games (id, game_id, off_rating, def_rating) VALUES ".to_owned() +
+            &c.map(
+                |((id, game_id), v)|
+                    format!("({}, {}, {}, {})",
+                            id,
+                            game_id,
+                            v.off,
+                            v.def))
+                .collect::<Vec<String>>()
+                .join(",") +
+            " ON DUPLICATE KEY UPDATE off_rating=VALUES(off_rating),def_rating=VALUES(def_rating)");
         let pool = pool.clone();
-        let statement = sql_query(format!(
-            "UPDATE player_games SET off_rating = CASE id {} END, def_rating = CASE id {} END WHERE id IN ({})",
-            off_cases, def_cases, ids
-        ));
         handles.push(thread::spawn(move || {
             statement.execute(&mut pool.get().unwrap()).unwrap();
         }));
