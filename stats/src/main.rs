@@ -213,7 +213,7 @@ fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
         minutes: f32,
     }
     let mut player_ratings = HashMap::<i32, PlayerRating>::new();
-    let mut player_game_ratings = HashMap::<i32, PlayerRating>::new();
+    let mut player_game_ratings = HashMap::<(i32, i32), PlayerRating>::new();
     for game in games.iter() {
         if players.get(&game.id).is_none() {
             continue;
@@ -369,8 +369,9 @@ fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
                         def: 0.0,
                         minutes: 0.0,
                     });
-                let player_game_rating =
-                    player_game_ratings.entry(v.pg.id).or_insert(PlayerRating {
+                let player_game_rating = player_game_ratings
+                    .entry((v.pg.id, v.pg.game_id))
+                    .or_insert(PlayerRating {
                         off: 0.0,
                         def: 0.0,
                         minutes: 0.0,
@@ -396,7 +397,8 @@ fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
                     .filter(|x| x.player_id == v.pg.player_id)
                     .count();
 
-                let off = off_penalty_interval * minutes / (hp.len() as f32) + minutes * home_for_zero_per90 * off_player_weight
+                let off = off_penalty_interval * minutes / (hp.len() as f32)
+                    + minutes * home_for_zero_per90 * off_player_weight
                     + home_goals_own as f32 * home_for_goal_weight * off_player_weight
                         / (hp.len() as f32)
                     + (home_goals_regular.len() as f32) * home_for_goal_weight * off_player_weight
@@ -409,9 +411,10 @@ fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
                         * 5.0
                     + regular_goals as f32 * home_for_goal_weight / 4.0
                     + penalty_goals as f32 * home_for_goal_weight / 6.0;
-                let def = def_penalty_interval * minutes / (hp.len() as f32) + (minutes * home_agg_zero_per90
-                    + away_goals_interval as f32 * home_agg_goal_weight / (hp.len() as f32))
-                    * def_w[&*v.pos];
+                let def = def_penalty_interval * minutes / (hp.len() as f32)
+                    + (minutes * home_agg_zero_per90
+                        + away_goals_interval as f32 * home_agg_goal_weight / (hp.len() as f32))
+                        * def_w[&*v.pos];
                 player_rating.off += off * weight;
                 player_rating.def += def * weight;
                 player_game_rating.off += off;
@@ -489,8 +492,9 @@ fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
                         def: 0.0,
                         minutes: 0.0,
                     });
-                let player_game_rating =
-                    player_game_ratings.entry(v.pg.id).or_insert(PlayerRating {
+                let player_game_rating = player_game_ratings
+                    .entry((v.pg.id, v.pg.game_id))
+                    .or_insert(PlayerRating {
                         off: 0.0,
                         def: 0.0,
                         minutes: 0.0,
@@ -516,7 +520,8 @@ fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
                     .filter(|x| x.player_id == v.pg.player_id)
                     .count();
 
-                let off = off_penalty_interval * minutes / (ap.len() as f32) + minutes * away_for_zero_per90 * off_player_weight
+                let off = off_penalty_interval * minutes / (ap.len() as f32)
+                    + minutes * away_for_zero_per90 * off_player_weight
                     + away_goals_own as f32 * away_for_goal_weight * off_player_weight
                         / (ap.len() as f32)
                     + (away_goals_regular.len() as f32) * away_for_goal_weight * off_player_weight
@@ -529,9 +534,10 @@ fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
                         * 5.0
                     + regular_goals as f32 * away_for_goal_weight / 4.0
                     + penalty_goals as f32 * away_for_goal_weight / 6.0;
-                let def = def_penalty_interval * minutes / (ap.len() as f32) + (minutes * away_agg_zero_per90
-                    + home_goals_interval as f32 * away_agg_goal_weight / (ap.len() as f32))
-                    * def_w[&*v.pos];
+                let def = def_penalty_interval * minutes / (ap.len() as f32)
+                    + (minutes * away_agg_zero_per90
+                        + home_goals_interval as f32 * away_agg_goal_weight / (ap.len() as f32))
+                        * def_w[&*v.pos];
                 player_rating.off += off * weight;
                 player_rating.def += def * weight;
                 player_game_rating.off += off;
@@ -564,17 +570,18 @@ fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
 
     println!("{}", player_game_ratings.len());
     for c in &player_game_ratings.iter().chunks(50000) {
-        let pool = pool.clone();
-        let statement = sql_query("INSERT INTO player_games (id, off_rating, def_rating) VALUES ".to_owned() +
+        let statement = sql_query("INSERT INTO player_games (id, game_id, off_rating, def_rating) VALUES ".to_owned() +
             &c.map(
-                |(k, v)|
-                    format!("({}, {}, {})",
-                            k,
+                |((id, game_id), v)|
+                    format!("({}, {}, {}, {})",
+                            id,
+                            game_id,
                             v.off,
                             v.def))
                 .collect::<Vec<String>>()
                 .join(",") +
             " ON DUPLICATE KEY UPDATE off_rating=VALUES(off_rating),def_rating=VALUES(def_rating)");
+        let pool = pool.clone();
         handles.push(thread::spawn(move || {
             statement.execute(&mut pool.get().unwrap()).unwrap();
         }));
@@ -605,8 +612,7 @@ fn main() {
                 println!("Received player_ratings request, computing...");
                 compute_ratings(&pool);
                 let _ = request.respond(
-                    Response::from_string("{\"status\":\"ok\"}")
-                        .with_header(json_header()),
+                    Response::from_string("{\"status\":\"ok\"}").with_header(json_header()),
                 );
             }
             _ => {
