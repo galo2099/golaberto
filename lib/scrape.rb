@@ -358,9 +358,23 @@ def rounds_to_update(phase)
 end
 
 def parse_match(phase, data, match, rounds, create_groups = false, refetch = false)
-  if match["status"]["type"] == "postponed" or match["status"]["type"] == "canceled"
+  status = match["status"]["type"]
+  sofascore_id = match["id"]
+  round = match.dig("roundInfo", "round")&.to_i
+
+  if status == "postponed"
+    postponed_game = phase.games.where(sofascore_id: sofascore_id).first
+    if postponed_game and postponed_game.has_time
+      postponed_game.has_time = false
+      postponed_game.save!
+    end
     return
   end
+
+  if status == "canceled"
+    return
+  end
+
   fuzzy_match = FuzzyTeamMatch.new
   datetime = Time.at(match["startTimestamp"].to_i).to_datetime
   home_team = match["homeTeam"]
@@ -393,12 +407,24 @@ def parse_match(phase, data, match, rounds, create_groups = false, refetch = fal
   Rails.logger.info "#{home_name} #{home.name}"
   Rails.logger.info "#{away_name} #{away.name}"
   g = nil
-  sofascore_id = match["id"]
   g = phase.games.where(sofascore_id: sofascore_id).includes(:goals, :player_games).first
-  # legacy
-  round = match.dig("roundInfo", "round")&.to_i
   unless g
-    g = phase.games.where(home_id: home.id, away_id: away.id, round: round, sofascore_id: nil).includes(:goals, :player_games).first
+    duplicate_games = phase.games
+      .where(home_id: home.id, away_id: away.id, round: round, played: false)
+      .includes(:goals, :player_games)
+      .order(date: :desc, id: :desc)
+      .to_a
+
+    g = duplicate_games.first
+
+    duplicate_games.drop(1).each do |duplicate_game|
+      next unless duplicate_game.goals.empty? && duplicate_game.player_games.empty?
+
+      Rails.logger.info "Dropping postponed duplicate game #{duplicate_game.id} for round #{round}"
+      duplicate_game.destroy
+    end
+
+    g ||= phase.games.where(home_id: home.id, away_id: away.id, round: round, sofascore_id: nil).includes(:goals, :player_games).first
   end
   unless g
     g = phase.games.build({:home_id => home.id, :away_id => away.id})
