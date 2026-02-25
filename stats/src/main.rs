@@ -179,6 +179,11 @@ fn squash_date(timestamp: i64, now: i64) -> f32 {
     1.0 + (E.powf(x) - E.powf(-x)) / (E.powf(x) + E.powf(-x))
 }
 
+fn squash_rating(minutes: f32) -> f32 {
+    use std::f32::consts::E;
+    1.0 / (1.0 + E.powf(-(minutes - 2000.0) / 400.0))
+}
+
 fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
     let start = Instant::now();
     let games = Arc::new(load_games(&mut pool.get().unwrap()));
@@ -332,6 +337,8 @@ fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
             let off_w = HashMap::from([
                 ("g", off_windividual * 0.3),
                 ("dc", off_windividual * 0.7),
+                ("dl", off_windividual * 0.7),
+                ("dr", off_windividual * 0.7),
                 ("cm", off_windividual),
                 ("fw", off_windividual * 1.0),
                 ("", off_windividual),
@@ -341,6 +348,8 @@ fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
             let def_w = HashMap::from([
                 ("g", def_windividual * 4.0),
                 ("dc", def_windividual * 2.0),
+                ("dr", def_windividual * 2.0),
+                ("dl", def_windividual * 2.0),
                 ("cm", def_windividual),
                 ("fw", def_windividual * 0.5),
                 ("", def_windividual),
@@ -455,6 +464,8 @@ fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
             let off_w = HashMap::from([
                 ("g", off_windividual * 0.3),
                 ("dc", off_windividual * 0.7),
+                ("dl", off_windividual * 0.7),
+                ("dr", off_windividual * 0.7),
                 ("cm", off_windividual),
                 ("fw", off_windividual * 1.0),
                 ("", off_windividual),
@@ -464,6 +475,8 @@ fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
             let def_w = HashMap::from([
                 ("g", def_windividual * 4.0),
                 ("dc", def_windividual * 2.0),
+                ("dr", def_windividual * 2.0),
+                ("dl", def_windividual * 2.0),
                 ("cm", def_windividual),
                 ("fw", def_windividual * 0.5),
                 ("", def_windividual),
@@ -568,7 +581,7 @@ fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
                                 k,
                                 v.off / v.minutes * 90.0,
                                 v.def / v.minutes * 90.0,
-                                (v.off + v.def) / (v.minutes + 900.0) * 90.0, now, now))
+                                (v.off + v.def) / v.minutes * 90.0 * squash_rating(v.minutes), now, now))
                     .collect::<Vec<String>>()
                     .join(",") +
                 " ON DUPLICATE KEY UPDATE off_rating=VALUES(off_rating),def_rating=VALUES(def_rating),rating=VALUES(rating),updated_at=VALUES(updated_at)");
