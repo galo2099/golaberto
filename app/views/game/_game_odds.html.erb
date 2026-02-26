@@ -128,7 +128,7 @@ $(function() {
       added_time = 0;
     }
     var extra_time_duration = 35;
-    var went_to_extra_time = <%= (@game.played? && (!@game.home_aet.nil? || !@game.away_aet.nil?)) ? 'true' : 'false' %>;
+    var went_to_extra_time = <%= (!@game.home_aet.nil? || !@game.away_aet.nil?) ? 'true' : 'false' %>;
     var include_extra_time = went_to_extra_time || $("#odds_extra_time").is(":checked");
     if ($('#odds_set_time').val() != "") {
       current_time = parseInt($('#odds_set_time').val(), 10) * 60;
@@ -241,8 +241,9 @@ $(function() {
         home_power *= 1.25 ** away_red[x];
         away_power *= 0.8 ** away_red[x];
       }
-      var hp = home_power / 95 * (total_time - x);
-      var ap = away_power / 95 * (total_time - x);
+      var remaining_time = x <= regular_time ? (regular_time - x) : (total_time - x);
+      var hp = home_power / 95 * remaining_time;
+      var ap = away_power / 95 * remaining_time;
       var home_adv = 0;
       var away_adv = 0;
       if (score_array[x] > 0) {
@@ -326,9 +327,10 @@ $(function() {
     clearInterval(myTimer);
     var timer = function() {
       current_time += 1.0;
-      if (current_time <= 90*60 + added_time*60) {
-        var hp = home_power / (95*60) * (total_time*60 - current_time);
-        var ap = away_power / (95*60) * (total_time*60 - current_time);
+      if (current_time <= total_time*60) {
+        var remaining_seconds = current_time <= regular_time*60 ? (regular_time*60 - current_time) : (total_time*60 - current_time);
+        var hp = home_power / (95*60) * remaining_seconds;
+        var ap = away_power / (95*60) * remaining_seconds;
         var home_adv = 0;
         var away_adv = 0;
         if (score_array[Math.floor(current_time/60)] > 0) {
@@ -403,7 +405,7 @@ $(function() {
 <br>
 <%= _("Added time") %>: <input class="odds_selector" id="odds_added_time" type="text" size="3" value="5"><br>
 <label>
-  <input class="odds_selector" id="odds_extra_time" type="checkbox" <%= @game.played? ? "checked='checked' disabled='disabled'".html_safe : "" %>>
+  <input class="odds_selector" id="odds_extra_time" type="checkbox" <%= (!@game.home_aet.nil? || !@game.away_aet.nil?) ? "checked='checked'".html_safe : "" %> <%= @game.played? ? "disabled='disabled'".html_safe : "" %>>
   <%= _("Include extra time") %> (30+5)
 </label><br>
 <%= _("Start time") %>: <input class="odds_selector" id="odds_set_time" type="text" size="3" value="">
