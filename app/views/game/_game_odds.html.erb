@@ -128,7 +128,8 @@ $(function() {
       added_time = 0;
     }
     var extra_time_duration = 35;
-    var include_extra_time = <%= @game.played? ? 'true' : '$("#odds_extra_time").is(":checked")' %>;
+    var went_to_extra_time = <%= (@game.played? && (!@game.home_aet.nil? || !@game.away_aet.nil?)) ? 'true' : 'false' %>;
+    var include_extra_time = went_to_extra_time || $("#odds_extra_time").is(":checked");
     if ($('#odds_set_time').val() != "") {
       current_time = parseInt($('#odds_set_time').val(), 10) * 60;
       $('#odds_set_time').val("");
