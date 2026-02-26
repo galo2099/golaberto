@@ -621,12 +621,8 @@ def extract_sofascore_scores(home_score, away_score)
   final_home = score_value(home_score, ["current", "display"])
   final_away = score_value(away_score, ["current", "display"])
 
-  aet_home = nil
-  aet_away = nil
-  if !full_time_home.nil? && !full_time_away.nil? && !extra_total_home.nil? && !extra_total_away.nil?
-    aet_home = [extra_total_home - full_time_home, 0].max
-    aet_away = [extra_total_away - full_time_away, 0].max
-  end
+  aet_home = extract_aet_goals(home_score, full_time_home, final_home, extra_total_home)
+  aet_away = extract_aet_goals(away_score, full_time_away, final_away, extra_total_away)
 
   {
     full_time_home: full_time_home,
@@ -638,6 +634,31 @@ def extract_sofascore_scores(home_score, away_score)
     pen_home: score_value(home_score, ["penalties", "PENALTIES"]),
     pen_away: score_value(away_score, ["penalties", "PENALTIES"]),
   }
+end
+
+def extract_aet_goals(score, full_time, final_score, extra_total)
+  period_extra_goals = score_sum(score, ["extra1", "extra2"])
+  return period_extra_goals unless period_extra_goals.nil?
+
+  return nil if full_time.nil? || extra_total.nil?
+
+  extra_goal_delta = extra_total - full_time
+  return extra_goal_delta if extra_goal_delta > 0
+
+  if !final_score.nil? && full_time + extra_total == final_score
+    return extra_total
+  end
+
+  [extra_goal_delta, 0].max
+end
+
+def score_sum(score, keys)
+  return nil unless score
+
+  values = keys.map { |key| score[key] }.compact
+  return nil if values.empty?
+
+  values.sum { |value| value.to_i }
 end
 
 def score_value(score, keys)
