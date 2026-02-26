@@ -478,13 +478,25 @@ def get_scorers(game, lineup_url, incidents_url)
     return
   end
   incidents = ChampionshipGet.get(incidents_url)
+  incidents_list = incidents["incidents"] || []
+
+  has_extra_time_period = incidents_list.any? do |incident|
+    incident["incidentType"] == "period" and incident["time"].to_i < 999 and incident_minute(incident) > 90
+  end
+
+  if not has_extra_time_period
+    game.home_aet = nil
+    game.away_aet = nil
+    game.save! if game.changed?
+  end
+
   game.goals.clear
   game.player_games.clear
   players = {}
   players_by_name = { 0 => {}, 1 => {} }
   players_by_id = {}
   off = 0
-  incidents["incidents"].each do |s|
+  incidents_list.each do |s|
     if s["incidentType"] == "period" and s["time"] < 999
       minute = incident_minute(s)
       off = [off, minute].max
@@ -518,7 +530,7 @@ def get_scorers(game, lineup_url, incidents_url)
   end
 
   fuzzy_match = FuzzyTeamMatch.new
-  incidents["incidents"].each do |s|
+  incidents_list.each do |s|
     minute = incident_minute(s)
     if s["incidentType"] == "goal" and s["incidentClass"] == "regular" and not s["player"].nil?
       player = players[s["player"]["id"]]
