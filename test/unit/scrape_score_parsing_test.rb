@@ -39,4 +39,14 @@ class ScrapeScoreParsingTest < ActiveSupport::TestCase
     assert_nil scores[:aet_home]
     assert_nil scores[:aet_away]
   end
+
+  test "extract_sofascore_scores handles overtime as extra-time-only goals" do
+    home_score = { "current" => 0, "display" => 0, "normaltime" => 0, "overtime" => 0, "extra1" => 0, "extra2" => 0 }
+    away_score = { "current" => 2, "display" => 2, "normaltime" => 1, "overtime" => 1, "extra1" => 1, "extra2" => 0 }
+
+    scores = extract_sofascore_scores(home_score, away_score)
+
+    assert_equal 0, scores[:aet_home]
+    assert_equal 1, scores[:aet_away]
+  end
 end
