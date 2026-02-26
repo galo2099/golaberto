@@ -124,11 +124,17 @@ $(function() {
     var away_power = <%= @game.away_power %>
 
     var added_time = parseInt($('#odds_added_time').val(), 10);
+    if (isNaN(added_time)) {
+      added_time = 0;
+    }
+    var extra_time_duration = 35;
+    var include_extra_time = <%= @game.played? ? 'true' : '$("#odds_extra_time").is(":checked")' %>;
     if ($('#odds_set_time').val() != "") {
       current_time = parseInt($('#odds_set_time').val(), 10) * 60;
       $('#odds_set_time').val("");
     }
-    var total_time = 90 + added_time;
+    var regular_time = 90 + added_time;
+    var total_time = regular_time + (include_extra_time ? extra_time_duration : 0);
     graphOptions.xaxes[1].max = total_time;
 
     var score_array = [...Array(total_time+1).keys()].map(function(x) { return 0; });
@@ -143,9 +149,13 @@ $(function() {
     }, {
       xaxis: { from: 0, to: 0 }, color: "rgba(0,0,0,0.15)"
     }];
-    var ticks = [[0, ''], [95, '']];
+    var ticks = [[0, ''], [regular_time, '']];
     var home_score = 0;
     var away_score = 0;
+    var home_regular_score = 0;
+    var away_regular_score = 0;
+    var home_extra_score = 0;
+    var away_extra_score = 0;
     for (var i = 0; i < home_red.length; i++) {
       if (home_red[i] >= 1) {
         var time = i;
@@ -165,7 +175,14 @@ $(function() {
         odds_goal_list[i].checked = "home";
         var time = parseInt($('#odds_goal_time_' + i).val(), 10);
         odds_goal_list[i].time = time;
-        home_score += 1;
+        if (include_extra_time && time > regular_time) {
+          home_extra_score += 1;
+          home_score = home_extra_score;
+          away_score = away_extra_score;
+        } else {
+          home_score += 1;
+          home_regular_score += 1;
+        }
         markings.push({ xaxis: { from: time, to: time }, color: "rgba(237,195,64,0.2)" });
 	ticks.push([time, "" + home_score + "-" + away_score]);
         for (var j = time; j < total_time + 1; j++) {
@@ -176,13 +193,30 @@ $(function() {
         odds_goal_list[i].checked = "away";
         var time = parseInt($('#odds_goal_time_' + i).val(), 10);
         odds_goal_list[i].time = time;
-        away_score += 1;
+        if (include_extra_time && time > regular_time) {
+          away_extra_score += 1;
+          home_score = home_extra_score;
+          away_score = away_extra_score;
+        } else {
+          away_score += 1;
+          away_regular_score += 1;
+        }
         markings.push({ xaxis: { from: time, to: time }, color: "rgba(202,76,75,0.2)" });
 	ticks.push([time, "" + home_score + "-" + away_score]);
         for (var j = time; j < total_time + 1; j++) {
           score_array[j] -= 1;
         }
       }
+    }
+
+    if (include_extra_time) {
+      var regular_score_diff = home_regular_score - away_regular_score;
+      for (var j = regular_time; j < total_time + 1; j++) {
+        score_array[j] -= regular_score_diff;
+      }
+      markings.push({ xaxis: { from: regular_time, to: regular_time }, color: "rgba(0,0,0,0.5)", lineWidth: 2 });
+      markings.push({ xaxis: { from: regular_time, to: total_time }, color: "rgba(0,0,0,0.03)" });
+      ticks.push([regular_time, "ET 0-0"]);
     }
 
     // Sort ticks by time
@@ -367,6 +401,10 @@ $(function() {
 <%= _("Current time") %>: <span id="odds_current_time">0</span><br>
 <br>
 <%= _("Added time") %>: <input class="odds_selector" id="odds_added_time" type="text" size="3" value="5"><br>
+<label>
+  <input class="odds_selector" id="odds_extra_time" type="checkbox" <%= @game.played? ? "checked='checked' disabled='disabled'".html_safe : "" %>>
+  <%= _("Include extra time") %> (30+5)
+</label><br>
 <%= _("Start time") %>: <input class="odds_selector" id="odds_set_time" type="text" size="3" value="">
 <div>
 <input type="button" value="<%= _("Add goal") %>" id="odds_add_goal"><br>
