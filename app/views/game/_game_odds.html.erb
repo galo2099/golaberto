@@ -272,18 +272,22 @@ $(function() {
     var graph_points = [...Array(graph_max + 1).keys()];
     var odds_data = graph_points.map(function(graph_x) {
       var minute = include_extra_time && graph_x > regular_time ? (graph_x - regular_stoppage_time) : graph_x;
-      if (home_red[minute] >= 1) {
-        home_power *= 0.8 ** home_red[minute];
-        away_power *= 1.25 ** home_red[minute];
+      var state_minute = minute;
+      if (include_extra_time && graph_x > regular_events_end && graph_x <= regular_time) {
+        state_minute = regular_events_end;
       }
-      if (away_red[minute] >= 1) {
-        home_power *= 1.25 ** away_red[minute];
-        away_power *= 0.8 ** away_red[minute];
+      if (home_red[state_minute] >= 1) {
+        home_power *= 0.8 ** home_red[state_minute];
+        away_power *= 1.25 ** home_red[state_minute];
       }
-      var remaining_time = graph_x <= regular_time ? (regular_time - minute) : (extra_time_end - graph_x);
+      if (away_red[state_minute] >= 1) {
+        home_power *= 1.25 ** away_red[state_minute];
+        away_power *= 0.8 ** away_red[state_minute];
+      }
+      var remaining_time = graph_x <= regular_time ? (regular_time - graph_x) : (extra_time_end - graph_x);
       var hp = home_power / 95 * remaining_time;
       var ap = away_power / 95 * remaining_time;
-      var adjusted_score = score_array[minute];
+      var adjusted_score = score_array[state_minute];
       if (include_extra_time && graph_x > regular_time) {
         adjusted_score -= regular_score_diff;
       }
@@ -386,7 +390,11 @@ $(function() {
         var hp = home_power / (95*60) * remaining_seconds;
         var ap = away_power / (95*60) * remaining_seconds;
         var minute_index = Math.min(Math.floor(minute), max_minute);
-        var adjusted_score = score_array[minute_index];
+        var state_minute = minute_index;
+        if (include_extra_time && graph_minute > regular_events_end && graph_minute <= regular_time) {
+          state_minute = regular_events_end;
+        }
+        var adjusted_score = score_array[state_minute];
         if (include_extra_time && graph_minute > regular_time) {
           adjusted_score -= regular_score_diff;
         }
