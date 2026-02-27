@@ -128,19 +128,31 @@ $(function() {
       added_time = 0;
     }
     var extra_time_duration = 35;
+    var regular_base_time = 90;
+    var extra_time_start = 90;
     var went_to_extra_time = <%= (!@game.home_aet.nil? || !@game.away_aet.nil?) ? 'true' : 'false' %>;
     var include_extra_time = went_to_extra_time || $("#odds_extra_time").is(":checked");
     if ($('#odds_set_time').val() != "") {
       current_time = parseInt($('#odds_set_time').val(), 10) * 60;
       $('#odds_set_time').val("");
     }
-    var regular_time = 90 + added_time;
-    var total_time = regular_time + (include_extra_time ? extra_time_duration : 0);
-    graphOptions.xaxes[1].max = total_time;
+    var regular_time = regular_base_time + added_time;
+    var extra_time_end = 120 + added_time;
+    var timeline_gap = include_extra_time ? 2 : 0;
+    var max_minute = include_extra_time ? extra_time_end : regular_time;
+    var graph_max = include_extra_time ? regular_time + timeline_gap + (extra_time_end - extra_time_start) : regular_time;
+    graphOptions.xaxes[1].max = graph_max;
 
-    var score_array = [...Array(total_time+1).keys()].map(function(x) { return 0; });
-    var home_red = [...Array(total_time+1).keys()].map(function(x) { return 0; });
-    var away_red = [...Array(total_time+1).keys()].map(function(x) { return 0; });
+    var to_graph_time = function(minute) {
+      if (!include_extra_time || minute <= regular_time) {
+        return minute;
+      }
+      return regular_time + timeline_gap + (minute - extra_time_start);
+    };
+
+    var score_array = [...Array(max_minute+1).keys()].map(function(x) { return 0; });
+    var home_red = [...Array(max_minute+1).keys()].map(function(x) { return 0; });
+    var away_red = [...Array(max_minute+1).keys()].map(function(x) { return 0; });
 
     <%= @game.player_games.where(red: true, team_id: @game.home_id).where("off > 0").pluck(:off) %>.map(function(x) { home_red[x] += 1; });
     <%= @game.player_games.where(red: true, team_id: @game.away_id).where("off > 0").pluck(:off) %>.map(function(x) { away_red[x] += 1; });
@@ -150,7 +162,7 @@ $(function() {
     }, {
       xaxis: { from: 0, to: 0 }, color: "rgba(0,0,0,0.15)"
     }];
-    var ticks = [[0, ''], [regular_time, '']];
+    var ticks = [[0, ''], [regular_time, '' ]];
     var home_score = 0;
     var away_score = 0;
     var home_regular_score = 0;
@@ -160,15 +172,17 @@ $(function() {
     for (var i = 0; i < home_red.length; i++) {
       if (home_red[i] >= 1) {
         var time = i;
-        markings.push({ xaxis: { from: time, to: time }, color: "rgba(237,195,64,0.2)" });
-        ticks.push([time, "\u2588"]);
+        var graph_time = to_graph_time(time);
+        markings.push({ xaxis: { from: graph_time, to: graph_time }, color: "rgba(237,195,64,0.2)" });
+        ticks.push([graph_time, "\u2588"]);
       }
     }
     for (var i = 0; i < away_red.length; i++) {
       if (away_red[i] >= 1) {
         var time = i;
-        markings.push({ xaxis: { from: time, to: time }, color: "rgba(237,195,64,0.2)" });
-        ticks.push([time, "\u2588"]);
+        var graph_time = to_graph_time(time);
+        markings.push({ xaxis: { from: graph_time, to: graph_time }, color: "rgba(237,195,64,0.2)" });
+        ticks.push([graph_time, "\u2588"]);
       }
     }
     for (var i = 0; i < odds_goal_list.length; i++) {
@@ -184,9 +198,10 @@ $(function() {
           home_score += 1;
           home_regular_score += 1;
         }
-        markings.push({ xaxis: { from: time, to: time }, color: "rgba(237,195,64,0.2)" });
-	ticks.push([time, "" + home_score + "-" + away_score]);
-        for (var j = time; j < total_time + 1; j++) {
+        var graph_time = to_graph_time(time);
+        markings.push({ xaxis: { from: graph_time, to: graph_time }, color: "rgba(237,195,64,0.2)" });
+	ticks.push([graph_time, "" + home_score + "-" + away_score]);
+        for (var j = time; j < max_minute + 1; j++) {
           score_array[j] += 1;
         }
       }
@@ -202,9 +217,10 @@ $(function() {
           away_score += 1;
           away_regular_score += 1;
         }
-        markings.push({ xaxis: { from: time, to: time }, color: "rgba(202,76,75,0.2)" });
-	ticks.push([time, "" + home_score + "-" + away_score]);
-        for (var j = time; j < total_time + 1; j++) {
+        var graph_time = to_graph_time(time);
+        markings.push({ xaxis: { from: graph_time, to: graph_time }, color: "rgba(202,76,75,0.2)" });
+	ticks.push([graph_time, "" + home_score + "-" + away_score]);
+        for (var j = time; j < max_minute + 1; j++) {
           score_array[j] -= 1;
         }
       }
@@ -212,19 +228,22 @@ $(function() {
 
     if (include_extra_time) {
       var regular_score_diff = home_regular_score - away_regular_score;
-      for (var j = regular_time; j < total_time + 1; j++) {
+      for (var j = extra_time_start; j < extra_time_end + 1; j++) {
         score_array[j] -= regular_score_diff;
       }
       markings.push({ xaxis: { from: regular_time, to: regular_time }, color: "rgba(0,0,0,0.5)", lineWidth: 2 });
-      markings.push({ xaxis: { from: regular_time, to: total_time }, color: "rgba(0,0,0,0.03)" });
-      ticks.push([regular_time, "ET 0-0"]);
+      markings.push({ xaxis: { from: regular_time, to: regular_time + timeline_gap }, color: "rgba(0,0,0,0.08)" });
+      markings.push({ xaxis: { from: regular_time + timeline_gap, to: graph_max }, color: "rgba(0,0,0,0.03)" });
+      ticks.push([regular_time, "95"]);
+      ticks.push([regular_time + timeline_gap, "90"]);
+      ticks.push([graph_max, "125"]);
     }
 
     // Sort ticks by time
     ticks.sort(function(a, b) { return a[0] - b[0]; });
     // Remove ticks that are too close together
     for (var i = ticks.length - 1; i > 0; i--) {
-      if (ticks[i][0] - ticks[i-1][0] <= 3) {
+      if (ticks[i][0] - ticks[i-1][0] <= 1) {
         ticks.splice(i-1, 1);
       }
     }
@@ -232,28 +251,35 @@ $(function() {
     graphOptions.grid.markings = markings;
     graphOptions.xaxes[1].ticks = ticks;
 
-    var odds_data = [...Array(total_time+1).keys()].map(function(x) {
-      if (home_red[x] >= 1) {
-        home_power *= 0.8 ** home_red[x];
-        away_power *= 1.25 ** home_red[x];
+    var graph_points = [...Array(graph_max + 1).keys()];
+    var odds_data = graph_points.map(function(graph_x) {
+      if (include_extra_time && graph_x > regular_time && graph_x < regular_time + timeline_gap) {
+        return [graph_x, null, null, null];
       }
-      if (away_red[x] >= 1) {
-        home_power *= 1.25 ** away_red[x];
-        away_power *= 0.8 ** away_red[x];
+      var minute = graph_x <= regular_time ? graph_x : extra_time_start + (graph_x - (regular_time + timeline_gap));
+      if (home_red[minute] >= 1) {
+        home_power *= 0.8 ** home_red[minute];
+        away_power *= 1.25 ** home_red[minute];
       }
-      var remaining_time = x <= regular_time ? (regular_time - x) : (total_time - x);
+      if (away_red[minute] >= 1) {
+        home_power *= 1.25 ** away_red[minute];
+        away_power *= 0.8 ** away_red[minute];
+      }
+      var remaining_time = minute <= regular_time ? (regular_time - minute) : (extra_time_end - minute);
       var hp = home_power / 95 * remaining_time;
       var ap = away_power / 95 * remaining_time;
       var home_adv = 0;
       var away_adv = 0;
-      if (score_array[x] > 0) {
-        home_adv = score_array[x];
+      if (score_array[minute] > 0) {
+        home_adv = score_array[minute];
       }
-      if (score_array[x] < 0) {
-        away_adv = -score_array[x];
+      if (score_array[minute] < 0) {
+        away_adv = -score_array[minute];
       }
-      return [x].concat(compute_odds(hp, ap, home_adv, away_adv));
+      return [graph_x].concat(compute_odds(hp, ap, home_adv, away_adv));
    });
+
+
 
     <% odds = @game.odds %>
     var data = [
@@ -327,21 +353,25 @@ $(function() {
     clearInterval(myTimer);
     var timer = function() {
       current_time += 1.0;
-      if (current_time <= total_time*60) {
-        var remaining_seconds = current_time <= regular_time*60 ? (regular_time*60 - current_time) : (total_time*60 - current_time);
+      var total_seconds = regular_time * 60 + (include_extra_time ? extra_time_duration * 60 : 0);
+      if (current_time <= total_seconds) {
+        var minute = current_time <= regular_time * 60 ? (current_time / 60.0) : (extra_time_start + ((current_time - regular_time * 60) / 60.0));
+        var remaining_seconds = minute <= regular_time ? ((regular_time - minute) * 60) : ((extra_time_end - minute) * 60);
         var hp = home_power / (95*60) * remaining_seconds;
         var ap = away_power / (95*60) * remaining_seconds;
+        var minute_index = Math.floor(minute);
         var home_adv = 0;
         var away_adv = 0;
-        if (score_array[Math.floor(current_time/60)] > 0) {
-          home_adv = score_array[Math.floor(current_time/60)];
+        if (score_array[minute_index] > 0) {
+          home_adv = score_array[minute_index];
         }
-        if (score_array[Math.floor(current_time/60)] < 0) {
-          away_adv = -score_array[Math.floor(current_time/60)];
+        if (score_array[minute_index] < 0) {
+          away_adv = -score_array[minute_index];
         }
         var odds = compute_odds(hp, ap, home_adv, away_adv);
-        $('#odds_current_time').text(("" + Math.floor(current_time / 60)).padStart(2, '0') + ":" + ("" + (current_time % 60)).padStart(2, '0'));
-        plot.getOptions().grid.markings[1] = { xaxis: { from: current_time / 60, to: current_time/60 }, color: "rgba(0,0,0,0.15)" };
+        $('#odds_current_time').text(("" + Math.floor(minute)).padStart(2, '0') + ":" + ("" + (Math.floor(current_time) % 60)).padStart(2, '0'));
+        var graph_time = to_graph_time(minute);
+        plot.getOptions().grid.markings[1] = { xaxis: { from: graph_time, to: graph_time }, color: "rgba(0,0,0,0.15)" };
         plot.getData()[0].label = "<%= @game.home.name %>: " + (odds[0] * 100).toLocaleString("<%= I18n.locale %>",  { minimumFractionDigits: 2, maximumFractionDigits: 2, }) + "%";
         plot.getData()[1].label = "Draw: " + (odds[1] * 100).toLocaleString("<%= I18n.locale %>",  { minimumFractionDigits: 2, maximumFractionDigits: 2, }) + "%";
         plot.getData()[2].label = "<%= @game.away.name %>: " + (odds[2] * 100).toLocaleString("<%= I18n.locale %>",  { minimumFractionDigits: 2, maximumFractionDigits: 2, }) + "%";
