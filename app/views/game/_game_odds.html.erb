@@ -159,9 +159,11 @@ $(function() {
       return graphMinute;
     };
 
-    graphOptions.xaxes[1].tickFormatter = function(value, axis) {
+    var minute_tick_formatter = function(value, axis) {
       return "" + Math.round(to_display_minute(value));
     };
+    graphOptions.xaxes[0].tickFormatter = minute_tick_formatter;
+    graphOptions.xaxes[1].tickFormatter = minute_tick_formatter;
 
     var is_valid_event_time = function(minute) {
       if (minute < 0) {
@@ -273,6 +275,8 @@ $(function() {
     }
 
     graphOptions.grid.markings = markings;
+    graphOptions.xaxes[0].max = graph_max;
+    graphOptions.xaxes[0].ticks = ticks;
     graphOptions.xaxes[1].ticks = ticks;
 
     var graph_points = [...Array(graph_max + 1).keys()];
