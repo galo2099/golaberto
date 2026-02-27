@@ -1,4 +1,5 @@
 <%= javascript_include_flot %>
+<% went_to_extra_time = !@game.home_aet.nil? || !@game.away_aet.nil? %>
 <script type="text/javascript">
 function poisson(k, lambda) {
     var exponential = 2.718281828;
@@ -123,21 +124,18 @@ $(function() {
     var home_power = <%= @game.home_power %>;
     var away_power = <%= @game.away_power %>
 
-    var added_time = parseInt($('#odds_added_time').val(), 10);
-    if (isNaN(added_time)) {
-      added_time = 0;
-    }
     var extra_time_duration = 35;
+    var regular_stoppage_time = 5;
     var regular_base_time = 90;
     var extra_time_start = 90;
-    var went_to_extra_time = <%= (!@game.home_aet.nil? || !@game.away_aet.nil?) ? 'true' : 'false' %>;
+    var went_to_extra_time = <%= went_to_extra_time ? 'true' : 'false' %>;
     var include_extra_time = went_to_extra_time || $("#odds_extra_time").is(":checked");
     if ($('#odds_set_time').val() != "") {
       current_time = parseInt($('#odds_set_time').val(), 10) * 60;
       $('#odds_set_time').val("");
     }
-    var regular_time = regular_base_time + added_time;
-    var extra_time_end = 120 + added_time;
+    var regular_time = regular_base_time + regular_stoppage_time;
+    var extra_time_end = 120 + regular_stoppage_time;
     var timeline_gap = include_extra_time ? 2 : 0;
     var max_minute = include_extra_time ? extra_time_end : regular_time;
     var graph_max = include_extra_time ? regular_time + timeline_gap + (extra_time_end - extra_time_start) : regular_time;
@@ -433,9 +431,8 @@ $(function() {
 <div style="display: <%= @game.played? ? "none" : "block" %>">
 <%= _("Current time") %>: <span id="odds_current_time">0</span><br>
 <br>
-<%= _("Added time") %>: <input class="odds_selector" id="odds_added_time" type="text" size="3" value="5"><br>
 <label>
-  <input class="odds_selector" id="odds_extra_time" type="checkbox" <%= (!@game.home_aet.nil? || !@game.away_aet.nil?) ? "checked='checked'".html_safe : "" %> <%= @game.played? ? "disabled='disabled'".html_safe : "" %>>
+  <input class="odds_selector" id="odds_extra_time" type="checkbox" <%= went_to_extra_time ? "checked='checked'".html_safe : "" %> <%= @game.played? ? "disabled='disabled'".html_safe : "" %>>
   <%= _("Include extra time") %> (30+5)
 </label><br>
 <%= _("Start time") %>: <input class="odds_selector" id="odds_set_time" type="text" size="3" value="">
