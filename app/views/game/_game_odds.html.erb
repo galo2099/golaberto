@@ -343,6 +343,12 @@ $(function() {
             ys.push({label: series.label, point: closest, color: series.color});
           }
         }
+        if (ys.length == 0) {
+          $("#tooltip").hide();
+          plot.draw();
+          return;
+        }
+
         writeTooltip(pos, ys);
         plot.getOptions().grid.markings[0] = { xaxis: { from: ys[0].point[0], to: ys[0].point[0] }, color: "rgba(0,0,0,0.15)" };
         plot.draw();
