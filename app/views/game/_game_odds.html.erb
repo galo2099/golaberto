@@ -265,10 +265,20 @@ $(function() {
 
     // Sort ticks by time
     ticks.sort(function(a, b) { return a[0] - b[0]; });
-    // Remove ticks that are too close together
+    // Remove ticks that are too close together, preferring to keep labeled ticks.
     for (var i = ticks.length - 1; i > 0; i--) {
       if (ticks[i][0] - ticks[i-1][0] <= 1) {
-        ticks.splice(i-1, 1);
+        var current_label = ticks[i][1];
+        var previous_label = ticks[i-1][1];
+        var remove_index = i - 1;
+        if ((previous_label == null || previous_label === "") && (current_label != null && current_label !== "")) {
+          remove_index = i - 1;
+        } else if ((current_label == null || current_label === "") && (previous_label != null && previous_label !== "")) {
+          remove_index = i;
+        } else {
+          remove_index = i - 1;
+        }
+        ticks.splice(remove_index, 1);
       }
     }
 
