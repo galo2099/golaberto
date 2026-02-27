@@ -127,7 +127,10 @@ $(function() {
     var extra_time_duration = 35;
     var regular_stoppage_time = 5;
     var regular_base_time = 90;
+    var regular_events_end = 90;
     var extra_time_start = 90;
+    var extra_time_events_start = 91;
+    var extra_time_events_end = 120;
     var went_to_extra_time = <%= went_to_extra_time ? 'true' : 'false' %>;
     var include_extra_time = went_to_extra_time || $("#odds_extra_time").is(":checked");
     if ($('#odds_set_time').val() != "") {
@@ -135,25 +138,34 @@ $(function() {
       $('#odds_set_time').val("");
     }
     var regular_time = regular_base_time + regular_stoppage_time;
-    var extra_time_end = 120 + regular_stoppage_time;
-    var timeline_gap = include_extra_time ? 2 : 0;
-    var max_minute = include_extra_time ? extra_time_end : regular_time;
-    var graph_max = include_extra_time ? regular_time + timeline_gap + (extra_time_end - extra_time_start) : regular_time;
+    var extra_time_end = extra_time_events_end + regular_stoppage_time;
+    var max_minute = include_extra_time ? extra_time_events_end : regular_time;
+    var graph_max = include_extra_time ? extra_time_end : regular_time;
     graphOptions.xaxes[1].max = graph_max;
 
     var to_graph_time = function(minute) {
-      if (!include_extra_time || minute <= regular_time) {
+      if (!include_extra_time || minute <= regular_events_end) {
         return minute;
       }
-      return regular_time + timeline_gap + (minute - extra_time_start);
+      return minute + regular_stoppage_time;
+    };
+
+    var is_valid_event_time = function(minute) {
+      if (minute < 0) {
+        return false;
+      }
+      if (include_extra_time) {
+        return minute <= regular_events_end || (minute >= extra_time_events_start && minute <= extra_time_events_end);
+      }
+      return minute <= regular_events_end;
     };
 
     var score_array = [...Array(max_minute+1).keys()].map(function(x) { return 0; });
     var home_red = [...Array(max_minute+1).keys()].map(function(x) { return 0; });
     var away_red = [...Array(max_minute+1).keys()].map(function(x) { return 0; });
 
-    <%= @game.player_games.where(red: true, team_id: @game.home_id).where("off > 0").pluck(:off) %>.map(function(x) { home_red[x] += 1; });
-    <%= @game.player_games.where(red: true, team_id: @game.away_id).where("off > 0").pluck(:off) %>.map(function(x) { away_red[x] += 1; });
+    <%= @game.player_games.where(red: true, team_id: @game.home_id).where("off > 0").pluck(:off) %>.map(function(x) { if (is_valid_event_time(x)) { home_red[x] += 1; } });
+    <%= @game.player_games.where(red: true, team_id: @game.away_id).where("off > 0").pluck(:off) %>.map(function(x) { if (is_valid_event_time(x)) { away_red[x] += 1; } });
 
     var markings = [{
       xaxis: { from: 0, to: 0 }, color: "rgba(0,0,0,0.15)"
@@ -188,7 +200,10 @@ $(function() {
         odds_goal_list[i].checked = "home";
         var time = parseInt($('#odds_goal_time_' + i).val(), 10);
         odds_goal_list[i].time = time;
-        if (include_extra_time && time > regular_time) {
+        if (!is_valid_event_time(time)) {
+          continue;
+        }
+        if (include_extra_time && time >= extra_time_events_start) {
           home_extra_score += 1;
           home_score = home_extra_score;
           away_score = away_extra_score;
@@ -207,7 +222,10 @@ $(function() {
         odds_goal_list[i].checked = "away";
         var time = parseInt($('#odds_goal_time_' + i).val(), 10);
         odds_goal_list[i].time = time;
-        if (include_extra_time && time > regular_time) {
+        if (!is_valid_event_time(time)) {
+          continue;
+        }
+        if (include_extra_time && time >= extra_time_events_start) {
           away_extra_score += 1;
           home_score = home_extra_score;
           away_score = away_extra_score;
@@ -226,14 +244,13 @@ $(function() {
 
     if (include_extra_time) {
       var regular_score_diff = home_regular_score - away_regular_score;
-      for (var j = extra_time_start; j < extra_time_end + 1; j++) {
+      for (var j = extra_time_events_start; j < max_minute + 1; j++) {
         score_array[j] -= regular_score_diff;
       }
       markings.push({ xaxis: { from: regular_time, to: regular_time }, color: "rgba(0,0,0,0.5)", lineWidth: 2 });
-      markings.push({ xaxis: { from: regular_time, to: regular_time + timeline_gap }, color: "rgba(0,0,0,0.08)" });
-      markings.push({ xaxis: { from: regular_time + timeline_gap, to: graph_max }, color: "rgba(0,0,0,0.03)" });
-      ticks.push([regular_time, "95"]);
-      ticks.push([regular_time + timeline_gap, "90"]);
+      markings.push({ xaxis: { from: regular_time - 0.2, to: regular_time + 0.2 }, color: "rgba(255,255,255,0.9)" });
+      markings.push({ xaxis: { from: regular_time + 0.2, to: graph_max }, color: "rgba(0,0,0,0.03)" });
+      ticks.push([regular_time, "95 | 90"]);
       ticks.push([graph_max, "125"]);
     }
 
@@ -251,10 +268,7 @@ $(function() {
 
     var graph_points = [...Array(graph_max + 1).keys()];
     var odds_data = graph_points.map(function(graph_x) {
-      if (include_extra_time && graph_x > regular_time && graph_x < regular_time + timeline_gap) {
-        return [graph_x, null, null, null];
-      }
-      var minute = graph_x <= regular_time ? graph_x : extra_time_start + (graph_x - (regular_time + timeline_gap));
+      var minute = include_extra_time && graph_x > regular_time ? (graph_x - regular_stoppage_time) : graph_x;
       if (home_red[minute] >= 1) {
         home_power *= 0.8 ** home_red[minute];
         away_power *= 1.25 ** home_red[minute];
@@ -263,7 +277,7 @@ $(function() {
         home_power *= 1.25 ** away_red[minute];
         away_power *= 0.8 ** away_red[minute];
       }
-      var remaining_time = minute <= regular_time ? (regular_time - minute) : (extra_time_end - minute);
+      var remaining_time = graph_x <= regular_time ? (regular_time - minute) : (extra_time_end - graph_x);
       var hp = home_power / 95 * remaining_time;
       var ap = away_power / 95 * remaining_time;
       var home_adv = 0;
@@ -360,10 +374,11 @@ $(function() {
       var total_seconds = regular_time * 60 + (include_extra_time ? extra_time_duration * 60 : 0);
       if (current_time <= total_seconds) {
         var minute = current_time <= regular_time * 60 ? (current_time / 60.0) : (extra_time_start + ((current_time - regular_time * 60) / 60.0));
-        var remaining_seconds = minute <= regular_time ? ((regular_time - minute) * 60) : ((extra_time_end - minute) * 60);
+        var graph_minute = include_extra_time && current_time > regular_time * 60 ? (minute + regular_stoppage_time) : minute;
+        var remaining_seconds = graph_minute <= regular_time ? ((regular_time - minute) * 60) : ((extra_time_end - graph_minute) * 60);
         var hp = home_power / (95*60) * remaining_seconds;
         var ap = away_power / (95*60) * remaining_seconds;
-        var minute_index = Math.floor(minute);
+        var minute_index = Math.min(Math.floor(minute), max_minute);
         var home_adv = 0;
         var away_adv = 0;
         if (score_array[minute_index] > 0) {
