@@ -150,6 +150,13 @@ $(function() {
       return minute + regular_stoppage_time;
     };
 
+    var to_display_minute = function(graphMinute) {
+      if (include_extra_time && graphMinute > regular_time) {
+        return graphMinute - regular_stoppage_time;
+      }
+      return graphMinute;
+    };
+
     var is_valid_event_time = function(minute) {
       if (minute < 0) {
         return false;
@@ -313,7 +320,7 @@ $(function() {
           }
           return acc + div + "<td>" + cur.label.substr(0, indexToRemove) + "</td><td style='text-align: right'>" + (cur.point[1] * 100).toLocaleString("<%= I18n.locale %>",  { minimumFractionDigits: 2, maximumFractionDigits: 2, }) + "%" + "</td></tr>";
         }, "") +
-        "<tr><td colspan=3 style='text-align: center'>" + points[0].point[0] + "</tr>"
+        "<tr><td colspan=3 style='text-align: center'>" + to_display_minute(points[0].point[0]) + "</tr>"
      ).css({top: pos.pageY + 10, left: pos.pageX + 10}).fadeIn(200);
     };
 
