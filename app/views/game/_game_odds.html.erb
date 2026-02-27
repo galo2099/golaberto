@@ -159,6 +159,10 @@ $(function() {
       return graphMinute;
     };
 
+    graphOptions.xaxes[1].tickFormatter = function(value, axis) {
+      return "" + Math.round(to_display_minute(value));
+    };
+
     var is_valid_event_time = function(minute) {
       if (minute < 0) {
         return false;
