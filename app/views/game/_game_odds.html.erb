@@ -159,11 +159,9 @@ $(function() {
       return graphMinute;
     };
 
-    var minute_tick_formatter = function(value, axis) {
+    graphOptions.xaxes[0].tickFormatter = function(value, axis) {
       return "" + Math.round(to_display_minute(value));
     };
-    graphOptions.xaxes[0].tickFormatter = minute_tick_formatter;
-    graphOptions.xaxes[1].tickFormatter = minute_tick_formatter;
 
     var is_valid_event_time = function(minute) {
       if (minute < 0) {
@@ -274,9 +272,17 @@ $(function() {
       }
     }
 
+    var time_ticks = [];
+    for (var t = 0; t <= graph_max; t += 20) {
+      time_ticks.push([t, "" + Math.round(to_display_minute(t))]);
+    }
+    if (time_ticks[time_ticks.length - 1][0] != graph_max) {
+      time_ticks.push([graph_max, "" + Math.round(to_display_minute(graph_max))]);
+    }
+
     graphOptions.grid.markings = markings;
     graphOptions.xaxes[0].max = graph_max;
-    graphOptions.xaxes[0].ticks = ticks;
+    graphOptions.xaxes[0].ticks = time_ticks;
     graphOptions.xaxes[1].ticks = ticks;
 
     var graph_points = [...Array(graph_max + 1).keys()];
