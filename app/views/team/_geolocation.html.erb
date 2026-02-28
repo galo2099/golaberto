@@ -54,6 +54,7 @@ path = ""
 if show_path then
   path = "&path=color:0xff0000|weight:5|geodesic:true|#{points.map{|p|"#{p[:geometry][:coordinates][1]},#{p[:geometry][:coordinates][0]}"}.join("|")}"
 end
+static_map_url = GoogleUrlSigner.sign("https://maps.googleapis.com/maps/api/staticmap?#{markers}#{path}&zoom=#{maxzoom}&#{"region=br&language=pt&" if I18n.locale == :"pt-BR" }size=560x400&scale=2&format=jpg&key=AIzaSyCT_RQIGXyWC6LEKwGVkiIAyXJjWfuKJkE", Rails.application.credentials.google_api[:secret_sign])
 %>
 <script src="https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js"></script>
 <style>
@@ -193,10 +194,20 @@ function initMap() {
   });
 
 $(function() {
+  function loadStaticMapImage() {
+    const staticMap = $('#static_map');
+    if (staticMap.attr('src')) return;
+
+    staticMap.attr('src', <%= raw static_map_url.to_json %>);
+  }
+
   async function start() {
     const { Map } = await google.maps.importLibrary("maps");
     initMap(Map);
   }
+
+  loadStaticMapImage();
+
   $('#static_map').on("click", async function() {
     await start();
     $('#static_map').hide();
@@ -204,6 +215,6 @@ $(function() {
 });
 
 </script>
-<img id=static_map width=560 height=400 src="<%= GoogleUrlSigner.sign "https://maps.googleapis.com/maps/api/staticmap?#{markers}#{path}&zoom=#{maxzoom}&#{"region=br&language=pt&" if I18n.locale == :"pt-BR" }size=560x400&scale=2&format=jpg&key=AIzaSyCT_RQIGXyWC6LEKwGVkiIAyXJjWfuKJkE", Rails.application.credentials.google_api[:secret_sign] %>" />
+<img id=static_map width=560 height=400 />
 
 </div>
