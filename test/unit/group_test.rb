@@ -85,8 +85,12 @@ class GroupTest < ActiveSupport::TestCase
       sort: 'pt,gd'
     )
     group = Group.create!(name: 'Backfill Group', phase: phase)
-    home = Team.create!(name: 'Backfill FC', country: 'Brazil')
-    away = Team.create!(name: 'Snapshot United', country: 'Brazil')
+    home = nil
+    away = nil
+    Net::HTTP.stub(:get, '[]') do
+      home = Team.create!(name: 'Backfill FC', country: 'Brazil')
+      away = Team.create!(name: 'Snapshot United', country: 'Brazil')
+    end
     tg_home = TeamGroup.create!(group: group, team: home, add_sub: 0, bias: 0)
     tg_away = TeamGroup.create!(group: group, team: away, add_sub: 0, bias: 0)
 
