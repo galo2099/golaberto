@@ -4,6 +4,7 @@ require 'google_url_signer'
 
 class MapController < ApplicationController
   skip_authorization_check
+  GOOGLE_STATIC_MAPS_API_KEY = 'AIzaSyCT_RQIGXyWC6LEKwGVkiIAyXJjWfuKJkE'
 
   def static
     query = {
@@ -16,7 +17,7 @@ class MapController < ApplicationController
       scale: params[:scale] || '2',
       format: params[:format] || 'jpg',
       maptype: params[:maptype],
-      key: Rails.application.credentials.google_api[:api_key]
+      key: GOOGLE_STATIC_MAPS_API_KEY
     }.compact
 
     base_url = "https://maps.googleapis.com/maps/api/staticmap?#{URI.encode_www_form(query)}"
@@ -29,12 +30,25 @@ class MapController < ApplicationController
       http.get(uri.request_uri)
     end
 
+    log_static_map_warnings(response)
+
     if response.is_a?(Net::HTTPSuccess)
       send_data response.body,
         type: response['content-type'] || 'image/jpeg',
         disposition: 'inline'
     else
       head :bad_gateway
+    end
+  end
+
+  private
+
+  def log_static_map_warnings(response)
+    warning_header = response['X-Staticmap-API-Warning']
+    return if warning_header.blank?
+
+    warning_header.split(',').each do |warning|
+      Rails.logger.warn("Google Static Maps warning: #{warning.strip}")
     end
   end
 end
