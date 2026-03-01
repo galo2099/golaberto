@@ -8,7 +8,7 @@ class MapController < ApplicationController
 
   def static
     query = {
-      markers: normalize_markers(params[:markers]),
+      markers: params[:markers],
       path: params[:path],
       zoom: params[:zoom],
       region: params[:region],
@@ -42,27 +42,6 @@ class MapController < ApplicationController
   end
 
   private
-
-  def normalize_markers(markers)
-    return if markers.blank?
-
-    marker_pairs = if markers.respond_to?(:to_unsafe_h)
-      markers.to_unsafe_h.values
-    elsif markers.is_a?(Hash)
-      markers.values
-    else
-      Array(markers)
-    end
-
-    marker_pairs.filter_map do |marker|
-      style, coords = marker
-      style = style.to_s
-      coords = coords.to_s
-      next if style.blank? || coords.blank?
-
-      "#{style}|#{coords}"
-    end.presence
-  end
 
   def log_static_map_warnings(response)
     warning_header = response['X-Staticmap-API-Warning']
