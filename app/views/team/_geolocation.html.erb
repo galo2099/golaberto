@@ -1,7 +1,6 @@
 <%# locals: (maxzoom: "null", show_path: false, teams:) -%>
 <% return if teams.size == 0 %>
 <% require 'geo_clusterer' %>
-<% require 'google_url_signer' %>
 
 <style>
     #map {
@@ -48,13 +47,28 @@ markers = clusters.sort{|a,b|b[0]<=>a[0]}.map do |size,points|
   else
     style = "size:mid"
   end
-  "markers=#{style}|#{coords}"
-end.join("&")
-path = ""
-if show_path then
-  path = "&path=color:0xff0000|weight:5|geodesic:true|#{points.map{|p|"#{p[:geometry][:coordinates][1]},#{p[:geometry][:coordinates][0]}"}.join("|")}"
+  "#{style}|#{coords}"
 end
-static_map_url = GoogleUrlSigner.sign("https://maps.googleapis.com/maps/api/staticmap?#{markers}#{path}&zoom=#{maxzoom}&#{"region=br&language=pt&" if I18n.locale == :"pt-BR" }size=560x400&scale=2&format=jpg&key=AIzaSyCT_RQIGXyWC6LEKwGVkiIAyXJjWfuKJkE", Rails.application.credentials.google_api[:secret_sign])
+path = nil
+if show_path then
+  path = "color:0xff0000|weight:5|geodesic:true|#{points.map{|p|"#{p[:geometry][:coordinates][1]},#{p[:geometry][:coordinates][0]}"}.join("|")}"
+end
+
+static_map_params = {
+  markers: markers,
+  path: path,
+  zoom: maxzoom,
+  size: "560x400",
+  scale: "2",
+  format: "jpg"
+}
+
+if I18n.locale == :"pt-BR"
+  static_map_params[:region] = "br"
+  static_map_params[:language] = "pt"
+end
+
+static_map_url = map_static_path(static_map_params)
 %>
 <script src="https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js"></script>
 <style>
