@@ -4,6 +4,7 @@ require 'google_url_signer'
 
 class MapController < ApplicationController
   skip_authorization_check
+  before_action :require_referrer!, only: :static
   GOOGLE_STATIC_MAPS_API_KEY = 'AIzaSyCT_RQIGXyWC6LEKwGVkiIAyXJjWfuKJkE'
 
   def static
@@ -42,6 +43,12 @@ class MapController < ApplicationController
   end
 
   private
+
+  def require_referrer!
+    return if request.referrer.present?
+
+    head :forbidden
+  end
 
   def log_static_map_warnings(response)
     warning_header = response['X-Staticmap-API-Warning']
