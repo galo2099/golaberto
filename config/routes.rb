@@ -154,9 +154,6 @@ Rails.application.routes.draw do
   match 'group/update(/:id)(.:format)', to: 'group#update', via: legacy_verbs, as: nil
   match 'group/update_odds(/:id)(.:format)', to: 'group#update_odds', via: legacy_verbs, as: nil
 
-  match 'home(.:format)', to: 'home#index', via: legacy_verbs, as: nil
-  match 'home/index(/:id)(.:format)', to: 'home#index', via: legacy_verbs, as: nil
-
   match 'phase/add_groups(/:id)(.:format)', to: 'phase#add_groups', via: legacy_verbs, as: nil
   match 'phase/create(/:id)(.:format)', to: 'phase#create', via: legacy_verbs, as: nil
   match 'phase/destroy(/:id)(.:format)', to: 'phase#destroy', via: legacy_verbs, as: nil
