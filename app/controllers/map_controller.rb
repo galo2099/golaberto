@@ -4,7 +4,7 @@ require 'google_url_signer'
 
 class MapController < ApplicationController
   skip_authorization_check
-  before_action :require_referrer!, only: :static
+  before_action :require_matching_referrer!, only: :static
   GOOGLE_STATIC_MAPS_API_KEY = 'AIzaSyCT_RQIGXyWC6LEKwGVkiIAyXJjWfuKJkE'
 
   def static
@@ -44,8 +44,10 @@ class MapController < ApplicationController
 
   private
 
-  def require_referrer!
-    return if request.referrer.present?
+  def require_matching_referrer!
+    request_referrer = request.referrer.to_s
+    param_referrer = params[:referrer].to_s
+    return if request_referrer.present? && param_referrer.present? && request_referrer == param_referrer
 
     head :forbidden
   end
