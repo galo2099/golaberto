@@ -2,20 +2,6 @@ require "test_helper"
 require "scrape"
 
 class GameDataScrapeServiceTest < ActiveSupport::TestCase
-  class FakePendingGames
-    def initialize(has_pending)
-      @has_pending = has_pending
-    end
-
-    def where(*_args)
-      self
-    end
-
-    def exists?
-      @has_pending
-    end
-  end
-
   class FakePhase
     attr_reader :id, :name, :scrape_url, :scraped
 
@@ -25,10 +11,6 @@ class GameDataScrapeServiceTest < ActiveSupport::TestCase
       @scrape_url = scrape_url
       @has_pending_games = has_pending_games
       @scraped = false
-    end
-
-    def games
-      FakePendingGames.new(@has_pending_games)
     end
 
     def mark_scraped!
@@ -58,19 +40,50 @@ class GameDataScrapeServiceTest < ActiveSupport::TestCase
     end
   end
 
-  test "phases_to_scrape returns only phases with scrape_url and pending games" do
-    with_pending = FakePhase.new(id: 1, name: "Group Stage", scrape_url: "http://sofascore.com/api/v1/events/round/", has_pending_games: true)
-    no_pending = FakePhase.new(id: 2, name: "Knockout", scrape_url: "http://sofascore.com/api/v1/events/round/", has_pending_games: false)
+  test "phases_to_scrape applies the recent pending games window by default" do
+    where_calls = []
+    fake_pending_scope = Object.new
+    fake_pending_scope.define_singleton_method(:where) do |sql, value|
+      where_calls << [sql, value]
+      self
+    end
+    fake_pending_scope.define_singleton_method(:select) { |_field| self }
+    fake_pending_scope.define_singleton_method(:distinct) { self }
+    fake_pending_scope.define_singleton_method(:to_sql) { "SELECT DISTINCT phase_id FROM games" }
 
-    phases = [with_pending, no_pending]
-    fake_relation = FakePhaseRelation.new(phases)
+    fake_relation = FakePhaseRelation.new([])
 
-    result = Phase.stub(:joins, fake_relation) do
-      GameDataScrapeService.phases_to_scrape
+    Game.stub(:where, fake_pending_scope) do
+      Phase.stub(:joins, fake_relation) do
+        GameDataScrapeService.phases_to_scrape
+      end
     end
 
-    assert_includes result, with_pending
-    refute_includes result, no_pending
+    assert where_calls.any? { |sql, _| sql.include?("date < ?") }
+    assert where_calls.any? { |sql, _| sql.include?("date >= ?") }
+  end
+
+  test "phases_to_scrape can include all past pending games" do
+    where_calls = []
+    fake_pending_scope = Object.new
+    fake_pending_scope.define_singleton_method(:where) do |sql, value|
+      where_calls << [sql, value]
+      self
+    end
+    fake_pending_scope.define_singleton_method(:select) { |_field| self }
+    fake_pending_scope.define_singleton_method(:distinct) { self }
+    fake_pending_scope.define_singleton_method(:to_sql) { "SELECT DISTINCT phase_id FROM games" }
+
+    fake_relation = FakePhaseRelation.new([])
+
+    Game.stub(:where, fake_pending_scope) do
+      Phase.stub(:joins, fake_relation) do
+        GameDataScrapeService.phases_to_scrape(include_all_past_unplayed: true)
+      end
+    end
+
+    assert where_calls.any? { |sql, _| sql.include?("date < ?") }
+    refute where_calls.any? { |sql, _| sql.include?("date >= ?") }
   end
 
   test "run_unlocked calls scrape for each phase with pending games" do
