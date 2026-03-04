@@ -585,18 +585,32 @@ def get_scorers(game, lineup_url, incidents_url)
       next if not player
       player.on = minute
       player.off = off
-      player_out = players[s["playerOut"]["id"]]
-      if (player and player_out.nil?) or (player_out.nil? and not missing_player)
-        best_match = players_by_name[s["pos"]].keys.map{|t| [t, fuzzy_match.getDistance(t, s["pl_name_o"])]}.sort{|a,b|b[1] <=> a[1]}[0][0]
-        player_out = players_by_name[s["pos"]][best_match]
-        Rails.logger.info "#{s["pl_name_o"]} - #{best_match}"
+      player_out_id = incident_player_id(s, "playerOut")
+      player_out = player_out_id ? players[player_out_id] : nil
+      player_out_name = incident_player_out_name(s)
+      if player_out.nil? and player_out_name
+        if (player and player_out.nil?) or (player_out.nil? and not missing_player)
+          best_match = players_by_name[s["pos"]].keys.map{|t| [t, fuzzy_match.getDistance(t, player_out_name)]}.sort{|a,b|b[1] <=> a[1]}[0][0]
+          player_out = players_by_name[s["pos"]][best_match]
+          Rails.logger.info "#{player_out_name} - #{best_match}"
+        end
       end
+      next if player_out.nil?
       player_out.off = minute
     end
   end
   players.values.each do |p|
     p.save!
   end
+end
+
+def incident_player_id(incident, key = "player")
+  player = incident[key]
+  player && player["id"]
+end
+
+def incident_player_out_name(incident)
+  incident["pl_name_o"] || incident["playerNameOut"]
 end
 
 def incident_minute(incident)
