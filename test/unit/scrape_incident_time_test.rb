@@ -27,6 +27,7 @@ class ScrapeIncidentTimeTest < ActiveSupport::TestCase
     assert incident_extra_time?(incident)
     assert_equal 105, incident_minute(incident)
   end
+
   test "incident_minute uses timeSeconds fallback" do
     incident = { "timeSeconds" => 59 * 60 }
 
@@ -40,4 +41,27 @@ class ScrapeIncidentTimeTest < ActiveSupport::TestCase
     assert incident_extra_time?(incident)
   end
 
+  test "incident_player_id returns nil when nested player hash is missing" do
+    incident = { "incidentType" => "substitution", "playerIn" => { "id" => 10 } }
+
+    assert_nil incident_player_id(incident, "playerOut")
+  end
+
+  test "incident_player_id returns id when nested player hash exists" do
+    incident = { "playerOut" => { "id" => 42 } }
+
+    assert_equal 42, incident_player_id(incident, "playerOut")
+  end
+
+  test "incident_player_out_name supports legacy pl_name_o" do
+    incident = { "pl_name_o" => "Old Name" }
+
+    assert_equal "Old Name", incident_player_out_name(incident)
+  end
+
+  test "incident_player_out_name supports playerNameOut" do
+    incident = { "playerNameOut" => "New Name" }
+
+    assert_equal "New Name", incident_player_out_name(incident)
+  end
 end
