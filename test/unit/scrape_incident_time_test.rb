@@ -41,6 +41,21 @@ class ScrapeIncidentTimeTest < ActiveSupport::TestCase
     assert incident_extra_time?(incident)
   end
 
+
+  test "incident_team_pos prefers legacy pos when present" do
+    incident = { "pos" => 1, "isHome" => true }
+
+    assert_equal 1, incident_team_pos(incident)
+  end
+
+  test "incident_team_pos maps isHome true to home bucket" do
+    assert_equal 0, incident_team_pos({ "isHome" => true })
+  end
+
+  test "incident_team_pos maps isHome false to away bucket" do
+    assert_equal 1, incident_team_pos({ "isHome" => false })
+  end
+
   test "incident_player_id returns nil when nested player hash is missing" do
     incident = { "incidentType" => "substitution", "playerIn" => { "id" => 10 } }
 
@@ -64,4 +79,27 @@ class ScrapeIncidentTimeTest < ActiveSupport::TestCase
 
     assert_equal "New Name", incident_player_out_name(incident)
   end
+  test "incident_fuzzy_match_player returns nil when pos bucket is missing" do
+    fuzzy_match = Struct.new(:distance) do
+      def getDistance(_a, _b)
+        0
+      end
+    end.new
+
+    assert_nil incident_fuzzy_match_player({}, 1, "Name", fuzzy_match)
+  end
+
+  test "incident_fuzzy_match_player returns best match for available bucket" do
+    player = Struct.new(:id).new(7)
+    fuzzy_match = Struct.new(:scores) do
+      def getDistance(candidate, _player_name)
+        scores[candidate]
+      end
+    end.new({ "Wrong" => 1, "Right" => 10 })
+
+    players_by_name = { 0 => { "Wrong" => Struct.new(:id).new(1), "Right" => player } }
+
+    assert_equal player, incident_fuzzy_match_player(players_by_name, 0, "Any", fuzzy_match)
+  end
+
 end

@@ -535,27 +535,22 @@ def get_scorers(game, lineup_url, incidents_url)
     if s["incidentType"] == "goal" and s["incidentClass"] == "regular" and not s["player"].nil?
       player = players[s["player"]["id"]]
       if player.nil? and not missing_player
-        best_match = players_by_name[s["pos"]].keys.map{|t| [t, fuzzy_match.getDistance(t, s["pl_name"])]}.sort{|a,b|b[1] <=> a[1]}[0][0]
-        player = players_by_name[s["pos"]][best_match]
-        Rails.logger.info "#{s["pl_name"]} - #{best_match}"
+        player = incident_fuzzy_match_player(players_by_name, incident_team_pos(s), s["pl_name"], fuzzy_match)
       end
       Goal.new(player_id: player.player_id, game_id: game.id, team_id: player.team_id, time: minute, penalty: false, own_goal: false, aet: incident_extra_time?(s)).save! if player
     end
     if s["incidentType"] == "goal" and s["incidentClass"] == "penalty" and not s["player"].nil?
       player = players[s["player"]["id"]]
       if player.nil? and not missing_player
-        best_match = players_by_name[s["pos"]].keys.map{|t| [t, fuzzy_match.getDistance(t, s["pl_name"])]}.sort{|a,b|b[1] <=> a[1]}[0][0]
-        player = players_by_name[s["pos"]][best_match]
-        Rails.logger.info "#{s["pl_name"]} - #{best_match}"
+        player = incident_fuzzy_match_player(players_by_name, incident_team_pos(s), s["pl_name"], fuzzy_match)
       end
       Goal.new(player_id: player.player_id, game_id: game.id, team_id: player.team_id, time: minute, penalty: true, own_goal: false, aet: incident_extra_time?(s)).save! if player
     end
     if s["incidentType"] == "goal" and s["incidentClass"] == "ownGoal"
       player = players[s["player"]["id"]]
       if player.nil? and not missing_player
-        best_match = players_by_name[1 - s["pos"]].keys.map{|t| [t, fuzzy_match.getDistance(t, s["pl_name"])]}.sort{|a,b|b[1] <=> a[1]}[0][0]
-        player = players_by_name[1 - s["pos"]][best_match]
-        Rails.logger.info "#{s["pl_name"]} - #{best_match}"
+        incident_pos = incident_team_pos(s)
+        player = incident_fuzzy_match_player(players_by_name, 1 - incident_pos, s["pl_name"], fuzzy_match) if !incident_pos.nil?
       end
       Goal.new(player_id: player.player_id, game_id: game.id, team_id: player.team_id, time: minute, penalty: false, own_goal: true, aet: incident_extra_time?(s)).save! if player
     end
@@ -590,9 +585,7 @@ def get_scorers(game, lineup_url, incidents_url)
       player_out_name = incident_player_out_name(s)
       if player_out.nil? and player_out_name
         if (player and player_out.nil?) or (player_out.nil? and not missing_player)
-          best_match = players_by_name[s["pos"]].keys.map{|t| [t, fuzzy_match.getDistance(t, player_out_name)]}.sort{|a,b|b[1] <=> a[1]}[0][0]
-          player_out = players_by_name[s["pos"]][best_match]
-          Rails.logger.info "#{player_out_name} - #{best_match}"
+          player_out = incident_fuzzy_match_player(players_by_name, incident_team_pos(s), player_out_name, fuzzy_match)
         end
       end
       next if player_out.nil?
@@ -602,6 +595,27 @@ def get_scorers(game, lineup_url, incidents_url)
   players.values.each do |p|
     p.save!
   end
+end
+
+def incident_team_pos(incident)
+  pos = incident["pos"]
+  return pos if !pos.nil?
+
+  is_home = incident["isHome"]
+  return nil if is_home.nil?
+
+  is_home ? 0 : 1
+end
+
+def incident_fuzzy_match_player(players_by_name, pos, player_name, fuzzy_match)
+  return nil if player_name.nil?
+
+  players_by_name_by_pos = players_by_name[pos]
+  return nil if players_by_name_by_pos.nil? || players_by_name_by_pos.empty?
+
+  best_match = players_by_name_by_pos.keys.map{|t| [t, fuzzy_match.getDistance(t, player_name)]}.sort{|a,b|b[1] <=> a[1]}[0][0]
+  Rails.logger.info "#{player_name} - #{best_match}"
+  players_by_name_by_pos[best_match]
 end
 
 def incident_player_id(incident, key = "player")
