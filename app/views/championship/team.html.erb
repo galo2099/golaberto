@@ -203,7 +203,7 @@ $(function() {
         u.ctx.fillStyle = "#666";
         u.ctx.textAlign = "center";
         u.ctx.textBaseline = "top";
-        u.ctx.font = "12px sans-serif";
+        u.ctx.font = "bold 14px sans-serif";
         for (var labelIdx = 1; labelIdx <= rankCount; labelIdx++) {
           u.ctx.fillText(labelIdx.toString(), xValueToPixel(u, labelIdx), u.bbox.top + u.bbox.height + 4);
         }
@@ -276,6 +276,12 @@ $(function() {
   oddsPlot.root.addEventListener("mousemove", function(event) {
     var localX = event.clientX - oddsPlot.root.getBoundingClientRect().left;
     var localY = event.clientY - oddsPlot.root.getBoundingClientRect().top;
+    if (localX < oddsPlot.bbox.left || localX > oddsPlot.bbox.left + oddsPlot.bbox.width ||
+        localY < oddsPlot.bbox.top || localY > oddsPlot.bbox.top + oddsPlot.bbox.height) {
+      $("#odds_tooltip").hide();
+      return;
+    }
+
     var x = rankFromPixel(oddsPlot, localX);
     var y = oddsPlot.posToVal(localY, "y");
     if (x > 0 && x <= <%= @groups[0].team_groups.size %> &&
