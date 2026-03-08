@@ -36,8 +36,9 @@ $(function() {
     border: "1px solid #fdd",
     padding: "2px",
     "background-color": "#fee",
-    opacity: 0.80,
-    zIndex: 0,
+    opacity: 0.95,
+    zIndex: 99999,
+    pointerEvents: "none",
   }).appendTo("body");
   var div_selection = $("<div id='odds_selection'></div>").css({
     position: "absolute",
@@ -45,8 +46,9 @@ $(function() {
     border: "1px solid #fdd",
     padding: "2px",
     "background-color": "#fee",
-    opacity: 0.80,
-    zIndex: 0,
+    opacity: 0.95,
+    zIndex: 99999,
+    pointerEvents: "none",
   })
 
   var graphDiv = $("#odds");
@@ -156,6 +158,8 @@ $(function() {
       }
     ],
     cursor: {
+      x: false,
+      y: false,
       drag: { x: true, y: false, setScale: false },
       points: { show: false },
     },
