@@ -288,8 +288,7 @@ $(function() {
 
     var x = rankFromOverlayPixel(overlayX, overRect.width);
     var y = oddsPlot.posToVal(oddsPlot.bbox.top + overlayY, "y");
-    if (x > 0 && x <= <%= @groups[0].team_groups.size %> &&
-        y > 0 && y < 100) {
+    if (x > 0 && x <= <%= @groups[0].team_groups.size %>) {
       var names = <%== (1..@groups[0].team_groups.size).map{|i|i.ordinalize}.to_json %>;
       var value = oddsValues[x-1].toLocaleString("<%= I18n.locale %>",  { minimumFractionDigits: 2, maximumFractionDigits: 2, });
       $("#odds_tooltip").html(names[x-1] + ": " + value + "%")
@@ -419,37 +418,28 @@ $(document).ready(function() {
 
         var hoveredZoneName = $(this).data('zoneName');
         var hoveredZone = graphData.zones.find(function(z) { return z.name === hoveredZoneName; });
-
         if (!hoveredZone) return;
 
-        var newMarkings = [];
+        var hoveredPositions = (hoveredZone.positions || []).map(Number);
         var numRanks = graphData.numRanks;
         var graphMaxY = 101.0;
+        var defaultColorByRank = {};
 
+        (graphData.defaultMarkings || []).forEach(function(marking) {
+          if (!marking.xaxis || typeof marking.xaxis.from !== 'number') { return; }
+          var rank = Math.round(marking.xaxis.from + 0.5);
+          defaultColorByRank[rank] = marking.color;
+        });
+
+        var newMarkings = [];
         for (var pRank = 1; pRank <= numRanks; pRank++) {
-            var colorForThisRank = null;
-            // Find the default marking for this rank.
-            // Using toFixed(1) for robust floating point comparison.
-            var defaultMarkingForRank = graphData.defaultMarkings.find(function(m) {
-            return m.xaxis && typeof m.xaxis.from === 'number' &&
-                    (pRank - 0.5).toFixed(1) === m.xaxis.from.toFixed(1);
-            });
-
-            if (hoveredZone.positions.map(Number).includes(pRank)) { // Ensure positions are numbers
-            colorForThisRank = hoveredZone.color;
-            } else {
-            if (defaultMarkingForRank) {
-                colorForThisRank = defaultMarkingForRank.color;
-            }
-            }
-
-            if (colorForThisRank) {
-            newMarkings.push({
-                xaxis: { from: pRank - 0.5, to: pRank + 0.5 },
-                yaxis: { from: 0, to: graphMaxY },
-                color: colorForThisRank
-            });
-            }
+          var colorForThisRank = hoveredPositions.includes(pRank) ? hoveredZone.color : defaultColorByRank[pRank];
+          if (!colorForThisRank) { continue; }
+          newMarkings.push({
+            xaxis: { from: pRank - 0.5, to: pRank + 0.5 },
+            yaxis: { from: 0, to: graphMaxY },
+            color: colorForThisRank
+          });
         }
 
         renderZoneBackground(newMarkings);
