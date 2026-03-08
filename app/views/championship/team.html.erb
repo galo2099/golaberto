@@ -140,13 +140,8 @@ $(function() {
       {
         side: 2,
         grid: { show: false },
-        ticks: { show: true },
-        splits: function() {
-          return xValues;
-        },
-        values: function(u, splits) {
-          return splits.map(function(v) { return Math.round(v).toString(); });
-        },
+        ticks: { show: false },
+        values: function() { return []; },
       },
       {
         side: 3,
@@ -204,6 +199,15 @@ $(function() {
         u.ctx.moveTo(x, top);
         u.ctx.lineTo(x, bottom);
         u.ctx.stroke();
+
+        u.ctx.fillStyle = "#666";
+        u.ctx.textAlign = "center";
+        u.ctx.textBaseline = "top";
+        u.ctx.font = "12px sans-serif";
+        for (var labelIdx = 1; labelIdx <= rankCount; labelIdx++) {
+          u.ctx.fillText(labelIdx.toString(), xValueToPixel(u, labelIdx), u.bbox.top + u.bbox.height + 4);
+        }
+
         u.ctx.restore();
       }],
       setSelect: [function(u) {
@@ -241,12 +245,31 @@ $(function() {
     series: [
       {},
       {
-        show: false,
+        show: true,
+        stroke: "rgba(0,0,0,0)",
+        fill: "rgba(0,0,0,0)",
+        width: 0,
+        paths: uPlot.paths.bars({ size: [0.7, 100], align: 0, radius: 0 }),
       }
     ],
   }, [xValues, oddsValues], chartEl);
 
+  oddsPlot.setScale("x", { min: 1, max: rankCount });
+  oddsPlot.setScale("y", { min: 0, max: 101 });
   renderZoneBackground(oddsGraphData.markings);
+
+  var suppressDblClickReset = function(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    oddsPlot.setScale("x", { min: 1, max: rankCount });
+    oddsPlot.setScale("y", { min: 0, max: 101 });
+    setTimeout(function() {
+      oddsPlot.setScale("x", { min: 1, max: rankCount });
+      oddsPlot.setScale("y", { min: 0, max: 101 });
+    }, 50);
+  };
+  oddsPlot.root.addEventListener("dblclick", suppressDblClickReset, true);
+  oddsPlot.over.addEventListener("dblclick", suppressDblClickReset, true);
 
   graphDiv.append(div_selection);
 
