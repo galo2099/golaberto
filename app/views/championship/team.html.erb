@@ -123,10 +123,14 @@ $(function() {
   }
 
   var activeZoneMarkings = oddsGraphData.markings || [];
+  var activeHoverPositions = [];
+  var activeHoverColor = null;
 
   function renderZoneBackground(markings) {
     activeZoneMarkings = markings || [];
     if (oddsPlot) {
+      oddsPlot.setScale("x", { min: 0.5, max: rankCount + 0.5 });
+      oddsPlot.setScale("y", { min: 0, max: 101 });
       oddsPlot.redraw();
     }
   }
@@ -176,6 +180,16 @@ $(function() {
           u.ctx.globalAlpha = 0.75;
           u.ctx.fillRect(xFrom, u.bbox.top, xTo - xFrom, u.bbox.height);
         });
+
+        if (activeHoverColor && activeHoverPositions.length > 0) {
+          activeHoverPositions.forEach(function(position) {
+            var xFrom = xValueToPixel(u, position - 0.5);
+            var xTo = xValueToPixel(u, position + 0.5);
+            u.ctx.fillStyle = activeHoverColor;
+            u.ctx.globalAlpha = 0.30;
+            u.ctx.fillRect(xFrom, u.bbox.top, xTo - xFrom, u.bbox.height);
+          });
+        }
         u.ctx.restore();
       }],
       draw: [function(u) {
@@ -414,15 +428,29 @@ $(document).ready(function() {
     }
 
     function mouseEnterHandler() {
-        if (!oddsPlot || !graphData || !graphData.defaultMarkings || !renderZoneBackground) return;
+        if (!oddsPlot || !graphData || !graphData.defaultMarkings || !graphData.zones || !renderZoneBackground) return;
 
-        // Keep chart geometry stable while hovering legends; only preserve default markings.
+        var hoveredZoneName = $(this).data('zoneName');
+        var hoveredZone = graphData.zones.find(function(z) { return z.name === hoveredZoneName; });
+        if (!hoveredZone) {
+          activeHoverPositions = [];
+          activeHoverColor = null;
+          renderZoneBackground(graphData.defaultMarkings);
+          return;
+        }
+
+        activeHoverPositions = (hoveredZone.positions || []).map(Number).filter(function(p) {
+          return p >= 1 && p <= graphData.numRanks;
+        });
+        activeHoverColor = hoveredZone.color;
         renderZoneBackground(graphData.defaultMarkings);
     }
 
     function mouseLeaveHandler() {
         if (!oddsPlot || !graphData || !graphData.defaultMarkings || !renderZoneBackground) return;
 
+        activeHoverPositions = [];
+        activeHoverColor = null;
         renderZoneBackground(graphData.defaultMarkings);
     }
 
