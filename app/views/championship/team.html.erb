@@ -414,35 +414,10 @@ $(document).ready(function() {
     }
 
     function mouseEnterHandler() {
-        if (!oddsPlot || !graphData || !renderZoneBackground) return;
+        if (!oddsPlot || !graphData || !graphData.defaultMarkings || !renderZoneBackground) return;
 
-        var hoveredZoneName = $(this).data('zoneName');
-        var hoveredZone = graphData.zones.find(function(z) { return z.name === hoveredZoneName; });
-        if (!hoveredZone) return;
-
-        var hoveredPositions = (hoveredZone.positions || []).map(Number);
-        var numRanks = graphData.numRanks;
-        var graphMaxY = 101.0;
-        var defaultColorByRank = {};
-
-        (graphData.defaultMarkings || []).forEach(function(marking) {
-          if (!marking.xaxis || typeof marking.xaxis.from !== 'number') { return; }
-          var rank = Math.round(marking.xaxis.from + 0.5);
-          defaultColorByRank[rank] = marking.color;
-        });
-
-        var newMarkings = [];
-        for (var pRank = 1; pRank <= numRanks; pRank++) {
-          var colorForThisRank = hoveredPositions.includes(pRank) ? hoveredZone.color : defaultColorByRank[pRank];
-          if (!colorForThisRank) { continue; }
-          newMarkings.push({
-            xaxis: { from: pRank - 0.5, to: pRank + 0.5 },
-            yaxis: { from: 0, to: graphMaxY },
-            color: colorForThisRank
-          });
-        }
-
-        renderZoneBackground(newMarkings);
+        // Keep chart geometry stable while hovering legends; only preserve default markings.
+        renderZoneBackground(graphData.defaultMarkings);
     }
 
     function mouseLeaveHandler() {
