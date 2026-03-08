@@ -53,15 +53,6 @@ $(function() {
   graphDiv.css({ position: "relative" });
   var chartEl = document.createElement("div");
   graphDiv.append(chartEl);
-  var backgroundEl = $("<div id='odds_zone_background'></div>").css({
-    position: "absolute",
-    top: 0,
-    left: 0,
-    width: "100%",
-    height: "100%",
-    zIndex: 0,
-    pointerEvents: "none",
-  }).appendTo(graphDiv);
   $(chartEl).css({ position: "relative", zIndex: 1 });
 <%
   # This replaces the complex zone grouping and marking generation logic
@@ -112,21 +103,13 @@ $(function() {
   var oddsValues = <%= @groups[0].team_groups.select{|t|t.team_id == @team.id}.first.odds.to_json.html_safe %>;
   var xValues = oddsValues.map(function(_, idx) { return idx + 1; });
 
+  var activeZoneMarkings = oddsGraphData.markings || [];
+
   function renderZoneBackground(markings) {
-    backgroundEl.empty();
-    (markings || []).forEach(function(marking) {
-      var widthPct = ((marking.xaxis.to - marking.xaxis.from) / <%= @groups[0].team_groups.size.to_f %>) * 100;
-      var leftPct = ((marking.xaxis.from - 0.5) / <%= @groups[0].team_groups.size.to_f %>) * 100;
-      $("<div></div>").css({
-        position: "absolute",
-        top: 0,
-        left: leftPct + "%",
-        width: widthPct + "%",
-        height: "100%",
-        backgroundColor: marking.color,
-        opacity: 0.75,
-      }).appendTo(backgroundEl);
-    });
+    activeZoneMarkings = markings || [];
+    if (oddsPlot) {
+      oddsPlot.redraw();
+    }
   }
 
   var oddsPlot = new uPlot({
@@ -138,9 +121,15 @@ $(function() {
     },
     axes: [
       {
+        side: 2,
+        grid: { show: false },
+        ticks: { show: false },
         values: function() { return []; },
       },
       {
+        side: 3,
+        grid: { show: false },
+        ticks: { show: false },
         values: function() { return []; },
       }
     ],
@@ -149,6 +138,17 @@ $(function() {
       points: { show: false },
     },
     hooks: {
+      drawClear: [function(u) {
+        u.ctx.save();
+        activeZoneMarkings.forEach(function(marking) {
+          var xFrom = u.valToPos(marking.xaxis.from, "x", true);
+          var xTo = u.valToPos(marking.xaxis.to, "x", true);
+          u.ctx.fillStyle = marking.color;
+          u.ctx.globalAlpha = 0.75;
+          u.ctx.fillRect(xFrom, u.bbox.top, xTo - xFrom, u.bbox.height);
+        });
+        u.ctx.restore();
+      }],
       draw: [function(u) {
         var x = Math.round(u.valToPos(<%=team_position%>, "x")) + 0.5;
         var top = u.valToPos(101, "y");
