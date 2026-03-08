@@ -102,6 +102,15 @@ $(function() {
   };
   var oddsValues = <%= @groups[0].team_groups.select{|t|t.team_id == @team.id}.first.odds.to_json.html_safe %>;
   var xValues = oddsValues.map(function(_, idx) { return idx + 1; });
+  var rankCount = <%= @groups[0].team_groups.size %>;
+
+  function xValueToPixel(u, value) {
+    return u.bbox.left + ((value - 0.5) / rankCount) * u.bbox.width;
+  }
+
+  function xPixelToValue(u, pixel) {
+    return 0.5 + ((pixel - u.bbox.left) / u.bbox.width) * rankCount;
+  }
 
   var activeZoneMarkings = oddsGraphData.markings || [];
 
@@ -116,7 +125,7 @@ $(function() {
     width: graphDiv.width(),
     height: graphDiv.height(),
     scales: {
-      x: { min: 0.5, max: <%= @groups[0].team_groups.size + 0.5 %> },
+      x: { time: false, auto: false, min: 0.5, max: <%= @groups[0].team_groups.size + 0.5 %> },
       y: { min: 0, max: 101 },
     },
     axes: [
@@ -141,8 +150,8 @@ $(function() {
       drawClear: [function(u) {
         u.ctx.save();
         activeZoneMarkings.forEach(function(marking) {
-          var xFrom = u.valToPos(marking.xaxis.from, "x", true);
-          var xTo = u.valToPos(marking.xaxis.to, "x", true);
+          var xFrom = xValueToPixel(u, marking.xaxis.from);
+          var xTo = xValueToPixel(u, marking.xaxis.to);
           u.ctx.fillStyle = marking.color;
           u.ctx.globalAlpha = 0.75;
           u.ctx.fillRect(xFrom, u.bbox.top, xTo - xFrom, u.bbox.height);
@@ -150,10 +159,24 @@ $(function() {
         u.ctx.restore();
       }],
       draw: [function(u) {
-        var x = Math.round(u.valToPos(<%=team_position%>, "x")) + 0.5;
-        var top = u.valToPos(101, "y");
-        var bottom = u.valToPos(0, "y");
         u.ctx.save();
+        var slotWidth = u.bbox.width / rankCount;
+        var barWidth = slotWidth * 0.7;
+        oddsValues.forEach(function(value, idx) {
+          var centerX = xValueToPixel(u, idx + 1);
+          var xLeft = centerX - barWidth / 2;
+          var yTop = u.valToPos(value, "y", true);
+          var yBottom = u.valToPos(0, "y", true);
+          u.ctx.fillStyle = "rgba(255,255,255,0.7)";
+          u.ctx.fillRect(xLeft, yTop, barWidth, yBottom - yTop);
+          u.ctx.strokeStyle = "#edc240";
+          u.ctx.lineWidth = 1;
+          u.ctx.strokeRect(xLeft, yTop, barWidth, yBottom - yTop);
+        });
+
+        var x = Math.round(xValueToPixel(u, <%=team_position%>)) + 0.5;
+        var top = u.valToPos(101, "y", true);
+        var bottom = u.valToPos(0, "y", true);
         u.ctx.strokeStyle = "rgba(255, 0, 0, 1.0)";
         u.ctx.setLineDash([4, 4]);
         u.ctx.beginPath();
@@ -169,8 +192,8 @@ $(function() {
           $("#odds_selection").hide();
           return;
         }
-        var fromValue = u.posToVal(leftPx, "x");
-        var toValue = u.posToVal(leftPx + widthPx, "x");
+        var fromValue = xPixelToValue(u, leftPx);
+        var toValue = xPixelToValue(u, leftPx + widthPx);
         var newFrom = roundToClosestFive(fromValue * 10) / 10;
         var newTo = roundToClosestFive(toValue * 10) / 10;
         if (newFrom === newTo) {
@@ -179,8 +202,8 @@ $(function() {
           return;
         }
         if (newFrom !== fromValue || newTo !== toValue) {
-          var left = u.valToPos(newFrom, "x", true);
-          var right = u.valToPos(newTo, "x", true);
+          var left = xValueToPixel(u, newFrom);
+          var right = xValueToPixel(u, newTo);
           u.setSelect({ left: left, width: right - left, top: u.bbox.top, height: u.bbox.height }, false);
           return;
         }
@@ -197,10 +220,7 @@ $(function() {
     series: [
       {},
       {
-        stroke: "#edc240",
-        fill: "rgba(255,255,255,0.7)",
-        width: 1,
-        paths: uPlot.paths.bars({ size: [0.7, 100], align: 0, radius: 0 }),
+        show: false,
       }
     ],
   }, [xValues, oddsValues], chartEl);
@@ -210,9 +230,9 @@ $(function() {
   graphDiv.append(div_selection);
 
   oddsPlot.root.addEventListener("mousemove", function(event) {
-    var localX = event.clientX - oddsPlot.over.getBoundingClientRect().left;
-    var localY = event.clientY - oddsPlot.over.getBoundingClientRect().top;
-    var x = Math.round(oddsPlot.posToVal(localX, "x"));
+    var localX = event.clientX - oddsPlot.root.getBoundingClientRect().left;
+    var localY = event.clientY - oddsPlot.root.getBoundingClientRect().top;
+    var x = Math.round(xPixelToValue(oddsPlot, localX));
     var y = oddsPlot.posToVal(localY, "y");
     if (x > 0 && x <= <%= @groups[0].team_groups.size %> &&
         y > 0 && y < 100) {
