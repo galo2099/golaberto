@@ -209,9 +209,11 @@ $(function() {
 
   graphDiv.append(div_selection);
 
-  graphDiv.on("mousemove", function(event) {
-    var x = Math.round(oddsPlot.posToVal(event.offsetX, "x"));
-    var y = oddsPlot.posToVal(event.offsetY, "y");
+  oddsPlot.root.addEventListener("mousemove", function(event) {
+    var localX = event.clientX - oddsPlot.over.getBoundingClientRect().left;
+    var localY = event.clientY - oddsPlot.over.getBoundingClientRect().top;
+    var x = Math.round(oddsPlot.posToVal(localX, "x"));
+    var y = oddsPlot.posToVal(localY, "y");
     if (x > 0 && x <= <%= @groups[0].team_groups.size %> &&
         y > 0 && y < 100) {
       var names = <%== (1..@groups[0].team_groups.size).map{|i|i.ordinalize}.to_json %>;
@@ -224,7 +226,7 @@ $(function() {
     }
   });
 
-  graphDiv.on("mouseleave", function() {
+  oddsPlot.root.addEventListener("mouseleave", function() {
     $("#odds_tooltip").hide();
   });
 
