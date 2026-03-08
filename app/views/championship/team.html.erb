@@ -203,7 +203,7 @@ $(function() {
         u.ctx.fillStyle = "#666";
         u.ctx.textAlign = "center";
         u.ctx.textBaseline = "top";
-        u.ctx.font = "bold 14px sans-serif";
+        u.ctx.font = "26px sans-serif";
         for (var labelIdx = 1; labelIdx <= rankCount; labelIdx++) {
           u.ctx.fillText(labelIdx.toString(), xValueToPixel(u, labelIdx), u.bbox.top + u.bbox.height + 4);
         }
@@ -254,17 +254,17 @@ $(function() {
     ],
   }, [xValues, oddsValues], chartEl);
 
-  oddsPlot.setScale("x", { min: 1, max: rankCount });
+  oddsPlot.setScale("x", { min: 0.5, max: rankCount + 0.5 });
   oddsPlot.setScale("y", { min: 0, max: 101 });
   renderZoneBackground(oddsGraphData.markings);
 
   var suppressDblClickReset = function(event) {
     event.preventDefault();
     event.stopPropagation();
-    oddsPlot.setScale("x", { min: 1, max: rankCount });
+    oddsPlot.setScale("x", { min: 0.5, max: rankCount + 0.5 });
     oddsPlot.setScale("y", { min: 0, max: 101 });
     setTimeout(function() {
-      oddsPlot.setScale("x", { min: 1, max: rankCount });
+      oddsPlot.setScale("x", { min: 0.5, max: rankCount + 0.5 });
       oddsPlot.setScale("y", { min: 0, max: 101 });
     }, 50);
   };
