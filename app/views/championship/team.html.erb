@@ -114,9 +114,9 @@ $(function() {
     return 0.5 + ((pixel - u.bbox.left) / u.bbox.width) * rankCount;
   }
 
-  function rankFromPixel(u, pixel) {
-    var slotWidth = u.bbox.width / rankCount;
-    var raw = Math.floor((pixel - u.bbox.left) / slotWidth) + 1;
+  function rankFromOverlayPixel(overlayPixelX, overlayWidth) {
+    var slotWidth = overlayWidth / rankCount;
+    var raw = Math.floor(overlayPixelX / slotWidth) + 1;
     if (raw < 1) { return 0; }
     if (raw > rankCount) { return rankCount + 1; }
     return raw;
@@ -278,16 +278,16 @@ $(function() {
   graphDiv.append(div_selection);
 
   oddsPlot.root.addEventListener("mousemove", function(event) {
-    var localX = event.clientX - oddsPlot.root.getBoundingClientRect().left;
-    var localY = event.clientY - oddsPlot.root.getBoundingClientRect().top;
-    if (localX < oddsPlot.bbox.left || localX > oddsPlot.bbox.left + oddsPlot.bbox.width ||
-        localY < oddsPlot.bbox.top || localY > oddsPlot.bbox.top + oddsPlot.bbox.height) {
+    var overRect = oddsPlot.over.getBoundingClientRect();
+    var overlayX = event.clientX - overRect.left;
+    var overlayY = event.clientY - overRect.top;
+    if (overlayX < 0 || overlayX > overRect.width || overlayY < 0 || overlayY > overRect.height) {
       $("#odds_tooltip").hide();
       return;
     }
 
-    var x = rankFromPixel(oddsPlot, localX);
-    var y = oddsPlot.posToVal(localY, "y");
+    var x = rankFromOverlayPixel(overlayX, overRect.width);
+    var y = oddsPlot.posToVal(oddsPlot.bbox.top + overlayY, "y");
     if (x > 0 && x <= <%= @groups[0].team_groups.size %> &&
         y > 0 && y < 100) {
       var names = <%== (1..@groups[0].team_groups.size).map{|i|i.ordinalize}.to_json %>;
