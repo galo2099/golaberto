@@ -109,6 +109,20 @@ class PlayerController < ApplicationController
     end
   end
 
+
+  def merge
+    @player = Player.find(params[:id])
+    source_player = Player.find(params[:source_player_id])
+
+    @player.merge_player(source_player)
+
+    flash[:notice] = _("Player was successfully updated")
+    redirect_to :action => :show, :id => @player
+  rescue ActiveRecord::RecordNotFound
+    flash[:notice] = _("Player was not found")
+    redirect_back(fallback_location: { :action => :show, :id => params[:id] })
+  end
+
   def update_rating
     PlayerRatingUpdateService.run
     redirect_back(fallback_location: root_path)

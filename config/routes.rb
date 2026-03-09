@@ -169,6 +169,7 @@ Rails.application.routes.draw do
   match 'player/games(/:id)(.:format)', to: 'player#games', via: legacy_verbs, as: nil
   match 'player/index(/:id)(.:format)', to: 'player#index', via: legacy_verbs, as: nil
   match 'player/list(/:id)(.:format)', to: 'player#list', via: legacy_verbs, as: nil
+  match 'player/merge(/:id)(.:format)', to: 'player#merge', via: legacy_verbs, as: nil
   match 'player/new(/:id)(.:format)', to: 'player#new', via: legacy_verbs, as: nil
   match 'player/show(/:id)(.:format)', to: 'player#show', via: legacy_verbs, as: nil
   match 'player/update(/:id)(.:format)', to: 'player#update', via: legacy_verbs, as: nil
