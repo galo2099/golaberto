@@ -49,6 +49,7 @@ class Player < ApplicationRecord
 
       self.full_name = [full_name, source_player.full_name].compact.max_by(&:length)
       self.position = source_player.position if position.blank?
+      self.height = source_player.height if height.blank?
       self.birth = source_player.birth if birth.blank?
       self.country = source_player.country if country.blank?
       self.sofascore_id = source_player.sofascore_id if sofascore_id.blank?
