@@ -51,6 +51,7 @@ class Player < ApplicationRecord
       self.position = source_player.position if position.blank?
       self.birth = source_player.birth if birth.blank?
       self.country = source_player.country if country.blank?
+      self.sofascore_id = source_player.sofascore_id if sofascore_id.blank?
       save!
 
       source_player.destroy!
