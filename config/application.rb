@@ -66,8 +66,6 @@ module Golaberto
     s3_credentials[:bucket] ||= bucket
     s3_credentials['bucket'] ||= bucket
 
-    bucket = s3_credentials[:bucket] || s3_credentials['bucket'] || ENV['S3_BUCKET'] || 'golaberto-local'
-
     config.paperclip_defaults = {
       storage: :s3,
       bucket: bucket,
