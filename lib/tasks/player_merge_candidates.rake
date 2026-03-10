@@ -44,11 +44,20 @@ namespace :players do
 
       next if decision != "m"
 
-      print "Merge B into A? [y/N] "
+      print "Keep which player? [a/b, default a]: "
+      keep_choice = $stdin.gets.to_s.strip.downcase
+      keep_choice = "a" if keep_choice.empty?
+      if !%w(a b).include?(keep_choice)
+        puts "Invalid choice, skipping merge."
+        next
+      end
+
+      keep_player, remove_player = keep_choice == "a" ? [left, right] : [right, left]
+      print "Merge ##{remove_player.id} into ##{keep_player.id}? [y/N] "
       confirm = $stdin.gets.to_s.strip.downcase
       if confirm == "y"
-        left.merge_player(right)
-        puts "Merged player #{right.id} into #{left.id}."
+        keep_player.merge_player(remove_player)
+        puts "Merged player #{remove_player.id} into #{keep_player.id}."
       else
         puts "Merge canceled."
       end
@@ -58,6 +67,7 @@ namespace :players do
   def print_player_info(label, player, finder)
     puts "  Player #{label}: ##{player.id} #{player.name}"
     puts "    Full name: #{player.full_name}" if player.full_name.present?
+    puts "    Sofascore id: #{player.sofascore_id || '-'}"
     puts "    Position: #{player.position || '-'}"
 
     matches = finder.recent_matches(player)

@@ -36,12 +36,17 @@ class PlayerMergeCandidateFinder
   end
 
   def similarity_score(left, right)
-    left_names = player_names(left)
-    right_names = player_names(right)
+    name_score = best_distance(left.name, right.name)
+    full_name_score = best_distance(left.full_name, right.full_name)
 
-    left_names.product(right_names).map do |left_name, right_name|
-      @fuzzy_match.getDistance(left_name, right_name)
-    end.max.to_f
+    name_score + full_name_score
+  end
+
+
+  def best_distance(left_value, right_value)
+    return 0.0 if left_value.blank? or right_value.blank?
+
+    @fuzzy_match.getDistance(left_value, right_value).to_f
   end
 
   def recent_matches(player, limit = DEFAULT_RECENT_MATCHES)
@@ -72,7 +77,4 @@ class PlayerMergeCandidateFinder
           .select { |_, players| players.size > 1 }
   end
 
-  def player_names(player)
-    [player.name, player.full_name].compact.reject(&:blank?).uniq
-  end
 end
