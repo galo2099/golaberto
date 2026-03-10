@@ -67,6 +67,7 @@ Rails.application.routes.draw do
   get '/auth/google/callback', to: "account#google_signin"
   post '/auth/google/onetap_callback', to: "account#google_onetap"
   get '/auth/failure', to: 'account#failure'
+  get 'map/static', to: 'map#static', as: :map_static
 
   get 'groups/team_list.js' => 'group#team_list'
 
@@ -153,9 +154,6 @@ Rails.application.routes.draw do
   match 'group/update(/:id)(.:format)', to: 'group#update', via: legacy_verbs, as: nil
   match 'group/update_odds(/:id)(.:format)', to: 'group#update_odds', via: legacy_verbs, as: nil
 
-  match 'home(.:format)', to: 'home#index', via: legacy_verbs, as: nil
-  match 'home/index(/:id)(.:format)', to: 'home#index', via: legacy_verbs, as: nil
-
   match 'phase/add_groups(/:id)(.:format)', to: 'phase#add_groups', via: legacy_verbs, as: nil
   match 'phase/create(/:id)(.:format)', to: 'phase#create', via: legacy_verbs, as: nil
   match 'phase/destroy(/:id)(.:format)', to: 'phase#destroy', via: legacy_verbs, as: nil
@@ -171,6 +169,7 @@ Rails.application.routes.draw do
   match 'player/games(/:id)(.:format)', to: 'player#games', via: legacy_verbs, as: nil
   match 'player/index(/:id)(.:format)', to: 'player#index', via: legacy_verbs, as: nil
   match 'player/list(/:id)(.:format)', to: 'player#list', via: legacy_verbs, as: nil
+  match 'player/merge(/:id)(.:format)', to: 'player#merge', via: legacy_verbs, as: nil
   match 'player/new(/:id)(.:format)', to: 'player#new', via: legacy_verbs, as: nil
   match 'player/show(/:id)(.:format)', to: 'player#show', via: legacy_verbs, as: nil
   match 'player/update(/:id)(.:format)', to: 'player#update', via: legacy_verbs, as: nil

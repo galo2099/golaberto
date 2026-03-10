@@ -119,6 +119,7 @@ pt-BR:
       not_an_integer: não é um número inteiro
       odd: deve ser ímpar
       record_invalid: ! 'A validação falhou: %{errors}'
+      required: é obrigatório
       taken: já está em uso
       too_long: ! 'é muito longo (máximo: %{count} caracteres)'
       too_short: ! 'é muito curto (mínimo: %{count} caracteres)'

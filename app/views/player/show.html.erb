@@ -48,11 +48,17 @@
 <%= render :partial => "comment/comments", :locals => { :object => @player } %>
 
 <% content_for :sidebar do %>
+  <%= link_to _("Player"), :action => :show, :id => @player %><br/>
+  <%= link_to _("Games"), :action => :games, :id => @player, :type => :played %><br/>
   <% if can? :manage, @player %>
+    <br>
     <%= link_to _("Edit"), :action => :edit, :id => @player %><br/>
     <%= link_to _("Delete"), { :action => :destroy, :id => @player }, :confirm => _('Are you sure?'), :method => :post %><br/>
     <br>
+    <%= form_tag({ :action => :merge, :id => @player }, :method => :post) do %>
+      <%= label_tag :source_player_id, _("Merge from player id") %><br/>
+      <%= text_field_tag :source_player_id, nil, :size => 10 %>
+      <%= submit_tag _("Merge") %>
+    <% end %>
   <% end %>
-  <%= link_to _("Player"), :action => :show, :id => @player %><br/>
-  <%= link_to _("Games"), :action => :games, :id => @player, :type => :played %><br/>
 <% end %>

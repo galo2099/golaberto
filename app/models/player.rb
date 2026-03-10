@@ -40,4 +40,22 @@ class Player < ApplicationRecord
   def small_country_logo
     Player.small_country_flag(country)
   end
+
+  def merge_player(source_player)
+    transaction do
+      Goal.where(player_id: source_player.id).update_all(player_id: id)
+      PlayerGame.where(player_id: source_player.id).update_all(player_id: id)
+      TeamPlayer.where(player_id: source_player.id).update_all(player_id: id)
+
+      self.full_name = [full_name, source_player.full_name].compact.max_by(&:length)
+      self.position = source_player.position if position.blank?
+      self.height = source_player.height if height.blank?
+      self.birth = source_player.birth if birth.blank?
+      self.country = source_player.country if country.blank?
+      self.sofascore_id = source_player.sofascore_id if sofascore_id.blank?
+      save!
+
+      source_player.destroy!
+    end
+  end
 end

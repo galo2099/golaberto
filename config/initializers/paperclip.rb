@@ -1,8 +1,5 @@
-Paperclip.interpolates :bucket  do |attachment, style|
-  credentials = Rails.application.credentials.s3
-  if credentials.respond_to?(:[])
-    credentials[:bucket] || credentials['bucket'] || ENV['S3_BUCKET'] || 'golaberto-local'
-  else
-    ENV['S3_BUCKET'] || 'golaberto-local'
-  end
+Paperclip.interpolates :bucket do |_attachment, _style|
+  configured_bucket = Rails.application.config.paperclip_defaults.dig(:s3_credentials, :bucket) ||
+                      Rails.application.config.paperclip_defaults.dig(:s3_credentials, 'bucket')
+  configured_bucket.presence || 'golaberto_development'
 end

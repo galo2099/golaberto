@@ -4,7 +4,7 @@ class GameDataScrapeService
   LOCK_PATH = Rails.root.join("tmp", "game_data_scrape.lock")
   MAX_CONCURRENCY = 3
 
-  def self.start_async(refetch: false)
+  def self.start_async(refetch: false, include_all_past_unplayed: false)
     lock_file = File.open(LOCK_PATH, "w")
     unless lock_file.flock(File::LOCK_EX | File::LOCK_NB)
       lock_file.close
@@ -14,7 +14,7 @@ class GameDataScrapeService
     Thread.new do
       ActiveRecord::Base.connection_pool.with_connection do
         begin
-          run_unlocked(refetch: refetch)
+          run_unlocked(refetch: refetch, include_all_past_unplayed: include_all_past_unplayed)
         ensure
           lock_file.flock(File::LOCK_UN) rescue nil
           lock_file.close rescue nil
@@ -25,7 +25,7 @@ class GameDataScrapeService
     :started
   end
 
-  def self.run(refetch: false)
+  def self.run(refetch: false, include_all_past_unplayed: false)
     lock_file = File.open(LOCK_PATH, "w")
     unless lock_file.flock(File::LOCK_EX | File::LOCK_NB)
       lock_file.close
@@ -33,20 +33,23 @@ class GameDataScrapeService
     end
 
     begin
-      run_unlocked(refetch: refetch)
+      run_unlocked(refetch: refetch, include_all_past_unplayed: include_all_past_unplayed)
     ensure
       lock_file.flock(File::LOCK_UN) rescue nil
       lock_file.close rescue nil
     end
   end
 
-  def self.phases_to_scrape
+  def self.phases_to_scrape(include_all_past_unplayed: false)
+    pending_games_scope = Game.where(played: false).where("date < ?", Time.now)
+    pending_games_scope = pending_games_scope.where("date >= ?", 5.hours.ago) unless include_all_past_unplayed
+
     Phase
       .joins(:championship)
+      .joins("INNER JOIN (#{pending_games_scope.select(:phase_id).distinct.to_sql}) pending_phase_games ON pending_phase_games.phase_id = phases.id")
       .where.not(scrape_url: [nil, ""])
       .where("championships.end >= ?", Date.today - 30.days)
       .distinct
-      .select { |phase| phase.games.where(played: false).where("date < ?", Time.now).exists? }
   end
 
   def self.scrape_phase(phase, rounds: nil, refetch: false)
@@ -69,9 +72,10 @@ class GameDataScrapeService
     :started
   end
 
-  def self.run_unlocked(refetch: false)
-    phases = phases_to_scrape
-    Rails.logger.info "Found #{phases.size} phase(s) with pending games to scrape (refetch=#{refetch})"
+  def self.run_unlocked(refetch: false, include_all_past_unplayed: false)
+    phases = phases_to_scrape(include_all_past_unplayed: include_all_past_unplayed)
+    window_description = include_all_past_unplayed ? "all past pending games" : "pending games from last 5 hours"
+    Rails.logger.info "Found #{phases.size} phase(s) with #{window_description} to scrape (refetch=#{refetch})"
 
     queue = Queue.new
     phases.each { |phase| queue << phase }
