@@ -8,6 +8,7 @@
 <%= link_to _("Players"), :action => :player_list, :id => @championship %><br/>
 
 <% if can? :manage, @championship %>
+  <br/>
   <% backfill_start_message = _("Starting odds history backfill...") %>
   <% backfill_error_message = _("Cant start odds history backfill") %>
 <script type="text/javascript">
