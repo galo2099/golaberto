@@ -27,11 +27,11 @@
 <%= render :partial => "comment/comments", :locals => { :object => @referee } %>
 
 <%= content_for :sidebar do %>
-  <% if can? :manage, @referee %>
-    <%= link_to _("Edit"), :action => :edit, :id => @referee %><br/>
-    <%= link_to _("Delete"), { :action => :destroy, :id => @referee }, data: {:confirm => _('Are you sure?')}, :method => :post %><br/>
-    <br/>
-  <% end %>
   <%= link_to _("Referee"), action: :show, id: @referee %><br>
   <%= link_to _("Games"), action: :games, id: @referee %><br>
+  <% if can? :manage, @referee %>
+    <br/>
+    <%= link_to _("Edit"), :action => :edit, :id => @referee %><br/>
+    <%= link_to _("Delete"), { :action => :destroy, :id => @referee }, data: {:confirm => _('Are you sure?')}, :method => :post %><br/>
+  <% end %>
 <% end %>
