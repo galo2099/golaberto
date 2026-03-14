@@ -44,34 +44,38 @@ $(function() {
   rebuild_odds_goals();
 });
 
-function compute_odds(hp, ap, home_adv, away_adv) {
+function compute_goal_diff_odds(hp, ap, score_diff) {
   var probs = [...Array(40).keys()].map(function(i) {
     return [...Array(40).keys()].map(function(j) {
       return poisson(i, hp) * poisson(j, ap);
     });
   });
   var goal_array = [...Array(20).keys()];
-  return [
-    goal_array.filter(function(i) { return i >= away_adv; }).map(function(i) {
-      return [...Array(i+home_adv-away_adv).keys()].map(function(j) {
-        return probs[i][j];
-      });
-    }).flat().reduce(function(total, num) {
-      return total + num;
-    }),
-    goal_array.map(function(i) {
-      return probs[i+away_adv][i+home_adv];
-    }).reduce(function(total, num) {
-      return total + num;
-    }),
-    goal_array.filter(function(i) { return i >= home_adv; }).map(function(i) {
-      return [...Array(i+away_adv-home_adv).keys()].map(function(j) {
-        return probs[j][i];
-      });
-    }).flat().reduce(function(total, num) {
-      return total + num;
-    }),
-  ];
+  var goal_diff_buckets = [0, 0, 0, 0, 0, 0, 0];
+
+  goal_array.forEach(function(home_goals) {
+    goal_array.forEach(function(away_goals) {
+      var goal_diff = score_diff + home_goals - away_goals;
+      var prob = probs[home_goals][away_goals];
+      if (goal_diff >= 3) {
+        goal_diff_buckets[0] += prob;
+      } else if (goal_diff == 2) {
+        goal_diff_buckets[1] += prob;
+      } else if (goal_diff == 1) {
+        goal_diff_buckets[2] += prob;
+      } else if (goal_diff == 0) {
+        goal_diff_buckets[3] += prob;
+      } else if (goal_diff == -1) {
+        goal_diff_buckets[4] += prob;
+      } else if (goal_diff == -2) {
+        goal_diff_buckets[5] += prob;
+      } else {
+        goal_diff_buckets[6] += prob;
+      }
+    });
+  });
+
+  return goal_diff_buckets;
 }
 
 var myTimer;
@@ -83,7 +87,7 @@ $(function() {
     series: {
       stack: true,
       lines: {
-        lineWidth: 3,
+        lineWidth: 1,
         fill: true,
       },
     },
@@ -115,7 +119,7 @@ $(function() {
       sorted: "reverse",
       container: document.getElementById('odds_legend'),
     },
-    colors: ['#47C5F7', '#edc240', '#F398B2'],
+    colors: ['#27a6d8', '#37b6e8', '#47C5F7', '#edc240', '#f6a4bc', '#ee97b4', '#e58aa9'],
   };
 
   var current_time = 1000*60;
@@ -208,22 +212,27 @@ $(function() {
       }
       var hp = home_power / 95 * (total_time - x);
       var ap = away_power / 95 * (total_time - x);
-      var home_adv = 0;
-      var away_adv = 0;
-      if (score_array[x] > 0) {
-        home_adv = score_array[x];
-      }
-      if (score_array[x] < 0) {
-        away_adv = -score_array[x];
-      }
-      return [x].concat(compute_odds(hp, ap, home_adv, away_adv));
+      return [x].concat(compute_goal_diff_odds(hp, ap, score_array[x]));
    });
 
-    <% odds = @game.odds %>
+    var labels = [
+      "<%= @game.home.name %> +3+",
+      "<%= @game.home.name %> +2",
+      "<%= @game.home.name %> +1",
+      "<%= _("Draw") %>",
+      "<%= @game.away.name %> +1",
+      "<%= @game.away.name %> +2",
+      "<%= @game.away.name %> +3+",
+    ];
+
     var data = [
-      {data: odds_data.map(function(x) { return [ x[0], x[1] ]; }), label: "<%= @game.home.name %> <% if not @game.played %>: <%= number_to_percentage(100*odds[0], :precision => 2) %> <% end %>"},
-      {data: odds_data.map(function(x) { return [ x[0], x[2] ]; }), label: "<%= _("Draw") %><% if not @game.played %>: <%= number_to_percentage(100*odds[1], :precision => 2) %><% end %>"},
-      {data: odds_data.map(function(x) { return [ x[0], x[3] ]; }), label: "<%= @game.away.name %><% if not @game.played %>: <%= number_to_percentage(100*odds[2], :precision => 2) %><% end %>"},
+      {data: odds_data.map(function(x) { return [ x[0], x[1] ]; }), label: labels[0]},
+      {data: odds_data.map(function(x) { return [ x[0], x[2] ]; }), label: labels[1]},
+      {data: odds_data.map(function(x) { return [ x[0], x[3] ]; }), label: labels[2]},
+      {data: odds_data.map(function(x) { return [ x[0], x[4] ]; }), label: labels[3]},
+      {data: odds_data.map(function(x) { return [ x[0], x[5] ]; }), label: labels[4]},
+      {data: odds_data.map(function(x) { return [ x[0], x[6] ]; }), label: labels[5]},
+      {data: odds_data.map(function(x) { return [ x[0], x[7] ]; }), label: labels[6]},
     ];
     plot = graphDiv.plot(data, graphOptions).data("plot");
 
@@ -294,20 +303,12 @@ $(function() {
       if (current_time <= 90*60 + added_time*60) {
         var hp = home_power / (95*60) * (total_time*60 - current_time);
         var ap = away_power / (95*60) * (total_time*60 - current_time);
-        var home_adv = 0;
-        var away_adv = 0;
-        if (score_array[Math.floor(current_time/60)] > 0) {
-          home_adv = score_array[Math.floor(current_time/60)];
-        }
-        if (score_array[Math.floor(current_time/60)] < 0) {
-          away_adv = -score_array[Math.floor(current_time/60)];
-        }
-        var odds = compute_odds(hp, ap, home_adv, away_adv);
+        var odds = compute_goal_diff_odds(hp, ap, score_array[Math.floor(current_time/60)]);
         $('#odds_current_time').text(("" + Math.floor(current_time / 60)).padStart(2, '0') + ":" + ("" + (current_time % 60)).padStart(2, '0'));
         plot.getOptions().grid.markings[1] = { xaxis: { from: current_time / 60, to: current_time/60 }, color: "rgba(0,0,0,0.15)" };
-        plot.getData()[0].label = "<%= @game.home.name %>: " + (odds[0] * 100).toLocaleString("<%= I18n.locale %>",  { minimumFractionDigits: 2, maximumFractionDigits: 2, }) + "%";
-        plot.getData()[1].label = "Draw: " + (odds[1] * 100).toLocaleString("<%= I18n.locale %>",  { minimumFractionDigits: 2, maximumFractionDigits: 2, }) + "%";
-        plot.getData()[2].label = "<%= @game.away.name %>: " + (odds[2] * 100).toLocaleString("<%= I18n.locale %>",  { minimumFractionDigits: 2, maximumFractionDigits: 2, }) + "%";
+        for (var i = 0; i < plot.getData().length; i++) {
+          plot.getData()[i].label = labels[i] + ": " + (odds[i] * 100).toLocaleString("<%= I18n.locale %>",  { minimumFractionDigits: 2, maximumFractionDigits: 2, }) + "%";
+        }
         plot.setupGrid();
         plot.draw();
       }
@@ -339,7 +340,7 @@ $(function() {
 </script>
 
 <div>
-<h4><%= _("Live Odds") %></h4>
+<h4><%= _("Live Goal Difference Odds") %></h4>
 <div id="moving_odds" style="width: 550px; height: 200px;">
 </div>
 <div id="odds_legend"></div>
