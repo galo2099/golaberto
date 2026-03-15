@@ -26,6 +26,9 @@
 <script type="text/javascript">
 <% update_message = _("Updating odds...") %>
 <% error_message = _("Cant calculate odds") %>
+<% phase_done_message = _("Odds update started for this phase.") %>
+var phase_odds_watchers = {};
+
 function recalculate_odds(group_id) {
   <%= remote_function(
           :url => { :controller => :group,
@@ -36,7 +39,19 @@ function recalculate_odds(group_id) {
   watch_odds(group_id);
 }
 
+function recalculate_phase_odds(phase_id, group_ids) {
+  $("#phase_recalculate" + phase_id).html("<%= j update_message %>");
+  for (var i = 0; i < group_ids.length; i++) {
+    recalculate_odds(group_ids[i]);
+  }
+  $("#phase_recalculate" + phase_id).html("<%= j phase_done_message %>");
+}
+
 function watch_odds(group_id) {
+  if (phase_odds_watchers[group_id]) {
+    return;
+  }
+
   var periodicalUpdater = function() {
       <%= remote_function(
               :url => { :controller => :group,
@@ -45,9 +60,21 @@ function watch_odds(group_id) {
               :failure => "alert('#{error_message}')",
               :before => "$('#recalculate'+group_id).html('#{update_message}')") %>
       };
-   setInterval(periodicalUpdater, 5000);
+  phase_odds_watchers[group_id] = setInterval(periodicalUpdater, 5000);
+}
+
+function stop_watch_odds(group_id) {
+  if (phase_odds_watchers[group_id]) {
+    clearInterval(phase_odds_watchers[group_id]);
+    delete phase_odds_watchers[group_id];
+  }
 }
 </script>
+<% if @display_odds %>
+  <div id="phase_recalculate<%= @current_phase.id %>" data-authorize="group" style="margin: 8px 2px;">
+    <%= button_tag _("Recalculate odds"), onclick: "recalculate_phase_odds(#{@current_phase.id}, #{@current_phase.groups.pluck(:id).to_json}); return false;" %>
+  </div>
+<% end %>
 <% @current_phase.groups.each do |group| %>
   <%= render :partial => "table",
              :locals => { :group => group,
