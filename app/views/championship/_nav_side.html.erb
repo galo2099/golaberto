@@ -7,6 +7,12 @@
 <%= link_to _("Crowd"), :action => :crowd, :id => @championship %><br/>
 <%= link_to _("Players"), :action => :player_list, :id => @championship %><br/>
 
+<% if @current_phase && defined?(@hide_odds) && !@hide_odds %>
+  <div id="phase_recalculate<%= @current_phase.id %>" data-authorize="group" style="margin: 8px 0;">
+    <%= button_tag _("Recalculate odds"), type: "button", onclick: "recalculate_phase_odds(#{@current_phase.id}, #{@current_phase.groups.pluck(:id).to_json}); return false;" %>
+  </div>
+<% end %>
+
 <% if can? :manage, @championship %>
   <br/>
   <% backfill_start_message = _("Starting odds history backfill...") %>
