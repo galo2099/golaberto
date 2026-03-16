@@ -1,5 +1,8 @@
 <% if @group.odds_progress %>
   $("#recalculate<%= @group.id %>").html("<%= _("Odds being recalculated. ") + sprintf(_("%d%% done."), @group.odds_progress) %>");
 <% else %>
+  if (typeof stop_watch_odds === "function") {
+    stop_watch_odds(<%= @group.id %>);
+  }
   window.location.reload();
 <% end %>
