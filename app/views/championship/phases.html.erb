@@ -29,20 +29,15 @@
 <% phase_done_message = _("Odds update started for this phase.") %>
 var phase_odds_watchers = {};
 
-function recalculate_odds(group_id) {
-  <%= remote_function(
-          :url => { :controller => :group,
-                    :action => :update_odds },
-          :with => "'id=' + group_id",
-          :failure => "alert('#{error_message}')",
-          :before => "$('#recalculate'+group_id).html('#{update_message}')") %>
-  watch_odds(group_id);
-}
-
 function recalculate_phase_odds(phase_id, group_ids) {
   $("#phase_recalculate" + phase_id).html("<%= j update_message %>");
+  <%= remote_function(
+          :url => { :controller => :group,
+                    :action => :update_phase_odds },
+          :with => "'phase_id=' + phase_id",
+          :failure => "alert('#{error_message}')") %>
   for (var i = 0; i < group_ids.length; i++) {
-    recalculate_odds(group_ids[i]);
+    watch_odds(group_ids[i]);
   }
   $("#phase_recalculate" + phase_id).html("<%= j phase_done_message %>");
 }

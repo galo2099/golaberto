@@ -58,24 +58,17 @@ class GroupController < ApplicationController
 
   def update_odds
     @group = Group.find(params["id"])
-    if @group.odds_progress == nil
-      @group.odds_progress = 0
-      @group.save!
-      snapshot_date = @group.games.where(played: true).maximum(:date)
-      snapshot_time = if snapshot_date
-                        snapshot_date.end_of_day
-                      else
-                        Time.zone.now
-                      end
-      Thread.new do
-        ActiveRecord::Base.connection_pool.with_connection do
-          @group.odds(snapshot_time: snapshot_time)
-        end
-      end
-    end
+    enqueue_group_odds_update(@group)
     render :action => :odds_progress
   end
 
+  def update_phase_odds
+    phase = Phase.find(params["phase_id"])
+    phase.groups.find_each do |group|
+      enqueue_group_odds_update(group)
+    end
+    head :ok
+  end
 
   def start_odds_history_backfill
     championship_id = params["id"]
@@ -95,6 +88,25 @@ class GroupController < ApplicationController
   end
 
   private
+
+  def enqueue_group_odds_update(group)
+    return if group.odds_progress
+
+    group.odds_progress = 0
+    group.save!
+    snapshot_date = group.games.where(played: true).maximum(:date)
+    snapshot_time = if snapshot_date
+                      snapshot_date.end_of_day
+                    else
+                      Time.zone.now
+                    end
+    Thread.new do
+      ActiveRecord::Base.connection_pool.with_connection do
+        group.odds(snapshot_time: snapshot_time)
+      end
+    end
+  end
+
   def group_params
     params.require(:group).permit(:name)
   end
