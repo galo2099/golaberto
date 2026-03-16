@@ -19,7 +19,7 @@ class GroupController < ApplicationController
     @group = Group.find(params["id"])
     @group.update(group_params)
     @group.team_groups.each{|t|t.destroy}
-    
+
     params["team_group"].each do |key, value|
       value = value.permit(:team_id, :add_sub, :bias, :comment)
       value["comment"] = nil if value["comment"].to_s.empty?
@@ -58,15 +58,22 @@ class GroupController < ApplicationController
 
   def update_odds
     @group = Group.find(params["id"])
-    enqueue_group_odds_update(@group)
+    start_group_odds_update(@group.id)
     render :action => :odds_progress
   end
 
   def update_phase_odds
     phase = Phase.find(params["phase_id"])
-    phase.groups.find_each do |group|
-      enqueue_group_odds_update(group)
+    group_ids = phase.groups.pluck(:id)
+
+    Thread.new do
+      ActiveRecord::Base.connection_pool.with_connection do
+        group_ids.each do |group_id|
+          process_group_odds_update(group_id)
+        end
+      end
     end
+
     head :ok
   end
 
@@ -89,7 +96,16 @@ class GroupController < ApplicationController
 
   private
 
-  def enqueue_group_odds_update(group)
+  def start_group_odds_update(group_id)
+    Thread.new do
+      ActiveRecord::Base.connection_pool.with_connection do
+        process_group_odds_update(group_id)
+      end
+    end
+  end
+
+  def process_group_odds_update(group_id)
+    group = Group.find(group_id)
     return if group.odds_progress
 
     group.odds_progress = 0
@@ -100,11 +116,7 @@ class GroupController < ApplicationController
                     else
                       Time.zone.now
                     end
-    Thread.new do
-      ActiveRecord::Base.connection_pool.with_connection do
-        group.odds(snapshot_time: snapshot_time)
-      end
-    end
+    group.odds(snapshot_time: snapshot_time)
   end
 
   def group_params
