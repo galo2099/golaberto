@@ -2,7 +2,7 @@
            I18n.locale,
            @championship,
            @current_phase,
-           @display_odds,
+           @hide_odds,
            digest_cache_key(@current_phase.teams) ] do %>
 <table class='tab_header'><tr>
 <% count = 0 %>
@@ -26,17 +26,27 @@
 <script type="text/javascript">
 <% update_message = _("Updating odds...") %>
 <% error_message = _("Cant calculate odds") %>
-function recalculate_odds(group_id) {
+<% phase_done_message = _("Odds update started for this phase.") %>
+var phase_odds_watchers = {};
+
+function recalculate_phase_odds(phase_id, group_ids) {
+  $("#phase_recalculate" + phase_id).html("<%= j update_message %>");
   <%= remote_function(
           :url => { :controller => :group,
-                    :action => :update_odds },
-          :with => "'id=' + group_id",
-          :failure => "alert('#{error_message}')",
-          :before => "$('#recalculate'+group_id).html('#{update_message}')") %>
-  watch_odds(group_id);
+                    :action => :update_phase_odds },
+          :with => "'phase_id=' + phase_id",
+          :failure => "alert('#{error_message}')") %>
+  for (var i = 0; i < group_ids.length; i++) {
+    watch_odds(group_ids[i]);
+  }
+  $("#phase_recalculate" + phase_id).html("<%= j phase_done_message %>");
 }
 
 function watch_odds(group_id) {
+  if (phase_odds_watchers[group_id]) {
+    return;
+  }
+
   var periodicalUpdater = function() {
       <%= remote_function(
               :url => { :controller => :group,
@@ -45,7 +55,14 @@ function watch_odds(group_id) {
               :failure => "alert('#{error_message}')",
               :before => "$('#recalculate'+group_id).html('#{update_message}')") %>
       };
-   setInterval(periodicalUpdater, 5000);
+  phase_odds_watchers[group_id] = setInterval(periodicalUpdater, 5000);
+}
+
+function stop_watch_odds(group_id) {
+  if (phase_odds_watchers[group_id]) {
+    clearInterval(phase_odds_watchers[group_id]);
+    delete phase_odds_watchers[group_id];
+  }
 }
 </script>
 <% @current_phase.groups.each do |group| %>
@@ -53,7 +70,7 @@ function watch_odds(group_id) {
              :locals => { :group => group,
                           :link_to_group => @current_phase.groups.size > 1,
                           :show_country => @championship.show_country,
-                          :omit_columns => { :odds => @display_odds } } %>
+                          :omit_columns => { :odds => @hide_odds } } %>
   <% group.zones.each do |zone| %>
     <div><span style="font-size: small"><span style="color: <%= zone["color"] %>">▣</span> <%= zone["name"] %>: <%= zone["position"] %></span></div>
   <% end %>

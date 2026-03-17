@@ -153,6 +153,7 @@ Rails.application.routes.draw do
   match 'group/team_list(/:id)(.:format)', to: 'group#team_list', via: legacy_verbs, as: nil
   match 'group/update(/:id)(.:format)', to: 'group#update', via: legacy_verbs, as: nil
   match 'group/update_odds(/:id)(.:format)', to: 'group#update_odds', via: legacy_verbs, as: nil
+  match 'group/update_phase_odds(.:format)', to: 'group#update_phase_odds', via: legacy_verbs, as: nil
 
   match 'phase/add_groups(/:id)(.:format)', to: 'phase#add_groups', via: legacy_verbs, as: nil
   match 'phase/create(/:id)(.:format)', to: 'phase#create', via: legacy_verbs, as: nil
