@@ -40,6 +40,20 @@ class PlayerMergeCandidateFinder
     candidates.select { |candidate| exact_full_name_match?(candidate[:left], candidate[:right]) }
   end
 
+
+  def strict_identity_match_candidates(candidates)
+    candidates.select do |candidate|
+      left = candidate[:left]
+      right = candidate[:right]
+
+      same_birth = left.birth.present? and right.birth.present? and left.birth == right.birth
+      same_name = normalized_value(left.name) == normalized_value(right.name)
+      same_full_name = normalized_value(left.full_name) == normalized_value(right.full_name)
+
+      same_birth and same_name and same_full_name and complementary_external_ids?(left, right)
+    end
+  end
+
   def similarity_score(left, right)
     name_score = best_distance(left.name, right.name) * NAME_WEIGHT
     full_name_score = best_distance(left.full_name, right.full_name) * FULL_NAME_WEIGHT
@@ -82,6 +96,12 @@ class PlayerMergeCandidateFinder
   end
 
   private
+
+  def normalized_value(value)
+    return "" if value.blank?
+
+    normalize_name(value)
+  end
 
   def gap_based_threshold(candidates)
     scores = candidates.map { |candidate| candidate[:score] }

@@ -21,6 +21,21 @@ namespace :players do
       puts "Full-name matches at/above threshold: #{full_name_matches_at_threshold}/#{full_name_matches.size}"
     end
 
+    if ENV["AUTO_MERGE_STRICT"].to_s == "true"
+      strict_candidates = finder.strict_identity_match_candidates(candidates)
+      puts "Auto-merge mode enabled (AUTO_MERGE_STRICT=true)."
+      puts "Strict identity candidates: #{strict_candidates.size}"
+
+      strict_candidates.each do |candidate|
+        left = candidate[:left]
+        right = candidate[:right]
+        keep_player, remove_player = [left, right].sort_by(&:id)
+        keep_player.merge_player(remove_player)
+        puts "Merged player #{remove_player.id} into #{keep_player.id}."
+      end
+      next
+    end
+
     threshold_input = ENV["THRESHOLD"]
     threshold = threshold_input.present? ? threshold_input.to_f : suggested_threshold
 

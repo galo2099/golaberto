@@ -2,7 +2,7 @@ require File.dirname(__FILE__) + '/../test_helper'
 require Rails.root.join('lib/player_merge_candidate_finder')
 
 class PlayerMergeCandidateFinderTest < Test::Unit::TestCase
-  FakePlayer = Struct.new(:name, :full_name, :sofascore_id, :soccerway_id, keyword_init: true)
+  FakePlayer = Struct.new(:name, :full_name, :sofascore_id, :soccerway_id, :birth, keyword_init: true)
 
   def test_find_candidates_ignores_players_with_nil_birthdate
     Player.create!(name: 'Ana One', country: 'Brazil', birth: nil)
@@ -60,6 +60,34 @@ class PlayerMergeCandidateFinderTest < Test::Unit::TestCase
     right = FakePlayer.new(name: 'Ana Clara', full_name: nil)
 
     assert_in_delta 1.1, finder.similarity_score(left, right), 0.001
+  end
+
+
+  def test_strict_identity_match_candidates_requires_exact_identity_and_complementary_ids
+    finder = PlayerMergeCandidateFinder.new(Player.none)
+    birth = Date.new(2001, 2, 3)
+
+    matching = {
+      left: FakePlayer.new(name: 'Ana Maria', full_name: 'Ana Maria Souza', sofascore_id: 's1', soccerway_id: nil, birth: birth),
+      right: FakePlayer.new(name: 'Ana Maria', full_name: 'Ana Maria Souza', sofascore_id: nil, soccerway_id: 'w1', birth: birth),
+      score: 10.0,
+    }
+
+    different_full_name = {
+      left: FakePlayer.new(name: 'Ana Maria', full_name: 'Ana Maria Souza', sofascore_id: 's2', soccerway_id: nil, birth: birth),
+      right: FakePlayer.new(name: 'Ana Maria', full_name: 'Ana Souza', sofascore_id: nil, soccerway_id: 'w2', birth: birth),
+      score: 9.0,
+    }
+
+    non_complementary = {
+      left: FakePlayer.new(name: 'Ana Maria', full_name: 'Ana Maria Souza', sofascore_id: 's3', soccerway_id: 'w3', birth: birth),
+      right: FakePlayer.new(name: 'Ana Maria', full_name: 'Ana Maria Souza', sofascore_id: nil, soccerway_id: 'w4', birth: birth),
+      score: 8.0,
+    }
+
+    strict = finder.strict_identity_match_candidates([matching, different_full_name, non_complementary])
+
+    assert_equal [matching], strict
   end
 
   def test_suggest_threshold_prioritizes_full_name_match_coverage
