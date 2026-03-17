@@ -5,6 +5,7 @@ class PlayerMergeCandidateFinder
   NAME_WEIGHT = 1.0
   FULL_NAME_WEIGHT = 2.0
   FULL_NAME_MATCH_COVERAGE = 0.9
+  EXTERNAL_ID_COMPLEMENT_BONUS = 5.0
 
   def initialize(scope = Player.all, fuzzy_match = FuzzyTeamMatch.new)
     @scope = scope
@@ -42,7 +43,19 @@ class PlayerMergeCandidateFinder
     name_score = best_distance(left.name, right.name) * NAME_WEIGHT
     full_name_score = best_distance(left.full_name, right.full_name) * FULL_NAME_WEIGHT
 
-    name_score + full_name_score
+    bonus_score = complementary_external_ids?(left, right) ? EXTERNAL_ID_COMPLEMENT_BONUS : 0.0
+
+    name_score + full_name_score + bonus_score
+  end
+
+
+  def complementary_external_ids?(left, right)
+    left_sofascore_only = left.sofascore_id.present? and left.soccerway_id.blank?
+    left_soccerway_only = left.soccerway_id.present? and left.sofascore_id.blank?
+    right_sofascore_only = right.sofascore_id.present? and right.soccerway_id.blank?
+    right_soccerway_only = right.soccerway_id.present? and right.sofascore_id.blank?
+
+    (left_sofascore_only and right_soccerway_only) or (left_soccerway_only and right_sofascore_only)
   end
 
   def best_distance(left_value, right_value)
