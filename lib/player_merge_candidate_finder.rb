@@ -4,6 +4,7 @@ class PlayerMergeCandidateFinder
   DEFAULT_RECENT_MATCHES = 5
   NAME_WEIGHT = 1.0
   FULL_NAME_WEIGHT = 2.0
+  FULL_NAME_MATCH_COVERAGE = 0.9
 
   def initialize(scope = Player.all, fuzzy_match = FuzzyTeamMatch.new)
     @scope = scope
@@ -19,22 +20,22 @@ class PlayerMergeCandidateFinder
   end
 
   def suggest_threshold(candidates)
-    scores = candidates.map { |candidate| candidate[:score] }
-    return 0 if scores.empty?
-    return scores.first if scores.size == 1
+    full_name_threshold = threshold_for_full_name_matches(candidates)
+    return full_name_threshold unless full_name_threshold.nil?
 
-    best_gap = -Float::INFINITY
-    best_threshold = scores.last
+    gap_based_threshold(candidates)
+  end
 
-    scores.each_cons(2) do |high, low|
-      gap = high - low
-      if gap > best_gap
-        best_gap = gap
-        best_threshold = low
-      end
-    end
+  def threshold_for_full_name_matches(candidates, coverage = FULL_NAME_MATCH_COVERAGE)
+    full_name_scores = full_name_match_candidates(candidates).map { |candidate| candidate[:score] }.sort.reverse
+    return nil if full_name_scores.empty?
 
-    best_threshold
+    index = [(full_name_scores.size * coverage).ceil - 1, full_name_scores.size - 1].min
+    full_name_scores[index]
+  end
+
+  def full_name_match_candidates(candidates)
+    candidates.select { |candidate| exact_full_name_match?(candidate[:left], candidate[:right]) }
   end
 
   def similarity_score(left, right)
@@ -43,7 +44,6 @@ class PlayerMergeCandidateFinder
 
     name_score + full_name_score
   end
-
 
   def best_distance(left_value, right_value)
     return 0.0 if left_value.blank? or right_value.blank?
@@ -71,6 +71,35 @@ class PlayerMergeCandidateFinder
 
   private
 
+  def gap_based_threshold(candidates)
+    scores = candidates.map { |candidate| candidate[:score] }
+    return 0 if scores.empty?
+    return scores.first if scores.size == 1
+
+    best_gap = -Float::INFINITY
+    best_threshold = scores.last
+
+    scores.each_cons(2) do |high, low|
+      gap = high - low
+      if gap > best_gap
+        best_gap = gap
+        best_threshold = low
+      end
+    end
+
+    best_threshold
+  end
+
+  def exact_full_name_match?(left, right)
+    return false if left.full_name.blank? or right.full_name.blank?
+
+    normalize_name(left.full_name) == normalize_name(right.full_name)
+  end
+
+  def normalize_name(name)
+    ActiveSupport::Inflector.transliterate(name).downcase.squish
+  end
+
   def grouped_players
     @scope.where.not(country: nil)
           .where.not(birth: nil)
@@ -79,5 +108,4 @@ class PlayerMergeCandidateFinder
           .group_by { |player| [player.country, player.birth] }
           .select { |_, players| players.size > 1 }
   end
-
 end

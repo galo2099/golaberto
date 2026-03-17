@@ -48,9 +48,23 @@ class PlayerMergeCandidateFinderTest < Test::Unit::TestCase
     assert_in_delta 1.1, finder.similarity_score(left, right), 0.001
   end
 
-  def test_suggest_threshold_uses_biggest_gap
+  def test_suggest_threshold_prioritizes_full_name_match_coverage
     finder = PlayerMergeCandidateFinder.new(Player.none)
-    candidates = [3.9, 3.6, 3.55, 2.1, 2.05].map { |score| { score: score } }
+    candidates = [
+      { left: FakePlayer.new('A', 'Ana Maria'), right: FakePlayer.new('A2', 'Ana Maria'), score: 10.0 },
+      { left: FakePlayer.new('B', 'Bruna Silva'), right: FakePlayer.new('B2', 'Bruna Silva'), score: 8.0 },
+      { left: FakePlayer.new('C', 'Carla Souza'), right: FakePlayer.new('C2', 'Carla Souza'), score: 6.0 },
+      { left: FakePlayer.new('X', 'X1'), right: FakePlayer.new('Y', 'Y1'), score: 20.0 },
+    ]
+
+    assert_in_delta 6.0, finder.suggest_threshold(candidates), 0.001
+  end
+
+  def test_suggest_threshold_falls_back_to_gap_when_no_full_name_matches
+    finder = PlayerMergeCandidateFinder.new(Player.none)
+    candidates = [3.9, 3.6, 3.55, 2.1, 2.05].map do |score|
+      { left: FakePlayer.new('A', nil), right: FakePlayer.new('B', nil), score: score }
+    end
 
     assert_in_delta 2.1, finder.suggest_threshold(candidates), 0.001
   end

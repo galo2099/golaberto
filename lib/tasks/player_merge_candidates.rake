@@ -12,8 +12,14 @@ namespace :players do
     end
 
     suggested_threshold = finder.suggest_threshold(candidates)
+    full_name_matches = finder.full_name_match_candidates(candidates)
+    full_name_matches_at_threshold = full_name_matches.count { |candidate| candidate[:score] >= suggested_threshold }
     puts "Found #{candidates.size} candidate pairs."
-    puts format("Suggested threshold based on score gap: %.3f", suggested_threshold)
+    puts "Exact full-name matches: #{full_name_matches.size}"
+    puts format("Suggested threshold to capture most full-name matches: %.3f", suggested_threshold)
+    if full_name_matches.any?
+      puts "Full-name matches at/above threshold: #{full_name_matches_at_threshold}/#{full_name_matches.size}"
+    end
 
     threshold_input = ENV["THRESHOLD"]
     threshold = threshold_input.present? ? threshold_input.to_f : suggested_threshold
