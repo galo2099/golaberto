@@ -31,17 +31,18 @@ class PlayerMergeCandidateFinderTest < Test::Unit::TestCase
     assert_in_delta 4.9, finder.similarity_score(left, right), 0.001
   end
 
-  def test_similarity_score_adds_bonus_for_complementary_external_ids
-    finder = PlayerMergeCandidateFinder.new(Player.none, Struct.new(:dummy) do
-      def getDistance(_left, _right)
-        1.0
-      end
-    end.new(nil))
+  def test_find_candidates_only_includes_complementary_provider_ids
+    birth = Date.new(2000, 1, 1)
+    left = Player.create!(name: 'Left', country: 'Brazil', birth: birth, sofascore_id: 'sofa-1', soccerway_id: nil)
+    right = Player.create!(name: 'Right', country: 'Brazil', birth: birth, sofascore_id: nil, soccerway_id: 'sw-1')
+    ignored = Player.create!(name: 'Ignored', country: 'Brazil', birth: birth, sofascore_id: 'sofa-2', soccerway_id: 'sw-2')
 
-    left = FakePlayer.new(name: 'Ana', full_name: 'Ana Maria', sofascore_id: 'sofa-1', soccerway_id: nil)
-    right = FakePlayer.new(name: 'Ana', full_name: 'Ana Maria', sofascore_id: nil, soccerway_id: 'sw-1')
+    finder = PlayerMergeCandidateFinder.new(Player.where(id: [left.id, right.id, ignored.id]))
+    candidates = finder.find_candidates
 
-    assert_in_delta 8.0, finder.similarity_score(left, right), 0.001
+    assert_equal 1, candidates.size
+    assert_equal [left.id, right.id].sort, [candidates.first[:left].id, candidates.first[:right].id].sort
+    refute_includes [candidates.first[:left].id, candidates.first[:right].id], ignored.id
   end
 
   def test_similarity_score_handles_blank_full_name

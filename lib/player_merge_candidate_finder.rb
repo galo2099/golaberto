@@ -5,7 +5,6 @@ class PlayerMergeCandidateFinder
   NAME_WEIGHT = 1.0
   FULL_NAME_WEIGHT = 2.0
   FULL_NAME_MATCH_COVERAGE = 0.9
-  EXTERNAL_ID_COMPLEMENT_BONUS = 5.0
 
   def initialize(scope = Player.all, fuzzy_match = FuzzyTeamMatch.new)
     @scope = scope
@@ -14,7 +13,9 @@ class PlayerMergeCandidateFinder
 
   def find_candidates
     grouped_players.values.flat_map do |players|
-      players.combination(2).map do |left, right|
+      players.combination(2).filter_map do |left, right|
+        next unless complementary_external_ids?(left, right)
+
         { left: left, right: right, score: similarity_score(left, right) }
       end
     end.sort_by { |candidate| -candidate[:score] }
@@ -43,19 +44,17 @@ class PlayerMergeCandidateFinder
     name_score = best_distance(left.name, right.name) * NAME_WEIGHT
     full_name_score = best_distance(left.full_name, right.full_name) * FULL_NAME_WEIGHT
 
-    bonus_score = complementary_external_ids?(left, right) ? EXTERNAL_ID_COMPLEMENT_BONUS : 0.0
-
-    name_score + full_name_score + bonus_score
+    name_score + full_name_score
   end
 
 
   def complementary_external_ids?(left, right)
-    left_sofascore_only = left.sofascore_id.present? and left.soccerway_id.blank?
-    left_soccerway_only = left.soccerway_id.present? and left.sofascore_id.blank?
-    right_sofascore_only = right.sofascore_id.present? and right.soccerway_id.blank?
-    right_soccerway_only = right.soccerway_id.present? and right.sofascore_id.blank?
+    left_sofascore_only = left.sofascore_id.present? && left.soccerway_id.blank?
+    left_soccerway_only = left.soccerway_id.present? && left.sofascore_id.blank?
+    right_sofascore_only = right.sofascore_id.present? && right.soccerway_id.blank?
+    right_soccerway_only = right.soccerway_id.present? && right.sofascore_id.blank?
 
-    (left_sofascore_only and right_soccerway_only) or (left_soccerway_only and right_sofascore_only)
+    (left_sofascore_only && right_soccerway_only) || (left_soccerway_only && right_sofascore_only)
   end
 
   def best_distance(left_value, right_value)
