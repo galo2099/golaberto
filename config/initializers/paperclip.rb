@@ -3,4 +3,3 @@ Paperclip.interpolates :bucket do |_attachment, _style|
                       Rails.application.config.paperclip_defaults.dig(:s3_credentials, 'bucket')
   configured_bucket.presence || 'golaberto_development'
 end
-

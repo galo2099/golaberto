@@ -6,6 +6,8 @@
 <% end %>
 
 <%= javascript_include_flot %>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uplot@1.6.31/dist/uPlot.min.css">
+<script src="https://cdn.jsdelivr.net/npm/uplot@1.6.31/dist/uPlot.iife.min.js"></script>
 <select id='team_select'>
   <%= options_from_collection_for_select @teams, "to_param", "name", @team.to_param %>
 </select>
@@ -34,8 +36,9 @@ $(function() {
     border: "1px solid #fdd",
     padding: "2px",
     "background-color": "#fee",
-    opacity: 0.80,
-    zIndex: 0,
+    opacity: 0.95,
+    zIndex: 99999,
+    pointerEvents: "none",
   }).appendTo("body");
   var div_selection = $("<div id='odds_selection'></div>").css({
     position: "absolute",
@@ -43,33 +46,16 @@ $(function() {
     border: "1px solid #fdd",
     padding: "2px",
     "background-color": "#fee",
-    opacity: 0.80,
-    zIndex: 0,
+    opacity: 0.95,
+    zIndex: 99999,
+    pointerEvents: "none",
   })
 
   var graphDiv = $("#odds");
-  var options = {
-    selection: {
-      mode: "x"
-    },
-    series: {
-      bars: {
-        show: true,
-        barWidth: 0.7,
-        align: "center",
-        fillColor: "rgba(255, 255, 255, 0.7)",
-      },
-    },
-    xaxis: {
-      min: 0.5,
-      max: <%= @groups[0].team_groups.size + 0.5 %>,
-      ticks: <%= (1..@groups[0].team_groups.size).to_a.map{|x|[x, x.to_s]}.to_json.html_safe %>,
-      showTicks: false,
-      autoScale: false,
-    },
-    grid: {
-      hoverable: true,
-      clickable: true,
+  graphDiv.css({ position: "relative" });
+  var chartEl = document.createElement("div");
+  graphDiv.append(chartEl);
+  $(chartEl).css({ position: "relative", zIndex: 1 });
 <%
   # This replaces the complex zone grouping and marking generation logic
 
@@ -87,7 +73,7 @@ $(function() {
   end
 
   num_ranks = @groups[0]&.team_groups&.size || 0
-  flot_markings = []
+  graph_markings = []
 
   if !processed_zones.empty? && num_ranks > 0
     graph_max_y = 101.0
@@ -103,7 +89,7 @@ $(function() {
       end
 
       if first_matching_zone_for_rank
-        flot_markings << {
+        graph_markings << {
           xaxis: { from: p_rank - 0.5, to: p_rank + 0.5 },
           yaxis: { from: 0, to: graph_max_y }, # Full height
           color: first_matching_zone_for_rank["color"]
@@ -113,43 +99,222 @@ $(function() {
     end
   end
 %>
-      markings: <%== flot_markings.to_json.html_safe %>,
-    },
-    yaxis: {
-      min: 0,
-      max: 101,
-      autoScale: false,
-      showTicks: false,
-    },
-    colors: [ "#edc240", "#ff0000" ],
+  var oddsGraphData = {
+    markings: <%== graph_markings.to_json.html_safe %>,
   };
-  var plot = graphDiv.plot([
-  {
-    data: <%= @groups[0].team_groups.select{|t|t.team_id == @team.id}.first.odds.map.with_index.map{|item,idx|[idx+1, item]} %>,
-  },
-  {
-    data: [[<%=team_position%>, 0], [<%=team_position%>, 101]],
-    lines: { show: true, lineWidth: "1", color: "rgba(255, 0, 0, 1.0)", dashed: true, },
-    points: { show: false },
-    bars: {show: false},
-    highlightColor: "rgba(0,0,0,0)",
-  },
-  ], options).data("plot");
+  var oddsValues = <%= @groups[0].team_groups.select{|t|t.team_id == @team.id}.first.odds.to_json.html_safe %>;
+  var xValues = oddsValues.map(function(_, idx) { return idx + 1; });
+  var rankCount = <%= @groups[0].team_groups.size %>;
+
+  function xValueToPixel(u, value) {
+    return u.bbox.left + ((value - 0.5) / rankCount) * u.bbox.width;
+  }
+
+  function xPixelToValue(u, pixel) {
+    return 0.5 + ((pixel - u.bbox.left) / u.bbox.width) * rankCount;
+  }
+
+  function rankFromOverlayPixel(overlayPixelX, overlayWidth) {
+    var slotWidth = overlayWidth / rankCount;
+    var raw = Math.floor(overlayPixelX / slotWidth) + 1;
+    if (raw < 1) { return 0; }
+    if (raw > rankCount) { return rankCount + 1; }
+    return raw;
+  }
+
+  var activeZoneMarkings = oddsGraphData.markings || [];
+  var activeHoverPositions = [];
+  var activeHoverColor = null;
+
+  function renderZoneBackground(markings) {
+    activeZoneMarkings = markings || [];
+    if (oddsPlot) {
+      oddsPlot.setScale("x", { min: 0.5, max: rankCount + 0.5 });
+      oddsPlot.setScale("y", { min: 0, max: 101 });
+      oddsPlot.redraw();
+    }
+  }
+
+  var oddsPlot = new uPlot({
+    width: graphDiv.width(),
+    height: graphDiv.height(),
+    scales: {
+      x: { time: false, auto: false, min: 0.5, max: <%= @groups[0].team_groups.size + 0.5 %> },
+      y: { min: 0, max: 101 },
+    },
+    axes: [
+      {
+        side: 2,
+        grid: { show: false },
+        ticks: { show: false },
+        values: function() { return []; },
+      },
+      {
+        side: 3,
+        grid: { show: false },
+        ticks: { show: true },
+        splits: function() {
+          return [0, 20, 40, 60, 80, 100];
+        },
+        values: function(u, splits) {
+          return splits.map(function(v) { return v.toString() + "%"; });
+        },
+      }
+    ],
+    cursor: {
+      x: false,
+      y: false,
+      drag: { x: true, y: false, setScale: false },
+      points: { show: false },
+    },
+    legend: {
+      show: false,
+    },
+    hooks: {
+      drawClear: [function(u) {
+        u.ctx.save();
+        activeZoneMarkings.forEach(function(marking) {
+          var xFrom = xValueToPixel(u, marking.xaxis.from);
+          var xTo = xValueToPixel(u, marking.xaxis.to);
+          u.ctx.fillStyle = marking.color;
+          u.ctx.globalAlpha = 0.75;
+          u.ctx.fillRect(xFrom, u.bbox.top, xTo - xFrom, u.bbox.height);
+        });
+
+        if (activeHoverColor && activeHoverPositions.length > 0) {
+          activeHoverPositions.forEach(function(position) {
+            var xFrom = xValueToPixel(u, position - 0.5);
+            var xTo = xValueToPixel(u, position + 0.5);
+            u.ctx.fillStyle = activeHoverColor;
+            u.ctx.globalAlpha = 0.30;
+            u.ctx.fillRect(xFrom, u.bbox.top, xTo - xFrom, u.bbox.height);
+          });
+        }
+        u.ctx.restore();
+      }],
+      draw: [function(u) {
+        u.ctx.save();
+        var slotWidth = u.bbox.width / rankCount;
+        var barWidth = slotWidth * 0.7;
+        oddsValues.forEach(function(value, idx) {
+          var centerX = xValueToPixel(u, idx + 1);
+          var xLeft = centerX - barWidth / 2;
+          var yTop = u.valToPos(value, "y", true);
+          var yBottom = u.valToPos(0, "y", true);
+          u.ctx.fillStyle = "rgba(255,255,255,0.7)";
+          u.ctx.fillRect(xLeft, yTop, barWidth, yBottom - yTop);
+          u.ctx.strokeStyle = "#edc240";
+          u.ctx.lineWidth = 1;
+          u.ctx.strokeRect(xLeft, yTop, barWidth, yBottom - yTop);
+        });
+
+        var x = Math.round(xValueToPixel(u, <%=team_position%>)) + 0.5;
+        var top = u.valToPos(101, "y", true);
+        var bottom = u.valToPos(0, "y", true);
+        u.ctx.strokeStyle = "rgba(255, 0, 0, 1.0)";
+        u.ctx.setLineDash([4, 4]);
+        u.ctx.beginPath();
+        u.ctx.moveTo(x, top);
+        u.ctx.lineTo(x, bottom);
+        u.ctx.stroke();
+
+        u.ctx.fillStyle = "#666";
+        u.ctx.textAlign = "center";
+        u.ctx.textBaseline = "top";
+        u.ctx.font = "26px sans-serif";
+        for (var labelIdx = 1; labelIdx <= rankCount; labelIdx++) {
+          u.ctx.fillText(labelIdx.toString(), xValueToPixel(u, labelIdx), u.bbox.top + u.bbox.height + 4);
+        }
+
+        u.ctx.restore();
+      }],
+      setSelect: [function(u) {
+        var leftPx = u.select.left;
+        var widthPx = u.select.width;
+        if (!widthPx) {
+          $("#odds_selection").hide();
+          return;
+        }
+        var fromValue = xPixelToValue(u, leftPx);
+        var toValue = xPixelToValue(u, leftPx + widthPx);
+        var newFrom = roundToClosestFive(fromValue * 10) / 10;
+        var newTo = roundToClosestFive(toValue * 10) / 10;
+        if (newFrom === newTo) {
+          u.setSelect({ left: 0, width: 0, height: 0 }, false);
+          $("#odds_selection").hide();
+          return;
+        }
+        if (newFrom !== fromValue || newTo !== toValue) {
+          var left = xValueToPixel(u, newFrom);
+          var right = xValueToPixel(u, newTo);
+          u.setSelect({ left: left, width: right - left, top: u.bbox.top, height: u.bbox.height }, false);
+          return;
+        }
+        var fromIndex = Math.round(newFrom) - 1;
+        var toIndex = Math.round(newTo) - 1;
+        var value = oddsValues.slice(fromIndex, toIndex).reduce(function(a, b) { return a + b; }, 0).toLocaleString("<%= I18n.locale %>", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        var odds_selection = $("#odds_selection").html("<%= _("Selected:") %> " + value + "%");
+        odds_selection.css({
+          top: u.bbox.top + 5,
+          left: leftPx + (widthPx / 2) - odds_selection.width() / 2,
+        }).fadeIn(200);
+      }],
+    },
+    series: [
+      {},
+      {
+        show: true,
+        stroke: "rgba(0,0,0,0)",
+        fill: "rgba(0,0,0,0)",
+        width: 0,
+        paths: uPlot.paths.bars({ size: [0.7, 100], align: 0, radius: 0 }),
+      }
+    ],
+  }, [xValues, oddsValues], chartEl);
+
+  oddsPlot.setScale("x", { min: 0.5, max: rankCount + 0.5 });
+  oddsPlot.setScale("y", { min: 0, max: 101 });
+  renderZoneBackground(oddsGraphData.markings);
+
+  var suppressDblClickReset = function(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    oddsPlot.setScale("x", { min: 0.5, max: rankCount + 0.5 });
+    oddsPlot.setScale("y", { min: 0, max: 101 });
+    setTimeout(function() {
+      oddsPlot.setScale("x", { min: 0.5, max: rankCount + 0.5 });
+      oddsPlot.setScale("y", { min: 0, max: 101 });
+    }, 50);
+  };
+  oddsPlot.root.addEventListener("dblclick", suppressDblClickReset, true);
+  oddsPlot.over.addEventListener("dblclick", suppressDblClickReset, true);
 
   graphDiv.append(div_selection);
 
-  graphDiv.bind("plothover", function(event, pos, item) {
-    var x = Math.round(pos.x);
-    if (x > 0 && x <= <%= @groups[0].team_groups.size %> &&
-        pos.y > 0 && pos.y < 100) {
+  oddsPlot.root.addEventListener("mousemove", function(event) {
+    var overRect = oddsPlot.over.getBoundingClientRect();
+    var overlayX = event.clientX - overRect.left;
+    var overlayY = event.clientY - overRect.top;
+    if (overlayX < 0 || overlayX > overRect.width || overlayY < 0 || overlayY > overRect.height) {
+      $("#odds_tooltip").hide();
+      return;
+    }
+
+    var x = rankFromOverlayPixel(overlayX, overRect.width);
+    var y = oddsPlot.posToVal(oddsPlot.bbox.top + overlayY, "y");
+    if (x > 0 && x <= <%= @groups[0].team_groups.size %>) {
       var names = <%== (1..@groups[0].team_groups.size).map{|i|i.ordinalize}.to_json %>;
-      var value = plot.getData()[0].data[x-1][1].toLocaleString("<%= I18n.locale %>",  { minimumFractionDigits: 2, maximumFractionDigits: 2, })
+      var value = oddsValues[x-1].toLocaleString("<%= I18n.locale %>",  { minimumFractionDigits: 2, maximumFractionDigits: 2, });
       $("#odds_tooltip").html(names[x-1] + ": " + value + "%")
-        .css({top: pos.pageY+5, left: pos.pageX+5})
+        .css({top: event.pageY+5, left: event.pageX+5})
         .fadeIn(200);
     } else {
       $("#odds_tooltip").hide();
     }
+  });
+
+  oddsPlot.root.addEventListener("mouseleave", function() {
+    $("#odds_tooltip").hide();
   });
 
   const roundToClosestFive = (num) => {
@@ -166,39 +331,8 @@ $(function() {
     }
   }
 
-  graphDiv.on("plotselected", function (event, ranges) {
-    var newFrom = roundToClosestFive(ranges.xaxis.from * 10) / 10;
-    var newTo = roundToClosestFive(ranges.xaxis.to * 10) / 10;
-    if (newFrom != ranges.xaxis.from || newTo != ranges.xaxis.to) {
-      if (newFrom == newTo) {
-        plot.clearSelection();
-      } else {
-        plot.setSelection({
-          xaxis: {
-            from: roundToClosestFive(ranges.xaxis.from * 10) / 10,
-            to: roundToClosestFive(ranges.xaxis.to * 10) / 10,
-          }
-        });
-      }
-      return;
-    }
-    var fromIndex = Math.round(ranges.xaxis.from) - 1;
-    var toIndex = Math.round(ranges.xaxis.to) - 1;
-    var value = plot.getData()[0].data.slice(fromIndex, toIndex).reduce((a, b) => a + b[1], 0).toLocaleString("<%= I18n.locale %>", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    var posFrom = plot.pointOffset({x: ranges.xaxis.from, y: ranges.yaxis.to});
-    var posTo = plot.pointOffset({x: ranges.xaxis.to, y: ranges.yaxis.to});
-    var odds_selection = $("#odds_selection").html("<%= _("Selected:") %> " + value + "%");
-    odds_selection.css({top: posFrom.top+5, left: (posFrom.left+posTo.left)/2 - odds_selection.width()/2})
-      .fadeIn(200);
-  });
-  graphDiv.on("plotunselected", function (event) {
-    $("#odds_selection").hide();
-  });
-
-  // Color the label in the xaxis for the current position in red
-  $('div#odds .flot-x1-axis text').filter((i, x) => $(x).text() == "<%=team_position%>").css({
-    "fill": "red",
-  });
+  graphDiv.data("oddsPlot", oddsPlot);
+  graphDiv.data("renderOddsZoneBackground", renderZoneBackground);
 });
 
 </script>
@@ -214,26 +348,29 @@ $(function() {
 
 <script type="text/javascript">
   // Ensure the global object exists
-  window.flotGraphZoneData = window.flotGraphZoneData || {};
+  window.uplotGraphZoneData = window.uplotGraphZoneData || {};
   // Store data for the current group's graph
   // Assuming @groups[0] is the primary group for this graph context
-  window.flotGraphZoneData['group_<%= @groups[0].id %>'] = {
+  window.uplotGraphZoneData['group_<%= @groups[0].id %>'] = {
     zones: <%== @groups[0].zones.select{|z| z.is_a?(Hash) && z['name'].is_a?(String) && z['position'].is_a?(Array) && z['color'].is_a?(String)}.map{|z| {name: z['name'], color: z['color'], positions: z['position']}}.to_json.html_safe %>,
-    defaultMarkings: <%== flot_markings.to_json.html_safe %>, // Store the ERB-generated default markings
+    defaultMarkings: <%== graph_markings.to_json.html_safe %>, // Store the ERB-generated default markings
     numRanks: <%== (@groups[0]&.team_groups&.size || 0) %> // Store num_ranks
   };
 
 $(document).ready(function() {
   var graphDiv = $("#odds"); // ID of the Flot Odds Graph container
-  var plot = null;
+  var oddsPlot = null;
+  var renderZoneBackground = null;
 
   function initOddsGraphInteraction() {
-    plot = graphDiv.data('plot');
-    if (!plot) {
-      setTimeout(function() { // Retry in case Flot init is delayed
-        plot = graphDiv.data('plot');
-        if (!plot) {
-          console.warn("Flot plot object not found for Odds Graph interactivity.");
+    oddsPlot = graphDiv.data('oddsPlot');
+    renderZoneBackground = graphDiv.data('renderOddsZoneBackground');
+    if (!oddsPlot || !renderZoneBackground) {
+      setTimeout(function() {
+        oddsPlot = graphDiv.data('oddsPlot');
+        renderZoneBackground = graphDiv.data('renderOddsZoneBackground');
+        if (!oddsPlot || !renderZoneBackground) {
+          console.warn("uPlot object not found for Odds Graph interactivity.");
           return;
         }
         attachOddsGraphLegendHandlers();
@@ -249,8 +386,8 @@ $(document).ready(function() {
     var groupId = $('.odds-graph-legend-item').first().data('groupId');
     var graphData;
 
-    if (groupId && window.flotGraphZoneData && window.flotGraphZoneData['group_' + groupId]) {
-      graphData = window.flotGraphZoneData['group_' + groupId];
+    if (groupId && window.uplotGraphZoneData && window.uplotGraphZoneData['group_' + groupId]) {
+      graphData = window.uplotGraphZoneData['group_' + groupId];
       if (!graphData.defaultMarkings || !graphData.zones || typeof graphData.numRanks === 'undefined') {
         console.warn("Required data (defaultMarkings, zones, or numRanks) not found for Odds Graph group: " + groupId);
         return;
@@ -261,8 +398,8 @@ $(document).ready(function() {
       setTimeout(function() {
         // Re-fetch groupId in case the DOM was not ready for the first attempt.
         groupId = $('.odds-graph-legend-item').first().data('groupId');
-        if (groupId && window.flotGraphZoneData && window.flotGraphZoneData['group_' + groupId]) {
-          graphData = window.flotGraphZoneData['group_' + groupId];
+        if (groupId && window.uplotGraphZoneData && window.uplotGraphZoneData['group_' + groupId]) {
+          graphData = window.uplotGraphZoneData['group_' + groupId];
           if (!graphData.defaultMarkings || !graphData.zones || typeof graphData.numRanks === 'undefined') {
             console.warn("Required data not found for Odds Graph group (after delay): " + groupId);
             return;
@@ -291,56 +428,30 @@ $(document).ready(function() {
     }
 
     function mouseEnterHandler() {
-        if (!plot || !graphData) return;
+        if (!oddsPlot || !graphData || !graphData.defaultMarkings || !graphData.zones || !renderZoneBackground) return;
 
         var hoveredZoneName = $(this).data('zoneName');
         var hoveredZone = graphData.zones.find(function(z) { return z.name === hoveredZoneName; });
-
-        if (!hoveredZone) return;
-
-        var newMarkings = [];
-        var numRanks = graphData.numRanks;
-        var graphMaxY = 101.0;
-
-        for (var pRank = 1; pRank <= numRanks; pRank++) {
-            var colorForThisRank = null;
-            // Find the default marking for this rank.
-            // Using toFixed(1) for robust floating point comparison.
-            var defaultMarkingForRank = graphData.defaultMarkings.find(function(m) {
-            return m.xaxis && typeof m.xaxis.from === 'number' &&
-                    (pRank - 0.5).toFixed(1) === m.xaxis.from.toFixed(1);
-            });
-
-            if (hoveredZone.positions.map(Number).includes(pRank)) { // Ensure positions are numbers
-            colorForThisRank = hoveredZone.color;
-            } else {
-            if (defaultMarkingForRank) {
-                colorForThisRank = defaultMarkingForRank.color;
-            }
-            }
-
-            if (colorForThisRank) {
-            newMarkings.push({
-                xaxis: { from: pRank - 0.5, to: pRank + 0.5 },
-                yaxis: { from: 0, to: graphMaxY },
-                color: colorForThisRank
-            });
-            }
+        if (!hoveredZone) {
+          activeHoverPositions = [];
+          activeHoverColor = null;
+          renderZoneBackground(graphData.defaultMarkings);
+          return;
         }
 
-        var options = plot.getOptions();
-        options.grid.markings = newMarkings;
-        plot.setupGrid();
-        plot.draw();
+        activeHoverPositions = (hoveredZone.positions || []).map(Number).filter(function(p) {
+          return p >= 1 && p <= graphData.numRanks;
+        });
+        activeHoverColor = hoveredZone.color;
+        renderZoneBackground(graphData.defaultMarkings);
     }
 
     function mouseLeaveHandler() {
-        if (!plot || !graphData || !graphData.defaultMarkings) return;
+        if (!oddsPlot || !graphData || !graphData.defaultMarkings || !renderZoneBackground) return;
 
-        var options = plot.getOptions();
-        options.grid.markings = graphData.defaultMarkings; // Restore original
-        plot.setupGrid();
-        plot.draw();
+        activeHoverPositions = [];
+        activeHoverColor = null;
+        renderZoneBackground(graphData.defaultMarkings);
     }
 
     $('tr.odds-graph-legend-item[data-group-id="' + groupId + '"]').on('mouseenter', mouseEnterHandler).on('mouseleave', mouseLeaveHandler);

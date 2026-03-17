@@ -68,6 +68,7 @@ module Golaberto
 
     config.paperclip_defaults = {
       storage: :s3,
+      bucket: bucket,
       s3_region: 'us-east-1',
       s3_credentials: s3_credentials,
       s3_headers: { 'Cache-Control' => 'max-age=315576000', 'Expires' => 10.years.from_now.httpdate },
