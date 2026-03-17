@@ -13,7 +13,7 @@ class PlayerMergeCandidateFinderTest < Test::Unit::TestCase
     assert_equal [], finder.find_candidates
   end
 
-  def test_similarity_score_adds_name_and_full_name_scores
+  def test_similarity_score_gives_higher_weight_to_full_name
     fuzzy = Struct.new(:scores) do
       def getDistance(left, right)
         scores.fetch([left, right], 0)
@@ -28,7 +28,7 @@ class PlayerMergeCandidateFinderTest < Test::Unit::TestCase
     left = FakePlayer.new('Ana', 'Ana Maria')
     right = FakePlayer.new('Ana Clara', 'Ana Maria Souza')
 
-    assert_in_delta 3.0, finder.similarity_score(left, right), 0.001
+    assert_in_delta 4.9, finder.similarity_score(left, right), 0.001
   end
 
   def test_similarity_score_handles_blank_full_name

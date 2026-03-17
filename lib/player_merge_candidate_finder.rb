@@ -2,6 +2,8 @@ require 'fuzzy/fuzzy'
 
 class PlayerMergeCandidateFinder
   DEFAULT_RECENT_MATCHES = 5
+  NAME_WEIGHT = 1.0
+  FULL_NAME_WEIGHT = 2.0
 
   def initialize(scope = Player.all, fuzzy_match = FuzzyTeamMatch.new)
     @scope = scope
@@ -36,8 +38,8 @@ class PlayerMergeCandidateFinder
   end
 
   def similarity_score(left, right)
-    name_score = best_distance(left.name, right.name)
-    full_name_score = best_distance(left.full_name, right.full_name)
+    name_score = best_distance(left.name, right.name) * NAME_WEIGHT
+    full_name_score = best_distance(left.full_name, right.full_name) * FULL_NAME_WEIGHT
 
     name_score + full_name_score
   end
