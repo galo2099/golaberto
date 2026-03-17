@@ -5,18 +5,19 @@ use crate::schema::{championships, goals, players};
 use chrono::{Duration, NaiveDate};
 use diesel::connection::DefaultLoadingMode;
 use diesel::dsl::sql;
-use diesel::mysql::{Mysql, MysqlConnection};
+use diesel::mysql::MysqlConnection;
 use diesel::r2d2::{ConnectionManager, Pool};
+use diesel::result::Error as DieselError;
 use diesel::sql_types::Bool;
 use diesel::QueryDsl;
 use diesel::RunQueryDsl;
-use diesel::{debug_query, sql_query, ExpressionMethods, JoinOnDsl, SelectableHelper};
+use diesel::{sql_query, ExpressionMethods, JoinOnDsl, SelectableHelper};
 use dotenv::dotenv;
 use itertools::Itertools;
 use smallvec::{smallvec, SmallVec};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration as StdDuration, Instant};
 use std::{env, thread};
 use tiny_http::{Header, Method, Response, Server};
 
@@ -25,6 +26,8 @@ pub mod schema;
 
 const AVG_BASE: f32 = 1.335_025_8;
 const HOME_ADV: f32 = 0.161_336_76;
+const WRITE_MAX_RETRIES: usize = 2;
+const WRITE_RETRY_SLEEP: StdDuration = StdDuration::from_secs(1);
 
 struct PlayerGamePos {
     pg: PlayerGame,
@@ -574,7 +577,7 @@ fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
     let mut handles = Vec::new();
     for c in &player_ratings.iter().chunks(1000) {
         let pool = pool.clone();
-        let statement = sql_query("INSERT INTO players (id,off_rating,def_rating,rating,created_at,updated_at) VALUES ".to_owned() +
+        let statement = "INSERT INTO players (id,off_rating,def_rating,rating,created_at,updated_at) VALUES ".to_owned() +
                 &c.map(
                     |(k, v)|
                         format!("({}, {}, {}, {}, \"{}\", \"{}\")",
@@ -584,9 +587,9 @@ fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
                                 (v.off + v.def) / v.minutes * 90.0 * squash_rating(v.minutes), now, now))
                     .collect::<Vec<String>>()
                     .join(",") +
-                " ON DUPLICATE KEY UPDATE off_rating=VALUES(off_rating),def_rating=VALUES(def_rating),rating=VALUES(rating),updated_at=VALUES(updated_at)");
+                " ON DUPLICATE KEY UPDATE off_rating=VALUES(off_rating),def_rating=VALUES(def_rating),rating=VALUES(rating),updated_at=VALUES(updated_at)";
         handles.push(thread::spawn(move || {
-            statement.execute(&mut pool.get().unwrap()).unwrap();
+            run_upsert_with_retry(pool, statement, "players")
         }));
     }
 
@@ -595,7 +598,7 @@ fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
         player_game_ratings.len()
     );
     for c in &player_game_ratings.iter().chunks(50000) {
-        let statement = sql_query("INSERT INTO player_games (id, game_id, off_rating, def_rating) VALUES ".to_owned() +
+        let statement = "INSERT INTO player_games (id, game_id, off_rating, def_rating) VALUES ".to_owned() +
             &c.map(
                 |((id, game_id), v)|
                     format!("({}, {}, {}, {})",
@@ -605,18 +608,91 @@ fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
                             v.def))
                 .collect::<Vec<String>>()
                 .join(",") +
-            " ON DUPLICATE KEY UPDATE off_rating=VALUES(off_rating),def_rating=VALUES(def_rating)");
+            " ON DUPLICATE KEY UPDATE off_rating=VALUES(off_rating),def_rating=VALUES(def_rating)";
         let pool = pool.clone();
         handles.push(thread::spawn(move || {
-            statement.execute(&mut pool.get().unwrap()).unwrap();
+            run_upsert_with_retry(pool, statement, "player_games")
         }));
     }
 
+    let mut failed_jobs = 0;
     for h in handles {
-        h.join().unwrap();
+        match h.join() {
+            Ok(true) => {}
+            Ok(false) => failed_jobs += 1,
+            Err(_) => {
+                failed_jobs += 1;
+                eprintln!("A rating upsert worker panicked");
+            }
+        }
     }
+
+    if failed_jobs > 0 {
+        eprintln!(
+            "Finished with {} failed upsert job(s); continuing without crashing",
+            failed_jobs
+        );
+    }
+
     println!("Upserted ratings for {} players", player_ratings.len());
     println!("Finished compute_ratings in {:?}", start.elapsed());
+}
+
+fn run_upsert_with_retry(
+    pool: Pool<ConnectionManager<MysqlConnection>>,
+    statement: String,
+    table_name: &str,
+) -> bool {
+    let query = statement;
+    let mut attempt = 0;
+    loop {
+        attempt += 1;
+        match pool.get() {
+            Ok(mut conn) => match sql_query(query.clone()).execute(&mut conn) {
+                Ok(_) => return true,
+                Err(err) => {
+                    if should_retry_write(&err) && attempt <= WRITE_MAX_RETRIES {
+                        eprintln!(
+                            "{} upsert attempt {} failed with retryable DB error: {}",
+                            table_name, attempt, err
+                        );
+                        thread::sleep(WRITE_RETRY_SLEEP);
+                        continue;
+                    }
+                    eprintln!(
+                        "{} upsert failed after {} attempt(s): {}",
+                        table_name, attempt, err
+                    );
+                    return false;
+                }
+            },
+            Err(err) => {
+                if attempt <= WRITE_MAX_RETRIES {
+                    eprintln!(
+                        "{} upsert attempt {} failed to acquire DB connection: {}",
+                        table_name, attempt, err
+                    );
+                    thread::sleep(WRITE_RETRY_SLEEP);
+                    continue;
+                }
+                eprintln!(
+                    "{} upsert failed after {} attempt(s) due to connection checkout errors: {}",
+                    table_name, attempt, err
+                );
+                return false;
+            }
+        }
+    }
+}
+
+fn should_retry_write(err: &DieselError) -> bool {
+    match err {
+        DieselError::DatabaseError(_, info) => info
+            .message()
+            .to_ascii_lowercase()
+            .contains("lost connection to mysql server"),
+        _ => false,
+    }
 }
 
 fn json_header() -> Header {
