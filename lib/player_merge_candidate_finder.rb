@@ -70,7 +70,8 @@ class PlayerMergeCandidateFinder
   private
 
   def grouped_players
-    @scope.where.not(country: nil, birth: nil)
+    @scope.where.not(country: nil)
+          .where.not(birth: nil)
           .where.not(name: [nil, ''])
           .order(:country, :birth)
           .group_by { |player| [player.country, player.birth] }

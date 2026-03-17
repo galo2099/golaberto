@@ -4,6 +4,15 @@ require Rails.root.join('lib/player_merge_candidate_finder')
 class PlayerMergeCandidateFinderTest < Test::Unit::TestCase
   FakePlayer = Struct.new(:name, :full_name)
 
+  def test_find_candidates_ignores_players_with_nil_birthdate
+    Player.create!(name: 'Ana One', country: 'Brazil', birth: nil)
+    Player.create!(name: 'Ana Two', country: 'Brazil', birth: nil)
+
+    finder = PlayerMergeCandidateFinder.new
+
+    assert_equal [], finder.find_candidates
+  end
+
   def test_similarity_score_adds_name_and_full_name_scores
     fuzzy = Struct.new(:scores) do
       def getDistance(left, right)
