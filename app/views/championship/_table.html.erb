@@ -56,10 +56,16 @@
       <%= content_tag :th, class: "odds", style: "text-align: center" do -%>
         <select id="oddsSelect_<%= group.id %>" tabindex=1>
         <% group.zones.each do |zone| %>
-          <option value="<%= zone["name"] %>" data-title="<%= sprintf(_("odds of %s"), zone["name"])%>" data-color="<%= zone["color"]%>">▣</option>
+          <option value="<%= zone["name"] %>"
+                  data-title="<%= sprintf(_("odds of %s"), zone["name"])%>"
+                  data-color="<%= zone["color"]%>"
+                  data-positions="<%= zone["position"].to_json %>">▣</option>
         <% end %>
         <% (1..group.teams.size).each do |i| %>
-          <option value="<%= i %>" title="<%= sprintf(_("odds of %s"), i)%>"><%=i%></option>
+          <option value="<%= i %>"
+                  title="<%= sprintf(_("odds of %s"), i)%>"
+                  data-rank="<%= i %>"
+                  data-color="lightgray"><%=i%></option>
         <% end %>
         </select>
         <style>
@@ -125,11 +131,41 @@
           $("#oddsSelect_<%=group.id%>").iconselectmenu({
             width: false,
             change: function(event, ui) {
-              $("td[data-group-id=<%=group.id%>][data-zone-name]").each(function(index) {
-                $(this).hide();
-              });
-              $("td[data-group-id=<%=group.id%>][data-zone-name='" + ui.item.value + "']").each(function(index) {
-                $(this).show();
+              $("td.odds-value[data-group-id=<%=group.id%>]").each(function(index) {
+                var cell = $(this);
+                var oddsArray = cell.data("oddsArray");
+                if (!oddsArray) {
+                  try {
+                    oddsArray = JSON.parse(cell.attr("data-odds-array") || "[]");
+                  } catch (e) {
+                    oddsArray = [];
+                  }
+                  cell.data("oddsArray", oddsArray);
+                }
+
+                var value = null;
+                var rank = ui.item.element.attr("data-rank");
+                var zonePositions = ui.item.element.attr("data-positions");
+                if (rank) {
+                  value = oddsArray[Number(rank) - 1];
+                } else if (zonePositions) {
+                  try {
+                    var positions = JSON.parse(zonePositions);
+                    value = positions.reduce(function(sum, pos) {
+                      var v = oddsArray[Number(pos) - 1];
+                      return sum + (v == null ? 0 : Number(v));
+                    }, 0);
+                  } catch (e) {
+                    value = null;
+                  }
+                }
+
+                if (value == null) {
+                  cell.text("");
+                } else {
+                  cell.text(Number(value).toFixed(2));
+                }
+                cell.css("background-color", ui.item.element.attr("data-color") || "lightgray");
               });
             }
           });
@@ -249,17 +285,15 @@
          <%= content_tag :td, stats.goals_diff unless omit_columns[:GD] %>
          <% if not omit_columns[:odds] then %>
            <%= content_tag :td, "", class: "odds_spacing" %>
-           <% first = true %>
-           <% group.zones.each do |zone| %>
-             <% odds = t[0].calculate_odds(zone["position"]) %>
-             <%= content_tag :td, odds ? number_to_rounded(odds, precision: 2) : "", "data-group-id": group.id, "data-zone-name": zone["name"], class: "odds", style: "background-color: #{zone["color"]}; display: #{first ? "table-cell" : "none"}" %>
-             <% first = false %>
-           <% end %>
-           <% (1..group.teams.size).each do |i| %>
-             <% odds = if t[0].odds then t[0].odds[i-1] end %>
-             <%= content_tag :td, odds ? number_to_rounded(odds, precision: 2) : "", "data-group-id": group.id, "data-zone-name": i, class: "odds", style: "background-color: lightgray; display: #{first ? "table-cell" : "none"}" %>
-             <% first = false %>
-           <% end %>
+           <% first_zone = group.zones.first %>
+           <% first_zone_odds = first_zone ? t[0].calculate_odds(first_zone["position"]) : nil %>
+           <% first_color = first_zone.is_a?(Hash) ? first_zone["color"] : "lightgray" %>
+           <%= content_tag :td,
+                           first_zone_odds ? number_to_rounded(first_zone_odds, precision: 2) : "",
+                           "data-group-id": group.id,
+                           "data-odds-array": (t[0].odds || []).to_json,
+                           class: "odds odds-value",
+                           style: "background-color: #{first_color}" %>
          <% end %>
        </tr>
      <% end %>
