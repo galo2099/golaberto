@@ -447,6 +447,13 @@ class ChampionshipController < ApplicationController
     @pagy, @games = pagy(@championship.games.reorder("attendance DESC"), items: 10)
   end
 
+  def clone_phase
+    @championship = Championship.find(params["id"])
+    phase = @championship.phases.find(params["phase"])
+    cloned_championship = @championship.clone_phase_to_new_championship!(phase)
+    redirect_to :action => :phases, :id => cloned_championship, :phase => cloned_championship.phases.first
+  end
+
   def destroy
     Championship.find(params["id"]).destroy
     redirect_to action: :list

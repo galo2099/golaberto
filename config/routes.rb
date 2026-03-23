@@ -120,6 +120,7 @@ Rails.application.routes.draw do
   match 'championship/list(/:id)(.:format)', to: 'championship#list', via: legacy_verbs, as: nil
   match 'championship/new(/:id)(.:format)', to: 'championship#new', via: legacy_verbs, as: nil
   match 'championship/new_game(/:id)(.:format)', to: 'championship#new_game', via: legacy_verbs, as: nil
+  match 'championship/clone_phase(/:id)(.:format)', to: 'championship#clone_phase', via: legacy_verbs, as: nil
   match 'championship/phases(/:id)(.:format)', to: 'championship#phases', via: legacy_verbs, as: nil
   match 'championship/player_list(/:id)(.:format)', to: 'championship#player_list', via: legacy_verbs, as: nil
   match 'championship/player_show(/:id)(.:format)', to: 'championship#player_show', via: legacy_verbs, as: nil

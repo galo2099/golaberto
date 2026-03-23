@@ -63,4 +63,50 @@ class Championship < ApplicationRecord
   def avg_team_rating
     @avg_team_rating ||= begin teams.sort_by{|t|-t.rating.to_f}.each_with_index.map{|t,i|t.rating.to_f * (0.7)**i}.sum / teams.each_with_index.map{|t,i| 0.7**i}.sum rescue 0 end
   end
+
+  def clone_phase_to_new_championship!(phase)
+    raise ActiveRecord::RecordNotFound if phase.championship_id != id
+
+    ActiveRecord::Base.transaction do
+      cloned_championship = Championship.create!(
+        name: "#{name} - #{phase.name}",
+        begin: self.begin,
+        end: self.end,
+        point_win: point_win,
+        point_draw: point_draw,
+        point_loss: point_loss,
+        category_id: category_id,
+        show_country: show_country,
+        region: region,
+        region_name: region_name
+      )
+
+      cloned_phase = cloned_championship.phases.create!(
+        name: phase.name,
+        order_by: 1,
+        sort: phase.sort,
+        bonus_points: phase.bonus_points,
+        bonus_points_threshold: phase.bonus_points_threshold,
+        scrape_url: phase.scrape_url
+      )
+
+      phase.groups.includes(:team_groups).order(:id).each do |group|
+        cloned_group = cloned_phase.groups.create!(
+          name: group.name,
+          zones: group.zones
+        )
+
+        group.team_groups.each do |team_group|
+          cloned_group.team_groups.create!(
+            team_id: team_group.team_id,
+            add_sub: team_group.add_sub,
+            bias: team_group.bias,
+            comment: team_group.comment
+          )
+        end
+      end
+
+      cloned_championship
+    end
+  end
 end

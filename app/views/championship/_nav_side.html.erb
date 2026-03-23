@@ -53,5 +53,9 @@ function start_phase_scrape() {
   <button type="button" onclick="start_phase_scrape()"><%= _("Scrape") %></button>
   <div id="scrape_status"></div>
 <% end %>
+<%= link_to _("Clone phase to new championship"),
+            { :action => :clone_phase, :id => @championship, :phase => @current_phase },
+            :method => :post,
+            :data => { :confirm => _("Create a new championship with only a copy of this phase?") } %><br/>
 <br/>
 <% end %>
