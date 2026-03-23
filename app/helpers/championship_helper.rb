@@ -37,6 +37,21 @@ module ChampionshipHelper
     end
   end
 
+  def next_games_by_team(phase, team_ids, start_date = Date.today)
+    return {} if phase.nil? || team_ids.blank?
+
+    team_ids = team_ids.uniq
+    games = Game.where("phase_id = ? AND played = ? AND date >= ? AND (home_id IN (?) OR away_id IN (?))",
+                       phase.id, false, start_date, team_ids, team_ids)
+                .includes(:home, :away)
+                .order(:date, :id)
+
+    games.each_with_object({}) do |game, hash|
+      hash[game.home_id] ||= game
+      hash[game.away_id] ||= game
+    end
+  end
+
   class TeamCampaign
     attr_reader :points, :games, :wins, :draws, :losses,
                 :goals_for, :goals_against, :goals_aet, :goals_pen,
@@ -192,9 +207,5 @@ module ChampionshipHelper
       @goals_for / (@goals_against + 0.0000001)
     end
 
-    def next_game
-      Game.where("(home_id = ? OR away_id = ?) AND phase_id = ? AND played = ? AND date >= ?", @team_id, @team_id, @team_group.group.phase, false, Date.today)
-          .includes(:home, :away).order(:date).first
-    end
   end
 end

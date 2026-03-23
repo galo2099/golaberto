@@ -140,11 +140,14 @@
   <% pos = 0 %>
   <% notes = Array.new %>
   <% max_form = 0 %>
-  <% group.team_table.each do |t|
+  <% team_table = group.team_table %>
+  <% team_ids = team_table.map { |t| t[0].team_id } %>
+  <% next_games = next_games_by_team(group.phase, team_ids) %>
+  <% team_table.each do |t|
     stats = t[1]
     max_form = [stats.form.last(5).size, max_form].max
   end %>
-  <% group.team_table.each do |t|
+  <% team_table.each do |t|
     team = t[0].team
     stats = t[1]
     note_number = ""
@@ -206,7 +209,7 @@
     title_popup = ""
     unless omit_popup
       last_game = stats.last_game
-      next_game = stats.next_game
+      next_game = next_games[team.id]
       header_body = ""
       unless last_game.nil?
         header_body << sprintf("%02d", game_date(last_game).day) << "/"
