@@ -91,6 +91,11 @@
         }
         </style>
         <script type="text/javascript">
+          var oddsNumberFormatter_<%= group.id %> = new Intl.NumberFormat("<%= I18n.locale %>", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+          });
+
           $.widget("custom.iconselectmenu", $.ui.selectmenu, {
 						_create: function() {
 							this._super();
@@ -163,7 +168,7 @@
                 if (value == null) {
                   cell.text("");
                 } else {
-                  cell.text(Number(value).toFixed(2));
+                  cell.text(oddsNumberFormatter_<%= group.id %>.format(Number(value)));
                 }
                 cell.css("background-color", ui.item.element.attr("data-color") || "lightgray");
               });
@@ -286,10 +291,14 @@
          <% if not omit_columns[:odds] then %>
            <%= content_tag :td, "", class: "odds_spacing" %>
            <% first_zone = group.zones.first %>
-           <% first_zone_odds = first_zone ? t[0].calculate_odds(first_zone["position"]) : nil %>
+           <% first_odds = if first_zone
+                            t[0].calculate_odds(first_zone["position"])
+                          elsif t[0].odds
+                            t[0].odds[0]
+                          end %>
            <% first_color = first_zone.is_a?(Hash) ? first_zone["color"] : "lightgray" %>
            <%= content_tag :td,
-                           first_zone_odds ? number_to_rounded(first_zone_odds, precision: 2) : "",
+                           first_odds.nil? ? "" : number_to_rounded(first_odds, precision: 2),
                            "data-group-id": group.id,
                            "data-odds-array": (t[0].odds || []).to_json,
                            class: "odds odds-value",
