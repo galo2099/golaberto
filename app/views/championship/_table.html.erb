@@ -65,7 +65,8 @@
           <option value="<%= i %>"
                   title="<%= sprintf(_("odds of %s"), i)%>"
                   data-rank="<%= i %>"
-                  data-color="black"><%=i%></option>
+                  data-color="black"
+                  data-cell-color="lightgray"><%=i%></option>
         <% end %>
         </select>
         <style>
@@ -170,7 +171,7 @@
                 } else {
                   cell.text(oddsNumberFormatter_<%= group.id %>.format(Number(value)));
                 }
-                var bgColor = ui.item.element.attr("data-color") || "black";
+                var bgColor = ui.item.element.attr("data-cell-color") || ui.item.element.attr("data-color") || "lightgray";
                 cell.css("background-color", bgColor);
                 cell.css("color", bgColor === "black" ? "white" : "");
               });
@@ -298,7 +299,7 @@
                           elsif t[0].odds
                             t[0].odds[0]
                           end %>
-           <% first_color = first_zone.is_a?(Hash) ? first_zone["color"] : "black" %>
+           <% first_color = first_zone.is_a?(Hash) ? first_zone["color"] : "lightgray" %>
            <%= content_tag :td,
                            first_odds.nil? ? "" : number_to_rounded(first_odds, precision: 2),
                            "data-group-id": group.id,
