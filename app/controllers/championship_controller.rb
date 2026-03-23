@@ -100,10 +100,10 @@ class ChampionshipController < ApplicationController
   end
 
   def phases
-    @championship = Championship.includes(:phases).find(params[:id])
+    @championship = Championship.includes(phases: { teams: :team_geocode }).find(params[:id])
     # Use an empty phase instead of nil if none is passed.
     @current_phase = Phase.new
-    @current_phase = @championship.phases.includes(:teams).find(params[:phase]) if params[:phase]
+    @current_phase = @championship.phases.includes(teams: :team_geocode).find(params[:phase]) if params[:phase]
     if @current_phase
       @hide_odds = @current_phase.games.find_by_played(false) == nil
     end

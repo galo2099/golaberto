@@ -99,7 +99,7 @@ class Group < ApplicationRecord
   def team_table
     @team_table ||= begin
       played_games = games.where(played: true).
-          includes(:phase, [:phase => :championship ]).
+          includes(:home, :away, :phase, [:phase => :championship ]).
           order(:date)
       stats = Hash.new
       team_groups.each do |team_group|
