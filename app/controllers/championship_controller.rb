@@ -412,12 +412,68 @@ class ChampionshipController < ApplicationController
       recordsTotal: total_count,
       recordsFiltered: filtered_count,
       data: rows,
+      footer: player_list_footer(filtered),
     }
   end
 
   def relation_count(relation)
     sql = "SELECT COUNT(*) FROM (#{relation.except(:includes, :preload, :eager_load).unscope(:order).to_sql}) counted_rows"
     ActiveRecord::Base.connection.select_value(sql).to_i
+  end
+
+  def relation_totals(relation)
+    inner_sql = relation
+      .except(:includes, :preload, :eager_load)
+      .unscope(:order)
+      .select("minutes, goals, own_goals, penalties, appearances, played, sub, bench, yellows, reds, off_rating, def_rating")
+      .to_sql
+
+    sql = <<~SQL.squish
+      SELECT
+        COALESCE(SUM(minutes), 0) AS minutes,
+        COALESCE(SUM(goals), 0) AS goals,
+        COALESCE(SUM(own_goals), 0) AS own_goals,
+        COALESCE(SUM(penalties), 0) AS penalties,
+        COALESCE(SUM(appearances), 0) AS appearances,
+        COALESCE(SUM(played), 0) AS played,
+        COALESCE(SUM(sub), 0) AS sub,
+        COALESCE(SUM(bench), 0) AS bench,
+        COALESCE(SUM(yellows), 0) AS yellows,
+        COALESCE(SUM(reds), 0) AS reds,
+        COALESCE(SUM(off_rating), 0) AS off_rating,
+        COALESCE(SUM(def_rating), 0) AS def_rating
+      FROM (#{inner_sql}) totals_rows
+    SQL
+
+    ActiveRecord::Base.connection.select_one(sql) || {}
+  end
+
+  def player_list_footer(relation)
+    totals = relation_totals(relation)
+    minutes = totals["minutes"].to_f
+    goals = totals["goals"].to_f
+    rating = totals["off_rating"].to_f + totals["def_rating"].to_f
+
+    [
+      _("Total"),
+      "",
+      "",
+      totals["minutes"].to_i,
+      totals["goals"].to_i,
+      helpers.number_with_precision(goals / (minutes.nonzero? || 1) * 90, precision: 2),
+      helpers.number_with_precision(rating, precision: 2),
+      helpers.number_with_precision(rating / (minutes.nonzero? || 1) * 90, precision: 2),
+      helpers.number_with_precision(totals["off_rating"], precision: 2),
+      helpers.number_with_precision(totals["def_rating"], precision: 2),
+      totals["own_goals"].to_i,
+      totals["penalties"].to_i,
+      totals["appearances"].to_i,
+      totals["played"].to_i,
+      totals["sub"].to_i,
+      totals["bench"].to_i,
+      totals["yellows"].to_i,
+      totals["reds"].to_i,
+    ]
   end
 
   def player_list_order_sql(index)
