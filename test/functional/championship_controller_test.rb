@@ -11,8 +11,17 @@ class ChampionshipControllerTest < Test::Unit::TestCase
     @response   = ActionController::TestResponse.new
   end
 
-  # Replace this with your real tests.
-  def test_truth
-    assert true
+  def test_player_list_order_clause_adds_stable_tie_breakers_for_desc
+    assert_equal(
+      "goals DESC, players.name ASC, players.id ASC",
+      @controller.send(:player_list_order_clause, 4, "DESC")
+    )
+  end
+
+  def test_player_list_order_clause_adds_stable_tie_breakers_for_asc
+    assert_equal(
+      "players.name ASC, players.name ASC, players.id ASC",
+      @controller.send(:player_list_order_clause, 0, "ASC")
+    )
   end
 end
