@@ -350,6 +350,10 @@ var options = <%== Oj.dump(datatable_options, mode: :compat) %>;
 if (options.serverSide) {
   options.ajax = options.ajax || {};
   options.ajax.data = function(d) {
+    delete d.columns;
+    if (d.order && d.order.length > 1) {
+      d.order = [d.order[0]];
+    }
     d.minute_filter = parseInt($('#minute_filter').val() || 0, 10);
   };
 }
