@@ -9,9 +9,20 @@ data = teams[0,3].map{|t| Team.get_historical_ratings(t.id)  }
           font-size: 14px;
           line-height: 1.2em;">
 </div>
+<div id="rating-period-selector" class="rating-period-selector">
+  <button type="button" class="rating-period-option" data-period-days="30">1M</button>
+  <button type="button" class="rating-period-option" data-period-days="90">3M</button>
+  <button type="button" class="rating-period-option" data-period-days="180">6M</button>
+  <button type="button" class="rating-period-option active" data-period-days="365">1Y</button>
+  <button type="button" class="rating-period-option" data-period-days="1825">5Y</button>
+  <button type="button" class="rating-period-option" data-period-days="all">ALL</button>
+</div>
 
 <script type="text/javascript">
   $(function() {
+    var SECONDS_PER_DAY = 24 * 3600;
+    var currentRange = {from: undefined, to: undefined};
+
     var getColor = function(index) {
       var colorValues = [ "#cb4b4b", "#4da74d", "#9440ed", "#afd8f8", "#edc240" ];
       var arrayIndex = index % colorValues.length;
@@ -48,6 +59,47 @@ data = teams[0,3].map{|t| Team.get_historical_ratings(t.id)  }
       ).css({top: pos.pageY + 10, left: pos.pageX + 10}).fadeIn(200);
     };
 
+    var getSelectedDataBounds = function() {
+      var xmin = Number.POSITIVE_INFINITY;
+      var xmax = Number.NEGATIVE_INFINITY;
+
+      $("input:checked").each(function () {
+        var key = $(this).attr("name");
+        var rating = ratingData[key];
+        if (key && rating && rating.data && rating.data.length > 0) {
+          var first = rating.data[0][0];
+          var last = rating.data[rating.data.length - 1][0];
+          if (first < xmin) xmin = first;
+          if (last > xmax) xmax = last;
+        }
+      });
+
+      if (xmin === Number.POSITIVE_INFINITY || xmax === Number.NEGATIVE_INFINITY) {
+        return null;
+      }
+      return {min: xmin, max: xmax};
+    };
+
+    var applyRangeFromPeriod = function(days) {
+      var bounds = getSelectedDataBounds();
+      if (bounds == null) {
+        return;
+      }
+
+      if (days === "all") {
+        currentRange.from = undefined;
+        currentRange.to = undefined;
+      } else {
+        currentRange.to = bounds.max;
+        currentRange.from = bounds.max - Number(days) * SECONDS_PER_DAY;
+        if (currentRange.from < bounds.min) {
+          currentRange.from = bounds.min;
+        }
+      }
+
+      getMissingDataAndPlotRatings(currentRange.from, currentRange.to);
+    };
+
     var getMissingDataAndPlotRatings = function(from, to) {
       var pending = false;
       $("input:checked").each(function () {
@@ -72,6 +124,9 @@ data = teams[0,3].map{|t| Team.get_historical_ratings(t.id)  }
     };
 
     var plotRatings = function(from, to) {
+      currentRange.from = from;
+      currentRange.to = to;
+
       if (from === undefined) {
         from = Number.NEGATIVE_INFINITY;
       }
@@ -227,16 +282,33 @@ data = teams[0,3].map{|t| Team.get_historical_ratings(t.id)  }
         }
 
         // do the zooming
+        $(".rating-period-option").removeClass("active");
         plotRatings(ranges.xaxis.from, ranges.xaxis.to);
       });
 
       graphDiv.off("dblclick");
       graphDiv.dblclick(function (event) {
-        getMissingDataAndPlotRatings();
+        $(".rating-period-option").removeClass("active");
+        $(".rating-period-option[data-period-days='365']").addClass("active");
+        applyRangeFromPeriod(365);
       });
       $("input.ratingSelector").off("change");
-      $("input.ratingSelector").change(function() {getMissingDataAndPlotRatings(from, to);});
+      $("input.ratingSelector").change(function() {
+        var activePeriod = $(".rating-period-option.active").data("periodDays");
+        if (activePeriod) {
+          applyRangeFromPeriod(activePeriod);
+        } else {
+          getMissingDataAndPlotRatings(currentRange.from, currentRange.to);
+        }
+      });
     }
+
+    $(".rating-period-option").off("click");
+    $(".rating-period-option").on("click", function() {
+      $(".rating-period-option").removeClass("active");
+      $(this).addClass("active");
+      applyRangeFromPeriod($(this).data("periodDays"));
+    });
 
     $("<div id='tooltip'></div>").css({
       position: "absolute",
@@ -249,12 +321,29 @@ data = teams[0,3].map{|t| Team.get_historical_ratings(t.id)  }
       zIndex: 0,
     }).appendTo("body");
 
-    plotRatings();
+    applyRangeFromPeriod(365);
   });
 </script>
 <style>
 .flot-x-axis, .flot-y-axis {
   font-size: 12px;
   fill: rgb(84, 84, 84);
+}
+
+.rating-period-selector {
+  margin-top: 8px;
+}
+
+.rating-period-option {
+  margin-right: 4px;
+  padding: 2px 8px;
+  border: 1px solid #aaa;
+  background: #f8f8f8;
+  cursor: pointer;
+}
+
+.rating-period-option.active {
+  background: #ddd;
+  border-color: #888;
 }
 </style>
