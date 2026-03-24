@@ -425,7 +425,6 @@ class ChampionshipController < ApplicationController
     inner_sql = relation
       .except(:includes, :preload, :eager_load)
       .unscope(:order)
-      .select("minutes, goals, own_goals, penalties, appearances, played, sub, bench, yellows, reds, off_rating, def_rating")
       .to_sql
 
     sql = <<~SQL.squish
