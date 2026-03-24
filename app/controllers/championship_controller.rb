@@ -403,7 +403,7 @@ class ChampionshipController < ApplicationController
 
     order_column = params.dig(:order, "0", :column).to_i
     order_dir = params.dig(:order, "0", :dir) == "asc" ? "ASC" : "DESC"
-    filtered = filtered.reorder(Arel.sql("#{player_list_order_sql(order_column)} #{order_dir}"))
+    filtered = filtered.reorder(Arel.sql(player_list_order_clause(order_column, order_dir)))
 
     rows = filtered.offset(page_start).limit(page_length).to_a.map { |p| player_list_row(p, @championship) }
 
@@ -442,6 +442,10 @@ class ChampionshipController < ApplicationController
     when 17 then "reds"
     else "goals"
     end
+  end
+
+  def player_list_order_clause(index, direction)
+    "#{player_list_order_sql(index)} #{direction}, players.name ASC, players.id ASC"
   end
 
   def player_list_row(p, champ)
