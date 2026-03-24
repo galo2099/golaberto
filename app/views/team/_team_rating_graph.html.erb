@@ -21,6 +21,7 @@ data = teams[0,3].map{|t| Team.get_historical_ratings(t.id)  }
 <script type="text/javascript">
   $(function() {
     var SECONDS_PER_DAY = 24 * 3600;
+    var DOWNSAMPLE_THRESHOLD = 300;
     var currentRange = {from: undefined, to: undefined};
 
     var getColor = function(index) {
@@ -57,6 +58,71 @@ data = teams[0,3].map{|t| Team.get_historical_ratings(t.id)  }
         }, "") +
         "<tr><td colspan=3 style='text-align: center'>" + new Date(points[0].point[0]*1000).toISOString().slice(0, 10) + "</tr>"
       ).css({top: pos.pageY + 10, left: pos.pageX + 10}).fadeIn(200);
+    };
+
+    var downsample = function(data, threshold) {
+      if (!threshold || threshold <= 0 || data.length <= threshold) {
+        return data.slice();
+      }
+      if (threshold === 2) {
+        return [data[0], data[data.length - 1]];
+      }
+
+      var sampled = [];
+      var bucketSize = (data.length - 2) / (threshold - 2);
+      var a = 0;
+      sampled.push(data[a]);
+
+      for (var i = 0; i < threshold - 2; i++) {
+        var avgRangeStart = Math.floor((i + 1) * bucketSize) + 1;
+        var avgRangeEnd = Math.floor((i + 2) * bucketSize) + 1;
+        if (avgRangeEnd > data.length) {
+          avgRangeEnd = data.length;
+        }
+
+        var avgX = 0;
+        var avgY = 0;
+        var avgRangeLength = avgRangeEnd - avgRangeStart;
+        for (var j = avgRangeStart; j < avgRangeEnd; j++) {
+          avgX += data[j][0];
+          avgY += data[j][1];
+        }
+        if (avgRangeLength > 0) {
+          avgX /= avgRangeLength;
+          avgY /= avgRangeLength;
+        } else {
+          avgX = data[a][0];
+          avgY = data[a][1];
+        }
+
+        var rangeOffs = Math.floor(i * bucketSize) + 1;
+        var rangeTo = Math.floor((i + 1) * bucketSize) + 1;
+        if (rangeTo >= data.length) {
+          rangeTo = data.length - 1;
+        }
+
+        var maxArea = -1;
+        var maxAreaPoint = data[rangeOffs];
+        var nextA = rangeOffs;
+
+        for (var k = rangeOffs; k < rangeTo; k++) {
+          var area = Math.abs(
+            (data[a][0] - avgX) * (data[k][1] - data[a][1]) -
+            (data[a][0] - data[k][0]) * (avgY - data[a][1])
+          ) * 0.5;
+          if (area > maxArea) {
+            maxArea = area;
+            maxAreaPoint = data[k];
+            nextA = k;
+          }
+        }
+
+        sampled.push(maxAreaPoint);
+        a = nextA;
+      }
+
+      sampled.push(data[data.length - 1]);
+      return sampled;
     };
 
     var getSelectedDataBounds = function() {
@@ -144,6 +210,7 @@ data = teams[0,3].map{|t| Team.get_historical_ratings(t.id)  }
         var rating = ratingData[key];
         if (key && rating) {
           var d = rating.data.filter(function(x) { return x[0] >= from && x[0] <= to; });
+          d = downsample(d, DOWNSAMPLE_THRESHOLD);
           data.push({
             data: d,
             label: rating.label,
