@@ -383,7 +383,7 @@ class ChampionshipController < ApplicationController
     base = TeamPlayer.stats("games.phase_id": phase_ids)
       .joins("INNER JOIN players ON players.id = player_games.player_id")
       .joins("INNER JOIN teams ON teams.id = player_games.team_id")
-      .includes(:player, :team, game: { phase: :championship })
+      .includes(:player, :team)
 
     total_count = relation_count(base)
 
@@ -405,7 +405,7 @@ class ChampionshipController < ApplicationController
     order_dir = params.dig(:order, "0", :dir) == "asc" ? "ASC" : "DESC"
     filtered = filtered.reorder(Arel.sql("#{player_list_order_sql(order_column)} #{order_dir}"))
 
-    rows = filtered.offset(page_start).limit(page_length).to_a.map { |p| player_list_row(p) }
+    rows = filtered.offset(page_start).limit(page_length).to_a.map { |p| player_list_row(p, @championship) }
 
     {
       draw: params[:draw].to_i,
@@ -444,8 +444,7 @@ class ChampionshipController < ApplicationController
     end
   end
 
-  def player_list_row(p)
-    champ = p.game.phase.championship
+  def player_list_row(p, champ)
     team = p.team
     player = p.player
 
