@@ -77,8 +77,10 @@ class Team < ApplicationRecord
     games.joins(phase: :championship).where(championships: { category_id: Category::DEFAULT_CATEGORY }).where("date < ?", date).order(date: :desc).limit(n)
   end
 
-  def self.get_historical_ratings(team_id, threshold = 300)
+  def self.get_historical_ratings(team_id, threshold = nil)
     data = HistoricalRating.where(team_id: team_id).order(:measure_date).pluck(:measure_date, :rating).map { |d, r| [d.to_time.to_i, r.to_f] }
+    return data if threshold.nil?
+
     LTTB.downsample(data, threshold)
   end
 
