@@ -363,10 +363,120 @@ class ChampionshipController < ApplicationController
   def player_list
     store_location
     @championship = Championship.includes(:phases => [ :teams, { :groups => :teams }]).find(params["id"])
+    phase_ids = @championship.phases.pluck(:id)
 
-    @player_stats = TeamPlayer.stats("games.phase_id": @championship.phases.pluck(:id)).includes(:player, :team, :game)
-    @player_stats = @player_stats.to_a.sort{|a,b| b.goals <=> a.goals}
+    if request.format.json?
+      render json: player_list_datatable_json(phase_ids)
+      return
+    end
   end
+
+  private
+
+  def player_list_datatable_json(phase_ids)
+    minute_filter = params[:minute_filter].to_i
+    page_start = params[:start].to_i
+    page_length = params[:length].to_i
+    page_length = 25 if page_length <= 0
+    search_term = params.dig(:search, :value).to_s.strip
+
+    base = TeamPlayer.stats("games.phase_id": phase_ids)
+      .joins("INNER JOIN players ON players.id = player_games.player_id")
+      .joins("INNER JOIN teams ON teams.id = player_games.team_id")
+      .includes(:player, :team, game: { phase: :championship })
+
+    total_count = relation_count(base)
+
+    filtered = base
+    if minute_filter > 0
+      filtered = filtered.having("SUM(off-`on`) >= ?", minute_filter)
+    end
+    unless search_term.empty?
+      like = "%#{search_term}%"
+      filtered = filtered.where(
+        "players.name LIKE :like OR players.full_name LIKE :like OR teams.name LIKE :like OR players.position LIKE :like",
+        like: like
+      )
+    end
+
+    filtered_count = relation_count(filtered)
+
+    order_column = params.dig(:order, "0", :column).to_i
+    order_dir = params.dig(:order, "0", :dir) == "asc" ? "ASC" : "DESC"
+    filtered = filtered.reorder(Arel.sql("#{player_list_order_sql(order_column)} #{order_dir}"))
+
+    rows = filtered.offset(page_start).limit(page_length).to_a.map { |p| player_list_row(p) }
+
+    {
+      draw: params[:draw].to_i,
+      recordsTotal: total_count,
+      recordsFiltered: filtered_count,
+      data: rows,
+    }
+  end
+
+  def relation_count(relation)
+    sql = "SELECT COUNT(*) FROM (#{relation.except(:includes, :preload, :eager_load).unscope(:order).to_sql}) counted_rows"
+    ActiveRecord::Base.connection.select_value(sql).to_i
+  end
+
+  def player_list_order_sql(index)
+    case index
+    when 0 then "players.name"
+    when 1 then "teams.name"
+    when 2 then "players.position"
+    when 3 then "minutes"
+    when 4 then "goals"
+    when 5 then "IFNULL(goals / NULLIF(minutes, 0) * 90, 0)"
+    when 6 then "off_rating + def_rating"
+    when 7 then "IFNULL((off_rating + def_rating) / NULLIF(minutes, 0) * 90, 0)"
+    when 8 then "off_rating"
+    when 9 then "def_rating"
+    when 10 then "own_goals"
+    when 11 then "penalties"
+    when 12 then "appearances"
+    when 13 then "played"
+    when 14 then "sub"
+    when 15 then "bench"
+    when 16 then "yellows"
+    when 17 then "reds"
+    else "goals"
+    end
+  end
+
+  def player_list_row(p)
+    champ = p.game.phase.championship
+    team = p.team
+    player = p.player
+
+    team_url = "/championship/show/#{champ.to_param}/team/#{team.to_param}/player/#{player.to_param}"
+    player_country = helpers.image_tag(player.small_country_logo, width: 15, height: 15, title: _(player.country))
+    team_country = helpers.image_tag(team.small_country_logo, width: 15, height: 15, title: _(team.country))
+    team_logo = helpers.image_tag(team.logo.url(:thumb), width: 15, height: 15)
+
+    [
+      "#{player_country} <a href='#{team_url}'>#{ERB::Util.h(player.name)}</a>",
+      "#{team_country} #{team_logo} <a href='#{team_url}'>#{ERB::Util.h(team.name)}</a>",
+      ERB::Util.h(s_("position|#{player.position}")),
+      p.minutes,
+      p.goals,
+      helpers.number_with_precision(p.goals.to_f / (p.minutes.to_f.nonzero? || 1) * 90, precision: 2),
+      helpers.number_with_precision(p.off_rating + p.def_rating, precision: 2),
+      helpers.number_with_precision((p.off_rating + p.def_rating).to_f / (p.minutes.to_f.nonzero? || 1) * 90, precision: 2),
+      helpers.number_with_precision(p.off_rating, precision: 2),
+      helpers.number_with_precision(p.def_rating, precision: 2),
+      p.own_goals,
+      p.penalties,
+      p.appearances,
+      p.played,
+      p.sub,
+      p.bench,
+      p.yellows,
+      p.reds,
+    ]
+  end
+
+  public
 
   def player_show
     store_location
