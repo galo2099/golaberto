@@ -356,6 +356,21 @@ if (options.serverSide) {
     }
     d.minute_filter = parseInt($('#minute_filter').val() || 0, 10);
   };
+
+  options.footerCallback = function() {
+    var api = this.api();
+    var response = api.ajax.json();
+    var footer = response && response.footer;
+    if (!footer || !api.table().footer()) {
+      return;
+    }
+    api.columns().every(function(index) {
+      var cell = this.footer();
+      if (cell) {
+        cell.innerHTML = footer[index] == null ? '' : footer[index];
+      }
+    });
+  };
 }
 var text_targets_render = <%== Oj.dump(text_targets_render, mode: :compat) %>;
 options.columnDefs.push(...text_targets_render.map(function(x) {
