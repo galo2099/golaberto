@@ -6,6 +6,8 @@ default_options = {
   show_total: true,
 }
 options = default_options.merge(options || {})
+player_stats ||= []
+server_side = !!datatable_options&.dig(:serverSide)
 id_suffix = id_suffix || ""
 text_columns_selected = options[:columns_to_show].to_set.intersection(text_columns).size
 targets = options[:columns_to_show].each_with_index.map{|x,i| i unless asc_columns.include?(x) }.select{|x| not x.nil?}
@@ -124,49 +126,55 @@ players = {}
 championships = {}
 pg = {}
 
-player_stats.each do |p|
-  champ = p.game.phase.championship
-  championships[champ.id] = {
-    name: champ.full_name(false, false),
-    region: _(champ.region_name),
-    region_flag: region_flag_url(champ.region, champ.region_name),
-    param: champ.to_param,
-  }
-  teams[p.team_id] ||= {
-    name: p.team.name,
-    logo: p.team.logo.url(:thumb),
-    param: p.team.to_param,
-    country: p.team.country.to_s,
-  }
-  countries[p.team.country] ||= {
-    name: _(p.team.country),
-    logo: p.team.small_country_logo,
-  }
-  countries[p.player.country] ||= {
-    name: _(p.player.country),
-    logo: p.player.small_country_logo,
-  }
-  players[p.player_id] ||= {
-    name: p.player.name,
-    full_name: p.player.full_name,
-    param: p.player.to_param,
-    country: p.player.country.to_s,
-  }
-  pg[p.id] = {
-    team: p.team_id,
-    championship: champ.id,
-    player: p.player_id,
-  }
+unless server_side
+  player_stats.each do |p|
+    champ = p.game.phase.championship
+    championships[champ.id] = {
+      name: champ.full_name(false, false),
+      region: _(champ.region_name),
+      region_flag: region_flag_url(champ.region, champ.region_name),
+      param: champ.to_param,
+    }
+    teams[p.team_id] ||= {
+      name: p.team.name,
+      logo: p.team.logo.url(:thumb),
+      param: p.team.to_param,
+      country: p.team.country.to_s,
+    }
+    countries[p.team.country] ||= {
+      name: _(p.team.country),
+      logo: p.team.small_country_logo,
+    }
+    countries[p.player.country] ||= {
+      name: _(p.player.country),
+      logo: p.player.small_country_logo,
+    }
+    players[p.player_id] ||= {
+      name: p.player.name,
+      full_name: p.player.full_name,
+      param: p.player.to_param,
+      country: p.player.country.to_s,
+    }
+    pg[p.id] = {
+      team: p.team_id,
+      championship: champ.id,
+      player: p.player_id,
+    }
+  end
 end
 
-
-data = player_stats.map do |p|
-  options[:columns_to_show].map do |column|
-    columns_def[column][:body].call(p)
+data = if server_side
+  []
+else
+  player_stats.map do |p|
+    options[:columns_to_show].map do |column|
+      columns_def[column][:body].call(p)
+    end
   end
 end
 
 text_targets_render = options[:columns_to_show].each_with_index.map do |x,i|
+  next if server_side
   { targets: i, render: columns_def[x][:render] } if columns_def[x][:render]
 end.select{|x| not x.nil?}
 
@@ -338,9 +346,19 @@ $(document).ready(function ($) {
 
   $.fn.dataTable.ext.order.intl(undefined , {sensitivity: 'base'});
   $.fn.dataTable.ext.order.htmlIntl(undefined , {sensitivity: 'base'});
-  var options = <%== Oj.dump(datatable_options, mode: :compat) %>;
-  var text_targets_render = <%== Oj.dump(text_targets_render, mode: :compat) %>;
-  options.columnDefs.push(...text_targets_render.map(function(x) {
+var options = <%== Oj.dump(datatable_options, mode: :compat) %>;
+if (options.serverSide) {
+  options.ajax = options.ajax || {};
+  options.ajax.data = function(d) {
+    delete d.columns;
+    if (d.order && d.order.length > 1) {
+      d.order = [d.order[0]];
+    }
+    d.minute_filter = parseInt($('#minute_filter').val() || 0, 10);
+  };
+}
+var text_targets_render = <%== Oj.dump(text_targets_render, mode: :compat) %>;
+options.columnDefs.push(...text_targets_render.map(function(x) {
     x.render = eval(x.render);
     return x;
   }));
@@ -406,23 +424,25 @@ $(document).ready(function ($) {
         });
   });
 
-  $.fn.DataTable.ext.type.search.string = function (s) {
-    if (s) {
-      return s.normalize("NFD").replace(/\p{Diacritic}/gu, "");
-    } else {
-      return "";
-    }
-  };
+  if (!options.serverSide) {
+    $.fn.DataTable.ext.type.search.string = function (s) {
+      if (s) {
+        return s.normalize("NFD").replace(/\p{Diacritic}/gu, "");
+      } else {
+        return "";
+      }
+    };
 
-  /* Custom filtering function which will search data in column four between two values */
-  $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
-    var min = parseInt($('#minute_filter').val(), 10);
-    var minutes = parseFloat(data[3]) || 0; // use data for the age column
+    /* Custom filtering function which will search data in column four between two values */
+    $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
+      var min = parseInt($('#minute_filter').val(), 10);
+      var minutes = parseFloat(data[3]) || 0; // use data for the age column
 
-    if (isNaN(min) || min <= minutes) {
-        return true;
-    }
-    return false;
-  });
+      if (isNaN(min) || min <= minutes) {
+          return true;
+      }
+      return false;
+    });
+  }
 });
 </script>
