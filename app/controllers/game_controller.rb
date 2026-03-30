@@ -21,7 +21,6 @@ class GameController < ApplicationController
     @games = Game.where(championship_category_id: @category, played: @type != :scheduled)
     order = @type == :scheduled ? :asc : :desc
     @pagy, @games = pagy @games.includes(:home, :away, :phase, :championship).order(:date => order), items: 30
-    @sorted_games = @games
   end
 
   def destroy

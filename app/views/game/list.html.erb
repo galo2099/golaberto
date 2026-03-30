@@ -7,7 +7,7 @@
 <br/>
 <div id='table'>
   <%= render partial: "game_list",
-             locals: { sorted_games: @sorted_games, games: @games } %>
+             locals: { games: @games } %>
   <%== pagy_info(@pagy) if @pagy.count == 0 %><br>
 </div>
 
