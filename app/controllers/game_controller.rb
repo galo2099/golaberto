@@ -20,6 +20,9 @@ class GameController < ApplicationController
     @category = @category.to_i
     @games = Game.where(championship_category_id: @category, played: @type != :scheduled)
     order = @type == :scheduled ? :asc : :desc
+    if params[:page].blank?
+      params[:page] = default_games_page(@games, order, 30)
+    end
     @pagy, @games = pagy @games.includes(:home, :away, :phase, :championship).order(:date => order), items: 30
   end
 
@@ -238,5 +241,15 @@ class GameController < ApplicationController
 
   def pagy_calendar_filter(collection, from, to)
     collection.where(date: from...to)
+  end
+
+  def default_games_page(games, order, items)
+    today = cookie_timezone.today
+    boundary_count = if order == :asc
+      games.where("date < ?", today.beginning_of_day).count
+    else
+      games.where("date > ?", today.end_of_day).count
+    end
+    (boundary_count / items) + 1
   end
 end
