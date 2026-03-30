@@ -18,7 +18,7 @@
   <% end %>
   <div class="table_row <%= "highlighted_game" if @games_to_highlight.include?(game.id) %>">
     <%= render partial: "championship/game_list",
-               locals: { game: game, highlight_team: @team } %>
+               locals: { game: game, highlight_team: @team, game_odds: (@game_odds || {})[game.id] } %>
     <div class="clearer"></div>
   </div>
 <% end %>

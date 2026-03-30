@@ -24,6 +24,7 @@ class GameController < ApplicationController
       params[:page] = default_games_page(@games, order, 30)
     end
     @pagy, @games = pagy @games.includes(:home, :away, :phase, :championship).order(:date => order), items: 30
+    @game_odds = preload_game_odds(@games)
   end
 
   def destroy
@@ -251,5 +252,25 @@ class GameController < ApplicationController
       games.where("date > ?", today.end_of_day).count
     end
     (boundary_count / items) + 1
+  end
+
+  def preload_game_odds(games)
+    scheduled_games = games.select { |game| !game.played? }
+    return {} if scheduled_games.empty?
+
+    team_ids = scheduled_games.flat_map { |game| [game.home_id, game.away_id] }.uniq
+    ratings = HistoricalRating.where(team_id: team_ids).order(:team_id, :measure_date).group_by(&:team_id)
+
+    scheduled_games.each_with_object({}) do |game, memo|
+      home_rating = latest_rating_before(ratings[game.home_id], game.date)
+      away_rating = latest_rating_before(ratings[game.away_id], game.date)
+      memo[game.id] = game.odds(home_rating, away_rating)
+    end
+  end
+
+  def latest_rating_before(ratings, date)
+    return nil if ratings.nil?
+
+    ratings.reverse_each.find { |rating| rating.measure_date < date }
   end
 end
