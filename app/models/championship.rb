@@ -10,6 +10,7 @@ class Championship < ApplicationRecord
   has_many :team_players, :dependent => :delete_all
   has_many :teams, ->{ distinct }, :through => :phases
   belongs_to :category
+  after_update :sync_games_category, if: :saved_change_to_category_id?
   validates_presence_of :name
   validates_presence_of :begin
   validates_presence_of :end
@@ -62,6 +63,10 @@ class Championship < ApplicationRecord
 
   def avg_team_rating
     @avg_team_rating ||= begin teams.sort_by{|t|-t.rating.to_f}.each_with_index.map{|t,i|t.rating.to_f * (0.7)**i}.sum / teams.each_with_index.map{|t,i| 0.7**i}.sum rescue 0 end
+  end
+
+  def sync_games_category
+    Game.where(phase_id: phases.select(:id)).update_all(championship_category_id: category_id)
   end
 
   def clone_phase_to_new_championship!(phase)

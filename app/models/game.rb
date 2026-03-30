@@ -228,10 +228,17 @@ class Game < ApplicationRecord
   has_many :goals,
 	   ->{ order(:time) }
   version_association :goals
+  before_validation :set_championship_category
 
   # Always save the version. We check if it the game has really changed before saving it.
   def save_version?
     true
+  end
+
+  def set_championship_category
+    if phase && (new_record? || will_save_change_to_phase_id? || championship_category_id.nil?)
+      self.championship_category_id = phase.championship.category_id
+    end
   end
 
   def find_n_previous_games_by_team_versus_team(n)

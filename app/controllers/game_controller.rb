@@ -15,20 +15,10 @@ class GameController < ApplicationController
   def list
     store_location
     @type = params[:type]&.to_sym || :scheduled
-    @games = Game
     @categories = Category.all
     @category = params[:category] || 1
     @category = @category.to_i
-    @games = @games.joins(phase: :championship).where(championships: { category_id: @category }, played: @type != :scheduled)
-
-    @min, @max = pagy_calendar_period(@games)
-    if params[:week].blank? then
-      params[:week_page] = ((Date.today + 2 - @min.to_date) / 7 + 1).to_i
-    else
-      params[:week_page] = ((params[:week].to_date + 2 - @min.to_date) / 7 + 1).to_i
-    end
-    @calendar, @pagy, @games = pagy_calendar(@games, week: {}, pagy: { items: 30 })
-    params.delete(:week_page)
+    @games = Game.where(championship_category_id: @category, played: @type != :scheduled)
 
     if @type == :scheduled
       @games = @games.order(Arel.sql("DATE(IF(has_time, CONVERT_TZ(date, '+00:00', '#{ActiveSupport::TimeZone.seconds_to_utc_offset cookie_timezone.now.utc_offset}'), date)) ASC, phase_id, date ASC"))
@@ -44,6 +34,7 @@ class GameController < ApplicationController
       end
     end
 
+    @pagy, @games = pagy(@games, items: 30)
     @sorted_games = @games.includes(:home, :away, :phase, :championship).sort_by{|g|post_sort.call(g)}
   end
 
@@ -254,13 +245,4 @@ class GameController < ApplicationController
 	    "stadium_id", "played", "hour", "minute", "home_field")
   end
 
-  def pagy_calendar_period(collection)
-#    minmax = collection.pluck('MIN(date)', 'MAX(date)').first
-#    minmax = [ (minmax[0]&.in_time_zone(cookie_timezone) or DateTime.now.in_time_zone(cookie_timezone)), (minmax[1]&.in_time_zone(cookie_timezone) or (DateTime.now+1).in_time_zone(cookie_timezone)) ]
-     [ ("1800-01-01".to_date).in_time_zone(cookie_timezone), ("2500-01-01".to_date).in_time_zone(cookie_timezone) ]
-  end
-
-  def pagy_calendar_filter(collection, from, to)
-    collection.where(date: from...to)
-  end
 end
