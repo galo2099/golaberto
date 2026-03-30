@@ -168,10 +168,10 @@ class Game < ApplicationRecord
       [10.0, [0.01, (away_rating_arg.off_rating.to_f - AVG_BASE)/(AVG_BASE*0.424+0.548)*([0.25, (home_rating_arg.def_rating.to_f-left_advantage)*0.424+0.548].max)+(home_rating_arg.def_rating.to_f-left_advantage)].max].min
     end
 
-    def odds(home_rating_arg = home_rating, away_rating_arg = away_rating)
+    def odds
       goal_array = (0...20).to_a
-      h = home_power(home_rating_arg, away_rating_arg)
-      a = away_power(home_rating_arg, away_rating_arg)
+      h = home_power
+      a = away_power
       if h.nil? or a.nil?
         return nil
       end
