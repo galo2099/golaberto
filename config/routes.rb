@@ -80,8 +80,8 @@ Rails.application.routes.draw do
   match 'championship/show/:id/team/:team/player/:player' => 'championship#player_show', via: :get
   match 'championship/show/:id/players/list' => 'championship#player_list', via: :get
 
-  match 'game/list(/:type)(/cat/:category)(/p/:page)' => 'game#list', :constraints => { :page => /\d+/ }, :defaults => { :type => :scheduled, :page => 1, :category => 1 }, via: :get
-  match 'game/list/played(/:type)(/cat/:category)(/p/:page)' => 'game#list', :constraints => { :page => /\d+/ }, :defaults => { :type => :played, :page => 1, :category => 1 }, via: :get
+  match 'game/list(/:type)(/cat/:category)(/p/:page)' => 'game#list', :constraints => { :page => /\d+/ }, :defaults => { :type => :scheduled, :category => 1 }, via: :get
+  match 'game/list/played(/:type)(/cat/:category)(/p/:page)' => 'game#list', :constraints => { :page => /\d+/ }, :defaults => { :type => :played, :category => 1 }, via: :get
 
   match 'team/games/:type/:id(/cat/:category)(/p/:page)' => 'team#games', :constraints => { :page => /\d+/ }, :defaults => { :category => 1, :page => 1 }, via: :get
   match 'team/list/:team_type(/p/:page)' => 'team#list', :constraints => { :page => /\d+/ }, :defaults => { :team_type => "club", :page => 1 }, via: :get
