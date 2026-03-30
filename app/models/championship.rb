@@ -16,6 +16,7 @@ class Championship < ApplicationRecord
   validates_numericality_of :point_win, :only_integer => true
   validates_numericality_of :point_draw, :only_integer => true
   validates_numericality_of :point_loss, :only_integer => true
+  after_commit :sync_games_championship_category_id, on: :update, if: :saved_change_to_category_id?
   
   # Fields information, just FYI.
   #
@@ -108,5 +109,11 @@ class Championship < ApplicationRecord
 
       cloned_championship
     end
+  end
+
+  private
+
+  def sync_games_championship_category_id
+    Game.joins(:phase).where(phases: { championship_id: id }).update_all(championship_category_id: category_id)
   end
 end

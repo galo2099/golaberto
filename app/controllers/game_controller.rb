@@ -15,36 +15,13 @@ class GameController < ApplicationController
   def list
     store_location
     @type = params[:type]&.to_sym || :scheduled
-    @games = Game
     @categories = Category.all
     @category = params[:category] || 1
     @category = @category.to_i
-    @games = @games.joins(phase: :championship).where(championships: { category_id: @category }, played: @type != :scheduled)
-
-    @min, @max = pagy_calendar_period(@games)
-    if params[:week].blank? then
-      params[:week_page] = ((Date.today + 2 - @min.to_date) / 7 + 1).to_i
-    else
-      params[:week_page] = ((params[:week].to_date + 2 - @min.to_date) / 7 + 1).to_i
-    end
-    @calendar, @pagy, @games = pagy_calendar(@games, week: {}, pagy: { items: 30 })
-    params.delete(:week_page)
-
-    if @type == :scheduled
-      @games = @games.order(Arel.sql("DATE(IF(has_time, CONVERT_TZ(date, '+00:00', '#{ActiveSupport::TimeZone.seconds_to_utc_offset cookie_timezone.now.utc_offset}'), date)) ASC, phase_id, date ASC"))
-      post_sort = proc do |g|
-        [if g.has_time then g.date.in_time_zone(cookie_timezone).to_date.to_datetime.to_i else g.date.to_date.to_datetime.to_i end,
-          g.phase_id, g.date.to_i, g.home.name]
-      end
-    else
-      @games = @games.order(Arel.sql("DATE(IF(has_time, CONVERT_TZ(date, '+00:00', '#{ActiveSupport::TimeZone.seconds_to_utc_offset cookie_timezone.now.utc_offset}'), date)) DESC, phase_id, date DESC"))
-      post_sort = proc do |g|
-        [if g.has_time then -g.date.in_time_zone(cookie_timezone).to_date.to_datetime.to_i else -g.date.to_date.to_datetime.to_i end,
-          g.phase_id, -g.date.to_i, g.home.name]
-      end
-    end
-
-    @sorted_games = @games.includes(:home, :away, :phase, :championship).sort_by{|g|post_sort.call(g)}
+    @games = Game.where(championship_category_id: @category, played: @type != :scheduled)
+    order = @type == :scheduled ? :asc : :desc
+    @pagy, @games = pagy @games.includes(:home, :away, :phase, :championship).order(:date => order), items: 30
+    @sorted_games = @games
   end
 
   def destroy
