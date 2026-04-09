@@ -10,7 +10,7 @@ def name_to_print(team, highlight)
   name.html_safe
 end %>
 
-<div id='game_id_<%= game_id %>' class='game_id_link'>
+<%= link_to({ controller: :game, action: :show, id: game_id }, id: "game_id_#{game_id}", class: "game_id_link") do %>
 <div class='table_cell game_time'>
   <%= formatted_time(game).to_s.empty? ? "&nbsp;".html_safe : formatted_time(game) %>
 </div>
@@ -75,9 +75,4 @@ end
   </div>
 </div>
 <div class="clearer"></div>
-</div>
-<script>
-$('#game_id_<%= game_id %>').click(function() {
-  window.location = '<%= url_for controller: :game, action: :show, id: game_id %>';
-});
-</script>
+<% end %>
