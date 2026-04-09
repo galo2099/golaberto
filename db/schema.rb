@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_24_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_30_001000) do
   create_table "categories", id: :integer, charset: "utf8mb3", collation: "utf8mb3_unicode_ci", force: :cascade do |t|
     t.string "name"
   end
@@ -70,6 +70,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_24_000000) do
     t.float "away_importance"
     t.integer "away_pen"
     t.integer "away_score", default: 0
+    t.integer "championship_category_id", default: 0, null: false
     t.datetime "date", precision: nil, null: false
     t.integer "game_id"
     t.boolean "has_time", default: false
@@ -100,6 +101,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_24_000000) do
     t.float "away_importance"
     t.integer "away_pen"
     t.integer "away_score", default: 0, null: false
+    t.integer "championship_category_id", default: 0, null: false
     t.datetime "date", precision: nil, null: false
     t.boolean "has_time", default: false
     t.integer "home_aet"
@@ -119,6 +121,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_24_000000) do
     t.integer "updater_id", default: 0, null: false
     t.integer "version"
     t.index ["away_id"], name: "index_games_on_away_id"
+    t.index ["championship_category_id", "played", "date"], name: "index_games_on_category_played_and_date"
     t.index ["date"], name: "index_games_on_date"
     t.index ["home_id"], name: "index_games_on_home_id"
     t.index ["phase_id"], name: "index_games_on_phase_id"
@@ -185,7 +188,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_24_000000) do
     t.datetime "created_at", precision: nil, null: false
     t.string "name", default: "", null: false
     t.integer "order_by", default: 0, null: false
-    t.integer "phase_type", default: 0
     t.string "scrape_url"
     t.string "sort", default: "pt, w, gd, gf, gp, g_away, name", null: false
     t.datetime "updated_at", precision: nil, null: false
@@ -257,9 +259,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_24_000000) do
   end
 
   create_table "team_geocodes", charset: "utf8mb3", collation: "utf8mb3_unicode_ci", force: :cascade do |t|
-    t.json "data"
+    t.text "data", size: :long, collation: "utf8mb4_bin"
     t.integer "team_id", null: false
     t.index ["team_id"], name: "index_team_geocodes_on_team_id"
+    t.check_constraint "json_valid(`data`)", name: "data"
   end
 
   create_table "team_group_odds_histories", charset: "utf8mb3", collation: "utf8mb3_unicode_ci", force: :cascade do |t|

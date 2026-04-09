@@ -4,6 +4,7 @@ require 'poisson'
 class Game < ApplicationRecord
   AVG_BASE = 1.3350257653834494
   HOME_ADV = 0.16133676871779334
+  before_validation :sync_championship_category_id
 
   # This module implements a diff with knowledge of associations
   module GameDiff
@@ -236,8 +237,17 @@ class Game < ApplicationRecord
 
   def find_n_previous_games_by_team_versus_team(n)
     Game.limit(n).includes(:phase => :championship).order("date desc").
-        where("((home_id = ? and away_id = ?) or (home_id = ? and away_id = ?)) and played = ? and championships.category_id = ? and date < ?",
-              self.home, self.away, self.away, self.home, true, self.phase.championship.category, self.date).references(:championship)
+        where("((home_id = ? and away_id = ?) or (home_id = ? and away_id = ?)) and played = ? and championship_category_id = ? and date < ?",
+              self.home, self.away, self.away, self.home, true, self.championship_category_id, self.date)
+  end
+
+  private
+
+  def sync_championship_category_id
+    return unless respond_to?(:championship_category_id=)
+    return if phase.nil? || phase.championship.nil?
+
+    self.championship_category_id = phase.championship.category_id
   end
 
   # Fields information, just FYI.

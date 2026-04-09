@@ -1,10 +1,11 @@
 <% @games_to_highlight = defined?(@games_to_highlight) ? @games_to_highlight : [] %>
+<% games = local_assigns[:games] || local_assigns[:sorted_games] || @games || [] %>
 <p>
 <%== pagy_nav @pagy if defined? @pagy and @pagy.pages > 1 %>
 </p>
 <% last_phase_id = nil %>
 <% last_date = nil %>
-<% sorted_games.each do |game| %>
+<% games.each do |game| %>
   <% if formatted_date(game) != last_date %>
     <% last_date = formatted_date(game) %>
     <% last_phase_id = game.phase_id %>
