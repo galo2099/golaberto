@@ -1,14 +1,14 @@
 <% rowspan = 3 - (1 if @game.home_aet.nil?).to_i - (1 if @game.home_pen.nil?).to_i %>
   <tr>
-    <td rowspan="<%= rowspan %>"><%= image_tag @game.home.logo.url(:medium), size: @game.home.logo.styles[:medium].geometry %></td>
-    <td class="game_show_home_team"><%= add_wbr_to_string(@game.home.name) %></td>
+    <td rowspan="<%= rowspan %>"><%= link_to image_tag(@game.home.logo.url(:medium), size: @game.home.logo.styles[:medium].geometry), controller: :championship, action: :team, id: @game.phase.championship, team: @game.home %></td>
+    <td class="game_show_home_team"><%= link_to add_wbr_to_string(@game.home.name), controller: :championship, action: :team, id: @game.phase.championship, team: @game.home %></td>
     <td></td>
     <td class="game_show_home_score"><%= @game.home_score if @game.played? %></td>
     <td class="game_show_x">x</td>
     <td class="game_show_away_score"><%= @game.away_score if @game.played? %></td>
     <td></td>
-    <td class="game_show_away_team"><%= add_wbr_to_string(@game.away.name) %></td>
-    <td rowspan="<%= rowspan %>"><%= image_tag @game.away.logo.url(:medium), size: @game.away.logo.styles[:medium].geometry %></td>
+    <td class="game_show_away_team"><%= link_to add_wbr_to_string(@game.away.name), controller: :championship, action: :team, id: @game.phase.championship, team: @game.away %></td>
+    <td rowspan="<%= rowspan %>"><%= link_to image_tag(@game.away.logo.url(:medium), size: @game.away.logo.styles[:medium].geometry), controller: :championship, action: :team, id: @game.phase.championship, team: @game.away %></td>
   </tr>
   <% if @game.home_aet and @game.away_aet %>
     <tr>
