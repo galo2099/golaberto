@@ -79,6 +79,10 @@ var plotRatings;
 
 $(function() {
   var graphDiv = $("#moving_odds");
+  var legendDiv = $("#odds_legend");
+  var selectedOddsSeriesIndex = null;
+  var fullOddsData = [];
+  var plot;
   var graphOptions = {
     series: {
       stack: true,
@@ -111,11 +115,68 @@ $(function() {
       autoHighlight: false,
     },
     legend: {
-      show: true,
-      sorted: "reverse",
+      show: false,
       container: document.getElementById('odds_legend'),
     },
     colors: ['#47C5F7', '#edc240', '#F398B2'],
+  };
+  var homeTeamName = "<%= j(@game.home.name).html_safe %>";
+  var awayTeamName = "<%= j(@game.away.name).html_safe %>";
+  var drawLabel = "<%= j(_("Draw")).html_safe %>";
+  var initialOddsLabels = [
+    homeTeamName + "<% if not @game.played %>: <%= number_to_percentage(100*@game.odds[0], :precision => 2) %> <% end %>",
+    drawLabel + "<% if not @game.played %>: <%= number_to_percentage(100*@game.odds[1], :precision => 2) %><% end %>",
+    awayTeamName + "<% if not @game.played %>: <%= number_to_percentage(100*@game.odds[2], :precision => 2) %><% end %>"
+  ];
+
+  var buildOddsSeries = function(odds_data) {
+    return [
+      {data: odds_data.map(function(x) { return [ x[0], x[1] ]; }), label: initialOddsLabels[0], originalIndex: 0, color: graphOptions.colors[0]},
+      {data: odds_data.map(function(x) { return [ x[0], x[2] ]; }), label: initialOddsLabels[1], originalIndex: 1, color: graphOptions.colors[1]},
+      {data: odds_data.map(function(x) { return [ x[0], x[3] ]; }), label: initialOddsLabels[2], originalIndex: 2, color: graphOptions.colors[2]},
+    ];
+  };
+
+  var visibleOddsData = function() {
+    if (selectedOddsSeriesIndex == null) {
+      return fullOddsData;
+    }
+    return fullOddsData.filter(function(series) {
+      return series.originalIndex === selectedOddsSeriesIndex;
+    });
+  };
+
+  var renderOddsLegend = function() {
+    legendDiv.empty();
+    fullOddsData.forEach(function(series, index) {
+      var item = $("<div class='odds-live-legend-item'></div>");
+      item.attr("data-series-index", series.originalIndex);
+      item.append($("<span class='odds-live-legend-swatch'></span>").css({ color: series.color || graphOptions.colors[index] || "#999999" }).text("▣"));
+      item.append(" ");
+      item.append($("<span class='odds-live-legend-label'></span>").text(series.label || ""));
+      if (selectedOddsSeriesIndex != null && selectedOddsSeriesIndex !== series.originalIndex) {
+        item.css("opacity", 0.45);
+      }
+      item.on("click", function() {
+        var clickedSeriesIndex = parseInt($(this).attr("data-series-index"), 10);
+        if (selectedOddsSeriesIndex === clickedSeriesIndex) {
+          selectedOddsSeriesIndex = null;
+        } else {
+          selectedOddsSeriesIndex = clickedSeriesIndex;
+        }
+        plot = graphDiv.plot(visibleOddsData(), graphOptions).data("plot");
+        renderOddsLegend();
+        applyRedCardTickStyle();
+      });
+      legendDiv.append(item);
+    });
+  };
+
+  var applyRedCardTickStyle = function() {
+    $('text:contains(\u2588)').css({
+      "fill": "rgba(255, 0, 0, 1)",
+      "text-shadow": "1px 1px 1px black"
+    });
   };
 
   var current_time = 1000*60;
@@ -219,13 +280,10 @@ $(function() {
       return [x].concat(compute_odds(hp, ap, home_adv, away_adv));
    });
 
-    <% odds = @game.odds %>
-    var data = [
-      {data: odds_data.map(function(x) { return [ x[0], x[1] ]; }), label: "<%= @game.home.name %> <% if not @game.played %>: <%= number_to_percentage(100*odds[0], :precision => 2) %> <% end %>"},
-      {data: odds_data.map(function(x) { return [ x[0], x[2] ]; }), label: "<%= _("Draw") %><% if not @game.played %>: <%= number_to_percentage(100*odds[1], :precision => 2) %><% end %>"},
-      {data: odds_data.map(function(x) { return [ x[0], x[3] ]; }), label: "<%= @game.away.name %><% if not @game.played %>: <%= number_to_percentage(100*odds[2], :precision => 2) %><% end %>"},
-    ];
-    plot = graphDiv.plot(data, graphOptions).data("plot");
+    fullOddsData = buildOddsSeries(odds_data);
+    plot = graphDiv.plot(visibleOddsData(), graphOptions).data("plot");
+    renderOddsLegend();
+    applyRedCardTickStyle();
 
     var writeTooltip = function(pos, points) {
       $("#tooltip").html(
@@ -286,6 +344,7 @@ $(function() {
         writeTooltip(pos, ys);
         plot.getOptions().grid.markings[0] = { xaxis: { from: ys[0].point[0], to: ys[0].point[0] }, color: "rgba(0,0,0,0.15)" };
         plot.draw();
+        applyRedCardTickStyle();
     });
 
     clearInterval(myTimer);
@@ -305,11 +364,13 @@ $(function() {
         var odds = compute_odds(hp, ap, home_adv, away_adv);
         $('#odds_current_time').text(("" + Math.floor(current_time / 60)).padStart(2, '0') + ":" + ("" + (current_time % 60)).padStart(2, '0'));
         plot.getOptions().grid.markings[1] = { xaxis: { from: current_time / 60, to: current_time/60 }, color: "rgba(0,0,0,0.15)" };
-        plot.getData()[0].label = "<%= @game.home.name %>: " + (odds[0] * 100).toLocaleString("<%= I18n.locale %>",  { minimumFractionDigits: 2, maximumFractionDigits: 2, }) + "%";
-        plot.getData()[1].label = "Draw: " + (odds[1] * 100).toLocaleString("<%= I18n.locale %>",  { minimumFractionDigits: 2, maximumFractionDigits: 2, }) + "%";
-        plot.getData()[2].label = "<%= @game.away.name %>: " + (odds[2] * 100).toLocaleString("<%= I18n.locale %>",  { minimumFractionDigits: 2, maximumFractionDigits: 2, }) + "%";
+        fullOddsData[0].label = homeTeamName + ": " + (odds[0] * 100).toLocaleString("<%= I18n.locale %>",  { minimumFractionDigits: 2, maximumFractionDigits: 2, }) + "%";
+        fullOddsData[1].label = drawLabel + ": " + (odds[1] * 100).toLocaleString("<%= I18n.locale %>",  { minimumFractionDigits: 2, maximumFractionDigits: 2, }) + "%";
+        fullOddsData[2].label = awayTeamName + ": " + (odds[2] * 100).toLocaleString("<%= I18n.locale %>",  { minimumFractionDigits: 2, maximumFractionDigits: 2, }) + "%";
         plot.setupGrid();
         plot.draw();
+        renderOddsLegend();
+        applyRedCardTickStyle();
       }
     };
     timer();
@@ -330,11 +391,6 @@ $(function() {
   }).appendTo("body");
 
   plotRatings();
-  // CSS doesn't support selecting an element with a specific text, so setting the
-  // red card to red via jquery.
-  $('text:contains(\u2588)').css({
-    "fill": "rgba(255, 0, 0, 1)",
-    "text-shadow": "1px 1px 1px black"});
 });
 </script>
 
@@ -346,6 +402,23 @@ $(function() {
 <style>
 #odds_legend {
   width: 100% !important;
+  margin-top: 6px;
+}
+.odds-live-legend-item {
+  cursor: pointer;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+.odds-live-legend-swatch {
+  flex: 0 0 auto;
+  line-height: 1.2;
+}
+.odds-live-legend-label {
+  display: inline-block;
+  line-height: 1.2;
+  word-break: break-word;
 }
 .legendLayer .background {
   fill: rgba(227, 239, 202, 1);
