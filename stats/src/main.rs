@@ -16,7 +16,7 @@ use dotenv::dotenv;
 use itertools::Itertools;
 use smallvec::{smallvec, SmallVec};
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration as StdDuration, Instant};
 use std::{env, thread};
 use tiny_http::{Header, Method, Response, Server};
@@ -28,6 +28,9 @@ const AVG_BASE: f32 = 1.335_025_8;
 const HOME_ADV: f32 = 0.161_336_76;
 const WRITE_MAX_RETRIES: usize = 2;
 const WRITE_RETRY_SLEEP: StdDuration = StdDuration::from_secs(1);
+const PLAYER_UPSERT_BATCH_SIZE: usize = 1_000;
+const PLAYER_GAME_UPSERT_BATCH_SIZE: usize = 5_000;
+const MAX_UPSERT_WORKERS: usize = 4;
 
 struct PlayerGamePos {
     pg: PlayerGame,
@@ -574,58 +577,55 @@ fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
     );
 
     let now = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S");
-    let mut handles = Vec::new();
-    for c in &player_ratings.iter().chunks(1000) {
-        let pool = pool.clone();
-        let statement = "INSERT INTO players (id,off_rating,def_rating,rating,created_at,updated_at) VALUES ".to_owned() +
-                &c.map(
-                    |(k, v)|
-                        format!("({}, {}, {}, {}, \"{}\", \"{}\")",
-                                k,
-                                v.off / v.minutes * 90.0,
-                                v.def / v.minutes * 90.0,
-                                (v.off + v.def) / v.minutes * 90.0 * squash_rating(v.minutes), now, now))
-                    .collect::<Vec<String>>()
-                    .join(",") +
-                " ON DUPLICATE KEY UPDATE off_rating=VALUES(off_rating),def_rating=VALUES(def_rating),rating=VALUES(rating),updated_at=VALUES(updated_at)";
-        handles.push(thread::spawn(move || {
-            run_upsert_with_retry(pool, statement, "players")
-        }));
-    }
+    let player_upsert_jobs = player_ratings
+        .iter()
+        .chunks(PLAYER_UPSERT_BATCH_SIZE)
+        .into_iter()
+        .map(|c| {
+            "INSERT INTO players (id,off_rating,def_rating,rating,created_at,updated_at) VALUES "
+                .to_owned()
+                + &c.map(|(k, v)| {
+                    format!(
+                        "({}, {}, {}, {}, \"{}\", \"{}\")",
+                        k,
+                        v.off / v.minutes * 90.0,
+                        v.def / v.minutes * 90.0,
+                        (v.off + v.def) / v.minutes * 90.0 * squash_rating(v.minutes),
+                        now,
+                        now
+                    )
+                })
+                .collect::<Vec<String>>()
+                .join(",")
+                + " ON DUPLICATE KEY UPDATE off_rating=VALUES(off_rating),def_rating=VALUES(def_rating),rating=VALUES(rating),updated_at=VALUES(updated_at)"
+        })
+        .collect::<Vec<_>>();
 
     println!(
         "Prepared {} player_game rating rows for upsert",
         player_game_ratings.len()
     );
-    for c in &player_game_ratings.iter().chunks(50000) {
-        let statement = "INSERT INTO player_games (id, game_id, off_rating, def_rating) VALUES ".to_owned() +
-            &c.map(
-                |((id, game_id), v)|
-                    format!("({}, {}, {}, {})",
-                            id,
-                            game_id,
-                            v.off,
-                            v.def))
-                .collect::<Vec<String>>()
-                .join(",") +
-            " ON DUPLICATE KEY UPDATE off_rating=VALUES(off_rating),def_rating=VALUES(def_rating)";
-        let pool = pool.clone();
-        handles.push(thread::spawn(move || {
-            run_upsert_with_retry(pool, statement, "player_games")
-        }));
-    }
+    let player_game_upsert_jobs = player_game_ratings
+        .iter()
+        .chunks(PLAYER_GAME_UPSERT_BATCH_SIZE)
+        .into_iter()
+        .map(|c| {
+            "INSERT INTO player_games (id, game_id, off_rating, def_rating) VALUES ".to_owned()
+                + &c.map(|((id, game_id), v)| format!("({}, {}, {}, {})", id, game_id, v.off, v.def))
+                    .collect::<Vec<String>>()
+                    .join(",")
+                + " ON DUPLICATE KEY UPDATE off_rating=VALUES(off_rating),def_rating=VALUES(def_rating)"
+        })
+        .collect::<Vec<_>>();
 
-    let mut failed_jobs = 0;
-    for h in handles {
-        match h.join() {
-            Ok(true) => {}
-            Ok(false) => failed_jobs += 1,
-            Err(_) => {
-                failed_jobs += 1;
-                eprintln!("A rating upsert worker panicked");
-            }
-        }
-    }
+    println!(
+        "Prepared {} player upsert jobs and {} player_game upsert jobs",
+        player_upsert_jobs.len(),
+        player_game_upsert_jobs.len()
+    );
+
+    let failed_jobs = execute_upsert_jobs(pool, player_upsert_jobs, "players")
+        + execute_upsert_jobs(pool, player_game_upsert_jobs, "player_games");
 
     if failed_jobs > 0 {
         eprintln!(
@@ -636,6 +636,64 @@ fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
 
     println!("Upserted ratings for {} players", player_ratings.len());
     println!("Finished compute_ratings in {:?}", start.elapsed());
+}
+
+fn execute_upsert_jobs(
+    pool: &Pool<ConnectionManager<MysqlConnection>>,
+    jobs: Vec<String>,
+    table_name: &str,
+) -> usize {
+    if jobs.is_empty() {
+        return 0;
+    }
+
+    let worker_count = jobs.len().min(MAX_UPSERT_WORKERS).max(1);
+    println!(
+        "Running {} {} upsert job(s) with {} worker(s)",
+        jobs.len(),
+        table_name,
+        worker_count
+    );
+
+    let jobs = Arc::new(Mutex::new(VecDeque::from(jobs)));
+    let mut handles = Vec::with_capacity(worker_count);
+
+    for _ in 0..worker_count {
+        let pool = pool.clone();
+        let jobs = jobs.clone();
+        let table_name = table_name.to_string();
+        handles.push(thread::spawn(move || {
+            let mut failed_jobs = 0;
+            loop {
+                let statement = {
+                    let mut jobs = jobs.lock().unwrap();
+                    jobs.pop_front()
+                };
+
+                match statement {
+                    Some(statement) => {
+                        if !run_upsert_with_retry(pool.clone(), statement, &table_name) {
+                            failed_jobs += 1;
+                        }
+                    }
+                    None => return failed_jobs,
+                }
+            }
+        }));
+    }
+
+    let mut failed_jobs = 0;
+    for h in handles {
+        match h.join() {
+            Ok(worker_failed_jobs) => failed_jobs += worker_failed_jobs,
+            Err(_) => {
+                failed_jobs += 1;
+                eprintln!("A rating upsert worker panicked");
+            }
+        }
+    }
+
+    failed_jobs
 }
 
 fn run_upsert_with_retry(
