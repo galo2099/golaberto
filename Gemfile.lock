@@ -1637,6 +1637,7 @@ GEM
       rack (>= 1.2, < 4)
       snaky_hash (~> 2.0)
       version_gem (~> 1.1)
+    observer (0.1.2)
     oj (3.13.23)
     omniauth (2.1.0)
       hashie (>= 3.4.6)
@@ -1656,7 +1657,7 @@ GEM
       mime-types
       mimemagic (~> 0.3.0)
       terrapin (~> 0.6.0)
-    pkg-config (1.5.6)
+    pkg-config (1.6.5)
     pp (0.6.3)
       prettyprint
     prettyprint (0.2.0)
@@ -1727,7 +1728,8 @@ GEM
     reline (0.6.3)
       io-console (~> 0.5)
     rexml (3.4.2)
-    rmagick (5.3.0)
+    rmagick (7.0.0)
+      observer (~> 0.1)
       pkg-config (~> 1.4)
     ruby-openid2 (3.1.0)
       version_gem (~> 1.1, >= 1.1.4)
