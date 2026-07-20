@@ -398,10 +398,11 @@ fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
                         minutes: 0.0,
                     });
                 if v.pg.off == to && v.pg.red {
-                    player_game_rating.off -= 0.3 * (90.0 - v.pg.off as f32) / 90.0;
-                    player_game_rating.def -= 0.5 * (90.0 - v.pg.off as f32) / 90.0;
-                    player_rating.off -= 0.3 * (90.0 - v.pg.off as f32) / 90.0 * weight;
-                    player_rating.def -= 0.5 * (90.0 - v.pg.off as f32) / 90.0 * weight;
+                    let red_penalty_per90 = red_card_penalty_remaining_per90(length, v.pg.off);
+                    player_game_rating.off -= 0.3 * red_penalty_per90;
+                    player_game_rating.def -= 0.5 * red_penalty_per90;
+                    player_rating.off -= 0.3 * red_penalty_per90 * weight;
+                    player_rating.def -= 0.5 * red_penalty_per90 * weight;
                     off_penalty += 0.3 / 90.0;
                     def_penalty += 0.5 / 90.0;
                 }
@@ -525,10 +526,11 @@ fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
                         minutes: 0.0,
                     });
                 if v.pg.off == to && v.pg.red {
-                    player_game_rating.off -= 0.3 * (90.0 - v.pg.off as f32) / 90.0;
-                    player_game_rating.def -= 0.5 * (90.0 - v.pg.off as f32) / 90.0;
-                    player_rating.off -= 0.3 * (90.0 - v.pg.off as f32) / 90.0 * weight;
-                    player_rating.def -= 0.5 * (90.0 - v.pg.off as f32) / 90.0 * weight;
+                    let red_penalty_per90 = red_card_penalty_remaining_per90(length, v.pg.off);
+                    player_game_rating.off -= 0.3 * red_penalty_per90;
+                    player_game_rating.def -= 0.5 * red_penalty_per90;
+                    player_rating.off -= 0.3 * red_penalty_per90 * weight;
+                    player_rating.def -= 0.5 * red_penalty_per90 * weight;
                     off_penalty += 0.3 / 90.0;
                     def_penalty += 0.5 / 90.0;
                 }
@@ -789,9 +791,41 @@ fn goal_interval_filter(g: &Goal, from: i32, to: i32) -> bool {
     g.time >= from && (g.time < to || (g.time == 90 && to == 90) || (g.time == 45 && to == 45))
 }
 
+fn red_card_penalty_remaining_per90(game_length: f32, player_off: i32) -> f32 {
+    // Red-card penalties are calibrated per 90 minutes, not per match. An overtime
+    // match can therefore charge more than a normal match's full-game penalty when
+    // the player misses more than 90 minutes.
+    ((game_length - player_off as f32) / 90.0).max(0.0)
+}
+
 fn get_rating(ratings: &mut HashMap<i32, VecDeque<HistoricalRating>>, date: NaiveDate, id: i32) {
     let r = ratings.get_mut(&id).expect("");
     while r.len() > 1 && date > r[1].measure_date {
         r.pop_front();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::red_card_penalty_remaining_per90;
+
+    #[test]
+    fn red_card_penalty_uses_regular_time_remaining_per90() {
+        assert_eq!(red_card_penalty_remaining_per90(90.0, 60), 30.0 / 90.0);
+    }
+
+    #[test]
+    fn red_card_penalty_includes_overtime_remaining_per90() {
+        assert_eq!(red_card_penalty_remaining_per90(120.0, 60), 60.0 / 90.0);
+    }
+
+    #[test]
+    fn red_card_penalty_handles_cards_during_overtime_per90() {
+        assert_eq!(red_card_penalty_remaining_per90(120.0, 105), 15.0 / 90.0);
+    }
+
+    #[test]
+    fn red_card_penalty_per90_never_rewards_late_cards() {
+        assert_eq!(red_card_penalty_remaining_per90(90.0, 105), 0.0);
     }
 }
