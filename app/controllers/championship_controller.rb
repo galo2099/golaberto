@@ -335,6 +335,7 @@ class ChampionshipController < ApplicationController
         game = latest_game_by_timestamp[snapshot_time]
         points_meta << {
           recorded_on: recorded_on.to_s,
+          game_id: game&.id,
           game_date: game&.date&.to_s,
           game_label: if game
                         "#{game.home.name} #{game.home_score}-#{game.away_score} #{game.away.name}"
@@ -346,6 +347,7 @@ class ChampionshipController < ApplicationController
       end
 
       {
+        position: position,
         label: position.ordinalize,
         zone_name: zone_name_by_position[position],
         zone_names: zone_names_by_position[position] || [],
