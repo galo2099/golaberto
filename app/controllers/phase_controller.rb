@@ -87,7 +87,7 @@ class PhaseController < ApplicationController
 
   private
   def phase_params
-    params.require(:phase).permit(:name, :order_by, :sort, :bonus_points, :bonus_points_threshold, :scrape_url)
+    params.require(:phase).permit(:name, :order_by, :sort, :bonus_points, :bonus_points_threshold, :scrape_url, :sofascore_tournament_ids)
   end
 
   def group_params

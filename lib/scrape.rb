@@ -339,16 +339,24 @@ def scrape(phase, url, options = {})
     rounds.each do |r|
       Rails.logger.info r.inspect
       data = ChampionshipGet.get("#{url}#{r}")
-      data["events"].each do |match|
+      scrape_events_for_phase(phase, data).each do |match|
         parse_match(phase, data, match, rounds, false, refetch)
-      end if data["events"]
+      end
     end
   else
     data = ChampionshipGet.get(url)
-    data["events"].each do |match|
+    scrape_events_for_phase(phase, data).each do |match|
       parse_match(phase, data, match, (1..999999), false, refetch)
-    end if data["events"]
+    end
   end
+end
+
+def scrape_events_for_phase(phase, data)
+  events = data["events"] || []
+  return events if phase.sofascore_tournament_ids.blank?
+
+  tournament_ids = phase.parsed_sofascore_tournament_ids
+  events.select { |match| tournament_ids.include?(match.dig("tournament", "id").to_i) }
 end
 
 def rounds_to_update(phase)
@@ -480,121 +488,136 @@ def get_scorers(game, lineup_url, incidents_url)
   incidents = ChampionshipGet.get(incidents_url)
   incidents_list = incidents["incidents"] || []
 
-  has_extra_time_period = incidents_list.any? do |incident|
-    incident["incidentType"] == "period" and incident["time"].to_i < 999 and incident_minute(incident) > 90
-  end
+  game.with_lock do
+    has_extra_time_period = incidents_list.any? do |incident|
+      incident["incidentType"] == "period" and incident["time"].to_i < 999 and incident_minute(incident) > 90
+    end
 
-  if not has_extra_time_period
-    game.home_aet = nil
-    game.away_aet = nil
-    game.save! if game.changed?
-  end
+    if not has_extra_time_period
+      game.home_aet = nil
+      game.away_aet = nil
+      game.save! if game.changed?
+    end
 
-  game.goals.clear
-  game.player_games.clear
-  players = {}
-  players_by_name = { 0 => {}, 1 => {} }
-  players_by_id = {}
-  off = 0
-  incidents_list.each do |s|
-    if s["incidentType"] == "period" and s["time"] < 999
+    game.goals.clear
+    game.player_games.clear
+    players = {}
+    players_by_name = { 0 => {}, 1 => {} }
+    players_by_id = {}
+    player_games_by_key = {}
+    off = 0
+    incidents_list.each do |s|
+      if s["incidentType"] == "period" and s["time"] < 999
+        minute = incident_minute(s)
+        off = [off, minute].max
+        off = [120, off].min
+      end
+    end
+    off = 90 if off == 0
+
+    missing_player = false
+
+    proc_player = lambda do |s, game, team_id, end_of_match, is_home|
+      name, player_game = process_player(s["player"], game, team_id, end_of_match, !s["substitute"])
+      if player_game
+        player_game = register_player_game(player_games_by_key, player_game)
+        sofascore_id = s.dig("player", "id").to_i
+        players[sofascore_id] = player_game if sofascore_id > 0
+        players_by_name[is_home ? 0 : 1][name] = player_game
+        players_by_id[s["id"]] = player_game if s["id"]
+      else
+        missing_player = true
+      end
+    end
+
+    home_lineup["players"].each do |s|
+      proc_player.call(s, game, game.home_id, off, true)
+    end
+    away_lineup["players"].each do |s|
+      proc_player.call(s, game, game.away_id, off, false)
+    end
+
+    next if players.size == 0
+
+    fuzzy_match = FuzzyTeamMatch.new
+    incidents_list.each do |s|
       minute = incident_minute(s)
-      off = [off, minute].max
-      off = [120, off].min
-    end
-  end
-  off = 90 if off == 0
-
-  missing_player = false
-
-  proc_player = lambda do |s, game, team_id, end_of_match, is_home|
-    name, player = process_player(s["player"], game, team_id, end_of_match, !s["substitute"])
-    if player
-      players[player.player.sofascore_id.to_i] = player
-      players_by_name[is_home ? 0 : 1][name] = player
-      players_by_id[s["id"]] = player if s["id"]
-    else
-      missing_player = true
-    end
-  end
-
-  home_lineup["players"].each do |s|
-    proc_player.call(s, game, game.home_id, off, true)
-  end
-  away_lineup["players"].each do |s|
-    proc_player.call(s, game, game.away_id, off, false)
-  end
-
-  if players.size == 0
-    return
-  end
-
-  fuzzy_match = FuzzyTeamMatch.new
-  incidents_list.each do |s|
-    minute = incident_minute(s)
-    if s["incidentType"] == "goal" and s["incidentClass"] == "regular" and not s["player"].nil?
-      player = players[s["player"]["id"]]
-      if player.nil? and not missing_player
-        player = incident_fuzzy_match_player(players_by_name, incident_team_pos(s), s["pl_name"], fuzzy_match)
-      end
-      Goal.new(player_id: player.player_id, game_id: game.id, team_id: player.team_id, time: minute, penalty: false, own_goal: false, aet: incident_extra_time?(s)).save! if player
-    end
-    if s["incidentType"] == "goal" and s["incidentClass"] == "penalty" and not s["player"].nil?
-      player = players[s["player"]["id"]]
-      if player.nil? and not missing_player
-        player = incident_fuzzy_match_player(players_by_name, incident_team_pos(s), s["pl_name"], fuzzy_match)
-      end
-      Goal.new(player_id: player.player_id, game_id: game.id, team_id: player.team_id, time: minute, penalty: true, own_goal: false, aet: incident_extra_time?(s)).save! if player
-    end
-    if s["incidentType"] == "goal" and s["incidentClass"] == "ownGoal"
-      player = players[s["player"]["id"]]
-      if player.nil? and not missing_player
-        incident_pos = incident_team_pos(s)
-        player = incident_fuzzy_match_player(players_by_name, 1 - incident_pos, s["pl_name"], fuzzy_match) if !incident_pos.nil?
-      end
-      Goal.new(player_id: player.player_id, game_id: game.id, team_id: player.team_id, time: minute, penalty: false, own_goal: true, aet: incident_extra_time?(s)).save! if player
-    end
-    if s["incidentType"] == "card" and s["incidentClass"] == "yellow"
-      # May be a coach
-      if not s["player"]
-        next
-      end
-      player = players[s["player"]["id"]]
-      if not player
-        next
-      end
-      player.yellow = true
-    end
-    if s["incidentType"] == "card" and (s["incidentClass"] == "red" || s["incidentClass"] == "yellowRed")
-      # May be a coach
-      if not s["player"]
-        next
-      end
-      player = players[s["player"]["id"]]
-      player.red = true
-      player.off = minute if minute < player.off and minute > 0
-    end
-    if s["incidentType"] == "substitution"
-      next if not s["playerIn"] # may be missing
-      player = players[s["playerIn"]["id"]]
-      next if not player
-      player.on = minute
-      player.off = off
-      player_out_id = incident_player_id(s, "playerOut")
-      player_out = player_out_id ? players[player_out_id] : nil
-      player_out_name = incident_player_out_name(s)
-      if player_out.nil? and player_out_name
-        if (player and player_out.nil?) or (player_out.nil? and not missing_player)
-          player_out = incident_fuzzy_match_player(players_by_name, incident_team_pos(s), player_out_name, fuzzy_match)
+      if s["incidentType"] == "goal" and s["incidentClass"] == "regular" and not s["player"].nil?
+        player = players[s["player"]["id"]]
+        if player.nil? and not missing_player
+          player = incident_fuzzy_match_player(players_by_name, incident_team_pos(s), s["pl_name"], fuzzy_match)
         end
+        Goal.new(player_id: player.player_id, game_id: game.id, team_id: player.team_id, time: minute, penalty: false, own_goal: false, aet: incident_extra_time?(s)).save! if player
       end
-      next if player_out.nil?
-      player_out.off = minute
+      if s["incidentType"] == "goal" and s["incidentClass"] == "penalty" and not s["player"].nil?
+        player = players[s["player"]["id"]]
+        if player.nil? and not missing_player
+          player = incident_fuzzy_match_player(players_by_name, incident_team_pos(s), s["pl_name"], fuzzy_match)
+        end
+        Goal.new(player_id: player.player_id, game_id: game.id, team_id: player.team_id, time: minute, penalty: true, own_goal: false, aet: incident_extra_time?(s)).save! if player
+      end
+      if s["incidentType"] == "goal" and s["incidentClass"] == "ownGoal"
+        player = players[s["player"]["id"]]
+        if player.nil? and not missing_player
+          incident_pos = incident_team_pos(s)
+          player = incident_fuzzy_match_player(players_by_name, 1 - incident_pos, s["pl_name"], fuzzy_match) if !incident_pos.nil?
+        end
+        Goal.new(player_id: player.player_id, game_id: game.id, team_id: player.team_id, time: minute, penalty: false, own_goal: true, aet: incident_extra_time?(s)).save! if player
+      end
+      if s["incidentType"] == "card" and s["incidentClass"] == "yellow"
+        # May be a coach
+        if not s["player"]
+          next
+        end
+        player = players[s["player"]["id"]]
+        if not player
+          next
+        end
+        player.yellow = true
+      end
+      if s["incidentType"] == "card" and (s["incidentClass"] == "red" || s["incidentClass"] == "yellowRed")
+        # May be a coach
+        if not s["player"]
+          next
+        end
+        player = players[s["player"]["id"]]
+        player.red = true
+        player.off = minute if minute < player.off and minute > 0
+      end
+      if s["incidentType"] == "substitution"
+        next if not s["playerIn"] # may be missing
+        player = players[s["playerIn"]["id"]]
+        next if not player
+        player.on = minute
+        player.off = off
+        player_out_id = incident_player_id(s, "playerOut")
+        player_out = player_out_id ? players[player_out_id] : nil
+        player_out_name = incident_player_out_name(s)
+        if player_out.nil? and player_out_name
+          if (player and player_out.nil?) or (player_out.nil? and not missing_player)
+            player_out = incident_fuzzy_match_player(players_by_name, incident_team_pos(s), player_out_name, fuzzy_match)
+          end
+        end
+        next if player_out.nil?
+        player_out.off = minute
+      end
+    end
+    player_games_by_key.values.each do |p|
+      p.save!
     end
   end
-  players.values.each do |p|
-    p.save!
-  end
+end
+
+def register_player_game(player_games_by_key, player_game)
+  key = [player_game.game_id, player_game.team_id, player_game.player_id]
+  existing_player_game = player_games_by_key[key]
+  return player_games_by_key[key] = player_game unless existing_player_game
+
+  existing_player_game.on = [existing_player_game.on.to_i, player_game.on.to_i].min
+  existing_player_game.off = [existing_player_game.off.to_i, player_game.off.to_i].max
+  existing_player_game.yellow ||= player_game.yellow
+  existing_player_game.red ||= player_game.red
+  existing_player_game
 end
 
 def incident_team_pos(incident)

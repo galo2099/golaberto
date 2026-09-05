@@ -114,6 +114,56 @@ class GameDataScrapeServiceTest < ActiveSupport::TestCase
     assert_equal "http://sofascore.com/api/v1/unique-tournament/17/season/76986/events/round/", scraped_list[0][:url]
   end
 
+  test "scrape filters round events by the phase tournament IDs" do
+    phase = Struct.new(:sofascore_tournament_ids) do
+      def parsed_sofascore_tournament_ids
+        [27214, 90333]
+      end
+    end.new("27214,90333")
+    data = {
+      "events" => [
+        { "tournament" => { "id" => 27214 } },
+        { "tournament" => { "id" => 12345 } },
+        { "tournament" => { "id" => 90333 } },
+      ],
+    }
+    parsed_tournament_ids = []
+
+    original_method = method(:parse_match) rescue nil
+    begin
+      Object.send(:define_method, :parse_match) do |_phase, _data, match, rounds, _create_groups, _refetch|
+        parsed_tournament_ids << [match.dig("tournament", "id"), rounds]
+      end
+      Phase.stub(:find, phase) do
+        ChampionshipGet.stub(:get, data) do
+          scrape(42, "http://example.com/events/round/", rounds: [2])
+        end
+      end
+    ensure
+      if original_method
+        Object.send(:define_method, :parse_match, original_method)
+      else
+        Object.send(:remove_method, :parse_match) rescue nil
+      end
+    end
+
+    assert_equal [[27214, [2]], [90333, [2]]], parsed_tournament_ids
+  end
+
+  test "scrape accepts every event when the phase has no tournament filter" do
+    phase = Struct.new(:sofascore_tournament_ids) do
+      def parsed_sofascore_tournament_ids
+        []
+      end
+    end.new(nil)
+    events = [
+      { "tournament" => { "id" => 27214 } },
+      { "tournament" => { "id" => 12345 } },
+    ]
+
+    assert_equal events, scrape_events_for_phase(phase, { "events" => events })
+  end
+
   test "run_unlocked handles scrape errors gracefully and continues" do
     phase1 = FakePhase.new(id: 1, name: "Phase1", scrape_url: "http://example.com/1/", has_pending_games: true)
     phase2 = FakePhase.new(id: 2, name: "Phase2", scrape_url: "http://example.com/2/", has_pending_games: true)

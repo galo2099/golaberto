@@ -20,7 +20,9 @@ class ChampionshipTest < Test::Unit::TestCase
       order_by: 1,
       sort: "pt,gd",
       bonus_points: 2,
-      bonus_points_threshold: 5
+      bonus_points_threshold: 5,
+      scrape_url: "https://example.com/events/round/",
+      sofascore_tournament_ids: "27214,90333"
     )
 
     group = phase.groups.create!(
@@ -48,6 +50,7 @@ class ChampionshipTest < Test::Unit::TestCase
     assert_equal "pt,gd", cloned_phase.sort
     assert_equal 2, cloned_phase.bonus_points
     assert_equal 5, cloned_phase.bonus_points_threshold
+    assert_equal phase.sofascore_tournament_ids, cloned_phase.sofascore_tournament_ids
     assert_equal 1, cloned_phase.groups.count
     assert_equal "Group A", cloned_group.name
     assert_equal group.zones, cloned_group.zones

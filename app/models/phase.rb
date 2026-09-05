@@ -38,6 +38,14 @@ class Phase < ApplicationRecord
     "#{id}-#{name.parameterize}"
   end
 
+  def parsed_sofascore_tournament_ids
+    sofascore_tournament_ids.to_s
+      .split(/[\s,]+/)
+      .select { |id| id.match?(/\A[1-9]\d*\z/) }
+      .map(&:to_i)
+      .uniq
+  end
+
   def avg_team_rating
     #@avg_team_rating ||= begin teams.map{|t|t.rating.to_f}.sum / teams.size rescue 0 end
     @avg_team_rating ||= begin teams.sort_by{|t|-t.rating.to_f}.each_with_index.map{|t,i|t.rating.to_f * (0.7)**i}.sum / teams.each_with_index.map{|t,i| 0.7**i}.sum rescue 0 end

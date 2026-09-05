@@ -87,7 +87,8 @@ class Championship < ApplicationRecord
         sort: phase.sort,
         bonus_points: phase.bonus_points,
         bonus_points_threshold: phase.bonus_points_threshold,
-        scrape_url: phase.scrape_url
+        scrape_url: phase.scrape_url,
+        sofascore_tournament_ids: phase.sofascore_tournament_ids
       )
 
       phase.groups.includes(:team_groups).order(:id).each do |group|

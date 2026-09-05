@@ -102,4 +102,19 @@ class ScrapeIncidentTimeTest < ActiveSupport::TestCase
     assert_equal player, incident_fuzzy_match_player(players_by_name, 0, "Any", fuzzy_match)
   end
 
+  test "register_player_game merges duplicate game team player rows" do
+    player_games_by_key = {}
+    player_game = PlayerGame.new(game_id: 364519, team_id: 9, player_id: 75334, on: 0, off: 90, yellow: false, red: false)
+    duplicate = PlayerGame.new(game_id: 364519, team_id: 9, player_id: 75334, on: 30, off: 0, yellow: true, red: true)
+
+    assert_same player_game, register_player_game(player_games_by_key, player_game)
+    assert_same player_game, register_player_game(player_games_by_key, duplicate)
+
+    assert_equal 1, player_games_by_key.size
+    assert_equal 0, player_game.on
+    assert_equal 90, player_game.off
+    assert player_game.yellow?
+    assert player_game.red?
+  end
+
 end
