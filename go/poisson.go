@@ -468,6 +468,38 @@ type ProposalComponent struct {
 	Means  []GameProposalMeans
 }
 
+func proposalTargetRanks(
+	candidatePositions []int,
+	normalMeanRank float64,
+	direction RareDirection,
+) (mild int, medium int, strong int) {
+	if len(candidatePositions) == 0 {
+		return 0, 0, 0
+	}
+
+	sortedCandidates := make([]int, len(candidatePositions))
+	copy(sortedCandidates, candidatePositions)
+	sort.Ints(sortedCandidates)
+
+	n := len(sortedCandidates)
+	if n == 1 {
+		val := sortedCandidates[0]
+		return val, val, val
+	}
+
+	if direction == RareBetter {
+		mild = sortedCandidates[n-1]
+		strong = sortedCandidates[0]
+		medium = sortedCandidates[n/2]
+	} else {
+		mild = sortedCandidates[0]
+		strong = sortedCandidates[n-1]
+		medium = sortedCandidates[n/2]
+	}
+
+	return mild, medium, strong
+}
+
 func calculateNormalMeanRanks(normalOdds map[int]*TeamOdds) map[int]float64 {
 	ranks := make(map[int]float64, len(normalOdds))
 	for teamID, odds := range normalOdds {
@@ -550,21 +582,8 @@ func buildProposalComponents(
 		}
 	}
 
-	// Sort candidate positions
-	sortedCandidates := make([]int, len(candidatePositions))
-	copy(sortedCandidates, candidatePositions)
-	sort.Ints(sortedCandidates)
-
-	var nearestCandidate, medianCandidate, extremeCandidate float64
-	if direction == RareBetter {
-		nearestCandidate = float64(sortedCandidates[len(sortedCandidates)-1])
-		medianCandidate = float64(sortedCandidates[len(sortedCandidates)/2])
-		extremeCandidate = float64(sortedCandidates[0])
-	} else {
-		nearestCandidate = float64(sortedCandidates[0])
-		medianCandidate = float64(sortedCandidates[len(sortedCandidates)/2])
-		extremeCandidate = float64(sortedCandidates[len(sortedCandidates)-1])
-	}
+	normalMeanRank := normalMeanRanks[targetTeamID]
+	mildRank, mediumRank, strongRank := proposalTargetRanks(candidatePositions, normalMeanRank, direction)
 
 	type strengthDef struct {
 		name       string
@@ -577,16 +596,24 @@ func buildProposalComponents(
 	var strengths []strengthDef
 	if direction == RareBetter {
 		strengths = []strengthDef{
-			{"mild", 0.20, 1.25, 0.80, nearestCandidate},
-			{"medium", 0.45, 1.75, 0.57, medianCandidate},
-			{"strong", 0.30, 2.50, 0.40, extremeCandidate},
+			{"mild", 0.20, 1.15, 0.90, float64(mildRank)},
+			{"medium", 0.45, 1.35, 0.80, float64(mediumRank)},
+			{"strong", 0.30, 1.70, 0.65, float64(strongRank)},
 		}
 	} else {
 		strengths = []strengthDef{
-			{"mild", 0.20, 0.80, 1.25, nearestCandidate},
-			{"medium", 0.45, 0.57, 1.75, medianCandidate},
-			{"strong", 0.30, 0.40, 2.50, extremeCandidate},
+			{"mild", 0.20, 0.87, 1.11, float64(mildRank)},
+			{"medium", 0.45, 0.74, 1.25, float64(mediumRank)},
+			{"strong", 0.30, 0.59, 1.54, float64(strongRank)},
 		}
+	}
+
+	totalWeight := 0.05
+	for _, s := range strengths {
+		totalWeight += s.weight
+	}
+	if math.Abs(totalWeight-1.0) > 1e-6 {
+		log.Printf("WARNING: proposal mixture weights sum to %f, expected 1.0", totalWeight)
 	}
 
 	components := make([]ProposalComponent, 0, len(strengths)+1)
@@ -620,26 +647,14 @@ func buildProposalComponents(
 
 			if isHomeTarget {
 				hMult = s.targetMult
-				if !isAwayTarget && !isAwayBlocker {
-					aMult = 1.0 / s.targetMult
-				}
 			} else if isHomeBlocker {
 				hMult = s.blockMult
-				if !isAwayTarget && !isAwayBlocker {
-					aMult = 1.0 / s.blockMult
-				}
 			}
 
 			if isAwayTarget {
 				aMult = s.targetMult
-				if !isHomeTarget && !isHomeBlocker {
-					hMult = 1.0 / s.targetMult
-				}
 			} else if isAwayBlocker {
 				aMult = s.blockMult
-				if !isHomeTarget && !isHomeBlocker {
-					hMult = 1.0 / s.blockMult
-				}
 			}
 
 			hPower := g.HomePower

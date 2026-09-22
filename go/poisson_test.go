@@ -250,10 +250,32 @@ func TestDirectImportanceSamplingEstimator(t *testing.T) {
 	}
 }
 
+func TestProposalTargetRanks(t *testing.T) {
+	// Test 3+ candidates for RareBetter
+	candidates := []int{7, 8, 9, 10, 11, 12, 13, 14, 15}
+	mild, medium, strong := proposalTargetRanks(candidates, 16.0, RareBetter)
+	if mild != 15 || medium != 11 || strong != 7 {
+		t.Errorf("expected mild=15, medium=11, strong=7 for RareBetter, got mild=%d, medium=%d, strong=%d", mild, medium, strong)
+	}
+
+	// Test 3+ candidates for RareWorse
+	candidatesWorse := []int{17, 18, 19, 20}
+	mildW, mediumW, strongW := proposalTargetRanks(candidatesWorse, 16.0, RareWorse)
+	if mildW != 17 || mediumW != 19 || strongW != 20 {
+		t.Errorf("expected mild=17, medium=19, strong=20 for RareWorse, got mild=%d, medium=%d, strong=%d", mildW, mediumW, strongW)
+	}
+
+	// Test 1 candidate
+	m1, med1, s1 := proposalTargetRanks([]int{5}, 10.0, RareBetter)
+	if m1 != 5 || med1 != 5 || s1 != 5 {
+		t.Errorf("expected all 5 for 1 candidate, got %d, %d, %d", m1, med1, s1)
+	}
+}
+
 func TestMultiComponentMixtureWeights(t *testing.T) {
 	// All components equal to P -> logQOverP = [0, 0, 0, 0]
 	logQOverP := []float64{0.0, 0.0, 0.0, 0.0}
-	weights := []float64{0.05, 0.25, 0.35, 0.35}
+	weights := []float64{0.05, 0.20, 0.45, 0.30}
 	w := mixtureImportanceWeightMulti(logQOverP, weights)
 	if math.Abs(w-1.0) > 1e-9 {
 		t.Errorf("expected weight 1.0 when all components equal P, got %f", w)
@@ -515,9 +537,9 @@ func TestSyntheticUnderdogRareEvent(t *testing.T) {
 	t.Setenv("RARE_POSITION_IMPORTANCE_SAMPLING", "1")
 
 	// Two-team group with 1 remaining game.
-	// HomePower = 0.01, AwayPower = 8.0.
-	hMean := 0.01
-	aMean := 8.0
+	// HomePower = 0.02, AwayPower = 5.0.
+	hMean := 0.02
+	aMean := 5.0
 
 	group := &GroupType{
 		Id: 999,
@@ -564,9 +586,9 @@ func TestFalse100PercentCorrection(t *testing.T) {
 	t.Setenv("RARE_POSITION_IMPORTANCE_SAMPLING", "1")
 
 	// Group where normal MC gives 100% for Team 2 (1st place) and 0% for Team 1 (1st place),
-	// but Team 1 finishing 1st has a small nonzero probability (~3.47e-6).
-	hMean := 0.01
-	aMean := 8.0
+	// but Team 1 finishing 1st has a small nonzero probability.
+	hMean := 0.02
+	aMean := 5.0
 
 	group := &GroupType{
 		Id: 997,
