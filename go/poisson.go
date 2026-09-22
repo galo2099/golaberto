@@ -476,13 +476,6 @@ func buildDirectionalProposal(
 		} else if g.AwayId == targetTeamID {
 			aPower = clampMean(aPower * targetMult)
 			hPower = clampMean(hPower * oppMult)
-		} else {
-			if hPower > 0 {
-				hPower = clampMean(hPower)
-			}
-			if aPower > 0 {
-				aPower = clampMean(aPower)
-			}
 		}
 
 		means[i] = GameProposalMeans{
@@ -767,60 +760,18 @@ func estimateRarePositionsForJob(
 		candidateMap[pos] = true
 	}
 
-	totalN := 0
-	batchSize := 500
+	totalN := job.Iterations
+	for i := 0; i < totalN; i++ {
+		rank, w := simulateTargetTeamRankAndWeight(
+			baseCampaign, simCampaign, teamSlice, games,
+			originalMeans, job.ProposalMeans, table, sortOrder, teamGroups,
+			job.TeamID, rng,
+		)
 
-	for totalN < job.Iterations {
-		currentBatch := batchSize
-		if totalN+currentBatch > job.Iterations {
-			currentBatch = job.Iterations - totalN
-		}
-
-		for b := 0; b < currentBatch; b++ {
-			totalN++
-			rank, w := simulateTargetTeamRankAndWeight(
-				baseCampaign, simCampaign, teamSlice, games,
-				originalMeans, job.ProposalMeans, table, sortOrder, teamGroups,
-				job.TeamID, rng,
-			)
-
-			if candidateMap[rank] {
-				sumY[rank] += w
-				sumY2[rank] += w * w
-				hits[rank]++
-			}
-		}
-
-		allMet := true
-		for _, pos := range job.CandidatePositions {
-			N := float64(totalN)
-			sY := sumY[pos]
-			sY2 := sumY2[pos]
-			h := hits[pos]
-
-			pHat := sY / N
-			sampleVar := (sY2 - N*pHat*pHat) / (N - 1.0)
-			if sampleVar < 0 {
-				sampleVar = 0
-			}
-			stdErr := math.Sqrt(sampleVar / N)
-			relSE := 0.0
-			if pHat > 0 {
-				relSE = stdErr / pHat
-			}
-			ess := 0.0
-			if sY2 > 0 {
-				ess = (sY * sY) / sY2
-			}
-
-			if !(h >= 100 && ess >= 50.0 && relSE <= 0.25) {
-				allMet = false
-				break
-			}
-		}
-
-		if allMet {
-			break
+		if candidateMap[rank] {
+			sumY[rank] += w
+			sumY2[rank] += w * w
+			hits[rank]++
 		}
 	}
 
