@@ -347,7 +347,6 @@ func TestCompetitorDependentExactPoissonValidation(t *testing.T) {
 		TeamID:             1,
 		Direction:          RareBetter,
 		CandidatePositions: []int{1},
-		RelevantTeams:      []int{3},
 		Components:         components,
 		Iterations:         20000,
 	}
@@ -491,6 +490,31 @@ func TestGlobalBudgetEnforcement(t *testing.T) {
 	if sumIterations > MaxRareIterations {
 		t.Errorf("total allocated iterations %d exceeded global budget %d", sumIterations, MaxRareIterations)
 	}
+}
+
+func TestPilotSelectionScoring(t *testing.T) {
+	// Candidate rate 20% with 1% overshoot (s1 = 0.20 - 0.5*0.01 - 0.02*2 = 0.155)
+	// should beat candidate rate 20% with 30% overshoot (s2 = 0.20 - 0.5*0.30 - 0.02*4 = 0.03)
+	s1 := scorePilotProposal(0.20, 0.01, 2)
+	s2 := scorePilotProposal(0.20, 0.30, 4)
+
+	if s1 <= s2 {
+		t.Errorf("expected scorePilotProposal for moderate candidate rate with low overshoot (%f) to exceed overshooting score (%f)", s1, s2)
+	}
+}
+
+func TestValidateProposalMixture(t *testing.T) {
+	games := []*GameType{
+		{Id: 1, HomeId: 1, AwayId: 2, HomePower: 1.0, AwayPower: 1.0},
+	}
+	means := []GameProposalMeans{{Home: 1.0, Away: 1.0}}
+
+	validComps := []ProposalComponent{
+		{Name: "original", Weight: 0.05, Means: means},
+		{Name: "mild", Weight: 0.95, Means: means},
+	}
+	// Should not panic/log.Fatal
+	validateProposalMixture(validComps, len(games))
 }
 
 func TestBudgetAllocationScaling(t *testing.T) {
