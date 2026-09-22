@@ -480,6 +480,32 @@ func calculateNormalMeanRanks(normalOdds map[int]*TeamOdds) map[int]float64 {
 	return ranks
 }
 
+func findRelevantCompetitorsForDepth(
+	targetTeamID int,
+	normalMeanRanks map[int]float64,
+	targetDepthRank float64,
+	direction RareDirection,
+) []int {
+	targetRank := normalMeanRanks[targetTeamID]
+	var competitors []int
+
+	for teamID, rank := range normalMeanRanks {
+		if teamID == targetTeamID {
+			continue
+		}
+		if direction == RareBetter {
+			if rank >= targetDepthRank-1.5 && rank <= targetRank+0.5 {
+				competitors = append(competitors, teamID)
+			}
+		} else {
+			if rank >= targetRank-0.5 && rank <= targetDepthRank+1.5 {
+				competitors = append(competitors, teamID)
+			}
+		}
+	}
+	return competitors
+}
+
 func findRelevantCompetitors(
 	targetTeamID int,
 	normalMeanRanks map[int]float64,
@@ -489,51 +515,55 @@ func findRelevantCompetitors(
 	if len(candidatePositions) == 0 {
 		return nil
 	}
-
-	targetRank := normalMeanRanks[targetTeamID]
-	minCandidate := candidatePositions[0]
-	maxCandidate := candidatePositions[0]
-	for _, pos := range candidatePositions {
-		if pos < minCandidate {
-			minCandidate = pos
-		}
-		if pos > maxCandidate {
-			maxCandidate = pos
-		}
-	}
-
-	var competitors []int
-	for teamID, rank := range normalMeanRanks {
-		if teamID == targetTeamID {
-			continue
-		}
-		if direction == RareBetter {
-			if rank >= float64(minCandidate)-1.5 && rank <= targetRank+0.5 {
-				competitors = append(competitors, teamID)
+	extremePos := candidatePositions[0]
+	if direction == RareBetter {
+		for _, p := range candidatePositions {
+			if p < extremePos {
+				extremePos = p
 			}
-		} else {
-			if rank >= targetRank-0.5 && rank <= float64(maxCandidate)+1.5 {
-				competitors = append(competitors, teamID)
+		}
+	} else {
+		for _, p := range candidatePositions {
+			if p > extremePos {
+				extremePos = p
 			}
 		}
 	}
-	return competitors
+	return findRelevantCompetitorsForDepth(targetTeamID, normalMeanRanks, float64(extremePos), direction)
 }
 
 func buildProposalComponents(
 	games []*GameType,
 	targetTeamID int,
 	direction RareDirection,
-	relevantCompetitors []int,
+	candidatePositions []int,
+	normalMeanRanks map[int]float64,
 ) []ProposalComponent {
-	blockerMap := make(map[int]bool, len(relevantCompetitors))
-	for _, id := range relevantCompetitors {
-		blockerMap[id] = true
-	}
-
 	originalMeans := make([]GameProposalMeans, len(games))
 	for i, g := range games {
 		originalMeans[i] = GameProposalMeans{Home: g.HomePower, Away: g.AwayPower}
+	}
+
+	if len(candidatePositions) == 0 {
+		return []ProposalComponent{
+			{Name: "original", Weight: 1.0, Means: originalMeans},
+		}
+	}
+
+	// Sort candidate positions
+	sortedCandidates := make([]int, len(candidatePositions))
+	copy(sortedCandidates, candidatePositions)
+	sort.Ints(sortedCandidates)
+
+	var nearestCandidate, medianCandidate, extremeCandidate float64
+	if direction == RareBetter {
+		nearestCandidate = float64(sortedCandidates[len(sortedCandidates)-1])
+		medianCandidate = float64(sortedCandidates[len(sortedCandidates)/2])
+		extremeCandidate = float64(sortedCandidates[0])
+	} else {
+		nearestCandidate = float64(sortedCandidates[0])
+		medianCandidate = float64(sortedCandidates[len(sortedCandidates)/2])
+		extremeCandidate = float64(sortedCandidates[len(sortedCandidates)-1])
 	}
 
 	type strengthDef struct {
@@ -541,20 +571,21 @@ func buildProposalComponents(
 		weight     float64
 		targetMult float64
 		blockMult  float64
+		depthRank  float64
 	}
 
 	var strengths []strengthDef
 	if direction == RareBetter {
 		strengths = []strengthDef{
-			{"mild", 0.25, 1.25, 0.80},
-			{"medium", 0.35, 1.75, 0.57},
-			{"strong", 0.35, 2.50, 0.40},
+			{"mild", 0.20, 1.25, 0.80, nearestCandidate},
+			{"medium", 0.45, 1.75, 0.57, medianCandidate},
+			{"strong", 0.30, 2.50, 0.40, extremeCandidate},
 		}
 	} else {
 		strengths = []strengthDef{
-			{"mild", 0.25, 0.80, 1.25},
-			{"medium", 0.35, 0.57, 1.75},
-			{"strong", 0.35, 0.40, 2.50},
+			{"mild", 0.20, 0.80, 1.25, nearestCandidate},
+			{"medium", 0.45, 0.57, 1.75, medianCandidate},
+			{"strong", 0.30, 0.40, 2.50, extremeCandidate},
 		}
 	}
 
@@ -566,6 +597,12 @@ func buildProposalComponents(
 	})
 
 	for _, s := range strengths {
+		compBlockers := findRelevantCompetitorsForDepth(targetTeamID, normalMeanRanks, s.depthRank, direction)
+		blockerMap := make(map[int]bool, len(compBlockers))
+		for _, id := range compBlockers {
+			blockerMap[id] = true
+		}
+
 		compMeans := make([]GameProposalMeans, len(games))
 		for i, g := range games {
 			if g.Played {
@@ -576,16 +613,33 @@ func buildProposalComponents(
 			hMult := 1.0
 			aMult := 1.0
 
-			if g.HomeId == targetTeamID {
+			isHomeTarget := g.HomeId == targetTeamID
+			isAwayTarget := g.AwayId == targetTeamID
+			isHomeBlocker := blockerMap[g.HomeId]
+			isAwayBlocker := blockerMap[g.AwayId]
+
+			if isHomeTarget {
 				hMult = s.targetMult
-			} else if blockerMap[g.HomeId] {
+				if !isAwayTarget && !isAwayBlocker {
+					aMult = 1.0 / s.targetMult
+				}
+			} else if isHomeBlocker {
 				hMult = s.blockMult
+				if !isAwayTarget && !isAwayBlocker {
+					aMult = 1.0 / s.blockMult
+				}
 			}
 
-			if g.AwayId == targetTeamID {
+			if isAwayTarget {
 				aMult = s.targetMult
-			} else if blockerMap[g.AwayId] {
+				if !isHomeTarget && !isHomeBlocker {
+					hMult = 1.0 / s.targetMult
+				}
+			} else if isAwayBlocker {
 				aMult = s.blockMult
+				if !isHomeTarget && !isHomeBlocker {
+					hMult = 1.0 / s.blockMult
+				}
 			}
 
 			hPower := g.HomePower
@@ -619,8 +673,8 @@ func buildDirectionalProposal(
 	targetTeamID int,
 	direction RareDirection,
 ) []GameProposalMeans {
-	comps := buildProposalComponents(games, targetTeamID, direction, nil)
-	return comps[3].Means // strong component
+	comps := buildProposalComponents(games, targetTeamID, direction, nil, nil)
+	return comps[len(comps)-1].Means // strong component
 }
 
 type RareSimulationJob struct {
@@ -717,7 +771,7 @@ func findRareSimulationJobs(
 			}
 
 			relevantTeams := findRelevantCompetitors(teamID, normalRanks, candidates, direction)
-			components := buildProposalComponents(group.Games, teamID, direction, relevantTeams)
+			components := buildProposalComponents(group.Games, teamID, direction, candidates, normalRanks)
 
 			return &RareSimulationJob{
 				TeamID:             teamID,

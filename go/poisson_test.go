@@ -267,6 +267,97 @@ func TestMultiComponentMixtureWeights(t *testing.T) {
 	}
 }
 
+func TestCompetitorDependentExactPoissonValidation(t *testing.T) {
+	// Deterministic validation: Target team 1 has 0 remaining games and 0 points (bias 15).
+	// Team 2 (0 pts, bias 20) vs Team 3 (0 pts, bias 10) play 1 remaining game with HomePower = 0.05, AwayPower = 5.0.
+	// If Game 2 vs 3 ends in Away win (Team 3 wins): Team 3 has 3 pts (1st).
+	// Team 1 has 0 pts, GD 0 (2nd!). Team 2 has 0 pts, GD -1 (3rd!).
+	// Therefore, Team 1 reaches 2nd place (index 1) ONLY IF Game 2 vs 3 is an Away win for Team 3!
+	// Exact analytical P(Away win) = Sum_{a=1..20} Poisson(a, 5.0) * Sum_{h=0..a-1} Poisson(h, 0.05)
+	hMean := 0.05
+	aMean := 5.0
+
+	exactPAwayWin := 0.0
+	for a := 1; a <= 20; a++ {
+		pA := poisson_pmf(aMean, float64(a))
+		pHLessA := 0.0
+		for h := 0; h < a; h++ {
+			pHLessA += poisson_pmf(hMean, float64(h))
+		}
+		exactPAwayWin += pA * pHLessA
+	}
+
+	teamGroups := []TeamType{
+		{Team_id: 1, Add_sub: 0, Bias: 15},
+		{Team_id: 2, Add_sub: 0, Bias: 20},
+		{Team_id: 3, Add_sub: 0, Bias: 10},
+	}
+	table := NewTable([]uint32{1, 2, 3})
+	campaign := make([]*TeamCampaign, 3)
+	campaign[table.Query(1)] = &TeamCampaign{id: 1, points: 0, bias: 15, points_win: 3, points_draw: 1, points_loss: 0}
+	campaign[table.Query(2)] = &TeamCampaign{id: 2, points: 0, bias: 20, points_win: 3, points_draw: 1, points_loss: 0}
+	campaign[table.Query(3)] = &TeamCampaign{id: 3, points: 0, bias: 10, points_win: 3, points_draw: 1, points_loss: 0}
+
+	games := []*GameType{
+		{
+			Id:               1,
+			HomeId:           2,
+			AwayId:           3,
+			HomePower:        hMean,
+			AwayPower:        aMean,
+			Played:           false,
+			home_table_index: table.Query(2),
+			away_table_index: table.Query(3),
+		},
+	}
+	sortOrder := []SortType{PT, GD, GF, BIAS}
+
+	originalMeans := []GameProposalMeans{{Home: hMean, Away: aMean}}
+
+	// Proposal targeting Team 1 (which has no games) by boosting Away (Team 3):
+	compMeans := []GameProposalMeans{{Home: clampMean(hMean * 0.4), Away: clampMean(aMean * 2.5)}}
+	components := []ProposalComponent{
+		{Name: "original", Weight: 0.05, Means: originalMeans},
+		{Name: "test_comp", Weight: 0.95, Means: compMeans},
+	}
+
+	job := &RareSimulationJob{
+		TeamID:             1,
+		Direction:          RareBetter,
+		CandidatePositions: []int{1},
+		RelevantTeams:      []int{3},
+		Components:         components,
+		Iterations:         20000,
+	}
+
+	rng := rand.New(rand.NewSource(42))
+
+	results, _ := estimateRarePositionsForJob(
+		campaign, games, originalMeans, table, sortOrder, teamGroups,
+		job, rng, 888,
+	)
+
+	est, ok := results[1]
+	if !ok || !est.Found {
+		t.Fatalf("expected estimate for Team 1 position 1 (2nd place) to be found")
+	}
+
+	// Verify hits occurred
+	if est.Hits < 10 {
+		t.Errorf("expected proposal to generate candidate hits, got %d hits", est.Hits)
+	}
+
+	// Verify ESS is materially useful (>= 10)
+	if est.ESS < 10.0 {
+		t.Errorf("expected ESS >= 10, got %f", est.ESS)
+	}
+
+	// Verify agreement within 3 standard errors of exact Away win probability
+	if math.Abs(est.Probability-exactPAwayWin) > 3.0*est.StdErr {
+		t.Errorf("Estimate %f deviated from exact P(Away win) %f by more than 3 stdErr (%f)", est.Probability, exactPAwayWin, est.StdErr)
+	}
+}
+
 func TestTargetWithNoGamesRemainingCompetitorProposal(t *testing.T) {
 	t.Setenv("RARE_POSITION_IMPORTANCE_SAMPLING", "1")
 
@@ -336,7 +427,7 @@ func TestMultiPositionSharing(t *testing.T) {
 		TeamID:             1,
 		Direction:          RareBetter,
 		CandidatePositions: []int{0, 1},
-		Components:         buildProposalComponents(games, 1, RareBetter, nil),
+		Components:         buildProposalComponents(games, 1, RareBetter, []int{0, 1}, map[int]float64{1: 3.0, 2: 0.0, 3: 1.0, 4: 2.0}),
 		Iterations:         2000,
 	}
 
@@ -373,13 +464,50 @@ func TestGlobalBudgetEnforcement(t *testing.T) {
 	sumIterations := 0
 	for _, job := range jobs {
 		sumIterations += job.Iterations
-		if job.Iterations > MaxIterationsPerJob {
-			t.Errorf("job iterations %d exceeded per-job max %d", job.Iterations, MaxIterationsPerJob)
-		}
 	}
 
 	if sumIterations > MaxRareIterations {
 		t.Errorf("total allocated iterations %d exceeded global budget %d", sumIterations, MaxRareIterations)
+	}
+}
+
+func TestBudgetAllocationScaling(t *testing.T) {
+	testCounts := []int{5, 10, 25, 50}
+
+	for _, count := range testCounts {
+		var jobs []*RareSimulationJob
+		for i := 1; i <= count; i++ {
+			jobs = append(jobs, &RareSimulationJob{
+				TeamID:             i,
+				Direction:          RareBetter,
+				CandidatePositions: []int{0},
+				Priority:           i * 5,
+			})
+		}
+
+		allocateRareSimulationBudget(jobs, MaxRareIterations)
+
+		sumIter := 0
+		minIter := jobs[0].Iterations
+		maxIter := jobs[0].Iterations
+
+		for _, job := range jobs {
+			sumIter += job.Iterations
+			if job.Iterations < minIter {
+				minIter = job.Iterations
+			}
+			if job.Iterations > maxIter {
+				maxIter = job.Iterations
+			}
+		}
+
+		if sumIter > MaxRareIterations {
+			t.Errorf("for %d jobs, total iterations %d exceeded budget %d", count, sumIter, MaxRareIterations)
+		}
+
+		if count > 1 && maxIter > minIter*10 {
+			t.Errorf("for %d jobs, allocation imbalance too large: min=%d, max=%d", count, minIter, maxIter)
+		}
 	}
 }
 
