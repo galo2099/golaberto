@@ -1182,7 +1182,7 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
 	simulated_scores := make([]SimulatedScore, len(group.Games))
 	simulated_campaign := make([]*TeamCampaign, len(all_team_ids))
 	team_slice := make([]*TeamCampaign, len(group.Team_groups))
-	const NUM_ITER = 10000
+	const NUM_ITER = NormalIterations
 	for i := 0; i < NUM_ITER; i++ {
 		for k, v := range campaign {
 			simulated_campaign[k] = v.clone()
