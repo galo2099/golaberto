@@ -165,18 +165,72 @@ func TestMergeRarePositionEstimates(t *testing.T) {
 	}
 }
 
+func TestDirectImportanceSamplingEstimator(t *testing.T) {
+	// Deterministic validation of estimateRarePosition against exact analytical Poisson win probability.
+	// Home ~ Poisson(0.05), Away ~ Poisson(5.0)
+	// P(HomeScore > AwayScore)
+	hMean := 0.05
+	aMean := 5.0
+
+	exactPWin := 0.0
+	for h := 1; h <= 20; h++ {
+		pH := poisson_pmf(hMean, float64(h))
+		pALessH := 0.0
+		for a := 0; a < h; a++ {
+			pALessH += poisson_pmf(aMean, float64(a))
+		}
+		exactPWin += pH * pALessH
+	}
+	// exactPWin is approx 0.000332
+
+	teamGroups := []TeamType{{Team_id: 1, Bias: 0}, {Team_id: 2, Bias: 1}}
+	table := NewTable([]uint32{1, 2})
+	campaign := make([]*TeamCampaign, 2)
+	campaign[table.Query(1)] = &TeamCampaign{id: 1, points: 0, bias: 0, points_win: 3, points_draw: 1, points_loss: 0}
+	campaign[table.Query(2)] = &TeamCampaign{id: 2, points: 0, bias: 1, points_win: 3, points_draw: 1, points_loss: 0}
+
+	games := []*GameType{
+		{
+			Id:               1,
+			HomeId:           1,
+			AwayId:           2,
+			HomePower:        hMean,
+			AwayPower:        aMean,
+			Played:           false,
+			home_table_index: table.Query(1),
+			away_table_index: table.Query(2),
+		},
+	}
+	sortOrder := []SortType{PT, GD, GF, BIAS}
+
+	proposal := []GameProposalMeans{
+		{Home: 1.0, Away: 0.5},
+	}
+
+	rng := rand.New(rand.NewSource(12345))
+
+	est := estimateRarePosition(
+		campaign, games, table, sortOrder, teamGroups,
+		1, 0, proposal, rng, 100, 0, 1.0, true, 1, 0.1, true,
+	)
+
+	if !est.Found {
+		t.Fatalf("expected estimate.Found to be true")
+	}
+
+	// Tight tolerance: within 3 standard errors (~0.00005) of exact probability
+	if math.Abs(est.Probability-exactPWin) > 3.0*est.StdErr {
+		t.Errorf("Estimate %f was not within 3 stdErr (%f) of exact P %f", est.Probability, est.StdErr, exactPWin)
+	}
+}
+
 func TestSyntheticUnderdogRareEvent(t *testing.T) {
+	t.Setenv("RARE_POSITION_IMPORTANCE_SAMPLING", "1")
+
 	// Two-team group with 1 remaining game.
-	// Team 1 (Home): 0 points.
-	// Team 2 (Away): 0 points.
-	// Single game: Home vs Away.
 	// HomePower = 0.01, AwayPower = 8.0.
-	// 10,000 normal simulations will produce 0 wins for Team 1,
-	// triggering the targeted importance sampling pipeline.
-	// If Home wins (HomeScore > AwayScore), Team 1 finishes 1st (index 0).
-	// If Draw or Away win, Team 1 finishes 2nd (index 1).
-	//
-	// True exact P(HomeScore > AwayScore) under Poisson(0.01) & Poisson(8.0):
+	// P(HomeScore > AwayScore) ≈ 3.47e-6
+	// Normal 10,000 MC will yield 0 wins for Team 1, triggering rare position IS.
 	hMean := 0.01
 	aMean := 8.0
 
@@ -216,13 +270,11 @@ func TestSyntheticUnderdogRareEvent(t *testing.T) {
 	teamOddsMap := res["team_odds"].(map[int]*TeamOdds)
 
 	team1Odds := teamOddsMap[1]
-	// Position 0 probability is in percent in teamOddsMap
 	p1stPercent := team1Odds.Pos[0]
 	p1st := p1stPercent / 100.0
 
-	// Check agreement within 3 standard errors (or reasonable tolerance around exactPWin)
-	// exactPWin is around ~0.0018
-	if math.Abs(p1st-exactPWin) > 0.0015 {
+	// Check agreement within tight tolerance (0.00001) of exact Poisson probability
+	if math.Abs(p1st-exactPWin) > 0.00001 {
 		t.Errorf("Synthetic rare event estimate %f deviated significantly from exact Poisson probability %f", p1st, exactPWin)
 	}
 
@@ -234,10 +286,12 @@ func TestSyntheticUnderdogRareEvent(t *testing.T) {
 }
 
 func TestFalse100PercentCorrection(t *testing.T) {
-	// Group where normal MC gives 100% for 1st place and 0% for 2nd place,
-	// but 2nd place is reachable with small probability.
-	hMean := 0.01
-	aMean := 8.0
+	t.Setenv("RARE_POSITION_IMPORTANCE_SAMPLING", "1")
+
+	// Group where normal MC gives 100% for Team 2 (1st place) and 0% for Team 1 (1st place),
+	// but Team 1 finishing 1st has a small nonzero probability (~0.0332%).
+	hMean := 0.05
+	aMean := 5.0
 
 	group := &GroupType{
 		Id: 997,
@@ -265,20 +319,25 @@ func TestFalse100PercentCorrection(t *testing.T) {
 	teamOddsMap := res["team_odds"].(map[int]*TeamOdds)
 
 	team1Odds := teamOddsMap[1]
+	team2Odds := teamOddsMap[2]
 
-	// Position 0 (1st) should be slightly less than 100% (e.g., ~99.79%)
-	if team1Odds.Pos[0] >= 100.0 {
-		t.Errorf("Team 1 1st place odds should be < 100%%, got %f", team1Odds.Pos[0])
+	// Team 1 finishing 1st (index 0) should be > 0%
+	if team1Odds.Pos[0] <= 0.0 {
+		t.Errorf("Team 1 1st place odds should be > 0%%, got %f", team1Odds.Pos[0])
 	}
-	// Position 1 (2nd) should be > 0%
-	if team1Odds.Pos[1] <= 0.0 {
-		t.Errorf("Team 1 2nd place odds should be > 0%%, got %f", team1Odds.Pos[1])
+	// Team 2 finishing 1st (index 0) should be < 100%
+	if team2Odds.Pos[0] >= 100.0 {
+		t.Errorf("Team 2 1st place odds should be < 100%%, got %f", team2Odds.Pos[0])
 	}
 
-	// Total sum should equal 100%
-	sum := team1Odds.Pos[0] + team1Odds.Pos[1]
-	if math.Abs(sum-100.0) > 1e-6 {
-		t.Errorf("Expected team position odds to sum to 100%%, got %f", sum)
+	// Total sum for both teams should equal 100%
+	sum1 := team1Odds.Pos[0] + team1Odds.Pos[1]
+	sum2 := team2Odds.Pos[0] + team2Odds.Pos[1]
+	if math.Abs(sum1-100.0) > 1e-6 {
+		t.Errorf("Expected team 1 position odds to sum to 100%%, got %f", sum1)
+	}
+	if math.Abs(sum2-100.0) > 1e-6 {
+		t.Errorf("Expected team 2 position odds to sum to 100%%, got %f", sum2)
 	}
 }
 

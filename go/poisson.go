@@ -256,9 +256,20 @@ func poissonRand(rng *rand.Rand, mean float64) int {
 }
 
 func logPoissonQOverP(score int, originalMean, proposalMean float64) float64 {
-	if originalMean <= 0.0 || proposalMean <= 0.0 {
-		return 0.0
+	if originalMean <= 0 {
+		if score == 0 {
+			return -proposalMean
+		}
+		return math.Inf(1) // Q/P = +Inf => weight = 0
 	}
+
+	if proposalMean <= 0 {
+		if score == 0 {
+			return originalMean
+		}
+		return math.Inf(-1)
+	}
+
 	return originalMean - proposalMean + float64(score)*math.Log(proposalMean/originalMean)
 }
 
@@ -276,6 +287,9 @@ func logAddExp(logA, logB float64) float64 {
 }
 
 func mixtureImportanceWeight(logQOverP float64, originalMixtureWeight float64) float64 {
+	if math.IsInf(logQOverP, 1) {
+		return 0.0
+	}
 	beta := originalMixtureWeight
 	if beta <= 0 {
 		beta = 0.05
@@ -545,6 +559,19 @@ type sampleDistance struct {
 	scores   []SimulatedScore
 }
 
+type ProposalTuningResult struct {
+	Means        []GameProposalMeans
+	WitnessFound bool
+	Rounds       int
+	HitRate      float64
+}
+
+func cloneProposalMeans(means []GameProposalMeans) []GameProposalMeans {
+	res := make([]GameProposalMeans, len(means))
+	copy(res, means)
+	return res
+}
+
 func tuneRarePositionProposal(
 	baseCampaign []*TeamCampaign,
 	games []*GameType,
@@ -555,7 +582,7 @@ func tuneRarePositionProposal(
 	targetPosition int,
 	normalMeanRank float64,
 	rng *rand.Rand,
-) ([]GameProposalMeans, bool) {
+) ProposalTuningResult {
 	const (
 		PilotSimulations = 2000
 		MaxRounds         = 8
@@ -565,10 +592,15 @@ func tuneRarePositionProposal(
 		MinExactHits      = 100
 	)
 
-	runAttempt := func(aggressive bool) ([]GameProposalMeans, bool) {
+	runAttempt := func(aggressive bool) ProposalTuningResult {
 		currentMeans := initialRareProposal(games, targetTeamID, normalMeanRank, targetPosition, aggressive)
 
-		for round := 0; round < MaxRounds; round++ {
+		bestHitRate := -1.0
+		var bestMeans []GameProposalMeans
+		bestRounds := 0
+		witnessFound := false
+
+		for round := 1; round <= MaxRounds; round++ {
 			samples := make([]sampleDistance, PilotSimulations)
 			exactHits := 0
 
@@ -585,8 +617,23 @@ func tuneRarePositionProposal(
 			}
 
 			hitRate := float64(exactHits) / float64(PilotSimulations)
+
+			if exactHits > 0 {
+				witnessFound = true
+				if hitRate > bestHitRate {
+					bestHitRate = hitRate
+					bestMeans = cloneProposalMeans(currentMeans)
+					bestRounds = round
+				}
+			}
+
 			if hitRate >= DesiredHitRate || exactHits >= MinExactHits {
-				return currentMeans, true
+				return ProposalTuningResult{
+					Means:        cloneProposalMeans(currentMeans),
+					WitnessFound: true,
+					Rounds:       round,
+					HitRate:      hitRate,
+				}
 			}
 
 			// Sort by distance to find elite set
@@ -619,29 +666,34 @@ func tuneRarePositionProposal(
 				currentMeans[gIdx].Home = clampMean(newMuHome)
 				currentMeans[gIdx].Away = clampMean(newMuAway)
 			}
+		}
 
-			// If exact hits found in this round, check if current proposal already produced exact hits
-			if exactHits > 0 && round == MaxRounds-1 {
-				return currentMeans, true
+		if witnessFound {
+			return ProposalTuningResult{
+				Means:        bestMeans,
+				WitnessFound: true,
+				Rounds:       bestRounds,
+				HitRate:      bestHitRate,
 			}
 		}
 
-		return currentMeans, false
+		return ProposalTuningResult{
+			Means:        currentMeans,
+			WitnessFound: false,
+			Rounds:       MaxRounds,
+			HitRate:      0.0,
+		}
 	}
 
 	// Attempt 1: standard initial adjustment
-	means, success := runAttempt(false)
-	if success {
-		return means, true
+	res := runAttempt(false)
+	if res.WitnessFound {
+		return res
 	}
 
 	// Attempt 2: aggressive retry
-	meansAgg, successAgg := runAttempt(true)
-	if successAgg {
-		return meansAgg, true
-	}
-
-	return meansAgg, false
+	resAgg := runAttempt(true)
+	return resAgg
 }
 
 type RarePositionEstimate struct {
@@ -766,22 +818,31 @@ func estimateRarePosition(
 			groupID, targetTeamID, targetPosition, meanWeight)
 	}
 
-	// Diagnostic rule-of-three sanity check vs normal simulation
-	if normalHits == 0 && pHat > 0.05 {
-		log.Printf("STRONG WARNING: group=%d team=%d position=%d IS estimate %f vs 0 normal hits in 10000",
-			groupID, targetTeamID, targetPosition, pHat)
+	// Rule-of-three upper bound for 0/10000 normal hits is 3.0 / 10000 = 0.0003
+	ruleOfThreeBound := 3.0 / 10000.0
+	if normalHits == 0 && pHat > ruleOfThreeBound {
+		log.Printf("STRONG WARNING: group=%d team=%d position=%d IS estimate %f exceeds rule-of-three bound %f for 0 normal hits in 10000",
+			groupID, targetTeamID, targetPosition, pHat, ruleOfThreeBound)
 	}
 
 	log.Printf("rare-position: group=%d team=%d position=%d normal_hits=%d possible_by_bounds=%t pilot_rounds=%d pilot_hit_rate=%.3f witness_found=%t samples=%d hits=%d p=%.7f se=%.7f ess=%.1f mean_weight=%.3f",
 		groupID, targetTeamID, targetPosition, normalHits, feasibilityResult, pilotRounds, pilotHitRate, witnessFound, totalN, totalHits, pHat, stdErr, ess, meanWeight)
 
-	if totalHits == 0 || pHat == 0 {
+	qualityOK := totalHits >= 100 &&
+		ess >= 50.0 &&
+		relSE <= 0.25 &&
+		!math.IsNaN(pHat) &&
+		!math.IsInf(pHat, 0)
+
+	if !qualityOK {
+		log.Printf("rare position rejected due to quality criteria: group=%d team=%d position=%d hits=%d ess=%.1f relSE=%.3f p=%.7f",
+			groupID, targetTeamID, targetPosition, totalHits, ess, relSE, pHat)
 		return RarePositionEstimate{
-			Probability: 0,
+			Probability: pHat,
 			StdErr:      stdErr,
 			Samples:     totalN,
-			Hits:        0,
-			ESS:         0,
+			Hits:        totalHits,
+			ESS:         ess,
 			Found:       false,
 		}
 	}
@@ -816,6 +877,13 @@ func mergeRarePositionEstimates(
 		if normalCounts[pos] > 0 {
 			observedNormalMass += normalProbs[pos]
 		}
+	}
+
+	// Guard against rareMass >= 1.0 or invalid masses
+	if rareMass >= 1.0 || math.IsNaN(rareMass) || math.IsInf(rareMass, 0) {
+		log.Printf("WARNING: rareMass (%f) >= 1.0 or invalid, rejecting rare position adjustments", rareMass)
+		copy(final, normalProbs)
+		return final
 	}
 
 	for pos := 0; pos < numPositions; pos++ {
@@ -1285,8 +1353,8 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
 			}
 		}
 	}
-	// Run Rare Position Importance Sampling if enabled
-	if os.Getenv("RARE_POSITION_IMPORTANCE_SAMPLING") != "0" {
+	// Run Rare Position Importance Sampling if opt-in enabled
+	if os.Getenv("RARE_POSITION_IMPORTANCE_SAMPLING") == "1" {
 		rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 		numPositions := len(group.Team_groups)
 
@@ -1313,16 +1381,16 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
 						continue
 					}
 
-					means, witnessFound := tuneRarePositionProposal(
+					tuningRes := tuneRarePositionProposal(
 						campaign, group.Games, table, sort_order, group.Team_groups,
 						teamID, pos, normalMeanRank, rng,
 					)
 
-					if witnessFound {
+					if tuningRes.WitnessFound {
 						est := estimateRarePosition(
 							campaign, group.Games, table, sort_order, group.Team_groups,
-							teamID, pos, means, rng, group.Id, counts[pos], normalMeanRank,
-							possible, 8, 0.05, witnessFound,
+							teamID, pos, tuningRes.Means, rng, group.Id, counts[pos], normalMeanRank,
+							possible, tuningRes.Rounds, tuningRes.HitRate, tuningRes.WitnessFound,
 						)
 						if est.Found {
 							rareEstimates[pos] = est
