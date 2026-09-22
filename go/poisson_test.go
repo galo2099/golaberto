@@ -226,8 +226,11 @@ func TestDirectImportanceSamplingEstimator(t *testing.T) {
 		TeamID:             1,
 		Direction:          RareBetter,
 		CandidatePositions: []int{0},
-		ProposalMeans:      []GameProposalMeans{{Home: 1.0, Away: 0.5}},
-		Iterations:         20000,
+		Components: []ProposalComponent{
+			{Name: "original", Weight: 0.05, Means: originalMeans},
+			{Name: "test_prop", Weight: 0.95, Means: []GameProposalMeans{{Home: 1.0, Away: 0.5}}},
+		},
+		Iterations: 20000,
 	}
 
 	rng := rand.New(rand.NewSource(12345))
@@ -244,6 +247,63 @@ func TestDirectImportanceSamplingEstimator(t *testing.T) {
 
 	if math.Abs(est.Probability-exactPWin) > 3.0*est.StdErr {
 		t.Errorf("Estimate %f was not within 3 stdErr (%f) of exact P %f", est.Probability, est.StdErr, exactPWin)
+	}
+}
+
+func TestMultiComponentMixtureWeights(t *testing.T) {
+	// All components equal to P -> logQOverP = [0, 0, 0, 0]
+	logQOverP := []float64{0.0, 0.0, 0.0, 0.0}
+	weights := []float64{0.05, 0.25, 0.35, 0.35}
+	w := mixtureImportanceWeightMulti(logQOverP, weights)
+	if math.Abs(w-1.0) > 1e-9 {
+		t.Errorf("expected weight 1.0 when all components equal P, got %f", w)
+	}
+
+	// Mixture including alphaOriginal = 0.05 guarantees weight <= 1 / 0.05 = 20
+	logQOverPExtreme := []float64{0.0, 100.0, 500.0, 1000.0}
+	wBound := mixtureImportanceWeightMulti(logQOverPExtreme, weights)
+	if wBound > 20.0+1e-9 {
+		t.Errorf("expected weight <= 20.0, got %f", wBound)
+	}
+}
+
+func TestTargetWithNoGamesRemainingCompetitorProposal(t *testing.T) {
+	t.Setenv("RARE_POSITION_IMPORTANCE_SAMPLING", "1")
+
+	// 3 teams: Team 1 (0 games left, 0 pts), Team 2 (1 game left vs Team 3, 0 pts), Team 3 (1 game left vs Team 2, 0 pts)
+	// Team 1 has finished all games. But if Team 2 vs Team 3 ends in draw, Team 1 can reach 2nd place or move in ranks.
+	teamGroups := []TeamType{
+		{Team_id: 1, Add_sub: 0, Bias: 1},
+		{Team_id: 2, Add_sub: 0, Bias: 0},
+		{Team_id: 3, Add_sub: 0, Bias: 0},
+	}
+	table := NewTable([]uint32{1, 2, 3})
+	campaign := make([]*TeamCampaign, 3)
+	campaign[table.Query(1)] = &TeamCampaign{id: 1, points: 0, bias: 1, points_win: 3, points_draw: 1, points_loss: 0}
+	campaign[table.Query(2)] = &TeamCampaign{id: 2, points: 0, bias: 0, points_win: 3, points_draw: 1, points_loss: 0}
+	campaign[table.Query(3)] = &TeamCampaign{id: 3, points: 0, bias: 0, points_win: 3, points_draw: 1, points_loss: 0}
+
+	games := []*GameType{
+		{Id: 1, HomeId: 2, AwayId: 3, HomePower: 0.01, AwayPower: 8.0, Played: false},
+	}
+
+	group := &GroupType{
+		Id: 888,
+		Phase: &PhaseType{
+			Championship: &ChampionshipType{Point_win: 3, Point_draw: 1, Point_loss: 0},
+			Sort:         "pt,gd,gf,bias",
+		},
+		Team_groups: teamGroups,
+		Games:       games,
+	}
+
+	res := group.calculate_odds()
+	teamOddsMap := res["team_odds"].(map[int]*TeamOdds)
+
+	team1Odds := teamOddsMap[1]
+	sum := team1Odds.Pos[0] + team1Odds.Pos[1] + team1Odds.Pos[2]
+	if math.Abs(sum-100.0) > 1e-6 {
+		t.Errorf("Expected team position odds to sum to 100%%, got %f", sum)
 	}
 }
 
@@ -276,7 +336,7 @@ func TestMultiPositionSharing(t *testing.T) {
 		TeamID:             1,
 		Direction:          RareBetter,
 		CandidatePositions: []int{0, 1},
-		ProposalMeans:      buildDirectionalProposal(games, 1, RareBetter),
+		Components:         buildProposalComponents(games, 1, RareBetter, nil),
 		Iterations:         2000,
 	}
 
