@@ -260,7 +260,7 @@ func logPoissonQOverP(score int, originalMean, proposalMean float64) float64 {
 		if score == 0 {
 			return -proposalMean
 		}
-		return math.Inf(1) // Q/P = +Inf => weight = 0
+		return math.Inf(1) // Q/P = +Inf => P/Q = 0 => weight = 0
 	}
 
 	if proposalMean <= 0 {
@@ -421,6 +421,13 @@ type GameProposalMeans struct {
 	Away float64
 }
 
+type RareDirection int
+
+const (
+	RareBetter RareDirection = iota
+	RareWorse
+)
+
 const (
 	MinProposalMean = 0.05
 	MaxProposalMean = 8.0
@@ -436,91 +443,23 @@ func clampMean(m float64) float64 {
 	return m
 }
 
-func simulateTargetRank(
-	baseCampaign []*TeamCampaign,
-	games []*GameType,
-	table *Table,
-	sortOrder []SortType,
-	teamGroups []TeamType,
-	targetTeamID int,
-	means []GameProposalMeans,
-	rng *rand.Rand,
-) (rank int, scores []SimulatedScore) {
-	simCampaign := make([]*TeamCampaign, len(baseCampaign))
-	for k, v := range baseCampaign {
-		if v != nil {
-			simCampaign[k] = v.clone()
-		}
-	}
-
-	scores = make([]SimulatedScore, len(games))
-	for i, g := range games {
-		if !g.Played {
-			hMean := means[i].Home
-			aMean := means[i].Away
-			hScore := poissonRand(rng, hMean)
-			aScore := poissonRand(rng, aMean)
-			scores[i] = SimulatedScore{hScore, aScore}
-
-			home := g.home_table_index
-			away := g.away_table_index
-			if simCampaign[home] != nil {
-				simCampaign[home].add_game(&GameType{g.Id, g.HomeId, g.AwayId, hScore, aScore, 0.0, 0.0, true, home, away})
-			}
-			if simCampaign[away] != nil {
-				simCampaign[away].add_game(&GameType{g.Id, g.HomeId, g.AwayId, hScore, aScore, 0.0, 0.0, true, home, away})
-			}
-		} else {
-			scores[i] = SimulatedScore{g.HomeScore, g.AwayScore}
-		}
-	}
-
-	teamSlice := make([]*TeamCampaign, 0, len(teamGroups))
-	for _, tg := range teamGroups {
-		c := simCampaign[table.Query(uint32(tg.Team_id))]
-		if c != nil {
-			teamSlice = append(teamSlice, c)
-		}
-	}
-
-	sortedTeams := TeamCampaignSorted{teamSlice, sortOrder}
-	sort.Sort(sortedTeams)
-
-	rank = -1
-	for pos, t := range sortedTeams.t {
-		if t.id == targetTeamID {
-			rank = pos
-			break
-		}
-	}
-
-	return rank, scores
-}
-
-func initialRareProposal(
+func buildDirectionalProposal(
 	games []*GameType,
 	targetTeamID int,
-	normalMeanRank float64,
-	targetPosition int,
-	aggressive bool,
+	direction RareDirection,
 ) []GameProposalMeans {
 	means := make([]GameProposalMeans, len(games))
 
-	betterMultTarget := 2.0
-	betterMultOpponent := 0.5
-	worseMultTarget := 0.5
-	worseMultOpponent := 2.0
-
-	if aggressive {
-		betterMultTarget = 4.0
-		betterMultOpponent = 0.25
-		worseMultTarget = 0.25
-		worseMultOpponent = 4.0
+	targetMult := 2.5
+	oppMult := 0.4
+	if direction == RareWorse {
+		targetMult = 0.4
+		oppMult = 2.5
 	}
 
 	for i, g := range games {
 		if g.Played {
-			means[i] = GameProposalMeans{g.HomePower, g.AwayPower}
+			means[i] = GameProposalMeans{Home: g.HomePower, Away: g.AwayPower}
 			continue
 		}
 
@@ -528,21 +467,11 @@ func initialRareProposal(
 		aPower := g.AwayPower
 
 		if g.HomeId == targetTeamID {
-			if float64(targetPosition) < normalMeanRank {
-				hPower *= betterMultTarget
-				aPower *= betterMultOpponent
-			} else {
-				hPower *= worseMultTarget
-				aPower *= worseMultOpponent
-			}
+			hPower *= targetMult
+			aPower *= oppMult
 		} else if g.AwayId == targetTeamID {
-			if float64(targetPosition) < normalMeanRank {
-				aPower *= betterMultTarget
-				hPower *= betterMultOpponent
-			} else {
-				aPower *= worseMultTarget
-				hPower *= worseMultOpponent
-			}
+			aPower *= targetMult
+			hPower *= oppMult
 		}
 
 		means[i] = GameProposalMeans{
@@ -554,147 +483,363 @@ func initialRareProposal(
 	return means
 }
 
-type sampleDistance struct {
-	distance int
-	scores   []SimulatedScore
+type RareSimulationJob struct {
+	TeamID             int
+	Direction          RareDirection
+	CandidatePositions []int
+	ProposalMeans      []GameProposalMeans
+	Iterations         int
+	Priority           int
 }
 
-type ProposalTuningResult struct {
-	Means        []GameProposalMeans
-	WitnessFound bool
-	Rounds       int
-	HitRate      float64
+const (
+	NormalIterations    = 10000
+	MaxRareIterations   = 100000
+	MinIterationsPerJob = 1000
+	MaxIterationsPerJob = 10000
+)
+
+func findRareSimulationJobs(
+	group *GroupType,
+	campaign []*TeamCampaign,
+	table *Table,
+	sortOrder []SortType,
+	normalPositionCounts map[int][]int,
+	teamOdds []OddsType,
+) []*RareSimulationJob {
+	numPositions := len(group.Team_groups)
+	var jobs []*RareSimulationJob
+
+	for _, tg := range group.Team_groups {
+		teamID := tg.Team_id
+		counts := normalPositionCounts[teamID]
+		index := table.Query(uint32(teamID))
+		tOdds := teamOdds[int(index)].team
+
+		normalMeanRank := 0.0
+		has100Percent := false
+		for pos, prob := range tOdds.Pos {
+			normalMeanRank += float64(pos) * prob
+			if prob >= 1.0-1e-9 {
+				has100Percent = true
+			}
+		}
+
+		var betterCandidates []int
+		var worseCandidates []int
+
+		for pos := 0; pos < numPositions; pos++ {
+			if counts[pos] == 0 {
+				possible := possiblePositionByPointsBounds(
+					teamID, pos, campaign, group.Team_groups, group.Games, table, sortOrder,
+				)
+				if !possible {
+					continue
+				}
+				if float64(pos) < normalMeanRank {
+					betterCandidates = append(betterCandidates, pos)
+				} else if float64(pos) > normalMeanRank {
+					worseCandidates = append(worseCandidates, pos)
+				}
+			}
+		}
+
+		makeJob := func(direction RareDirection, candidates []int) *RareSimulationJob {
+			if len(candidates) == 0 {
+				return nil
+			}
+			priority := 0
+			if has100Percent {
+				priority += 100
+			}
+			hasAdjacent := false
+			for _, pos := range candidates {
+				if (pos > 0 && counts[pos-1] > 0) || (pos < numPositions-1 && counts[pos+1] > 0) {
+					hasAdjacent = true
+					break
+				}
+			}
+			if hasAdjacent {
+				priority += 50
+			}
+			priority += len(candidates)
+
+			proposal := buildDirectionalProposal(group.Games, teamID, direction)
+			return &RareSimulationJob{
+				TeamID:             teamID,
+				Direction:          direction,
+				CandidatePositions: candidates,
+				ProposalMeans:      proposal,
+				Priority:           priority,
+			}
+		}
+
+		if job := makeJob(RareBetter, betterCandidates); job != nil {
+			jobs = append(jobs, job)
+		}
+		if job := makeJob(RareWorse, worseCandidates); job != nil {
+			jobs = append(jobs, job)
+		}
+	}
+
+	sort.Slice(jobs, func(i, j int) bool {
+		return jobs[i].Priority > jobs[j].Priority
+	})
+
+	return jobs
 }
 
-func cloneProposalMeans(means []GameProposalMeans) []GameProposalMeans {
-	res := make([]GameProposalMeans, len(means))
-	copy(res, means)
-	return res
+func allocateRareSimulationBudget(jobs []*RareSimulationJob, maxBudget int) {
+	if len(jobs) == 0 || maxBudget <= 0 {
+		return
+	}
+
+	remaining := maxBudget
+	for _, job := range jobs {
+		alloc := MinIterationsPerJob
+		if alloc > remaining {
+			alloc = remaining
+		}
+		if alloc > MaxIterationsPerJob {
+			alloc = MaxIterationsPerJob
+		}
+		job.Iterations = alloc
+		remaining -= alloc
+		if remaining <= 0 {
+			break
+		}
+	}
+
+	if remaining > 0 {
+		for _, job := range jobs {
+			if remaining <= 0 {
+				break
+			}
+			needed := MaxIterationsPerJob - job.Iterations
+			if needed <= 0 {
+				continue
+			}
+			add := needed
+			if add > remaining {
+				add = remaining
+			}
+			job.Iterations += add
+			remaining -= add
+		}
+	}
 }
 
-func tuneRarePositionProposal(
+func simulateTargetTeamRankAndWeight(
 	baseCampaign []*TeamCampaign,
+	simCampaign []*TeamCampaign,
+	teamSlice []*TeamCampaign,
 	games []*GameType,
+	originalMeans []GameProposalMeans,
+	proposalMeans []GameProposalMeans,
 	table *Table,
 	sortOrder []SortType,
 	teamGroups []TeamType,
 	targetTeamID int,
-	targetPosition int,
-	normalMeanRank float64,
 	rng *rand.Rand,
-) ProposalTuningResult {
-	const (
-		PilotSimulations = 2000
-		MaxRounds         = 8
-		EliteFraction     = 0.10
-		Alpha             = 0.5
-		DesiredHitRate    = 0.05
-		MinExactHits      = 100
-	)
-
-	runAttempt := func(aggressive bool) ProposalTuningResult {
-		currentMeans := initialRareProposal(games, targetTeamID, normalMeanRank, targetPosition, aggressive)
-
-		bestHitRate := -1.0
-		var bestMeans []GameProposalMeans
-		bestRounds := 0
-		witnessFound := false
-
-		for round := 1; round <= MaxRounds; round++ {
-			samples := make([]sampleDistance, PilotSimulations)
-			exactHits := 0
-
-			for i := 0; i < PilotSimulations; i++ {
-				r, scores := simulateTargetRank(baseCampaign, games, table, sortOrder, teamGroups, targetTeamID, currentMeans, rng)
-				dist := r - targetPosition
-				if dist < 0 {
-					dist = -dist
-				}
-				if dist == 0 {
-					exactHits++
-				}
-				samples[i] = sampleDistance{distance: dist, scores: scores}
-			}
-
-			hitRate := float64(exactHits) / float64(PilotSimulations)
-
-			if exactHits > 0 {
-				witnessFound = true
-				if hitRate > bestHitRate {
-					bestHitRate = hitRate
-					bestMeans = cloneProposalMeans(currentMeans)
-					bestRounds = round
-				}
-			}
-
-			if hitRate >= DesiredHitRate || exactHits >= MinExactHits {
-				return ProposalTuningResult{
-					Means:        cloneProposalMeans(currentMeans),
-					WitnessFound: true,
-					Rounds:       round,
-					HitRate:      hitRate,
-				}
-			}
-
-			// Sort by distance to find elite set
-			sort.Slice(samples, func(i, j int) bool {
-				return samples[i].distance < samples[j].distance
-			})
-
-			eliteCount := int(float64(PilotSimulations) * EliteFraction)
-			if eliteCount < 1 {
-				eliteCount = 1
-			}
-
-			// Calculate elite means for each unplayed game
-			for gIdx, g := range games {
-				if g.Played {
-					continue
-				}
-				homeSum := 0
-				awaySum := 0
-				for sIdx := 0; sIdx < eliteCount; sIdx++ {
-					homeSum += samples[sIdx].scores[gIdx].home
-					awaySum += samples[sIdx].scores[gIdx].away
-				}
-				eliteMeanHome := float64(homeSum) / float64(eliteCount)
-				eliteMeanAway := float64(awaySum) / float64(eliteCount)
-
-				newMuHome := (1.0-Alpha)*currentMeans[gIdx].Home + Alpha*eliteMeanHome
-				newMuAway := (1.0-Alpha)*currentMeans[gIdx].Away + Alpha*eliteMeanAway
-
-				currentMeans[gIdx].Home = clampMean(newMuHome)
-				currentMeans[gIdx].Away = clampMean(newMuAway)
-			}
-		}
-
-		if witnessFound {
-			return ProposalTuningResult{
-				Means:        bestMeans,
-				WitnessFound: true,
-				Rounds:       bestRounds,
-				HitRate:      bestHitRate,
-			}
-		}
-
-		return ProposalTuningResult{
-			Means:        currentMeans,
-			WitnessFound: false,
-			Rounds:       MaxRounds,
-			HitRate:      0.0,
+) (rank int, weight float64) {
+	for k, v := range baseCampaign {
+		if v != nil {
+			simCampaign[k] = v.clone()
+		} else {
+			simCampaign[k] = nil
 		}
 	}
 
-	// Attempt 1: standard initial adjustment
-	res := runAttempt(false)
-	if res.WitnessFound {
-		return res
+	useOriginal := rng.Float64() < OriginalMixtureWeight
+	activeMeans := proposalMeans
+	if useOriginal {
+		activeMeans = originalMeans
 	}
 
-	// Attempt 2: aggressive retry
-	resAgg := runAttempt(true)
-	return resAgg
+	logQOverP := 0.0
+	for i, g := range games {
+		if !g.Played {
+			origH := originalMeans[i].Home
+			origA := originalMeans[i].Away
+			propH := proposalMeans[i].Home
+			propA := proposalMeans[i].Away
+
+			hMean := activeMeans[i].Home
+			aMean := activeMeans[i].Away
+
+			hScore := poissonRand(rng, hMean)
+			aScore := poissonRand(rng, aMean)
+
+			logQOverP += logPoissonQOverP(hScore, origH, propH)
+			logQOverP += logPoissonQOverP(aScore, origA, propA)
+
+			home := g.home_table_index
+			away := g.away_table_index
+
+			if simCampaign[home] != nil {
+				simCampaign[home].add_game(&GameType{g.Id, g.HomeId, g.AwayId, hScore, aScore, 0.0, 0.0, true, home, away})
+			}
+			if simCampaign[away] != nil {
+				simCampaign[away].add_game(&GameType{g.Id, g.HomeId, g.AwayId, hScore, aScore, 0.0, 0.0, true, home, away})
+			}
+		}
+	}
+
+	weight = mixtureImportanceWeight(logQOverP, OriginalMixtureWeight)
+
+	idx := 0
+	for _, tg := range teamGroups {
+		c := simCampaign[table.Query(uint32(tg.Team_id))]
+		if c != nil {
+			teamSlice[idx] = c
+			idx++
+		}
+	}
+
+	sortedTeams := TeamCampaignSorted{teamSlice[:idx], sortOrder}
+	sort.Sort(sortedTeams)
+
+	rank = -1
+	for pos, t := range sortedTeams.t {
+		if t.id == targetTeamID {
+			rank = pos
+			break
+		}
+	}
+
+	return rank, weight
 }
+
+func rareEstimateUsable(est RarePositionEstimate) bool {
+	return est.Hits > 0 &&
+		est.Probability > 0 &&
+		!math.IsNaN(est.Probability) &&
+		!math.IsInf(est.Probability, 0)
+}
+
+func estimateRarePositionsForJob(
+	baseCampaign []*TeamCampaign,
+	games []*GameType,
+	originalMeans []GameProposalMeans,
+	table *Table,
+	sortOrder []SortType,
+	teamGroups []TeamType,
+	job *RareSimulationJob,
+	rng *rand.Rand,
+	groupID int,
+) map[int]RarePositionEstimate {
+	results := make(map[int]RarePositionEstimate)
+	if job.Iterations <= 0 || len(job.CandidatePositions) == 0 {
+		return results
+	}
+
+	simCampaign := make([]*TeamCampaign, len(baseCampaign))
+	teamSlice := make([]*TeamCampaign, len(teamGroups))
+
+	sumY := make(map[int]float64)
+	sumY2 := make(map[int]float64)
+	hits := make(map[int]int)
+
+	candidateMap := make(map[int]bool)
+	for _, pos := range job.CandidatePositions {
+		candidateMap[pos] = true
+	}
+
+	totalN := 0
+	batchSize := 500
+
+	for totalN < job.Iterations {
+		currentBatch := batchSize
+		if totalN+currentBatch > job.Iterations {
+			currentBatch = job.Iterations - totalN
+		}
+
+		for b := 0; b < currentBatch; b++ {
+			totalN++
+			rank, w := simulateTargetTeamRankAndWeight(
+				baseCampaign, simCampaign, teamSlice, games,
+				originalMeans, job.ProposalMeans, table, sortOrder, teamGroups,
+				job.TeamID, rng,
+			)
+
+			if candidateMap[rank] {
+				sumY[rank] += w
+				sumY2[rank] += w * w
+				hits[rank]++
+			}
+		}
+
+		allMet := true
+		for _, pos := range job.CandidatePositions {
+			N := float64(totalN)
+			sY := sumY[pos]
+			sY2 := sumY2[pos]
+			h := hits[pos]
+
+			pHat := sY / N
+			sampleVar := (sY2 - N*pHat*pHat) / (N - 1.0)
+			if sampleVar < 0 {
+				sampleVar = 0
+			}
+			stdErr := math.Sqrt(sampleVar / N)
+			relSE := 0.0
+			if pHat > 0 {
+				relSE = stdErr / pHat
+			}
+			ess := 0.0
+			if sY2 > 0 {
+				ess = (sY * sY) / sY2
+			}
+
+			if !(h >= 100 && ess >= 50.0 && relSE <= 0.25) {
+				allMet = false
+				break
+			}
+		}
+
+		if allMet {
+			break
+		}
+	}
+
+	N := float64(totalN)
+	for _, pos := range job.CandidatePositions {
+		sY := sumY[pos]
+		sY2 := sumY2[pos]
+		h := hits[pos]
+
+		pHat := sY / N
+		sampleVar := (sY2 - N*pHat*pHat) / (N - 1.0)
+		if sampleVar < 0 {
+			sampleVar = 0
+		}
+		stdErr := math.Sqrt(sampleVar / N)
+		ess := 0.0
+		if sY2 > 0 {
+			ess = (sY * sY) / sY2
+		}
+
+		est := RarePositionEstimate{
+			Probability: pHat,
+			StdErr:      stdErr,
+			Samples:     totalN,
+			Hits:        h,
+			ESS:         ess,
+			Found:       false,
+		}
+
+		if rareEstimateUsable(est) {
+			est.Found = true
+		}
+
+		results[pos] = est
+		log.Printf("rare-position-job: group=%d team=%d pos=%d direction=%d samples=%d hits=%d p=%.7f se=%.7f ess=%.1f found=%t",
+			groupID, job.TeamID, pos, job.Direction, totalN, h, pHat, stdErr, ess, est.Found)
+	}
+
+	return results
+}
+
 
 type RarePositionEstimate struct {
 	Probability float64
@@ -707,155 +852,6 @@ type RarePositionEstimate struct {
 
 const OriginalMixtureWeight = 0.05
 
-func estimateRarePosition(
-	baseCampaign []*TeamCampaign,
-	games []*GameType,
-	table *Table,
-	sortOrder []SortType,
-	teamGroups []TeamType,
-	targetTeamID int,
-	targetPosition int,
-	proposalMeans []GameProposalMeans,
-	rng *rand.Rand,
-	groupID int,
-	normalHits int,
-	normalMeanRank float64,
-	feasibilityResult bool,
-	pilotRounds int,
-	pilotHitRate float64,
-	witnessFound bool,
-) RarePositionEstimate {
-	originalMeans := make([]GameProposalMeans, len(games))
-	for i, g := range games {
-		originalMeans[i] = GameProposalMeans{Home: g.HomePower, Away: g.AwayPower}
-	}
-
-	sumY := 0.0
-	sumY2 := 0.0
-	sumWeight := 0.0
-	totalHits := 0
-	totalN := 0
-
-	batchSize := 20000
-	maxSamples := 100000
-
-	pHat := 0.0
-	stdErr := 0.0
-	relSE := 0.0
-	ess := 0.0
-
-	for totalN < maxSamples {
-		for i := 0; i < batchSize; i++ {
-			totalN++
-			useOriginal := rng.Float64() < OriginalMixtureWeight
-
-			activeMeans := proposalMeans
-			if useOriginal {
-				activeMeans = originalMeans
-			}
-
-			rank, scores := simulateTargetRank(baseCampaign, games, table, sortOrder, teamGroups, targetTeamID, activeMeans, rng)
-
-			logQOverP := 0.0
-			for gIdx, g := range games {
-				if !g.Played {
-					origH := originalMeans[gIdx].Home
-					origA := originalMeans[gIdx].Away
-					propH := proposalMeans[gIdx].Home
-					propA := proposalMeans[gIdx].Away
-
-					sH := scores[gIdx].home
-					sA := scores[gIdx].away
-
-					logQOverP += logPoissonQOverP(sH, origH, propH)
-					logQOverP += logPoissonQOverP(sA, origA, propA)
-				}
-			}
-
-			w := mixtureImportanceWeight(logQOverP, OriginalMixtureWeight)
-			sumWeight += w
-
-			y := 0.0
-			if rank == targetPosition {
-				y = w
-				totalHits++
-			}
-
-			sumY += y
-			sumY2 += y * y
-		}
-
-		N := float64(totalN)
-		pHat = sumY / N
-
-		sampleVar := (sumY2 - N*pHat*pHat) / (N - 1.0)
-		if sampleVar < 0 {
-			sampleVar = 0
-		}
-		stdErr = math.Sqrt(sampleVar / N)
-
-		if pHat > 0 {
-			relSE = stdErr / pHat
-		} else {
-			relSE = 0
-		}
-
-		if sumY2 > 0 {
-			ess = (sumY * sumY) / sumY2
-		} else {
-			ess = 0
-		}
-
-		// Stopping conditions
-		if totalHits >= 100 && ess >= 50 && relSE <= 0.25 {
-			break
-		}
-	}
-
-	meanWeight := sumWeight / float64(totalN)
-	if meanWeight < 0.8 || meanWeight > 1.2 {
-		log.Printf("WARNING: group=%d team=%d position=%d mean_weight=%f outside [0.8, 1.2]",
-			groupID, targetTeamID, targetPosition, meanWeight)
-	}
-
-	// Rule-of-three upper bound for 0/10000 normal hits is 3.0 / 10000 = 0.0003
-	ruleOfThreeBound := 3.0 / 10000.0
-	if normalHits == 0 && pHat > ruleOfThreeBound {
-		log.Printf("STRONG WARNING: group=%d team=%d position=%d IS estimate %f exceeds rule-of-three bound %f for 0 normal hits in 10000",
-			groupID, targetTeamID, targetPosition, pHat, ruleOfThreeBound)
-	}
-
-	log.Printf("rare-position: group=%d team=%d position=%d normal_hits=%d possible_by_bounds=%t pilot_rounds=%d pilot_hit_rate=%.3f witness_found=%t samples=%d hits=%d p=%.7f se=%.7f ess=%.1f mean_weight=%.3f",
-		groupID, targetTeamID, targetPosition, normalHits, feasibilityResult, pilotRounds, pilotHitRate, witnessFound, totalN, totalHits, pHat, stdErr, ess, meanWeight)
-
-	qualityOK := totalHits >= 100 &&
-		ess >= 50.0 &&
-		relSE <= 0.25 &&
-		!math.IsNaN(pHat) &&
-		!math.IsInf(pHat, 0)
-
-	if !qualityOK {
-		log.Printf("rare position rejected due to quality criteria: group=%d team=%d position=%d hits=%d ess=%.1f relSE=%.3f p=%.7f",
-			groupID, targetTeamID, targetPosition, totalHits, ess, relSE, pHat)
-		return RarePositionEstimate{
-			Probability: pHat,
-			StdErr:      stdErr,
-			Samples:     totalN,
-			Hits:        totalHits,
-			ESS:         ess,
-			Found:       false,
-		}
-	}
-
-	return RarePositionEstimate{
-		Probability: pHat,
-		StdErr:      stdErr,
-		Samples:     totalN,
-		Hits:        totalHits,
-		ESS:         ess,
-		Found:       true,
-	}
-}
 
 func mergeRarePositionEstimates(
 	normalProbs []float64,
@@ -1356,57 +1352,52 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
 	// Run Rare Position Importance Sampling if opt-in enabled
 	if os.Getenv("RARE_POSITION_IMPORTANCE_SAMPLING") == "1" {
 		rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-		numPositions := len(group.Team_groups)
+
+		jobs := findRareSimulationJobs(group, campaign, table, sort_order, normalPositionCounts, team_odds)
+		allocateRareSimulationBudget(jobs, MaxRareIterations)
+
+		originalMeans := make([]GameProposalMeans, len(group.Games))
+		for i, g := range group.Games {
+			originalMeans[i] = GameProposalMeans{Home: g.HomePower, Away: g.AwayPower}
+		}
+
+		teamRareEstimates := make(map[int]map[int]RarePositionEstimate)
+		totalSimulationsUsed := 0
+
+		for _, job := range jobs {
+			if job.Iterations <= 0 {
+				continue
+			}
+			jobEstimates := estimateRarePositionsForJob(
+				campaign, group.Games, originalMeans, table, sort_order, group.Team_groups,
+				job, rng, group.Id,
+			)
+
+			if teamRareEstimates[job.TeamID] == nil {
+				teamRareEstimates[job.TeamID] = make(map[int]RarePositionEstimate)
+			}
+			for pos, est := range jobEstimates {
+				if est.Found {
+					teamRareEstimates[job.TeamID][pos] = est
+				}
+				totalSimulationsUsed += est.Samples
+			}
+		}
 
 		for _, tg := range group.Team_groups {
 			teamID := tg.Team_id
-			index := table.Query(uint32(teamID))
-			tOdds := team_odds[index].team
-			counts := normalPositionCounts[teamID]
+			if rareEsts, ok := teamRareEstimates[teamID]; ok && len(rareEsts) > 0 {
+				index := table.Query(uint32(teamID))
+				tOdds := team_odds[index].team
+				counts := normalPositionCounts[teamID]
 
-			// Calculate normal mean rank
-			normalMeanRank := 0.0
-			for pos, prob := range tOdds.Pos {
-				normalMeanRank += float64(pos) * prob
-			}
-
-			rareEstimates := make(map[int]RarePositionEstimate)
-
-			for pos := 0; pos < numPositions; pos++ {
-				if counts[pos] == 0 {
-					possible := possiblePositionByPointsBounds(
-						teamID, pos, campaign, group.Team_groups, group.Games, table, sort_order,
-					)
-					if !possible {
-						continue
-					}
-
-					tuningRes := tuneRarePositionProposal(
-						campaign, group.Games, table, sort_order, group.Team_groups,
-						teamID, pos, normalMeanRank, rng,
-					)
-
-					if tuningRes.WitnessFound {
-						est := estimateRarePosition(
-							campaign, group.Games, table, sort_order, group.Team_groups,
-							teamID, pos, tuningRes.Means, rng, group.Id, counts[pos], normalMeanRank,
-							possible, tuningRes.Rounds, tuningRes.HitRate, tuningRes.WitnessFound,
-						)
-						if est.Found {
-							rareEstimates[pos] = est
-						}
-					} else {
-						log.Printf("rare position unresolved: group=%d team=%d position=%d possible_by_bounds=true witness_found=false",
-							group.Id, teamID, pos)
-					}
-				}
-			}
-
-			if len(rareEstimates) > 0 {
-				finalProbs := mergeRarePositionEstimates(tOdds.Pos, counts, rareEstimates)
+				finalProbs := mergeRarePositionEstimates(tOdds.Pos, counts, rareEsts)
 				copy(tOdds.Pos, finalProbs)
 			}
 		}
+
+		log.Printf("rare-position-summary: group=%d normal_sims=%d rare_budget=%d rare_sims_used=%d jobs=%d",
+			group.Id, NUM_ITER, MaxRareIterations, totalSimulationsUsed, len(jobs))
 	}
 
 	json_team_odds := make(map[int]*TeamOdds, len(team_odds))

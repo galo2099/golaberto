@@ -165,8 +165,27 @@ func TestMergeRarePositionEstimates(t *testing.T) {
 	}
 }
 
+func TestDegeneratePoissonLikelihood(t *testing.T) {
+	// Original mean = 0, proposal mean = 1.0
+	// score == 0 -> Q/P = exp(-1.0) -> log(Q/P) = -1.0
+	logQOverPZero := logPoissonQOverP(0, 0.0, 1.0)
+	if math.Abs(logQOverPZero - (-1.0)) > 1e-9 {
+		t.Errorf("expected logQOverP for score=0 to be -1.0, got %f", logQOverPZero)
+	}
+
+	// score > 0 -> Q/P = +Inf -> log(Q/P) = +Inf -> weight = 0.0
+	logQOverPPos := logPoissonQOverP(1, 0.0, 1.0)
+	if !math.IsInf(logQOverPPos, 1) {
+		t.Errorf("expected logQOverP for score>0 with originalMean=0 to be +Inf, got %f", logQOverPPos)
+	}
+	w := mixtureImportanceWeight(logQOverPPos, 0.05)
+	if w != 0.0 {
+		t.Errorf("expected mixture weight for +Inf logQOverP to be 0.0, got %f", w)
+	}
+}
+
 func TestDirectImportanceSamplingEstimator(t *testing.T) {
-	// Deterministic validation of estimateRarePosition against exact analytical Poisson win probability.
+	// Deterministic validation of estimateRarePositionsForJob against exact analytical Poisson win probability.
 	// Home ~ Poisson(0.05), Away ~ Poisson(5.0)
 	// P(HomeScore > AwayScore)
 	hMean := 0.05
@@ -181,7 +200,6 @@ func TestDirectImportanceSamplingEstimator(t *testing.T) {
 		}
 		exactPWin += pH * pALessH
 	}
-	// exactPWin is approx 0.000332
 
 	teamGroups := []TeamType{{Team_id: 1, Bias: 0}, {Team_id: 2, Bias: 1}}
 	table := NewTable([]uint32{1, 2})
@@ -203,24 +221,105 @@ func TestDirectImportanceSamplingEstimator(t *testing.T) {
 	}
 	sortOrder := []SortType{PT, GD, GF, BIAS}
 
-	proposal := []GameProposalMeans{
-		{Home: 1.0, Away: 0.5},
+	originalMeans := []GameProposalMeans{{Home: hMean, Away: aMean}}
+	job := &RareSimulationJob{
+		TeamID:             1,
+		Direction:          RareBetter,
+		CandidatePositions: []int{0},
+		ProposalMeans:      []GameProposalMeans{{Home: 1.0, Away: 0.5}},
+		Iterations:         20000,
 	}
 
 	rng := rand.New(rand.NewSource(12345))
 
-	est := estimateRarePosition(
-		campaign, games, table, sortOrder, teamGroups,
-		1, 0, proposal, rng, 100, 0, 1.0, true, 1, 0.1, true,
+	results := estimateRarePositionsForJob(
+		campaign, games, originalMeans, table, sortOrder, teamGroups,
+		job, rng, 100,
 	)
 
-	if !est.Found {
-		t.Fatalf("expected estimate.Found to be true")
+	est, ok := results[0]
+	if !ok || !est.Found {
+		t.Fatalf("expected estimate for position 0 to be found")
 	}
 
-	// Tight tolerance: within 3 standard errors (~0.00005) of exact probability
 	if math.Abs(est.Probability-exactPWin) > 3.0*est.StdErr {
 		t.Errorf("Estimate %f was not within 3 stdErr (%f) of exact P %f", est.Probability, est.StdErr, exactPWin)
+	}
+}
+
+func TestMultiPositionSharing(t *testing.T) {
+	// 4-team group where team 1 is candidate for position 0 (1st) and position 1 (2nd) in RareBetter direction.
+	// Verify that a single RareSimulationJob estimates both positions simultaneously.
+	teamGroups := []TeamType{
+		{Team_id: 1, Bias: 0}, {Team_id: 2, Bias: 1}, {Team_id: 3, Bias: 2}, {Team_id: 4, Bias: 3},
+	}
+	table := NewTable([]uint32{1, 2, 3, 4})
+	campaign := make([]*TeamCampaign, 4)
+	campaign[table.Query(1)] = &TeamCampaign{id: 1, points: 0, bias: 0, points_win: 3, points_draw: 1, points_loss: 0}
+	campaign[table.Query(2)] = &TeamCampaign{id: 2, points: 10, bias: 1, points_win: 3, points_draw: 1, points_loss: 0}
+	campaign[table.Query(3)] = &TeamCampaign{id: 3, points: 10, bias: 2, points_win: 3, points_draw: 1, points_loss: 0}
+	campaign[table.Query(4)] = &TeamCampaign{id: 4, points: 10, bias: 3, points_win: 3, points_draw: 1, points_loss: 0}
+
+	games := []*GameType{
+		{Id: 1, HomeId: 1, AwayId: 2, HomePower: 0.1, AwayPower: 2.0, Played: false, home_table_index: table.Query(1), away_table_index: table.Query(2)},
+		{Id: 2, HomeId: 1, AwayId: 3, HomePower: 0.1, AwayPower: 2.0, Played: false, home_table_index: table.Query(1), away_table_index: table.Query(3)},
+		{Id: 3, HomeId: 1, AwayId: 4, HomePower: 0.1, AwayPower: 2.0, Played: false, home_table_index: table.Query(1), away_table_index: table.Query(4)},
+	}
+	sortOrder := []SortType{PT, GD, GF, BIAS}
+
+	originalMeans := make([]GameProposalMeans, len(games))
+	for i, g := range games {
+		originalMeans[i] = GameProposalMeans{Home: g.HomePower, Away: g.AwayPower}
+	}
+
+	job := &RareSimulationJob{
+		TeamID:             1,
+		Direction:          RareBetter,
+		CandidatePositions: []int{0, 1},
+		ProposalMeans:      buildDirectionalProposal(games, 1, RareBetter),
+		Iterations:         2000,
+	}
+
+	rng := rand.New(rand.NewSource(999))
+	results := estimateRarePositionsForJob(
+		campaign, games, originalMeans, table, sortOrder, teamGroups,
+		job, rng, 500,
+	)
+
+	if len(results) != 2 {
+		t.Fatalf("expected job to estimate 2 candidate positions, got %d", len(results))
+	}
+	if _, ok := results[0]; !ok {
+		t.Errorf("expected candidate position 0 in results")
+	}
+	if _, ok := results[1]; !ok {
+		t.Errorf("expected candidate position 1 in results")
+	}
+}
+
+func TestGlobalBudgetEnforcement(t *testing.T) {
+	var jobs []*RareSimulationJob
+	for i := 1; i <= 20; i++ {
+		jobs = append(jobs, &RareSimulationJob{
+			TeamID:             i,
+			Direction:          RareBetter,
+			CandidatePositions: []int{0},
+			Priority:           i * 10,
+		})
+	}
+
+	allocateRareSimulationBudget(jobs, MaxRareIterations)
+
+	sumIterations := 0
+	for _, job := range jobs {
+		sumIterations += job.Iterations
+		if job.Iterations > MaxIterationsPerJob {
+			t.Errorf("job iterations %d exceeded per-job max %d", job.Iterations, MaxIterationsPerJob)
+		}
+	}
+
+	if sumIterations > MaxRareIterations {
+		t.Errorf("total allocated iterations %d exceeded global budget %d", sumIterations, MaxRareIterations)
 	}
 }
 
@@ -289,9 +388,9 @@ func TestFalse100PercentCorrection(t *testing.T) {
 	t.Setenv("RARE_POSITION_IMPORTANCE_SAMPLING", "1")
 
 	// Group where normal MC gives 100% for Team 2 (1st place) and 0% for Team 1 (1st place),
-	// but Team 1 finishing 1st has a small nonzero probability (~0.0332%).
-	hMean := 0.05
-	aMean := 5.0
+	// but Team 1 finishing 1st has a small nonzero probability (~3.47e-6).
+	hMean := 0.01
+	aMean := 8.0
 
 	group := &GroupType{
 		Id: 997,
