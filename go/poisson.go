@@ -256,14 +256,18 @@ func poissonRand(rng *rand.Rand, mean float64) int {
 }
 
 func logPoissonQOverP(score int, originalMean, proposalMean float64) float64 {
-	if originalMean <= 0 {
+	if originalMean < 0 || proposalMean < 0 {
+		return math.NaN()
+	}
+
+	if originalMean == 0 {
 		if score == 0 {
 			return -proposalMean
 		}
 		return math.Inf(1) // Q/P = +Inf => P/Q = 0 => weight = 0
 	}
 
-	if proposalMean <= 0 {
+	if proposalMean == 0 {
 		if score == 0 {
 			return originalMean
 		}
@@ -467,16 +471,23 @@ func buildDirectionalProposal(
 		aPower := g.AwayPower
 
 		if g.HomeId == targetTeamID {
-			hPower *= targetMult
-			aPower *= oppMult
+			hPower = clampMean(hPower * targetMult)
+			aPower = clampMean(aPower * oppMult)
 		} else if g.AwayId == targetTeamID {
-			aPower *= targetMult
-			hPower *= oppMult
+			aPower = clampMean(aPower * targetMult)
+			hPower = clampMean(hPower * oppMult)
+		} else {
+			if hPower > 0 {
+				hPower = clampMean(hPower)
+			}
+			if aPower > 0 {
+				aPower = clampMean(aPower)
+			}
 		}
 
 		means[i] = GameProposalMeans{
-			Home: clampMean(hPower),
-			Away: clampMean(aPower),
+			Home: hPower,
+			Away: aPower,
 		}
 	}
 
@@ -536,9 +547,9 @@ func findRareSimulationJobs(
 				if !possible {
 					continue
 				}
-				if float64(pos) < normalMeanRank {
+				if float64(pos) <= normalMeanRank {
 					betterCandidates = append(betterCandidates, pos)
-				} else if float64(pos) > normalMeanRank {
+				} else {
 					worseCandidates = append(worseCandidates, pos)
 				}
 			}
@@ -710,11 +721,22 @@ func simulateTargetTeamRankAndWeight(
 	return rank, weight
 }
 
+const (
+	MinUsableESS   = 10.0
+	MaxUsableRelSE = 0.50
+)
+
 func rareEstimateUsable(est RarePositionEstimate) bool {
-	return est.Hits > 0 &&
-		est.Probability > 0 &&
-		!math.IsNaN(est.Probability) &&
-		!math.IsInf(est.Probability, 0)
+	if est.Hits == 0 ||
+		est.Probability <= 0 ||
+		math.IsNaN(est.Probability) ||
+		math.IsInf(est.Probability, 0) {
+		return false
+	}
+
+	relSE := est.StdErr / est.Probability
+
+	return est.ESS >= MinUsableESS && relSE <= MaxUsableRelSE
 }
 
 func estimateRarePositionsForJob(
@@ -727,10 +749,10 @@ func estimateRarePositionsForJob(
 	job *RareSimulationJob,
 	rng *rand.Rand,
 	groupID int,
-) map[int]RarePositionEstimate {
+) (map[int]RarePositionEstimate, int) {
 	results := make(map[int]RarePositionEstimate)
 	if job.Iterations <= 0 || len(job.CandidatePositions) == 0 {
-		return results
+		return results, 0
 	}
 
 	simCampaign := make([]*TeamCampaign, len(baseCampaign))
@@ -837,7 +859,7 @@ func estimateRarePositionsForJob(
 			groupID, job.TeamID, pos, job.Direction, totalN, h, pHat, stdErr, ess, est.Found)
 	}
 
-	return results
+	return results, totalN
 }
 
 
@@ -1368,10 +1390,11 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
 			if job.Iterations <= 0 {
 				continue
 			}
-			jobEstimates := estimateRarePositionsForJob(
+			jobEstimates, simsUsed := estimateRarePositionsForJob(
 				campaign, group.Games, originalMeans, table, sort_order, group.Team_groups,
 				job, rng, group.Id,
 			)
+			totalSimulationsUsed += simsUsed
 
 			if teamRareEstimates[job.TeamID] == nil {
 				teamRareEstimates[job.TeamID] = make(map[int]RarePositionEstimate)
@@ -1380,7 +1403,6 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
 				if est.Found {
 					teamRareEstimates[job.TeamID][pos] = est
 				}
-				totalSimulationsUsed += est.Samples
 			}
 		}
 
