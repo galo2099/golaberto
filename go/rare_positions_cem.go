@@ -10,7 +10,7 @@ import (
 
 const (
 	CEMBatchSamples                = 300
-	CEMMaxIterations               = 4
+	CEMMaxIterationsPerCandidate   = 12
 	CEMEliteFraction               = 0.15
 	CEMSmoothing                   = 0.5
 	CEMMaxKL                       = 3.0
@@ -75,20 +75,74 @@ type CEMBatchStats struct {
 }
 
 type CEMRoundResult struct {
-	Eligible          []*FrontierCandidate
-	CEMWork           int64
-	ValidationWork    int64
-	TargetsAttempted  int
-	Iterations        int
-	TargetsAnyExact   int
-	TargetsExactElite int
-	TargetsValidated  int
-	ChangedTeams      int
-	MaxChangedTeams   int
-	AbsThetaSum       float64
-	MaxAbsTheta       float64
-	ThetaDeltaL2Sum   float64
-	ValidatedESS      float64
+	Eligible                         []*FrontierCandidate
+	CEMWork                          int64
+	ValidationWork                   int64
+	TargetsAttempted                 int
+	Iterations                       int
+	TargetsAnyExact                  int
+	TargetsExactElite                int
+	TargetsValidated                 int
+	ChangedTeams                     int
+	MaxChangedTeams                  int
+	AbsThetaSum                      float64
+	ThetaUpdates                     int
+	ThetaParameterCount              int
+	MaxAbsTheta                      float64
+	ThetaDeltaL2Sum                  float64
+	ValidatedESS                     float64
+	SchedulerBatches                 int
+	OneBatchCandidates               int
+	MultiBatchCandidates             int
+	MaxBatchesPerCandidate           int
+	AverageBatchesPerCandidate       float64
+	BestCandidateTeam                int
+	BestCandidatePosition            int
+	BestCandidateBatches             int
+	BestCandidateDistanceImprovement float64
+	BestCandidateNearTargetRate      float64
+	HighestNearTeam                  int
+	HighestNearPosition              int
+	HighestNearBatches               int
+	HighestNearRate                  float64
+	StopValidationReady              int
+	StopStalled                      int
+	StopLowEliteESS                  int
+	StopRegression                   int
+	StopPerCandidateCap              int
+	StopGlobalBudget                 int
+	Candidates                       []CEMCandidateState
+}
+
+type CEMCandidateState struct {
+	Candidate              *FrontierCandidate
+	Proposal               CEMProposal
+	BestProposal           CEMProposal
+	BestQualifyingProposal CEMProposal
+	Iterations             int
+	Samples                int
+	WorkSpent              int64
+	FirstStats             CEMBatchStats
+	LastStats              CEMBatchStats
+	BestStats              CEMBatchStats
+	BestQualifyingStats    CEMBatchStats
+	BestBatch              int
+	BestQualifyingBatch    int
+	BestEliteDistance      float64
+	BestNearTargetRate     float64
+	PreviousStats          CEMBatchStats
+	HasStats               bool
+	HasBest                bool
+	HasQualifying          bool
+	MaxExactHits           int
+	AnyExactHit            bool
+	ExactEliteSeen         bool
+	StalledIterations      int
+	RegressionIterations   int
+	StableIterations       int
+	Active                 bool
+	StopReason             string
+	ProgressScore          float64
 }
 
 func teamIDsFromGroups(groups []TeamType) []int {
@@ -510,6 +564,10 @@ func buildCEMMixture(original, learned []GameProposalMeans) []ProposalComponent 
 	}
 }
 
+func cemValidationMixture(original []GameProposalMeans, state *CEMCandidateState) []ProposalComponent {
+	return buildCEMMixture(original, state.BestQualifyingProposal.Means)
+}
+
 func cemValidationPriority(pilot *WeightedPilotResult) float64 {
 	if pilot == nil || pilot.Samples <= 0 || pilot.Hits <= 0 {
 		return math.Inf(-1)
@@ -565,15 +623,296 @@ func sumAbsTheta(theta map[int]float64) float64 {
 	return total
 }
 
-func runCEMRound(candidates []*FrontierCandidate, searches map[int]*TeamRareSearch,
-	group *GroupType, campaign []*TeamCampaign, table *Table, order []SortType,
-	original []GameProposalMeans, cemRemaining, validationRemaining, remainingWork *int64,
-	adaptWorkPerSample, validationWorkPerSample int64, rng *rand.Rand) CEMRoundResult {
-	result := CEMRoundResult{}
-	teamIDs := teamIDsFromGroups(group.Team_groups)
-	ordered := append([]*FrontierCandidate(nil), candidates...)
+func cemThetaSummary(absThetaSum float64, updates, parameterCount int) (averageL1, averageAbs float64) {
+	if updates > 0 {
+		averageL1 = absThetaSum / float64(updates)
+	}
+	if parameterCount > 0 {
+		averageAbs = absThetaSum / float64(parameterCount)
+	}
+	return averageL1, averageAbs
+}
+
+func cloneCEMProposal(proposal CEMProposal) CEMProposal {
+	copy := proposal
+	copy.TeamLogMultipliers = copyTheta(proposal.TeamLogMultipliers)
+	copy.PreviousLogTheta = copyTheta(proposal.PreviousLogTheta)
+	copy.EliteTeamGoals = make(map[int]float64, len(proposal.EliteTeamGoals))
+	for teamID, goals := range proposal.EliteTeamGoals {
+		copy.EliteTeamGoals[teamID] = goals
+	}
+	copy.Means = append([]GameProposalMeans(nil), proposal.Means...)
+	return copy
+}
+
+func cemSnapshotBetter(stats CEMBatchStats, proposal CEMProposal, bestStats CEMBatchStats, bestProposal CEMProposal, hasBest bool) bool {
+	if !hasBest {
+		return true
+	}
+	if stats.ExactHits != bestStats.ExactHits {
+		return stats.ExactHits > bestStats.ExactHits
+	}
+	if stats.NearTargetRate != bestStats.NearTargetRate {
+		return stats.NearTargetRate > bestStats.NearTargetRate
+	}
+	if stats.EliteMeanDistance != bestStats.EliteMeanDistance {
+		return stats.EliteMeanDistance < bestStats.EliteMeanDistance
+	}
+	if stats.EliteESS != bestStats.EliteESS {
+		return stats.EliteESS > bestStats.EliteESS
+	}
+	return proposal.KL < bestProposal.KL
+}
+
+func cemValidationSnapshotBetter(a *CEMCandidateState, b *CEMCandidateState) bool {
+	if a.MaxExactHits != b.MaxExactHits {
+		return a.MaxExactHits > b.MaxExactHits
+	}
+	if a.BestQualifyingStats.NearTargetRate != b.BestQualifyingStats.NearTargetRate {
+		return a.BestQualifyingStats.NearTargetRate > b.BestQualifyingStats.NearTargetRate
+	}
+	if a.BestQualifyingStats.ExactEventESS != b.BestQualifyingStats.ExactEventESS {
+		return a.BestQualifyingStats.ExactEventESS > b.BestQualifyingStats.ExactEventESS
+	}
+	if a.BestQualifyingStats.EliteESS != b.BestQualifyingStats.EliteESS {
+		return a.BestQualifyingStats.EliteESS > b.BestQualifyingStats.EliteESS
+	}
+	if a.BestQualifyingProposal.KL != b.BestQualifyingProposal.KL {
+		return a.BestQualifyingProposal.KL < b.BestQualifyingProposal.KL
+	}
+	if a.Candidate.TeamID != b.Candidate.TeamID {
+		return a.Candidate.TeamID < b.Candidate.TeamID
+	}
+	return a.Candidate.Position < b.Candidate.Position
+}
+
+func updateCEMProgressScore(state *CEMCandidateState) float64 {
+	if !state.HasStats {
+		return 0
+	}
+	// Prioritize any exact event (+1000), then near-target mass, normalized
+	// best and recent distance progress; repeated stalls and regressions lower
+	// the score. Scores are deterministic, with explicit candidate tie-breaks.
+	initialDistance := math.Max(1, state.FirstStats.EliteMeanDistance)
+	bestDistanceGain := (state.FirstStats.EliteMeanDistance - state.BestEliteDistance) / initialDistance
+	recentDistanceGain := 0.0
+	recentNearGain := 0.0
+	if state.Iterations > 1 {
+		recentDistanceGain = (state.PreviousStats.EliteMeanDistance - state.LastStats.EliteMeanDistance) / initialDistance
+		recentNearGain = state.LastStats.NearTargetRate - state.PreviousStats.NearTargetRate
+	}
+	score := 5*bestDistanceGain + 8*recentDistanceGain + 20*state.BestNearTargetRate +
+		10*state.LastStats.NearTargetRate + 2*math.Min(1, state.LastStats.EliteESS/30)
+	if state.BestStats.BestRank >= 0 && cemRankDistance(state.BestStats.BestRank, state.Candidate.Position) <= 1 {
+		score += 40
+	}
+	if state.AnyExactHit {
+		score += 1000 + 10*float64(state.MaxExactHits)
+	}
+	if state.BestNearTargetRate == 0 && state.BestEliteDistance > 1 {
+		score -= 8
+	}
+	if state.Iterations > 1 {
+		score += 15 * recentNearGain
+	}
+	score -= 20 * float64(state.StalledIterations)
+	score -= 12 * float64(state.RegressionIterations)
+	return score
+}
+
+func cemCandidateStopReason(state *CEMCandidateState) string {
+	switch {
+	case state.HasQualifying:
+		return "validation_ready"
+	case state.StalledIterations >= CEMMaxStalledIterations:
+		return "stalled"
+	case state.RegressionIterations >= CEMMaxStalledIterations:
+		return "regression"
+	case state.Iterations >= CEMMaxIterationsPerCandidate:
+		return "per_candidate_cap"
+	default:
+		return ""
+	}
+}
+
+func updateCEMStallCounters(state *CEMCandidateState, stats CEMBatchStats) {
+	if state.Iterations <= 1 {
+		return
+	}
+	distanceImprovement := state.PreviousStats.EliteMeanDistance - stats.EliteMeanDistance
+	nearImprovement := stats.NearTargetRate - state.PreviousStats.NearTargetRate
+	if distanceImprovement < CEMMinRelativeProgress*math.Max(1, state.PreviousStats.EliteMeanDistance) &&
+		nearImprovement < CEMMinRelativeProgress && stats.ExactHits == 0 {
+		state.StalledIterations++
+	} else {
+		state.StalledIterations = 0
+	}
+	if state.HasBest && stats.EliteMeanDistance > state.BestEliteDistance+
+		CEMMinRelativeProgress*math.Max(1, state.BestEliteDistance) &&
+		stats.NearTargetRate < state.BestNearTargetRate && stats.ExactHits == 0 {
+		state.RegressionIterations++
+	} else if !state.HasBest || stats.EliteMeanDistance <= state.BestEliteDistance ||
+		stats.NearTargetRate >= state.BestNearTargetRate || stats.ExactHits > 0 {
+		state.RegressionIterations = 0
+	}
+}
+
+func selectCEMCandidate(states []*CEMCandidateState, searches map[int]*TeamRareSearch) *CEMCandidateState {
+	var best *CEMCandidateState
+	for _, state := range states {
+		if !state.Active {
+			continue
+		}
+		if best == nil || state.ProgressScore > best.ProgressScore {
+			best = state
+			continue
+		}
+		if state.ProgressScore == best.ProgressScore {
+			pa, pb := cemCandidatePriority(state.Candidate, searches), cemCandidatePriority(best.Candidate, searches)
+			if pa > pb || (pa == pb && (state.Candidate.TeamID < best.Candidate.TeamID ||
+				state.Candidate.TeamID == best.Candidate.TeamID && state.Candidate.Position < best.Candidate.Position)) {
+				best = state
+			}
+		}
+	}
+	return best
+}
+
+func logCEMStop(groupID int, state *CEMCandidateState) {
+	if state.StopReason == "" {
+		return
+	}
+	bestDistance, bestNear := math.Inf(1), 0.0
+	if state.HasStats {
+		bestDistance = state.BestEliteDistance
+		bestNear = state.BestNearTargetRate
+	}
+	log.Printf("rare-position-cem-stop: group=%d team=%d position=%d iterations=%d reason=%s best_elite_distance=%.3f best_near_target_rate=%.4f max_exact_hits=%d cem_work=%d",
+		groupID, state.Candidate.TeamID, state.Candidate.Position, state.Iterations,
+		state.StopReason, bestDistance, bestNear, state.MaxExactHits, state.WorkSpent)
+}
+
+func runCEMCandidateBatch(state *CEMCandidateState, group *GroupType, campaign []*TeamCampaign,
+	table *Table, order []SortType, original []GameProposalMeans, teamIDs []int,
+	cemRemaining, remainingWork *int64, workPerSample int64, rng *rand.Rand,
+	result *CEMRoundResult, step int, reason string) bool {
+	samples := affordableSamples(CEMBatchSamples, *cemRemaining, workPerSample)
+	samples = affordableSamples(samples, *remainingWork, workPerSample)
+	if samples < CEMMinBatchSamples {
+		return false
+	}
+	work := int64(samples) * workPerSample
+	log.Printf("rare-position-cem-schedule: group=%d step=%d team=%d position=%d iteration=%d progress_score=%.4f initial_elite_distance=%.3f current_elite_distance=%.3f best_elite_distance=%.3f near_target_rate=%.4f best_near_target_rate=%.4f exact_hits=%d max_exact_hits=%d elite_ess=%.2f stalled_iterations=%d work_remaining=%d reason=%s",
+		group.Id, step, state.Candidate.TeamID, state.Candidate.Position, state.Iterations+1,
+		state.ProgressScore, state.FirstStats.EliteMeanDistance, state.LastStats.EliteMeanDistance,
+		state.BestEliteDistance, state.LastStats.NearTargetRate, state.BestNearTargetRate,
+		state.LastStats.ExactHits, state.MaxExactHits, state.LastStats.EliteESS,
+		state.StalledIterations, *cemRemaining, reason)
+
+	sampledProposal := cloneCEMProposal(state.Proposal)
+	batch := simulateCEMBatchForTeams(campaign, group.Games, original, sampledProposal.Means,
+		table, order, group.Team_groups, teamIDs, state.Candidate.TeamID, samples, rng)
+	*cemRemaining -= work
+	*remainingWork -= work
+	result.CEMWork += work
+	result.SchedulerBatches++
+	result.Iterations++
+	state.Samples += samples
+	state.WorkSpent += work
+	state.Candidate.SearchState.SearchWorkSpent += work
+	state.Iterations++
+
+	elite, exact := cemEliteIndices(batch, state.Candidate.Position, state.Candidate.Direction)
+	stats := cemBatchSummary(batch, elite, state.Candidate.Position, exact)
+	if state.Iterations == 1 {
+		state.FirstStats = stats
+		state.BestEliteDistance = stats.EliteMeanDistance
+		state.BestNearTargetRate = stats.NearTargetRate
+	} else {
+		state.PreviousStats = state.LastStats
+	}
+	state.LastStats = stats
+	state.HasStats = true
+	state.AnyExactHit = state.AnyExactHit || stats.ExactHits > 0
+	if stats.ExactHits > state.MaxExactHits {
+		state.MaxExactHits = stats.ExactHits
+	}
+	state.ExactEliteSeen = state.ExactEliteSeen || exact
+	updated := cemUpdateTeam(sampledProposal, original, group.Games, teamIDs, batch, elite)
+	updated.Iteration = state.Iterations
+	if !updated.UpdateAllowed {
+		state.Active = false
+		state.StopReason = "low_elite_ess"
+		state.Proposal.EliteESS = updated.EliteESS
+		log.Printf("rare-position-cem-selection: group=%d team=%d position=%d reason=low_elite_ess elite_ess=%.2f threshold=%.2f",
+			group.Id, state.Candidate.TeamID, state.Candidate.Position, updated.EliteESS, CEMMinEliteESSForUpdate)
+		logCEMStop(group.Id, state)
+		return true
+	}
+	if updated.ThetaDeltaL2 < CEMThetaStabilityThreshold {
+		state.StableIterations++
+	} else {
+		state.StableIterations = 0
+	}
+	updateCEMStallCounters(state, stats)
+	if stats.EliteMeanDistance < state.BestEliteDistance {
+		state.BestEliteDistance = stats.EliteMeanDistance
+	}
+	if stats.NearTargetRate > state.BestNearTargetRate {
+		state.BestNearTargetRate = stats.NearTargetRate
+	}
+	state.Proposal = cloneCEMProposal(updated)
+	if cemSnapshotBetter(stats, sampledProposal, state.BestStats, state.BestProposal, state.HasBest) {
+		state.BestStats = stats
+		state.BestProposal = cloneCEMProposal(sampledProposal)
+		state.BestBatch = state.Iterations
+		state.HasBest = true
+	}
+	if qualifies, _ := cemValidationEvidence(stats, state.MaxExactHits); qualifies {
+		if cemSnapshotBetter(stats, sampledProposal, state.BestQualifyingStats, state.BestQualifyingProposal, state.HasQualifying) {
+			state.BestQualifyingStats = stats
+			state.BestQualifyingProposal = cloneCEMProposal(sampledProposal)
+			state.BestQualifyingBatch = state.Iterations
+			state.HasQualifying = true
+		}
+	}
+	if state.HasStats {
+		state.ProgressScore = updateCEMProgressScore(state)
+	}
+	result.ChangedTeams += updated.ChangedTeams
+	if updated.ChangedTeams > result.MaxChangedTeams {
+		result.MaxChangedTeams = updated.ChangedTeams
+	}
+	result.AbsThetaSum += sumAbsTheta(updated.TeamLogMultipliers)
+	result.ThetaUpdates++
+	result.ThetaParameterCount += len(updated.TeamLogMultipliers)
+	if updated.MaxAbsTheta > result.MaxAbsTheta {
+		result.MaxAbsTheta = updated.MaxAbsTheta
+	}
+	result.ThetaDeltaL2Sum += updated.ThetaDeltaL2
+	logCEMTeamChanges(group.Id, state.Candidate.TeamID, state.Candidate.Position,
+		state.Iterations, teamIDs, original, group.Games, updated)
+	log.Printf("rare-position-cem: parameterization=team_level group=%d team=%d position=%d iteration=%d samples=%d exact_hits=%d exact_hit_rate=%.4f near_target_rate=%.4f elite_count=%d elite_ess=%.2f exact_elites=%t mean_rank=%.3f best_rank=%d elite_mean_distance=%.3f kl=%.3f changed_teams=%d max_abs_team_theta=%.4f theta_delta_l2=%.4f progress_score=%.4f",
+		group.Id, state.Candidate.TeamID, state.Candidate.Position, state.Iterations, samples,
+		stats.ExactHits, stats.ExactRate, stats.NearTargetRate, stats.EliteCount,
+		stats.EliteESS, stats.UsedExactElites, stats.MeanRank, stats.BestRank,
+		stats.EliteMeanDistance, updated.KL, updated.ChangedTeams, updated.MaxAbsTheta,
+		updated.ThetaDeltaL2, state.ProgressScore)
+
+	stopReason := cemCandidateStopReason(state)
+	if stopReason != "" {
+		state.Active = false
+		state.StopReason = stopReason
+		logCEMStop(group.Id, state)
+	}
+	return true
+}
+
+func runCEMAdaptiveSchedule(states []*CEMCandidateState, searches map[int]*TeamRareSearch,
+	canAfford func() bool, runBatch func(*CEMCandidateState, int, string) bool) {
+	ordered := append([]*CEMCandidateState(nil), states...)
 	sort.Slice(ordered, func(i, j int) bool {
-		a, b := ordered[i], ordered[j]
+		a, b := ordered[i].Candidate, ordered[j].Candidate
 		pa, pb := cemCandidatePriority(a, searches), cemCandidatePriority(b, searches)
 		if pa != pb {
 			return pa > pb
@@ -583,129 +922,160 @@ func runCEMRound(candidates []*FrontierCandidate, searches map[int]*TeamRareSear
 		}
 		return a.Position < b.Position
 	})
-	for _, candidate := range ordered {
-		if affordableSamples(CEMBatchSamples, *cemRemaining, adaptWorkPerSample) < CEMMinBatchSamples ||
-			affordableSamples(CEMBatchSamples, *remainingWork, adaptWorkPerSample) < CEMMinBatchSamples {
-			candidate.SearchState.Status = StatusUnexplored
+	step := 0
+	for _, state := range ordered {
+		if !canAfford() {
+			state.Active = false
+			state.StopReason = "global_budget_exhausted"
+			state.Candidate.SearchState.Status = StatusExhausted
 			continue
 		}
-		result.TargetsAttempted++
-		proposal := newCEMProposal(original, group.Games, teamIDs)
-		prevDistance, prevNearRate, stalled := math.Inf(1), 0.0, 0
-		firstDistance, bestDistance := math.Inf(1), math.Inf(1)
-		exactEliteSeen, eventObserved := false, false
-		maxExactHits := 0
-		lastStats := CEMBatchStats{}
-		stableIterations, lowESS := 0, false
-		candidateIterations := 0
-		for iteration := 1; iteration <= CEMMaxIterations; iteration++ {
-			samples := affordableSamples(CEMBatchSamples, *cemRemaining, adaptWorkPerSample)
-			samples = affordableSamples(samples, *remainingWork, adaptWorkPerSample)
-			if samples < CEMMinBatchSamples {
-				break
-			}
-			batch := simulateCEMBatchForTeams(campaign, group.Games, original, proposal.Means,
-				table, order, group.Team_groups, teamIDs, candidate.TeamID, samples, rng)
-			work := int64(samples) * adaptWorkPerSample
-			*cemRemaining -= work
-			*remainingWork -= work
-			result.CEMWork += work
-			candidate.SearchState.SearchWorkSpent += work
-			result.Iterations++
-			candidateIterations++
-			elite, exact := cemEliteIndices(batch, candidate.Position, candidate.Direction)
-			stats := cemBatchSummary(batch, elite, candidate.Position, exact)
-			lastStats = stats
-			if math.IsInf(firstDistance, 1) {
-				firstDistance = stats.EliteMeanDistance
-			}
-			if stats.EliteMeanDistance < bestDistance {
-				bestDistance = stats.EliteMeanDistance
-			}
-			eventObserved = eventObserved || stats.ExactHits > 0
-			if stats.ExactHits > maxExactHits {
-				maxExactHits = stats.ExactHits
-			}
-			exactEliteSeen = exactEliteSeen || exact
-			updated := cemUpdateTeam(proposal, original, group.Games, teamIDs, batch, elite)
-			updated.Iteration = iteration
-			if !updated.UpdateAllowed {
-				lowESS = true
-				log.Printf("rare-position-cem-selection: group=%d team=%d position=%d reason=low_elite_ess elite_ess=%.2f threshold=%.2f",
-					group.Id, candidate.TeamID, candidate.Position, updated.EliteESS, CEMMinEliteESSForUpdate)
-				break
-			}
-			if updated.ThetaDeltaL2 < CEMThetaStabilityThreshold {
-				stableIterations++
-			} else {
-				stableIterations = 0
-			}
-			proposal = updated
-			result.ChangedTeams += updated.ChangedTeams
-			if updated.ChangedTeams > result.MaxChangedTeams {
-				result.MaxChangedTeams = updated.ChangedTeams
-			}
-			result.AbsThetaSum += sumAbsTheta(updated.TeamLogMultipliers)
-			if updated.MaxAbsTheta > result.MaxAbsTheta {
-				result.MaxAbsTheta = updated.MaxAbsTheta
-			}
-			result.ThetaDeltaL2Sum += updated.ThetaDeltaL2
-			logCEMTeamChanges(group.Id, candidate.TeamID, candidate.Position, iteration,
-				teamIDs, original, group.Games, updated)
-			log.Printf("rare-position-cem: parameterization=team_level group=%d team=%d position=%d iteration=%d samples=%d exact_hits=%d exact_hit_rate=%.4f near_target_rate=%.4f elite_count=%d elite_ess=%.2f exact_elites=%t mean_rank=%.3f best_rank=%d elite_mean_distance=%.3f kl=%.3f changed_teams=%d max_abs_team_theta=%.4f theta_delta_l2=%.4f",
-				group.Id, candidate.TeamID, candidate.Position, iteration, samples, stats.ExactHits,
-				stats.ExactRate, stats.NearTargetRate, stats.EliteCount, stats.EliteESS,
-				stats.UsedExactElites, stats.MeanRank, stats.BestRank, stats.EliteMeanDistance,
-				updated.KL, updated.ChangedTeams, updated.MaxAbsTheta, updated.ThetaDeltaL2)
-			if exact || stats.ExactEventESS >= MinPilotESSForProduction || stableIterations >= 2 {
-				break
-			}
-			if prevDistance < math.Inf(1) {
-				distanceImprovement := (prevDistance - stats.EliteMeanDistance) / math.Max(1, prevDistance)
-				nearImprovement := stats.NearTargetRate - prevNearRate
-				if distanceImprovement < CEMMinRelativeProgress && nearImprovement < CEMMinRelativeProgress {
-					stalled++
-				} else {
-					stalled = 0
-				}
-				if stalled >= CEMMaxStalledIterations {
-					break
-				}
-			}
-			prevDistance, prevNearRate = stats.EliteMeanDistance, stats.NearTargetRate
+		step++
+		if !runBatch(state, step, "initial_fairness") {
+			state.Active = false
+			state.StopReason = "global_budget_exhausted"
+			state.Candidate.SearchState.Status = StatusExhausted
 		}
-		if eventObserved {
-			result.TargetsAnyExact++
+	}
+	for canAfford() {
+		state := selectCEMCandidate(states, searches)
+		if state == nil {
+			return
 		}
-		if exactEliteSeen {
-			result.TargetsExactElite++
+		step++
+		reason := "highest_progress"
+		if state.AnyExactHit {
+			reason = "exact_event_priority"
 		}
-		if lowESS || candidateIterations == 0 {
-			candidate.SearchState.Status = StatusExhausted
-			continue
+		if !runBatch(state, step, reason) {
+			state.Active = false
+			state.StopReason = "global_budget_exhausted"
+			state.Candidate.SearchState.Status = StatusExhausted
 		}
-		if firstDistance-bestDistance < CEMMinRelativeProgress*math.Max(1, firstDistance) &&
-			lastStats.NearTargetRate < CEMStrongNearTargetRate && maxExactHits == 0 {
-			candidate.SearchState.Status = StatusExhausted
-			continue
+	}
+	for _, state := range states {
+		if state.Active {
+			state.Active = false
+			state.StopReason = "global_budget_exhausted"
+			state.Candidate.SearchState.Status = StatusExhausted
 		}
-		validate, reason := cemValidationEvidence(lastStats, maxExactHits)
-		if !validate {
-			candidate.SearchState.Status = StatusExhausted
-			log.Printf("rare-position-cem-selection: group=%d team=%d position=%d reason=%s exact_hits=%d max_exact_hits=%d near_target_rate=%.4f",
-				group.Id, candidate.TeamID, candidate.Position, reason, lastStats.ExactHits,
-				maxExactHits, lastStats.NearTargetRate)
-			continue
+	}
+}
+
+func runCEMRound(candidates []*FrontierCandidate, searches map[int]*TeamRareSearch,
+	group *GroupType, campaign []*TeamCampaign, table *Table, order []SortType,
+	original []GameProposalMeans, cemRemaining, validationRemaining, remainingWork *int64,
+	adaptWorkPerSample, validationWorkPerSample int64, rng *rand.Rand) CEMRoundResult {
+	result := CEMRoundResult{}
+	teamIDs := teamIDsFromGroups(group.Team_groups)
+	states := make([]*CEMCandidateState, 0, len(candidates))
+	for _, candidate := range candidates {
+		state := &CEMCandidateState{Candidate: candidate,
+			Proposal: newCEMProposal(original, group.Games, teamIDs), Active: true}
+		states = append(states, state)
+	}
+	canAfford := func() bool {
+		return affordableSamples(CEMBatchSamples, *cemRemaining, adaptWorkPerSample) >= CEMMinBatchSamples &&
+			affordableSamples(CEMBatchSamples, *remainingWork, adaptWorkPerSample) >= CEMMinBatchSamples
+	}
+	runCEMAdaptiveSchedule(states, searches, canAfford, func(state *CEMCandidateState, step int, reason string) bool {
+		if reason == "initial_fairness" {
+			result.TargetsAttempted++
 		}
+		ok := runCEMCandidateBatch(state, group, campaign, table, order, original,
+			teamIDs, cemRemaining, remainingWork, adaptWorkPerSample, rng,
+			&result, step, reason)
+		return ok
+	})
+	for _, state := range states {
+		if state.StopReason == "global_budget_exhausted" {
+			logCEMStop(group.Id, state)
+		}
+	}
+
+	for _, state := range states {
+		if state.Iterations == 1 {
+			result.OneBatchCandidates++
+		}
+		if state.Iterations >= 2 {
+			result.MultiBatchCandidates++
+		}
+		if state.Iterations > result.MaxBatchesPerCandidate {
+			result.MaxBatchesPerCandidate = state.Iterations
+		}
+		if state.Iterations > 0 {
+			result.AverageBatchesPerCandidate += float64(state.Iterations)
+			if result.BestCandidateTeam == 0 || state.FirstStats.EliteMeanDistance-state.BestEliteDistance > result.BestCandidateDistanceImprovement {
+				result.BestCandidateTeam = state.Candidate.TeamID
+				result.BestCandidatePosition = state.Candidate.Position
+				result.BestCandidateBatches = state.Iterations
+				result.BestCandidateDistanceImprovement = state.FirstStats.EliteMeanDistance - state.BestEliteDistance
+				result.BestCandidateNearTargetRate = state.BestNearTargetRate
+			}
+			if state.AnyExactHit {
+				result.TargetsAnyExact++
+			}
+			if state.ExactEliteSeen {
+				result.TargetsExactElite++
+			}
+			nearRate := state.BestNearTargetRate
+			if result.HighestNearTeam == 0 || nearRate > result.HighestNearRate {
+				result.HighestNearTeam = state.Candidate.TeamID
+				result.HighestNearPosition = state.Candidate.Position
+				result.HighestNearBatches = state.Iterations
+				result.HighestNearRate = nearRate
+			}
+		}
+		if state.HasQualifying {
+			state.Candidate.SearchState.Status = StatusPromising
+		} else if state.Iterations > 0 {
+			state.Candidate.SearchState.Status = StatusExhausted
+		}
+		switch state.StopReason {
+		case "validation_ready":
+			result.StopValidationReady++
+		case "stalled":
+			result.StopStalled++
+		case "low_elite_ess":
+			result.StopLowEliteESS++
+		case "regression":
+			result.StopRegression++
+		case "per_candidate_cap":
+			result.StopPerCandidateCap++
+		case "global_budget_exhausted":
+			result.StopGlobalBudget++
+		}
+	}
+	if result.TargetsAttempted > 0 {
+		result.AverageBatchesPerCandidate /= float64(result.TargetsAttempted)
+	}
+
+	validationQueue := make([]*CEMCandidateState, 0, len(states))
+	for _, state := range states {
+		if state.HasQualifying {
+			validationQueue = append(validationQueue, state)
+		}
+	}
+	sort.Slice(validationQueue, func(i, j int) bool { return cemValidationSnapshotBetter(validationQueue[i], validationQueue[j]) })
+	for _, state := range validationQueue {
 		if *remainingWork < int64(CEMMinBatchSamples)*validationWorkPerSample ||
 			*validationRemaining < int64(CEMMinBatchSamples)*validationWorkPerSample {
-			candidate.SearchState.Status = StatusExhausted
+			state.Candidate.SearchState.Status = StatusExhausted
+			state.StopReason = "global_budget_exhausted"
+			result.StopGlobalBudget++
+			logCEMStop(group.Id, state)
 			continue
 		}
 		samples := affordableSamples(CEMValidationSamples, *validationRemaining, validationWorkPerSample)
 		samples = affordableSamples(samples, *remainingWork, validationWorkPerSample)
-		mixture := buildCEMMixture(original, proposal.Means)
+		mixture := cemValidationMixture(original, state)
 		validateProposalMixture(mixture, len(group.Games))
+		candidate := state.Candidate
+		reason := "best_saved_proposal"
+		_, evidenceReason := cemValidationEvidence(state.BestQualifyingStats, state.MaxExactHits)
+		if evidenceReason != "" {
+			reason = evidenceReason
+		}
 		pilot := &WeightedPilotResult{Proposal: SearchProposal{
 			Name:      fmt.Sprintf("cem_team_level_team%d_rank%d", candidate.TeamID, candidate.Position),
 			Direction: candidate.Direction, TargetRank: candidate.Position, Components: mixture,
@@ -721,9 +1091,9 @@ func runCEMRound(candidates []*FrontierCandidate, searches map[int]*TeamRareSear
 		candidate.SearchState.SearchWorkSpent += work
 		candidate.SearchState.Pilots = []*WeightedPilotResult{pilot}
 		priority := cemValidationPriority(pilot)
-		log.Printf("rare-position-cem-validation: group=%d team=%d position=%d reason=%s samples=%d hits=%d p=%.6g se=%.3g relSE=%.3f ess=%.2f ess_per_million_work=%.3f max_event_weight_share=%.3f priority=%.3f",
-			group.Id, candidate.TeamID, candidate.Position, reason, pilot.Samples, pilot.Hits,
-			pilot.Probability, pilot.StdErr, pilot.RelSE, pilot.ESS,
+		log.Printf("rare-position-cem-validation: group=%d team=%d position=%d reason=%s best_iteration=%d samples=%d hits=%d p=%.6g se=%.3g relSE=%.3f ess=%.2f ess_per_million_work=%.3f max_event_weight_share=%.3f priority=%.3f",
+			group.Id, candidate.TeamID, candidate.Position, reason, state.BestQualifyingBatch,
+			pilot.Samples, pilot.Hits, pilot.Probability, pilot.StdErr, pilot.RelSE, pilot.ESS,
 			pilot.ESSPerWork*1e6, pilot.MaxEventWeightShare, priority)
 		if selectPilotMixture([]*WeightedPilotResult{pilot}) == nil {
 			candidate.SearchState.Status = StatusExhausted
@@ -735,6 +1105,10 @@ func runCEMRound(candidates []*FrontierCandidate, searches map[int]*TeamRareSear
 		result.TargetsValidated++
 		result.ValidatedESS += pilot.ESS
 		result.Eligible = append(result.Eligible, candidate)
+	}
+	result.Candidates = make([]CEMCandidateState, len(states))
+	for i, state := range states {
+		result.Candidates[i] = *state
 	}
 	return result
 }

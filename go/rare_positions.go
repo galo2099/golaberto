@@ -1248,6 +1248,13 @@ func searchAndMergeRarePositions(
 	var cemTargets, cemIterations, targetsAnyExact, targetsExactElite, targetsValidated int
 	var changedTeams, maxChangedTeams int
 	var absThetaSum, maxAbsTheta, thetaDeltaL2Sum float64
+	var thetaUpdates, thetaParameterCount int
+	var schedulerBatches, candidatesOneBatch, candidatesMultiBatch, maxBatchesSingleCandidate int
+	var stopValidationReady, stopStalled, stopLowEliteESS, stopRegression, stopPerCandidateCap, stopGlobalBudget int
+	var bestCandidateTeam, bestCandidatePosition, bestCandidateBatches int
+	var bestCandidateDistanceImprovement, bestCandidateNearTargetRate float64
+	var highestNearTeam, highestNearPosition, highestNearBatches int
+	var highestNearRate float64
 	var validatedESS float64
 	productionJobs := 0
 	resolvedInitial := 0
@@ -1284,6 +1291,34 @@ func searchAndMergeRarePositions(
 			maxAbsTheta = cemRound.MaxAbsTheta
 		}
 		thetaDeltaL2Sum += cemRound.ThetaDeltaL2Sum
+		thetaUpdates += cemRound.ThetaUpdates
+		thetaParameterCount += cemRound.ThetaParameterCount
+		schedulerBatches += cemRound.SchedulerBatches
+		candidatesOneBatch += cemRound.OneBatchCandidates
+		candidatesMultiBatch += cemRound.MultiBatchCandidates
+		if cemRound.MaxBatchesPerCandidate > maxBatchesSingleCandidate {
+			maxBatchesSingleCandidate = cemRound.MaxBatchesPerCandidate
+		}
+		stopValidationReady += cemRound.StopValidationReady
+		stopStalled += cemRound.StopStalled
+		stopLowEliteESS += cemRound.StopLowEliteESS
+		stopRegression += cemRound.StopRegression
+		stopPerCandidateCap += cemRound.StopPerCandidateCap
+		stopGlobalBudget += cemRound.StopGlobalBudget
+		if cemRound.BestCandidateTeam != 0 &&
+			cemRound.BestCandidateDistanceImprovement > bestCandidateDistanceImprovement {
+			bestCandidateTeam = cemRound.BestCandidateTeam
+			bestCandidatePosition = cemRound.BestCandidatePosition
+			bestCandidateBatches = cemRound.BestCandidateBatches
+			bestCandidateDistanceImprovement = cemRound.BestCandidateDistanceImprovement
+			bestCandidateNearTargetRate = cemRound.BestCandidateNearTargetRate
+		}
+		if cemRound.HighestNearTeam != 0 && cemRound.HighestNearRate > highestNearRate {
+			highestNearTeam = cemRound.HighestNearTeam
+			highestNearPosition = cemRound.HighestNearPosition
+			highestNearBatches = cemRound.HighestNearBatches
+			highestNearRate = cemRound.HighestNearRate
+		}
 		validatedESS += cemRound.ValidatedESS
 		if round == 1 {
 			expansionWork += cemRound.CEMWork + cemRound.ValidationWork
@@ -1412,18 +1447,27 @@ func searchAndMergeRarePositions(
 			(float64(validationWork) / float64(plainWorkPerSample))
 	}
 	averageChangedTeams := 0.0
-	averageAbsTheta := 0.0
+	averageThetaL1Norm, averageAbsTeamTheta := cemThetaSummary(absThetaSum, thetaUpdates, thetaParameterCount)
 	averageThetaDeltaL2 := 0.0
 	if cemIterations > 0 {
 		averageChangedTeams = float64(changedTeams) / float64(cemIterations)
-		averageAbsTheta = absThetaSum / float64(cemIterations)
 		averageThetaDeltaL2 = thetaDeltaL2Sum / float64(cemIterations)
 	}
-	log.Printf("rare-position-summary: parameterization=team_level group=%d scout_sims=%d scout_work=%d fallback_normal_sims=%d normal_sims_total=%d total_work_limit=%d cem_work=%d validation_work=%d production_work=%d expansion_work=%d fallback_work=%d unused_work=%d work_spent=%d resolved_positions_is=%d scout_resolved_cells=%d new_cells_from_fallback=%d cem_targets_attempted=%d cem_iterations=%d average_changed_teams=%.2f max_changed_teams=%d average_abs_theta=%.4f max_abs_theta=%.4f average_theta_delta_l2=%.4f targets_with_any_exact_hit=%d targets_reaching_exact_elite_threshold=%d targets_passing_validation=%d production_jobs=%d cem_plain_mc_equiv=%.1f validation_plain_mc_equiv=%.1f cem_and_validation_plain_mc_equiv=%.1f validated_ess_per_plain_mc_equiv=%.4f production_plain_mc_equiv=%.1f heuristic_baseline_group16982_plain_mc_equiv=8499.4",
+	averageBatchesPerCandidate := 0.0
+	if cemTargets > 0 {
+		averageBatchesPerCandidate = float64(cemIterations) / float64(cemTargets)
+	}
+	log.Printf("rare-position-summary: parameterization=team_level group=%d scout_sims=%d scout_work=%d fallback_normal_sims=%d normal_sims_total=%d total_work_limit=%d cem_work=%d validation_work=%d production_work=%d expansion_work=%d fallback_work=%d unused_work=%d work_spent=%d resolved_positions_is=%d scout_resolved_cells=%d new_cells_from_fallback=%d cem_targets_attempted=%d cem_iterations=%d cem_scheduler_batches=%d cem_candidates_receiving_1_batch=%d cem_candidates_receiving_2plus_batches=%d max_batches_single_candidate=%d average_batches_per_candidate=%.2f best_candidate_team=%d best_candidate_position=%d best_candidate_batches=%d best_candidate_distance_improvement=%.3f best_candidate_near_target_rate=%.4f highest_near_team=%d highest_near_position=%d highest_near_batches=%d highest_near_target_rate=%.4f stop_validation_ready=%d stop_stalled=%d stop_low_elite_ess=%d stop_regression=%d stop_per_candidate_cap=%d stop_global_budget_exhausted=%d average_changed_teams=%.2f max_changed_teams=%d average_theta_l1_norm=%.4f average_abs_team_theta=%.4f max_abs_team_theta=%.4f average_theta_delta_l2=%.4f targets_with_any_exact_hit=%d targets_reaching_exact_elite_threshold=%d targets_passing_validation=%d production_jobs=%d cem_plain_mc_equiv=%.1f validation_plain_mc_equiv=%.1f cem_and_validation_plain_mc_equiv=%.1f validated_ess_per_plain_mc_equiv=%.4f production_plain_mc_equiv=%.1f heuristic_baseline_group16982_plain_mc_equiv=8499.4",
 		group.Id, normalSamples, scoutWork, fallbackSamples, normalSamples+fallbackSamples, totalWorkLimit,
 		cemWork, validationWork, productionWork, expansionWork, fallbackWork, remainingWork,
 		workSpent, resolvedPositions, scoutResolvedCells, newNonzeroCells, cemTargets, cemIterations,
-		averageChangedTeams, maxChangedTeams, averageAbsTheta, maxAbsTheta, averageThetaDeltaL2,
+		schedulerBatches, candidatesOneBatch, candidatesMultiBatch, maxBatchesSingleCandidate,
+		averageBatchesPerCandidate, bestCandidateTeam, bestCandidatePosition, bestCandidateBatches,
+		bestCandidateDistanceImprovement, bestCandidateNearTargetRate, highestNearTeam,
+		highestNearPosition, highestNearBatches, highestNearRate, stopValidationReady,
+		stopStalled, stopLowEliteESS, stopRegression, stopPerCandidateCap, stopGlobalBudget,
+		averageChangedTeams, maxChangedTeams, averageThetaL1Norm, averageAbsTeamTheta,
+		maxAbsTheta, averageThetaDeltaL2,
 		targetsAnyExact, targetsExactElite,
 		targetsValidated, productionJobs, float64(cemWork)/float64(plainWorkPerSample),
 		float64(validationWork)/float64(plainWorkPerSample),

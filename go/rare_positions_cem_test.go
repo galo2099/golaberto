@@ -262,3 +262,261 @@ func TestCEMBatchStoresTeamTotalsWithCompactSeasonState(t *testing.T) {
 		}
 	}
 }
+
+func cemSchedulerFixture(count int) ([]*CEMCandidateState, map[int]*TeamRareSearch) {
+	states := make([]*CEMCandidateState, count)
+	searches := make(map[int]*TeamRareSearch, count)
+	for i := 0; i < count; i++ {
+		teamID := i + 1
+		positions := []*PositionSearchState{
+			{Position: 0, Status: StatusObserved},
+			{Position: 1, Status: StatusFrontier},
+			{Position: 2, Status: StatusObserved},
+		}
+		candidate := &FrontierCandidate{TeamID: teamID, Position: 1,
+			Direction: RareBetter, SearchState: positions[1]}
+		states[i] = &CEMCandidateState{Candidate: candidate, Active: true}
+		searches[teamID] = &TeamRareSearch{TeamID: teamID, Positions: positions, NormalMeanRank: 1}
+	}
+	return states, searches
+}
+
+func TestCEMSchedulerGivesEveryCandidateFairnessBatchFirst(t *testing.T) {
+	states, searches := cemSchedulerFixture(4)
+	remaining := 5
+	var order []int
+	runCEMAdaptiveSchedule(states, searches, func() bool { return remaining > 0 },
+		func(state *CEMCandidateState, _ int, reason string) bool {
+			if reason == "initial_fairness" {
+				order = append(order, state.Candidate.TeamID)
+			} else {
+				order = append(order, state.Candidate.TeamID)
+			}
+			state.Iterations++
+			remaining--
+			if reason == "initial_fairness" {
+				state.ProgressScore = float64(state.Candidate.TeamID)
+			} else {
+				state.Active = false
+			}
+			return true
+		})
+	if len(order) != 5 {
+		t.Fatalf("scheduler made %d decisions, want 5: %v", len(order), order)
+	}
+	for i, teamID := range order[:4] {
+		if teamID != i+1 {
+			t.Fatalf("fairness phase order=%v", order)
+		}
+	}
+	if order[4] != 4 {
+		t.Fatalf("adaptive batch went to team %d, want highest progress team 4", order[4])
+	}
+	for i := 0; i < 3; i++ {
+		if states[i].Iterations != 1 {
+			t.Fatalf("team %d received %d batches before fairness completed", i+1, states[i].Iterations)
+		}
+	}
+	if states[3].Iterations != 2 {
+		t.Fatalf("highest progress candidate received %d batches after fairness", states[3].Iterations)
+	}
+}
+
+func TestCEMSchedulerFollowsProgressAndRecentRegression(t *testing.T) {
+	states, searches := cemSchedulerFixture(3)
+	states[0].HasStats, states[0].Iterations = true, 3
+	states[0].FirstStats = CEMBatchStats{EliteMeanDistance: 8}
+	states[0].BestStats = CEMBatchStats{EliteMeanDistance: 6, NearTargetRate: 0.03}
+	states[0].BestEliteDistance, states[0].BestNearTargetRate = 6, 0.03
+	states[0].PreviousStats = CEMBatchStats{EliteMeanDistance: 6}
+	states[0].LastStats = CEMBatchStats{EliteMeanDistance: 6.5, NearTargetRate: 0}
+	states[0].StalledIterations, states[0].RegressionIterations = 1, 1
+	states[1].HasStats, states[1].Iterations = true, 3
+	states[1].FirstStats = CEMBatchStats{EliteMeanDistance: 5}
+	states[1].BestStats = CEMBatchStats{EliteMeanDistance: 3.5}
+	states[1].BestEliteDistance = 3.5
+	states[1].PreviousStats = CEMBatchStats{EliteMeanDistance: 4}
+	states[1].LastStats = CEMBatchStats{EliteMeanDistance: 3.5}
+	states[2].HasStats, states[2].Iterations = true, 3
+	states[2].FirstStats = CEMBatchStats{EliteMeanDistance: 8}
+	states[2].BestStats = CEMBatchStats{EliteMeanDistance: 7.5}
+	states[2].BestEliteDistance = 7.5
+	states[2].LastStats = CEMBatchStats{EliteMeanDistance: 7.5}
+	for _, state := range states {
+		state.Active = true
+		state.ProgressScore = updateCEMProgressScore(state)
+	}
+	if got := selectCEMCandidate(states, searches); got != states[1] {
+		t.Fatalf("recently regressing candidate won scheduling: scores=%g,%g,%g",
+			states[0].ProgressScore, states[1].ProgressScore, states[2].ProgressScore)
+	}
+}
+
+func TestCEMExactHitGetsSchedulerPriority(t *testing.T) {
+	states, searches := cemSchedulerFixture(2)
+	states[0].Active, states[1].Active = true, true
+	states[0].HasStats, states[0].Iterations = true, 1
+	states[0].AnyExactHit, states[0].MaxExactHits = true, 1
+	states[0].ProgressScore = updateCEMProgressScore(states[0])
+	states[1].HasStats, states[1].Iterations = true, 3
+	states[1].FirstStats = CEMBatchStats{EliteMeanDistance: 10}
+	states[1].BestStats = CEMBatchStats{EliteMeanDistance: 1}
+	states[1].BestEliteDistance = 1
+	states[1].ProgressScore = updateCEMProgressScore(states[1])
+	if got := selectCEMCandidate(states, searches); got != states[0] {
+		t.Fatalf("candidate without an exact hit outranked an observed exact hit: scores=%g,%g",
+			states[0].ProgressScore, states[1].ProgressScore)
+	}
+}
+
+func TestCEMAdaptiveSchedulerCanExceedFourBatchesAndStopWeakCandidate(t *testing.T) {
+	states, searches := cemSchedulerFixture(2)
+	remainingSamples := 3000
+	spent := 0
+	runCEMAdaptiveSchedule(states, searches,
+		func() bool { return remainingSamples >= CEMMinBatchSamples },
+		func(state *CEMCandidateState, _ int, _ string) bool {
+			samples := min(CEMBatchSamples, remainingSamples)
+			remainingSamples -= samples
+			spent += samples
+			state.Iterations++
+			if state.Candidate.TeamID == 1 {
+				state.ProgressScore = float64(state.Iterations)
+			} else {
+				state.StalledIterations++
+				if state.StalledIterations >= CEMMaxStalledIterations {
+					state.Active = false
+					state.StopReason = "stalled"
+				}
+			}
+			if state.Iterations >= 8 && state.Candidate.TeamID == 1 {
+				state.Active = false
+				state.StopReason = "per_candidate_cap"
+			}
+			return true
+		})
+	if states[0].Iterations <= 4 || states[0].Iterations <= states[1].Iterations {
+		t.Fatalf("strong candidate did not receive adaptive work: strong=%d weak=%d", states[0].Iterations, states[1].Iterations)
+	}
+	if spent > 5000 || spent != 3000 {
+		t.Fatalf("adaptive scheduler spent %d samples against 5000 cap and 3000 test budget", spent)
+	}
+}
+
+func TestCEMAdaptiveSchedulerNeverExceeds5000EquivalentSamples(t *testing.T) {
+	states, searches := cemSchedulerFixture(5)
+	remaining, spent := MaxCEMPlainEquivalentSamples, 0
+	runCEMAdaptiveSchedule(states, searches,
+		func() bool { return remaining >= CEMMinBatchSamples },
+		func(state *CEMCandidateState, _ int, _ string) bool {
+			samples := min(CEMBatchSamples, remaining)
+			remaining -= samples
+			spent += samples
+			state.Iterations++
+			state.ProgressScore = float64(state.Candidate.TeamID)
+			if state.Iterations >= 12 {
+				state.Active = false
+				state.StopReason = "per_candidate_cap"
+			}
+			return true
+		})
+	if spent > MaxCEMPlainEquivalentSamples || spent+remaining != MaxCEMPlainEquivalentSamples {
+		t.Fatalf("CEM scheduler spent %d and left %d from 5000", spent, remaining)
+	}
+	for i, state := range states {
+		if state.Iterations == 0 {
+			t.Fatalf("candidate %d did not receive its fairness batch", i+1)
+		}
+	}
+}
+
+func TestCEMBestProposalSnapshotSurvivesRegressionAndDeepCopies(t *testing.T) {
+	proposal := CEMProposal{Iteration: 3, TeamLogMultipliers: map[int]float64{1: 0.2},
+		Means: []GameProposalMeans{{Home: 2, Away: 1}}}
+	saved := cloneCEMProposal(proposal)
+	bestStats := CEMBatchStats{NearTargetRate: 0.08, EliteMeanDistance: 3}
+	regressed := CEMBatchStats{NearTargetRate: 0.01, EliteMeanDistance: 4}
+	if cemSnapshotBetter(regressed, CEMProposal{KL: 0.1}, bestStats, saved, true) {
+		t.Fatal("regressed proposal replaced iteration 3 best snapshot")
+	}
+	proposal.TeamLogMultipliers[1] = -9
+	proposal.Means[0].Home = 99
+	if saved.TeamLogMultipliers[1] != 0.2 || saved.Means[0].Home != 2 || saved.Iteration != 3 {
+		t.Fatalf("saved proposal was not deeply copied: %+v", saved)
+	}
+}
+
+func TestCEMCandidateStopsAfterStallAndUsesHighSafetyCap(t *testing.T) {
+	state := &CEMCandidateState{Active: true, Iterations: 3, StalledIterations: CEMMaxStalledIterations}
+	if got := cemCandidateStopReason(state); got != "stalled" {
+		t.Fatalf("stall stop reason=%q, want stalled", got)
+	}
+	state.StalledIterations = 0
+	state.Iterations = CEMMaxIterationsPerCandidate
+	if got := cemCandidateStopReason(state); got != "per_candidate_cap" {
+		t.Fatalf("safety stop reason=%q, want per_candidate_cap", got)
+	}
+	if CEMMaxIterationsPerCandidate <= 4 {
+		t.Fatalf("per-candidate safety cap %d must permit more than four batches", CEMMaxIterationsPerCandidate)
+	}
+}
+
+func TestCEMStallRequiresTwoConsecutiveNonImprovingBatches(t *testing.T) {
+	state := &CEMCandidateState{Iterations: 2, HasBest: true,
+		PreviousStats:     CEMBatchStats{EliteMeanDistance: 5, NearTargetRate: 0},
+		BestEliteDistance: 5, BestNearTargetRate: 0}
+	noProgress := CEMBatchStats{EliteMeanDistance: 5, NearTargetRate: 0}
+	updateCEMStallCounters(state, noProgress)
+	if state.StalledIterations != 1 || cemCandidateStopReason(state) != "" {
+		t.Fatalf("one stagnant batch should remain active: stalled=%d reason=%q", state.StalledIterations, cemCandidateStopReason(state))
+	}
+	state.Iterations++
+	state.PreviousStats = noProgress
+	updateCEMStallCounters(state, noProgress)
+	if state.StalledIterations != 2 || cemCandidateStopReason(state) != "stalled" {
+		t.Fatalf("two stagnant batches should stop: stalled=%d reason=%q", state.StalledIterations, cemCandidateStopReason(state))
+	}
+}
+
+func TestCEMValidationUsesBestQualifyingSnapshot(t *testing.T) {
+	state := &CEMCandidateState{Candidate: &FrontierCandidate{TeamID: 1, Position: 4},
+		MaxExactHits: 2, HasQualifying: true,
+		BestQualifyingStats: CEMBatchStats{ExactHits: 2, NearTargetRate: 0.07},
+		BestQualifyingProposal: CEMProposal{Iteration: 4, TeamLogMultipliers: map[int]float64{1: 0.4},
+			Means: []GameProposalMeans{{Home: 1.5, Away: 1}}}}
+	if ok, _ := cemValidationEvidence(state.BestQualifyingStats, state.MaxExactHits); !ok {
+		t.Fatal("saved best qualifying proposal no longer satisfies the unchanged evidence gate")
+	}
+	if state.BestQualifyingProposal.Iteration != 4 || state.BestQualifyingProposal.Means[0].Home != 1.5 {
+		t.Fatal("validation snapshot lost its best proposal state")
+	}
+	state.Proposal = CEMProposal{Means: []GameProposalMeans{{Home: 9, Away: 1}}}
+	mixture := cemValidationMixture([]GameProposalMeans{{Home: 1, Away: 1}}, state)
+	if mixture[1].Means[0].Home != 1.5 {
+		t.Fatalf("validation mixture used current/regressed proposal instead of best snapshot: %+v", mixture)
+	}
+}
+
+func TestCEMSchedulerTieBreakIsDeterministic(t *testing.T) {
+	states, searches := cemSchedulerFixture(3)
+	for _, state := range states {
+		state.Active = true
+		state.ProgressScore = 1
+	}
+	for i := 0; i < 5; i++ {
+		if got := selectCEMCandidate(states, searches); got != states[0] {
+			t.Fatalf("tie-break selected team %d, want team 1", got.Candidate.TeamID)
+		}
+	}
+}
+
+func TestCEMThetaSummaryReportsL1AndTruePerTeamAverage(t *testing.T) {
+	averageL1, averageAbs := cemThetaSummary(1.2, 3, 12)
+	maxAbsTeamTheta := 0.2
+	if math.Abs(averageL1-0.4) > 1e-12 || math.Abs(averageAbs-0.1) > 1e-12 {
+		t.Fatalf("theta summary averages L1=%g per-team=%g", averageL1, averageAbs)
+	}
+	if averageAbs > maxAbsTeamTheta {
+		t.Fatalf("average abs team theta %g exceeds max %g", averageAbs, maxAbsTeamTheta)
+	}
+}
