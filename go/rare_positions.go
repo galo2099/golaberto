@@ -1252,6 +1252,9 @@ func searchAndMergeRarePositions(
 	var cemCandidatesTotal, cemCandidatesAdmitted, cemCandidatesNotAdmitted int
 	var cemExplorationSamples, cemAdaptiveSamples int
 	var confirmationAttempts, confirmationSuccesses, confirmationFailures int
+	var adaptationExactHitBatches, confirmationReadyCandidates int
+	var confirmationSingleHitSuccesses, confirmationMultiHitSuccesses int
+	var confirmationFailedResumed, confirmationFailedExhausted, confirmationHits int
 	var validationAttempts, validationSuccesses int
 	var changedTeams, maxChangedTeams int
 	var absThetaSum, maxAbsTheta, thetaDeltaL2Sum float64
@@ -1294,6 +1297,13 @@ func searchAndMergeRarePositions(
 		confirmationAttempts += cemRound.ConfirmationAttempts
 		confirmationSuccesses += cemRound.ConfirmationSuccesses
 		confirmationFailures += cemRound.ConfirmationFailures
+		adaptationExactHitBatches += cemRound.AdaptationExactHitBatches
+		confirmationReadyCandidates += cemRound.ConfirmationReadyCandidates
+		confirmationSingleHitSuccesses += cemRound.ConfirmationSingleHitSuccesses
+		confirmationMultiHitSuccesses += cemRound.ConfirmationMultiHitSuccesses
+		confirmationFailedResumed += cemRound.ConfirmationFailedResumed
+		confirmationFailedExhausted += cemRound.ConfirmationFailedExhausted
+		confirmationHits += cemRound.ConfirmationHits
 		validationAttempts += cemRound.ValidationAttempts
 		validationSuccesses += cemRound.ValidationSuccesses
 		cemTargets += cemRound.TargetsAttempted
@@ -1496,10 +1506,13 @@ func searchAndMergeRarePositions(
 		float64(validationWork)/float64(plainWorkPerSample),
 		combinedCEMValidationEquivalent, validatedESSPerPlainEquivalent,
 		float64(productionWork)/float64(plainWorkPerSample))
-	log.Printf("rare-position-cem-summary: group=%d cem_candidates_total=%d cem_candidates_admitted=%d cem_candidates_not_admitted=%d cem_exploration_samples=%d cem_adaptive_samples=%d max_batches_single_candidate=%d confirmation_attempts=%d confirmation_successes=%d confirmation_failures=%d confirmation_work=%d confirmation_plain_mc_equiv=%.1f validation_attempts=%d validation_successes=%d validation_work=%d cem_confirmation_validation_plain_mc_equiv=%.1f confirmation_work_per_sample=%d validation_work_per_sample=%d total_work_limit=%d work_spent=%d",
+	log.Printf("rare-position-cem-summary: group=%d cem_candidates_total=%d cem_candidates_admitted=%d cem_candidates_not_admitted=%d cem_exploration_samples=%d cem_adaptive_samples=%d max_batches_single_candidate=%d adaptation_exact_hit_batches=%d confirmation_ready_candidates=%d confirmation_attempts=%d confirmation_hits=%d confirmation_successes=%d confirmation_single_hit_successes=%d confirmation_multi_hit_successes=%d confirmation_failures=%d confirmation_failed_resumed=%d confirmation_failed_exhausted=%d confirmation_work=%d confirmation_plain_mc_equiv=%.1f validation_attempts=%d validation_successes=%d validation_work=%d cem_confirmation_validation_plain_mc_equiv=%.1f confirmation_work_per_sample=%d validation_work_per_sample=%d total_work_limit=%d work_spent=%d",
 		group.Id, cemCandidatesTotal, cemCandidatesAdmitted, cemCandidatesNotAdmitted,
 		cemExplorationSamples, cemAdaptiveSamples, maxBatchesSingleCandidate,
-		confirmationAttempts, confirmationSuccesses, confirmationFailures,
+		adaptationExactHitBatches, confirmationReadyCandidates, confirmationAttempts,
+		confirmationHits, confirmationSuccesses, confirmationSingleHitSuccesses,
+		confirmationMultiHitSuccesses, confirmationFailures, confirmationFailedResumed,
+		confirmationFailedExhausted,
 		confirmationWork, float64(confirmationWork)/float64(plainWorkPerSample),
 		validationAttempts, validationSuccesses, validationWork,
 		float64(cemWork+confirmationWork+validationWork)/float64(plainWorkPerSample),

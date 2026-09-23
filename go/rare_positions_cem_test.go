@@ -193,21 +193,6 @@ func TestCEMEliteSelectionKeepsExactThresholdAndRankOrdering(t *testing.T) {
 	}
 }
 
-func TestCEMValidationEvidenceGate(t *testing.T) {
-	if ok, _ := cemValidationEvidence(CEMBatchStats{}, 0); ok {
-		t.Fatal("no target evidence must not validate")
-	}
-	if ok, _ := cemValidationEvidence(CEMBatchStats{}, CEMMinExactHitsForValidation); !ok {
-		t.Fatal("two exact hits should pass the validation gate")
-	}
-	if ok, _ := cemValidationEvidence(CEMBatchStats{ExactHits: 1, NearTargetRate: CEMNearTargetRateForValidation}, 1); !ok {
-		t.Fatal("one exact hit with neighborhood evidence should pass")
-	}
-	if ok, _ := cemValidationEvidence(CEMBatchStats{NearTargetRate: CEMStrongNearTargetRate}, 0); !ok {
-		t.Fatal("strong neighborhood evidence should pass")
-	}
-}
-
 func TestCEMValidationPriorityPrefersUsefulRate(t *testing.T) {
 	useful := &WeightedPilotResult{Samples: 1000, Hits: 10, ESSPerWork: 0.00001}
 	excessive := &WeightedPilotResult{Samples: 1000, Hits: 80, ESSPerWork: 0.00001}
@@ -525,12 +510,15 @@ func TestCEMConfirmationRequiresIndependentExactEventsAndHealthyWeights(t *testi
 	pathological := summarizeCEMConfirmation([]CEMSeason{
 		{Rank: 3, LogWeight: 10}, {Rank: 3, LogWeight: 0}, {Rank: 3, LogWeight: 0},
 	}, 3)
-	if ok, reason := cemConfirmationAccepted(pathological); ok || reason != "pathological_event_weights" || pathological.MaxEventWeightShare <= 0.95 {
+	if ok, reason := cemConfirmationAccepted(pathological); ok || reason != "pathological_event_weight_share" || pathological.MaxEventWeightShare <= 0.95 {
 		t.Fatalf("concentrated event weight should reject: stats=%+v reason=%q", pathological, reason)
 	}
+	if ok, reason := cemConfirmationAccepted(CEMConfirmationStats{Hits: 2, EventESS: 1, MaxEventWeightShare: 0.5}); ok || reason != "pathological_event_ess" {
+		t.Fatalf("multi-hit confirmation with pathological ESS should reject: reason=%q", reason)
+	}
 	oneHit := summarizeCEMConfirmation([]CEMSeason{{Rank: 3, LogWeight: 0}}, 3)
-	if ok, _ := cemConfirmationAccepted(oneHit); ok {
-		t.Fatal("one confirmation hit must not validate")
+	if ok, reason := cemConfirmationAccepted(oneHit); !ok || reason != "single_independent_exact_event" {
+		t.Fatalf("one hit should confirm despite event ESS/share of one: stats=%+v reason=%q", oneHit, reason)
 	}
 }
 
@@ -591,22 +579,94 @@ func TestCEMStallRequiresTwoConsecutiveNonImprovingBatches(t *testing.T) {
 	}
 }
 
-func TestCEMValidationUsesBestQualifyingSnapshot(t *testing.T) {
+func TestCEMValidationUsesConfirmedFrozenSnapshot(t *testing.T) {
 	state := &CEMCandidateState{Candidate: &FrontierCandidate{TeamID: 1, Position: 4},
-		MaxExactHits: 2, HasQualifying: true,
-		BestQualifyingStats: CEMBatchStats{ExactHits: 2, NearTargetRate: 0.07},
-		BestQualifyingProposal: CEMProposal{Iteration: 4, TeamLogMultipliers: map[int]float64{1: 0.4},
+		MaxExactHits: 1, ConfirmationAccepted: true,
+		ConfirmationBatchStats: CEMBatchStats{ExactHits: 1, NearTargetRate: 0.07},
+		ConfirmationProposal: CEMProposal{Iteration: 4, TeamLogMultipliers: map[int]float64{1: 0.4},
 			Means: []GameProposalMeans{{Home: 1.5, Away: 1}}}}
-	if ok, _ := cemValidationEvidence(state.BestQualifyingStats, state.MaxExactHits); !ok {
-		t.Fatal("saved best qualifying proposal no longer satisfies the unchanged evidence gate")
+	if !state.ConfirmationAccepted {
+		t.Fatal("independently confirmed proposal should be eligible for validation")
 	}
-	if state.BestQualifyingProposal.Iteration != 4 || state.BestQualifyingProposal.Means[0].Home != 1.5 {
-		t.Fatal("validation snapshot lost its best proposal state")
+	if state.ConfirmationProposal.Iteration != 4 || state.ConfirmationProposal.Means[0].Home != 1.5 {
+		t.Fatal("validation snapshot lost its frozen proposal state")
 	}
 	state.Proposal = CEMProposal{Means: []GameProposalMeans{{Home: 9, Away: 1}}}
 	mixture := cemValidationMixture([]GameProposalMeans{{Home: 1, Away: 1}}, state)
 	if mixture[1].Means[0].Home != 1.5 {
-		t.Fatalf("validation mixture used current/regressed proposal instead of best snapshot: %+v", mixture)
+		t.Fatalf("validation mixture used current/regressed proposal instead of confirmed snapshot: %+v", mixture)
+	}
+}
+
+func TestCEMFirstAdaptationHitFreezesSampledProposalAndPausesScheduler(t *testing.T) {
+	state := &CEMCandidateState{Active: true}
+	sampled := CEMProposal{Iteration: 3, TeamLogMultipliers: map[int]float64{1: 0.2}, Means: []GameProposalMeans{{Home: 2, Away: 1}}}
+	updated := CEMProposal{Iteration: 4, TeamLogMultipliers: map[int]float64{1: 0.4}, Means: []GameProposalMeans{{Home: 3, Away: 1}}}
+	stats := CEMBatchStats{ExactHits: 1, ExactRate: 1.0 / 300, EliteESS: 23.88}
+	if !snapshotCEMConfirmationCandidate(state, sampled, stats, 4) {
+		t.Fatal("one exact adaptation hit should trigger confirmation immediately")
+	}
+	state.Proposal = updated
+	if state.ConfirmationProposal.Means[0].Home != 2 || state.ConfirmationSourceBatch != 4 {
+		t.Fatalf("confirmation snapshot drifted to updated Q: %+v", state.ConfirmationProposal)
+	}
+	if state.Active || state.StopReason != "confirmation_ready" {
+		t.Fatalf("exact hit did not immediately pause adaptation: active=%t reason=%q", state.Active, state.StopReason)
+	}
+	if selected := selectCEMCandidate([]*CEMCandidateState{state}, nil); selected != nil {
+		t.Fatal("confirmation-ready candidate was selected for more adaptation")
+	}
+	state.HasConfirmationCandidate = false
+	state.HasFailedConfirmationProposal = true
+	state.LastFailedConfirmationProposal = cloneCEMProposal(sampled)
+	if snapshotCEMConfirmationCandidate(state, sampled, stats, 5) {
+		t.Fatal("unchanged failed proposal must not be confirmed again")
+	}
+	if !snapshotCEMConfirmationCandidate(state, updated, stats, 6) {
+		t.Fatal("new sampled proposal with a new exact hit should be confirmable")
+	}
+	lowESSState := &CEMCandidateState{Active: true}
+	if !snapshotCEMConfirmationCandidate(lowESSState, sampled,
+		CEMBatchStats{ExactHits: 1, EliteESS: CEMMinEliteESSForUpdate - 1}, 7) {
+		t.Fatal("low elite ESS must not erase a sampled proposal that produced an exact event")
+	}
+}
+
+func TestCEMRoundConfirmsFirstExactBatchBeforeMoreAdaptation(t *testing.T) {
+	base, games, _, table, groups, order := cemTestFixture()
+	original := make([]GameProposalMeans, len(games)) // Zero-rate outcomes make the ranking reproducible.
+	for i := range original {
+		original[i] = GameProposalMeans{}
+	}
+	teamIDs := teamIDsFromGroups(groups)
+	proposal := newCEMProposal(original, games, teamIDs)
+	rank := simulateCEMBatchForTeams(base, games, original, proposal.Means, table, order,
+		groups, teamIDs, 1, 1, rand.New(rand.NewSource(991)))[0].Rank
+	positionStates := []*PositionSearchState{{Position: rank, Status: StatusFrontier}}
+	candidate := &FrontierCandidate{TeamID: 1, Position: rank, Direction: RareBetter, SearchState: positionStates[0]}
+	searches := map[int]*TeamRareSearch{1: {TeamID: 1, Positions: positionStates, NormalMeanRank: float64(rank)}}
+	group := &GroupType{Id: 19, Games: games, Team_groups: groups}
+	adaptCost := estimateSeasonWork(len(games), 1, len(groups))
+	validationCost := estimateSeasonWork(len(games), 2, len(groups))
+	cemBudget := int64(MaxCEMPlainEquivalentSamples) * adaptCost
+	explorationBudget := int64(float64(cemBudget) * CEMMaxExplorationFraction)
+	confirmationBudget := 1000 * adaptCost
+	validationBudget := 1000 * validationCost
+	totalLimit := int64(1_000_000) * adaptCost
+	remaining := totalLimit
+	result := runCEMRound([]*FrontierCandidate{candidate}, searches, group, base, table,
+		order, original, &cemBudget, &confirmationBudget, &validationBudget, &remaining,
+		&explorationBudget, adaptCost, adaptCost, validationCost, totalLimit,
+		rand.New(rand.NewSource(991)))
+	if result.AdaptationExactHitBatches < 1 || result.ConfirmationAttempts != 1 {
+		t.Fatalf("first exact adaptation event was not promptly confirmed: %+v", result)
+	}
+	if result.SchedulerBatches != 1 || result.Candidates[0].ConfirmationSourceBatch != 1 {
+		t.Fatalf("candidate adapted again before confirmation: batches=%d source=%d", result.SchedulerBatches, result.Candidates[0].ConfirmationSourceBatch)
+	}
+	if result.ValidationAttempts != 1 || result.ConfirmationSuccesses != 1 {
+		t.Fatalf("independent confirmation did not gate mixture validation: attempts=%d successes=%d validation=%d",
+			result.ConfirmationAttempts, result.ConfirmationSuccesses, result.ValidationAttempts)
 	}
 }
 
