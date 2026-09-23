@@ -760,12 +760,13 @@ func TestCEMExactHitSnapshotDoesNotStopAdaptiveSchedule(t *testing.T) {
 
 func TestCEMEvaluationUsesProductionMixtureAndComputesSecondMoment(t *testing.T) {
 	original := []GameProposalMeans{{Home: 1, Away: 2}}
-	snapshot := CEMProposalSnapshot{CandidateTeam: 1, CandidatePosition: 0,
+	snapshot := CEMProposalSnapshot{CandidateTeam: 1, CandidatePosition: 8,
 		SourceIteration: 6, Proposal: CEMProposal{Means: []GameProposalMeans{{Home: 3, Away: 4}}}}
 	mixture := cemEvaluationMixture(original, snapshot)
 	validateProposalMixture(mixture, len(original))
 	if len(mixture) != 2 || mixture[0].Weight != OriginalMixtureWeight ||
-		mixture[1].Weight != 1-OriginalMixtureWeight || mixture[1].Means[0].Home != 3 {
+		mixture[1].Weight != 1-OriginalMixtureWeight || mixture[1].Means[0].Home != 3 ||
+		mixture[0].TargetRank != -1 || mixture[1].TargetRank != 8 {
 		t.Fatalf("held-out evaluation mixture differs from production mixture: %+v", mixture)
 	}
 	pilot := WeightedPilotResult{Samples: 4, Hits: 2, SumY: 3, SumY2: 5,

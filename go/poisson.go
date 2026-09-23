@@ -484,8 +484,9 @@ type OddsType struct {
 func (group *GroupType) calculate_odds() map[string]interface{} {
 	start_func := time.Now()
 	seed, seedSource := rarePositionSeed()
-	scoutRNG := rand.New(rand.NewSource(seed))
-	log.Printf("rare-position-rng: group=%d seed=%d source=%s phase=scout", group.Id, seed, seedSource)
+	scoutSeed := deriveRarePositionSeed(seed, "pipeline-scout")
+	scoutRNG := rand.New(rand.NewSource(scoutSeed))
+	log.Printf("rare-position-rng: group=%d seed=%d stream_seed=%d source=%s phase=scout", group.Id, seed, scoutSeed, seedSource)
 	sort_order := build_sorted_array(strings.Split(strings.Join(strings.Fields(group.Phase.Sort), ""), ","))
 	uses_head := false
 	for _, v := range sort_order {

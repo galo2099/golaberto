@@ -1,11 +1,14 @@
 package main
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"math"
 	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -44,22 +47,46 @@ type rareBenchmarkRow struct {
 	ProductionPlainMCEq              float64 `json:"production_plain_mc_equivalent"`
 	SearchOverheadPlainMCEq          float64 `json:"search_overhead_plain_mc_equivalent"`
 	ProductionDesign                 string  `json:"production_design"`
+	SelectedTeam                     int     `json:"selected_team"`
+	SelectedPosition                 int     `json:"selected_position"`
 	SelectedSnapshotIteration        int     `json:"selected_snapshot_iteration"`
+	ScoutWork                        int64   `json:"scout_work"`
+	AdaptationWork                   int64   `json:"adaptation_work"`
+	EvaluationWork                   int64   `json:"evaluation_work"`
+	ProductionWork                   int64   `json:"production_work"`
+	TotalWork                        int64   `json:"total_work"`
+	TotalWorkLimit                   int64   `json:"total_work_limit"`
 	CandidatesAdmitted               int     `json:"candidates_admitted"`
 	CEMBatches                       int     `json:"cem_batches"`
 	AdaptationExactHitBatches        int     `json:"adaptation_exact_hit_batches"`
+	AdaptationNearTargetSnapshots    int     `json:"adaptation_near_target_snapshots"`
 	RetainedSnapshots                int     `json:"retained_snapshots"`
 	EligibleSnapshots                int     `json:"eligible_snapshots"`
 	EvaluatedSnapshots               int     `json:"evaluated_snapshots"`
 	EvaluationHits                   int     `json:"evaluation_hits"`
 	EvaluationESS                    float64 `json:"evaluation_ess"`
 	EvaluationESSPerWork             float64 `json:"evaluation_ess_per_work"`
+	EvaluationWorkSavedPlainMCEq     float64 `json:"evaluation_work_saved_plain_mc_equivalent"`
+	SelectedProductionHits           int     `json:"selected_production_hits"`
+	SelectedProductionESS            float64 `json:"selected_production_ess"`
+	SelectedProductionRelSE          float64 `json:"selected_production_rel_se"`
+	SelectedProductionMaxEventShare  float64 `json:"selected_production_max_event_weight_share"`
+	SelectedProductionMeanWeight     float64 `json:"selected_production_mean_weight"`
+	ExpectedPlainMCEventsProduction  float64 `json:"expected_plain_mc_events_at_production_work"`
+	ExpectedPlainMCEvents100k        float64 `json:"expected_plain_mc_events_at_100k_work"`
+	ISBreakEvenGainProduction        float64 `json:"is_ess_gain_vs_production_only_mc"`
+	ISBreakEvenGain100k              float64 `json:"is_ess_gain_vs_full_100k_mc"`
 	ExactHitCandidatesWithLater      int     `json:"exact_hit_candidates_with_later_adaptation"`
 	FirstHitSnapshotsEvaluated       int     `json:"first_hit_snapshots_evaluated"`
 	LaterSnapshotsEvaluated          int     `json:"later_snapshots_evaluated"`
 	LaterSnapshotBetterESSPerWork    int     `json:"later_snapshot_better_ess_per_work"`
 	FirstHitSnapshotBetterESSPerWork int     `json:"first_hit_snapshot_better_ess_per_work"`
 	LaterOnlySnapshotEvaluated       int     `json:"later_only_snapshot_evaluated"`
+	ISSelectedAfterExactHit          bool    `json:"is_selected_after_exact_hit"`
+	ISSelectedWithoutExactHit        bool    `json:"is_selected_without_exact_hit"`
+	ISSelectedNearTargetOnly         bool    `json:"is_selected_near_target_only"`
+	ISSelectedAfterEvaluationHit     bool    `json:"is_selected_after_evaluation_hit"`
+	WeakEvaluationEvidence           bool    `json:"weak_evaluation_evidence"`
 }
 
 type rareBenchmarkMethodSummary struct {
@@ -72,6 +99,42 @@ type rareBenchmarkMethodSummary struct {
 	WholeTableLoss        float64 `json:"whole_table_loss"`
 	MeanProductionSamples float64 `json:"mean_production_samples"`
 	MeanSearchOverhead    float64 `json:"mean_search_overhead_plain_mc_equivalent"`
+	RootNormalizedLoss    float64 `json:"root_normalized_squared_loss"`
+	MeanReportedSE        float64 `json:"mean_reported_se"`
+	EmpiricalSD           float64 `json:"empirical_sd"`
+}
+
+type rareBenchmarkCellSummary struct {
+	Team                   int     `json:"team"`
+	Position               int     `json:"position"`
+	ReferenceProbability   float64 `json:"reference_probability"`
+	PipelineMean           float64 `json:"pipeline_mean"`
+	PlainMCMean            float64 `json:"plain_mc_mean"`
+	PipelineBias           float64 `json:"pipeline_bias"`
+	PlainMCBias            float64 `json:"plain_mc_bias"`
+	PipelineRMSE           float64 `json:"pipeline_rmse"`
+	PlainMCRMSE            float64 `json:"plain_mc_rmse"`
+	RMSEratio              float64 `json:"rmse_ratio"`
+	PipelineMAE            float64 `json:"pipeline_mae"`
+	PlainMCMAE             float64 `json:"plain_mc_mae"`
+	PipelineRelativeRMSE   float64 `json:"pipeline_relative_rmse"`
+	PlainMCRelativeRMSE    float64 `json:"plain_mc_relative_rmse"`
+	PipelineZeroRate       float64 `json:"pipeline_zero_rate"`
+	PlainMCZeroRate        float64 `json:"plain_mc_zero_rate"`
+	PipelineMeanReportedSE float64 `json:"pipeline_mean_reported_se"`
+	PlainMCMeanReportedSE  float64 `json:"plain_mc_mean_reported_se"`
+	PipelineEmpiricalSD    float64 `json:"pipeline_empirical_sd"`
+	PlainMCEmpiricalSD     float64 `json:"plain_mc_empirical_sd"`
+}
+
+type rareBenchmarkProbabilityBucket struct {
+	Name                   string  `json:"name"`
+	Cells                  int     `json:"cells"`
+	PipelineRMSE           float64 `json:"pipeline_rmse"`
+	PlainMCRMSE            float64 `json:"plain_mc_rmse"`
+	RMSEratio              float64 `json:"rmse_ratio"`
+	PipelineNormalizedRMSE float64 `json:"pipeline_normalized_rmse"`
+	PlainMCNormalizedRMSE  float64 `json:"plain_mc_normalized_rmse"`
 }
 
 type rareBenchmarkReport struct {
@@ -83,6 +146,8 @@ type rareBenchmarkReport struct {
 	Targets                             []rareBenchmarkTarget                 `json:"targets"`
 	Rows                                []rareBenchmarkRow                    `json:"rows"`
 	Summary                             map[string]rareBenchmarkMethodSummary `json:"summary"`
+	CellSummaries                       []rareBenchmarkCellSummary            `json:"cell_summaries"`
+	ProbabilityBuckets                  []rareBenchmarkProbabilityBucket      `json:"probability_buckets"`
 	RMSEPipelineToBaseline              float64                               `json:"pipeline_to_baseline_rmse_ratio"`
 	RMSEDifferenceMean                  float64                               `json:"seed_level_rmse_difference_mean"`
 	RMSEDifferenceSE                    float64                               `json:"seed_level_rmse_difference_standard_error"`
@@ -104,6 +169,17 @@ type rareBenchmarkReport struct {
 	LaterSnapshotBetterESSPerWork       int                                   `json:"later_snapshot_better_ess_per_work"`
 	FirstHitSnapshotBetterESSPerWork    int                                   `json:"first_hit_snapshot_better_ess_per_work"`
 	LaterOnlySnapshotEvaluated          int                                   `json:"later_only_snapshot_evaluated"`
+	NearTargetOnlyISSelections          int                                   `json:"near_target_only_is_selections"`
+	ISSelectionsAfterExactAdaptation    int                                   `json:"is_selections_after_exact_adaptation"`
+	ISSelectionsWithoutExactAdaptation  int                                   `json:"is_selections_without_exact_adaptation"`
+	ISSelectionsAfterEvaluationHit      int                                   `json:"is_selections_after_evaluation_hit"`
+	WeakEvidenceISSelections            int                                   `json:"weak_evidence_is_selections"`
+	MeanEvaluationESSPerWork            float64                               `json:"mean_evaluation_ess_per_work"`
+	MeanEvaluationWorkSavedPlainMCEq    float64                               `json:"mean_evaluation_work_saved_plain_mc_equivalent"`
+	MeanProductionWeight                float64                               `json:"mean_production_weight"`
+	FlaggedMeanWeightRuns               int                                   `json:"flagged_mean_weight_runs"`
+	MeanISGainVs100kMC                  float64                               `json:"mean_is_ess_gain_vs_full_100k_mc"`
+	ConsoleSummary                      string                                `json:"console_summary"`
 }
 
 func TestRarePositionMatchedComputeBenchmark(t *testing.T) {
@@ -190,6 +266,9 @@ func TestRarePositionMatchedComputeBenchmark(t *testing.T) {
 			}
 		}
 		if diagnostics != nil {
+			if diagnostics.TotalWork < 0 || diagnostics.TotalWork > diagnostics.TotalWorkLimit {
+				t.Fatalf("seed %d pipeline work %d exceeds limit %d", seed, diagnostics.TotalWork, diagnostics.TotalWorkLimit)
+			}
 			if diagnostics.AdaptationExactHitBatches > 0 {
 				runsWithExact++
 			}
@@ -223,13 +302,29 @@ func TestRarePositionMatchedComputeBenchmark(t *testing.T) {
 				if got.SearchDiagnostics != nil {
 					searchOverheadEquivalent = got.SearchDiagnostics.SearchOverheadPlainMCEq
 				}
-				report.Rows = append(report.Rows, benchmarkRow(seed, "adaptive_pipeline", target, got.Probability,
+				if got.WorkSpent < 0 || got.WorkSpent > totalWorkLimit {
+					t.Fatalf("seed %d pipeline production work %d outside [0,%d]", seed, got.WorkSpent, totalWorkLimit)
+				}
+				row := benchmarkRow(seed, "adaptive_pipeline", target, got.Probability,
 					got.StdErr, relativeSEValue(got.RelativeSE), got.ESS, got.Hits, got.MeetsPrecisionGoal,
-					got.Samples, productionEquivalent, got.Design, searchOverheadEquivalent, got.SearchDiagnostics))
+					got.Samples, productionEquivalent, got.Design, searchOverheadEquivalent, got.SearchDiagnostics)
+				row.ExpectedPlainMCEventsProduction = target.Reference * productionEquivalent
+				row.ExpectedPlainMCEvents100k = target.Reference * float64(baselineSamples)
+				row.ISBreakEvenGainProduction = safeRatio(got.ESS, row.ExpectedPlainMCEventsProduction)
+				row.ISBreakEvenGain100k = safeRatio(got.ESS, row.ExpectedPlainMCEvents100k)
+				if got.SearchDiagnostics != nil {
+					row.SelectedProductionHits = got.SearchDiagnostics.SelectedProductionHits
+					row.SelectedProductionESS = got.SearchDiagnostics.SelectedProductionESS
+					row.SelectedProductionRelSE = got.SearchDiagnostics.SelectedProductionRelSE
+					row.SelectedProductionMaxEventShare = got.SearchDiagnostics.SelectedProductionMaxEventWeightShare
+					row.SelectedProductionMeanWeight = got.SearchDiagnostics.SelectedProductionMeanWeight
+				}
+				report.Rows = append(report.Rows, row)
 				seedErrors["adaptive_pipeline"] += square(got.Probability - target.Reference)
 			} else {
-				report.Rows = append(report.Rows, benchmarkRow(seed, "adaptive_pipeline", target,
-					0, 0, math.Inf(1), 0, 0, false, 0, 0, "", 0, nil))
+				row := benchmarkRow(seed, "adaptive_pipeline", target,
+					0, 0, math.Inf(1), 0, 0, false, 0, 0, "", 0, diagnostics)
+				report.Rows = append(report.Rows, row)
 				seedErrors["adaptive_pipeline"] += square(target.Reference)
 			}
 			odds := baselineOdds[target.Team]
@@ -242,10 +337,18 @@ func TestRarePositionMatchedComputeBenchmark(t *testing.T) {
 			if p > 0 {
 				relSE = se / p
 			}
-			report.Rows = append(report.Rows, benchmarkRow(seed, "plain_mc_100k", target, p, se,
+			baselineWork := int64(baselineSamples) * plainWorkPerSample
+			if baselineWork > totalWorkLimit {
+				t.Fatalf("seed %d baseline work %d exceeds matched work limit %d", seed, baselineWork, totalWorkLimit)
+			}
+			baselineRow := benchmarkRow(seed, "plain_mc_100k", target, p, se,
 				relSE, float64(baselineSamples)*p, int(math.Round(p*baselineSamples)),
 				estimateMeetsPrecisionGoal(float64(baselineSamples)*p, relSE), baselineSamples,
-				float64(baselineSamples), "plain_mc", 0, nil))
+				float64(baselineSamples), "plain_mc", 0, nil)
+			baselineRow.TotalWork, baselineRow.TotalWorkLimit = baselineWork, totalWorkLimit
+			baselineRow.ProductionWork = baselineWork
+			baselineRow.ExpectedPlainMCEventsProduction = target.Reference * float64(baselineSamples)
+			report.Rows = append(report.Rows, baselineRow)
 			seedErrors["plain_mc_100k"] += square(p - target.Reference)
 		}
 		seedLevelRMSEDifferences = append(seedLevelRMSEDifferences,
@@ -254,6 +357,10 @@ func TestRarePositionMatchedComputeBenchmark(t *testing.T) {
 	}
 	report.Summary["adaptive_pipeline"] = summarizeRareBenchmarkRows(report.Rows, "adaptive_pipeline", rareBenchmarkTargets)
 	report.Summary["plain_mc_100k"] = summarizeRareBenchmarkRows(report.Rows, "plain_mc_100k", rareBenchmarkTargets)
+	report.CellSummaries = summarizeRareBenchmarkCells(report.Rows, rareBenchmarkTargets)
+	report.ProbabilityBuckets = summarizeRareBenchmarkBuckets(report.CellSummaries)
+	populateRareBenchmarkEconomics(&report)
+	report.ConsoleSummary = formatRareBenchmarkConsoleSummary(report)
 	pipelineSummary, baselineSummary := report.Summary["adaptive_pipeline"], report.Summary["plain_mc_100k"]
 	if baselineSummary.RMSE > 0 {
 		report.RMSEPipelineToBaseline = pipelineSummary.RMSE / baselineSummary.RMSE
@@ -289,7 +396,14 @@ func TestRarePositionMatchedComputeBenchmark(t *testing.T) {
 	if err := os.WriteFile(outputPath, encoded, 0600); err != nil {
 		t.Fatal(err)
 	}
-	fmt.Printf("rare-position benchmark report: %s\n", outputPath)
+	if err := writeRareBenchmarkCSV(strings.TrimSuffix(outputPath, filepath.Ext(outputPath))+".csv", report.Rows); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(strings.TrimSuffix(outputPath, filepath.Ext(outputPath))+"-summary.txt", []byte(report.ConsoleSummary+"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	fmt.Printf("%s\nreport: %s\ncsv: %s\n", report.ConsoleSummary, outputPath,
+		strings.TrimSuffix(outputPath, filepath.Ext(outputPath))+".csv")
 }
 
 func cloneGroupForBenchmark(group GroupType) *GroupType {
@@ -320,12 +434,28 @@ func benchmarkRow(seed int64, method string, target rareBenchmarkTarget, estimat
 		ProductionSamples: samples, ProductionPlainMCEq: productionEquivalent,
 		SearchOverheadPlainMCEq: searchOverhead, ProductionDesign: design}
 	if diagnostics != nil {
+		row.SelectedTeam, row.SelectedPosition = diagnostics.SelectedTeam, diagnostics.SelectedPosition
 		row.SelectedSnapshotIteration = diagnostics.SelectedSnapshotIteration
+		row.ScoutWork, row.AdaptationWork = diagnostics.ScoutWork, diagnostics.AdaptationWork
+		row.EvaluationWork, row.ProductionWork = diagnostics.EvaluationWork, diagnostics.ProductionWork
+		row.TotalWork, row.TotalWorkLimit = diagnostics.TotalWork, diagnostics.TotalWorkLimit
 		row.CandidatesAdmitted, row.CEMBatches = diagnostics.CandidatesAdmitted, diagnostics.CEMBatches
 		row.AdaptationExactHitBatches = diagnostics.AdaptationExactHitBatches
+		row.AdaptationNearTargetSnapshots = diagnostics.NearTargetSnapshots
 		row.RetainedSnapshots, row.EligibleSnapshots = diagnostics.RetainedSnapshots, diagnostics.EligibleSnapshots
 		row.EvaluatedSnapshots, row.EvaluationHits = diagnostics.EvaluatedSnapshots, diagnostics.EvaluationHits
 		row.EvaluationESS, row.EvaluationESSPerWork = diagnostics.EvaluationESS, diagnostics.EvaluationESSPerWork
+		row.EvaluationWorkSavedPlainMCEq = diagnostics.EvaluationWorkSavedPlainMCEq
+		row.SelectedProductionHits = diagnostics.SelectedProductionHits
+		row.SelectedProductionESS = diagnostics.SelectedProductionESS
+		row.SelectedProductionRelSE = diagnostics.SelectedProductionRelSE
+		row.SelectedProductionMaxEventShare = diagnostics.SelectedProductionMaxEventWeightShare
+		row.SelectedProductionMeanWeight = diagnostics.SelectedProductionMeanWeight
+		row.ISSelectedAfterExactHit = diagnostics.ISSelectedAfterExactHit
+		row.ISSelectedWithoutExactHit = diagnostics.ISSelectedWithoutExactHit
+		row.ISSelectedNearTargetOnly = diagnostics.ISSelectedNearTargetOnly
+		row.ISSelectedAfterEvaluationHit = diagnostics.ISSelectedAfterEvaluatedExactHit
+		row.WeakEvaluationEvidence = diagnostics.WeakEvaluationEvidence
 		row.ExactHitCandidatesWithLater = diagnostics.ExactHitCandidatesWithLater
 		row.FirstHitSnapshotsEvaluated = diagnostics.FirstHitSnapshotEvaluated
 		row.LaterSnapshotsEvaluated = diagnostics.LaterSnapshotEvaluated
@@ -357,6 +487,7 @@ func summarizeRareBenchmarkRows(rows []rareBenchmarkRow, method string, targets 
 		}
 		summary.MeanProductionSamples += float64(row.ProductionSamples)
 		summary.MeanSearchOverhead += row.SearchOverheadPlainMCEq
+		summary.MeanReportedSE += row.StdErr
 		key := [2]int{row.Team, row.Position}
 		perCellSq[key] += errorValue * errorValue
 		perCellN[key]++
@@ -378,6 +509,8 @@ func summarizeRareBenchmarkRows(rows []rareBenchmarkRow, method string, targets 
 	summary.WholeTableLoss /= n
 	summary.MeanProductionSamples /= n
 	summary.MeanSearchOverhead /= n
+	summary.MeanReportedSE /= n
+	summary.RootNormalizedLoss = math.Sqrt(summary.WholeTableLoss)
 	for _, target := range targets {
 		key := [2]int{target.Team, target.Position}
 		if perCellN[key] > 0 && target.Reference > 0 {
@@ -385,6 +518,15 @@ func summarizeRareBenchmarkRows(rows []rareBenchmarkRow, method string, targets 
 		}
 	}
 	summary.MeanRelativeRMSE /= float64(len(targets))
+	if n > 1 {
+		var variance float64
+		for _, row := range rows {
+			if row.Method == method {
+				variance += square(row.Estimate - summary.MeanBias - row.ReferenceProbability)
+			}
+		}
+		summary.EmpiricalSD = math.Sqrt(variance / (n - 1))
+	}
 	return summary
 }
 
@@ -438,3 +580,216 @@ func seedLevelMetricDifferences(rows []rareBenchmarkRow) (maeDiff, lossDiff []fl
 }
 
 func square(value float64) float64 { return value * value }
+
+func safeRatio(numerator, denominator float64) float64 {
+	if denominator <= 0 || math.IsNaN(denominator) || math.IsInf(denominator, 0) {
+		return 0
+	}
+	return numerator / denominator
+}
+
+func summarizeRareBenchmarkCells(rows []rareBenchmarkRow, targets []rareBenchmarkTarget) []rareBenchmarkCellSummary {
+	results := make([]rareBenchmarkCellSummary, 0, len(targets))
+	for _, target := range targets {
+		cell := rareBenchmarkCellSummary{Team: target.Team, Position: target.Position,
+			ReferenceProbability: target.Reference}
+		for _, method := range []string{"adaptive_pipeline", "plain_mc_100k"} {
+			var estimates, errors, reportedSE []float64
+			zeros := 0
+			for _, row := range rows {
+				if row.Team != target.Team || row.Position != target.Position || row.Method != method {
+					continue
+				}
+				estimates = append(estimates, row.Estimate)
+				errors = append(errors, row.Estimate-target.Reference)
+				reportedSE = append(reportedSE, row.StdErr)
+				if row.ZeroEstimate {
+					zeros++
+				}
+			}
+			if len(estimates) == 0 {
+				continue
+			}
+			bias, mae, mse, seMean := 0.0, 0.0, 0.0, 0.0
+			for i, errValue := range errors {
+				bias += errValue
+				mae += math.Abs(errValue)
+				mse += square(errValue)
+				seMean += reportedSE[i]
+			}
+			bias /= float64(len(estimates))
+			mae /= float64(len(estimates))
+			rmse := math.Sqrt(mse / float64(len(estimates)))
+			meanEstimate := 0.0
+			for _, estimate := range estimates {
+				meanEstimate += estimate
+			}
+			meanEstimate /= float64(len(estimates))
+			empiricalSD := 0.0
+			if len(estimates) > 1 {
+				for _, estimate := range estimates {
+					empiricalSD += square(estimate - meanEstimate)
+				}
+				empiricalSD = math.Sqrt(empiricalSD / float64(len(estimates)-1))
+			}
+			if method == "adaptive_pipeline" {
+				cell.PipelineMean, cell.PipelineBias, cell.PipelineRMSE = meanEstimate, bias, rmse
+				cell.PipelineMAE, cell.PipelineZeroRate = mae, float64(zeros)/float64(len(estimates))
+				cell.PipelineMeanReportedSE = seMean / float64(len(estimates))
+				cell.PipelineEmpiricalSD = empiricalSD
+				cell.PipelineRelativeRMSE = safeRatio(rmse, target.Reference)
+			} else {
+				cell.PlainMCMean, cell.PlainMCBias, cell.PlainMCRMSE = meanEstimate, bias, rmse
+				cell.PlainMCMAE, cell.PlainMCZeroRate = mae, float64(zeros)/float64(len(estimates))
+				cell.PlainMCMeanReportedSE = seMean / float64(len(estimates))
+				cell.PlainMCEmpiricalSD = empiricalSD
+				cell.PlainMCRelativeRMSE = safeRatio(rmse, target.Reference)
+			}
+		}
+		cell.RMSEratio = safeRatio(cell.PipelineRMSE, cell.PlainMCRMSE)
+		results = append(results, cell)
+	}
+	return results
+}
+
+func summarizeRareBenchmarkBuckets(cells []rareBenchmarkCellSummary) []rareBenchmarkProbabilityBucket {
+	buckets := []rareBenchmarkProbabilityBucket{{Name: "below_1e-5"}, {Name: "1e-5_to_1e-4"}, {Name: "at_least_1e-4"}}
+	for _, cell := range cells {
+		index := 2
+		if cell.ReferenceProbability < 1e-5 {
+			index = 0
+		} else if cell.ReferenceProbability < 1e-4 {
+			index = 1
+		}
+		bucket := &buckets[index]
+		bucket.Cells++
+		bucket.PipelineRMSE += square(cell.PipelineRMSE)
+		bucket.PlainMCRMSE += square(cell.PlainMCRMSE)
+		bucket.PipelineNormalizedRMSE += square(cell.PipelineRelativeRMSE)
+		bucket.PlainMCNormalizedRMSE += square(cell.PlainMCRelativeRMSE)
+	}
+	for i := range buckets {
+		bucket := &buckets[i]
+		if bucket.Cells == 0 {
+			continue
+		}
+		bucket.PipelineRMSE = math.Sqrt(bucket.PipelineRMSE / float64(bucket.Cells))
+		bucket.PlainMCRMSE = math.Sqrt(bucket.PlainMCRMSE / float64(bucket.Cells))
+		bucket.RMSEratio = safeRatio(bucket.PipelineRMSE, bucket.PlainMCRMSE)
+		bucket.PipelineNormalizedRMSE = math.Sqrt(bucket.PipelineNormalizedRMSE / float64(bucket.Cells))
+		bucket.PlainMCNormalizedRMSE = math.Sqrt(bucket.PlainMCNormalizedRMSE / float64(bucket.Cells))
+	}
+	return buckets
+}
+
+func populateRareBenchmarkEconomics(report *rareBenchmarkReport) {
+	perSeed := make(map[int64]rareBenchmarkRow)
+	for _, row := range report.Rows {
+		if row.Method == "adaptive_pipeline" {
+			if _, exists := perSeed[row.Seed]; !exists {
+				perSeed[row.Seed] = row
+			}
+		}
+	}
+	if len(perSeed) == 0 {
+		return
+	}
+	var essPerWork, saved, meanWeight, gain float64
+	var weightCount int
+	for _, row := range perSeed {
+		if row.ISSelectedNearTargetOnly {
+			report.NearTargetOnlyISSelections++
+		}
+		if row.ISSelectedAfterExactHit {
+			report.ISSelectionsAfterExactAdaptation++
+		}
+		if row.ISSelectedWithoutExactHit {
+			report.ISSelectionsWithoutExactAdaptation++
+		}
+		if row.ISSelectedAfterEvaluationHit {
+			report.ISSelectionsAfterEvaluationHit++
+		}
+		if row.WeakEvaluationEvidence {
+			report.WeakEvidenceISSelections++
+		}
+		essPerWork += row.EvaluationESSPerWork
+		saved += row.EvaluationWorkSavedPlainMCEq
+		meanWeight += row.SelectedProductionMeanWeight
+		if row.ProductionDesign == "importance_sampling" {
+			weightCount++
+			gain += row.ISBreakEvenGain100k
+			if row.SelectedProductionMeanWeight > 20+1e-9 {
+				report.FlaggedMeanWeightRuns++
+			}
+		}
+	}
+	n := float64(len(perSeed))
+	report.MeanEvaluationESSPerWork, report.MeanEvaluationWorkSavedPlainMCEq = essPerWork/n, saved/n
+	if weightCount > 0 {
+		report.MeanProductionWeight = meanWeight / float64(weightCount)
+		report.MeanISGainVs100kMC = gain / float64(weightCount)
+	}
+}
+
+func formatRareBenchmarkConsoleSummary(report rareBenchmarkReport) string {
+	pipeline, baseline := report.Summary["adaptive_pipeline"], report.Summary["plain_mc_100k"]
+	return fmt.Sprintf("rare-position benchmark: group=%d seeds=%d pipeline_rmse=%.6g plain_mc_100k_rmse=%.6g rmse_ratio=%.3f pipeline_mae=%.6g plain_mc_mae=%.6g pipeline_bias=%.6g plain_mc_bias=%.6g pipeline_zero_rate=%.1f%% plain_mc_zero_rate=%.1f%% precision_goal=%.1f%% IS_selection=%.1f%% mean_search_overhead_plain_mc_eq=%.1f mean_IS_ESS_gain_vs_100k=%.3f",
+		report.GroupID, len(report.Seeds), pipeline.RMSE, baseline.RMSE, report.RMSEPipelineToBaseline,
+		pipeline.MeanAbsoluteError, baseline.MeanAbsoluteError, pipeline.MeanBias, baseline.MeanBias,
+		pipeline.ZeroEstimateRate*100, baseline.ZeroEstimateRate*100, pipeline.PrecisionGoalRate*100,
+		report.PipelineSelectionRate*100, pipeline.MeanSearchOverhead, report.MeanISGainVs100kMC)
+}
+
+func writeRareBenchmarkCSV(path string, rows []rareBenchmarkRow) error {
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	w := csv.NewWriter(file)
+	defer w.Flush()
+	if err := w.Write([]string{"seed", "method", "team", "position", "reference_probability", "estimate", "std_error", "relative_se", "ess", "hits", "samples", "production_plain_mc_equivalent", "search_overhead_plain_mc_equivalent", "design", "selected_team", "selected_position", "selected_snapshot_iteration", "scout_work", "adaptation_work", "evaluation_work", "production_work", "total_work", "total_work_limit", "evaluation_ess_per_work", "selected_production_mean_weight", "is_ess_gain_vs_100k_mc"}); err != nil {
+		return err
+	}
+	for _, r := range rows {
+		values := []string{strconv.FormatInt(r.Seed, 10), r.Method, strconv.Itoa(r.Team), strconv.Itoa(r.Position),
+			formatBenchmarkFloat(r.ReferenceProbability), formatBenchmarkFloat(r.Estimate), formatBenchmarkFloat(r.StdErr),
+			formatBenchmarkFloat(r.RelativeSE), formatBenchmarkFloat(r.ESS), strconv.Itoa(r.Hits), strconv.Itoa(r.ProductionSamples),
+			formatBenchmarkFloat(r.ProductionPlainMCEq), formatBenchmarkFloat(r.SearchOverheadPlainMCEq), r.ProductionDesign,
+			strconv.Itoa(r.SelectedTeam), strconv.Itoa(r.SelectedPosition), strconv.Itoa(r.SelectedSnapshotIteration),
+			strconv.FormatInt(r.ScoutWork, 10), strconv.FormatInt(r.AdaptationWork, 10), strconv.FormatInt(r.EvaluationWork, 10),
+			strconv.FormatInt(r.ProductionWork, 10), strconv.FormatInt(r.TotalWork, 10), strconv.FormatInt(r.TotalWorkLimit, 10),
+			formatBenchmarkFloat(r.EvaluationESSPerWork), formatBenchmarkFloat(r.SelectedProductionMeanWeight),
+			formatBenchmarkFloat(r.ISBreakEvenGain100k)}
+		if err := w.Write(values); err != nil {
+			return err
+		}
+	}
+	w.Flush()
+	return w.Error()
+}
+
+func formatBenchmarkFloat(value float64) string {
+	if math.IsInf(value, 1) {
+		return "Inf"
+	}
+	return strconv.FormatFloat(value, 'g', -1, 64)
+}
+
+func TestRareBenchmarkCellAndBucketSummaries(t *testing.T) {
+	target := rareBenchmarkTarget{Team: 9, Position: 2, Reference: 1e-4}
+	rows := []rareBenchmarkRow{
+		{Seed: 1, Method: "adaptive_pipeline", Team: 9, Position: 2, ReferenceProbability: 1e-4, Estimate: 0, ZeroEstimate: true, StdErr: 2e-5},
+		{Seed: 2, Method: "adaptive_pipeline", Team: 9, Position: 2, ReferenceProbability: 1e-4, Estimate: 2e-4, StdErr: 3e-5},
+		{Seed: 1, Method: "plain_mc_100k", Team: 9, Position: 2, ReferenceProbability: 1e-4, Estimate: 1e-4, StdErr: 1e-5},
+		{Seed: 2, Method: "plain_mc_100k", Team: 9, Position: 2, ReferenceProbability: 1e-4, Estimate: 1e-4, StdErr: 1e-5},
+	}
+	cells := summarizeRareBenchmarkCells(rows, []rareBenchmarkTarget{target})
+	if len(cells) != 1 || cells[0].PipelineRMSE <= 0 || cells[0].PlainMCRMSE != 0 || cells[0].PipelineZeroRate != 0.5 {
+		t.Fatalf("unexpected per-cell summary: %+v", cells)
+	}
+	buckets := summarizeRareBenchmarkBuckets(cells)
+	if len(buckets) != 3 || buckets[2].Cells != 1 || buckets[2].RMSEratio != 0 {
+		t.Fatalf("unexpected probability-bucket summary: %+v", buckets)
+	}
+}

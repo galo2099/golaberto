@@ -649,20 +649,20 @@ func logCEMTeamChanges(groupID, targetTeam, position, iteration int, teamIDs []i
 	}
 }
 
-func buildCEMMixture(original, learned []GameProposalMeans) []ProposalComponent {
+func buildCEMMixture(original, learned []GameProposalMeans, targetRank int) []ProposalComponent {
 	return []ProposalComponent{
 		{Name: "original", Weight: OriginalMixtureWeight, Means: original, TargetRank: -1},
-		{Name: "cem_team_level", Weight: 1 - OriginalMixtureWeight, Means: learned},
+		{Name: "cem_team_level", Weight: 1 - OriginalMixtureWeight, Means: learned, TargetRank: targetRank},
 	}
 }
 
 func cemEvaluationMixture(original []GameProposalMeans, snapshot CEMProposalSnapshot) []ProposalComponent {
-	return buildCEMMixture(original, snapshot.Proposal.Means)
+	return buildCEMMixture(original, snapshot.Proposal.Means, snapshot.CandidatePosition)
 }
 
 // Legacy-only helpers; the active production path uses held-out evaluations.
 func cemValidationMixture(original []GameProposalMeans, state *CEMCandidateState) []ProposalComponent {
-	return buildCEMMixture(original, state.ConfirmationProposal.Means)
+	return buildCEMMixture(original, state.ConfirmationProposal.Means, state.Candidate.Position)
 }
 
 func cemValidationPriority(pilot *WeightedPilotResult) float64 {

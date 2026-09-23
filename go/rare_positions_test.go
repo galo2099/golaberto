@@ -31,10 +31,21 @@ func TestRarePositionConfiguredSeedIsDeterministic(t *testing.T) {
 	if reflect.DeepEqual(first, other) {
 		t.Fatalf("different configured seeds produced identical draws: %v", first)
 	}
-	pipelineStream := deriveRarePositionSeed(seed, "rare-search")
+	scoutStream := deriveRarePositionSeed(seed, "pipeline-scout")
+	searchStream := deriveRarePositionSeed(seed, "pipeline-search")
+	evaluationStream := deriveRarePositionSeed(seed, "pipeline-evaluation")
+	productionStream := deriveRarePositionSeed(seed, "pipeline-production")
 	baselineStream := deriveRarePositionSeed(seed, "plain-mc-baseline")
-	if pipelineStream == baselineStream || pipelineStream != deriveRarePositionSeed(seed, "rare-search") {
-		t.Fatalf("seed derivation must be repeatable and independent: pipeline=%d baseline=%d", pipelineStream, baselineStream)
+	streams := []int64{scoutStream, searchStream, evaluationStream, productionStream, baselineStream}
+	for i, stream := range streams {
+		if stream != deriveRarePositionSeed(seed, []string{"pipeline-scout", "pipeline-search", "pipeline-evaluation", "pipeline-production", "plain-mc-baseline"}[i]) {
+			t.Fatalf("stream derivation is not deterministic for stream index %d", i)
+		}
+		for j := 0; j < i; j++ {
+			if stream == streams[j] {
+				t.Fatalf("independent RNG streams collided at indexes %d and %d", j, i)
+			}
+		}
 	}
 }
 
