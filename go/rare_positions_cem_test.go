@@ -100,6 +100,87 @@ func TestCEMInterpolationKeepsPoissonMeansFiniteAndNonNegative(t *testing.T) {
 	}
 }
 
+func TestCEMEliteESSUsesImportanceWeights(t *testing.T) {
+	seasons := []CEMSeason{{LogWeight: 0}, {LogWeight: 0}, {LogWeight: 0}, {LogWeight: 0}}
+	_, ess := cemEliteWeights(seasons, []int{0, 1, 2, 3})
+	if math.Abs(ess-4) > 1e-12 {
+		t.Fatalf("uniform elite weights ESS=%g, want 4", ess)
+	}
+	seasons[0].LogWeight = math.Log(100)
+	_, ess = cemEliteWeights(seasons, []int{0, 1, 2, 3})
+	if ess >= 1.2 {
+		t.Fatalf("one dominant elite weight should have ESS near 1, got %g", ess)
+	}
+}
+
+func TestCEMSparsifiesGameUpdatesBeforeTrustRegion(t *testing.T) {
+	const gameCount = 100
+	games := make([]*GameType, gameCount)
+	original := make([]GameProposalMeans, gameCount)
+	seasons := make([]CEMSeason, 4)
+	for i := range games {
+		games[i] = &GameType{Id: i + 1, HomeId: i + 1, AwayId: i + 1001}
+		original[i] = GameProposalMeans{Home: 1, Away: 1}
+	}
+	for i := range seasons {
+		seasons[i].Scores = make([]CEMScore, gameCount)
+		seasons[i].LogWeight = 0
+		for game := range seasons[i].Scores {
+			seasons[i].Scores[game] = CEMScore{Home: 1, Away: 1}
+		}
+		for game := 0; game < 3; game++ {
+			seasons[i].Scores[game] = CEMScore{Home: 5, Away: 1}
+		}
+	}
+	updated := cemUpdate(original, original, games, seasons, []int{0, 1, 2, 3})
+	if len(updated.SelectedGames) != 3 || updated.ChangedGames != 3 {
+		t.Fatalf("sparse CEM selected %d changed %d games, want 3: %+v", len(updated.SelectedGames), updated.ChangedGames, updated)
+	}
+	for i, mean := range updated.Means {
+		changed := mean != original[i]
+		if i < 3 && !changed {
+			t.Fatalf("signal game %d was not updated: %+v", i, updated)
+		}
+		if i >= 3 && changed {
+			t.Fatalf("noise game %d changed: got=%+v original=%+v", i, mean, original[i])
+		}
+	}
+}
+
+func TestCEMTopKSelectionAndHysteresisAreDeterministic(t *testing.T) {
+	signals := make([]CEMGameSignal, 20)
+	for i := range signals {
+		signals[i] = CEMGameSignal{GameIndex: i, GameScore: float64(i + 1)}
+	}
+	selected := selectCEMGames(signals, []int{0})
+	if len(selected) != CEMMaxChangedGames {
+		t.Fatalf("selected %d games, want %d", len(selected), CEMMaxChangedGames)
+	}
+	for _, signal := range selected {
+		if !signal.Selected {
+			t.Fatal("selected game was not marked selected")
+		}
+	}
+	if selected[0].GameIndex != 19 {
+		t.Fatalf("top game selection is not deterministic: first=%d", selected[0].GameIndex)
+	}
+}
+
+func TestCEMValidationEvidenceGate(t *testing.T) {
+	if ok, _ := cemValidationEvidence(CEMBatchStats{}, 0); ok {
+		t.Fatal("zero-progress CEM must not validate")
+	}
+	if ok, reason := cemValidationEvidence(CEMBatchStats{}, CEMMinExactHitsForValidation); !ok || reason == "" {
+		t.Fatal("two exact adaptation hits should pass validation gate")
+	}
+	if ok, _ := cemValidationEvidence(CEMBatchStats{ExactHits: 1, NearTargetRate: CEMNearTargetRateForValidation}, 1); !ok {
+		t.Fatal("one exact hit with neighborhood evidence should pass validation gate")
+	}
+	if ok, _ := cemValidationEvidence(CEMBatchStats{NearTargetRate: CEMStrongNearTargetRate}, 0); !ok {
+		t.Fatal("strong near-target concentration should pass validation gate")
+	}
+}
+
 func TestCEMRelaxedAndExactEliteSelection(t *testing.T) {
 	seasons := make([]CEMSeason, 20)
 	for i := range seasons {

@@ -884,11 +884,11 @@ func TestFallbackBudgetAndCountCombination(t *testing.T) {
 		odds[i].team = &TeamOdds{Pos: make([]float64, 3)}
 	}
 	newCells, broken := combineNormalPositionCounts(initial, fallback, ScoutIterations, 5000, odds, table)
-	if newCells != 1 || broken != 1 || initial[1][1] != 1 || initial[1][2] != 7999 {
+	if newCells != 1 || broken != 1 || initial[1][1] != 1 || initial[1][2] != ScoutIterations+4999 {
 		t.Fatalf("fallback counts not combined: %v new=%d broken=%d", initial[1], newCells, broken)
 	}
 	normal := odds[table.Query(1)].team.Pos
-	if normal[2] >= 1 || math.Abs(normal[1]-1.0/8000) > 1e-12 {
+	if normal[2] >= 1 || math.Abs(normal[1]-1.0/float64(ScoutIterations+5000)) > 1e-12 {
 		t.Fatalf("combined normal odds wrong: %v", normal)
 	}
 	merged := mergeRarePositionEstimates(normal, initial[1], map[int]RarePositionEstimate{

@@ -9,26 +9,48 @@ import (
 )
 
 const (
-	CEMBatchSamples              = 300
-	CEMMaxIterations             = 4
-	CEMEliteFraction             = 0.15
-	CEMSmoothing                 = 0.5
-	CEMMaxKL                     = 3.0
-	CEMExactEventThreshold       = 5
-	CEMValidationSamples         = 500
-	MaxCEMWorkFraction           = 0.10
-	MaxCEMValidationWorkFraction = 0.05
-	MaxCEMPlainEquivalentSamples = 5000
-	CEMMinBatchSamples           = 100
-	CEMMinRelativeProgress       = 0.02
-	CEMMaxStalledIterations      = 2
+	CEMBatchSamples                = 300
+	CEMMaxIterations               = 4
+	CEMEliteFraction               = 0.15
+	CEMSmoothing                   = 0.5
+	CEMMaxKL                       = 3.0
+	CEMExactEventThreshold         = 5
+	CEMValidationSamples           = 500
+	MaxCEMWorkFraction             = 0.10
+	MaxCEMValidationWorkFraction   = 0.02
+	MaxCEMPlainEquivalentSamples   = 5000
+	CEMMaxChangedGames             = 12
+	CEMMinExactHitsForValidation   = 2
+	CEMNearTargetRateForValidation = 0.05
+	CEMStrongNearTargetRate        = 0.10
+	CEMRetentionBonus              = 0.25
+	CEMMinBatchSamples             = 100
+	CEMMinRelativeProgress         = 0.02
+	CEMMaxStalledIterations        = 2
 )
 
 type CEMProposal struct {
-	Means        []GameProposalMeans
-	Iteration    int
-	KL           float64
-	ChangedGames int
+	Means         []GameProposalMeans
+	Iteration     int
+	KL            float64
+	ChangedGames  int
+	SelectedGames []int
+	Signals       []CEMGameSignal
+	EliteESS      float64
+}
+
+type CEMGameSignal struct {
+	GameIndex     int
+	HomeEliteMean float64
+	AwayEliteMean float64
+	HomeESS       float64
+	AwayESS       float64
+	HomeSE        float64
+	AwaySE        float64
+	HomeZ         float64
+	AwayZ         float64
+	GameScore     float64
+	Selected      bool
 }
 
 type CEMScore struct{ Home, Away int }
@@ -46,17 +68,25 @@ type CEMBatchStats struct {
 	BestRank          int
 	EliteMeanDistance float64
 	ExactEventESS     float64
+	ExactRate         float64
+	NearTargetHits    int
+	NearTargetRate    float64
+	EliteESS          float64
 	UsedExactElites   bool
 }
 
 type CEMRoundResult struct {
-	Eligible         []*FrontierCandidate
-	CEMWork          int64
-	ValidationWork   int64
-	TargetsAttempted int
-	Iterations       int
-	TargetsExact     int
-	TargetsValidated int
+	Eligible          []*FrontierCandidate
+	CEMWork           int64
+	ValidationWork    int64
+	TargetsAttempted  int
+	Iterations        int
+	TargetsAnyExact   int
+	TargetsExactElite int
+	TargetsValidated  int
+	SelectedGames     int
+	MaxSelectedGames  int
+	ValidatedESS      float64
 }
 
 func cemPoissonKL(mu, original float64) float64 {
@@ -161,17 +191,18 @@ func cemTrustRegion(original, proposed []GameProposalMeans, games []*GameType, m
 	return result, cemTotalKL(result, original, games)
 }
 
-func cemRankDistance(rank, target int, direction RareDirection) int {
-	if direction == RareBetter {
-		if rank <= target {
-			return 0
-		}
-		return rank - target
-	}
-	if rank >= target {
+func cemRankDistance(rank, target int) int {
+	return absInt(rank - target)
+}
+
+func cemDirectionalPenalty(rank, target int, direction RareDirection) int {
+	if direction == RareBetter && rank <= target {
 		return 0
 	}
-	return target - rank
+	if direction == RareWorse && rank >= target {
+		return 0
+	}
+	return 1
 }
 
 func cemEliteIndices(seasons []CEMSeason, target int, direction RareDirection) ([]int, bool) {
@@ -190,12 +221,13 @@ func cemEliteIndices(seasons []CEMSeason, target int, direction RareDirection) (
 	}
 	sort.Slice(indexes, func(i, j int) bool {
 		a, b := seasons[indexes[i]].Rank, seasons[indexes[j]].Rank
-		da, db := cemRankDistance(a, target, direction), cemRankDistance(b, target, direction)
+		da, db := cemRankDistance(a, target), cemRankDistance(b, target)
 		if da != db {
 			return da < db
 		}
-		if absInt(a-target) != absInt(b-target) {
-			return absInt(a-target) < absInt(b-target)
+		pa, pb := cemDirectionalPenalty(a, target, direction), cemDirectionalPenalty(b, target, direction)
+		if pa != pb {
+			return pa < pb
 		}
 		return indexes[i] < indexes[j]
 	})
@@ -234,11 +266,9 @@ func cemEventESS(seasons []CEMSeason, target int) float64 {
 	return sum * sum / sum2
 }
 
-func cemUpdate(current, original []GameProposalMeans, games []*GameType,
-	seasons []CEMSeason, elite []int) CEMProposal {
-	proposed := append([]GameProposalMeans(nil), current...)
+func cemEliteWeights(seasons []CEMSeason, elite []int) ([]float64, float64) {
 	if len(elite) == 0 {
-		return CEMProposal{Means: proposed, KL: cemTotalKL(proposed, original, games)}
+		return nil, 0
 	}
 	maxLog := math.Inf(-1)
 	for _, index := range elite {
@@ -247,11 +277,26 @@ func cemUpdate(current, original []GameProposalMeans, games []*GameType,
 		}
 	}
 	weights := make([]float64, len(elite))
+	sum, sum2 := 0.0, 0.0
 	for j, index := range elite {
 		weights[j] = math.Exp(seasons[index].LogWeight - maxLog)
+		sum += weights[j]
+		sum2 += weights[j] * weights[j]
+	}
+	if sum2 == 0 {
+		return weights, 0
+	}
+	return weights, sum * sum / sum2
+}
+
+func cemGameSignals(current []GameProposalMeans, games []*GameType,
+	seasons []CEMSeason, elite []int, weights []float64, eliteESS float64) []CEMGameSignal {
+	signals := make([]CEMGameSignal, 0, len(games))
+	if len(elite) == 0 || eliteESS <= 0 {
+		return signals
 	}
 	for i, game := range games {
-		if game.Played {
+		if game.Played || current[i].Home <= 0 && current[i].Away <= 0 {
 			continue
 		}
 		homeScores, awayScores := make([]float64, len(elite)), make([]float64, len(elite))
@@ -259,24 +304,97 @@ func cemUpdate(current, original []GameProposalMeans, games []*GameType,
 			homeScores[j] = float64(seasons[index].Scores[i].Home)
 			awayScores[j] = float64(seasons[index].Scores[i].Away)
 		}
-		if original[i].Home > 0 {
-			proposed[i].Home = cemSmoothMean(current[i].Home, cemWeightedMean(homeScores, weights))
+		homeMean := cemWeightedMean(homeScores, weights)
+		awayMean := cemWeightedMean(awayScores, weights)
+		homeSE, awaySE := 0.0, 0.0
+		homeZ, awayZ := 0.0, 0.0
+		if current[i].Home > 0 {
+			homeSE = math.Sqrt(math.Max(current[i].Home, 1e-9) / math.Max(eliteESS, 1e-9))
+			homeZ = (homeMean - current[i].Home) / homeSE
 		}
-		if original[i].Away > 0 {
-			proposed[i].Away = cemSmoothMean(current[i].Away, cemWeightedMean(awayScores, weights))
+		if current[i].Away > 0 {
+			awaySE = math.Sqrt(math.Max(current[i].Away, 1e-9) / math.Max(eliteESS, 1e-9))
+			awayZ = (awayMean - current[i].Away) / awaySE
+		}
+		signals = append(signals, CEMGameSignal{
+			GameIndex: i, HomeEliteMean: homeMean, AwayEliteMean: awayMean,
+			HomeESS: eliteESS, AwayESS: eliteESS, HomeSE: homeSE, AwaySE: awaySE,
+			HomeZ: homeZ, AwayZ: awayZ,
+			GameScore: math.Hypot(homeZ, awayZ),
+		})
+	}
+	return signals
+}
+
+func selectCEMGames(signals []CEMGameSignal, previous []int) []CEMGameSignal {
+	previousSet := make(map[int]bool, len(previous))
+	for _, index := range previous {
+		previousSet[index] = true
+	}
+	candidates := make([]CEMGameSignal, 0, len(signals))
+	for _, signal := range signals {
+		if signal.GameScore > 1e-12 || previousSet[signal.GameIndex] {
+			signal.Selected = false
+			candidates = append(candidates, signal)
+		}
+	}
+	sort.Slice(candidates, func(i, j int) bool {
+		a, b := candidates[i], candidates[j]
+		aScore := a.GameScore
+		bScore := b.GameScore
+		if previousSet[a.GameIndex] {
+			aScore += CEMRetentionBonus
+		}
+		if previousSet[b.GameIndex] {
+			bScore += CEMRetentionBonus
+		}
+		if aScore != bScore {
+			return aScore > bScore
+		}
+		return a.GameIndex < b.GameIndex
+	})
+	if len(candidates) > CEMMaxChangedGames {
+		candidates = candidates[:CEMMaxChangedGames]
+	}
+	for i := range candidates {
+		candidates[i].Selected = true
+	}
+	return candidates
+}
+
+func cemUpdateSparse(current, original []GameProposalMeans, games []*GameType,
+	seasons []CEMSeason, elite []int, previous []int) CEMProposal {
+	proposed := append([]GameProposalMeans(nil), original...)
+	weights, eliteESS := cemEliteWeights(seasons, elite)
+	if len(elite) == 0 || eliteESS <= 0 {
+		return CEMProposal{Means: proposed, KL: cemTotalKL(proposed, original, games)}
+	}
+	signals := cemGameSignals(current, games, seasons, elite, weights, eliteESS)
+	selected := selectCEMGames(signals, previous)
+	selectedIndexes := make([]int, len(selected))
+	for j, signal := range selected {
+		selectedIndexes[j] = signal.GameIndex
+		if original[signal.GameIndex].Home > 0 {
+			proposed[signal.GameIndex].Home = cemSmoothMean(current[signal.GameIndex].Home, signal.HomeEliteMean)
+		}
+		if original[signal.GameIndex].Away > 0 {
+			proposed[signal.GameIndex].Away = cemSmoothMean(current[signal.GameIndex].Away, signal.AwayEliteMean)
 		}
 	}
 	trusted, kl := cemTrustRegion(original, proposed, games, CEMMaxKL)
 	changed := 0
-	for i, game := range games {
-		if game.Played {
-			continue
-		}
-		if cemGameChange(trusted[i], original[i]) > 0.05 {
+	for _, signal := range selected {
+		if cemGameChange(trusted[signal.GameIndex], original[signal.GameIndex]) > 0.05 {
 			changed++
 		}
 	}
-	return CEMProposal{Means: trusted, KL: kl, ChangedGames: changed}
+	return CEMProposal{Means: trusted, KL: kl, ChangedGames: changed,
+		SelectedGames: selectedIndexes, Signals: selected, EliteESS: eliteESS}
+}
+
+func cemUpdate(current, original []GameProposalMeans, games []*GameType,
+	seasons []CEMSeason, elite []int) CEMProposal {
+	return cemUpdateSparse(current, original, games, seasons, elite, nil)
 }
 
 func cemGameChange(proposal, original GameProposalMeans) float64 {
@@ -342,12 +460,17 @@ func cemBatchSummary(seasons []CEMSeason, elite []int, target int, exact bool) C
 		if season.Rank == target {
 			stats.ExactHits++
 		}
+		if absInt(season.Rank-target) <= 1 {
+			stats.NearTargetHits++
+		}
 		if distance := absInt(season.Rank - target); distance < bestDistance {
 			bestDistance, stats.BestRank = distance, season.Rank
 		}
 	}
 	if len(seasons) > 0 {
 		stats.MeanRank /= float64(len(seasons))
+		stats.ExactRate = float64(stats.ExactHits) / float64(len(seasons))
+		stats.NearTargetRate = float64(stats.NearTargetHits) / float64(len(seasons))
 	}
 	for _, index := range elite {
 		stats.EliteMeanDistance += float64(absInt(seasons[index].Rank - target))
@@ -356,52 +479,31 @@ func cemBatchSummary(seasons []CEMSeason, elite []int, target int, exact bool) C
 		stats.EliteMeanDistance /= float64(len(elite))
 	}
 	stats.ExactEventESS = cemEventESS(seasons, target)
+	_, stats.EliteESS = cemEliteWeights(seasons, elite)
 	return stats
 }
 
-func logCEMGameChanges(groupID, teamID, position, iteration int, games []*GameType,
-	original, proposal []GameProposalMeans) float64 {
-	type change struct {
-		index         int
-		side          string
-		delta         float64
-		before, after float64
-	}
-	var changes []change
+func logCEMGameSignals(groupID, teamID, position, iteration int, games []*GameType,
+	original []GameProposalMeans, proposal CEMProposal) float64 {
 	maxAbs := 0.0
-	for i, game := range games {
-		if game.Played {
+	for _, signal := range proposal.Signals {
+		if !signal.Selected {
 			continue
 		}
-		for _, part := range []struct {
-			side          string
-			before, after float64
-		}{
-			{"home", original[i].Home, proposal[i].Home}, {"away", original[i].Away, proposal[i].Away},
-		} {
-			if part.before <= 0 || part.after <= 0 {
-				continue
-			}
-			delta := math.Log(part.after / part.before)
-			if math.Abs(delta) > maxAbs {
-				maxAbs = math.Abs(delta)
-			}
-			changes = append(changes, change{i, part.side, delta, part.before, part.after})
+		game := games[signal.GameIndex]
+		if math.Abs(signal.HomeZ) > maxAbs {
+			maxAbs = math.Abs(signal.HomeZ)
 		}
-	}
-	sort.Slice(changes, func(i, j int) bool {
-		if math.Abs(changes[i].delta) != math.Abs(changes[j].delta) {
-			return math.Abs(changes[i].delta) > math.Abs(changes[j].delta)
+		if math.Abs(signal.AwayZ) > maxAbs {
+			maxAbs = math.Abs(signal.AwayZ)
 		}
-		if games[changes[i].index].Id != games[changes[j].index].Id {
-			return games[changes[i].index].Id < games[changes[j].index].Id
-		}
-		return changes[i].side < changes[j].side
-	})
-	for i := 0; i < len(changes) && i < 10; i++ {
-		c := changes[i]
-		log.Printf("rare-position-cem-game: group=%d team=%d position=%d iteration=%d game_id=%d side=%s original_mean=%.5g proposal_mean=%.5g log_multiplier=%.4f",
-			groupID, teamID, position, iteration, games[c.index].Id, c.side, c.before, c.after, c.delta)
+		log.Printf("rare-position-cem-game: group=%d team=%d position=%d iteration=%d game_id=%d home_team=%d away_team=%d home_ess=%.2f away_ess=%.2f home_se=%.5g away_se=%.5g home_z=%.4f away_z=%.4f game_score=%.4f elite_home_mean=%.5g elite_away_mean=%.5g original_home=%.5g proposal_home=%.5g original_away=%.5g proposal_away=%.5g",
+			groupID, teamID, position, iteration, game.Id, game.HomeId, game.AwayId,
+			signal.HomeESS, signal.AwayESS, signal.HomeSE, signal.AwaySE,
+			signal.HomeZ, signal.AwayZ, signal.GameScore, signal.HomeEliteMean,
+			signal.AwayEliteMean, original[signal.GameIndex].Home,
+			proposal.Means[signal.GameIndex].Home, original[signal.GameIndex].Away,
+			proposal.Means[signal.GameIndex].Away)
 	}
 	return maxAbs
 }
@@ -431,6 +533,19 @@ func cemValidationPriority(pilot *WeightedPilotResult) float64 {
 	}
 	priority += math.Log1p(math.Max(0, pilot.ESSPerWork) * 1e6)
 	return priority
+}
+
+func cemValidationEvidence(last CEMBatchStats, maxExactHits int) (bool, string) {
+	if maxExactHits >= CEMMinExactHitsForValidation {
+		return true, "two_exact_hits_in_adaptation"
+	}
+	if last.ExactHits >= 1 && last.NearTargetRate >= CEMNearTargetRateForValidation {
+		return true, "exact_hit_with_neighborhood"
+	}
+	if last.ExactHits == 0 && last.NearTargetRate >= CEMStrongNearTargetRate {
+		return true, "strong_neighborhood"
+	}
+	return false, "insufficient_target_evidence"
 }
 
 func cemCandidatePriority(candidate *FrontierCandidate, searches map[int]*TeamRareSearch) int {
@@ -476,9 +591,12 @@ func runCEMRound(candidates []*FrontierCandidate, searches map[int]*TeamRareSear
 		result.TargetsAttempted++
 		proposal := append([]GameProposalMeans(nil), original...)
 		prevDistance, stalled := math.Inf(1), 0
-		firstDistance, bestDistance := math.Inf(1), math.Inf(1)
+		prevNearRate, firstDistance, bestDistance := 0.0, math.Inf(1), math.Inf(1)
 		exactEliteSeen := false
 		eventObserved := false
+		maxExactHits := 0
+		lastStats := CEMBatchStats{}
+		activeGames := []int(nil)
 		for iteration := 1; iteration <= CEMMaxIterations; iteration++ {
 			samples := affordableSamples(CEMBatchSamples, *cemRemaining, adaptWorkPerSample)
 			samples = affordableSamples(samples, *remainingWork, adaptWorkPerSample)
@@ -495,6 +613,7 @@ func runCEMRound(candidates []*FrontierCandidate, searches map[int]*TeamRareSear
 			result.Iterations++
 			elite, exact := cemEliteIndices(batch, candidate.Position, candidate.Direction)
 			stats := cemBatchSummary(batch, elite, candidate.Position, exact)
+			lastStats = stats
 			if math.IsInf(firstDistance, 1) {
 				firstDistance = stats.EliteMeanDistance
 			}
@@ -502,23 +621,34 @@ func runCEMRound(candidates []*FrontierCandidate, searches map[int]*TeamRareSear
 				bestDistance = stats.EliteMeanDistance
 			}
 			eventObserved = eventObserved || stats.ExactHits > 0
+			if stats.ExactHits > maxExactHits {
+				maxExactHits = stats.ExactHits
+			}
 			exactEliteSeen = exactEliteSeen || exact
-			updated := cemUpdate(proposal, original, group.Games, batch, elite)
+			updated := cemUpdateSparse(proposal, original, group.Games, batch, elite, activeGames)
 			updated.Iteration = iteration
 			proposal = updated.Means
-			maxDelta := logCEMGameChanges(group.Id, candidate.TeamID, candidate.Position,
-				iteration, group.Games, original, proposal)
-			log.Printf("rare-position-cem: group=%d team=%d position=%d iteration=%d samples=%d exact_hits=%d elite_count=%d exact_elites=%t mean_rank=%.3f best_rank=%d elite_mean_distance=%.3f kl=%.3f changed_games=%d max_abs_log_multiplier=%.3f ess_exact_events=%.2f",
+			activeGames = updated.SelectedGames
+			maxSignal := logCEMGameSignals(group.Id, candidate.TeamID, candidate.Position,
+				iteration, group.Games, original, updated)
+			result.SelectedGames += len(updated.SelectedGames)
+			if len(updated.SelectedGames) > result.MaxSelectedGames {
+				result.MaxSelectedGames = len(updated.SelectedGames)
+			}
+			log.Printf("rare-position-cem: group=%d team=%d position=%d iteration=%d samples=%d exact_hits=%d exact_hit_rate=%.4f near_target_rate=%.4f elite_count=%d elite_ess=%.2f exact_elites=%t mean_rank=%.3f best_rank=%d elite_mean_distance=%.3f kl=%.3f selected_games=%d effective_changed_games=%d max_abs_z=%.3f ess_exact_events=%.2f",
 				group.Id, candidate.TeamID, candidate.Position, iteration, samples, stats.ExactHits,
-				stats.EliteCount, stats.UsedExactElites, stats.MeanRank, stats.BestRank,
-				stats.EliteMeanDistance, updated.KL, updated.ChangedGames, maxDelta,
+				stats.ExactRate, stats.NearTargetRate, stats.EliteCount, stats.EliteESS,
+				stats.UsedExactElites, stats.MeanRank, stats.BestRank,
+				stats.EliteMeanDistance, updated.KL, len(updated.SelectedGames),
+				updated.ChangedGames, maxSignal,
 				stats.ExactEventESS)
 			if exact || stats.ExactEventESS >= MinPilotESSForProduction {
 				break
 			}
 			if prevDistance < math.Inf(1) {
-				improvement := (prevDistance - stats.EliteMeanDistance) / math.Max(1, prevDistance)
-				if improvement < CEMMinRelativeProgress {
+				distanceImprovement := (prevDistance - stats.EliteMeanDistance) / math.Max(1, prevDistance)
+				nearImprovement := stats.NearTargetRate - prevNearRate
+				if distanceImprovement < CEMMinRelativeProgress && nearImprovement < CEMMinRelativeProgress {
 					stalled++
 				} else {
 					stalled = 0
@@ -528,14 +658,27 @@ func runCEMRound(candidates []*FrontierCandidate, searches map[int]*TeamRareSear
 				}
 			}
 			prevDistance = stats.EliteMeanDistance
+			prevNearRate = stats.NearTargetRate
+		}
+		if eventObserved {
+			result.TargetsAnyExact++
 		}
 		if exactEliteSeen {
-			result.TargetsExact++
+			result.TargetsExactElite++
 		}
-		if !eventObserved && firstDistance-bestDistance < CEMMinRelativeProgress*math.Max(1, firstDistance) {
+		if firstDistance-bestDistance < CEMMinRelativeProgress*math.Max(1, firstDistance) &&
+			lastStats.NearTargetRate < CEMStrongNearTargetRate && maxExactHits == 0 {
 			candidate.SearchState.Status = StatusExhausted
 			log.Printf("rare-position-cem-selection: group=%d team=%d position=%d reason=no_rank_progress cem_work=%d",
 				group.Id, candidate.TeamID, candidate.Position, candidate.SearchState.SearchWorkSpent)
+			continue
+		}
+		validate, reason := cemValidationEvidence(lastStats, maxExactHits)
+		if !validate {
+			candidate.SearchState.Status = StatusExhausted
+			log.Printf("rare-position-cem-selection: group=%d team=%d position=%d reason=%s exact_hits=%d max_exact_hits=%d near_target_rate=%.4f",
+				group.Id, candidate.TeamID, candidate.Position, reason, lastStats.ExactHits,
+				maxExactHits, lastStats.NearTargetRate)
 			continue
 		}
 		if *remainingWork < int64(CEMMinBatchSamples)*validationWorkPerSample ||
@@ -563,8 +706,8 @@ func runCEMRound(candidates []*FrontierCandidate, searches map[int]*TeamRareSear
 		candidate.SearchState.SearchWorkSpent += work
 		candidate.SearchState.Pilots = []*WeightedPilotResult{pilot}
 		priority := cemValidationPriority(pilot)
-		log.Printf("rare-position-cem-validation: group=%d team=%d position=%d samples=%d hits=%d p=%.6g se=%.3g relSE=%.3f ess=%.2f ess_per_million_work=%.3f max_event_weight_share=%.3f priority=%.3f",
-			group.Id, candidate.TeamID, candidate.Position, pilot.Samples, pilot.Hits,
+		log.Printf("rare-position-cem-validation: group=%d team=%d position=%d reason=%s samples=%d hits=%d p=%.6g se=%.3g relSE=%.3f ess=%.2f ess_per_million_work=%.3f max_event_weight_share=%.3f priority=%.3f",
+			group.Id, candidate.TeamID, candidate.Position, reason, pilot.Samples, pilot.Hits,
 			pilot.Probability, pilot.StdErr, pilot.RelSE, pilot.ESS,
 			pilot.ESSPerWork*1e6, pilot.MaxEventWeightShare, priority)
 		if selectPilotMixture([]*WeightedPilotResult{pilot}) == nil {
@@ -575,6 +718,7 @@ func runCEMRound(candidates []*FrontierCandidate, searches map[int]*TeamRareSear
 		candidate.SearchState.BestProposal = &pilot.Proposal
 		candidate.SearchState.BestPilot = pilot
 		result.TargetsValidated++
+		result.ValidatedESS += pilot.ESS
 		result.Eligible = append(result.Eligible, candidate)
 	}
 	return result

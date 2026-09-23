@@ -12,8 +12,7 @@ import (
 
 const (
 	MinInterestingProbability = 1e-5
-	NormalIterations          = 10000
-	ScoutIterations           = 3000
+	ScoutIterations           = 20000
 )
 
 type PositionSearchStatus int
@@ -1211,7 +1210,12 @@ func searchAndMergeRarePositions(
 	}
 	numTeams := len(group.Team_groups)
 	totalWorkLimit := calculateMaxRareWork(unplayedGames, numTeams)
-	remainingWork := totalWorkLimit
+	plainWorkPerSample := estimateSeasonWork(unplayedGames, 1, numTeams)
+	scoutWork := int64(normalSamples) * plainWorkPerSample
+	remainingWork := totalWorkLimit - scoutWork
+	if remainingWork < 0 {
+		panic("rare-position scout work exceeded total work budget")
+	}
 	cemWorkRemaining := int64(float64(totalWorkLimit) * MaxCEMWorkFraction)
 	if cap := int64(MaxCEMPlainEquivalentSamples) * estimateSeasonWork(unplayedGames, 1, numTeams); cemWorkRemaining > cap {
 		cemWorkRemaining = cap
@@ -1225,17 +1229,25 @@ func searchAndMergeRarePositions(
 		originalMeans[i] = GameProposalMeans{Home: game.HomePower, Away: game.AwayPower}
 	}
 	teamSearches := make(map[int]*TeamRareSearch, numTeams)
+	scoutResolvedCells := 0
 	for _, tg := range group.Team_groups {
 		teamID := tg.Team_id
 		index := table.Query(uint32(teamID))
 		ts := initializeTeamRareSearch(teamID, normalPositionCounts[teamID],
 			teamOdds[index].team.Pos, campaign, group.Team_groups, group.Games, table, sortOrder)
 		teamSearches[teamID] = ts
+		for _, state := range ts.Positions {
+			if state.ObservedCount > 0 {
+				scoutResolvedCells++
+			}
+		}
 	}
 
 	teamRareEstimates := make(map[int]map[int]RarePositionEstimate)
 	var cemWork, validationWork, productionWork, expansionWork int64
-	var cemTargets, cemIterations, targetsExact, targetsValidated int
+	var cemTargets, cemIterations, targetsAnyExact, targetsExactElite, targetsValidated int
+	var selectedGames, maxSelectedGames int
+	var validatedESS float64
 	productionJobs := 0
 	resolvedInitial := 0
 	for round := 0; round <= 1; round++ {
@@ -1259,8 +1271,14 @@ func searchAndMergeRarePositions(
 		validationWork += cemRound.ValidationWork
 		cemTargets += cemRound.TargetsAttempted
 		cemIterations += cemRound.Iterations
-		targetsExact += cemRound.TargetsExact
+		targetsAnyExact += cemRound.TargetsAnyExact
+		targetsExactElite += cemRound.TargetsExactElite
 		targetsValidated += cemRound.TargetsValidated
+		selectedGames += cemRound.SelectedGames
+		if cemRound.MaxSelectedGames > maxSelectedGames {
+			maxSelectedGames = cemRound.MaxSelectedGames
+		}
+		validatedESS += cemRound.ValidatedESS
 		if round == 1 {
 			expansionWork += cemRound.CEMWork + cemRound.ValidationWork
 		}
@@ -1345,7 +1363,6 @@ func searchAndMergeRarePositions(
 		}
 	}
 
-	plainWorkPerSample := estimateSeasonWork(unplayedGames, 1, numTeams)
 	fallbackSamples, fallbackWork := planFallbackSamples(remainingWork, plainWorkPerSample)
 	var newNonzeroCells, brokenHundreds int
 	if fallbackSamples > 0 {
@@ -1382,12 +1399,24 @@ func searchAndMergeRarePositions(
 	if workSpent > totalWorkLimit {
 		panic("rare-position total work budget exceeded")
 	}
-	log.Printf("rare-position-summary: group=%d scout_sims=%d fallback_normal_sims=%d normal_sims_total=%d total_work_limit=%d cem_work=%d validation_work=%d production_work=%d expansion_work=%d fallback_work=%d unused_work=%d work_spent=%d resolved_positions_is=%d new_cells_from_fallback=%d cem_targets_attempted=%d cem_iterations=%d targets_producing_exact_events=%d targets_passing_validation=%d production_jobs=%d cem_plain_mc_equiv=%.1f validation_plain_mc_equiv=%.1f production_plain_mc_equiv=%.1f heuristic_baseline_group16982_plain_mc_equiv=8499.4",
-		group.Id, normalSamples, fallbackSamples, normalSamples+fallbackSamples, totalWorkLimit,
+	combinedCEMValidationEquivalent := float64(cemWork+validationWork) / float64(plainWorkPerSample)
+	validatedESSPerPlainEquivalent := 0.0
+	if validationWork > 0 {
+		validatedESSPerPlainEquivalent = validatedESS /
+			(float64(validationWork) / float64(plainWorkPerSample))
+	}
+	averageSelectedGames := 0.0
+	if cemIterations > 0 {
+		averageSelectedGames = float64(selectedGames) / float64(cemIterations)
+	}
+	log.Printf("rare-position-summary: group=%d scout_sims=%d scout_work=%d fallback_normal_sims=%d normal_sims_total=%d total_work_limit=%d cem_work=%d validation_work=%d production_work=%d expansion_work=%d fallback_work=%d unused_work=%d work_spent=%d resolved_positions_is=%d scout_resolved_cells=%d new_cells_from_fallback=%d cem_targets_attempted=%d cem_iterations=%d average_selected_games=%.2f max_selected_games=%d targets_with_any_exact_hit=%d targets_reaching_exact_elite_threshold=%d targets_passing_validation=%d production_jobs=%d cem_plain_mc_equiv=%.1f validation_plain_mc_equiv=%.1f cem_and_validation_plain_mc_equiv=%.1f validated_ess_per_plain_mc_equiv=%.4f production_plain_mc_equiv=%.1f heuristic_baseline_group16982_plain_mc_equiv=8499.4",
+		group.Id, normalSamples, scoutWork, fallbackSamples, normalSamples+fallbackSamples, totalWorkLimit,
 		cemWork, validationWork, productionWork, expansionWork, fallbackWork, remainingWork,
-		workSpent, resolvedPositions, newNonzeroCells, cemTargets, cemIterations, targetsExact,
+		workSpent, resolvedPositions, scoutResolvedCells, newNonzeroCells, cemTargets, cemIterations,
+		averageSelectedGames, maxSelectedGames, targetsAnyExact, targetsExactElite,
 		targetsValidated, productionJobs, float64(cemWork)/float64(plainWorkPerSample),
 		float64(validationWork)/float64(plainWorkPerSample),
+		combinedCEMValidationEquivalent, validatedESSPerPlainEquivalent,
 		float64(productionWork)/float64(plainWorkPerSample))
 }
 
