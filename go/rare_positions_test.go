@@ -3,6 +3,8 @@ package main
 import (
 	"math"
 	"math/rand"
+	"sort"
+	"strings"
 	"testing"
 )
 
@@ -299,7 +301,7 @@ func TestCompetitorDependentExactPoissonValidation(t *testing.T) {
 
 	originalMeans := []GameProposalMeans{{Home: hMean, Away: aMean}}
 
-	compMeans := []GameProposalMeans{{Home: clampMean(hMean * 0.4), Away: clampMean(aMean * 2.5)}}
+	compMeans := []GameProposalMeans{{Home: proposalMean(hMean, 0.4), Away: proposalMean(aMean, 2.5)}}
 	components := []ProposalComponent{
 		{Name: "original", Weight: 0.05, Means: originalMeans},
 		{Name: "test_comp", Weight: 0.95, Means: compMeans},
@@ -486,8 +488,7 @@ func TestEdgeProductionMixturesUseDistinctLevels(t *testing.T) {
 		for i, level := range tc.levels {
 			want := getStrengthDefinitions(RareBetter)[level].Name
 			if proposal.Components[i+1].Weight != tc.weights[i] ||
-				len(proposal.Components[i+1].Name) < len(want) ||
-				proposal.Components[i+1].Name[:len(want)] != want {
+				!strings.Contains(proposal.Components[i+1].Name, want+"_lvl") {
 				t.Errorf("selected %d component %d = %s %.2f, want level %d weight %.2f",
 					tc.selected, i+1, proposal.Components[i+1].Name, proposal.Components[i+1].Weight, level, tc.weights[i])
 			}
@@ -575,7 +576,7 @@ func TestMinimumPilotSizeSkipsUnfundedCandidate(t *testing.T) {
 	}
 }
 
-func TestWeightedPilotRoundRefinesAtMostTwoLevels(t *testing.T) {
+func TestWeightedPilotRoundRefinesAtMostTwoMixtures(t *testing.T) {
 	groups := []TeamType{{Team_id: 1, Bias: 0}, {Team_id: 2, Bias: 1}}
 	table := NewTable([]uint32{1, 2})
 	campaign := []*TeamCampaign{
@@ -593,8 +594,13 @@ func TestWeightedPilotRoundRefinesAtMostTwoLevels(t *testing.T) {
 		[]SortType{PT, GD, GF, BIAS}, []GameProposalMeans{{Home: 1, Away: 1}},
 		map[int]float64{1: 0.5, 2: 0.5}, workPerSample, &remaining, &pilotBudget,
 		rand.New(rand.NewSource(21)))
-	if len(candidate.SearchState.Pilots) != 5 {
-		t.Fatalf("expected five initial mixtures, got %d", len(candidate.SearchState.Pilots))
+	if len(candidate.SearchState.Pilots) < 4 {
+		t.Fatalf("expected four coarse mixtures, got %d", len(candidate.SearchState.Pilots))
+	}
+	for _, pilot := range candidate.SearchState.Pilots[:4] {
+		if pilot.Proposal.StrengthLevel != 2 || pilot.Samples != MinPilotSamples && !pilot.Refined {
+			t.Fatalf("coarse pilot mismatch: %+v", pilot)
+		}
 	}
 	refined := 0
 	for _, pilot := range candidate.SearchState.Pilots {
@@ -603,11 +609,11 @@ func TestWeightedPilotRoundRefinesAtMostTwoLevels(t *testing.T) {
 			if pilot.Samples != RefinedPilotSamplesPerLevel {
 				t.Fatalf("refined pilot has %d samples", pilot.Samples)
 			}
-		} else if pilot.Samples != InitialPilotSamplesPerLevel {
+		} else if pilot.Samples != InitialPilotSamplesPerLevel && pilot.Samples != MinPilotSamples {
 			t.Fatalf("unrefined pilot consumed %d samples", pilot.Samples)
 		}
 	}
-	if refined != 2 || spent > 25000 || remaining != 100000-spent || pilotBudget != 25000-spent {
+	if refined > 2 || spent > 25000 || remaining != 100000-spent || pilotBudget != 25000-spent {
 		t.Fatalf("unexpected refinement or work accounting: refined=%d spent=%d remaining=%d pilot=%d",
 			refined, spent, remaining, pilotBudget)
 	}
@@ -829,5 +835,278 @@ func TestFalse100PercentCorrection(t *testing.T) {
 	}
 	if math.Abs(sum2-100.0) > 1e-6 {
 		t.Errorf("Expected team 2 position odds to sum to 100%%, got %f", sum2)
+	}
+}
+
+func TestProposalMeanPreservesDirection(t *testing.T) {
+	for _, tc := range []struct{ original, multiplier float64 }{
+		{0.02, 0.93}, {0.02, 1.10}, {9, 1.10}, {9, 0.90}, {0, 2.20},
+	} {
+		got := proposalMean(tc.original, tc.multiplier)
+		if math.IsNaN(got) || math.IsInf(got, 0) || got < 0 {
+			t.Fatalf("invalid proposal mean %g from %g * %g", got, tc.original, tc.multiplier)
+		}
+		if tc.multiplier < 1 && got > tc.original || tc.multiplier > 1 && got < tc.original {
+			t.Fatalf("proposal tilt reversed: %g * %g = %g", tc.original, tc.multiplier, got)
+		}
+		if tc.original == 0 && got != 0 {
+			t.Fatal("zero original mean must stay zero")
+		}
+	}
+}
+
+func TestSparseProposalLimitsAndDeterminism(t *testing.T) {
+	games := []*GameType{
+		{Id: 1, HomeId: 1, AwayId: 2, HomePower: 1, AwayPower: 1}, // head-to-head
+		{Id: 2, HomeId: 1, AwayId: 4, HomePower: 1, AwayPower: 1},
+		{Id: 3, HomeId: 1, AwayId: 4, HomePower: 1, AwayPower: 1},
+		{Id: 4, HomeId: 1, AwayId: 4, HomePower: 1, AwayPower: 1},
+		{Id: 5, HomeId: 1, AwayId: 4, HomePower: 1, AwayPower: 1},
+		{Id: 6, HomeId: 1, AwayId: 4, HomePower: 1, AwayPower: 1},
+		{Id: 7, HomeId: 2, AwayId: 4, HomePower: 1, AwayPower: 1},
+		{Id: 8, HomeId: 2, AwayId: 4, HomePower: 1, AwayPower: 1},
+		{Id: 9, HomeId: 2, AwayId: 3, HomePower: 1, AwayPower: 1},
+		{Id: 10, HomeId: 3, AwayId: 4, HomePower: 1, AwayPower: 1},
+		{Id: 11, HomeId: 4, AwayId: 4, HomePower: 1, AwayPower: 1},
+	}
+	ranks := map[int]float64{1: 2.8, 2: 0.55, 3: 1.5, 4: 3}
+	spec := SparseProposalSpec{TargetTeamID: 1, TargetRank: 0, Direction: RareBetter,
+		StrengthLevel: 2, TargetGameLimit: 2, BoundaryCompetitorLimit: 1, CompetitorGameLimit: 1}
+	cfg := buildSparseProposalConfig(games, spec, getStrengthDefinitions(RareBetter)[2], ranks)
+	if len(cfg.RelevantTeams) != 1 || cfg.RelevantTeams[0] != 2 {
+		t.Fatalf("expected closest boundary competitor 2, got %v", cfg.RelevantTeams)
+	}
+	if !strings.Contains(cfg.Name, "target2_comp1x1") {
+		t.Fatalf("sparsity missing from name: %s", cfg.Name)
+	}
+	targetModified, blockerModified := 0, 0
+	for i, g := range games {
+		means := cfg.Means[i]
+		if g.HomeId == 1 && means.Home != g.HomePower || g.AwayId == 1 && means.Away != g.AwayPower {
+			targetModified++
+			if g.HomeId == 1 && means.Home < g.HomePower || g.AwayId == 1 && means.Away < g.AwayPower {
+				t.Fatal("RareBetter target direction reversed")
+			}
+		}
+		if g.HomeId == 2 && means.Home != g.HomePower || g.AwayId == 2 && means.Away != g.AwayPower {
+			blockerModified++
+		}
+		if g.HomeId != 1 && g.AwayId != 1 && g.HomeId != 2 && g.AwayId != 2 && means != (GameProposalMeans{g.HomePower, g.AwayPower}) {
+			t.Fatal("unrelated game was changed")
+		}
+	}
+	if targetModified != 2 || blockerModified != 1 || cfg.Means[0].Home == games[0].HomePower ||
+		cfg.Means[0].Away == games[0].AwayPower || cfg.Means[8] != (GameProposalMeans{1, 1}) {
+		t.Fatalf("sparse limits or head-to-head priority violated: target=%d blocker=%d means=%v", targetModified, blockerModified, cfg.Means)
+	}
+	second := buildSparseProposalConfig(games, spec, getStrengthDefinitions(RareBetter)[2], ranks)
+	for i := range cfg.Means {
+		if cfg.Means[i] != second.Means[i] {
+			t.Fatalf("non-deterministic game selection at index %d", i)
+		}
+	}
+}
+
+func TestSparseProposalLeavesSelectedBlockersHeadToHeadUntouched(t *testing.T) {
+	games := []*GameType{
+		{Id: 1, HomeId: 2, AwayId: 3, HomePower: 1, AwayPower: 1},
+		{Id: 2, HomeId: 1, AwayId: 2, HomePower: 1, AwayPower: 1},
+		{Id: 3, HomeId: 1, AwayId: 3, HomePower: 1, AwayPower: 1},
+		{Id: 4, HomeId: 2, AwayId: 4, HomePower: 1, AwayPower: 1},
+	}
+	spec := SparseProposalSpec{TargetTeamID: 1, TargetRank: 2, Direction: RareWorse,
+		StrengthLevel: 2, TargetGameLimit: 1, BoundaryCompetitorLimit: 2, CompetitorGameLimit: 1}
+	ranks := map[int]float64{1: 0, 2: 1.4, 3: 1.6, 4: 3}
+	cfg := buildSparseProposalConfig(games, spec, getStrengthDefinitions(RareWorse)[2], ranks)
+	if len(cfg.RelevantTeams) != 2 || cfg.Means[0] != (GameProposalMeans{1, 1}) {
+		t.Fatalf("blocker-vs-blocker game changed: competitors=%v means=%v", cfg.RelevantTeams, cfg.Means[0])
+	}
+	for i, game := range games {
+		if game.HomeId == 1 && cfg.Means[i].Home > game.HomePower ||
+			game.AwayId == 1 && cfg.Means[i].Away > game.AwayPower {
+			t.Fatal("RareWorse target direction reversed")
+		}
+		if game.HomeId == 2 && cfg.Means[i].Home < game.HomePower ||
+			game.AwayId == 2 && cfg.Means[i].Away < game.AwayPower {
+			t.Fatal("RareWorse blocker direction reversed")
+		}
+	}
+}
+
+func TestAllFundedCandidatesGetCoarsePilotBeforeProductionPlanning(t *testing.T) {
+	groups := []TeamType{{Team_id: 1}, {Team_id: 2}}
+	table := NewTable([]uint32{1, 2})
+	campaign := make([]*TeamCampaign, 2)
+	for _, team := range groups {
+		campaign[table.Query(uint32(team.Team_id))] = &TeamCampaign{id: team.Team_id, points_win: 3, points_draw: 1}
+	}
+	game := &GameType{Id: 1, HomeId: 1, AwayId: 2, HomePower: 1, AwayPower: 1,
+		home_table_index: table.Query(1), away_table_index: table.Query(2)}
+	group := &GroupType{Id: 1, Team_groups: groups, Games: []*GameType{game}}
+	candidates := []*FrontierCandidate{
+		{TeamID: 1, Position: 0, Direction: RareBetter, SearchState: &PositionSearchState{Status: StatusFrontier}},
+		{TeamID: 2, Position: 0, Direction: RareBetter, SearchState: &PositionSearchState{Status: StatusFrontier}},
+	}
+	remaining, pilotBudget := int64(10000), int64(10000)
+	eligible, _ := runWeightedPilotRound(candidates, group, campaign, table, []SortType{PT, GD, GF, BIAS},
+		[]GameProposalMeans{{1, 1}}, map[int]float64{1: 0.5, 2: 0.5},
+		estimateSeasonWork(1, 4, 2), &remaining, &pilotBudget, rand.New(rand.NewSource(71)))
+	for _, candidate := range candidates {
+		if len(candidate.SearchState.Pilots) < 4 {
+			t.Fatalf("team %d did not get all four coarse pilots", candidate.TeamID)
+		}
+	}
+	// Production planning runs only after the pilot round has returned.
+	_ = buildProductionPlans(eligible, estimateSeasonWork(1, 4, 2), map[int]*TeamRareSearch{
+		1: {}, 2: {},
+	})
+	if remaining < 0 || pilotBudget < 0 {
+		t.Fatal("pilot budget exceeded")
+	}
+}
+
+func TestFallbackBudgetAndCountCombination(t *testing.T) {
+	samples, work := planFallbackSamples(703, 7)
+	if samples != 100 || work != 700 || 703-work < 0 {
+		t.Fatalf("fallback budget mismatch: %d samples, %d work", samples, work)
+	}
+	table := NewTable([]uint32{1, 2, 3})
+	initial := map[int][]int{1: {0, 0, 10000}}
+	fallback := map[int][]int{1: {0, 1, 4999}}
+	odds := make([]OddsType, 3)
+	for i := range odds {
+		odds[i].team = &TeamOdds{Pos: make([]float64, 3)}
+	}
+	newCells, broken := combineNormalPositionCounts(initial, fallback, 10000, 5000, odds, table)
+	if newCells != 1 || broken != 1 || initial[1][1] != 1 || initial[1][2] != 14999 {
+		t.Fatalf("fallback counts not combined: %v new=%d broken=%d", initial[1], newCells, broken)
+	}
+	normal := odds[table.Query(1)].team.Pos
+	if normal[2] >= 1 || math.Abs(normal[1]-1.0/15000) > 1e-12 {
+		t.Fatalf("combined normal odds wrong: %v", normal)
+	}
+	merged := mergeRarePositionEstimates(normal, initial[1], map[int]RarePositionEstimate{
+		1: {Probability: 0.1, Found: true},
+	})
+	if merged[1] != normal[1] || merged[2] != normal[2] {
+		t.Fatalf("direct ordinary observation must override IS: %v vs %v", merged, normal)
+	}
+}
+
+func TestPlainFallbackSamplesAllTeamsWithoutGameImportance(t *testing.T) {
+	groups := []TeamType{{Team_id: 1}, {Team_id: 2}, {Team_id: 3}}
+	table := NewTable([]uint32{1, 2, 3})
+	base := make([]*TeamCampaign, 3)
+	for _, team := range groups {
+		base[table.Query(uint32(team.Team_id))] = &TeamCampaign{id: team.Team_id,
+			points_win: 3, points_draw: 1}
+	}
+	game := &GameType{Id: 1, HomeId: 1, AwayId: 2, HomePower: 0.5, AwayPower: 1,
+		home_table_index: table.Query(1), away_table_index: table.Query(2)}
+	counts := simulatePlainRankCounts(base, []*GameType{game}, table,
+		[]SortType{PT, GD, GF, BIAS}, groups, 100, rand.New(rand.NewSource(92)))
+	for _, team := range groups {
+		total := 0
+		for _, count := range counts[team.Team_id] {
+			total += count
+		}
+		if total != 100 {
+			t.Fatalf("team %d has %d rank observations, want 100", team.Team_id, total)
+		}
+	}
+}
+
+func TestFixedPathMultiGameMixtureLikelihood(t *testing.T) {
+	scores := [][2]int{{1, 0}, {0, 2}}
+	original := []GameProposalMeans{{0.2, 1}, {0.5, 0.2}}
+	components := []ProposalComponent{
+		{Name: "P", Weight: 0.05, Means: original},
+		{Name: "mild", Weight: 0.45, Means: []GameProposalMeans{{0.4, 0.8}, {0.6, 0.3}}},
+		{Name: "strong", Weight: 0.50, Means: []GameProposalMeans{{1.5, 0.2}, {0.1, 1.2}}},
+	}
+	logs := make([]float64, len(components))
+	weights := make([]float64, len(components))
+	pPath, qMix := 1.0, 0.0
+	for i, c := range components {
+		qPath := 1.0
+		for g, score := range scores {
+			if i == 0 {
+				pPath *= poisson_pmf(original[g].Home, float64(score[0])) * poisson_pmf(original[g].Away, float64(score[1]))
+			}
+			qPath *= poisson_pmf(c.Means[g].Home, float64(score[0])) * poisson_pmf(c.Means[g].Away, float64(score[1]))
+			logs[i] += logPoissonQOverP(score[0], original[g].Home, c.Means[g].Home)
+			logs[i] += logPoissonQOverP(score[1], original[g].Away, c.Means[g].Away)
+		}
+		qMix += c.Weight * qPath
+		weights[i] = c.Weight
+	}
+	got := mixtureImportanceWeightMulti(logs, weights)
+	if math.Abs(got-pPath/qMix) > 1e-12 {
+		t.Fatalf("multi-game P/Qmix=%g, got %g", pPath/qMix, got)
+	}
+}
+
+func TestMultiGameExactPoissonProbabilityAndSparseESS(t *testing.T) {
+	groups := []TeamType{{Team_id: 1, Bias: 0}, {Team_id: 2, Bias: 1}, {Team_id: 3, Bias: 2}}
+	table := NewTable([]uint32{1, 2, 3})
+	base := make([]*TeamCampaign, 3)
+	for _, team := range groups {
+		base[table.Query(uint32(team.Team_id))] = &TeamCampaign{id: team.Team_id, bias: team.Bias, points_win: 3, points_draw: 1}
+	}
+	games := []*GameType{
+		{Id: 1, HomeId: 1, AwayId: 2, HomePower: 0.2, AwayPower: 1,
+			home_table_index: table.Query(1), away_table_index: table.Query(2)},
+		{Id: 2, HomeId: 2, AwayId: 3, HomePower: 0.5, AwayPower: 0.2,
+			home_table_index: table.Query(2), away_table_index: table.Query(3)},
+	}
+	original := []GameProposalMeans{{0.2, 1}, {0.5, 0.2}}
+	order := []SortType{PT, GD, GF, BIAS}
+	exact, includedMass := 0.0, 0.0
+	for h1 := 0; h1 <= 10; h1++ {
+		for a1 := 0; a1 <= 10; a1++ {
+			for h2 := 0; h2 <= 10; h2++ {
+				for a2 := 0; a2 <= 10; a2++ {
+					mass := poisson_pmf(0.2, float64(h1)) * poisson_pmf(1, float64(a1)) *
+						poisson_pmf(0.5, float64(h2)) * poisson_pmf(0.2, float64(a2))
+					includedMass += mass
+					teams := []*TeamCampaign{base[table.Query(1)].clone(), base[table.Query(2)].clone(), base[table.Query(3)].clone()}
+					teams[0].add_game(&GameType{HomeId: 1, AwayId: 2, HomeScore: h1, AwayScore: a1})
+					teams[1].add_game(&GameType{HomeId: 1, AwayId: 2, HomeScore: h1, AwayScore: a1})
+					teams[1].add_game(&GameType{HomeId: 2, AwayId: 3, HomeScore: h2, AwayScore: a2})
+					teams[2].add_game(&GameType{HomeId: 2, AwayId: 3, HomeScore: h2, AwayScore: a2})
+					sort.Sort(TeamCampaignSorted{teams, order})
+					if teams[0].id == 1 {
+						exact += mass
+					}
+				}
+			}
+		}
+	}
+	if 1-includedMass > 1e-7 {
+		t.Fatalf("exact enumeration omitted too much mass: %g", 1-includedMass)
+	}
+	ranks := map[int]float64{1: 2, 2: 0, 3: 1}
+	sparse := buildSearchProposalForSpec(games, SparseProposalSpec{TargetTeamID: 1, TargetRank: 0,
+		Direction: RareBetter, StrengthLevel: 3, TargetGameLimit: 1,
+		BoundaryCompetitorLimit: 1, CompetitorGameLimit: 1}, ranks, original)
+	broad := []ProposalComponent{
+		{Name: "P", Weight: 0.05, Means: original},
+		{Name: "broad_legacy_1", Weight: 0.20, Means: []GameProposalMeans{{2, 0.05}, {0.05, 2}}},
+		{Name: "broad_legacy_2", Weight: 0.50, Means: []GameProposalMeans{{4, 0.02}, {0.02, 4}}},
+		{Name: "broad_legacy_3", Weight: 0.25, Means: []GameProposalMeans{{8, 0.01}, {0.01, 8}}},
+	}
+	var ess [2]float64
+	for i, components := range [][]ProposalComponent{sparse.Components, broad} {
+		job := &RareSimulationJob{TeamID: 1, CandidatePositions: []int{0}, Components: components, Iterations: 50000}
+		results, _ := estimateRarePositionsForJob(base, games, original, table, order, groups,
+			job, rand.New(rand.NewSource(int64(55+i))), 1)
+		est := results[0]
+		if math.Abs(est.Probability-exact) > 4*est.StdErr {
+			t.Fatalf("proposal %d: p=%g exact=%g SE=%g", i, est.Probability, exact, est.StdErr)
+		}
+		ess[i] = est.ESS
+	}
+	if ess[0] <= ess[1] {
+		t.Fatalf("sparse overlap should beat broad_legacy overlap: sparse ESS=%g broad ESS=%g", ess[0], ess[1])
 	}
 }

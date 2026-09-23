@@ -56,6 +56,7 @@ type SearchProposal struct {
 	Direction     RareDirection
 	StrengthLevel int
 	TargetRank    int
+	Spec          SparseProposalSpec
 	Components    []ProposalComponent
 }
 
@@ -264,14 +265,25 @@ func buildSearchProposalForLevel(
 	normalMeanRanks map[int]float64,
 	originalMeans []GameProposalMeans,
 ) SearchProposal {
-	strengths := getStrengthDefinitions(direction)
+	return buildSearchProposalForSpec(games, SparseProposalSpec{
+		TargetTeamID: targetTeamID, TargetRank: targetRank, Direction: direction,
+		StrengthLevel: level, TargetGameLimit: 2, BoundaryCompetitorLimit: 0,
+	}, normalMeanRanks, originalMeans)
+}
+
+func buildSearchProposalForSpec(
+	games []*GameType, spec SparseProposalSpec, normalMeanRanks map[int]float64,
+	originalMeans []GameProposalMeans,
+) SearchProposal {
+	strengths := getStrengthDefinitions(spec.Direction)
 	sMap := make(map[int]StrengthDefinition, len(strengths))
 	for _, s := range strengths {
 		sMap[s.Level] = s
 	}
 
+	level := spec.StrengthLevel
 	bestDef := sMap[level]
-	bestCfg := buildSingleProposalConfig(games, targetTeamID, direction, targetRank, bestDef, normalMeanRanks)
+	bestCfg := buildSparseProposalConfig(games, spec, bestDef, normalMeanRanks)
 
 	comps := []ProposalComponent{
 		{
@@ -294,24 +306,27 @@ func buildSearchProposalForLevel(
 	for i, lvl := range levels {
 		cfg := bestCfg
 		if lvl != level {
-			cfg = buildSingleProposalConfig(games, targetTeamID, direction, targetRank, sMap[lvl], normalMeanRanks)
+			neighbor := spec
+			neighbor.StrengthLevel = lvl
+			cfg = buildSparseProposalConfig(games, neighbor, sMap[lvl], normalMeanRanks)
 		}
 		comps = append(comps, ProposalComponent{
 			Name:          cfg.Name,
 			Weight:        weights[i],
 			Means:         cfg.Means,
 			RelevantTeams: cfg.RelevantTeams,
-			TargetRank:    targetRank,
+			TargetRank:    spec.TargetRank,
 		})
 	}
 
 	validateProposalMixture(comps, len(games))
 
 	return SearchProposal{
-		Name:          fmt.Sprintf("%s_lvl%d_rank%d", bestDef.Name, level, targetRank),
-		Direction:     direction,
+		Name:          bestCfg.Name,
+		Direction:     spec.Direction,
 		StrengthLevel: level,
-		TargetRank:    targetRank,
+		TargetRank:    spec.TargetRank,
+		Spec:          spec,
 		Components:    comps,
 	}
 }
@@ -469,6 +484,23 @@ func shortlistPilotMixtures(results []*WeightedPilotResult) []*WeightedPilotResu
 		shortlist = shortlist[:2]
 	}
 	return shortlist
+}
+
+func topCoarsePilotFamilies(results []*WeightedPilotResult) []*WeightedPilotResult {
+	ordered := append([]*WeightedPilotResult(nil), results...)
+	sort.Slice(ordered, func(i, j int) bool {
+		if pilotBetter(ordered[i], ordered[j]) {
+			return true
+		}
+		if pilotBetter(ordered[j], ordered[i]) {
+			return false
+		}
+		return ordered[i].Proposal.Name < ordered[j].Proposal.Name
+	})
+	if len(ordered) > 2 {
+		ordered = ordered[:2]
+	}
+	return ordered
 }
 
 func selectPilotMixture(results []*WeightedPilotResult) *WeightedPilotResult {
@@ -703,14 +735,38 @@ const (
 	MaxProposalMean = 8.0
 )
 
-func clampMean(m float64) float64 {
-	if m < MinProposalMean {
-		return MinProposalMean
+func proposalMean(original, multiplier float64) float64 {
+	if original == 0 || multiplier == 1 {
+		return original
 	}
-	if m > MaxProposalMean {
-		return MaxProposalMean
+	if original < 0 || math.IsNaN(original) || math.IsInf(original, 0) ||
+		multiplier < 0 || math.IsNaN(multiplier) || math.IsInf(multiplier, 0) {
+		panic("invalid proposal mean or multiplier")
 	}
-	return m
+	proposed := original * multiplier
+	if math.IsInf(proposed, 0) {
+		proposed = math.MaxFloat64
+	}
+	if multiplier < 1 {
+		if original < MinProposalMean {
+			return proposed
+		}
+		return math.Max(MinProposalMean, proposed)
+	}
+	if original > MaxProposalMean {
+		return proposed
+	}
+	return math.Min(MaxProposalMean, proposed)
+}
+
+type SparseProposalSpec struct {
+	TargetTeamID            int
+	TargetRank              int
+	Direction               RareDirection
+	StrengthLevel           int
+	TargetGameLimit         int
+	BoundaryCompetitorLimit int
+	CompetitorGameLimit     int
 }
 
 type ProposalConfig struct {
@@ -759,14 +815,74 @@ func getStrengthDefinitions(direction RareDirection) []StrengthDefinition {
 	}
 }
 
-func buildSingleProposalConfig(
-	games []*GameType,
-	targetTeamID int,
-	direction RareDirection,
-	depthRank int,
-	sDef StrengthDefinition,
-	normalMeanRanks map[int]float64,
-) ProposalConfig {
+func closestBoundaryCompetitors(targetTeamID, targetRank, limit int, direction RareDirection, normalMeanRanks map[int]float64) []int {
+	if limit <= 0 {
+		return nil
+	}
+	boundary := float64(targetRank)
+	if direction == RareBetter {
+		boundary += 0.5
+	} else {
+		boundary -= 0.5
+	}
+	ids := make([]int, 0, len(normalMeanRanks))
+	for id := range normalMeanRanks {
+		if id != targetTeamID {
+			ids = append(ids, id)
+		}
+	}
+	sort.Slice(ids, func(i, j int) bool {
+		di := math.Abs(normalMeanRanks[ids[i]] - boundary)
+		dj := math.Abs(normalMeanRanks[ids[j]] - boundary)
+		if di != dj {
+			return di < dj
+		}
+		return ids[i] < ids[j]
+	})
+	if limit < len(ids) {
+		ids = ids[:limit]
+	}
+	return ids
+}
+
+func sparseGameLeverage(g *GameType, teamID int, multiplier float64) float64 {
+	if g.HomeId == teamID {
+		return math.Abs(proposalMean(g.HomePower, multiplier) - g.HomePower)
+	}
+	return math.Abs(proposalMean(g.AwayPower, multiplier) - g.AwayPower)
+}
+
+func rankedSparseGames(games []*GameType, teamID, targetID int, selected map[int]bool, multiplier float64) []int {
+	var indexes []int
+	for i, g := range games {
+		if g.Played || (g.HomeId != teamID && g.AwayId != teamID) {
+			continue
+		}
+		if teamID != targetID && selected[g.HomeId] && selected[g.AwayId] {
+			continue // blocker-vs-blocker games cannot help the target boundary directly
+		}
+		indexes = append(indexes, i)
+	}
+	sort.Slice(indexes, func(i, j int) bool {
+		a, b := games[indexes[i]], games[indexes[j]]
+		aHead := a.HomeId == targetID && selected[a.AwayId] || a.AwayId == targetID && selected[a.HomeId]
+		bHead := b.HomeId == targetID && selected[b.AwayId] || b.AwayId == targetID && selected[b.HomeId]
+		if aHead != bHead {
+			return aHead
+		}
+		la, lb := sparseGameLeverage(a, teamID, multiplier), sparseGameLeverage(b, teamID, multiplier)
+		if la != lb {
+			return la > lb
+		}
+		if a.Id != b.Id {
+			return a.Id < b.Id
+		}
+		return indexes[i] < indexes[j]
+	})
+	return indexes
+}
+
+func buildSparseProposalConfig(games []*GameType, spec SparseProposalSpec, sDef StrengthDefinition, normalMeanRanks map[int]float64) ProposalConfig {
 	originalMeans := make([]GameProposalMeans, len(games))
 	for i, g := range games {
 		originalMeans[i] = GameProposalMeans{Home: g.HomePower, Away: g.AwayPower}
@@ -784,54 +900,41 @@ func buildSingleProposalConfig(
 		}
 	}
 
-	compBlockers := findRelevantCompetitorsForDepth(targetTeamID, normalMeanRanks, float64(depthRank), direction)
+	compBlockers := closestBoundaryCompetitors(spec.TargetTeamID, spec.TargetRank,
+		spec.BoundaryCompetitorLimit, spec.Direction, normalMeanRanks)
 	blockerMap := make(map[int]bool, len(compBlockers))
 	for _, id := range compBlockers {
 		blockerMap[id] = true
 	}
 
-	compMeans := make([]GameProposalMeans, len(games))
-	for i, g := range games {
-		if g.Played {
-			compMeans[i] = GameProposalMeans{Home: g.HomePower, Away: g.AwayPower}
-			continue
+	compMeans := append([]GameProposalMeans(nil), originalMeans...)
+	targetGames := rankedSparseGames(games, spec.TargetTeamID, spec.TargetTeamID, blockerMap, sDef.TargetMult)
+	for i := 0; i < spec.TargetGameLimit && i < len(targetGames); i++ {
+		index := targetGames[i]
+		g := games[index]
+		if g.HomeId == spec.TargetTeamID {
+			compMeans[index].Home = proposalMean(g.HomePower, sDef.TargetMult)
+		} else {
+			compMeans[index].Away = proposalMean(g.AwayPower, sDef.TargetMult)
 		}
-
-		hMult := 1.0
-		aMult := 1.0
-
-		if g.HomeId == targetTeamID {
-			hMult = sDef.TargetMult
-		} else if blockerMap[g.HomeId] {
-			hMult = sDef.BlockMult
-		}
-
-		if g.AwayId == targetTeamID {
-			aMult = sDef.TargetMult
-		} else if blockerMap[g.AwayId] {
-			aMult = sDef.BlockMult
-		}
-
-		hPower := g.HomePower
-		aPower := g.AwayPower
-
-		if hMult != 1.0 && hPower > 0 {
-			hPower = clampMean(hPower * hMult)
-		}
-		if aMult != 1.0 && aPower > 0 {
-			aPower = clampMean(aPower * aMult)
-		}
-
-		compMeans[i] = GameProposalMeans{
-			Home: hPower,
-			Away: aPower,
+	}
+	for _, blocker := range compBlockers {
+		blockerGames := rankedSparseGames(games, blocker, spec.TargetTeamID, blockerMap, sDef.BlockMult)
+		for i := 0; i < spec.CompetitorGameLimit && i < len(blockerGames); i++ {
+			index := blockerGames[i]
+			g := games[index]
+			if g.HomeId == blocker {
+				compMeans[index].Home = proposalMean(g.HomePower, sDef.BlockMult)
+			} else {
+				compMeans[index].Away = proposalMean(g.AwayPower, sDef.BlockMult)
+			}
 		}
 	}
 
 	return ProposalConfig{
-		Name:              fmt.Sprintf("%s_lvl%d_rank%d", sDef.Name, sDef.Level, depthRank),
+		Name:              fmt.Sprintf("target%d_comp%dx%d_%s_lvl%d_rank%d", spec.TargetGameLimit, spec.BoundaryCompetitorLimit, spec.CompetitorGameLimit, sDef.Name, sDef.Level, spec.TargetRank),
 		StrengthLevel:     sDef.Level,
-		TargetRank:        depthRank,
+		TargetRank:        spec.TargetRank,
 		TargetMultiplier:  sDef.TargetMult,
 		BlockerMultiplier: sDef.BlockMult,
 		RelevantTeams:     compBlockers,
@@ -881,58 +984,6 @@ func calculateNormalMeanRanks(normalOdds map[int]*TeamOdds) map[int]float64 {
 		ranks[teamID] = meanRank
 	}
 	return ranks
-}
-
-func findRelevantCompetitorsForDepth(
-	targetTeamID int,
-	normalMeanRanks map[int]float64,
-	targetDepthRank float64,
-	direction RareDirection,
-) []int {
-	targetRank := normalMeanRanks[targetTeamID]
-	var competitors []int
-
-	for teamID, rank := range normalMeanRanks {
-		if teamID == targetTeamID {
-			continue
-		}
-		if direction == RareBetter {
-			if rank >= targetDepthRank-1.5 && rank <= targetRank+0.5 {
-				competitors = append(competitors, teamID)
-			}
-		} else {
-			if rank >= targetRank-0.5 && rank <= targetDepthRank+1.5 {
-				competitors = append(competitors, teamID)
-			}
-		}
-	}
-	return competitors
-}
-
-func findRelevantCompetitors(
-	targetTeamID int,
-	normalMeanRanks map[int]float64,
-	candidatePositions []int,
-	direction RareDirection,
-) []int {
-	if len(candidatePositions) == 0 {
-		return nil
-	}
-	extremePos := candidatePositions[0]
-	if direction == RareBetter {
-		for _, p := range candidatePositions {
-			if p < extremePos {
-				extremePos = p
-			}
-		}
-	} else {
-		for _, p := range candidatePositions {
-			if p > extremePos {
-				extremePos = p
-			}
-		}
-	}
-	return findRelevantCompetitorsForDepth(targetTeamID, normalMeanRanks, float64(extremePos), direction)
 }
 
 func validateProposalMixture(components []ProposalComponent, expectedGames int) {
@@ -1119,17 +1170,14 @@ func runWeightedPilotRound(
 		refinementReserve = pilotBudget / 3
 	}
 	initialBudget := pilotBudget - refinementReserve
-	samplesPerLevel := affordableSamples(InitialPilotSamplesPerLevel, initialBudget,
-		int64(len(candidates)*5)*workPerSample)
-	if samplesPerLevel < MinPilotSamples {
-		samplesPerLevel = MinPilotSamples
-		slots := int(initialBudget / (int64(5*MinPilotSamples) * workPerSample))
-		if slots < len(candidates) {
-			for _, skipped := range candidates[slots:] {
-				skipped.SearchState.Status = StatusUnexplored
-			}
-			candidates = candidates[:slots]
+	const coarseFamilies = 4
+	const coarseSamples = MinPilotSamples
+	slots := int(initialBudget / (int64(coarseFamilies*coarseSamples) * workPerSample))
+	if slots < len(candidates) {
+		for _, skipped := range candidates[slots:] {
+			skipped.SearchState.Status = StatusUnexplored
 		}
+		candidates = candidates[:slots]
 	}
 	if len(candidates) == 0 {
 		return nil, 0
@@ -1137,25 +1185,84 @@ func runWeightedPilotRound(
 
 	results := make(map[*FrontierCandidate][]*WeightedPilotResult, len(candidates))
 	var roundWork int64
+	runPilot := func(candidate *FrontierCandidate, spec SparseProposalSpec, samples int) {
+		pilot := &WeightedPilotResult{Proposal: buildSearchProposalForSpec(
+			group.Games, spec, normalMeanRanks, originalMeans,
+		)}
+		evaluateWeightedPilot(pilot, campaign, group.Games, originalMeans, table, sortOrder,
+			group.Team_groups, candidate.TeamID, candidate.Position, samples,
+			workPerSample, rng, group.Id)
+		*remainingWork -= pilot.WorkSpent
+		*pilotWorkRemaining -= pilot.WorkSpent
+		roundWork += pilot.WorkSpent
+		candidate.SearchState.SearchWorkSpent += pilot.WorkSpent
+		results[candidate] = append(results[candidate], pilot)
+	}
+	// Every funded frontier cell gets the same coarse comparison before any
+	// candidate receives refinement or production work.
+	families := []struct{ target, competitors, competitorGames int }{
+		{1, 0, 0}, {2, 0, 0}, {4, 0, 0}, {2, 1, 1},
+	}
 	for _, candidate := range candidates {
-		for level := 1; level <= 5; level++ {
-			samples := affordableSamples(samplesPerLevel, *remainingWork, workPerSample)
-			samples = affordableSamples(samples, *pilotWorkRemaining, workPerSample)
-			if samples < MinPilotSamples {
+		for _, family := range families {
+			spec := SparseProposalSpec{TargetTeamID: candidate.TeamID, TargetRank: candidate.Position,
+				Direction: candidate.Direction, StrengthLevel: 2, TargetGameLimit: family.target,
+				BoundaryCompetitorLimit: family.competitors, CompetitorGameLimit: family.competitorGames}
+			runPilot(candidate, spec, coarseSamples)
+		}
+	}
+	explorationWorkRemaining := initialBudget - roundWork
+	// Expand only the two most effective coarse families. Stronger levels are
+	// explored only when the coarse family has no event evidence.
+	for _, candidate := range candidates {
+		coarse := topCoarsePilotFamilies(results[candidate])
+		// If the coarse sweep found no event at all, try the two bounded
+		// competitor families before spending work on stronger target-only tilts.
+		broaden := false
+		for _, pilot := range coarse {
+			if pilot.Proposal.Spec.BoundaryCompetitorLimit > 0 {
+				broaden = true
+			}
+		}
+		noHits := true
+		for _, pilot := range results[candidate] {
+			if pilot.Hits > 0 {
+				noHits = false
 				break
 			}
-			pilot := &WeightedPilotResult{Proposal: buildSearchProposalForLevel(
-				group.Games, candidate.TeamID, candidate.Direction, candidate.Position,
-				level, normalMeanRanks, originalMeans,
-			)}
-			evaluateWeightedPilot(pilot, campaign, group.Games, originalMeans, table, sortOrder,
-				group.Team_groups, candidate.TeamID, candidate.Position, samples,
-				workPerSample, rng, group.Id)
-			*remainingWork -= pilot.WorkSpent
-			*pilotWorkRemaining -= pilot.WorkSpent
-			roundWork += pilot.WorkSpent
-			candidate.SearchState.SearchWorkSpent += pilot.WorkSpent
-			results[candidate] = append(results[candidate], pilot)
+		}
+		if broaden || noHits {
+			for _, family := range []struct{ target, competitors, games int }{{4, 1, 2}, {4, 2, 1}} {
+				samples := affordableSamples(InitialPilotSamplesPerLevel, explorationWorkRemaining, workPerSample)
+				samples = affordableSamples(samples, *remainingWork, workPerSample)
+				samples = affordableSamples(samples, *pilotWorkRemaining, workPerSample)
+				if samples < MinPilotSamples {
+					break
+				}
+				spec := SparseProposalSpec{TargetTeamID: candidate.TeamID, TargetRank: candidate.Position,
+					Direction: candidate.Direction, StrengthLevel: 2, TargetGameLimit: family.target,
+					BoundaryCompetitorLimit: family.competitors, CompetitorGameLimit: family.games}
+				runPilot(candidate, spec, samples)
+				explorationWorkRemaining -= int64(samples) * workPerSample
+			}
+		}
+		for _, pilot := range coarse {
+			levels := []int{1, 3}
+			if pilot.Hits == 0 {
+				levels = []int{3, 4, 5}
+			}
+			for _, level := range levels {
+				samples := affordableSamples(InitialPilotSamplesPerLevel, explorationWorkRemaining, workPerSample)
+				samples = affordableSamples(samples, *remainingWork, workPerSample)
+				samples = affordableSamples(samples, *pilotWorkRemaining, workPerSample)
+				if samples < MinPilotSamples {
+					break
+				}
+				spec := pilot.Proposal.Spec
+				spec.StrengthLevel = level
+				runPilot(candidate, spec, samples)
+				explorationWorkRemaining -= int64(samples) * workPerSample
+			}
 		}
 	}
 
@@ -1166,7 +1273,7 @@ func runWeightedPilotRound(
 	var refinements []refinement
 	for _, candidate := range candidates {
 		candidate.SearchState.Pilots = results[candidate]
-		if len(results[candidate]) != 5 {
+		if len(results[candidate]) < coarseFamilies {
 			candidate.SearchState.Status = StatusExhausted
 			continue
 		}
@@ -1235,11 +1342,87 @@ func shouldRunFrontierRound(round, resolvedInitial int, pilotWork, remainingWork
 	if round == 0 {
 		return true
 	}
-	// Keep enough for a 100-sample initial pilot at all five levels after
+	// Keep enough for a 100-sample coarse pilot at all four families after
 	// reserving one third of pilot work for refinement.
-	minimumRoundWork := int64(5*MinPilotSamples) * workPerSample * 3 / 2
+	minimumRoundWork := int64(4*MinPilotSamples) * workPerSample * 3 / 2
 	return round == 1 && resolvedInitial > 0 &&
 		pilotWork >= minimumRoundWork && remainingWork >= minimumRoundWork
+}
+
+func planFallbackSamples(remainingWork, plainWorkPerSample int64) (int, int64) {
+	if remainingWork <= 0 || plainWorkPerSample <= 0 {
+		return 0, 0
+	}
+	samples := int(remainingWork / plainWorkPerSample)
+	return samples, int64(samples) * plainWorkPerSample
+}
+
+// Unlike IS, these are independent draws directly from P and can be added
+// count-for-count to the initial ordinary Monte Carlo histogram.
+func simulatePlainRankCounts(baseCampaign []*TeamCampaign, games []*GameType,
+	table *Table, sortOrder []SortType, teamGroups []TeamType, samples int,
+	rng *rand.Rand) map[int][]int {
+	counts := make(map[int][]int, len(teamGroups))
+	for _, team := range teamGroups {
+		counts[team.Team_id] = make([]int, len(teamGroups))
+	}
+	simCampaign := make([]*TeamCampaign, len(baseCampaign))
+	teamSlice := make([]*TeamCampaign, len(teamGroups))
+	for n := 0; n < samples; n++ {
+		for k, campaign := range baseCampaign {
+			simCampaign[k] = campaign.clone()
+		}
+		for _, g := range games {
+			if g.Played {
+				continue
+			}
+			homeScore := poissonRand(rng, g.HomePower)
+			awayScore := poissonRand(rng, g.AwayPower)
+			score := &GameType{g.Id, g.HomeId, g.AwayId, homeScore, awayScore, 0, 0, true,
+				g.home_table_index, g.away_table_index}
+			if simCampaign[g.home_table_index] != nil {
+				simCampaign[g.home_table_index].add_game(score)
+			}
+			if simCampaign[g.away_table_index] != nil {
+				simCampaign[g.away_table_index].add_game(score)
+			}
+		}
+		for i, team := range teamGroups {
+			teamSlice[i] = simCampaign[table.Query(uint32(team.Team_id))]
+		}
+		sort.Sort(TeamCampaignSorted{teamSlice, sortOrder})
+		for rank, team := range teamSlice {
+			counts[team.id][rank]++
+		}
+	}
+	return counts
+}
+
+func combineNormalPositionCounts(initial, fallback map[int][]int, initialSamples, fallbackSamples int,
+	teamOdds []OddsType, table *Table) (newNonzeroCells, brokenHundreds int) {
+	combinedSamples := initialSamples + fallbackSamples
+	if combinedSamples <= 0 {
+		return 0, 0
+	}
+	for teamID, counts := range initial {
+		additional := fallback[teamID]
+		odds := teamOdds[table.Query(uint32(teamID))].team
+		for pos := range counts {
+			wasZero := counts[pos] == 0
+			wasCertain := counts[pos] == initialSamples
+			if pos < len(additional) {
+				counts[pos] += additional[pos]
+			}
+			if wasZero && counts[pos] > 0 {
+				newNonzeroCells++
+			}
+			if wasCertain && counts[pos] < combinedSamples {
+				brokenHundreds++
+			}
+			odds.Pos[pos] = float64(counts[pos]) / float64(combinedSamples)
+		}
+	}
+	return newNonzeroCells, brokenHundreds
 }
 
 func searchAndMergeRarePositions(
@@ -1379,6 +1562,22 @@ func searchAndMergeRarePositions(
 		}
 	}
 
+	plainWorkPerSample := estimateSeasonWork(unplayedGames, 1, numTeams)
+	fallbackSamples, fallbackWork := planFallbackSamples(remainingWork, plainWorkPerSample)
+	var newNonzeroCells, brokenHundreds int
+	if fallbackSamples > 0 {
+		fallbackCounts := simulatePlainRankCounts(campaign, group.Games, table, sortOrder,
+			group.Team_groups, fallbackSamples, rng)
+		newNonzeroCells, brokenHundreds = combineNormalPositionCounts(normalPositionCounts,
+			fallbackCounts, NormalIterations, fallbackSamples, teamOdds, table)
+		remainingWork -= fallbackWork
+	}
+	if remainingWork < 0 {
+		panic("rare-position fallback work budget exceeded")
+	}
+	log.Printf("rare-position-fallback-mc: group=%d samples=%d work=%d combined_normal_samples=%d new_nonzero_cells=%d broken_100_percent_results=%d",
+		group.Id, fallbackSamples, fallbackWork, NormalIterations+fallbackSamples,
+		newNonzeroCells, brokenHundreds)
 	for _, tg := range group.Team_groups {
 		teamID := tg.Team_id
 		if estimates := teamRareEstimates[teamID]; len(estimates) > 0 {
@@ -1400,9 +1599,10 @@ func searchAndMergeRarePositions(
 	if workSpent > totalWorkLimit {
 		panic("rare-position total work budget exceeded")
 	}
-	log.Printf("rare-position-summary: group=%d normal_sims=%d total_work_limit=%d pilot_work=%d production_work=%d expansion_work=%d unused_work=%d work_spent=%d resolved_positions=%d",
-		group.Id, NormalIterations, totalWorkLimit, pilotWork, productionWork,
-		expansionWork, remainingWork, workSpent, resolvedPositions)
+	log.Printf("rare-position-summary: group=%d normal_sims_initial=%d fallback_normal_sims=%d normal_sims_total=%d total_work_limit=%d pilot_work=%d production_work=%d expansion_work=%d fallback_work=%d unused_work=%d work_spent=%d resolved_positions_is=%d new_cells_from_fallback=%d",
+		group.Id, NormalIterations, fallbackSamples, NormalIterations+fallbackSamples, totalWorkLimit,
+		pilotWork, productionWork, expansionWork, fallbackWork, remainingWork, workSpent,
+		resolvedPositions, newNonzeroCells)
 }
 
 type RarePositionEstimate struct {
@@ -1425,8 +1625,9 @@ func mergeRarePositionEstimates(
 	final := make([]float64, numPositions)
 
 	rareMass := 0.0
-	for _, est := range rareEstimates {
-		if est.Found && est.Probability >= MinInterestingProbability {
+	for pos, est := range rareEstimates {
+		if pos >= 0 && pos < len(normalCounts) && normalCounts[pos] == 0 &&
+			est.Found && est.Probability >= MinInterestingProbability {
 			rareMass += est.Probability
 		}
 	}
@@ -1446,7 +1647,7 @@ func mergeRarePositionEstimates(
 
 	for pos := 0; pos < numPositions; pos++ {
 		est, isRare := rareEstimates[pos]
-		if isRare && est.Found && est.Probability >= MinInterestingProbability {
+		if normalCounts[pos] == 0 && isRare && est.Found && est.Probability >= MinInterestingProbability {
 			final[pos] = est.Probability
 		} else if normalCounts[pos] > 0 {
 			if observedNormalMass > 0 {
