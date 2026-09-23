@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"testing"
@@ -348,7 +349,8 @@ func TestCEMExactHitGetsSchedulerPriority(t *testing.T) {
 	states, searches := cemSchedulerFixture(2)
 	states[0].Active, states[1].Active = true, true
 	states[0].HasStats, states[0].Iterations = true, 1
-	states[0].AnyExactHit, states[0].MaxExactHits = true, 1
+	states[0].EverHadExactHit, states[0].ExactHitPriorityActive = true, true
+	states[0].MaxExactHits = 1
 	states[0].ProgressScore = updateCEMProgressScore(states[0])
 	states[1].HasStats, states[1].Iterations = true, 3
 	states[1].FirstStats = CEMBatchStats{EliteMeanDistance: 10}
@@ -358,6 +360,31 @@ func TestCEMExactHitGetsSchedulerPriority(t *testing.T) {
 	if got := selectCEMCandidate(states, searches); got != states[0] {
 		t.Fatalf("candidate without an exact hit outranked an observed exact hit: scores=%g,%g",
 			states[0].ProgressScore, states[1].ProgressScore)
+	}
+}
+
+func TestCEMHistoricalHitDoesNotKeepSchedulerBonusAfterFailure(t *testing.T) {
+	states, searches := cemSchedulerFixture(2)
+	for _, state := range states {
+		state.Active = true
+		state.HasStats = true
+		state.FirstStats = CEMBatchStats{EliteMeanDistance: 10}
+		state.BestEliteDistance = 6
+	}
+	states[0].EverHadExactHit = true
+	states[0].ExactHitPriorityActive = false
+	states[0].MaxExactHits = 1
+	states[1].LastStats.EliteESS = 30
+	states[1].LastStats.NearTargetRate = 0.25
+	states[0].ProgressScore = updateCEMProgressScore(states[0])
+	states[1].ProgressScore = updateCEMProgressScore(states[1])
+	if states[0].ProgressScore >= 1000 || selectCEMCandidate(states, searches) != states[1] {
+		t.Fatalf("historical exact hit retained priority: scores=%g,%g", states[0].ProgressScore, states[1].ProgressScore)
+	}
+	states[0].ExactHitPriorityActive = true
+	states[0].ProgressScore = updateCEMProgressScore(states[0])
+	if selectCEMCandidate(states, searches) != states[0] {
+		t.Fatal("new exact-hit evidence did not restore scheduler priority")
 	}
 }
 
@@ -528,6 +555,122 @@ func TestCEMConfirmationSummaryKeepsExactPOverQWeights(t *testing.T) {
 	want := (0.25 + 0.75) / 3
 	if math.Abs(stats.Probability-want) > 1e-12 {
 		t.Fatalf("confirmation p-hat=%g, want direct P/Q estimate %g", stats.Probability, want)
+	}
+}
+
+func runCEMConfirmationFixture(t *testing.T, hitChunks [][]CEMSeason, budgetChunks int) (*CEMCandidateState, CEMConfirmationOutcome, CEMRoundResult, int64, int64) {
+	t.Helper()
+	const workPerSample int64 = 350
+	state := &CEMCandidateState{
+		Candidate:              &FrontierCandidate{TeamID: 7, Position: 4, SearchState: &PositionSearchState{}},
+		Proposal:               CEMProposal{Iteration: 8, TeamLogMultipliers: map[int]float64{7: 0.3}, Means: []GameProposalMeans{{2, 1}}},
+		ConfirmationProposal:   CEMProposal{Iteration: 7, TeamLogMultipliers: map[int]float64{7: 0.2}, Means: []GameProposalMeans{{1.5, 1}}},
+		EverHadExactHit:        true,
+		ExactHitPriorityActive: true,
+	}
+	confirmationBudget := int64(budgetChunks*CEMConfirmationChunkSamples) * workPerSample
+	remainingWork := confirmationBudget
+	result := CEMRoundResult{}
+	chunkIndex := 0
+	firstProposal := CEMProposal{}
+	outcome := runCEMConfirmation(state, 99, &confirmationBudget, &remainingWork, workPerSample,
+		func(proposal CEMProposal, samples int) []CEMSeason {
+			if samples != CEMConfirmationChunkSamples {
+				t.Fatalf("chunk samples=%d", samples)
+			}
+			if chunkIndex == 0 {
+				firstProposal = cloneCEMProposal(proposal)
+			} else if proposal.Iteration != firstProposal.Iteration ||
+				!equalCEMTheta(proposal.TeamLogMultipliers, firstProposal.TeamLogMultipliers) ||
+				proposal.Means[0] != firstProposal.Means[0] {
+				t.Fatalf("frozen Q changed between chunks: first=%+v next=%+v", firstProposal, proposal)
+			}
+			seasons := make([]CEMSeason, CEMConfirmationChunkSamples)
+			for i := range seasons {
+				seasons[i].Rank = 9
+			}
+			if chunkIndex < len(hitChunks) {
+				copy(seasons, hitChunks[chunkIndex])
+			}
+			chunkIndex++
+			return seasons
+		}, &result)
+	if state.Proposal.Iteration != 8 || state.Proposal.TeamLogMultipliers[7] != 0.3 {
+		t.Fatalf("confirmation mutated adaptation proposal: %+v", state.Proposal)
+	}
+	return state, outcome, result, confirmationBudget, remainingWork
+}
+
+func TestCEMSequentialConfirmationRunsThreeZeroHitChunks(t *testing.T) {
+	state, outcome, result, remainingConfirmation, remainingGlobal := runCEMConfirmationFixture(t, nil, 3)
+	if !outcome.Failed || outcome.Confirmed || state.Confirmation.Samples != 900 || state.Confirmation.Hits != 0 {
+		t.Fatalf("0/900 should be statistical failure: outcome=%+v stats=%+v", outcome, state.Confirmation)
+	}
+	if state.StopReason != "confirmation_failed" || state.ExactHitPriorityActive || !state.EverHadExactHit {
+		t.Fatalf("failed confirmation state lost history or retained active priority: %+v", state)
+	}
+	if result.ConfirmationAttempts != 1 || result.ConfirmationChunks != 3 || result.ConfirmationSamples != 900 ||
+		result.ConfirmationWork != 315000 || remainingConfirmation != 0 || remainingGlobal != 0 {
+		t.Fatalf("three-chunk accounting mismatch: result=%+v confirmRemaining=%d globalRemaining=%d", result, remainingConfirmation, remainingGlobal)
+	}
+}
+
+func TestCEMSequentialConfirmationStopsOnFirstHitAtEachChunk(t *testing.T) {
+	for hitAt := 1; hitAt <= 3; hitAt++ {
+		t.Run(fmt.Sprintf("chunk_%d", hitAt), func(t *testing.T) {
+			chunks := make([][]CEMSeason, hitAt)
+			for i := range chunks {
+				chunks[i] = make([]CEMSeason, CEMConfirmationChunkSamples)
+				for j := range chunks[i] {
+					chunks[i][j].Rank = 9
+				}
+			}
+			chunks[hitAt-1][0] = CEMSeason{Rank: 4, LogWeight: math.Log(0.5)}
+			state, outcome, result, _, _ := runCEMConfirmationFixture(t, chunks, 3)
+			wantSamples := hitAt * CEMConfirmationChunkSamples
+			if !outcome.Confirmed || state.Confirmation.Samples != wantSamples || state.Confirmation.Hits != 1 {
+				t.Fatalf("hit at chunk %d not accepted promptly: outcome=%+v stats=%+v", hitAt, outcome, state.Confirmation)
+			}
+			if result.ConfirmationChunks != hitAt || result.ConfirmationWork != int64(wantSamples*350) {
+				t.Fatalf("confirmation did not stop after successful chunk: result=%+v", result)
+			}
+			if state.Confirmation.EventESS != 1 || state.Confirmation.MaxEventWeightShare != 1 {
+				t.Fatalf("single-hit diagnostics should be degenerate: %+v", state.Confirmation)
+			}
+		})
+	}
+}
+
+func TestCEMSequentialConfirmationAccumulatesWeightedStatistics(t *testing.T) {
+	chunks := make([][]CEMSeason, 2)
+	for i := range chunks {
+		chunks[i] = make([]CEMSeason, CEMConfirmationChunkSamples)
+		for j := range chunks[i] {
+			chunks[i][j].Rank = 9
+		}
+	}
+	chunks[1][0] = CEMSeason{Rank: 4, LogWeight: math.Log(0.5)}
+	chunks[1][1] = CEMSeason{Rank: 4, LogWeight: math.Log(0.75)}
+	state, outcome, result, _, _ := runCEMConfirmationFixture(t, chunks, 3)
+	wantP := 1.25 / 600
+	if !outcome.Confirmed || state.Confirmation.Samples != 600 || state.Confirmation.Hits != 2 ||
+		math.Abs(state.Confirmation.Probability-wantP) > 1e-12 || state.Confirmation.EventESS <= 1 ||
+		math.Abs(state.Confirmation.MaxEventWeightShare-0.6) > 1e-12 {
+		t.Fatalf("cumulative confirmation diagnostics are wrong: stats=%+v outcome=%+v", state.Confirmation, outcome)
+	}
+	if result.ConfirmationWork != 210000 {
+		t.Fatalf("two chunks cost %d, want 210000", result.ConfirmationWork)
+	}
+}
+
+func TestCEMSequentialConfirmationBudgetExhaustionIsInconclusive(t *testing.T) {
+	state, outcome, result, remainingConfirmation, remainingGlobal := runCEMConfirmationFixture(t, nil, 1)
+	if !outcome.Inconclusive || outcome.Failed || outcome.Confirmed || state.StopReason != "confirmation_budget_exhausted" {
+		t.Fatalf("one zero chunk without budget for another must be inconclusive: outcome=%+v state=%+v", outcome, state)
+	}
+	if result.ConfirmationFailures != 0 || result.ConfirmationInconclusiveBudget != 1 ||
+		result.ConfirmationWork != 105000 || remainingConfirmation != 0 || remainingGlobal != 0 {
+		t.Fatalf("budget exhaustion was not accounted distinctly: result=%+v", result)
 	}
 }
 

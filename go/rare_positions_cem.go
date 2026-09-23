@@ -16,7 +16,8 @@ const (
 	CEMMaxKL                            = 3.0
 	CEMExactEventThreshold              = 5
 	CEMValidationSamples                = 500
-	CEMConfirmationSamples              = 300
+	CEMConfirmationChunkSamples         = 300
+	CEMMaxConfirmationChunks            = 3
 	CEMMinAdaptationHitsForConfirmation = 1
 	CEMMinConfirmationHits              = 1
 	CEMMaxInitialCandidates             = 6
@@ -84,6 +85,8 @@ type CEMRoundResult struct {
 	ValidationWork                   int64
 	ConfirmationWork                 int64
 	ConfirmationAttempts             int
+	ConfirmationChunks               int
+	ConfirmationSamples              int
 	ConfirmationSuccesses            int
 	ConfirmationFailures             int
 	AdaptationExactHitBatches        int
@@ -92,6 +95,7 @@ type CEMRoundResult struct {
 	ConfirmationMultiHitSuccesses    int
 	ConfirmationFailedResumed        int
 	ConfirmationFailedExhausted      int
+	ConfirmationInconclusiveBudget   int
 	ConfirmationHits                 int
 	ValidationAttempts               int
 	ValidationSuccesses              int
@@ -154,7 +158,8 @@ type CEMCandidateState struct {
 	HasBest                        bool
 	ConfirmationAccepted           bool
 	MaxExactHits                   int
-	AnyExactHit                    bool
+	EverHadExactHit                bool
+	ExactHitPriorityActive         bool
 	ExactEliteSeen                 bool
 	StalledIterations              int
 	RegressionIterations           int
@@ -163,6 +168,8 @@ type CEMCandidateState struct {
 	StopReason                     string
 	ProgressScore                  float64
 	Confirmation                   CEMConfirmationStats
+	ConfirmationChunks             int
+	ConfirmationSeasons            []CEMSeason
 	ConfirmationProposal           CEMProposal
 	ConfirmationBatchStats         CEMBatchStats
 	ConfirmationSourceBatch        int
@@ -175,6 +182,7 @@ type CEMCandidateState struct {
 type CEMConfirmationStats struct {
 	Samples             int
 	Hits                int
+	NearTargetHits      int
 	HitRate             float64
 	NearTargetRate      float64
 	Probability         float64
@@ -182,6 +190,12 @@ type CEMConfirmationStats struct {
 	RelSE               float64
 	EventESS            float64
 	MaxEventWeightShare float64
+}
+
+type CEMConfirmationOutcome struct {
+	Confirmed    bool
+	Failed       bool
+	Inconclusive bool
 }
 
 func teamIDsFromGroups(groups []TeamType) []int {
@@ -732,7 +746,7 @@ func updateCEMProgressScore(state *CEMCandidateState) float64 {
 	if state.BestStats.BestRank >= 0 && cemRankDistance(state.BestStats.BestRank, state.Candidate.Position) <= 1 {
 		score += 40
 	}
-	if state.AnyExactHit {
+	if state.ExactHitPriorityActive {
 		score += 1000 + 10*float64(state.MaxExactHits)
 	}
 	if state.BestNearTargetRate == 0 && state.BestEliteDistance > 1 {
@@ -775,6 +789,7 @@ func snapshotCEMConfirmationCandidate(state *CEMCandidateState, sampled CEMPropo
 	state.HasConfirmationCandidate = true
 	state.Confirmation = CEMConfirmationStats{}
 	state.ConfirmationAccepted = false
+	state.ExactHitPriorityActive = true
 	state.Active = false
 	state.StopReason = "confirmation_ready"
 	return true
@@ -899,7 +914,10 @@ func runCEMCandidateBatch(state *CEMCandidateState, group *GroupType, campaign [
 	}
 	state.LastStats = stats
 	state.HasStats = true
-	state.AnyExactHit = state.AnyExactHit || stats.ExactHits > 0
+	state.EverHadExactHit = state.EverHadExactHit || stats.ExactHits > 0
+	if stats.ExactHits > 0 {
+		state.Candidate.SearchState.CEMEverHadExactHit = true
+	}
 	if stats.ExactHits > state.MaxExactHits {
 		state.MaxExactHits = stats.ExactHits
 	}
@@ -1016,7 +1034,7 @@ func runCEMAdaptiveSchedule(states []*CEMCandidateState, searches map[int]*TeamR
 		}
 		step++
 		reason := "highest_progress"
-		if state.AnyExactHit {
+		if state.ExactHitPriorityActive {
 			reason = "exact_event_priority"
 		}
 		if !runBatch(state, step, reason) {
@@ -1095,7 +1113,7 @@ func summarizeCEMConfirmation(seasons []CEMSeason, target int) CEMConfirmationSt
 			stats.Hits++
 		}
 		if absInt(season.Rank-target) <= 1 {
-			stats.NearTargetRate++
+			stats.NearTargetHits++
 		}
 		if season.Rank == target && season.LogWeight > maxLog {
 			maxLog = season.LogWeight
@@ -1105,7 +1123,7 @@ func summarizeCEMConfirmation(seasons []CEMSeason, target int) CEMConfirmationSt
 		return stats
 	}
 	stats.HitRate = float64(stats.Hits) / float64(len(seasons))
-	stats.NearTargetRate /= float64(len(seasons))
+	stats.NearTargetRate = float64(stats.NearTargetHits) / float64(len(seasons))
 	if stats.Hits == 0 {
 		return stats
 	}
@@ -1164,40 +1182,92 @@ func cemConfirmationAccepted(stats CEMConfirmationStats) (bool, string) {
 	return true, "reproducible_exact_events"
 }
 
-func runCEMConfirmation(state *CEMCandidateState, group *GroupType, campaign []*TeamCampaign,
-	table *Table, order []SortType, original []GameProposalMeans, teamIDs []int,
-	confirmationRemaining, remainingWork *int64, workPerSample int64, rng *rand.Rand,
-	result *CEMRoundResult) bool {
-	samples := affordableSamples(CEMConfirmationSamples, *confirmationRemaining, workPerSample)
-	samples = affordableSamples(samples, *remainingWork, workPerSample)
-	if samples < CEMConfirmationSamples {
-		return false
-	}
+func runCEMConfirmation(state *CEMCandidateState, groupID int,
+	confirmationRemaining, remainingWork *int64, workPerSample int64,
+	sampleChunk func(CEMProposal, int) []CEMSeason, result *CEMRoundResult) CEMConfirmationOutcome {
 	proposal := cloneCEMProposal(state.ConfirmationProposal)
 	thetaBefore := cloneCEMProposal(state.Proposal)
-	work := int64(samples) * workPerSample
-	*confirmationRemaining -= work
-	*remainingWork -= work
-	result.ConfirmationWork += work
-	result.ConfirmationAttempts++
-	state.Candidate.SearchState.SearchWorkSpent += work
+	state.ConfirmationChunks = 0
+	state.ConfirmationSeasons = nil
+	state.Confirmation = CEMConfirmationStats{}
 	state.StopReason = "confirming"
-	seasons := simulateCEMBatchForTeams(campaign, group.Games, original, proposal.Means,
-		table, order, group.Team_groups, teamIDs, state.Candidate.TeamID, samples, rng)
-	stats := summarizeCEMConfirmation(seasons, state.Candidate.Position)
-	if !equalCEMTheta(thetaBefore.TeamLogMultipliers, state.Proposal.TeamLogMultipliers) {
-		panic("CEM confirmation changed theta")
+	decision := CEMConfirmationOutcome{}
+	reason := "confirmation_budget_exhausted"
+	workForChunk := int64(CEMConfirmationChunkSamples) * workPerSample
+
+	for chunk := 1; chunk <= CEMMaxConfirmationChunks; chunk++ {
+		if *confirmationRemaining < workForChunk || *remainingWork < workForChunk {
+			decision.Inconclusive = true
+			result.ConfirmationInconclusiveBudget++
+			break
+		}
+		*confirmationRemaining -= workForChunk
+		*remainingWork -= workForChunk
+		result.ConfirmationWork += workForChunk
+		result.ConfirmationChunks++
+		result.ConfirmationSamples += CEMConfirmationChunkSamples
+		if chunk == 1 {
+			result.ConfirmationAttempts++
+		}
+		state.Candidate.SearchState.SearchWorkSpent += workForChunk
+		chunkSeasons := sampleChunk(cloneCEMProposal(proposal), CEMConfirmationChunkSamples)
+		if len(chunkSeasons) != CEMConfirmationChunkSamples {
+			panic("CEM confirmation sampler returned an unexpected chunk size")
+		}
+		chunkHits, chunkNear := 0, 0
+		for _, season := range chunkSeasons {
+			if season.Rank == state.Candidate.Position {
+				chunkHits++
+			}
+			if absInt(season.Rank-state.Candidate.Position) <= 1 {
+				chunkNear++
+			}
+			state.ConfirmationSeasons = append(state.ConfirmationSeasons,
+				CEMSeason{Rank: season.Rank, LogWeight: season.LogWeight})
+		}
+		result.ConfirmationHits += chunkHits
+		state.ConfirmationChunks = chunk
+		stats := summarizeCEMConfirmation(state.ConfirmationSeasons, state.Candidate.Position)
+		state.Confirmation = stats
+		if !equalCEMTheta(thetaBefore.TeamLogMultipliers, state.Proposal.TeamLogMultipliers) {
+			panic("CEM confirmation changed theta")
+		}
+		chunkDecision := "continue"
+		if stats.Hits > 0 {
+			accepted, acceptReason := cemConfirmationAccepted(stats)
+			reason = acceptReason
+			if accepted {
+				decision.Confirmed = true
+				chunkDecision = "confirmed"
+			} else {
+				decision.Failed = true
+				chunkDecision = "failed"
+			}
+		} else if chunk == CEMMaxConfirmationChunks {
+			decision.Failed = true
+			reason = "no_exact_event_after_max_chunks"
+			chunkDecision = "failed"
+		} else if *confirmationRemaining < workForChunk || *remainingWork < workForChunk {
+			decision.Inconclusive = true
+			result.ConfirmationInconclusiveBudget++
+			reason = "confirmation_budget_exhausted"
+			chunkDecision = "budget_exhausted"
+		}
+		log.Printf("rare-position-cem-confirmation-chunk: group=%d team=%d position=%d proposal_iteration=%d chunk=%d chunk_samples=%d cumulative_samples=%d chunk_hits=%d cumulative_hits=%d chunk_near_target_rate=%.5f cumulative_near_target_rate=%.5f event_ess=%.3f max_event_weight_share=%.3f work=%d decision=%s",
+			groupID, state.Candidate.TeamID, state.Candidate.Position, proposal.Iteration,
+			chunk, CEMConfirmationChunkSamples, stats.Samples, chunkHits, stats.Hits,
+			float64(chunkNear)/float64(CEMConfirmationChunkSamples), stats.NearTargetRate,
+			stats.EventESS, stats.MaxEventWeightShare, workForChunk, chunkDecision)
+		if decision.Confirmed || decision.Failed || decision.Inconclusive {
+			break
+		}
 	}
-	state.Confirmation = stats
-	result.ConfirmationHits += stats.Hits
-	accepted, reason := cemConfirmationAccepted(stats)
-	log.Printf("rare-position-cem-confirmation: group=%d team=%d position=%d proposal_iteration=%d samples=%d hits=%d hit_rate=%.5f near_target_rate=%.5f weighted_p_hat=%.8g se=%.3g relSE=%.3f event_ess=%.3f max_event_weight_share=%.3f work=%d confirmed=%t reason=%s",
-		group.Id, state.Candidate.TeamID, state.Candidate.Position, proposal.Iteration,
-		samples, stats.Hits, stats.HitRate, stats.NearTargetRate, stats.Probability,
-		stats.StdErr, stats.RelSE, stats.EventESS, stats.MaxEventWeightShare, work, accepted, reason)
-	if accepted {
+
+	stats := state.Confirmation
+	if decision.Confirmed {
 		state.StopReason = "validation_ready"
 		state.ConfirmationAccepted = true
+		state.ExactHitPriorityActive = false
 		state.Candidate.SearchState.Status = StatusPromising
 		result.ConfirmationSuccesses++
 		if stats.Hits == 1 {
@@ -1205,14 +1275,28 @@ func runCEMConfirmation(state *CEMCandidateState, group *GroupType, campaign []*
 		} else {
 			result.ConfirmationMultiHitSuccesses++
 		}
-	} else {
+	} else if decision.Failed {
 		state.StopReason = "confirmation_failed"
 		state.LastFailedConfirmationProposal = cloneCEMProposal(state.ConfirmationProposal)
 		state.HasFailedConfirmationProposal = true
+		failedProposal := cloneCEMProposal(state.ConfirmationProposal)
+		state.Candidate.SearchState.CEMFailedConfirmationProposal = &failedProposal
+		state.ExactHitPriorityActive = false
+		state.ProgressScore = updateCEMProgressScore(state)
 		state.Candidate.SearchState.Status = StatusFrontier
 		result.ConfirmationFailures++
+	} else {
+		state.StopReason = "confirmation_budget_exhausted"
+		state.ExactHitPriorityActive = false
+		state.ProgressScore = updateCEMProgressScore(state)
+		state.Candidate.SearchState.Status = StatusFrontier
 	}
-	return accepted
+	log.Printf("rare-position-cem-confirmation: group=%d team=%d position=%d proposal_iteration=%d chunks=%d samples=%d hits=%d hit_rate=%.5f near_target_rate=%.5f weighted_p_hat=%.8g se=%.3g relSE=%.3f event_ess=%.3f max_event_weight_share=%.3f confirmed=%t reason=%s",
+		groupID, state.Candidate.TeamID, state.Candidate.Position, proposal.Iteration,
+		stats.Samples/CEMConfirmationChunkSamples, stats.Samples, stats.Hits, stats.HitRate,
+		stats.NearTargetRate, stats.Probability, stats.StdErr, stats.RelSE,
+		stats.EventESS, stats.MaxEventWeightShare, decision.Confirmed, reason)
+	return decision
 }
 
 func equalCEMTheta(a, b map[int]float64) bool {
@@ -1237,7 +1321,12 @@ func runCEMRound(candidates []*FrontierCandidate, searches map[int]*TeamRareSear
 	states := make([]*CEMCandidateState, 0, len(candidates))
 	for _, candidate := range candidates {
 		state := &CEMCandidateState{Candidate: candidate,
-			Proposal: newCEMProposal(original, group.Games, teamIDs), Active: true}
+			Proposal: newCEMProposal(original, group.Games, teamIDs), Active: true,
+			EverHadExactHit: candidate.SearchState.CEMEverHadExactHit}
+		if candidate.SearchState.CEMFailedConfirmationProposal != nil {
+			state.LastFailedConfirmationProposal = cloneCEMProposal(*candidate.SearchState.CEMFailedConfirmationProposal)
+			state.HasFailedConfirmationProposal = true
+		}
 		states = append(states, state)
 	}
 	explorationAvailable := min(*explorationRemaining, min(*cemRemaining, *remainingWork))
@@ -1278,21 +1367,12 @@ func runCEMRound(candidates []*FrontierCandidate, searches map[int]*TeamRareSear
 			affordableSamples(CEMBatchSamples, *remainingWork, adaptWorkPerSample) >= CEMMinBatchSamples
 	}
 	confirmed := make(map[*CEMCandidateState]bool)
-	confirmState := func(state *CEMCandidateState) bool {
-		if affordableSamples(CEMConfirmationSamples, *confirmationRemaining, confirmationWorkPerSample) < CEMConfirmationSamples ||
-			affordableSamples(CEMConfirmationSamples, *remainingWork, confirmationWorkPerSample) < CEMConfirmationSamples {
-			state.StopReason = "confirmation_budget_exhausted"
-			state.Candidate.SearchState.Status = StatusFrontier
-			log.Printf("rare-position-cem-confirmation-budget: group=%d team=%d position=%d proposal_iteration=%d required_work=%d confirmation_work_remaining=%d global_work_remaining=%d",
-				group.Id, state.Candidate.TeamID, state.Candidate.Position,
-				state.ConfirmationProposal.Iteration,
-				int64(CEMConfirmationSamples)*confirmationWorkPerSample,
-				*confirmationRemaining, *remainingWork)
-			return false
-		}
-		return runCEMConfirmation(state, group, campaign, table, order, original,
-			teamIDs, confirmationRemaining, remainingWork,
-			confirmationWorkPerSample, rng, &result)
+	confirmState := func(state *CEMCandidateState) CEMConfirmationOutcome {
+		return runCEMConfirmation(state, group.Id, confirmationRemaining, remainingWork,
+			confirmationWorkPerSample, func(proposal CEMProposal, samples int) []CEMSeason {
+				return simulateCEMBatchForTeams(campaign, group.Games, original, proposal.Means,
+					table, order, group.Team_groups, teamIDs, state.Candidate.TeamID, samples, rng)
+			}, &result)
 	}
 	runCEMAdaptiveSchedule(initialStates, searches, canAffordInitial, canAffordAdaptive, func(state *CEMCandidateState, step int, reason string) bool {
 		if reason == "initial_fairness" {
@@ -1307,12 +1387,14 @@ func runCEMRound(candidates []*FrontierCandidate, searches map[int]*TeamRareSear
 			&result, step, reason)
 		if ok && state.StopReason == "confirmation_ready" && state.HasConfirmationCandidate {
 			result.ConfirmationReadyCandidates++
-			if confirmState(state) {
+			outcome := confirmState(state)
+			if outcome.Confirmed {
 				confirmed[state] = true
-			} else if state.StopReason == "confirmation_budget_exhausted" {
-				result.ConfirmationFailedExhausted++
+			} else if outcome.Inconclusive {
 				state.HasConfirmationCandidate = false
-			} else if state.Confirmation.Hits == 0 &&
+				state.Active = false
+				state.Candidate.SearchState.Status = StatusFrontier
+			} else if outcome.Failed && state.Confirmation.Hits == 0 &&
 				state.ConfirmationBatchStats.EliteESS >= CEMMinEliteESSForUpdate && canAffordAdaptive() {
 				failedProposal := cloneCEMProposal(state.ConfirmationProposal)
 				failedHits := state.Confirmation.Hits
@@ -1324,7 +1406,7 @@ func runCEMRound(candidates []*FrontierCandidate, searches map[int]*TeamRareSear
 				log.Printf("rare-position-cem-confirmation-resume: group=%d team=%d position=%d failed_proposal_iteration=%d confirmation_hits=%d next_iteration=%d cem_work_remaining=%d",
 					group.Id, state.Candidate.TeamID, state.Candidate.Position,
 					failedProposal.Iteration, failedHits, sourceBatch+1, *cemRemaining)
-			} else {
+			} else if outcome.Failed {
 				result.ConfirmationFailedExhausted++
 				state.HasConfirmationCandidate = false
 				state.Active = false
@@ -1358,7 +1440,7 @@ func runCEMRound(candidates []*FrontierCandidate, searches map[int]*TeamRareSear
 				result.BestCandidateDistanceImprovement = state.FirstStats.EliteMeanDistance - state.BestEliteDistance
 				result.BestCandidateNearTargetRate = state.BestNearTargetRate
 			}
-			if state.AnyExactHit {
+			if state.EverHadExactHit {
 				result.TargetsAnyExact++
 			}
 			if state.ExactEliteSeen {
