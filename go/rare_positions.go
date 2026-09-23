@@ -77,6 +77,9 @@ type PositionSearchState struct {
 	BestCandidateHits   int
 	BestOvershootHits   int
 	BestScore           float64
+	BestPilotRate       float64
+	BestPilotSamples    int
+	Difficult           bool
 	ProductionEstimate  *ProductionEstimate
 	SearchWorkSpent     int64
 	ProductionWorkSpent int64
@@ -271,20 +274,6 @@ func buildSearchProposalForLevel(
 	bestDef := sMap[level]
 	bestCfg := buildSingleProposalConfig(games, targetTeamID, direction, targetRank, bestDef, normalMeanRanks)
 
-	weakerLvl := level - 1
-	if weakerLvl < 0 {
-		weakerLvl = level
-	}
-	weakerDef := sMap[weakerLvl]
-	weakerCfg := buildSingleProposalConfig(games, targetTeamID, direction, targetRank, weakerDef, normalMeanRanks)
-
-	strongerLvl := level + 1
-	if strongerLvl > 5 {
-		strongerLvl = level
-	}
-	strongerDef := sMap[strongerLvl]
-	strongerCfg := buildSingleProposalConfig(games, targetTeamID, direction, targetRank, strongerDef, normalMeanRanks)
-
 	comps := []ProposalComponent{
 		{
 			Name:          "original",
@@ -293,27 +282,28 @@ func buildSearchProposalForLevel(
 			RelevantTeams: nil,
 			TargetRank:    -1,
 		},
-		{
-			Name:          "weaker_" + weakerCfg.Name,
-			Weight:        0.20,
-			Means:         weakerCfg.Means,
-			RelevantTeams: weakerCfg.RelevantTeams,
+	}
+	levels := []int{level - 1, level, level + 1}
+	weights := []float64{0.20, 0.50, 0.25}
+	if level == 1 {
+		levels = []int{1, 2, 3}
+		weights = []float64{0.50, 0.25, 0.20}
+	} else if level == 5 {
+		levels = []int{3, 4, 5}
+		weights = []float64{0.20, 0.25, 0.50}
+	}
+	for i, lvl := range levels {
+		cfg := bestCfg
+		if lvl != level {
+			cfg = buildSingleProposalConfig(games, targetTeamID, direction, targetRank, sMap[lvl], normalMeanRanks)
+		}
+		comps = append(comps, ProposalComponent{
+			Name:          cfg.Name,
+			Weight:        weights[i],
+			Means:         cfg.Means,
+			RelevantTeams: cfg.RelevantTeams,
 			TargetRank:    targetRank,
-		},
-		{
-			Name:          "best_" + bestCfg.Name,
-			Weight:        0.50,
-			Means:         bestCfg.Means,
-			RelevantTeams: bestCfg.RelevantTeams,
-			TargetRank:    targetRank,
-		},
-		{
-			Name:          "stronger_" + strongerCfg.Name,
-			Weight:        0.25,
-			Means:         strongerCfg.Means,
-			RelevantTeams: strongerCfg.RelevantTeams,
-			TargetRank:    targetRank,
-		},
+		})
 	}
 
 	validateProposalMixture(comps, len(games))
@@ -339,14 +329,13 @@ func evaluateFrontierCandidate(
 	rng *rand.Rand,
 	groupID int,
 	unplayedGames int,
-	remainingWork int64,
+	samplesPerLevel int,
 ) int64 {
 	st := candidate.SearchState
 	targetTeamID := candidate.TeamID
 	pos := candidate.Position
 	direction := candidate.Direction
 
-	samplesPerLevel := 80
 	singleRunWork := estimateSeasonWork(unplayedGames, 1, len(teamGroups))
 
 	strengths := getStrengthDefinitions(direction)
@@ -369,14 +358,21 @@ func evaluateFrontierCandidate(
 	workSpent := int64(len(testedConfigs)*samplesPerLevel) * singleRunWork
 	st.SearchWorkSpent += workSpent
 
-	bestScore := -999.0
-	bestIdx := -1
-
+	bestIdx := selectWeakestUsefulPilot(pilotResults)
 	for i, res := range pilotResults {
-		if res.CandidateHits > 0 && res.Score > bestScore {
-			bestScore = res.Score
-			bestIdx = i
+		reason := "not_selected"
+		if i == bestIdx {
+			if res.CandidateRate >= MinUsefulPilotRate {
+				reason = "first_useful_rate"
+			} else {
+				reason = "best_below_threshold"
+			}
+		} else if bestIdx < 0 {
+			reason = "no_hits"
 		}
+		log.Printf("rare-position-pilot: group=%d team=%d pos=%d level=%d samples=%d hits=%d rate=%.4f selected=%t reason=%s",
+			groupID, targetTeamID, pos, res.Config.StrengthLevel, res.Samples, res.CandidateHits,
+			res.CandidateRate, i == bestIdx, reason)
 	}
 
 	if bestIdx >= 0 {
@@ -392,11 +388,39 @@ func evaluateFrontierCandidate(
 		st.BestCandidateHits = bestRes.CandidateHits
 		st.BestOvershootHits = bestRes.OvershootHits
 		st.BestScore = bestRes.Score
+		st.BestPilotRate = bestRes.CandidateRate
+		st.BestPilotSamples = bestRes.Samples
+		st.Difficult = bestRes.CandidateRate < MinUsefulPilotRate
 	} else {
 		st.Status = StatusExhausted
 	}
 
 	return workSpent
+}
+
+const (
+	MinUsefulPilotRate   = 0.005
+	MaxUsefulPilotRate   = 0.03
+	PilotSamplesPerLevel = 200
+)
+
+// The first level that produces enough target events keeps the proposal close
+// to the original distribution. If none does, retain the most productive
+// nonzero pilot, breaking ties in favor of the weaker level.
+func selectWeakestUsefulPilot(results []PilotProposalResult) int {
+	bestBelow := -1
+	for i, result := range results {
+		if result.CandidateHits == 0 {
+			continue
+		}
+		if result.CandidateRate >= MinUsefulPilotRate {
+			return i
+		}
+		if bestBelow < 0 || result.CandidateRate > results[bestBelow].CandidateRate {
+			bestBelow = i
+		}
+	}
+	return bestBelow
 }
 
 func poissonRand(rng *rand.Rand, mean float64) int {
@@ -987,8 +1011,6 @@ func runRareProposalPilot(
 		}
 		results[cfgIdx] = res
 
-		log.Printf("rare-position-pilot: group=%d team=%d direction=%d config=%s target_rank=%d strength=%d samples=%d candidate_hits=%d candidate_rate=%.3f overshoot_rate=%.3f score=%.4f",
-			groupID, targetTeamID, direction, cfg.Name, cfg.TargetRank, cfg.StrengthLevel, samplesPerConfig, candidateHits, cRate, oRate, sc)
 	}
 
 	return results
@@ -1057,75 +1079,6 @@ func simulateSingleProposalRank(
 	return rank, 0.0
 }
 
-func selectProductionProposalConfigs(
-	games []*GameType,
-	pilotResults []PilotProposalResult,
-	originalMeans []GameProposalMeans,
-) []ProposalComponent {
-	if len(pilotResults) == 0 {
-		return []ProposalComponent{
-			{Name: "original", Weight: 1.0, Means: originalMeans},
-		}
-	}
-
-	bestIdx := 0
-	bestScore := pilotResults[0].Score
-	for i := 1; i < len(pilotResults); i++ {
-		if pilotResults[i].Score > bestScore {
-			bestScore = pilotResults[i].Score
-			bestIdx = i
-		}
-	}
-
-	bestConfig := pilotResults[bestIdx].Config
-
-	weakerIdx := bestIdx - 1
-	if weakerIdx < 0 {
-		weakerIdx = bestIdx
-	}
-	strongerIdx := bestIdx + 1
-	if strongerIdx >= len(pilotResults) {
-		strongerIdx = bestIdx
-	}
-
-	weakerConfig := pilotResults[weakerIdx].Config
-	strongerConfig := pilotResults[strongerIdx].Config
-
-	components := []ProposalComponent{
-		{
-			Name:          "original",
-			Weight:        0.05,
-			Means:         originalMeans,
-			RelevantTeams: nil,
-			TargetRank:    -1,
-		},
-		{
-			Name:          "weaker_" + weakerConfig.Name,
-			Weight:        0.20,
-			Means:         weakerConfig.Means,
-			RelevantTeams: weakerConfig.RelevantTeams,
-			TargetRank:    weakerConfig.TargetRank,
-		},
-		{
-			Name:          "best_" + bestConfig.Name,
-			Weight:        0.50,
-			Means:         bestConfig.Means,
-			RelevantTeams: bestConfig.RelevantTeams,
-			TargetRank:    bestConfig.TargetRank,
-		},
-		{
-			Name:          "stronger_" + strongerConfig.Name,
-			Weight:        0.25,
-			Means:         strongerConfig.Means,
-			RelevantTeams: strongerConfig.RelevantTeams,
-			TargetRank:    strongerConfig.TargetRank,
-		},
-	}
-
-	validateProposalMixture(components, len(games))
-	return components
-}
-
 func validateProposalMixture(components []ProposalComponent, expectedGames int) {
 	if len(components) == 0 {
 		log.Fatalf("invalid proposal mixture: empty components")
@@ -1165,12 +1118,7 @@ func buildProposalComponents(
 		}
 	}
 
-	pilotConfigs := buildPilotProposalConfigs(games, targetTeamID, direction, candidatePositions, normalMeanRanks)
-	dummyResults := make([]PilotProposalResult, len(pilotConfigs))
-	for i, cfg := range pilotConfigs {
-		dummyResults[i] = PilotProposalResult{Config: cfg, Score: float64(i)}
-	}
-	return selectProductionProposalConfigs(games, dummyResults, originalMeans)
+	return buildSearchProposalForLevel(games, targetTeamID, direction, candidatePositions[0], 3, normalMeanRanks, originalMeans).Components
 }
 
 func buildDirectionalProposal(
@@ -1180,6 +1128,118 @@ func buildDirectionalProposal(
 ) []GameProposalMeans {
 	comps := buildProposalComponents(games, targetTeamID, direction, nil, nil)
 	return comps[len(comps)-1].Means
+}
+
+func affordableSamples(requested int, remainingWork, workPerSample int64) int {
+	if requested <= 0 || remainingWork <= 0 || workPerSample <= 0 {
+		return 0
+	}
+	maxSamples := remainingWork / workPerSample
+	if maxSamples < int64(requested) {
+		return int(maxSamples)
+	}
+	return requested
+}
+
+func productionPriority(candidate *FrontierCandidate) float64 {
+	st := candidate.SearchState
+	if st.BestProposal == nil {
+		return math.Inf(-1)
+	}
+	priority := 200.0 - 30.0*float64(st.BestProposal.StrengthLevel) + float64(candidate.Priority)/100.0
+	if st.Difficult {
+		priority -= 70
+	} else if st.BestPilotRate <= MaxUsefulPilotRate {
+		priority += 20
+	} else {
+		priority -= 100 * (st.BestPilotRate - MaxUsefulPilotRate)
+	}
+	if st.BestPilotSamples > 0 {
+		priority -= 10 * float64(st.BestOvershootHits) / float64(st.BestPilotSamples)
+	}
+	return priority
+}
+
+type ProductionAllocation struct {
+	Candidate *FrontierCandidate
+	Samples   int
+}
+
+// Plan only after the whole frontier has completed its initial pilot. Each
+// allocation is fixed before its production estimator starts.
+func planProductionAllocations(candidates []*FrontierCandidate, remainingWork, workPerSample int64) []ProductionAllocation {
+	for _, candidate := range candidates {
+		if candidate.SearchState.Status == StatusFrontier {
+			return nil
+		}
+	}
+	var promising []*FrontierCandidate
+	for _, candidate := range candidates {
+		if candidate.SearchState.Status == StatusPromising && candidate.SearchState.BestProposal != nil {
+			promising = append(promising, candidate)
+		}
+	}
+	sort.Slice(promising, func(i, j int) bool {
+		pi, pj := productionPriority(promising[i]), productionPriority(promising[j])
+		if pi != pj {
+			return pi > pj
+		}
+		if promising[i].TeamID != promising[j].TeamID {
+			return promising[i].TeamID < promising[j].TeamID
+		}
+		return promising[i].Position < promising[j].Position
+	})
+	if workPerSample <= 0 || remainingWork <= 0 {
+		return nil
+	}
+	totalSamples := remainingWork / workPerSample
+	n := len(promising)
+	if n > int(totalSamples/2000) {
+		n = int(totalSamples / 2000)
+	}
+	if n == 0 {
+		return nil
+	}
+	allocations := make([]ProductionAllocation, n)
+	for i := range allocations {
+		allocations[i] = ProductionAllocation{Candidate: promising[i], Samples: 2000}
+	}
+	extra := int(totalSamples) - 2000*n
+	weightSum := 0
+	for i := range allocations {
+		if !allocations[i].Candidate.SearchState.Difficult {
+			weightSum += n - i
+		}
+	}
+	if weightSum > 0 {
+		initialExtra := extra
+		for i := range allocations {
+			if allocations[i].Candidate.SearchState.Difficult {
+				continue
+			}
+			share := initialExtra * (n - i) / weightSum
+			if share > 20000-allocations[i].Samples {
+				share = 20000 - allocations[i].Samples
+			}
+			allocations[i].Samples += share
+			extra -= share
+		}
+		for i := range allocations {
+			if extra == 0 {
+				break
+			}
+			if allocations[i].Candidate.SearchState.Difficult {
+				continue
+			}
+			share := 20000 - allocations[i].Samples
+			if share > extra {
+				share = extra
+			}
+			allocations[i].Samples += share
+			extra -= share
+		}
+	}
+	return allocations
 }
 
 func searchAndMergeRarePositions(
@@ -1202,6 +1262,7 @@ func searchAndMergeRarePositions(
 	numTeams := len(group.Team_groups)
 	totalWorkLimit := calculateMaxRareWork(unplayedGames, numTeams)
 	remainingWork := totalWorkLimit
+	pilotWorkRemaining := totalWorkLimit / 4
 
 	originalMeans := make([]GameProposalMeans, len(group.Games))
 	for i, g := range group.Games {
@@ -1225,7 +1286,7 @@ func searchAndMergeRarePositions(
 	teamRareEstimates := make(map[int]map[int]RarePositionEstimate)
 	prodWorkPerSeason := estimateSeasonWork(unplayedGames, 4, numTeams)
 
-	for remainingWork > 0 {
+	for remainingWork > 0 && pilotWorkRemaining > 0 {
 		var activeCandidates []*FrontierCandidate
 		for _, ts := range teamSearches {
 			cands := discoverFrontier(ts)
@@ -1237,80 +1298,88 @@ func searchAndMergeRarePositions(
 		}
 
 		sort.Slice(activeCandidates, func(i, j int) bool {
-			return activeCandidates[i].Priority > activeCandidates[j].Priority
+			if activeCandidates[i].Priority != activeCandidates[j].Priority {
+				return activeCandidates[i].Priority > activeCandidates[j].Priority
+			}
+			if activeCandidates[i].TeamID != activeCandidates[j].TeamID {
+				return activeCandidates[i].TeamID < activeCandidates[j].TeamID
+			}
+			return activeCandidates[i].Position < activeCandidates[j].Position
 		})
 
-		candidatesEvaluatedInPass := 0
+		pilotWorkPerSample := estimateSeasonWork(unplayedGames, 1, numTeams)
+		pilotSamples := affordableSamples(PilotSamplesPerLevel, pilotWorkRemaining,
+			int64(len(activeCandidates)*5)*pilotWorkPerSample)
+		pilotSamples = affordableSamples(pilotSamples, remainingWork,
+			int64(len(activeCandidates)*5)*pilotWorkPerSample)
+		if pilotSamples == 0 {
+			break
+		}
 
 		for _, cand := range activeCandidates {
-			if remainingWork <= 0 {
-				break
-			}
-
 			searchWorkSpent := evaluateFrontierCandidate(
 				cand, campaign, group.Games, table, sortOrder, group.Team_groups,
-				originalMeans, normalMeanRanks, rng, group.Id, unplayedGames, remainingWork,
+				originalMeans, normalMeanRanks, rng, group.Id, unplayedGames, pilotSamples,
 			)
 
 			remainingWork -= searchWorkSpent
-			candidatesEvaluatedInPass++
-
+			pilotWorkRemaining -= searchWorkSpent
 			st := cand.SearchState
-			if st.Status == StatusPromising && st.BestProposal != nil {
-				maxProdSamples := int(remainingWork / prodWorkPerSeason)
-				targetSamples := 20000
-				if targetSamples > maxProdSamples {
-					targetSamples = maxProdSamples
-				}
-
-				if targetSamples < 2000 {
-					st.Status = StatusExhausted
-					continue
-				}
-
-				job := &RareSimulationJob{
-					TeamID:             cand.TeamID,
-					Direction:          cand.Direction,
-					CandidatePositions: []int{cand.Position},
-					Components:         st.BestProposal.Components,
-					Iterations:         targetSamples,
-				}
-
-				jobEstimates, _ := estimateRarePositionsForJob(
-					campaign, group.Games, originalMeans, table, sortOrder, group.Team_groups,
-					job, rng, group.Id,
-				)
-
-				prodWorkSpent := int64(targetSamples) * prodWorkPerSeason
-				remainingWork -= prodWorkSpent
-				st.ProductionWorkSpent += prodWorkSpent
-
-				if est, ok := jobEstimates[cand.Position]; ok && est.Found && est.Probability >= MinInterestingProbability {
-					st.Status = StatusResolved
-					st.ProductionEstimate = &ProductionEstimate{
-						Probability: est.Probability,
-						StdErr:      est.StdErr,
-						Samples:     est.Samples,
-						Hits:        est.Hits,
-						ESS:         est.ESS,
-						Found:       true,
-						WorkSpent:   prodWorkSpent,
-					}
-
-					if teamRareEstimates[cand.TeamID] == nil {
-						teamRareEstimates[cand.TeamID] = make(map[int]RarePositionEstimate)
-					}
-					teamRareEstimates[cand.TeamID][cand.Position] = est
-				} else if est, ok := jobEstimates[cand.Position]; ok && est.Found && est.Probability < MinInterestingProbability {
-					st.Status = StatusBelowInterest
-				} else {
-					st.Status = StatusExhausted
-				}
+			if st.BestProposal != nil {
+				log.Printf("rare-position-pilot-selection: group=%d team=%d position=%d selected_level=%d selected_rate=%.4f priority=%.2f difficult=%t",
+					group.Id, cand.TeamID, cand.Position, st.BestProposal.StrengthLevel,
+					st.BestPilotRate, productionPriority(cand), st.Difficult)
 			}
 		}
 
-		if candidatesEvaluatedInPass == 0 {
-			break
+		productionWork := remainingWork - pilotWorkRemaining
+		allocations := planProductionAllocations(activeCandidates, productionWork, prodWorkPerSeason)
+		for _, allocation := range allocations {
+			cand := allocation.Candidate
+			st := cand.SearchState
+			targetSamples := affordableSamples(allocation.Samples, remainingWork, prodWorkPerSeason)
+			if targetSamples <= 0 {
+				break
+			}
+
+			job := &RareSimulationJob{
+				TeamID:             cand.TeamID,
+				Direction:          cand.Direction,
+				CandidatePositions: []int{cand.Position},
+				Components:         st.BestProposal.Components,
+				Iterations:         targetSamples,
+			}
+
+			jobEstimates, _ := estimateRarePositionsForJob(
+				campaign, group.Games, originalMeans, table, sortOrder, group.Team_groups,
+				job, rng, group.Id,
+			)
+
+			prodWorkSpent := int64(targetSamples) * prodWorkPerSeason
+			remainingWork -= prodWorkSpent
+			st.ProductionWorkSpent += prodWorkSpent
+
+			if est, ok := jobEstimates[cand.Position]; ok && est.Found && est.Probability >= MinInterestingProbability {
+				st.Status = StatusResolved
+				st.ProductionEstimate = &ProductionEstimate{
+					Probability: est.Probability,
+					StdErr:      est.StdErr,
+					Samples:     est.Samples,
+					Hits:        est.Hits,
+					ESS:         est.ESS,
+					Found:       true,
+					WorkSpent:   prodWorkSpent,
+				}
+
+				if teamRareEstimates[cand.TeamID] == nil {
+					teamRareEstimates[cand.TeamID] = make(map[int]RarePositionEstimate)
+				}
+				teamRareEstimates[cand.TeamID][cand.Position] = est
+			} else if est, ok := jobEstimates[cand.Position]; ok && est.Found && est.Probability < MinInterestingProbability {
+				st.Status = StatusBelowInterest
+			} else {
+				st.Status = StatusExhausted
+			}
 		}
 	}
 
@@ -1421,7 +1490,7 @@ func simulateTargetTeamRankAndWeightMulti(
 	rng *rand.Rand,
 	logQOverPBuf []float64,
 	compWeightsBuf []float64,
-) (rank int, weight float64) {
+) (rank int, weight float64, chosenComponent int) {
 	for k, v := range baseCampaign {
 		if v != nil {
 			simCampaign[k] = v.clone()
@@ -1497,7 +1566,7 @@ func simulateTargetTeamRankAndWeightMulti(
 		}
 	}
 
-	return rank, weight
+	return rank, weight, chosenK
 }
 
 const (
@@ -1553,17 +1622,24 @@ func estimateRarePositionsForJob(
 	numComps := len(job.Components)
 	logQBuf := make([]float64, numComps)
 	compWeightsBuf := make([]float64, numComps)
+	componentSampleCounts := make([]int, numComps)
+	componentRankHists := make([][]int, numComps)
+	for i := range componentRankHists {
+		componentRankHists[i] = make([]int, numPositions)
+	}
 
 	totalN := job.Iterations
 	for i := 0; i < totalN; i++ {
-		rank, w := simulateTargetTeamRankAndWeightMulti(
+		rank, w, chosenComponent := simulateTargetTeamRankAndWeightMulti(
 			baseCampaign, simCampaign, teamSlice, games,
 			originalMeans, job.Components, table, sortOrder, teamGroups,
 			job.TeamID, rng, logQBuf, compWeightsBuf,
 		)
+		componentSampleCounts[chosenComponent]++
 
 		if rank >= 0 && rank < numPositions {
 			rankHist[rank]++
+			componentRankHists[chosenComponent][rank]++
 		}
 
 		if candidateMap[rank] {
@@ -1621,13 +1697,18 @@ func estimateRarePositionsForJob(
 		}
 
 		results[pos] = est
-		log.Printf("rare-position-job: group=%d team=%d pos=%d direction=%d samples=%d hits=%d p=%.7f se=%.7f ess=%.1f found=%t",
-			groupID, job.TeamID, pos, job.Direction, totalN, h, pHat, stdErr, ess, est.Found)
+		relSE := math.Inf(1)
+		if pHat > 0 {
+			relSE = stdErr / pHat
+		}
+		log.Printf("rare-position-job: group=%d team=%d pos=%d direction=%d samples=%d hits=%d p=%.7f se=%.7f relSE=%.3f ess=%.1f found=%t",
+			groupID, job.TeamID, pos, job.Direction, totalN, h, pHat, stdErr, relSE, ess, est.Found)
 	}
 
-	for _, comp := range job.Components {
-		log.Printf("rare-position-component-hist: group=%d team=%d component=%s weight=%.2f target_rank=%d",
-			groupID, job.TeamID, comp.Name, comp.Weight, comp.TargetRank)
+	for i, comp := range job.Components {
+		log.Printf("rare-position-component-hist: group=%d team=%d component=%s weight=%.2f target_rank=%d samples=%d hist=%v",
+			groupID, job.TeamID, comp.Name, comp.Weight, comp.TargetRank,
+			componentSampleCounts[i], componentRankHists[i])
 	}
 
 	return results, totalN

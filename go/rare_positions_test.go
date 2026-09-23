@@ -404,6 +404,104 @@ func TestPilotSelectionScoring(t *testing.T) {
 	}
 }
 
+func TestWeakestUsefulPilot(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		rates []float64
+		want  int
+	}{
+		{"first useful", []float64{0, 0, 0.01, 0.05, 0.10}, 2},
+		{"more hits do not win", []float64{0, 0, 0.015, 0.04, 0.12}, 2},
+		{"jump over band", []float64{0, 0.002, 0.06, 0.10, 0.15}, 2},
+		{"difficult fallback", []float64{0, 0, 0, 0.001, 0.003}, 4},
+		{"no hits", []float64{0, 0, 0, 0, 0}, -1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			results := make([]PilotProposalResult, len(tc.rates))
+			for i, rate := range tc.rates {
+				results[i] = PilotProposalResult{
+					Config:        ProposalConfig{StrengthLevel: i + 1},
+					Samples:       1000,
+					CandidateHits: int(rate * 1000),
+					CandidateRate: rate,
+				}
+			}
+			if got := selectWeakestUsefulPilot(results); got != tc.want {
+				t.Fatalf("selected index %d, want %d", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestEdgeProductionMixturesUseDistinctLevels(t *testing.T) {
+	games := []*GameType{{Id: 1, HomeId: 1, AwayId: 2, HomePower: 1, AwayPower: 1}}
+	original := []GameProposalMeans{{Home: 1, Away: 1}}
+	ranks := map[int]float64{1: 1, 2: 0}
+	for _, tc := range []struct {
+		selected int
+		levels   []int
+		weights  []float64
+	}{
+		{1, []int{1, 2, 3}, []float64{0.50, 0.25, 0.20}},
+		{3, []int{2, 3, 4}, []float64{0.20, 0.50, 0.25}},
+		{5, []int{3, 4, 5}, []float64{0.20, 0.25, 0.50}},
+	} {
+		proposal := buildSearchProposalForLevel(games, 1, RareBetter, 0, tc.selected, ranks, original)
+		if len(proposal.Components) != 4 || proposal.Components[0].Weight != 0.05 {
+			t.Fatalf("level %d: expected original plus three proposal components", tc.selected)
+		}
+		for i, level := range tc.levels {
+			want := getStrengthDefinitions(RareBetter)[level].Name
+			if proposal.Components[i+1].Weight != tc.weights[i] ||
+				len(proposal.Components[i+1].Name) < len(want) ||
+				proposal.Components[i+1].Name[:len(want)] != want {
+				t.Errorf("selected %d component %d = %s %.2f, want level %d weight %.2f",
+					tc.selected, i+1, proposal.Components[i+1].Name, proposal.Components[i+1].Weight, level, tc.weights[i])
+			}
+		}
+	}
+}
+
+func TestProductionPlanningWaitsForPilotsAndPrioritizesWeakProposal(t *testing.T) {
+	weak := &FrontierCandidate{TeamID: 1, Position: 0, Priority: 40,
+		SearchState: &PositionSearchState{Status: StatusPromising, BestProposal: &SearchProposal{StrengthLevel: 3}, BestPilotRate: 0.01}}
+	strong := &FrontierCandidate{TeamID: 2, Position: 1, Priority: 40,
+		SearchState: &PositionSearchState{Status: StatusFrontier, BestProposal: &SearchProposal{StrengthLevel: 5}, BestPilotRate: 0.08}}
+	candidates := []*FrontierCandidate{strong, weak}
+	if allocations := planProductionAllocations(candidates, 30000, 1); len(allocations) != 0 {
+		t.Fatal("production allocated before every frontier candidate was piloted")
+	}
+	strong.SearchState.Status = StatusPromising
+	if productionPriority(weak) <= productionPriority(strong) {
+		t.Fatal("weak useful proposal must outrank strong high-hit proposal")
+	}
+	allocations := planProductionAllocations(candidates, 30000, 1)
+	if len(allocations) != 2 || allocations[0].Candidate != weak || allocations[0].Samples <= allocations[1].Samples {
+		t.Fatalf("unexpected allocations: %+v", allocations)
+	}
+}
+
+func TestProductionPlanningHonorsWorkBudget(t *testing.T) {
+	candidates := []*FrontierCandidate{
+		{TeamID: 1, SearchState: &PositionSearchState{Status: StatusPromising, BestProposal: &SearchProposal{StrengthLevel: 3}, BestPilotRate: 0.01}},
+		{TeamID: 2, SearchState: &PositionSearchState{Status: StatusPromising, BestProposal: &SearchProposal{StrengthLevel: 4}, BestPilotRate: 0.02}},
+	}
+	const workLimit int64 = 12501
+	const workPerSample int64 = 3
+	allocations := planProductionAllocations(candidates, workLimit, workPerSample)
+	remaining := workLimit
+	for _, allocation := range allocations {
+		actual := affordableSamples(allocation.Samples, remaining, workPerSample)
+		remaining -= int64(actual) * workPerSample
+	}
+	if remaining < 0 || workLimit-remaining > workLimit {
+		t.Fatalf("budget exceeded: remaining=%d limit=%d", remaining, workLimit)
+	}
+	if got := affordableSamples(2000, 7, workPerSample); got != 2 {
+		t.Fatalf("final action should truncate to 2 affordable samples, got %d", got)
+	}
+}
+
 func TestValidateProposalMixture(t *testing.T) {
 	games := []*GameType{
 		{Id: 1, HomeId: 1, AwayId: 2, HomePower: 1.0, AwayPower: 1.0},
