@@ -83,6 +83,7 @@ type PositionSearchState struct {
 	ProductionEstimate  *ProductionEstimate
 	SearchWorkSpent     int64
 	ProductionWorkSpent int64
+	AdaptiveSteps       int
 }
 
 type TeamRareSearch struct {
@@ -332,14 +333,16 @@ func buildSearchProposalForSpec(
 }
 
 const (
-	InitialPilotSamplesPerLevel = 200
 	RefinedPilotSamplesPerLevel = 800
 	MinPilotSamples             = 100
+	AdaptivePilotChunk          = 100
+	MinAdaptivePilotSamples     = 50
+	RankProgressWindow          = 2
 	MinPilotHitsForProduction   = 3
 	MinPilotESSForProduction    = 2.0
 	TargetProductionESS         = 15.0
 	ProductionWorkSafetyFactor  = 1.25
-	MaxInitialPilotWorkFraction = 0.25
+	MaxInitialPilotWorkFraction = 0.10
 )
 
 type WeightedPilotResult struct {
@@ -473,34 +476,166 @@ func shortlistPilotMixtures(results []*WeightedPilotResult) []*WeightedPilotResu
 			shortlist = append(shortlist, result)
 		}
 	}
-	sort.Slice(shortlist, func(i, j int) bool {
-		multiI, multiJ := shortlist[i].Hits > 1, shortlist[j].Hits > 1
-		if multiI != multiJ {
-			return multiI
-		}
-		return pilotBetter(shortlist[i], shortlist[j])
-	})
+	sort.Slice(shortlist, func(i, j int) bool { return pilotBetter(shortlist[i], shortlist[j]) })
 	if len(shortlist) > 2 {
 		shortlist = shortlist[:2]
 	}
 	return shortlist
 }
 
-func topCoarsePilotFamilies(results []*WeightedPilotResult) []*WeightedPilotResult {
-	ordered := append([]*WeightedPilotResult(nil), results...)
-	sort.Slice(ordered, func(i, j int) bool {
-		if pilotBetter(ordered[i], ordered[j]) {
+type ProposalKey struct {
+	TargetGameLimit         int
+	BoundaryCompetitorLimit int
+	CompetitorGameLimit     int
+	StrengthLevel           int
+}
+
+func proposalKey(spec SparseProposalSpec) ProposalKey {
+	return ProposalKey{spec.TargetGameLimit, spec.BoundaryCompetitorLimit,
+		spec.CompetitorGameLimit, spec.StrengthLevel}
+}
+
+type PilotProgress struct {
+	MeanRank             float64
+	TargetDistance       float64
+	DirectionalTailRate  float64
+	ProgressFromBaseline float64
+	ProgressPerWork      float64
+}
+
+func rankSummary(hist []int, targetRank int, direction RareDirection) (mean, tail float64) {
+	total := 0
+	for rank, count := range hist {
+		total += count
+		mean += float64(rank * count)
+		if direction == RareBetter && rank <= targetRank+RankProgressWindow ||
+			direction == RareWorse && rank >= targetRank-RankProgressWindow {
+			tail += float64(count)
+		}
+	}
+	if total > 0 {
+		mean /= float64(total)
+		tail /= float64(total)
+	}
+	return mean, tail
+}
+
+func calculatePilotProgress(pilot *WeightedPilotResult, baselineHist []int,
+	targetRank int, direction RareDirection) PilotProgress {
+	mean, tail := rankSummary(pilot.RankHistogram, targetRank, direction)
+	baselineMean, baselineTail := rankSummary(baselineHist, targetRank, direction)
+	directionalMovement := baselineMean - mean
+	if direction == RareWorse {
+		directionalMovement = mean - baselineMean
+	}
+	// Rank mean drives zero-hit search; a bounded tail bonus captures movement
+	// in multimodal rank distributions. Neither quantity estimates event P.
+	progress := directionalMovement + 2*(tail-baselineTail)
+	result := PilotProgress{MeanRank: mean, TargetDistance: math.Abs(mean - float64(targetRank)),
+		DirectionalTailRate: tail, ProgressFromBaseline: progress}
+	if pilot.WorkSpent > 0 {
+		result.ProgressPerWork = progress / float64(pilot.WorkSpent)
+	}
+	return result
+}
+
+func adaptivePilotBetter(a, b *WeightedPilotResult, baselineHist []int,
+	targetRank int, direction RareDirection) bool {
+	if a.Hits > 0 || b.Hits > 0 {
+		if a.Hits == 0 || b.Hits == 0 {
+			return a.Hits > 0
+		}
+		if pilotBetter(a, b) {
 			return true
 		}
-		if pilotBetter(ordered[j], ordered[i]) {
+		if pilotBetter(b, a) {
 			return false
 		}
-		return ordered[i].Proposal.Name < ordered[j].Proposal.Name
-	})
-	if len(ordered) > 2 {
-		ordered = ordered[:2]
+	} else {
+		ap := calculatePilotProgress(a, baselineHist, targetRank, direction)
+		bp := calculatePilotProgress(b, baselineHist, targetRank, direction)
+		if ap.ProgressPerWork != bp.ProgressPerWork {
+			return ap.ProgressPerWork > bp.ProgressPerWork
+		}
+		if ap.DirectionalTailRate != bp.DirectionalTailRate {
+			return ap.DirectionalTailRate > bp.DirectionalTailRate
+		}
 	}
-	return ordered
+	return a.Proposal.Name < b.Proposal.Name
+}
+
+func adaptiveNeighborImproves(next, current *WeightedPilotResult, baselineHist []int,
+	targetRank int, direction RareDirection) bool {
+	if next.Hits > 0 || current.Hits > 0 {
+		return next.Hits > 0 && (current.Hits == 0 || pilotBetter(next, current))
+	}
+	nextProgress := calculatePilotProgress(next, baselineHist, targetRank, direction)
+	currentProgress := calculatePilotProgress(current, baselineHist, targetRank, direction)
+	return nextProgress.ProgressPerWork > currentProgress.ProgressPerWork+1e-12 &&
+		nextProgress.ProgressFromBaseline > currentProgress.ProgressFromBaseline
+}
+
+func adaptiveNeighbors(spec SparseProposalSpec, remainingTargetGames int) []SparseProposalSpec {
+	var neighbors []SparseProposalSpec
+	if spec.TargetGameLimit != -1 && spec.TargetGameLimit < remainingTargetGames {
+		next := spec
+		switch spec.TargetGameLimit {
+		case 1:
+			next.TargetGameLimit = 2
+		case 2:
+			next.TargetGameLimit = 4
+		case 4:
+			next.TargetGameLimit = 8
+		default:
+			next.TargetGameLimit = -1
+		}
+		neighbors = append(neighbors, next)
+	}
+	if spec.StrengthLevel < 5 {
+		next := spec
+		next.StrengthLevel++
+		neighbors = append(neighbors, next)
+	}
+	next := spec
+	switch {
+	case spec.BoundaryCompetitorLimit == 0:
+		next.BoundaryCompetitorLimit, next.CompetitorGameLimit = 1, 1
+	case spec.BoundaryCompetitorLimit == 1:
+		next.BoundaryCompetitorLimit = 2
+	case spec.CompetitorGameLimit == 1:
+		next.CompetitorGameLimit = 2
+	case spec.CompetitorGameLimit == 2:
+		next.CompetitorGameLimit = 4
+	}
+	if proposalKey(next) != proposalKey(spec) {
+		neighbors = append(neighbors, next)
+	}
+	return neighbors
+}
+
+func unseenAdaptiveNeighbors(spec SparseProposalSpec, remainingTargetGames int,
+	seen map[ProposalKey]bool) []SparseProposalSpec {
+	var unseen []SparseProposalSpec
+	for _, neighbor := range adaptiveNeighbors(spec, remainingTargetGames) {
+		if !seen[proposalKey(neighbor)] {
+			unseen = append(unseen, neighbor)
+		}
+	}
+	return unseen
+}
+
+func selectAdaptiveNeighbor(current *WeightedPilotResult, neighbors []*WeightedPilotResult,
+	baselineHist []int, targetRank int, direction RareDirection) *WeightedPilotResult {
+	var best *WeightedPilotResult
+	for _, neighbor := range neighbors {
+		if best == nil || adaptivePilotBetter(neighbor, best, baselineHist, targetRank, direction) {
+			best = neighbor
+		}
+	}
+	if best == nil || !adaptiveNeighborImproves(best, current, baselineHist, targetRank, direction) {
+		return nil
+	}
+	return best
 }
 
 func selectPilotMixture(results []*WeightedPilotResult) *WeightedPilotResult {
@@ -909,7 +1044,11 @@ func buildSparseProposalConfig(games []*GameType, spec SparseProposalSpec, sDef 
 
 	compMeans := append([]GameProposalMeans(nil), originalMeans...)
 	targetGames := rankedSparseGames(games, spec.TargetTeamID, spec.TargetTeamID, blockerMap, sDef.TargetMult)
-	for i := 0; i < spec.TargetGameLimit && i < len(targetGames); i++ {
+	targetLimit := spec.TargetGameLimit
+	if targetLimit == -1 {
+		targetLimit = len(targetGames)
+	}
+	for i := 0; i < targetLimit && i < len(targetGames); i++ {
 		index := targetGames[i]
 		g := games[index]
 		if g.HomeId == spec.TargetTeamID {
@@ -931,8 +1070,12 @@ func buildSparseProposalConfig(games []*GameType, spec SparseProposalSpec, sDef 
 		}
 	}
 
+	targetScope := fmt.Sprint(spec.TargetGameLimit)
+	if spec.TargetGameLimit == -1 {
+		targetScope = "all"
+	}
 	return ProposalConfig{
-		Name:              fmt.Sprintf("target%d_comp%dx%d_%s_lvl%d_rank%d", spec.TargetGameLimit, spec.BoundaryCompetitorLimit, spec.CompetitorGameLimit, sDef.Name, sDef.Level, spec.TargetRank),
+		Name:              fmt.Sprintf("target%s_comp%dx%d_%s_lvl%d_rank%d", targetScope, spec.BoundaryCompetitorLimit, spec.CompetitorGameLimit, sDef.Name, sDef.Level, spec.TargetRank),
 		StrengthLevel:     sDef.Level,
 		TargetRank:        spec.TargetRank,
 		TargetMultiplier:  sDef.TargetMult,
@@ -1154,6 +1297,7 @@ func runWeightedPilotRound(
 	sortOrder []SortType,
 	originalMeans []GameProposalMeans,
 	normalMeanRanks map[int]float64,
+	normalPositionCounts map[int][]int,
 	workPerSample int64,
 	remainingWork, pilotWorkRemaining *int64,
 	rng *rand.Rand,
@@ -1165,27 +1309,39 @@ func runWeightedPilotRound(
 	if *remainingWork < pilotBudget {
 		pilotBudget = *remainingWork
 	}
-	refinementReserve := int64(2*(RefinedPilotSamplesPerLevel-InitialPilotSamplesPerLevel)) * workPerSample
-	if refinementReserve > pilotBudget/3 {
-		refinementReserve = pilotBudget / 3
+	if pilotBudget < int64(MinAdaptivePilotSamples)*workPerSample {
+		return nil, 0
 	}
-	initialBudget := pilotBudget - refinementReserve
-	const coarseFamilies = 4
-	const coarseSamples = MinPilotSamples
-	slots := int(initialBudget / (int64(coarseFamilies*coarseSamples) * workPerSample))
-	if slots < len(candidates) {
-		for _, skipped := range candidates[slots:] {
-			skipped.SearchState.Status = StatusUnexplored
+	// The first sweep is one baseline per cell. Cap it at 55% of pilot work,
+	// leaving explicit room for escalation and weighted refinement (15%).
+	initialBudget := pilotBudget * 55 / 100
+	refinementReserve := pilotBudget * 15 / 100
+	baselineSamples := affordableSamples(AdaptivePilotChunk, initialBudget,
+		int64(len(candidates))*workPerSample)
+	if baselineSamples < MinAdaptivePilotSamples {
+		baselineSamples = MinAdaptivePilotSamples
+		slots := int(initialBudget / (int64(baselineSamples) * workPerSample))
+		if slots < len(candidates) {
+			for _, skipped := range candidates[slots:] {
+				skipped.SearchState.Status = StatusUnexplored
+			}
+			candidates = candidates[:slots]
 		}
-		candidates = candidates[:slots]
 	}
 	if len(candidates) == 0 {
 		return nil, 0
 	}
-
+	type adaptiveState struct {
+		candidate   *FrontierCandidate
+		current     *WeightedPilotResult
+		seen        map[ProposalKey]bool
+		active      bool
+		targetGames int
+	}
 	results := make(map[*FrontierCandidate][]*WeightedPilotResult, len(candidates))
+	states := make([]*adaptiveState, 0, len(candidates))
 	var roundWork int64
-	runPilot := func(candidate *FrontierCandidate, spec SparseProposalSpec, samples int) {
+	runPilot := func(candidate *FrontierCandidate, spec SparseProposalSpec, samples int) *WeightedPilotResult {
 		pilot := &WeightedPilotResult{Proposal: buildSearchProposalForSpec(
 			group.Games, spec, normalMeanRanks, originalMeans,
 		)}
@@ -1197,73 +1353,116 @@ func runWeightedPilotRound(
 		roundWork += pilot.WorkSpent
 		candidate.SearchState.SearchWorkSpent += pilot.WorkSpent
 		results[candidate] = append(results[candidate], pilot)
+		progress := calculatePilotProgress(pilot, normalPositionCounts[candidate.TeamID],
+			candidate.Position, candidate.Direction)
+		log.Printf("rare-position-adaptive-step: group=%d team=%d position=%d step=%d spec=%s samples=%d hits=%d mean_rank=%.3f target_distance=%.3f tail_rate=%.4f progress=%.4f progress_per_million_work=%.4f ess=%.2f",
+			group.Id, candidate.TeamID, candidate.Position, candidate.SearchState.AdaptiveSteps,
+			pilot.Proposal.Name, samples, pilot.Hits, progress.MeanRank, progress.TargetDistance,
+			progress.DirectionalTailRate, progress.ProgressFromBaseline,
+			progress.ProgressPerWork*1e6, pilot.ESS)
+		return pilot
 	}
-	// Every funded frontier cell gets the same coarse comparison before any
-	// candidate receives refinement or production work.
-	families := []struct{ target, competitors, competitorGames int }{
-		{1, 0, 0}, {2, 0, 0}, {4, 0, 0}, {2, 1, 1},
-	}
+	// Fair baseline before any adaptive work or production allocation.
 	for _, candidate := range candidates {
-		for _, family := range families {
-			spec := SparseProposalSpec{TargetTeamID: candidate.TeamID, TargetRank: candidate.Position,
-				Direction: candidate.Direction, StrengthLevel: 2, TargetGameLimit: family.target,
-				BoundaryCompetitorLimit: family.competitors, CompetitorGameLimit: family.competitorGames}
-			runPilot(candidate, spec, coarseSamples)
-		}
-	}
-	explorationWorkRemaining := initialBudget - roundWork
-	// Expand only the two most effective coarse families. Stronger levels are
-	// explored only when the coarse family has no event evidence.
-	for _, candidate := range candidates {
-		coarse := topCoarsePilotFamilies(results[candidate])
-		// If the coarse sweep found no event at all, try the two bounded
-		// competitor families before spending work on stronger target-only tilts.
-		broaden := false
-		for _, pilot := range coarse {
-			if pilot.Proposal.Spec.BoundaryCompetitorLimit > 0 {
-				broaden = true
+		spec := SparseProposalSpec{TargetTeamID: candidate.TeamID, TargetRank: candidate.Position,
+			Direction: candidate.Direction, StrengthLevel: 2, TargetGameLimit: 2}
+		pilot := runPilot(candidate, spec, baselineSamples)
+		targetGames := 0
+		for _, game := range group.Games {
+			if !game.Played && (game.HomeId == candidate.TeamID || game.AwayId == candidate.TeamID) {
+				targetGames++
 			}
 		}
-		noHits := true
-		for _, pilot := range results[candidate] {
-			if pilot.Hits > 0 {
-				noHits = false
+		states = append(states, &adaptiveState{candidate: candidate, current: pilot,
+			seen: map[ProposalKey]bool{proposalKey(spec): true}, active: pilot.Hits == 0,
+			targetGames: targetGames})
+	}
+	// Equal baselines followed by bounded, globally prioritized local walks.
+	explorationRemaining := pilotBudget - refinementReserve - roundWork
+	perCandidateCap := 4 * pilotBudget / int64(len(candidates))
+	if perCandidateCap > pilotBudget*60/100 {
+		perCandidateCap = pilotBudget * 60 / 100
+	}
+	log.Printf("rare-position-adaptive-budget: group=%d candidates=%d pilot_budget=%d initial_work_limit=%d initial_samples_per_candidate=%d exploration_work_available=%d refinement_reserve=%d per_candidate_exploration_cap=%d",
+		group.Id, len(candidates), pilotBudget, initialBudget, baselineSamples,
+		explorationRemaining, refinementReserve, perCandidateCap)
+	for explorationRemaining >= int64(MinAdaptivePilotSamples)*workPerSample {
+		var chosen *adaptiveState
+		for _, state := range states {
+			if !state.active || state.candidate.SearchState.SearchWorkSpent+
+				int64(MinAdaptivePilotSamples)*workPerSample > perCandidateCap {
+				continue
+			}
+			if chosen == nil {
+				chosen = state
+				continue
+			}
+			a, b := state.candidate, chosen.candidate
+			criticalA, criticalB := a.Priority >= 100, b.Priority >= 100
+			if criticalA != criticalB {
+				if criticalA {
+					chosen = state
+				}
+				continue
+			}
+			progressA := calculatePilotProgress(state.current, normalPositionCounts[a.TeamID],
+				a.Position, a.Direction)
+			progressB := calculatePilotProgress(chosen.current, normalPositionCounts[b.TeamID],
+				b.Position, b.Direction)
+			if progressA.ProgressPerWork > progressB.ProgressPerWork ||
+				(progressA.ProgressPerWork == progressB.ProgressPerWork && a.Priority > b.Priority) {
+				chosen = state
+			}
+		}
+		if chosen == nil {
+			break
+		}
+		candidate := chosen.candidate
+		current := chosen.current
+		var neighbors []*WeightedPilotResult
+		for _, spec := range unseenAdaptiveNeighbors(current.Proposal.Spec, chosen.targetGames, chosen.seen) {
+			key := proposalKey(spec)
+			available := explorationRemaining
+			if capLeft := perCandidateCap - candidate.SearchState.SearchWorkSpent; capLeft < available {
+				available = capLeft
+			}
+			samples := affordableSamples(AdaptivePilotChunk, available, workPerSample)
+			samples = affordableSamples(samples, *remainingWork, workPerSample)
+			if samples < MinAdaptivePilotSamples {
 				break
 			}
+			chosen.seen[key] = true
+			pilot := runPilot(candidate, spec, samples)
+			neighbors = append(neighbors, pilot)
+			explorationRemaining -= pilot.WorkSpent
+			progress := calculatePilotProgress(pilot, normalPositionCounts[candidate.TeamID],
+				candidate.Position, candidate.Direction)
+			log.Printf("rare-position-adaptive-neighbor: group=%d team=%d position=%d from=%s candidate=%s hits=%d progress_per_million_work=%.4f ess_per_million_work=%.4f",
+				group.Id, candidate.TeamID, candidate.Position, current.Proposal.Name,
+				pilot.Proposal.Name, pilot.Hits, progress.ProgressPerWork*1e6,
+				pilot.ESSPerWork*1e6)
 		}
-		if broaden || noHits {
-			for _, family := range []struct{ target, competitors, games int }{{4, 1, 2}, {4, 2, 1}} {
-				samples := affordableSamples(InitialPilotSamplesPerLevel, explorationWorkRemaining, workPerSample)
-				samples = affordableSamples(samples, *remainingWork, workPerSample)
-				samples = affordableSamples(samples, *pilotWorkRemaining, workPerSample)
-				if samples < MinPilotSamples {
-					break
-				}
-				spec := SparseProposalSpec{TargetTeamID: candidate.TeamID, TargetRank: candidate.Position,
-					Direction: candidate.Direction, StrengthLevel: 2, TargetGameLimit: family.target,
-					BoundaryCompetitorLimit: family.competitors, CompetitorGameLimit: family.games}
-				runPilot(candidate, spec, samples)
-				explorationWorkRemaining -= int64(samples) * workPerSample
-			}
+		bestNeighbor := selectAdaptiveNeighbor(current, neighbors,
+			normalPositionCounts[candidate.TeamID], candidate.Position, candidate.Direction)
+		if len(neighbors) == 0 {
+			chosen.active = false
+			continue
 		}
-		for _, pilot := range coarse {
-			levels := []int{1, 3}
-			if pilot.Hits == 0 {
-				levels = []int{3, 4, 5}
-			}
-			for _, level := range levels {
-				samples := affordableSamples(InitialPilotSamplesPerLevel, explorationWorkRemaining, workPerSample)
-				samples = affordableSamples(samples, *remainingWork, workPerSample)
-				samples = affordableSamples(samples, *pilotWorkRemaining, workPerSample)
-				if samples < MinPilotSamples {
-					break
-				}
-				spec := pilot.Proposal.Spec
-				spec.StrengthLevel = level
-				runPilot(candidate, spec, samples)
-				explorationWorkRemaining -= int64(samples) * workPerSample
-			}
+		candidate.SearchState.AdaptiveSteps++
+		if bestNeighbor == nil {
+			chosen.active = false
+			log.Printf("rare-position-adaptive-select: group=%d team=%d position=%d selected=%s reason=no_improving_neighbor",
+				group.Id, candidate.TeamID, candidate.Position, current.Proposal.Name)
+			continue
 		}
+		chosen.current = bestNeighbor
+		reason := "best_rank_progress"
+		if bestNeighbor.Hits > 0 {
+			reason = "weighted_ess_per_work"
+			chosen.active = false
+		}
+		log.Printf("rare-position-adaptive-select: group=%d team=%d position=%d selected=%s reason=%s",
+			group.Id, candidate.TeamID, candidate.Position, bestNeighbor.Proposal.Name, reason)
 	}
 
 	type refinement struct {
@@ -1273,7 +1472,7 @@ func runWeightedPilotRound(
 	var refinements []refinement
 	for _, candidate := range candidates {
 		candidate.SearchState.Pilots = results[candidate]
-		if len(results[candidate]) < coarseFamilies {
+		if len(results[candidate]) == 0 {
 			candidate.SearchState.Status = StatusExhausted
 			continue
 		}
@@ -1321,8 +1520,8 @@ func runWeightedPilotRound(
 		best := selectPilotMixture(results[candidate])
 		if best == nil {
 			candidate.SearchState.Status = StatusExhausted
-			log.Printf("rare-position-pilot-selection: group=%d team=%d position=%d selected_level=none reason=insufficient_weighted_evidence",
-				group.Id, candidate.TeamID, candidate.Position)
+			log.Printf("rare-position-pilot-selection: group=%d team=%d position=%d selected_spec=none reason=insufficient_weighted_evidence search_work=%d",
+				group.Id, candidate.TeamID, candidate.Position, candidate.SearchState.SearchWorkSpent)
 			continue
 		}
 		candidate.SearchState.Status = StatusPromising
@@ -1330,10 +1529,10 @@ func runWeightedPilotRound(
 		candidate.SearchState.BestPilot = best
 		eligible = append(eligible, candidate)
 		projected := projectedWorkForESS(best)
-		log.Printf("rare-position-pilot-selection: group=%d team=%d position=%d selected_level=%d pilot_samples=%d pilot_hits=%d pilot_ess=%.2f pilot_ess_per_million_work=%.3f max_weight_share=%.3f projected_work_ess15=%d projected_samples=%d",
-			group.Id, candidate.TeamID, candidate.Position, best.Proposal.StrengthLevel,
+		log.Printf("rare-position-pilot-selection: group=%d team=%d position=%d selected_spec=%s selected_level=%d pilot_samples=%d pilot_hits=%d pilot_ess=%.2f pilot_ess_per_million_work=%.3f max_weight_share=%.3f search_work=%d projected_work_ess15=%d projected_samples=%d",
+			group.Id, candidate.TeamID, candidate.Position, best.Proposal.Name, best.Proposal.StrengthLevel,
 			best.Samples, best.Hits, best.ESS, best.ESSPerWork*1e6, best.MaxEventWeightShare,
-			projected, (projected+workPerSample-1)/workPerSample)
+			candidate.SearchState.SearchWorkSpent, projected, (projected+workPerSample-1)/workPerSample)
 	}
 	return eligible, roundWork
 }
@@ -1342,9 +1541,8 @@ func shouldRunFrontierRound(round, resolvedInitial int, pilotWork, remainingWork
 	if round == 0 {
 		return true
 	}
-	// Keep enough for a 100-sample coarse pilot at all four families after
-	// reserving one third of pilot work for refinement.
-	minimumRoundWork := int64(4*MinPilotSamples) * workPerSample * 3 / 2
+	// A new round needs at least one baseline and some room for escalation.
+	minimumRoundWork := int64(2*AdaptivePilotChunk) * workPerSample
 	return round == 1 && resolvedInitial > 0 &&
 		pilotWork >= minimumRoundWork && remainingWork >= minimumRoundWork
 }
@@ -1463,6 +1661,7 @@ func searchAndMergeRarePositions(
 
 	teamRareEstimates := make(map[int]map[int]RarePositionEstimate)
 	var pilotWork, productionWork, expansionWork int64
+	productionJobs := 0
 	resolvedInitial := 0
 	for round := 0; shouldRunFrontierRound(round, resolvedInitial,
 		pilotWorkRemaining, remainingWork, workPerSample); round++ {
@@ -1474,7 +1673,7 @@ func searchAndMergeRarePositions(
 		}
 		eligible, roundPilotWork := runWeightedPilotRound(
 			candidates, group, campaign, table, sortOrder, originalMeans,
-			normalMeanRanks, workPerSample, &remainingWork, &pilotWorkRemaining, rng,
+			normalMeanRanks, normalPositionCounts, workPerSample, &remainingWork, &pilotWorkRemaining, rng,
 		)
 		if remainingWork < 0 || pilotWorkRemaining < 0 {
 			panic("rare-position pilot work budget exceeded")
@@ -1527,6 +1726,7 @@ func searchAndMergeRarePositions(
 				job, rng, group.Id,
 			)
 			remainingWork -= work
+			productionJobs++
 			if remainingWork < 0 {
 				panic("rare-position production work budget exceeded")
 			}
@@ -1588,10 +1788,26 @@ func searchAndMergeRarePositions(
 		}
 	}
 	resolvedPositions := 0
+	adaptiveCandidates, adaptiveSteps, reachingTarget, reachingPilotESS := 0, 0, 0, 0
 	for _, search := range teamSearches {
 		for _, state := range search.Positions {
 			if state.Status == StatusResolved {
 				resolvedPositions++
+			}
+			if len(state.Pilots) > 0 {
+				adaptiveCandidates++
+				adaptiveSteps += state.AdaptiveSteps
+				hit, enoughESS := false, false
+				for _, pilot := range state.Pilots {
+					hit = hit || pilot.Hits > 0
+					enoughESS = enoughESS || pilot.ESS >= MinPilotESSForProduction
+				}
+				if hit {
+					reachingTarget++
+				}
+				if enoughESS {
+					reachingPilotESS++
+				}
 			}
 		}
 	}
@@ -1599,10 +1815,12 @@ func searchAndMergeRarePositions(
 	if workSpent > totalWorkLimit {
 		panic("rare-position total work budget exceeded")
 	}
-	log.Printf("rare-position-summary: group=%d normal_sims_initial=%d fallback_normal_sims=%d normal_sims_total=%d total_work_limit=%d pilot_work=%d production_work=%d expansion_work=%d fallback_work=%d unused_work=%d work_spent=%d resolved_positions_is=%d new_cells_from_fallback=%d",
+	log.Printf("rare-position-summary: group=%d normal_sims_initial=%d fallback_normal_sims=%d normal_sims_total=%d total_work_limit=%d pilot_work=%d production_work=%d expansion_work=%d fallback_work=%d unused_work=%d work_spent=%d resolved_positions_is=%d new_cells_from_fallback=%d adaptive_candidates=%d adaptive_steps=%d candidates_reaching_target=%d candidates_reaching_min_pilot_ess=%d production_jobs=%d pilot_plain_mc_equiv=%.1f production_plain_mc_equiv=%.1f",
 		group.Id, NormalIterations, fallbackSamples, NormalIterations+fallbackSamples, totalWorkLimit,
 		pilotWork, productionWork, expansionWork, fallbackWork, remainingWork, workSpent,
-		resolvedPositions, newNonzeroCells)
+		resolvedPositions, newNonzeroCells, adaptiveCandidates, adaptiveSteps, reachingTarget,
+		reachingPilotESS, productionJobs, float64(pilotWork)/float64(plainWorkPerSample),
+		float64(productionWork)/float64(plainWorkPerSample))
 }
 
 type RarePositionEstimate struct {
