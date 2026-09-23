@@ -5,6 +5,7 @@ import (
 	"log"
 	"math"
 	"math/rand"
+	"os"
 	"sort"
 )
 
@@ -85,6 +86,8 @@ type CEMBatchStats struct {
 	NearTargetRate    float64
 	EliteESS          float64
 	UsedExactElites   bool
+	SignAgreement    float64
+	CosineSimilarity float64
 }
 
 type CEMRoundResult struct {
@@ -152,6 +155,7 @@ type CEMRoundResult struct {
 type CEMCandidateState struct {
 	Candidate                      *FrontierCandidate
 	Proposal                       CEMProposal
+	InitialDirectionVector         map[int]float64
 	BestProposal                   CEMProposal
 	Iterations                     int
 	Samples                        int
@@ -246,6 +250,24 @@ func teamIDsFromGroups(groups []TeamType) []int {
 	return ids
 }
 
+const (
+	CEMWarmStartCompetitorMass = 1.0
+	CEMWarmStartKL             = 0.15
+)
+
+type CEMInitializationMode int
+
+const (
+	CEMInitZero CEMInitializationMode = iota
+	CEMInitStandingsDirected
+)
+
+var CEMDefaultInitializationMode = CEMInitStandingsDirected
+
+func newZeroCEMProposal(original []GameProposalMeans, games []*GameType, teamIDs []int) CEMProposal {
+	return newCEMProposal(original, games, teamIDs)
+}
+
 func newCEMProposal(original []GameProposalMeans, games []*GameType, teamIDs []int) CEMProposal {
 	theta := make(map[int]float64, len(teamIDs))
 	for _, teamID := range teamIDs {
@@ -254,6 +276,202 @@ func newCEMProposal(original []GameProposalMeans, games []*GameType, teamIDs []i
 	proposal := CEMProposal{TeamLogMultipliers: theta, UpdateAllowed: true}
 	proposal.Means = materializeCEMProposal(proposal, original, games)
 	return proposal
+}
+
+func newCEMProposalWithMode(mode CEMInitializationMode, candidate *FrontierCandidate, searches map[int]*TeamRareSearch, original []GameProposalMeans, games []*GameType, teamIDs []int, groupID int) (CEMProposal, map[int]float64) {
+	if mode == CEMInitStandingsDirected {
+		return initializeDirectedCEMProposal(candidate, searches, original, games, teamIDs, groupID)
+	}
+	prop := newZeroCEMProposal(original, games, teamIDs)
+	return prop, nil
+}
+
+func computeSignAgreementAndCosine(d map[int]float64, theta map[int]float64) (float64, float64) {
+	if len(d) == 0 || len(theta) == 0 {
+		return 0, 0
+	}
+
+	dot, normD, normTheta := 0.0, 0.0, 0.0
+	matchedSigns, totalNonZeroD := 0, 0
+
+	for teamID, dVal := range d {
+		if dVal == 0 {
+			continue
+		}
+		totalNonZeroD++
+		thVal := theta[teamID]
+		if (dVal > 0 && thVal > 0) || (dVal < 0 && thVal < 0) {
+			matchedSigns++
+		}
+		dot += dVal * thVal
+		normD += dVal * dVal
+	}
+
+	for _, thVal := range theta {
+		normTheta += thVal * thVal
+	}
+
+	signAgreement := 0.0
+	if totalNonZeroD > 0 {
+		signAgreement = float64(matchedSigns) / float64(totalNonZeroD)
+	}
+
+	cosineSim := 0.0
+	if normD > 0 && normTheta > 0 {
+		cosineSim = dot / (math.Sqrt(normD) * math.Sqrt(normTheta))
+	}
+
+	return signAgreement, cosineSim
+}
+
+func initializeDirectedCEMProposal(
+	candidate *FrontierCandidate,
+	searches map[int]*TeamRareSearch,
+	original []GameProposalMeans,
+	games []*GameType,
+	teamIDs []int,
+	groupID int,
+) (CEMProposal, map[int]float64) {
+	targetTeamID := candidate.TeamID
+	targetPosition := candidate.Position
+	direction := candidate.Direction
+
+	targetSearch, ok := searches[targetTeamID]
+	if !ok || targetSearch == nil {
+		log.Printf("rare-position-cem-init-fallback: group=%d team=%d position=%d reason=no_target_search",
+			groupID, targetTeamID, targetPosition)
+		return newCEMProposal(original, games, teamIDs), nil
+	}
+
+	rT := targetSearch.NormalMeanRank
+
+	var corridor []int
+	var overtakersBlockersRole string
+
+	if direction == RareBetter {
+		overtakersBlockersRole = "blocker"
+		for teamID, search := range searches {
+			if teamID == targetTeamID || search == nil {
+				continue
+			}
+			rJ := search.NormalMeanRank
+			if float64(targetPosition) <= rJ && rJ < rT {
+				corridor = append(corridor, teamID)
+			}
+		}
+	} else {
+		overtakersBlockersRole = "overtaker"
+		for teamID, search := range searches {
+			if teamID == targetTeamID || search == nil {
+				continue
+			}
+			rJ := search.NormalMeanRank
+			if rT < rJ && rJ <= float64(targetPosition) {
+				corridor = append(corridor, teamID)
+			}
+		}
+	}
+
+	if len(corridor) == 0 {
+		for teamID, search := range searches {
+			if teamID == targetTeamID || search == nil {
+				continue
+			}
+			rJ := search.NormalMeanRank
+			if math.Abs(rJ-float64(targetPosition)) <= 1.0 {
+				corridor = append(corridor, teamID)
+			}
+		}
+	}
+
+	if len(corridor) == 0 {
+		log.Printf("rare-position-cem-init-fallback: group=%d team=%d position=%d reason=no_corridor_competitors",
+			groupID, targetTeamID, targetPosition)
+		return newCEMProposal(original, games, teamIDs), nil
+	}
+
+	sort.Ints(corridor)
+
+	rawWeights := make(map[int]float64, len(corridor))
+	sumRaw := 0.0
+	for _, teamID := range corridor {
+		rJ := searches[teamID].NormalMeanRank
+		dist := math.Abs(rJ - float64(targetPosition))
+		w := 1.0 / (1.0 + dist)
+		rawWeights[teamID] = w
+		sumRaw += w
+	}
+
+	normWeights := make(map[int]float64, len(corridor))
+	for _, teamID := range corridor {
+		normWeights[teamID] = rawWeights[teamID] / sumRaw
+	}
+
+	unscaledTheta := make(map[int]float64, len(teamIDs))
+	for _, teamID := range teamIDs {
+		unscaledTheta[teamID] = 0.0
+	}
+
+	targetDir := 1.0
+	if direction == RareWorse {
+		targetDir = -1.0
+	}
+	unscaledTheta[targetTeamID] = targetDir
+
+	for _, teamID := range corridor {
+		if direction == RareBetter {
+			unscaledTheta[teamID] = -CEMWarmStartCompetitorMass * normWeights[teamID]
+		} else {
+			unscaledTheta[teamID] = +CEMWarmStartCompetitorMass * normWeights[teamID]
+		}
+	}
+
+	unscaledL1 := 0.0
+	for _, th := range unscaledTheta {
+		unscaledL1 += math.Abs(th)
+	}
+
+	unscaledProp := CEMProposal{TeamLogMultipliers: copyTheta(unscaledTheta), UpdateAllowed: true}
+	unscaledProp.Means = materializeCEMProposal(unscaledProp, original, games)
+	unscaledProp.KL = cemTotalKL(unscaledProp.Means, original, games)
+
+	var scaledProp CEMProposal
+	alpha := 0.0
+
+	if unscaledProp.KL > 0 {
+		scaledProp = cemTrustRegionTeam(unscaledProp, original, games, CEMWarmStartKL)
+		if scaledProp.TeamLogMultipliers[targetTeamID] != 0 {
+			alpha = scaledProp.TeamLogMultipliers[targetTeamID] / targetDir
+		}
+	} else {
+		scaledProp = newCEMProposal(original, games, teamIDs)
+	}
+
+	dirName := "better"
+	if direction == RareWorse {
+		dirName = "worse"
+	}
+
+	log.Printf("rare-position-cem-init: group=%d team=%d position=%d mode=standings_directed direction=%s normal_mean_rank=%.2f target_position=%d competitor_count=%d competitor_mass=%.2f target_direction=%.1f unscaled_theta_l1=%.4f alpha=%.4f kl=%.4f",
+		groupID, targetTeamID, targetPosition, dirName, rT, targetPosition,
+		len(corridor), CEMWarmStartCompetitorMass, targetDir, unscaledL1, alpha, scaledProp.KL)
+
+	log.Printf("rare-position-cem-init-team: group=%d target_team=%d target_position=%d team_id=%d role=target normal_mean_rank=%.2f rank_distance_to_boundary=%.2f raw_relevance=1.0000 normalized_relevance=1.0000 direction=%.1f initial_theta=%.6f initial_multiplier=%.6f",
+		groupID, targetTeamID, targetPosition, targetTeamID, rT, math.Abs(rT-float64(targetPosition)),
+		targetDir, scaledProp.TeamLogMultipliers[targetTeamID], math.Exp(scaledProp.TeamLogMultipliers[targetTeamID]))
+
+	for _, teamID := range corridor {
+		rJ := searches[teamID].NormalMeanRank
+		dist := math.Abs(rJ - float64(targetPosition))
+		compDir := -targetDir
+		thetaVal := scaledProp.TeamLogMultipliers[teamID]
+
+		log.Printf("rare-position-cem-init-team: group=%d target_team=%d target_position=%d team_id=%d role=%s normal_mean_rank=%.2f rank_distance_to_boundary=%.2f raw_relevance=%.4f normalized_relevance=%.4f direction=%.1f initial_theta=%.6f initial_multiplier=%.6f",
+			groupID, targetTeamID, targetPosition, teamID, overtakersBlockersRole, rJ, dist,
+			rawWeights[teamID], normWeights[teamID], compDir, thetaVal, math.Exp(thetaVal))
+	}
+
+	return scaledProp, unscaledTheta
 }
 
 func materializeCEMProposal(proposal CEMProposal, original []GameProposalMeans, games []*GameType) []GameProposalMeans {
@@ -1027,6 +1245,13 @@ func runCEMCandidateBatch(state *CEMCandidateState, group *GroupType, campaign [
 
 	elite, exact := cemEliteIndices(batch, state.Candidate.Position, state.Candidate.Direction)
 	stats := cemBatchSummary(batch, elite, state.Candidate.Position, exact)
+	if state.InitialDirectionVector != nil {
+		signAgr, cosSim := computeSignAgreementAndCosine(state.InitialDirectionVector, state.Proposal.TeamLogMultipliers)
+		stats.SignAgreement = signAgr
+		stats.CosineSimilarity = cosSim
+		log.Printf("rare-position-cem-init-agreement: group=%d team=%d position=%d iteration=%d sign_agreement=%.4f cosine_similarity=%.4f",
+			group.Id, state.Candidate.TeamID, state.Candidate.Position, state.Iterations, signAgr, cosSim)
+	}
 	if state.Iterations == 1 {
 		state.FirstStats = stats
 		state.BestEliteDistance = stats.EliteMeanDistance
@@ -1677,14 +1902,30 @@ func runCEMAdaptationRound(candidates []*FrontierCandidate, searches map[int]*Te
 	group *GroupType, campaign []*TeamCampaign, table *Table, order []SortType,
 	original []GameProposalMeans, cemRemaining, remainingWork, explorationRemaining *int64,
 	adaptWorkPerSample int64, rng *rand.Rand) CEMRoundResult {
+	mode := CEMDefaultInitializationMode
+	if envMode := os.Getenv("RARE_POSITION_CEM_INIT"); envMode == "zero" {
+		mode = CEMInitZero
+	} else if envMode == "directed" {
+		mode = CEMInitStandingsDirected
+	}
+	return runCEMAdaptationRoundWithMode(mode, candidates, searches, group, campaign, table,
+		order, original, cemRemaining, remainingWork, explorationRemaining, adaptWorkPerSample, rng)
+}
+
+func runCEMAdaptationRoundWithMode(mode CEMInitializationMode, candidates []*FrontierCandidate, searches map[int]*TeamRareSearch,
+	group *GroupType, campaign []*TeamCampaign, table *Table, order []SortType,
+	original []GameProposalMeans, cemRemaining, remainingWork, explorationRemaining *int64,
+	adaptWorkPerSample int64, rng *rand.Rand) CEMRoundResult {
 	result := CEMRoundResult{CandidatesTotal: len(candidates)}
 	teamIDs := teamIDsFromGroups(group.Team_groups)
 	states := make([]*CEMCandidateState, 0, len(candidates))
 	for _, candidate := range candidates {
+		prop, initDir := newCEMProposalWithMode(mode, candidate, searches, original, group.Games, teamIDs, group.Id)
 		states = append(states, &CEMCandidateState{
-			Candidate: candidate,
-			Proposal:  newCEMProposal(original, group.Games, teamIDs),
-			Active:    true,
+			Candidate:              candidate,
+			Proposal:               prop,
+			InitialDirectionVector: initDir,
+			Active:                 true,
 		})
 	}
 	explorationAvailable := min(*explorationRemaining, min(*cemRemaining, *remainingWork))

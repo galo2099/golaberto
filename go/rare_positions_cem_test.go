@@ -1003,3 +1003,246 @@ func TestCEMThetaSummaryReportsL1AndTruePerTeamAverage(t *testing.T) {
 		t.Fatalf("average abs team theta %g exceeds max %g", averageAbs, maxAbsTeamTheta)
 	}
 }
+
+func TestRareBetterInitialization(t *testing.T) {
+	teamIDs := []int{1, 2, 3, 4}
+
+	searches := map[int]*TeamRareSearch{
+		1: {TeamID: 1, NormalMeanRank: 6.0},
+		2: {TeamID: 2, NormalMeanRank: 2.5},
+		3: {TeamID: 3, NormalMeanRank: 4.0},
+		4: {TeamID: 4, NormalMeanRank: 8.0},
+	}
+
+	games := []*GameType{
+		{Id: 1, HomeId: 1, AwayId: 2, HomePower: 1.0, AwayPower: 1.0, Played: false},
+		{Id: 2, HomeId: 3, AwayId: 4, HomePower: 1.0, AwayPower: 1.0, Played: false},
+	}
+	original := []GameProposalMeans{
+		{Home: 1.0, Away: 1.0},
+		{Home: 1.0, Away: 1.0},
+	}
+
+	candidate := &FrontierCandidate{
+		TeamID:    1,
+		Position:  2,
+		Direction: RareBetter,
+	}
+
+	prop, unscaled := initializeDirectedCEMProposal(candidate, searches, original, games, teamIDs, 100)
+
+	if prop.TeamLogMultipliers[1] <= 0 {
+		t.Errorf("expected target team theta > 0, got %f", prop.TeamLogMultipliers[1])
+	}
+	if prop.TeamLogMultipliers[2] >= 0 {
+		t.Errorf("expected blocker team 2 theta < 0, got %f", prop.TeamLogMultipliers[2])
+	}
+	if prop.TeamLogMultipliers[3] >= 0 {
+		t.Errorf("expected blocker team 3 theta < 0, got %f", prop.TeamLogMultipliers[3])
+	}
+	if prop.TeamLogMultipliers[4] != 0 {
+		t.Errorf("expected unrelated team 4 theta == 0, got %f", prop.TeamLogMultipliers[4])
+	}
+	if unscaled[1] != 1.0 {
+		t.Errorf("expected unscaled target direction = 1.0, got %f", unscaled[1])
+	}
+}
+
+func TestRareWorseInitialization(t *testing.T) {
+	teamIDs := []int{1, 2, 3, 4}
+
+	searches := map[int]*TeamRareSearch{
+		1: {TeamID: 1, NormalMeanRank: 3.0},
+		2: {TeamID: 2, NormalMeanRank: 5.0},
+		3: {TeamID: 3, NormalMeanRank: 7.0},
+		4: {TeamID: 4, NormalMeanRank: 1.0},
+	}
+
+	games := []*GameType{
+		{Id: 1, HomeId: 1, AwayId: 2, HomePower: 1.0, AwayPower: 1.0, Played: false},
+		{Id: 2, HomeId: 3, AwayId: 4, HomePower: 1.0, AwayPower: 1.0, Played: false},
+	}
+	original := []GameProposalMeans{
+		{Home: 1.0, Away: 1.0},
+		{Home: 1.0, Away: 1.0},
+	}
+
+	candidate := &FrontierCandidate{
+		TeamID:    1,
+		Position:  8,
+		Direction: RareWorse,
+	}
+
+	prop, _ := initializeDirectedCEMProposal(candidate, searches, original, games, teamIDs, 200)
+
+	if prop.TeamLogMultipliers[1] >= 0 {
+		t.Errorf("expected target team theta < 0, got %f", prop.TeamLogMultipliers[1])
+	}
+	if prop.TeamLogMultipliers[2] <= 0 {
+		t.Errorf("expected overtaker team 2 theta > 0, got %f", prop.TeamLogMultipliers[2])
+	}
+	if prop.TeamLogMultipliers[3] <= 0 {
+		t.Errorf("expected overtaker team 3 theta > 0, got %f", prop.TeamLogMultipliers[3])
+	}
+	if prop.TeamLogMultipliers[4] != 0 {
+		t.Errorf("expected unrelated team 4 theta == 0, got %f", prop.TeamLogMultipliers[4])
+	}
+}
+
+func TestRelevanceWeightingAndCompetitorMassNormalization(t *testing.T) {
+	teamIDs := []int{1, 2, 3}
+
+	searches := map[int]*TeamRareSearch{
+		1: {TeamID: 1, NormalMeanRank: 6.0},
+		2: {TeamID: 2, NormalMeanRank: 2.2},
+		3: {TeamID: 3, NormalMeanRank: 5.5},
+	}
+
+	games := []*GameType{
+		{Id: 1, HomeId: 1, AwayId: 2, HomePower: 1.0, AwayPower: 1.0, Played: false},
+		{Id: 2, HomeId: 1, AwayId: 3, HomePower: 1.0, AwayPower: 1.0, Played: false},
+	}
+	original := []GameProposalMeans{
+		{Home: 1.0, Away: 1.0},
+		{Home: 1.0, Away: 1.0},
+	}
+
+	candidate := &FrontierCandidate{
+		TeamID:    1,
+		Position:  2,
+		Direction: RareBetter,
+	}
+
+	_, unscaled := initializeDirectedCEMProposal(candidate, searches, original, games, teamIDs, 300)
+
+	if math.Abs(unscaled[2]) <= math.Abs(unscaled[3]) {
+		t.Errorf("expected closer blocker 2 (|%f|) to have greater weight than blocker 3 (|%f|)",
+			unscaled[2], unscaled[3])
+	}
+
+	competitorMassSum := math.Abs(unscaled[2]) + math.Abs(unscaled[3])
+	if math.Abs(competitorMassSum-CEMWarmStartCompetitorMass) > 1e-6 {
+		t.Errorf("expected sum of competitor masses = %f, got %f", CEMWarmStartCompetitorMass, competitorMassSum)
+	}
+}
+
+func TestKLScalingAndZeroModeUnchanged(t *testing.T) {
+	teamIDs := []int{1, 2}
+	searches := map[int]*TeamRareSearch{
+		1: {TeamID: 1, NormalMeanRank: 5.0},
+		2: {TeamID: 2, NormalMeanRank: 1.0},
+	}
+	games := []*GameType{
+		{Id: 1, HomeId: 1, AwayId: 2, HomePower: 1.0, AwayPower: 1.0, Played: false},
+	}
+	original := []GameProposalMeans{
+		{Home: 1.0, Away: 1.0},
+	}
+	candidate := &FrontierCandidate{TeamID: 1, Position: 1, Direction: RareBetter}
+
+	dirProp, _ := initializeDirectedCEMProposal(candidate, searches, original, games, teamIDs, 400)
+	if dirProp.KL > CEMWarmStartKL+1e-6 {
+		t.Errorf("expected directed proposal KL <= %f, got %f", CEMWarmStartKL, dirProp.KL)
+	}
+
+	zeroProp := newZeroCEMProposal(original, games, teamIDs)
+	if zeroProp.KL != 0.0 {
+		t.Errorf("expected zero proposal KL = 0, got %f", zeroProp.KL)
+	}
+	for _, th := range zeroProp.TeamLogMultipliers {
+		if th != 0.0 {
+			t.Errorf("expected all zero team thetas, got %f", th)
+		}
+	}
+}
+
+func TestFirstBatchWeights(t *testing.T) {
+	teamIDs := []int{1, 2}
+	table := NewTable([]uint32{1, 2})
+	campaign := make([]*TeamCampaign, 2)
+	campaign[table.Query(1)] = &TeamCampaign{id: 1, points: 0, bias: 0, points_win: 3, points_draw: 1, points_loss: 0}
+	campaign[table.Query(2)] = &TeamCampaign{id: 2, points: 0, bias: 1, points_win: 3, points_draw: 1, points_loss: 0}
+
+	searches := map[int]*TeamRareSearch{
+		1: {TeamID: 1, NormalMeanRank: 5.0},
+		2: {TeamID: 2, NormalMeanRank: 1.0},
+	}
+	games := []*GameType{
+		{
+			Id: 1, HomeId: 1, AwayId: 2, HomePower: 1.0, AwayPower: 1.0, Played: false,
+			home_table_index: table.Query(1), away_table_index: table.Query(2),
+		},
+	}
+	original := []GameProposalMeans{
+		{Home: 1.0, Away: 1.0},
+	}
+	candidate := &FrontierCandidate{TeamID: 1, Position: 1, Direction: RareBetter}
+
+	prop, _ := initializeDirectedCEMProposal(candidate, searches, original, games, teamIDs, 500)
+
+	rng := rand.New(rand.NewSource(123))
+	seasons := simulateCEMBatchForTeams(campaign, games, original, prop.Means, table, []SortType{PT}, []TeamType{{Team_id: 1}, {Team_id: 2}}, teamIDs, 1, 10, rng)
+
+	for _, s := range seasons {
+		if math.IsNaN(s.LogWeight) || math.IsInf(s.LogWeight, 0) {
+			t.Errorf("invalid season LogWeight: %f", s.LogWeight)
+		}
+	}
+}
+
+func TestWarmStartIsNotAConstraint(t *testing.T) {
+	current := CEMProposal{
+		TeamLogMultipliers: map[int]float64{1: 0.5, 2: -0.5},
+	}
+	original := []GameProposalMeans{{Home: 1.0, Away: 1.0}}
+	games := []*GameType{{Id: 1, HomeId: 1, AwayId: 2, HomePower: 1.0, AwayPower: 1.0, Played: false}}
+	teamIDs := []int{1, 2}
+
+	seasons := []CEMSeason{
+		{Rank: 0, TeamGoals: []int{0, 5}, LogWeight: 0.0},
+		{Rank: 0, TeamGoals: []int{0, 4}, LogWeight: 0.0},
+		{Rank: 0, TeamGoals: []int{0, 6}, LogWeight: 0.0},
+		{Rank: 0, TeamGoals: []int{0, 5}, LogWeight: 0.0},
+		{Rank: 0, TeamGoals: []int{0, 5}, LogWeight: 0.0},
+		{Rank: 0, TeamGoals: []int{0, 5}, LogWeight: 0.0},
+		{Rank: 0, TeamGoals: []int{0, 5}, LogWeight: 0.0},
+		{Rank: 0, TeamGoals: []int{0, 5}, LogWeight: 0.0},
+		{Rank: 0, TeamGoals: []int{0, 5}, LogWeight: 0.0},
+		{Rank: 0, TeamGoals: []int{0, 5}, LogWeight: 0.0},
+	}
+	elite := []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+
+	updated := cemUpdateTeam(current, original, games, teamIDs, seasons, elite)
+
+	if updated.TeamLogMultipliers[1] >= current.TeamLogMultipliers[1] {
+		t.Errorf("expected CEM update to decrease theta for team 1, got %f", updated.TeamLogMultipliers[1])
+	}
+}
+
+func TestBenchmarkSharedScout(t *testing.T) {
+	normalCounts := []int{100, 0, 500, 9400, 0}
+	normalProbs := []float64{0.01, 0.0, 0.05, 0.94, 0.0}
+
+	teamGroups := []TeamType{
+		{Team_id: 1, Bias: 0}, {Team_id: 2, Bias: 1}, {Team_id: 3, Bias: 2}, {Team_id: 4, Bias: 3}, {Team_id: 5, Bias: 4},
+	}
+	table := NewTable([]uint32{1, 2, 3, 4, 5})
+	campaign := make([]*TeamCampaign, 5)
+	for i := 1; i <= 5; i++ {
+		campaign[table.Query(uint32(i))] = &TeamCampaign{id: i, points: 0, bias: i - 1, points_win: 3, points_draw: 1, points_loss: 0}
+	}
+	games := []*GameType{
+		{Id: 1, HomeId: 1, AwayId: 2, HomePower: 1.0, AwayPower: 1.0, Played: false},
+	}
+	sortOrder := []SortType{PT, GD, GF, BIAS}
+
+	rngA := rand.New(rand.NewSource(12345))
+	rngB := rand.New(rand.NewSource(12345))
+
+	searchA := initializeTeamRareSearchWithRNG(1, normalCounts, normalProbs, campaign, teamGroups, games, table, sortOrder, rngA)
+	searchB := initializeTeamRareSearchWithRNG(1, normalCounts, normalProbs, campaign, teamGroups, games, table, sortOrder, rngB)
+
+	if searchA.NormalMeanRank != searchB.NormalMeanRank {
+		t.Errorf("expected identical scout NormalMeanRank: A=%f, B=%f", searchA.NormalMeanRank, searchB.NormalMeanRank)
+	}
+}
