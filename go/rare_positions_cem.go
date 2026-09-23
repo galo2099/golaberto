@@ -19,45 +19,44 @@ const (
 	MaxCEMWorkFraction             = 0.10
 	MaxCEMValidationWorkFraction   = 0.02
 	MaxCEMPlainEquivalentSamples   = 5000
-	CEMMaxChangedGames             = 12
+	CEMMinEliteESSForUpdate        = 8.0
+	CEMMeaningfulTeamLogShift      = 0.03
+	CEMThetaStabilityThreshold     = 0.02
+	CEMMinMultiplier               = 1e-12
 	CEMMinExactHitsForValidation   = 2
 	CEMNearTargetRateForValidation = 0.05
 	CEMStrongNearTargetRate        = 0.10
-	CEMRetentionBonus              = 0.25
 	CEMMinBatchSamples             = 100
 	CEMMinRelativeProgress         = 0.02
 	CEMMaxStalledIterations        = 2
 )
 
 type CEMProposal struct {
-	Means         []GameProposalMeans
-	Iteration     int
-	KL            float64
-	ChangedGames  int
-	SelectedGames []int
-	Signals       []CEMGameSignal
-	EliteESS      float64
+	TeamLogMultipliers map[int]float64
+	PreviousLogTheta   map[int]float64
+	EliteTeamGoals     map[int]float64
+	Means              []GameProposalMeans
+	Iteration          int
+	KL                 float64
+	ChangedTeams       int
+	MaxAbsTheta        float64
+	ThetaDeltaL2       float64
+	EliteESS           float64
+	UpdateAllowed      bool
 }
 
-type CEMGameSignal struct {
-	GameIndex     int
-	HomeEliteMean float64
-	AwayEliteMean float64
-	HomeESS       float64
-	AwayESS       float64
-	HomeSE        float64
-	AwaySE        float64
-	HomeZ         float64
-	AwayZ         float64
-	GameScore     float64
-	Selected      bool
+type CEMTeamSignal struct {
+	TeamID        int
+	OriginalGoals float64
+	EliteGoals    float64
+	OldMultiplier float64
+	NewMultiplier float64
+	Theta         float64
 }
-
-type CEMScore struct{ Home, Away int }
 
 type CEMSeason struct {
 	Rank      int
-	Scores    []CEMScore
+	TeamGoals []int
 	LogWeight float64 // log(P / Q_current), never a probability estimate
 }
 
@@ -84,9 +83,72 @@ type CEMRoundResult struct {
 	TargetsAnyExact   int
 	TargetsExactElite int
 	TargetsValidated  int
-	SelectedGames     int
-	MaxSelectedGames  int
+	ChangedTeams      int
+	MaxChangedTeams   int
+	AbsThetaSum       float64
+	MaxAbsTheta       float64
+	ThetaDeltaL2Sum   float64
 	ValidatedESS      float64
+}
+
+func teamIDsFromGroups(groups []TeamType) []int {
+	ids := make([]int, len(groups))
+	for i, group := range groups {
+		ids[i] = group.Team_id
+	}
+	sort.Ints(ids)
+	return ids
+}
+
+func newCEMProposal(original []GameProposalMeans, games []*GameType, teamIDs []int) CEMProposal {
+	theta := make(map[int]float64, len(teamIDs))
+	for _, teamID := range teamIDs {
+		theta[teamID] = 0
+	}
+	proposal := CEMProposal{TeamLogMultipliers: theta, UpdateAllowed: true}
+	proposal.Means = materializeCEMProposal(proposal, original, games)
+	return proposal
+}
+
+func materializeCEMProposal(proposal CEMProposal, original []GameProposalMeans, games []*GameType) []GameProposalMeans {
+	means := append([]GameProposalMeans(nil), original...)
+	for i, game := range games {
+		if game.Played {
+			continue
+		}
+		homeTheta := proposal.TeamLogMultipliers[game.HomeId]
+		awayTheta := proposal.TeamLogMultipliers[game.AwayId]
+		if original[i].Home > 0 {
+			means[i].Home = original[i].Home * math.Exp(homeTheta)
+		} else {
+			means[i].Home = 0
+		}
+		if original[i].Away > 0 {
+			means[i].Away = original[i].Away * math.Exp(awayTheta)
+		} else {
+			means[i].Away = 0
+		}
+	}
+	return means
+}
+
+func teamOriginalGoals(original []GameProposalMeans, games []*GameType, teamIDs []int) map[int]float64 {
+	goals := make(map[int]float64, len(teamIDs))
+	for _, teamID := range teamIDs {
+		goals[teamID] = 0
+	}
+	for i, game := range games {
+		if game.Played {
+			continue
+		}
+		if _, ok := goals[game.HomeId]; ok {
+			goals[game.HomeId] += original[i].Home
+		}
+		if _, ok := goals[game.AwayId]; ok {
+			goals[game.AwayId] += original[i].Away
+		}
+	}
+	return goals
 }
 
 func cemPoissonKL(mu, original float64) float64 {
@@ -129,71 +191,47 @@ func cemWeightedMean(scores []float64, weights []float64) float64 {
 	return weighted / total
 }
 
-func cemSmoothMean(current, estimate float64) float64 {
-	if math.IsNaN(current) || math.IsInf(current, 0) || current < 0 {
+func cemSmoothLogTheta(current, estimate float64) float64 {
+	if math.IsNaN(current) || math.IsInf(current, 0) {
 		current = 0
 	}
-	if math.IsNaN(estimate) || math.IsInf(estimate, 0) || estimate < 0 {
+	if math.IsNaN(estimate) || math.IsInf(estimate, 0) {
 		estimate = 0
 	}
 	return (1-CEMSmoothing)*current + CEMSmoothing*estimate
 }
 
-func cemInterpolatedMeans(original, proposed []GameProposalMeans, games []*GameType, fraction float64) []GameProposalMeans {
-	result := append([]GameProposalMeans(nil), original...)
-	if fraction < 0 {
-		fraction = 0
-	}
-	if fraction > 1 {
-		fraction = 1
-	}
-	for i, game := range games {
-		if game.Played {
-			continue
-		}
-		result[i].Home = cemInterpolateMean(original[i].Home, proposed[i].Home, fraction)
-		result[i].Away = cemInterpolateMean(original[i].Away, proposed[i].Away, fraction)
-	}
-	return result
-}
-
-func cemInterpolateMean(original, proposed, fraction float64) float64 {
-	if original <= 0 || math.IsNaN(original) || math.IsInf(original, 0) {
-		return 0
-	}
-	if proposed <= 0 || math.IsNaN(proposed) || math.IsInf(proposed, 0) {
-		return original
-	}
-	result := original * math.Exp(fraction*math.Log(proposed/original))
-	if math.IsNaN(result) || math.IsInf(result, 0) || result < 0 {
-		return original
-	}
-	return result
-}
-
-// Scale the entire log-mean update toward P; never clip individual dimensions.
-func cemTrustRegion(original, proposed []GameProposalMeans, games []*GameType, maxKL float64) ([]GameProposalMeans, float64) {
-	kl := cemTotalKL(proposed, original, games)
-	if kl <= maxKL {
-		return proposed, kl
+func cemTrustRegionTeam(proposal CEMProposal, original []GameProposalMeans, games []*GameType, maxKL float64) CEMProposal {
+	if proposal.KL <= maxKL {
+		return proposal
 	}
 	lo, hi := 0.0, 1.0
 	for i := 0; i < 55; i++ {
 		mid := (lo + hi) / 2
-		candidate := cemInterpolatedMeans(original, proposed, games, mid)
-		if cemTotalKL(candidate, original, games) <= maxKL {
+		candidate := proposal
+		candidate.TeamLogMultipliers = make(map[int]float64, len(proposal.TeamLogMultipliers))
+		for teamID, theta := range proposal.TeamLogMultipliers {
+			candidate.TeamLogMultipliers[teamID] = mid * theta
+		}
+		candidate.Means = materializeCEMProposal(candidate, original, games)
+		candidate.KL = cemTotalKL(candidate.Means, original, games)
+		if candidate.KL <= maxKL {
 			lo = mid
 		} else {
 			hi = mid
 		}
 	}
-	result := cemInterpolatedMeans(original, proposed, games, lo)
-	return result, cemTotalKL(result, original, games)
+	scaled := proposal
+	scaled.TeamLogMultipliers = make(map[int]float64, len(proposal.TeamLogMultipliers))
+	for teamID, theta := range proposal.TeamLogMultipliers {
+		scaled.TeamLogMultipliers[teamID] = lo * theta
+	}
+	scaled.Means = materializeCEMProposal(scaled, original, games)
+	scaled.KL = cemTotalKL(scaled.Means, original, games)
+	return scaled
 }
 
-func cemRankDistance(rank, target int) int {
-	return absInt(rank - target)
-}
+func cemRankDistance(rank, target int) int { return absInt(rank - target) }
 
 func cemDirectionalPenalty(rank, target int, direction RareDirection) int {
 	if direction == RareBetter && rank <= target {
@@ -289,127 +327,74 @@ func cemEliteWeights(seasons []CEMSeason, elite []int) ([]float64, float64) {
 	return weights, sum * sum / sum2
 }
 
-func cemGameSignals(current []GameProposalMeans, games []*GameType,
-	seasons []CEMSeason, elite []int, weights []float64, eliteESS float64) []CEMGameSignal {
-	signals := make([]CEMGameSignal, 0, len(games))
-	if len(elite) == 0 || eliteESS <= 0 {
-		return signals
+func copyTheta(theta map[int]float64) map[int]float64 {
+	copy := make(map[int]float64, len(theta))
+	for teamID, value := range theta {
+		copy[teamID] = value
 	}
-	for i, game := range games {
-		if game.Played || current[i].Home <= 0 && current[i].Away <= 0 {
+	return copy
+}
+
+func cemUpdateTeam(current CEMProposal, original []GameProposalMeans, games []*GameType,
+	teamIDs []int, seasons []CEMSeason, elite []int) CEMProposal {
+	weights, eliteESS := cemEliteWeights(seasons, elite)
+	updated := current
+	updated.TeamLogMultipliers = copyTheta(current.TeamLogMultipliers)
+	updated.EliteESS = eliteESS
+	if len(elite) == 0 || eliteESS < CEMMinEliteESSForUpdate {
+		updated.UpdateAllowed = false
+		return updated
+	}
+	lambda := teamOriginalGoals(original, games, teamIDs)
+	oldTheta := copyTheta(current.TeamLogMultipliers)
+	updated.PreviousLogTheta = oldTheta
+	updated.EliteTeamGoals = make(map[int]float64, len(teamIDs))
+	for index, teamID := range teamIDs {
+		if index >= len(seasons[elite[0]].TeamGoals) || lambda[teamID] <= 0 {
+			updated.TeamLogMultipliers[teamID] = 0
+			updated.EliteTeamGoals[teamID] = 0
 			continue
 		}
-		homeScores, awayScores := make([]float64, len(elite)), make([]float64, len(elite))
-		for j, index := range elite {
-			homeScores[j] = float64(seasons[index].Scores[i].Home)
-			awayScores[j] = float64(seasons[index].Scores[i].Away)
+		goals := make([]float64, len(elite))
+		for j, seasonIndex := range elite {
+			goals[j] = float64(seasons[seasonIndex].TeamGoals[index])
 		}
-		homeMean := cemWeightedMean(homeScores, weights)
-		awayMean := cemWeightedMean(awayScores, weights)
-		homeSE, awaySE := 0.0, 0.0
-		homeZ, awayZ := 0.0, 0.0
-		if current[i].Home > 0 {
-			homeSE = math.Sqrt(math.Max(current[i].Home, 1e-9) / math.Max(eliteESS, 1e-9))
-			homeZ = (homeMean - current[i].Home) / homeSE
+		eliteGoals := cemWeightedMean(goals, weights)
+		updated.EliteTeamGoals[teamID] = eliteGoals
+		rawMultiplier := eliteGoals / lambda[teamID]
+		if rawMultiplier < CEMMinMultiplier || math.IsNaN(rawMultiplier) || math.IsInf(rawMultiplier, 0) {
+			rawMultiplier = CEMMinMultiplier
 		}
-		if current[i].Away > 0 {
-			awaySE = math.Sqrt(math.Max(current[i].Away, 1e-9) / math.Max(eliteESS, 1e-9))
-			awayZ = (awayMean - current[i].Away) / awaySE
-		}
-		signals = append(signals, CEMGameSignal{
-			GameIndex: i, HomeEliteMean: homeMean, AwayEliteMean: awayMean,
-			HomeESS: eliteESS, AwayESS: eliteESS, HomeSE: homeSE, AwaySE: awaySE,
-			HomeZ: homeZ, AwayZ: awayZ,
-			GameScore: math.Hypot(homeZ, awayZ),
-		})
+		updated.TeamLogMultipliers[teamID] = cemSmoothLogTheta(oldTheta[teamID], math.Log(rawMultiplier))
 	}
-	return signals
+	updated.Means = materializeCEMProposal(updated, original, games)
+	updated.KL = cemTotalKL(updated.Means, original, games)
+	updated = cemTrustRegionTeam(updated, original, games, CEMMaxKL)
+	updated.UpdateAllowed = true
+	updated.ChangedTeams = 0
+	updated.MaxAbsTheta = 0
+	updated.ThetaDeltaL2 = 0
+	for _, teamID := range teamIDs {
+		theta := updated.TeamLogMultipliers[teamID]
+		if math.Abs(theta) >= CEMMeaningfulTeamLogShift {
+			updated.ChangedTeams++
+		}
+		if math.Abs(theta) > updated.MaxAbsTheta {
+			updated.MaxAbsTheta = math.Abs(theta)
+		}
+		delta := theta - oldTheta[teamID]
+		updated.ThetaDeltaL2 += delta * delta
+	}
+	updated.ThetaDeltaL2 = math.Sqrt(updated.ThetaDeltaL2)
+	return updated
 }
 
-func selectCEMGames(signals []CEMGameSignal, previous []int) []CEMGameSignal {
-	previousSet := make(map[int]bool, len(previous))
-	for _, index := range previous {
-		previousSet[index] = true
+func simulateCEMBatchForTeams(base []*TeamCampaign, games []*GameType, original, proposal []GameProposalMeans,
+	table *Table, order []SortType, groups []TeamType, teamIDs []int, targetTeam, samples int, rng *rand.Rand) []CEMSeason {
+	teamIndex := make(map[int]int, len(teamIDs))
+	for i, teamID := range teamIDs {
+		teamIndex[teamID] = i
 	}
-	candidates := make([]CEMGameSignal, 0, len(signals))
-	for _, signal := range signals {
-		if signal.GameScore > 1e-12 || previousSet[signal.GameIndex] {
-			signal.Selected = false
-			candidates = append(candidates, signal)
-		}
-	}
-	sort.Slice(candidates, func(i, j int) bool {
-		a, b := candidates[i], candidates[j]
-		aScore := a.GameScore
-		bScore := b.GameScore
-		if previousSet[a.GameIndex] {
-			aScore += CEMRetentionBonus
-		}
-		if previousSet[b.GameIndex] {
-			bScore += CEMRetentionBonus
-		}
-		if aScore != bScore {
-			return aScore > bScore
-		}
-		return a.GameIndex < b.GameIndex
-	})
-	if len(candidates) > CEMMaxChangedGames {
-		candidates = candidates[:CEMMaxChangedGames]
-	}
-	for i := range candidates {
-		candidates[i].Selected = true
-	}
-	return candidates
-}
-
-func cemUpdateSparse(current, original []GameProposalMeans, games []*GameType,
-	seasons []CEMSeason, elite []int, previous []int) CEMProposal {
-	proposed := append([]GameProposalMeans(nil), original...)
-	weights, eliteESS := cemEliteWeights(seasons, elite)
-	if len(elite) == 0 || eliteESS <= 0 {
-		return CEMProposal{Means: proposed, KL: cemTotalKL(proposed, original, games)}
-	}
-	signals := cemGameSignals(current, games, seasons, elite, weights, eliteESS)
-	selected := selectCEMGames(signals, previous)
-	selectedIndexes := make([]int, len(selected))
-	for j, signal := range selected {
-		selectedIndexes[j] = signal.GameIndex
-		if original[signal.GameIndex].Home > 0 {
-			proposed[signal.GameIndex].Home = cemSmoothMean(current[signal.GameIndex].Home, signal.HomeEliteMean)
-		}
-		if original[signal.GameIndex].Away > 0 {
-			proposed[signal.GameIndex].Away = cemSmoothMean(current[signal.GameIndex].Away, signal.AwayEliteMean)
-		}
-	}
-	trusted, kl := cemTrustRegion(original, proposed, games, CEMMaxKL)
-	changed := 0
-	for _, signal := range selected {
-		if cemGameChange(trusted[signal.GameIndex], original[signal.GameIndex]) > 0.05 {
-			changed++
-		}
-	}
-	return CEMProposal{Means: trusted, KL: kl, ChangedGames: changed,
-		SelectedGames: selectedIndexes, Signals: selected, EliteESS: eliteESS}
-}
-
-func cemUpdate(current, original []GameProposalMeans, games []*GameType,
-	seasons []CEMSeason, elite []int) CEMProposal {
-	return cemUpdateSparse(current, original, games, seasons, elite, nil)
-}
-
-func cemGameChange(proposal, original GameProposalMeans) float64 {
-	delta := 0.0
-	if original.Home > 0 && proposal.Home > 0 {
-		delta += math.Abs(math.Log(proposal.Home / original.Home))
-	}
-	if original.Away > 0 && proposal.Away > 0 {
-		delta += math.Abs(math.Log(proposal.Away / original.Away))
-	}
-	return delta
-}
-
-func simulateCEMBatch(base []*TeamCampaign, games []*GameType, original, proposal []GameProposalMeans,
-	table *Table, order []SortType, groups []TeamType, targetTeam, samples int, rng *rand.Rand) []CEMSeason {
 	batch := make([]CEMSeason, 0, samples)
 	simCampaign := make([]*TeamCampaign, len(base))
 	teamSlice := make([]*TeamCampaign, len(groups))
@@ -417,14 +402,20 @@ func simulateCEMBatch(base []*TeamCampaign, games []*GameType, original, proposa
 		for i, campaign := range base {
 			simCampaign[i] = campaign.clone()
 		}
-		season := CEMSeason{Scores: make([]CEMScore, len(games))}
+		season := CEMSeason{TeamGoals: make([]int, len(teamIDs))}
 		for i, game := range games {
 			if game.Played {
 				continue
 			}
 			home := poissonRand(rng, proposal[i].Home)
 			away := poissonRand(rng, proposal[i].Away)
-			season.Scores[i] = CEMScore{home, away}
+			if index, ok := teamIndex[game.HomeId]; ok {
+				season.TeamGoals[index] += home
+			}
+			if index, ok := teamIndex[game.AwayId]; ok {
+				season.TeamGoals[index] += away
+			}
+			// Likelihood remains the exact product of game-level P/Q ratios.
 			season.LogWeight -= logPoissonQOverP(home, original[i].Home, proposal[i].Home)
 			season.LogWeight -= logPoissonQOverP(away, original[i].Away, proposal[i].Away)
 			score := &GameType{game.Id, game.HomeId, game.AwayId, home, away, 0, 0, true,
@@ -483,41 +474,42 @@ func cemBatchSummary(seasons []CEMSeason, elite []int, target int, exact bool) C
 	return stats
 }
 
-func logCEMGameSignals(groupID, teamID, position, iteration int, games []*GameType,
-	original []GameProposalMeans, proposal CEMProposal) float64 {
-	maxAbs := 0.0
-	for _, signal := range proposal.Signals {
-		if !signal.Selected {
-			continue
+func logCEMTeamChanges(groupID, targetTeam, position, iteration int, teamIDs []int,
+	original []GameProposalMeans, games []*GameType, proposal CEMProposal) {
+	lambda := teamOriginalGoals(original, games, teamIDs)
+	signals := make([]CEMTeamSignal, 0, len(teamIDs))
+	for _, teamID := range teamIDs {
+		theta := proposal.TeamLogMultipliers[teamID]
+		oldTheta := proposal.PreviousLogTheta[teamID]
+		eliteGoals, ok := proposal.EliteTeamGoals[teamID]
+		if !ok {
+			eliteGoals = lambda[teamID] * math.Exp(theta)
 		}
-		game := games[signal.GameIndex]
-		if math.Abs(signal.HomeZ) > maxAbs {
-			maxAbs = math.Abs(signal.HomeZ)
-		}
-		if math.Abs(signal.AwayZ) > maxAbs {
-			maxAbs = math.Abs(signal.AwayZ)
-		}
-		log.Printf("rare-position-cem-game: group=%d team=%d position=%d iteration=%d game_id=%d home_team=%d away_team=%d home_ess=%.2f away_ess=%.2f home_se=%.5g away_se=%.5g home_z=%.4f away_z=%.4f game_score=%.4f elite_home_mean=%.5g elite_away_mean=%.5g original_home=%.5g proposal_home=%.5g original_away=%.5g proposal_away=%.5g",
-			groupID, teamID, position, iteration, game.Id, game.HomeId, game.AwayId,
-			signal.HomeESS, signal.AwayESS, signal.HomeSE, signal.AwaySE,
-			signal.HomeZ, signal.AwayZ, signal.GameScore, signal.HomeEliteMean,
-			signal.AwayEliteMean, original[signal.GameIndex].Home,
-			proposal.Means[signal.GameIndex].Home, original[signal.GameIndex].Away,
-			proposal.Means[signal.GameIndex].Away)
+		signals = append(signals, CEMTeamSignal{TeamID: teamID, OriginalGoals: lambda[teamID],
+			EliteGoals: eliteGoals, OldMultiplier: math.Exp(oldTheta),
+			NewMultiplier: math.Exp(theta), Theta: theta})
 	}
-	return maxAbs
+	sort.Slice(signals, func(i, j int) bool {
+		if math.Abs(signals[i].Theta) != math.Abs(signals[j].Theta) {
+			return math.Abs(signals[i].Theta) > math.Abs(signals[j].Theta)
+		}
+		return signals[i].TeamID < signals[j].TeamID
+	})
+	for i := 0; i < len(signals) && i < 10; i++ {
+		signal := signals[i]
+		log.Printf("rare-position-cem-team: group=%d target_team=%d target_position=%d iteration=%d team_id=%d original_expected_remaining_goals=%.5g elite_expected_remaining_goals=%.5g old_multiplier=%.5g new_multiplier=%.5g theta=%.5g",
+			groupID, targetTeam, position, iteration, signal.TeamID, signal.OriginalGoals,
+			signal.EliteGoals, signal.OldMultiplier, signal.NewMultiplier, signal.Theta)
+	}
 }
 
 func buildCEMMixture(original, learned []GameProposalMeans) []ProposalComponent {
 	return []ProposalComponent{
 		{Name: "original", Weight: OriginalMixtureWeight, Means: original, TargetRank: -1},
-		{Name: "cem_learned", Weight: 1 - OriginalMixtureWeight, Means: learned},
+		{Name: "cem_team_level", Weight: 1 - OriginalMixtureWeight, Means: learned},
 	}
 }
 
-// Rank validation proposals by useful event frequency and overlap quality.
-// The broad middle band is preferred over a proposal that merely generates
-// many raw hits; ESS/work remains the deterministic tie-breaker.
 func cemValidationPriority(pilot *WeightedPilotResult) float64 {
 	if pilot == nil || pilot.Samples <= 0 || pilot.Hits <= 0 {
 		return math.Inf(-1)
@@ -559,10 +551,18 @@ func cemCandidatePriority(candidate *FrontierCandidate, searches map[int]*TeamRa
 		position+1 < len(search.Positions) && search.Positions[position+1].Status == StatusObserved {
 		score += 200
 	} else {
-		score += 100 // internal non-contiguous gap
+		score += 100
 	}
 	score -= int(math.Abs(float64(position)-search.NormalMeanRank) * 10)
 	return score
+}
+
+func sumAbsTheta(theta map[int]float64) float64 {
+	total := 0.0
+	for _, value := range theta {
+		total += math.Abs(value)
+	}
+	return total
 }
 
 func runCEMRound(candidates []*FrontierCandidate, searches map[int]*TeamRareSearch,
@@ -570,6 +570,7 @@ func runCEMRound(candidates []*FrontierCandidate, searches map[int]*TeamRareSear
 	original []GameProposalMeans, cemRemaining, validationRemaining, remainingWork *int64,
 	adaptWorkPerSample, validationWorkPerSample int64, rng *rand.Rand) CEMRoundResult {
 	result := CEMRoundResult{}
+	teamIDs := teamIDsFromGroups(group.Team_groups)
 	ordered := append([]*FrontierCandidate(nil), candidates...)
 	sort.Slice(ordered, func(i, j int) bool {
 		a, b := ordered[i], ordered[j]
@@ -589,28 +590,29 @@ func runCEMRound(candidates []*FrontierCandidate, searches map[int]*TeamRareSear
 			continue
 		}
 		result.TargetsAttempted++
-		proposal := append([]GameProposalMeans(nil), original...)
-		prevDistance, stalled := math.Inf(1), 0
-		prevNearRate, firstDistance, bestDistance := 0.0, math.Inf(1), math.Inf(1)
-		exactEliteSeen := false
-		eventObserved := false
+		proposal := newCEMProposal(original, group.Games, teamIDs)
+		prevDistance, prevNearRate, stalled := math.Inf(1), 0.0, 0
+		firstDistance, bestDistance := math.Inf(1), math.Inf(1)
+		exactEliteSeen, eventObserved := false, false
 		maxExactHits := 0
 		lastStats := CEMBatchStats{}
-		activeGames := []int(nil)
+		stableIterations, lowESS := 0, false
+		candidateIterations := 0
 		for iteration := 1; iteration <= CEMMaxIterations; iteration++ {
 			samples := affordableSamples(CEMBatchSamples, *cemRemaining, adaptWorkPerSample)
 			samples = affordableSamples(samples, *remainingWork, adaptWorkPerSample)
 			if samples < CEMMinBatchSamples {
 				break
 			}
-			batch := simulateCEMBatch(campaign, group.Games, original, proposal,
-				table, order, group.Team_groups, candidate.TeamID, samples, rng)
+			batch := simulateCEMBatchForTeams(campaign, group.Games, original, proposal.Means,
+				table, order, group.Team_groups, teamIDs, candidate.TeamID, samples, rng)
 			work := int64(samples) * adaptWorkPerSample
 			*cemRemaining -= work
 			*remainingWork -= work
 			result.CEMWork += work
 			candidate.SearchState.SearchWorkSpent += work
 			result.Iterations++
+			candidateIterations++
 			elite, exact := cemEliteIndices(batch, candidate.Position, candidate.Direction)
 			stats := cemBatchSummary(batch, elite, candidate.Position, exact)
 			lastStats = stats
@@ -625,24 +627,37 @@ func runCEMRound(candidates []*FrontierCandidate, searches map[int]*TeamRareSear
 				maxExactHits = stats.ExactHits
 			}
 			exactEliteSeen = exactEliteSeen || exact
-			updated := cemUpdateSparse(proposal, original, group.Games, batch, elite, activeGames)
+			updated := cemUpdateTeam(proposal, original, group.Games, teamIDs, batch, elite)
 			updated.Iteration = iteration
-			proposal = updated.Means
-			activeGames = updated.SelectedGames
-			maxSignal := logCEMGameSignals(group.Id, candidate.TeamID, candidate.Position,
-				iteration, group.Games, original, updated)
-			result.SelectedGames += len(updated.SelectedGames)
-			if len(updated.SelectedGames) > result.MaxSelectedGames {
-				result.MaxSelectedGames = len(updated.SelectedGames)
+			if !updated.UpdateAllowed {
+				lowESS = true
+				log.Printf("rare-position-cem-selection: group=%d team=%d position=%d reason=low_elite_ess elite_ess=%.2f threshold=%.2f",
+					group.Id, candidate.TeamID, candidate.Position, updated.EliteESS, CEMMinEliteESSForUpdate)
+				break
 			}
-			log.Printf("rare-position-cem: group=%d team=%d position=%d iteration=%d samples=%d exact_hits=%d exact_hit_rate=%.4f near_target_rate=%.4f elite_count=%d elite_ess=%.2f exact_elites=%t mean_rank=%.3f best_rank=%d elite_mean_distance=%.3f kl=%.3f selected_games=%d effective_changed_games=%d max_abs_z=%.3f ess_exact_events=%.2f",
+			if updated.ThetaDeltaL2 < CEMThetaStabilityThreshold {
+				stableIterations++
+			} else {
+				stableIterations = 0
+			}
+			proposal = updated
+			result.ChangedTeams += updated.ChangedTeams
+			if updated.ChangedTeams > result.MaxChangedTeams {
+				result.MaxChangedTeams = updated.ChangedTeams
+			}
+			result.AbsThetaSum += sumAbsTheta(updated.TeamLogMultipliers)
+			if updated.MaxAbsTheta > result.MaxAbsTheta {
+				result.MaxAbsTheta = updated.MaxAbsTheta
+			}
+			result.ThetaDeltaL2Sum += updated.ThetaDeltaL2
+			logCEMTeamChanges(group.Id, candidate.TeamID, candidate.Position, iteration,
+				teamIDs, original, group.Games, updated)
+			log.Printf("rare-position-cem: parameterization=team_level group=%d team=%d position=%d iteration=%d samples=%d exact_hits=%d exact_hit_rate=%.4f near_target_rate=%.4f elite_count=%d elite_ess=%.2f exact_elites=%t mean_rank=%.3f best_rank=%d elite_mean_distance=%.3f kl=%.3f changed_teams=%d max_abs_team_theta=%.4f theta_delta_l2=%.4f",
 				group.Id, candidate.TeamID, candidate.Position, iteration, samples, stats.ExactHits,
 				stats.ExactRate, stats.NearTargetRate, stats.EliteCount, stats.EliteESS,
-				stats.UsedExactElites, stats.MeanRank, stats.BestRank,
-				stats.EliteMeanDistance, updated.KL, len(updated.SelectedGames),
-				updated.ChangedGames, maxSignal,
-				stats.ExactEventESS)
-			if exact || stats.ExactEventESS >= MinPilotESSForProduction {
+				stats.UsedExactElites, stats.MeanRank, stats.BestRank, stats.EliteMeanDistance,
+				updated.KL, updated.ChangedTeams, updated.MaxAbsTheta, updated.ThetaDeltaL2)
+			if exact || stats.ExactEventESS >= MinPilotESSForProduction || stableIterations >= 2 {
 				break
 			}
 			if prevDistance < math.Inf(1) {
@@ -657,8 +672,7 @@ func runCEMRound(candidates []*FrontierCandidate, searches map[int]*TeamRareSear
 					break
 				}
 			}
-			prevDistance = stats.EliteMeanDistance
-			prevNearRate = stats.NearTargetRate
+			prevDistance, prevNearRate = stats.EliteMeanDistance, stats.NearTargetRate
 		}
 		if eventObserved {
 			result.TargetsAnyExact++
@@ -666,11 +680,13 @@ func runCEMRound(candidates []*FrontierCandidate, searches map[int]*TeamRareSear
 		if exactEliteSeen {
 			result.TargetsExactElite++
 		}
+		if lowESS || candidateIterations == 0 {
+			candidate.SearchState.Status = StatusExhausted
+			continue
+		}
 		if firstDistance-bestDistance < CEMMinRelativeProgress*math.Max(1, firstDistance) &&
 			lastStats.NearTargetRate < CEMStrongNearTargetRate && maxExactHits == 0 {
 			candidate.SearchState.Status = StatusExhausted
-			log.Printf("rare-position-cem-selection: group=%d team=%d position=%d reason=no_rank_progress cem_work=%d",
-				group.Id, candidate.TeamID, candidate.Position, candidate.SearchState.SearchWorkSpent)
 			continue
 		}
 		validate, reason := cemValidationEvidence(lastStats, maxExactHits)
@@ -688,13 +704,12 @@ func runCEMRound(candidates []*FrontierCandidate, searches map[int]*TeamRareSear
 		}
 		samples := affordableSamples(CEMValidationSamples, *validationRemaining, validationWorkPerSample)
 		samples = affordableSamples(samples, *remainingWork, validationWorkPerSample)
-		mixture := buildCEMMixture(original, proposal)
+		mixture := buildCEMMixture(original, proposal.Means)
 		validateProposalMixture(mixture, len(group.Games))
 		pilot := &WeightedPilotResult{Proposal: SearchProposal{
-			Name:      fmt.Sprintf("cem_team%d_rank%d", candidate.TeamID, candidate.Position),
+			Name:      fmt.Sprintf("cem_team_level_team%d_rank%d", candidate.TeamID, candidate.Position),
 			Direction: candidate.Direction, TargetRank: candidate.Position, Components: mixture,
 		}}
-		// Independent draws: none of the CEM adaptation seasons enter this pilot.
 		evaluateWeightedPilot(pilot, campaign, group.Games, original, table, order,
 			group.Team_groups, candidate.TeamID, candidate.Position, samples,
 			validationWorkPerSample, rng, group.Id)

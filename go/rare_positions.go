@@ -1246,7 +1246,8 @@ func searchAndMergeRarePositions(
 	teamRareEstimates := make(map[int]map[int]RarePositionEstimate)
 	var cemWork, validationWork, productionWork, expansionWork int64
 	var cemTargets, cemIterations, targetsAnyExact, targetsExactElite, targetsValidated int
-	var selectedGames, maxSelectedGames int
+	var changedTeams, maxChangedTeams int
+	var absThetaSum, maxAbsTheta, thetaDeltaL2Sum float64
 	var validatedESS float64
 	productionJobs := 0
 	resolvedInitial := 0
@@ -1274,10 +1275,15 @@ func searchAndMergeRarePositions(
 		targetsAnyExact += cemRound.TargetsAnyExact
 		targetsExactElite += cemRound.TargetsExactElite
 		targetsValidated += cemRound.TargetsValidated
-		selectedGames += cemRound.SelectedGames
-		if cemRound.MaxSelectedGames > maxSelectedGames {
-			maxSelectedGames = cemRound.MaxSelectedGames
+		changedTeams += cemRound.ChangedTeams
+		if cemRound.MaxChangedTeams > maxChangedTeams {
+			maxChangedTeams = cemRound.MaxChangedTeams
 		}
+		absThetaSum += cemRound.AbsThetaSum
+		if cemRound.MaxAbsTheta > maxAbsTheta {
+			maxAbsTheta = cemRound.MaxAbsTheta
+		}
+		thetaDeltaL2Sum += cemRound.ThetaDeltaL2Sum
 		validatedESS += cemRound.ValidatedESS
 		if round == 1 {
 			expansionWork += cemRound.CEMWork + cemRound.ValidationWork
@@ -1405,15 +1411,20 @@ func searchAndMergeRarePositions(
 		validatedESSPerPlainEquivalent = validatedESS /
 			(float64(validationWork) / float64(plainWorkPerSample))
 	}
-	averageSelectedGames := 0.0
+	averageChangedTeams := 0.0
+	averageAbsTheta := 0.0
+	averageThetaDeltaL2 := 0.0
 	if cemIterations > 0 {
-		averageSelectedGames = float64(selectedGames) / float64(cemIterations)
+		averageChangedTeams = float64(changedTeams) / float64(cemIterations)
+		averageAbsTheta = absThetaSum / float64(cemIterations)
+		averageThetaDeltaL2 = thetaDeltaL2Sum / float64(cemIterations)
 	}
-	log.Printf("rare-position-summary: group=%d scout_sims=%d scout_work=%d fallback_normal_sims=%d normal_sims_total=%d total_work_limit=%d cem_work=%d validation_work=%d production_work=%d expansion_work=%d fallback_work=%d unused_work=%d work_spent=%d resolved_positions_is=%d scout_resolved_cells=%d new_cells_from_fallback=%d cem_targets_attempted=%d cem_iterations=%d average_selected_games=%.2f max_selected_games=%d targets_with_any_exact_hit=%d targets_reaching_exact_elite_threshold=%d targets_passing_validation=%d production_jobs=%d cem_plain_mc_equiv=%.1f validation_plain_mc_equiv=%.1f cem_and_validation_plain_mc_equiv=%.1f validated_ess_per_plain_mc_equiv=%.4f production_plain_mc_equiv=%.1f heuristic_baseline_group16982_plain_mc_equiv=8499.4",
+	log.Printf("rare-position-summary: parameterization=team_level group=%d scout_sims=%d scout_work=%d fallback_normal_sims=%d normal_sims_total=%d total_work_limit=%d cem_work=%d validation_work=%d production_work=%d expansion_work=%d fallback_work=%d unused_work=%d work_spent=%d resolved_positions_is=%d scout_resolved_cells=%d new_cells_from_fallback=%d cem_targets_attempted=%d cem_iterations=%d average_changed_teams=%.2f max_changed_teams=%d average_abs_theta=%.4f max_abs_theta=%.4f average_theta_delta_l2=%.4f targets_with_any_exact_hit=%d targets_reaching_exact_elite_threshold=%d targets_passing_validation=%d production_jobs=%d cem_plain_mc_equiv=%.1f validation_plain_mc_equiv=%.1f cem_and_validation_plain_mc_equiv=%.1f validated_ess_per_plain_mc_equiv=%.4f production_plain_mc_equiv=%.1f heuristic_baseline_group16982_plain_mc_equiv=8499.4",
 		group.Id, normalSamples, scoutWork, fallbackSamples, normalSamples+fallbackSamples, totalWorkLimit,
 		cemWork, validationWork, productionWork, expansionWork, fallbackWork, remainingWork,
 		workSpent, resolvedPositions, scoutResolvedCells, newNonzeroCells, cemTargets, cemIterations,
-		averageSelectedGames, maxSelectedGames, targetsAnyExact, targetsExactElite,
+		averageChangedTeams, maxChangedTeams, averageAbsTheta, maxAbsTheta, averageThetaDeltaL2,
+		targetsAnyExact, targetsExactElite,
 		targetsValidated, productionJobs, float64(cemWork)/float64(plainWorkPerSample),
 		float64(validationWork)/float64(plainWorkPerSample),
 		combinedCEMValidationEquivalent, validatedESSPerPlainEquivalent,
