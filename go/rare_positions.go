@@ -1330,8 +1330,36 @@ func searchAndMergeRarePositions(
 	teamOdds []OddsType,
 	normalSamples int,
 ) map[int]map[int]ProductionEstimate {
-	return runRarePositionSearchEvaluationProduction(group, campaign, table, sortOrder,
+	prodEsts := runRarePositionSearchEvaluationProduction(group, campaign, table, sortOrder,
 		normalPositionCounts, teamOdds, normalSamples)
+
+	for _, tg := range group.Team_groups {
+		teamID := tg.Team_id
+		if teamEsts, ok := prodEsts[teamID]; ok && len(teamEsts) > 0 {
+			index := table.Query(uint32(teamID))
+			tOdds := teamOdds[index].team
+			counts := normalPositionCounts[teamID]
+
+			rareEsts := make(map[int]RarePositionEstimate)
+			for pos, est := range teamEsts {
+				if est.Available {
+					rareEsts[pos] = RarePositionEstimate{
+						Probability: est.Probability,
+						StdErr:      est.StdErr,
+						Samples:     est.Samples,
+						Hits:        est.Hits,
+						ESS:         est.ESS,
+						Found:       true,
+					}
+				}
+			}
+
+			finalProbs := mergeRarePositionEstimates(tOdds.Pos, counts, rareEsts)
+			copy(tOdds.Pos, finalProbs)
+		}
+	}
+
+	return prodEsts
 }
 
 func cloneProposalComponents(components []ProposalComponent) []ProposalComponent {
