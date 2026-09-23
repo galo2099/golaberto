@@ -1,12 +1,15 @@
 package main
 
 import (
+	"encoding/binary"
 	"fmt"
+	"hash/fnv"
 	"log"
 	"math"
 	"math/rand"
 	"os"
 	"sort"
+	"strconv"
 	"time"
 )
 
@@ -14,6 +17,39 @@ const (
 	MinInterestingProbability = 1e-5
 	ScoutIterations           = 20000
 )
+
+func rarePositionSeed() (int64, string) {
+	configured := os.Getenv("RARE_POSITION_RANDOM_SEED")
+	if configured != "" {
+		seed, err := strconv.ParseInt(configured, 10, 64)
+		if err == nil {
+			return seed, "configured"
+		}
+		log.Printf("rare-position-rng: invalid configured seed=%q; using time seed", configured)
+	}
+	return time.Now().UnixNano(), "time"
+}
+
+func deriveRarePositionSeed(seed int64, stream string) int64 {
+	var encoded [8]byte
+	binary.LittleEndian.PutUint64(encoded[:], uint64(seed))
+	hash := fnv.New64a()
+	_, _ = hash.Write(encoded[:])
+	_, _ = hash.Write([]byte(stream))
+	return int64(hash.Sum64())
+}
+
+func rarePositionScoutIterations() int {
+	configured := os.Getenv("RARE_POSITION_BENCHMARK_ITERATIONS")
+	if configured != "" {
+		iterations, err := strconv.Atoi(configured)
+		if err == nil && iterations > 0 {
+			return iterations
+		}
+		log.Printf("rare-position-benchmark: invalid iteration count=%q; using %d", configured, ScoutIterations)
+	}
+	return ScoutIterations
+}
 
 type PositionSearchStatus int
 
@@ -60,19 +96,43 @@ type SearchProposal struct {
 }
 
 type ProductionEstimate struct {
-	Probability         float64  `json:"probability"`
-	StdErr              float64  `json:"std_err"`
-	Samples             int      `json:"samples"`
-	Hits                int      `json:"hits"`
-	ESS                 float64  `json:"ess"`
-	MeanWeight          float64  `json:"mean_weight"`
-	WorkSpent           int64    `json:"work_spent"`
-	Available           bool     `json:"available"`
-	MeetsPrecisionGoal  bool     `json:"meets_precision_goal"`
-	RelativeSE          *float64 `json:"relative_se"`
-	MaxEventWeightShare float64  `json:"max_event_weight_share"`
-	ZeroHitUpper95      float64  `json:"zero_hit_upper_95"`
-	Design              string   `json:"design"`
+	Probability         float64                        `json:"probability"`
+	StdErr              float64                        `json:"std_err"`
+	Samples             int                            `json:"samples"`
+	Hits                int                            `json:"hits"`
+	ESS                 float64                        `json:"ess"`
+	MeanWeight          float64                        `json:"mean_weight"`
+	WorkSpent           int64                          `json:"work_spent"`
+	Available           bool                           `json:"available"`
+	MeetsPrecisionGoal  bool                           `json:"meets_precision_goal"`
+	RelativeSE          *float64                       `json:"relative_se"`
+	MaxEventWeightShare float64                        `json:"max_event_weight_share"`
+	ZeroHitUpper95      float64                        `json:"zero_hit_upper_95"`
+	Design              string                         `json:"design"`
+	SearchDiagnostics   *RarePositionSearchDiagnostics `json:"search_diagnostics,omitempty"`
+}
+
+type RarePositionSearchDiagnostics struct {
+	CandidatesAdmitted          int     `json:"candidates_admitted"`
+	CEMBatches                  int     `json:"cem_batches"`
+	AdaptationExactHitBatches   int     `json:"adaptation_exact_hit_batches"`
+	TargetsWithExactHit         int     `json:"targets_with_exact_hit"`
+	RetainedSnapshots           int     `json:"retained_snapshots"`
+	EligibleSnapshots           int     `json:"eligible_snapshots"`
+	EvaluatedSnapshots          int     `json:"evaluated_snapshots"`
+	EvaluationHits              int     `json:"evaluation_hits"`
+	EvaluationESS               float64 `json:"evaluation_ess"`
+	EvaluationESSPerWork        float64 `json:"evaluation_ess_per_work"`
+	SelectedSnapshotIteration   int     `json:"selected_snapshot_iteration"`
+	SearchOverheadPlainMCEq     float64 `json:"search_overhead_plain_mc_equivalent"`
+	FreshProductionPlainMCEq    float64 `json:"fresh_production_plain_mc_equivalent"`
+	ExactHitCandidates          int     `json:"exact_hit_candidates"`
+	ExactHitCandidatesWithLater int     `json:"exact_hit_candidates_with_later_adaptation"`
+	FirstHitSnapshotEvaluated   int     `json:"first_hit_snapshots_evaluated"`
+	LaterSnapshotEvaluated      int     `json:"later_snapshots_evaluated"`
+	LaterBetterESSPerWork       int     `json:"later_snapshot_better_ess_per_work"`
+	FirstHitBetterESSPerWork    int     `json:"first_hit_snapshot_better_ess_per_work"`
+	LaterOnlySnapshotEvaluated  int     `json:"later_only_snapshot_evaluated"`
 }
 
 type ProductionDesign struct {
@@ -156,6 +216,15 @@ func initializeTeamRareSearch(
 	table *Table,
 	sortOrder []SortType,
 ) *TeamRareSearch {
+	return initializeTeamRareSearchWithRNG(teamID, normalCounts, normalProbs, campaign,
+		teamGroups, games, table, sortOrder, nil)
+}
+
+func initializeTeamRareSearchWithRNG(
+	teamID int, normalCounts []int, normalProbs []float64,
+	campaign []*TeamCampaign, teamGroups []TeamType, games []*GameType,
+	table *Table, sortOrder []SortType, rng *rand.Rand,
+) *TeamRareSearch {
 	numPositions := len(normalCounts)
 	positions := make([]*PositionSearchState, numPositions)
 
@@ -181,8 +250,9 @@ func initializeTeamRareSearch(
 			state.Status = StatusObserved
 			state.Feasible = true
 		} else {
-			feasible := possiblePositionByPointsBounds(
+			feasible := possiblePositionByPointsBoundsWithRNG(
 				teamID, pos, campaign, teamGroups, games, table, sortOrder,
+				rng,
 			)
 			state.Feasible = feasible
 			if feasible {
@@ -438,6 +508,7 @@ func evaluateWeightedPilot(
 		rank, weight, chosen := simulateTargetTeamRankAndWeightMulti(
 			baseCampaign, simCampaign, teamSlice, games, originalMeans, components,
 			table, sortOrder, teamGroups, teamID, rng, logQ, componentWeights,
+			nil,
 		)
 		pilot.ComponentSamples[chosen]++
 		if rank >= 0 && rank < len(teamGroups) {
@@ -668,6 +739,15 @@ func possiblePositionByPointsBounds(
 	table *Table,
 	sortOrder []SortType,
 ) bool {
+	return possiblePositionByPointsBoundsWithRNG(targetTeamID, targetPosition,
+		campaign, teamGroups, games, table, sortOrder, nil)
+}
+
+func possiblePositionByPointsBoundsWithRNG(
+	targetTeamID int, targetPosition int, campaign []*TeamCampaign,
+	teamGroups []TeamType, games []*GameType, table *Table,
+	sortOrder []SortType, rng *rand.Rand,
+) bool {
 	bestRank, worstRank, hasUnplayed := conservativePositionBounds(targetTeamID, campaign, teamGroups, games, table)
 
 	if !hasUnplayed {
@@ -678,7 +758,7 @@ func possiblePositionByPointsBounds(
 				teamSlice = append(teamSlice, c.clone())
 			}
 		}
-		sortedTeams := TeamCampaignSorted{teamSlice, sortOrder}
+		sortedTeams := TeamCampaignSorted{t: teamSlice, sort: sortOrder, rng: rng}
 		sort.Sort(sortedTeams)
 
 		for pos, t := range sortedTeams.t {
@@ -1175,7 +1255,7 @@ func simulatePlainRankCounts(baseCampaign []*TeamCampaign, games []*GameType,
 		for i, team := range teamGroups {
 			teamSlice[i] = simCampaign[table.Query(uint32(team.Team_id))]
 		}
-		sort.Sort(TeamCampaignSorted{teamSlice, sortOrder})
+		sort.Sort(TeamCampaignSorted{t: teamSlice, sort: sortOrder, rng: rng})
 		for rank, team := range teamSlice {
 			counts[team.id][rank]++
 		}
@@ -1329,7 +1409,10 @@ func summarizePlainProductionCounts(counts map[int][]int, samples int, work int6
 func runRarePositionSearchEvaluationProduction(group *GroupType, campaign []*TeamCampaign,
 	table *Table, sortOrder []SortType, normalPositionCounts map[int][]int,
 	teamOdds []OddsType, normalSamples int) map[int]map[int]ProductionEstimate {
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	seed, seedSource := rarePositionSeed()
+	streamSeed := deriveRarePositionSeed(seed, "rare-search")
+	rng := rand.New(rand.NewSource(streamSeed))
+	log.Printf("rare-position-rng: group=%d seed=%d stream_seed=%d source=%s phase=search", group.Id, seed, streamSeed, seedSource)
 	unplayedGames := 0
 	for _, game := range group.Games {
 		if !game.Played {
@@ -1365,8 +1448,8 @@ func runRarePositionSearchEvaluationProduction(group *GroupType, campaign []*Tea
 	for _, team := range group.Team_groups {
 		teamID := team.Team_id
 		index := table.Query(uint32(teamID))
-		search := initializeTeamRareSearch(teamID, normalPositionCounts[teamID],
-			teamOdds[index].team.Pos, campaign, group.Team_groups, group.Games, table, sortOrder)
+		search := initializeTeamRareSearchWithRNG(teamID, normalPositionCounts[teamID],
+			teamOdds[index].team.Pos, campaign, group.Team_groups, group.Games, table, sortOrder, rng)
 		teamSearches[teamID] = search
 		for _, position := range search.Positions {
 			if position.ObservedCount > 0 {
@@ -1387,13 +1470,14 @@ func runRarePositionSearchEvaluationProduction(group *GroupType, campaign []*Tea
 	}
 	adaptationWork := cemRound.CEMWork
 
-	evaluationCandidates := selectCEMEvaluationSnapshots(cemRound.Snapshots, CEMMaxEvaluationSnapshots)
+	evaluationWorkPerSnapshot := int64(CEMEvaluationSamplesPerSnapshot) * evaluationWorkPerSample
+	evaluationCapacity := cemEvaluationCapacity(CEMMaxEvaluationSnapshots,
+		evaluationWorkRemaining, remainingWork, evaluationWorkPerSnapshot)
+	evaluationCandidates := prepareCEMEvaluationSnapshots(group.Id, cemRound.Snapshots,
+		originalMeans, evaluationCapacity)
 	evaluations := make([]CEMProposalEvaluation, 0, len(evaluationCandidates))
 	for _, snapshot := range evaluationCandidates {
 		work := int64(CEMEvaluationSamplesPerSnapshot) * evaluationWorkPerSample
-		if evaluationWorkRemaining < work || remainingWork < work {
-			break
-		}
 		evaluation := evaluateCEMProposalSnapshot(snapshot, originalMeans, campaign,
 			group.Games, table, sortOrder, group.Team_groups,
 			CEMEvaluationSamplesPerSnapshot, evaluationWorkPerSample, rng, group.Id)
@@ -1432,22 +1516,24 @@ func runRarePositionSearchEvaluationProduction(group *GroupType, campaign []*Tea
 		if design.Kind == "importance_sampling" {
 			job := &RareSimulationJob{TeamID: design.TargetTeam,
 				Direction: RareBetter, CandidatePositions: []int{design.TargetPosition},
-				Components: cloneProposalComponents(design.Components), Iterations: design.Samples}
+				Components: cloneProposalComponents(design.Components), Iterations: design.Samples,
+				CollectAllRanks: true, FullRankWork: design.Work}
 			raw, _ := estimateRarePositionsForJob(campaign, group.Games, originalMeans,
 				table, sortOrder, group.Team_groups, job, rng, group.Id)
-			estimate := raw[design.TargetPosition]
-			estimate.WorkSpent = design.Work
-			productionEstimates[design.TargetTeam] = map[int]ProductionEstimate{
-				design.TargetPosition: {
-					Probability: estimate.Probability, StdErr: estimate.StdErr,
-					Samples: estimate.Samples, Hits: estimate.Hits, ESS: estimate.ESS,
-					MeanWeight: estimate.MeanWeight, WorkSpent: estimate.WorkSpent,
-					Available:           estimate.Available,
-					MeetsPrecisionGoal:  estimate.MeetsPrecisionGoal,
-					RelativeSE:          relativeSEPointer(estimate.RelativeSE),
-					MaxEventWeightShare: estimate.MaxEventWeightShare,
-					ZeroHitUpper95:      estimate.ZeroHitUpper95, Design: design.Kind,
-				},
+			_ = raw // The complete rank table below is accumulated from the same fresh production draws.
+			for teamID, rankEstimates := range job.FullRankEstimates {
+				productionEstimates[teamID] = make(map[int]ProductionEstimate, len(rankEstimates))
+				for position, estimate := range rankEstimates {
+					productionEstimates[teamID][position] = ProductionEstimate{
+						Probability: estimate.Probability, StdErr: estimate.StdErr,
+						Samples: estimate.Samples, Hits: estimate.Hits, ESS: estimate.ESS,
+						MeanWeight: estimate.MeanWeight, WorkSpent: estimate.WorkSpent,
+						Available: estimate.Available, MeetsPrecisionGoal: estimate.MeetsPrecisionGoal,
+						RelativeSE:          relativeSEPointer(estimate.RelativeSE),
+						MaxEventWeightShare: estimate.MaxEventWeightShare,
+						ZeroHitUpper95:      estimate.ZeroHitUpper95, Design: design.Kind,
+					}
+				}
 			}
 		} else {
 			counts := simulatePlainRankCounts(campaign, group.Games, table, sortOrder,
@@ -1482,12 +1568,20 @@ func runRarePositionSearchEvaluationProduction(group *GroupType, campaign []*Tea
 				estimate.WorkSpent, estimate.MeetsPrecisionGoal, estimate.ZeroHitUpper95)
 		}
 	}
+	searchOverhead := scoutWork + adaptationWork + evaluationWork
+	diagnostics := rarePositionSearchDiagnostics(cemRound, evaluations, selectedEvaluation,
+		originalMeans, searchOverhead, productionWork, plainWorkPerSample)
+	for teamID, positions := range productionEstimates {
+		for position, estimate := range positions {
+			estimate.SearchDiagnostics = diagnostics
+			productionEstimates[teamID][position] = estimate
+		}
+	}
 
 	workSpent := scoutWork + adaptationWork + evaluationWork + productionWork
 	if workSpent > totalWorkLimit || remainingWork < 0 || workSpent+remainingWork != totalWorkLimit {
 		panic("rare-position total work budget exceeded or phase accounting is inconsistent")
 	}
-	searchOverhead := scoutWork + adaptationWork + evaluationWork
 	log.Printf("rare-position-summary: parameterization=team_level group=%d scout_samples=%d scout_work=%d adaptation_work=%d adaptation_plain_mc_equiv=%.1f evaluation_work=%d evaluation_plain_mc_equiv=%.1f snapshots_retained=%d snapshots_evaluated=%d production_design=%s production_samples=%d production_work=%d fresh_final_estimator_samples=%d search_overhead_plain_mc_equiv=%.1f fresh_production_plain_mc_equiv=%.1f total_work_limit=%d work_spent=%d unused_work=%d scout_resolved_cells=%d cem_batches=%d candidates_admitted=%d exact_hit_targets=%d plain_P_selected=%t",
 		group.Id, normalSamples, scoutWork, adaptationWork, float64(adaptationWork)/float64(plainWorkPerSample),
 		evaluationWork, float64(evaluationWork)/float64(plainWorkPerSample), len(cemRound.Snapshots),
@@ -1497,6 +1591,93 @@ func runRarePositionSearchEvaluationProduction(group *GroupType, campaign []*Tea
 		workSpent, remainingWork, scoutResolvedCells, cemRound.Iterations,
 		cemRound.CandidatesAdmitted, cemRound.TargetsAnyExact, design.Kind == "plain_mc")
 	return productionEstimates
+}
+
+func rarePositionSearchDiagnostics(round CEMRoundResult, evaluations []CEMProposalEvaluation,
+	selected *CEMProposalEvaluation, originalMeans []GameProposalMeans,
+	searchOverhead, productionWork, plainWorkPerSample int64) *RarePositionSearchDiagnostics {
+	diagnostics := &RarePositionSearchDiagnostics{
+		CandidatesAdmitted: round.CandidatesAdmitted, CEMBatches: round.SchedulerBatches,
+		AdaptationExactHitBatches: round.AdaptationExactHitBatches,
+		TargetsWithExactHit:       round.TargetsAnyExact, RetainedSnapshots: len(round.Snapshots),
+		EvaluatedSnapshots: len(evaluations), SelectedSnapshotIteration: 0,
+	}
+	for _, snapshot := range round.Snapshots {
+		if cemSnapshotEligibility(snapshot, originalMeans).Eligible {
+			diagnostics.EligibleSnapshots++
+		}
+	}
+	for _, evaluation := range evaluations {
+		diagnostics.EvaluationHits += evaluation.Hits
+	}
+	if selected != nil {
+		diagnostics.EvaluationESS = selected.ESS
+		diagnostics.EvaluationESSPerWork = selected.ESSPerWork
+		diagnostics.SelectedSnapshotIteration = selected.Snapshot.SourceIteration
+	}
+	if plainWorkPerSample > 0 {
+		diagnostics.SearchOverheadPlainMCEq = float64(searchOverhead) / float64(plainWorkPerSample)
+		diagnostics.FreshProductionPlainMCEq = float64(productionWork) / float64(plainWorkPerSample)
+	}
+	evaluationBySnapshot := make(map[[3]int]CEMProposalEvaluation, len(evaluations))
+	for _, evaluation := range evaluations {
+		snapshot := evaluation.Snapshot
+		evaluationBySnapshot[[3]int{snapshot.CandidateTeam, snapshot.CandidatePosition, snapshot.SourceIteration}] = evaluation
+	}
+	type exactCandidate struct {
+		team, position, firstIteration int
+		later                          bool
+	}
+	exact := make(map[[2]int]exactCandidate)
+	for _, snapshot := range round.Snapshots {
+		if snapshot.ExactHits <= 0 && snapshot.Stats.ExactHits <= 0 {
+			continue
+		}
+		key := [2]int{snapshot.CandidateTeam, snapshot.CandidatePosition}
+		candidate, exists := exact[key]
+		if !exists || snapshot.SourceIteration < candidate.firstIteration {
+			candidate = exactCandidate{team: key[0], position: key[1], firstIteration: snapshot.SourceIteration}
+		}
+		exact[key] = candidate
+	}
+	for key, candidate := range exact {
+		for _, snapshot := range round.Snapshots {
+			if snapshot.CandidateTeam == key[0] && snapshot.CandidatePosition == key[1] &&
+				snapshot.SourceIteration > candidate.firstIteration {
+				candidate.later = true
+				break
+			}
+		}
+		if candidate.later {
+			diagnostics.ExactHitCandidatesWithLater++
+		}
+		diagnostics.ExactHitCandidates++
+		first, firstEvaluated := evaluationBySnapshot[[3]int{candidate.team, candidate.position, candidate.firstIteration}]
+		if firstEvaluated {
+			diagnostics.FirstHitSnapshotEvaluated++
+		}
+		for _, snapshot := range round.Snapshots {
+			if snapshot.CandidateTeam != candidate.team || snapshot.CandidatePosition != candidate.position ||
+				snapshot.SourceIteration <= candidate.firstIteration {
+				continue
+			}
+			later, laterEvaluated := evaluationBySnapshot[[3]int{candidate.team, candidate.position, snapshot.SourceIteration}]
+			if !laterEvaluated {
+				continue
+			}
+			diagnostics.LaterSnapshotEvaluated++
+			if !firstEvaluated {
+				diagnostics.LaterOnlySnapshotEvaluated++
+				continue
+			}
+			if later.ESSPerWork > first.ESSPerWork {
+				diagnostics.LaterBetterESSPerWork++
+			} else if first.ESSPerWork > later.ESSPerWork {
+				diagnostics.FirstHitBetterESSPerWork++
+			}
+		}
+	}
+	return diagnostics
 }
 
 func evaluationESS(evaluation *CEMProposalEvaluation) float64 {
@@ -1529,7 +1710,8 @@ func searchAndMergeRarePositionsLegacy(
 	teamOdds []OddsType,
 	normalSamples int,
 ) {
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	seed, _ := rarePositionSeed()
+	rng := rand.New(rand.NewSource(deriveRarePositionSeed(seed, "legacy-rare-search")))
 	unplayedGames := 0
 	for _, game := range group.Games {
 		if !game.Played {
@@ -1934,6 +2116,81 @@ type RareSimulationJob struct {
 	ProductionIterations int
 	Iterations           int
 	Priority             int
+	CollectAllRanks      bool
+	FullRankEstimates    map[int]map[int]RarePositionEstimate
+	FullRankWork         int64
+}
+
+type weightedRankAccumulator struct {
+	hits       map[int][]int
+	sumY       map[int][]float64
+	sumY2      map[int][]float64
+	maxEventY  map[int][]float64
+	sumWeight  map[int]float64
+	sampleSize int
+}
+
+func newWeightedRankAccumulator(teamGroups []TeamType, numPositions int) *weightedRankAccumulator {
+	acc := &weightedRankAccumulator{
+		hits: make(map[int][]int, len(teamGroups)), sumY: make(map[int][]float64, len(teamGroups)),
+		sumY2: make(map[int][]float64, len(teamGroups)), maxEventY: make(map[int][]float64, len(teamGroups)),
+		sumWeight: make(map[int]float64, len(teamGroups)),
+	}
+	for _, team := range teamGroups {
+		acc.hits[team.Team_id] = make([]int, numPositions)
+		acc.sumY[team.Team_id] = make([]float64, numPositions)
+		acc.sumY2[team.Team_id] = make([]float64, numPositions)
+		acc.maxEventY[team.Team_id] = make([]float64, numPositions)
+	}
+	return acc
+}
+
+func (acc *weightedRankAccumulator) observe(sortedTeams []*TeamCampaign, weight float64) {
+	if acc == nil {
+		return
+	}
+	acc.sampleSize++
+	for rank, team := range sortedTeams {
+		acc.hits[team.id][rank]++
+		acc.sumY[team.id][rank] += weight
+		acc.sumY2[team.id][rank] += weight * weight
+		if weight > acc.maxEventY[team.id][rank] {
+			acc.maxEventY[team.id][rank] = weight
+		}
+		acc.sumWeight[team.id] += weight
+	}
+}
+
+func (acc *weightedRankAccumulator) estimates(work int64) map[int]map[int]RarePositionEstimate {
+	if acc == nil || acc.sampleSize == 0 {
+		return map[int]map[int]RarePositionEstimate{}
+	}
+	estimates := make(map[int]map[int]RarePositionEstimate, len(acc.hits))
+	for teamID, rankHits := range acc.hits {
+		estimates[teamID] = make(map[int]RarePositionEstimate, len(rankHits))
+		for position, hits := range rankHits {
+			probability, stdErr, ess := eventEstimateStats(acc.sumY[teamID][position], acc.sumY2[teamID][position], acc.sampleSize)
+			relSE := math.Inf(1)
+			if probability > 0 {
+				relSE = stdErr / probability
+			}
+			maxShare := 0.0
+			if acc.sumY[teamID][position] > 0 {
+				maxShare = acc.maxEventY[teamID][position] / acc.sumY[teamID][position]
+			}
+			upper := 0.0
+			if hits == 0 {
+				upper = weightedZeroHitUpper95(acc.sampleSize, 1/OriginalMixtureWeight)
+			}
+			estimates[teamID][position] = RarePositionEstimate{
+				Probability: probability, StdErr: stdErr, Samples: acc.sampleSize, Hits: hits,
+				ESS: ess, MeanWeight: acc.sumWeight[teamID] / float64(acc.sampleSize),
+				Available: true, MeetsPrecisionGoal: estimateMeetsPrecisionGoal(ess, relSE),
+				RelativeSE: relSE, MaxEventWeightShare: maxShare, ZeroHitUpper95: upper, WorkSpent: work,
+			}
+		}
+	}
+	return estimates
 }
 
 func simulateTargetTeamRankAndWeightMulti(
@@ -1950,6 +2207,7 @@ func simulateTargetTeamRankAndWeightMulti(
 	rng *rand.Rand,
 	logQOverPBuf []float64,
 	compWeightsBuf []float64,
+	allRankAccumulator *weightedRankAccumulator,
 ) (rank int, weight float64, chosenComponent int) {
 	for k, v := range baseCampaign {
 		if v != nil {
@@ -2015,8 +2273,9 @@ func simulateTargetTeamRankAndWeightMulti(
 		}
 	}
 
-	sortedTeams := TeamCampaignSorted{teamSlice[:idx], sortOrder}
+	sortedTeams := TeamCampaignSorted{t: teamSlice[:idx], sort: sortOrder, rng: rng}
 	sort.Sort(sortedTeams)
+	allRankAccumulator.observe(sortedTeams.t, weight)
 
 	rank = -1
 	for pos, t := range sortedTeams.t {
@@ -2090,11 +2349,15 @@ func estimateRarePositionsForJob(
 	}
 
 	totalN := job.Iterations
+	var fullRankAccumulator *weightedRankAccumulator
+	if job.CollectAllRanks {
+		fullRankAccumulator = newWeightedRankAccumulator(teamGroups, numPositions)
+	}
 	for i := 0; i < totalN; i++ {
 		rank, w, chosenComponent := simulateTargetTeamRankAndWeightMulti(
 			baseCampaign, simCampaign, teamSlice, games,
 			originalMeans, job.Components, table, sortOrder, teamGroups,
-			job.TeamID, rng, logQBuf, compWeightsBuf,
+			job.TeamID, rng, logQBuf, compWeightsBuf, fullRankAccumulator,
 		)
 		componentSampleCounts[chosenComponent]++
 		sumWeight[job.TeamID] += w
@@ -2110,6 +2373,10 @@ func estimateRarePositionsForJob(
 			hits[rank]++
 			eventWeights[rank] = append(eventWeights[rank], w)
 		}
+	}
+
+	if fullRankAccumulator != nil {
+		job.FullRankEstimates = fullRankAccumulator.estimates(job.FullRankWork)
 	}
 
 	log.Printf("rare-position-rank-hist: group=%d team=%d direction=%d samples=%d hist=%v",

@@ -795,6 +795,67 @@ func TestCEMEvaluationSelectionPrefersDistinctTargetsThenFillsSlots(t *testing.T
 	}
 }
 
+func TestCEMSnapshotEvaluationEligibility(t *testing.T) {
+	original := []GameProposalMeans{{Home: 1.2, Away: 0.8}}
+	base := CEMProposalSnapshot{CandidateTeam: 1, CandidatePosition: 4,
+		Proposal: CEMProposal{TeamLogMultipliers: map[int]float64{1: 0},
+			Means: append([]GameProposalMeans(nil), original...)},
+		Stats: CEMBatchStats{BestRank: 15}}
+	if got := cemSnapshotEligibility(base, original); got.Eligible || got.Reason != "equivalent_to_P" {
+		t.Fatalf("P-equivalent snapshot eligibility=%+v", got)
+	}
+	tiny := base
+	tiny.Proposal.TeamLogMultipliers = map[int]float64{1: CEMProposalThetaTolerance / 10}
+	tiny.Proposal.Means = []GameProposalMeans{{Home: original[0].Home + CEMProposalMeanTolerance/10, Away: original[0].Away}}
+	if got := cemSnapshotEligibility(tiny, original); got.Eligible || got.Reason != "equivalent_to_P" {
+		t.Fatalf("numerical-noise snapshot eligibility=%+v", got)
+	}
+	learned := base
+	learned.Proposal.TeamLogMultipliers = map[int]float64{1: 0.01}
+	learned.Proposal.Means = []GameProposalMeans{{Home: 1.3, Away: 0.8}}
+	cases := []struct {
+		name              string
+		stats             CEMBatchStats
+		hits              int
+		initial, distance float64
+		want              string
+	}{
+		{name: "exact", stats: CEMBatchStats{BestRank: 10}, hits: 1, want: "exact_hit"},
+		{name: "near", stats: CEMBatchStats{NearTargetHits: 1, BestRank: 10}, want: "near_target_hit"},
+		{name: "best rank", stats: CEMBatchStats{BestRank: 5}, want: "best_rank_close"},
+		{name: "distance", stats: CEMBatchStats{BestRank: 20, EliteMeanDistance: 3}, initial: 5, distance: 3, want: "distance_improvement"},
+		{name: "weak", stats: CEMBatchStats{BestRank: 20, EliteMeanDistance: 4.5}, initial: 5, distance: 4.5, want: "insufficient_progress"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			snapshot := learned
+			snapshot.Stats = tc.stats
+			snapshot.ExactHits = tc.hits
+			snapshot.InitialEliteDistance = tc.initial
+			got := cemSnapshotEligibility(snapshot, original)
+			if got.Reason != tc.want || got.Eligible != (tc.want != "insufficient_progress") {
+				t.Fatalf("eligibility=%+v want reason=%s", got, tc.want)
+			}
+		})
+	}
+	weak := learned
+	weak.Stats = CEMBatchStats{BestRank: 20, EliteMeanDistance: 4.5}
+	weak.InitialEliteDistance = 5
+	if selected := prepareCEMEvaluationSnapshots(0, []CEMProposalSnapshot{base, weak}, original, 3); len(selected) != 0 {
+		t.Fatalf("P-equivalent and weak snapshots should consume no evaluation slots: %+v", selected)
+	}
+}
+
+func TestCEMEvaluationCapacityReturnsUnusedBudget(t *testing.T) {
+	perSnapshot := int64(CEMEvaluationSamplesPerSnapshot * 20)
+	if got := cemEvaluationCapacity(CEMMaxEvaluationSnapshots, perSnapshot, perSnapshot*10, perSnapshot); got != 1 {
+		t.Fatalf("capacity=%d, want one complete evaluation", got)
+	}
+	if got := cemEvaluationCapacity(CEMMaxEvaluationSnapshots, perSnapshot-1, perSnapshot*10, perSnapshot); got != 0 {
+		t.Fatalf("capacity=%d, want zero when fixed evaluation does not fit", got)
+	}
+}
+
 func TestCEMCandidateStopsAfterStallAndUsesHighSafetyCap(t *testing.T) {
 	state := &CEMCandidateState{Active: true, Iterations: 3, StalledIterations: CEMMaxStalledIterations}
 	if got := cemCandidateStopReason(state); got != "stalled" {

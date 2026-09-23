@@ -35,6 +35,9 @@ const (
 	CEMMinEliteESSForUpdate             = 8.0
 	CEMMeaningfulTeamLogShift           = 0.03
 	CEMThetaStabilityThreshold          = 0.02
+	CEMProposalThetaTolerance           = 1e-4
+	CEMProposalMeanTolerance            = 1e-6
+	CEMMinRelativeDistanceImprovement   = 0.20
 	CEMMinMultiplier                    = 1e-12
 	CEMMinBatchSamples                  = 100
 	CEMMinRelativeProgress              = 0.02
@@ -207,14 +210,15 @@ type CEMConfirmationOutcome struct {
 }
 
 type CEMProposalSnapshot struct {
-	CandidateTeam     int
-	CandidatePosition int
-	SourceIteration   int
-	Proposal          CEMProposal
-	Stats             CEMBatchStats
-	ExactHits         int
-	SearchScore       float64
-	Reason            string
+	CandidateTeam        int
+	CandidatePosition    int
+	SourceIteration      int
+	Proposal             CEMProposal
+	Stats                CEMBatchStats
+	InitialEliteDistance float64
+	ExactHits            int
+	SearchScore          float64
+	Reason               string
 }
 
 type CEMProposalEvaluation struct {
@@ -572,7 +576,7 @@ func simulateCEMBatchForTeams(base []*TeamCampaign, games []*GameType, original,
 		for i, team := range groups {
 			teamSlice[i] = simCampaign[table.Query(uint32(team.Team_id))]
 		}
-		sort.Sort(TeamCampaignSorted{teamSlice, order})
+		sort.Sort(TeamCampaignSorted{t: teamSlice, sort: order, rng: rng})
 		season.Rank = -1
 		for rank, team := range teamSlice {
 			if team.id == targetTeam {
@@ -731,7 +735,8 @@ func retainCEMProposalSnapshot(groupID int, state *CEMCandidateState, proposal C
 	snapshot := CEMProposalSnapshot{
 		CandidateTeam: state.Candidate.TeamID, CandidatePosition: state.Candidate.Position,
 		SourceIteration: iteration, Proposal: cloneCEMProposal(proposal), Stats: stats,
-		ExactHits: stats.ExactHits, Reason: reason,
+		InitialEliteDistance: state.FirstStats.EliteMeanDistance,
+		ExactHits:            stats.ExactHits, Reason: reason,
 		SearchScore: stats.NearTargetRate*100 - stats.EliteMeanDistance + float64(stats.ExactHits)*10,
 	}
 	nearestDistance := 0.0
@@ -1805,6 +1810,60 @@ func runCEMAdaptationRound(candidates []*FrontierCandidate, searches map[int]*Te
 	return result
 }
 
+const (
+	CEMBestRankDistanceForEvaluation = 2
+)
+
+type CEMSnapshotEligibility struct {
+	Eligible     bool
+	Reason       string
+	ThetaL2      float64
+	DistanceGain float64
+	Priority     float64
+}
+
+func cemProposalDiffersFromP(snapshot CEMProposalSnapshot, original []GameProposalMeans) (bool, float64) {
+	thetaL2 := thetaDistanceL2(snapshot.Proposal.TeamLogMultipliers, nil)
+	if thetaL2 > CEMProposalThetaTolerance {
+		return true, thetaL2
+	}
+	maxMeanDelta := 0.0
+	for i := 0; i < len(original) && i < len(snapshot.Proposal.Means); i++ {
+		maxMeanDelta = math.Max(maxMeanDelta, math.Abs(original[i].Home-snapshot.Proposal.Means[i].Home))
+		maxMeanDelta = math.Max(maxMeanDelta, math.Abs(original[i].Away-snapshot.Proposal.Means[i].Away))
+	}
+	return maxMeanDelta > CEMProposalMeanTolerance, thetaL2
+}
+
+func cemSnapshotEligibility(snapshot CEMProposalSnapshot, original []GameProposalMeans) CEMSnapshotEligibility {
+	differs, thetaL2 := cemProposalDiffersFromP(snapshot, original)
+	eligibility := CEMSnapshotEligibility{ThetaL2: thetaL2}
+	if !differs {
+		eligibility.Reason = "equivalent_to_P"
+		return eligibility
+	}
+	initialDistance := math.Max(1, snapshot.InitialEliteDistance)
+	eligibility.DistanceGain = (snapshot.InitialEliteDistance - snapshot.Stats.EliteMeanDistance) / initialDistance
+	switch {
+	case snapshot.ExactHits > 0 || snapshot.Stats.ExactHits > 0:
+		eligibility.Eligible, eligibility.Reason = true, "exact_hit"
+	case snapshot.Stats.NearTargetHits > 0:
+		eligibility.Eligible, eligibility.Reason = true, "near_target_hit"
+	case snapshot.Stats.BestRank >= 0 && absInt(snapshot.Stats.BestRank-snapshot.CandidatePosition) <= CEMBestRankDistanceForEvaluation:
+		eligibility.Eligible, eligibility.Reason = true, "best_rank_close"
+	case eligibility.DistanceGain >= CEMMinRelativeDistanceImprovement:
+		eligibility.Eligible, eligibility.Reason = true, "distance_improvement"
+	default:
+		eligibility.Reason = "insufficient_progress"
+	}
+	// A simple deterministic diagnostic priority. Eligibility and selection do
+	// not depend on the held-out results.
+	eligibility.Priority = float64(snapshot.ExactHits)*1000 +
+		snapshot.Stats.NearTargetRate*100 + eligibility.DistanceGain*10 +
+		math.Min(snapshot.Stats.EliteESS, 100)/100 - snapshot.Proposal.KL*0.01
+	return eligibility
+}
+
 func selectCEMEvaluationSnapshots(snapshots []CEMProposalSnapshot, limit int) []CEMProposalSnapshot {
 	ordered := append([]CEMProposalSnapshot(nil), snapshots...)
 	sort.Slice(ordered, func(i, j int) bool {
@@ -1857,6 +1916,60 @@ func selectCEMEvaluationSnapshots(snapshots []CEMProposalSnapshot, limit int) []
 		}
 	}
 	return selected
+}
+
+func prepareCEMEvaluationSnapshots(groupID int, snapshots []CEMProposalSnapshot,
+	original []GameProposalMeans, limit int) []CEMProposalSnapshot {
+	eligible := make([]CEMProposalSnapshot, 0, len(snapshots))
+	eligibilityByKey := make(map[[3]int]CEMSnapshotEligibility, len(snapshots))
+	for _, snapshot := range snapshots {
+		eligibility := cemSnapshotEligibility(snapshot, original)
+		eligibilityByKey[[3]int{snapshot.CandidateTeam, snapshot.CandidatePosition, snapshot.SourceIteration}] = eligibility
+		if eligibility.Eligible {
+			eligible = append(eligible, snapshot)
+		}
+	}
+	selected := selectCEMEvaluationSnapshots(eligible, limit)
+	selectedByKey := make(map[[3]int]bool, len(selected))
+	for _, snapshot := range selected {
+		selectedByKey[[3]int{snapshot.CandidateTeam, snapshot.CandidatePosition, snapshot.SourceIteration}] = true
+	}
+	for _, snapshot := range snapshots {
+		key := [3]int{snapshot.CandidateTeam, snapshot.CandidatePosition, snapshot.SourceIteration}
+		eligibility := eligibilityByKey[key]
+		selectedThis := selectedByKey[key]
+		reason := eligibility.Reason
+		if eligibility.Eligible && !selectedThis {
+			reason = "evaluation_limit"
+			for _, chosen := range selected {
+				if thetaDistanceL2(snapshot.Proposal.TeamLogMultipliers, chosen.Proposal.TeamLogMultipliers) < CEMThetaStabilityThreshold {
+					reason = "duplicate_snapshot"
+					break
+				}
+			}
+		}
+		log.Printf("rare-position-pilot-selection: group=%d team=%d position=%d source_iteration=%d eligible=%t selected=%t reason=%s eligible_reason=%s kl=%.6g theta_l2=%.6g exact_hits=%d near_target_hits=%d best_rank=%d snapshot_distance=%.6g initial_distance=%.6g relative_distance_improvement=%.6g priority=%.6g",
+			groupID, snapshot.CandidateTeam, snapshot.CandidatePosition, snapshot.SourceIteration,
+			eligibility.Eligible, selectedThis, reason, eligibility.Reason, snapshot.Proposal.KL, eligibility.ThetaL2,
+			snapshot.ExactHits, snapshot.Stats.NearTargetHits, snapshot.Stats.BestRank,
+			snapshot.Stats.EliteMeanDistance, snapshot.InitialEliteDistance,
+			eligibility.DistanceGain, eligibility.Priority)
+	}
+	return selected
+}
+
+func cemEvaluationCapacity(snapshotLimit int, evaluationWork, remainingWork, workPerSnapshot int64) int {
+	if snapshotLimit <= 0 || workPerSnapshot <= 0 || evaluationWork <= 0 || remainingWork <= 0 {
+		return 0
+	}
+	capacity := int(evaluationWork / workPerSnapshot)
+	if affordable := int(remainingWork / workPerSnapshot); affordable < capacity {
+		capacity = affordable
+	}
+	if capacity > snapshotLimit {
+		capacity = snapshotLimit
+	}
+	return capacity
 }
 
 func evaluateCEMProposalSnapshot(snapshot CEMProposalSnapshot, original []GameProposalMeans,

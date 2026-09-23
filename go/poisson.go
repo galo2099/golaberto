@@ -226,10 +226,18 @@ func poisson_pmf(mean, x float64) float64 {
 }
 
 func poisson_rand(mean float64) int {
+	return poissonRandWith(nil, mean)
+}
+
+func poissonRandWith(rng *rand.Rand, mean float64) int {
 	var em int
 	t := 0.0
 	for {
-		t += rand.ExpFloat64()
+		if rng == nil {
+			t += rand.ExpFloat64()
+		} else {
+			t += rng.ExpFloat64()
+		}
 		if t >= mean {
 			break
 		}
@@ -257,6 +265,7 @@ const (
 type TeamCampaignSorted struct {
 	t    []*TeamCampaign
 	sort []SortType
+	rng  *rand.Rand
 }
 
 func (sorted TeamCampaignSorted) Len() int {
@@ -290,7 +299,7 @@ func (sorted TeamCampaignSorted) Less(i, j int) bool {
 		case GP:
 			a, b = 0, 0
 		case HEAD:
-			ret := compare_head_to_head(sorted.t[i], sorted.t[j], sorted.sort)
+			ret := compare_head_to_head(sorted.t[i], sorted.t[j], sorted.sort, sorted.rng)
 			if ret < 0 {
 				a, b = 0, 1
 			} else if ret > 0 {
@@ -299,6 +308,9 @@ func (sorted TeamCampaignSorted) Less(i, j int) bool {
 				a, b = 0, 0
 			}
 		default:
+			if sorted.rng != nil {
+				return sorted.rng.Float64() < 0.5
+			}
 			return rand.Float64() < 0.5
 		}
 		if b < a {
@@ -341,7 +353,7 @@ func build_sorted_array(s []string) []SortType {
 	return ret
 }
 
-func compare_head_to_head(a, b *TeamCampaign, sort []SortType) int {
+func compare_head_to_head(a, b *TeamCampaign, sort []SortType, rng *rand.Rand) int {
 	head_to_head_campaign := make([]*TeamCampaign, 2)
 	head_to_head_campaign[0] = &TeamCampaign{id: a.id,
 		points_win:  a.points_win,
@@ -371,7 +383,7 @@ func compare_head_to_head(a, b *TeamCampaign, sort []SortType) int {
 			sort_no_head = append(sort_no_head, s)
 		}
 	}
-	sorted_teams := TeamCampaignSorted{head_to_head_campaign, sort_no_head}
+	sorted_teams := TeamCampaignSorted{t: head_to_head_campaign, sort: sort_no_head, rng: rng}
 	ret := 0
 	if sorted_teams.Less(1, 0) {
 		ret = -1
@@ -471,6 +483,9 @@ type OddsType struct {
 
 func (group *GroupType) calculate_odds() map[string]interface{} {
 	start_func := time.Now()
+	seed, seedSource := rarePositionSeed()
+	scoutRNG := rand.New(rand.NewSource(seed))
+	log.Printf("rare-position-rng: group=%d seed=%d source=%s phase=scout", group.Id, seed, seedSource)
 	sort_order := build_sorted_array(strings.Split(strings.Join(strings.Fields(group.Phase.Sort), ""), ","))
 	uses_head := false
 	for _, v := range sort_order {
@@ -547,8 +562,8 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
 	simulated_scores := make([]SimulatedScore, len(group.Games))
 	simulated_campaign := make([]*TeamCampaign, len(all_team_ids))
 	team_slice := make([]*TeamCampaign, len(group.Team_groups))
-	const NUM_ITER = ScoutIterations
-	for i := 0; i < NUM_ITER; i++ {
+	numIterations := rarePositionScoutIterations()
+	for i := 0; i < numIterations; i++ {
 		for k, v := range campaign {
 			simulated_campaign[k] = v.clone()
 		}
@@ -556,8 +571,8 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
 		start3 := time.Now()
 		for i, g := range group.Games {
 			if !g.Played {
-				home_score := poisson_rand(g.HomePower)
-				away_score := poisson_rand(g.AwayPower)
+				home_score := poissonRandWith(scoutRNG, g.HomePower)
+				away_score := poissonRandWith(scoutRNG, g.AwayPower)
 				simulated_scores[i] = SimulatedScore{home_score, away_score}
 				home := g.home_table_index
 				away := g.away_table_index
@@ -581,13 +596,13 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
 			}
 		}
 
-		sorted_teams := TeamCampaignSorted{team_slice, sort_order}
+		sorted_teams := TeamCampaignSorted{t: team_slice, sort: sort_order, rng: scoutRNG}
 		sort.Sort(sorted_teams)
 
 		start := time.Now()
 		for i, v := range sorted_teams.t {
 			team := team_odds[table.Query(uint32(v.id))]
-			team.team.Pos[i] += 1.0 / NUM_ITER
+			team.team.Pos[i] += 1.0 / float64(numIterations)
 			if counts, ok := normalPositionCounts[v.id]; ok {
 				counts[i]++
 			}
@@ -630,7 +645,7 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
 					if v == nil {
 						continue
 					}
-					zone_odds = append(zone_odds, &TeamOdds{count: v.count / NUM_ITER, Pos: group.odds_to_zone_odds(v.Pos)})
+					zone_odds = append(zone_odds, &TeamOdds{count: v.count / float64(numIterations), Pos: group.odds_to_zone_odds(v.Pos)})
 				}
 				//        for _, v := range zone_odds {
 				//          home_importance += v.count * calculateEuclidianDistance(v.Pos, home_odds) * math.Sqrt(2)
@@ -656,7 +671,7 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
 					if v == nil {
 						continue
 					}
-					zone_odds = append(zone_odds, &TeamOdds{count: v.count / NUM_ITER, Pos: group.odds_to_zone_odds(v.Pos)})
+					zone_odds = append(zone_odds, &TeamOdds{count: v.count / float64(numIterations), Pos: group.odds_to_zone_odds(v.Pos)})
 				}
 				//        for _, v := range zone_odds {
 				//          away_importance += v.count * calculateEuclidianDistance(v.Pos, away_odds) * math.Sqrt(2)
@@ -690,7 +705,7 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
 	var rarePositionEstimates map[int]map[int]ProductionEstimate
 	if rarePositionSamplingEnabled() {
 		rarePositionEstimates = searchAndMergeRarePositions(group, campaign, table,
-			sort_order, normalPositionCounts, team_odds, NUM_ITER)
+			sort_order, normalPositionCounts, team_odds, numIterations)
 	}
 
 	json_team_odds := make(map[int]*TeamOdds, len(team_odds))

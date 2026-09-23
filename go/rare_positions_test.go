@@ -4,10 +4,57 @@ import (
 	"encoding/json"
 	"math"
 	"math/rand"
+	"reflect"
 	"sort"
 	"strings"
 	"testing"
 )
+
+func TestRarePositionConfiguredSeedIsDeterministic(t *testing.T) {
+	t.Setenv("RARE_POSITION_RANDOM_SEED", "1001")
+	seed, source := rarePositionSeed()
+	if seed != 1001 || source != "configured" {
+		t.Fatalf("seed=%d source=%q", seed, source)
+	}
+	draws := func(seed int64) []int {
+		rng := rand.New(rand.NewSource(seed))
+		out := make([]int, 10)
+		for i := range out {
+			out[i] = poissonRandWith(rng, 1.7)
+		}
+		return out
+	}
+	first, repeated, other := draws(seed), draws(seed), draws(seed+1)
+	if !reflect.DeepEqual(first, repeated) {
+		t.Fatalf("same configured seed produced different draws: %v vs %v", first, repeated)
+	}
+	if reflect.DeepEqual(first, other) {
+		t.Fatalf("different configured seeds produced identical draws: %v", first)
+	}
+	pipelineStream := deriveRarePositionSeed(seed, "rare-search")
+	baselineStream := deriveRarePositionSeed(seed, "plain-mc-baseline")
+	if pipelineStream == baselineStream || pipelineStream != deriveRarePositionSeed(seed, "rare-search") {
+		t.Fatalf("seed derivation must be repeatable and independent: pipeline=%d baseline=%d", pipelineStream, baselineStream)
+	}
+}
+
+func TestWeightedRankAccumulatorEstimatesEveryCellFromProductionDraws(t *testing.T) {
+	acc := newWeightedRankAccumulator([]TeamType{{Team_id: 1}, {Team_id: 2}}, 2)
+	acc.observe([]*TeamCampaign{{id: 1}, {id: 2}}, 1)
+	acc.observe([]*TeamCampaign{{id: 2}, {id: 1}}, 0.5)
+	estimates := acc.estimates(200)
+	first := estimates[1][0]
+	second := estimates[1][1]
+	if first.Samples != 2 || first.Hits != 1 || first.Probability != 0.5 || first.ESS != 1 {
+		t.Fatalf("first-rank estimate=%+v", first)
+	}
+	if second.Samples != 2 || second.Hits != 1 || second.Probability != 0.25 || second.ESS != 1 {
+		t.Fatalf("second-rank estimate=%+v", second)
+	}
+	if estimates[2][0].Probability != second.Probability || estimates[2][1].Probability != first.Probability {
+		t.Fatalf("rank estimates were not accumulated for every team: %+v", estimates)
+	}
+}
 
 func TestWorkAccounting(t *testing.T) {
 	work0 := estimateSeasonWork(0, 1, 4)
@@ -1082,7 +1129,7 @@ func TestMultiGameExactPoissonProbabilityAndSparseESS(t *testing.T) {
 					teams[1].add_game(&GameType{HomeId: 1, AwayId: 2, HomeScore: h1, AwayScore: a1})
 					teams[1].add_game(&GameType{HomeId: 2, AwayId: 3, HomeScore: h2, AwayScore: a2})
 					teams[2].add_game(&GameType{HomeId: 2, AwayId: 3, HomeScore: h2, AwayScore: a2})
-					sort.Sort(TeamCampaignSorted{teams, order})
+					sort.Sort(TeamCampaignSorted{t: teams, sort: order})
 					if teams[0].id == 1 {
 						exact += mass
 					}
