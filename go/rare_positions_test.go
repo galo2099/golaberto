@@ -170,6 +170,31 @@ func TestMultiComponentMixtureWeights(t *testing.T) {
 	}
 }
 
+func TestRareEstimateUsability(t *testing.T) {
+	// Statistically sound estimate with probability below MinInterestingProbability (1e-5)
+	tinyEst := RarePositionEstimate{
+		Probability: 2e-7,
+		StdErr:      1e-8,
+		Hits:        100,
+		ESS:         50.0,
+	}
+
+	if !rareEstimateUsable(tinyEst) {
+		t.Errorf("expected rareEstimateUsable to return true for statistically sound tiny probability, got false")
+	}
+
+	// Unsound estimate (0 hits)
+	zeroEst := RarePositionEstimate{
+		Probability: 0.0,
+		StdErr:      0.0,
+		Hits:        0,
+		ESS:         0.0,
+	}
+	if rareEstimateUsable(zeroEst) {
+		t.Errorf("expected rareEstimateUsable to return false for 0 hits, got true")
+	}
+}
+
 func TestDirectImportanceSamplingEstimator(t *testing.T) {
 	hMean := 0.05
 	aMean := 5.0
@@ -499,6 +524,40 @@ func TestProductionPlanningHonorsWorkBudget(t *testing.T) {
 	}
 	if got := affordableSamples(2000, 7, workPerSample); got != 2 {
 		t.Fatalf("final action should truncate to 2 affordable samples, got %d", got)
+	}
+}
+
+func TestDifficultCandidateGetsOnlyInitialProductionAllocation(t *testing.T) {
+	candidate := &FrontierCandidate{TeamID: 1, SearchState: &PositionSearchState{
+		Status: StatusPromising, BestProposal: &SearchProposal{StrengthLevel: 5},
+		BestPilotRate: 0.003, Difficult: true,
+	}}
+	allocations := planProductionAllocations([]*FrontierCandidate{candidate}, 50000, 1)
+	if len(allocations) != 1 || allocations[0].Samples != 2000 {
+		t.Fatalf("difficult candidate should get only a small run, got %+v", allocations)
+	}
+}
+
+func TestExactVeryRareProbabilityIsNotExplicitlyMerged(t *testing.T) {
+	// Independent one-game Poisson reference for an extreme underdog win.
+	hMean, aMean := 0.001, 6.0
+	pWin := 0.0
+	for h := 1; h <= 20; h++ {
+		pAwayLess := 0.0
+		for a := 0; a < h; a++ {
+			pAwayLess += poisson_pmf(aMean, float64(a))
+		}
+		pWin += poisson_pmf(hMean, float64(h)) * pAwayLess
+	}
+	if pWin <= 0 || pWin >= MinInterestingProbability {
+		t.Fatalf("synthetic probability %g should be positive and below interest threshold", pWin)
+	}
+	merged := mergeRarePositionEstimates(
+		[]float64{0, 1}, []int{0, NormalIterations},
+		map[int]RarePositionEstimate{0: {Probability: pWin, Found: true}},
+	)
+	if merged[0] != 0 || merged[1] != 1 {
+		t.Fatalf("below-interest estimate should not become explicit odds: %v", merged)
 	}
 }
 

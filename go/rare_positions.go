@@ -10,7 +10,10 @@ import (
 	"time"
 )
 
-const MinInterestingProbability = 1e-5
+const (
+	MinInterestingProbability = 1e-5
+	NormalIterations          = 10000
+)
 
 type PositionSearchStatus int
 
@@ -1285,6 +1288,7 @@ func searchAndMergeRarePositions(
 
 	teamRareEstimates := make(map[int]map[int]RarePositionEstimate)
 	prodWorkPerSeason := estimateSeasonWork(unplayedGames, 4, numTeams)
+	var pilotedCandidates []*FrontierCandidate
 
 	for remainingWork > 0 && pilotWorkRemaining > 0 {
 		var activeCandidates []*FrontierCandidate
@@ -1317,68 +1321,93 @@ func searchAndMergeRarePositions(
 		}
 
 		for _, cand := range activeCandidates {
+			actualPilotSamples := affordableSamples(pilotSamples, remainingWork, 5*pilotWorkPerSample)
+			actualPilotSamples = affordableSamples(actualPilotSamples, pilotWorkRemaining, 5*pilotWorkPerSample)
+			if actualPilotSamples <= 0 {
+				break
+			}
 			searchWorkSpent := evaluateFrontierCandidate(
 				cand, campaign, group.Games, table, sortOrder, group.Team_groups,
-				originalMeans, normalMeanRanks, rng, group.Id, unplayedGames, pilotSamples,
+				originalMeans, normalMeanRanks, rng, group.Id, unplayedGames, actualPilotSamples,
 			)
 
 			remainingWork -= searchWorkSpent
 			pilotWorkRemaining -= searchWorkSpent
+			pilotedCandidates = append(pilotedCandidates, cand)
 			st := cand.SearchState
 			if st.BestProposal != nil {
 				log.Printf("rare-position-pilot-selection: group=%d team=%d position=%d selected_level=%d selected_rate=%.4f priority=%.2f difficult=%t",
 					group.Id, cand.TeamID, cand.Position, st.BestProposal.StrengthLevel,
 					st.BestPilotRate, productionPriority(cand), st.Difficult)
+			} else {
+				log.Printf("rare-position-pilot-selection: group=%d team=%d position=%d selected_level=none selected_rate=0 priority=none reason=no_hits",
+					group.Id, cand.TeamID, cand.Position)
 			}
 		}
+	}
 
-		productionWork := remainingWork - pilotWorkRemaining
-		allocations := planProductionAllocations(activeCandidates, productionWork, prodWorkPerSeason)
-		for _, allocation := range allocations {
-			cand := allocation.Candidate
-			st := cand.SearchState
-			targetSamples := affordableSamples(allocation.Samples, remainingWork, prodWorkPerSeason)
-			if targetSamples <= 0 {
-				break
+	allocations := planProductionAllocations(pilotedCandidates, remainingWork, prodWorkPerSeason)
+	for _, allocation := range allocations {
+		cand := allocation.Candidate
+		st := cand.SearchState
+		if st.Status != StatusPromising {
+			continue
+		}
+		targetSamples := affordableSamples(allocation.Samples, remainingWork, prodWorkPerSeason)
+		if targetSamples <= 0 {
+			break
+		}
+
+		var teamCandidatePositions []int
+		for p, pState := range teamSearches[cand.TeamID].Positions {
+			if pState.Status == StatusFrontier || pState.Status == StatusUnexplored || pState.Status == StatusPromising {
+				teamCandidatePositions = append(teamCandidatePositions, p)
 			}
+		}
+		if len(teamCandidatePositions) == 0 {
+			teamCandidatePositions = []int{cand.Position}
+		}
 
-			job := &RareSimulationJob{
-				TeamID:             cand.TeamID,
-				Direction:          cand.Direction,
-				CandidatePositions: []int{cand.Position},
-				Components:         st.BestProposal.Components,
-				Iterations:         targetSamples,
-			}
+		job := &RareSimulationJob{
+			TeamID:             cand.TeamID,
+			Direction:          cand.Direction,
+			CandidatePositions: teamCandidatePositions,
+			Components:         st.BestProposal.Components,
+			Iterations:         targetSamples,
+		}
 
-			jobEstimates, _ := estimateRarePositionsForJob(
-				campaign, group.Games, originalMeans, table, sortOrder, group.Team_groups,
-				job, rng, group.Id,
-			)
+		jobEstimates, _ := estimateRarePositionsForJob(
+			campaign, group.Games, originalMeans, table, sortOrder, group.Team_groups,
+			job, rng, group.Id,
+		)
 
-			prodWorkSpent := int64(targetSamples) * prodWorkPerSeason
-			remainingWork -= prodWorkSpent
-			st.ProductionWorkSpent += prodWorkSpent
+		prodWorkSpent := int64(targetSamples) * prodWorkPerSeason
+		remainingWork -= prodWorkSpent
+		st.ProductionWorkSpent += prodWorkSpent
 
-			if est, ok := jobEstimates[cand.Position]; ok && est.Found && est.Probability >= MinInterestingProbability {
-				st.Status = StatusResolved
-				st.ProductionEstimate = &ProductionEstimate{
-					Probability: est.Probability,
-					StdErr:      est.StdErr,
-					Samples:     est.Samples,
-					Hits:        est.Hits,
-					ESS:         est.ESS,
-					Found:       true,
-					WorkSpent:   prodWorkSpent,
+		for p, est := range jobEstimates {
+			pState := teamSearches[cand.TeamID].Positions[p]
+			if est.Found {
+				if est.Probability >= MinInterestingProbability {
+					pState.Status = StatusResolved
+					pState.ProductionEstimate = &ProductionEstimate{
+						Probability: est.Probability,
+						StdErr:      est.StdErr,
+						Samples:     est.Samples,
+						Hits:        est.Hits,
+						ESS:         est.ESS,
+						Found:       true,
+						WorkSpent:   prodWorkSpent,
+					}
+					if teamRareEstimates[cand.TeamID] == nil {
+						teamRareEstimates[cand.TeamID] = make(map[int]RarePositionEstimate)
+					}
+					teamRareEstimates[cand.TeamID][p] = est
+				} else {
+					pState.Status = StatusBelowInterest
 				}
-
-				if teamRareEstimates[cand.TeamID] == nil {
-					teamRareEstimates[cand.TeamID] = make(map[int]RarePositionEstimate)
-				}
-				teamRareEstimates[cand.TeamID][cand.Position] = est
-			} else if est, ok := jobEstimates[cand.Position]; ok && est.Found && est.Probability < MinInterestingProbability {
-				st.Status = StatusBelowInterest
-			} else {
-				st.Status = StatusExhausted
+			} else if p == cand.Position {
+				pState.Status = StatusExhausted
 			}
 		}
 	}
@@ -1468,13 +1497,6 @@ type RareSimulationJob struct {
 	Iterations           int
 	Priority             int
 }
-
-const (
-	NormalIterations    = 10000
-	MaxRareIterations   = 100000
-	MinIterationsPerJob = 2500
-	MaxIterationsPerJob = 7500
-)
 
 func simulateTargetTeamRankAndWeightMulti(
 	baseCampaign []*TeamCampaign,
@@ -1576,7 +1598,7 @@ const (
 
 func rareEstimateUsable(est RarePositionEstimate) bool {
 	if est.Hits == 0 ||
-		est.Probability < MinInterestingProbability ||
+		est.Probability <= 0 ||
 		math.IsNaN(est.Probability) ||
 		math.IsInf(est.Probability, 0) {
 		return false
