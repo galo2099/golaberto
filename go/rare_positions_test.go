@@ -170,6 +170,31 @@ func TestMultiComponentMixtureWeights(t *testing.T) {
 	}
 }
 
+func TestRareEstimateUsability(t *testing.T) {
+	// Statistically sound estimate with probability below MinInterestingProbability (1e-5)
+	tinyEst := RarePositionEstimate{
+		Probability: 2e-7,
+		StdErr:      1e-8,
+		Hits:        100,
+		ESS:         50.0,
+	}
+
+	if !rareEstimateUsable(tinyEst) {
+		t.Errorf("expected rareEstimateUsable to return true for statistically sound tiny probability, got false")
+	}
+
+	// Unsound estimate (0 hits)
+	zeroEst := RarePositionEstimate{
+		Probability: 0.0,
+		StdErr:      0.0,
+		Hits:        0,
+		ESS:         0.0,
+	}
+	if rareEstimateUsable(zeroEst) {
+		t.Errorf("expected rareEstimateUsable to return false for 0 hits, got true")
+	}
+}
+
 func TestDirectImportanceSamplingEstimator(t *testing.T) {
 	hMean := 0.05
 	aMean := 5.0

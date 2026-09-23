@@ -10,7 +10,10 @@ import (
 	"time"
 )
 
-const MinInterestingProbability = 1e-5
+const (
+	MinInterestingProbability = 1e-5
+	NormalIterations           = 10000
+)
 
 type PositionSearchStatus int
 
@@ -125,278 +128,6 @@ func estimateSeasonWork(unplayedGames int, componentCount int, teamCount int) in
 
 func calculateMaxRareWork(unplayedGames int, teamCount int) int64 {
 	return 100000 * estimateSeasonWork(unplayedGames, 1, teamCount)
-}
-
-func initializeTeamRareSearch(
-	teamID int,
-	normalCounts []int,
-	normalProbs []float64,
-	campaign []*TeamCampaign,
-	teamGroups []TeamType,
-	games []*GameType,
-	table *Table,
-	sortOrder []SortType,
-) *TeamRareSearch {
-	numPositions := len(normalCounts)
-	positions := make([]*PositionSearchState, numPositions)
-
-	normalMeanRank := 0.0
-	has100Percent := false
-
-	for pos := 0; pos < numPositions; pos++ {
-		prob := normalProbs[pos]
-		count := normalCounts[pos]
-
-		normalMeanRank += float64(pos) * prob
-		if prob >= 1.0-1e-9 {
-			has100Percent = true
-		}
-
-		state := &PositionSearchState{
-			Position:      pos,
-			ObservedCount: count,
-			NormalProb:    prob,
-		}
-
-		if count > 0 {
-			state.Status = StatusObserved
-			state.Feasible = true
-		} else {
-			feasible := possiblePositionByPointsBounds(
-				teamID, pos, campaign, teamGroups, games, table, sortOrder,
-			)
-			state.Feasible = feasible
-			if feasible {
-				state.Status = StatusUnexplored
-			} else {
-				state.Status = StatusProvenImpossible
-			}
-		}
-
-		positions[pos] = state
-	}
-
-	return &TeamRareSearch{
-		TeamID:              teamID,
-		Positions:           positions,
-		NormalMeanRank:      normalMeanRank,
-		Has100PercentNormal: has100Percent,
-	}
-}
-
-func discoverFrontier(teamSearch *TeamRareSearch) []*FrontierCandidate {
-	numPositions := len(teamSearch.Positions)
-
-	knownSet := make(map[int]bool)
-	minKnown := numPositions
-	maxKnown := -1
-
-	for pos, st := range teamSearch.Positions {
-		if st.Status == StatusObserved || st.Status == StatusPromising || st.Status == StatusResolved {
-			knownSet[pos] = true
-			if pos < minKnown {
-				minKnown = pos
-			}
-			if pos > maxKnown {
-				maxKnown = pos
-			}
-		}
-	}
-
-	if len(knownSet) == 0 {
-		return nil
-	}
-
-	var candidates []*FrontierCandidate
-
-	for pos, st := range teamSearch.Positions {
-		if st.Status != StatusUnexplored || !st.Feasible {
-			continue
-		}
-
-		isAdjacent := (pos > 0 && knownSet[pos-1]) || (pos < numPositions-1 && knownSet[pos+1])
-		isGap := pos > minKnown && pos < maxKnown
-
-		if isAdjacent || isGap {
-			st.Status = StatusFrontier
-
-			dir := RareBetter
-			if float64(pos) > teamSearch.NormalMeanRank {
-				dir = RareWorse
-			}
-
-			priority := 10
-			if teamSearch.Has100PercentNormal {
-				priority += 100
-			}
-			if isGap {
-				priority += 50
-			}
-			if isAdjacent {
-				priority += 30
-			}
-
-			candidates = append(candidates, &FrontierCandidate{
-				TeamID:      teamSearch.TeamID,
-				Position:    pos,
-				Direction:   dir,
-				Priority:    priority,
-				SearchState: st,
-			})
-		}
-	}
-
-	sort.Slice(candidates, func(i, j int) bool {
-		return candidates[i].Priority > candidates[j].Priority
-	})
-
-	return candidates
-}
-
-func buildSearchProposalForLevel(
-	games []*GameType,
-	targetTeamID int,
-	direction RareDirection,
-	targetRank int,
-	level int,
-	normalMeanRanks map[int]float64,
-	originalMeans []GameProposalMeans,
-) SearchProposal {
-	strengths := getStrengthDefinitions(direction)
-	sMap := make(map[int]StrengthDefinition, len(strengths))
-	for _, s := range strengths {
-		sMap[s.Level] = s
-	}
-
-	bestDef := sMap[level]
-	bestCfg := buildSingleProposalConfig(games, targetTeamID, direction, targetRank, bestDef, normalMeanRanks)
-
-	weakerLvl := level - 1
-	if weakerLvl < 0 {
-		weakerLvl = level
-	}
-	weakerDef := sMap[weakerLvl]
-	weakerCfg := buildSingleProposalConfig(games, targetTeamID, direction, targetRank, weakerDef, normalMeanRanks)
-
-	strongerLvl := level + 1
-	if strongerLvl > 5 {
-		strongerLvl = level
-	}
-	strongerDef := sMap[strongerLvl]
-	strongerCfg := buildSingleProposalConfig(games, targetTeamID, direction, targetRank, strongerDef, normalMeanRanks)
-
-	comps := []ProposalComponent{
-		{
-			Name:          "original",
-			Weight:        0.05,
-			Means:         originalMeans,
-			RelevantTeams: nil,
-			TargetRank:    -1,
-		},
-		{
-			Name:          "weaker_" + weakerCfg.Name,
-			Weight:        0.20,
-			Means:         weakerCfg.Means,
-			RelevantTeams: weakerCfg.RelevantTeams,
-			TargetRank:    targetRank,
-		},
-		{
-			Name:          "best_" + bestCfg.Name,
-			Weight:        0.50,
-			Means:         bestCfg.Means,
-			RelevantTeams: bestCfg.RelevantTeams,
-			TargetRank:    targetRank,
-		},
-		{
-			Name:          "stronger_" + strongerCfg.Name,
-			Weight:        0.25,
-			Means:         strongerCfg.Means,
-			RelevantTeams: strongerCfg.RelevantTeams,
-			TargetRank:    targetRank,
-		},
-	}
-
-	validateProposalMixture(comps, len(games))
-
-	return SearchProposal{
-		Name:          fmt.Sprintf("%s_lvl%d_rank%d", bestDef.Name, level, targetRank),
-		Direction:     direction,
-		StrengthLevel: level,
-		TargetRank:    targetRank,
-		Components:    comps,
-	}
-}
-
-func evaluateFrontierCandidate(
-	candidate *FrontierCandidate,
-	campaign []*TeamCampaign,
-	games []*GameType,
-	table *Table,
-	sortOrder []SortType,
-	teamGroups []TeamType,
-	originalMeans []GameProposalMeans,
-	normalMeanRanks map[int]float64,
-	rng *rand.Rand,
-	groupID int,
-	unplayedGames int,
-	remainingWork int64,
-) int64 {
-	st := candidate.SearchState
-	targetTeamID := candidate.TeamID
-	pos := candidate.Position
-	direction := candidate.Direction
-
-	samplesPerLevel := 80
-	singleRunWork := estimateSeasonWork(unplayedGames, 1, len(teamGroups))
-
-	strengths := getStrengthDefinitions(direction)
-	var testedConfigs []ProposalConfig
-
-	for _, sDef := range strengths {
-		if sDef.Level == 0 {
-			continue
-		}
-		cfg := buildSingleProposalConfig(games, targetTeamID, direction, pos, sDef, normalMeanRanks)
-		testedConfigs = append(testedConfigs, cfg)
-	}
-
-	pilotResults := runRareProposalPilot(
-		campaign, games, table, sortOrder, teamGroups,
-		targetTeamID, direction, []int{pos}, testedConfigs,
-		samplesPerLevel, rng, groupID,
-	)
-
-	workSpent := int64(len(testedConfigs)*samplesPerLevel) * singleRunWork
-	st.SearchWorkSpent += workSpent
-
-	bestScore := -999.0
-	bestIdx := -1
-
-	for i, res := range pilotResults {
-		if res.CandidateHits > 0 && res.Score > bestScore {
-			bestScore = res.Score
-			bestIdx = i
-		}
-	}
-
-	if bestIdx >= 0 {
-		bestRes := pilotResults[bestIdx]
-		bestLevel := bestRes.Config.StrengthLevel
-
-		proposal := buildSearchProposalForLevel(
-			games, targetTeamID, direction, pos, bestLevel, normalMeanRanks, originalMeans,
-		)
-
-		st.Status = StatusPromising
-		st.BestProposal = &proposal
-		st.BestCandidateHits = bestRes.CandidateHits
-		st.BestOvershootHits = bestRes.OvershootHits
-		st.BestScore = bestRes.Score
-	} else {
-		st.Status = StatusExhausted
-	}
-
-	return workSpent
 }
 
 func poissonRand(rng *rand.Rand, mean float64) int {
@@ -1182,6 +913,291 @@ func buildDirectionalProposal(
 	return comps[len(comps)-1].Means
 }
 
+func initializeTeamRareSearch(
+	teamID int,
+	normalCounts []int,
+	normalProbs []float64,
+	campaign []*TeamCampaign,
+	teamGroups []TeamType,
+	games []*GameType,
+	table *Table,
+	sortOrder []SortType,
+) *TeamRareSearch {
+	numPositions := len(normalCounts)
+	positions := make([]*PositionSearchState, numPositions)
+
+	normalMeanRank := 0.0
+	has100Percent := false
+
+	for pos := 0; pos < numPositions; pos++ {
+		prob := normalProbs[pos]
+		count := normalCounts[pos]
+
+		normalMeanRank += float64(pos) * prob
+		if prob >= 1.0-1e-9 {
+			has100Percent = true
+		}
+
+		state := &PositionSearchState{
+			Position:      pos,
+			ObservedCount: count,
+			NormalProb:    prob,
+		}
+
+		if count > 0 {
+			state.Status = StatusObserved
+			state.Feasible = true
+		} else {
+			feasible := possiblePositionByPointsBounds(
+				teamID, pos, campaign, teamGroups, games, table, sortOrder,
+			)
+			state.Feasible = feasible
+			if feasible {
+				state.Status = StatusUnexplored
+			} else {
+				state.Status = StatusProvenImpossible
+			}
+		}
+
+		positions[pos] = state
+	}
+
+	return &TeamRareSearch{
+		TeamID:              teamID,
+		Positions:           positions,
+		NormalMeanRank:      normalMeanRank,
+		Has100PercentNormal: has100Percent,
+	}
+}
+
+func discoverFrontier(teamSearch *TeamRareSearch) []*FrontierCandidate {
+	numPositions := len(teamSearch.Positions)
+
+	knownSet := make(map[int]bool)
+	minKnown := numPositions
+	maxKnown := -1
+
+	for pos, st := range teamSearch.Positions {
+		if st.Status == StatusObserved || st.Status == StatusPromising || st.Status == StatusResolved {
+			knownSet[pos] = true
+			if pos < minKnown {
+				minKnown = pos
+			}
+			if pos > maxKnown {
+				maxKnown = pos
+			}
+		}
+	}
+
+	if len(knownSet) == 0 {
+		return nil
+	}
+
+	var candidates []*FrontierCandidate
+
+	for pos, st := range teamSearch.Positions {
+		if st.Status != StatusUnexplored || !st.Feasible {
+			continue
+		}
+
+		isAdjacent := (pos > 0 && knownSet[pos-1]) || (pos < numPositions-1 && knownSet[pos+1])
+		isGap := pos > minKnown && pos < maxKnown
+
+		if isAdjacent || isGap {
+			st.Status = StatusFrontier
+
+			dir := RareBetter
+			if float64(pos) > teamSearch.NormalMeanRank {
+				dir = RareWorse
+			}
+
+			priority := 10
+			if teamSearch.Has100PercentNormal {
+				priority += 100
+			}
+			if isGap {
+				priority += 50
+			}
+			if isAdjacent {
+				priority += 30
+			}
+
+			candidates = append(candidates, &FrontierCandidate{
+				TeamID:      teamSearch.TeamID,
+				Position:    pos,
+				Direction:   dir,
+				Priority:    priority,
+				SearchState: st,
+			})
+		}
+	}
+
+	sort.Slice(candidates, func(i, j int) bool {
+		return candidates[i].Priority > candidates[j].Priority
+	})
+
+	return candidates
+}
+
+func buildSearchProposalForLevel(
+	games []*GameType,
+	targetTeamID int,
+	direction RareDirection,
+	targetRank int,
+	level int,
+	normalMeanRanks map[int]float64,
+	originalMeans []GameProposalMeans,
+) SearchProposal {
+	strengths := getStrengthDefinitions(direction)
+	sMap := make(map[int]StrengthDefinition, len(strengths))
+	for _, s := range strengths {
+		sMap[s.Level] = s
+	}
+
+	bestDef := sMap[level]
+	bestCfg := buildSingleProposalConfig(games, targetTeamID, direction, targetRank, bestDef, normalMeanRanks)
+
+	weakerLvl := level - 1
+	if weakerLvl < 0 {
+		weakerLvl = level
+	}
+	weakerDef := sMap[weakerLvl]
+	weakerCfg := buildSingleProposalConfig(games, targetTeamID, direction, targetRank, weakerDef, normalMeanRanks)
+
+	strongerLvl := level + 1
+	if strongerLvl > 5 {
+		strongerLvl = level
+	}
+	strongerDef := sMap[strongerLvl]
+	strongerCfg := buildSingleProposalConfig(games, targetTeamID, direction, targetRank, strongerDef, normalMeanRanks)
+
+	comps := []ProposalComponent{
+		{
+			Name:          "original",
+			Weight:        0.05,
+			Means:         originalMeans,
+			RelevantTeams: nil,
+			TargetRank:    -1,
+		},
+		{
+			Name:          "weaker_" + weakerCfg.Name,
+			Weight:        0.20,
+			Means:         weakerCfg.Means,
+			RelevantTeams: weakerCfg.RelevantTeams,
+			TargetRank:    targetRank,
+		},
+		{
+			Name:          "best_" + bestCfg.Name,
+			Weight:        0.50,
+			Means:         bestCfg.Means,
+			RelevantTeams: bestCfg.RelevantTeams,
+			TargetRank:    targetRank,
+		},
+		{
+			Name:          "stronger_" + strongerCfg.Name,
+			Weight:        0.25,
+			Means:         strongerCfg.Means,
+			RelevantTeams: strongerCfg.RelevantTeams,
+			TargetRank:    targetRank,
+		},
+	}
+
+	validateProposalMixture(comps, len(games))
+
+	return SearchProposal{
+		Name:          fmt.Sprintf("%s_lvl%d_rank%d", bestDef.Name, level, targetRank),
+		Direction:     direction,
+		StrengthLevel: level,
+		TargetRank:    targetRank,
+		Components:    comps,
+	}
+}
+
+func evaluateFrontierCandidate(
+	candidate *FrontierCandidate,
+	campaign []*TeamCampaign,
+	games []*GameType,
+	table *Table,
+	sortOrder []SortType,
+	teamGroups []TeamType,
+	originalMeans []GameProposalMeans,
+	normalMeanRanks map[int]float64,
+	rng *rand.Rand,
+	groupID int,
+	unplayedGames int,
+	remainingWork int64,
+) int64 {
+	st := candidate.SearchState
+	targetTeamID := candidate.TeamID
+	pos := candidate.Position
+	direction := candidate.Direction
+
+	samplesPerLevel := 80
+	singleRunWork := estimateSeasonWork(unplayedGames, 1, len(teamGroups))
+
+	strengths := getStrengthDefinitions(direction)
+	var testedConfigs []ProposalConfig
+
+	for _, sDef := range strengths {
+		if sDef.Level == 0 {
+			continue
+		}
+		cfg := buildSingleProposalConfig(games, targetTeamID, direction, pos, sDef, normalMeanRanks)
+		testedConfigs = append(testedConfigs, cfg)
+	}
+
+	neededWork := int64(len(testedConfigs)*samplesPerLevel) * singleRunWork
+	if neededWork > remainingWork {
+		if len(testedConfigs) == 0 {
+			return 0
+		}
+		maxTotalSamples := remainingWork / singleRunWork
+		samplesPerLevel = int(maxTotalSamples / int64(len(testedConfigs)))
+		if samplesPerLevel < 10 {
+			st.Status = StatusExhausted
+			return 0
+		}
+	}
+
+	pilotResults := runRareProposalPilot(
+		campaign, games, table, sortOrder, teamGroups,
+		targetTeamID, direction, []int{pos}, testedConfigs,
+		samplesPerLevel, rng, groupID,
+	)
+
+	workSpent := int64(len(testedConfigs)*samplesPerLevel) * singleRunWork
+	st.SearchWorkSpent += workSpent
+
+	bestScore := -999.0
+	bestIdx := -1
+
+	for i, res := range pilotResults {
+		if res.CandidateHits > 0 && res.Score > bestScore {
+			bestScore = res.Score
+			bestIdx = i
+		}
+	}
+
+	if bestIdx >= 0 {
+		bestRes := pilotResults[bestIdx]
+		bestLevel := bestRes.Config.StrengthLevel
+
+		proposal := buildSearchProposalForLevel(
+			games, targetTeamID, direction, pos, bestLevel, normalMeanRanks, originalMeans,
+		)
+
+		st.Status = StatusPromising
+		st.BestProposal = &proposal
+		st.BestCandidateHits = bestRes.CandidateHits
+		st.BestOvershootHits = bestRes.OvershootHits
+		st.BestScore = bestRes.Score
+	} else {
+		st.Status = StatusExhausted
+	}
+
+	return workSpent
+}
+
 func searchAndMergeRarePositions(
 	group *GroupType,
 	campaign []*TeamCampaign,
@@ -1268,10 +1284,20 @@ func searchAndMergeRarePositions(
 					continue
 				}
 
+				var teamCandidatePositions []int
+				for p, pSt := range teamSearches[cand.TeamID].Positions {
+					if pSt.Status == StatusFrontier || pSt.Status == StatusUnexplored || pSt.Status == StatusPromising {
+						teamCandidatePositions = append(teamCandidatePositions, p)
+					}
+				}
+				if len(teamCandidatePositions) == 0 {
+					teamCandidatePositions = []int{cand.Position}
+				}
+
 				job := &RareSimulationJob{
 					TeamID:             cand.TeamID,
 					Direction:          cand.Direction,
-					CandidatePositions: []int{cand.Position},
+					CandidatePositions: teamCandidatePositions,
 					Components:         st.BestProposal.Components,
 					Iterations:         targetSamples,
 				}
@@ -1285,26 +1311,30 @@ func searchAndMergeRarePositions(
 				remainingWork -= prodWorkSpent
 				st.ProductionWorkSpent += prodWorkSpent
 
-				if est, ok := jobEstimates[cand.Position]; ok && est.Found && est.Probability >= MinInterestingProbability {
-					st.Status = StatusResolved
-					st.ProductionEstimate = &ProductionEstimate{
-						Probability: est.Probability,
-						StdErr:      est.StdErr,
-						Samples:     est.Samples,
-						Hits:        est.Hits,
-						ESS:         est.ESS,
-						Found:       true,
-						WorkSpent:   prodWorkSpent,
+				for p, est := range jobEstimates {
+					pState := teamSearches[cand.TeamID].Positions[p]
+					if est.Found {
+						if est.Probability >= MinInterestingProbability {
+							pState.Status = StatusResolved
+							pState.ProductionEstimate = &ProductionEstimate{
+								Probability: est.Probability,
+								StdErr:      est.StdErr,
+								Samples:     est.Samples,
+								Hits:        est.Hits,
+								ESS:         est.ESS,
+								Found:       true,
+								WorkSpent:   prodWorkSpent,
+							}
+							if teamRareEstimates[cand.TeamID] == nil {
+								teamRareEstimates[cand.TeamID] = make(map[int]RarePositionEstimate)
+							}
+							teamRareEstimates[cand.TeamID][p] = est
+						} else {
+							pState.Status = StatusBelowInterest
+						}
+					} else if p == cand.Position {
+						pState.Status = StatusExhausted
 					}
-
-					if teamRareEstimates[cand.TeamID] == nil {
-						teamRareEstimates[cand.TeamID] = make(map[int]RarePositionEstimate)
-					}
-					teamRareEstimates[cand.TeamID][cand.Position] = est
-				} else if est, ok := jobEstimates[cand.Position]; ok && est.Found && est.Probability < MinInterestingProbability {
-					st.Status = StatusBelowInterest
-				} else {
-					st.Status = StatusExhausted
 				}
 			}
 		}
@@ -1399,13 +1429,6 @@ type RareSimulationJob struct {
 	Iterations           int
 	Priority             int
 }
-
-const (
-	NormalIterations    = 10000
-	MaxRareIterations   = 100000
-	MinIterationsPerJob = 2500
-	MaxIterationsPerJob = 7500
-)
 
 func simulateTargetTeamRankAndWeightMulti(
 	baseCampaign []*TeamCampaign,
@@ -1507,7 +1530,7 @@ const (
 
 func rareEstimateUsable(est RarePositionEstimate) bool {
 	if est.Hits == 0 ||
-		est.Probability < MinInterestingProbability ||
+		est.Probability <= 0 ||
 		math.IsNaN(est.Probability) ||
 		math.IsInf(est.Probability, 0) {
 		return false
