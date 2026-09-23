@@ -420,44 +420,52 @@ func TestMultiPositionSharing(t *testing.T) {
 	}
 }
 
-func TestPilotSelectionScoring(t *testing.T) {
-	s1 := scorePilotProposal(0.20, 0.01, 2)
-	s2 := scorePilotProposal(0.20, 0.30, 4)
-
-	if s1 <= s2 {
-		t.Errorf("expected scorePilotProposal for moderate candidate rate with low overshoot (%f) to exceed overshooting score (%f)", s1, s2)
+func TestWeightedPilotSelectionUsesESSPerWork(t *testing.T) {
+	a := &WeightedPilotResult{Proposal: SearchProposal{StrengthLevel: 3}, Refined: true,
+		Hits: 30, ESS: 1.2, WorkSpent: 1000, ESSPerWork: 0.0012}
+	b := &WeightedPilotResult{Proposal: SearchProposal{StrengthLevel: 4}, Refined: true,
+		Hits: 8, ESS: 4, WorkSpent: 1000, ESSPerWork: 0.004}
+	if got := selectPilotMixture([]*WeightedPilotResult{a, b}); got != b {
+		t.Fatal("higher weighted ESS/work must beat more raw hits")
+	}
+	oneHit := &WeightedPilotResult{Proposal: SearchProposal{StrengthLevel: 1}, Refined: true,
+		Hits: 1, ESS: 1, WorkSpent: 1000, ESSPerWork: 0.001}
+	if got := selectPilotMixture([]*WeightedPilotResult{oneHit}); got != nil {
+		t.Fatal("one effective event cannot qualify for production")
 	}
 }
 
-func TestWeakestUsefulPilot(t *testing.T) {
-	for _, tc := range []struct {
-		name  string
-		rates []float64
-		want  int
-	}{
-		{"first useful", []float64{0, 0, 0.01, 0.05, 0.10}, 2},
-		{"more hits do not win", []float64{0, 0, 0.015, 0.04, 0.12}, 2},
-		{"jump over band", []float64{0, 0.002, 0.06, 0.10, 0.15}, 2},
-		{"difficult fallback", []float64{0, 0, 0, 0.001, 0.003}, 4},
-		{"no hits", []float64{0, 0, 0, 0, 0}, -1},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			results := make([]PilotProposalResult, len(tc.rates))
-			for i, rate := range tc.rates {
-				results[i] = PilotProposalResult{
-					Config:        ProposalConfig{StrengthLevel: i + 1},
-					Samples:       1000,
-					CandidateHits: int(rate * 1000),
-					CandidateRate: rate,
-				}
-			}
-			if got := selectWeakestUsefulPilot(results); got != tc.want {
-				t.Fatalf("selected index %d, want %d", got, tc.want)
-			}
-		})
+func TestPilotShortlistAndTieBreaks(t *testing.T) {
+	results := []*WeightedPilotResult{
+		{Proposal: SearchProposal{StrengthLevel: 1}, Hits: 0},
+		{Proposal: SearchProposal{StrengthLevel: 2}, Hits: 1, SumY: 1, ESSPerWork: 0.01},
+		{Proposal: SearchProposal{StrengthLevel: 3}, Hits: 3, SumY: 1, ESSPerWork: 0.004},
+		{Proposal: SearchProposal{StrengthLevel: 4}, Hits: 4, SumY: 1, ESSPerWork: 0.005},
+		{Proposal: SearchProposal{StrengthLevel: 5}, Hits: 0},
+	}
+	shortlist := shortlistPilotMixtures(results)
+	if len(shortlist) != 2 || shortlist[0] != results[3] || shortlist[1] != results[2] {
+		t.Fatalf("only the two best multi-hit pilots should be refined: %+v", shortlist)
+	}
+	a := &WeightedPilotResult{Proposal: SearchProposal{StrengthLevel: 4}, Refined: true,
+		Hits: 5, ESS: 3, ESSPerWork: 0.003, MaxEventWeightShare: 0.6}
+	b := &WeightedPilotResult{Proposal: SearchProposal{StrengthLevel: 3}, Refined: true,
+		Hits: 4, ESS: 3, ESSPerWork: 0.003, MaxEventWeightShare: 0.4}
+	if selectPilotMixture([]*WeightedPilotResult{a, b}) != b {
+		t.Fatal("lower weight dominance must break equal ESS/work")
+	}
+	a.MaxEventWeightShare = b.MaxEventWeightShare
+	if selectPilotMixture([]*WeightedPilotResult{a, b}) != b {
+		t.Fatal("weaker level must break equal ESS/work and dominance")
 	}
 }
 
+func TestProjectedProductionWork(t *testing.T) {
+	pilot := &WeightedPilotResult{ESS: 3, WorkSpent: 1000}
+	if got := projectedWorkForESS(pilot); got != 6250 {
+		t.Fatalf("projected work = %d, want 6250", got)
+	}
+}
 func TestEdgeProductionMixturesUseDistinctLevels(t *testing.T) {
 	games := []*GameType{{Id: 1, HomeId: 1, AwayId: 2, HomePower: 1, AwayPower: 1}}
 	original := []GameProposalMeans{{Home: 1, Away: 1}}
@@ -487,57 +495,151 @@ func TestEdgeProductionMixturesUseDistinctLevels(t *testing.T) {
 	}
 }
 
-func TestProductionPlanningWaitsForPilotsAndPrioritizesWeakProposal(t *testing.T) {
-	weak := &FrontierCandidate{TeamID: 1, Position: 0, Priority: 40,
-		SearchState: &PositionSearchState{Status: StatusPromising, BestProposal: &SearchProposal{StrengthLevel: 3}, BestPilotRate: 0.01}}
-	strong := &FrontierCandidate{TeamID: 2, Position: 1, Priority: 40,
-		SearchState: &PositionSearchState{Status: StatusFrontier, BestProposal: &SearchProposal{StrengthLevel: 5}, BestPilotRate: 0.08}}
-	candidates := []*FrontierCandidate{strong, weak}
-	if allocations := planProductionAllocations(candidates, 30000, 1); len(allocations) != 0 {
-		t.Fatal("production allocated before every frontier candidate was piloted")
+func TestGlobalProductionPlanning(t *testing.T) {
+	pilot := &WeightedPilotResult{ESS: 3, WorkSpent: 1000, ESSPerWork: 0.003}
+	a := ProductionPlan{Candidate: &FrontierCandidate{TeamID: 1, Position: 0, Priority: 40},
+		Pilot: pilot, ProjectedWork: 5000, ProjectedSamples: 5000}
+	b := ProductionPlan{Candidate: &FrontierCandidate{TeamID: 2, Position: 1, Priority: 40},
+		Pilot: pilot, ProjectedWork: 20000, ProjectedSamples: 20000}
+	allocations := planProductionAllocations([]ProductionPlan{b, a}, 25000, 1)
+	if len(allocations) != 2 || allocations[0].Plan.Candidate != a.Candidate {
+		t.Fatalf("cheaper target must be first: %+v", allocations)
 	}
-	strong.SearchState.Status = StatusPromising
-	if productionPriority(weak) <= productionPriority(strong) {
-		t.Fatal("weak useful proposal must outrank strong high-hit proposal")
+	b.Critical100 = true
+	allocations = planProductionAllocations([]ProductionPlan{a, b}, 25000, 1)
+	if len(allocations) != 2 || allocations[0].Plan.Candidate != b.Candidate {
+		t.Fatalf("100%% alternative must be first: %+v", allocations)
 	}
-	allocations := planProductionAllocations(candidates, 30000, 1)
-	if len(allocations) != 2 || allocations[0].Candidate != weak || allocations[0].Samples <= allocations[1].Samples {
-		t.Fatalf("unexpected allocations: %+v", allocations)
+}
+
+func TestHundredPercentAlternativeBecomesCriticalPlan(t *testing.T) {
+	pilot := &WeightedPilotResult{ESS: 3, WorkSpent: 1000, ESSPerWork: 0.003}
+	candidate := &FrontierCandidate{TeamID: 7, Position: 1,
+		SearchState: &PositionSearchState{Status: StatusPromising, BestPilot: pilot}}
+	searches := map[int]*TeamRareSearch{7: {Has100PercentNormal: true}}
+	plans := buildProductionPlans([]*FrontierCandidate{candidate}, 1, searches)
+	if len(plans) != 1 || !plans[0].Critical100 {
+		t.Fatalf("feasible alternative to apparent 100%% rank must be critical: %+v", plans)
+	}
+}
+
+func TestProductionPlannerSkipsHopelessPartialJob(t *testing.T) {
+	pilot := &WeightedPilotResult{ESS: 3, WorkSpent: 1000, ESSPerWork: 0.003}
+	plan := ProductionPlan{Candidate: &FrontierCandidate{TeamID: 1}, Pilot: pilot,
+		ProjectedWork: 5000, ProjectedSamples: 5000}
+	if got := planProductionAllocations([]ProductionPlan{plan}, 1000, 1); len(got) != 0 {
+		t.Fatalf("partial job predicting ESS 3 must be skipped: %+v", got)
+	}
+	got := planProductionAllocations([]ProductionPlan{plan}, 4000, 1)
+	if len(got) != 1 || got[0].Samples != 4000 || got[0].PredictedESS < MinUsableESS {
+		t.Fatalf("useful fixed partial job should be funded: %+v", got)
 	}
 }
 
 func TestProductionPlanningHonorsWorkBudget(t *testing.T) {
-	candidates := []*FrontierCandidate{
-		{TeamID: 1, SearchState: &PositionSearchState{Status: StatusPromising, BestProposal: &SearchProposal{StrengthLevel: 3}, BestPilotRate: 0.01}},
-		{TeamID: 2, SearchState: &PositionSearchState{Status: StatusPromising, BestProposal: &SearchProposal{StrengthLevel: 4}, BestPilotRate: 0.02}},
+	pilot := &WeightedPilotResult{ESS: 3, WorkSpent: 1000, ESSPerWork: 0.003}
+	plans := []ProductionPlan{
+		{Candidate: &FrontierCandidate{TeamID: 1}, Pilot: pilot, ProjectedWork: 9000, ProjectedSamples: 3000},
+		{Candidate: &FrontierCandidate{TeamID: 2}, Pilot: pilot, ProjectedWork: 9000, ProjectedSamples: 3000},
 	}
-	const workLimit int64 = 12501
-	const workPerSample int64 = 3
-	allocations := planProductionAllocations(candidates, workLimit, workPerSample)
-	remaining := workLimit
+	const limit int64 = 12501
+	allocations := planProductionAllocations(plans, limit, 3)
+	var spent int64
 	for _, allocation := range allocations {
-		actual := affordableSamples(allocation.Samples, remaining, workPerSample)
-		remaining -= int64(actual) * workPerSample
+		spent += allocation.Work
+		if allocation.Work != int64(allocation.Samples)*3 {
+			t.Fatal("allocation work and sample count disagree")
+		}
 	}
-	if remaining < 0 || workLimit-remaining > workLimit {
-		t.Fatalf("budget exceeded: remaining=%d limit=%d", remaining, workLimit)
+	if spent > limit || limit-spent < 0 {
+		t.Fatalf("budget exceeded: spent=%d limit=%d", spent, limit)
 	}
-	if got := affordableSamples(2000, 7, workPerSample); got != 2 {
-		t.Fatalf("final action should truncate to 2 affordable samples, got %d", got)
-	}
-}
-
-func TestDifficultCandidateGetsOnlyInitialProductionAllocation(t *testing.T) {
-	candidate := &FrontierCandidate{TeamID: 1, SearchState: &PositionSearchState{
-		Status: StatusPromising, BestProposal: &SearchProposal{StrengthLevel: 5},
-		BestPilotRate: 0.003, Difficult: true,
-	}}
-	allocations := planProductionAllocations([]*FrontierCandidate{candidate}, 50000, 1)
-	if len(allocations) != 1 || allocations[0].Samples != 2000 {
-		t.Fatalf("difficult candidate should get only a small run, got %+v", allocations)
+	if got := affordableSamples(2000, 7, 3); got != 2 {
+		t.Fatalf("last action must truncate to 2 samples, got %d", got)
 	}
 }
 
+func TestMinimumPilotSizeSkipsUnfundedCandidate(t *testing.T) {
+	candidate := &FrontierCandidate{TeamID: 1, Position: 0,
+		SearchState: &PositionSearchState{Status: StatusFrontier}}
+	group := &GroupType{Id: 1, Team_groups: []TeamType{{Team_id: 1}, {Team_id: 2}}}
+	remaining := int64(2999)
+	pilotBudget := remaining
+	eligible, spent := runWeightedPilotRound(
+		[]*FrontierCandidate{candidate}, group, nil, nil, nil, nil, nil,
+		6, &remaining, &pilotBudget, rand.New(rand.NewSource(1)),
+	)
+	if len(eligible) != 0 || spent != 0 || remaining != 2999 || candidate.SearchState.Status != StatusUnexplored {
+		t.Fatalf("pilot below 100 samples per level must be skipped: eligible=%d spent=%d remaining=%d status=%s",
+			len(eligible), spent, remaining, candidate.SearchState.Status)
+	}
+}
+
+func TestWeightedPilotRoundRefinesAtMostTwoLevels(t *testing.T) {
+	groups := []TeamType{{Team_id: 1, Bias: 0}, {Team_id: 2, Bias: 1}}
+	table := NewTable([]uint32{1, 2})
+	campaign := []*TeamCampaign{
+		{id: 1, points_win: 3, points_draw: 1, bias: 0},
+		{id: 2, points_win: 3, points_draw: 1, bias: 1},
+	}
+	game := &GameType{Id: 1, HomeId: 1, AwayId: 2, HomePower: 1, AwayPower: 1,
+		home_table_index: table.Query(1), away_table_index: table.Query(2)}
+	group := &GroupType{Id: 1, Games: []*GameType{game}, Team_groups: groups}
+	candidate := &FrontierCandidate{TeamID: 1, Position: 0, Direction: RareBetter,
+		SearchState: &PositionSearchState{Status: StatusFrontier}}
+	remaining, pilotBudget := int64(100000), int64(25000)
+	workPerSample := estimateSeasonWork(1, 4, 2)
+	_, spent := runWeightedPilotRound([]*FrontierCandidate{candidate}, group, campaign, table,
+		[]SortType{PT, GD, GF, BIAS}, []GameProposalMeans{{Home: 1, Away: 1}},
+		map[int]float64{1: 0.5, 2: 0.5}, workPerSample, &remaining, &pilotBudget,
+		rand.New(rand.NewSource(21)))
+	if len(candidate.SearchState.Pilots) != 5 {
+		t.Fatalf("expected five initial mixtures, got %d", len(candidate.SearchState.Pilots))
+	}
+	refined := 0
+	for _, pilot := range candidate.SearchState.Pilots {
+		if pilot.Refined {
+			refined++
+			if pilot.Samples != RefinedPilotSamplesPerLevel {
+				t.Fatalf("refined pilot has %d samples", pilot.Samples)
+			}
+		} else if pilot.Samples != InitialPilotSamplesPerLevel {
+			t.Fatalf("unrefined pilot consumed %d samples", pilot.Samples)
+		}
+	}
+	if refined != 2 || spent > 25000 || remaining != 100000-spent || pilotBudget != 25000-spent {
+		t.Fatalf("unexpected refinement or work accounting: refined=%d spent=%d remaining=%d pilot=%d",
+			refined, spent, remaining, pilotBudget)
+	}
+}
+
+func TestFrontierExpandsOnlyAfterResolution(t *testing.T) {
+	search := &TeamRareSearch{TeamID: 1, NormalMeanRank: 0,
+		Positions: []*PositionSearchState{
+			{Position: 0, Status: StatusObserved, Feasible: true},
+			{Position: 1, Status: StatusUnexplored, Feasible: true},
+			{Position: 2, Status: StatusUnexplored, Feasible: true},
+		}}
+	first := discoverFrontier(search)
+	if len(first) != 1 || first[0].Position != 1 {
+		t.Fatalf("expected initial border at position 1, got %+v", first)
+	}
+	search.Positions[1].Status = StatusPromising
+	if next := discoverFrontier(search); len(next) != 0 {
+		t.Fatalf("unresolved pilot must not expand frontier: %+v", next)
+	}
+	search.Positions[1].Status = StatusResolved
+	next := discoverFrontier(search)
+	if len(next) != 1 || next[0].Position != 2 {
+		t.Fatalf("resolved border should expose one adjacent position: %+v", next)
+	}
+	if shouldRunFrontierRound(1, 0, 10000, 10000, 6) ||
+		!shouldRunFrontierRound(1, 1, 10000, 10000, 6) ||
+		shouldRunFrontierRound(2, 1, 10000, 10000, 6) ||
+		shouldRunFrontierRound(1, 1, 2999, 10000, 6) {
+		t.Fatal("only one funded expansion round may follow a useful resolution")
+	}
+}
 func TestExactVeryRareProbabilityIsNotExplicitlyMerged(t *testing.T) {
 	// Independent one-game Poisson reference for an extreme underdog win.
 	hMean, aMean := 0.001, 6.0
@@ -558,6 +660,74 @@ func TestExactVeryRareProbabilityIsNotExplicitlyMerged(t *testing.T) {
 	)
 	if merged[0] != 0 || merged[1] != 1 {
 		t.Fatalf("below-interest estimate should not become explicit odds: %v", merged)
+	}
+}
+
+func TestWeightedPilotPrefersEfficientSyntheticRareEventMixture(t *testing.T) {
+	hMean, aMean := 0.05, 5.0
+	exact := 0.0
+	for h := 1; h <= 20; h++ {
+		for a := 0; a < h; a++ {
+			exact += poisson_pmf(hMean, float64(h)) * poisson_pmf(aMean, float64(a))
+		}
+	}
+	if exact < 1e-4 || exact > 1e-3 {
+		t.Fatalf("fixture should be moderately rare, got %g", exact)
+	}
+	groups := []TeamType{{Team_id: 1, Bias: 0}, {Team_id: 2, Bias: 1}}
+	table := NewTable([]uint32{1, 2})
+	campaign := []*TeamCampaign{
+		{id: 1, points_win: 3, points_draw: 1, bias: 0},
+		{id: 2, points_win: 3, points_draw: 1, bias: 1},
+	}
+	games := []*GameType{{Id: 1, HomeId: 1, AwayId: 2, HomePower: hMean,
+		AwayPower: aMean, home_table_index: table.Query(1), away_table_index: table.Query(2)}}
+	original := []GameProposalMeans{{Home: hMean, Away: aMean}}
+	makeMixture := func(name string, means [3]GameProposalMeans) []ProposalComponent {
+		return []ProposalComponent{
+			{Name: "original", Weight: OriginalMixtureWeight, Means: original},
+			{Name: name + "_1", Weight: 0.20, Means: []GameProposalMeans{means[0]}},
+			{Name: name + "_2", Weight: 0.50, Means: []GameProposalMeans{means[1]}},
+			{Name: name + "_3", Weight: 0.25, Means: []GameProposalMeans{means[2]}},
+		}
+	}
+	moderate := &WeightedPilotResult{Proposal: SearchProposal{StrengthLevel: 2,
+		Components: makeMixture("moderate", [3]GameProposalMeans{{0.2, 3}, {0.5, 2}, {1, 2}})}}
+	aggressive := &WeightedPilotResult{Proposal: SearchProposal{StrengthLevel: 5,
+		Components: makeMixture("aggressive", [3]GameProposalMeans{{4, 0.5}, {8, 0.1}, {12, 0.01}})}}
+	order := []SortType{PT, GD, GF, BIAS}
+	workPerSample := estimateSeasonWork(1, 4, 2)
+	for i, pilot := range []*WeightedPilotResult{moderate, aggressive} {
+		pilot.Refined = true
+		evaluateWeightedPilot(pilot, campaign, games, original, table, order, groups,
+			1, 0, 800, workPerSample, rand.New(rand.NewSource(int64(100+i))), 1)
+	}
+	if moderate.Hits < MinPilotHitsForProduction || moderate.ESS < MinPilotESSForProduction {
+		t.Fatalf("moderate pilot lacked evidence: hits=%d ESS=%f", moderate.Hits, moderate.ESS)
+	}
+	if selected := selectPilotMixture([]*WeightedPilotResult{aggressive, moderate}); selected != moderate {
+		t.Fatalf("weighted pilot selected aggressive mixture: moderate ESS=%f aggressive ESS=%f",
+			moderate.ESS, aggressive.ESS)
+	}
+	run := func(pilot *WeightedPilotResult, seed int64) RarePositionEstimate {
+		job := &RareSimulationJob{TeamID: 1, CandidatePositions: []int{0},
+			Components: pilot.Proposal.Components, Iterations: 20000}
+		results, _ := estimateRarePositionsForJob(campaign, games, original, table, order,
+			groups, job, rand.New(rand.NewSource(seed)), 1)
+		return results[0]
+	}
+	good := run(moderate, 500)
+	bad := run(aggressive, 501)
+	if good.Samples != 20000 || bad.Samples != 20000 || moderate.Samples != 800 {
+		t.Fatal("pilot samples must not enter production estimates")
+	}
+	if math.Abs(good.Probability-exact) > 4*good.StdErr {
+		t.Fatalf("selected mixture p=%g differs from exact p=%g by more than 4 SE=%g",
+			good.Probability, exact, good.StdErr)
+	}
+	if good.ESS <= 2*bad.ESS {
+		t.Fatalf("selected mixture should deliver much more event ESS: selected=%g aggressive=%g",
+			good.ESS, bad.ESS)
 	}
 }
 
