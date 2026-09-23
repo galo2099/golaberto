@@ -233,17 +233,24 @@ func TestCEMRoundHonorsWorkBudgetsAndUsesFreshValidation(t *testing.T) {
 	remaining := limit
 	cemBudget := int64(float64(limit) * MaxCEMWorkFraction)
 	validationBudget := int64(float64(limit) * MaxCEMValidationWorkFraction)
+	confirmationBudget := int64(float64(limit) * MaxCEMConfirmationWorkFraction)
+	explorationBudget := int64(float64(cemBudget) * CEMMaxExplorationFraction)
 	round := runCEMRound([]*FrontierCandidate{candidate}, searches, group, base, table, order,
-		original, &cemBudget, &validationBudget, &remaining, adaptCost, validationCost,
+		original, &cemBudget, &confirmationBudget, &validationBudget, &remaining,
+		&explorationBudget, adaptCost, adaptCost, validationCost, limit,
 		rand.New(rand.NewSource(78)))
 	if round.TargetsAttempted != 1 || round.CEMWork <= 0 ||
 		round.CEMWork > int64(float64(limit)*MaxCEMWorkFraction) || remaining < 0 ||
-		round.ValidationWork > int64(float64(limit)*MaxCEMValidationWorkFraction) {
+		round.ValidationWork > int64(float64(limit)*MaxCEMValidationWorkFraction) ||
+		round.ConfirmationWork > int64(float64(limit)*MaxCEMConfirmationWorkFraction) {
 		t.Fatalf("CEM budget accounting failed: round=%+v remaining=%d", round, remaining)
 	}
 	if round.ValidationWork > 0 && (len(candidate.SearchState.Pilots) != 1 ||
 		candidate.SearchState.Pilots[0].Samples != CEMValidationSamples) {
 		t.Fatalf("validation estimator did not use its fixed fresh sample: %+v", candidate.SearchState.Pilots)
+	}
+	if round.ValidationAttempts > 0 && round.ConfirmationSuccesses == 0 {
+		t.Fatal("mixture validation ran without successful independent confirmation")
 	}
 }
 
@@ -285,7 +292,7 @@ func TestCEMSchedulerGivesEveryCandidateFairnessBatchFirst(t *testing.T) {
 	states, searches := cemSchedulerFixture(4)
 	remaining := 5
 	var order []int
-	runCEMAdaptiveSchedule(states, searches, func() bool { return remaining > 0 },
+	runCEMAdaptiveSchedule(states, searches, func() bool { return remaining > 0 }, func() bool { return remaining > 0 },
 		func(state *CEMCandidateState, _ int, reason string) bool {
 			if reason == "initial_fairness" {
 				order = append(order, state.Candidate.TeamID)
@@ -375,6 +382,7 @@ func TestCEMAdaptiveSchedulerCanExceedFourBatchesAndStopWeakCandidate(t *testing
 	spent := 0
 	runCEMAdaptiveSchedule(states, searches,
 		func() bool { return remainingSamples >= CEMMinBatchSamples },
+		func() bool { return remainingSamples >= CEMMinBatchSamples },
 		func(state *CEMCandidateState, _ int, _ string) bool {
 			samples := min(CEMBatchSamples, remainingSamples)
 			remainingSamples -= samples
@@ -408,6 +416,7 @@ func TestCEMAdaptiveSchedulerNeverExceeds5000EquivalentSamples(t *testing.T) {
 	remaining, spent := MaxCEMPlainEquivalentSamples, 0
 	runCEMAdaptiveSchedule(states, searches,
 		func() bool { return remaining >= CEMMinBatchSamples },
+		func() bool { return remaining >= CEMMinBatchSamples },
 		func(state *CEMCandidateState, _ int, _ string) bool {
 			samples := min(CEMBatchSamples, remaining)
 			remaining -= samples
@@ -427,6 +436,110 @@ func TestCEMAdaptiveSchedulerNeverExceeds5000EquivalentSamples(t *testing.T) {
 		if state.Iterations == 0 {
 			t.Fatalf("candidate %d did not receive its fairness batch", i+1)
 		}
+	}
+}
+
+func TestCEMAdmissionCapsInitialCandidatesAndExplorationBudget(t *testing.T) {
+	states, searches := cemSchedulerFixture(12)
+	admitted, excluded := admitCEMCandidates(states, searches, CEMMaxInitialCandidates, 12*CEMBatchSamples)
+	if len(admitted) != 6 || len(excluded) != 6 {
+		t.Fatalf("candidate cap admitted=%d excluded=%d, want 6 and 6", len(admitted), len(excluded))
+	}
+	for i, state := range admitted {
+		if state.Candidate.TeamID != i+1 {
+			t.Fatalf("admission order team=%d at %d; want deterministic team %d", state.Candidate.TeamID, i, i+1)
+		}
+	}
+	admitted, excluded = admitCEMCandidates(states, searches, CEMMaxInitialCandidates, 4*CEMBatchSamples)
+	if len(admitted) != 4 || len(excluded) != 8 {
+		t.Fatalf("exploration budget admitted=%d excluded=%d, want 4 and 8", len(admitted), len(excluded))
+	}
+}
+
+func TestCEMAdmissionRunsEveryInitialBatchBeforeAdaptiveScheduling(t *testing.T) {
+	states, searches := cemSchedulerFixture(12)
+	admitted, excluded := admitCEMCandidates(states, searches, CEMMaxInitialCandidates, 6*CEMBatchSamples)
+	remainingInitial := len(admitted)
+	initialOrder := []int{}
+	adaptiveStarted := false
+	runCEMAdaptiveSchedule(admitted, searches,
+		func() bool { return remainingInitial > 0 },
+		func() bool { return false },
+		func(state *CEMCandidateState, _ int, reason string) bool {
+			if reason != "initial_fairness" {
+				adaptiveStarted = true
+				return false
+			}
+			if adaptiveStarted {
+				t.Fatal("adaptive scheduling started before all initial candidates were piloted")
+			}
+			initialOrder = append(initialOrder, state.Candidate.TeamID)
+			state.Iterations++
+			remainingInitial--
+			return true
+		})
+	if len(initialOrder) != 6 || remainingInitial != 0 {
+		t.Fatalf("initial fairness reached %d candidates with %d remaining", len(initialOrder), remainingInitial)
+	}
+	for _, state := range excluded {
+		if state.Iterations != 0 {
+			t.Fatalf("excluded candidate %d received an initial batch", state.Candidate.TeamID)
+		}
+	}
+}
+
+func TestCEMAdmissionPrefersTeamDiversityOnFirstPass(t *testing.T) {
+	states := make([]*CEMCandidateState, 3)
+	searches := map[int]*TeamRareSearch{}
+	for i := range states {
+		team := 1
+		if i == 2 {
+			team = 2
+		}
+		pos := i + 1
+		positionStates := []*PositionSearchState{{Position: 0, Status: StatusUnexplored},
+			{Position: 1, Status: StatusUnexplored}, {Position: 2, Status: StatusUnexplored},
+			{Position: 3, Status: StatusUnexplored}}
+		positionStates[pos].Status = StatusFrontier
+		candidate := &FrontierCandidate{TeamID: team, Position: pos, SearchState: positionStates[pos]}
+		states[i] = &CEMCandidateState{Candidate: candidate, Active: true}
+		searches[team] = &TeamRareSearch{TeamID: team, Positions: positionStates, NormalMeanRank: 0}
+	}
+	admitted, _ := admitCEMCandidates(states, searches, 2, 2*CEMBatchSamples)
+	if len(admitted) != 2 || admitted[0].Candidate.TeamID != 1 || admitted[1].Candidate.TeamID != 2 {
+		got := []int{}
+		for _, state := range admitted {
+			got = append(got, state.Candidate.TeamID)
+		}
+		t.Fatalf("diverse admission teams=%v, want [1 2]", got)
+	}
+}
+
+func TestCEMConfirmationRequiresIndependentExactEventsAndHealthyWeights(t *testing.T) {
+	acceptable := summarizeCEMConfirmation([]CEMSeason{
+		{Rank: 3, LogWeight: 0}, {Rank: 3, LogWeight: 0}, {Rank: 4, LogWeight: 0},
+	}, 3)
+	if ok, _ := cemConfirmationAccepted(acceptable); !ok || acceptable.Hits != 2 || acceptable.EventESS != 2 {
+		t.Fatalf("balanced repeated events should confirm: stats=%+v", acceptable)
+	}
+	pathological := summarizeCEMConfirmation([]CEMSeason{
+		{Rank: 3, LogWeight: 10}, {Rank: 3, LogWeight: 0}, {Rank: 3, LogWeight: 0},
+	}, 3)
+	if ok, reason := cemConfirmationAccepted(pathological); ok || reason != "pathological_event_weights" || pathological.MaxEventWeightShare <= 0.95 {
+		t.Fatalf("concentrated event weight should reject: stats=%+v reason=%q", pathological, reason)
+	}
+	oneHit := summarizeCEMConfirmation([]CEMSeason{{Rank: 3, LogWeight: 0}}, 3)
+	if ok, _ := cemConfirmationAccepted(oneHit); ok {
+		t.Fatal("one confirmation hit must not validate")
+	}
+}
+
+func TestCEMConfirmationSummaryKeepsExactPOverQWeights(t *testing.T) {
+	stats := summarizeCEMConfirmation([]CEMSeason{{Rank: 2, LogWeight: math.Log(0.25)},
+		{Rank: 1, LogWeight: 0}, {Rank: 2, LogWeight: math.Log(0.75)}}, 2)
+	want := (0.25 + 0.75) / 3
+	if math.Abs(stats.Probability-want) > 1e-12 {
+		t.Fatalf("confirmation p-hat=%g, want direct P/Q estimate %g", stats.Probability, want)
 	}
 }
 

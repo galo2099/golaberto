@@ -1220,8 +1220,11 @@ func searchAndMergeRarePositions(
 	if cap := int64(MaxCEMPlainEquivalentSamples) * estimateSeasonWork(unplayedGames, 1, numTeams); cemWorkRemaining > cap {
 		cemWorkRemaining = cap
 	}
+	cemExplorationWorkRemaining := int64(float64(cemWorkRemaining) * CEMMaxExplorationFraction)
 	validationWorkRemaining := int64(float64(totalWorkLimit) * MaxCEMValidationWorkFraction)
 	adaptWorkPerSample := estimateSeasonWork(unplayedGames, 1, numTeams)
+	confirmationWorkRemaining := int64(float64(totalWorkLimit) * MaxCEMConfirmationWorkFraction)
+	confirmationWorkPerSample := estimateSeasonWork(unplayedGames, 1, numTeams)
 	workPerSample := estimateSeasonWork(unplayedGames, 2, numTeams)
 
 	originalMeans := make([]GameProposalMeans, len(group.Games))
@@ -1244,8 +1247,12 @@ func searchAndMergeRarePositions(
 	}
 
 	teamRareEstimates := make(map[int]map[int]RarePositionEstimate)
-	var cemWork, validationWork, productionWork, expansionWork int64
+	var cemWork, confirmationWork, validationWork, productionWork, expansionWork int64
 	var cemTargets, cemIterations, targetsAnyExact, targetsExactElite, targetsValidated int
+	var cemCandidatesTotal, cemCandidatesAdmitted, cemCandidatesNotAdmitted int
+	var cemExplorationSamples, cemAdaptiveSamples int
+	var confirmationAttempts, confirmationSuccesses, confirmationFailures int
+	var validationAttempts, validationSuccesses int
 	var changedTeams, maxChangedTeams int
 	var absThetaSum, maxAbsTheta, thetaDeltaL2Sum float64
 	var thetaUpdates, thetaParameterCount int
@@ -1270,13 +1277,25 @@ func searchAndMergeRarePositions(
 			break
 		}
 		cemRound := runCEMRound(candidates, teamSearches, group, campaign, table,
-			sortOrder, originalMeans, &cemWorkRemaining, &validationWorkRemaining,
-			&remainingWork, adaptWorkPerSample, workPerSample, rng)
-		if remainingWork < 0 || cemWorkRemaining < 0 || validationWorkRemaining < 0 {
-			panic("rare-position CEM or validation work budget exceeded")
+			sortOrder, originalMeans, &cemWorkRemaining, &confirmationWorkRemaining,
+			&validationWorkRemaining, &remainingWork, &cemExplorationWorkRemaining, adaptWorkPerSample,
+			confirmationWorkPerSample, workPerSample, totalWorkLimit, rng)
+		if remainingWork < 0 || cemWorkRemaining < 0 || confirmationWorkRemaining < 0 || validationWorkRemaining < 0 {
+			panic("rare-position CEM, confirmation, or validation work budget exceeded")
 		}
 		cemWork += cemRound.CEMWork
+		confirmationWork += cemRound.ConfirmationWork
 		validationWork += cemRound.ValidationWork
+		cemCandidatesTotal += cemRound.CandidatesTotal
+		cemCandidatesAdmitted += cemRound.CandidatesAdmitted
+		cemCandidatesNotAdmitted += cemRound.CandidatesNotAdmitted
+		cemExplorationSamples += cemRound.ExplorationSamples
+		cemAdaptiveSamples += cemRound.AdaptiveSamples
+		confirmationAttempts += cemRound.ConfirmationAttempts
+		confirmationSuccesses += cemRound.ConfirmationSuccesses
+		confirmationFailures += cemRound.ConfirmationFailures
+		validationAttempts += cemRound.ValidationAttempts
+		validationSuccesses += cemRound.ValidationSuccesses
 		cemTargets += cemRound.TargetsAttempted
 		cemIterations += cemRound.Iterations
 		targetsAnyExact += cemRound.TargetsAnyExact
@@ -1440,6 +1459,10 @@ func searchAndMergeRarePositions(
 	if workSpent > totalWorkLimit {
 		panic("rare-position total work budget exceeded")
 	}
+	accountedWork := scoutWork + cemWork + confirmationWork + validationWork + productionWork + fallbackWork
+	if accountedWork > totalWorkLimit || workSpent < accountedWork {
+		panic("rare-position phase work accounting exceeded total budget or omitted tracked work")
+	}
 	combinedCEMValidationEquivalent := float64(cemWork+validationWork) / float64(plainWorkPerSample)
 	validatedESSPerPlainEquivalent := 0.0
 	if validationWork > 0 {
@@ -1473,6 +1496,14 @@ func searchAndMergeRarePositions(
 		float64(validationWork)/float64(plainWorkPerSample),
 		combinedCEMValidationEquivalent, validatedESSPerPlainEquivalent,
 		float64(productionWork)/float64(plainWorkPerSample))
+	log.Printf("rare-position-cem-summary: group=%d cem_candidates_total=%d cem_candidates_admitted=%d cem_candidates_not_admitted=%d cem_exploration_samples=%d cem_adaptive_samples=%d max_batches_single_candidate=%d confirmation_attempts=%d confirmation_successes=%d confirmation_failures=%d confirmation_work=%d confirmation_plain_mc_equiv=%.1f validation_attempts=%d validation_successes=%d validation_work=%d cem_confirmation_validation_plain_mc_equiv=%.1f confirmation_work_per_sample=%d validation_work_per_sample=%d total_work_limit=%d work_spent=%d",
+		group.Id, cemCandidatesTotal, cemCandidatesAdmitted, cemCandidatesNotAdmitted,
+		cemExplorationSamples, cemAdaptiveSamples, maxBatchesSingleCandidate,
+		confirmationAttempts, confirmationSuccesses, confirmationFailures,
+		confirmationWork, float64(confirmationWork)/float64(plainWorkPerSample),
+		validationAttempts, validationSuccesses, validationWork,
+		float64(cemWork+confirmationWork+validationWork)/float64(plainWorkPerSample),
+		confirmationWorkPerSample, workPerSample, totalWorkLimit, workSpent)
 }
 
 type RarePositionEstimate struct {
