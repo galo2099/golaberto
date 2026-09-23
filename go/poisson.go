@@ -687,8 +687,10 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
 			}
 		}
 	}
+	var rarePositionEstimates map[int]map[int]ProductionEstimate
 	if rarePositionSamplingEnabled() {
-		searchAndMergeRarePositions(group, campaign, table, sort_order, normalPositionCounts, team_odds, NUM_ITER)
+		rarePositionEstimates = searchAndMergeRarePositions(group, campaign, table,
+			sort_order, normalPositionCounts, team_odds, NUM_ITER)
 	}
 
 	json_team_odds := make(map[int]*TeamOdds, len(team_odds))
@@ -705,6 +707,9 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
 	result := make(map[string]interface{})
 	result["team_odds"] = json_team_odds
 	result["game_importance"] = importances
+	if rarePositionSamplingEnabled() {
+		result["rare_position_estimates"] = rarePositionEstimates
+	}
 	log.Println("time elapsed", elapsed)
 	log.Println("time elapsed", elapsed2)
 	log.Println("time elapsed", time.Since(start_func))

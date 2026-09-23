@@ -15,18 +15,23 @@ const (
 	CEMSmoothing                        = 0.5
 	CEMMaxKL                            = 3.0
 	CEMExactEventThreshold              = 5
-	CEMValidationSamples                = 500
-	CEMConfirmationChunkSamples         = 300
-	CEMMaxConfirmationChunks            = 3
-	CEMMinAdaptationHitsForConfirmation = 1
-	CEMMinConfirmationHits              = 1
+	CEMValidationSamples                = 500 // legacy-only; not used by active orchestration
+	CEMConfirmationChunkSamples         = 300 // legacy-only; not used by active orchestration
+	CEMMaxConfirmationChunks            = 3   // legacy-only; not used by active orchestration
+	CEMMinAdaptationHitsForConfirmation = 1   // legacy-only; not used by active orchestration
+	CEMMinConfirmationHits              = 1   // legacy-only; not used by active orchestration
 	CEMMaxInitialCandidates             = 6
-	CEMConfirmationMaxEventShare        = 0.95
+	CEMConfirmationMaxEventShare        = 0.95 // legacy-only
 	CEMMaxExplorationFraction           = 0.40
 	MaxCEMWorkFraction                  = 0.10
-	MaxCEMValidationWorkFraction        = 0.02
-	MaxCEMConfirmationWorkFraction      = 0.03
+	MaxCEMEvaluationWorkFraction        = 0.02
+	MaxCEMValidationWorkFraction        = 0.02 // legacy-only
+	MaxCEMConfirmationWorkFraction      = 0.03 // legacy-only
 	MaxCEMPlainEquivalentSamples        = 5000
+	CEMMaxSnapshotsPerCandidate         = 3
+	CEMMaxGlobalSnapshots               = 12
+	CEMMaxEvaluationSnapshots           = 3
+	CEMEvaluationSamplesPerSnapshot     = 300
 	CEMMinEliteESSForUpdate             = 8.0
 	CEMMeaningfulTeamLogShift           = 0.03
 	CEMThetaStabilityThreshold          = 0.02
@@ -80,25 +85,25 @@ type CEMBatchStats struct {
 }
 
 type CEMRoundResult struct {
-	Eligible                         []*FrontierCandidate
 	CEMWork                          int64
-	ValidationWork                   int64
-	ConfirmationWork                 int64
-	ConfirmationAttempts             int
-	ConfirmationChunks               int
-	ConfirmationSamples              int
-	ConfirmationSuccesses            int
-	ConfirmationFailures             int
 	AdaptationExactHitBatches        int
-	ConfirmationReadyCandidates      int
-	ConfirmationSingleHitSuccesses   int
-	ConfirmationMultiHitSuccesses    int
-	ConfirmationFailedResumed        int
-	ConfirmationFailedExhausted      int
-	ConfirmationInconclusiveBudget   int
-	ConfirmationHits                 int
-	ValidationAttempts               int
-	ValidationSuccesses              int
+	Eligible                         []*FrontierCandidate // legacy-only
+	ValidationWork                   int64                // legacy-only
+	ConfirmationWork                 int64                // legacy-only
+	ConfirmationAttempts             int                  // legacy-only
+	ConfirmationChunks               int                  // legacy-only
+	ConfirmationSamples              int                  // legacy-only
+	ConfirmationSuccesses            int                  // legacy-only
+	ConfirmationFailures             int                  // legacy-only
+	ConfirmationReadyCandidates      int                  // legacy-only
+	ConfirmationSingleHitSuccesses   int                  // legacy-only
+	ConfirmationMultiHitSuccesses    int                  // legacy-only
+	ConfirmationFailedResumed        int                  // legacy-only
+	ConfirmationFailedExhausted      int                  // legacy-only
+	ConfirmationInconclusiveBudget   int                  // legacy-only
+	ConfirmationHits                 int                  // legacy-only
+	ValidationAttempts               int                  // legacy-only
+	ValidationSuccesses              int                  // legacy-only
 	CandidatesTotal                  int
 	CandidatesAdmitted               int
 	CandidatesNotAdmitted            int
@@ -108,7 +113,8 @@ type CEMRoundResult struct {
 	Iterations                       int
 	TargetsAnyExact                  int
 	TargetsExactElite                int
-	TargetsValidated                 int
+	TargetsValidated                 int // legacy-only
+	Snapshots                        []CEMProposalSnapshot
 	ChangedTeams                     int
 	MaxChangedTeams                  int
 	AbsThetaSum                      float64
@@ -116,7 +122,7 @@ type CEMRoundResult struct {
 	ThetaParameterCount              int
 	MaxAbsTheta                      float64
 	ThetaDeltaL2Sum                  float64
-	ValidatedESS                     float64
+	ValidatedESS                     float64 // legacy-only
 	SchedulerBatches                 int
 	OneBatchCandidates               int
 	MultiBatchCandidates             int
@@ -131,7 +137,7 @@ type CEMRoundResult struct {
 	HighestNearPosition              int
 	HighestNearBatches               int
 	HighestNearRate                  float64
-	StopValidationReady              int
+	StopValidationReady              int // legacy-only
 	StopStalled                      int
 	StopLowEliteESS                  int
 	StopRegression                   int
@@ -156,10 +162,8 @@ type CEMCandidateState struct {
 	PreviousStats                  CEMBatchStats
 	HasStats                       bool
 	HasBest                        bool
-	ConfirmationAccepted           bool
 	MaxExactHits                   int
 	EverHadExactHit                bool
-	ExactHitPriorityActive         bool
 	ExactEliteSeen                 bool
 	StalledIterations              int
 	RegressionIterations           int
@@ -167,6 +171,10 @@ type CEMCandidateState struct {
 	Active                         bool
 	StopReason                     string
 	ProgressScore                  float64
+	Snapshots                      []CEMProposalSnapshot
+	AdmissionReason                string
+	ConfirmationAccepted           bool // legacy-only; not used by active orchestration
+	ExactHitPriorityActive         bool // legacy-only; not used by active orchestration
 	Confirmation                   CEMConfirmationStats
 	ConfirmationChunks             int
 	ConfirmationSeasons            []CEMSeason
@@ -176,9 +184,9 @@ type CEMCandidateState struct {
 	HasConfirmationCandidate       bool
 	LastFailedConfirmationProposal CEMProposal
 	HasFailedConfirmationProposal  bool
-	AdmissionReason                string
 }
 
+// Legacy helpers remain available to old tests while orchestration migrates.
 type CEMConfirmationStats struct {
 	Samples             int
 	Hits                int
@@ -196,6 +204,33 @@ type CEMConfirmationOutcome struct {
 	Confirmed    bool
 	Failed       bool
 	Inconclusive bool
+}
+
+type CEMProposalSnapshot struct {
+	CandidateTeam     int
+	CandidatePosition int
+	SourceIteration   int
+	Proposal          CEMProposal
+	Stats             CEMBatchStats
+	ExactHits         int
+	SearchScore       float64
+	Reason            string
+}
+
+type CEMProposalEvaluation struct {
+	Snapshot            CEMProposalSnapshot
+	Samples             int
+	Hits                int
+	SumY                float64
+	SumY2               float64
+	Probability         float64
+	StdErr              float64
+	RelSE               float64
+	ESS                 float64
+	ESSPerWork          float64
+	SecondMoment        float64
+	MaxEventWeightShare float64
+	Work                int64
 }
 
 func teamIDsFromGroups(groups []TeamType) []int {
@@ -617,6 +652,11 @@ func buildCEMMixture(original, learned []GameProposalMeans) []ProposalComponent 
 	}
 }
 
+func cemEvaluationMixture(original []GameProposalMeans, snapshot CEMProposalSnapshot) []ProposalComponent {
+	return buildCEMMixture(original, snapshot.Proposal.Means)
+}
+
+// Legacy-only helpers; the active production path uses held-out evaluations.
 func cemValidationMixture(original []GameProposalMeans, state *CEMCandidateState) []ProposalComponent {
 	return buildCEMMixture(original, state.ConfirmationProposal.Means)
 }
@@ -625,17 +665,132 @@ func cemValidationPriority(pilot *WeightedPilotResult) float64 {
 	if pilot == nil || pilot.Samples <= 0 || pilot.Hits <= 0 {
 		return math.Inf(-1)
 	}
-	rate := float64(pilot.Hits) / float64(pilot.Samples)
-	priority := -math.Abs(math.Log(rate / 0.015))
-	if rate >= 0.005 && rate <= 0.03 {
-		priority += 10
-	} else if rate > 0.03 {
-		priority -= 2 * math.Log(rate/0.03)
-	} else {
-		priority -= 2 * math.Log(0.005/rate)
+	return pilot.ESSPerWork
+}
+
+func cemSnapshotBetterForEvaluation(a, b CEMProposalEvaluation) bool {
+	if a.ESSPerWork != b.ESSPerWork {
+		return a.ESSPerWork > b.ESSPerWork
 	}
-	priority += math.Log1p(math.Max(0, pilot.ESSPerWork) * 1e6)
-	return priority
+	if a.MaxEventWeightShare != b.MaxEventWeightShare {
+		return a.MaxEventWeightShare < b.MaxEventWeightShare
+	}
+	if a.RelSE != b.RelSE {
+		return a.RelSE < b.RelSE
+	}
+	if a.Snapshot.ExactHits != b.Snapshot.ExactHits {
+		return a.Snapshot.ExactHits > b.Snapshot.ExactHits
+	}
+	if a.Snapshot.Proposal.KL != b.Snapshot.Proposal.KL {
+		return a.Snapshot.Proposal.KL < b.Snapshot.Proposal.KL
+	}
+	if a.Snapshot.CandidateTeam != b.Snapshot.CandidateTeam {
+		return a.Snapshot.CandidateTeam < b.Snapshot.CandidateTeam
+	}
+	if a.Snapshot.CandidatePosition != b.Snapshot.CandidatePosition {
+		return a.Snapshot.CandidatePosition < b.Snapshot.CandidatePosition
+	}
+	return a.Snapshot.SourceIteration < b.Snapshot.SourceIteration
+}
+
+func cemSnapshotAdaptationBetter(a, b CEMProposalSnapshot) bool {
+	if a.ExactHits != b.ExactHits {
+		return a.ExactHits > b.ExactHits
+	}
+	if a.Stats.NearTargetRate != b.Stats.NearTargetRate {
+		return a.Stats.NearTargetRate > b.Stats.NearTargetRate
+	}
+	if a.Stats.EliteMeanDistance != b.Stats.EliteMeanDistance {
+		return a.Stats.EliteMeanDistance < b.Stats.EliteMeanDistance
+	}
+	if a.Stats.EliteESS != b.Stats.EliteESS {
+		return a.Stats.EliteESS > b.Stats.EliteESS
+	}
+	if a.Proposal.KL != b.Proposal.KL {
+		return a.Proposal.KL < b.Proposal.KL
+	}
+	return a.SourceIteration < b.SourceIteration
+}
+
+func thetaDistanceL2(a, b map[int]float64) float64 {
+	sum := 0.0
+	for teamID, theta := range a {
+		delta := theta - b[teamID]
+		sum += delta * delta
+	}
+	for teamID, theta := range b {
+		if _, ok := a[teamID]; !ok {
+			sum += theta * theta
+		}
+	}
+	return math.Sqrt(sum)
+}
+
+func retainCEMProposalSnapshot(groupID int, state *CEMCandidateState, proposal CEMProposal,
+	stats CEMBatchStats, iteration int, reason string) bool {
+	snapshot := CEMProposalSnapshot{
+		CandidateTeam: state.Candidate.TeamID, CandidatePosition: state.Candidate.Position,
+		SourceIteration: iteration, Proposal: cloneCEMProposal(proposal), Stats: stats,
+		ExactHits: stats.ExactHits, Reason: reason,
+		SearchScore: stats.NearTargetRate*100 - stats.EliteMeanDistance + float64(stats.ExactHits)*10,
+	}
+	nearestDistance := 0.0
+	if len(state.Snapshots) > 0 {
+		nearestDistance = math.Inf(1)
+		for _, previous := range state.Snapshots {
+			nearestDistance = math.Min(nearestDistance, thetaDistanceL2(
+				snapshot.Proposal.TeamLogMultipliers, previous.Proposal.TeamLogMultipliers))
+		}
+	}
+	for i := range state.Snapshots {
+		if thetaDistanceL2(snapshot.Proposal.TeamLogMultipliers,
+			state.Snapshots[i].Proposal.TeamLogMultipliers) < CEMThetaStabilityThreshold {
+			if cemSnapshotAdaptationBetter(snapshot, state.Snapshots[i]) {
+				state.Snapshots[i] = snapshot
+				logCEMSnapshot(groupID, state, snapshot, nearestDistance)
+				return true
+			}
+			return false
+		}
+	}
+	state.Snapshots = append(state.Snapshots, snapshot)
+	sort.Slice(state.Snapshots, func(i, j int) bool {
+		return cemSnapshotAdaptationBetter(state.Snapshots[i], state.Snapshots[j])
+	})
+	if len(state.Snapshots) > CEMMaxSnapshotsPerCandidate {
+		state.Snapshots = state.Snapshots[:CEMMaxSnapshotsPerCandidate]
+	}
+	for _, retained := range state.Snapshots {
+		if retained.SourceIteration == snapshot.SourceIteration {
+			logCEMSnapshot(groupID, state, snapshot, nearestDistance)
+			return true
+		}
+	}
+	return false
+}
+
+// snapshotCEMConfirmationCandidate is retained solely for legacy-only tests.
+func snapshotCEMConfirmationCandidate(state *CEMCandidateState, sampled CEMProposal,
+	stats CEMBatchStats, sourceBatch int) bool {
+	if stats.ExactHits < CEMMinAdaptationHitsForConfirmation || state.HasConfirmationCandidate {
+		return false
+	}
+	state.ConfirmationProposal = cloneCEMProposal(sampled)
+	state.ConfirmationBatchStats = stats
+	state.ConfirmationSourceBatch = sourceBatch
+	state.HasConfirmationCandidate = true
+	state.ConfirmationAccepted = false
+	state.Active = false
+	state.StopReason = "confirmation_ready"
+	return true
+}
+
+func logCEMSnapshot(groupID int, state *CEMCandidateState, snapshot CEMProposalSnapshot, thetaL2 float64) {
+	log.Printf("rare-position-cem-snapshot: group=%d team=%d position=%d source_iteration=%d reason=%s exact_hits=%d near_target_rate=%.5f elite_mean_distance=%.4f elite_ess=%.3f kl=%.4f theta_l2_from_previous_snapshot=%.5f snapshot_count_for_candidate=%d",
+		groupID, snapshot.CandidateTeam, snapshot.CandidatePosition, snapshot.SourceIteration,
+		snapshot.Reason, snapshot.ExactHits, snapshot.Stats.NearTargetRate,
+		snapshot.Stats.EliteMeanDistance, snapshot.Stats.EliteESS, snapshot.Proposal.KL,
+		thetaL2, len(state.Snapshots))
 }
 
 func cemCandidatePriority(candidate *FrontierCandidate, searches map[int]*TeamRareSearch) int {
@@ -730,9 +885,8 @@ func updateCEMProgressScore(state *CEMCandidateState) float64 {
 	if !state.HasStats {
 		return 0
 	}
-	// Prioritize any exact event (+1000), then near-target mass, normalized
-	// best and recent distance progress; repeated stalls and regressions lower
-	// the score. Scores are deterministic, with explicit candidate tie-breaks.
+	// Score current near-target and distance progress. Exact hits inform retained
+	// snapshots but do not monopolize adaptation scheduling.
 	initialDistance := math.Max(1, state.FirstStats.EliteMeanDistance)
 	bestDistanceGain := (state.FirstStats.EliteMeanDistance - state.BestEliteDistance) / initialDistance
 	recentDistanceGain := 0.0
@@ -745,9 +899,6 @@ func updateCEMProgressScore(state *CEMCandidateState) float64 {
 		10*state.LastStats.NearTargetRate + 2*math.Min(1, state.LastStats.EliteESS/30)
 	if state.BestStats.BestRank >= 0 && cemRankDistance(state.BestStats.BestRank, state.Candidate.Position) <= 1 {
 		score += 40
-	}
-	if state.ExactHitPriorityActive {
-		score += 1000 + 10*float64(state.MaxExactHits)
 	}
 	if state.BestNearTargetRate == 0 && state.BestEliteDistance > 1 {
 		score -= 8
@@ -762,8 +913,6 @@ func updateCEMProgressScore(state *CEMCandidateState) float64 {
 
 func cemCandidateStopReason(state *CEMCandidateState) string {
 	switch {
-	case state.HasConfirmationCandidate:
-		return "confirmation_ready"
 	case state.StalledIterations >= CEMMaxStalledIterations:
 		return "stalled"
 	case state.RegressionIterations >= CEMMaxStalledIterations:
@@ -773,38 +922,6 @@ func cemCandidateStopReason(state *CEMCandidateState) string {
 	default:
 		return ""
 	}
-}
-
-func snapshotCEMConfirmationCandidate(state *CEMCandidateState, sampled CEMProposal,
-	stats CEMBatchStats, sourceBatch int) bool {
-	if stats.ExactHits < CEMMinAdaptationHitsForConfirmation {
-		return false
-	}
-	if state.HasFailedConfirmationProposal && sameCEMProposal(sampled, state.LastFailedConfirmationProposal) {
-		return false
-	}
-	state.ConfirmationProposal = cloneCEMProposal(sampled)
-	state.ConfirmationBatchStats = stats
-	state.ConfirmationSourceBatch = sourceBatch
-	state.HasConfirmationCandidate = true
-	state.Confirmation = CEMConfirmationStats{}
-	state.ConfirmationAccepted = false
-	state.ExactHitPriorityActive = true
-	state.Active = false
-	state.StopReason = "confirmation_ready"
-	return true
-}
-
-func sameCEMProposal(a, b CEMProposal) bool {
-	if len(a.TeamLogMultipliers) != len(b.TeamLogMultipliers) {
-		return false
-	}
-	for teamID, theta := range a.TeamLogMultipliers {
-		if b.TeamLogMultipliers[teamID] != theta {
-			return false
-		}
-	}
-	return true
 }
 
 func updateCEMStallCounters(state *CEMCandidateState, stats CEMBatchStats) {
@@ -832,7 +949,7 @@ func updateCEMStallCounters(state *CEMCandidateState, stats CEMBatchStats) {
 func selectCEMCandidate(states []*CEMCandidateState, searches map[int]*TeamRareSearch) *CEMCandidateState {
 	var best *CEMCandidateState
 	for _, state := range states {
-		if !state.Active || state.HasConfirmationCandidate {
+		if !state.Active {
 			continue
 		}
 		if best == nil || state.ProgressScore > best.ProgressScore {
@@ -922,24 +1039,28 @@ func runCEMCandidateBatch(state *CEMCandidateState, group *GroupType, campaign [
 		state.MaxExactHits = stats.ExactHits
 	}
 	state.ExactEliteSeen = state.ExactEliteSeen || exact
-	if stats.ExactHits >= CEMMinAdaptationHitsForConfirmation {
+	if stats.ExactHits > 0 {
 		result.AdaptationExactHitBatches++
 	}
-	newConfirmationCandidate := snapshotCEMConfirmationCandidate(state, sampledProposal, stats, state.Iterations)
-	if newConfirmationCandidate {
-		log.Printf("rare-position-cem-confirmation-ready: group=%d team=%d position=%d source_iteration=%d source_samples=%d source_exact_hits=%d source_exact_rate=%.5f source_near_target_rate=%.5f source_elite_ess=%.3f source_kl=%.4f work_remaining=%d",
-			group.Id, state.Candidate.TeamID, state.Candidate.Position, state.Iterations,
-			samples, stats.ExactHits, stats.ExactRate, stats.NearTargetRate,
-			stats.EliteESS, sampledProposal.KL, *remainingWork)
+	snapshotReason := ""
+	switch {
+	case stats.ExactHits > 0:
+		snapshotReason = "exact_hit"
+	case !state.HasBest || cemSnapshotBetter(stats, sampledProposal, state.BestStats, state.BestProposal, state.HasBest):
+		snapshotReason = "best_snapshot"
+	case stats.NearTargetRate > state.BestNearTargetRate:
+		snapshotReason = "best_near"
+	case stats.EliteMeanDistance < state.BestEliteDistance:
+		snapshotReason = "best_distance"
+	}
+	if snapshotReason != "" {
+		retainCEMProposalSnapshot(group.Id, state, sampledProposal, stats, state.Iterations, snapshotReason)
 	}
 	updated := cemUpdateTeam(sampledProposal, original, group.Games, teamIDs, batch, elite)
 	updated.Iteration = state.Iterations
 	if !updated.UpdateAllowed {
 		state.Active = false
 		state.StopReason = "low_elite_ess"
-		if state.HasConfirmationCandidate {
-			state.StopReason = "confirmation_ready"
-		}
 		state.Proposal.EliteESS = updated.EliteESS
 		log.Printf("rare-position-cem-selection: group=%d team=%d position=%d reason=low_elite_ess elite_ess=%.2f threshold=%.2f",
 			group.Id, state.Candidate.TeamID, state.Candidate.Position, updated.EliteESS, CEMMinEliteESSForUpdate)
@@ -1033,11 +1154,7 @@ func runCEMAdaptiveSchedule(states []*CEMCandidateState, searches map[int]*TeamR
 			return
 		}
 		step++
-		reason := "highest_progress"
-		if state.ExactHitPriorityActive {
-			reason = "exact_event_priority"
-		}
-		if !runBatch(state, step, reason) {
+		if !runBatch(state, step, "highest_progress") {
 			state.Active = false
 			state.StopReason = "global_budget_exhausted"
 			state.Candidate.SearchState.Status = StatusExhausted
@@ -1547,4 +1664,262 @@ func runCEMRound(candidates []*FrontierCandidate, searches map[int]*TeamRareSear
 		panic("CEM confirmation work exceeded its global fraction")
 	}
 	return result
+}
+
+// runCEMAdaptationRound is the active search-only CEM path. Exact events are
+// retained as snapshots by runCEMCandidateBatch and never stop the scheduler.
+func runCEMAdaptationRound(candidates []*FrontierCandidate, searches map[int]*TeamRareSearch,
+	group *GroupType, campaign []*TeamCampaign, table *Table, order []SortType,
+	original []GameProposalMeans, cemRemaining, remainingWork, explorationRemaining *int64,
+	adaptWorkPerSample int64, rng *rand.Rand) CEMRoundResult {
+	result := CEMRoundResult{CandidatesTotal: len(candidates)}
+	teamIDs := teamIDsFromGroups(group.Team_groups)
+	states := make([]*CEMCandidateState, 0, len(candidates))
+	for _, candidate := range candidates {
+		states = append(states, &CEMCandidateState{
+			Candidate: candidate,
+			Proposal:  newCEMProposal(original, group.Games, teamIDs),
+			Active:    true,
+		})
+	}
+	explorationAvailable := min(*explorationRemaining, min(*cemRemaining, *remainingWork))
+	explorationSamples := int(explorationAvailable / adaptWorkPerSample)
+	initialStates, notAdmitted := admitCEMCandidates(states, searches,
+		CEMMaxInitialCandidates, explorationSamples)
+	result.CandidatesAdmitted = len(initialStates)
+	result.CandidatesNotAdmitted = len(notAdmitted)
+	for _, state := range notAdmitted {
+		state.Active = false
+		state.AdmissionReason = "candidate_limit"
+		if explorationSamples < CEMMaxInitialCandidates*CEMBatchSamples {
+			state.AdmissionReason = "exploration_budget_limit"
+		}
+		state.StopReason = "not_admitted_to_cem"
+	}
+	canAffordInitial := func() bool {
+		return affordableSamples(CEMBatchSamples, *explorationRemaining, adaptWorkPerSample) >= CEMMinBatchSamples &&
+			affordableSamples(CEMBatchSamples, *cemRemaining, adaptWorkPerSample) >= CEMMinBatchSamples &&
+			affordableSamples(CEMBatchSamples, *remainingWork, adaptWorkPerSample) >= CEMMinBatchSamples
+	}
+	canAffordAdaptive := func() bool {
+		return affordableSamples(CEMBatchSamples, *cemRemaining, adaptWorkPerSample) >= CEMMinBatchSamples &&
+			affordableSamples(CEMBatchSamples, *remainingWork, adaptWorkPerSample) >= CEMMinBatchSamples
+	}
+	runCEMAdaptiveSchedule(initialStates, searches, canAffordInitial, canAffordAdaptive,
+		func(state *CEMCandidateState, step int, reason string) bool {
+			var phaseBudget *int64
+			if reason == "initial_fairness" {
+				phaseBudget = explorationRemaining
+				result.TargetsAttempted++
+			}
+			return runCEMCandidateBatch(state, group, campaign, table, order, original,
+				teamIDs, cemRemaining, remainingWork, phaseBudget, adaptWorkPerSample,
+				rng, &result, step, reason)
+		})
+
+	for _, state := range states {
+		if state.Iterations == 1 {
+			result.OneBatchCandidates++
+		}
+		if state.Iterations >= 2 {
+			result.MultiBatchCandidates++
+		}
+		if state.Iterations > result.MaxBatchesPerCandidate {
+			result.MaxBatchesPerCandidate = state.Iterations
+		}
+		if state.Iterations > 0 {
+			result.AverageBatchesPerCandidate += float64(state.Iterations)
+			if result.BestCandidateTeam == 0 ||
+				state.FirstStats.EliteMeanDistance-state.BestEliteDistance > result.BestCandidateDistanceImprovement {
+				result.BestCandidateTeam = state.Candidate.TeamID
+				result.BestCandidatePosition = state.Candidate.Position
+				result.BestCandidateBatches = state.Iterations
+				result.BestCandidateDistanceImprovement = state.FirstStats.EliteMeanDistance - state.BestEliteDistance
+				result.BestCandidateNearTargetRate = state.BestNearTargetRate
+			}
+			if state.EverHadExactHit {
+				result.TargetsAnyExact++
+			}
+			if state.ExactEliteSeen {
+				result.TargetsExactElite++
+			}
+			if result.HighestNearTeam == 0 || state.BestNearTargetRate > result.HighestNearRate {
+				result.HighestNearTeam = state.Candidate.TeamID
+				result.HighestNearPosition = state.Candidate.Position
+				result.HighestNearBatches = state.Iterations
+				result.HighestNearRate = state.BestNearTargetRate
+			}
+			if len(state.Snapshots) > 0 {
+				state.Candidate.SearchState.Status = StatusPromising
+			} else {
+				state.Candidate.SearchState.Status = StatusExhausted
+			}
+		}
+		switch state.StopReason {
+		case "stalled":
+			result.StopStalled++
+		case "low_elite_ess":
+			result.StopLowEliteESS++
+		case "regression":
+			result.StopRegression++
+		case "per_candidate_cap":
+			result.StopPerCandidateCap++
+		case "global_budget_exhausted":
+			result.StopGlobalBudget++
+		}
+		result.Snapshots = append(result.Snapshots, state.Snapshots...)
+	}
+	if result.TargetsAttempted > 0 {
+		result.AverageBatchesPerCandidate /= float64(result.TargetsAttempted)
+	}
+	sort.Slice(result.Snapshots, func(i, j int) bool {
+		return cemSnapshotAdaptationBetter(result.Snapshots[i], result.Snapshots[j])
+	})
+	if len(result.Snapshots) > CEMMaxGlobalSnapshots {
+		result.Snapshots = result.Snapshots[:CEMMaxGlobalSnapshots]
+	}
+	globalSnapshotSet := make(map[[3]int]bool, len(result.Snapshots))
+	for _, snapshot := range result.Snapshots {
+		globalSnapshotSet[[3]int{snapshot.CandidateTeam, snapshot.CandidatePosition,
+			snapshot.SourceIteration}] = true
+	}
+	result.Candidates = make([]CEMCandidateState, len(states))
+	for i, state := range states {
+		retained := state.Snapshots[:0]
+		for _, snapshot := range state.Snapshots {
+			if globalSnapshotSet[[3]int{snapshot.CandidateTeam, snapshot.CandidatePosition,
+				snapshot.SourceIteration}] {
+				retained = append(retained, snapshot)
+			}
+		}
+		state.Snapshots = retained
+		if state.Iterations > 0 {
+			if len(retained) > 0 {
+				state.Candidate.SearchState.Status = StatusPromising
+			} else {
+				state.Candidate.SearchState.Status = StatusExhausted
+			}
+		}
+		result.Candidates[i] = *state
+	}
+	return result
+}
+
+func selectCEMEvaluationSnapshots(snapshots []CEMProposalSnapshot, limit int) []CEMProposalSnapshot {
+	ordered := append([]CEMProposalSnapshot(nil), snapshots...)
+	sort.Slice(ordered, func(i, j int) bool {
+		return cemSnapshotAdaptationBetter(ordered[i], ordered[j])
+	})
+	if limit <= 0 {
+		return nil
+	}
+	selected := make([]CEMProposalSnapshot, 0, limit)
+	seenTargets := make(map[[2]int]bool)
+	seenThetas := make([]map[int]float64, 0, limit)
+	appendUnique := func(snapshot CEMProposalSnapshot) {
+		for _, theta := range seenThetas {
+			if thetaDistanceL2(theta, snapshot.Proposal.TeamLogMultipliers) < CEMThetaStabilityThreshold {
+				return
+			}
+		}
+		selected = append(selected, snapshot)
+		seenTargets[[2]int{snapshot.CandidateTeam, snapshot.CandidatePosition}] = true
+		seenThetas = append(seenThetas, copyTheta(snapshot.Proposal.TeamLogMultipliers))
+	}
+	// First pass gives each distinct target a chance to be evaluated.
+	for _, snapshot := range ordered {
+		key := [2]int{snapshot.CandidateTeam, snapshot.CandidatePosition}
+		if seenTargets[key] {
+			continue
+		}
+		appendUnique(snapshot)
+		if len(selected) == limit {
+			return selected
+		}
+	}
+	// Then use any remaining slots for the next-best retained snapshots.
+	for _, snapshot := range ordered {
+		alreadySelected := false
+		for _, current := range selected {
+			if current.CandidateTeam == snapshot.CandidateTeam &&
+				current.CandidatePosition == snapshot.CandidatePosition &&
+				current.SourceIteration == snapshot.SourceIteration {
+				alreadySelected = true
+				break
+			}
+		}
+		if alreadySelected {
+			continue
+		}
+		appendUnique(snapshot)
+		if len(selected) == limit {
+			break
+		}
+	}
+	return selected
+}
+
+func evaluateCEMProposalSnapshot(snapshot CEMProposalSnapshot, original []GameProposalMeans,
+	baseCampaign []*TeamCampaign, games []*GameType, table *Table, order []SortType,
+	teamGroups []TeamType, samples int, workPerSample int64, rng *rand.Rand,
+	groupID int) CEMProposalEvaluation {
+	components := cemEvaluationMixture(original, snapshot)
+	validateProposalMixture(components, len(games))
+	pilot := &WeightedPilotResult{Proposal: SearchProposal{
+		Name: fmt.Sprintf("cem_snapshot_team%d_rank%d_iteration%d", snapshot.CandidateTeam,
+			snapshot.CandidatePosition, snapshot.SourceIteration),
+		TargetRank: snapshot.CandidatePosition, Components: components,
+	}}
+	evaluateWeightedPilot(pilot, baseCampaign, games, original, table, order,
+		teamGroups, snapshot.CandidateTeam, snapshot.CandidatePosition,
+		samples, workPerSample, rng, groupID)
+	for i, component := range components {
+		log.Printf("rare-position-evaluation-component: group=%d team=%d position=%d snapshot_iteration=%d component=%s weight=%.3f samples=%d rank_hist=%v",
+			groupID, snapshot.CandidateTeam, snapshot.CandidatePosition,
+			snapshot.SourceIteration, component.Name, component.Weight,
+			pilot.ComponentSamples[i], pilot.ComponentRankHists[i])
+	}
+	evaluation := summarizeCEMProposalEvaluation(snapshot, *pilot,
+		int64(pilot.Samples)*workPerSample)
+	log.Printf("rare-position-evaluation: group=%d team=%d position=%d snapshot_iteration=%d samples=%d hits=%d sumY=%.8g sumY2=%.8g p=%.8g se=%.3g relSE=%.3f ess=%.3f ess_per_million_work=%.3f second_moment=%.8g max_event_weight_share=%.3f work=%d",
+		groupID, snapshot.CandidateTeam, snapshot.CandidatePosition, snapshot.SourceIteration,
+		evaluation.Samples, evaluation.Hits, evaluation.SumY, evaluation.SumY2,
+		evaluation.Probability, evaluation.StdErr, evaluation.RelSE, evaluation.ESS,
+		evaluation.ESSPerWork*1e6, evaluation.SecondMoment,
+		evaluation.MaxEventWeightShare, evaluation.Work)
+	return evaluation
+}
+
+func summarizeCEMProposalEvaluation(snapshot CEMProposalSnapshot,
+	pilot WeightedPilotResult, work int64) CEMProposalEvaluation {
+	secondMoment := 0.0
+	if pilot.Samples > 0 {
+		secondMoment = pilot.SumY2 / float64(pilot.Samples)
+	}
+	evaluation := CEMProposalEvaluation{
+		Snapshot: snapshot, Samples: pilot.Samples, Hits: pilot.Hits,
+		SumY: pilot.SumY, SumY2: pilot.SumY2, Probability: pilot.Probability,
+		StdErr: pilot.StdErr, RelSE: pilot.RelSE, ESS: pilot.ESS,
+		ESSPerWork: pilot.ESSPerWork, SecondMoment: secondMoment,
+		MaxEventWeightShare: pilot.MaxEventWeightShare,
+		Work:                work,
+	}
+	if work > 0 {
+		evaluation.ESSPerWork = evaluation.ESS / float64(work)
+	}
+	return evaluation
+}
+
+func selectCEMProductionEvaluation(evaluations []CEMProposalEvaluation) *CEMProposalEvaluation {
+	var best *CEMProposalEvaluation
+	for i := range evaluations {
+		candidate := &evaluations[i]
+		if candidate.Hits == 0 || candidate.ESS <= 0 || candidate.Work <= 0 {
+			continue
+		}
+		if best == nil || cemSnapshotBetterForEvaluation(*candidate, *best) {
+			best = candidate
+		}
+	}
+	return best
 }

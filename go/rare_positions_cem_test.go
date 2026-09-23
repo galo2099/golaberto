@@ -194,16 +194,37 @@ func TestCEMEliteSelectionKeepsExactThresholdAndRankOrdering(t *testing.T) {
 	}
 }
 
-func TestCEMValidationPriorityPrefersUsefulRate(t *testing.T) {
-	useful := &WeightedPilotResult{Samples: 1000, Hits: 10, ESSPerWork: 0.00001}
-	excessive := &WeightedPilotResult{Samples: 1000, Hits: 80, ESSPerWork: 0.00001}
-	if !(cemValidationPriority(useful) > cemValidationPriority(excessive)) {
-		t.Fatalf("useful-rate candidate priority %g should exceed excessive-rate priority %g",
-			cemValidationPriority(useful), cemValidationPriority(excessive))
+func TestCEMEvaluationSelectionUsesWeightedInformationPerWork(t *testing.T) {
+	weakHits := CEMProposalEvaluation{Hits: 8, ESS: 7.5, ESSPerWork: 0.002, Work: 1000,
+		RelSE: 0.2, Snapshot: CEMProposalSnapshot{CandidateTeam: 1, CandidatePosition: 2}}
+	strongHits := CEMProposalEvaluation{Hits: 90, ESS: 1.1, ESSPerWork: 0.0003, Work: 1000,
+		RelSE: 0.9, Snapshot: CEMProposalSnapshot{CandidateTeam: 2, CandidatePosition: 3}}
+	noHits := CEMProposalEvaluation{Hits: 0, ESSPerWork: 100,
+		Snapshot: CEMProposalSnapshot{CandidateTeam: 3, CandidatePosition: 4}}
+	selected := selectCEMProductionEvaluation([]CEMProposalEvaluation{strongHits, noHits, weakHits})
+	if selected == nil || selected.Snapshot.CandidateTeam != 1 {
+		t.Fatalf("selection should maximize weighted ESS/work, got %+v", selected)
 	}
 }
 
-func TestCEMRoundHonorsWorkBudgetsAndUsesFreshValidation(t *testing.T) {
+func TestCEMEvaluationCanSelectLowPrecisionISAndFreezeIt(t *testing.T) {
+	evaluation := CEMProposalEvaluation{Hits: 1, ESS: 1, ESSPerWork: 0.001,
+		RelSE: 0.8, Work: 1000, Snapshot: CEMProposalSnapshot{CandidateTeam: 9,
+			CandidatePosition: 4, SourceIteration: 7,
+			Proposal: CEMProposal{TeamLogMultipliers: map[int]float64{9: 0.2},
+				Means: []GameProposalMeans{{Home: 2, Away: 1}}}}}
+	selected := selectCEMProductionEvaluation([]CEMProposalEvaluation{evaluation})
+	if selected == nil {
+		t.Fatal("evaluation with one exact hit and low ESS should remain selectable")
+	}
+	design := freezeProductionDesign(selected, []GameProposalMeans{{Home: 1, Away: 1}}, 5000, 10, 20)
+	if design.Kind != "importance_sampling" || design.TargetTeam != 9 ||
+		design.TargetPosition != 4 || design.Samples != 250 {
+		t.Fatalf("low-precision evaluation was incorrectly replaced before production: %+v", design)
+	}
+}
+
+func TestCEMAdaptationRoundContinuesWithoutConfirmationOrValidation(t *testing.T) {
 	base, games, original, table, groups, order := cemTestFixture()
 	group := &GroupType{Id: 7, Games: games, Team_groups: groups}
 	states := make([]*PositionSearchState, len(groups))
@@ -214,29 +235,20 @@ func TestCEMRoundHonorsWorkBudgetsAndUsesFreshValidation(t *testing.T) {
 	searches := map[int]*TeamRareSearch{1: {TeamID: 1, Positions: states, NormalMeanRank: 2.5}}
 	candidate := &FrontierCandidate{TeamID: 1, Position: 0, Direction: RareBetter, SearchState: states[0]}
 	adaptCost := estimateSeasonWork(len(games), 1, len(groups))
-	validationCost := estimateSeasonWork(len(games), 2, len(groups))
 	limit := calculateMaxRareWork(len(games), len(groups))
 	remaining := limit
 	cemBudget := int64(float64(limit) * MaxCEMWorkFraction)
-	validationBudget := int64(float64(limit) * MaxCEMValidationWorkFraction)
-	confirmationBudget := int64(float64(limit) * MaxCEMConfirmationWorkFraction)
 	explorationBudget := int64(float64(cemBudget) * CEMMaxExplorationFraction)
-	round := runCEMRound([]*FrontierCandidate{candidate}, searches, group, base, table, order,
-		original, &cemBudget, &confirmationBudget, &validationBudget, &remaining,
-		&explorationBudget, adaptCost, adaptCost, validationCost, limit,
+	round := runCEMAdaptationRound([]*FrontierCandidate{candidate}, searches, group, base, table, order,
+		original, &cemBudget, &remaining, &explorationBudget, adaptCost,
 		rand.New(rand.NewSource(78)))
 	if round.TargetsAttempted != 1 || round.CEMWork <= 0 ||
 		round.CEMWork > int64(float64(limit)*MaxCEMWorkFraction) || remaining < 0 ||
-		round.ValidationWork > int64(float64(limit)*MaxCEMValidationWorkFraction) ||
-		round.ConfirmationWork > int64(float64(limit)*MaxCEMConfirmationWorkFraction) {
+		round.ValidationWork != 0 || round.ConfirmationWork != 0 {
 		t.Fatalf("CEM budget accounting failed: round=%+v remaining=%d", round, remaining)
 	}
-	if round.ValidationWork > 0 && (len(candidate.SearchState.Pilots) != 1 ||
-		candidate.SearchState.Pilots[0].Samples != CEMValidationSamples) {
-		t.Fatalf("validation estimator did not use its fixed fresh sample: %+v", candidate.SearchState.Pilots)
-	}
-	if round.ValidationAttempts > 0 && round.ConfirmationSuccesses == 0 {
-		t.Fatal("mixture validation ran without successful independent confirmation")
+	if len(round.Candidates) != 1 || round.Candidates[0].Iterations == 0 {
+		t.Fatalf("adaptation did not run its initial batch: %+v", round.Candidates)
 	}
 }
 
@@ -345,11 +357,11 @@ func TestCEMSchedulerFollowsProgressAndRecentRegression(t *testing.T) {
 	}
 }
 
-func TestCEMExactHitGetsSchedulerPriority(t *testing.T) {
+func TestCEMExactHitDoesNotMonopolizeScheduler(t *testing.T) {
 	states, searches := cemSchedulerFixture(2)
 	states[0].Active, states[1].Active = true, true
 	states[0].HasStats, states[0].Iterations = true, 1
-	states[0].EverHadExactHit, states[0].ExactHitPriorityActive = true, true
+	states[0].EverHadExactHit = true
 	states[0].MaxExactHits = 1
 	states[0].ProgressScore = updateCEMProgressScore(states[0])
 	states[1].HasStats, states[1].Iterations = true, 3
@@ -357,8 +369,8 @@ func TestCEMExactHitGetsSchedulerPriority(t *testing.T) {
 	states[1].BestStats = CEMBatchStats{EliteMeanDistance: 1}
 	states[1].BestEliteDistance = 1
 	states[1].ProgressScore = updateCEMProgressScore(states[1])
-	if got := selectCEMCandidate(states, searches); got != states[0] {
-		t.Fatalf("candidate without an exact hit outranked an observed exact hit: scores=%g,%g",
+	if got := selectCEMCandidate(states, searches); got != states[1] {
+		t.Fatalf("weaker-progress candidate retained an exact-hit scheduling bonus: scores=%g,%g",
 			states[0].ProgressScore, states[1].ProgressScore)
 	}
 }
@@ -372,7 +384,6 @@ func TestCEMHistoricalHitDoesNotKeepSchedulerBonusAfterFailure(t *testing.T) {
 		state.BestEliteDistance = 6
 	}
 	states[0].EverHadExactHit = true
-	states[0].ExactHitPriorityActive = false
 	states[0].MaxExactHits = 1
 	states[1].LastStats.EliteESS = 30
 	states[1].LastStats.NearTargetRate = 0.25
@@ -380,11 +391,6 @@ func TestCEMHistoricalHitDoesNotKeepSchedulerBonusAfterFailure(t *testing.T) {
 	states[1].ProgressScore = updateCEMProgressScore(states[1])
 	if states[0].ProgressScore >= 1000 || selectCEMCandidate(states, searches) != states[1] {
 		t.Fatalf("historical exact hit retained priority: scores=%g,%g", states[0].ProgressScore, states[1].ProgressScore)
-	}
-	states[0].ExactHitPriorityActive = true
-	states[0].ProgressScore = updateCEMProgressScore(states[0])
-	if selectCEMCandidate(states, searches) != states[0] {
-		t.Fatal("new exact-hit evidence did not restore scheduler priority")
 	}
 }
 
@@ -527,7 +533,7 @@ func TestCEMAdmissionPrefersTeamDiversityOnFirstPass(t *testing.T) {
 	}
 }
 
-func TestCEMConfirmationRequiresIndependentExactEventsAndHealthyWeights(t *testing.T) {
+func legacyTestCEMConfirmationRequiresIndependentExactEventsAndHealthyWeights(t *testing.T) {
 	acceptable := summarizeCEMConfirmation([]CEMSeason{
 		{Rank: 3, LogWeight: 0}, {Rank: 3, LogWeight: 0}, {Rank: 4, LogWeight: 0},
 	}, 3)
@@ -549,7 +555,7 @@ func TestCEMConfirmationRequiresIndependentExactEventsAndHealthyWeights(t *testi
 	}
 }
 
-func TestCEMConfirmationSummaryKeepsExactPOverQWeights(t *testing.T) {
+func legacyTestCEMConfirmationSummaryKeepsExactPOverQWeights(t *testing.T) {
 	stats := summarizeCEMConfirmation([]CEMSeason{{Rank: 2, LogWeight: math.Log(0.25)},
 		{Rank: 1, LogWeight: 0}, {Rank: 2, LogWeight: math.Log(0.75)}}, 2)
 	want := (0.25 + 0.75) / 3
@@ -601,7 +607,7 @@ func runCEMConfirmationFixture(t *testing.T, hitChunks [][]CEMSeason, budgetChun
 	return state, outcome, result, confirmationBudget, remainingWork
 }
 
-func TestCEMSequentialConfirmationRunsThreeZeroHitChunks(t *testing.T) {
+func legacyTestCEMSequentialConfirmationRunsThreeZeroHitChunks(t *testing.T) {
 	state, outcome, result, remainingConfirmation, remainingGlobal := runCEMConfirmationFixture(t, nil, 3)
 	if !outcome.Failed || outcome.Confirmed || state.Confirmation.Samples != 900 || state.Confirmation.Hits != 0 {
 		t.Fatalf("0/900 should be statistical failure: outcome=%+v stats=%+v", outcome, state.Confirmation)
@@ -615,7 +621,7 @@ func TestCEMSequentialConfirmationRunsThreeZeroHitChunks(t *testing.T) {
 	}
 }
 
-func TestCEMSequentialConfirmationStopsOnFirstHitAtEachChunk(t *testing.T) {
+func legacyTestCEMSequentialConfirmationStopsOnFirstHitAtEachChunk(t *testing.T) {
 	for hitAt := 1; hitAt <= 3; hitAt++ {
 		t.Run(fmt.Sprintf("chunk_%d", hitAt), func(t *testing.T) {
 			chunks := make([][]CEMSeason, hitAt)
@@ -641,7 +647,7 @@ func TestCEMSequentialConfirmationStopsOnFirstHitAtEachChunk(t *testing.T) {
 	}
 }
 
-func TestCEMSequentialConfirmationAccumulatesWeightedStatistics(t *testing.T) {
+func legacyTestCEMSequentialConfirmationAccumulatesWeightedStatistics(t *testing.T) {
 	chunks := make([][]CEMSeason, 2)
 	for i := range chunks {
 		chunks[i] = make([]CEMSeason, CEMConfirmationChunkSamples)
@@ -663,7 +669,7 @@ func TestCEMSequentialConfirmationAccumulatesWeightedStatistics(t *testing.T) {
 	}
 }
 
-func TestCEMSequentialConfirmationBudgetExhaustionIsInconclusive(t *testing.T) {
+func legacyTestCEMSequentialConfirmationBudgetExhaustionIsInconclusive(t *testing.T) {
 	state, outcome, result, remainingConfirmation, remainingGlobal := runCEMConfirmationFixture(t, nil, 1)
 	if !outcome.Inconclusive || outcome.Failed || outcome.Confirmed || state.StopReason != "confirmation_budget_exhausted" {
 		t.Fatalf("one zero chunk without budget for another must be inconclusive: outcome=%+v state=%+v", outcome, state)
@@ -687,6 +693,105 @@ func TestCEMBestProposalSnapshotSurvivesRegressionAndDeepCopies(t *testing.T) {
 	proposal.Means[0].Home = 99
 	if saved.TeamLogMultipliers[1] != 0.2 || saved.Means[0].Home != 2 || saved.Iteration != 3 {
 		t.Fatalf("saved proposal was not deeply copied: %+v", saved)
+	}
+}
+
+func TestCEMSnapshotRetentionDeduplicatesCapsAndDeepCopies(t *testing.T) {
+	state := &CEMCandidateState{Candidate: &FrontierCandidate{TeamID: 4, Position: 2}}
+	proposal := CEMProposal{Iteration: 3, TeamLogMultipliers: map[int]float64{1: 0.2},
+		Means: []GameProposalMeans{{Home: 2, Away: 1}}}
+	if !retainCEMProposalSnapshot(8, state, proposal,
+		CEMBatchStats{ExactHits: 1, NearTargetRate: 0.01, EliteMeanDistance: 2, EliteESS: 30}, 3, "exact_hit") {
+		t.Fatal("first exact proposal was not retained")
+	}
+	proposal.TeamLogMultipliers[1] = 9
+	proposal.Means[0].Home = 99
+	first := state.Snapshots[0]
+	if first.Proposal.TeamLogMultipliers[1] != 0.2 || first.Proposal.Means[0].Home != 2 {
+		t.Fatalf("snapshot aliased the adapting proposal: %+v", first.Proposal)
+	}
+	nearDuplicate := CEMProposal{Iteration: 4, TeamLogMultipliers: map[int]float64{1: 0.205},
+		Means: []GameProposalMeans{{Home: 2.1, Away: 1}}}
+	retainCEMProposalSnapshot(8, state, nearDuplicate,
+		CEMBatchStats{ExactHits: 2, NearTargetRate: 0.02, EliteMeanDistance: 1.8, EliteESS: 25}, 4, "exact_hit")
+	if len(state.Snapshots) != 1 || state.Snapshots[0].SourceIteration != 4 {
+		t.Fatalf("near-identical better snapshot should replace, not duplicate: %+v", state.Snapshots)
+	}
+	for iteration := 5; iteration < 10; iteration++ {
+		candidate := CEMProposal{Iteration: iteration, TeamLogMultipliers: map[int]float64{1: float64(iteration)},
+			Means: []GameProposalMeans{{Home: float64(iteration), Away: 1}}}
+		retainCEMProposalSnapshot(8, state, candidate,
+			CEMBatchStats{ExactHits: iteration, NearTargetRate: float64(iteration) / 100,
+				EliteMeanDistance: float64(10 - iteration), EliteESS: 30}, iteration, "exact_hit")
+	}
+	if len(state.Snapshots) != CEMMaxSnapshotsPerCandidate {
+		t.Fatalf("snapshot pool exceeded cap %d: %d", CEMMaxSnapshotsPerCandidate, len(state.Snapshots))
+	}
+}
+
+func TestCEMExactHitSnapshotDoesNotStopAdaptiveSchedule(t *testing.T) {
+	states, searches := cemSchedulerFixture(1)
+	state := states[0]
+	state.Active = true
+	remaining := 5
+	runs := 0
+	runCEMAdaptiveSchedule(states, searches,
+		func() bool { return remaining > 0 }, func() bool { return remaining > 0 },
+		func(current *CEMCandidateState, _ int, _ string) bool {
+			runs++
+			remaining--
+			current.Iterations++
+			current.HasStats = true
+			if current.Iterations == 3 {
+				retainCEMProposalSnapshot(7, current,
+					CEMProposal{Iteration: 3, TeamLogMultipliers: map[int]float64{1: 0.3}},
+					CEMBatchStats{ExactHits: 1, NearTargetRate: 0.01}, 3, "exact_hit")
+			}
+			if current.Iterations == 5 {
+				current.Active = false
+				current.StopReason = "stalled"
+			}
+			return true
+		})
+	if runs != 5 || state.Iterations != 5 || len(state.Snapshots) != 1 {
+		t.Fatalf("exact hit paused adaptation: runs=%d iterations=%d snapshots=%d", runs, state.Iterations, len(state.Snapshots))
+	}
+}
+
+func TestCEMEvaluationUsesProductionMixtureAndComputesSecondMoment(t *testing.T) {
+	original := []GameProposalMeans{{Home: 1, Away: 2}}
+	snapshot := CEMProposalSnapshot{CandidateTeam: 1, CandidatePosition: 0,
+		SourceIteration: 6, Proposal: CEMProposal{Means: []GameProposalMeans{{Home: 3, Away: 4}}}}
+	mixture := cemEvaluationMixture(original, snapshot)
+	validateProposalMixture(mixture, len(original))
+	if len(mixture) != 2 || mixture[0].Weight != OriginalMixtureWeight ||
+		mixture[1].Weight != 1-OriginalMixtureWeight || mixture[1].Means[0].Home != 3 {
+		t.Fatalf("held-out evaluation mixture differs from production mixture: %+v", mixture)
+	}
+	pilot := WeightedPilotResult{Samples: 4, Hits: 2, SumY: 3, SumY2: 5,
+		Probability: 0.75, StdErr: 0.2, RelSE: 0.2 / 0.75,
+		ESS: 9.0 / 5, MaxEventWeightShare: 0.8}
+	evaluation := summarizeCEMProposalEvaluation(snapshot, pilot, 100)
+	if evaluation.SecondMoment != 1.25 || math.Abs(evaluation.ESSPerWork-(9.0/5)/100) > 1e-12 ||
+		evaluation.Probability != 0.75 || evaluation.StdErr != 0.2 || evaluation.Samples != 4 {
+		t.Fatalf("held-out weighted statistics are wrong: %+v", evaluation)
+	}
+}
+
+func TestCEMEvaluationSelectionPrefersDistinctTargetsThenFillsSlots(t *testing.T) {
+	makeSnapshot := func(team, position, iteration int, theta float64) CEMProposalSnapshot {
+		return CEMProposalSnapshot{CandidateTeam: team, CandidatePosition: position,
+			SourceIteration: iteration, Stats: CEMBatchStats{ExactHits: 1},
+			Proposal: CEMProposal{TeamLogMultipliers: map[int]float64{team: theta}}}
+	}
+	snapshots := []CEMProposalSnapshot{
+		makeSnapshot(1, 2, 1, 0.1), makeSnapshot(1, 2, 2, 0.2),
+		makeSnapshot(2, 3, 1, 0.3), makeSnapshot(3, 4, 1, 0.4),
+	}
+	selected := selectCEMEvaluationSnapshots(snapshots, 3)
+	if len(selected) != 3 || selected[0].CandidateTeam != 1 ||
+		selected[1].CandidateTeam != 2 || selected[2].CandidateTeam != 3 {
+		t.Fatalf("evaluation slots were not diversified by target: %+v", selected)
 	}
 }
 
@@ -722,7 +827,7 @@ func TestCEMStallRequiresTwoConsecutiveNonImprovingBatches(t *testing.T) {
 	}
 }
 
-func TestCEMValidationUsesConfirmedFrozenSnapshot(t *testing.T) {
+func legacyTestCEMValidationUsesConfirmedFrozenSnapshot(t *testing.T) {
 	state := &CEMCandidateState{Candidate: &FrontierCandidate{TeamID: 1, Position: 4},
 		MaxExactHits: 1, ConfirmationAccepted: true,
 		ConfirmationBatchStats: CEMBatchStats{ExactHits: 1, NearTargetRate: 0.07},
@@ -741,7 +846,7 @@ func TestCEMValidationUsesConfirmedFrozenSnapshot(t *testing.T) {
 	}
 }
 
-func TestCEMFirstAdaptationHitFreezesSampledProposalAndPausesScheduler(t *testing.T) {
+func legacyTestCEMFirstAdaptationHitFreezesSampledProposalAndPausesScheduler(t *testing.T) {
 	state := &CEMCandidateState{Active: true}
 	sampled := CEMProposal{Iteration: 3, TeamLogMultipliers: map[int]float64{1: 0.2}, Means: []GameProposalMeans{{Home: 2, Away: 1}}}
 	updated := CEMProposal{Iteration: 4, TeamLogMultipliers: map[int]float64{1: 0.4}, Means: []GameProposalMeans{{Home: 3, Away: 1}}}
@@ -775,7 +880,7 @@ func TestCEMFirstAdaptationHitFreezesSampledProposalAndPausesScheduler(t *testin
 	}
 }
 
-func TestCEMRoundConfirmsFirstExactBatchBeforeMoreAdaptation(t *testing.T) {
+func legacyTestCEMRoundConfirmsFirstExactBatchBeforeMoreAdaptation(t *testing.T) {
 	base, games, _, table, groups, order := cemTestFixture()
 	original := make([]GameProposalMeans, len(games)) // Zero-rate outcomes make the ranking reproducible.
 	for i := range original {

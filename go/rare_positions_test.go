@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"math"
 	"math/rand"
 	"sort"
@@ -197,6 +198,86 @@ func TestRareEstimateUsability(t *testing.T) {
 	}
 }
 
+func TestPlainProductionUsesOnlyFreshCountsAndRetainsLowQualityResults(t *testing.T) {
+	// Scout observations are deliberately not an input to this helper; only the
+	// predeclared fresh production batch determines this estimate.
+	scoutCounts := []int{20, 0}
+	_ = scoutCounts
+	production := summarizePlainProductionCounts(map[int][]int{1: {3, 7}}, 10, 100)
+	estimate := production[1][0]
+	if !estimate.Available || estimate.Samples != 10 || estimate.Hits != 3 ||
+		math.Abs(estimate.Probability-0.3) > 1e-12 || estimate.WorkSpent != 100 {
+		t.Fatalf("plain production included scout counts or lost raw data: %+v", estimate)
+	}
+	zero := summarizePlainProductionCounts(map[int][]int{1: {0}}, 100, 1000)[1][0]
+	if !zero.Available || zero.Probability != 0 || zero.Hits != 0 ||
+		zero.MeetsPrecisionGoal || zero.ZeroHitUpper95 <= 0 {
+		t.Fatalf("zero-hit production should remain an available raw estimate: %+v", zero)
+	}
+	if _, err := json.Marshal(zero); err != nil {
+		t.Fatalf("zero-hit estimate should remain valid JSON with undefined relative SE: %v", err)
+	}
+	belowInterest := summarizePlainProductionCounts(map[int][]int{1: {1, 199999}}, 200000, 2000000)[1][0]
+	if !belowInterest.Available || belowInterest.Probability != 5e-6 {
+		t.Fatalf("below-interest production estimate was post-selected away: %+v", belowInterest)
+	}
+}
+
+func TestProductionDesignFreezesProposalAndSampleCount(t *testing.T) {
+	original := []GameProposalMeans{{Home: 1, Away: 1}}
+	proposal := CEMProposal{Iteration: 4, TeamLogMultipliers: map[int]float64{1: 0.2},
+		Means: []GameProposalMeans{{Home: 3, Away: 2}}}
+	evaluation := &CEMProposalEvaluation{Snapshot: CEMProposalSnapshot{
+		CandidateTeam: 1, CandidatePosition: 2, SourceIteration: 4, Proposal: proposal,
+	}}
+	design := freezeProductionDesign(evaluation, original, 1000, 10, 20)
+	if design.Kind != "importance_sampling" || design.Samples != 50 || design.Work != 1000 ||
+		design.Components[0].Weight != OriginalMixtureWeight || design.Components[1].Weight != 1-OriginalMixtureWeight {
+		t.Fatalf("production design was not fully fixed from evaluation: %+v", design)
+	}
+	evaluation.Snapshot.Proposal.Means[0].Home = 99
+	original[0].Home = 88
+	if design.Components[0].Means[0].Home != 1 || design.Components[1].Means[0].Home != 3 || design.Samples != 50 {
+		t.Fatalf("frozen production design changed after source mutation: %+v", design)
+	}
+	plain := freezeProductionDesign(nil, []GameProposalMeans{{Home: 1, Away: 2}}, 99, 10, 20)
+	if plain.Kind != "plain_mc" || plain.Samples != 9 || plain.Components[0].Weight != 1 {
+		t.Fatalf("plain P fallback was not frozen as a fresh fixed-N design: %+v", plain)
+	}
+}
+
+func TestRareSearchKeepsScoutRowAndDoesNotPoolFreshPlainProduction(t *testing.T) {
+	t.Setenv("RARE_POSITION_IMPORTANCE_SAMPLING", "1")
+	groups := []TeamType{{Team_id: 1, Bias: 0}, {Team_id: 2, Bias: 1}}
+	table := NewTable([]uint32{1, 2})
+	campaign := make([]*TeamCampaign, 2)
+	campaign[table.Query(1)] = &TeamCampaign{id: 1, points_win: 3, points_draw: 1, bias: 0}
+	campaign[table.Query(2)] = &TeamCampaign{id: 2, points_win: 3, points_draw: 1, bias: 1}
+	games := []*GameType{{Id: 1, HomeId: 1, AwayId: 2, HomePower: 1, AwayPower: 1,
+		home_table_index: table.Query(1), away_table_index: table.Query(2)}}
+	group := &GroupType{Id: 16982, Team_groups: groups, Games: games}
+	counts := map[int][]int{1: {4000, 16000}, 2: {16000, 4000}}
+	teamOdds := []OddsType{{team: &TeamOdds{Pos: []float64{0.2, 0.8}}},
+		{team: &TeamOdds{Pos: []float64{0.8, 0.2}}}}
+	before := [][]float64{append([]float64(nil), teamOdds[0].team.Pos...), append([]float64(nil), teamOdds[1].team.Pos...)}
+	results := searchAndMergeRarePositions(group, campaign, table, []SortType{PT, GD, GF, BIAS},
+		counts, teamOdds, ScoutIterations)
+	for teamIndex := range teamOdds {
+		for pos := range teamOdds[teamIndex].team.Pos {
+			if teamOdds[teamIndex].team.Pos[pos] != before[teamIndex][pos] {
+				t.Fatalf("raw scout odds were mutated/renormalized: before=%v after=%v", before, teamOdds)
+			}
+		}
+	}
+	for _, teamEstimates := range results {
+		for _, estimate := range teamEstimates {
+			if !estimate.Available || estimate.Design != "plain_mc" || estimate.Samples != 80000 {
+				t.Fatalf("plain fallback should be a fresh 80k-sample production estimate, got %+v", estimate)
+			}
+		}
+	}
+}
+
 func TestDirectImportanceSamplingEstimator(t *testing.T) {
 	hMean := 0.05
 	aMean := 5.0
@@ -257,6 +338,27 @@ func TestDirectImportanceSamplingEstimator(t *testing.T) {
 
 	if math.Abs(est.Probability-exactPWin) > 3.0*est.StdErr {
 		t.Errorf("Estimate %f was not within 3 stdErr (%f) of exact P %f", est.Probability, est.StdErr, exactPWin)
+	}
+}
+
+func TestZeroHitImportanceProductionEstimateRemainsAvailableAtFixedN(t *testing.T) {
+	groups := []TeamType{{Team_id: 1, Bias: 0}, {Team_id: 2, Bias: 1}}
+	table := NewTable([]uint32{1, 2})
+	campaign := []*TeamCampaign{
+		{id: 1, points_win: 3, points_draw: 1, bias: 0},
+		{id: 2, points_win: 3, points_draw: 1, bias: 1},
+	}
+	games := []*GameType{{Id: 1, HomeId: 1, AwayId: 2, HomePower: 0, AwayPower: 0,
+		home_table_index: table.Query(1), away_table_index: table.Query(2)}}
+	means := []GameProposalMeans{{Home: 0, Away: 0}}
+	job := &RareSimulationJob{TeamID: 1, CandidatePositions: []int{2}, Iterations: 17,
+		Components: []ProposalComponent{{Name: "P", Weight: 1, Means: means}}}
+	results, _ := estimateRarePositionsForJob(campaign, games, means, table,
+		[]SortType{PT, GD, GF, BIAS}, groups, job, rand.New(rand.NewSource(91)), 91)
+	estimate := results[2]
+	if !estimate.Available || estimate.Samples != job.Iterations || estimate.Hits != 0 ||
+		estimate.Probability != 0 || estimate.MeetsPrecisionGoal || estimate.ZeroHitUpper95 <= 0 {
+		t.Fatalf("fixed-N zero-hit production was discarded or replaced: %+v", estimate)
 	}
 }
 
