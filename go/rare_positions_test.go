@@ -437,18 +437,7 @@ func TestWeightedPilotSelectionUsesESSPerWork(t *testing.T) {
 	}
 }
 
-func TestPilotShortlistAndTieBreaks(t *testing.T) {
-	results := []*WeightedPilotResult{
-		{Proposal: SearchProposal{StrengthLevel: 1}, Hits: 0},
-		{Proposal: SearchProposal{StrengthLevel: 2}, Hits: 1, SumY: 1, ESSPerWork: 0.01},
-		{Proposal: SearchProposal{StrengthLevel: 3}, Hits: 3, SumY: 1, ESSPerWork: 0.004},
-		{Proposal: SearchProposal{StrengthLevel: 4}, Hits: 4, SumY: 1, ESSPerWork: 0.005},
-		{Proposal: SearchProposal{StrengthLevel: 5}, Hits: 0},
-	}
-	shortlist := shortlistPilotMixtures(results)
-	if len(shortlist) != 2 || shortlist[0] != results[1] || shortlist[1] != results[3] {
-		t.Fatalf("the two best ESS/work pilots should be refined: %+v", shortlist)
-	}
+func TestWeightedPilotSelectionTieBreaks(t *testing.T) {
 	a := &WeightedPilotResult{Proposal: SearchProposal{StrengthLevel: 4}, Refined: true,
 		Hits: 5, ESS: 3, ESSPerWork: 0.003, MaxEventWeightShare: 0.6}
 	b := &WeightedPilotResult{Proposal: SearchProposal{StrengthLevel: 3}, Refined: true,
@@ -560,64 +549,6 @@ func TestProductionPlanningHonorsWorkBudget(t *testing.T) {
 	}
 }
 
-func TestMinimumPilotSizeSkipsUnfundedCandidate(t *testing.T) {
-	candidate := &FrontierCandidate{TeamID: 1, Position: 0,
-		SearchState: &PositionSearchState{Status: StatusFrontier}}
-	group := &GroupType{Id: 1, Team_groups: []TeamType{{Team_id: 1}, {Team_id: 2}}}
-	remaining := int64(500)
-	pilotBudget := remaining
-	eligible, spent := runWeightedPilotRound(
-		[]*FrontierCandidate{candidate}, group, nil, nil, nil, nil, nil, nil,
-		6, &remaining, &pilotBudget, rand.New(rand.NewSource(1)),
-	)
-	if len(eligible) != 0 || spent != 0 || remaining != 500 || candidate.SearchState.Status != StatusUnexplored {
-		t.Fatalf("unfunded initial pilot must be skipped: eligible=%d spent=%d remaining=%d status=%s",
-			len(eligible), spent, remaining, candidate.SearchState.Status)
-	}
-}
-
-func TestWeightedPilotRoundRefinesAtMostTwoMixtures(t *testing.T) {
-	groups := []TeamType{{Team_id: 1, Bias: 0}, {Team_id: 2, Bias: 1}}
-	table := NewTable([]uint32{1, 2})
-	campaign := []*TeamCampaign{
-		{id: 1, points_win: 3, points_draw: 1, bias: 0},
-		{id: 2, points_win: 3, points_draw: 1, bias: 1},
-	}
-	game := &GameType{Id: 1, HomeId: 1, AwayId: 2, HomePower: 1, AwayPower: 1,
-		home_table_index: table.Query(1), away_table_index: table.Query(2)}
-	group := &GroupType{Id: 1, Games: []*GameType{game}, Team_groups: groups}
-	candidate := &FrontierCandidate{TeamID: 1, Position: 0, Direction: RareBetter,
-		SearchState: &PositionSearchState{Status: StatusFrontier}}
-	remaining, pilotBudget := int64(100000), int64(25000)
-	workPerSample := estimateSeasonWork(1, 4, 2)
-	_, spent := runWeightedPilotRound([]*FrontierCandidate{candidate}, group, campaign, table,
-		[]SortType{PT, GD, GF, BIAS}, []GameProposalMeans{{Home: 1, Away: 1}},
-		map[int]float64{1: 0.5, 2: 0.5}, map[int][]int{1: {5000, 5000}}, workPerSample, &remaining, &pilotBudget,
-		rand.New(rand.NewSource(21)))
-	if len(candidate.SearchState.Pilots) < 1 {
-		t.Fatal("expected one initial adaptive pilot")
-	}
-	first := candidate.SearchState.Pilots[0]
-	if first.Proposal.StrengthLevel != 2 || first.Proposal.Spec.TargetGameLimit != 2 {
-		t.Fatalf("initial pilot mismatch: %+v", first)
-	}
-	refined := 0
-	for _, pilot := range candidate.SearchState.Pilots {
-		if pilot.Refined {
-			refined++
-			if pilot.Samples > RefinedPilotSamplesPerLevel {
-				t.Fatalf("refined pilot exceeded %d samples", pilot.Samples)
-			}
-		} else if pilot.Samples != AdaptivePilotChunk && pilot.Samples != MinAdaptivePilotSamples {
-			t.Fatalf("unrefined pilot consumed %d samples", pilot.Samples)
-		}
-	}
-	if refined > 2 || spent > 25000 || remaining != 100000-spent || pilotBudget != 25000-spent {
-		t.Fatalf("unexpected refinement or work accounting: refined=%d spent=%d remaining=%d pilot=%d",
-			refined, spent, remaining, pilotBudget)
-	}
-}
-
 func TestFrontierExpandsOnlyAfterResolution(t *testing.T) {
 	search := &TeamRareSearch{TeamID: 1, NormalMeanRank: 0,
 		Positions: []*PositionSearchState{
@@ -638,12 +569,6 @@ func TestFrontierExpandsOnlyAfterResolution(t *testing.T) {
 	if len(next) != 1 || next[0].Position != 2 {
 		t.Fatalf("resolved border should expose one adjacent position: %+v", next)
 	}
-	if shouldRunFrontierRound(1, 0, 10000, 10000, 6) ||
-		!shouldRunFrontierRound(1, 1, 10000, 10000, 6) ||
-		shouldRunFrontierRound(2, 1, 10000, 10000, 6) ||
-		shouldRunFrontierRound(1, 1, 999, 10000, 6) {
-		t.Fatal("only one funded expansion round may follow a useful resolution")
-	}
 }
 func TestExactVeryRareProbabilityIsNotExplicitlyMerged(t *testing.T) {
 	// Independent one-game Poisson reference for an extreme underdog win.
@@ -660,7 +585,7 @@ func TestExactVeryRareProbabilityIsNotExplicitlyMerged(t *testing.T) {
 		t.Fatalf("synthetic probability %g should be positive and below interest threshold", pWin)
 	}
 	merged := mergeRarePositionEstimates(
-		[]float64{0, 1}, []int{0, NormalIterations},
+		[]float64{0, 1}, []int{0, ScoutIterations},
 		map[int]RarePositionEstimate{0: {Probability: pWin, Found: true}},
 	)
 	if merged[0] != 0 || merged[1] != 1 {
@@ -946,57 +871,24 @@ func TestSparseProposalLeavesSelectedBlockersHeadToHeadUntouched(t *testing.T) {
 	}
 }
 
-func TestAllFundedCandidatesGetInitialPilotBeforeProductionPlanning(t *testing.T) {
-	groups := []TeamType{{Team_id: 1}, {Team_id: 2}}
-	table := NewTable([]uint32{1, 2})
-	campaign := make([]*TeamCampaign, 2)
-	for _, team := range groups {
-		campaign[table.Query(uint32(team.Team_id))] = &TeamCampaign{id: team.Team_id, points_win: 3, points_draw: 1}
-	}
-	game := &GameType{Id: 1, HomeId: 1, AwayId: 2, HomePower: 1, AwayPower: 1,
-		home_table_index: table.Query(1), away_table_index: table.Query(2)}
-	group := &GroupType{Id: 1, Team_groups: groups, Games: []*GameType{game}}
-	candidates := []*FrontierCandidate{
-		{TeamID: 1, Position: 0, Direction: RareBetter, SearchState: &PositionSearchState{Status: StatusFrontier}},
-		{TeamID: 2, Position: 0, Direction: RareBetter, SearchState: &PositionSearchState{Status: StatusFrontier}},
-	}
-	remaining, pilotBudget := int64(10000), int64(10000)
-	eligible, _ := runWeightedPilotRound(candidates, group, campaign, table, []SortType{PT, GD, GF, BIAS},
-		[]GameProposalMeans{{1, 1}}, map[int]float64{1: 0.5, 2: 0.5},
-		map[int][]int{1: {5000, 5000}, 2: {5000, 5000}},
-		estimateSeasonWork(1, 4, 2), &remaining, &pilotBudget, rand.New(rand.NewSource(71)))
-	for _, candidate := range candidates {
-		if len(candidate.SearchState.Pilots) < 1 || candidate.SearchState.Pilots[0].Proposal.Spec.TargetGameLimit != 2 {
-			t.Fatalf("team %d did not get the one adaptive baseline", candidate.TeamID)
-		}
-	}
-	// Production planning runs only after the pilot round has returned.
-	_ = buildProductionPlans(eligible, estimateSeasonWork(1, 4, 2), map[int]*TeamRareSearch{
-		1: {}, 2: {},
-	})
-	if remaining < 0 || pilotBudget < 0 {
-		t.Fatal("pilot budget exceeded")
-	}
-}
-
 func TestFallbackBudgetAndCountCombination(t *testing.T) {
 	samples, work := planFallbackSamples(703, 7)
 	if samples != 100 || work != 700 || 703-work < 0 {
 		t.Fatalf("fallback budget mismatch: %d samples, %d work", samples, work)
 	}
 	table := NewTable([]uint32{1, 2, 3})
-	initial := map[int][]int{1: {0, 0, 10000}}
+	initial := map[int][]int{1: {0, 0, ScoutIterations}}
 	fallback := map[int][]int{1: {0, 1, 4999}}
 	odds := make([]OddsType, 3)
 	for i := range odds {
 		odds[i].team = &TeamOdds{Pos: make([]float64, 3)}
 	}
-	newCells, broken := combineNormalPositionCounts(initial, fallback, 10000, 5000, odds, table)
-	if newCells != 1 || broken != 1 || initial[1][1] != 1 || initial[1][2] != 14999 {
+	newCells, broken := combineNormalPositionCounts(initial, fallback, ScoutIterations, 5000, odds, table)
+	if newCells != 1 || broken != 1 || initial[1][1] != 1 || initial[1][2] != 7999 {
 		t.Fatalf("fallback counts not combined: %v new=%d broken=%d", initial[1], newCells, broken)
 	}
 	normal := odds[table.Query(1)].team.Pos
-	if normal[2] >= 1 || math.Abs(normal[1]-1.0/15000) > 1e-12 {
+	if normal[2] >= 1 || math.Abs(normal[1]-1.0/8000) > 1e-12 {
 		t.Fatalf("combined normal odds wrong: %v", normal)
 	}
 	merged := mergeRarePositionEstimates(normal, initial[1], map[int]RarePositionEstimate{
@@ -1027,174 +919,6 @@ func TestPlainFallbackSamplesAllTeamsWithoutGameImportance(t *testing.T) {
 		if total != 100 {
 			t.Fatalf("team %d has %d rank observations, want 100", team.Team_id, total)
 		}
-	}
-}
-
-func TestAdaptiveZeroHitProgressAndEventESS(t *testing.T) {
-	baseline := make([]int, 13)
-	baseline[2] = 10000
-	pilotAt := func(name string, rank int, hits int, ess float64) *WeightedPilotResult {
-		hist := make([]int, 13)
-		hist[rank] = 100
-		return &WeightedPilotResult{Proposal: SearchProposal{Name: name}, RankHistogram: hist,
-			Samples: 100, WorkSpent: 1000, Hits: hits, ESS: ess, ESSPerWork: ess / 1000}
-	}
-	a := pilotAt("a", 3, 0, 0)
-	b := pilotAt("b", 6, 0, 0)
-	if !adaptivePilotBetter(b, a, baseline, 10, RareWorse) ||
-		selectAdaptiveNeighbor(a, []*WeightedPilotResult{a, b}, baseline, 10, RareWorse) != b {
-		t.Fatal("zero-hit proposal moving mean rank from 2 toward 10 must win")
-	}
-	event := pilotAt("event", 4, 5, 4)
-	if !adaptivePilotBetter(event, b, baseline, 10, RareWorse) ||
-		selectAdaptiveNeighbor(b, []*WeightedPilotResult{event}, baseline, 10, RareWorse) != event {
-		t.Fatal("weighted event evidence must supersede rank-progress heuristic")
-	}
-	if got := selectAdaptiveNeighbor(b, []*WeightedPilotResult{a}, baseline, 10, RareWorse); got != nil {
-		t.Fatal("regressing rank progress should stop search")
-	}
-}
-
-func TestAdaptiveNeighborsAndEscalationPaths(t *testing.T) {
-	initial := SparseProposalSpec{TargetGameLimit: 2, StrengthLevel: 2}
-	neighbors := adaptiveNeighbors(initial, 12)
-	if len(neighbors) != 3 || neighbors[0].TargetGameLimit != 4 ||
-		neighbors[1].StrengthLevel != 3 || neighbors[2].BoundaryCompetitorLimit != 1 ||
-		neighbors[2].CompetitorGameLimit != 1 {
-		t.Fatalf("unexpected one-axis neighbors: %+v", neighbors)
-	}
-	seen := map[ProposalKey]bool{proposalKey(initial): true, proposalKey(neighbors[1]): true}
-	if got := unseenAdaptiveNeighbors(initial, 12, seen); len(got) != 2 {
-		t.Fatalf("duplicate proposal should not be reevaluated: %+v", got)
-	}
-	fromFour := adaptiveNeighbors(neighbors[0], 12)
-	if fromFour[0].TargetGameLimit != 8 {
-		t.Fatalf("target scope did not escalate 4 → 8: %+v", fromFour)
-	}
-	fromEight := adaptiveNeighbors(fromFour[0], 12)
-	if fromEight[0].TargetGameLimit != -1 {
-		t.Fatalf("target scope did not reach explicit all: %+v", fromEight)
-	}
-	oneCompetitor := neighbors[2]
-	twoCompetitors := adaptiveNeighbors(oneCompetitor, 12)
-	if twoCompetitors[len(twoCompetitors)-1].BoundaryCompetitorLimit != 2 {
-		t.Fatalf("competitor count did not reach 2: %+v", twoCompetitors)
-	}
-	twoGames := adaptiveNeighbors(twoCompetitors[len(twoCompetitors)-1], 12)
-	if twoGames[len(twoGames)-1].CompetitorGameLimit != 2 {
-		t.Fatalf("competitor game scope did not reach 2: %+v", twoGames)
-	}
-	fourGames := adaptiveNeighbors(twoGames[len(twoGames)-1], 12)
-	if fourGames[len(fourGames)-1].CompetitorGameLimit != 4 {
-		t.Fatalf("competitor game scope did not reach 4: %+v", fourGames)
-	}
-	baseline := make([]int, 13)
-	baseline[2] = 10000
-	pilot := func(name string, spec SparseProposalSpec, rank, hits int) *WeightedPilotResult {
-		hist := make([]int, 13)
-		hist[rank] = 100
-		ess := float64(hits)
-		return &WeightedPilotResult{Proposal: SearchProposal{Name: name, Spec: spec},
-			RankHistogram: hist, WorkSpent: 1000, Hits: hits, ESS: ess, ESSPerWork: ess / 1000}
-	}
-	current := pilot("initial", initial, 2, 0)
-	scope := pilot("scope4", neighbors[0], 4, 0)
-	strength := pilot("level3", neighbors[1], 3, 0)
-	competitor := pilot("comp1", neighbors[2], 3, 0)
-	if selected := selectAdaptiveNeighbor(current, []*WeightedPilotResult{scope, strength, competitor},
-		baseline, 10, RareWorse); selected != scope {
-		t.Fatal("scope increase should win when it moves rank farthest")
-	}
-	scope8 := pilot("scope8", fromFour[0], 6, 0)
-	if selected := selectAdaptiveNeighbor(scope, []*WeightedPilotResult{scope8}, baseline, 10, RareWorse); selected != scope8 {
-		t.Fatal("search should walk target scope 2 → 4 → 8")
-	}
-	strength.RankHistogram[3], strength.RankHistogram[6] = 0, 100
-	if selected := selectAdaptiveNeighbor(current, []*WeightedPilotResult{scope, strength, competitor},
-		baseline, 10, RareWorse); selected != strength {
-		t.Fatal("strength level 3 should win when it moves rank farthest")
-	}
-	level4Spec := strength.Proposal.Spec
-	level4Spec.StrengthLevel = 4
-	level4 := pilot("level4", level4Spec, 10, 5)
-	if selected := selectAdaptiveNeighbor(strength, []*WeightedPilotResult{level4}, baseline, 10, RareWorse); selected != level4 {
-		t.Fatal("level 4 with events must be reachable from level 3")
-	}
-	if got := adaptiveNeighbors(level4Spec, 12); len(got) < 2 || got[1].StrengthLevel != 5 {
-		t.Fatalf("strength level 5 must be reachable: %+v", got)
-	}
-	competitor.RankHistogram[3], competitor.RankHistogram[7] = 0, 100
-	if selected := selectAdaptiveNeighbor(current, []*WeightedPilotResult{scope, pilot("weakStrength", neighbors[1], 5, 0), competitor},
-		baseline, 10, RareWorse); selected != competitor {
-		t.Fatal("adding a boundary competitor should win when it moves rank farthest")
-	}
-}
-
-func TestAdaptivePilotBudgetReservesEscalation(t *testing.T) {
-	if MaxInitialPilotWorkFraction != 0.10 {
-		t.Fatal("adaptive pilots must use at most 10% of rare-work budget")
-	}
-	groups := make([]TeamType, 12)
-	keys := make([]uint32, 12)
-	for i := range groups {
-		groups[i] = TeamType{Team_id: i + 1, Bias: i}
-		keys[i] = uint32(i + 1)
-	}
-	table := NewTable(keys)
-	campaign := make([]*TeamCampaign, 12)
-	for _, team := range groups {
-		campaign[table.Query(uint32(team.Team_id))] = &TeamCampaign{id: team.Team_id,
-			bias: team.Bias, points_win: 3, points_draw: 1}
-	}
-	var games []*GameType
-	var original []GameProposalMeans
-	for id := 2; id <= 11; id++ {
-		games = append(games, &GameType{Id: id, HomeId: 1, AwayId: id,
-			HomePower: 3, AwayPower: 0.1,
-			home_table_index: table.Query(1), away_table_index: table.Query(uint32(id))})
-		original = append(original, GameProposalMeans{3, 0.1})
-	}
-	group := &GroupType{Id: 1, Team_groups: groups, Games: games}
-	var candidates []*FrontierCandidate
-	for i := 0; i < 10; i++ {
-		candidates = append(candidates, &FrontierCandidate{TeamID: 1, Position: 10,
-			Direction: RareWorse, SearchState: &PositionSearchState{Status: StatusFrontier}})
-	}
-	const totalWork int64 = 600000
-	pilotBudget := int64(float64(totalWork) * MaxInitialPilotWorkFraction)
-	remaining := totalWork
-	ranks := make(map[int]float64)
-	for _, team := range groups {
-		ranks[team.Team_id] = float64(team.Team_id - 1)
-	}
-	baseline := make([]int, len(groups))
-	baseline[0] = NormalIterations
-	_, spent := runWeightedPilotRound(candidates, group, campaign, table,
-		[]SortType{PT, GD, GF, BIAS}, original,
-		ranks, map[int][]int{1: baseline},
-		estimateSeasonWork(len(games), 4, len(groups)), &remaining, &pilotBudget, rand.New(rand.NewSource(101)))
-	if spent > totalWork/10 || remaining != totalWork-spent || pilotBudget < 0 {
-		t.Fatalf("pilot exceeded 10%% work budget: spent=%d remaining=%d pilot=%d", spent, remaining, pilotBudget)
-	}
-	level3Seen := false
-	for _, candidate := range candidates {
-		pilots := candidate.SearchState.Pilots
-		if len(pilots) == 0 || pilots[0].Proposal.Spec.StrengthLevel != 2 ||
-			pilots[0].Proposal.Spec.TargetGameLimit != 2 {
-			t.Fatal("each frontier cell must get exactly one baseline before exploration")
-		}
-		seen := make(map[ProposalKey]bool)
-		for _, result := range pilots {
-			key := proposalKey(result.Proposal.Spec)
-			if seen[key] {
-				t.Fatalf("duplicate proposal evaluation for candidate: %+v", key)
-			}
-			seen[key] = true
-			level3Seen = level3Seen || result.Proposal.StrengthLevel >= 3
-		}
-	}
-	if !level3Seen || spent <= int64(len(candidates))*int64(MinAdaptivePilotSamples)*estimateSeasonWork(len(games), 4, len(groups)) {
-		t.Fatal("initial baselines consumed adaptive escalation reserve")
 	}
 }
 

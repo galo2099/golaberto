@@ -547,7 +547,7 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
 	simulated_scores := make([]SimulatedScore, len(group.Games))
 	simulated_campaign := make([]*TeamCampaign, len(all_team_ids))
 	team_slice := make([]*TeamCampaign, len(group.Team_groups))
-	const NUM_ITER = NormalIterations
+	const NUM_ITER = ScoutIterations
 	for i := 0; i < NUM_ITER; i++ {
 		for k, v := range campaign {
 			simulated_campaign[k] = v.clone()
@@ -688,7 +688,7 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
 		}
 	}
 	if rarePositionSamplingEnabled() {
-		searchAndMergeRarePositions(group, campaign, table, sort_order, normalPositionCounts, team_odds)
+		searchAndMergeRarePositions(group, campaign, table, sort_order, normalPositionCounts, team_odds, NUM_ITER)
 	}
 
 	json_team_odds := make(map[int]*TeamOdds, len(team_odds))
