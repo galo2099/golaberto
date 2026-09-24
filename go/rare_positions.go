@@ -36,6 +36,7 @@ func logRarePositionRequestEnvironment() {
 		"RARE_POSITION_RANDOM_SEED",
 		"RARE_POSITION_BENCHMARK_ITERATIONS",
 		"RARE_POSITION_IMPORTANCE_SAMPLING",
+		"RARE_POSITION_DIVERSIFIED_IS",
 		"RARE_POSITION_CEM_RACING_MODE",
 		"RARE_POSITION_CEM_PARAMETERIZATION",
 		"RARE_POSITION_BENCHMARK_CEM_PARAMETERIZATION",
@@ -1669,6 +1670,17 @@ func runRarePositionSearchEvaluationProduction(group *GroupType, campaign []*Tea
 	table *Table, sortOrder []SortType, normalPositionCounts map[int][]int,
 	teamOdds []OddsType, normalSamples int) map[int]map[int]ProductionEstimate {
 	seed, seedSource := rarePositionSeed()
+	if diversifiedIsEnabled() {
+		unplayedGames := 0
+		for _, game := range group.Games {
+			if !game.Played {
+				unplayedGames++
+			}
+		}
+		numTeams := len(group.Team_groups)
+		totalWorkLimit := calculateMaxRareWork(unplayedGames, numTeams)
+		return runDiversifiedSearchAndProduction(group, campaign, table, sortOrder, teamOdds, totalWorkLimit, seed)
+	}
 	parameterization := cemParameterizationFromEnvironment()
 	family := "scoring"
 	if parameterization == CEMTeamAttackConcession {
