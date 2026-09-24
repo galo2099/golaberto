@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	MinInterestingProbability = 1e-5
+	MinInterestingProbability = DefaultRarePositionMinInterestingProbability
 	ScoutIterations           = 20000
 )
 
@@ -2071,7 +2071,7 @@ func mergeRarePositionEstimates(
 	rareMass := 0.0
 	for pos, est := range rareEstimates {
 		if pos >= 0 && pos < len(normalCounts) && normalCounts[pos] == 0 &&
-			(est.Found || est.Available) && est.Probability >= MinInterestingProbability {
+			(est.Found || est.Available) && estimateMayMeetInterestingThreshold(est, rarePositionMinInterestingProbability()) {
 			rareMass += est.Probability
 		}
 	}
@@ -2091,7 +2091,7 @@ func mergeRarePositionEstimates(
 
 	for pos := 0; pos < numPositions; pos++ {
 		est, isRare := rareEstimates[pos]
-		if normalCounts[pos] == 0 && isRare && (est.Found || est.Available) && est.Probability >= MinInterestingProbability {
+		if normalCounts[pos] == 0 && isRare && (est.Found || est.Available) && estimateMayMeetInterestingThreshold(est, rarePositionMinInterestingProbability()) {
 			final[pos] = est.Probability
 		} else if normalCounts[pos] > 0 {
 			if observedNormalMass > 0 {
