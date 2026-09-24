@@ -16,6 +16,7 @@ func TestRarePositionEnvironmentIsPrintedWithEffectiveDefaults(t *testing.T) {
 	t.Setenv("RARE_POSITION_IMPORTANCE_SAMPLING", "1")
 	t.Setenv("RARE_POSITION_CEM_RACING_MODE", "legacy")
 	t.Setenv("RARE_POSITION_MIN_INTERESTING_PROBABILITY", "1e-8")
+	t.Setenv("RARE_POSITION_SEQUENTIAL_PRUNING", "1")
 	previousWriter := log.Writer()
 	var output bytes.Buffer
 	log.SetOutput(&output)
@@ -30,11 +31,29 @@ func TestRarePositionEnvironmentIsPrintedWithEffectiveDefaults(t *testing.T) {
 		`effective_importance_sampling=true`,
 		`effective_scout_iterations=20000`,
 		`effective_cem_racing_mode=legacy`,
+		`RARE_POSITION_SEQUENTIAL_PRUNING="1"`,
+		`effective_sequential_pruning=true`,
 		`effective_min_interesting_probability=1e-08`,
 	} {
 		if !strings.Contains(line, expected) {
 			t.Errorf("environment log does not contain %q: %s", expected, line)
 		}
+	}
+}
+
+func TestSequentialPruningProductionPlannerRespectsGlobalWorkBudget(t *testing.T) {
+	plan := planSequentialPruningProduction(110000, 100, 50)
+	if !plan.Enabled || plan.CalibrationSamples != 50 || plan.TargetSamples <= 0 || plan.AllRankSamples <= 0 {
+		t.Fatalf("unexpected production split: %+v", plan)
+	}
+	if plan.TotalWork != plan.CalibrationWork+plan.TargetWork+plan.AllRankWork || plan.TotalWork > 110000 {
+		t.Fatalf("planned production exceeds or misaccounts budget: %+v", plan)
+	}
+	if plan.CalibrationWork != 4*50*100 {
+		t.Fatalf("calibration work=%d, want four fixed 50-sample calibrations", plan.CalibrationWork)
+	}
+	if insufficient := planSequentialPruningProduction(1000, 100, 50); insufficient.Enabled {
+		t.Fatalf("pruning should not activate when fixed calibration cannot be budgeted: %+v", insufficient)
 	}
 }
 

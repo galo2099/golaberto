@@ -43,6 +43,7 @@ func logRarePositionRequestEnvironment() {
 		"RARE_POSITION_CEM_INIT",
 		"RARE_POSITION_BENCHMARK_CEM_INIT_MODE",
 		"RARE_POSITION_MIN_INTERESTING_PROBABILITY",
+		"RARE_POSITION_SEQUENTIAL_PRUNING",
 	}
 	fields := make([]string, 0, len(variables)+5)
 	for _, name := range variables {
@@ -57,6 +58,7 @@ func logRarePositionRequestEnvironment() {
 	initMode, initSource := cemInitializationMode()
 	fields = append(fields,
 		"effective_importance_sampling="+strconv.FormatBool(rarePositionSamplingEnabled()),
+		"effective_sequential_pruning="+strconv.FormatBool(sequentialPruningEnabled()),
 		"effective_scout_iterations="+strconv.Itoa(rarePositionScoutIterations()),
 		"effective_cem_racing_mode="+effectiveCEMRacingMode(),
 		"effective_cem_parameterization="+cemParameterizationName(cemParameterizationFromEnvironment()),
@@ -1703,6 +1705,30 @@ func runRarePositionSearchEvaluationProduction(group *GroupType, campaign []*Tea
 	remainingBeforeProduction := remainingWork
 	design := freezeProductionDesign(selectedEvaluation, originalMeans, remainingWork,
 		plainWorkPerSample, productionISWorkPerSample)
+	var sequentialPlan SequentialPruningProductionPlan
+	var sequentialCalibration []SequentialPruningCalibrationSummary
+	sequentialStride := 0
+	if sequentialPruningEnabled() && design.Kind == "importance_sampling" {
+		sequentialPlan = planSequentialPruningProduction(remainingWork, productionISWorkPerSample,
+			SequentialPruningCalibrationSamples)
+		if sequentialPlan.Enabled {
+			sequentialStride, sequentialCalibration = calibrateSequentialPruningStride(
+				campaign, group.Games, originalMeans, design.Components, table, sortOrder,
+				group.Team_groups, design.TargetTeam, design.TargetPosition,
+				sequentialPlan.CalibrationSamples,
+				deriveRarePositionSeed(productionSeed, "sequential-pruning-calibration"))
+			design.Samples = sequentialPlan.AllRankSamples
+			design.Work = sequentialPlan.AllRankWork
+			log.Printf("rare-position-sequential-pruning-calibration: group=%d target_team=%d target_position=%d selected_stride=%d calibration_samples_per_method=%d calibration_work=%d target_samples=%d target_work=%d all_rank_samples=%d all_rank_work=%d total_production_work=%d budget=%d calibration=%+v",
+				group.Id, design.TargetTeam, design.TargetPosition, sequentialStride,
+				sequentialPlan.CalibrationSamples, sequentialPlan.CalibrationWork,
+				sequentialPlan.TargetSamples, sequentialPlan.TargetWork,
+				design.Samples, design.Work, sequentialPlan.TotalWork, remainingWork, sequentialCalibration)
+		} else {
+			log.Printf("rare-position-sequential-pruning-disabled: group=%d reason=insufficient_production_budget remaining_work=%d work_per_sample=%d",
+				group.Id, remainingWork, productionISWorkPerSample)
+		}
+	}
 	componentsLog := "P"
 	if design.Kind == "importance_sampling" {
 		componentsLog = fmt.Sprintf("%s:%.2f,%s:%.2f",
@@ -1713,9 +1739,10 @@ func runRarePositionSearchEvaluationProduction(group *GroupType, campaign []*Tea
 		group.Id, design.Kind, design.TargetTeam, design.TargetPosition,
 		design.SelectedFromSnapshot, evaluationESS(selectedEvaluation),
 		evaluationESSPerWork(selectedEvaluation), evaluationHits(selectedEvaluation), selectionReason)
-	log.Printf("rare-position-design-freeze: group=%d design=%s target_team=%d target_position=%d selected_snapshot_iteration=%d components=%s production_samples=%d production_work=%d remaining_work_before_production=%d",
+	log.Printf("rare-position-design-freeze: group=%d design=%s target_team=%d target_position=%d selected_snapshot_iteration=%d components=%s production_samples=%d production_work=%d sequential_pruning=%t sequential_stride=%d sequential_target_samples=%d remaining_work_before_production=%d",
 		group.Id, design.Kind, design.TargetTeam, design.TargetPosition,
-		design.SelectedFromSnapshot, componentsLog, design.Samples, design.Work, remainingBeforeProduction)
+		design.SelectedFromSnapshot, componentsLog, design.Samples, design.Work, sequentialPlan.Enabled,
+		sequentialStride, sequentialPlan.TargetSamples, remainingBeforeProduction)
 
 	productionEstimates := make(map[int]map[int]ProductionEstimate)
 	if design.Samples > 0 {
@@ -1750,9 +1777,28 @@ func runRarePositionSearchEvaluationProduction(group *GroupType, campaign []*Tea
 			}
 			productionEstimates = summarizePlainProductionCounts(counts, design.Samples, design.Work)
 		}
-		remainingWork -= design.Work
 	}
 	productionWork := design.Work
+	if sequentialPlan.Enabled {
+		targetSeed := deriveRarePositionSeed(productionSeed, "sequential-pruning-target-estimator")
+		estimate := runSequentialRareEstimate(campaign, group.Games, originalMeans, design.Components,
+			table, sortOrder, group.Team_groups, design.TargetTeam, design.TargetPosition,
+			sequentialStride, sequentialPlan.TargetSamples, targetSeed, "sequential_pruned_production")
+		targetEstimate := productionEstimateFromSequential(estimate, sequentialPlan.TargetWork)
+		if productionEstimates[design.TargetTeam] == nil {
+			productionEstimates[design.TargetTeam] = make(map[int]ProductionEstimate)
+		}
+		productionEstimates[design.TargetTeam][design.TargetPosition] = targetEstimate
+		productionWork += sequentialPlan.TargetWork + sequentialPlan.CalibrationWork
+		log.Printf("rare-position-sequential-pruning-production: group=%d team=%d position=%d stride=%d samples=%d pruned=%d pruned_fraction=%.4f estimate=%.8g se=%.3g relSE=%.3f ESS=%.3f ESS_per_second=%.4g raw_hits=%d games=%d average_games=%.2f solver_checks=%d solver_seconds=%.6f solver_fraction=%.4f work=%d",
+			group.Id, design.TargetTeam, design.TargetPosition, sequentialStride, estimate.Samples,
+			estimate.Pruned, estimate.PrunedFraction, estimate.Estimate, estimate.StdErr,
+			relativeSEValue(estimate.RelativeSE), estimate.ESS, estimate.ESSPerSecond,
+			estimate.RawHits, estimate.GamesSimulated, estimate.AverageGamesPerSample,
+			estimate.SolverChecks, estimate.SolverSeconds, estimate.SolverFraction,
+			sequentialPlan.TargetWork)
+	}
+	remainingWork -= productionWork
 	if remainingWork < 0 {
 		panic("rare-position production work budget exceeded")
 	}
@@ -1817,7 +1863,7 @@ func runRarePositionSearchEvaluationProduction(group *GroupType, campaign []*Tea
 
 	workSpent := scoutWork + adaptationWork + evaluationWork + productionWork
 	if workSpent > totalWorkLimit || remainingWork < 0 || workSpent+remainingWork != totalWorkLimit {
-		panic("rare-position total work budget exceeded or phase accounting is inconsistent")
+		panic(fmt.Sprintf("rare-position total work budget exceeded or phase accounting is inconsistent: spent=%d limit=%d remaining=%d", workSpent, totalWorkLimit, remainingWork))
 	}
 	searchOverhead := scoutWork + adaptationWork + evaluationWork
 	log.Printf("rare-position-summary: parameterization=%s group=%d scout_samples=%d scout_work=%d adaptation_work=%d adaptation_plain_mc_equiv=%.1f evaluation_work=%d evaluation_plain_mc_equiv=%.1f snapshots_retained=%d snapshots_evaluated=%d production_design=%s production_samples=%d production_work=%d fresh_final_estimator_samples=%d search_overhead_plain_mc_equiv=%.1f fresh_production_plain_mc_equiv=%.1f total_work_limit=%d work_spent=%d unused_work=%d scout_resolved_cells=%d cem_batches=%d candidates_admitted=%d exact_hit_targets=%d plain_P_selected=%t",

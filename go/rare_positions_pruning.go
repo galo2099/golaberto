@@ -13,7 +13,13 @@ import (
 const (
 	DefaultRarePositionMinInterestingProbability = 1e-5
 	ExperimentalRarePositionMinProbability       = 1e-8
+	SequentialPruningCalibrationSamples          = 50
+	SequentialPruningProductionBudgetFraction    = 0.20
 )
+
+func sequentialPruningEnabled() bool {
+	return os.Getenv("RARE_POSITION_SEQUENTIAL_PRUNING") == "1"
+}
 
 type rarePositionProbabilityClass string
 
@@ -166,6 +172,114 @@ type SequentialPruningStats struct {
 	ImportanceWeight     float64       `json:"importance_weight"`
 	MeanWeightDiagnostic float64       `json:"-"`
 	ScorelineSignature   uint64        `json:"-"`
+}
+
+type SequentialPruningCalibrationSummary struct {
+	Method           string  `json:"method"`
+	Stride           int     `json:"stride"`
+	Samples          int     `json:"samples"`
+	ElapsedSeconds   float64 `json:"elapsed_seconds"`
+	SamplesPerSecond float64 `json:"samples_per_second"`
+	AverageGames     float64 `json:"average_games_per_sample"`
+	SolverSeconds    float64 `json:"solver_seconds"`
+	SolverFraction   float64 `json:"solver_fraction"`
+}
+
+type SequentialPruningProductionPlan struct {
+	Enabled            bool
+	CalibrationSamples int
+	CalibrationWork    int64
+	AllRankSamples     int
+	AllRankWork        int64
+	TargetSamples      int
+	TargetWork         int64
+	TotalWork          int64
+}
+
+func planSequentialPruningProduction(remainingWork, workPerSample int64,
+	desiredCalibrationSamples int) SequentialPruningProductionPlan {
+	plan := SequentialPruningProductionPlan{}
+	if remainingWork <= 0 || workPerSample <= 0 || desiredCalibrationSamples <= 0 {
+		return plan
+	}
+	// Calibration compares four fixed workloads: full-season plus three strides.
+	maxCalibrationSamples := int(remainingWork / (5 * 4 * workPerSample))
+	calibrationSamples := minInt(desiredCalibrationSamples, maxCalibrationSamples)
+	if calibrationSamples <= 0 {
+		return plan
+	}
+	plan.CalibrationSamples = calibrationSamples
+	plan.CalibrationWork = int64(calibrationSamples*4) * workPerSample
+	remainingAfterCalibration := remainingWork - plan.CalibrationWork
+	targetReserve := int64(float64(remainingAfterCalibration) * SequentialPruningProductionBudgetFraction)
+	allRankBudget := remainingAfterCalibration - targetReserve
+	plan.AllRankSamples = affordableSamples(int(allRankBudget/workPerSample), allRankBudget, workPerSample)
+	plan.AllRankWork = int64(plan.AllRankSamples) * workPerSample
+	targetBudget := remainingAfterCalibration - plan.AllRankWork
+	plan.TargetSamples = affordableSamples(int(targetBudget/workPerSample), targetBudget, workPerSample)
+	plan.TargetWork = int64(plan.TargetSamples) * workPerSample
+	plan.TotalWork = plan.CalibrationWork + plan.AllRankWork + plan.TargetWork
+	plan.Enabled = plan.AllRankSamples > 0 && plan.TargetSamples > 0 && plan.TotalWork <= remainingWork
+	if !plan.Enabled {
+		return SequentialPruningProductionPlan{}
+	}
+	return plan
+}
+
+func calibrateSequentialPruningStride(baseCampaign []*TeamCampaign, games []*GameType,
+	originalMeans []GameProposalMeans, components []ProposalComponent, table *Table,
+	sortOrder []SortType, teamGroups []TeamType, targetTeamID, targetPosition int,
+	samples int, masterSeed int64) (int, []SequentialPruningCalibrationSummary) {
+	unplayed := 0
+	for _, game := range games {
+		if !game.Played {
+			unplayed++
+		}
+	}
+	results := make([]SequentialPruningCalibrationSummary, 0, 4)
+	run := func(method string, stride int) SequentialPruningCalibrationSummary {
+		result := SequentialPruningCalibrationSummary{Method: method, Stride: stride, Samples: samples}
+		stream := deriveRarePositionSeed(masterSeed, fmt.Sprintf("runtime-calibration-%s-%d", method, stride))
+		start := time.Now()
+		var gamesSimulated int64
+		for i := 0; i < samples; i++ {
+			rng := rand.New(rand.NewSource(targetSampleSeed(stream, i)))
+			if method == "baseline" {
+				sim := make([]*TeamCampaign, len(baseCampaign))
+				teamSlice := make([]*TeamCampaign, len(teamGroups))
+				logs, weights := make([]float64, len(components)), make([]float64, len(components))
+				_, _, _ = simulateTargetTeamRankAndWeightMulti(baseCampaign, sim, teamSlice,
+					games, originalMeans, components, table, sortOrder, teamGroups,
+					targetTeamID, rng, logs, weights, nil)
+				gamesSimulated += int64(unplayed)
+			} else {
+				_, _, stats := simulateTargetSequential(baseCampaign, games, originalMeans, components,
+					table, sortOrder, teamGroups, targetTeamID, targetPosition, stride, false, rng)
+				gamesSimulated += int64(stats.GamesSimulated)
+				result.SolverSeconds += stats.SolverDuration.Seconds()
+			}
+		}
+		elapsed := time.Since(start)
+		result.ElapsedSeconds = elapsed.Seconds()
+		if elapsed > 0 {
+			result.SamplesPerSecond = float64(samples) / elapsed.Seconds()
+			result.SolverFraction = result.SolverSeconds / elapsed.Seconds()
+		}
+		if samples > 0 {
+			result.AverageGames = float64(gamesSimulated) / float64(samples)
+		}
+		return result
+	}
+	results = append(results, run("baseline", 0))
+	bestStride, bestRate := 1, -1.0
+	for _, stride := range []int{1, 4, 8} {
+		result := run("pruned", stride)
+		results = append(results, result)
+		if result.SamplesPerSecond > bestRate {
+			bestStride, bestRate = stride, result.SamplesPerSecond
+		}
+	}
+	return bestStride, results
 }
 
 // simulateTargetSequential uses the same component draw, game order, Poisson
@@ -415,6 +529,20 @@ func runSequentialRareEstimate(
 	result.ProbabilityClass = classifyRareProbabilityWithUpper(result.Estimate, result.UpperConfidence95,
 		rarePositionMinInterestingProbability())
 	return result
+}
+
+func productionEstimateFromSequential(estimate SequentialRareEstimate, work int64) ProductionEstimate {
+	relativeSE := math.Inf(1)
+	if estimate.RelativeSE != nil {
+		relativeSE = *estimate.RelativeSE
+	}
+	return ProductionEstimate{
+		Probability: estimate.Estimate, StdErr: estimate.StdErr, Samples: estimate.Samples,
+		Hits: estimate.RawHits, ESS: estimate.ESS, MeanWeight: estimate.MeanProductionWeight,
+		WorkSpent: work, Available: true, MeetsPrecisionGoal: estimateMeetsPrecisionGoal(estimate.ESS, relativeSE),
+		RelativeSE: relativeSEPointer(relativeSE), MaxEventWeightShare: estimate.MaxEventWeightShare,
+		ZeroHitUpper95: estimate.UpperConfidence95, Design: "importance_sampling_sequential_pruning",
+	}
 }
 
 func minInt(a, b int) int {
