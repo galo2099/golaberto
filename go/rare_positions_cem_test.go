@@ -895,6 +895,289 @@ func TestNormalRarePositionCEMInitializationDefaultsToStandingsDirected(t *testi
 	}
 }
 
+func attackConcessionSyntheticFixture(attack, concede map[int]float64) ([]*GameType,
+	[]GameProposalMeans, []int, []CEMSeason) {
+	teamIDs := []int{1, 2, 3, 4}
+	games := make([]*GameType, 0, 12)
+	original := make([]GameProposalMeans, 0, 12)
+	for i := 0; i < len(teamIDs); i++ {
+		for j := i + 1; j < len(teamIDs); j++ {
+			home, away := teamIDs[i], teamIDs[j]
+			games = append(games,
+				&GameType{Id: len(games) + 1, HomeId: home, AwayId: away},
+				&GameType{Id: len(games) + 2, HomeId: away, AwayId: home})
+			original = append(original,
+				GameProposalMeans{Home: 0.8 + float64(i)*0.07, Away: 1.1 + float64(j)*0.05},
+				GameProposalMeans{Home: 0.9 + float64(j)*0.06, Away: 1.0 + float64(i)*0.04})
+		}
+	}
+	proposal := CEMProposal{Parameterization: CEMTeamAttackConcession,
+		AttackTheta: copyTheta(attack), ConcessionTheta: copyTheta(concede)}
+	means := materializeCEMProposal(proposal, original, games)
+	scored, conceded := make([]float64, len(teamIDs)), make([]float64, len(teamIDs))
+	indexes := make(map[int]int, len(teamIDs))
+	for i, teamID := range teamIDs {
+		indexes[teamID] = i
+	}
+	for i, game := range games {
+		h, a := indexes[game.HomeId], indexes[game.AwayId]
+		scored[h] += means[i].Home
+		conceded[h] += means[i].Away
+		scored[a] += means[i].Away
+		conceded[a] += means[i].Home
+	}
+	season := CEMSeason{TeamScoredMoment: scored, TeamConcededMoment: conceded}
+	seasons := make([]CEMSeason, CEMMinEliteESSForUpdate)
+	for i := range seasons {
+		seasons[i] = season
+	}
+	return games, original, teamIDs, seasons
+}
+
+func TestCEMAttackConcessionGaugeInvarianceAndZeroProposal(t *testing.T) {
+	games, original, teamIDs := cemTeamFixture()
+	attack, concede := map[int]float64{}, map[int]float64{}
+	for i, teamID := range teamIDs {
+		attack[teamID], concede[teamID] = float64(i)*0.13-0.2, 0.27-float64(i)*0.08
+	}
+	proposal := normalizeCEMGauge(CEMProposal{Parameterization: CEMTeamAttackConcession,
+		AttackTheta: attack, ConcessionTheta: concede})
+	before := materializeCEMProposal(proposal, original, games)
+	shifted := cloneCEMProposal(proposal)
+	for _, teamID := range teamIDs {
+		shifted.AttackTheta[teamID] += 0.37
+		shifted.ConcessionTheta[teamID] -= 0.37
+	}
+	after := materializeCEMProposal(shifted, original, games)
+	for i := range before {
+		if math.Abs(before[i].Home-after[i].Home) > 1e-12 || math.Abs(before[i].Away-after[i].Away) > 1e-12 {
+			t.Fatalf("gauge shift changed game %d: before=%+v after=%+v", i, before[i], after[i])
+		}
+	}
+	shifted = normalizeCEMGauge(shifted)
+	mean := 0.0
+	for _, value := range shifted.ConcessionTheta {
+		mean += value
+	}
+	if math.Abs(mean/float64(len(teamIDs))) > 1e-14 {
+		t.Fatalf("gauge-normalized mean concession=%g", mean/float64(len(teamIDs)))
+	}
+	zero := newCEMProposalForParameterization(CEMTeamAttackConcession, original, games, teamIDs)
+	if !reflect.DeepEqual(zero.Means, original) || cemTotalKL(zero.Means, original, games) != 0 {
+		t.Fatalf("zero attack/concession proposal must equal P exactly: %+v", zero)
+	}
+}
+
+func TestCEMParameterizationEnvironmentOverride(t *testing.T) {
+	t.Setenv("RARE_POSITION_CEM_PARAMETERIZATION", "team_attack_concession")
+	t.Setenv("RARE_POSITION_BENCHMARK_CEM_PARAMETERIZATION", "team_scoring")
+	if got := cemParameterizationFromEnvironment(); got != CEMTeamScoring {
+		t.Fatalf("explicit benchmark scoring override got %s", cemParameterizationName(got))
+	}
+	t.Setenv("RARE_POSITION_BENCHMARK_CEM_PARAMETERIZATION", "team_attack_concession")
+	if got := cemParameterizationFromEnvironment(); got != CEMTeamAttackConcession {
+		t.Fatalf("attack/concession benchmark mode got %s", cemParameterizationName(got))
+	}
+	t.Setenv("RARE_POSITION_BENCHMARK_CEM_PARAMETERIZATION", "")
+	if got := cemParameterizationFromEnvironment(); got != CEMTeamAttackConcession {
+		t.Fatalf("configured attack/concession mode got %s", cemParameterizationName(got))
+	}
+}
+
+func TestCEMAttackConcessionJointFitRecoversSyntheticMeans(t *testing.T) {
+	attack := map[int]float64{1: 0.3, 2: -0.1, 3: 0.05, 4: -0.25}
+	concede := map[int]float64{1: -0.3, 2: 0.1, 3: 0.05, 4: 0.15}
+	games, original, teamIDs, seasons := attackConcessionSyntheticFixture(attack, concede)
+	known := materializeCEMProposal(CEMProposal{Parameterization: CEMTeamAttackConcession,
+		AttackTheta: attack, ConcessionTheta: concede}, original, games)
+	proposal := newCEMProposalForParameterization(CEMTeamAttackConcession, original, games, teamIDs)
+	for iteration := 0; iteration < 32; iteration++ {
+		proposal = cemUpdateTeam(proposal, original, games, teamIDs, seasons, indexesForTests(len(seasons)))
+		if !proposal.UpdateAllowed {
+			t.Fatalf("attack/concession fit stopped at iteration %d: %+v", iteration, proposal)
+		}
+		if math.Abs(proposal.FitObjectiveEnd-proposal.FitObjectiveStart) > 1e-8 &&
+			proposal.FitObjectiveEnd < proposal.FitObjectiveStart {
+			t.Fatalf("weighted elite objective decreased: start=%g end=%g", proposal.FitObjectiveStart, proposal.FitObjectiveEnd)
+		}
+	}
+	for i := range known {
+		if math.Abs(proposal.Means[i].Home-known[i].Home) > 2e-8 || math.Abs(proposal.Means[i].Away-known[i].Away) > 2e-8 {
+			t.Fatalf("joint fitter failed game %d recovery: got=%+v want=%+v", i, proposal.Means[i], known[i])
+		}
+	}
+	meanConcede := 0.0
+	for _, value := range proposal.ConcessionTheta {
+		meanConcede += value
+	}
+	if math.Abs(meanConcede/float64(len(teamIDs))) > 1e-12 {
+		t.Fatalf("fit left gauge drift: mean concede=%g", meanConcede/float64(len(teamIDs)))
+	}
+}
+
+func TestCEMAttackConcessionFitLearnsAttackDefenseDirectionsAndIsDeterministic(t *testing.T) {
+	for _, test := range []struct {
+		name                                    string
+		attack, concede                         map[int]float64
+		wantAttackPositive, wantConcedePositive bool
+	}{
+		{name: "strengthen", attack: map[int]float64{1: .3, 2: -.1, 3: .05, 4: -.25}, concede: map[int]float64{1: -.3, 2: .1, 3: .05, 4: .15}, wantAttackPositive: true, wantConcedePositive: false},
+		{name: "weaken", attack: map[int]float64{1: -.3, 2: .1, 3: -.05, 4: .25}, concede: map[int]float64{1: .3, 2: -.1, 3: -.05, 4: -.15}, wantAttackPositive: false, wantConcedePositive: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			games, original, teamIDs, seasons := attackConcessionSyntheticFixture(test.attack, test.concede)
+			fit := func() CEMProposal {
+				proposal := newCEMProposalForParameterization(CEMTeamAttackConcession, original, games, teamIDs)
+				for i := 0; i < 24; i++ {
+					proposal = cemUpdateTeam(proposal, original, games, teamIDs, seasons, indexesForTests(len(seasons)))
+				}
+				return proposal
+			}
+			first, second := fit(), fit()
+			if !reflect.DeepEqual(first.AttackTheta, second.AttackTheta) || !reflect.DeepEqual(first.ConcessionTheta, second.ConcessionTheta) || first.FitIterations != second.FitIterations {
+				t.Fatal("same deterministic sufficient statistics produced different fits")
+			}
+			if (first.AttackTheta[1] > 0) != test.wantAttackPositive || (first.ConcessionTheta[1] > 0) != test.wantConcedePositive {
+				t.Fatalf("team 1 direction wrong: attack=%g concede=%g", first.AttackTheta[1], first.ConcessionTheta[1])
+			}
+		})
+	}
+}
+
+func TestCEMAttackConcessionWarmStartDirectionAndMatchedKL(t *testing.T) {
+	games := []*GameType{{Id: 1, HomeId: 1, AwayId: 2, HomePower: 1, AwayPower: 1}}
+	original := []GameProposalMeans{{Home: 1, Away: 1}}
+	teamIDs := []int{1, 2, 3}
+	searches := map[int]*TeamRareSearch{1: {TeamID: 1, NormalMeanRank: 6}, 2: {TeamID: 2, NormalMeanRank: 2.5}, 3: {TeamID: 3, NormalMeanRank: 8}}
+	candidate := &FrontierCandidate{TeamID: 1, Position: 2, Direction: RareBetter}
+	scoring, _ := newCEMProposalWithModeAndParameterization(CEMInitStandingsDirected, CEMTeamScoring, candidate, searches, original, games, teamIDs, 1)
+	attackDefense, _ := newCEMProposalWithModeAndParameterization(CEMInitStandingsDirected, CEMTeamAttackConcession, candidate, searches, original, games, teamIDs, 1)
+	if math.Abs(scoring.KL-CEMWarmStartKL) > 1e-6 || math.Abs(attackDefense.KL-CEMWarmStartKL) > 1e-6 {
+		t.Fatalf("warm-start KL mismatch scoring=%g attack/concession=%g target=%g", scoring.KL, attackDefense.KL, CEMWarmStartKL)
+	}
+	if attackDefense.AttackTheta[1] <= 0 || attackDefense.ConcessionTheta[1] >= 0 || attackDefense.AttackTheta[2] >= 0 || attackDefense.ConcessionTheta[2] <= 0 {
+		t.Fatalf("RareBetter direction signs incorrect: attack=%v concede=%v", attackDefense.AttackTheta, attackDefense.ConcessionTheta)
+	}
+	candidate.Direction = RareWorse
+	attackDefense, _ = newCEMProposalWithModeAndParameterization(CEMInitStandingsDirected, CEMTeamAttackConcession, candidate, searches, original, games, teamIDs, 1)
+	if attackDefense.AttackTheta[1] >= 0 || attackDefense.ConcessionTheta[1] <= 0 || attackDefense.AttackTheta[2] <= 0 || attackDefense.ConcessionTheta[2] >= 0 {
+		t.Fatalf("RareWorse direction signs incorrect: attack=%v concede=%v", attackDefense.AttackTheta, attackDefense.ConcessionTheta)
+	}
+}
+
+func TestCEMAttackConcessionRunsThroughSharedAdaptationOrchestration(t *testing.T) {
+	campaign, games, original, table, groups, order := cemTestFixture()
+	group := &GroupType{Id: 456, Games: games, Team_groups: groups}
+	searches := map[int]*TeamRareSearch{
+		1: {TeamID: 1, NormalMeanRank: 1.5, Positions: []*PositionSearchState{{Position: 0}}},
+		2: {TeamID: 2, NormalMeanRank: 0.7, Positions: []*PositionSearchState{{Position: 0}}},
+		3: {TeamID: 3, NormalMeanRank: 2.0, Positions: []*PositionSearchState{{Position: 0}}},
+		4: {TeamID: 4, NormalMeanRank: 3.0, Positions: []*PositionSearchState{{Position: 0}}},
+	}
+	candidate := &FrontierCandidate{TeamID: 1, Position: 0, Direction: RareBetter,
+		SearchState: searches[1].Positions[0]}
+	cemBudget, totalBudget, explorationBudget := int64(10000), int64(10000), int64(10000)
+	round := runCEMAdaptationRoundWithModeAndParameterization(CEMInitZero, CEMTeamAttackConcession,
+		[]*FrontierCandidate{candidate}, searches, group, campaign, table, order, original,
+		&cemBudget, &totalBudget, &explorationBudget, 1, rand.New(rand.NewSource(42)))
+	if round.CandidatesAdmitted != 1 || len(round.Snapshots) == 0 {
+		t.Fatalf("attack/concession family did not use shared CEM scheduler: admitted=%d snapshots=%d", round.CandidatesAdmitted, len(round.Snapshots))
+	}
+	for _, snapshot := range round.Snapshots {
+		if snapshot.Proposal.Parameterization != CEMTeamAttackConcession || len(snapshot.Proposal.AttackTheta) != len(groups) || len(snapshot.Proposal.ConcessionTheta) != len(groups) {
+			t.Fatalf("shared scheduler retained a malformed family snapshot: %+v", snapshot.Proposal)
+		}
+	}
+}
+
+func TestCEMAttackConcessionExactLikelihoodRatioAndSnapshotClone(t *testing.T) {
+	games, original, teamIDs := cemTeamFixture()
+	proposal := CEMProposal{Parameterization: CEMTeamAttackConcession,
+		AttackTheta:     map[int]float64{1: .2, 2: -.1, 3: .05, 4: -.02, 5: .1, 6: -.05},
+		ConcessionTheta: map[int]float64{1: -.1, 2: .1, 3: -.03, 4: .02, 5: -.05, 6: .06}}
+	proposal.Means = materializeCEMProposal(proposal, original, games)
+	scores := []GameProposalMeans{{Home: 2, Away: 1}, {Home: 0, Away: 3}, {Home: 5, Away: 2}, {Home: 1, Away: 0}}
+	got := 0.0
+	want := 0.0
+	for i, score := range scores {
+		got -= logPoissonQOverP(int(score.Home), original[i].Home, proposal.Means[i].Home)
+		got -= logPoissonQOverP(int(score.Away), original[i].Away, proposal.Means[i].Away)
+		want += float64(int(score.Home))*math.Log(original[i].Home/proposal.Means[i].Home) + proposal.Means[i].Home - original[i].Home
+		want += float64(int(score.Away))*math.Log(original[i].Away/proposal.Means[i].Away) + proposal.Means[i].Away - original[i].Away
+	}
+	if math.Abs(got-want) > 1e-12 {
+		t.Fatalf("shared exact P/Q likelihood got=%g want=%g", got, want)
+	}
+	snapshot := cloneCEMProposal(proposal)
+	proposal.AttackTheta[teamIDs[0]] += 1
+	proposal.ConcessionTheta[teamIDs[1]] -= 1
+	proposal.Means[0].Home += 7
+	if snapshot.AttackTheta[teamIDs[0]] == proposal.AttackTheta[teamIDs[0]] || snapshot.ConcessionTheta[teamIDs[1]] == proposal.ConcessionTheta[teamIDs[1]] || snapshot.Means[0].Home == proposal.Means[0].Home {
+		t.Fatal("snapshot shares mutable attack/concession or means storage")
+	}
+}
+
+func TestCEMAttackConcessionUsesUnchangedPDefensiveMixture(t *testing.T) {
+	original := []GameProposalMeans{{Home: 1.2, Away: 0.8}}
+	games := []*GameType{{Id: 1, HomeId: 1, AwayId: 2}}
+	proposal := CEMProposal{Parameterization: CEMTeamAttackConcession,
+		AttackTheta: map[int]float64{1: .25, 2: -.1}, ConcessionTheta: map[int]float64{1: -.15, 2: .05}}
+	proposal.Means = materializeCEMProposal(proposal, original, games)
+	snapshot := CEMProposalSnapshot{CandidatePosition: 0, Proposal: proposal}
+	mixture := cemEvaluationMixture(original, snapshot)
+	validateProposalMixture(mixture, len(original))
+	if mixture[0].Weight != .05 || mixture[1].Weight != .95 {
+		t.Fatalf("attack/concession mixture changed defensive P weight: %+v", mixture)
+	}
+	scoreH, scoreA := 2, 1
+	logQOverP := logPoissonQOverP(scoreH, original[0].Home, proposal.Means[0].Home) +
+		logPoissonQOverP(scoreA, original[0].Away, proposal.Means[0].Away)
+	got := mixtureImportanceWeightMulti([]float64{0, logQOverP}, []float64{mixture[0].Weight, mixture[1].Weight})
+	poissonPMF := func(k int, mean float64) float64 {
+		factorial := 1.0
+		for i := 2; i <= k; i++ {
+			factorial *= float64(i)
+		}
+		return math.Exp(-mean) * math.Pow(mean, float64(k)) / factorial
+	}
+	p := poissonPMF(scoreH, original[0].Home) * poissonPMF(scoreA, original[0].Away)
+	q := poissonPMF(scoreH, proposal.Means[0].Home) * poissonPMF(scoreA, proposal.Means[0].Away)
+	want := p / (mixture[0].Weight*p + mixture[1].Weight*q)
+	if math.Abs(got-want) > 1e-12 || got > 1/mixture[0].Weight+1e-12 {
+		t.Fatalf("mixed attack/concession P/Q got=%g want=%g defensive bound=%g", got, want, 1/mixture[0].Weight)
+	}
+}
+
+func TestCEMAttackConcessionZeroMomentsAndLowESSAreSafe(t *testing.T) {
+	games, original, teamIDs := cemTeamFixture()
+	proposal := newCEMProposalForParameterization(CEMTeamAttackConcession, original, games, teamIDs)
+	seasons := make([]CEMSeason, CEMMinEliteESSForUpdate)
+	for i := range seasons {
+		seasons[i] = CEMSeason{TeamScoredMoment: make([]float64, len(teamIDs)), TeamConcededMoment: make([]float64, len(teamIDs))}
+	}
+	updated := cemUpdateTeam(proposal, original, games, teamIDs, seasons, indexesForTests(len(seasons)))
+	if !updated.UpdateAllowed || !updated.FitUsedMomentFloor {
+		t.Fatalf("zero moments should use the deterministic floor safely: %+v", updated)
+	}
+	for _, means := range updated.Means {
+		if math.IsNaN(means.Home) || math.IsInf(means.Home, 0) || math.IsNaN(means.Away) || math.IsInf(means.Away, 0) || means.Home <= 0 || means.Away <= 0 {
+			t.Fatalf("zero moment fit produced invalid means: %+v", means)
+		}
+	}
+	low := cemUpdateTeam(proposal, original, games, teamIDs, seasons[:CEMMinEliteESSForUpdate-1], indexesForTests(CEMMinEliteESSForUpdate-1))
+	if low.UpdateAllowed {
+		t.Fatal("attack/concession low-ESS behavior must match scoring-only and stop the update")
+	}
+}
+
+func indexesForTests(count int) []int {
+	indexes := make([]int, count)
+	for i := range indexes {
+		indexes[i] = i
+	}
+	return indexes
+}
+
 func TestCEMAdaptationExactEvidenceProtectsEvaluationAllocation(t *testing.T) {
 	a := &CEMEvaluationState{Snapshot: CEMProposalSnapshot{CandidateTeam: 26, CandidatePosition: 8,
 		SourceIteration: 2, Stats: CEMBatchStats{ExactHits: 1}}, HadAdaptationExactHit: true,

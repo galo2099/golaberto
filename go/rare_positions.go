@@ -30,6 +30,39 @@ func rarePositionSeed() (int64, string) {
 	return time.Now().UnixNano(), "time"
 }
 
+func cemFrontierFingerprint(candidates []*FrontierCandidate,
+	searches map[int]*TeamRareSearch) string {
+	h := fnv.New64a()
+	teamIDs := make([]int, 0, len(searches))
+	for teamID := range searches {
+		teamIDs = append(teamIDs, teamID)
+	}
+	sort.Ints(teamIDs)
+	for _, teamID := range teamIDs {
+		search := searches[teamID]
+		fmt.Fprintf(h, "team:%d:%.12g:%t/", teamID, search.NormalMeanRank, search.Has100PercentNormal)
+		for _, position := range search.Positions {
+			fmt.Fprintf(h, "%d:%d:%t:%d:%.12g/", position.Position, position.Status,
+				position.Feasible, position.ObservedCount, position.NormalProb)
+		}
+	}
+	ordered := append([]*FrontierCandidate(nil), candidates...)
+	sort.Slice(ordered, func(i, j int) bool {
+		if ordered[i].TeamID != ordered[j].TeamID {
+			return ordered[i].TeamID < ordered[j].TeamID
+		}
+		if ordered[i].Position != ordered[j].Position {
+			return ordered[i].Position < ordered[j].Position
+		}
+		return ordered[i].Direction < ordered[j].Direction
+	})
+	for _, candidate := range ordered {
+		fmt.Fprintf(h, "candidate:%d:%d:%d:%d/", candidate.TeamID, candidate.Position,
+			candidate.Direction, candidate.Priority)
+	}
+	return fmt.Sprintf("%016x", h.Sum64())
+}
+
 func deriveRarePositionSeed(seed int64, stream string) int64 {
 	var encoded [8]byte
 	binary.LittleEndian.PutUint64(encoded[:], uint64(seed))
@@ -113,72 +146,103 @@ type ProductionEstimate struct {
 }
 
 type RarePositionSearchDiagnostics struct {
-	ScoutWork                             int64   `json:"scout_work"`
-	AdaptationWork                        int64   `json:"adaptation_work"`
-	EvaluationWork                        int64   `json:"evaluation_work"`
-	ProductionWork                        int64   `json:"production_work"`
-	TotalWork                             int64   `json:"total_work"`
-	TotalWorkLimit                        int64   `json:"total_work_limit"`
-	EvaluationWorkSavedPlainMCEq          float64 `json:"evaluation_work_saved_plain_mc_equivalent"`
-	EvaluationTotalSamples                int     `json:"evaluation_total_samples"`
-	EvaluationResultWork                  int64   `json:"evaluation_result_work"`
-	SelectedEvaluationSamples             int     `json:"selected_evaluation_samples"`
-	SelectedEvaluationWork                int64   `json:"selected_evaluation_work"`
-	CEMInitializationMode                 string  `json:"cem_initialization_mode"`
-	CEMInitializationSource               string  `json:"cem_initialization_source"`
-	CEMShortlistFingerprint               string  `json:"cem_shortlist_fingerprint"`
-	AdaptationExactSnapshotsShortlisted   int     `json:"adaptation_exact_snapshots_shortlisted"`
-	AdaptationExactSnapshotsLE200         int     `json:"adaptation_exact_snapshots_le_200_samples"`
-	AdaptationExactSnapshotsGE400         int     `json:"adaptation_exact_snapshots_ge_400_samples"`
-	AdaptationExactMeanEvaluationSamples  float64 `json:"adaptation_exact_mean_evaluation_samples"`
-	AdaptationExactStarved                int     `json:"adaptation_exact_starved"`
-	AdaptationExactProtected              int     `json:"adaptation_exact_protected"`
-	AdaptationExactRescued                int     `json:"adaptation_exact_rescued"`
-	AdaptationExactStillZeroAfter400      int     `json:"adaptation_exact_still_zero_after_400"`
-	AdaptationExactStillZeroAfter600      int     `json:"adaptation_exact_still_zero_after_600"`
-	SurrogateOnlySnapshotsOver400         int     `json:"surrogate_only_snapshots_over_400_samples"`
-	CandidatesAdmitted                    int     `json:"candidates_admitted"`
-	CEMBatches                            int     `json:"cem_batches"`
-	AdaptationExactHitBatches             int     `json:"adaptation_exact_hit_batches"`
-	TargetsWithExactHit                   int     `json:"targets_with_exact_hit"`
-	TargetsWithNearTargetHit              int     `json:"targets_with_near_target_hit"`
-	RetainedSnapshots                     int     `json:"retained_snapshots"`
-	EligibleSnapshots                     int     `json:"eligible_snapshots"`
-	EvaluatedSnapshots                    int     `json:"evaluated_snapshots"`
-	EvaluationHits                        int     `json:"evaluation_hits"`
-	EvaluationSnapshotsWithExactHit       int     `json:"evaluation_snapshots_with_exact_hit"`
-	EvaluationESSPerWorkSum               float64 `json:"evaluation_ess_per_work_sum"`
-	EvaluationESS                         float64 `json:"evaluation_ess"`
-	EvaluationESSPerWork                  float64 `json:"evaluation_ess_per_work"`
-	SelectedSnapshotIteration             int     `json:"selected_snapshot_iteration"`
-	SearchOverheadPlainMCEq               float64 `json:"search_overhead_plain_mc_equivalent"`
-	FreshProductionPlainMCEq              float64 `json:"fresh_production_plain_mc_equivalent"`
-	ExactHitCandidates                    int     `json:"exact_hit_candidates"`
-	ExactHitCandidatesWithLater           int     `json:"exact_hit_candidates_with_later_adaptation"`
-	FirstHitSnapshotEvaluated             int     `json:"first_hit_snapshots_evaluated"`
-	LaterSnapshotEvaluated                int     `json:"later_snapshots_evaluated"`
-	LaterBetterESSPerWork                 int     `json:"later_snapshot_better_ess_per_work"`
-	FirstHitBetterESSPerWork              int     `json:"first_hit_snapshot_better_ess_per_work"`
-	LaterOnlySnapshotEvaluated            int     `json:"later_only_snapshot_evaluated"`
-	NearTargetSnapshots                   int     `json:"near_target_snapshots"`
-	SnapshotsRejectedEquivalentToP        int     `json:"snapshots_rejected_equivalent_to_P"`
-	SnapshotsRejectedInsufficientProgress int     `json:"snapshots_rejected_insufficient_progress"`
-	SnapshotsEligibleExactHit             int     `json:"snapshots_eligible_exact_hit"`
-	SnapshotsEligibleNearTarget           int     `json:"snapshots_eligible_near_target"`
-	SnapshotsEligibleBestRank             int     `json:"snapshots_eligible_best_rank_close"`
-	SnapshotsEligibleDistance             int     `json:"snapshots_eligible_distance_improvement"`
-	SelectedTeam                          int     `json:"selected_team"`
-	SelectedPosition                      int     `json:"selected_position"`
-	ISSelectedAfterExactHit               bool    `json:"is_selected_after_exact_hit"`
-	ISSelectedWithoutExactHit             bool    `json:"is_selected_without_exact_hit"`
-	ISSelectedNearTargetOnly              bool    `json:"is_selected_near_target_only"`
-	ISSelectedAfterEvaluatedExactHit      bool    `json:"is_selected_after_evaluated_exact_hit"`
-	WeakEvaluationEvidence                bool    `json:"weak_evaluation_evidence"`
-	SelectedProductionHits                int     `json:"selected_production_hits"`
-	SelectedProductionESS                 float64 `json:"selected_production_ess"`
-	SelectedProductionRelSE               float64 `json:"selected_production_rel_se"`
-	SelectedProductionMaxEventWeightShare float64 `json:"selected_production_max_event_weight_share"`
-	SelectedProductionMeanWeight          float64 `json:"selected_production_mean_weight"`
+	ScoutWork                             int64           `json:"scout_work"`
+	AdaptationWork                        int64           `json:"adaptation_work"`
+	EvaluationWork                        int64           `json:"evaluation_work"`
+	ProductionWork                        int64           `json:"production_work"`
+	TotalWork                             int64           `json:"total_work"`
+	TotalWorkLimit                        int64           `json:"total_work_limit"`
+	EvaluationWorkSavedPlainMCEq          float64         `json:"evaluation_work_saved_plain_mc_equivalent"`
+	EvaluationTotalSamples                int             `json:"evaluation_total_samples"`
+	EvaluationResultWork                  int64           `json:"evaluation_result_work"`
+	SelectedEvaluationSamples             int             `json:"selected_evaluation_samples"`
+	SelectedEvaluationWork                int64           `json:"selected_evaluation_work"`
+	CEMInitializationMode                 string          `json:"cem_initialization_mode"`
+	CEMInitializationSource               string          `json:"cem_initialization_source"`
+	CEMParameterization                   string          `json:"cem_parameterization"`
+	CEMShortlistFingerprint               string          `json:"cem_shortlist_fingerprint"`
+	CEMFrontierFingerprint                string          `json:"cem_frontier_fingerprint"`
+	InitialAttackL2                       float64         `json:"initial_attack_l2"`
+	InitialConcedeL2                      float64         `json:"initial_concede_l2"`
+	SelectedAttackL2                      float64         `json:"selected_attack_l2"`
+	SelectedConcedeL2                     float64         `json:"selected_concede_l2"`
+	MaxAbsAttack                          float64         `json:"max_abs_attack"`
+	MaxAbsConcede                         float64         `json:"max_abs_concede"`
+	SelectedAttackParameters              map[int]float64 `json:"selected_attack_parameters,omitempty"`
+	SelectedConcessionParameters          map[int]float64 `json:"selected_concession_parameters,omitempty"`
+	FitIterations                         int             `json:"fit_iterations"`
+	FitConverged                          bool            `json:"fit_converged"`
+	FitObjectiveStart                     float64         `json:"fit_objective_start"`
+	FitObjectiveEnd                       float64         `json:"fit_objective_end"`
+	FitWallSeconds                        float64         `json:"fit_wall_seconds"`
+	TotalWallSeconds                      float64         `json:"total_wall_seconds"`
+	MeanExactESSPerWork                   float64         `json:"mean_exact_ess_per_work"`
+	MeanNear1EfficiencyRatio              float64         `json:"mean_near1_efficiency_ratio"`
+	MeanNear2EfficiencyRatio              float64         `json:"mean_near2_efficiency_ratio"`
+	MeanWeightedExactToNear1Ratio         float64         `json:"mean_weighted_exact_to_near1_ratio"`
+	Near1EfficientEvaluations             int             `json:"near1_efficient_evaluations"`
+	Near1EfficientWithExactHit            int             `json:"near1_efficient_with_exact_hit"`
+	Near1EfficientWithoutExactHit         int             `json:"near1_efficient_without_exact_hit"`
+	EliteDistanceAt300                    float64         `json:"elite_distance_at_300"`
+	EliteDistanceAt600                    float64         `json:"elite_distance_at_600"`
+	EliteDistanceAt900                    float64         `json:"elite_distance_at_900"`
+	MeanSamplesToFirstNear                float64         `json:"mean_samples_to_first_near"`
+	MeanSamplesToFirstExact               float64         `json:"mean_samples_to_first_exact"`
+	RepeatedExactHitBatches               int             `json:"repeated_exact_hit_batches"`
+	BestNearTargetRate                    float64         `json:"best_near_target_rate"`
+	BestExactRate                         float64         `json:"best_exact_rate"`
+	AdaptationExactSnapshotsShortlisted   int             `json:"adaptation_exact_snapshots_shortlisted"`
+	AdaptationExactSnapshotsLE200         int             `json:"adaptation_exact_snapshots_le_200_samples"`
+	AdaptationExactSnapshotsGE400         int             `json:"adaptation_exact_snapshots_ge_400_samples"`
+	AdaptationExactMeanEvaluationSamples  float64         `json:"adaptation_exact_mean_evaluation_samples"`
+	AdaptationExactStarved                int             `json:"adaptation_exact_starved"`
+	AdaptationExactProtected              int             `json:"adaptation_exact_protected"`
+	AdaptationExactRescued                int             `json:"adaptation_exact_rescued"`
+	AdaptationExactStillZeroAfter400      int             `json:"adaptation_exact_still_zero_after_400"`
+	AdaptationExactStillZeroAfter600      int             `json:"adaptation_exact_still_zero_after_600"`
+	SurrogateOnlySnapshotsOver400         int             `json:"surrogate_only_snapshots_over_400_samples"`
+	CandidatesAdmitted                    int             `json:"candidates_admitted"`
+	CEMBatches                            int             `json:"cem_batches"`
+	AdaptationExactHitBatches             int             `json:"adaptation_exact_hit_batches"`
+	TargetsWithExactHit                   int             `json:"targets_with_exact_hit"`
+	TargetsWithNearTargetHit              int             `json:"targets_with_near_target_hit"`
+	RetainedSnapshots                     int             `json:"retained_snapshots"`
+	EligibleSnapshots                     int             `json:"eligible_snapshots"`
+	EvaluatedSnapshots                    int             `json:"evaluated_snapshots"`
+	EvaluationHits                        int             `json:"evaluation_hits"`
+	EvaluationSnapshotsWithExactHit       int             `json:"evaluation_snapshots_with_exact_hit"`
+	EvaluationESSPerWorkSum               float64         `json:"evaluation_ess_per_work_sum"`
+	EvaluationESS                         float64         `json:"evaluation_ess"`
+	EvaluationESSPerWork                  float64         `json:"evaluation_ess_per_work"`
+	SelectedSnapshotIteration             int             `json:"selected_snapshot_iteration"`
+	SearchOverheadPlainMCEq               float64         `json:"search_overhead_plain_mc_equivalent"`
+	FreshProductionPlainMCEq              float64         `json:"fresh_production_plain_mc_equivalent"`
+	ExactHitCandidates                    int             `json:"exact_hit_candidates"`
+	ExactHitCandidatesWithLater           int             `json:"exact_hit_candidates_with_later_adaptation"`
+	FirstHitSnapshotEvaluated             int             `json:"first_hit_snapshots_evaluated"`
+	LaterSnapshotEvaluated                int             `json:"later_snapshots_evaluated"`
+	LaterBetterESSPerWork                 int             `json:"later_snapshot_better_ess_per_work"`
+	FirstHitBetterESSPerWork              int             `json:"first_hit_snapshot_better_ess_per_work"`
+	LaterOnlySnapshotEvaluated            int             `json:"later_only_snapshot_evaluated"`
+	NearTargetSnapshots                   int             `json:"near_target_snapshots"`
+	SnapshotsRejectedEquivalentToP        int             `json:"snapshots_rejected_equivalent_to_P"`
+	SnapshotsRejectedInsufficientProgress int             `json:"snapshots_rejected_insufficient_progress"`
+	SnapshotsEligibleExactHit             int             `json:"snapshots_eligible_exact_hit"`
+	SnapshotsEligibleNearTarget           int             `json:"snapshots_eligible_near_target"`
+	SnapshotsEligibleBestRank             int             `json:"snapshots_eligible_best_rank_close"`
+	SnapshotsEligibleDistance             int             `json:"snapshots_eligible_distance_improvement"`
+	SelectedTeam                          int             `json:"selected_team"`
+	SelectedPosition                      int             `json:"selected_position"`
+	ISSelectedAfterExactHit               bool            `json:"is_selected_after_exact_hit"`
+	ISSelectedWithoutExactHit             bool            `json:"is_selected_without_exact_hit"`
+	ISSelectedNearTargetOnly              bool            `json:"is_selected_near_target_only"`
+	ISSelectedAfterEvaluatedExactHit      bool            `json:"is_selected_after_evaluated_exact_hit"`
+	WeakEvaluationEvidence                bool            `json:"weak_evaluation_evidence"`
+	SelectedProductionHits                int             `json:"selected_production_hits"`
+	SelectedProductionESS                 float64         `json:"selected_production_ess"`
+	SelectedProductionRelSE               float64         `json:"selected_production_rel_se"`
+	SelectedProductionMaxEventWeightShare float64         `json:"selected_production_max_event_weight_share"`
+	SelectedProductionMeanWeight          float64         `json:"selected_production_mean_weight"`
 }
 
 type ProductionDesign struct {
@@ -1485,13 +1549,20 @@ func runRarePositionSearchEvaluationProduction(group *GroupType, campaign []*Tea
 	table *Table, sortOrder []SortType, normalPositionCounts map[int][]int,
 	teamOdds []OddsType, normalSamples int) map[int]map[int]ProductionEstimate {
 	seed, seedSource := rarePositionSeed()
-	searchSeed := deriveRarePositionSeed(seed, "pipeline-search")
-	evaluationSeed := deriveRarePositionSeed(seed, "pipeline-evaluation")
-	productionSeed := deriveRarePositionSeed(seed, "pipeline-production")
+	parameterization := cemParameterizationFromEnvironment()
+	family := "scoring"
+	if parameterization == CEMTeamAttackConcession {
+		family = "attack-concession"
+	}
+	frontierSeed := deriveRarePositionSeed(seed, "rare-frontier")
+	searchSeed := deriveRarePositionSeed(seed, family+"-search")
+	evaluationSeed := deriveRarePositionSeed(seed, family+"-evaluation")
+	productionSeed := deriveRarePositionSeed(seed, family+"-production")
+	frontierRNG := rand.New(rand.NewSource(frontierSeed))
 	searchRNG := rand.New(rand.NewSource(searchSeed))
 	productionRNG := rand.New(rand.NewSource(productionSeed))
-	log.Printf("rare-position-rng: group=%d seed=%d search_seed=%d evaluation_seed=%d production_seed=%d source=%s phase=search,evaluation,production",
-		group.Id, seed, searchSeed, evaluationSeed, productionSeed, seedSource)
+	log.Printf("rare-position-rng: group=%d seed=%d parameterization=%s frontier_seed=%d search_seed=%d evaluation_seed=%d production_seed=%d source=%s phase=search,evaluation,production",
+		group.Id, seed, cemParameterizationName(parameterization), frontierSeed, searchSeed, evaluationSeed, productionSeed, seedSource)
 	unplayedGames := 0
 	for _, game := range group.Games {
 		if !game.Played {
@@ -1528,7 +1599,7 @@ func runRarePositionSearchEvaluationProduction(group *GroupType, campaign []*Tea
 		teamID := team.Team_id
 		index := table.Query(uint32(teamID))
 		search := initializeTeamRareSearchWithRNG(teamID, normalPositionCounts[teamID],
-			teamOdds[index].team.Pos, campaign, group.Team_groups, group.Games, table, sortOrder, searchRNG)
+			teamOdds[index].team.Pos, campaign, group.Team_groups, group.Games, table, sortOrder, frontierRNG)
 		teamSearches[teamID] = search
 		for _, position := range search.Positions {
 			if position.ObservedCount > 0 {
@@ -1538,12 +1609,13 @@ func runRarePositionSearchEvaluationProduction(group *GroupType, campaign []*Tea
 	}
 
 	candidates := collectFrontierCandidates(teamSearches)
+	frontierFingerprint := cemFrontierFingerprint(candidates, teamSearches)
 	var cemRound CEMRoundResult
 	initializationMode, initializationSource := cemInitializationMode()
-	log.Printf("rare-position-cem-init-mode: group=%d mode=%s source=%s",
-		group.Id, cemInitializationModeName(initializationMode), initializationSource)
+	log.Printf("rare-position-cem-init-mode: group=%d mode=%s source=%s parameterization=%s",
+		group.Id, cemInitializationModeName(initializationMode), initializationSource, cemParameterizationName(parameterization))
 	if len(candidates) > 0 && remainingWork > 0 && cemWorkRemaining > 0 {
-		cemRound = runCEMAdaptationRoundWithMode(initializationMode, candidates, teamSearches, group, campaign,
+		cemRound = runCEMAdaptationRoundWithModeAndParameterization(initializationMode, parameterization, candidates, teamSearches, group, campaign,
 			table, sortOrder, originalMeans, &cemWorkRemaining, &remainingWork,
 			&explorationWorkRemaining, adaptWorkPerSample, searchRNG)
 	}
@@ -1668,7 +1740,31 @@ func runRarePositionSearchEvaluationProduction(group *GroupType, campaign []*Tea
 	diagnostics.SelectedEvaluationWork = evaluationResult.SelectedWork
 	diagnostics.CEMInitializationMode = cemInitializationModeName(initializationMode)
 	diagnostics.CEMInitializationSource = initializationSource
+	diagnostics.CEMParameterization = cemParameterizationName(parameterization)
 	diagnostics.CEMShortlistFingerprint = cemEvaluationShortlistFingerprint(evaluations)
+	diagnostics.CEMFrontierFingerprint = frontierFingerprint
+	diagnostics.InitialAttackL2 = cemRound.InitialAttackL2
+	diagnostics.InitialConcedeL2 = cemRound.InitialConcessionL2
+	diagnostics.FitIterations = cemRound.AttackConcessionFitIterations
+	diagnostics.FitConverged = cemRound.AttackConcessionFitUpdates == 0 ||
+		cemRound.AttackConcessionFitConverged == cemRound.AttackConcessionFitUpdates
+	diagnostics.FitObjectiveStart = cemRound.AttackConcessionFitObjectiveStart
+	diagnostics.FitObjectiveEnd = cemRound.AttackConcessionFitObjectiveEnd
+	diagnostics.FitWallSeconds = cemRound.AttackConcessionFitWallTime.Seconds()
+	if selectedEvaluation != nil && selectedEvaluation.Snapshot.Proposal.Parameterization == CEMTeamAttackConcession {
+		diagnostics.SelectedAttackParameters = copyTheta(selectedEvaluation.Snapshot.Proposal.AttackTheta)
+		diagnostics.SelectedConcessionParameters = copyTheta(selectedEvaluation.Snapshot.Proposal.ConcessionTheta)
+		for _, value := range selectedEvaluation.Snapshot.Proposal.AttackTheta {
+			diagnostics.SelectedAttackL2 += value * value
+			diagnostics.MaxAbsAttack = math.Max(diagnostics.MaxAbsAttack, math.Abs(value))
+		}
+		for _, value := range selectedEvaluation.Snapshot.Proposal.ConcessionTheta {
+			diagnostics.SelectedConcedeL2 += value * value
+			diagnostics.MaxAbsConcede = math.Max(diagnostics.MaxAbsConcede, math.Abs(value))
+		}
+		diagnostics.SelectedAttackL2 = math.Sqrt(diagnostics.SelectedAttackL2)
+		diagnostics.SelectedConcedeL2 = math.Sqrt(diagnostics.SelectedConcedeL2)
+	}
 	for teamID, positions := range productionEstimates {
 		for position, estimate := range positions {
 			estimate.SearchDiagnostics = diagnostics
@@ -1681,8 +1777,8 @@ func runRarePositionSearchEvaluationProduction(group *GroupType, campaign []*Tea
 		panic("rare-position total work budget exceeded or phase accounting is inconsistent")
 	}
 	searchOverhead := scoutWork + adaptationWork + evaluationWork
-	log.Printf("rare-position-summary: parameterization=team_level group=%d scout_samples=%d scout_work=%d adaptation_work=%d adaptation_plain_mc_equiv=%.1f evaluation_work=%d evaluation_plain_mc_equiv=%.1f snapshots_retained=%d snapshots_evaluated=%d production_design=%s production_samples=%d production_work=%d fresh_final_estimator_samples=%d search_overhead_plain_mc_equiv=%.1f fresh_production_plain_mc_equiv=%.1f total_work_limit=%d work_spent=%d unused_work=%d scout_resolved_cells=%d cem_batches=%d candidates_admitted=%d exact_hit_targets=%d plain_P_selected=%t",
-		group.Id, normalSamples, scoutWork, adaptationWork, float64(adaptationWork)/float64(plainWorkPerSample),
+	log.Printf("rare-position-summary: parameterization=%s group=%d scout_samples=%d scout_work=%d adaptation_work=%d adaptation_plain_mc_equiv=%.1f evaluation_work=%d evaluation_plain_mc_equiv=%.1f snapshots_retained=%d snapshots_evaluated=%d production_design=%s production_samples=%d production_work=%d fresh_final_estimator_samples=%d search_overhead_plain_mc_equiv=%.1f fresh_production_plain_mc_equiv=%.1f total_work_limit=%d work_spent=%d unused_work=%d scout_resolved_cells=%d cem_batches=%d candidates_admitted=%d exact_hit_targets=%d plain_P_selected=%t",
+		cemParameterizationName(parameterization), group.Id, normalSamples, scoutWork, adaptationWork, float64(adaptationWork)/float64(plainWorkPerSample),
 		evaluationWork, float64(evaluationWork)/float64(plainWorkPerSample), len(cemRound.Snapshots),
 		len(evaluations), design.Kind, design.Samples, productionWork, design.Samples,
 		float64(searchOverhead)/float64(plainWorkPerSample),
@@ -1705,6 +1801,10 @@ func rarePositionSearchDiagnostics(round CEMRoundResult, evaluations []CEMPropos
 		AdaptationExactHitBatches: round.AdaptationExactHitBatches,
 		TargetsWithExactHit:       round.TargetsAnyExact, RetainedSnapshots: len(round.Snapshots),
 		EvaluatedSnapshots: len(evaluations), SelectedSnapshotIteration: 0,
+		EliteDistanceAt300: round.EliteDistanceAt300, EliteDistanceAt600: round.EliteDistanceAt600,
+		EliteDistanceAt900: round.EliteDistanceAt900, MeanSamplesToFirstNear: round.MeanSamplesToFirstNear,
+		MeanSamplesToFirstExact: round.MeanSamplesToFirstExact, RepeatedExactHitBatches: round.RepeatedExactHitBatches,
+		BestNearTargetRate: round.BestNearTargetRate, BestExactRate: round.BestExactRate,
 	}
 	nearTargets := make(map[[2]int]bool)
 	for _, snapshot := range round.Snapshots {
@@ -1733,6 +1833,20 @@ func rarePositionSearchDiagnostics(round CEMRoundResult, evaluations []CEMPropos
 	}
 	diagnostics.TargetsWithNearTargetHit = len(nearTargets)
 	for _, evaluation := range evaluations {
+		if evaluation.Near1.Probability > 0 {
+			diagnostics.MeanWeightedExactToNear1Ratio += evaluation.Exact.Probability / evaluation.Near1.Probability
+		}
+		diagnostics.MeanExactESSPerWork += evaluation.ESSPerWork
+		diagnostics.MeanNear1EfficiencyRatio += evaluation.Near1EfficiencyRatio
+		diagnostics.MeanNear2EfficiencyRatio += evaluation.Near2EfficiencyRatio
+		if evaluation.Near1EfficiencyRatio > 2 {
+			diagnostics.Near1EfficientEvaluations++
+			if evaluation.Hits > 0 {
+				diagnostics.Near1EfficientWithExactHit++
+			} else {
+				diagnostics.Near1EfficientWithoutExactHit++
+			}
+		}
 		diagnostics.EvaluationHits += evaluation.Hits
 		diagnostics.EvaluationESSPerWorkSum += evaluation.ESSPerWork
 		if evaluation.Hits > 0 {
@@ -1761,6 +1875,12 @@ func rarePositionSearchDiagnostics(round CEMRoundResult, evaluations []CEMPropos
 		} else if evaluation.Samples > 400 {
 			diagnostics.SurrogateOnlySnapshotsOver400++
 		}
+	}
+	if len(evaluations) > 0 {
+		diagnostics.MeanExactESSPerWork /= float64(len(evaluations))
+		diagnostics.MeanNear1EfficiencyRatio /= float64(len(evaluations))
+		diagnostics.MeanNear2EfficiencyRatio /= float64(len(evaluations))
+		diagnostics.MeanWeightedExactToNear1Ratio /= float64(len(evaluations))
 	}
 	if diagnostics.AdaptationExactSnapshotsShortlisted > 0 {
 		diagnostics.AdaptationExactMeanEvaluationSamples /= float64(diagnostics.AdaptationExactSnapshotsShortlisted)
@@ -1875,6 +1995,7 @@ func cemEvaluationShortlistFingerprint(evaluations []CEMProposalEvaluation) stri
 		snapshot := evaluation.Snapshot
 		fmt.Fprintf(h, "%d/%d/%d/%d/%d/", snapshot.CandidateTeam, snapshot.CandidatePosition,
 			snapshot.SourceIteration, snapshot.Stats.ExactHits, snapshot.Stats.NearTargetHits)
+		fmt.Fprintf(h, "parameterization:%d/", snapshot.Proposal.Parameterization)
 		teamIDs := make([]int, 0, len(snapshot.Proposal.TeamLogMultipliers))
 		for teamID := range snapshot.Proposal.TeamLogMultipliers {
 			teamIDs = append(teamIDs, teamID)
@@ -1882,6 +2003,16 @@ func cemEvaluationShortlistFingerprint(evaluations []CEMProposalEvaluation) stri
 		sort.Ints(teamIDs)
 		for _, teamID := range teamIDs {
 			fmt.Fprintf(h, "%d:%.12g/", teamID, snapshot.Proposal.TeamLogMultipliers[teamID])
+		}
+		for _, parameters := range []map[int]float64{snapshot.Proposal.AttackTheta, snapshot.Proposal.ConcessionTheta} {
+			teamIDs = teamIDs[:0]
+			for teamID := range parameters {
+				teamIDs = append(teamIDs, teamID)
+			}
+			sort.Ints(teamIDs)
+			for _, teamID := range teamIDs {
+				fmt.Fprintf(h, "%d:%.12g/", teamID, parameters[teamID])
+			}
 		}
 		for _, means := range snapshot.Proposal.Means {
 			fmt.Fprintf(h, "%.12g,%.12g/", means.Home, means.Away)

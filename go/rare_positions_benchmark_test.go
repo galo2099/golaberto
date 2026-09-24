@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 // This opt-in harness consumes an existing serialized odds request for group
@@ -1011,4 +1012,414 @@ func TestRareBenchmarkCSVRowsMatchHeader(t *testing.T) {
 	if len(records) != 2 || len(records[0]) != len(records[1]) {
 		t.Fatalf("benchmark CSV header/data widths differ: records=%v", records)
 	}
+}
+
+type cemFamilyBenchmarkRow struct {
+	Seed                             int64           `json:"seed"`
+	Method                           string          `json:"method"`
+	Team                             int             `json:"team"`
+	Position                         int             `json:"position"`
+	Reference                        float64         `json:"reference_probability"`
+	Estimate                         float64         `json:"estimate"`
+	StdErr                           float64         `json:"std_error"`
+	RelativeSE                       float64         `json:"relative_se"`
+	ESS                              float64         `json:"ess"`
+	Hits                             int             `json:"hits"`
+	Samples                          int             `json:"samples"`
+	Design                           string          `json:"design"`
+	TotalWork                        int64           `json:"total_work"`
+	WorkLimit                        int64           `json:"work_limit"`
+	ProductionWork                   int64           `json:"production_work"`
+	Parameterization                 string          `json:"parameterization"`
+	FrontierFingerprint              string          `json:"frontier_fingerprint"`
+	InitialAttackL2                  float64         `json:"initial_attack_l2"`
+	InitialConcedeL2                 float64         `json:"initial_concede_l2"`
+	SelectedAttackL2                 float64         `json:"selected_attack_l2"`
+	SelectedConcedeL2                float64         `json:"selected_concede_l2"`
+	MaxAbsAttack                     float64         `json:"max_abs_attack"`
+	MaxAbsConcede                    float64         `json:"max_abs_concede"`
+	FitObjectiveStart                float64         `json:"fit_objective_start"`
+	FitObjectiveEnd                  float64         `json:"fit_objective_end"`
+	FitWallSeconds                   float64         `json:"fit_wall_time_seconds"`
+	TotalWallSeconds                 float64         `json:"total_wall_time_seconds"`
+	FitIterations                    int             `json:"fit_iterations"`
+	FitConverged                     bool            `json:"fit_converged"`
+	AttackParameters                 map[int]float64 `json:"selected_attack_parameters,omitempty"`
+	ConcessionParameters             map[int]float64 `json:"selected_concession_parameters,omitempty"`
+	AdaptationExactHits              int             `json:"adaptation_exact_hits"`
+	AdaptationExactCandidates        int             `json:"adaptation_exact_candidate_count"`
+	RetainedAdaptationExactSnapshots int             `json:"retained_adaptation_exact_snapshots"`
+	HeldoutExactHits                 int             `json:"heldout_exact_hits"`
+	Near1Efficiency                  float64         `json:"near1_efficiency_ratio"`
+	Near2Efficiency                  float64         `json:"near2_efficiency_ratio"`
+	WeightedExactToNear1             float64         `json:"weighted_exact_to_near1_ratio"`
+	ExactESSPerWork                  float64         `json:"exact_ess_per_work"`
+	Near1HighWithExact               int             `json:"near1_gt2_with_exact"`
+	Near1HighWithoutExact            int             `json:"near1_gt2_without_exact"`
+	EvaluatedSnapshotCount           int             `json:"evaluated_snapshot_count"`
+	ProductionESS                    float64         `json:"production_event_ess"`
+	ProductionRelSE                  float64         `json:"production_rel_se"`
+	MaxEventWeightShare              float64         `json:"max_event_weight_share"`
+	MeanWeight                       float64         `json:"mean_importance_weight"`
+	SearchWorkPlainMCEq              float64         `json:"search_work_plain_mc_equivalent"`
+	EliteDistanceAt300               float64         `json:"elite_distance_after_300"`
+	EliteDistanceAt600               float64         `json:"elite_distance_after_600"`
+	EliteDistanceAt900               float64         `json:"elite_distance_after_900"`
+	SamplesToFirstNear               float64         `json:"samples_to_first_near"`
+	SamplesToFirstExact              float64         `json:"samples_to_first_exact"`
+	RepeatedExactHitBatches          int             `json:"repeated_exact_hit_batches"`
+	BestNearTargetRate               float64         `json:"best_near_target_rate"`
+	BestExactRate                    float64         `json:"best_exact_rate"`
+}
+
+type cemFamilySummary struct {
+	RMSE                    float64 `json:"rmse"`
+	RelativeRMSE            float64 `json:"relative_rmse"`
+	MAE                     float64 `json:"mae"`
+	ZeroRate                float64 `json:"zero_estimate_rate"`
+	MeanESS                 float64 `json:"mean_ess"`
+	MeanProductionESS       float64 `json:"mean_production_ess"`
+	MeanMaxEventWeightShare float64 `json:"mean_max_event_weight_share"`
+	MeanWeight              float64 `json:"mean_importance_weight"`
+	MeanSearchWork          float64 `json:"mean_search_work_plain_mc_equivalent"`
+	MeanFitSeconds          float64 `json:"mean_fit_wall_seconds"`
+	MeanTotalSeconds        float64 `json:"mean_total_wall_seconds"`
+	AdaptationExactHitRate  float64 `json:"adaptation_exact_hit_rate"`
+	HeldoutExactHitRate     float64 `json:"heldout_exact_hit_rate"`
+	MeanNear1Efficiency     float64 `json:"mean_near1_efficiency_ratio"`
+	MeanNear2Efficiency     float64 `json:"mean_near2_efficiency_ratio"`
+	MeanExactESSPerWork     float64 `json:"mean_exact_ess_per_work"`
+	MeanSamplesToFirstNear  float64 `json:"mean_samples_to_first_near"`
+	MeanSamplesToFirstExact float64 `json:"mean_samples_to_first_exact"`
+	RepeatedExactHitBatches float64 `json:"mean_repeated_exact_hit_batches"`
+}
+
+type cemFamilyReport struct {
+	GroupID               int                           `json:"group_id"`
+	Seeds                 []int64                       `json:"seeds"`
+	Rows                  []cemFamilyBenchmarkRow       `json:"rows"`
+	Summaries             map[string]cemFamilySummary   `json:"summaries"`
+	BucketRMSE            map[string]map[string]float64 `json:"bucket_rmse"`
+	CellRMSE              map[string]map[string]float64 `json:"cell_rmse"`
+	AttackToScoringRMSE   float64                       `json:"attack_to_scoring_rmse_ratio"`
+	ScoringToPlainRMSE    float64                       `json:"scoring_to_plain_rmse_ratio"`
+	AttackToPlainRMSE     float64                       `json:"attack_to_plain_rmse_ratio"`
+	ScoutFrontiersMatched bool                          `json:"scout_frontiers_matched"`
+	EqualTotalWork        bool                          `json:"equal_total_work_budget"`
+	SelectionRates        map[string]float64
+	Near1Efficiency       map[string]float64
+	Near1ExactConversion  map[string]map[string]float64 `json:"near1_exact_conversion"`
+	Targets               []rareBenchmarkTarget
+}
+
+// Opt-in 20-seed controlled comparison of the existing scoring-only family
+// and attack+concession. It consumes the saved group-16982 request fixture.
+func TestRarePositionCEMFamilyMatchedComputeBenchmark(t *testing.T) {
+	if os.Getenv("RARE_POSITION_CEM_FAMILY_BENCHMARK") != "1" {
+		t.Skip("set RARE_POSITION_CEM_FAMILY_BENCHMARK=1 to run the 20-seed CEM family benchmark")
+	}
+	fixture := os.Getenv("RARE_POSITION_BENCHMARK_GROUP_JSON")
+	if fixture == "" {
+		t.Fatal("RARE_POSITION_BENCHMARK_GROUP_JSON must point to the saved group request JSON")
+	}
+	data, err := os.ReadFile(fixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var input GroupType
+	if err := json.Unmarshal(data, &input); err != nil {
+		t.Fatal(err)
+	}
+	if input.Id != 16982 {
+		t.Fatalf("fixture group_id=%d, want 16982", input.Id)
+	}
+	const plainSamples = 100000
+	report := cemFamilyReport{GroupID: input.Id, Summaries: make(map[string]cemFamilySummary),
+		BucketRMSE: make(map[string]map[string]float64), ScoutFrontiersMatched: true,
+		CellRMSE: make(map[string]map[string]float64), Near1ExactConversion: make(map[string]map[string]float64),
+		EqualTotalWork: true, SelectionRates: make(map[string]float64),
+		Near1Efficiency: make(map[string]float64), Targets: append([]rareBenchmarkTarget(nil), rareBenchmarkTargets...)}
+	for i := 0; i < 20; i++ {
+		report.Seeds = append(report.Seeds, int64(1001+i))
+	}
+	envNames := []string{"RARE_POSITION_RANDOM_SEED", "RARE_POSITION_IMPORTANCE_SAMPLING", "RARE_POSITION_BENCHMARK_ITERATIONS", "RARE_POSITION_BENCHMARK_CEM_INIT_MODE", "RARE_POSITION_CEM_PARAMETERIZATION", "RARE_POSITION_BENCHMARK_CEM_PARAMETERIZATION", "RARE_POSITION_CEM_RACING_MODE"}
+	for _, key := range envNames {
+		value, ok := os.LookupEnv(key)
+		key := key
+		t.Cleanup(func() { restoreBenchmarkEnv(t, key, value, ok) })
+	}
+	for _, seed := range report.Seeds {
+		scoring, scoreDiag := runRareCEMFamilyBenchmarkArm(t, input, seed, CEMTeamScoring)
+		attack, attackDiag := runRareCEMFamilyBenchmarkArm(t, input, seed, CEMTeamAttackConcession)
+		if scoreDiag.CEMFrontierFingerprint != attackDiag.CEMFrontierFingerprint {
+			report.ScoutFrontiersMatched = false
+			t.Fatalf("seed %d scout/frontier mismatch", seed)
+		}
+		if scoreDiag.TotalWork > scoreDiag.TotalWorkLimit || attackDiag.TotalWork > attackDiag.TotalWorkLimit || scoreDiag.TotalWorkLimit != attackDiag.TotalWorkLimit {
+			report.EqualTotalWork = false
+			t.Fatalf("seed %d work-budget mismatch scoring=%d/%d attack=%d/%d", seed, scoreDiag.TotalWork, scoreDiag.TotalWorkLimit, attackDiag.TotalWork, attackDiag.TotalWorkLimit)
+		}
+		plainSeed := deriveRarePositionSeed(seed, "plain-mc")
+		_ = os.Setenv("RARE_POSITION_RANDOM_SEED", strconv.FormatInt(plainSeed, 10))
+		_ = os.Unsetenv("RARE_POSITION_IMPORTANCE_SAMPLING")
+		_ = os.Setenv("RARE_POSITION_BENCHMARK_ITERATIONS", strconv.Itoa(plainSamples))
+		_ = os.Setenv("RARE_POSITION_BENCHMARK_CEM_PARAMETERIZATION", "")
+		baseline := cloneGroupForBenchmark(input).calculate_odds()
+		baselineOdds, ok := baseline["team_odds"].(map[int]*TeamOdds)
+		if !ok {
+			t.Fatalf("seed %d returned no plain-MC odds", seed)
+		}
+		unplayed := 0
+		for _, g := range input.Games {
+			if !g.Played {
+				unplayed++
+			}
+		}
+		workPerSample := estimateSeasonWork(unplayed, 1, len(input.Team_groups))
+		plainWork := int64(plainSamples) * workPerSample
+		if plainWork != scoreDiag.TotalWorkLimit {
+			report.EqualTotalWork = false
+			t.Fatalf("seed %d plain work=%d pipeline limit=%d", seed, plainWork, scoreDiag.TotalWorkLimit)
+		}
+		for _, target := range rareBenchmarkTargets {
+			report.Rows = append(report.Rows, cemFamilyBenchmarkRowFromEstimate(seed, "scoring_only", target, scoring[target.Team][target.Position], scoreDiag),
+				cemFamilyBenchmarkRowFromEstimate(seed, "attack_concession", target, attack[target.Team][target.Position], attackDiag))
+			odds := baselineOdds[target.Team]
+			if odds == nil || target.Position >= len(odds.Pos) {
+				t.Fatalf("plain baseline missing team=%d position=%d", target.Team, target.Position)
+			}
+			p := odds.Pos[target.Position] / 100
+			report.Rows = append(report.Rows, cemFamilyBenchmarkRow{Seed: seed, Method: "plain_mc_100k", Team: target.Team, Position: target.Position, Reference: target.Reference,
+				Estimate: p, StdErr: math.Sqrt(p * (1 - p) / plainSamples), RelativeSE: safeRatio(math.Sqrt(p*(1-p)/plainSamples), p), ESS: float64(plainSamples) * p,
+				Hits: int(math.Round(float64(plainSamples) * p)), Samples: plainSamples, Design: "plain_mc", TotalWork: plainWork, WorkLimit: plainWork, ProductionWork: plainWork, MeanWeight: 1})
+		}
+	}
+	methods := []string{"plain_mc_100k", "scoring_only", "attack_concession"}
+	for _, method := range methods {
+		report.Summaries[method] = summarizeCEMFamily(report.Rows, method)
+	}
+	for _, target := range rareBenchmarkTargets {
+		cellKey := fmt.Sprintf("%d/%d", target.Team, target.Position)
+		report.CellRMSE[cellKey] = make(map[string]float64)
+		for _, method := range methods {
+			report.CellRMSE[cellKey][method] = cemFamilyCellRMSE(report.Rows, method, target)
+		}
+	}
+	for _, bucket := range []struct {
+		name      string
+		low, high float64
+	}{{"1e-5_to_3e-5", 1e-5, 3e-5}, {"3e-5_to_1e-4", 3e-5, 1e-4}, {"1e-4_to_2e-4", 1e-4, 2e-4 + 1e-15}} {
+		report.BucketRMSE[bucket.name] = make(map[string]float64)
+		for _, method := range methods {
+			report.BucketRMSE[bucket.name][method] = cemFamilyBucketRMSE(report.Rows, method, bucket.low, bucket.high)
+		}
+	}
+	for _, method := range []string{"scoring_only", "attack_concession"} {
+		report.SelectionRates[method] = cemFamilyISSelectionRate(report.Rows, method)
+		report.Near1Efficiency[method] = cemFamilyNear1Mean(report.Rows, method)
+		report.Near1ExactConversion[method] = cemFamilyNear1Conversion(report.Rows, method)
+	}
+	report.AttackToScoringRMSE = safeRatio(report.Summaries["attack_concession"].RMSE, report.Summaries["scoring_only"].RMSE)
+	report.ScoringToPlainRMSE = safeRatio(report.Summaries["scoring_only"].RMSE, report.Summaries["plain_mc_100k"].RMSE)
+	report.AttackToPlainRMSE = safeRatio(report.Summaries["attack_concession"].RMSE, report.Summaries["plain_mc_100k"].RMSE)
+	encoded, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	output := os.Getenv("RARE_POSITION_CEM_FAMILY_BENCHMARK_OUTPUT")
+	if output == "" {
+		output = "/tmp/rare-position-cem-family-benchmark.json"
+	}
+	if err := os.WriteFile(output, encoded, 0600); err != nil {
+		t.Fatal(err)
+	}
+	fmt.Printf("CEM family benchmark: scoring RMSE=%.6g; attack+concession RMSE=%.6g; plain MC RMSE=%.6g; attack/scoring=%.3f; report=%s\n",
+		report.Summaries["scoring_only"].RMSE, report.Summaries["attack_concession"].RMSE, report.Summaries["plain_mc_100k"].RMSE, report.AttackToScoringRMSE, output)
+}
+
+func runRareCEMFamilyBenchmarkArm(t *testing.T, input GroupType, seed int64,
+	parameterization CEMParameterization) (map[int]map[int]ProductionEstimate, *RarePositionSearchDiagnostics) {
+	t.Helper()
+	_ = os.Setenv("RARE_POSITION_CEM_PARAMETERIZATION", "")
+	_ = os.Setenv("RARE_POSITION_BENCHMARK_CEM_PARAMETERIZATION", cemParameterizationName(parameterization))
+	started := time.Now()
+	estimates, diagnostics := runRareBenchmarkPipelineArm(t, input, seed, "")
+	diagnostics.TotalWallSeconds = time.Since(started).Seconds()
+	if diagnostics.CEMParameterization != cemParameterizationName(parameterization) {
+		t.Fatalf("seed %d parameterization=%s, want %s", seed, diagnostics.CEMParameterization, cemParameterizationName(parameterization))
+	}
+	return estimates, diagnostics
+}
+
+func cemFamilyBenchmarkRowFromEstimate(seed int64, method string, target rareBenchmarkTarget,
+	estimate ProductionEstimate, d *RarePositionSearchDiagnostics) cemFamilyBenchmarkRow {
+	r := cemFamilyBenchmarkRow{Seed: seed, Method: method, Team: target.Team, Position: target.Position, Reference: target.Reference,
+		Parameterization: d.CEMParameterization, FrontierFingerprint: d.CEMFrontierFingerprint, TotalWork: d.TotalWork, WorkLimit: d.TotalWorkLimit,
+		ProductionWork: d.ProductionWork, InitialAttackL2: d.InitialAttackL2, InitialConcedeL2: d.InitialConcedeL2,
+		SelectedAttackL2: d.SelectedAttackL2, SelectedConcedeL2: d.SelectedConcedeL2, MaxAbsAttack: d.MaxAbsAttack, MaxAbsConcede: d.MaxAbsConcede,
+		AttackParameters: d.SelectedAttackParameters, ConcessionParameters: d.SelectedConcessionParameters,
+		FitIterations: d.FitIterations, FitConverged: d.FitConverged, FitObjectiveStart: d.FitObjectiveStart, FitObjectiveEnd: d.FitObjectiveEnd,
+		FitWallSeconds: d.FitWallSeconds, TotalWallSeconds: d.TotalWallSeconds, AdaptationExactHits: d.AdaptationExactHitBatches,
+		AdaptationExactCandidates: d.TargetsWithExactHit, RetainedAdaptationExactSnapshots: d.AdaptationExactSnapshotsShortlisted,
+		HeldoutExactHits: d.EvaluationSnapshotsWithExactHit, Near1Efficiency: d.MeanNear1EfficiencyRatio, Near2Efficiency: d.MeanNear2EfficiencyRatio,
+		WeightedExactToNear1: d.MeanWeightedExactToNear1Ratio,
+		ExactESSPerWork:      d.MeanExactESSPerWork, Near1HighWithExact: d.Near1EfficientWithExactHit, Near1HighWithoutExact: d.Near1EfficientWithoutExactHit,
+		EvaluatedSnapshotCount: d.EvaluatedSnapshots,
+		ProductionESS:          d.SelectedProductionESS, ProductionRelSE: d.SelectedProductionRelSE,
+		MaxEventWeightShare: d.SelectedProductionMaxEventWeightShare, MeanWeight: d.SelectedProductionMeanWeight, SearchWorkPlainMCEq: d.SearchOverheadPlainMCEq,
+		EliteDistanceAt300: d.EliteDistanceAt300, EliteDistanceAt600: d.EliteDistanceAt600, EliteDistanceAt900: d.EliteDistanceAt900,
+		SamplesToFirstNear: d.MeanSamplesToFirstNear, SamplesToFirstExact: d.MeanSamplesToFirstExact,
+		RepeatedExactHitBatches: d.RepeatedExactHitBatches, BestNearTargetRate: d.BestNearTargetRate, BestExactRate: d.BestExactRate}
+	if estimate.Available {
+		r.Estimate, r.StdErr, r.RelativeSE, r.ESS, r.Hits, r.Samples, r.Design = estimate.Probability, estimate.StdErr, relativeSEValue(estimate.RelativeSE), estimate.ESS, estimate.Hits, estimate.Samples, estimate.Design
+		r.ProductionESS, r.ProductionRelSE = estimate.ESS, relativeSEValue(estimate.RelativeSE)
+		r.MaxEventWeightShare, r.MeanWeight = estimate.MaxEventWeightShare, estimate.MeanWeight
+	}
+	return r
+}
+
+func summarizeCEMFamily(rows []cemFamilyBenchmarkRow, method string) cemFamilySummary {
+	var s cemFamilySummary
+	n := 0.0
+	seenSeed := make(map[int64]bool)
+	for _, r := range rows {
+		if r.Method != method {
+			continue
+		}
+		err := r.Estimate - r.Reference
+		s.RMSE += err * err
+		s.RelativeRMSE += square(safeRatio(err, r.Reference))
+		s.MAE += math.Abs(err)
+		if r.Estimate == 0 {
+			s.ZeroRate++
+		}
+		s.MeanESS += r.ESS
+		s.MeanProductionESS += r.ProductionESS
+		s.MeanMaxEventWeightShare += r.MaxEventWeightShare
+		s.MeanWeight += r.MeanWeight
+		s.MeanSearchWork += r.SearchWorkPlainMCEq
+		s.MeanFitSeconds += r.FitWallSeconds
+		s.MeanTotalSeconds += r.TotalWallSeconds
+		if !seenSeed[r.Seed] {
+			seenSeed[r.Seed] = true
+			if r.AdaptationExactCandidates > 0 {
+				s.AdaptationExactHitRate++
+			}
+			if r.HeldoutExactHits > 0 {
+				s.HeldoutExactHitRate++
+			}
+			s.MeanNear1Efficiency += r.Near1Efficiency
+			s.MeanNear2Efficiency += r.Near2Efficiency
+			s.MeanExactESSPerWork += r.ExactESSPerWork
+			s.MeanSamplesToFirstNear += r.SamplesToFirstNear
+			s.MeanSamplesToFirstExact += r.SamplesToFirstExact
+			s.RepeatedExactHitBatches += float64(r.RepeatedExactHitBatches)
+		}
+		n++
+	}
+	if n == 0 {
+		return s
+	}
+	s.RMSE = math.Sqrt(s.RMSE / n)
+	s.RelativeRMSE = math.Sqrt(s.RelativeRMSE / n)
+	s.MAE /= n
+	s.ZeroRate /= n
+	s.MeanESS /= n
+	s.MeanProductionESS /= n
+	s.MeanMaxEventWeightShare /= n
+	s.MeanWeight /= n
+	s.MeanSearchWork /= n
+	s.MeanFitSeconds /= n
+	s.MeanTotalSeconds /= n
+	seedCount := float64(len(seenSeed))
+	if seedCount > 0 {
+		s.AdaptationExactHitRate /= seedCount
+		s.HeldoutExactHitRate /= seedCount
+		s.MeanNear1Efficiency /= seedCount
+		s.MeanNear2Efficiency /= seedCount
+		s.MeanExactESSPerWork /= seedCount
+		s.MeanSamplesToFirstNear /= seedCount
+		s.MeanSamplesToFirstExact /= seedCount
+		s.RepeatedExactHitBatches /= seedCount
+	}
+	return s
+}
+
+func cemFamilyCellRMSE(rows []cemFamilyBenchmarkRow, method string, target rareBenchmarkTarget) float64 {
+	sum, count := 0.0, 0
+	for _, row := range rows {
+		if row.Method == method && row.Team == target.Team && row.Position == target.Position {
+			sum += square(row.Estimate - target.Reference)
+			count++
+		}
+	}
+	if count == 0 {
+		return 0
+	}
+	return math.Sqrt(sum / float64(count))
+}
+
+func cemFamilyNear1Conversion(rows []cemFamilyBenchmarkRow, method string) map[string]float64 {
+	perSeed := make(map[int64]cemFamilyBenchmarkRow)
+	for _, row := range rows {
+		if row.Method == method {
+			perSeed[row.Seed] = row
+		}
+	}
+	high, exact, noExact, evaluated := 0, 0, 0, 0
+	for _, row := range perSeed {
+		high += row.Near1HighWithExact + row.Near1HighWithoutExact
+		exact += row.Near1HighWithExact
+		noExact += row.Near1HighWithoutExact
+		evaluated += row.EvaluatedSnapshotCount
+	}
+	return map[string]float64{"fraction_near1_efficiency_gt2": safeRatio(float64(high), float64(evaluated)),
+		"exact_given_near1_gt2":      safeRatio(float64(exact), float64(high)),
+		"zero_exact_given_near1_gt2": safeRatio(float64(noExact), float64(high))}
+}
+
+func cemFamilyBucketRMSE(rows []cemFamilyBenchmarkRow, method string, low, high float64) float64 {
+	sum := 0.0
+	n := 0
+	for _, r := range rows {
+		if r.Method == method && r.Reference >= low && r.Reference < high {
+			sum += square(r.Estimate - r.Reference)
+			n++
+		}
+	}
+	if n == 0 {
+		return 0
+	}
+	return math.Sqrt(sum / float64(n))
+}
+func cemFamilyISSelectionRate(rows []cemFamilyBenchmarkRow, method string) float64 {
+	seeds, selected := map[int64]bool{}, map[int64]bool{}
+	for _, r := range rows {
+		if r.Method == method {
+			seeds[r.Seed] = true
+			if r.Design == "importance_sampling" {
+				selected[r.Seed] = true
+			}
+		}
+	}
+	if len(seeds) == 0 {
+		return 0
+	}
+	return float64(len(selected)) / float64(len(seeds))
+}
+func cemFamilyNear1Mean(rows []cemFamilyBenchmarkRow, method string) float64 {
+	bySeed := map[int64]float64{}
+	for _, r := range rows {
+		if r.Method == method {
+			bySeed[r.Seed] = r.Near1Efficiency
+		}
+	}
+	if len(bySeed) == 0 {
+		return 0
+	}
+	sum := 0.0
+	for _, v := range bySeed {
+		sum += v
+	}
+	return sum / float64(len(bySeed))
 }
