@@ -120,6 +120,23 @@ type RarePositionSearchDiagnostics struct {
 	TotalWork                             int64   `json:"total_work"`
 	TotalWorkLimit                        int64   `json:"total_work_limit"`
 	EvaluationWorkSavedPlainMCEq          float64 `json:"evaluation_work_saved_plain_mc_equivalent"`
+	EvaluationTotalSamples                int     `json:"evaluation_total_samples"`
+	EvaluationResultWork                  int64   `json:"evaluation_result_work"`
+	SelectedEvaluationSamples             int     `json:"selected_evaluation_samples"`
+	SelectedEvaluationWork                int64   `json:"selected_evaluation_work"`
+	CEMInitializationMode                 string  `json:"cem_initialization_mode"`
+	CEMInitializationSource               string  `json:"cem_initialization_source"`
+	CEMShortlistFingerprint               string  `json:"cem_shortlist_fingerprint"`
+	AdaptationExactSnapshotsShortlisted   int     `json:"adaptation_exact_snapshots_shortlisted"`
+	AdaptationExactSnapshotsLE200         int     `json:"adaptation_exact_snapshots_le_200_samples"`
+	AdaptationExactSnapshotsGE400         int     `json:"adaptation_exact_snapshots_ge_400_samples"`
+	AdaptationExactMeanEvaluationSamples  float64 `json:"adaptation_exact_mean_evaluation_samples"`
+	AdaptationExactStarved                int     `json:"adaptation_exact_starved"`
+	AdaptationExactProtected              int     `json:"adaptation_exact_protected"`
+	AdaptationExactRescued                int     `json:"adaptation_exact_rescued"`
+	AdaptationExactStillZeroAfter400      int     `json:"adaptation_exact_still_zero_after_400"`
+	AdaptationExactStillZeroAfter600      int     `json:"adaptation_exact_still_zero_after_600"`
+	SurrogateOnlySnapshotsOver400         int     `json:"surrogate_only_snapshots_over_400_samples"`
 	CandidatesAdmitted                    int     `json:"candidates_admitted"`
 	CEMBatches                            int     `json:"cem_batches"`
 	AdaptationExactHitBatches             int     `json:"adaptation_exact_hit_batches"`
@@ -1472,7 +1489,7 @@ func runRarePositionSearchEvaluationProduction(group *GroupType, campaign []*Tea
 	evaluationSeed := deriveRarePositionSeed(seed, "pipeline-evaluation")
 	productionSeed := deriveRarePositionSeed(seed, "pipeline-production")
 	searchRNG := rand.New(rand.NewSource(searchSeed))
-		productionRNG := rand.New(rand.NewSource(productionSeed))
+	productionRNG := rand.New(rand.NewSource(productionSeed))
 	log.Printf("rare-position-rng: group=%d seed=%d search_seed=%d evaluation_seed=%d production_seed=%d source=%s phase=search,evaluation,production",
 		group.Id, seed, searchSeed, evaluationSeed, productionSeed, seedSource)
 	unplayedGames := 0
@@ -1522,8 +1539,11 @@ func runRarePositionSearchEvaluationProduction(group *GroupType, campaign []*Tea
 
 	candidates := collectFrontierCandidates(teamSearches)
 	var cemRound CEMRoundResult
+	initializationMode, initializationSource := cemInitializationMode()
+	log.Printf("rare-position-cem-init-mode: group=%d mode=%s source=%s",
+		group.Id, cemInitializationModeName(initializationMode), initializationSource)
 	if len(candidates) > 0 && remainingWork > 0 && cemWorkRemaining > 0 {
-		cemRound = runCEMAdaptationRound(candidates, teamSearches, group, campaign,
+		cemRound = runCEMAdaptationRoundWithMode(initializationMode, candidates, teamSearches, group, campaign,
 			table, sortOrder, originalMeans, &cemWorkRemaining, &remainingWork,
 			&explorationWorkRemaining, adaptWorkPerSample, searchRNG)
 	}
@@ -1537,7 +1557,8 @@ func runRarePositionSearchEvaluationProduction(group *GroupType, campaign []*Tea
 	evaluationCandidates := prepareCEMEvaluationSnapshots(group.Id, cemRound.Snapshots,
 		originalMeans, evaluationCapacity)
 
-	evaluations, selectedEvaluation := runCEMProposalRacing(
+	legacyRacing := os.Getenv("RARE_POSITION_CEM_RACING_MODE") == "legacy"
+	evaluationResult := runCEMProposalRacingWithResult(
 		group.Id,
 		evaluationCandidates,
 		originalMeans,
@@ -1552,8 +1573,14 @@ func runRarePositionSearchEvaluationProduction(group *GroupType, campaign []*Tea
 		&remainingWork,
 		evaluationWorkPerSample,
 		evaluationSeed,
+		legacyRacing,
 	)
-	evaluationWork := evaluationWorkLimit - evaluationWorkRemaining
+	if evaluationResult.TotalWork != evaluationWorkLimit-evaluationWorkRemaining {
+		panic(fmt.Sprintf("CEM evaluation work accounting mismatch: race_result=%d budget_delta=%d",
+			evaluationResult.TotalWork, evaluationWorkLimit-evaluationWorkRemaining))
+	}
+	evaluations, selectedEvaluation := evaluationResult.Evaluations, evaluationResult.Selected
+	evaluationWork := evaluationResult.TotalWork
 	selectionReason := "no_evaluated_snapshot_with_exact_event"
 	if selectedEvaluation != nil {
 		selectionReason = "highest_evaluated_event_ess_per_work"
@@ -1635,6 +1662,13 @@ func runRarePositionSearchEvaluationProduction(group *GroupType, campaign []*Tea
 	diagnostics := rarePositionSearchDiagnostics(cemRound, evaluations, selectedEvaluation,
 		originalMeans, design, scoutWork, adaptationWork, evaluationWork, productionWork,
 		totalWorkLimit, evaluationWorkLimit, plainWorkPerSample, productionEstimates)
+	diagnostics.EvaluationTotalSamples = evaluationResult.TotalSamples
+	diagnostics.EvaluationResultWork = evaluationResult.TotalWork
+	diagnostics.SelectedEvaluationSamples = evaluationResult.SelectedSamples
+	diagnostics.SelectedEvaluationWork = evaluationResult.SelectedWork
+	diagnostics.CEMInitializationMode = cemInitializationModeName(initializationMode)
+	diagnostics.CEMInitializationSource = initializationSource
+	diagnostics.CEMShortlistFingerprint = cemEvaluationShortlistFingerprint(evaluations)
 	for teamID, positions := range productionEstimates {
 		for position, estimate := range positions {
 			estimate.SearchDiagnostics = diagnostics
@@ -1704,6 +1738,32 @@ func rarePositionSearchDiagnostics(round CEMRoundResult, evaluations []CEMPropos
 		if evaluation.Hits > 0 {
 			diagnostics.EvaluationSnapshotsWithExactHit++
 		}
+		if snapshotHadAdaptationExactHit(evaluation.Snapshot) {
+			diagnostics.AdaptationExactSnapshotsShortlisted++
+			diagnostics.AdaptationExactMeanEvaluationSamples += float64(evaluation.Samples)
+			if evaluation.Samples <= 200 && evaluation.Hits == 0 {
+				diagnostics.AdaptationExactSnapshotsLE200++
+				diagnostics.AdaptationExactStarved++
+			}
+			if evaluation.Samples >= CEMAdaptationExactMinEvaluationSamples {
+				diagnostics.AdaptationExactSnapshotsGE400++
+				diagnostics.AdaptationExactProtected++
+			}
+			if evaluation.ExactHitsAt200 == 0 && evaluation.Samples > 200 && evaluation.Hits > 0 {
+				diagnostics.AdaptationExactRescued++
+			}
+			if evaluation.SamplesAt400 >= 400 && evaluation.ExactHitsAt400 == 0 {
+				diagnostics.AdaptationExactStillZeroAfter400++
+			}
+			if evaluation.SamplesAt600 >= 600 && evaluation.ExactHitsAt600 == 0 {
+				diagnostics.AdaptationExactStillZeroAfter600++
+			}
+		} else if evaluation.Samples > 400 {
+			diagnostics.SurrogateOnlySnapshotsOver400++
+		}
+	}
+	if diagnostics.AdaptationExactSnapshotsShortlisted > 0 {
+		diagnostics.AdaptationExactMeanEvaluationSamples /= float64(diagnostics.AdaptationExactSnapshotsShortlisted)
 	}
 	if selected != nil {
 		diagnostics.EvaluationESS = selected.ESS
@@ -1796,6 +1856,38 @@ func rarePositionSearchDiagnostics(round CEMRoundResult, evaluations []CEMPropos
 		}
 	}
 	return diagnostics
+}
+
+func cemEvaluationShortlistFingerprint(evaluations []CEMProposalEvaluation) string {
+	h := fnv.New64a()
+	ordered := append([]CEMProposalEvaluation(nil), evaluations...)
+	sort.Slice(ordered, func(i, j int) bool {
+		a, b := ordered[i].Snapshot, ordered[j].Snapshot
+		if a.CandidateTeam != b.CandidateTeam {
+			return a.CandidateTeam < b.CandidateTeam
+		}
+		if a.CandidatePosition != b.CandidatePosition {
+			return a.CandidatePosition < b.CandidatePosition
+		}
+		return a.SourceIteration < b.SourceIteration
+	})
+	for _, evaluation := range ordered {
+		snapshot := evaluation.Snapshot
+		fmt.Fprintf(h, "%d/%d/%d/%d/%d/", snapshot.CandidateTeam, snapshot.CandidatePosition,
+			snapshot.SourceIteration, snapshot.Stats.ExactHits, snapshot.Stats.NearTargetHits)
+		teamIDs := make([]int, 0, len(snapshot.Proposal.TeamLogMultipliers))
+		for teamID := range snapshot.Proposal.TeamLogMultipliers {
+			teamIDs = append(teamIDs, teamID)
+		}
+		sort.Ints(teamIDs)
+		for _, teamID := range teamIDs {
+			fmt.Fprintf(h, "%d:%.12g/", teamID, snapshot.Proposal.TeamLogMultipliers[teamID])
+		}
+		for _, means := range snapshot.Proposal.Means {
+			fmt.Fprintf(h, "%.12g,%.12g/", means.Home, means.Away)
+		}
+	}
+	return fmt.Sprintf("%016x", h.Sum64())
 }
 
 func evaluationESS(evaluation *CEMProposalEvaluation) float64 {

@@ -47,6 +47,9 @@ type rareBenchmarkRow struct {
 	ProductionPlainMCEq              float64 `json:"production_plain_mc_equivalent"`
 	SearchOverheadPlainMCEq          float64 `json:"search_overhead_plain_mc_equivalent"`
 	ProductionDesign                 string  `json:"production_design"`
+	CEMInitializationMode            string  `json:"cem_initialization_mode"`
+	CEMInitializationSource          string  `json:"cem_initialization_source"`
+	CEMShortlistFingerprint          string  `json:"cem_shortlist_fingerprint"`
 	SelectedTeam                     int     `json:"selected_team"`
 	SelectedPosition                 int     `json:"selected_position"`
 	SelectedSnapshotIteration        int     `json:"selected_snapshot_iteration"`
@@ -60,6 +63,15 @@ type rareBenchmarkRow struct {
 	CEMBatches                       int     `json:"cem_batches"`
 	AdaptationExactHitBatches        int     `json:"adaptation_exact_hit_batches"`
 	AdaptationNearTargetSnapshots    int     `json:"adaptation_near_target_snapshots"`
+	AdaptationExactShortlisted       int     `json:"adaptation_exact_snapshotted"`
+	AdaptationExactLE200             int     `json:"adaptation_exact_le_200"`
+	AdaptationExactGE400             int     `json:"adaptation_exact_ge_400"`
+	AdaptationExactMeanSamples       float64 `json:"adaptation_exact_mean_samples"`
+	AdaptationExactStarved           int     `json:"adaptation_exact_starved"`
+	AdaptationExactRescued           int     `json:"adaptation_exact_rescued"`
+	AdaptationExactStillZero400      int     `json:"adaptation_exact_still_zero_400"`
+	AdaptationExactStillZero600      int     `json:"adaptation_exact_still_zero_600"`
+	SurrogateOnlyOver400             int     `json:"surrogate_only_over_400"`
 	RetainedSnapshots                int     `json:"retained_snapshots"`
 	EligibleSnapshots                int     `json:"eligible_snapshots"`
 	EvaluatedSnapshots               int     `json:"evaluated_snapshots"`
@@ -67,6 +79,10 @@ type rareBenchmarkRow struct {
 	EvaluationESS                    float64 `json:"evaluation_ess"`
 	EvaluationESSPerWork             float64 `json:"evaluation_ess_per_work"`
 	EvaluationWorkSavedPlainMCEq     float64 `json:"evaluation_work_saved_plain_mc_equivalent"`
+	EvaluationTotalSamples           int     `json:"evaluation_total_samples"`
+	EvaluationResultWork             int64   `json:"evaluation_result_work"`
+	SelectedEvaluationSamples        int     `json:"selected_evaluation_samples"`
+	SelectedEvaluationWork           int64   `json:"selected_evaluation_work"`
 	SelectedProductionHits           int     `json:"selected_production_hits"`
 	SelectedProductionESS            float64 `json:"selected_production_ess"`
 	SelectedProductionRelSE          float64 `json:"selected_production_rel_se"`
@@ -102,84 +118,111 @@ type rareBenchmarkMethodSummary struct {
 	RootNormalizedLoss    float64 `json:"root_normalized_squared_loss"`
 	MeanReportedSE        float64 `json:"mean_reported_se"`
 	EmpiricalSD           float64 `json:"empirical_sd"`
+	MeanESS               float64 `json:"mean_ess"`
+	MeanTotalWork         float64 `json:"mean_total_work"`
 }
 
 type rareBenchmarkCellSummary struct {
-	Team                   int     `json:"team"`
-	Position               int     `json:"position"`
-	ReferenceProbability   float64 `json:"reference_probability"`
-	PipelineMean           float64 `json:"pipeline_mean"`
-	PlainMCMean            float64 `json:"plain_mc_mean"`
-	PipelineBias           float64 `json:"pipeline_bias"`
-	PlainMCBias            float64 `json:"plain_mc_bias"`
-	PipelineRMSE           float64 `json:"pipeline_rmse"`
-	PlainMCRMSE            float64 `json:"plain_mc_rmse"`
-	RMSEratio              float64 `json:"rmse_ratio"`
-	PipelineMAE            float64 `json:"pipeline_mae"`
-	PlainMCMAE             float64 `json:"plain_mc_mae"`
-	PipelineRelativeRMSE   float64 `json:"pipeline_relative_rmse"`
-	PlainMCRelativeRMSE    float64 `json:"plain_mc_relative_rmse"`
-	PipelineZeroRate       float64 `json:"pipeline_zero_rate"`
-	PlainMCZeroRate        float64 `json:"plain_mc_zero_rate"`
-	PipelineMeanReportedSE float64 `json:"pipeline_mean_reported_se"`
-	PlainMCMeanReportedSE  float64 `json:"plain_mc_mean_reported_se"`
-	PipelineEmpiricalSD    float64 `json:"pipeline_empirical_sd"`
-	PlainMCEmpiricalSD     float64 `json:"plain_mc_empirical_sd"`
+	Team                    int     `json:"team"`
+	Position                int     `json:"position"`
+	ReferenceProbability    float64 `json:"reference_probability"`
+	PipelineMean            float64 `json:"pipeline_mean"`
+	PlainMCMean             float64 `json:"plain_mc_mean"`
+	PipelineBias            float64 `json:"pipeline_bias"`
+	PlainMCBias             float64 `json:"plain_mc_bias"`
+	PipelineRMSE            float64 `json:"pipeline_rmse"`
+	PlainMCRMSE             float64 `json:"plain_mc_rmse"`
+	RMSEratio               float64 `json:"rmse_ratio"`
+	PipelineMAE             float64 `json:"pipeline_mae"`
+	PlainMCMAE              float64 `json:"plain_mc_mae"`
+	PipelineRelativeRMSE    float64 `json:"pipeline_relative_rmse"`
+	PlainMCRelativeRMSE     float64 `json:"plain_mc_relative_rmse"`
+	PipelineZeroRate        float64 `json:"pipeline_zero_rate"`
+	PlainMCZeroRate         float64 `json:"plain_mc_zero_rate"`
+	PipelineMeanReportedSE  float64 `json:"pipeline_mean_reported_se"`
+	PlainMCMeanReportedSE   float64 `json:"plain_mc_mean_reported_se"`
+	PipelineEmpiricalSD     float64 `json:"pipeline_empirical_sd"`
+	PlainMCEmpiricalSD      float64 `json:"plain_mc_empirical_sd"`
+	OldRacingMean           float64 `json:"old_racing_mean"`
+	OldRacingBias           float64 `json:"old_racing_bias"`
+	OldRacingRMSE           float64 `json:"old_racing_rmse"`
+	OldRacingMAE            float64 `json:"old_racing_mae"`
+	OldRacingZeroRate       float64 `json:"old_racing_zero_rate"`
+	OldRacingMeanReportedSE float64 `json:"old_racing_mean_reported_se"`
+	OldRacingEmpiricalSD    float64 `json:"old_racing_empirical_sd"`
 }
 
 type rareBenchmarkProbabilityBucket struct {
-	Name                   string  `json:"name"`
-	Cells                  int     `json:"cells"`
-	PipelineRMSE           float64 `json:"pipeline_rmse"`
-	PlainMCRMSE            float64 `json:"plain_mc_rmse"`
-	RMSEratio              float64 `json:"rmse_ratio"`
-	PipelineNormalizedRMSE float64 `json:"pipeline_normalized_rmse"`
-	PlainMCNormalizedRMSE  float64 `json:"plain_mc_normalized_rmse"`
+	Name                         string  `json:"name"`
+	Cells                        int     `json:"cells"`
+	PipelineRMSE                 float64 `json:"pipeline_rmse"`
+	PlainMCRMSE                  float64 `json:"plain_mc_rmse"`
+	RMSEratio                    float64 `json:"rmse_ratio"`
+	PipelineNormalizedRMSE       float64 `json:"pipeline_normalized_rmse"`
+	PlainMCNormalizedRMSE        float64 `json:"plain_mc_normalized_rmse"`
+	OldRacingRMSE                float64 `json:"old_racing_rmse"`
+	OldRacingNormalizedRMSE      float64 `json:"old_racing_normalized_rmse"`
+	OldRacingToEvidenceAwareRMSE float64 `json:"old_racing_to_evidence_aware_rmse_ratio"`
 }
 
 type rareBenchmarkReport struct {
-	GroupID                             int                                   `json:"group_id"`
-	ReferenceProvenance                 string                                `json:"reference_provenance"`
-	Seeds                               []int64                               `json:"seeds"`
-	PipelineScoutSamples                int                                   `json:"pipeline_scout_samples"`
-	BaselineSamples                     int                                   `json:"baseline_samples"`
-	Targets                             []rareBenchmarkTarget                 `json:"targets"`
-	Rows                                []rareBenchmarkRow                    `json:"rows"`
-	Summary                             map[string]rareBenchmarkMethodSummary `json:"summary"`
-	CellSummaries                       []rareBenchmarkCellSummary            `json:"cell_summaries"`
-	ProbabilityBuckets                  []rareBenchmarkProbabilityBucket      `json:"probability_buckets"`
-	RMSEPipelineToBaseline              float64                               `json:"pipeline_to_baseline_rmse_ratio"`
-	RMSEDifferenceMean                  float64                               `json:"seed_level_rmse_difference_mean"`
-	RMSEDifferenceSE                    float64                               `json:"seed_level_rmse_difference_standard_error"`
-	MAEDifferenceMean                   float64                               `json:"seed_level_mae_difference_mean"`
-	MAEDifferenceSE                     float64                               `json:"seed_level_mae_difference_standard_error"`
-	WholeLossDifferenceMean             float64                               `json:"seed_level_whole_table_loss_difference_mean"`
-	WholeLossDifferenceSE               float64                               `json:"seed_level_whole_table_loss_difference_standard_error"`
-	PipelineSelectionRate               float64                               `json:"pipeline_importance_sampling_selection_rate"`
-	PlainSelectionRate                  float64                               `json:"pipeline_plain_mc_selection_rate"`
-	RunsWithExactAdaptationHits         int                                   `json:"runs_with_exact_adaptation_hits"`
-	MeanRetainedSnapshots               float64                               `json:"mean_retained_snapshots"`
-	MeanEligibleSnapshots               float64                               `json:"mean_eligible_snapshots"`
-	MeanEvaluatedSnapshots              float64                               `json:"mean_evaluated_snapshots"`
-	ExactHitCandidatesWithLater         int                                   `json:"exact_hit_candidates_with_later_adaptation"`
-	ExactHitCandidatesTotal             int                                   `json:"exact_hit_candidates_total"`
-	FractionExactHitCandidatesWithLater float64                               `json:"fraction_exact_hit_candidates_with_later_adaptation"`
-	FirstHitSnapshotsEvaluated          int                                   `json:"first_hit_snapshots_evaluated"`
-	LaterSnapshotsEvaluated             int                                   `json:"later_snapshots_evaluated"`
-	LaterSnapshotBetterESSPerWork       int                                   `json:"later_snapshot_better_ess_per_work"`
-	FirstHitSnapshotBetterESSPerWork    int                                   `json:"first_hit_snapshot_better_ess_per_work"`
-	LaterOnlySnapshotEvaluated          int                                   `json:"later_only_snapshot_evaluated"`
-	NearTargetOnlyISSelections          int                                   `json:"near_target_only_is_selections"`
-	ISSelectionsAfterExactAdaptation    int                                   `json:"is_selections_after_exact_adaptation"`
-	ISSelectionsWithoutExactAdaptation  int                                   `json:"is_selections_without_exact_adaptation"`
-	ISSelectionsAfterEvaluationHit      int                                   `json:"is_selections_after_evaluation_hit"`
-	WeakEvidenceISSelections            int                                   `json:"weak_evidence_is_selections"`
-	MeanEvaluationESSPerWork            float64                               `json:"mean_evaluation_ess_per_work"`
-	MeanEvaluationWorkSavedPlainMCEq    float64                               `json:"mean_evaluation_work_saved_plain_mc_equivalent"`
-	MeanProductionWeight                float64                               `json:"mean_production_weight"`
-	FlaggedMeanWeightRuns               int                                   `json:"flagged_mean_weight_runs"`
-	MeanISGainVs100kMC                  float64                               `json:"mean_is_ess_gain_vs_full_100k_mc"`
-	ConsoleSummary                      string                                `json:"console_summary"`
+	GroupID                                          int                                   `json:"group_id"`
+	ReferenceProvenance                              string                                `json:"reference_provenance"`
+	Seeds                                            []int64                               `json:"seeds"`
+	PipelineScoutSamples                             int                                   `json:"pipeline_scout_samples"`
+	BaselineSamples                                  int                                   `json:"baseline_samples"`
+	Targets                                          []rareBenchmarkTarget                 `json:"targets"`
+	Rows                                             []rareBenchmarkRow                    `json:"rows"`
+	Summary                                          map[string]rareBenchmarkMethodSummary `json:"summary"`
+	CellSummaries                                    []rareBenchmarkCellSummary            `json:"cell_summaries"`
+	ProbabilityBuckets                               []rareBenchmarkProbabilityBucket      `json:"probability_buckets"`
+	RMSEPipelineToBaseline                           float64                               `json:"pipeline_to_baseline_rmse_ratio"`
+	RMSEDifferenceMean                               float64                               `json:"seed_level_rmse_difference_mean"`
+	RMSEDifferenceSE                                 float64                               `json:"seed_level_rmse_difference_standard_error"`
+	MAEDifferenceMean                                float64                               `json:"seed_level_mae_difference_mean"`
+	MAEDifferenceSE                                  float64                               `json:"seed_level_mae_difference_standard_error"`
+	WholeLossDifferenceMean                          float64                               `json:"seed_level_whole_table_loss_difference_mean"`
+	WholeLossDifferenceSE                            float64                               `json:"seed_level_whole_table_loss_difference_standard_error"`
+	PipelineSelectionRate                            float64                               `json:"pipeline_importance_sampling_selection_rate"`
+	PlainSelectionRate                               float64                               `json:"pipeline_plain_mc_selection_rate"`
+	OldRacingSelectionRate                           float64                               `json:"old_racing_importance_sampling_selection_rate"`
+	RunsWithExactAdaptationHits                      int                                   `json:"runs_with_exact_adaptation_hits"`
+	MeanRetainedSnapshots                            float64                               `json:"mean_retained_snapshots"`
+	MeanEligibleSnapshots                            float64                               `json:"mean_eligible_snapshots"`
+	MeanEvaluatedSnapshots                           float64                               `json:"mean_evaluated_snapshots"`
+	ExactHitCandidatesWithLater                      int                                   `json:"exact_hit_candidates_with_later_adaptation"`
+	ExactHitCandidatesTotal                          int                                   `json:"exact_hit_candidates_total"`
+	FractionExactHitCandidatesWithLater              float64                               `json:"fraction_exact_hit_candidates_with_later_adaptation"`
+	FirstHitSnapshotsEvaluated                       int                                   `json:"first_hit_snapshots_evaluated"`
+	LaterSnapshotsEvaluated                          int                                   `json:"later_snapshots_evaluated"`
+	LaterSnapshotBetterESSPerWork                    int                                   `json:"later_snapshot_better_ess_per_work"`
+	FirstHitSnapshotBetterESSPerWork                 int                                   `json:"first_hit_snapshot_better_ess_per_work"`
+	LaterOnlySnapshotEvaluated                       int                                   `json:"later_only_snapshot_evaluated"`
+	NearTargetOnlyISSelections                       int                                   `json:"near_target_only_is_selections"`
+	ISSelectionsAfterExactAdaptation                 int                                   `json:"is_selections_after_exact_adaptation"`
+	ISSelectionsWithoutExactAdaptation               int                                   `json:"is_selections_without_exact_adaptation"`
+	ISSelectionsAfterEvaluationHit                   int                                   `json:"is_selections_after_evaluation_hit"`
+	WeakEvidenceISSelections                         int                                   `json:"weak_evidence_is_selections"`
+	MeanEvaluationESSPerWork                         float64                               `json:"mean_evaluation_ess_per_work"`
+	MeanEvaluationWorkSavedPlainMCEq                 float64                               `json:"mean_evaluation_work_saved_plain_mc_equivalent"`
+	MeanProductionWeight                             float64                               `json:"mean_production_weight"`
+	FlaggedMeanWeightRuns                            int                                   `json:"flagged_mean_weight_runs"`
+	MeanISGainVs100kMC                               float64                               `json:"mean_is_ess_gain_vs_full_100k_mc"`
+	OldRacingToEvidenceAwareRMSE                     float64                               `json:"old_racing_to_evidence_aware_rmse_ratio"`
+	OldRacingRMSEDifferenceMean                      float64                               `json:"old_racing_seed_level_rmse_difference_mean"`
+	OldRacingRMSEDifferenceSE                        float64                               `json:"old_racing_seed_level_rmse_difference_se"`
+	OldRacingStarvedAdaptationExact                  int                                   `json:"old_racing_starved_adaptation_exact"`
+	OldAdaptationExactSnapshotsShortlisted           int                                   `json:"old_adaptation_exact_snapshots_shortlisted"`
+	EvidenceAwareAdaptationExactSnapshotsShortlisted int                                   `json:"evidence_aware_adaptation_exact_snapshots_shortlisted"`
+	EvidenceAwareProtectedAdaptationExact            int                                   `json:"evidence_aware_protected_adaptation_exact"`
+	RescuedAdaptationExact                           int                                   `json:"rescued_adaptation_exact"`
+	AdaptationExactStillZeroAfter400                 int                                   `json:"adaptation_exact_still_zero_after_400"`
+	AdaptationExactStillZeroAfter600                 int                                   `json:"adaptation_exact_still_zero_after_600"`
+	SurrogateOnlyOver400Samples                      int                                   `json:"surrogate_only_over_400_samples"`
+	OldMeanSamplesPerAdaptationExact                 float64                               `json:"old_mean_samples_per_adaptation_exact_snapshot"`
+	NewMeanSamplesPerAdaptationExact                 float64                               `json:"new_mean_samples_per_adaptation_exact_snapshot"`
+	WarmStartVerified                                bool                                  `json:"warm_start_verified"`
+	ConsoleSummary                                   string                                `json:"console_summary"`
 }
 
 func TestRarePositionMatchedComputeBenchmark(t *testing.T) {
@@ -214,10 +257,14 @@ func TestRarePositionMatchedComputeBenchmark(t *testing.T) {
 	oldSeed, hadSeed := os.LookupEnv("RARE_POSITION_RANDOM_SEED")
 	oldSampling, hadSampling := os.LookupEnv("RARE_POSITION_IMPORTANCE_SAMPLING")
 	oldIterations, hadIterations := os.LookupEnv("RARE_POSITION_BENCHMARK_ITERATIONS")
+	oldRaceMode, hadRaceMode := os.LookupEnv("RARE_POSITION_CEM_RACING_MODE")
+	oldInitMode, hadInitMode := os.LookupEnv("RARE_POSITION_BENCHMARK_CEM_INIT_MODE")
 	t.Cleanup(func() {
 		restoreBenchmarkEnv(t, "RARE_POSITION_RANDOM_SEED", oldSeed, hadSeed)
 		restoreBenchmarkEnv(t, "RARE_POSITION_IMPORTANCE_SAMPLING", oldSampling, hadSampling)
 		restoreBenchmarkEnv(t, "RARE_POSITION_BENCHMARK_ITERATIONS", oldIterations, hadIterations)
+		restoreBenchmarkEnv(t, "RARE_POSITION_CEM_RACING_MODE", oldRaceMode, hadRaceMode)
+		restoreBenchmarkEnv(t, "RARE_POSITION_BENCHMARK_CEM_INIT_MODE", oldInitMode, hadInitMode)
 	})
 	_ = os.Unsetenv("RARE_POSITION_BENCHMARK_ITERATIONS")
 
@@ -226,6 +273,10 @@ func TestRarePositionMatchedComputeBenchmark(t *testing.T) {
 	runsWithExact := 0
 	var retainedTotal, eligibleTotal, evaluatedTotal float64
 	var comparison RarePositionSearchDiagnostics
+	oldRacingSelected := 0
+	oldRacingDiagnosticsBySeed := make(map[int64]*RarePositionSearchDiagnostics)
+	newRacingDiagnosticsBySeed := make(map[int64]*RarePositionSearchDiagnostics)
+	var oldNewSeedRMSEDifferences []float64
 	unplayedGames := 0
 	for _, game := range input.Games {
 		if !game.Played {
@@ -235,12 +286,13 @@ func TestRarePositionMatchedComputeBenchmark(t *testing.T) {
 	plainWorkPerSample := estimateSeasonWork(unplayedGames, 1, len(input.Team_groups))
 	totalWorkLimit := calculateMaxRareWork(unplayedGames, len(input.Team_groups))
 	for _, seed := range report.Seeds {
-		_ = os.Setenv("RARE_POSITION_RANDOM_SEED", strconv.FormatInt(seed, 10))
-		_ = os.Setenv("RARE_POSITION_IMPORTANCE_SAMPLING", "1")
-		pipelineResult := cloneGroupForBenchmark(input).calculate_odds()
-		pipelineEstimates, ok := pipelineResult["rare_position_estimates"].(map[int]map[int]ProductionEstimate)
-		if !ok {
-			t.Fatalf("seed %d returned no typed rare-position estimates", seed)
+		pipelineEstimates, diagnostics := runRareBenchmarkPipelineArm(t, input, seed, "")
+		newRacingDiagnosticsBySeed[seed] = diagnostics
+		oldPipelineEstimates, oldDiagnostics := runRareBenchmarkPipelineArm(t, input, seed, "legacy")
+		oldRacingDiagnosticsBySeed[seed] = oldDiagnostics
+		if diagnostics.CEMShortlistFingerprint != oldDiagnostics.CEMShortlistFingerprint {
+			t.Fatalf("seed %d CEM shortlist differs between racing arms: evidence=%s old=%s",
+				seed, diagnostics.CEMShortlistFingerprint, oldDiagnostics.CEMShortlistFingerprint)
 		}
 		isSelected := false
 		for _, positions := range pipelineEstimates {
@@ -253,17 +305,14 @@ func TestRarePositionMatchedComputeBenchmark(t *testing.T) {
 		} else {
 			pipelinePlain++
 		}
-		var diagnostics *RarePositionSearchDiagnostics
-		for _, estimates := range pipelineEstimates {
-			for _, estimate := range estimates {
-				if estimate.SearchDiagnostics != nil {
-					diagnostics = estimate.SearchDiagnostics
-					break
-				}
+		oldSelected := false
+		for _, positions := range oldPipelineEstimates {
+			for _, estimate := range positions {
+				oldSelected = oldSelected || estimate.Design == "importance_sampling"
 			}
-			if diagnostics != nil {
-				break
-			}
+		}
+		if oldSelected {
+			oldRacingSelected++
 		}
 		if diagnostics != nil {
 			if diagnostics.TotalWork < 0 || diagnostics.TotalWork > diagnostics.TotalWorkLimit {
@@ -327,6 +376,28 @@ func TestRarePositionMatchedComputeBenchmark(t *testing.T) {
 				report.Rows = append(report.Rows, row)
 				seedErrors["adaptive_pipeline"] += square(target.Reference)
 			}
+			if got := oldPipelineEstimates[target.Team][target.Position]; got.Available {
+				productionEquivalent := float64(got.WorkSpent) / float64(plainWorkPerSample)
+				searchOverheadEquivalent := oldDiagnostics.SearchOverheadPlainMCEq
+				row := benchmarkRow(seed, "old_racing", target, got.Probability,
+					got.StdErr, relativeSEValue(got.RelativeSE), got.ESS, got.Hits, got.MeetsPrecisionGoal,
+					got.Samples, productionEquivalent, got.Design, searchOverheadEquivalent, oldDiagnostics)
+				row.ExpectedPlainMCEventsProduction = target.Reference * productionEquivalent
+				row.ExpectedPlainMCEvents100k = target.Reference * float64(baselineSamples)
+				row.ISBreakEvenGainProduction = safeRatio(got.ESS, row.ExpectedPlainMCEventsProduction)
+				row.ISBreakEvenGain100k = safeRatio(got.ESS, row.ExpectedPlainMCEvents100k)
+				row.SelectedProductionHits = oldDiagnostics.SelectedProductionHits
+				row.SelectedProductionESS = oldDiagnostics.SelectedProductionESS
+				row.SelectedProductionRelSE = oldDiagnostics.SelectedProductionRelSE
+				row.SelectedProductionMaxEventShare = oldDiagnostics.SelectedProductionMaxEventWeightShare
+				row.SelectedProductionMeanWeight = oldDiagnostics.SelectedProductionMeanWeight
+				report.Rows = append(report.Rows, row)
+				seedErrors["old_racing"] += square(got.Probability - target.Reference)
+			} else {
+				report.Rows = append(report.Rows, benchmarkRow(seed, "old_racing", target,
+					0, 0, math.Inf(1), 0, 0, false, 0, 0, "", oldDiagnostics.SearchOverheadPlainMCEq, oldDiagnostics))
+				seedErrors["old_racing"] += square(target.Reference)
+			}
 			odds := baselineOdds[target.Team]
 			if odds == nil || target.Position >= len(odds.Pos) {
 				t.Fatalf("baseline missing target team=%d position=%d", target.Team, target.Position)
@@ -354,19 +425,30 @@ func TestRarePositionMatchedComputeBenchmark(t *testing.T) {
 		seedLevelRMSEDifferences = append(seedLevelRMSEDifferences,
 			math.Sqrt(seedErrors["adaptive_pipeline"]/float64(len(rareBenchmarkTargets)))-
 				math.Sqrt(seedErrors["plain_mc_100k"]/float64(len(rareBenchmarkTargets))))
+		oldNewSeedRMSEDifferences = append(oldNewSeedRMSEDifferences,
+			math.Sqrt(seedErrors["old_racing"]/float64(len(rareBenchmarkTargets)))-
+				math.Sqrt(seedErrors["adaptive_pipeline"]/float64(len(rareBenchmarkTargets))))
 	}
 	report.Summary["adaptive_pipeline"] = summarizeRareBenchmarkRows(report.Rows, "adaptive_pipeline", rareBenchmarkTargets)
+	report.Summary["evidence_aware_racing"] = report.Summary["adaptive_pipeline"]
+	report.Summary["old_racing"] = summarizeRareBenchmarkRows(report.Rows, "old_racing", rareBenchmarkTargets)
 	report.Summary["plain_mc_100k"] = summarizeRareBenchmarkRows(report.Rows, "plain_mc_100k", rareBenchmarkTargets)
 	report.CellSummaries = summarizeRareBenchmarkCells(report.Rows, rareBenchmarkTargets)
 	report.ProbabilityBuckets = summarizeRareBenchmarkBuckets(report.CellSummaries)
 	populateRareBenchmarkEconomics(&report)
-	report.ConsoleSummary = formatRareBenchmarkConsoleSummary(report)
 	pipelineSummary, baselineSummary := report.Summary["adaptive_pipeline"], report.Summary["plain_mc_100k"]
+	oldRacingSummary := report.Summary["old_racing"]
 	if baselineSummary.RMSE > 0 {
 		report.RMSEPipelineToBaseline = pipelineSummary.RMSE / baselineSummary.RMSE
 	}
+	if pipelineSummary.RMSE > 0 {
+		report.OldRacingToEvidenceAwareRMSE = oldRacingSummary.RMSE / pipelineSummary.RMSE
+	}
+	report.OldRacingRMSEDifferenceMean, report.OldRacingRMSEDifferenceSE = meanAndSE(oldNewSeedRMSEDifferences)
 	report.PipelineSelectionRate = float64(pipelineSelected) / float64(len(report.Seeds))
 	report.PlainSelectionRate = float64(pipelinePlain) / float64(len(report.Seeds))
+	report.OldRacingSelectionRate = float64(oldRacingSelected) / float64(len(report.Seeds))
+	populateRaceComparison(&report, oldRacingDiagnosticsBySeed, newRacingDiagnosticsBySeed)
 	report.RunsWithExactAdaptationHits = runsWithExact
 	report.MeanRetainedSnapshots = retainedTotal / float64(len(report.Seeds))
 	report.MeanEligibleSnapshots = eligibleTotal / float64(len(report.Seeds))
@@ -385,6 +467,7 @@ func TestRarePositionMatchedComputeBenchmark(t *testing.T) {
 	maeDifferences, lossDifferences := seedLevelMetricDifferences(report.Rows)
 	report.MAEDifferenceMean, report.MAEDifferenceSE = meanAndSE(maeDifferences)
 	report.WholeLossDifferenceMean, report.WholeLossDifferenceSE = meanAndSE(lossDifferences)
+	report.ConsoleSummary = formatRareBenchmarkConsoleSummary(report)
 	encoded, err := json.MarshalIndent(report, "", "  ")
 	if err != nil {
 		t.Fatal(err)
@@ -413,6 +496,89 @@ func cloneGroupForBenchmark(group GroupType) *GroupType {
 	return &copy
 }
 
+func runRareBenchmarkPipelineArm(t *testing.T, input GroupType, seed int64, raceMode string) (map[int]map[int]ProductionEstimate, *RarePositionSearchDiagnostics) {
+	t.Helper()
+	if err := os.Setenv("RARE_POSITION_RANDOM_SEED", strconv.FormatInt(seed, 10)); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Setenv("RARE_POSITION_IMPORTANCE_SAMPLING", "1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Setenv("RARE_POSITION_BENCHMARK_ITERATIONS", strconv.Itoa(ScoutIterations)); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Setenv("RARE_POSITION_BENCHMARK_CEM_INIT_MODE", "standings_directed"); err != nil {
+		t.Fatal(err)
+	}
+	if raceMode == "" {
+		_ = os.Unsetenv("RARE_POSITION_CEM_RACING_MODE")
+	} else if err := os.Setenv("RARE_POSITION_CEM_RACING_MODE", raceMode); err != nil {
+		t.Fatal(err)
+	}
+	result := cloneGroupForBenchmark(input).calculate_odds()
+	estimates, ok := result["rare_position_estimates"].(map[int]map[int]ProductionEstimate)
+	if !ok {
+		t.Fatalf("seed %d race_mode=%q returned no typed rare-position estimates", seed, raceMode)
+	}
+	var diagnostics *RarePositionSearchDiagnostics
+	for _, positions := range estimates {
+		for _, estimate := range positions {
+			if estimate.SearchDiagnostics != nil {
+				diagnostics = estimate.SearchDiagnostics
+				break
+			}
+		}
+		if diagnostics != nil {
+			break
+		}
+	}
+	if diagnostics == nil {
+		t.Fatalf("seed %d race_mode=%q returned no rare-position diagnostics", seed, raceMode)
+	}
+	if diagnostics.CEMInitializationMode != "standings_directed" || diagnostics.CEMInitializationSource != "benchmark_override" {
+		t.Fatalf("seed %d race_mode=%q did not use requested standings-directed init: mode=%s source=%s",
+			seed, raceMode, diagnostics.CEMInitializationMode, diagnostics.CEMInitializationSource)
+	}
+	return estimates, diagnostics
+}
+
+func populateRaceComparison(report *rareBenchmarkReport, oldBySeed, newBySeed map[int64]*RarePositionSearchDiagnostics) {
+	report.WarmStartVerified = true
+	oldExactCount, newExactCount := 0, 0
+	oldSamples, newSamples := 0.0, 0.0
+	for _, seed := range report.Seeds {
+		oldDiag := oldBySeed[seed]
+		newDiag := newBySeed[seed]
+		if oldDiag == nil || newDiag == nil {
+			continue
+		}
+		if oldDiag.CEMShortlistFingerprint != newDiag.CEMShortlistFingerprint {
+			panic(fmt.Sprintf("seed %d racing arms used different CEM shortlists", seed))
+		}
+		if oldDiag.CEMInitializationMode != "standings_directed" || newDiag.CEMInitializationMode != "standings_directed" {
+			report.WarmStartVerified = false
+		}
+		oldExactCount += oldDiag.AdaptationExactSnapshotsShortlisted
+		newExactCount += newDiag.AdaptationExactSnapshotsShortlisted
+		report.OldRacingStarvedAdaptationExact += oldDiag.AdaptationExactStarved
+		report.EvidenceAwareProtectedAdaptationExact += newDiag.AdaptationExactSnapshotsGE400
+		report.RescuedAdaptationExact += newDiag.AdaptationExactRescued
+		report.AdaptationExactStillZeroAfter400 += newDiag.AdaptationExactStillZeroAfter400
+		report.AdaptationExactStillZeroAfter600 += newDiag.AdaptationExactStillZeroAfter600
+		report.SurrogateOnlyOver400Samples += newDiag.SurrogateOnlySnapshotsOver400
+		oldSamples += oldDiag.AdaptationExactMeanEvaluationSamples * float64(oldDiag.AdaptationExactSnapshotsShortlisted)
+		newSamples += newDiag.AdaptationExactMeanEvaluationSamples * float64(newDiag.AdaptationExactSnapshotsShortlisted)
+	}
+	report.OldAdaptationExactSnapshotsShortlisted = oldExactCount
+	report.EvidenceAwareAdaptationExactSnapshotsShortlisted = newExactCount
+	if oldExactCount > 0 {
+		report.OldMeanSamplesPerAdaptationExact = oldSamples / float64(oldExactCount)
+	}
+	if newExactCount > 0 {
+		report.NewMeanSamplesPerAdaptationExact = newSamples / float64(newExactCount)
+	}
+}
+
 func restoreBenchmarkEnv(t *testing.T, key, value string, existed bool) {
 	t.Helper()
 	if existed {
@@ -434,8 +600,16 @@ func benchmarkRow(seed int64, method string, target rareBenchmarkTarget, estimat
 		ProductionSamples: samples, ProductionPlainMCEq: productionEquivalent,
 		SearchOverheadPlainMCEq: searchOverhead, ProductionDesign: design}
 	if diagnostics != nil {
+		row.CEMInitializationMode, row.CEMInitializationSource = diagnostics.CEMInitializationMode, diagnostics.CEMInitializationSource
+		row.CEMShortlistFingerprint = diagnostics.CEMShortlistFingerprint
 		row.SelectedTeam, row.SelectedPosition = diagnostics.SelectedTeam, diagnostics.SelectedPosition
 		row.SelectedSnapshotIteration = diagnostics.SelectedSnapshotIteration
+		row.AdaptationExactShortlisted = diagnostics.AdaptationExactSnapshotsShortlisted
+		row.AdaptationExactLE200, row.AdaptationExactGE400 = diagnostics.AdaptationExactSnapshotsLE200, diagnostics.AdaptationExactSnapshotsGE400
+		row.AdaptationExactMeanSamples = diagnostics.AdaptationExactMeanEvaluationSamples
+		row.AdaptationExactStarved, row.AdaptationExactRescued = diagnostics.AdaptationExactStarved, diagnostics.AdaptationExactRescued
+		row.AdaptationExactStillZero400, row.AdaptationExactStillZero600 = diagnostics.AdaptationExactStillZeroAfter400, diagnostics.AdaptationExactStillZeroAfter600
+		row.SurrogateOnlyOver400 = diagnostics.SurrogateOnlySnapshotsOver400
 		row.ScoutWork, row.AdaptationWork = diagnostics.ScoutWork, diagnostics.AdaptationWork
 		row.EvaluationWork, row.ProductionWork = diagnostics.EvaluationWork, diagnostics.ProductionWork
 		row.TotalWork, row.TotalWorkLimit = diagnostics.TotalWork, diagnostics.TotalWorkLimit
@@ -446,6 +620,8 @@ func benchmarkRow(seed int64, method string, target rareBenchmarkTarget, estimat
 		row.EvaluatedSnapshots, row.EvaluationHits = diagnostics.EvaluatedSnapshots, diagnostics.EvaluationHits
 		row.EvaluationESS, row.EvaluationESSPerWork = diagnostics.EvaluationESS, diagnostics.EvaluationESSPerWork
 		row.EvaluationWorkSavedPlainMCEq = diagnostics.EvaluationWorkSavedPlainMCEq
+		row.EvaluationTotalSamples, row.EvaluationResultWork = diagnostics.EvaluationTotalSamples, diagnostics.EvaluationResultWork
+		row.SelectedEvaluationSamples, row.SelectedEvaluationWork = diagnostics.SelectedEvaluationSamples, diagnostics.SelectedEvaluationWork
 		row.SelectedProductionHits = diagnostics.SelectedProductionHits
 		row.SelectedProductionESS = diagnostics.SelectedProductionESS
 		row.SelectedProductionRelSE = diagnostics.SelectedProductionRelSE
@@ -488,6 +664,8 @@ func summarizeRareBenchmarkRows(rows []rareBenchmarkRow, method string, targets 
 		summary.MeanProductionSamples += float64(row.ProductionSamples)
 		summary.MeanSearchOverhead += row.SearchOverheadPlainMCEq
 		summary.MeanReportedSE += row.StdErr
+		summary.MeanESS += row.ESS
+		summary.MeanTotalWork += float64(row.TotalWork)
 		key := [2]int{row.Team, row.Position}
 		perCellSq[key] += errorValue * errorValue
 		perCellN[key]++
@@ -510,6 +688,8 @@ func summarizeRareBenchmarkRows(rows []rareBenchmarkRow, method string, targets 
 	summary.MeanProductionSamples /= n
 	summary.MeanSearchOverhead /= n
 	summary.MeanReportedSE /= n
+	summary.MeanESS /= n
+	summary.MeanTotalWork /= n
 	summary.RootNormalizedLoss = math.Sqrt(summary.WholeTableLoss)
 	for _, target := range targets {
 		key := [2]int{target.Team, target.Position}
@@ -593,7 +773,7 @@ func summarizeRareBenchmarkCells(rows []rareBenchmarkRow, targets []rareBenchmar
 	for _, target := range targets {
 		cell := rareBenchmarkCellSummary{Team: target.Team, Position: target.Position,
 			ReferenceProbability: target.Reference}
-		for _, method := range []string{"adaptive_pipeline", "plain_mc_100k"} {
+		for _, method := range []string{"adaptive_pipeline", "old_racing", "plain_mc_100k"} {
 			var estimates, errors, reportedSE []float64
 			zeros := 0
 			for _, row := range rows {
@@ -638,6 +818,11 @@ func summarizeRareBenchmarkCells(rows []rareBenchmarkRow, targets []rareBenchmar
 				cell.PipelineMeanReportedSE = seMean / float64(len(estimates))
 				cell.PipelineEmpiricalSD = empiricalSD
 				cell.PipelineRelativeRMSE = safeRatio(rmse, target.Reference)
+			} else if method == "old_racing" {
+				cell.OldRacingMean, cell.OldRacingBias, cell.OldRacingRMSE = meanEstimate, bias, rmse
+				cell.OldRacingMAE, cell.OldRacingZeroRate = mae, float64(zeros)/float64(len(estimates))
+				cell.OldRacingMeanReportedSE = seMean / float64(len(estimates))
+				cell.OldRacingEmpiricalSD = empiricalSD
 			} else {
 				cell.PlainMCMean, cell.PlainMCBias, cell.PlainMCRMSE = meanEstimate, bias, rmse
 				cell.PlainMCMAE, cell.PlainMCZeroRate = mae, float64(zeros)/float64(len(estimates))
@@ -667,6 +852,8 @@ func summarizeRareBenchmarkBuckets(cells []rareBenchmarkCellSummary) []rareBench
 		bucket.PlainMCRMSE += square(cell.PlainMCRMSE)
 		bucket.PipelineNormalizedRMSE += square(cell.PipelineRelativeRMSE)
 		bucket.PlainMCNormalizedRMSE += square(cell.PlainMCRelativeRMSE)
+		bucket.OldRacingRMSE += square(cell.OldRacingRMSE)
+		bucket.OldRacingNormalizedRMSE += square(safeRatio(cell.OldRacingRMSE, cell.ReferenceProbability))
 	}
 	for i := range buckets {
 		bucket := &buckets[i]
@@ -678,6 +865,9 @@ func summarizeRareBenchmarkBuckets(cells []rareBenchmarkCellSummary) []rareBench
 		bucket.RMSEratio = safeRatio(bucket.PipelineRMSE, bucket.PlainMCRMSE)
 		bucket.PipelineNormalizedRMSE = math.Sqrt(bucket.PipelineNormalizedRMSE / float64(bucket.Cells))
 		bucket.PlainMCNormalizedRMSE = math.Sqrt(bucket.PlainMCNormalizedRMSE / float64(bucket.Cells))
+		bucket.OldRacingRMSE = math.Sqrt(bucket.OldRacingRMSE / float64(bucket.Cells))
+		bucket.OldRacingNormalizedRMSE = math.Sqrt(bucket.OldRacingNormalizedRMSE / float64(bucket.Cells))
+		bucket.OldRacingToEvidenceAwareRMSE = safeRatio(bucket.OldRacingRMSE, bucket.PipelineRMSE)
 	}
 	return buckets
 }
@@ -732,12 +922,14 @@ func populateRareBenchmarkEconomics(report *rareBenchmarkReport) {
 }
 
 func formatRareBenchmarkConsoleSummary(report rareBenchmarkReport) string {
-	pipeline, baseline := report.Summary["adaptive_pipeline"], report.Summary["plain_mc_100k"]
-	return fmt.Sprintf("rare-position benchmark: group=%d seeds=%d pipeline_rmse=%.6g plain_mc_100k_rmse=%.6g rmse_ratio=%.3f pipeline_mae=%.6g plain_mc_mae=%.6g pipeline_bias=%.6g plain_mc_bias=%.6g pipeline_zero_rate=%.1f%% plain_mc_zero_rate=%.1f%% precision_goal=%.1f%% IS_selection=%.1f%% mean_search_overhead_plain_mc_eq=%.1f mean_IS_ESS_gain_vs_100k=%.3f",
-		report.GroupID, len(report.Seeds), pipeline.RMSE, baseline.RMSE, report.RMSEPipelineToBaseline,
-		pipeline.MeanAbsoluteError, baseline.MeanAbsoluteError, pipeline.MeanBias, baseline.MeanBias,
-		pipeline.ZeroEstimateRate*100, baseline.ZeroEstimateRate*100, pipeline.PrecisionGoalRate*100,
-		report.PipelineSelectionRate*100, pipeline.MeanSearchOverhead, report.MeanISGainVs100kMC)
+	pipeline, baseline, old := report.Summary["adaptive_pipeline"], report.Summary["plain_mc_100k"], report.Summary["old_racing"]
+	return fmt.Sprintf("rare-position racing benchmark: group=%d seeds=%d old_rmse=%.6g evidence_aware_rmse=%.6g 100k_plain_rmse=%.6g old/new_rmse_ratio=%.3f old_starved_adaptation_exact=%d new_protected=%d rescued=%d zero_after_400=%d zero_after_600=%d surrogate_only_over_400=%d old_IS_selection=%.1f%% new_IS_selection=%.1f%% warm_start_verified=%t",
+		report.GroupID, len(report.Seeds), old.RMSE, pipeline.RMSE, baseline.RMSE,
+		report.OldRacingToEvidenceAwareRMSE, report.OldRacingStarvedAdaptationExact,
+		report.EvidenceAwareProtectedAdaptationExact, report.RescuedAdaptationExact,
+		report.AdaptationExactStillZeroAfter400, report.AdaptationExactStillZeroAfter600,
+		report.SurrogateOnlyOver400Samples, report.OldRacingSelectionRate*100,
+		report.PipelineSelectionRate*100, report.WarmStartVerified)
 }
 
 func writeRareBenchmarkCSV(path string, rows []rareBenchmarkRow) error {
@@ -748,7 +940,7 @@ func writeRareBenchmarkCSV(path string, rows []rareBenchmarkRow) error {
 	defer file.Close()
 	w := csv.NewWriter(file)
 	defer w.Flush()
-	if err := w.Write([]string{"seed", "method", "team", "position", "reference_probability", "estimate", "std_error", "relative_se", "ess", "hits", "samples", "production_plain_mc_equivalent", "search_overhead_plain_mc_equivalent", "design", "selected_team", "selected_position", "selected_snapshot_iteration", "scout_work", "adaptation_work", "evaluation_work", "production_work", "total_work", "total_work_limit", "evaluation_ess_per_work", "selected_production_mean_weight", "is_ess_gain_vs_100k_mc"}); err != nil {
+	if err := w.Write([]string{"seed", "method", "team", "position", "reference_probability", "estimate", "std_error", "relative_se", "ess", "hits", "samples", "production_plain_mc_equivalent", "search_overhead_plain_mc_equivalent", "design", "cem_initialization_mode", "cem_initialization_source", "cem_shortlist_fingerprint", "selected_team", "selected_position", "selected_snapshot_iteration", "scout_work", "adaptation_work", "evaluation_work", "evaluation_total_samples", "evaluation_result_work", "selected_evaluation_samples", "selected_evaluation_work", "production_work", "total_work", "total_work_limit", "adaptation_exact_shortlisted", "adaptation_exact_le_200", "adaptation_exact_ge_400", "adaptation_exact_starved", "adaptation_exact_rescued", "adaptation_exact_still_zero_400", "adaptation_exact_still_zero_600", "surrogate_only_over_400", "evaluation_ess_per_work", "selected_production_mean_weight", "is_ess_gain_vs_100k_mc"}); err != nil {
 		return err
 	}
 	for _, r := range rows {
@@ -756,9 +948,15 @@ func writeRareBenchmarkCSV(path string, rows []rareBenchmarkRow) error {
 			formatBenchmarkFloat(r.ReferenceProbability), formatBenchmarkFloat(r.Estimate), formatBenchmarkFloat(r.StdErr),
 			formatBenchmarkFloat(r.RelativeSE), formatBenchmarkFloat(r.ESS), strconv.Itoa(r.Hits), strconv.Itoa(r.ProductionSamples),
 			formatBenchmarkFloat(r.ProductionPlainMCEq), formatBenchmarkFloat(r.SearchOverheadPlainMCEq), r.ProductionDesign,
+			r.CEMInitializationMode, r.CEMInitializationSource, r.CEMShortlistFingerprint,
 			strconv.Itoa(r.SelectedTeam), strconv.Itoa(r.SelectedPosition), strconv.Itoa(r.SelectedSnapshotIteration),
 			strconv.FormatInt(r.ScoutWork, 10), strconv.FormatInt(r.AdaptationWork, 10), strconv.FormatInt(r.EvaluationWork, 10),
+			strconv.Itoa(r.EvaluationTotalSamples), strconv.FormatInt(r.EvaluationResultWork, 10),
+			strconv.Itoa(r.SelectedEvaluationSamples), strconv.FormatInt(r.SelectedEvaluationWork, 10),
 			strconv.FormatInt(r.ProductionWork, 10), strconv.FormatInt(r.TotalWork, 10), strconv.FormatInt(r.TotalWorkLimit, 10),
+			strconv.Itoa(r.AdaptationExactShortlisted), strconv.Itoa(r.AdaptationExactLE200), strconv.Itoa(r.AdaptationExactGE400),
+			strconv.Itoa(r.AdaptationExactStarved), strconv.Itoa(r.AdaptationExactRescued),
+			strconv.Itoa(r.AdaptationExactStillZero400), strconv.Itoa(r.AdaptationExactStillZero600), strconv.Itoa(r.SurrogateOnlyOver400),
 			formatBenchmarkFloat(r.EvaluationESSPerWork), formatBenchmarkFloat(r.SelectedProductionMeanWeight),
 			formatBenchmarkFloat(r.ISBreakEvenGain100k)}
 		if err := w.Write(values); err != nil {
@@ -791,5 +989,26 @@ func TestRareBenchmarkCellAndBucketSummaries(t *testing.T) {
 	buckets := summarizeRareBenchmarkBuckets(cells)
 	if len(buckets) != 3 || buckets[2].Cells != 1 || buckets[2].RMSEratio != 0 {
 		t.Fatalf("unexpected probability-bucket summary: %+v", buckets)
+	}
+}
+
+func TestRareBenchmarkCSVRowsMatchHeader(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "benchmark.csv")
+	row := rareBenchmarkRow{Seed: 1, Method: "old_racing", Team: 2, Position: 3, ReferenceProbability: 1e-4,
+		CEMInitializationMode: "standings_directed", CEMInitializationSource: "benchmark_override",
+		CEMShortlistFingerprint: "abc", EvaluationTotalSamples: 900, EvaluationResultWork: 612000}
+	if err := writeRareBenchmarkCSV(path, []rareBenchmarkRow{row}); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	records, err := csv.NewReader(strings.NewReader(string(data))).ReadAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(records) != 2 || len(records[0]) != len(records[1]) {
+		t.Fatalf("benchmark CSV header/data widths differ: records=%v", records)
 	}
 }

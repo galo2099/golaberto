@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"reflect"
 	"testing"
 )
 
@@ -857,6 +858,184 @@ func TestCEMEvaluationCapacityReturnsUnusedBudget(t *testing.T) {
 	}
 }
 
+func TestNormalRarePositionCEMInitializationDefaultsToStandingsDirected(t *testing.T) {
+	t.Setenv("RARE_POSITION_CEM_INIT_MODE", "")
+	t.Setenv("RARE_POSITION_CEM_INIT", "")
+	t.Setenv("RARE_POSITION_BENCHMARK_CEM_INIT_MODE", "")
+	oldDefault := CEMDefaultInitializationMode
+	CEMDefaultInitializationMode = CEMInitStandingsDirected
+	t.Cleanup(func() { CEMDefaultInitializationMode = oldDefault })
+	mode, source := cemInitializationMode()
+	if mode != CEMInitStandingsDirected || source != "default" {
+		t.Fatalf("default CEM initialization mode=%v source=%q, want standings-directed/default", mode, source)
+	}
+	teamIDs := []int{1, 2, 3}
+	searches := map[int]*TeamRareSearch{
+		1: {TeamID: 1, NormalMeanRank: 6},
+		2: {TeamID: 2, NormalMeanRank: 2.5},
+		3: {TeamID: 3, NormalMeanRank: 8},
+	}
+	games := []*GameType{{Id: 1, HomeId: 1, AwayId: 2, HomePower: 1, AwayPower: 1}}
+	original := []GameProposalMeans{{Home: 1, Away: 1}}
+	candidate := &FrontierCandidate{TeamID: 1, Position: 2, Direction: RareBetter}
+	proposal, _ := newCEMProposalWithMode(mode, candidate, searches, original, games, teamIDs, 16982)
+	if proposal.TeamLogMultipliers[1] == 0 || proposal.TeamLogMultipliers[2] == 0 {
+		t.Fatalf("default path produced zero-init proposal: theta=%v", proposal.TeamLogMultipliers)
+	}
+	t.Setenv("RARE_POSITION_BENCHMARK_CEM_INIT_MODE", "zero")
+	mode, source = cemInitializationMode()
+	zeroProposal, _ := newCEMProposalWithMode(mode, candidate, searches, original, games, teamIDs, 16982)
+	if mode != CEMInitZero || source != "benchmark_override" || zeroProposal.TeamLogMultipliers[1] != 0 || zeroProposal.TeamLogMultipliers[2] != 0 {
+		t.Fatalf("explicit zero benchmark override not honored: mode=%v source=%s theta=%v", mode, source, zeroProposal.TeamLogMultipliers)
+	}
+	t.Setenv("RARE_POSITION_BENCHMARK_CEM_INIT_MODE", "")
+	t.Setenv("RARE_POSITION_CEM_INIT", "zero")
+	if mode, source = cemInitializationMode(); mode != CEMInitZero || source != "config" {
+		t.Fatalf("legacy explicit zero config not honored: mode=%v source=%s", mode, source)
+	}
+}
+
+func TestCEMAdaptationExactEvidenceProtectsEvaluationAllocation(t *testing.T) {
+	a := &CEMEvaluationState{Snapshot: CEMProposalSnapshot{CandidateTeam: 26, CandidatePosition: 8,
+		SourceIteration: 2, Stats: CEMBatchStats{ExactHits: 1}}, HadAdaptationExactHit: true,
+		AdaptationExactHits: 1, Samples: 200, Work: 200, Near1EfficiencyRatio: 0}
+	b := &CEMEvaluationState{Snapshot: CEMProposalSnapshot{CandidateTeam: 1528, CandidatePosition: 0,
+		SourceIteration: 4}, Samples: 200, Work: 200, Near1EfficiencyRatio: 10}
+	if !cemStateBetterForRace(a, b) || !cemStateNeedsProtectedSamples(a) {
+		t.Fatalf("adaptation-exact proposal should outrank/protect against surrogate-only proposal: A=%+v B=%+v", a, b)
+	}
+	if !cemStateBetterForRaceLegacy(b, a) {
+		t.Fatal("legacy racing fixture should reproduce surrogate-over-adaptation ranking")
+	}
+	first, cursor := nextCEMProtectedCandidate([]*CEMEvaluationState{b, a}, 0)
+	if first != a {
+		t.Fatal("protected allocation did not select adaptation-exact candidate")
+	}
+	first.Samples += CEMEvaluationChunkSamples
+	second, cursor := nextCEMProtectedCandidate([]*CEMEvaluationState{a, b}, cursor)
+	if second != a {
+		t.Fatalf("single adaptation-exact proposal should receive its next minimum chunk, got team=%d", second.Snapshot.CandidateTeam)
+	}
+	second.Samples += CEMEvaluationChunkSamples
+	if a.Samples != CEMAdaptationExactMinEvaluationSamples || cemStateNeedsProtectedSamples(a) {
+		t.Fatalf("protected minimum not reached: samples=%d still_protected=%t", a.Samples, cemStateNeedsProtectedSamples(a))
+	}
+	if selected := selectCEMProductionEvaluation([]CEMProposalEvaluation{{Snapshot: a.Snapshot, Hits: 0, ESS: 0, Work: 400}}); selected != nil {
+		t.Fatal("adaptation-only exact evidence must not authorize production IS")
+	}
+}
+
+func TestCEMAdaptationExactProtectedAllocationIsRoundRobinAndBudgetBounded(t *testing.T) {
+	newProtected := func(team int) *CEMEvaluationState {
+		return &CEMEvaluationState{Snapshot: CEMProposalSnapshot{CandidateTeam: team, Stats: CEMBatchStats{ExactHits: 1}},
+			HadAdaptationExactHit: true, AdaptationExactHits: 1, Samples: 200}
+	}
+	a, b := newProtected(1), newProtected(2)
+	states := []*CEMEvaluationState{b, a}
+	var got []int
+	cursor := 0
+	for range 4 {
+		state, next := nextCEMProtectedCandidate(states, cursor)
+		if state == nil {
+			break
+		}
+		cursor = next
+		got = append(got, state.Snapshot.CandidateTeam)
+		state.Samples += CEMEvaluationChunkSamples
+	}
+	want := []int{1, 2, 1, 2}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("round-robin protected chunks=%v, want %v", got, want)
+	}
+	if next, _ := nextCEMProtectedCandidate(states, 0); next != nil {
+		t.Fatalf("candidates at minimum should not remain protected: %+v", next)
+	}
+	a, b = newProtected(1), newProtected(2)
+	got = nil
+	cursor = 0
+	for range 2 { // a 200-sample remainder budget permits one chunk each.
+		state, next := nextCEMProtectedCandidate([]*CEMEvaluationState{a, b}, cursor)
+		cursor = next
+		got = append(got, state.Snapshot.CandidateTeam)
+		state.Samples += CEMEvaluationChunkSamples
+	}
+	if !reflect.DeepEqual(got, []int{1, 2}) || a.Samples != 300 || b.Samples != 300 {
+		t.Fatalf("budget-short protected allocation=%v samples=(%d,%d)", got, a.Samples, b.Samples)
+	}
+}
+
+func TestCEMHeldOutExactEvidenceOverridesProtectionAndSurrogateRanksWithinClass(t *testing.T) {
+	a := &CEMEvaluationState{Snapshot: CEMProposalSnapshot{CandidateTeam: 1, Stats: CEMBatchStats{ExactHits: 1}},
+		HadAdaptationExactHit: true, Samples: 200}
+	b := &CEMEvaluationState{Snapshot: CEMProposalSnapshot{CandidateTeam: 2}, Samples: 200,
+		Near1EfficiencyRatio: 10, Exact: WeightedEventStats{Hits: 1, ESS: 1}, Work: 200}
+	if cemStateNeedsProtectedSamples(a) && !cemAnyHeldOutExact([]*CEMEvaluationState{a, b}) {
+		t.Fatal("protection must yield after independent held-out exact evidence exists")
+	}
+	if !cemStateBetterForRace(b, a) {
+		t.Fatal("held-out exact candidate must outrank protected zero-hit candidate")
+	}
+	c := &CEMEvaluationState{Snapshot: CEMProposalSnapshot{CandidateTeam: 3, Stats: CEMBatchStats{ExactHits: 1}},
+		HadAdaptationExactHit: true, Samples: 400, Work: 400, Near1EfficiencyRatio: 2}
+	d := &CEMEvaluationState{Snapshot: CEMProposalSnapshot{CandidateTeam: 4, Stats: CEMBatchStats{ExactHits: 1}},
+		HadAdaptationExactHit: true, Samples: 400, Work: 400, Near1EfficiencyRatio: 1}
+	if !cemStateBetterForRace(c, d) {
+		t.Fatal("higher near-1 efficiency should rank first within the same evidence class")
+	}
+	e := *c
+	e.Snapshot.CandidateTeam = 5
+	e.AdaptationExactHits = 3
+	d.AdaptationExactHits = 1
+	c.Near1EfficiencyRatio, e.Near1EfficiencyRatio = 1, 1
+	if !cemStateBetterForRace(&e, d) {
+		t.Fatal("adaptation exact-hit count should break otherwise equal class-A ties")
+	}
+	f := &CEMEvaluationState{Snapshot: CEMProposalSnapshot{CandidateTeam: 6}, Work: 400, Samples: 400, Near1EfficiencyRatio: 5}
+	g := &CEMEvaluationState{Snapshot: CEMProposalSnapshot{CandidateTeam: 7}, Work: 400, Samples: 400, Near1EfficiencyRatio: 1}
+	if !cemStateBetterForRace(f, g) {
+		t.Fatal("surrogate evidence should rank proposals within the same Class-B evidence class")
+	}
+}
+
+func TestCEMSnapshotAdaptationEvidenceUsesStatsNotReasonStrings(t *testing.T) {
+	if !snapshotHadAdaptationExactHit(CEMProposalSnapshot{Reason: "best_snapshot", Stats: CEMBatchStats{ExactHits: 2}}) {
+		t.Fatal("exact adaptation statistics were not recognized")
+	}
+	if snapshotHadAdaptationExactHit(CEMProposalSnapshot{Reason: "exact_hit", Stats: CEMBatchStats{ExactHits: 0}}) {
+		t.Fatal("snapshot reason must not fabricate adaptation exact evidence")
+	}
+}
+
+func TestCEMAdaptationStatisticsDoNotEnterHeldOutEstimator(t *testing.T) {
+	snapshot := CEMProposalSnapshot{Stats: CEMBatchStats{ExactHits: 50, NearTargetHits: 70}}
+	pilot := WeightedPilotResult{Samples: 100, Hits: 1, SumY: 0.2, SumY2: 0.04,
+		Probability: 0.002, StdErr: 0.001, RelSE: 0.5, ESS: 1, ESSPerWork: 0.01}
+	evaluation := summarizeCEMProposalEvaluation(snapshot, pilot, 100)
+	if evaluation.Samples != 100 || evaluation.Hits != 1 || evaluation.SumY != 0.2 || evaluation.SumY2 != 0.04 ||
+		evaluation.Probability != 0.002 || evaluation.ESS != 1 || evaluation.StdErr != 0.001 {
+		t.Fatalf("adaptation statistics contaminated the independent estimator: %+v", evaluation)
+	}
+}
+
+func TestCEMEvaluationResultAccountsForAllRaceWork(t *testing.T) {
+	states := []*CEMEvaluationState{
+		{Snapshot: CEMProposalSnapshot{CandidateTeam: 1}, Samples: 400, Work: 272000,
+			Exact: WeightedEventStats{Hits: 1, ESS: 1}},
+		{Snapshot: CEMProposalSnapshot{CandidateTeam: 2}, Samples: 300, Work: 204000},
+		{Snapshot: CEMProposalSnapshot{CandidateTeam: 3}, Samples: 200, Work: 136000},
+	}
+	result := finalizeCEMEvaluationResult(16982, states, nil, false,
+		"all_proposals_zero_exact_hits_in_evaluation", 680)
+	if result.TotalSamples != 900 || result.TotalWork != 612000 || result.SelectedSamples != 0 || result.SelectedWork != 0 {
+		t.Fatalf("zero-hit race accounting=%+v", result)
+	}
+	selected := convertToSingleEvaluation(16982, states[0], true, "fixture")
+	result = finalizeCEMEvaluationResult(16982, states[:2], selected, true, "early_accept_stage3b", 680)
+	if result.TotalSamples != 700 || result.TotalWork != 476000 || result.SelectedSamples != 400 || result.SelectedWork != 272000 || !result.EarlyAccept {
+		t.Fatalf("early-accept accounting=%+v", result)
+	}
+}
+
 func TestCEMCandidateStopsAfterStallAndUsesHighSafetyCap(t *testing.T) {
 	state := &CEMCandidateState{Active: true, Iterations: 3, StalledIterations: CEMMaxStalledIterations}
 	if got := cemCandidateStopReason(state); got != "stalled" {
@@ -1004,7 +1183,6 @@ func TestCEMThetaSummaryReportsL1AndTruePerTeamAverage(t *testing.T) {
 	}
 }
 
-
 func createTestGroupWithUnderdog() (*GroupType, []*TeamCampaign, []GameProposalMeans, *Table, []SortType) {
 	tg1 := TeamType{Team_id: 1}
 	tg2 := TeamType{Team_id: 2}
@@ -1040,8 +1218,8 @@ func TestCEMRacingEvaluatorStage123AndLeaderSwitching(t *testing.T) {
 		Stats: CEMBatchStats{ExactHits: 0, NearTargetHits: 1, BestRank: 1},
 		Proposal: CEMProposal{
 			TeamLogMultipliers: map[int]float64{2: 0.5},
-			Means: []GameProposalMeans{{Home: 0.5, Away: 2.0}},
-			KL: 0.2,
+			Means:              []GameProposalMeans{{Home: 0.5, Away: 2.0}},
+			KL:                 0.2,
 		},
 	}
 	snap2 := CEMProposalSnapshot{
@@ -1049,8 +1227,8 @@ func TestCEMRacingEvaluatorStage123AndLeaderSwitching(t *testing.T) {
 		Stats: CEMBatchStats{ExactHits: 0, NearTargetHits: 3, BestRank: 0},
 		Proposal: CEMProposal{
 			TeamLogMultipliers: map[int]float64{2: 1.0},
-			Means: []GameProposalMeans{{Home: 1.0, Away: 1.0}},
-			KL: 0.15,
+			Means:              []GameProposalMeans{{Home: 1.0, Away: 1.0}},
+			KL:                 0.15,
 		},
 	}
 	snap3 := CEMProposalSnapshot{
@@ -1058,8 +1236,8 @@ func TestCEMRacingEvaluatorStage123AndLeaderSwitching(t *testing.T) {
 		Stats: CEMBatchStats{ExactHits: 0, NearTargetHits: 0, BestRank: 3},
 		Proposal: CEMProposal{
 			TeamLogMultipliers: map[int]float64{2: 0.1},
-			Means: []GameProposalMeans{{Home: 0.2, Away: 3.0}},
-			KL: 0.5,
+			Means:              []GameProposalMeans{{Home: 0.2, Away: 3.0}},
+			KL:                 0.5,
 		},
 	}
 
@@ -1126,8 +1304,8 @@ func TestCEMRacingEvaluatorFallbackToPlainMCWhenNoExactHits(t *testing.T) {
 		Stats: CEMBatchStats{ExactHits: 0, NearTargetHits: 0},
 		Proposal: CEMProposal{
 			TeamLogMultipliers: map[int]float64{2: -2.0},
-			Means: []GameProposalMeans{{Home: 8.0, Away: 0.05}},
-			KL: 0.5,
+			Means:              []GameProposalMeans{{Home: 8.0, Away: 0.05}},
+			KL:                 0.5,
 		},
 	}
 
@@ -1148,5 +1326,32 @@ func TestCEMRacingEvaluatorFallbackToPlainMCWhenNoExactHits(t *testing.T) {
 	}
 	if selected != nil {
 		t.Fatalf("expected nil selected proposal (fallback to plain MC), got %+v", selected)
+	}
+}
+
+func TestCEMAdaptationExactProposalGetsProtectedMinimumAfterZeroOf200(t *testing.T) {
+	group, campaign, original, table, sortOrder := createTestGroupWithUnderdog()
+	snapshot := CEMProposalSnapshot{CandidateTeam: 2, CandidatePosition: 0, SourceIteration: 2,
+		Stats: CEMBatchStats{ExactHits: 1, NearTargetHits: 1},
+		Proposal: CEMProposal{TeamLogMultipliers: map[int]float64{2: -2},
+			Means: []GameProposalMeans{{Home: 10, Away: 0.001}}, KL: 0.5}}
+	normalCounts := map[int][]int{2: {0, 10000}}
+	normalSamples := 10000
+	var evalRemaining, workRemaining int64 = 90000, 90000
+	result := runCEMProposalRacingWithResult(group.Id, []CEMProposalSnapshot{snapshot}, original,
+		campaign, group.Games, table, sortOrder, group.Team_groups, normalCounts, normalSamples,
+		&evalRemaining, &workRemaining, 100, 54321, false)
+	if len(result.Evaluations) != 1 {
+		t.Fatalf("evaluation result=%+v", result)
+	}
+	evaluation := result.Evaluations[0]
+	if evaluation.ExactHitsAt200 == 0 && evaluation.Hits == 0 && evaluation.Samples < CEMAdaptationExactMinEvaluationSamples {
+		t.Fatalf("adaptation-exact proposal stopped after weak zero/200 evidence: %+v", evaluation)
+	}
+	if result.TotalWork != int64(result.TotalSamples)*100 || result.TotalWork != 90000-evalRemaining {
+		t.Fatalf("race totals disagree with consumed budget: result=%+v remaining=%d", result, evalRemaining)
+	}
+	if evaluation.Hits == 0 && result.Selected != nil {
+		t.Fatal("adaptation evidence alone selected importance sampling")
 	}
 }
