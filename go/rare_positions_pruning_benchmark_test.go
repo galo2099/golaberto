@@ -284,11 +284,12 @@ func validateIncrementalBoundsOnFixture(t *testing.T, base []*TeamCampaign, game
 			copy := *game
 			prefixGames[i] = &copy
 		}
-		state := newIncrementalPositionBounds(prefixGames, teams)
 		rng := rand.New(rand.NewSource(deriveRarePositionSeed(seed, "fixture-prefix-validation")))
 		compare := func(prefix int) {
 			wantBest, wantWorst, wantRemaining := conservativePositionBounds(target, campaign, teams, prefixGames, table)
-			gotBest, gotWorst, gotRemaining := state.ranks(target, campaign, table)
+			tpl := newIncrementalPositionBoundsTemplate(prefixGames, teams, table, campaign, target)
+			state := newIncrementalPositionBoundsFromTemplate(tpl, campaign)
+			gotBest, gotWorst, gotRemaining := state.ranks()
 			if wantBest != gotBest || wantWorst != gotWorst || wantRemaining != gotRemaining {
 				t.Fatalf("real fixture prefix mismatch seed=%d prefix=%d incremental=(%d,%d,%t) conservative=(%d,%d,%t)",
 					seed, prefix, gotBest, gotWorst, gotRemaining, wantBest, wantWorst, wantRemaining)
@@ -311,7 +312,6 @@ func validateIncrementalBoundsOnFixture(t *testing.T, base []*TeamCampaign, game
 				campaign[game.away_table_index].add_game(completed)
 			}
 			game.Played = true
-			state.gameCompleted(game)
 			prefix++
 			compare(prefix)
 		}
@@ -376,8 +376,8 @@ func calibratePruningMethod(base []*TeamCampaign, games []*GameType, original []
 			simulateTargetTeamRankAndWeightMulti(base, sim, teams, games, original, components,
 				table, order, groups, team, rng, logs, weights, allRanks)
 		} else {
-			_, _, stats := simulateTargetSequential(base, games, nil, original, components, table,
-				order, groups, team, position, stride, false, rng)
+			_, _, stats := simulateTargetSequential(base, games, nil, original, components, nil, table,
+				order, groups, team, position, stride, false, nil, rng)
 			cal.SolverDuration += stats.SolverDuration
 			cal.GamesPerSample += float64(stats.GamesSimulated)
 			if stats.Pruned {

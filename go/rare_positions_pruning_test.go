@@ -213,43 +213,65 @@ func pruningFixture(t *testing.T) ([]*TeamCampaign, []*GameType, []GameProposalM
 	return campaign, games, means, teams, table, []SortType{PT, GD, GF, BIAS}
 }
 
-func TestIncrementalPositionBoundsMatchConservativeBoundsOnRandomPrefixes(t *testing.T) {
+func TestOptimizedIncrementalBoundsMatchReferenceAtEveryStep(t *testing.T) {
 	base, games, _, groups, table, _ := pruningFixture(t)
-	for seed := int64(1); seed <= 30; seed++ {
-		rng := rand.New(rand.NewSource(seed))
-		campaign := make([]*TeamCampaign, len(base))
-		for i, c := range base {
-			campaign[i] = c.clone()
-		}
-		prefixGames := make([]*GameType, len(games))
-		for i, game := range games {
-			copy := *game
-			prefixGames[i] = &copy
-		}
-		state := newIncrementalPositionBounds(prefixGames, groups)
-		check := func(prefix int) {
-			for target := range groups {
-				wantBest, wantWorst, wantUnplayed := conservativePositionBounds(groups[target].Team_id, campaign,
-					groups, prefixGames, table)
-				gotBest, gotWorst, gotUnplayed := state.ranks(groups[target].Team_id, campaign, table)
-				if gotBest != wantBest || gotWorst != wantWorst || gotUnplayed != wantUnplayed {
-					t.Fatalf("seed=%d prefix=%d target=%d incremental=(%d,%d,%t) conservative=(%d,%d,%t)",
-						seed, prefix, groups[target].Team_id, gotBest, gotWorst, gotUnplayed,
-						wantBest, wantWorst, wantUnplayed)
+	normalMeanRanks := map[int]float64{1: 0.5, 2: 1.5, 3: 2.5, 4: 3.5}
+
+	for targetIdx, targetTeam := range groups {
+		targetID := targetTeam.Team_id
+		orderings := buildSequentialGameOrderings(games, targetID, targetIdx, normalMeanRanks)
+
+		for _, ord := range orderings {
+			for seed := int64(1); seed <= 20; seed++ {
+				rng := rand.New(rand.NewSource(seed))
+				campaign := make([]*TeamCampaign, len(base))
+				for i, c := range base {
+					campaign[i] = c.clone()
+				}
+				simGames := make([]*GameType, len(games))
+				for i, game := range games {
+					c := *game
+					simGames[i] = &c
+				}
+
+				tpl := newIncrementalPositionBoundsTemplate(simGames, groups, table, campaign, targetID)
+				state := newIncrementalPositionBoundsFromTemplate(tpl, campaign)
+
+				wantBest, wantWorst, _ := conservativePositionBounds(targetID, campaign, groups, simGames, table)
+				gotBest, gotWorst, _ := state.ranks()
+				if wantBest != gotBest || wantWorst != gotWorst {
+					t.Fatalf("initial bounds mismatch seed=%d target=%d ordering=%s: got=(%d,%d) want=(%d,%d)",
+						seed, targetID, ord.Name, gotBest, gotWorst, wantBest, wantWorst)
+				}
+
+				for step, gIdx := range ord.GameIndexes {
+					g := simGames[gIdx]
+					if g.Played {
+						continue
+					}
+					homeScore := poissonRand(rng, g.HomePower)
+					awayScore := poissonRand(rng, g.AwayPower)
+					completed := &GameType{Id: g.Id, HomeId: g.HomeId, AwayId: g.AwayId,
+						HomeScore: homeScore, AwayScore: awayScore, Played: true,
+						home_table_index: g.home_table_index, away_table_index: g.away_table_index}
+
+					if campaign[g.home_table_index] != nil {
+						campaign[g.home_table_index].add_game(completed)
+					}
+					if campaign[g.away_table_index] != nil {
+						campaign[g.away_table_index].add_game(completed)
+					}
+					g.Played = true
+					state.gameCompleted(gIdx, campaign)
+
+					wantBest, wantWorst, _ = conservativePositionBounds(targetID, campaign, groups, simGames, table)
+					gotBest, gotWorst, _ = state.ranks()
+					if wantBest != gotBest || wantWorst != gotWorst {
+						t.Fatalf("step %d (game %d) bounds mismatch seed=%d target=%d ordering=%s: got=(%d,%d) want=(%d,%d)",
+							step, gIdx, seed, targetID, ord.Name, gotBest, gotWorst, wantBest, wantWorst)
+					}
 				}
 			}
-		}
-		check(0)
-		for i, game := range prefixGames {
-			home, away := poissonRand(rng, game.HomePower), poissonRand(rng, game.AwayPower)
-			completed := &GameType{Id: game.Id, HomeId: game.HomeId, AwayId: game.AwayId,
-				HomeScore: home, AwayScore: away, Played: true,
-				home_table_index: game.home_table_index, away_table_index: game.away_table_index}
-			campaign[game.home_table_index].add_game(completed)
-			campaign[game.away_table_index].add_game(completed)
-			game.Played = true
-			state.gameCompleted(game)
-			check(i + 1)
 		}
 	}
 }
@@ -322,8 +344,8 @@ func TestSequentialPruningIsZeroContributionAndPreservesPairedSamples(t *testing
 	for index := 0; index < 500; index++ {
 		seed := targetSampleSeed(9001, index)
 		wantRank, wantWeight, wantSignature := testFullSample(t, base, games, original, components, table, order, groups, 1, seed)
-		rank, weight, stats := simulateTargetSequential(base, games, nil, original, components,
-			table, order, groups, 1, 0, 1, true, rand.New(rand.NewSource(seed)))
+		rank, weight, stats := simulateTargetSequential(base, games, nil, original, components, nil,
+			table, order, groups, 1, 0, 1, true, nil, rand.New(rand.NewSource(seed)))
 		if stats.Pruned {
 			pruned++
 			if rank != -1 || weight != 0 || wantRank == 0 {
@@ -426,8 +448,8 @@ func TestSequentialPruningDoesNotEarlyAcceptGuaranteedEvent(t *testing.T) {
 		means[i] = GameProposalMeans{Home: game.HomePower, Away: game.AwayPower}
 	}
 	_, _, stats := simulateTargetSequential(base, games, nil, means,
-		[]ProposalComponent{{Name: "P", Weight: 1, Means: means}}, table, []SortType{PT, BIAS}, groups,
-		1, 0, 1, false, rand.New(rand.NewSource(3)))
+		[]ProposalComponent{{Name: "P", Weight: 1, Means: means}}, nil, table, []SortType{PT, BIAS}, groups,
+		1, 0, 1, false, nil, rand.New(rand.NewSource(3)))
 	if stats.Pruned || stats.GamesSimulated != len(games) || stats.CompletedRank != 0 {
 		t.Fatalf("guaranteed exact event was early-accepted instead of fully simulated: %+v", stats)
 	}
@@ -501,8 +523,8 @@ func TestArbitraryCompletionOrderStandingsEquivalence(t *testing.T) {
 		streamSeed := deriveRarePositionSeed(masterSeed, "distributional-equivalence-"+ord.Name)
 		for i := 0; i < N; i++ {
 			rng := rand.New(rand.NewSource(targetSampleSeed(streamSeed, i)))
-			rank, _, stats := simulateTargetSequential(base, games, ord.GameIndexes, original, components,
-				table, order, groups, 1, 0, 1000, false, rng)
+			rank, _, stats := simulateTargetSequential(base, games, ord.GameIndexes, original, components, nil,
+				table, order, groups, 1, 0, 1000, false, nil, rng)
 			if stats.Pruned || rank < 0 || rank >= len(groups) {
 				t.Fatalf("unexpected prune or invalid rank in full simulation: stats=%+v rank=%d", stats, rank)
 			}
@@ -544,13 +566,13 @@ func TestSequentialPruningSafetyNoFalsePrunes(t *testing.T) {
 				for sampleIdx := 0; sampleIdx < 50; sampleIdx++ {
 					seed := int64(targetTeam*10000 + targetPos*1000 + sampleIdx + 1)
 					rngPruned := rand.New(rand.NewSource(seed))
-					_, _, stats := simulateTargetSequential(base, games, ord.GameIndexes, original, components,
-						table, order, groups, targetTeam, targetPos, 1, false, rngPruned)
+					_, _, stats := simulateTargetSequential(base, games, ord.GameIndexes, original, components, nil,
+						table, order, groups, targetTeam, targetPos, 1, false, nil, rngPruned)
 
 					if stats.Pruned {
 						rngFull := rand.New(rand.NewSource(seed))
-						fullRank, _, _ := simulateTargetSequential(base, games, ord.GameIndexes, original, components,
-							table, order, groups, targetTeam, targetPos, 1000, false, rngFull)
+						fullRank, _, _ := simulateTargetSequential(base, games, ord.GameIndexes, original, components, nil,
+							table, order, groups, targetTeam, targetPos, 1000, false, nil, rngFull)
 						if fullRank == targetPos {
 							falsePrunes++
 							t.Errorf("FALSE PRUNE DETECTED! team=%d pos=%d ordering=%s seed=%d: pruned sample actually achieved rank %d",

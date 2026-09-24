@@ -94,109 +94,282 @@ func estimateMayMeetInterestingThreshold(estimate RarePositionEstimate, threshol
 	return upper >= threshold
 }
 
+type incrementalPositionBoundsTemplate struct {
+	teamCount             int
+	targetIndex           int
+	minGain               []int
+	maxGain               []int
+	initialRemaining      []int
+	initialRemainingGames int
+	tableIndexToDense     []int
+	denseToCampaignIndex  []int
+	homeDense             []int
+	awayDense             []int
+}
+
+func newIncrementalPositionBoundsTemplate(
+	games []*GameType,
+	teams []TeamType,
+	table *Table,
+	baseCampaign []*TeamCampaign,
+	targetTeamID int,
+) *incrementalPositionBoundsTemplate {
+	teamCount := len(teams)
+	tableSize := len(table.values)
+	tableIndexToDense := make([]int, tableSize)
+	for i := range tableIndexToDense {
+		tableIndexToDense[i] = -1
+	}
+	denseToCampaignIndex := make([]int, teamCount)
+	targetIndex := -1
+
+	for denseIdx, team := range teams {
+		tblIdx := int(table.Query(uint32(team.Team_id)))
+		if tblIdx >= 0 && tblIdx < len(tableIndexToDense) {
+			tableIndexToDense[tblIdx] = denseIdx
+		}
+		denseToCampaignIndex[denseIdx] = tblIdx
+		if team.Team_id == targetTeamID {
+			targetIndex = denseIdx
+		}
+	}
+
+	minGain := make([]int, teamCount)
+	maxGain := make([]int, teamCount)
+	for denseIdx := 0; denseIdx < teamCount; denseIdx++ {
+		tblIdx := denseToCampaignIndex[denseIdx]
+		c := baseCampaign[tblIdx]
+		if c != nil {
+			pMin := c.points_loss
+			if c.points_draw < pMin {
+				pMin = c.points_draw
+			}
+			if c.points_win < pMin {
+				pMin = c.points_win
+			}
+			pMax := c.points_loss
+			if c.points_draw > pMax {
+				pMax = c.points_draw
+			}
+			if c.points_win > pMax {
+				pMax = c.points_win
+			}
+			minGain[denseIdx] = pMin
+			maxGain[denseIdx] = pMax
+		}
+	}
+
+	homeDense := make([]int, len(games))
+	awayDense := make([]int, len(games))
+	initialRemaining := make([]int, teamCount)
+	initialRemainingGames := 0
+
+	for gameIdx, game := range games {
+		hDense := tableIndexToDense[game.home_table_index]
+		aDense := tableIndexToDense[game.away_table_index]
+		homeDense[gameIdx] = hDense
+		awayDense[gameIdx] = aDense
+
+		if !game.Played {
+			initialRemainingGames++
+			if hDense >= 0 {
+				initialRemaining[hDense]++
+			}
+			if aDense >= 0 {
+				initialRemaining[aDense]++
+			}
+		}
+	}
+
+	return &incrementalPositionBoundsTemplate{
+		teamCount:             teamCount,
+		targetIndex:           targetIndex,
+		minGain:               minGain,
+		maxGain:               maxGain,
+		initialRemaining:      initialRemaining,
+		initialRemainingGames: initialRemainingGames,
+		tableIndexToDense:     tableIndexToDense,
+		denseToCampaignIndex:  denseToCampaignIndex,
+		homeDense:             homeDense,
+		awayDense:             awayDense,
+	}
+}
+
 // incrementalPositionBounds maintains the unplayed-game counts while the
 // sampled season advances. Its rank bounds intentionally use only points,
 // matching conservativePositionBounds exactly.
 type incrementalPositionBounds struct {
-	remainingByTeam map[int]int
-	remainingGames  int
-	teams           []TeamType
+	template                *incrementalPositionBoundsTemplate
+	remaining               []int
+	minPoints               []int
+	maxPoints               []int
+	definitelyAbove         []bool
+	definitelyBelow         []bool
+	aboveCount              int
+	belowCount              int
+	targetMin               int
+	targetMax               int
+	remainingGames          int
+	FullRescans             int64
+	IncrementalUpdates      int64
+	TargetThresholdChanges int64
+	TeamBoundRecomputations int64
 }
 
-func newIncrementalPositionBounds(games []*GameType, teams []TeamType) *incrementalPositionBounds {
+func newIncrementalPositionBoundsFromTemplate(
+	template *incrementalPositionBoundsTemplate,
+	simCampaign []*TeamCampaign,
+) *incrementalPositionBounds {
+	teamCount := template.teamCount
 	state := &incrementalPositionBounds{
-		remainingByTeam: make(map[int]int, len(teams)),
-		teams:           teams,
+		template:        template,
+		remaining:       append([]int(nil), template.initialRemaining...),
+		minPoints:       make([]int, teamCount),
+		maxPoints:       make([]int, teamCount),
+		definitelyAbove: make([]bool, teamCount),
+		definitelyBelow: make([]bool, teamCount),
+		remainingGames:  template.initialRemainingGames,
 	}
-	for _, game := range games {
-		if game.Played {
-			continue
+
+	for i := 0; i < teamCount; i++ {
+		c := simCampaign[template.denseToCampaignIndex[i]]
+		pts := 0
+		if c != nil {
+			pts = c.points
 		}
-		state.remainingGames++
-		state.remainingByTeam[game.HomeId]++
-		state.remainingByTeam[game.AwayId]++
+		rem := state.remaining[i]
+		state.minPoints[i] = pts + rem*template.minGain[i]
+		state.maxPoints[i] = pts + rem*template.maxGain[i]
 	}
+
+	if template.targetIndex >= 0 {
+		state.targetMin = state.minPoints[template.targetIndex]
+		state.targetMax = state.maxPoints[template.targetIndex]
+	}
+
+	state.reclassifyAll()
 	return state
 }
 
-func (state *incrementalPositionBounds) gameCompleted(game *GameType) {
-	state.remainingGames--
-	state.remainingByTeam[game.HomeId]--
-	state.remainingByTeam[game.AwayId]--
+func (state *incrementalPositionBounds) reclassifyAll() {
+	state.FullRescans++
+	state.aboveCount = 0
+	state.belowCount = 0
+	targetIdx := state.template.targetIndex
+	for i := 0; i < state.template.teamCount; i++ {
+		if i == targetIdx {
+			continue
+		}
+		above := state.minPoints[i] > state.targetMax
+		below := state.maxPoints[i] < state.targetMin
+		state.definitelyAbove[i] = above
+		state.definitelyBelow[i] = below
+		if above {
+			state.aboveCount++
+		}
+		if below {
+			state.belowCount++
+		}
+	}
 }
 
-func (state *incrementalPositionBounds) ranks(targetTeamID int, campaign []*TeamCampaign, table *Table) (bestRank, worstRank int, hasUnplayed bool) {
+func (state *incrementalPositionBounds) gameCompleted(
+	gameIdx int,
+	simCampaign []*TeamCampaign,
+) {
+	state.remainingGames--
+	tpl := state.template
+	hDense := tpl.homeDense[gameIdx]
+	aDense := tpl.awayDense[gameIdx]
+
+	if hDense >= 0 {
+		state.remaining[hDense]--
+		c := simCampaign[tpl.denseToCampaignIndex[hDense]]
+		pts := 0
+		if c != nil {
+			pts = c.points
+		}
+		state.minPoints[hDense] = pts + state.remaining[hDense]*tpl.minGain[hDense]
+		state.maxPoints[hDense] = pts + state.remaining[hDense]*tpl.maxGain[hDense]
+		state.TeamBoundRecomputations++
+	}
+
+	if aDense >= 0 {
+		state.remaining[aDense]--
+		c := simCampaign[tpl.denseToCampaignIndex[aDense]]
+		pts := 0
+		if c != nil {
+			pts = c.points
+		}
+		state.minPoints[aDense] = pts + state.remaining[aDense]*tpl.minGain[aDense]
+		state.maxPoints[aDense] = pts + state.remaining[aDense]*tpl.maxGain[aDense]
+		state.TeamBoundRecomputations++
+	}
+
+	targetIdx := tpl.targetIndex
+	if hDense == targetIdx || aDense == targetIdx {
+		state.TargetThresholdChanges++
+		if targetIdx >= 0 {
+			state.targetMin = state.minPoints[targetIdx]
+			state.targetMax = state.maxPoints[targetIdx]
+		}
+		state.reclassifyAll()
+	} else {
+		state.IncrementalUpdates++
+		if hDense >= 0 {
+			state.updateTeamClassification(hDense)
+		}
+		if aDense >= 0 {
+			state.updateTeamClassification(aDense)
+		}
+	}
+}
+
+func (state *incrementalPositionBounds) updateTeamClassification(denseIdx int) {
+	newAbove := state.minPoints[denseIdx] > state.targetMax
+	if newAbove != state.definitelyAbove[denseIdx] {
+		if newAbove {
+			state.aboveCount++
+		} else {
+			state.aboveCount--
+		}
+		state.definitelyAbove[denseIdx] = newAbove
+	}
+
+	newBelow := state.maxPoints[denseIdx] < state.targetMin
+	if newBelow != state.definitelyBelow[denseIdx] {
+		if newBelow {
+			state.belowCount++
+		} else {
+			state.belowCount--
+		}
+		state.definitelyBelow[denseIdx] = newBelow
+	}
+}
+
+func (state *incrementalPositionBounds) ranks() (bestRank, worstRank int, hasUnplayed bool) {
 	if state.remainingGames == 0 {
 		return 0, 0, false
 	}
-	target := campaign[table.Query(uint32(targetTeamID))]
-	targetUnplayed := state.remainingByTeam[targetTeamID]
-	targetMin, targetMax := 0, 0
-	if target != nil {
-		minGain, maxGain := target.points_loss, target.points_loss
-		if target.points_draw < minGain {
-			minGain = target.points_draw
-		}
-		if target.points_win < minGain {
-			minGain = target.points_win
-		}
-		if target.points_draw > maxGain {
-			maxGain = target.points_draw
-		}
-		if target.points_win > maxGain {
-			maxGain = target.points_win
-		}
-		targetMin = target.points + targetUnplayed*minGain
-		targetMax = target.points + targetUnplayed*maxGain
-	}
-	strictlyBetter, strictlyWorse := 0, 0
-	for _, team := range state.teams {
-		id := team.Team_id
-		if id == targetTeamID {
-			continue
-		}
-		campaignTeam := campaign[table.Query(uint32(id))]
-		minPoints, maxPoints := 0, 0 // map lookup defaults in conservativePositionBounds
-		if campaignTeam != nil {
-			remaining := state.remainingByTeam[id]
-			minGain, maxGain := campaignTeam.points_loss, campaignTeam.points_loss
-			if campaignTeam.points_draw < minGain {
-				minGain = campaignTeam.points_draw
-			}
-			if campaignTeam.points_win < minGain {
-				minGain = campaignTeam.points_win
-			}
-			if campaignTeam.points_draw > maxGain {
-				maxGain = campaignTeam.points_draw
-			}
-			if campaignTeam.points_win > maxGain {
-				maxGain = campaignTeam.points_win
-			}
-			minPoints = campaignTeam.points + remaining*minGain
-			maxPoints = campaignTeam.points + remaining*maxGain
-		}
-		if minPoints > targetMax {
-			strictlyBetter++
-		}
-		if maxPoints < targetMin {
-			strictlyWorse++
-		}
-	}
-	return strictlyBetter, (len(state.teams) - 1) - strictlyWorse, true
+	return state.aboveCount, (state.template.teamCount - 1) - state.belowCount, true
 }
 
 type SequentialPruningStats struct {
-	Pruned               bool          `json:"pruned"`
-	PruneGameIndex       int           `json:"prune_game_index"`
-	GamesSimulated       int           `json:"games_simulated"`
-	SolverChecks         int           `json:"solver_checks"`
-	SolverDuration       time.Duration `json:"-"`
-	SampleDuration       time.Duration `json:"-"`
-	ChosenComponent      int           `json:"chosen_component"`
-	CompletedRank        int           `json:"completed_rank"`
-	ImportanceWeight     float64       `json:"importance_weight"`
-	MeanWeightDiagnostic float64       `json:"-"`
-	ScorelineSignature   uint64        `json:"-"`
+	Pruned                  bool          `json:"pruned"`
+	PruneGameIndex          int           `json:"prune_game_index"`
+	GamesSimulated          int           `json:"games_simulated"`
+	SolverChecks            int           `json:"solver_checks"`
+	SolverDuration          time.Duration `json:"-"`
+	SampleDuration          time.Duration `json:"-"`
+	ChosenComponent         int           `json:"chosen_component"`
+	CompletedRank           int           `json:"completed_rank"`
+	ImportanceWeight        float64       `json:"importance_weight"`
+	MeanWeightDiagnostic    float64       `json:"-"`
+	ScorelineSignature      uint64        `json:"-"`
+	FullRescans             int64         `json:"full_rescans"`
+	IncrementalUpdates      int64         `json:"incremental_updates"`
+	TargetThresholdChanges int64         `json:"target_threshold_changes"`
+	TeamBoundRecomputations int64         `json:"team_bound_recomputations"`
 }
 
 type SequentialGameOrdering struct {
@@ -472,6 +645,11 @@ func calibrateSequentialPruning(
 			logs, weights = make([]float64, len(components)), make([]float64, len(components))
 			allRanks = newWeightedRankAccumulator(teamGroups, len(teamGroups))
 		}
+		template := newIncrementalPositionBoundsTemplate(games, teamGroups, table, baseCampaign, targetTeamID)
+		compWeights := make([]float64, len(components))
+		for i, c := range components {
+			compWeights[i] = c.Weight
+		}
 		for i := 0; i < samples; i++ {
 			rng := rand.New(rand.NewSource(targetSampleSeed(stream, i)))
 			if spec.method == "baseline" {
@@ -481,7 +659,7 @@ func calibrateSequentialPruning(
 				gamesSimulated += int64(unplayed)
 			} else {
 				_, _, stats := simulateTargetSequential(baseCampaign, games, gameIndexes, originalMeans, components,
-					table, sortOrder, teamGroups, targetTeamID, targetPosition, spec.stride, false, rng)
+					compWeights, table, sortOrder, teamGroups, targetTeamID, targetPosition, spec.stride, false, template, rng)
 				gamesSimulated += int64(stats.GamesSimulated)
 				result.SolverSeconds += stats.SolverDuration.Seconds()
 				result.SolverChecks += int64(stats.SolverChecks)
@@ -554,10 +732,12 @@ func simulateTargetSequential(
 	orderedGameIndexes []int,
 	originalMeans []GameProposalMeans,
 	components []ProposalComponent,
+	componentWeights []float64,
 	table *Table,
 	sortOrder []SortType,
 	teamGroups []TeamType,
 	targetTeamID, targetPosition, stride int, trackScoreline bool,
+	template *incrementalPositionBoundsTemplate,
 	rng *rand.Rand,
 ) (rank int, weight float64, stats SequentialPruningStats) {
 	started := time.Now()
@@ -566,11 +746,13 @@ func simulateTargetSequential(
 	for i, campaign := range baseCampaign {
 		simCampaign[i] = campaign.clone()
 	}
-	logQOverP := make([]float64, len(components))
-	componentWeights := make([]float64, len(components))
-	for i, component := range components {
-		componentWeights[i] = component.Weight
+	if componentWeights == nil {
+		componentWeights = make([]float64, len(components))
+		for i, component := range components {
+			componentWeights[i] = component.Weight
+		}
 	}
+	logQOverP := make([]float64, len(components))
 	r := rng.Float64()
 	cumulative := 0.0
 	chosen := len(components) - 1
@@ -582,7 +764,10 @@ func simulateTargetSequential(
 		}
 	}
 	stats.ChosenComponent = chosen
-	state := newIncrementalPositionBounds(games, teamGroups)
+	if template == nil {
+		template = newIncrementalPositionBoundsTemplate(games, teamGroups, table, baseCampaign, targetTeamID)
+	}
+	state := newIncrementalPositionBoundsFromTemplate(template, simCampaign)
 	completedUnplayed := 0
 	if stride < 1 {
 		stride = 1
@@ -618,12 +803,12 @@ func simulateTargetSequential(
 		if idx := game.away_table_index; simCampaign[idx] != nil {
 			simCampaign[idx].add_game(completed)
 		}
-		state.gameCompleted(game)
+		state.gameCompleted(gameIndex, simCampaign)
 		completedUnplayed++
 		stats.GamesSimulated++
 		if completedUnplayed%stride == 0 && state.remainingGames > 0 {
 			solverStarted := time.Now()
-			best, worst, _ := state.ranks(targetTeamID, simCampaign, table)
+			best, worst, _ := state.ranks()
 			stats.SolverDuration += time.Since(solverStarted)
 			stats.SolverChecks++
 			if targetPosition < best || targetPosition > worst {
@@ -633,10 +818,18 @@ func simulateTargetSequential(
 				// component, so the prefix mixture ratio is a valid weight diagnostic.
 				stats.MeanWeightDiagnostic = mixtureImportanceWeightMulti(logQOverP, componentWeights)
 				stats.SampleDuration = time.Since(started)
+				stats.FullRescans = state.FullRescans
+				stats.IncrementalUpdates = state.IncrementalUpdates
+				stats.TargetThresholdChanges = state.TargetThresholdChanges
+				stats.TeamBoundRecomputations = state.TeamBoundRecomputations
 				return -1, 0, stats
 			}
 		}
 	}
+	stats.FullRescans = state.FullRescans
+	stats.IncrementalUpdates = state.IncrementalUpdates
+	stats.TargetThresholdChanges = state.TargetThresholdChanges
+	stats.TeamBoundRecomputations = state.TeamBoundRecomputations
 	// The last completion is always resolved by a normal full-season rank,
 	// never by early acceptance or a partial likelihood ratio.
 	teamSlice := make([]*TeamCampaign, 0, len(teamGroups))
@@ -700,6 +893,10 @@ type SequentialRareEstimate struct {
 	SolverDuration         time.Duration                `json:"-"`
 	SolverSeconds          float64                      `json:"solver_seconds"`
 	SolverFraction         float64                      `json:"solver_fraction_of_runtime"`
+	FullRescans            int64                        `json:"solver_full_rescans"`
+	IncrementalUpdates     int64                        `json:"solver_incremental_updates"`
+	TargetThresholdChanges int64                        `json:"solver_target_threshold_changes"`
+	TeamBoundRecomputations int64                       `json:"solver_team_bound_recomputations"`
 	MaxEventWeightShare    float64                      `json:"maximum_event_weight_share"`
 	MeanProductionWeight   float64                      `json:"mean_production_weight"`
 	UpperConfidence95      float64                      `json:"upper_confidence_bound_95"`
@@ -751,6 +948,12 @@ func runSequentialRareEstimate(
 	orderings := buildSequentialGameOrderings(games, targetTeamID, targetPosition, normalMeanRanks)
 	selectedOrdering := selectGameOrdering(orderings, orderingName)
 
+	template := newIncrementalPositionBoundsTemplate(games, teamGroups, table, baseCampaign, targetTeamID)
+	compWeights := make([]float64, len(components))
+	for i, c := range components {
+		compWeights[i] = c.Weight
+	}
+
 	var sumCompletedWeight, pruneIndexSum float64
 	var completedWeights int
 	pruneGames := make([]int, 0, samples)
@@ -776,11 +979,15 @@ func runSequentialRareEstimate(
 			stats.MeanWeightDiagnostic = weight
 		} else {
 			rank, weight, stats = simulateTargetSequential(baseCampaign, games, selectedOrdering.GameIndexes,
-				originalMeans, components, table, sortOrder, teamGroups, targetTeamID, targetPosition, stride, false, rng)
+				originalMeans, components, compWeights, table, sortOrder, teamGroups, targetTeamID, targetPosition, stride, false, template, rng)
 		}
 		result.GamesSimulated += int64(stats.GamesSimulated)
 		result.SolverChecks += int64(stats.SolverChecks)
 		result.SolverDuration += stats.SolverDuration
+		result.FullRescans += stats.FullRescans
+		result.IncrementalUpdates += stats.IncrementalUpdates
+		result.TargetThresholdChanges += stats.TargetThresholdChanges
+		result.TeamBoundRecomputations += stats.TeamBoundRecomputations
 		if stats.Pruned {
 			result.Pruned++
 			result.SufficientStats.observeZero()
