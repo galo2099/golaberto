@@ -344,8 +344,8 @@ func TestSequentialPruningIsZeroContributionAndPreservesPairedSamples(t *testing
 	for index := 0; index < 500; index++ {
 		seed := targetSampleSeed(9001, index)
 		wantRank, wantWeight, wantSignature := testFullSample(t, base, games, original, components, table, order, groups, 1, seed)
-		rank, weight, stats := simulateTargetSequential(base, games, nil, original, components, nil,
-			table, order, groups, 1, 0, 1, true, nil, rand.New(rand.NewSource(seed)))
+		rank, weight, stats, _ := simulateTargetSequential(base, games, nil, original, components, nil,
+			table, order, groups, 1, 0, 1, true, nil, nil, nil, rand.New(rand.NewSource(seed)))
 		if stats.Pruned {
 			pruned++
 			if rank != -1 || weight != 0 || wantRank == 0 {
@@ -447,9 +447,9 @@ func TestSequentialPruningDoesNotEarlyAcceptGuaranteedEvent(t *testing.T) {
 	for i, game := range games {
 		means[i] = GameProposalMeans{Home: game.HomePower, Away: game.AwayPower}
 	}
-	_, _, stats := simulateTargetSequential(base, games, nil, means,
+	_, _, stats, _ := simulateTargetSequential(base, games, nil, means,
 		[]ProposalComponent{{Name: "P", Weight: 1, Means: means}}, nil, table, []SortType{PT, BIAS}, groups,
-		1, 0, 1, false, nil, rand.New(rand.NewSource(3)))
+		1, 0, 1, false, nil, nil, nil, rand.New(rand.NewSource(3)))
 	if stats.Pruned || stats.GamesSimulated != len(games) || stats.CompletedRank != 0 {
 		t.Fatalf("guaranteed exact event was early-accepted instead of fully simulated: %+v", stats)
 	}
@@ -523,8 +523,8 @@ func TestArbitraryCompletionOrderStandingsEquivalence(t *testing.T) {
 		streamSeed := deriveRarePositionSeed(masterSeed, "distributional-equivalence-"+ord.Name)
 		for i := 0; i < N; i++ {
 			rng := rand.New(rand.NewSource(targetSampleSeed(streamSeed, i)))
-			rank, _, stats := simulateTargetSequential(base, games, ord.GameIndexes, original, components, nil,
-				table, order, groups, 1, 0, 1000, false, nil, rng)
+			rank, _, stats, _ := simulateTargetSequential(base, games, ord.GameIndexes, original, components, nil,
+				table, order, groups, 1, 0, 1000, false, nil, nil, nil, rng)
 			if stats.Pruned || rank < 0 || rank >= len(groups) {
 				t.Fatalf("unexpected prune or invalid rank in full simulation: stats=%+v rank=%d", stats, rank)
 			}
@@ -566,13 +566,13 @@ func TestSequentialPruningSafetyNoFalsePrunes(t *testing.T) {
 				for sampleIdx := 0; sampleIdx < 50; sampleIdx++ {
 					seed := int64(targetTeam*10000 + targetPos*1000 + sampleIdx + 1)
 					rngPruned := rand.New(rand.NewSource(seed))
-					_, _, stats := simulateTargetSequential(base, games, ord.GameIndexes, original, components, nil,
-						table, order, groups, targetTeam, targetPos, 1, false, nil, rngPruned)
+					_, _, stats, _ := simulateTargetSequential(base, games, ord.GameIndexes, original, components, nil,
+						table, order, groups, targetTeam, targetPos, 1, false, nil, nil, nil, rngPruned)
 
 					if stats.Pruned {
 						rngFull := rand.New(rand.NewSource(seed))
-						fullRank, _, _ := simulateTargetSequential(base, games, ord.GameIndexes, original, components, nil,
-							table, order, groups, targetTeam, targetPos, 1000, false, nil, rngFull)
+						fullRank, _, _, _ := simulateTargetSequential(base, games, ord.GameIndexes, original, components, nil,
+							table, order, groups, targetTeam, targetPos, 1000, false, nil, nil, nil, rngFull)
 						if fullRank == targetPos {
 							falsePrunes++
 							t.Errorf("FALSE PRUNE DETECTED! team=%d pos=%d ordering=%s seed=%d: pruned sample actually achieved rank %d",
@@ -585,6 +585,26 @@ func TestSequentialPruningSafetyNoFalsePrunes(t *testing.T) {
 	}
 	if falsePrunes > 0 {
 		t.Fatalf("Found %d false prunes during safety testing!", falsePrunes)
+	}
+}
+
+func TestLazyReclassificationRescansAvoided(t *testing.T) {
+	base, games, original, groups, table, order := pruningFixture(t)
+	components := []ProposalComponent{{Name: "P", Weight: 1.0, Means: original}}
+	normalMeanRanks := map[int]float64{1: 0.5, 2: 1.5, 3: 2.5, 4: 3.5}
+	orderings := buildSequentialGameOrderings(games, 1, 0, normalMeanRanks)
+	targetBoundary := selectGameOrdering(orderings, "target_boundary")
+
+	rng := rand.New(rand.NewSource(42))
+	tpl := newIncrementalPositionBoundsTemplate(games, groups, table, base, 1)
+	_, _, stats, _ := simulateTargetSequential(base, games, targetBoundary.GameIndexes, original, components, nil,
+		table, order, groups, 1, 0, 8, false, tpl, nil, nil, rng)
+
+	if stats.FullRescans > 2 {
+		t.Fatalf("lazy reclassification performed %d full rescans, expected <= 2", stats.FullRescans)
+	}
+	if stats.TargetThresholdChanges == 0 {
+		t.Fatal("target threshold changes were not tracked")
 	}
 }
 

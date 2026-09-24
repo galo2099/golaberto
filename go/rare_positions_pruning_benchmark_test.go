@@ -376,8 +376,8 @@ func calibratePruningMethod(base []*TeamCampaign, games []*GameType, original []
 			simulateTargetTeamRankAndWeightMulti(base, sim, teams, games, original, components,
 				table, order, groups, team, rng, logs, weights, allRanks)
 		} else {
-			_, _, stats := simulateTargetSequential(base, games, nil, original, components, nil, table,
-				order, groups, team, position, stride, false, nil, rng)
+			_, _, stats, _ := simulateTargetSequential(base, games, nil, original, components, nil, table,
+				order, groups, team, position, stride, false, nil, nil, nil, rng)
 			cal.SolverDuration += stats.SolverDuration
 			cal.GamesPerSample += float64(stats.GamesSimulated)
 			if stats.Pruned {

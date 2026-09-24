@@ -1917,13 +1917,14 @@ func runRarePositionSearchEvaluationProduction(group *GroupType, campaign []*Tea
 			allRankTarget.WorkSpent+sequentialPlan.TargetWork, "importance_sampling_sequential_pruning_pooled")
 		productionEstimates[design.TargetTeam][design.TargetPosition] = combinedTarget
 		productionWork += sequentialPlan.TargetWork
-		log.Printf("rare-position-sequential-pruning-production: group=%d team=%d position=%d ordering=%s stride=%d samples=%d pruned=%d pruned_fraction=%.4f games=%d average_games=%.2f prune_p10=%.1f prune_p25=%.1f prune_p50=%.1f prune_p75=%.1f prune_p90=%.1f pruned_before_25pct=%d pruned_before_50pct=%d pruned_before_75pct=%d solver_checks=%d solver_full_rescans=%d solver_incremental_updates=%d solver_team_bound_recomputations=%d solver_seconds=%.6f solver_fraction=%.4f elapsed_seconds=%.6f samples_per_second=%.4f hits=%d ESS=%.3f ESS_per_second=%.4g p=%.8g se=%.3g relSE=%.3f nominal_work=%d",
+		log.Printf("rare-position-sequential-pruning-production: group=%d team=%d position=%d ordering=%s stride=%d samples=%d pruned=%d pruned_fraction=%.4f games=%d average_games=%.2f prune_p10=%.1f prune_p25=%.1f prune_p50=%.1f prune_p75=%.1f prune_p90=%.1f pruned_before_25pct=%d pruned_before_50pct=%d pruned_before_75pct=%d solver_checks=%d solver_full_rescans=%d solver_incremental_updates=%d solver_team_bound_recomputations=%d solver_seconds=%.6f solver_fraction=%.4f pruning_bookkeeping_seconds=%.6f pruning_bookkeeping_fraction=%.4f elapsed_seconds=%.6f samples_per_second=%.4f hits=%d ESS=%.3f ESS_per_second=%.4g p=%.8g se=%.3g relSE=%.3f nominal_work=%d",
 			group.Id, design.TargetTeam, design.TargetPosition, estimate.Ordering, estimate.Stride, estimate.Samples,
 			estimate.Pruned, estimate.PrunedFraction, estimate.GamesSimulated, estimate.AverageGamesPerSample,
 			estimate.PruneP10, estimate.PruneP25, estimate.PruneP50, estimate.PruneP75, estimate.PruneP90,
 			estimate.PrunedBefore25Pct, estimate.PrunedBefore50Pct, estimate.PrunedBefore75Pct,
 			estimate.SolverChecks, estimate.FullRescans, estimate.IncrementalUpdates, estimate.TeamBoundRecomputations,
 			estimate.SolverSeconds, estimate.SolverFraction,
+			estimate.PruningBookkeepingSeconds, estimate.PruningBookkeepingFraction,
 			estimate.ElapsedSeconds, estimate.SamplesPerSecond, estimate.RawHits,
 			estimate.ESS, estimate.ESSPerSecond, estimate.Estimate, estimate.StdErr,
 			relativeSEValue(estimate.RelativeSE),

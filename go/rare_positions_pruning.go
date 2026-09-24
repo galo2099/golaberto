@@ -210,26 +210,39 @@ type incrementalPositionBounds struct {
 	targetMin               int
 	targetMax               int
 	remainingGames          int
+	classificationDirty     bool
 	FullRescans             int64
 	IncrementalUpdates      int64
 	TargetThresholdChanges int64
 	TeamBoundRecomputations int64
 }
 
-func newIncrementalPositionBoundsFromTemplate(
+func (state *incrementalPositionBounds) reset(
 	template *incrementalPositionBoundsTemplate,
 	simCampaign []*TeamCampaign,
-) *incrementalPositionBounds {
+) {
 	teamCount := template.teamCount
-	state := &incrementalPositionBounds{
-		template:        template,
-		remaining:       append([]int(nil), template.initialRemaining...),
-		minPoints:       make([]int, teamCount),
-		maxPoints:       make([]int, teamCount),
-		definitelyAbove: make([]bool, teamCount),
-		definitelyBelow: make([]bool, teamCount),
-		remainingGames:  template.initialRemainingGames,
+	state.template = template
+	if len(state.remaining) != teamCount {
+		state.remaining = make([]int, teamCount)
+		state.minPoints = make([]int, teamCount)
+		state.maxPoints = make([]int, teamCount)
+		state.definitelyAbove = make([]bool, teamCount)
+		state.definitelyBelow = make([]bool, teamCount)
+	} else {
+		for i := 0; i < teamCount; i++ {
+			state.definitelyAbove[i] = false
+			state.definitelyBelow[i] = false
+		}
 	}
+	copy(state.remaining, template.initialRemaining)
+	state.remainingGames = template.initialRemainingGames
+	state.aboveCount = 0
+	state.belowCount = 0
+	state.FullRescans = 0
+	state.IncrementalUpdates = 0
+	state.TargetThresholdChanges = 0
+	state.TeamBoundRecomputations = 0
 
 	for i := 0; i < teamCount; i++ {
 		c := simCampaign[template.denseToCampaignIndex[i]]
@@ -247,8 +260,24 @@ func newIncrementalPositionBoundsFromTemplate(
 		state.targetMax = state.maxPoints[template.targetIndex]
 	}
 
-	state.reclassifyAll()
+	state.classificationDirty = true
+}
+
+func newIncrementalPositionBoundsFromTemplate(
+	template *incrementalPositionBoundsTemplate,
+	simCampaign []*TeamCampaign,
+) *incrementalPositionBounds {
+	state := &incrementalPositionBounds{}
+	state.reset(template, simCampaign)
 	return state
+}
+
+func (state *incrementalPositionBounds) ensureClassificationCurrent() {
+	if !state.classificationDirty {
+		return
+	}
+	state.reclassifyAll()
+	state.classificationDirty = false
 }
 
 func (state *incrementalPositionBounds) reclassifyAll() {
@@ -313,14 +342,16 @@ func (state *incrementalPositionBounds) gameCompleted(
 			state.targetMin = state.minPoints[targetIdx]
 			state.targetMax = state.maxPoints[targetIdx]
 		}
-		state.reclassifyAll()
+		state.classificationDirty = true
 	} else {
 		state.IncrementalUpdates++
-		if hDense >= 0 {
-			state.updateTeamClassification(hDense)
-		}
-		if aDense >= 0 {
-			state.updateTeamClassification(aDense)
+		if !state.classificationDirty {
+			if hDense >= 0 {
+				state.updateTeamClassification(hDense)
+			}
+			if aDense >= 0 {
+				state.updateTeamClassification(aDense)
+			}
 		}
 	}
 }
@@ -351,25 +382,27 @@ func (state *incrementalPositionBounds) ranks() (bestRank, worstRank int, hasUnp
 	if state.remainingGames == 0 {
 		return 0, 0, false
 	}
+	state.ensureClassificationCurrent()
 	return state.aboveCount, (state.template.teamCount - 1) - state.belowCount, true
 }
 
 type SequentialPruningStats struct {
-	Pruned                  bool          `json:"pruned"`
-	PruneGameIndex          int           `json:"prune_game_index"`
-	GamesSimulated          int           `json:"games_simulated"`
-	SolverChecks            int           `json:"solver_checks"`
-	SolverDuration          time.Duration `json:"-"`
-	SampleDuration          time.Duration `json:"-"`
-	ChosenComponent         int           `json:"chosen_component"`
-	CompletedRank           int           `json:"completed_rank"`
-	ImportanceWeight        float64       `json:"importance_weight"`
-	MeanWeightDiagnostic    float64       `json:"-"`
-	ScorelineSignature      uint64        `json:"-"`
-	FullRescans             int64         `json:"full_rescans"`
-	IncrementalUpdates      int64         `json:"incremental_updates"`
-	TargetThresholdChanges int64         `json:"target_threshold_changes"`
-	TeamBoundRecomputations int64         `json:"team_bound_recomputations"`
+	Pruned                     bool          `json:"pruned"`
+	PruneGameIndex             int           `json:"prune_game_index"`
+	GamesSimulated             int           `json:"games_simulated"`
+	SolverChecks               int           `json:"solver_checks"`
+	SolverDuration             time.Duration `json:"-"`
+	PruningBookkeepingDuration time.Duration `json:"-"`
+	SampleDuration             time.Duration `json:"-"`
+	ChosenComponent            int           `json:"chosen_component"`
+	CompletedRank              int           `json:"completed_rank"`
+	ImportanceWeight           float64       `json:"importance_weight"`
+	MeanWeightDiagnostic       float64       `json:"-"`
+	ScorelineSignature         uint64        `json:"-"`
+	FullRescans                int64         `json:"full_rescans"`
+	IncrementalUpdates         int64         `json:"incremental_updates"`
+	TargetThresholdChanges    int64         `json:"target_threshold_changes"`
+	TeamBoundRecomputations    int64         `json:"team_bound_recomputations"`
 }
 
 type SequentialGameOrdering struct {
@@ -470,17 +503,19 @@ func selectGameOrdering(orderings []SequentialGameOrdering, name string) Sequent
 }
 
 type SequentialPruningCalibrationSummary struct {
-	Method           string  `json:"method"`
-	Ordering         string  `json:"ordering"`
-	Stride           int     `json:"stride"`
-	Samples          int     `json:"samples"`
-	ElapsedSeconds   float64 `json:"elapsed_seconds"`
-	SamplesPerSecond float64 `json:"samples_per_second"`
-	AverageGames     float64 `json:"average_games_per_sample"`
-	SolverChecks     int64   `json:"solver_checks"`
-	SolverSeconds    float64 `json:"solver_seconds"`
-	SolverFraction   float64 `json:"solver_fraction"`
-	PrunedFraction   float64 `json:"pruned_fraction"`
+	Method                     string  `json:"method"`
+	Ordering                   string  `json:"ordering"`
+	Stride                     int     `json:"stride"`
+	Samples                    int     `json:"samples"`
+	ElapsedSeconds             float64 `json:"elapsed_seconds"`
+	SamplesPerSecond           float64 `json:"samples_per_second"`
+	AverageGames               float64 `json:"average_games_per_sample"`
+	SolverChecks               int64   `json:"solver_checks"`
+	SolverSeconds              float64 `json:"solver_seconds"`
+	SolverFraction             float64 `json:"solver_fraction"`
+	PruningBookkeepingSeconds   float64 `json:"pruning_bookkeeping_seconds"`
+	PruningBookkeepingFraction float64 `json:"pruning_bookkeeping_fraction"`
+	PrunedFraction             float64 `json:"pruned_fraction"`
 }
 
 type SequentialPruningProductionPlan struct {
@@ -622,66 +657,113 @@ func calibrateSequentialPruning(
 	results := make([]SequentialPruningCalibrationSummary, 0, len(candidates))
 
 	run := func(spec candidateSpec) SequentialPruningCalibrationSummary {
-		result := SequentialPruningCalibrationSummary{
-			Method:   spec.method,
-			Ordering: spec.ordering,
-			Stride:   spec.stride,
-			Samples:  samples,
-		}
-		stream := deriveRarePositionSeed(masterSeed, fmt.Sprintf("runtime-calibration-%s-%d", spec.ordering, spec.stride))
-		start := time.Now()
-		var gamesSimulated int64
-		var pruned int
-		var sim []*TeamCampaign
-		var teamSlice []*TeamCampaign
-		var logs, weights []float64
-		var allRanks *weightedRankAccumulator
 		var gameIndexes []int
 		if spec.method != "baseline" {
 			gameIndexes = selectGameOrdering(orderings, spec.ordering).GameIndexes
-		} else {
-			sim = make([]*TeamCampaign, len(baseCampaign))
-			teamSlice = make([]*TeamCampaign, len(teamGroups))
-			logs, weights = make([]float64, len(components)), make([]float64, len(components))
-			allRanks = newWeightedRankAccumulator(teamGroups, len(teamGroups))
 		}
 		template := newIncrementalPositionBoundsTemplate(games, teamGroups, table, baseCampaign, targetTeamID)
 		compWeights := make([]float64, len(components))
 		for i, c := range components {
 			compWeights[i] = c.Weight
 		}
-		for i := 0; i < samples; i++ {
-			rng := rand.New(rand.NewSource(targetSampleSeed(stream, i)))
+
+		// Untimed warm-up (50 samples)
+		const warmUpSamples = 50
+		var warmUpState *incrementalPositionBounds
+		warmUpLogQ := make([]float64, len(components))
+		warmUpStream := deriveRarePositionSeed(masterSeed, fmt.Sprintf("runtime-calibration-warmup-%s-%d", spec.ordering, spec.stride))
+		for i := 0; i < warmUpSamples; i++ {
+			rng := rand.New(rand.NewSource(targetSampleSeed(warmUpStream, i)))
 			if spec.method == "baseline" {
+				sim := make([]*TeamCampaign, len(baseCampaign))
+				teamSlice := make([]*TeamCampaign, len(teamGroups))
+				logs, weights := make([]float64, len(components)), make([]float64, len(components))
 				_, _, _ = simulateTargetTeamRankAndWeightMulti(baseCampaign, sim, teamSlice,
 					games, originalMeans, components, table, sortOrder, teamGroups,
-					targetTeamID, rng, logs, weights, allRanks)
-				gamesSimulated += int64(unplayed)
+					targetTeamID, rng, logs, weights, nil)
 			} else {
-				_, _, stats := simulateTargetSequential(baseCampaign, games, gameIndexes, originalMeans, components,
-					compWeights, table, sortOrder, teamGroups, targetTeamID, targetPosition, spec.stride, false, template, rng)
-				gamesSimulated += int64(stats.GamesSimulated)
-				result.SolverSeconds += stats.SolverDuration.Seconds()
-				result.SolverChecks += int64(stats.SolverChecks)
-				if stats.Pruned {
-					pruned++
-				}
+				_, _, _, warmUpState = simulateTargetSequential(baseCampaign, games, gameIndexes, originalMeans, components,
+					compWeights, table, sortOrder, teamGroups, targetTeamID, targetPosition, spec.stride, false, template,
+					warmUpState, warmUpLogQ, rng)
 			}
 		}
-		elapsed := time.Since(start)
-		result.ElapsedSeconds = elapsed.Seconds()
-		if elapsed > 0 {
-			result.SamplesPerSecond = float64(samples) / elapsed.Seconds()
-			result.SolverFraction = result.SolverSeconds / elapsed.Seconds()
+
+		// 3 repetitions x samples
+		const reps = 3
+		repSummaries := make([]SequentialPruningCalibrationSummary, reps)
+		rates := make([]float64, reps)
+
+		for rep := 0; rep < reps; rep++ {
+			repResult := SequentialPruningCalibrationSummary{
+				Method:   spec.method,
+				Ordering: spec.ordering,
+				Stride:   spec.stride,
+				Samples:  samples,
+			}
+			stream := deriveRarePositionSeed(masterSeed, fmt.Sprintf("runtime-calibration-rep%d-%s-%d", rep, spec.ordering, spec.stride))
+			start := time.Now()
+			var gamesSimulated int64
+			var pruned int
+			var sim []*TeamCampaign
+			var teamSlice []*TeamCampaign
+			var logs, weights []float64
+			var allRanks *weightedRankAccumulator
+			if spec.method == "baseline" {
+				sim = make([]*TeamCampaign, len(baseCampaign))
+				teamSlice = make([]*TeamCampaign, len(teamGroups))
+				logs, weights = make([]float64, len(components)), make([]float64, len(components))
+				allRanks = newWeightedRankAccumulator(teamGroups, len(teamGroups))
+			}
+			var scratchState *incrementalPositionBounds
+			logQScratch := make([]float64, len(components))
+			for i := 0; i < samples; i++ {
+				rng := rand.New(rand.NewSource(targetSampleSeed(stream, i)))
+				if spec.method == "baseline" {
+					_, _, _ = simulateTargetTeamRankAndWeightMulti(baseCampaign, sim, teamSlice,
+						games, originalMeans, components, table, sortOrder, teamGroups,
+						targetTeamID, rng, logs, weights, allRanks)
+					gamesSimulated += int64(unplayed)
+				} else {
+					var stats SequentialPruningStats
+					_, _, stats, scratchState = simulateTargetSequential(baseCampaign, games, gameIndexes, originalMeans, components,
+						compWeights, table, sortOrder, teamGroups, targetTeamID, targetPosition, spec.stride, false, template,
+						scratchState, logQScratch, rng)
+					gamesSimulated += int64(stats.GamesSimulated)
+					repResult.SolverSeconds += stats.SolverDuration.Seconds()
+					repResult.PruningBookkeepingSeconds += stats.PruningBookkeepingDuration.Seconds()
+					repResult.SolverChecks += int64(stats.SolverChecks)
+					if stats.Pruned {
+						pruned++
+					}
+				}
+			}
+			elapsed := time.Since(start)
+			repResult.ElapsedSeconds = elapsed.Seconds()
+			if elapsed > 0 {
+				repResult.SamplesPerSecond = float64(samples) / elapsed.Seconds()
+				repResult.SolverFraction = repResult.SolverSeconds / elapsed.Seconds()
+				repResult.PruningBookkeepingFraction = repResult.PruningBookkeepingSeconds / elapsed.Seconds()
+			}
+			if samples > 0 {
+				repResult.AverageGames = float64(gamesSimulated) / float64(samples)
+				repResult.PrunedFraction = float64(pruned) / float64(samples)
+			}
+			rates[rep] = repResult.SamplesPerSecond
+			repSummaries[rep] = repResult
 		}
-		if samples > 0 {
-			result.AverageGames = float64(gamesSimulated) / float64(samples)
-			result.PrunedFraction = float64(pruned) / float64(samples)
-		}
-		log.Printf("rare-position-calibration-candidate: ordering=%s stride=%d samples=%d elapsed_seconds=%.6f samples_per_second=%.2f average_games=%.1f pruned_fraction=%.4f solver_checks=%d solver_seconds=%.6f solver_fraction=%.4f",
-			result.Ordering, result.Stride, result.Samples, result.ElapsedSeconds, result.SamplesPerSecond,
-			result.AverageGames, result.PrunedFraction, result.SolverChecks, result.SolverSeconds, result.SolverFraction)
-		return result
+
+		// Take median repetition based on SamplesPerSecond
+		sort.Slice(repSummaries, func(i, j int) bool {
+			return repSummaries[i].SamplesPerSecond < repSummaries[j].SamplesPerSecond
+		})
+		medianResult := repSummaries[reps/2]
+
+		log.Printf("rare-position-calibration-candidate: ordering=%s stride=%d samples=%d median_samples_per_second=%.2f rep_rates=%.2f,%.2f,%.2f average_games=%.1f pruned_fraction=%.4f solver_checks=%d solver_seconds=%.6f solver_fraction=%.4f pruning_bookkeeping_seconds=%.6f pruning_bookkeeping_fraction=%.4f",
+			medianResult.Ordering, medianResult.Stride, medianResult.Samples, medianResult.SamplesPerSecond,
+			rates[0], rates[1], rates[2], medianResult.AverageGames, medianResult.PrunedFraction,
+			medianResult.SolverChecks, medianResult.SolverSeconds, medianResult.SolverFraction,
+			medianResult.PruningBookkeepingSeconds, medianResult.PruningBookkeepingFraction)
+		return medianResult
 	}
 
 	var baselineRate float64
@@ -738,9 +820,14 @@ func simulateTargetSequential(
 	teamGroups []TeamType,
 	targetTeamID, targetPosition, stride int, trackScoreline bool,
 	template *incrementalPositionBoundsTemplate,
+	scratchState *incrementalPositionBounds,
+	logQOverPScratch []float64,
 	rng *rand.Rand,
-) (rank int, weight float64, stats SequentialPruningStats) {
+) (rank int, weight float64, stats SequentialPruningStats, scratchOut *incrementalPositionBounds) {
 	started := time.Now()
+	var bkDuration time.Duration
+	bkStart := started
+
 	stats.PruneGameIndex = -1
 	simCampaign := make([]*TeamCampaign, len(baseCampaign))
 	for i, campaign := range baseCampaign {
@@ -752,7 +839,16 @@ func simulateTargetSequential(
 			componentWeights[i] = component.Weight
 		}
 	}
-	logQOverP := make([]float64, len(components))
+	if len(logQOverPScratch) < len(components) {
+		logQOverPScratch = make([]float64, len(components))
+	} else {
+		logQOverPScratch = logQOverPScratch[:len(components)]
+		for i := range logQOverPScratch {
+			logQOverPScratch[i] = 0
+		}
+	}
+	logQOverP := logQOverPScratch
+
 	r := rng.Float64()
 	cumulative := 0.0
 	chosen := len(components) - 1
@@ -764,10 +860,19 @@ func simulateTargetSequential(
 		}
 	}
 	stats.ChosenComponent = chosen
+
 	if template == nil {
 		template = newIncrementalPositionBoundsTemplate(games, teamGroups, table, baseCampaign, targetTeamID)
 	}
-	state := newIncrementalPositionBoundsFromTemplate(template, simCampaign)
+
+	state := scratchState
+	if state == nil {
+		state = newIncrementalPositionBoundsFromTemplate(template, simCampaign)
+	} else {
+		state.reset(template, simCampaign)
+	}
+	bkDuration += time.Since(bkStart)
+
 	completedUnplayed := 0
 	if stride < 1 {
 		stride = 1
@@ -803,29 +908,33 @@ func simulateTargetSequential(
 		if idx := game.away_table_index; simCampaign[idx] != nil {
 			simCampaign[idx].add_game(completed)
 		}
+
+		bkStart = time.Now()
 		state.gameCompleted(gameIndex, simCampaign)
 		completedUnplayed++
 		stats.GamesSimulated++
 		if completedUnplayed%stride == 0 && state.remainingGames > 0 {
-			solverStarted := time.Now()
+			checkStart := time.Now()
 			best, worst, _ := state.ranks()
-			stats.SolverDuration += time.Since(solverStarted)
+			stats.SolverDuration += time.Since(checkStart)
 			stats.SolverChecks++
 			if targetPosition < best || targetPosition > worst {
+				bkDuration += time.Since(bkStart)
 				stats.Pruned = true
 				stats.PruneGameIndex = completedUnplayed - 1
-				// The unplayed suffix integrates to one under every proposal
-				// component, so the prefix mixture ratio is a valid weight diagnostic.
 				stats.MeanWeightDiagnostic = mixtureImportanceWeightMulti(logQOverP, componentWeights)
 				stats.SampleDuration = time.Since(started)
+				stats.PruningBookkeepingDuration = bkDuration
 				stats.FullRescans = state.FullRescans
 				stats.IncrementalUpdates = state.IncrementalUpdates
 				stats.TargetThresholdChanges = state.TargetThresholdChanges
 				stats.TeamBoundRecomputations = state.TeamBoundRecomputations
-				return -1, 0, stats
+				return -1, 0, stats, state
 			}
 		}
+		bkDuration += time.Since(bkStart)
 	}
+	stats.PruningBookkeepingDuration = bkDuration
 	stats.FullRescans = state.FullRescans
 	stats.IncrementalUpdates = state.IncrementalUpdates
 	stats.TargetThresholdChanges = state.TargetThresholdChanges
@@ -851,7 +960,7 @@ func simulateTargetSequential(
 	stats.ImportanceWeight = weight
 	stats.MeanWeightDiagnostic = weight
 	stats.SampleDuration = time.Since(started)
-	return rank, weight, stats
+	return rank, weight, stats, state
 }
 
 func targetSampleSeed(masterSeed int64, sampleIndex int) int64 {
@@ -859,49 +968,52 @@ func targetSampleSeed(masterSeed int64, sampleIndex int) int64 {
 }
 
 type SequentialRareEstimate struct {
-	TeamID                 int                          `json:"team_id"`
-	Position               int                          `json:"position"`
-	Seed                   int64                        `json:"seed"`
-	Method                 string                       `json:"method"`
-	Ordering               string                       `json:"ordering"`
-	Stride                 int                          `json:"check_stride"`
-	Samples                int                          `json:"samples_completed"`
-	GamesSimulated         int64                        `json:"games_simulated"`
-	Estimate               float64                      `json:"estimate"`
-	StdErr                 float64                      `json:"standard_error"`
-	RelativeSE             *float64                     `json:"relative_standard_error"`
-	ESS                    float64                      `json:"event_ess"`
-	ESSPerSecond           float64                      `json:"event_ess_per_second"`
-	RawHits                int                          `json:"raw_exact_hits"`
-	ESSPerRawHit           float64                      `json:"ess_per_raw_hit"`
-	ElapsedSeconds         float64                      `json:"elapsed_seconds"`
-	SamplesPerSecond       float64                      `json:"samples_per_second"`
-	AverageGamesPerSample  float64                      `json:"average_games_per_sample"`
-	Pruned                 int                          `json:"pruned_samples"`
-	PrunedFraction         float64                      `json:"pruned_fraction"`
-	MeanGameIndexAtPrune   float64                      `json:"mean_game_index_at_prune"`
-	PrunesBySeasonQuartile [4]int                       `json:"prunes_by_season_quartile"`
-	PruneP10               float64                      `json:"prune_p10"`
-	PruneP25               float64                      `json:"prune_p25"`
-	PruneP50               float64                      `json:"prune_p50"`
-	PruneP75               float64                      `json:"prune_p75"`
-	PruneP90               float64                      `json:"prune_p90"`
-	PrunedBefore25Pct      int                          `json:"pruned_before_25pct"`
-	PrunedBefore50Pct      int                          `json:"pruned_before_50pct"`
-	PrunedBefore75Pct      int                          `json:"pruned_before_75pct"`
-	SolverChecks           int64                        `json:"solver_checks"`
-	SolverDuration         time.Duration                `json:"-"`
-	SolverSeconds          float64                      `json:"solver_seconds"`
-	SolverFraction         float64                      `json:"solver_fraction_of_runtime"`
-	FullRescans            int64                        `json:"solver_full_rescans"`
-	IncrementalUpdates     int64                        `json:"solver_incremental_updates"`
-	TargetThresholdChanges int64                        `json:"solver_target_threshold_changes"`
-	TeamBoundRecomputations int64                       `json:"solver_team_bound_recomputations"`
-	MaxEventWeightShare    float64                      `json:"maximum_event_weight_share"`
-	MeanProductionWeight   float64                      `json:"mean_production_weight"`
-	UpperConfidence95      float64                      `json:"upper_confidence_bound_95"`
-	ProbabilityClass       rarePositionProbabilityClass `json:"probability_threshold_class"`
-	SufficientStats        EventSufficientStats         `json:"-"`
+	TeamID                     int                          `json:"team_id"`
+	Position                   int                          `json:"position"`
+	Seed                       int64                        `json:"seed"`
+	Method                     string                       `json:"method"`
+	Ordering                   string                       `json:"ordering"`
+	Stride                     int                          `json:"check_stride"`
+	Samples                    int                          `json:"samples_completed"`
+	GamesSimulated             int64                        `json:"games_simulated"`
+	Estimate                   float64                      `json:"estimate"`
+	StdErr                     float64                      `json:"standard_error"`
+	RelativeSE                 *float64                     `json:"relative_standard_error"`
+	ESS                        float64                      `json:"event_ess"`
+	ESSPerSecond               float64                      `json:"event_ess_per_second"`
+	RawHits                    int                          `json:"raw_exact_hits"`
+	ESSPerRawHit               float64                      `json:"ess_per_raw_hit"`
+	ElapsedSeconds             float64                      `json:"elapsed_seconds"`
+	SamplesPerSecond           float64                      `json:"samples_per_second"`
+	AverageGamesPerSample      float64                      `json:"average_games_per_sample"`
+	Pruned                     int                          `json:"pruned_samples"`
+	PrunedFraction             float64                      `json:"pruned_fraction"`
+	MeanGameIndexAtPrune       float64                      `json:"mean_game_index_at_prune"`
+	PrunesBySeasonQuartile     [4]int                       `json:"prunes_by_season_quartile"`
+	PruneP10                   float64                      `json:"prune_p10"`
+	PruneP25                   float64                      `json:"prune_p25"`
+	PruneP50                   float64                      `json:"prune_p50"`
+	PruneP75                   float64                      `json:"prune_p75"`
+	PruneP90                   float64                      `json:"prune_p90"`
+	PrunedBefore25Pct          int                          `json:"pruned_before_25pct"`
+	PrunedBefore50Pct          int                          `json:"pruned_before_50pct"`
+	PrunedBefore75Pct          int                          `json:"pruned_before_75pct"`
+	SolverChecks               int64                        `json:"solver_checks"`
+	SolverDuration             time.Duration                `json:"-"`
+	SolverSeconds              float64                      `json:"solver_seconds"`
+	SolverFraction             float64                      `json:"solver_fraction_of_runtime"`
+	PruningBookkeepingDuration time.Duration                `json:"-"`
+	PruningBookkeepingSeconds  float64                      `json:"pruning_bookkeeping_seconds"`
+	PruningBookkeepingFraction float64                      `json:"pruning_bookkeeping_fraction_of_runtime"`
+	FullRescans                int64                        `json:"solver_full_rescans"`
+	IncrementalUpdates         int64                        `json:"solver_incremental_updates"`
+	TargetThresholdChanges     int64                        `json:"solver_target_threshold_changes"`
+	TeamBoundRecomputations    int64                        `json:"solver_team_bound_recomputations"`
+	MaxEventWeightShare        float64                      `json:"maximum_event_weight_share"`
+	MeanProductionWeight       float64                      `json:"mean_production_weight"`
+	UpperConfidence95          float64                      `json:"upper_confidence_bound_95"`
+	ProbabilityClass           rarePositionProbabilityClass `json:"probability_threshold_class"`
+	SufficientStats            EventSufficientStats         `json:"-"`
 }
 
 func calculatePercentile(sortedValues []int, percentile float64) float64 {
@@ -953,6 +1065,8 @@ func runSequentialRareEstimate(
 	for i, c := range components {
 		compWeights[i] = c.Weight
 	}
+	var scratchState *incrementalPositionBounds
+	logQScratch := make([]float64, len(components))
 
 	var sumCompletedWeight, pruneIndexSum float64
 	var completedWeights int
@@ -978,12 +1092,14 @@ func runSequentialRareEstimate(
 			stats.ImportanceWeight = weight
 			stats.MeanWeightDiagnostic = weight
 		} else {
-			rank, weight, stats = simulateTargetSequential(baseCampaign, games, selectedOrdering.GameIndexes,
-				originalMeans, components, compWeights, table, sortOrder, teamGroups, targetTeamID, targetPosition, stride, false, template, rng)
+			rank, weight, stats, scratchState = simulateTargetSequential(baseCampaign, games, selectedOrdering.GameIndexes,
+				originalMeans, components, compWeights, table, sortOrder, teamGroups, targetTeamID, targetPosition, stride, false, template,
+				scratchState, logQScratch, rng)
 		}
 		result.GamesSimulated += int64(stats.GamesSimulated)
 		result.SolverChecks += int64(stats.SolverChecks)
 		result.SolverDuration += stats.SolverDuration
+		result.PruningBookkeepingDuration += stats.PruningBookkeepingDuration
 		result.FullRescans += stats.FullRescans
 		result.IncrementalUpdates += stats.IncrementalUpdates
 		result.TargetThresholdChanges += stats.TargetThresholdChanges
@@ -1010,6 +1126,7 @@ func runSequentialRareEstimate(
 	elapsed := time.Since(started)
 	result.ElapsedSeconds = elapsed.Seconds()
 	result.SolverSeconds = result.SolverDuration.Seconds()
+	result.PruningBookkeepingSeconds = result.PruningBookkeepingDuration.Seconds()
 	result.Estimate, result.StdErr, result.ESS = eventEstimateStats(
 		result.SufficientStats.SumY, result.SufficientStats.SumY2, result.SufficientStats.Samples)
 	if result.Estimate > 0 {
@@ -1025,6 +1142,7 @@ func runSequentialRareEstimate(
 		result.SamplesPerSecond = float64(samples) / seconds
 		result.ESSPerSecond = result.ESS / seconds
 		result.SolverFraction = result.SolverSeconds / seconds
+		result.PruningBookkeepingFraction = result.PruningBookkeepingSeconds / seconds
 	}
 	result.AverageGamesPerSample = float64(result.GamesSimulated) / float64(samples)
 	result.PrunedFraction = float64(result.Pruned) / float64(samples)
