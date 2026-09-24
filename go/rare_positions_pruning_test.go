@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"math"
 	"math/rand"
@@ -17,6 +18,8 @@ func TestRarePositionEnvironmentIsPrintedWithEffectiveDefaults(t *testing.T) {
 	t.Setenv("RARE_POSITION_CEM_RACING_MODE", "legacy")
 	t.Setenv("RARE_POSITION_MIN_INTERESTING_PROBABILITY", "1e-8")
 	t.Setenv("RARE_POSITION_SEQUENTIAL_PRUNING", "1")
+	t.Setenv("RARE_POSITION_SEQUENTIAL_PRUNING_CALIBRATION_SAMPLES", "700")
+	t.Setenv("RARE_POSITION_SEQUENTIAL_PRUNING_MAX_TARGET_SAMPLES", "90000")
 	previousWriter := log.Writer()
 	var output bytes.Buffer
 	log.SetOutput(&output)
@@ -33,6 +36,8 @@ func TestRarePositionEnvironmentIsPrintedWithEffectiveDefaults(t *testing.T) {
 		`effective_cem_racing_mode=legacy`,
 		`RARE_POSITION_SEQUENTIAL_PRUNING="1"`,
 		`effective_sequential_pruning=true`,
+		`effective_sequential_pruning_calibration_samples=700`,
+		`effective_sequential_pruning_max_target_samples=90000`,
 		`effective_min_interesting_probability=1e-08`,
 	} {
 		if !strings.Contains(line, expected) {
@@ -42,18 +47,140 @@ func TestRarePositionEnvironmentIsPrintedWithEffectiveDefaults(t *testing.T) {
 }
 
 func TestSequentialPruningProductionPlannerRespectsGlobalWorkBudget(t *testing.T) {
-	plan := planSequentialPruningProduction(110000, 100, 50)
-	if !plan.Enabled || plan.CalibrationSamples != 50 || plan.TargetSamples <= 0 || plan.AllRankSamples <= 0 {
+	plan := planSequentialPruningProduction(1100000, 100, 500, 1000, 2000,
+		22, 44, 12, 2, 100000, 0.5)
+	if !plan.Enabled || plan.CalibrationSamples != 500 || plan.TargetSamples <= 0 || plan.AllRankSamples <= 0 {
 		t.Fatalf("unexpected production split: %+v", plan)
 	}
-	if plan.TotalWork != plan.CalibrationWork+plan.TargetWork+plan.AllRankWork || plan.TotalWork > 110000 {
+	if plan.TotalWork != plan.CalibrationWork+plan.TargetWork+plan.AllRankWork || plan.TotalWork > 1100000 {
 		t.Fatalf("planned production exceeds or misaccounts budget: %+v", plan)
 	}
-	if plan.CalibrationWork != 4*50*100 {
-		t.Fatalf("calibration work=%d, want four fixed 50-sample calibrations", plan.CalibrationWork)
+	if plan.CalibrationWork != 4*500*100 {
+		t.Fatalf("calibration work=%d, want four fixed 500-sample calibrations", plan.CalibrationWork)
 	}
-	if insufficient := planSequentialPruningProduction(1000, 100, 50); insufficient.Enabled {
+	baselineSamplesAtSameRuntime := int(plan.ExpectedTargetSeconds * 1000)
+	if plan.Speedup != 2 || plan.TargetSamples < int(1.5*float64(baselineSamplesAtSameRuntime)) {
+		t.Fatalf("runtime calibration did not translate speedup into target samples: %+v", plan)
+	}
+	if capped := planSequentialPruningProduction(1100000, 100, 500, 1000, 2000,
+		22, 44, 12, 2, 10, 0.5); !capped.Enabled || capped.TargetSamples > 10 {
+		t.Fatalf("hard target sample cap was not applied: %+v", capped)
+	}
+	if noSpeedup := planSequentialPruningProduction(1100000, 100, 500, 1000, 950,
+		22, 44, 12, 2, 100000, 0.5); noSpeedup.Enabled {
+		t.Fatalf("pruning was enabled despite slower measured throughput: %+v", noSpeedup)
+	}
+	if insufficient := planSequentialPruningProduction(1000, 100, 500, 1000, 2000,
+		22, 44, 12, 2, 100000, 0.5); insufficient.Enabled {
 		t.Fatalf("pruning should not activate when fixed calibration cannot be budgeted: %+v", insufficient)
+	}
+}
+
+func TestSequentialPruningDisabledUnlessExplicitlyEnabled(t *testing.T) {
+	t.Setenv("RARE_POSITION_SEQUENTIAL_PRUNING", "")
+	if sequentialPruningEnabled() {
+		t.Fatal("pruning unexpectedly enabled when its environment variable is unset")
+	}
+	t.Setenv("RARE_POSITION_SEQUENTIAL_PRUNING", "1")
+	if !sequentialPruningEnabled() {
+		t.Fatal("pruning did not enable for explicit value 1")
+	}
+}
+
+func TestSequentialPruningCalibrationAndSampleCapsHaveSafeDefaults(t *testing.T) {
+	t.Setenv("RARE_POSITION_SEQUENTIAL_PRUNING_CALIBRATION_SAMPLES", "")
+	t.Setenv("RARE_POSITION_SEQUENTIAL_PRUNING_MAX_TARGET_SAMPLES", "")
+	if got := sequentialPruningCalibrationSampleCount(); got != 500 {
+		t.Fatalf("default calibration samples=%d, want 500", got)
+	}
+	if got := sequentialPruningTargetSampleCap(); got != DefaultSequentialPruningTargetSampleCap {
+		t.Fatalf("default target cap=%d, want %d", got, DefaultSequentialPruningTargetSampleCap)
+	}
+	t.Setenv("RARE_POSITION_SEQUENTIAL_PRUNING_CALIBRATION_SAMPLES", "9000")
+	if got := sequentialPruningCalibrationSampleCount(); got != MaxSequentialPruningCalibrationSamples {
+		t.Fatalf("calibration sample override escaped safety cap: got %d want %d", got, MaxSequentialPruningCalibrationSamples)
+	}
+}
+
+func TestRuntimePlanningBuysSamplesFromMeasuredSpeedup(t *testing.T) {
+	allRank, target := runtimeDerivedSampleCounts(10, 0.20, 1000, 2000, 100000)
+	baselineAtTargetRuntime := int(float64(target) / 2)
+	if allRank != 8000 || target != 4000 || target != 2*baselineAtTargetRuntime {
+		t.Fatalf("runtime-derived counts do not convert 2x speedup into 2x target samples: all_rank=%d target=%d baseline_target_equivalent=%d",
+			allRank, target, baselineAtTargetRuntime)
+	}
+	if _, capped := runtimeDerivedSampleCounts(10, 0.20, 1000, 2000, 123); capped != 123 {
+		t.Fatalf("runtime-derived target count ignored hard cap: got %d want 123", capped)
+	}
+}
+
+func TestEventSufficientStatsPoolingMatchesConcatenatedObservations(t *testing.T) {
+	weights := []float64{0.125, 0, 0.5, 0.25, 0, 0.125, 0.25, 0}
+	events := []bool{true, false, true, true, false, true, false, false}
+	var left, right, combined EventSufficientStats
+	for i, weight := range weights {
+		combined.observe(weight, events[i])
+		if i < len(weights)/2 {
+			left.observe(weight, events[i])
+		} else {
+			right.observe(weight, events[i])
+		}
+	}
+	pooled := left.pooled(right)
+	if pooled != combined {
+		t.Fatalf("pooled sufficient stats differ from concatenated observations: pooled=%+v combined=%+v", pooled, combined)
+	}
+	pooledEstimate := productionEstimateFromSufficientStats(pooled, 100, "pooled")
+	combinedEstimate := productionEstimateFromSufficientStats(combined, 100, "combined")
+	if pooledEstimate.Probability != combinedEstimate.Probability || pooledEstimate.StdErr != combinedEstimate.StdErr ||
+		pooledEstimate.ESS != combinedEstimate.ESS || pooledEstimate.Hits != combinedEstimate.Hits ||
+		pooledEstimate.MaxEventWeightShare != combinedEstimate.MaxEventWeightShare {
+		t.Fatalf("pooled estimate differs from one combined batch: pooled=%+v combined=%+v", pooledEstimate, combinedEstimate)
+	}
+}
+
+func TestPrunedSequentialSamplesAreCountedAsZeroObservations(t *testing.T) {
+	base, games, original, groups, table, order := pruningFixture(t)
+	components := []ProposalComponent{{Name: "P", Weight: 0.05, Means: original},
+		{Name: "Q", Weight: 0.95, Means: original}}
+	const samples = 1200
+	estimate := runSequentialRareEstimate(base, games, original, components, table, order,
+		groups, 1, 0, 1, samples, 99127, "pruned")
+	if estimate.Pruned == 0 || estimate.SufficientStats.Samples != samples || estimate.Samples != samples {
+		t.Fatalf("pruned observations were not included in the fixed denominator: %+v", estimate)
+	}
+	if estimate.SufficientStats.WeightSamples != samples-estimate.Pruned {
+		t.Fatalf("pruned partial weights leaked into estimator diagnostics: stats=%+v pruned=%d", estimate.SufficientStats, estimate.Pruned)
+	}
+	if estimate.SufficientStats.Hits != estimate.RawHits || estimate.SufficientStats.SumY <= 0 || estimate.SufficientStats.SumY2 <= 0 {
+		t.Fatalf("sequential event sufficient statistics are inconsistent: %+v estimate=%+v", estimate.SufficientStats, estimate)
+	}
+}
+
+func TestIndependentAllRankAndSequentialStreamsPoolWithoutReplacingTargetEvidence(t *testing.T) {
+	base, games, original, groups, table, order := pruningFixture(t)
+	components := []ProposalComponent{{Name: "P", Weight: 0.05, Means: original},
+		{Name: "Q", Weight: 0.95, Means: original}}
+	const allRankN, sequentialN = 400, 300
+	job := &RareSimulationJob{TeamID: groups[0].Team_id, CandidatePositions: []int{0},
+		Components: components, Iterations: allRankN, CollectAllRanks: true}
+	_, _ = estimateRarePositionsForJob(base, games, original, table, order, groups, job,
+		rand.New(rand.NewSource(901)), 16982)
+	allRank, ok := job.FullRankEstimates[groups[0].Team_id][0]
+	if !ok {
+		t.Fatal("all-rank production stream did not preserve target sufficient statistics")
+	}
+	sequential := runSequentialRareEstimate(base, games, original, components, table, order,
+		groups, groups[0].Team_id, 0, 1, sequentialN, 902, "sequential_pruned_production")
+	pooled := productionEstimateFromSufficientStats(allRank.SufficientStats.pooled(sequential.SufficientStats),
+		allRank.WorkSpent, "pooled")
+	if pooled.Samples != allRankN+sequentialN || pooled.Hits != allRank.Hits+sequential.RawHits {
+		t.Fatalf("pooled estimator dropped one of its independent streams: all_rank=%d/%d sequential=%d/%d pooled=%d/%d",
+			allRank.Samples, allRank.Hits, sequential.Samples, sequential.RawHits, pooled.Samples, pooled.Hits)
+	}
+	wantProbability := (allRank.SufficientStats.SumY + sequential.SufficientStats.SumY) / float64(allRankN+sequentialN)
+	if pooled.Probability != wantProbability || pooled.ESS != pooled.SufficientStats.SumY*pooled.SufficientStats.SumY/pooled.SufficientStats.SumY2 {
+		t.Fatalf("pooled estimator was not derived from raw sufficient statistics: pooled=%+v", pooled)
 	}
 }
 
@@ -261,19 +388,23 @@ func TestTargetEstimatorsUseSameFixedSampleIndicesAndPruningOnlySavesWork(t *tes
 	components := []ProposalComponent{{Name: "P", Weight: 0.05, Means: original},
 		{Name: "Q", Weight: 0.95, Means: original}}
 	const samples = 1200
-	baseline := runSequentialRareEstimate(base, games, original, components, table, order,
-		groups, 1, 0, 0, samples, 7741, "baseline")
-	pruned := runSequentialRareEstimate(base, games, original, components, table, order,
-		groups, 1, 0, 1, samples, 7741, "pruned")
-	if baseline.Samples != samples || pruned.Samples != samples {
-		t.Fatalf("sample counts changed after start: baseline=%d pruned=%d", baseline.Samples, pruned.Samples)
-	}
-	if baseline.Estimate != pruned.Estimate || baseline.StdErr != pruned.StdErr || baseline.ESS != pruned.ESS ||
-		baseline.RawHits != pruned.RawHits {
-		t.Fatalf("paired estimates diverged despite zero-contribution pruning: baseline=%+v pruned=%+v", baseline, pruned)
-	}
-	if pruned.Pruned == 0 || pruned.GamesSimulated >= baseline.GamesSimulated {
-		t.Fatalf("pruning did not save game work: baseline=%+v pruned=%+v", baseline, pruned)
+	for seedIndex := int64(0); seedIndex < 20; seedIndex++ {
+		seed := deriveRarePositionSeed(7741, fmt.Sprintf("paired-pruning-test-%d", seedIndex))
+		baseline := runSequentialRareEstimate(base, games, original, components, table, order,
+			groups, 1, 0, 0, samples, seed, "baseline")
+		pruned := runSequentialRareEstimate(base, games, original, components, table, order,
+			groups, 1, 0, 1, samples, seed, "pruned")
+		if baseline.Samples != samples || pruned.Samples != samples {
+			t.Fatalf("seed=%d sample counts changed after start: baseline=%d pruned=%d", seedIndex, baseline.Samples, pruned.Samples)
+		}
+		if baseline.Estimate != pruned.Estimate || baseline.StdErr != pruned.StdErr || baseline.ESS != pruned.ESS ||
+			baseline.RawHits != pruned.RawHits || baseline.SufficientStats.SumY != pruned.SufficientStats.SumY ||
+			baseline.SufficientStats.SumY2 != pruned.SufficientStats.SumY2 {
+			t.Fatalf("seed=%d paired estimates diverged despite zero-contribution pruning: baseline=%+v pruned=%+v", seedIndex, baseline, pruned)
+		}
+		if pruned.Pruned == 0 || pruned.GamesSimulated >= baseline.GamesSimulated {
+			t.Fatalf("seed=%d pruning did not save game work: baseline=%+v pruned=%+v", seedIndex, baseline, pruned)
+		}
 	}
 }
 

@@ -13,12 +13,36 @@ import (
 const (
 	DefaultRarePositionMinInterestingProbability = 1e-5
 	ExperimentalRarePositionMinProbability       = 1e-8
-	SequentialPruningCalibrationSamples          = 50
+	SequentialPruningCalibrationSamples          = 500
+	MaxSequentialPruningCalibrationSamples       = 5000
+	DefaultSequentialPruningTargetSampleCap      = 100000
 	SequentialPruningProductionBudgetFraction    = 0.20
 )
 
 func sequentialPruningEnabled() bool {
 	return os.Getenv("RARE_POSITION_SEQUENTIAL_PRUNING") == "1"
+}
+
+func sequentialPruningCalibrationSampleCount() int {
+	value := SequentialPruningCalibrationSamples
+	if raw := os.Getenv("RARE_POSITION_SEQUENTIAL_PRUNING_CALIBRATION_SAMPLES"); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err == nil && parsed > 0 {
+			value = parsed
+		}
+	}
+	return minInt(value, MaxSequentialPruningCalibrationSamples)
+}
+
+func sequentialPruningTargetSampleCap() int {
+	value := DefaultSequentialPruningTargetSampleCap
+	if raw := os.Getenv("RARE_POSITION_SEQUENTIAL_PRUNING_MAX_TARGET_SAMPLES"); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err == nil && parsed > 0 {
+			value = parsed
+		}
+	}
+	return value
 }
 
 type rarePositionProbabilityClass string
@@ -183,47 +207,108 @@ type SequentialPruningCalibrationSummary struct {
 	AverageGames     float64 `json:"average_games_per_sample"`
 	SolverSeconds    float64 `json:"solver_seconds"`
 	SolverFraction   float64 `json:"solver_fraction"`
+	PrunedFraction   float64 `json:"pruned_fraction"`
 }
 
 type SequentialPruningProductionPlan struct {
-	Enabled            bool
-	CalibrationSamples int
-	CalibrationWork    int64
-	AllRankSamples     int
-	AllRankWork        int64
-	TargetSamples      int
-	TargetWork         int64
-	TotalWork          int64
+	Enabled                  bool
+	CalibrationSamples       int
+	CalibrationWork          int64
+	AllRankSamples           int
+	AllRankWork              int64
+	TargetSamples            int
+	TargetWork               int64
+	TotalWork                int64
+	TargetWorkPerSample      int64
+	BaselineSecondsPerSample float64
+	PrunedSecondsPerSample   float64
+	Speedup                  float64
+	RuntimeFractionTarget    float64
+	ExpectedAllRankSeconds   float64
+	ExpectedTargetSeconds    float64
+	ExpectedTotalSeconds     float64
 }
 
-func planSequentialPruningProduction(remainingWork, workPerSample int64,
-	desiredCalibrationSamples int) SequentialPruningProductionPlan {
+func planSequentialPruningProduction(remainingWork, allRankWorkPerSample int64,
+	desiredCalibrationSamples int, baselineSamplesPerSecond, prunedSamplesPerSecond,
+	averageGamesPerPrunedSample float64, unplayedGames, teamCount, componentCount,
+	targetSampleCap int, calibrationSeconds float64) SequentialPruningProductionPlan {
 	plan := SequentialPruningProductionPlan{}
-	if remainingWork <= 0 || workPerSample <= 0 || desiredCalibrationSamples <= 0 {
+	if remainingWork <= 0 || allRankWorkPerSample <= 0 || desiredCalibrationSamples <= 0 ||
+		baselineSamplesPerSecond <= 0 || prunedSamplesPerSecond <= baselineSamplesPerSecond ||
+		math.IsNaN(baselineSamplesPerSecond) || math.IsNaN(prunedSamplesPerSecond) ||
+		math.IsInf(baselineSamplesPerSecond, 0) || math.IsInf(prunedSamplesPerSecond, 0) {
 		return plan
 	}
 	// Calibration compares four fixed workloads: full-season plus three strides.
-	maxCalibrationSamples := int(remainingWork / (5 * 4 * workPerSample))
+	maxCalibrationSamples := int(remainingWork / (5 * 4 * allRankWorkPerSample))
 	calibrationSamples := minInt(desiredCalibrationSamples, maxCalibrationSamples)
 	if calibrationSamples <= 0 {
 		return plan
 	}
 	plan.CalibrationSamples = calibrationSamples
-	plan.CalibrationWork = int64(calibrationSamples*4) * workPerSample
+	plan.CalibrationWork = int64(calibrationSamples*4) * allRankWorkPerSample
 	remainingAfterCalibration := remainingWork - plan.CalibrationWork
-	targetReserve := int64(float64(remainingAfterCalibration) * SequentialPruningProductionBudgetFraction)
-	allRankBudget := remainingAfterCalibration - targetReserve
-	plan.AllRankSamples = affordableSamples(int(allRankBudget/workPerSample), allRankBudget, workPerSample)
-	plan.AllRankWork = int64(plan.AllRankSamples) * workPerSample
-	targetBudget := remainingAfterCalibration - plan.AllRankWork
-	plan.TargetSamples = affordableSamples(int(targetBudget/workPerSample), targetBudget, workPerSample)
-	plan.TargetWork = int64(plan.TargetSamples) * workPerSample
+	if unplayedGames <= 0 || teamCount < 0 || componentCount <= 0 || targetSampleCap <= 0 {
+		return SequentialPruningProductionPlan{}
+	}
+	plan.BaselineSecondsPerSample = 1 / baselineSamplesPerSecond
+	plan.PrunedSecondsPerSample = 1 / prunedSamplesPerSecond
+	plan.Speedup = prunedSamplesPerSecond / baselineSamplesPerSecond
+	plan.RuntimeFractionTarget = SequentialPruningProductionBudgetFraction
+	productionRuntimeBudget := float64(remainingAfterCalibration) / float64(allRankWorkPerSample) * plan.BaselineSecondsPerSample
+	plan.ExpectedAllRankSeconds = productionRuntimeBudget * (1 - plan.RuntimeFractionTarget)
+	plan.ExpectedTargetSeconds = productionRuntimeBudget * plan.RuntimeFractionTarget
+	plan.AllRankSamples, plan.TargetSamples = runtimeDerivedSampleCounts(productionRuntimeBudget,
+		plan.RuntimeFractionTarget, baselineSamplesPerSecond, prunedSamplesPerSecond, targetSampleCap)
+	plan.AllRankSamples = minInt(plan.AllRankSamples, int(remainingAfterCalibration/allRankWorkPerSample))
+	if plan.AllRankSamples < 1 {
+		return SequentialPruningProductionPlan{}
+	}
+	plan.AllRankWork = int64(plan.AllRankSamples) * allRankWorkPerSample
+	targetWorkPerSample := int64(math.Ceil(averageGamesPerPrunedSample*float64(componentCount) + float64(teamCount)))
+	if targetWorkPerSample <= 0 {
+		targetWorkPerSample = allRankWorkPerSample
+	}
+	plan.TargetWorkPerSample = targetWorkPerSample
+	remainingForTarget := remainingAfterCalibration - plan.AllRankWork
+	affordableTargetSamples := int(remainingForTarget / targetWorkPerSample)
+	plan.TargetSamples = minInt(plan.TargetSamples, affordableTargetSamples)
+	if plan.TargetSamples <= 0 {
+		return SequentialPruningProductionPlan{}
+	}
+	plan.TargetWork = int64(plan.TargetSamples) * targetWorkPerSample
+	plan.ExpectedAllRankSeconds = float64(plan.AllRankSamples) * plan.BaselineSecondsPerSample
+	plan.ExpectedTargetSeconds = float64(plan.TargetSamples) * plan.PrunedSecondsPerSample
+	plan.ExpectedTotalSeconds = calibrationSeconds + plan.ExpectedAllRankSeconds + plan.ExpectedTargetSeconds
 	plan.TotalWork = plan.CalibrationWork + plan.AllRankWork + plan.TargetWork
 	plan.Enabled = plan.AllRankSamples > 0 && plan.TargetSamples > 0 && plan.TotalWork <= remainingWork
 	if !plan.Enabled {
 		return SequentialPruningProductionPlan{}
 	}
 	return plan
+}
+
+func runtimeDerivedSampleCounts(runtimeBudgetSeconds, targetRuntimeFraction,
+	baselineSamplesPerSecond, prunedSamplesPerSecond float64, targetSampleCap int) (allRankSamples, targetSamples int) {
+	if runtimeBudgetSeconds <= 0 || targetRuntimeFraction <= 0 || targetRuntimeFraction >= 1 ||
+		baselineSamplesPerSecond <= 0 || prunedSamplesPerSecond <= 0 || targetSampleCap <= 0 {
+		return 0, 0
+	}
+	allRankFloat := math.Floor(runtimeBudgetSeconds * (1 - targetRuntimeFraction) * baselineSamplesPerSecond)
+	targetFloat := math.Floor(runtimeBudgetSeconds * targetRuntimeFraction * prunedSamplesPerSecond)
+	maxIntValue := int(^uint(0) >> 1)
+	if allRankFloat >= float64(maxIntValue) {
+		allRankSamples = maxIntValue
+	} else {
+		allRankSamples = int(allRankFloat)
+	}
+	if targetFloat >= float64(targetSampleCap) {
+		targetSamples = targetSampleCap
+	} else {
+		targetSamples = int(targetFloat)
+	}
+	return allRankSamples, targetSamples
 }
 
 func calibrateSequentialPruningStride(baseCampaign []*TeamCampaign, games []*GameType,
@@ -242,21 +327,32 @@ func calibrateSequentialPruningStride(baseCampaign []*TeamCampaign, games []*Gam
 		stream := deriveRarePositionSeed(masterSeed, fmt.Sprintf("runtime-calibration-%s-%d", method, stride))
 		start := time.Now()
 		var gamesSimulated int64
+		var pruned int
+		var sim []*TeamCampaign
+		var teamSlice []*TeamCampaign
+		var logs, weights []float64
+		var allRanks *weightedRankAccumulator
+		if method == "baseline" {
+			sim = make([]*TeamCampaign, len(baseCampaign))
+			teamSlice = make([]*TeamCampaign, len(teamGroups))
+			logs, weights = make([]float64, len(components)), make([]float64, len(components))
+			allRanks = newWeightedRankAccumulator(teamGroups, len(teamGroups))
+		}
 		for i := 0; i < samples; i++ {
 			rng := rand.New(rand.NewSource(targetSampleSeed(stream, i)))
 			if method == "baseline" {
-				sim := make([]*TeamCampaign, len(baseCampaign))
-				teamSlice := make([]*TeamCampaign, len(teamGroups))
-				logs, weights := make([]float64, len(components)), make([]float64, len(components))
 				_, _, _ = simulateTargetTeamRankAndWeightMulti(baseCampaign, sim, teamSlice,
 					games, originalMeans, components, table, sortOrder, teamGroups,
-					targetTeamID, rng, logs, weights, nil)
+					targetTeamID, rng, logs, weights, allRanks)
 				gamesSimulated += int64(unplayed)
 			} else {
 				_, _, stats := simulateTargetSequential(baseCampaign, games, originalMeans, components,
 					table, sortOrder, teamGroups, targetTeamID, targetPosition, stride, false, rng)
 				gamesSimulated += int64(stats.GamesSimulated)
 				result.SolverSeconds += stats.SolverDuration.Seconds()
+				if stats.Pruned {
+					pruned++
+				}
 			}
 		}
 		elapsed := time.Since(start)
@@ -267,6 +363,7 @@ func calibrateSequentialPruningStride(baseCampaign []*TeamCampaign, games []*Gam
 		}
 		if samples > 0 {
 			result.AverageGames = float64(gamesSimulated) / float64(samples)
+			result.PrunedFraction = float64(pruned) / float64(samples)
 		}
 		return result
 	}
@@ -424,6 +521,7 @@ type SequentialRareEstimate struct {
 	MeanProductionWeight   float64                      `json:"mean_production_weight"`
 	UpperConfidence95      float64                      `json:"upper_confidence_bound_95"`
 	ProbabilityClass       rarePositionProbabilityClass `json:"probability_threshold_class"`
+	SufficientStats        EventSufficientStats         `json:"-"`
 }
 
 func runSequentialRareEstimate(
@@ -442,7 +540,7 @@ func runSequentialRareEstimate(
 			unplayed++
 		}
 	}
-	var sumY, sumY2, sumEventWeight, maxEventWeight, sumCompletedWeight, pruneIndexSum float64
+	var sumCompletedWeight, pruneIndexSum float64
 	var completedWeights int
 	started := time.Now()
 	for i := 0; i < samples; i++ {
@@ -471,10 +569,9 @@ func runSequentialRareEstimate(
 		result.GamesSimulated += int64(stats.GamesSimulated)
 		result.SolverChecks += int64(stats.SolverChecks)
 		result.SolverDuration += stats.SolverDuration
-		sumCompletedWeight += stats.MeanWeightDiagnostic
-		completedWeights++
 		if stats.Pruned {
 			result.Pruned++
+			result.SufficientStats.observeZero()
 			pruneIndexSum += float64(stats.PruneGameIndex)
 			quartile := 0
 			if unplayed > 0 {
@@ -483,21 +580,18 @@ func runSequentialRareEstimate(
 			result.PrunesBySeasonQuartile[quartile]++
 			continue // exact zero contribution; no likelihood ratio is needed
 		}
+		result.SufficientStats.observe(weight, rank == targetPosition)
+		sumCompletedWeight += stats.MeanWeightDiagnostic
+		completedWeights++
 		if rank == targetPosition {
 			result.RawHits++
-			y := weight
-			sumY += y
-			sumY2 += y * y
-			sumEventWeight += y
-			if y > maxEventWeight {
-				maxEventWeight = y
-			}
 		}
 	}
 	elapsed := time.Since(started)
 	result.ElapsedSeconds = elapsed.Seconds()
 	result.SolverSeconds = result.SolverDuration.Seconds()
-	result.Estimate, result.StdErr, result.ESS = eventEstimateStats(sumY, sumY2, samples)
+	result.Estimate, result.StdErr, result.ESS = eventEstimateStats(
+		result.SufficientStats.SumY, result.SufficientStats.SumY2, result.SufficientStats.Samples)
 	if result.Estimate > 0 {
 		relativeSE := result.StdErr / result.Estimate
 		result.RelativeSE = &relativeSE
@@ -519,10 +613,11 @@ func runSequentialRareEstimate(
 	}
 	if result.RawHits > 0 {
 		result.ESSPerRawHit = result.ESS / float64(result.RawHits)
-		if sumEventWeight > 0 {
-			result.MaxEventWeightShare = maxEventWeight / sumEventWeight
+		if result.SufficientStats.SumY > 0 {
+			result.MaxEventWeightShare = result.SufficientStats.MaxEventWeight / result.SufficientStats.SumY
 		}
 	}
+	result.Samples = result.SufficientStats.Samples
 	if completedWeights > 0 {
 		result.MeanProductionWeight = sumCompletedWeight / float64(completedWeights)
 	}
@@ -532,17 +627,8 @@ func runSequentialRareEstimate(
 }
 
 func productionEstimateFromSequential(estimate SequentialRareEstimate, work int64) ProductionEstimate {
-	relativeSE := math.Inf(1)
-	if estimate.RelativeSE != nil {
-		relativeSE = *estimate.RelativeSE
-	}
-	return ProductionEstimate{
-		Probability: estimate.Estimate, StdErr: estimate.StdErr, Samples: estimate.Samples,
-		Hits: estimate.RawHits, ESS: estimate.ESS, MeanWeight: estimate.MeanProductionWeight,
-		WorkSpent: work, Available: true, MeetsPrecisionGoal: estimateMeetsPrecisionGoal(estimate.ESS, relativeSE),
-		RelativeSE: relativeSEPointer(relativeSE), MaxEventWeightShare: estimate.MaxEventWeightShare,
-		ZeroHitUpper95: estimate.UpperConfidence95, Design: "importance_sampling_sequential_pruning",
-	}
+	return productionEstimateFromSufficientStats(estimate.SufficientStats, work,
+		"importance_sampling_sequential_pruning")
 }
 
 func minInt(a, b int) int {

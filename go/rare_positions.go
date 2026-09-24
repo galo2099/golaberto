@@ -44,6 +44,8 @@ func logRarePositionRequestEnvironment() {
 		"RARE_POSITION_BENCHMARK_CEM_INIT_MODE",
 		"RARE_POSITION_MIN_INTERESTING_PROBABILITY",
 		"RARE_POSITION_SEQUENTIAL_PRUNING",
+		"RARE_POSITION_SEQUENTIAL_PRUNING_CALIBRATION_SAMPLES",
+		"RARE_POSITION_SEQUENTIAL_PRUNING_MAX_TARGET_SAMPLES",
 	}
 	fields := make([]string, 0, len(variables)+5)
 	for _, name := range variables {
@@ -59,6 +61,8 @@ func logRarePositionRequestEnvironment() {
 	fields = append(fields,
 		"effective_importance_sampling="+strconv.FormatBool(rarePositionSamplingEnabled()),
 		"effective_sequential_pruning="+strconv.FormatBool(sequentialPruningEnabled()),
+		"effective_sequential_pruning_calibration_samples="+strconv.Itoa(sequentialPruningCalibrationSampleCount()),
+		"effective_sequential_pruning_max_target_samples="+strconv.Itoa(sequentialPruningTargetSampleCap()),
 		"effective_scout_iterations="+strconv.Itoa(rarePositionScoutIterations()),
 		"effective_cem_racing_mode="+effectiveCEMRacingMode(),
 		"effective_cem_parameterization="+cemParameterizationName(cemParameterizationFromEnvironment()),
@@ -173,6 +177,74 @@ type SearchProposal struct {
 	Components    []ProposalComponent
 }
 
+// EventSufficientStats stores unrounded observations for fixed-proposal event
+// estimators, allowing independent streams to be pooled exactly.
+type EventSufficientStats struct {
+	Samples        int
+	Hits           int
+	SumY           float64
+	SumY2          float64
+	SumWeight      float64
+	WeightSamples  int
+	MaxEventWeight float64
+}
+
+func (stats *EventSufficientStats) observe(weight float64, event bool) {
+	stats.Samples++
+	stats.SumWeight += weight
+	stats.WeightSamples++
+	if !event {
+		return
+	}
+	stats.Hits++
+	stats.SumY += weight
+	stats.SumY2 += weight * weight
+	if weight > stats.MaxEventWeight {
+		stats.MaxEventWeight = weight
+	}
+}
+
+func (stats *EventSufficientStats) observeZero() {
+	stats.Samples++
+}
+
+func (stats EventSufficientStats) pooled(other EventSufficientStats) EventSufficientStats {
+	return EventSufficientStats{
+		Samples: stats.Samples + other.Samples, Hits: stats.Hits + other.Hits,
+		SumY: stats.SumY + other.SumY, SumY2: stats.SumY2 + other.SumY2,
+		SumWeight:      stats.SumWeight + other.SumWeight,
+		WeightSamples:  stats.WeightSamples + other.WeightSamples,
+		MaxEventWeight: math.Max(stats.MaxEventWeight, other.MaxEventWeight),
+	}
+}
+
+func productionEstimateFromSufficientStats(stats EventSufficientStats, work int64, design string) ProductionEstimate {
+	probability, stdErr, ess := eventEstimateStats(stats.SumY, stats.SumY2, stats.Samples)
+	relativeSE := math.Inf(1)
+	if probability > 0 {
+		relativeSE = stdErr / probability
+	}
+	maxShare := 0.0
+	if stats.SumY > 0 {
+		maxShare = stats.MaxEventWeight / stats.SumY
+	}
+	meanWeight := 0.0
+	if stats.WeightSamples > 0 {
+		meanWeight = stats.SumWeight / float64(stats.WeightSamples)
+	}
+	zeroHitUpper95 := 0.0
+	if stats.Hits == 0 {
+		zeroHitUpper95 = weightedZeroHitUpper95(stats.Samples, 1/OriginalMixtureWeight)
+	}
+	return ProductionEstimate{
+		Probability: probability, StdErr: stdErr, Samples: stats.Samples, Hits: stats.Hits,
+		ESS: ess, MeanWeight: meanWeight, WorkSpent: work, Available: stats.Samples > 0,
+		MeetsPrecisionGoal: estimateMeetsPrecisionGoal(ess, relativeSE),
+		RelativeSE:         relativeSEPointer(relativeSE), MaxEventWeightShare: maxShare,
+		ZeroHitUpper95: zeroHitUpper95, Design: design, SufficientStats: stats,
+	}
+}
+
 type ProductionEstimate struct {
 	Probability         float64                        `json:"probability"`
 	StdErr              float64                        `json:"std_err"`
@@ -187,6 +259,7 @@ type ProductionEstimate struct {
 	MaxEventWeightShare float64                        `json:"max_event_weight_share"`
 	ZeroHitUpper95      float64                        `json:"zero_hit_upper_95"`
 	Design              string                         `json:"design"`
+	SufficientStats     EventSufficientStats           `json:"-"`
 	SearchDiagnostics   *RarePositionSearchDiagnostics `json:"search_diagnostics,omitempty"`
 }
 
@@ -1707,26 +1780,57 @@ func runRarePositionSearchEvaluationProduction(group *GroupType, campaign []*Tea
 		plainWorkPerSample, productionISWorkPerSample)
 	var sequentialPlan SequentialPruningProductionPlan
 	var sequentialCalibration []SequentialPruningCalibrationSummary
+	var sequentialCalibrationSeconds float64
+	var sequentialCalibrationWork int64
 	sequentialStride := 0
 	if sequentialPruningEnabled() && design.Kind == "importance_sampling" {
-		sequentialPlan = planSequentialPruningProduction(remainingWork, productionISWorkPerSample,
-			SequentialPruningCalibrationSamples)
-		if sequentialPlan.Enabled {
+		calibrationSamples := minInt(sequentialPruningCalibrationSampleCount(),
+			int(remainingWork/(20*productionISWorkPerSample)))
+		if calibrationSamples > 0 {
+			sequentialCalibrationWork = int64(calibrationSamples*4) * productionISWorkPerSample
 			sequentialStride, sequentialCalibration = calibrateSequentialPruningStride(
 				campaign, group.Games, originalMeans, design.Components, table, sortOrder,
 				group.Team_groups, design.TargetTeam, design.TargetPosition,
-				sequentialPlan.CalibrationSamples,
+				calibrationSamples,
 				deriveRarePositionSeed(productionSeed, "sequential-pruning-calibration"))
-			design.Samples = sequentialPlan.AllRankSamples
-			design.Work = sequentialPlan.AllRankWork
-			log.Printf("rare-position-sequential-pruning-calibration: group=%d target_team=%d target_position=%d selected_stride=%d calibration_samples_per_method=%d calibration_work=%d target_samples=%d target_work=%d all_rank_samples=%d all_rank_work=%d total_production_work=%d budget=%d calibration=%+v",
-				group.Id, design.TargetTeam, design.TargetPosition, sequentialStride,
-				sequentialPlan.CalibrationSamples, sequentialPlan.CalibrationWork,
-				sequentialPlan.TargetSamples, sequentialPlan.TargetWork,
-				design.Samples, design.Work, sequentialPlan.TotalWork, remainingWork, sequentialCalibration)
+			var baselineRate, prunedRate, averageGames float64
+			for _, calibration := range sequentialCalibration {
+				sequentialCalibrationSeconds += calibration.ElapsedSeconds
+				if calibration.Method == "baseline" {
+					baselineRate = calibration.SamplesPerSecond
+				}
+				if calibration.Method == "pruned" && calibration.Stride == sequentialStride {
+					prunedRate = calibration.SamplesPerSecond
+					averageGames = calibration.AverageGames
+				}
+			}
+			sequentialPlan = planSequentialPruningProduction(remainingWork, productionISWorkPerSample,
+				calibrationSamples, baselineRate, prunedRate, averageGames,
+				unplayedGames, numTeams, len(design.Components), sequentialPruningTargetSampleCap(),
+				sequentialCalibrationSeconds)
+			if sequentialPlan.Enabled {
+				design.Samples = sequentialPlan.AllRankSamples
+				design.Work = sequentialPlan.AllRankWork
+				log.Printf("rare-position-sequential-pruning-calibration: group=%d target_team=%d target_position=%d selected_stride=%d calibration_samples_per_method=%d calibration_work=%d baseline_seconds_per_sample=%.8g pruned_seconds_per_sample=%.8g speedup=%.4f runtime_fraction_target=%.2f expected_all_rank_seconds=%.4f expected_target_seconds=%.4f expected_total_seconds=%.4f target_samples=%d target_nominal_work=%d target_work_per_sample=%d all_rank_samples=%d all_rank_work=%d total_production_work=%d budget=%d calibration=%+v",
+					group.Id, design.TargetTeam, design.TargetPosition, sequentialStride,
+					sequentialPlan.CalibrationSamples, sequentialPlan.CalibrationWork,
+					sequentialPlan.BaselineSecondsPerSample, sequentialPlan.PrunedSecondsPerSample,
+					sequentialPlan.Speedup, sequentialPlan.RuntimeFractionTarget,
+					sequentialPlan.ExpectedAllRankSeconds, sequentialPlan.ExpectedTargetSeconds,
+					sequentialPlan.ExpectedTotalSeconds, sequentialPlan.TargetSamples,
+					sequentialPlan.TargetWork, sequentialPlan.TargetWorkPerSample,
+					design.Samples, design.Work, sequentialPlan.TotalWork, remainingWork, sequentialCalibration)
+			} else {
+				remainingAfterCalibration := remainingWork - sequentialCalibrationWork
+				design.Samples = affordableSamples(int(remainingAfterCalibration/productionISWorkPerSample),
+					remainingAfterCalibration, productionISWorkPerSample)
+				design.Work = int64(design.Samples) * productionISWorkPerSample
+				log.Printf("rare-position-sequential-pruning-disabled: group=%d reason=runtime_plan_unaffordable remaining_work=%d work_per_sample=%d calibration=%+v",
+					group.Id, remainingWork, productionISWorkPerSample, sequentialCalibration)
+			}
 		} else {
-			log.Printf("rare-position-sequential-pruning-disabled: group=%d reason=insufficient_production_budget remaining_work=%d work_per_sample=%d",
-				group.Id, remainingWork, productionISWorkPerSample)
+			log.Printf("rare-position-sequential-pruning-disabled: group=%d reason=insufficient_calibration_budget remaining_work=%d work_per_sample=%d requested_calibration_samples=%d",
+				group.Id, remainingWork, productionISWorkPerSample, sequentialPruningCalibrationSampleCount())
 		}
 	}
 	componentsLog := "P"
@@ -1739,13 +1843,20 @@ func runRarePositionSearchEvaluationProduction(group *GroupType, campaign []*Tea
 		group.Id, design.Kind, design.TargetTeam, design.TargetPosition,
 		design.SelectedFromSnapshot, evaluationESS(selectedEvaluation),
 		evaluationESSPerWork(selectedEvaluation), evaluationHits(selectedEvaluation), selectionReason)
-	log.Printf("rare-position-design-freeze: group=%d design=%s target_team=%d target_position=%d selected_snapshot_iteration=%d components=%s production_samples=%d production_work=%d sequential_pruning=%t sequential_stride=%d sequential_target_samples=%d remaining_work_before_production=%d",
+	log.Printf("rare-position-design-freeze: group=%d design=%s target_team=%d target_position=%d selected_snapshot_iteration=%d components=%s all_rank_samples=%d all_rank_nominal_work=%d target_samples=%d target_nominal_work=%d calibration_nominal_work=%d total_nominal_work=%d sequential_pruning=%t sequential_stride=%d baseline_seconds_per_sample=%.8g pruned_seconds_per_sample=%.8g speedup=%.4f runtime_fraction_target=%.2f expected_all_rank_seconds=%.4f expected_target_seconds=%.4f expected_total_seconds=%.4f remaining_work_before_production=%d",
 		group.Id, design.Kind, design.TargetTeam, design.TargetPosition,
-		design.SelectedFromSnapshot, componentsLog, design.Samples, design.Work, sequentialPlan.Enabled,
-		sequentialStride, sequentialPlan.TargetSamples, remainingBeforeProduction)
+		design.SelectedFromSnapshot, componentsLog, design.Samples, design.Work,
+		sequentialPlan.TargetSamples, sequentialPlan.TargetWork, sequentialCalibrationWork,
+		design.Work+sequentialPlan.TargetWork+sequentialCalibrationWork, sequentialPlan.Enabled, sequentialStride,
+		sequentialPlan.BaselineSecondsPerSample, sequentialPlan.PrunedSecondsPerSample,
+		sequentialPlan.Speedup, sequentialPlan.RuntimeFractionTarget,
+		sequentialPlan.ExpectedAllRankSeconds,
+		sequentialPlan.ExpectedTargetSeconds, sequentialPlan.ExpectedTotalSeconds, remainingBeforeProduction)
 
 	productionEstimates := make(map[int]map[int]ProductionEstimate)
+	var allRankElapsedSeconds float64
 	if design.Samples > 0 {
+		allRankStarted := time.Now()
 		if design.Kind == "importance_sampling" {
 			job := &RareSimulationJob{TeamID: design.TargetTeam,
 				Direction: RareBetter, CandidatePositions: []int{design.TargetPosition},
@@ -1765,6 +1876,7 @@ func runRarePositionSearchEvaluationProduction(group *GroupType, campaign []*Tea
 						RelativeSE:          relativeSEPointer(estimate.RelativeSE),
 						MaxEventWeightShare: estimate.MaxEventWeightShare,
 						ZeroHitUpper95:      estimate.ZeroHitUpper95, Design: design.Kind,
+						SufficientStats: estimate.SufficientStats,
 					}
 				}
 			}
@@ -1777,26 +1889,38 @@ func runRarePositionSearchEvaluationProduction(group *GroupType, campaign []*Tea
 			}
 			productionEstimates = summarizePlainProductionCounts(counts, design.Samples, design.Work)
 		}
+		allRankElapsedSeconds = time.Since(allRankStarted).Seconds()
 	}
-	productionWork := design.Work
+	productionWork := design.Work + sequentialCalibrationWork
 	if sequentialPlan.Enabled {
 		targetSeed := deriveRarePositionSeed(productionSeed, "sequential-pruning-target-estimator")
 		estimate := runSequentialRareEstimate(campaign, group.Games, originalMeans, design.Components,
 			table, sortOrder, group.Team_groups, design.TargetTeam, design.TargetPosition,
 			sequentialStride, sequentialPlan.TargetSamples, targetSeed, "sequential_pruned_production")
-		targetEstimate := productionEstimateFromSequential(estimate, sequentialPlan.TargetWork)
-		if productionEstimates[design.TargetTeam] == nil {
-			productionEstimates[design.TargetTeam] = make(map[int]ProductionEstimate)
-		}
-		productionEstimates[design.TargetTeam][design.TargetPosition] = targetEstimate
-		productionWork += sequentialPlan.TargetWork + sequentialPlan.CalibrationWork
-		log.Printf("rare-position-sequential-pruning-production: group=%d team=%d position=%d stride=%d samples=%d pruned=%d pruned_fraction=%.4f estimate=%.8g se=%.3g relSE=%.3f ESS=%.3f ESS_per_second=%.4g raw_hits=%d games=%d average_games=%.2f solver_checks=%d solver_seconds=%.6f solver_fraction=%.4f work=%d",
+		allRankTarget := productionEstimates[design.TargetTeam][design.TargetPosition]
+		sequentialTarget := productionEstimateFromSequential(estimate, sequentialPlan.TargetWork)
+		combinedStats := allRankTarget.SufficientStats.pooled(sequentialTarget.SufficientStats)
+		combinedTarget := productionEstimateFromSufficientStats(combinedStats,
+			allRankTarget.WorkSpent+sequentialPlan.TargetWork, "importance_sampling_sequential_pruning_pooled")
+		productionEstimates[design.TargetTeam][design.TargetPosition] = combinedTarget
+		productionWork += sequentialPlan.TargetWork
+		log.Printf("rare-position-sequential-pruning-production: group=%d team=%d position=%d stride=%d samples=%d pruned=%d pruned_fraction=%.4f games=%d average_games=%.2f solver_checks=%d solver_seconds=%.6f solver_fraction=%.4f elapsed_seconds=%.6f samples_per_second=%.4f hits=%d ESS=%.3f ESS_per_second=%.4g p=%.8g se=%.3g relSE=%.3f nominal_work=%d",
 			group.Id, design.TargetTeam, design.TargetPosition, sequentialStride, estimate.Samples,
-			estimate.Pruned, estimate.PrunedFraction, estimate.Estimate, estimate.StdErr,
-			relativeSEValue(estimate.RelativeSE), estimate.ESS, estimate.ESSPerSecond,
-			estimate.RawHits, estimate.GamesSimulated, estimate.AverageGamesPerSample,
+			estimate.Pruned, estimate.PrunedFraction, estimate.GamesSimulated, estimate.AverageGamesPerSample,
 			estimate.SolverChecks, estimate.SolverSeconds, estimate.SolverFraction,
+			estimate.ElapsedSeconds, estimate.SamplesPerSecond, estimate.RawHits,
+			estimate.ESS, estimate.ESSPerSecond, estimate.Estimate, estimate.StdErr,
+			relativeSEValue(estimate.RelativeSE),
 			sequentialPlan.TargetWork)
+		log.Printf("rare-position-production-combined: group=%d team=%d position=%d all_rank_samples=%d sequential_samples=%d total_samples=%d all_rank_hits=%d sequential_hits=%d total_hits=%d all_rank_ess=%.3f sequential_ess=%.3f combined_ess=%.3f p=%.8g se=%.3g relSE=%.3f max_event_weight_share=%.3f nominal_work=%d actual_games_simulated=%d actual_wall_seconds=%.6f",
+			group.Id, design.TargetTeam, design.TargetPosition, allRankTarget.Samples,
+			sequentialTarget.Samples, combinedTarget.Samples, allRankTarget.Hits,
+			sequentialTarget.Hits, combinedTarget.Hits, allRankTarget.ESS,
+			sequentialTarget.ESS, combinedTarget.ESS, combinedTarget.Probability,
+			combinedTarget.StdErr, relativeSEValue(combinedTarget.RelativeSE),
+			combinedTarget.MaxEventWeightShare, productionWork,
+			design.Samples*unplayedGames+int(estimate.GamesSimulated),
+			sequentialCalibrationSeconds+allRankElapsedSeconds+estimate.ElapsedSeconds)
 	}
 	remainingWork -= productionWork
 	if remainingWork < 0 {
@@ -1866,10 +1990,11 @@ func runRarePositionSearchEvaluationProduction(group *GroupType, campaign []*Tea
 		panic(fmt.Sprintf("rare-position total work budget exceeded or phase accounting is inconsistent: spent=%d limit=%d remaining=%d", workSpent, totalWorkLimit, remainingWork))
 	}
 	searchOverhead := scoutWork + adaptationWork + evaluationWork
-	log.Printf("rare-position-summary: parameterization=%s group=%d scout_samples=%d scout_work=%d adaptation_work=%d adaptation_plain_mc_equiv=%.1f evaluation_work=%d evaluation_plain_mc_equiv=%.1f snapshots_retained=%d snapshots_evaluated=%d production_design=%s production_samples=%d production_work=%d fresh_final_estimator_samples=%d search_overhead_plain_mc_equiv=%.1f fresh_production_plain_mc_equiv=%.1f total_work_limit=%d work_spent=%d unused_work=%d scout_resolved_cells=%d cem_batches=%d candidates_admitted=%d exact_hit_targets=%d plain_P_selected=%t",
+	log.Printf("rare-position-summary: parameterization=%s group=%d scout_samples=%d scout_work=%d adaptation_work=%d adaptation_plain_mc_equiv=%.1f evaluation_work=%d evaluation_plain_mc_equiv=%.1f snapshots_retained=%d snapshots_evaluated=%d production_design=%s production_all_rank_samples=%d production_target_samples=%d production_total_estimator_samples=%d production_work=%d search_overhead_plain_mc_equiv=%.1f fresh_production_plain_mc_equiv=%.1f total_work_limit=%d work_spent=%d unused_work=%d scout_resolved_cells=%d cem_batches=%d candidates_admitted=%d exact_hit_targets=%d plain_P_selected=%t",
 		cemParameterizationName(parameterization), group.Id, normalSamples, scoutWork, adaptationWork, float64(adaptationWork)/float64(plainWorkPerSample),
 		evaluationWork, float64(evaluationWork)/float64(plainWorkPerSample), len(cemRound.Snapshots),
-		len(evaluations), design.Kind, design.Samples, productionWork, design.Samples,
+		len(evaluations), design.Kind, design.Samples, sequentialPlan.TargetSamples,
+		design.Samples+sequentialPlan.TargetSamples, productionWork,
 		float64(searchOverhead)/float64(plainWorkPerSample),
 		float64(productionWork)/float64(plainWorkPerSample), totalWorkLimit,
 		workSpent, remainingWork, scoutResolvedCells, cemRound.Iterations,
@@ -2145,6 +2270,7 @@ type RarePositionEstimate struct {
 	ZeroHitUpper95      float64
 	WorkSpent           int64
 	Found               bool // legacy quality gate; never used by active production path
+	SufficientStats     EventSufficientStats
 }
 
 const OriginalMixtureWeight = 0.05
@@ -2212,12 +2338,13 @@ type RareSimulationJob struct {
 }
 
 type weightedRankAccumulator struct {
-	hits       map[int][]int
-	sumY       map[int][]float64
-	sumY2      map[int][]float64
-	maxEventY  map[int][]float64
-	sumWeight  map[int]float64
-	sampleSize int
+	hits          map[int][]int
+	sumY          map[int][]float64
+	sumY2         map[int][]float64
+	maxEventY     map[int][]float64
+	sumWeight     map[int]float64
+	weightSamples int
+	sampleSize    int
 }
 
 func newWeightedRankAccumulator(teamGroups []TeamType, numPositions int) *weightedRankAccumulator {
@@ -2240,6 +2367,7 @@ func (acc *weightedRankAccumulator) observe(sortedTeams []*TeamCampaign, weight 
 		return
 	}
 	acc.sampleSize++
+	acc.weightSamples++
 	for rank, team := range sortedTeams {
 		acc.hits[team.id][rank]++
 		acc.sumY[team.id][rank] += weight
@@ -2277,6 +2405,10 @@ func (acc *weightedRankAccumulator) estimates(work int64) map[int]map[int]RarePo
 				ESS: ess, MeanWeight: acc.sumWeight[teamID] / float64(acc.sampleSize),
 				Available: true, MeetsPrecisionGoal: estimateMeetsPrecisionGoal(ess, relSE),
 				RelativeSE: relSE, MaxEventWeightShare: maxShare, ZeroHitUpper95: upper, WorkSpent: work,
+				SufficientStats: EventSufficientStats{Samples: acc.sampleSize, Hits: hits,
+					SumY: acc.sumY[teamID][position], SumY2: acc.sumY2[teamID][position],
+					SumWeight: acc.sumWeight[teamID], WeightSamples: acc.weightSamples,
+					MaxEventWeight: acc.maxEventY[teamID][position]},
 			}
 		}
 	}
