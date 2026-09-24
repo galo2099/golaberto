@@ -868,8 +868,8 @@ func TestSyntheticUnderdogRareEvent(t *testing.T) {
 	team1Odds := teamOddsMap[1]
 	p1stPercent := team1Odds.Pos[0]
 
-	if p1stPercent < 0 {
-		t.Errorf("Expected non-negative 1st place odds, got %f", p1stPercent)
+	if p1stPercent <= 0 {
+		t.Errorf("Expected positive 1st place odds > 0%%, got %f", p1stPercent)
 	}
 
 	sum := team1Odds.Pos[0] + team1Odds.Pos[1]
@@ -911,6 +911,13 @@ func TestFalse100PercentCorrection(t *testing.T) {
 
 	team1Odds := teamOddsMap[1]
 	team2Odds := teamOddsMap[2]
+
+	if team1Odds.Pos[0] <= 0 {
+		t.Errorf("Expected team 1 position 0 odds to be > 0%%, got %f", team1Odds.Pos[0])
+	}
+	if team1Odds.Pos[1] >= 100.0 {
+		t.Errorf("Expected team 1 position 1 odds to be < 100%%, got %f", team1Odds.Pos[1])
+	}
 
 	sum1 := team1Odds.Pos[0] + team1Odds.Pos[1]
 	sum2 := team2Odds.Pos[0] + team2Odds.Pos[1]

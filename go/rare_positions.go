@@ -1330,8 +1330,37 @@ func searchAndMergeRarePositions(
 	teamOdds []OddsType,
 	normalSamples int,
 ) map[int]map[int]ProductionEstimate {
-	return runRarePositionSearchEvaluationProduction(group, campaign, table, sortOrder,
+	estimates := runRarePositionSearchEvaluationProduction(group, campaign, table, sortOrder,
 		normalPositionCounts, teamOdds, normalSamples)
+	for _, tg := range group.Team_groups {
+		teamID := tg.Team_id
+		if teamEstimates := estimates[teamID]; len(teamEstimates) > 0 {
+			rareMap := make(map[int]RarePositionEstimate, len(teamEstimates))
+			for pos, est := range teamEstimates {
+				if est.Available {
+					relSE := 0.0
+					if est.RelativeSE != nil {
+						relSE = *est.RelativeSE
+					}
+					rareMap[pos] = RarePositionEstimate{
+						Probability: est.Probability, StdErr: est.StdErr, Samples: est.Samples,
+						Hits: est.Hits, ESS: est.ESS, MeanWeight: est.MeanWeight,
+						Available: est.Available, MeetsPrecisionGoal: est.MeetsPrecisionGoal,
+						RelativeSE: relSE, MaxEventWeightShare: est.MaxEventWeightShare,
+						ZeroHitUpper95: est.ZeroHitUpper95, WorkSpent: est.WorkSpent,
+						Found: true,
+					}
+				}
+			}
+			if len(rareMap) > 0 {
+				index := table.Query(uint32(teamID))
+				odds := teamOdds[index].team
+				final := mergeRarePositionEstimates(odds.Pos, normalPositionCounts[teamID], rareMap)
+				copy(odds.Pos, final)
+			}
+		}
+	}
+	return estimates
 }
 
 func cloneProposalComponents(components []ProposalComponent) []ProposalComponent {
@@ -1443,8 +1472,7 @@ func runRarePositionSearchEvaluationProduction(group *GroupType, campaign []*Tea
 	evaluationSeed := deriveRarePositionSeed(seed, "pipeline-evaluation")
 	productionSeed := deriveRarePositionSeed(seed, "pipeline-production")
 	searchRNG := rand.New(rand.NewSource(searchSeed))
-	evaluationRNG := rand.New(rand.NewSource(evaluationSeed))
-	productionRNG := rand.New(rand.NewSource(productionSeed))
+		productionRNG := rand.New(rand.NewSource(productionSeed))
 	log.Printf("rare-position-rng: group=%d seed=%d search_seed=%d evaluation_seed=%d production_seed=%d source=%s phase=search,evaluation,production",
 		group.Id, seed, searchSeed, evaluationSeed, productionSeed, seedSource)
 	unplayedGames := 0
@@ -1504,26 +1532,28 @@ func runRarePositionSearchEvaluationProduction(group *GroupType, campaign []*Tea
 	}
 	adaptationWork := cemRound.CEMWork
 
-	evaluationWorkPerSnapshot := int64(CEMEvaluationSamplesPerSnapshot) * evaluationWorkPerSample
 	evaluationCapacity := cemEvaluationCapacity(CEMMaxEvaluationSnapshots,
-		evaluationWorkRemaining, remainingWork, evaluationWorkPerSnapshot)
+		evaluationWorkRemaining, remainingWork, int64(CEMEvaluationChunkSamples)*evaluationWorkPerSample)
 	evaluationCandidates := prepareCEMEvaluationSnapshots(group.Id, cemRound.Snapshots,
 		originalMeans, evaluationCapacity)
-	evaluations := make([]CEMProposalEvaluation, 0, len(evaluationCandidates))
-	for _, snapshot := range evaluationCandidates {
-		work := int64(CEMEvaluationSamplesPerSnapshot) * evaluationWorkPerSample
-		evaluation := evaluateCEMProposalSnapshot(snapshot, originalMeans, campaign,
-			group.Games, table, sortOrder, group.Team_groups,
-			CEMEvaluationSamplesPerSnapshot, evaluationWorkPerSample, evaluationRNG, group.Id)
-		evaluationWorkRemaining -= evaluation.Work
-		remainingWork -= evaluation.Work
-		if evaluation.Work != work {
-			panic("CEM evaluation did not consume its frozen sample count")
-		}
-		evaluations = append(evaluations, evaluation)
-	}
+
+	evaluations, selectedEvaluation := runCEMProposalRacing(
+		group.Id,
+		evaluationCandidates,
+		originalMeans,
+		campaign,
+		group.Games,
+		table,
+		sortOrder,
+		group.Team_groups,
+		normalPositionCounts,
+		normalSamples,
+		&evaluationWorkRemaining,
+		&remainingWork,
+		evaluationWorkPerSample,
+		evaluationSeed,
+	)
 	evaluationWork := evaluationWorkLimit - evaluationWorkRemaining
-	selectedEvaluation := selectCEMProductionEvaluation(evaluations)
 	selectionReason := "no_evaluated_snapshot_with_exact_event"
 	if selectedEvaluation != nil {
 		selectionReason = "highest_evaluated_event_ess_per_work"
@@ -1789,346 +1819,6 @@ func evaluationHits(evaluation *CEMProposalEvaluation) int {
 	return evaluation.Hits
 }
 
-func searchAndMergeRarePositionsLegacy(
-	group *GroupType,
-	campaign []*TeamCampaign,
-	table *Table,
-	sortOrder []SortType,
-	normalPositionCounts map[int][]int,
-	teamOdds []OddsType,
-	normalSamples int,
-) {
-	seed, _ := rarePositionSeed()
-	rng := rand.New(rand.NewSource(deriveRarePositionSeed(seed, "legacy-rare-search")))
-	unplayedGames := 0
-	for _, game := range group.Games {
-		if !game.Played {
-			unplayedGames++
-		}
-	}
-	numTeams := len(group.Team_groups)
-	totalWorkLimit := calculateMaxRareWork(unplayedGames, numTeams)
-	plainWorkPerSample := estimateSeasonWork(unplayedGames, 1, numTeams)
-	scoutWork := int64(normalSamples) * plainWorkPerSample
-	remainingWork := totalWorkLimit - scoutWork
-	if remainingWork < 0 {
-		panic("rare-position scout work exceeded total work budget")
-	}
-	cemWorkRemaining := int64(float64(totalWorkLimit) * MaxCEMWorkFraction)
-	if cap := int64(MaxCEMPlainEquivalentSamples) * estimateSeasonWork(unplayedGames, 1, numTeams); cemWorkRemaining > cap {
-		cemWorkRemaining = cap
-	}
-	cemExplorationWorkRemaining := int64(float64(cemWorkRemaining) * CEMMaxExplorationFraction)
-	validationWorkRemaining := int64(float64(totalWorkLimit) * MaxCEMValidationWorkFraction)
-	adaptWorkPerSample := estimateSeasonWork(unplayedGames, 1, numTeams)
-	confirmationWorkRemaining := int64(float64(totalWorkLimit) * MaxCEMConfirmationWorkFraction)
-	confirmationWorkPerSample := estimateSeasonWork(unplayedGames, 1, numTeams)
-	workPerSample := estimateSeasonWork(unplayedGames, 2, numTeams)
-
-	originalMeans := make([]GameProposalMeans, len(group.Games))
-	for i, game := range group.Games {
-		originalMeans[i] = GameProposalMeans{Home: game.HomePower, Away: game.AwayPower}
-	}
-	teamSearches := make(map[int]*TeamRareSearch, numTeams)
-	scoutResolvedCells := 0
-	for _, tg := range group.Team_groups {
-		teamID := tg.Team_id
-		index := table.Query(uint32(teamID))
-		ts := initializeTeamRareSearch(teamID, normalPositionCounts[teamID],
-			teamOdds[index].team.Pos, campaign, group.Team_groups, group.Games, table, sortOrder)
-		teamSearches[teamID] = ts
-		for _, state := range ts.Positions {
-			if state.ObservedCount > 0 {
-				scoutResolvedCells++
-			}
-		}
-	}
-
-	teamRareEstimates := make(map[int]map[int]RarePositionEstimate)
-	var cemWork, confirmationWork, validationWork, productionWork, expansionWork int64
-	var cemTargets, cemIterations, targetsAnyExact, targetsExactElite, targetsValidated int
-	exactHitCandidateKeys := make(map[[2]int]bool)
-	var cemCandidatesTotal, cemCandidatesAdmitted, cemCandidatesNotAdmitted int
-	var cemExplorationSamples, cemAdaptiveSamples int
-	var confirmationAttempts, confirmationSuccesses, confirmationFailures int
-	var adaptationExactHitBatches, confirmationReadyCandidates int
-	var confirmationSingleHitSuccesses, confirmationMultiHitSuccesses int
-	var confirmationFailedResumed, confirmationFailedExhausted, confirmationHits int
-	var confirmationChunks, confirmationSamples, confirmationInconclusiveBudget int
-	var validationAttempts, validationSuccesses int
-	var changedTeams, maxChangedTeams int
-	var absThetaSum, maxAbsTheta, thetaDeltaL2Sum float64
-	var thetaUpdates, thetaParameterCount int
-	var schedulerBatches, candidatesOneBatch, candidatesMultiBatch, maxBatchesSingleCandidate int
-	var stopValidationReady, stopStalled, stopLowEliteESS, stopRegression, stopPerCandidateCap, stopGlobalBudget int
-	var bestCandidateTeam, bestCandidatePosition, bestCandidateBatches int
-	var bestCandidateDistanceImprovement, bestCandidateNearTargetRate float64
-	var highestNearTeam, highestNearPosition, highestNearBatches int
-	var highestNearRate float64
-	var validatedESS float64
-	productionJobs := 0
-	resolvedInitial := 0
-	for round := 0; round <= 1; round++ {
-		if round == 1 && (resolvedInitial == 0 ||
-			cemWorkRemaining < int64(CEMMinBatchSamples)*adaptWorkPerSample) {
-			break
-		}
-		// Discover once per round. Only observed and successfully resolved
-		// positions seed the next frontier.
-		candidates := collectFrontierCandidates(teamSearches)
-		if len(candidates) == 0 {
-			break
-		}
-		cemRound := runCEMRound(candidates, teamSearches, group, campaign, table,
-			sortOrder, originalMeans, &cemWorkRemaining, &confirmationWorkRemaining,
-			&validationWorkRemaining, &remainingWork, &cemExplorationWorkRemaining, adaptWorkPerSample,
-			confirmationWorkPerSample, workPerSample, totalWorkLimit, rng)
-		if remainingWork < 0 || cemWorkRemaining < 0 || confirmationWorkRemaining < 0 || validationWorkRemaining < 0 {
-			panic("rare-position CEM, confirmation, or validation work budget exceeded")
-		}
-		cemWork += cemRound.CEMWork
-		confirmationWork += cemRound.ConfirmationWork
-		validationWork += cemRound.ValidationWork
-		cemCandidatesTotal += cemRound.CandidatesTotal
-		cemCandidatesAdmitted += cemRound.CandidatesAdmitted
-		cemCandidatesNotAdmitted += cemRound.CandidatesNotAdmitted
-		cemExplorationSamples += cemRound.ExplorationSamples
-		cemAdaptiveSamples += cemRound.AdaptiveSamples
-		confirmationAttempts += cemRound.ConfirmationAttempts
-		confirmationSuccesses += cemRound.ConfirmationSuccesses
-		confirmationFailures += cemRound.ConfirmationFailures
-		adaptationExactHitBatches += cemRound.AdaptationExactHitBatches
-		confirmationReadyCandidates += cemRound.ConfirmationReadyCandidates
-		confirmationSingleHitSuccesses += cemRound.ConfirmationSingleHitSuccesses
-		confirmationMultiHitSuccesses += cemRound.ConfirmationMultiHitSuccesses
-		confirmationFailedResumed += cemRound.ConfirmationFailedResumed
-		confirmationFailedExhausted += cemRound.ConfirmationFailedExhausted
-		confirmationHits += cemRound.ConfirmationHits
-		confirmationChunks += cemRound.ConfirmationChunks
-		confirmationSamples += cemRound.ConfirmationSamples
-		confirmationInconclusiveBudget += cemRound.ConfirmationInconclusiveBudget
-		validationAttempts += cemRound.ValidationAttempts
-		validationSuccesses += cemRound.ValidationSuccesses
-		cemTargets += cemRound.TargetsAttempted
-		cemIterations += cemRound.Iterations
-		for _, state := range cemRound.Candidates {
-			if state.EverHadExactHit {
-				exactHitCandidateKeys[[2]int{state.Candidate.TeamID, state.Candidate.Position}] = true
-			}
-		}
-		targetsAnyExact = len(exactHitCandidateKeys)
-		targetsExactElite += cemRound.TargetsExactElite
-		targetsValidated += cemRound.TargetsValidated
-		changedTeams += cemRound.ChangedTeams
-		if cemRound.MaxChangedTeams > maxChangedTeams {
-			maxChangedTeams = cemRound.MaxChangedTeams
-		}
-		absThetaSum += cemRound.AbsThetaSum
-		if cemRound.MaxAbsTheta > maxAbsTheta {
-			maxAbsTheta = cemRound.MaxAbsTheta
-		}
-		thetaDeltaL2Sum += cemRound.ThetaDeltaL2Sum
-		thetaUpdates += cemRound.ThetaUpdates
-		thetaParameterCount += cemRound.ThetaParameterCount
-		schedulerBatches += cemRound.SchedulerBatches
-		candidatesOneBatch += cemRound.OneBatchCandidates
-		candidatesMultiBatch += cemRound.MultiBatchCandidates
-		if cemRound.MaxBatchesPerCandidate > maxBatchesSingleCandidate {
-			maxBatchesSingleCandidate = cemRound.MaxBatchesPerCandidate
-		}
-		stopValidationReady += cemRound.StopValidationReady
-		stopStalled += cemRound.StopStalled
-		stopLowEliteESS += cemRound.StopLowEliteESS
-		stopRegression += cemRound.StopRegression
-		stopPerCandidateCap += cemRound.StopPerCandidateCap
-		stopGlobalBudget += cemRound.StopGlobalBudget
-		if cemRound.BestCandidateTeam != 0 &&
-			cemRound.BestCandidateDistanceImprovement > bestCandidateDistanceImprovement {
-			bestCandidateTeam = cemRound.BestCandidateTeam
-			bestCandidatePosition = cemRound.BestCandidatePosition
-			bestCandidateBatches = cemRound.BestCandidateBatches
-			bestCandidateDistanceImprovement = cemRound.BestCandidateDistanceImprovement
-			bestCandidateNearTargetRate = cemRound.BestCandidateNearTargetRate
-		}
-		if cemRound.HighestNearTeam != 0 && cemRound.HighestNearRate > highestNearRate {
-			highestNearTeam = cemRound.HighestNearTeam
-			highestNearPosition = cemRound.HighestNearPosition
-			highestNearBatches = cemRound.HighestNearBatches
-			highestNearRate = cemRound.HighestNearRate
-		}
-		validatedESS += cemRound.ValidatedESS
-		if round == 1 {
-			expansionWork += cemRound.CEMWork + cemRound.ValidationWork
-		}
-
-		eligible := cemRound.Eligible
-		plans := buildProductionPlans(eligible, workPerSample, teamSearches)
-		allocations := planProductionAllocations(plans, remainingWork, workPerSample)
-		for _, allocation := range allocations {
-			candidate := allocation.Plan.Candidate
-			st := candidate.SearchState
-			if st.Status != StatusPromising {
-				continue
-			}
-			samples := affordableSamples(allocation.Samples, remainingWork, workPerSample)
-			if samples <= 0 {
-				break
-			}
-			work := int64(samples) * workPerSample
-			predictedESS := allocation.Plan.Pilot.ESS * float64(work) /
-				float64(allocation.Plan.Pilot.WorkSpent)
-			if samples < allocation.Samples && predictedESS < MinUsableESS {
-				continue
-			}
-
-			// Share the fixed run with other eligible positions of this team
-			// in the current frontier, while keeping pilots out of estimates.
-			var positions []int
-			for _, other := range eligible {
-				if other.TeamID == candidate.TeamID && other.SearchState.Status == StatusPromising {
-					positions = append(positions, other.Position)
-				}
-			}
-			if len(positions) == 0 {
-				positions = []int{candidate.Position}
-			}
-			log.Printf("rare-position-production-plan: group=%d team=%d position=%d priority=%d critical100=%t projected_work=%d allocated_work=%d samples=%d predicted_ess=%.2f",
-				group.Id, candidate.TeamID, candidate.Position, candidate.Priority,
-				allocation.Plan.Critical100, allocation.Plan.ProjectedWork, work, samples, predictedESS)
-			job := &RareSimulationJob{
-				TeamID: candidate.TeamID, Direction: candidate.Direction,
-				CandidatePositions: positions, Components: st.BestProposal.Components,
-				Iterations: samples,
-			}
-			jobEstimates, _ := estimateRarePositionsForJob(
-				campaign, group.Games, originalMeans, table, sortOrder, group.Team_groups,
-				job, rng, group.Id,
-			)
-			remainingWork -= work
-			productionJobs++
-			if remainingWork < 0 {
-				panic("rare-position production work budget exceeded")
-			}
-			productionWork += work
-			if round == 1 {
-				expansionWork += work
-			}
-			st.ProductionWorkSpent += work
-			for position, est := range jobEstimates {
-				positionState := teamSearches[candidate.TeamID].Positions[position]
-				if est.Available {
-					if est.Probability >= MinInterestingProbability {
-						positionState.Status = StatusResolved
-						positionState.ProductionEstimate = &ProductionEstimate{
-							Probability: est.Probability, StdErr: est.StdErr,
-							Samples: est.Samples, Hits: est.Hits, ESS: est.ESS,
-							Available: true, MeetsPrecisionGoal: estimateMeetsPrecisionGoal(est.ESS, est.RelativeSE),
-							RelativeSE: relativeSEPointer(est.RelativeSE), MaxEventWeightShare: est.MaxEventWeightShare,
-							MeanWeight: est.MeanWeight, WorkSpent: work, Design: "importance_sampling",
-						}
-						if teamRareEstimates[candidate.TeamID] == nil {
-							teamRareEstimates[candidate.TeamID] = make(map[int]RarePositionEstimate)
-						}
-						teamRareEstimates[candidate.TeamID][position] = est
-						if round == 0 {
-							resolvedInitial++
-						}
-					} else {
-						positionState.Status = StatusBelowInterest
-					}
-				} else if position == candidate.Position {
-					positionState.Status = StatusExhausted
-				}
-			}
-		}
-	}
-
-	fallbackSamples, fallbackWork := planFallbackSamples(remainingWork, plainWorkPerSample)
-	var newNonzeroCells, brokenHundreds int
-	if fallbackSamples > 0 {
-		fallbackCounts := simulatePlainRankCounts(campaign, group.Games, table, sortOrder,
-			group.Team_groups, fallbackSamples, rng)
-		newNonzeroCells, brokenHundreds = combineNormalPositionCounts(normalPositionCounts,
-			fallbackCounts, normalSamples, fallbackSamples, teamOdds, table)
-		remainingWork -= fallbackWork
-	}
-	if remainingWork < 0 {
-		panic("rare-position fallback work budget exceeded")
-	}
-	log.Printf("rare-position-fallback-mc: group=%d samples=%d work=%d combined_normal_samples=%d new_nonzero_cells=%d broken_100_percent_results=%d",
-		group.Id, fallbackSamples, fallbackWork, normalSamples+fallbackSamples,
-		newNonzeroCells, brokenHundreds)
-	for _, tg := range group.Team_groups {
-		teamID := tg.Team_id
-		if estimates := teamRareEstimates[teamID]; len(estimates) > 0 {
-			index := table.Query(uint32(teamID))
-			odds := teamOdds[index].team
-			final := mergeRarePositionEstimates(odds.Pos, normalPositionCounts[teamID], estimates)
-			copy(odds.Pos, final)
-		}
-	}
-	resolvedPositions := 0
-	for _, search := range teamSearches {
-		for _, state := range search.Positions {
-			if state.Status == StatusResolved {
-				resolvedPositions++
-			}
-		}
-	}
-	workSpent := totalWorkLimit - remainingWork
-	if workSpent > totalWorkLimit {
-		panic("rare-position total work budget exceeded")
-	}
-	accountedWork := scoutWork + cemWork + confirmationWork + validationWork + productionWork + fallbackWork
-	if accountedWork > totalWorkLimit || workSpent < accountedWork {
-		panic("rare-position phase work accounting exceeded total budget or omitted tracked work")
-	}
-	combinedCEMValidationEquivalent := float64(cemWork+validationWork) / float64(plainWorkPerSample)
-	validatedESSPerPlainEquivalent := 0.0
-	if validationWork > 0 {
-		validatedESSPerPlainEquivalent = validatedESS /
-			(float64(validationWork) / float64(plainWorkPerSample))
-	}
-	averageChangedTeams := 0.0
-	averageThetaL1Norm, averageAbsTeamTheta := cemThetaSummary(absThetaSum, thetaUpdates, thetaParameterCount)
-	averageThetaDeltaL2 := 0.0
-	if cemIterations > 0 {
-		averageChangedTeams = float64(changedTeams) / float64(cemIterations)
-		averageThetaDeltaL2 = thetaDeltaL2Sum / float64(cemIterations)
-	}
-	averageBatchesPerCandidate := 0.0
-	if cemTargets > 0 {
-		averageBatchesPerCandidate = float64(cemIterations) / float64(cemTargets)
-	}
-	log.Printf("rare-position-summary: parameterization=team_level group=%d scout_sims=%d scout_work=%d fallback_normal_sims=%d normal_sims_total=%d total_work_limit=%d cem_work=%d validation_work=%d production_work=%d expansion_work=%d fallback_work=%d unused_work=%d work_spent=%d resolved_positions_is=%d scout_resolved_cells=%d new_cells_from_fallback=%d cem_targets_attempted=%d cem_iterations=%d cem_scheduler_batches=%d cem_candidates_receiving_1_batch=%d cem_candidates_receiving_2plus_batches=%d max_batches_single_candidate=%d average_batches_per_candidate=%.2f best_candidate_team=%d best_candidate_position=%d best_candidate_batches=%d best_candidate_distance_improvement=%.3f best_candidate_near_target_rate=%.4f highest_near_team=%d highest_near_position=%d highest_near_batches=%d highest_near_target_rate=%.4f stop_validation_ready=%d stop_stalled=%d stop_low_elite_ess=%d stop_regression=%d stop_per_candidate_cap=%d stop_global_budget_exhausted=%d average_changed_teams=%.2f max_changed_teams=%d average_theta_l1_norm=%.4f average_abs_team_theta=%.4f max_abs_team_theta=%.4f average_theta_delta_l2=%.4f targets_with_any_exact_hit=%d targets_reaching_exact_elite_threshold=%d targets_passing_validation=%d production_jobs=%d cem_plain_mc_equiv=%.1f validation_plain_mc_equiv=%.1f cem_and_validation_plain_mc_equiv=%.1f validated_ess_per_plain_mc_equiv=%.4f production_plain_mc_equiv=%.1f heuristic_baseline_group16982_plain_mc_equiv=8499.4",
-		group.Id, normalSamples, scoutWork, fallbackSamples, normalSamples+fallbackSamples, totalWorkLimit,
-		cemWork, validationWork, productionWork, expansionWork, fallbackWork, remainingWork,
-		workSpent, resolvedPositions, scoutResolvedCells, newNonzeroCells, cemTargets, cemIterations,
-		schedulerBatches, candidatesOneBatch, candidatesMultiBatch, maxBatchesSingleCandidate,
-		averageBatchesPerCandidate, bestCandidateTeam, bestCandidatePosition, bestCandidateBatches,
-		bestCandidateDistanceImprovement, bestCandidateNearTargetRate, highestNearTeam,
-		highestNearPosition, highestNearBatches, highestNearRate, stopValidationReady,
-		stopStalled, stopLowEliteESS, stopRegression, stopPerCandidateCap, stopGlobalBudget,
-		averageChangedTeams, maxChangedTeams, averageThetaL1Norm, averageAbsTeamTheta,
-		maxAbsTheta, averageThetaDeltaL2,
-		targetsAnyExact, targetsExactElite,
-		targetsValidated, productionJobs, float64(cemWork)/float64(plainWorkPerSample),
-		float64(validationWork)/float64(plainWorkPerSample),
-		combinedCEMValidationEquivalent, validatedESSPerPlainEquivalent,
-		float64(productionWork)/float64(plainWorkPerSample))
-	log.Printf("rare-position-cem-summary: group=%d cem_candidates_total=%d cem_candidates_admitted=%d cem_candidates_not_admitted=%d cem_exploration_samples=%d cem_adaptive_samples=%d max_batches_single_candidate=%d adaptation_exact_hit_batches=%d confirmation_ready_candidates=%d confirmation_attempts=%d confirmation_chunks=%d confirmation_samples=%d confirmation_hits=%d confirmation_successes=%d confirmation_single_hit_successes=%d confirmation_multi_hit_successes=%d confirmation_failures=%d confirmation_failed_resumed=%d confirmation_failed_exhausted=%d confirmation_inconclusive_budget=%d confirmation_work=%d confirmation_plain_mc_equiv=%.1f validation_attempts=%d validation_successes=%d validation_work=%d cem_confirmation_validation_plain_mc_equiv=%.1f confirmation_work_per_sample=%d validation_work_per_sample=%d total_work_limit=%d work_spent=%d",
-		group.Id, cemCandidatesTotal, cemCandidatesAdmitted, cemCandidatesNotAdmitted,
-		cemExplorationSamples, cemAdaptiveSamples, maxBatchesSingleCandidate,
-		adaptationExactHitBatches, confirmationReadyCandidates, confirmationAttempts,
-		confirmationChunks, confirmationSamples, confirmationHits, confirmationSuccesses, confirmationSingleHitSuccesses,
-		confirmationMultiHitSuccesses, confirmationFailures, confirmationFailedResumed,
-		confirmationFailedExhausted, confirmationInconclusiveBudget,
-		confirmationWork, float64(confirmationWork)/float64(plainWorkPerSample),
-		validationAttempts, validationSuccesses, validationWork,
-		float64(cemWork+confirmationWork+validationWork)/float64(plainWorkPerSample),
-		confirmationWorkPerSample, workPerSample, totalWorkLimit, workSpent)
-}
-
 type RarePositionEstimate struct {
 	Probability         float64
 	StdErr              float64
@@ -2158,7 +1848,7 @@ func mergeRarePositionEstimates(
 	rareMass := 0.0
 	for pos, est := range rareEstimates {
 		if pos >= 0 && pos < len(normalCounts) && normalCounts[pos] == 0 &&
-			est.Found && est.Probability >= MinInterestingProbability {
+			(est.Found || est.Available) && est.Probability >= MinInterestingProbability {
 			rareMass += est.Probability
 		}
 	}
@@ -2178,7 +1868,7 @@ func mergeRarePositionEstimates(
 
 	for pos := 0; pos < numPositions; pos++ {
 		est, isRare := rareEstimates[pos]
-		if normalCounts[pos] == 0 && isRare && est.Found && est.Probability >= MinInterestingProbability {
+		if normalCounts[pos] == 0 && isRare && (est.Found || est.Available) && est.Probability >= MinInterestingProbability {
 			final[pos] = est.Probability
 		} else if normalCounts[pos] > 0 {
 			if observedNormalMass > 0 {

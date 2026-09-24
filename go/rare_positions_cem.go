@@ -5,7 +5,6 @@ import (
 	"log"
 	"math"
 	"math/rand"
-	"os"
 	"sort"
 )
 
@@ -33,6 +32,9 @@ const (
 	CEMMaxGlobalSnapshots               = 12
 	CEMMaxEvaluationSnapshots           = 3
 	CEMEvaluationSamplesPerSnapshot     = 300
+	CEMEvaluationChunkSamples           = 100
+	CEMMaxEvaluationSamples             = 900
+	CEMEvaluationEarlyAcceptESS         = 2.0
 	CEMMinEliteESSForUpdate             = 8.0
 	CEMMeaningfulTeamLogShift           = 0.03
 	CEMThetaStabilityThreshold          = 0.02
@@ -86,8 +88,6 @@ type CEMBatchStats struct {
 	NearTargetRate    float64
 	EliteESS          float64
 	UsedExactElites   bool
-	SignAgreement    float64
-	CosineSimilarity float64
 }
 
 type CEMRoundResult struct {
@@ -155,7 +155,6 @@ type CEMRoundResult struct {
 type CEMCandidateState struct {
 	Candidate                      *FrontierCandidate
 	Proposal                       CEMProposal
-	InitialDirectionVector         map[int]float64
 	BestProposal                   CEMProposal
 	Iterations                     int
 	Samples                        int
@@ -225,6 +224,33 @@ type CEMProposalSnapshot struct {
 	Reason               string
 }
 
+type WeightedEventStats struct {
+	Hits           int
+	SumY           float64
+	SumY2          float64
+	Probability    float64
+	StdErr         float64
+	RelSE          float64
+	ESS            float64
+	MaxWeightShare float64
+}
+
+type CEMEvaluationState struct {
+	Snapshot             CEMProposalSnapshot
+	Stage                int
+	Samples              int
+	Work                 int64
+	Chunks               int
+	Exact                WeightedEventStats
+	Near1                WeightedEventStats
+	Near2                WeightedEventStats
+	Near1EfficiencyRatio float64
+	Near2EfficiencyRatio float64
+	AdaptationPriority   float64
+	Eliminated           bool
+	EliminationReason    string
+}
+
 type CEMProposalEvaluation struct {
 	Snapshot            CEMProposalSnapshot
 	Samples             int
@@ -239,6 +265,12 @@ type CEMProposalEvaluation struct {
 	SecondMoment        float64
 	MaxEventWeightShare float64
 	Work                int64
+	Exact               WeightedEventStats
+	Near1               WeightedEventStats
+	Near2               WeightedEventStats
+	Near1EfficiencyRatio float64
+	Near2EfficiencyRatio float64
+	EarlyAccept         bool
 }
 
 func teamIDsFromGroups(groups []TeamType) []int {
@@ -250,24 +282,6 @@ func teamIDsFromGroups(groups []TeamType) []int {
 	return ids
 }
 
-const (
-	CEMWarmStartCompetitorMass = 1.0
-	CEMWarmStartKL             = 0.15
-)
-
-type CEMInitializationMode int
-
-const (
-	CEMInitZero CEMInitializationMode = iota
-	CEMInitStandingsDirected
-)
-
-var CEMDefaultInitializationMode = CEMInitStandingsDirected
-
-func newZeroCEMProposal(original []GameProposalMeans, games []*GameType, teamIDs []int) CEMProposal {
-	return newCEMProposal(original, games, teamIDs)
-}
-
 func newCEMProposal(original []GameProposalMeans, games []*GameType, teamIDs []int) CEMProposal {
 	theta := make(map[int]float64, len(teamIDs))
 	for _, teamID := range teamIDs {
@@ -276,202 +290,6 @@ func newCEMProposal(original []GameProposalMeans, games []*GameType, teamIDs []i
 	proposal := CEMProposal{TeamLogMultipliers: theta, UpdateAllowed: true}
 	proposal.Means = materializeCEMProposal(proposal, original, games)
 	return proposal
-}
-
-func newCEMProposalWithMode(mode CEMInitializationMode, candidate *FrontierCandidate, searches map[int]*TeamRareSearch, original []GameProposalMeans, games []*GameType, teamIDs []int, groupID int) (CEMProposal, map[int]float64) {
-	if mode == CEMInitStandingsDirected {
-		return initializeDirectedCEMProposal(candidate, searches, original, games, teamIDs, groupID)
-	}
-	prop := newZeroCEMProposal(original, games, teamIDs)
-	return prop, nil
-}
-
-func computeSignAgreementAndCosine(d map[int]float64, theta map[int]float64) (float64, float64) {
-	if len(d) == 0 || len(theta) == 0 {
-		return 0, 0
-	}
-
-	dot, normD, normTheta := 0.0, 0.0, 0.0
-	matchedSigns, totalNonZeroD := 0, 0
-
-	for teamID, dVal := range d {
-		if dVal == 0 {
-			continue
-		}
-		totalNonZeroD++
-		thVal := theta[teamID]
-		if (dVal > 0 && thVal > 0) || (dVal < 0 && thVal < 0) {
-			matchedSigns++
-		}
-		dot += dVal * thVal
-		normD += dVal * dVal
-	}
-
-	for _, thVal := range theta {
-		normTheta += thVal * thVal
-	}
-
-	signAgreement := 0.0
-	if totalNonZeroD > 0 {
-		signAgreement = float64(matchedSigns) / float64(totalNonZeroD)
-	}
-
-	cosineSim := 0.0
-	if normD > 0 && normTheta > 0 {
-		cosineSim = dot / (math.Sqrt(normD) * math.Sqrt(normTheta))
-	}
-
-	return signAgreement, cosineSim
-}
-
-func initializeDirectedCEMProposal(
-	candidate *FrontierCandidate,
-	searches map[int]*TeamRareSearch,
-	original []GameProposalMeans,
-	games []*GameType,
-	teamIDs []int,
-	groupID int,
-) (CEMProposal, map[int]float64) {
-	targetTeamID := candidate.TeamID
-	targetPosition := candidate.Position
-	direction := candidate.Direction
-
-	targetSearch, ok := searches[targetTeamID]
-	if !ok || targetSearch == nil {
-		log.Printf("rare-position-cem-init-fallback: group=%d team=%d position=%d reason=no_target_search",
-			groupID, targetTeamID, targetPosition)
-		return newCEMProposal(original, games, teamIDs), nil
-	}
-
-	rT := targetSearch.NormalMeanRank
-
-	var corridor []int
-	var overtakersBlockersRole string
-
-	if direction == RareBetter {
-		overtakersBlockersRole = "blocker"
-		for teamID, search := range searches {
-			if teamID == targetTeamID || search == nil {
-				continue
-			}
-			rJ := search.NormalMeanRank
-			if float64(targetPosition) <= rJ && rJ < rT {
-				corridor = append(corridor, teamID)
-			}
-		}
-	} else {
-		overtakersBlockersRole = "overtaker"
-		for teamID, search := range searches {
-			if teamID == targetTeamID || search == nil {
-				continue
-			}
-			rJ := search.NormalMeanRank
-			if rT < rJ && rJ <= float64(targetPosition) {
-				corridor = append(corridor, teamID)
-			}
-		}
-	}
-
-	if len(corridor) == 0 {
-		for teamID, search := range searches {
-			if teamID == targetTeamID || search == nil {
-				continue
-			}
-			rJ := search.NormalMeanRank
-			if math.Abs(rJ-float64(targetPosition)) <= 1.0 {
-				corridor = append(corridor, teamID)
-			}
-		}
-	}
-
-	if len(corridor) == 0 {
-		log.Printf("rare-position-cem-init-fallback: group=%d team=%d position=%d reason=no_corridor_competitors",
-			groupID, targetTeamID, targetPosition)
-		return newCEMProposal(original, games, teamIDs), nil
-	}
-
-	sort.Ints(corridor)
-
-	rawWeights := make(map[int]float64, len(corridor))
-	sumRaw := 0.0
-	for _, teamID := range corridor {
-		rJ := searches[teamID].NormalMeanRank
-		dist := math.Abs(rJ - float64(targetPosition))
-		w := 1.0 / (1.0 + dist)
-		rawWeights[teamID] = w
-		sumRaw += w
-	}
-
-	normWeights := make(map[int]float64, len(corridor))
-	for _, teamID := range corridor {
-		normWeights[teamID] = rawWeights[teamID] / sumRaw
-	}
-
-	unscaledTheta := make(map[int]float64, len(teamIDs))
-	for _, teamID := range teamIDs {
-		unscaledTheta[teamID] = 0.0
-	}
-
-	targetDir := 1.0
-	if direction == RareWorse {
-		targetDir = -1.0
-	}
-	unscaledTheta[targetTeamID] = targetDir
-
-	for _, teamID := range corridor {
-		if direction == RareBetter {
-			unscaledTheta[teamID] = -CEMWarmStartCompetitorMass * normWeights[teamID]
-		} else {
-			unscaledTheta[teamID] = +CEMWarmStartCompetitorMass * normWeights[teamID]
-		}
-	}
-
-	unscaledL1 := 0.0
-	for _, th := range unscaledTheta {
-		unscaledL1 += math.Abs(th)
-	}
-
-	unscaledProp := CEMProposal{TeamLogMultipliers: copyTheta(unscaledTheta), UpdateAllowed: true}
-	unscaledProp.Means = materializeCEMProposal(unscaledProp, original, games)
-	unscaledProp.KL = cemTotalKL(unscaledProp.Means, original, games)
-
-	var scaledProp CEMProposal
-	alpha := 0.0
-
-	if unscaledProp.KL > 0 {
-		scaledProp = cemTrustRegionTeam(unscaledProp, original, games, CEMWarmStartKL)
-		if scaledProp.TeamLogMultipliers[targetTeamID] != 0 {
-			alpha = scaledProp.TeamLogMultipliers[targetTeamID] / targetDir
-		}
-	} else {
-		scaledProp = newCEMProposal(original, games, teamIDs)
-	}
-
-	dirName := "better"
-	if direction == RareWorse {
-		dirName = "worse"
-	}
-
-	log.Printf("rare-position-cem-init: group=%d team=%d position=%d mode=standings_directed direction=%s normal_mean_rank=%.2f target_position=%d competitor_count=%d competitor_mass=%.2f target_direction=%.1f unscaled_theta_l1=%.4f alpha=%.4f kl=%.4f",
-		groupID, targetTeamID, targetPosition, dirName, rT, targetPosition,
-		len(corridor), CEMWarmStartCompetitorMass, targetDir, unscaledL1, alpha, scaledProp.KL)
-
-	log.Printf("rare-position-cem-init-team: group=%d target_team=%d target_position=%d team_id=%d role=target normal_mean_rank=%.2f rank_distance_to_boundary=%.2f raw_relevance=1.0000 normalized_relevance=1.0000 direction=%.1f initial_theta=%.6f initial_multiplier=%.6f",
-		groupID, targetTeamID, targetPosition, targetTeamID, rT, math.Abs(rT-float64(targetPosition)),
-		targetDir, scaledProp.TeamLogMultipliers[targetTeamID], math.Exp(scaledProp.TeamLogMultipliers[targetTeamID]))
-
-	for _, teamID := range corridor {
-		rJ := searches[teamID].NormalMeanRank
-		dist := math.Abs(rJ - float64(targetPosition))
-		compDir := -targetDir
-		thetaVal := scaledProp.TeamLogMultipliers[teamID]
-
-		log.Printf("rare-position-cem-init-team: group=%d target_team=%d target_position=%d team_id=%d role=%s normal_mean_rank=%.2f rank_distance_to_boundary=%.2f raw_relevance=%.4f normalized_relevance=%.4f direction=%.1f initial_theta=%.6f initial_multiplier=%.6f",
-			groupID, targetTeamID, targetPosition, teamID, overtakersBlockersRole, rJ, dist,
-			rawWeights[teamID], normWeights[teamID], compDir, thetaVal, math.Exp(thetaVal))
-	}
-
-	return scaledProp, unscaledTheta
 }
 
 func materializeCEMProposal(proposal CEMProposal, original []GameProposalMeans, games []*GameType) []GameProposalMeans {
@@ -1245,13 +1063,6 @@ func runCEMCandidateBatch(state *CEMCandidateState, group *GroupType, campaign [
 
 	elite, exact := cemEliteIndices(batch, state.Candidate.Position, state.Candidate.Direction)
 	stats := cemBatchSummary(batch, elite, state.Candidate.Position, exact)
-	if state.InitialDirectionVector != nil {
-		signAgr, cosSim := computeSignAgreementAndCosine(state.InitialDirectionVector, state.Proposal.TeamLogMultipliers)
-		stats.SignAgreement = signAgr
-		stats.CosineSimilarity = cosSim
-		log.Printf("rare-position-cem-init-agreement: group=%d team=%d position=%d iteration=%d sign_agreement=%.4f cosine_similarity=%.4f",
-			group.Id, state.Candidate.TeamID, state.Candidate.Position, state.Iterations, signAgr, cosSim)
-	}
 	if state.Iterations == 1 {
 		state.FirstStats = stats
 		state.BestEliteDistance = stats.EliteMeanDistance
@@ -1902,30 +1713,14 @@ func runCEMAdaptationRound(candidates []*FrontierCandidate, searches map[int]*Te
 	group *GroupType, campaign []*TeamCampaign, table *Table, order []SortType,
 	original []GameProposalMeans, cemRemaining, remainingWork, explorationRemaining *int64,
 	adaptWorkPerSample int64, rng *rand.Rand) CEMRoundResult {
-	mode := CEMDefaultInitializationMode
-	if envMode := os.Getenv("RARE_POSITION_CEM_INIT"); envMode == "zero" {
-		mode = CEMInitZero
-	} else if envMode == "directed" {
-		mode = CEMInitStandingsDirected
-	}
-	return runCEMAdaptationRoundWithMode(mode, candidates, searches, group, campaign, table,
-		order, original, cemRemaining, remainingWork, explorationRemaining, adaptWorkPerSample, rng)
-}
-
-func runCEMAdaptationRoundWithMode(mode CEMInitializationMode, candidates []*FrontierCandidate, searches map[int]*TeamRareSearch,
-	group *GroupType, campaign []*TeamCampaign, table *Table, order []SortType,
-	original []GameProposalMeans, cemRemaining, remainingWork, explorationRemaining *int64,
-	adaptWorkPerSample int64, rng *rand.Rand) CEMRoundResult {
 	result := CEMRoundResult{CandidatesTotal: len(candidates)}
 	teamIDs := teamIDsFromGroups(group.Team_groups)
 	states := make([]*CEMCandidateState, 0, len(candidates))
 	for _, candidate := range candidates {
-		prop, initDir := newCEMProposalWithMode(mode, candidate, searches, original, group.Games, teamIDs, group.Id)
 		states = append(states, &CEMCandidateState{
-			Candidate:              candidate,
-			Proposal:               prop,
-			InitialDirectionVector: initDir,
-			Active:                 true,
+			Candidate: candidate,
+			Proposal:  newCEMProposal(original, group.Games, teamIDs),
+			Active:    true,
 		})
 	}
 	explorationAvailable := min(*explorationRemaining, min(*cemRemaining, *remainingWork))
@@ -2217,32 +2012,586 @@ func evaluateCEMProposalSnapshot(snapshot CEMProposalSnapshot, original []GamePr
 	baseCampaign []*TeamCampaign, games []*GameType, table *Table, order []SortType,
 	teamGroups []TeamType, samples int, workPerSample int64, rng *rand.Rand,
 	groupID int) CEMProposalEvaluation {
-	components := cemEvaluationMixture(original, snapshot)
-	validateProposalMixture(components, len(games))
-	pilot := &WeightedPilotResult{Proposal: SearchProposal{
-		Name: fmt.Sprintf("cem_snapshot_team%d_rank%d_iteration%d", snapshot.CandidateTeam,
-			snapshot.CandidatePosition, snapshot.SourceIteration),
-		TargetRank: snapshot.CandidatePosition, Components: components,
-	}}
-	evaluateWeightedPilot(pilot, baseCampaign, games, original, table, order,
-		teamGroups, snapshot.CandidateTeam, snapshot.CandidatePosition,
-		samples, workPerSample, rng, groupID)
-	for i, component := range components {
-		log.Printf("rare-position-evaluation-component: group=%d team=%d position=%d snapshot_iteration=%d component=%s weight=%.3f samples=%d rank_hist=%v",
-			groupID, snapshot.CandidateTeam, snapshot.CandidatePosition,
-			snapshot.SourceIteration, component.Name, component.Weight,
-			pilot.ComponentSamples[i], pilot.ComponentRankHists[i])
+	state := &CEMEvaluationState{
+		Snapshot:           snapshot,
+		Stage:              1,
+		AdaptationPriority: cemSnapshotPriority(snapshot),
 	}
-	evaluation := summarizeCEMProposalEvaluation(snapshot, *pilot,
-		int64(pilot.Samples)*workPerSample)
-	log.Printf("rare-position-evaluation: group=%d team=%d position=%d snapshot_iteration=%d samples=%d hits=%d sumY=%.8g sumY2=%.8g p=%.8g se=%.3g relSE=%.3f ess=%.3f ess_per_million_work=%.3f second_moment=%.8g max_event_weight_share=%.3f work=%d",
-		groupID, snapshot.CandidateTeam, snapshot.CandidatePosition, snapshot.SourceIteration,
-		evaluation.Samples, evaluation.Hits, evaluation.SumY, evaluation.SumY2,
-		evaluation.Probability, evaluation.StdErr, evaluation.RelSE, evaluation.ESS,
-		evaluation.ESSPerWork*1e6, evaluation.SecondMoment,
-		evaluation.MaxEventWeightShare, evaluation.Work)
-	return evaluation
+	evaluateCEMChunk(state, original, baseCampaign, games, table, order, teamGroups,
+		samples, workPerSample, rng, groupID, 0, 0)
+	evals := convertToEvaluations([]*CEMEvaluationState{state})
+	return evals[0]
 }
+
+func selectCEMProductionEvaluation(evaluations []CEMProposalEvaluation) *CEMProposalEvaluation {
+	var best *CEMProposalEvaluation
+	for i := range evaluations {
+		candidate := &evaluations[i]
+		if candidate.Hits == 0 || candidate.ESS <= 0 || candidate.Work <= 0 {
+			continue
+		}
+		if best == nil || cemSnapshotBetterForEvaluation(*candidate, *best) {
+			best = candidate
+		}
+	}
+	return best
+}
+
+
+func cemSnapshotPriority(snap CEMProposalSnapshot) float64 {
+	initialDistance := math.Max(1, snap.InitialEliteDistance)
+	distanceGain := (snap.InitialEliteDistance - snap.Stats.EliteMeanDistance) / initialDistance
+	return float64(snap.ExactHits)*1000 + snap.Stats.NearTargetRate*100 + distanceGain*10 + math.Min(snap.Stats.EliteESS, 100)/100 - snap.Proposal.KL*0.01
+}
+
+func scoutPNeighborhood(normalPositionCounts map[int][]int, teamID, targetPosition, normalSamples int) (float64, float64, float64) {
+	if normalSamples <= 0 {
+		return 0, 0, 0
+	}
+	counts, ok := normalPositionCounts[teamID]
+	if !ok {
+		return 0, 0, 0
+	}
+	c0, c1, c2 := 0, 0, 0
+	for pos, count := range counts {
+		dist := absInt(pos - targetPosition)
+		if dist == 0 {
+			c0 += count
+		}
+		if dist <= 1 {
+			c1 += count
+		}
+		if dist <= 2 {
+			c2 += count
+		}
+	}
+	N := float64(normalSamples)
+	return float64(c0) / N, float64(c1) / N, float64(c2) / N
+}
+
+func evaluateCEMChunk(
+	state *CEMEvaluationState,
+	original []GameProposalMeans,
+	baseCampaign []*TeamCampaign,
+	games []*GameType,
+	table *Table,
+	order []SortType,
+	teamGroups []TeamType,
+	chunkSamples int,
+	workPerSample int64,
+	rng *rand.Rand,
+	groupID int,
+	scoutP1, scoutP2 float64,
+) {
+	components := cemEvaluationMixture(original, state.Snapshot)
+	validateProposalMixture(components, len(games))
+
+	teamID := state.Snapshot.CandidateTeam
+	targetPos := state.Snapshot.CandidatePosition
+	numComps := len(components)
+
+	logQBuf := make([]float64, numComps)
+	compWeightsBuf := make([]float64, numComps)
+	for i := 0; i < numComps; i++ {
+		compWeightsBuf[i] = components[i].Weight
+	}
+
+	simCampaign := make([]*TeamCampaign, len(baseCampaign))
+	teamSlice := make([]*TeamCampaign, len(teamGroups))
+
+	chunkWork := int64(chunkSamples) * workPerSample
+
+	for s := 0; s < chunkSamples; s++ {
+		for k, v := range baseCampaign {
+			if v != nil {
+				simCampaign[k] = v.clone()
+			} else {
+				simCampaign[k] = nil
+			}
+		}
+
+		for i := 0; i < numComps; i++ {
+			logQBuf[i] = 0.0
+		}
+
+		rVal := rng.Float64()
+		cum := 0.0
+		chosenK := 0
+		for i := 0; i < numComps; i++ {
+			cum += components[i].Weight
+			if rVal <= cum || i == numComps-1 {
+				chosenK = i
+				break
+			}
+		}
+
+		activeMeans := components[chosenK].Means
+
+		for i, g := range games {
+			if !g.Played {
+				origH := original[i].Home
+				origA := original[i].Away
+
+				hScore := poissonRand(rng, activeMeans[i].Home)
+				aScore := poissonRand(rng, activeMeans[i].Away)
+
+				for k := 0; k < numComps; k++ {
+					cMeans := components[k].Means[i]
+					logQBuf[k] += logPoissonQOverP(hScore, origH, cMeans.Home)
+					logQBuf[k] += logPoissonQOverP(aScore, origA, cMeans.Away)
+				}
+
+				home := g.home_table_index
+				away := g.away_table_index
+
+				if simCampaign[home] != nil {
+					simCampaign[home].add_game(&GameType{g.Id, g.HomeId, g.AwayId, hScore, aScore, 0.0, 0.0, true, home, away})
+				}
+				if simCampaign[away] != nil {
+					simCampaign[away].add_game(&GameType{g.Id, g.HomeId, g.AwayId, hScore, aScore, 0.0, 0.0, true, home, away})
+				}
+			}
+		}
+
+		w := mixtureImportanceWeightMulti(logQBuf, compWeightsBuf)
+
+		idx := 0
+		for _, tg := range teamGroups {
+			c := simCampaign[table.Query(uint32(tg.Team_id))]
+			if c != nil {
+				teamSlice[idx] = c
+				idx++
+			}
+		}
+
+		sortedTeams := TeamCampaignSorted{t: teamSlice[:idx], sort: order, rng: rng}
+		sort.Sort(sortedTeams)
+
+		rank := -1
+		for pos, t := range sortedTeams.t {
+			if t.id == teamID {
+				rank = pos
+				break
+			}
+		}
+
+		dist := absInt(rank - targetPos)
+
+		if dist == 0 {
+			state.Exact.Hits++
+			state.Exact.SumY += w
+			state.Exact.SumY2 += w * w
+			if w > state.Exact.MaxWeightShare {
+				state.Exact.MaxWeightShare = w
+			}
+		}
+		if dist <= 1 {
+			state.Near1.Hits++
+			state.Near1.SumY += w
+			state.Near1.SumY2 += w * w
+			if w > state.Near1.MaxWeightShare {
+				state.Near1.MaxWeightShare = w
+			}
+		}
+		if dist <= 2 {
+			state.Near2.Hits++
+			state.Near2.SumY += w
+			state.Near2.SumY2 += w * w
+			if w > state.Near2.MaxWeightShare {
+				state.Near2.MaxWeightShare = w
+			}
+		}
+	}
+
+	state.Samples += chunkSamples
+	state.Work += chunkWork
+	state.Chunks++
+
+	updateEventStats := func(stats *WeightedEventStats, totalSamples int) {
+		if totalSamples <= 0 || stats.Hits == 0 {
+			stats.Probability = 0
+			stats.StdErr = 0
+			stats.RelSE = math.Inf(1)
+			stats.ESS = 0
+			return
+		}
+		N := float64(totalSamples)
+		pHat := stats.SumY / N
+		sampleVar := (stats.SumY2 - N*pHat*pHat) / (N - 1.0)
+		if sampleVar < 0 {
+			sampleVar = 0
+		}
+		stdErr := math.Sqrt(sampleVar / N)
+		relSE := math.Inf(1)
+		if pHat > 0 {
+			relSE = stdErr / pHat
+		}
+		ess := 0.0
+		if stats.SumY2 > 0 {
+			ess = (stats.SumY * stats.SumY) / stats.SumY2
+		}
+		stats.Probability = pHat
+		stats.StdErr = stdErr
+		stats.RelSE = relSE
+		stats.ESS = ess
+	}
+
+	updateEventStats(&state.Exact, state.Samples)
+	updateEventStats(&state.Near1, state.Samples)
+	updateEventStats(&state.Near2, state.Samples)
+
+	plainEquivWork := float64(state.Samples)
+	p1Floor := math.Max(scoutP1, 1e-6)
+	p2Floor := math.Max(scoutP2, 1e-6)
+
+	if plainEquivWork > 0 && p1Floor > 0 {
+		state.Near1EfficiencyRatio = state.Near1.ESS / (plainEquivWork * p1Floor)
+	}
+	if plainEquivWork > 0 && p2Floor > 0 {
+		state.Near2EfficiencyRatio = state.Near2.ESS / (plainEquivWork * p2Floor)
+	}
+
+	exactESSPerWork := 0.0
+	if state.Work > 0 {
+		exactESSPerWork = state.Exact.ESS / float64(state.Work)
+	}
+
+	log.Printf("rare-position-evaluation-chunk: group=%d team=%d position=%d snapshot_iteration=%d stage=%d chunk=%d chunk_samples=%d cumulative_samples=%d cumulative_work=%d exact_hits=%d exact_ess=%.3f exact_ess_per_work=%.8g exact_max_weight_share=%.3f near1_hits=%d near1_ess=%.3f near1_efficiency_ratio=%.3f near2_hits=%d near2_ess=%.3f near2_efficiency_ratio=%.3f",
+		groupID, teamID, targetPos, state.Snapshot.SourceIteration, state.Stage, state.Chunks,
+		chunkSamples, state.Samples, state.Work,
+		state.Exact.Hits, state.Exact.ESS, exactESSPerWork, state.Exact.MaxWeightShare,
+		state.Near1.Hits, state.Near1.ESS, state.Near1EfficiencyRatio,
+		state.Near2.Hits, state.Near2.ESS, state.Near2EfficiencyRatio)
+}
+
+func cemStateBetterForRace(a, b *CEMEvaluationState) bool {
+	aHasExact := a.Exact.Hits > 0
+	bHasExact := b.Exact.Hits > 0
+
+	if aHasExact != bHasExact {
+		return aHasExact
+	}
+
+	if aHasExact && bHasExact {
+		aESSPerWork := a.Exact.ESS / float64(a.Work)
+		bESSPerWork := b.Exact.ESS / float64(b.Work)
+		if aESSPerWork != bESSPerWork {
+			return aESSPerWork > bESSPerWork
+		}
+		if a.Exact.ESS != b.Exact.ESS {
+			return a.Exact.ESS > b.Exact.ESS
+		}
+		if a.Exact.Hits != b.Exact.Hits {
+			return a.Exact.Hits > b.Exact.Hits
+		}
+		aShare := 0.0
+		if a.Exact.SumY > 0 {
+			aShare = a.Exact.MaxWeightShare / a.Exact.SumY
+		}
+		bShare := 0.0
+		if b.Exact.SumY > 0 {
+			bShare = b.Exact.MaxWeightShare / b.Exact.SumY
+		}
+		if aShare != bShare {
+			return aShare < bShare
+		}
+		if a.Near1EfficiencyRatio != b.Near1EfficiencyRatio {
+			return a.Near1EfficiencyRatio > b.Near1EfficiencyRatio
+		}
+		if a.AdaptationPriority != b.AdaptationPriority {
+			return a.AdaptationPriority > b.AdaptationPriority
+		}
+		if a.Snapshot.Proposal.KL != b.Snapshot.Proposal.KL {
+			return a.Snapshot.Proposal.KL < b.Snapshot.Proposal.KL
+		}
+		return a.Snapshot.SourceIteration < b.Snapshot.SourceIteration
+	}
+
+	if a.Near1EfficiencyRatio != b.Near1EfficiencyRatio {
+		return a.Near1EfficiencyRatio > b.Near1EfficiencyRatio
+	}
+	aNear1ESSPerWork := a.Near1.ESS / float64(a.Work)
+	bNear1ESSPerWork := b.Near1.ESS / float64(b.Work)
+	if aNear1ESSPerWork != bNear1ESSPerWork {
+		return aNear1ESSPerWork > bNear1ESSPerWork
+	}
+	if a.Near2EfficiencyRatio != b.Near2EfficiencyRatio {
+		return a.Near2EfficiencyRatio > b.Near2EfficiencyRatio
+	}
+	aNear2ESSPerWork := a.Near2.ESS / float64(a.Work)
+	bNear2ESSPerWork := b.Near2.ESS / float64(b.Work)
+	if aNear2ESSPerWork != bNear2ESSPerWork {
+		return aNear2ESSPerWork > bNear2ESSPerWork
+	}
+	if a.AdaptationPriority != b.AdaptationPriority {
+		return a.AdaptationPriority > b.AdaptationPriority
+	}
+	if a.Snapshot.InitialEliteDistance != b.Snapshot.InitialEliteDistance {
+		return a.Snapshot.InitialEliteDistance < b.Snapshot.InitialEliteDistance
+	}
+	if a.Snapshot.Proposal.KL != b.Snapshot.Proposal.KL {
+		return a.Snapshot.Proposal.KL < b.Snapshot.Proposal.KL
+	}
+	return a.Snapshot.SourceIteration < b.Snapshot.SourceIteration
+}
+
+func cemStateEarlyAccept(st *CEMEvaluationState) bool {
+	if st == nil {
+		return false
+	}
+	maxShare := 0.0
+	if st.Exact.SumY > 0 {
+		maxShare = st.Exact.MaxWeightShare / st.Exact.SumY
+	}
+	return st.Exact.Hits >= 2 && st.Exact.ESS >= CEMEvaluationEarlyAcceptESS && maxShare <= 0.90
+}
+
+func convertToEvaluations(states []*CEMEvaluationState) []CEMProposalEvaluation {
+	evals := make([]CEMProposalEvaluation, len(states))
+	for i, st := range states {
+		essPerWork := 0.0
+		if st.Work > 0 {
+			essPerWork = st.Exact.ESS / float64(st.Work)
+		}
+		secondMoment := 0.0
+		if st.Samples > 0 {
+			secondMoment = st.Exact.SumY2 / float64(st.Samples)
+		}
+		maxShare := 0.0
+		if st.Exact.SumY > 0 {
+			maxShare = st.Exact.MaxWeightShare / st.Exact.SumY
+		}
+		evals[i] = CEMProposalEvaluation{
+			Snapshot:             st.Snapshot,
+			Samples:              st.Samples,
+			Hits:                 st.Exact.Hits,
+			SumY:                 st.Exact.SumY,
+			SumY2:                st.Exact.SumY2,
+			Probability:          st.Exact.Probability,
+			StdErr:               st.Exact.StdErr,
+			RelSE:                st.Exact.RelSE,
+			ESS:                  st.Exact.ESS,
+			ESSPerWork:           essPerWork,
+			SecondMoment:         secondMoment,
+			MaxEventWeightShare: maxShare,
+			Work:                 st.Work,
+			Exact:                st.Exact,
+			Near1:                st.Near1,
+			Near2:                st.Near2,
+			Near1EfficiencyRatio: st.Near1EfficiencyRatio,
+			Near2EfficiencyRatio: st.Near2EfficiencyRatio,
+		}
+	}
+	return evals
+}
+
+func convertToSingleEvaluation(groupID int, st *CEMEvaluationState, earlyAccept bool, reason string) *CEMProposalEvaluation {
+	if st == nil {
+		return nil
+	}
+	evals := convertToEvaluations([]*CEMEvaluationState{st})
+	res := evals[0]
+	res.EarlyAccept = earlyAccept
+	log.Printf("rare-position-evaluation-result: group=%d selected=importance_sampling team=%d position=%d snapshot_iteration=%d evaluation_samples=%d evaluation_work=%d exact_hits=%d exact_ess=%.3f exact_ess_per_work=%.8g near1_ess=%.3f near1_efficiency_ratio=%.3f near2_ess=%.3f near2_efficiency_ratio=%.3f early_accept=%t reason=%s",
+		groupID, st.Snapshot.CandidateTeam, st.Snapshot.CandidatePosition, st.Snapshot.SourceIteration,
+		st.Samples, st.Work, st.Exact.Hits, st.Exact.ESS, res.ESSPerWork,
+		st.Near1.ESS, st.Near1EfficiencyRatio, st.Near2.ESS, st.Near2EfficiencyRatio, earlyAccept, reason)
+	return &res
+}
+
+func runCEMProposalRacing(
+	groupID int,
+	snapshots []CEMProposalSnapshot,
+	original []GameProposalMeans,
+	baseCampaign []*TeamCampaign,
+	games []*GameType,
+	table *Table,
+	order []SortType,
+	teamGroups []TeamType,
+	normalPositionCounts map[int][]int,
+	normalSamples int,
+	evaluationWorkRemaining *int64,
+	remainingWork *int64,
+	workPerSample int64,
+	evaluationSeed int64,
+) ([]CEMProposalEvaluation, *CEMProposalEvaluation) {
+	if len(snapshots) == 0 {
+		return nil, nil
+	}
+
+	states := make([]*CEMEvaluationState, len(snapshots))
+	for i, snap := range snapshots {
+		states[i] = &CEMEvaluationState{
+			Snapshot:           snap,
+			Stage:              1,
+			AdaptationPriority: cemSnapshotPriority(snap),
+		}
+	}
+
+	chunkWork := int64(CEMEvaluationChunkSamples) * workPerSample
+
+	logRaceRanking := func(stage int, reason string) {
+		ranked := append([]*CEMEvaluationState(nil), states...)
+		sort.Slice(ranked, func(i, j int) bool {
+			return cemStateBetterForRace(ranked[i], ranked[j])
+		})
+		for r, st := range ranked {
+			tier := "near_target"
+			if st.Exact.Hits > 0 {
+				tier = "exact"
+			}
+			status := "survivor"
+			if r == 0 {
+				status = "leader"
+			}
+			if st.Eliminated {
+				status = "eliminated"
+			}
+			exactESSPerWork := 0.0
+			if st.Work > 0 {
+				exactESSPerWork = st.Exact.ESS / float64(st.Work)
+			}
+			log.Printf("rare-position-evaluation-race: group=%d stage=%d rank=%d team=%d position=%d snapshot_iteration=%d samples=%d score_tier=%s exact_hits=%d exact_ess_per_work=%.8g near1_efficiency_ratio=%.3f near2_efficiency_ratio=%.3f adaptation_priority=%.3f status=%s reason=%s",
+				groupID, stage, r+1, st.Snapshot.CandidateTeam, st.Snapshot.CandidatePosition,
+				st.Snapshot.SourceIteration, st.Samples, tier, st.Exact.Hits, exactESSPerWork,
+				st.Near1EfficiencyRatio, st.Near2EfficiencyRatio, st.AdaptationPriority, status, reason)
+		}
+	}
+
+	// STAGE 1: Screening - 100 samples per shortlisted proposal
+	for _, st := range states {
+		if *remainingWork < chunkWork || *evaluationWorkRemaining < chunkWork {
+			st.Eliminated = true
+			st.EliminationReason = "evaluation_budget_exhausted"
+			continue
+		}
+		_, p1, p2 := scoutPNeighborhood(normalPositionCounts, st.Snapshot.CandidateTeam, st.Snapshot.CandidatePosition, normalSamples)
+
+		chunkRNG := rand.New(rand.NewSource(deriveRarePositionSeed(evaluationSeed, fmt.Sprintf("eval-chunk-team%d-pos%d-iter%d-chunk%d", st.Snapshot.CandidateTeam, st.Snapshot.CandidatePosition, st.Snapshot.SourceIteration, st.Chunks+1))))
+
+		evaluateCEMChunk(st, original, baseCampaign, games, table, order, teamGroups,
+			CEMEvaluationChunkSamples, workPerSample, chunkRNG, groupID, p1, p2)
+
+		*evaluationWorkRemaining -= chunkWork
+		*remainingWork -= chunkWork
+	}
+
+	logRaceRanking(1, "stage1_screening_complete")
+
+	rankedStage1 := append([]*CEMEvaluationState(nil), states...)
+	sort.Slice(rankedStage1, func(i, j int) bool {
+		return cemStateBetterForRace(rankedStage1[i], rankedStage1[j])
+	})
+
+	if len(rankedStage1) > 0 && cemStateEarlyAccept(rankedStage1[0]) {
+		leader := rankedStage1[0]
+		return convertToEvaluations(states), convertToSingleEvaluation(groupID, leader, true, "early_accept_stage1")
+	}
+
+	// STAGE 2: Narrowing - Keep top 2, evaluate +100 samples
+	if len(rankedStage1) > 2 {
+		for i := 2; i < len(rankedStage1); i++ {
+			rankedStage1[i].Eliminated = true
+			rankedStage1[i].EliminationReason = "stage1_bottom_rank"
+		}
+	}
+
+	var stage2Survivors []*CEMEvaluationState
+	for _, st := range rankedStage1 {
+		if !st.Eliminated {
+			st.Stage = 2
+			stage2Survivors = append(stage2Survivors, st)
+		}
+	}
+
+	for _, st := range stage2Survivors {
+		if *remainingWork < chunkWork || *evaluationWorkRemaining < chunkWork {
+			st.Eliminated = true
+			st.EliminationReason = "evaluation_budget_exhausted"
+			continue
+		}
+		_, p1, p2 := scoutPNeighborhood(normalPositionCounts, st.Snapshot.CandidateTeam, st.Snapshot.CandidatePosition, normalSamples)
+
+		chunkRNG := rand.New(rand.NewSource(deriveRarePositionSeed(evaluationSeed, fmt.Sprintf("eval-chunk-team%d-pos%d-iter%d-chunk%d", st.Snapshot.CandidateTeam, st.Snapshot.CandidatePosition, st.Snapshot.SourceIteration, st.Chunks+1))))
+
+		evaluateCEMChunk(st, original, baseCampaign, games, table, order, teamGroups,
+			CEMEvaluationChunkSamples, workPerSample, chunkRNG, groupID, p1, p2)
+
+		*evaluationWorkRemaining -= chunkWork
+		*remainingWork -= chunkWork
+	}
+
+	logRaceRanking(2, "stage2_narrowing_complete")
+
+	sort.Slice(stage2Survivors, func(i, j int) bool {
+		return cemStateBetterForRace(stage2Survivors[i], stage2Survivors[j])
+	})
+
+	if len(stage2Survivors) > 0 && cemStateEarlyAccept(stage2Survivors[0]) {
+		leader := stage2Survivors[0]
+		return convertToEvaluations(states), convertToSingleEvaluation(groupID, leader, true, "early_accept_stage2")
+	}
+
+	// STAGE 3: Leader Refinement
+	var activeSurvivors []*CEMEvaluationState
+	for _, st := range stage2Survivors {
+		if !st.Eliminated {
+			st.Stage = 3
+			activeSurvivors = append(activeSurvivors, st)
+		}
+	}
+
+	totalSamplesAcrossAll := 0
+	for _, st := range states {
+		totalSamplesAcrossAll += st.Samples
+	}
+
+	for totalSamplesAcrossAll < CEMMaxEvaluationSamples && *remainingWork >= chunkWork && *evaluationWorkRemaining >= chunkWork && len(activeSurvivors) > 0 {
+		sort.Slice(activeSurvivors, func(i, j int) bool {
+			return cemStateBetterForRace(activeSurvivors[i], activeSurvivors[j])
+		})
+
+		currentLeader := activeSurvivors[0]
+		if cemStateEarlyAccept(currentLeader) {
+			return convertToEvaluations(states), convertToSingleEvaluation(groupID, currentLeader, true, "early_accept_stage3")
+		}
+
+		_, p1, p2 := scoutPNeighborhood(normalPositionCounts, currentLeader.Snapshot.CandidateTeam, currentLeader.Snapshot.CandidatePosition, normalSamples)
+
+		chunkRNG := rand.New(rand.NewSource(deriveRarePositionSeed(evaluationSeed, fmt.Sprintf("eval-chunk-team%d-pos%d-iter%d-chunk%d", currentLeader.Snapshot.CandidateTeam, currentLeader.Snapshot.CandidatePosition, currentLeader.Snapshot.SourceIteration, currentLeader.Chunks+1))))
+
+		evaluateCEMChunk(currentLeader, original, baseCampaign, games, table, order, teamGroups,
+			CEMEvaluationChunkSamples, workPerSample, chunkRNG, groupID, p1, p2)
+
+		*evaluationWorkRemaining -= chunkWork
+		*remainingWork -= chunkWork
+		totalSamplesAcrossAll += CEMEvaluationChunkSamples
+
+		logRaceRanking(3, "stage3_refinement_chunk")
+
+		if cemStateEarlyAccept(currentLeader) {
+			return convertToEvaluations(states), convertToSingleEvaluation(groupID, currentLeader, true, "early_accept_stage3")
+		}
+	}
+
+	finalRanked := append([]*CEMEvaluationState(nil), states...)
+	sort.Slice(finalRanked, func(i, j int) bool {
+		return cemStateBetterForRace(finalRanked[i], finalRanked[j])
+	})
+
+	if len(finalRanked) > 0 {
+		best := finalRanked[0]
+		if best.Exact.Hits >= 1 && best.Exact.ESS > 0 {
+			return convertToEvaluations(states), convertToSingleEvaluation(groupID, best, false, "final_evaluation_exact_event_winner")
+		}
+	}
+
+	log.Printf("rare-position-evaluation-result: group=%d selected=plain_mc team=0 position=-1 snapshot_iteration=0 evaluation_samples=0 evaluation_work=0 exact_hits=0 exact_ess=0.000 exact_ess_per_work=0.00000000 near1_ess=0.000 near1_efficiency_ratio=0.000 near2_ess=0.000 near2_efficiency_ratio=0.000 early_accept=false reason=all_proposals_zero_exact_hits_in_evaluation",
+		groupID)
+
+	return convertToEvaluations(states), nil
+}
+
 
 func summarizeCEMProposalEvaluation(snapshot CEMProposalSnapshot,
 	pilot WeightedPilotResult, work int64) CEMProposalEvaluation {
@@ -2262,18 +2611,4 @@ func summarizeCEMProposalEvaluation(snapshot CEMProposalSnapshot,
 		evaluation.ESSPerWork = evaluation.ESS / float64(work)
 	}
 	return evaluation
-}
-
-func selectCEMProductionEvaluation(evaluations []CEMProposalEvaluation) *CEMProposalEvaluation {
-	var best *CEMProposalEvaluation
-	for i := range evaluations {
-		candidate := &evaluations[i]
-		if candidate.Hits == 0 || candidate.ESS <= 0 || candidate.Work <= 0 {
-			continue
-		}
-		if best == nil || cemSnapshotBetterForEvaluation(*candidate, *best) {
-			best = candidate
-		}
-	}
-	return best
 }
