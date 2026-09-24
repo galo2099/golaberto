@@ -97,7 +97,10 @@ func TestSequentialRarePositionEqualRuntimeBenchmark(t *testing.T) {
 		t.Fatalf("benchmark proposal original-P weight=%g, want %g", components[0].Weight, OriginalMixtureWeight)
 	}
 	thresholdOld, thresholdSet := os.LookupEnv("RARE_POSITION_MIN_INTERESTING_PROBABILITY")
-	if err := os.Setenv("RARE_POSITION_MIN_INTERESTING_PROBABILITY", "1e-8"); err != nil {
+	threshold := ExperimentalRarePositionMinProbability
+	if thresholdSet {
+		threshold = rarePositionMinInterestingProbability()
+	} else if err := os.Setenv("RARE_POSITION_MIN_INTERESTING_PROBABILITY", strconv.FormatFloat(threshold, 'g', -1, 64)); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
@@ -130,7 +133,7 @@ func TestSequentialRarePositionEqualRuntimeBenchmark(t *testing.T) {
 	prunedSamples := maxInt(1, int(math.Round(targetRuntime.Seconds()*bestRate)))
 	seeds := benchmarkSeedList(t)
 	report := sequentialPruningBenchmarkReport{GroupID: group.Id, TeamID: teamID, Position: position,
-		Threshold: ExperimentalRarePositionMinProbability, TargetRuntimeSeconds: targetRuntime.Seconds(), ChosenStride: bestStride,
+		Threshold: threshold, TargetRuntimeSeconds: targetRuntime.Seconds(), ChosenStride: bestStride,
 		Calibration: calibrations, BaselineSamples: baselineSamples, PrunedSamples: prunedSamples, Seeds: seeds}
 	reference, hasReference := benchmarkFloatEnv("RARE_POSITION_PRUNING_REFERENCE_PROBABILITY")
 	var baselineSquared, prunedSquared float64
