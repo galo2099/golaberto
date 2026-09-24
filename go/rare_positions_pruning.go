@@ -46,6 +46,29 @@ func sequentialPruningTargetSampleCap() int {
 	return value
 }
 
+type SequentialPruningProfileConfig struct {
+	Enabled    bool
+	SampleRate int
+}
+
+func sequentialPruningProfilingEnabled() bool {
+	return os.Getenv("RARE_POSITION_SEQUENTIAL_PRUNING_PROFILE") == "1"
+}
+
+func sequentialPruningProfileConfig() SequentialPruningProfileConfig {
+	enabled := sequentialPruningProfilingEnabled()
+	rate := 64
+	if raw := os.Getenv("RARE_POSITION_SEQUENTIAL_PRUNING_PROFILE_SAMPLE_RATE"); raw != "" {
+		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
+			rate = parsed
+		}
+	}
+	return SequentialPruningProfileConfig{
+		Enabled:    enabled,
+		SampleRate: rate,
+	}
+}
+
 type rarePositionProbabilityClass string
 
 const (
@@ -215,6 +238,9 @@ type incrementalPositionBounds struct {
 	IncrementalUpdates      int64
 	TargetThresholdChanges int64
 	TeamBoundRecomputations int64
+	UpdateDuration          time.Duration
+	ReclassifyDuration      time.Duration
+	RankCheckDuration       time.Duration
 }
 
 func (state *incrementalPositionBounds) reset(
@@ -243,6 +269,9 @@ func (state *incrementalPositionBounds) reset(
 	state.IncrementalUpdates = 0
 	state.TargetThresholdChanges = 0
 	state.TeamBoundRecomputations = 0
+	state.UpdateDuration = 0
+	state.ReclassifyDuration = 0
+	state.RankCheckDuration = 0
 
 	for i := 0; i < teamCount; i++ {
 		c := simCampaign[template.denseToCampaignIndex[i]]
@@ -272,15 +301,19 @@ func newIncrementalPositionBoundsFromTemplate(
 	return state
 }
 
-func (state *incrementalPositionBounds) ensureClassificationCurrent() {
+func (state *incrementalPositionBounds) ensureClassificationCurrent(profile bool) {
 	if !state.classificationDirty {
 		return
 	}
-	state.reclassifyAll()
+	state.reclassifyAll(profile)
 	state.classificationDirty = false
 }
 
-func (state *incrementalPositionBounds) reclassifyAll() {
+func (state *incrementalPositionBounds) reclassifyAll(profile bool) {
+	var start time.Time
+	if profile {
+		start = time.Now()
+	}
 	state.FullRescans++
 	state.aboveCount = 0
 	state.belowCount = 0
@@ -300,12 +333,20 @@ func (state *incrementalPositionBounds) reclassifyAll() {
 			state.belowCount++
 		}
 	}
+	if profile {
+		state.ReclassifyDuration += time.Since(start)
+	}
 }
 
 func (state *incrementalPositionBounds) gameCompleted(
 	gameIdx int,
 	simCampaign []*TeamCampaign,
+	profile bool,
 ) {
+	var start time.Time
+	if profile {
+		start = time.Now()
+	}
 	state.remainingGames--
 	tpl := state.template
 	hDense := tpl.homeDense[gameIdx]
@@ -343,6 +384,9 @@ func (state *incrementalPositionBounds) gameCompleted(
 			state.targetMax = state.maxPoints[targetIdx]
 		}
 		state.classificationDirty = true
+		if profile {
+			state.UpdateDuration += time.Since(start)
+		}
 	} else {
 		state.IncrementalUpdates++
 		if !state.classificationDirty {
@@ -352,6 +396,9 @@ func (state *incrementalPositionBounds) gameCompleted(
 			if aDense >= 0 {
 				state.updateTeamClassification(aDense)
 			}
+		}
+		if profile {
+			state.UpdateDuration += time.Since(start)
 		}
 	}
 }
@@ -378,12 +425,22 @@ func (state *incrementalPositionBounds) updateTeamClassification(denseIdx int) {
 	}
 }
 
-func (state *incrementalPositionBounds) ranks() (bestRank, worstRank int, hasUnplayed bool) {
+func (state *incrementalPositionBounds) ranks(profile bool) (bestRank, worstRank int, hasUnplayed bool) {
 	if state.remainingGames == 0 {
 		return 0, 0, false
 	}
-	state.ensureClassificationCurrent()
-	return state.aboveCount, (state.template.teamCount - 1) - state.belowCount, true
+	state.ensureClassificationCurrent(profile)
+	var start time.Time
+	if profile {
+		start = time.Now()
+	}
+	bestRank = state.aboveCount
+	worstRank = (state.template.teamCount - 1) - state.belowCount
+	hasUnplayed = true
+	if profile {
+		state.RankCheckDuration += time.Since(start)
+	}
+	return bestRank, worstRank, hasUnplayed
 }
 
 type SequentialPruningStats struct {
@@ -393,6 +450,9 @@ type SequentialPruningStats struct {
 	SolverChecks               int           `json:"solver_checks"`
 	SolverDuration             time.Duration `json:"-"`
 	PruningBookkeepingDuration time.Duration `json:"-"`
+	UpdateDuration             time.Duration `json:"-"`
+	ReclassifyDuration         time.Duration `json:"-"`
+	RankCheckDuration          time.Duration `json:"-"`
 	SampleDuration             time.Duration `json:"-"`
 	ChosenComponent            int           `json:"chosen_component"`
 	CompletedRank              int           `json:"completed_rank"`
@@ -403,6 +463,7 @@ type SequentialPruningStats struct {
 	IncrementalUpdates         int64         `json:"incremental_updates"`
 	TargetThresholdChanges    int64         `json:"target_threshold_changes"`
 	TeamBoundRecomputations    int64         `json:"team_bound_recomputations"`
+	Profiled                   bool          `json:"profiled"`
 }
 
 type SequentialGameOrdering struct {
@@ -684,7 +745,7 @@ func calibrateSequentialPruning(
 			} else {
 				_, _, _, warmUpState = simulateTargetSequential(baseCampaign, games, gameIndexes, originalMeans, components,
 					compWeights, table, sortOrder, teamGroups, targetTeamID, targetPosition, spec.stride, false, template,
-					warmUpState, warmUpLogQ, rng)
+					warmUpState, warmUpLogQ, false, rng)
 			}
 		}
 
@@ -727,7 +788,7 @@ func calibrateSequentialPruning(
 					var stats SequentialPruningStats
 					_, _, stats, scratchState = simulateTargetSequential(baseCampaign, games, gameIndexes, originalMeans, components,
 						compWeights, table, sortOrder, teamGroups, targetTeamID, targetPosition, spec.stride, false, template,
-						scratchState, logQScratch, rng)
+					scratchState, logQScratch, false, rng)
 					gamesSimulated += int64(stats.GamesSimulated)
 					repResult.SolverSeconds += stats.SolverDuration.Seconds()
 					repResult.PruningBookkeepingSeconds += stats.PruningBookkeepingDuration.Seconds()
@@ -822,12 +883,10 @@ func simulateTargetSequential(
 	template *incrementalPositionBoundsTemplate,
 	scratchState *incrementalPositionBounds,
 	logQOverPScratch []float64,
+	profile bool,
 	rng *rand.Rand,
 ) (rank int, weight float64, stats SequentialPruningStats, scratchOut *incrementalPositionBounds) {
 	started := time.Now()
-	var bkDuration time.Duration
-	bkStart := started
-
 	stats.PruneGameIndex = -1
 	simCampaign := make([]*TeamCampaign, len(baseCampaign))
 	for i, campaign := range baseCampaign {
@@ -871,7 +930,7 @@ func simulateTargetSequential(
 	} else {
 		state.reset(template, simCampaign)
 	}
-	bkDuration += time.Since(bkStart)
+	stats.Profiled = profile
 
 	completedUnplayed := 0
 	if stride < 1 {
@@ -909,22 +968,21 @@ func simulateTargetSequential(
 			simCampaign[idx].add_game(completed)
 		}
 
-		bkStart = time.Now()
-		state.gameCompleted(gameIndex, simCampaign)
+		state.gameCompleted(gameIndex, simCampaign, profile)
 		completedUnplayed++
 		stats.GamesSimulated++
 		if completedUnplayed%stride == 0 && state.remainingGames > 0 {
-			checkStart := time.Now()
-			best, worst, _ := state.ranks()
-			stats.SolverDuration += time.Since(checkStart)
+			best, worst, _ := state.ranks(profile)
 			stats.SolverChecks++
 			if targetPosition < best || targetPosition > worst {
-				bkDuration += time.Since(bkStart)
 				stats.Pruned = true
 				stats.PruneGameIndex = completedUnplayed - 1
 				stats.MeanWeightDiagnostic = mixtureImportanceWeightMulti(logQOverP, componentWeights)
 				stats.SampleDuration = time.Since(started)
-				stats.PruningBookkeepingDuration = bkDuration
+				stats.UpdateDuration = state.UpdateDuration
+				stats.ReclassifyDuration = state.ReclassifyDuration
+				stats.RankCheckDuration = state.RankCheckDuration
+				stats.PruningBookkeepingDuration = state.UpdateDuration + state.ReclassifyDuration + state.RankCheckDuration
 				stats.FullRescans = state.FullRescans
 				stats.IncrementalUpdates = state.IncrementalUpdates
 				stats.TargetThresholdChanges = state.TargetThresholdChanges
@@ -932,9 +990,11 @@ func simulateTargetSequential(
 				return -1, 0, stats, state
 			}
 		}
-		bkDuration += time.Since(bkStart)
 	}
-	stats.PruningBookkeepingDuration = bkDuration
+	stats.UpdateDuration = state.UpdateDuration
+	stats.ReclassifyDuration = state.ReclassifyDuration
+	stats.RankCheckDuration = state.RankCheckDuration
+	stats.PruningBookkeepingDuration = state.UpdateDuration + state.ReclassifyDuration + state.RankCheckDuration
 	stats.FullRescans = state.FullRescans
 	stats.IncrementalUpdates = state.IncrementalUpdates
 	stats.TargetThresholdChanges = state.TargetThresholdChanges
@@ -1005,6 +1065,13 @@ type SequentialRareEstimate struct {
 	PruningBookkeepingDuration time.Duration                `json:"-"`
 	PruningBookkeepingSeconds  float64                      `json:"pruning_bookkeeping_seconds"`
 	PruningBookkeepingFraction float64                      `json:"pruning_bookkeeping_fraction_of_runtime"`
+	ProfilingEnabled           bool                         `json:"profiling_enabled"`
+	ProfileSampleRate          int                          `json:"profile_sample_rate"`
+	ProfiledSamples            int                          `json:"profiled_samples"`
+	ProfiledGames              int64                        `json:"profiled_games"`
+	PruningUpdateSeconds       float64                      `json:"pruning_update_seconds,omitempty"`
+	PruningReclassifySeconds   float64                      `json:"pruning_reclassify_seconds,omitempty"`
+	PruningRankCheckSeconds    float64                      `json:"pruning_rank_check_seconds,omitempty"`
 	FullRescans                int64                        `json:"solver_full_rescans"`
 	IncrementalUpdates         int64                        `json:"solver_incremental_updates"`
 	TargetThresholdChanges     int64                        `json:"solver_target_threshold_changes"`
@@ -1067,6 +1134,9 @@ func runSequentialRareEstimate(
 	}
 	var scratchState *incrementalPositionBounds
 	logQScratch := make([]float64, len(components))
+	profConfig := sequentialPruningProfileConfig()
+	result.ProfilingEnabled = profConfig.Enabled
+	result.ProfileSampleRate = profConfig.SampleRate
 
 	var sumCompletedWeight, pruneIndexSum float64
 	var completedWeights int
@@ -1092,9 +1162,10 @@ func runSequentialRareEstimate(
 			stats.ImportanceWeight = weight
 			stats.MeanWeightDiagnostic = weight
 		} else {
+			profileSample := profConfig.Enabled && (i%profConfig.SampleRate == 0)
 			rank, weight, stats, scratchState = simulateTargetSequential(baseCampaign, games, selectedOrdering.GameIndexes,
 				originalMeans, components, compWeights, table, sortOrder, teamGroups, targetTeamID, targetPosition, stride, false, template,
-				scratchState, logQScratch, rng)
+				scratchState, logQScratch, profileSample, rng)
 		}
 		result.GamesSimulated += int64(stats.GamesSimulated)
 		result.SolverChecks += int64(stats.SolverChecks)
@@ -1104,6 +1175,13 @@ func runSequentialRareEstimate(
 		result.IncrementalUpdates += stats.IncrementalUpdates
 		result.TargetThresholdChanges += stats.TargetThresholdChanges
 		result.TeamBoundRecomputations += stats.TeamBoundRecomputations
+		if stats.Profiled {
+			result.ProfiledSamples++
+			result.ProfiledGames += int64(stats.GamesSimulated)
+			result.PruningUpdateSeconds += stats.UpdateDuration.Seconds()
+			result.PruningReclassifySeconds += stats.ReclassifyDuration.Seconds()
+			result.PruningRankCheckSeconds += stats.RankCheckDuration.Seconds()
+		}
 		if stats.Pruned {
 			result.Pruned++
 			result.SufficientStats.observeZero()

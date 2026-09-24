@@ -61,6 +61,8 @@ func logRarePositionRequestEnvironment() {
 	fields = append(fields,
 		"effective_importance_sampling="+strconv.FormatBool(rarePositionSamplingEnabled()),
 		"effective_sequential_pruning="+strconv.FormatBool(sequentialPruningEnabled()),
+		"effective_sequential_pruning_profile="+strconv.FormatBool(sequentialPruningProfilingEnabled()),
+		"effective_sequential_pruning_profile_sample_rate="+strconv.Itoa(sequentialPruningProfileConfig().SampleRate),
 		"effective_sequential_pruning_calibration_samples="+strconv.Itoa(sequentialPruningCalibrationSampleCount()),
 		"effective_sequential_pruning_max_target_samples="+strconv.Itoa(sequentialPruningTargetSampleCap()),
 		"effective_scout_iterations="+strconv.Itoa(rarePositionScoutIterations()),
@@ -1917,16 +1919,50 @@ func runRarePositionSearchEvaluationProduction(group *GroupType, campaign []*Tea
 			allRankTarget.WorkSpent+sequentialPlan.TargetWork, "importance_sampling_sequential_pruning_pooled")
 		productionEstimates[design.TargetTeam][design.TargetPosition] = combinedTarget
 		productionWork += sequentialPlan.TargetWork
-		log.Printf("rare-position-sequential-pruning-production: group=%d team=%d position=%d ordering=%s stride=%d samples=%d pruned=%d pruned_fraction=%.4f games=%d average_games=%.2f prune_p10=%.1f prune_p25=%.1f prune_p50=%.1f prune_p75=%.1f prune_p90=%.1f pruned_before_25pct=%d pruned_before_50pct=%d pruned_before_75pct=%d solver_checks=%d solver_full_rescans=%d solver_incremental_updates=%d solver_team_bound_recomputations=%d solver_seconds=%.6f solver_fraction=%.4f pruning_bookkeeping_seconds=%.6f pruning_bookkeeping_fraction=%.4f elapsed_seconds=%.6f samples_per_second=%.4f hits=%d ESS=%.3f ESS_per_second=%.4g p=%.8g se=%.3g relSE=%.3f nominal_work=%d",
+		var fullRescansPerSample, incrementalUpdatesPerSample, teamBoundRecomputationsPerSample, solverChecksPerSample float64
+		if estimate.Samples > 0 {
+			fullRescansPerSample = float64(estimate.FullRescans) / float64(estimate.Samples)
+			incrementalUpdatesPerSample = float64(estimate.IncrementalUpdates) / float64(estimate.Samples)
+			teamBoundRecomputationsPerSample = float64(estimate.TeamBoundRecomputations) / float64(estimate.Samples)
+			solverChecksPerSample = float64(estimate.SolverChecks) / float64(estimate.Samples)
+		}
+		var gamesSavedPerSample, gamesSavedFraction float64
+		if unplayedGames > 0 {
+			gamesSavedPerSample = float64(unplayedGames) - estimate.AverageGamesPerSample
+			gamesSavedFraction = 1.0 - (estimate.AverageGamesPerSample / float64(unplayedGames))
+		}
+		selectedCalRate := 0.0
+		for _, cal := range sequentialCalibration {
+			if cal.Ordering == sequentialOrdering && cal.Stride == sequentialStride {
+				selectedCalRate = cal.SamplesPerSecond
+				break
+			}
+		}
+		prodToCalRate := 0.0
+		if selectedCalRate > 0 {
+			prodToCalRate = estimate.SamplesPerSecond / selectedCalRate
+		}
+
+		profileLog := "profiling=false"
+		if estimate.ProfilingEnabled {
+			profileLog = fmt.Sprintf("profiling=true profile_sample_rate=%d profiled_samples=%d profiled_games=%d pruning_update_seconds=%.6f pruning_reclassify_seconds=%.6f pruning_rank_check_seconds=%.6f",
+				estimate.ProfileSampleRate, estimate.ProfiledSamples, estimate.ProfiledGames,
+				estimate.PruningUpdateSeconds, estimate.PruningReclassifySeconds, estimate.PruningRankCheckSeconds)
+		}
+
+		log.Printf("rare-position-sequential-pruning-production: group=%d team=%d position=%d ordering=%s stride=%d samples=%d pruned=%d pruned_fraction=%.4f games=%d average_games=%.2f games_saved_per_sample=%.2f games_saved_fraction=%.4f prune_p10=%.1f prune_p25=%.1f prune_p50=%.1f prune_p75=%.1f prune_p90=%.1f pruned_before_25pct=%d pruned_before_50pct=%d pruned_before_75pct=%d solver_checks=%d solver_checks_per_sample=%.1f solver_full_rescans=%d full_rescans_per_sample=%.2f solver_incremental_updates=%d incremental_updates_per_sample=%.2f solver_team_bound_recomputations=%d team_bound_recomputations_per_sample=%.2f %s elapsed_seconds=%.6f samples_per_second=%.4f selected_calibration_samples_per_second=%.4f production_to_calibration_rate=%.4f hits=%d ESS=%.3f ESS_per_second=%.4g p=%.8g se=%.3g relSE=%.3f nominal_work=%d",
 			group.Id, design.TargetTeam, design.TargetPosition, estimate.Ordering, estimate.Stride, estimate.Samples,
 			estimate.Pruned, estimate.PrunedFraction, estimate.GamesSimulated, estimate.AverageGamesPerSample,
+			gamesSavedPerSample, gamesSavedFraction,
 			estimate.PruneP10, estimate.PruneP25, estimate.PruneP50, estimate.PruneP75, estimate.PruneP90,
 			estimate.PrunedBefore25Pct, estimate.PrunedBefore50Pct, estimate.PrunedBefore75Pct,
-			estimate.SolverChecks, estimate.FullRescans, estimate.IncrementalUpdates, estimate.TeamBoundRecomputations,
-			estimate.SolverSeconds, estimate.SolverFraction,
-			estimate.PruningBookkeepingSeconds, estimate.PruningBookkeepingFraction,
-			estimate.ElapsedSeconds, estimate.SamplesPerSecond, estimate.RawHits,
-			estimate.ESS, estimate.ESSPerSecond, estimate.Estimate, estimate.StdErr,
+			estimate.SolverChecks, solverChecksPerSample,
+			estimate.FullRescans, fullRescansPerSample,
+			estimate.IncrementalUpdates, incrementalUpdatesPerSample,
+			estimate.TeamBoundRecomputations, teamBoundRecomputationsPerSample,
+			profileLog,
+			estimate.ElapsedSeconds, estimate.SamplesPerSecond, selectedCalRate, prodToCalRate,
+			estimate.RawHits, estimate.ESS, estimate.ESSPerSecond, estimate.Estimate, estimate.StdErr,
 			relativeSEValue(estimate.RelativeSE),
 			sequentialPlan.TargetWork)
 		log.Printf("rare-position-production-combined: group=%d team=%d position=%d all_rank_samples=%d sequential_samples=%d total_samples=%d all_rank_hits=%d sequential_hits=%d total_hits=%d all_rank_ess=%.3f sequential_ess=%.3f combined_ess=%.3f p=%.8g se=%.3g relSE=%.3f max_event_weight_share=%.3f nominal_work=%d actual_games_simulated=%d actual_wall_seconds=%.6f",

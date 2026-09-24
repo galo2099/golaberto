@@ -289,7 +289,7 @@ func validateIncrementalBoundsOnFixture(t *testing.T, base []*TeamCampaign, game
 			wantBest, wantWorst, wantRemaining := conservativePositionBounds(target, campaign, teams, prefixGames, table)
 			tpl := newIncrementalPositionBoundsTemplate(prefixGames, teams, table, campaign, target)
 			state := newIncrementalPositionBoundsFromTemplate(tpl, campaign)
-			gotBest, gotWorst, gotRemaining := state.ranks()
+			gotBest, gotWorst, gotRemaining := state.ranks(false)
 			if wantBest != gotBest || wantWorst != gotWorst || wantRemaining != gotRemaining {
 				t.Fatalf("real fixture prefix mismatch seed=%d prefix=%d incremental=(%d,%d,%t) conservative=(%d,%d,%t)",
 					seed, prefix, gotBest, gotWorst, gotRemaining, wantBest, wantWorst, wantRemaining)
@@ -377,7 +377,7 @@ func calibratePruningMethod(base []*TeamCampaign, games []*GameType, original []
 				table, order, groups, team, rng, logs, weights, allRanks)
 		} else {
 			_, _, stats, _ := simulateTargetSequential(base, games, nil, original, components, nil, table,
-				order, groups, team, position, stride, false, nil, nil, nil, rng)
+				order, groups, team, position, stride, false, nil, nil, nil, false, rng)
 			cal.SolverDuration += stats.SolverDuration
 			cal.GamesPerSample += float64(stats.GamesSimulated)
 			if stats.Pruned {
