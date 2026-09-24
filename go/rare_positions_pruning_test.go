@@ -1,11 +1,42 @@
 package main
 
 import (
+	"bytes"
+	"log"
 	"math"
 	"math/rand"
 	"sort"
+	"strings"
 	"testing"
 )
+
+func TestRarePositionEnvironmentIsPrintedWithEffectiveDefaults(t *testing.T) {
+	t.Setenv("RARE_POSITION_RANDOM_SEED", "12345")
+	t.Setenv("RARE_POSITION_BENCHMARK_ITERATIONS", "20000")
+	t.Setenv("RARE_POSITION_IMPORTANCE_SAMPLING", "1")
+	t.Setenv("RARE_POSITION_CEM_RACING_MODE", "legacy")
+	t.Setenv("RARE_POSITION_MIN_INTERESTING_PROBABILITY", "1e-8")
+	previousWriter := log.Writer()
+	var output bytes.Buffer
+	log.SetOutput(&output)
+	defer log.SetOutput(previousWriter)
+
+	logRarePositionRequestEnvironment()
+	line := output.String()
+	for _, expected := range []string{
+		`RARE_POSITION_RANDOM_SEED="12345"`,
+		`RARE_POSITION_BENCHMARK_ITERATIONS="20000"`,
+		`RARE_POSITION_CEM_RACING_MODE="legacy"`,
+		`effective_importance_sampling=true`,
+		`effective_scout_iterations=20000`,
+		`effective_cem_racing_mode=legacy`,
+		`effective_min_interesting_probability=1e-08`,
+	} {
+		if !strings.Contains(line, expected) {
+			t.Errorf("environment log does not contain %q: %s", expected, line)
+		}
+	}
+}
 
 func pruningFixture(t *testing.T) ([]*TeamCampaign, []*GameType, []GameProposalMeans, []TeamType, *Table, []SortType) {
 	t.Helper()

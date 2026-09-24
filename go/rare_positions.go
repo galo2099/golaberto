@@ -10,6 +10,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -28,6 +29,48 @@ func rarePositionSeed() (int64, string) {
 		log.Printf("rare-position-rng: invalid configured seed=%q; using time seed", configured)
 	}
 	return time.Now().UnixNano(), "time"
+}
+
+func logRarePositionRequestEnvironment() {
+	variables := []string{
+		"RARE_POSITION_RANDOM_SEED",
+		"RARE_POSITION_BENCHMARK_ITERATIONS",
+		"RARE_POSITION_IMPORTANCE_SAMPLING",
+		"RARE_POSITION_CEM_RACING_MODE",
+		"RARE_POSITION_CEM_PARAMETERIZATION",
+		"RARE_POSITION_BENCHMARK_CEM_PARAMETERIZATION",
+		"RARE_POSITION_CEM_INIT_MODE",
+		"RARE_POSITION_CEM_INIT",
+		"RARE_POSITION_BENCHMARK_CEM_INIT_MODE",
+		"RARE_POSITION_MIN_INTERESTING_PROBABILITY",
+	}
+	fields := make([]string, 0, len(variables)+5)
+	for _, name := range variables {
+		value, ok := os.LookupEnv(name)
+		if !ok {
+			value = "<unset>"
+		} else {
+			value = strconv.Quote(value)
+		}
+		fields = append(fields, name+"="+value)
+	}
+	initMode, initSource := cemInitializationMode()
+	fields = append(fields,
+		"effective_importance_sampling="+strconv.FormatBool(rarePositionSamplingEnabled()),
+		"effective_scout_iterations="+strconv.Itoa(rarePositionScoutIterations()),
+		"effective_cem_racing_mode="+effectiveCEMRacingMode(),
+		"effective_cem_parameterization="+cemParameterizationName(cemParameterizationFromEnvironment()),
+		"effective_cem_initialization="+cemInitializationModeName(initMode)+"/"+initSource,
+		"effective_min_interesting_probability="+strconv.FormatFloat(rarePositionMinInterestingProbability(), 'g', -1, 64),
+	)
+	log.Printf("rare-position-environment: %s", strings.Join(fields, " "))
+}
+
+func effectiveCEMRacingMode() string {
+	if os.Getenv("RARE_POSITION_CEM_RACING_MODE") == "legacy" {
+		return "legacy"
+	}
+	return "evidence"
 }
 
 func cemFrontierFingerprint(candidates []*FrontierCandidate,

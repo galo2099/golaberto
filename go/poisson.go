@@ -767,6 +767,7 @@ func calculateSimilarity(a, b []float64) float64 {
 }
 
 func calculateChampionshipOdds(c http.ResponseWriter, req *http.Request) {
+	logRarePositionRequestEnvironment()
 	fmt.Printf("New Request\n")
 	fmt.Println(req.Body)
 	dec := json.NewDecoder(req.Body)
