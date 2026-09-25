@@ -485,6 +485,174 @@ func TestCommonCellPlainDominated(t *testing.T) {
 	}
 }
 
+func TestProbabilityScaleInvariance(t *testing.T) {
+	cellA := [2]int{1, 1}
+	cellB := [2]int{2, 10}
+
+	pRegMap := map[[2]int]float64{
+		cellA: 1e-2,
+		cellB: 1e-5,
+	}
+
+	// Both cells start with current relative ESS = 2.0 (target ESS = 10.0, deficit = 8.0)
+	predictedRelESS := map[[2]int]float64{
+		cellA: 2.0,
+		cellB: 2.0,
+	}
+
+	// Proposal chunk (chunkSamples = 500, chunkWork = 175000)
+	// precPerSample chosen so both cells gain deltaRelESS = 3.0:
+	// deltaRelESS = p^2 * chunkSamples * precPerSample
+	// For A: 3.0 = (1e-4) * 500 * precA => precA = 60.0
+	// For B: 3.0 = (1e-10) * 500 * precB => precB = 6e7
+	precPerSample := map[string]map[[2]int]float64{
+		"propA": {cellA: 60.0, cellB: 0.0},
+		"propB": {cellA: 0.0, cellB: 6e7},
+	}
+
+	propA := DiversifiedProposal{ID: "propA", WorkPerSample: 350}
+	propB := DiversifiedProposal{ID: "propB", WorkPerSample: 350}
+
+	utilA := diversifiedChunkUtility(propA, 500, 175000, [][2]int{cellA, cellB}, predictedRelESS, pRegMap, precPerSample, 10.0)
+	utilB := diversifiedChunkUtility(propB, 500, 175000, [][2]int{cellA, cellB}, predictedRelESS, pRegMap, precPerSample, 10.0)
+
+	if math.Abs(utilA-utilB) > 1e-12 {
+		t.Errorf("Expected equal relative-ESS utility gain across probability scales, got utilA=%g, utilB=%g", utilA, utilB)
+	}
+	wantUtil := 3.0 / 175000.0
+	if math.Abs(utilA-wantUtil) > 1e-12 {
+		t.Errorf("Expected utility %g, got %g", wantUtil, utilA)
+	}
+}
+
+func TestRelativeESSSaturation(t *testing.T) {
+	cell := [2]int{1, 5}
+	pRegMap := map[[2]int]float64{cell: 1e-3}
+	predictedRelESS := map[[2]int]float64{cell: 12.0} // > target 10.0
+
+	precPerSample := map[string]map[[2]int]float64{
+		"prop": {cell: 1e8},
+	}
+
+	prop := DiversifiedProposal{ID: "prop", WorkPerSample: 350}
+	util := diversifiedChunkUtility(prop, 500, 175000, [][2]int{cell}, predictedRelESS, pRegMap, precPerSample, 10.0)
+
+	if util != 0.0 {
+		t.Errorf("Expected 0 utility for saturated cell (current ESS 12 >= 10), got %g", util)
+	}
+}
+
+func TestRelativeESSDeficitCapping(t *testing.T) {
+	cell := [2]int{1, 5}
+	pRegMap := map[[2]int]float64{cell: 1e-3}
+	predictedRelESS := map[[2]int]float64{cell: 8.0} // target 10.0, deficit = 2.0
+
+	// Delta relESS = (1e-6) * 500 * (4e10) = 20.0
+	precPerSample := map[string]map[[2]int]float64{
+		"prop": {cell: 4e10},
+	}
+
+	prop := DiversifiedProposal{ID: "prop", WorkPerSample: 350}
+	util := diversifiedChunkUtility(prop, 500, 175000, [][2]int{cell}, predictedRelESS, pRegMap, precPerSample, 10.0)
+
+	wantUtil := 2.0 / 175000.0 // capped at deficit = 2.0
+	if math.Abs(util-wantUtil) > 1e-12 {
+		t.Errorf("Expected utility capped at deficit gain %g, got %g", wantUtil, util)
+	}
+}
+
+func TestTargetedProposalBeatsPlainMCOnRareCell(t *testing.T) {
+	cell := [2]int{1, 10} // rare cell p = 1e-5
+	pRegMap := map[[2]int]float64{cell: 1e-5}
+	predictedRelESS := map[[2]int]float64{cell: 0.10} // deficit = 9.90
+
+	// Plain P: var = 1e-5 => prec = 1e5
+	// Targeted Q: var = 1e-7 => prec = 1e7
+	precPerSample := map[string]map[[2]int]float64{
+		"plain_mc": {cell: 1e5},
+		"targeted": {cell: 1e7},
+	}
+
+	propP := DiversifiedProposal{ID: "plain_mc", WorkPerSample: 350}
+	propQ := DiversifiedProposal{ID: "targeted", WorkPerSample: 350}
+
+	utilP := diversifiedChunkUtility(propP, 500, 175000, [][2]int{cell}, predictedRelESS, pRegMap, precPerSample, 10.0)
+	utilQ := diversifiedChunkUtility(propQ, 500, 175000, [][2]int{cell}, predictedRelESS, pRegMap, precPerSample, 10.0)
+
+	if utilQ <= utilP {
+		t.Fatalf("Expected targeted proposal utility (%g) > Plain P utility (%g) on rare cell", utilQ, utilP)
+	}
+	if utilQ/utilP < 90 {
+		t.Errorf("Expected targeted proposal utility ~ 100x Plain P, got ratio %f", utilQ/utilP)
+	}
+}
+
+func TestBroadPlainMCBeatsTargetedWhenSaturated(t *testing.T) {
+	cell := [2]int{1, 1}
+	pRegMap := map[[2]int]float64{cell: 0.20}
+	predictedRelESS := map[[2]int]float64{cell: 15.0} // saturated
+
+	precPerSample := map[string]map[[2]int]float64{
+		"plain_mc": {cell: 6.25},
+		"targeted": {cell: 12.5},
+	}
+
+	propP := DiversifiedProposal{ID: "plain_mc", WorkPerSample: 350}
+	propQ := DiversifiedProposal{ID: "targeted", WorkPerSample: 350}
+
+	utilP := diversifiedChunkUtility(propP, 500, 175000, [][2]int{cell}, predictedRelESS, pRegMap, precPerSample, 10.0)
+	utilQ := diversifiedChunkUtility(propQ, 500, 175000, [][2]int{cell}, predictedRelESS, pRegMap, precPerSample, 10.0)
+
+	if utilP != 0 || utilQ != 0 {
+		t.Errorf("Expected 0 utility for both when cell is saturated, got utilP=%g, utilQ=%g", utilP, utilQ)
+	}
+}
+
+func TestUnequalTargetedAllocations(t *testing.T) {
+	// 5 rare cells
+	cells := [][2]int{{1, 6}, {1, 7}, {1, 8}, {1, 9}, {1, 10}}
+	pRegMap := make(map[[2]int]float64)
+	predictedRelESS := make(map[[2]int]float64)
+	for _, c := range cells {
+		pRegMap[c] = 1e-5
+		predictedRelESS[c] = 0.0 // deficit = 10.0
+	}
+
+	// Q1 supports all 5 cells with prec = 1e7
+	// Q2 supports 1 cell with prec = 1e7
+	// Q3 supports 0 cells (prec = 0)
+	precQ1 := make(map[[2]int]float64)
+	precQ2 := make(map[[2]int]float64)
+	precQ3 := make(map[[2]int]float64)
+
+	for _, c := range cells {
+		precQ1[c] = 1e7
+		precQ3[c] = 0.0
+	}
+	precQ2[cells[0]] = 1e7
+
+	precPerSample := map[string]map[[2]int]float64{
+		"Q1": precQ1,
+		"Q2": precQ2,
+		"Q3": precQ3,
+	}
+
+	q1 := DiversifiedProposal{ID: "Q1", WorkPerSample: 350}
+	q2 := DiversifiedProposal{ID: "Q2", WorkPerSample: 350}
+	q3 := DiversifiedProposal{ID: "Q3", WorkPerSample: 350}
+
+	utilQ1 := diversifiedChunkUtility(q1, 500, 175000, cells, predictedRelESS, pRegMap, precPerSample, 10.0)
+	utilQ2 := diversifiedChunkUtility(q2, 500, 175000, cells, predictedRelESS, pRegMap, precPerSample, 10.0)
+	utilQ3 := diversifiedChunkUtility(q3, 500, 175000, cells, predictedRelESS, pRegMap, precPerSample, 10.0)
+
+	if utilQ1 <= utilQ2 {
+		t.Errorf("Expected Q1 (5 cells) utility (%g) > Q2 (1 cell) utility (%g)", utilQ1, utilQ2)
+	}
+	if utilQ3 != 0 {
+		t.Errorf("Expected Q3 (0 cells) utility = 0, got %g", utilQ3)
+	}
+}
+
 func TestRetainedProposalSurvivesFreeze(t *testing.T) {
 	tg1 := TeamType{Team_id: 1, Bias: 0}
 	tg2 := TeamType{Team_id: 2, Bias: 1}

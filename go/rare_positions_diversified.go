@@ -1137,6 +1137,57 @@ func searchDiversifiedProposals(
 	return retained, probeStatsMap, workSpent
 }
 
+func regularizedScoutProbability(scout ScoutData, cell [2]int) float64 {
+	scoutHits := 0
+	if len(scout.TeamCounts[cell[0]]) > cell[1] {
+		scoutHits = scout.TeamCounts[cell[0]][cell[1]]
+	}
+	pReg := (float64(scoutHits) + 0.5) / (float64(scout.Samples) + 1.0)
+	if pReg < 1e-12 {
+		pReg = 1e-12
+	}
+	return pReg
+}
+
+func diversifiedChunkUtility(
+	proposal DiversifiedProposal,
+	chunkSamples int,
+	chunkWork int64,
+	feasibleCells [][2]int,
+	predictedRelESS map[[2]int]float64,
+	pReg map[[2]int]float64,
+	precPerSample map[string]map[[2]int]float64,
+	targetESS float64,
+) float64 {
+	if chunkWork <= 0 || chunkSamples <= 0 {
+		return 0.0
+	}
+
+	totRelESSGain := 0.0
+	propPrecMap := precPerSample[proposal.ID]
+
+	for _, cell := range feasibleCells {
+		p := pReg[cell]
+		currentESS := predictedRelESS[cell]
+		deficitESS := math.Max(0, targetESS-currentESS)
+		if deficitESS <= 0 {
+			continue
+		}
+
+		prec := propPrecMap[cell]
+		if prec <= 0 || math.IsNaN(prec) || math.IsInf(prec, 0) {
+			continue
+		}
+
+		deltaPrec := float64(chunkSamples) * prec
+		deltaRelESS := (p * p) * deltaPrec
+		gain := math.Min(deficitESS, deltaRelESS)
+		totRelESSGain += gain
+	}
+
+	return totRelESSGain / float64(chunkWork)
+}
+
 func freezeDiversifiedDesign(
 	proposals []DiversifiedProposal,
 	probeStats map[string]ProposalProbeStats,
@@ -1200,14 +1251,18 @@ func freezeDiversifiedDesign(
 		targetPrecision[cell] = tPrec
 	}
 
+	pRegMap := make(map[[2]int]float64, len(feasibleCells))
+	for _, cell := range feasibleCells {
+		pRegMap[cell] = regularizedScoutProbability(scout, cell)
+	}
+
 	// Initial deficit summary logging after mandatory Plain P allocation
 	initPrec := make(map[[2]int]float64, len(feasibleCells))
 	initRelESS := make([]float64, 0, len(feasibleCells))
 	zeroDeficitCells, posDeficitCells := 0, 0
 
 	for _, cell := range feasibleCells {
-		scoutHits := scout.TeamCounts[cell[0]][cell[1]]
-		pReg := (float64(scoutHits) + 0.5) / (float64(scout.Samples) + 1.0)
+		pReg := pRegMap[cell]
 		workP := allocatedWork["plain_mc"]
 		samplesP := workP / plainProp.WorkPerSample
 		precP := float64(samplesP) * precPerSample["plain_mc"][cell]
@@ -1216,7 +1271,7 @@ func freezeDiversifiedDesign(
 		relESS := (pReg * pReg) * precP
 		initRelESS = append(initRelESS, relESS)
 
-		if precP >= targetPrecision[cell] {
+		if relESS >= DiversifiedTargetESS {
 			zeroDeficitCells++
 		} else {
 			posDeficitCells++
@@ -1238,16 +1293,18 @@ func freezeDiversifiedDesign(
 	allocChunk := int64(DiversifiedAllocChunkWork)
 	for remainingProdWork >= allocChunk {
 		roundCount++
-		// Calculate current predicted precision per cell
-		predictedPrec := make(map[[2]int]float64, len(feasibleCells))
+
+		// Compute current predicted relative ESS per cell
+		predictedRelESS := make(map[[2]int]float64, len(feasibleCells))
 		for _, cell := range feasibleCells {
+			p := pRegMap[cell]
 			totPrec := 0.0
 			for _, prop := range proposals {
 				work := allocatedWork[prop.ID]
 				samples := work / prop.WorkPerSample
 				totPrec += float64(samples) * precPerSample[prop.ID][cell]
 			}
-			predictedPrec[cell] = totPrec
+			predictedRelESS[cell] = (p * p) * totPrec
 		}
 
 		type propUtil struct {
@@ -1257,20 +1314,16 @@ func freezeDiversifiedDesign(
 		var propUtils []propUtil
 
 		for _, prop := range proposals {
-			chunkSamples := allocChunk / prop.WorkPerSample
-			actualChunkWork := chunkSamples * prop.WorkPerSample
+			chunkSamples := int(allocChunk / prop.WorkPerSample)
+			actualChunkWork := int64(chunkSamples) * prop.WorkPerSample
 			if actualChunkWork <= 0 || actualChunkWork > remainingProdWork {
 				continue
 			}
 
-			totGain := 0.0
-			for _, cell := range feasibleCells {
-				deficit := math.Max(0, targetPrecision[cell]-predictedPrec[cell])
-				deltaPrec := float64(chunkSamples) * precPerSample[prop.ID][cell]
-				totGain += math.Min(deficit, deltaPrec)
-			}
+			utility := diversifiedChunkUtility(
+				prop, chunkSamples, actualChunkWork, feasibleCells,
+				predictedRelESS, pRegMap, precPerSample, DiversifiedTargetESS)
 
-			utility := totGain / float64(actualChunkWork)
 			propUtils = append(propUtils, propUtil{id: prop.ID, utility: utility})
 		}
 
@@ -1293,7 +1346,7 @@ func freezeDiversifiedDesign(
 		}
 
 		if roundCount <= 10 {
-			log.Printf("rare-position-diversified-alloc-round: round=%d best_prop=%s best_util=%.6e second_prop=%s second_util=%.6e remaining_work=%d",
+			log.Printf("rare-position-diversified-alloc-round: round=%d best_prop=%s best_rel_ess_gain_per_work=%.6e second_prop=%s second_rel_ess_gain_per_work=%.6e remaining_work=%d",
 				roundCount, bestPropID, bestUtility, secondBestPropID, secondBestUtility, remainingProdWork)
 		}
 
@@ -1306,8 +1359,8 @@ func freezeDiversifiedDesign(
 
 		// Allocate chunk to best proposal
 		prop := findProposalByID(proposals, bestPropID)
-		chunkSamples := allocChunk / prop.WorkPerSample
-		actualChunkWork := chunkSamples * prop.WorkPerSample
+		chunkSamples := int(allocChunk / prop.WorkPerSample)
+		actualChunkWork := int64(chunkSamples) * prop.WorkPerSample
 		allocatedWork[bestPropID] += actualChunkWork
 		remainingProdWork -= actualChunkWork
 	}
@@ -1333,23 +1386,73 @@ func freezeDiversifiedDesign(
 
 		for _, cell := range feasibleCells {
 			prec := precPerSample[prop.ID][cell]
+			p := pRegMap[cell]
 			if prec > 0 {
 				posPrecCells++
 			}
-			deficit := math.Max(0, targetPrecision[cell]-initPrec[cell])
-			if prec > 0 && deficit > 0 {
+			initESS := (p * p) * initPrec[cell]
+			deficitESS := math.Max(0, DiversifiedTargetESS-initESS)
+			if prec > 0 && deficitESS > 0 {
 				posDeficitGainCells++
-				totPredictedUtil += math.Min(deficit, float64(samples)*prec)
+				totPredictedUtil += math.Min(deficitESS, (p*p)*float64(samples)*prec)
 			}
 		}
 
-		log.Printf("rare-position-diversified-proposal-alloc: prop_id=%s kind=%s team=%d dir=%s strength=%.2f allocated_work=%d planned_samples=%d pos_prec_cells=%d pos_deficit_gain_cells=%d tot_predicted_utility=%.6e",
+		log.Printf("rare-position-diversified-proposal-alloc: prop_id=%s kind=%s team=%d dir=%s strength=%.2f allocated_work=%d planned_samples=%d pos_prec_cells=%d pos_deficit_gain_cells=%d tot_predicted_rel_ess_gain=%.6e",
 			prop.ID, prop.Kind, prop.TargetTeam, directionName(prop.Direction), prop.Strength, work, samples, posPrecCells, posDeficitGainCells, totPredictedUtil)
+
+		if prop.Kind != ProposalPlainMC {
+			type cellGainInfo struct {
+				team, pos           int
+				pReg                float64
+				initRelESS          float64
+				deltaRelESSPerChunk float64
+			}
+			var topCells []cellGainInfo
+			for _, cell := range feasibleCells {
+				prec := precPerSample[prop.ID][cell]
+				p := pRegMap[cell]
+				if prec > 0 {
+					initE := (p * p) * initPrec[cell]
+					deltaE := (p * p) * prec * float64(allocChunk/prop.WorkPerSample)
+					topCells = append(topCells, cellGainInfo{
+						team: cell[0], pos: cell[1], pReg: p, initRelESS: initE, deltaRelESSPerChunk: deltaE,
+					})
+				}
+			}
+			sort.Slice(topCells, func(i, j int) bool {
+				return topCells[i].deltaRelESSPerChunk > topCells[j].deltaRelESSPerChunk
+			})
+			if len(topCells) > 5 {
+				topCells = topCells[:5]
+			}
+			for _, tc := range topCells {
+				log.Printf("  top_cell: prop_id=%s team=%d rank=%d pReg=%.3e init_rel_ess=%.2f delta_rel_ess_per_chunk=%.3f",
+					prop.ID, tc.team, tc.pos, tc.pReg, tc.initRelESS, tc.deltaRelESSPerChunk)
+			}
+		}
 	}
 
 	if len(proposals) > 1 && targetedWork == 0 {
-		log.Printf("rare-position-diversified-warning: %d targeted proposal(s) were retained during search, but freeze allocated 100%% work to plain_mc!",
-			len(proposals)-1)
+		log.Printf("rare-position-diversified-warning: %d targeted proposal(s) were retained during search, but freeze allocated 100%% work to plain_mc! pos_deficits=%d",
+			len(proposals)-1, posDeficitCells)
+
+		bestTargetedProp := proposals[1]
+		log.Printf("rare-position-diversified-allocation-pathology: comparing plain_mc vs %s:", bestTargetedProp.ID)
+		topCount := 0
+		for _, cell := range feasibleCells {
+			p := pRegMap[cell]
+			def := math.Max(0, DiversifiedTargetESS-initPrec[cell]*(p*p))
+			if def > 0 && topCount < 10 {
+				topCount++
+				precP := precPerSample["plain_mc"][cell]
+				precQ := precPerSample[bestTargetedProp.ID][cell]
+				gainP := (p * p) * precP / float64(plainProp.WorkPerSample)
+				gainQ := (p * p) * precQ / float64(bestTargetedProp.WorkPerSample)
+				log.Printf("  cell=(team:%d,pos:%d) pReg=%.3e defRelESS=%.3f gainP/work=%.3e gainQ/work=%.3e",
+					cell[0], cell[1], p, def, gainP, gainQ)
+			}
+		}
 	}
 
 	// Build FrozenProductionBatch
