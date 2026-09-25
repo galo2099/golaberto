@@ -249,6 +249,163 @@ func TestKLLimitRejection(t *testing.T) {
 	}
 }
 
+func TestBetaSampleCountScaling(t *testing.T) {
+	// Equal per-sample variance (0.01) for Batch A (n=10000) and Batch B (n=1000)
+	varA, varB := 0.01, 0.01
+	nA, nB := 10000, 1000
+
+	scoreA := float64(nA) / varA
+	scoreB := float64(nB) / varB
+	tot := scoreA + scoreB
+
+	betaA := scoreA / tot
+	betaB := scoreB / tot
+
+	if math.Abs(betaA-0.90909) > 0.001 || math.Abs(betaB-0.09091) > 0.001 {
+		t.Errorf("Expected betaA ~ 0.909 and betaB ~ 0.091 based on sample count scaling, got betaA=%f, betaB=%f", betaA, betaB)
+	}
+}
+
+func TestBetaLowerVariancePreference(t *testing.T) {
+	// Batch A has 10x fewer samples (nA=1000 vs nB=10000) but 100x lower per-sample variance (varA=1e-6 vs varB=1e-4)
+	varA, varB := 1e-6, 1e-4
+	nA, nB := 1000, 10000
+
+	scoreA := float64(nA) / varA // 1e9
+	scoreB := float64(nB) / varB // 1e8
+	tot := scoreA + scoreB
+
+	betaA := scoreA / tot
+	betaB := scoreB / tot
+
+	if betaA <= betaB {
+		t.Errorf("Expected batch A (lower variance) to receive larger beta despite fewer samples, got betaA=%f, betaB=%f", betaA, betaB)
+	}
+	if math.Abs(betaA-0.90909) > 0.001 {
+		t.Errorf("Expected betaA ~ 0.909, got %f", betaA)
+	}
+}
+
+func TestZeroSearchHitsBetaZero(t *testing.T) {
+	batches := []FrozenProductionBatch{
+		{Proposal: DiversifiedProposal{ID: "targeted", Kind: ProposalSingleTeam}, Samples: 2000},
+		{Proposal: DiversifiedProposal{ID: "plain_mc", Kind: ProposalPlainMC}, Samples: 48000},
+	}
+
+	cell := [2]int{1, 10} // rare cell
+	probeStats := map[string]ProposalProbeStats{
+		"targeted": {CellPredictedVarPerSample: map[[2]int]float64{cell: math.Inf(1)}}, // 0 hits => Inf variance
+		"plain_mc": {CellPredictedVarPerSample: map[[2]int]float64{cell: 1e-4}},
+	}
+
+	betas := make([]float64, len(batches))
+	sumScore := 0.0
+	for j, batch := range batches {
+		varPerSample := probeStats[batch.Proposal.ID].CellPredictedVarPerSample[cell]
+		score := 0.0
+		if !math.IsNaN(varPerSample) && !math.IsInf(varPerSample, 0) && varPerSample > 0 && batch.Samples > 0 {
+			score = float64(batch.Samples) / varPerSample
+		}
+		betas[j] = score
+		sumScore += score
+	}
+	for j := range betas {
+		betas[j] /= sumScore
+	}
+
+	if betas[0] != 0.0 || betas[1] != 1.0 {
+		t.Errorf("Expected targeted proposal with zero hits to receive beta=0, got betas[0]=%f, betas[1]=%f", betas[0], betas[1])
+	}
+}
+
+func TestPureQToProductionMixtureVarianceTransform(t *testing.T) {
+	// Discrete distribution over 3 outcomes {1, 2, 3}
+	// Probabilities under P: [0.10, 0.20, 0.70]
+	// Probabilities under Q: [0.50, 0.30, 0.20]
+	pProbs := []float64{0.10, 0.20, 0.70}
+	qProbs := []float64{0.50, 0.30, 0.20}
+	eps := 0.05
+
+	// Exact moments for event A = {outcome 0} (p0)
+	// Under mixture M = eps P + (1-eps) Q
+	mProbs := make([]float64, 3)
+	for i := 0; i < 3; i++ {
+		mProbs[i] = eps*pProbs[i] + (1.0-eps)*qProbs[i]
+	}
+
+	// Exact E_M[Y^2] for outcome 0 where Y = w_M I_0 = (P(x)/M(x)) I_0
+	wM0 := pProbs[0] / mProbs[0]
+	exactEM_Y2 := wM0 * wM0 * mProbs[0] // = P(0)^2 / M(0)
+
+	// Simulated pure-Q estimation of E_M[Y^2]
+	rng := rand.New(rand.NewSource(42))
+	samples := 100000
+	sumY2 := 0.0
+
+	for s := 0; s < samples; s++ {
+		u := rng.Float64()
+		outcome := 0
+		if u > qProbs[0] {
+			outcome = 1
+			if u > qProbs[0]+qProbs[1] {
+				outcome = 2
+			}
+		}
+
+		if outcome == 0 {
+			r := pProbs[0] / qProbs[0]
+			den := eps*r + (1.0-eps)
+			y2 := (r * r) / den
+			sumY2 += y2
+		}
+	}
+
+	estimatedEM_Y2 := sumY2 / float64(samples)
+
+	diff := math.Abs(estimatedEM_Y2 - exactEM_Y2)
+	if diff > 0.005 {
+		t.Errorf("Pure-Q to mixture M variance transform disagree with exact moment: estimated=%f, exact=%f, diff=%f", estimatedEM_Y2, exactEM_Y2, diff)
+	}
+}
+
+func TestIntermediateProposalUncoveredFrontier(t *testing.T) {
+	tail := DirectionalTail{
+		TeamID:        37,
+		Direction:     RareWorse,
+		FrontierRank:  12,
+		ScoutMeanRank: 1.0,
+		ScoutP75:      1.5,
+		ScoutP90:      2.0,
+	}
+
+	// Intermediate proposal metrics: mean rank moves to 3.0, P90 moves to 4.0
+	// Frontier is at 12, so FrontierMass = 0, Near1Mass = 0, Near2Mass = 0.005
+	metrics := ProbeRankMetrics{
+		TargetTeam:        37,
+		Samples:           200,
+		MeanRank:          3.0,
+		P10:               1.0,
+		P25:               2.0,
+		P50:               3.0,
+		P75:               3.5,
+		P90:               4.0,
+		FrontierMass:      0.0,
+		Near1Mass:         0.0,
+		Near2Mass:         0.005,
+		Near3Mass:         0.010,
+		UnresolvedSupport: 2,
+	}
+
+	q := evaluateProposalQuality(tail, metrics)
+
+	if !q.ShouldRetain {
+		t.Errorf("Expected intermediate proposal to be retained as useful shift, got reason=%s", q.Reason)
+	}
+	if q.IsFrontierCovered {
+		t.Errorf("Expected tail frontier (12) to NOT be covered when p90=4.0")
+	}
+}
+
 func TestTeam37TailMovementRegression(t *testing.T) {
 	// Create a 4-team group where team 1 (team 37 surrogate) starts with high points (mean rank ~0)
 	// and has a worse tail (positions 1, 2, 3 unseen in scout).
