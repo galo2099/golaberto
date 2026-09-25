@@ -1150,6 +1150,46 @@ func TestValidationVarianceChangesFrozenProductionAllocation(t *testing.T) {
 	}
 }
 
+func TestOffTargetValidationCannotAdmitProposalToProduction(t *testing.T) {
+	group, _, _, _, counts := createTestGroupForDiversified()
+	intended := [2]int{1, 2}
+	offTarget := [2]int{2, 2}
+	scout := ScoutData{Samples: 1000, TeamCounts: counts, Feasibility: map[[2]int]string{}}
+	for _, team := range group.Team_groups {
+		for pos := range group.Team_groups {
+			scout.Feasibility[[2]int{team.Team_id, pos}] = "observed"
+		}
+	}
+	scout.Feasibility[intended] = "feasible_unseen"
+	plain := DiversifiedCandidate{Proposal: DiversifiedProposal{ID: "plain_mc", Kind: ProposalPlainMC, WorkPerSample: 100}}
+	target := DiversifiedCandidate{Proposal: DiversifiedProposal{ID: "target", Kind: ProposalSingleTeam, WorkPerSample: 100}, IntendedCells: map[[2]int]bool{intended: true}}
+	freeze := func(intendedESS float64) FrozenDiversifiedDesign {
+		v := DiversifiedValidationStats{
+			CellVariancePerSample: map[[2]int]float64{intended: 1e-8, offTarget: 1e-8},
+			CellEventESS:          map[[2]int]float64{intended: intendedESS, offTarget: 30},
+		}
+		return freezeDiversifiedDesign([]DiversifiedCandidate{plain, target}, map[string]DiversifiedValidationStats{"target": v}, scout, group.Team_groups, 500000, 1000, 1000, 400)
+	}
+	for _, batch := range freeze(1).Batches {
+		if batch.Proposal.ID == "target" {
+			t.Fatal("off-target eligibility allocated work despite failed intended-cell validation")
+		}
+	}
+	admitted := freeze(10)
+	found := false
+	for i, batch := range admitted.Batches {
+		if batch.Proposal.ID == "target" {
+			found = true
+			if admitted.CellCombinationWeights[offTarget][i] == 0 {
+				t.Fatal("eligible collateral cell lost its combination weight")
+			}
+		}
+	}
+	if !found {
+		t.Fatal("eligible intended cell did not admit proposal to production")
+	}
+}
+
 func TestValidationWorkNeverExceedsCap(t *testing.T) {
 	group, campaign, table, sortOrder, _ := createTestGroupForDiversified()
 	means := make([]GameProposalMeans, len(group.Games))

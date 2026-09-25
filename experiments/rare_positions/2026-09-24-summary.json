@@ -1,0 +1,159 @@
+{
+  "experiment_date": "2026-09-24",
+  "baseline_commit": "3d67fb81eb31c78119bb7c39fee341b958c998f9",
+  "real_groups": [
+    16982,
+    16986,
+    16498,
+    16983,
+    16653
+  ],
+  "synthetic_groups": [
+    99001,
+    99002,
+    99003,
+    99004,
+    99005
+  ],
+  "master_seeds": [
+    1001,
+    1002,
+    1003,
+    1004,
+    1005
+  ],
+  "work_limit_per_run": 35000000,
+  "reference_samples_per_group": 5000000,
+  "raw_results": "local/2026-09-24/*.jsonl.gz",
+  "experiments": [
+    {
+      "hypothesis": "intended-cell allocation gate",
+      "decision": "retain_design_constraint",
+      "paired_coverage_score": {
+        "mean": 0.0010245440800963478,
+        "median": 0.0,
+        "stddev": 0.005123682578568169,
+        "p10": 0.0,
+        "p90": 0.0
+      },
+      "paired_ess_ge_10": {
+        "mean": 0,
+        "median": 0,
+        "stddev": 0.0,
+        "p10": 0.0,
+        "p90": 0.0
+      },
+      "paired_ess_ge_25": {
+        "mean": 0,
+        "median": 0,
+        "stddev": 0.0,
+        "p10": 0.0,
+        "p90": 0.0
+      },
+      "candidate_vs_plain_coverage_score": {
+        "mean": -2.5860841319100176,
+        "median": -2.099999285642184,
+        "stddev": 1.828568893194164,
+        "p10": -4.935673359554573,
+        "p90": -0.5000566064044505
+      },
+      "notes": "Retained as an explicit design constraint. Five-seed whole-table metrics were essentially unchanged."
+    },
+    {
+      "hypothesis": "fixed-KL competitor search",
+      "decision": "reject",
+      "paired_coverage_score": {
+        "mean": -0.016817729006945684,
+        "median": 0.0,
+        "stddev": 0.27848127686924845,
+        "p10": -0.39238689512525293,
+        "p90": 0.29718838014803173
+      },
+      "paired_ess_ge_10": {
+        "mean": 0,
+        "median": 0,
+        "stddev": 0.5773502691896257,
+        "p10": 0.0,
+        "p90": 0.6000000000000014
+      },
+      "paired_ess_ge_25": {
+        "mean": -0.28,
+        "median": 0,
+        "stddev": 1.0614455552060438,
+        "p10": -1.0,
+        "p90": 0.0
+      },
+      "candidate_vs_plain_coverage_score": {
+        "mean": -2.6029018609169636,
+        "median": -2.099995770030546,
+        "stddev": 1.8459124527169324,
+        "p10": -4.77198127248339,
+        "p90": -0.41044900829419917
+      },
+      "notes": "No reliable rare-tail or whole-table gain at equal work; fixed-KL proposal family not promoted.",
+      "synthetic_paired_coverage_score": {
+        "mean": 0.06799666244213767,
+        "median": 0,
+        "stddev": 0.4133830193175196,
+        "p10": -0.19526499009288045,
+        "p90": 0.4521728667989239
+      },
+      "synthetic_paired_ess_ge_10": {
+        "mean": 0,
+        "median": 0,
+        "stddev": 0.408248290463863,
+        "p10": 0.0,
+        "p90": 0.0
+      },
+      "synthetic_paired_ess_ge_25": {
+        "mean": -0.08,
+        "median": 0,
+        "stddev": 0.7023769168568492,
+        "p10": -0.5999999999999996,
+        "p90": 0.6000000000000014
+      }
+    },
+    {
+      "hypothesis": "Concentrate KL on target versus frontier blocker games",
+      "decision": "reject",
+      "paired_coverage_score": {
+        "mean": 0.006888929680137608,
+        "median": 0.0,
+        "stddev": 0.08590986799319456,
+        "p10": -0.06166012173005128,
+        "p90": 0.1200132624166261
+      },
+      "paired_ess_ge_10": {
+        "mean": 0.04,
+        "median": 0,
+        "stddev": 0.2,
+        "p10": 0.0,
+        "p90": 0.0
+      },
+      "paired_ess_ge_25": {
+        "mean": 0.04,
+        "median": 0,
+        "stddev": 0.2,
+        "p10": 0.0,
+        "p90": 0.0
+      },
+      "candidate_vs_plain_coverage_score": {
+        "mean": -2.5791952022298803,
+        "median": -2.099999285642184,
+        "stddev": 1.798660727444334,
+        "p10": -4.935673359554573,
+        "p90": -0.5000566064044505
+      },
+      "shortlisted_runs": 7,
+      "production_runs": 0,
+      "validated_intended_cell_max_ess": 1.2883755840101694,
+      "notes": "Independent validation never admitted the new family; no 20-seed confirmation."
+    }
+  ],
+  "observations": {
+    "gate_design": "Off-target validation alone no longer admits a proposal to production; independently eligible off-target cells can still receive beta after admission.",
+    "fixed_kl": "More proposal work did not improve the full matrix on five real groups; 20-seed confirmation was not warranted.",
+    "calibration": "For reference p in [1e-5,1e-4), gate-only p_hat \u00b1 1.96 SE covered 84.6% of reliably observed reference cells, versus 90.3% for equal-work plain MC. Zero-hit plug-in SE contributes to undercoverage.",
+    "common_precision": "For reference p >= 1e-3, gate-only RMSE was about 0.000808 versus 0.000672 for equal-work plain MC."
+  }
+}

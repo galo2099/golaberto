@@ -82,7 +82,7 @@ func diversifiedValidationMinSamples() int {
 }
 
 func logDiversifiedEnvironment() {
-	keys := []string{"RARE_POSITION_IMPORTANCE_SAMPLING", "RARE_POSITION_DIVERSIFIED_IS", "RARE_POSITION_DIVERSIFIED_SCOUT_SAMPLES", "RARE_POSITION_DIVERSIFIED_MIN_PLAIN_FRACTION", "RARE_POSITION_DIVERSIFIED_DISCOVERY_EQ", "RARE_POSITION_DIVERSIFIED_VALIDATION_EQ", "RARE_POSITION_DIVERSIFIED_MAX_VALIDATED_PROPOSALS", "RARE_POSITION_DIVERSIFIED_VALIDATION_MIN_SAMPLES", "RARE_POSITION_MIN_INTERESTING_PROBABILITY"}
+	keys := []string{"RARE_POSITION_IMPORTANCE_SAMPLING", "RARE_POSITION_DIVERSIFIED_IS", "RARE_POSITION_DIVERSIFIED_SCOUT_SAMPLES", "RARE_POSITION_DIVERSIFIED_MIN_PLAIN_FRACTION", "RARE_POSITION_DIVERSIFIED_DISCOVERY_EQ", "RARE_POSITION_DIVERSIFIED_VALIDATION_EQ", "RARE_POSITION_DIVERSIFIED_MAX_VALIDATED_PROPOSALS", "RARE_POSITION_DIVERSIFIED_VALIDATION_MIN_SAMPLES", "RARE_POSITION_POINT_HYBRID_GROUP", "RARE_POSITION_POINT_HYBRID_TEAM", "RARE_POSITION_POINT_HYBRID_MAX_RANK", "RARE_POSITION_POINT_HYBRID_TARGET_MASS", "RARE_POSITION_POINT_HYBRID_Q_PERCENT", "RARE_POSITION_MIN_INTERESTING_PROBABILITY"}
 	for _, key := range keys {
 		value, ok := os.LookupEnv(key)
 		if !ok {
@@ -181,6 +181,29 @@ type FrozenDiversifiedDesign struct {
 	ValidationWork             int64                         `json:"validation_work"`
 	ProductionWork             int64                         `json:"production_work"`
 	UnusedWork                 int64                         `json:"unused_work"`
+}
+
+// DiversifiedRunDiagnostics is populated before fresh production starts. It is
+// used by offline benchmarks; none of its fields feed back into the estimator.
+type DiversifiedRunDiagnostics struct {
+	Design            FrozenDiversifiedDesign
+	Feasibility       map[[2]int]string
+	Candidates        int
+	Shortlisted       int
+	Validated         int
+	Shortlist         []DiversifiedProposal
+	ValidationSamples map[string]int
+	ValidationCells   []DiversifiedValidationCell
+}
+
+type DiversifiedValidationCell struct {
+	Proposal          string  `json:"proposal"`
+	Team              int     `json:"team"`
+	Position          int     `json:"position"`
+	Intended          bool    `json:"intended"`
+	ESS               float64 `json:"ess"`
+	Eligible          bool    `json:"eligible"`
+	VariancePerSample float64 `json:"variance_per_sample"`
 }
 
 type DiversifiedEstimate struct {
@@ -1288,6 +1311,20 @@ func freezeDiversifiedDesign(
 			continue
 		}
 		c := candidateByID[prop.ID]
+		// Collateral cells may improve the frozen combination, but only an
+		// independently eligible intended cell can admit a proposal to production.
+		intendedEligible := false
+		for cell := range c.IntendedCells {
+			eligible, _ := validationEligibility(v, cell, true)
+			variance := v.CellVariancePerSample[cell]
+			if eligible && variance > 0 && !math.IsNaN(variance) && !math.IsInf(variance, 0) {
+				intendedEligible = true
+				break
+			}
+		}
+		if !intendedEligible {
+			continue
+		}
 		for _, cell := range cells {
 			intended := c.IntendedCells[cell]
 			eligible, _ := validationEligibility(v, cell, intended)
@@ -1847,7 +1884,44 @@ func runDiversifiedSearchAndProduction(
 	totalWorkLimit int64,
 	masterSeed int64,
 ) map[int]map[int]ProductionEstimate {
+	return runDiversifiedSearchAndProductionDetailed(group, campaign, table, sortOrder, teamOdds, totalWorkLimit, masterSeed, nil)
+}
+
+func runDiversifiedSearchAndProductionDetailed(
+	group *GroupType,
+	campaign []*TeamCampaign,
+	table *Table,
+	sortOrder []SortType,
+	teamOdds []OddsType,
+	totalWorkLimit int64,
+	masterSeed int64,
+	diagnostics *DiversifiedRunDiagnostics,
+) map[int]map[int]ProductionEstimate {
 	logDiversifiedEnvironment()
+	if raw := os.Getenv("RARE_POSITION_POINT_HYBRID_GROUP"); raw != "" {
+		if groupID, err := strconv.Atoi(raw); err == nil && groupID == group.Id {
+			teamID, teamErr := strconv.Atoi(os.Getenv("RARE_POSITION_POINT_HYBRID_TEAM"))
+			if teamErr == nil {
+				maxRank := len(group.Team_groups) - 5
+				if parsed, rankErr := strconv.Atoi(os.Getenv("RARE_POSITION_POINT_HYBRID_MAX_RANK")); rankErr == nil {
+					maxRank = parsed
+				}
+				hybridEstimates, hybrid, ok := runPointHybrid(group, campaign, table, sortOrder, totalWorkLimit, masterSeed, teamID, maxRank)
+				if ok {
+					unplayed := 0
+					for _, game := range group.Games {
+						if !game.Played {
+							unplayed++
+						}
+					}
+					recordPointHybridDiagnostics(diagnostics, hybrid, teamID, maxRank,
+						estimateSeasonWork(unplayed, 1, len(group.Team_groups)), estimateSeasonWork(unplayed, 2, len(group.Team_groups)), totalWorkLimit)
+					log.Printf("rare-position-point-hybrid: group=%d team=%d %s", group.Id, teamID, pointHybridDescription(hybrid))
+					return hybridEstimates
+				}
+			}
+		}
+	}
 	scoutSeed := deriveRarePositionSeed(masterSeed, "diversified-scout")
 	discoverySeed := deriveRarePositionSeed(masterSeed, "diversified-discovery")
 	validationSeed := deriveRarePositionSeed(masterSeed, "diversified-validation")
@@ -1933,6 +2007,44 @@ func runDiversifiedSearchAndProduction(
 		}
 	}
 	frozenDesign := freezeDiversifiedDesign(proposals, validationStats, scout, group.Team_groups, totalWorkLimit, scout.Work, discoveryWork, validationWork)
+	if diagnostics != nil {
+		diagnostics.Design = frozenDesign
+		diagnostics.Feasibility = make(map[[2]int]string, len(scout.Feasibility))
+		for cell, status := range scout.Feasibility {
+			diagnostics.Feasibility[cell] = status
+		}
+		diagnostics.Candidates = len(candidates) - 1
+		diagnostics.Shortlisted = len(targeted)
+		diagnostics.Validated = len(validated)
+		for _, candidate := range targeted {
+			diagnostics.Shortlist = append(diagnostics.Shortlist, candidate.Proposal)
+		}
+		diagnostics.ValidationSamples = make(map[string]int, len(validated))
+		for _, candidate := range validated {
+			stats := validationStats[candidate.Proposal.ID]
+			diagnostics.ValidationSamples[candidate.Proposal.ID] = stats.Samples
+			for cell, ess := range stats.CellEventESS {
+				intended := candidate.IntendedCells[cell]
+				eligible, _ := validationEligibility(stats, cell, intended)
+				if intended || ess > 0 {
+					diagnostics.ValidationCells = append(diagnostics.ValidationCells, DiversifiedValidationCell{
+						Proposal: candidate.Proposal.ID, Team: cell[0], Position: cell[1], Intended: intended, ESS: ess, Eligible: eligible,
+						VariancePerSample: stats.CellVariancePerSample[cell],
+					})
+				}
+			}
+		}
+		sort.Slice(diagnostics.ValidationCells, func(i, j int) bool {
+			a, b := diagnostics.ValidationCells[i], diagnostics.ValidationCells[j]
+			if a.Proposal != b.Proposal {
+				return a.Proposal < b.Proposal
+			}
+			if a.Team != b.Team {
+				return a.Team < b.Team
+			}
+			return a.Position < b.Position
+		})
+	}
 
 	log.Printf("rare-position-diversified-freeze: group=%d proposals=%d scout_work=%d discovery_work=%d validation_work=%d production_work=%d unused_work=%d",
 		group.Id, len(frozenDesign.Batches), frozenDesign.ScoutWork, frozenDesign.DiscoveryWork, frozenDesign.ValidationWork, frozenDesign.ProductionWork, frozenDesign.UnusedWork)

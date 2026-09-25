@@ -1,0 +1,41 @@
+{
+  "experiment_date": "2026-09-25",
+  "group": 16653,
+  "request_source": "local development database export",
+  "reference_samples": 5000000,
+  "work_limit_per_run": 35000000,
+  "master_seeds": "1001 through 1020",
+  "hypothesis": "A discovery-only CEM fit across adjacent rare positions will reduce held-out variance per work for group 16653",
+  "design": "Pure-Q CEM adaptation; independent defensive-mixture validation; frozen production design; fresh production. The focused comparison used one scout-selected tail and three discovery batches of up to 800 samples in both arms.",
+  "five_seed_screen": {
+    "four_tail_multicell_minus_prior_cem_coverage_score_mean": -0.0032844873591329816,
+    "diagnosis": "The window update never activated at 300 samples because weighted elite ESS remained below 8."
+  },
+  "twenty_seed_fit_only": {
+    "activated_updates": 9,
+    "paired_coverage_score": {"mean": 0.0038152427991889224, "stddev": 0.10166676611667902},
+    "paired_ess_ge_10_mean": 0,
+    "paired_ess_ge_25_mean": 0,
+    "paired_band_1e-5_to_1e-4_coverage_score_mean": 0.0138153,
+    "candidate_vs_plain_coverage_score_mean": -0.7905687268862807,
+    "raw_results": "local/2026-09-25/cem-focus-fit-16653-20/"
+  },
+  "twenty_seed_fit_plus_adjacent_admission": {
+    "activated_updates": 9,
+    "paired_coverage_score": {"mean": 0.02542164857528917, "stddev": 0.114984499835221},
+    "paired_ess_ge_10_mean": 0.05,
+    "paired_ess_ge_25_mean": 0.05,
+    "paired_band_1e-5_to_1e-4_coverage_score_mean": 0.03542,
+    "candidate_vs_plain_coverage_score_mean": -0.7689623211101804,
+    "raw_results": "local/2026-09-25/cem-focus-combined-16653-20/"
+  },
+  "mean_whole_table_coverage_score": {
+    "focused_cem_baseline": 287.44574,
+    "multicell_fit_only": 287.44956,
+    "multicell_fit_plus_adjacent_admission": 287.47116,
+    "equal_work_plain_mc": 288.24013
+  },
+  "decision": "reject for default production",
+  "reason": "The initial five-seed signal did not hold at 20 seeds. The fit-only change did not add ESS>=10 or ESS>=25 cells, and even the combined change remained below equal-work plain MC. No reference data entered the estimator.",
+  "candidate_source": "local/2026-09-25/cem-focus-combined-16653-20/rejected-multicell-cem-builder.go"
+}

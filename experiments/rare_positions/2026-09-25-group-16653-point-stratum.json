@@ -1,0 +1,51 @@
+{
+  "experiment_date": "2026-09-25",
+  "group": 16653,
+  "target_team": 125,
+  "target_final_positions": "1 through 16",
+  "reference_samples": 5000000,
+  "work_limit_per_run": 35000000,
+  "master_seeds": "1001 through 1020",
+  "hypothesis": "A shallow exact points stratum and conditional Monte Carlo can improve team 125 rare positions while plain Monte Carlo estimates the broad matrix",
+  "current_points": 17,
+  "remaining_games": 9,
+  "minimum_additional_points_for_top_16": 15,
+  "exact_probability_of_at_least_15_points": 0.07632974850173001,
+  "conditioned_additional_points_threshold": 21,
+  "exact_stratum_probability": 0.0015422666458394271,
+  "estimator": "For target positions 1-16, fresh P production estimates P(rank, outside A), fresh conditional-Q production estimates P(rank | A), and the estimate is their sum after multiplying Q by exact P(A). Other cells use fresh P production. Scout, pure-Q discovery, and independent validation are design-only.",
+  "twenty_seed_paired_vs_current_diversified": {
+    "coverage_score_mean": 0.8502528848200115,
+    "coverage_score_stddev": 1.0966608279920127,
+    "ess_ge_10_mean": 0.25,
+    "ess_ge_25_mean": 2.25,
+    "band_1e-6_to_1e-5_coverage_score_mean": 0.5308148075628123,
+    "band_1e-5_to_1e-4_coverage_score_mean": 0.2444347538610323
+  },
+  "twenty_seed_vs_equal_work_plain_mc": {
+    "coverage_score_mean": -0.014198654647012176,
+    "coverage_score_stddev": 1.3117153409909785,
+    "common_band_mean_estimated_variance_ratio": 1.03097
+  },
+  "target_cell_mean_effective_samples": {
+    "position_15_hybrid": 5.0080974603958825,
+    "position_15_plain": 0.8000037714580246,
+    "position_16_hybrid": 98.61513959320355,
+    "position_16_plain": 17.000984405708756
+  },
+  "one_percent_conditional_work_screen": {
+    "seeds": "1001 through 1005",
+    "coverage_score_vs_two_percent_mean": -0.1602285035870068,
+    "decision": "reject"
+  },
+  "decision": "retain as explicit group-specific option; do not enable by default",
+  "reason": "The specialized estimator improves the intended rare cells and beats the current diversified estimator over 20 seeds. It is essentially tied with equal-work plain MC on whole-table coverage, so a default rollout is not yet supported.",
+  "raw_results": "local/2026-09-25/point-hybrid-dp-16653-20/",
+  "production_opt_in": {
+    "RARE_POSITION_DIVERSIFIED_IS": "1",
+    "RARE_POSITION_POINT_HYBRID_GROUP": "16653",
+    "RARE_POSITION_POINT_HYBRID_TEAM": "125",
+    "RARE_POSITION_POINT_HYBRID_MAX_RANK": "15",
+    "RARE_POSITION_POINT_HYBRID_Q_PERCENT": "2"
+  }
+}
