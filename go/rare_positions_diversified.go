@@ -1369,6 +1369,12 @@ func freezeDiversifiedDesign(
 	if scoutWork+discoveryWork+validationWork+productionWork > totalWorkBudget {
 		panic("diversified work budget exceeded")
 	}
+	workSpent := scoutWork + discoveryWork + validationWork + productionWork
+	remainingWork := totalWorkBudget - workSpent
+	if remainingWork < 0 {
+		panic("diversified remaining work became negative")
+	}
+	log.Printf("rare-position-diversified-work-budget: total_work_limit=%d scout_work=%d discovery_work=%d validation_work=%d production_work=%d work_spent=%d remaining_work=%d", totalWorkBudget, scoutWork, discoveryWork, validationWork, productionWork, workSpent, remainingWork)
 	log.Printf("rare-position-diversified-freeze: scout_work=%d discovery_work=%d validation_work=%d production_work=%d unused_work=%d", scoutWork, discoveryWork, validationWork, productionWork, unused)
 	varianceMap := make(map[string]map[[2]int]float64, len(validation)+1)
 	for id, stats := range validation {
