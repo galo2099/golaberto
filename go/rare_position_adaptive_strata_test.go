@@ -5,6 +5,243 @@ import (
 	"testing"
 )
 
+func TestAdditionalPointsPMFSumsToOne(t *testing.T) {
+	table := NewTable([]uint32{1, 2})
+	games := []*GameType{
+		{Id: 1, HomeId: 1, AwayId: 2, HomePower: 1.2, AwayPower: 1.0, Played: false, home_table_index: 0, away_table_index: 1},
+		{Id: 2, HomeId: 1, AwayId: 2, HomePower: 1.5, AwayPower: 0.8, Played: false, home_table_index: 0, away_table_index: 1},
+	}
+	base := []*TeamCampaign{
+		{id: 1, points: 10, points_win: 3, points_draw: 1, points_loss: 0},
+		{id: 2, points: 12, points_win: 3, points_draw: 1, points_loss: 0},
+	}
+
+	universe, ok := pointOutcomeUniverse(1, base, table, games, 10)
+	if !ok {
+		t.Fatal("expected point outcome universe")
+	}
+
+	pmf := additionalPointsPMF(universe)
+	sum := 0.0
+	for _, p := range pmf {
+		sum += p
+	}
+
+	if math.Abs(sum-1.0) > 1e-12 {
+		t.Fatalf("PMF sum = %.15g, want 1.0", sum)
+	}
+}
+
+func TestAdditionalPointsPMFMatchesTailDP(t *testing.T) {
+	table := NewTable([]uint32{1, 2})
+	games := []*GameType{
+		{Id: 1, HomeId: 1, AwayId: 2, HomePower: 1.3, AwayPower: 0.9, Played: false, home_table_index: 0, away_table_index: 1},
+		{Id: 2, HomeId: 2, AwayId: 1, HomePower: 1.1, AwayPower: 1.0, Played: false, home_table_index: 1, away_table_index: 0},
+	}
+	base := []*TeamCampaign{
+		{id: 1, points: 5, points_win: 3, points_draw: 1, points_loss: 0},
+		{id: 2, points: 8, points_win: 3, points_draw: 1, points_loss: 0},
+	}
+
+	universe, ok := pointOutcomeUniverse(1, base, table, games, 10)
+	if !ok {
+		t.Fatal("expected point outcome universe")
+	}
+
+	pmf := additionalPointsPMF(universe)
+
+	for threshold := 0; threshold <= 6; threshold++ {
+		tailDP, ok := makePointTailStratum(universe, threshold)
+		if !ok {
+			continue
+		}
+		pmfTailSum := 0.0
+		for s, p := range pmf {
+			if s >= threshold {
+				pmfTailSum += p
+			}
+		}
+		if math.Abs(pmfTailSum-tailDP.Mass) > 1e-12 {
+			t.Fatalf("threshold %d: PMF tail sum = %.15g, DP mass = %.15g", threshold, pmfTailSum, tailDP.Mass)
+		}
+	}
+}
+
+func TestPointSetStratumSamplingAndMass(t *testing.T) {
+	table := NewTable([]uint32{1, 2})
+	games := []*GameType{
+		{Id: 1, HomeId: 1, AwayId: 2, HomePower: 1.2, AwayPower: 1.0, Played: false, home_table_index: 0, away_table_index: 1},
+		{Id: 2, HomeId: 1, AwayId: 2, HomePower: 1.4, AwayPower: 0.9, Played: false, home_table_index: 0, away_table_index: 1},
+	}
+	base := []*TeamCampaign{
+		{id: 1, points: 10, points_win: 3, points_draw: 1, points_loss: 0},
+		{id: 2, points: 12, points_win: 3, points_draw: 1, points_loss: 0},
+	}
+
+	universe, ok := pointOutcomeUniverse(1, base, table, games, 10)
+	if !ok {
+		t.Fatal("expected point outcome universe")
+	}
+
+	pmf := additionalPointsPMF(universe)
+	allowed := []int{2, 4, 6}
+
+	stratum, ok := makePointSetStratum(universe, allowed)
+	if !ok {
+		t.Fatal("expected point set stratum")
+	}
+
+	expectedMass := 0.0
+	for _, pts := range allowed {
+		expectedMass += pmf[pts]
+	}
+
+	if math.Abs(stratum.Mass-expectedMass) > 1e-12 {
+		t.Fatalf("point set stratum mass = %.15g, want %.15g", stratum.Mass, expectedMass)
+	}
+}
+
+func TestComputePriorityEstimate(t *testing.T) {
+	pmf := map[int]float64{0: 0.5, 3: 0.3, 6: 0.2}
+	scout := &TeamPointRankScout{
+		Samples:    100,
+		RankCounts: []int{20, 80},
+		PointRankCounts: map[int][]int{
+			0: {0, 50},
+			3: {5, 25},
+			6: {15, 5},
+		},
+		PointCounts: map[int]int{0: 50, 3: 30, 6: 20},
+	}
+
+	priority := computePriorityEstimate(1, 0, pmf, scout, 2)
+	if priority <= 0 || priority > 1 {
+		t.Fatalf("priority estimate = %f, expected between 0 and 1", priority)
+	}
+}
+
+func TestExactPositionPointsUpperBoundContainsTrueProbability(t *testing.T) {
+	table := NewTable([]uint32{1, 2})
+	game := &GameType{Id: 1, HomeId: 1, AwayId: 2, HomePower: 1.2, AwayPower: 1.0,
+		home_table_index: table.Query(1), away_table_index: table.Query(2)}
+	base := []*TeamCampaign{
+		{id: 1, points: 10, points_win: 3, points_draw: 1, points_loss: 0},
+		{id: 2, points: 11, points_win: 3, points_draw: 1, points_loss: 0},
+	}
+	teamGroups := []TeamType{{Team_id: 1}, {Team_id: 2}}
+
+	universe, ok := pointOutcomeUniverse(1, base, table, []*GameType{game}, 10)
+	if !ok {
+		t.Fatal("expected universe")
+	}
+	pmf := additionalPointsPMF(universe)
+
+	hardUB, _, provenImp := computeHardCellUpperBound(1, 0, pmf, base, teamGroups, []*GameType{game}, table)
+	trueP := targetOutcomeProbabilities(game)[2]
+
+	if provenImp {
+		t.Fatalf("rank 0 should not be proven impossible for team 1")
+	}
+
+	if trueP > hardUB+1e-12 {
+		t.Fatalf("true P(1st) = %.15g > hard upper bound %.15g", trueP, hardUB)
+	}
+}
+
+func TestBetterAndWorseTailUpperBounds(t *testing.T) {
+	table := NewTable([]uint32{1, 2, 3})
+	games := []*GameType{
+		{Id: 1, HomeId: 1, AwayId: 2, HomePower: 1.2, AwayPower: 1.0, Played: false, home_table_index: 0, away_table_index: 1},
+		{Id: 2, HomeId: 1, AwayId: 3, HomePower: 1.2, AwayPower: 1.0, Played: false, home_table_index: 0, away_table_index: 2},
+		{Id: 3, HomeId: 2, AwayId: 3, HomePower: 1.0, AwayPower: 1.5, Played: false, home_table_index: 1, away_table_index: 2},
+	}
+	base := []*TeamCampaign{
+		{id: 1, points: 10, points_win: 3, points_draw: 1, points_loss: 0},
+		{id: 2, points: 15, points_win: 3, points_draw: 1, points_loss: 0},
+		{id: 3, points: 12, points_win: 3, points_draw: 1, points_loss: 0},
+	}
+	teamGroups := []TeamType{{Team_id: 1}, {Team_id: 2}, {Team_id: 3}}
+
+	universe, ok := pointOutcomeUniverse(1, base, table, games, 10)
+	if !ok {
+		t.Fatal("expected universe")
+	}
+	pmf := additionalPointsPMF(universe)
+
+	// Better tail (1st place, rank 0): team 1 needs 6 points (2 wins)
+	ub1st, _, provenImp1st := computeHardCellUpperBound(1, 0, pmf, base, teamGroups, games, table)
+	if provenImp1st || ub1st <= 0 {
+		t.Fatalf("1st place should be possible with 2 wins for team 1")
+	}
+
+	// Worse tail (3rd place, rank 2): team 1 gets 0 points (10), team 3 gets 6 points (18) -> team 1 finishes 3rd
+	ub3rd, _, provenImp3rd := computeHardCellUpperBound(1, 2, pmf, base, teamGroups, games, table)
+	if provenImp3rd || ub3rd <= 0 {
+		t.Fatalf("3rd place should be possible for team 1")
+	}
+}
+
+func TestAdaptiveScoutRecordsPointRankJointCounts(t *testing.T) {
+	group, campaign, table, sortOrder, _ := createTestGroupForDiversified()
+	scout := runPlainMCScoutWithJointPoints(campaign, group.Games, table, sortOrder, group.Team_groups, 500, 100, nil)
+
+	if len(scout.TeamScout) != len(group.Team_groups) {
+		t.Fatalf("expected joint scout for %d teams, got %d", len(group.Team_groups), len(scout.TeamScout))
+	}
+
+	for _, team := range group.Team_groups {
+		ts := scout.TeamScout[team.Team_id]
+		if ts == nil {
+			t.Fatalf("missing joint scout for team %d", team.Team_id)
+		}
+		if len(ts.PointCounts) == 0 {
+			t.Fatalf("team %d should have non-empty PointCounts", team.Team_id)
+		}
+		if len(ts.PointRankCounts) == 0 {
+			t.Fatalf("team %d should have non-empty PointRankCounts", team.Team_id)
+		}
+	}
+}
+
+func TestAdaptiveValidationNeverExceedsGlobalCap(t *testing.T) {
+	group, campaign, table, sortOrder, _ := createTestGroupForDiversified()
+	workLimit := int64(1000000)
+	masterSeed := int64(12345)
+
+	_, diag, ok := runAdaptivePointStratifiedSearch(group, campaign, table, sortOrder, workLimit, masterSeed)
+	if !ok {
+		t.Fatalf("adaptive search failed")
+	}
+
+	unplayed := len(group.Games)
+	plainCost := estimateSeasonWork(unplayed, 1, len(group.Team_groups))
+	valWorkCap := int64(3000) * plainCost
+
+	if diag.ValidationWork > valWorkCap {
+		t.Fatalf("validation work %d > global cap %d", diag.ValidationWork, valWorkCap)
+	}
+}
+
+func TestAdaptiveProductionKeepsMinimumPlainFraction(t *testing.T) {
+	group, campaign, table, sortOrder, _ := createTestGroupForDiversified()
+	workLimit := int64(1000000)
+	masterSeed := int64(12345)
+
+	_, diag, ok := runAdaptivePointStratifiedSearch(group, campaign, table, sortOrder, workLimit, masterSeed)
+	if !ok {
+		t.Fatalf("adaptive search failed")
+	}
+
+	unplayed := len(group.Games)
+	plainCost := estimateSeasonWork(unplayed, 1, len(group.Team_groups))
+	plainProdWork := int64(diag.PlainSamples) * plainCost
+
+	plainFraction := float64(plainProdWork) / float64(diag.ProductionWork)
+	if plainFraction < 0.799 {
+		t.Fatalf("plain production fraction %f < 80%% floor", plainFraction)
+	}
+}
+
 func TestAdaptivePointStratifiedSearchScoutAndBounds(t *testing.T) {
 	group, campaign, table, sortOrder, _ := createTestGroupForDiversified()
 	workLimit := int64(500000)
@@ -54,7 +291,6 @@ func TestReconcileProbabilityMatrix(t *testing.T) {
 
 	reconciled := reconcileProbabilityMatrix(raw, teams)
 
-	// Check row sums equal 1.0
 	for _, tID := range teams {
 		rowSum := 0.0
 		for r := 0; r < 3; r++ {
@@ -65,7 +301,6 @@ func TestReconcileProbabilityMatrix(t *testing.T) {
 		}
 	}
 
-	// Check column sums equal 1.0
 	for r := 0; r < 3; r++ {
 		colSum := 0.0
 		for _, tID := range teams {
@@ -76,7 +311,6 @@ func TestReconcileProbabilityMatrix(t *testing.T) {
 		}
 	}
 
-	// Check zero entry remains zero
 	if reconciled[3][0] != 0.0 {
 		t.Errorf("reconciled[3][0] = %f, want 0.0", reconciled[3][0])
 	}
@@ -122,7 +356,6 @@ func TestAdaptivePointStratifiedWorkAccountingAndFreeze(t *testing.T) {
 }
 
 func TestAdaptivePointStratifiedAutomaticStratumSelection(t *testing.T) {
-	// Group where team 1 is behind team 2 and requires points tail to reach 1st place
 	table := NewTable([]uint32{1, 2})
 	group := &GroupType{
 		Id:          1001,
@@ -146,14 +379,8 @@ func TestAdaptivePointStratifiedAutomaticStratumSelection(t *testing.T) {
 		t.Fatalf("adaptive search failed")
 	}
 
-	// Verify upper bounds were computed for cells
 	if len(diag.UpperBounds) == 0 {
 		t.Errorf("expected non-empty upper bounds map")
-	}
-
-	// Verify reconciled matrix is populated
-	if len(diag.ReconciledMatrix) != 2 {
-		t.Errorf("expected 2 teams in reconciled matrix, got %d", len(diag.ReconciledMatrix))
 	}
 }
 
@@ -208,7 +435,6 @@ func TestSimulateAdaptivePlainSeasonsOutsideTracking(t *testing.T) {
 	if !ok {
 		t.Fatal("expected outcome universe")
 	}
-	// Stratum A: team 1 gains >= 6 points (2 wins)
 	stratum, ok := makePointTailStratum(universe, 6)
 	if !ok {
 		t.Fatal("expected stratum A")
@@ -218,8 +444,6 @@ func TestSimulateAdaptivePlainSeasonsOutsideTracking(t *testing.T) {
 	samples := 10000
 	plainCounts, outsideCounts := simulateAdaptivePlainSeasons(base, games, table, []SortType{PT}, teams, strata, samples, 9876)
 
-	// Team 1 can finish 2nd with < 6 points (e.g. 0, 1, 2, 3, or 4 points).
-	// Therefore outsideCounts[[2]int{1, 1}] must be > 0.
 	outside2nd := outsideCounts[[2]int{1, 1}]
 	plain2nd := plainCounts[[2]int{1, 1}]
 

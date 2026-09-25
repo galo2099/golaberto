@@ -233,6 +233,7 @@ type ScoutData struct {
 	MinObservedRank map[int]int
 	MaxObservedRank map[int]int
 	Feasibility     map[[2]int]string // (teamID, pos) -> "observed", "feasible_unseen", "proven_impossible"
+	TeamScout       map[int]*TeamPointRankScout
 }
 
 func runPlainMCScout(

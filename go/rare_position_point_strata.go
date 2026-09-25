@@ -30,6 +30,12 @@ type PointStratumUniverse struct {
 	MinimumAddedPoints   int
 }
 
+type pointSetDP struct {
+	Universe      *PointStratumUniverse
+	AllowedPoints map[int]bool
+	Memo          map[[2]int]float64
+}
+
 type PointStratum struct {
 	Universe           *PointStratumUniverse
 	MaxRank            int
@@ -38,6 +44,7 @@ type PointStratum struct {
 	Patterns           []PointStratumPattern
 	Allowed            map[uint64]bool
 	Tail               *pointTailDP
+	PointSetDP         *pointSetDP
 }
 
 type pointTailDP struct {
@@ -204,6 +211,9 @@ func makePointStratum(universe *PointStratumUniverse, maxRank, minimumAddedPoint
 }
 
 func (stratum *PointStratum) samplePattern(rng *rand.Rand) uint64 {
+	if stratum.PointSetDP != nil {
+		return stratum.PointSetDP.samplePattern(rng)
+	}
 	if stratum.Tail != nil {
 		return stratum.Tail.samplePattern(rng)
 	}
@@ -216,6 +226,13 @@ func (stratum *PointStratum) samplePattern(rng *rand.Rand) uint64 {
 }
 
 func (stratum *PointStratum) contains(code uint64) bool {
+	if stratum.PointSetDP != nil {
+		added := 0
+		for slot, gains := range stratum.Universe.OutcomeGains {
+			added += gains[pointStratumDigit(code, slot)]
+		}
+		return stratum.PointSetDP.AllowedPoints[added]
+	}
 	if stratum.Tail == nil {
 		return stratum.Allowed[code]
 	}
