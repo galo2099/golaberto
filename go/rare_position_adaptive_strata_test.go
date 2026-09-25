@@ -495,3 +495,92 @@ func TestSimulateAdaptivePlainSeasonsOutsideTracking(t *testing.T) {
 		t.Errorf("plainCounts (%d) must be >= outsideCounts (%d)", plain2nd, outside2nd)
 	}
 }
+
+func TestPointRankProfileDistance(t *testing.T) {
+	a := []float64{0.5, 0.3, 0.2}
+	b := []float64{0.5, 0.3, 0.2}
+	if dist := pointRankProfileDistance(a, b); dist != 0.0 {
+		t.Errorf("expected 0 for identical vectors, got %f", dist)
+	}
+
+	c := []float64{1.0, 0.0, 0.0}
+	d := []float64{0.0, 1.0, 0.0}
+	if dist := pointRankProfileDistance(c, d); math.Abs(dist-1.0) > 1e-6 {
+		t.Errorf("expected 1.0 for disjoint vectors, got %f", dist)
+	}
+}
+
+func TestPointRankProfileNormalization(t *testing.T) {
+	pmf := map[int]float64{0: 0.2, 3: 0.5, 6: 0.3}
+	scout := &TeamPointRankScout{
+		Samples: 100,
+		PointCounts: map[int]int{0: 20, 3: 50, 6: 30},
+		PointRankCounts: map[int][]int{
+			0: {0, 5, 15},
+			3: {10, 30, 10},
+			6: {25, 5, 0},
+		},
+	}
+
+	for pts := range pmf {
+		prof := computePointRankProfile(pts, pmf, scout, 3, 1.5)
+		probSum := 0.0
+		for _, p := range prof.RankProb {
+			probSum += p
+		}
+		if math.Abs(probSum-1.0) > 1e-6 {
+			t.Errorf("profile for points %d rank sum = %f, want 1.0", pts, probSum)
+		}
+	}
+}
+
+func TestPointProfileGrouping(t *testing.T) {
+	profiles := []PointRankProfile{
+		{AddedPoints: 10, PointMass: 0.1, RankProb: []float64{0.9, 0.1, 0.0}},
+		{AddedPoints: 11, PointMass: 0.1, RankProb: []float64{0.85, 0.15, 0.0}},
+		{AddedPoints: 12, PointMass: 0.1, RankProb: []float64{0.0, 0.1, 0.9}},
+	}
+
+	groups := groupPointRankProfiles(profiles, 3, "profile", 0.20)
+	if len(groups) < 2 {
+		t.Fatalf("expected at least 2 base groups due to TVD split between 11 and 12, got %d", len(groups))
+	}
+
+	base0 := groups[0]
+	if len(base0.AllowedPoints) != 2 || base0.AllowedPoints[0] != 10 || base0.AllowedPoints[1] != 11 {
+		t.Errorf("expected base group 0 to have allowed points [10, 11], got %v", base0.AllowedPoints)
+	}
+}
+
+func TestPointRankProfileDoesNotLeakNearbyRanksExcessively(t *testing.T) {
+	pmf := map[int]float64{0: 0.5, 3: 0.5}
+	scout := &TeamPointRankScout{
+		Samples: 100,
+		PointCounts: map[int]int{0: 50, 3: 50},
+		PointRankCounts: map[int][]int{
+			0: {0, 0, 50},
+			3: {50, 0, 0},
+		},
+	}
+
+	prof0 := computePointRankProfile(0, pmf, scout, 3, 1.5)
+	// Without rank-distance blurring, rank 0 probability at point total 0 is ~0.119 (from point-distance weighting e^-2),
+	// far below the ~0.51 that rank-distance kernel leakage produced.
+	if prof0.RankProb[0] > 0.15 {
+		t.Errorf("expected rank 0 prob at points 0 to be <= 0.15 without rank-distance leakage, got %f", prof0.RankProb[0])
+	}
+}
+
+func TestPerCellValidationGating(t *testing.T) {
+	scout := &TeamPointRankScout{
+		PointRankCounts: map[int][]int{
+			0: {10, 20},
+			3: {5, 25},
+			6: {30, 0},
+		},
+	}
+	outsideHits := directScoutOutsideHits(1, 0, []int{6}, scout)
+	if outsideHits != 15 {
+		t.Errorf("expected 15 outside hits, got %d", outsideHits)
+	}
+}
