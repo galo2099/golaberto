@@ -66,15 +66,34 @@ type DiversifiedProposal struct {
 	WorkPerSample int64                   `json:"work_per_sample"`
 }
 
+type ProbeRankMetrics struct {
+	TargetTeam        int     `json:"target_team"`
+	Samples           int     `json:"samples"`
+	MeanRank          float64 `json:"mean_rank"`
+	MinRank           int     `json:"min_rank"`
+	MaxRank           int     `json:"max_rank"`
+	P10               float64 `json:"p10"`
+	P25               float64 `json:"p25"`
+	P50               float64 `json:"p50"`
+	P75               float64 `json:"p75"`
+	P90               float64 `json:"p90"`
+	FrontierMass      float64 `json:"frontier_mass"`
+	Near1Mass         float64 `json:"near1_mass"`
+	Near2Mass         float64 `json:"near2_mass"`
+	Near3Mass         float64 `json:"near3_mass"`
+	UnresolvedSupport int     `json:"unresolved_support"`
+}
+
 type ProposalProbeStats struct {
-	ProposalID     string
-	Samples        int
-	Work           int64
-	RankHistograms map[int][]int        // teamID -> rank histogram
-	CellHits       map[[2]int]int       // (teamID, pos) -> raw hits
-	CellSumY       map[[2]int]float64
-	CellSumY2      map[[2]int]float64
-	CellESS        map[[2]int]float64
+	ProposalID     string                   `json:"proposal_id"`
+	Samples        int                      `json:"samples"`
+	Work           int64                    `json:"work"`
+	RankHistograms map[int][]int            `json:"-"`
+	CellHits       map[[2]int]int           `json:"-"`
+	CellSumY       map[[2]int]float64       `json:"-"`
+	CellSumY2      map[[2]int]float64       `json:"-"`
+	CellESS        map[[2]int]float64       `json:"-"`
+	Metrics        map[int]ProbeRankMetrics `json:"metrics,omitempty"`
 }
 
 type FrozenProductionBatch struct {
@@ -187,11 +206,123 @@ func runPlainMCScout(
 }
 
 type DirectionalTail struct {
-	TeamID                int
-	Direction             RareDirection
-	UnseenFeasibleCount   int
-	FirstUnseenPosition   int
-	ExtremityScore        float64
+	TeamID                  int           `json:"team_id"`
+	Direction               RareDirection `json:"direction"`
+	ObservedMinRank         int           `json:"observed_min_rank"`
+	ObservedMaxRank         int           `json:"observed_max_rank"`
+	FrontierRank            int           `json:"frontier_rank"`
+	FirstUnseenPosition     int           `json:"first_unseen_position"`
+	UnseenFeasiblePositions []int         `json:"unseen_feasible_positions"`
+	UnseenFeasibleCount     int           `json:"unseen_feasible_count"`
+	ScoutMeanRank           float64       `json:"scout_mean_rank"`
+	ScoutP10                float64       `json:"scout_p10"`
+	ScoutP25                float64       `json:"scout_p25"`
+	ScoutP50                float64       `json:"scout_p50"`
+	ScoutP75                float64       `json:"scout_p75"`
+	ScoutP90                float64       `json:"scout_p90"`
+	ExtremityScore          float64       `json:"extremity_score"`
+	Priority                float64       `json:"priority"`
+}
+
+func computeRankQuantiles(hist []int, samples int) (p10, p25, p50, p75, p90 float64) {
+	if samples <= 0 {
+		return 0, 0, 0, 0, 0
+	}
+	getQuantile := func(q float64) float64 {
+		targetCount := float64(samples) * q
+		cum := 0
+		maxPos := 0
+		for pos, c := range hist {
+			if c > 0 {
+				maxPos = pos
+			}
+			cum += c
+			if float64(cum) >= targetCount {
+				return float64(pos)
+			}
+		}
+		return float64(maxPos)
+	}
+	return getQuantile(0.10), getQuantile(0.25), getQuantile(0.50), getQuantile(0.75), getQuantile(0.90)
+}
+
+func computeProbeRankMetrics(
+	targetTeam int,
+	frontierRank int,
+	direction RareDirection,
+	unresolvedCells map[[2]int]bool,
+	hist []int,
+) ProbeRankMetrics {
+	tot := 0
+	for _, c := range hist {
+		tot += c
+	}
+	if tot == 0 {
+		return ProbeRankMetrics{TargetTeam: targetTeam}
+	}
+
+	sumRank := 0.0
+	minR, maxR := -1, -1
+	for pos, c := range hist {
+		if c > 0 {
+			if minR == -1 {
+				minR = pos
+			}
+			maxR = pos
+			sumRank += float64(pos * c)
+		}
+	}
+
+	p10, p25, p50, p75, p90 := computeRankQuantiles(hist, tot)
+
+	r := frontierRank
+	frontierCount := 0
+	near1Count, near2Count, near3Count := 0, 0, 0
+
+	for pos, c := range hist {
+		if pos == r {
+			frontierCount += c
+		}
+		dist := pos - r
+		if dist < 0 {
+			dist = -dist
+		}
+		if dist <= 1 {
+			near1Count += c
+		}
+		if dist <= 2 {
+			near2Count += c
+		}
+		if dist <= 3 {
+			near3Count += c
+		}
+	}
+
+	unresolvedSupport := 0
+	for pos, c := range hist {
+		cell := [2]int{targetTeam, pos}
+		if unresolvedCells[cell] && float64(c)/float64(tot) >= 0.005 {
+			unresolvedSupport++
+		}
+	}
+
+	return ProbeRankMetrics{
+		TargetTeam:        targetTeam,
+		Samples:           tot,
+		MeanRank:          sumRank / float64(tot),
+		MinRank:           minR,
+		MaxRank:           maxR,
+		P10:               p10,
+		P25:               p25,
+		P50:               p50,
+		P75:               p75,
+		P90:               p90,
+		FrontierMass:      float64(frontierCount) / float64(tot),
+		Near1Mass:         float64(near1Count) / float64(tot),
+		Near2Mass:         float64(near2Count) / float64(tot),
+		Near3Mass:         float64(near3Count) / float64(tot),
+		UnresolvedSupport: unresolvedSupport,
+	}
 }
 
 func discoverDirectionalTails(scout ScoutData, teamGroups []TeamType) []DirectionalTail {
@@ -202,54 +333,76 @@ func discoverDirectionalTails(scout ScoutData, teamGroups []TeamType) []Directio
 		id := team.Team_id
 		minObserved := scout.MinObservedRank[id]
 		maxObserved := scout.MaxObservedRank[id]
+		hist := scout.TeamCounts[id]
+		p10, p25, p50, p75, p90 := computeRankQuantiles(hist, scout.Samples)
 
 		// Better tail (positions < minObserved)
-		betterUnseen := 0
+		var betterUnseen []int
 		firstBetter := -1
 		for pos := minObserved - 1; pos >= 0; pos-- {
 			if scout.Feasibility[[2]int{id, pos}] == "feasible_unseen" {
-				betterUnseen++
+				betterUnseen = append(betterUnseen, pos)
 				if firstBetter == -1 {
 					firstBetter = pos
 				}
 			}
 		}
-		if betterUnseen > 0 {
+		if len(betterUnseen) > 0 {
+			frontier := minObserved - 1
+			extremity := scout.TeamMeanRanks[id] - float64(firstBetter)
+			priority := extremity * float64(len(betterUnseen))
 			tails = append(tails, DirectionalTail{
-				TeamID:              id,
-				Direction:           RareBetter,
-				UnseenFeasibleCount: betterUnseen,
-				FirstUnseenPosition: firstBetter,
-				ExtremityScore:      scout.TeamMeanRanks[id] - float64(firstBetter),
+				TeamID:                  id,
+				Direction:               RareBetter,
+				ObservedMinRank:         minObserved,
+				ObservedMaxRank:         maxObserved,
+				FrontierRank:            frontier,
+				FirstUnseenPosition:     firstBetter,
+				UnseenFeasiblePositions: betterUnseen,
+				UnseenFeasibleCount:     len(betterUnseen),
+				ScoutMeanRank:           scout.TeamMeanRanks[id],
+				ScoutP10:                p10, ScoutP25: p25, ScoutP50: p50, ScoutP75: p75, ScoutP90: p90,
+				ExtremityScore:          extremity,
+				Priority:                priority,
 			})
 		}
 
 		// Worse tail (positions > maxObserved)
-		worseUnseen := 0
+		var worseUnseen []int
 		firstWorse := -1
 		for pos := maxObserved + 1; pos < numPositions; pos++ {
 			if scout.Feasibility[[2]int{id, pos}] == "feasible_unseen" {
-				worseUnseen++
+				worseUnseen = append(worseUnseen, pos)
 				if firstWorse == -1 {
 					firstWorse = pos
 				}
 			}
 		}
-		if worseUnseen > 0 {
+		if len(worseUnseen) > 0 {
+			frontier := maxObserved + 1
+			extremity := float64(firstWorse) - scout.TeamMeanRanks[id]
+			priority := extremity * float64(len(worseUnseen))
 			tails = append(tails, DirectionalTail{
-				TeamID:              id,
-				Direction:           RareWorse,
-				UnseenFeasibleCount: worseUnseen,
-				FirstUnseenPosition: firstWorse,
-				ExtremityScore:      float64(firstWorse) - scout.TeamMeanRanks[id],
+				TeamID:                  id,
+				Direction:               RareWorse,
+				ObservedMinRank:         minObserved,
+				ObservedMaxRank:         maxObserved,
+				FrontierRank:            frontier,
+				FirstUnseenPosition:     firstWorse,
+				UnseenFeasiblePositions: worseUnseen,
+				UnseenFeasibleCount:     len(worseUnseen),
+				ScoutMeanRank:           scout.TeamMeanRanks[id],
+				ScoutP10:                p10, ScoutP25: p25, ScoutP50: p50, ScoutP75: p75, ScoutP90: p90,
+				ExtremityScore:          extremity,
+				Priority:                priority,
 			})
 		}
 	}
 
-	// Sort tails by extremity / unseen count descending
+	// Sort tails by priority descending
 	sort.Slice(tails, func(i, j int) bool {
-		if tails[i].UnseenFeasibleCount != tails[j].UnseenFeasibleCount {
-			return tails[i].UnseenFeasibleCount > tails[j].UnseenFeasibleCount
+		if tails[i].Priority != tails[j].Priority {
+			return tails[i].Priority > tails[j].Priority
 		}
 		return tails[i].ExtremityScore > tails[j].ExtremityScore
 	})
@@ -267,10 +420,13 @@ func probeProposal(
 	teamGroups []TeamType,
 	probeWork int64,
 	rng *rand.Rand,
+	targetTeam int,
+	frontierRank int,
+	unresolvedCells map[[2]int]bool,
 ) ProposalProbeStats {
 	samples := int(probeWork / proposal.WorkPerSample)
-	if samples < 10 {
-		samples = 10
+	if samples < 150 {
+		samples = 200 // Default 200 proposal Q samples for robust quantiles
 	}
 	actualWork := int64(samples) * proposal.WorkPerSample
 
@@ -283,21 +439,21 @@ func probeProposal(
 		CellSumY:       make(map[[2]int]float64),
 		CellSumY2:      make(map[[2]int]float64),
 		CellESS:        make(map[[2]int]float64),
+		Metrics:        make(map[int]ProbeRankMetrics),
 	}
 
 	for _, team := range teamGroups {
 		stats.RankHistograms[team.Team_id] = make([]int, len(teamGroups))
 	}
 
-	components := []ProposalComponent{
-		{Name: "P", Weight: DiversifiedDefensiveMixtureEpsilon, Means: originalMeans},
-		{Name: "Q", Weight: 1.0 - DiversifiedDefensiveMixtureEpsilon, Means: proposal.Means},
+	// Pure Q simulation for proposal discovery
+	activeMeans := proposal.Means
+	if proposal.Kind == ProposalPlainMC {
+		activeMeans = originalMeans
 	}
-	compWeights := []float64{DiversifiedDefensiveMixtureEpsilon, 1.0 - DiversifiedDefensiveMixtureEpsilon}
 
 	simCampaign := make([]*TeamCampaign, len(baseCampaign))
 	teamSlice := make([]*TeamCampaign, len(teamGroups))
-	logQBuf := make([]float64, 2)
 
 	for s := 0; s < samples; s++ {
 		for k, v := range baseCampaign {
@@ -308,13 +464,7 @@ func probeProposal(
 			}
 		}
 
-		logQBuf[0], logQBuf[1] = 0.0, 0.0
-		// Draw from defensive mixture M = epsilon P + (1-epsilon) Q
-		chosen := 1
-		if rng.Float64() <= DiversifiedDefensiveMixtureEpsilon {
-			chosen = 0
-		}
-		activeMeans := components[chosen].Means
+		logQOverP := 0.0
 
 		for i, g := range games {
 			if g.Played {
@@ -323,10 +473,10 @@ func probeProposal(
 			hScore := poissonRand(rng, activeMeans[i].Home)
 			aScore := poissonRand(rng, activeMeans[i].Away)
 
-			logQBuf[0] += logPoissonQOverP(hScore, originalMeans[i].Home, originalMeans[i].Home)
-			logQBuf[1] += logPoissonQOverP(hScore, originalMeans[i].Home, components[1].Means[i].Home)
-			logQBuf[0] += logPoissonQOverP(aScore, originalMeans[i].Away, originalMeans[i].Away)
-			logQBuf[1] += logPoissonQOverP(aScore, originalMeans[i].Away, components[1].Means[i].Away)
+			if proposal.Kind != ProposalPlainMC {
+				logQOverP += logPoissonQOverP(hScore, originalMeans[i].Home, activeMeans[i].Home)
+				logQOverP += logPoissonQOverP(aScore, originalMeans[i].Away, activeMeans[i].Away)
+			}
 
 			home, away := g.home_table_index, g.away_table_index
 			if simCampaign[home] != nil {
@@ -337,7 +487,14 @@ func probeProposal(
 			}
 		}
 
-		w := mixtureImportanceWeightMulti(logQBuf, compWeights)
+		// Weight under pure Q draw: w = P/Q = exp(-logQOverP)
+		w := 1.0
+		if proposal.Kind != ProposalPlainMC {
+			w = math.Exp(-logQOverP)
+			if math.IsNaN(w) || math.IsInf(w, 0) {
+				w = 0.0
+			}
+		}
 
 		idx := 0
 		for _, tg := range teamGroups {
@@ -365,41 +522,67 @@ func probeProposal(
 		}
 	}
 
+	// Compute probe rank metrics for target team
+	if targetTeam > 0 {
+		stats.Metrics[targetTeam] = computeProbeRankMetrics(
+			targetTeam, frontierRank, proposal.Direction, unresolvedCells, stats.RankHistograms[targetTeam])
+	}
+
 	return stats
 }
 
 func selectCompetitorsForTail(
 	targetTeamID int,
 	direction RareDirection,
+	frontierRank int,
 	scout ScoutData,
 	teamGroups []TeamType,
 	limit int,
 ) []int {
-	targetPos := scout.TeamMeanRanks[targetTeamID]
 	type candidate struct {
-		id        int
-		relevance float64
+		id           int
+		corridorMass float64
+		meanDist     float64
 	}
 	var candidates []candidate
+	numTeams := len(teamGroups)
+
+	rMin := frontierRank - 2
+	if rMin < 0 {
+		rMin = 0
+	}
+	rMax := frontierRank + 2
+	if rMax >= numTeams {
+		rMax = numTeams - 1
+	}
 
 	for _, team := range teamGroups {
 		id := team.Team_id
 		if id == targetTeamID {
 			continue
 		}
-		meanRank := scout.TeamMeanRanks[id]
-		diff := meanRank - targetPos
-		if direction == RareBetter && diff < 2.0 {
-			rel := 1.0 / (1.0 + math.Abs(diff))
-			candidates = append(candidates, candidate{id, rel})
-		} else if direction == RareWorse && diff > -2.0 {
-			rel := 1.0 / (1.0 + math.Abs(diff))
-			candidates = append(candidates, candidate{id, rel})
+		counts := scout.TeamCounts[id]
+		corridorCount := 0
+		for p := rMin; p <= rMax; p++ {
+			if p >= 0 && p < len(counts) {
+				corridorCount += counts[p]
+			}
 		}
+		cMass := float64(corridorCount) / float64(scout.Samples)
+		meanDist := math.Abs(scout.TeamMeanRanks[id] - float64(frontierRank))
+
+		candidates = append(candidates, candidate{
+			id:           id,
+			corridorMass: cMass,
+			meanDist:     meanDist,
+		})
 	}
 
 	sort.Slice(candidates, func(i, j int) bool {
-		return candidates[i].relevance > candidates[j].relevance
+		if candidates[i].corridorMass != candidates[j].corridorMass {
+			return candidates[i].corridorMass > candidates[j].corridorMass
+		}
+		return candidates[i].meanDist < candidates[j].meanDist
 	})
 
 	if limit > len(candidates) {
@@ -425,8 +608,14 @@ func buildDirectTeamProposal(
 	if direction == RareWorse {
 		s = -strength
 	}
-	attackTheta := map[int]float64{targetTeamID: s / 2.0}
-	concedeTheta := map[int]float64{targetTeamID: -s / 2.0}
+	attackTheta := make(map[int]float64, len(teamIDs))
+	concedeTheta := make(map[int]float64, len(teamIDs))
+	for _, id := range teamIDs {
+		attackTheta[id] = 0.0
+		concedeTheta[id] = 0.0
+	}
+	attackTheta[targetTeamID] = s / 2.0
+	concedeTheta[targetTeamID] = -s / 2.0
 
 	cemProp := CEMProposal{
 		Parameterization: CEMTeamAttackConcession,
@@ -484,8 +673,14 @@ func buildCompetitorAssistedProposal(
 	}
 	s := strength * targetSign
 
-	attackTheta := map[int]float64{targetTeamID: s / 2.0}
-	concedeTheta := map[int]float64{targetTeamID: -s / 2.0}
+	attackTheta := make(map[int]float64, len(teamIDs))
+	concedeTheta := make(map[int]float64, len(teamIDs))
+	for _, id := range teamIDs {
+		attackTheta[id] = 0.0
+		concedeTheta[id] = 0.0
+	}
+	attackTheta[targetTeamID] = s / 2.0
+	concedeTheta[targetTeamID] = -s / 2.0
 
 	targetPos := normalMeanRanks[targetTeamID]
 	rawWeights := make(map[int]float64, len(competitors))
@@ -502,7 +697,7 @@ func buildCompetitorAssistedProposal(
 			normW /= sumRaw
 		}
 		compSign := -targetSign
-		compShift := competitorMass * normW * compSign
+		compShift := strength * competitorMass * normW * compSign
 		attackTheta[compID] = compShift / 2.0
 		concedeTheta[compID] = -compShift / 2.0
 	}
@@ -549,6 +744,117 @@ func directionName(d RareDirection) string {
 	return "worse"
 }
 
+type ProposalQuality struct {
+	TailScore           float64
+	DirectionalProgress float64
+	QuantileProgress    float64
+	FrontierDistance    float64
+	FrontierMass        float64
+	Near1Mass           float64
+	Near2Mass           float64
+	Near3Mass           float64
+	UnresolvedSupport   int
+	ShouldRetain        bool
+	ShouldEscalate      bool
+	IsOvershot          bool
+	Reason              string
+}
+
+func evaluateProposalQuality(
+	tail DirectionalTail,
+	metrics ProbeRankMetrics,
+) ProposalQuality {
+	r := float64(tail.FrontierRank)
+
+	directionalProgress := 0.0
+	quantileProgress := 0.0
+	frontierDistance := 0.0
+	isOvershot := false
+
+	if tail.Direction == RareBetter {
+		directionalProgress = tail.ScoutMeanRank - metrics.MeanRank
+		quantileProgress = tail.ScoutP25 - metrics.P25
+		frontierDistance = metrics.MeanRank - r
+		if metrics.P90 <= r {
+			isOvershot = true
+		}
+	} else {
+		directionalProgress = metrics.MeanRank - tail.ScoutMeanRank
+		quantileProgress = metrics.P75 - tail.ScoutP75
+		frontierDistance = r - metrics.MeanRank
+		if metrics.P10 >= r {
+			isOvershot = true
+		}
+	}
+
+	tailScore := 10.0*metrics.FrontierMass +
+		5.0*metrics.Near1Mass +
+		3.0*metrics.Near2Mass +
+		1.0*metrics.Near3Mass +
+		2.0*directionalProgress +
+		1.5*quantileProgress +
+		4.0*float64(metrics.UnresolvedSupport)
+
+	shouldRetain := false
+	reason := "insufficient_movement"
+
+	if metrics.FrontierMass >= 0.01 {
+		shouldRetain = true
+		reason = "frontier_mass_support"
+	} else if metrics.Near2Mass >= 0.05 {
+		shouldRetain = true
+		reason = "near_frontier_mass_support"
+	} else if metrics.UnresolvedSupport >= 2 {
+		shouldRetain = true
+		reason = "broad_unresolved_support"
+	} else if tailScore >= 3.0 && directionalProgress >= 0.5 {
+		shouldRetain = true
+		reason = "useful_tail_shift"
+	} else if metrics.Near1Mass > 0 && quantileProgress >= 1.0 {
+		shouldRetain = true
+		reason = "quantile_progress_near_frontier"
+	}
+
+	shouldEscalate := false
+	if !shouldRetain && (tailScore < 1.5 || directionalProgress < 0.3) && !isOvershot {
+		shouldEscalate = true
+		reason = "frontier_too_far"
+	}
+
+	return ProposalQuality{
+		TailScore:           tailScore,
+		DirectionalProgress: directionalProgress,
+		QuantileProgress:    quantileProgress,
+		FrontierDistance:    frontierDistance,
+		FrontierMass:        metrics.FrontierMass,
+		Near1Mass:           metrics.Near1Mass,
+		Near2Mass:           metrics.Near2Mass,
+		Near3Mass:           metrics.Near3Mass,
+		UnresolvedSupport:   metrics.UnresolvedSupport,
+		ShouldRetain:        shouldRetain,
+		ShouldEscalate:      shouldEscalate,
+		IsOvershot:          isOvershot,
+		Reason:              reason,
+	}
+}
+
+func proposalHistogramTVD(h1, h2 []int, s1, s2 int) float64 {
+	if s1 <= 0 || s2 <= 0 {
+		return 1.0
+	}
+	sum := 0.0
+	for i := 0; i < len(h1) && i < len(h2); i++ {
+		p1 := float64(h1[i]) / float64(s1)
+		p2 := float64(h2[i]) / float64(s2)
+		diff := p1 - p2
+		if diff < 0 {
+			diff = -diff
+		}
+		sum += diff
+	}
+	return 0.5 * sum
+}
+
 func searchDiversifiedProposals(
 	scout ScoutData,
 	baseCampaign []*TeamCampaign,
@@ -569,7 +875,8 @@ func searchDiversifiedProposals(
 			unplayedGames++
 		}
 	}
-	plainWorkPerSample := estimateSeasonWork(unplayedGames, 1, len(teamGroups))
+	numTeams := len(teamGroups)
+	plainWorkPerSample := estimateSeasonWork(unplayedGames, 1, numTeams)
 	plainProp := DiversifiedProposal{
 		ID:            "plain_mc",
 		Kind:          ProposalPlainMC,
@@ -588,6 +895,7 @@ func searchDiversifiedProposals(
 		CellSumY:       make(map[[2]int]float64),
 		CellSumY2:      make(map[[2]int]float64),
 		CellESS:        make(map[[2]int]float64),
+		Metrics:        make(map[int]ProbeRankMetrics),
 	}
 	for teamID, counts := range scout.TeamCounts {
 		for pos, c := range counts {
@@ -602,33 +910,53 @@ func searchDiversifiedProposals(
 	}
 	probeStatsMap["plain_mc"] = plainStats
 
+	// Identify all unresolved cells (scout count == 0 OR predicted ESS < 10)
+	unresolvedCells := make(map[[2]int]bool)
+	for _, team := range teamGroups {
+		id := team.Team_id
+		for pos := 0; pos < numTeams; pos++ {
+			cell := [2]int{id, pos}
+			if scout.Feasibility[cell] != "proven_impossible" {
+				if scout.TeamCounts[id][pos] < 10 {
+					unresolvedCells[cell] = true
+				}
+			}
+		}
+	}
+
 	tails := discoverDirectionalTails(scout, teamGroups)
 	teamIDs := teamIDsFromGroups(teamGroups)
-	numTeams := len(teamGroups)
 
 	workSpent := int64(0)
-	strengthLadder := []float64{0.25, 0.50, 0.75, 1.00, 1.50, 2.00}
+	strengthLadder := []float64{0.50, 0.75, 1.00, 1.50, 2.00, 0.25}
+
+	tailsTotal := len(tails)
+	tailsSingleTeamSolved := 0
+	tailsCompetitorSolved := 0
+	tailsExhausted := 0
 
 	for _, tail := range tails {
 		if workSpent >= searchWorkCap {
 			break
 		}
 
-		retainedForTail := 0
+		retainedForTail := make([]DiversifiedProposal, 0)
 		singleTeamFailed := false
 
 		for _, s := range strengthLadder {
-			if workSpent >= searchWorkCap || retainedForTail >= DiversifiedMaxSingleTeamPerDirection {
+			if workSpent >= searchWorkCap || len(retainedForTail) >= DiversifiedMaxSingleTeamPerDirection {
 				break
 			}
 
 			prop, ok := buildDirectTeamProposal(tail.TeamID, tail.Direction, s, original, games, teamIDs, numTeams)
 			if !ok {
+				log.Printf("rare-position-candidate: team=%d dir=%s frontier=%d type=single_team strength=%.2f decision=reject reason=KL_limit",
+					tail.TeamID, directionName(tail.Direction), tail.FrontierRank, s)
 				singleTeamFailed = true
 				continue
 			}
 
-			probeWork := int64(DiversifiedProbeChunkWork)
+			probeWork := int64(200 * prop.WorkPerSample)
 			if workSpent+probeWork > searchWorkCap {
 				probeWork = searchWorkCap - workSpent
 			}
@@ -636,42 +964,66 @@ func searchDiversifiedProposals(
 				break
 			}
 
-			stats := probeProposal(prop, baseCampaign, games, original, table, sortOrder, teamGroups, probeWork, rng)
+			stats := probeProposal(prop, baseCampaign, games, original, table, sortOrder, teamGroups, probeWork, rng, tail.TeamID, tail.FrontierRank, unresolvedCells)
 			workSpent += stats.Work
 
-			usefulHits := 0
-			for pos := 0; pos < numTeams; pos++ {
-				cell := [2]int{tail.TeamID, pos}
-				if scout.Feasibility[cell] == "feasible_unseen" && stats.CellHits[cell] > 0 {
-					usefulHits += stats.CellHits[cell]
+			m := stats.Metrics[tail.TeamID]
+			q := evaluateProposalQuality(tail, m)
+
+			log.Printf("rare-position-candidate: team=%d dir=%s frontier=%d type=single_team strength=%.2f KL=%.3f samples=%d work=%d mean_rank=%.2f p10=%.1f p25=%.1f p50=%.1f p75=%.1f p90=%.1f frontier_mass=%.3f near1_mass=%.3f near2_mass=%.3f unresolved_support=%d tail_score=%.2f decision=%s reason=%s",
+				tail.TeamID, directionName(tail.Direction), tail.FrontierRank, s, prop.KL, stats.Samples, stats.Work,
+				m.MeanRank, m.P10, m.P25, m.P50, m.P75, m.P90, m.FrontierMass, m.Near1Mass, m.Near2Mass, m.UnresolvedSupport, q.TailScore,
+				map[bool]string{true: "retain", false: "escalate"}[q.ShouldRetain], q.Reason)
+
+			if q.ShouldRetain {
+				// Deduplicate against already retained proposals for this tail
+				isDuplicate := false
+				for _, prev := range retainedForTail {
+					prevStats := probeStatsMap[prev.ID]
+					tvd := proposalHistogramTVD(stats.RankHistograms[tail.TeamID], prevStats.RankHistograms[tail.TeamID], stats.Samples, prevStats.Samples)
+					if tvd < 0.15 {
+						isDuplicate = true
+						log.Printf("rare-position-candidate: team=%d dir=%s prop=%s decision=skip_duplicate_tvd tvd=%.3f",
+							tail.TeamID, directionName(tail.Direction), prop.ID, tvd)
+						break
+					}
+				}
+
+				if !isDuplicate {
+					retained = append(retained, prop)
+					probeStatsMap[prop.ID] = stats
+					retainedForTail = append(retainedForTail, prop)
 				}
 			}
 
-			if usefulHits > 0 {
-				retained = append(retained, prop)
-				probeStatsMap[prop.ID] = stats
-				retainedForTail++
-				log.Printf("rare-position-diversified-search: team=%d direction=%s prop=%s strength=%.2f kl=%.3f useful_hits=%d decision=retain",
-					tail.TeamID, directionName(tail.Direction), prop.ID, s, prop.KL, usefulHits)
-			} else if s >= 1.0 {
-				singleTeamFailed = true
+			if q.IsOvershot || len(retainedForTail) >= DiversifiedMaxSingleTeamPerDirection {
+				break
 			}
 		}
 
-		if singleTeamFailed && retainedForTail == 0 && workSpent < searchWorkCap {
-			competitors := selectCompetitorsForTail(tail.TeamID, tail.Direction, scout, teamGroups, DiversifiedMaxCompetitors)
+		if len(retainedForTail) > 0 {
+			tailsSingleTeamSolved++
+		} else {
+			singleTeamFailed = true
+		}
+
+		// Competitor Escalation if target-only search stalled
+		if singleTeamFailed && len(retainedForTail) == 0 && workSpent < searchWorkCap {
+			competitors := selectCompetitorsForTail(tail.TeamID, tail.Direction, tail.FrontierRank, scout, teamGroups, DiversifiedMaxCompetitors)
 			if len(competitors) > 0 {
 				for _, s := range []float64{0.75, 1.25} {
-					if workSpent >= searchWorkCap || retainedForTail >= 1 {
+					if workSpent >= searchWorkCap || len(retainedForTail) >= 1 {
 						break
 					}
 
 					prop, ok := buildCompetitorAssistedProposal(tail.TeamID, tail.Direction, s, competitors, 0.50, scout.TeamMeanRanks, original, games, teamIDs, numTeams)
 					if !ok {
+						log.Printf("rare-position-candidate: team=%d dir=%s frontier=%d type=competitor strength=%.2f decision=reject reason=KL_limit",
+							tail.TeamID, directionName(tail.Direction), tail.FrontierRank, s)
 						continue
 					}
 
-					probeWork := int64(DiversifiedProbeChunkWork)
+					probeWork := int64(200 * prop.WorkPerSample)
 					if workSpent+probeWork > searchWorkCap {
 						probeWork = searchWorkCap - workSpent
 					}
@@ -679,33 +1031,36 @@ func searchDiversifiedProposals(
 						break
 					}
 
-					stats := probeProposal(prop, baseCampaign, games, original, table, sortOrder, teamGroups, probeWork, rng)
+					stats := probeProposal(prop, baseCampaign, games, original, table, sortOrder, teamGroups, probeWork, rng, tail.TeamID, tail.FrontierRank, unresolvedCells)
 					workSpent += stats.Work
 
-					usefulHits := 0
-					for pos := 0; pos < numTeams; pos++ {
-						cell := [2]int{tail.TeamID, pos}
-						if scout.Feasibility[cell] == "feasible_unseen" && stats.CellHits[cell] > 0 {
-							usefulHits += stats.CellHits[cell]
-						}
-					}
+					m := stats.Metrics[tail.TeamID]
+					q := evaluateProposalQuality(tail, m)
 
-					if usefulHits > 0 {
+					log.Printf("rare-position-candidate: team=%d dir=%s frontier=%d type=competitor strength=%.2f competitors=%v KL=%.3f samples=%d work=%d mean_rank=%.2f p10=%.1f p25=%.1f p50=%.1f p75=%.1f p90=%.1f frontier_mass=%.3f near1_mass=%.3f near2_mass=%.3f unresolved_support=%d tail_score=%.2f decision=%s reason=%s",
+						tail.TeamID, directionName(tail.Direction), tail.FrontierRank, s, competitors, prop.KL, stats.Samples, stats.Work,
+						m.MeanRank, m.P10, m.P25, m.P50, m.P75, m.P90, m.FrontierMass, m.Near1Mass, m.Near2Mass, m.UnresolvedSupport, q.TailScore,
+						map[bool]string{true: "retain_competitor", false: "escalate"}[q.ShouldRetain], q.Reason)
+
+					if q.ShouldRetain {
 						retained = append(retained, prop)
 						probeStatsMap[prop.ID] = stats
-						retainedForTail++
-						log.Printf("rare-position-diversified-search: team=%d direction=%s prop=%s strength=%.2f competitors=%v kl=%.3f useful_hits=%d decision=retain_competitor",
-							tail.TeamID, directionName(tail.Direction), prop.ID, s, competitors, prop.KL, usefulHits)
+						retainedForTail = append(retainedForTail, prop)
+						tailsCompetitorSolved++
 					}
 				}
 			}
 		}
 
-		if retainedForTail == 0 {
+		if len(retainedForTail) == 0 {
+			tailsExhausted++
 			log.Printf("rare-position-diversified-search: team=%d direction=%s decision=search_exhausted",
 				tail.TeamID, directionName(tail.Direction))
 		}
 	}
+
+	log.Printf("rare-position-diversified-search-summary: tails_total=%d tails_single_team_solved=%d tails_competitor_solved=%d tails_search_exhausted=%d proposals_retained=%d search_work_spent=%d search_work_cap=%d",
+		tailsTotal, tailsSingleTeamSolved, tailsCompetitorSolved, tailsExhausted, len(retained), workSpent, searchWorkCap)
 
 	return retained, probeStatsMap, workSpent
 }
