@@ -187,8 +187,41 @@ func additionalPointsPMF(universe *PointStratumUniverse) map[int]float64 {
 	return dp
 }
 
+// computeRankRelevance calculates SmoothedRankScore / RankRelevance for (rank, addedPoints)
+// using weighted numerator over weighted denominator from joint scout observations.
+func computeRankRelevance(
+	rank int, addedPoints int, scout *TeamPointRankScout, numPositions int,
+) float64 {
+	if scout == nil || scout.Samples <= 0 {
+		return 1.0 / float64(numPositions)
+	}
+	weightedNumerator := 0.0
+	weightedDenominator := 0.0
+
+	for sNeighbor, count := range scout.PointCounts {
+		if count <= 0 {
+			continue
+		}
+		wPoint := math.Exp(-math.Abs(float64(sNeighbor-addedPoints)) / 3.0)
+		weightedDenominator += float64(count) * wPoint
+
+		for rOther := 0; rOther < numPositions; rOther++ {
+			hits := scout.PointRankCounts[sNeighbor][rOther]
+			if hits > 0 {
+				wRank := math.Exp(-math.Abs(float64(rOther-rank)) / 1.5)
+				weightedNumerator += float64(hits) * wPoint * wRank
+			}
+		}
+	}
+
+	if weightedDenominator > 0 {
+		return weightedNumerator / weightedDenominator
+	}
+	return 1.0 / float64(numPositions)
+}
+
 // computePriorityEstimate calculates a heuristic priority score for cell (team, rank)
-// using exact PMF and smoothed scout rank distribution P(rank | S = s).
+// using exact PMF and smoothed scout rank relevance P(rank | S = s).
 // This is used ONLY for candidate ordering and proposal construction.
 func computePriorityEstimate(
 	teamID int, rank int, pmf map[int]float64, scout *TeamPointRankScout, numPositions int,
@@ -201,33 +234,8 @@ func computePriorityEstimate(
 		if probS <= 0 {
 			continue
 		}
-		totalObsS := 0
-		weightedHits := 0.0
-
-		for ds := -3; ds <= 3; ds++ {
-			sNeighbor := s + ds
-			wPoint := math.Exp(-math.Abs(float64(ds)) / 3.0)
-			obsCount := scout.PointCounts[sNeighbor]
-			if obsCount > 0 {
-				totalObsS += obsCount
-				for rOther := 0; rOther < numPositions; rOther++ {
-					hits := scout.PointRankCounts[sNeighbor][rOther]
-					if hits > 0 {
-						wRank := math.Exp(-math.Abs(float64(rOther-rank)) / 1.5)
-						weightedHits += float64(hits) * wPoint * wRank
-					}
-				}
-			}
-		}
-
-		pRankGivenS := 0.0
-		if totalObsS > 0 {
-			pRankGivenS = weightedHits / float64(totalObsS)
-		} else {
-			pRankGivenS = 1.0 / float64(numPositions)
-		}
-
-		score += probS * pRankGivenS
+		rel := computeRankRelevance(rank, s, scout, numPositions)
+		score += probS * rel
 	}
 	return score
 }
@@ -366,16 +374,17 @@ func runPlainMCScoutWithJointPoints(
 	if rng == nil {
 		rng = rand.New(rand.NewSource(1))
 	}
-	seed := rng.Int63()
-	data := runPlainMCScout(baseCampaign, games, table, sortOrder, teamGroups, scoutSamples, plainWorkPerSample, rand.New(rand.NewSource(seed)))
-	data.TeamScout = make(map[int]*TeamPointRankScout, len(teamGroups))
-
 	numPositions := len(teamGroups)
+
+	counts := make(map[int][]int, len(teamGroups))
+	teamScoutMap := make(map[int]*TeamPointRankScout, len(teamGroups))
+
 	for _, team := range teamGroups {
 		id := team.Team_id
-		data.TeamScout[id] = &TeamPointRankScout{
+		counts[id] = make([]int, numPositions)
+		teamScoutMap[id] = &TeamPointRankScout{
 			Samples:         scoutSamples,
-			RankCounts:      append([]int(nil), data.TeamCounts[id]...),
+			RankCounts:      counts[id],
 			PointRankCounts: make(map[int][]int),
 			PointCounts:     make(map[int]int),
 		}
@@ -383,8 +392,6 @@ func runPlainMCScoutWithJointPoints(
 
 	simCampaign := make([]*TeamCampaign, len(baseCampaign))
 	teamSlice := make([]*TeamCampaign, len(teamGroups))
-
-	rngJoint := rand.New(rand.NewSource(deriveRarePositionSeed(seed, "joint-scout")))
 
 	for s := 0; s < scoutSamples; s++ {
 		for i, c := range baseCampaign {
@@ -399,8 +406,8 @@ func runPlainMCScoutWithJointPoints(
 			if game.Played {
 				continue
 			}
-			hs := poissonRand(rngJoint, game.HomePower)
-			as := poissonRand(rngJoint, game.AwayPower)
+			hs := poissonRand(rng, game.HomePower)
+			as := poissonRand(rng, game.AwayPower)
 			home, away := game.home_table_index, game.away_table_index
 			played := &GameType{game.Id, game.HomeId, game.AwayId, hs, as, 0, 0, true, home, away}
 			if simCampaign[home] != nil {
@@ -418,20 +425,70 @@ func runPlainMCScoutWithJointPoints(
 				idx++
 			}
 		}
-		sort.Sort(TeamCampaignSorted{t: teamSlice[:idx], sort: sortOrder, rng: rngJoint})
+		sort.Sort(TeamCampaignSorted{t: teamSlice[:idx], sort: sortOrder, rng: rng})
 
 		for rank, c := range teamSlice[:idx] {
 			teamID := c.id
 			baseC := baseCampaign[table.Query(uint32(teamID))]
 			added := c.points - baseC.points
 
-			ts := data.TeamScout[teamID]
+			counts[teamID][rank]++
+
+			ts := teamScoutMap[teamID]
 			if ts.PointRankCounts[added] == nil {
 				ts.PointRankCounts[added] = make([]int, numPositions)
 			}
 			ts.PointRankCounts[added][rank]++
 			ts.PointCounts[added]++
 		}
+	}
+
+	data := ScoutData{
+		Samples:         scoutSamples,
+		Work:            int64(scoutSamples) * plainWorkPerSample,
+		TeamCounts:      counts,
+		TeamProbs:       make(map[int][]float64, len(teamGroups)),
+		TeamMeanRanks:   make(map[int]float64, len(teamGroups)),
+		MinObservedRank: make(map[int]int, len(teamGroups)),
+		MaxObservedRank: make(map[int]int, len(teamGroups)),
+		Feasibility:     make(map[[2]int]string),
+		TeamScout:       teamScoutMap,
+	}
+
+	for _, team := range teamGroups {
+		id := team.Team_id
+		teamCounts := counts[id]
+		probs := make([]float64, numPositions)
+		meanRank := 0.0
+		minObserved := numPositions
+		maxObserved := -1
+
+		for pos, c := range teamCounts {
+			p := float64(c) / float64(scoutSamples)
+			probs[pos] = p
+			meanRank += float64(pos) * p
+			if c > 0 {
+				if pos < minObserved {
+					minObserved = pos
+				}
+				if pos > maxObserved {
+					maxObserved = pos
+				}
+				data.Feasibility[[2]int{id, pos}] = "observed"
+			} else {
+				feasible := possiblePositionByPointsBoundsWithRNG(id, pos, baseCampaign, teamGroups, games, table, sortOrder, rng)
+				if feasible {
+					data.Feasibility[[2]int{id, pos}] = "feasible_unseen"
+				} else {
+					data.Feasibility[[2]int{id, pos}] = "proven_impossible"
+				}
+			}
+		}
+
+		data.TeamProbs[id] = probs
+		data.TeamMeanRanks[id] = meanRank
+		data.MinObservedRank[id] = minObserved
+		data.MaxObservedRank[id] = maxObserved
 	}
 
 	return data
@@ -522,34 +579,78 @@ func simulateAdaptivePlainSeasons(
 	return plainCounts, outsideCounts
 }
 
-// buildAdaptivePointProposal constructs a cell-driven AdaptivePointProposal
-// for a team with unresolved target cells.
+type pointContribution struct {
+	points int
+	score  float64
+}
+
+// buildAdaptivePointProposal constructs a localized AdaptivePointProposal
+// for a team with under-resolved target cells based on point contribution scores.
 func buildAdaptivePointProposal(
 	teamID int,
 	targetCells [][2]int,
 	universe *PointStratumUniverse,
 	pmf map[int]float64,
+	scout *TeamPointRankScout,
+	numPositions int,
 	cellAnalysis map[[2]int]AdaptiveCellAnalysis,
 ) (AdaptivePointProposal, bool) {
 	if universe == nil || len(targetCells) == 0 {
 		return AdaptivePointProposal{}, false
 	}
 
-	pointSetMap := make(map[int]bool)
-	maxPriority := 0.0
+	pointContributions := make(map[int]float64)
+	totalRelevance := 0.0
 
 	for _, cell := range targetCells {
+		rank := cell[1]
 		analysis := cellAnalysis[cell]
 		for _, pts := range analysis.PossiblePointTotals {
-			pointSetMap[pts] = true
-		}
-		if analysis.PriorityEstimate > maxPriority {
-			maxPriority = analysis.PriorityEstimate
+			p := pmf[pts]
+			if p <= 0 {
+				continue
+			}
+			rel := computeRankRelevance(rank, pts, scout, numPositions)
+			contrib := p * rel
+			if contrib > 0 {
+				pointContributions[pts] += contrib
+				totalRelevance += contrib
+			}
 		}
 	}
 
-	allowedPoints := make([]int, 0, len(pointSetMap))
-	for pts := range pointSetMap {
+	if totalRelevance <= 0 {
+		return AdaptivePointProposal{}, false
+	}
+
+	contribList := make([]pointContribution, 0, len(pointContributions))
+	for pts, score := range pointContributions {
+		contribList = append(contribList, pointContribution{points: pts, score: score})
+	}
+
+	sort.Slice(contribList, func(i, j int) bool {
+		return contribList[i].score > contribList[j].score
+	})
+
+	selectedMap := make(map[int]bool)
+	accumRelevance := 0.0
+	accumMass := 0.0
+
+	for _, pc := range contribList {
+		pts := pc.points
+		pMass := pmf[pts]
+
+		selectedMap[pts] = true
+		accumRelevance += pc.score
+		accumMass += pMass
+
+		if accumRelevance/totalRelevance >= 0.90 || accumMass >= 0.01 {
+			break
+		}
+	}
+
+	allowedPoints := make([]int, 0, len(selectedMap))
+	for pts := range selectedMap {
 		allowedPoints = append(allowedPoints, pts)
 	}
 	sort.Ints(allowedPoints)
@@ -558,22 +659,23 @@ func buildAdaptivePointProposal(
 		return AdaptivePointProposal{}, false
 	}
 
-	var stratum *PointStratum
-	var ok bool
+	minAllowed := allowedPoints[0]
+	isTrueTail := true
 
-	isTail := true
-	minPts := allowedPoints[0]
-	maxPts := allowedPoints[len(allowedPoints)-1]
-
-	for pts := minPts; pts <= maxPts; pts++ {
-		if pmf[pts] > 0 && !pointSetMap[pts] {
-			isTail = false
-			break
+	for s, p := range pmf {
+		if p > 0 && s >= minAllowed {
+			if !selectedMap[s] {
+				isTrueTail = false
+				break
+			}
 		}
 	}
 
-	if isTail {
-		stratum, ok = makePointTailStratum(universe, minPts)
+	var stratum *PointStratum
+	var ok bool
+
+	if isTrueTail {
+		stratum, ok = makePointTailStratum(universe, minAllowed)
 	} else {
 		stratum, ok = makePointSetStratum(universe, allowedPoints)
 	}
@@ -589,7 +691,7 @@ func buildAdaptivePointProposal(
 		AllowedPoints:    allowedPoints,
 		Mass:             stratum.Mass,
 		TargetCells:      targetCells,
-		PredictedUtility: maxPriority,
+		PredictedUtility: accumRelevance,
 		Stratum:          stratum,
 	}, true
 }
@@ -624,11 +726,16 @@ func runAdaptivePointStratifiedSearch(
 
 	// 1. Initial plain-MC design scout run with joint points x rank tracking
 	scoutRequested := 15000
-	if raw := os.Getenv("RARE_POSITION_DIVERSIFIED_SCOUT_SAMPLES"); raw != "" {
+	if raw := os.Getenv("RARE_POSITION_ADAPTIVE_SCOUT_SAMPLES"); raw != "" {
+		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
+			scoutRequested = parsed
+		}
+	} else if raw := os.Getenv("RARE_POSITION_DIVERSIFIED_SCOUT_SAMPLES"); raw != "" {
 		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
 			scoutRequested = parsed
 		}
 	}
+
 	scoutSamples := affordableSamples(scoutRequested, workLimit, plainCost)
 	if scoutSamples <= 0 {
 		return nil, diag, false
@@ -656,9 +763,16 @@ func runAdaptivePointStratifiedSearch(
 		}
 	}
 
+	targetScoutESS := 25
+	if raw := os.Getenv("RARE_POSITION_ADAPTIVE_TARGET_SCOUT_ESS"); raw != "" {
+		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
+			targetScoutESS = parsed
+		}
+	}
+
 	// 2 & 3 & 4. Points/rank analysis, exact PMF, priority estimates, and hard upper bounds
 	candidateProposals := make([]AdaptivePointProposal, 0, numTeams)
-	discoveryWorkTotal := int64(0)
+	diag.DiscoveryWork = 0 // Remove arbitrary synthetic discovery work
 
 	for _, team := range group.Team_groups {
 		teamID := team.Team_id
@@ -666,7 +780,6 @@ func runAdaptivePointStratifiedSearch(
 		if !ok || universe == nil {
 			continue
 		}
-		discoveryWorkTotal += int64(len(universe.GameIndices) * 1000)
 
 		pmf := additionalPointsPMF(universe)
 		teamScout := scout.TeamScout[teamID]
@@ -681,11 +794,11 @@ func runAdaptivePointStratifiedSearch(
 			scoutProb := float64(scoutHits) / float64(scoutSamples)
 			priorityEst := computePriorityEstimate(teamID, pos, pmf, teamScout, numTeams)
 
-			decision := "candidate"
+			decision := "under_resolved_candidate"
 			if provenImp {
 				decision = "proven_impossible"
-			} else if scoutHits > 0 {
-				decision = "observed"
+			} else if scoutHits >= targetScoutESS {
+				decision = "well_observed"
 			} else if hardUB < reportFloor {
 				decision = "bound_only_tiny"
 			} else if hardUB < simulateThreshold {
@@ -709,13 +822,13 @@ func runAdaptivePointStratifiedSearch(
 			log.Printf("rare-position-adaptive-cell: team=%d rank=%d scout_hits=%d hard_upper_bound=%.6g priority=%.6g possible_points=%v decision=%s",
 				teamID, pos, scoutHits, hardUB, priorityEst, possibleTotals, decision)
 
-			if !provenImp && scoutHits == 0 && hardUB >= simulateThreshold {
+			if !provenImp && scoutHits < targetScoutESS && hardUB >= simulateThreshold {
 				unresolvedTargetCells = append(unresolvedTargetCells, cell)
 			}
 		}
 
 		if len(unresolvedTargetCells) > 0 {
-			prop, ok := buildAdaptivePointProposal(teamID, unresolvedTargetCells, universe, pmf, diag.CellAnalysis)
+			prop, ok := buildAdaptivePointProposal(teamID, unresolvedTargetCells, universe, pmf, teamScout, numTeams, diag.CellAnalysis)
 			if ok {
 				candidateProposals = append(candidateProposals, prop)
 			}
@@ -725,8 +838,6 @@ func runAdaptivePointStratifiedSearch(
 	sort.Slice(candidateProposals, func(i, j int) bool {
 		return candidateProposals[i].PredictedUtility > candidateProposals[j].PredictedUtility
 	})
-
-	diag.DiscoveryWork = discoveryWorkTotal
 
 	// 5. Validation probes on shortlisted candidate proposals (Design)
 	valSamplesPerStratum := 200
@@ -755,18 +866,27 @@ func runAdaptivePointStratifiedSearch(
 		candidateProposals = candidateProposals[:maxValProposals]
 	}
 
-	valWorkTotal := int64(len(candidateProposals) * valSamplesPerStratum) * stratumCost
-	if valWorkTotal > valWorkCap {
-		valWorkTotal = valWorkCap
+	// Physical validation budget enforcement: cap candidate count so actual validation work <= valWorkCap
+	singlePropValWork := int64(valSamplesPerStratum) * stratumCost
+	if singlePropValWork > 0 {
+		maxAffordable := int(valWorkCap / singlePropValWork)
+		if len(candidateProposals) > maxAffordable {
+			if maxAffordable <= 0 {
+				candidateProposals = nil
+			} else {
+				candidateProposals = candidateProposals[:maxAffordable]
+			}
+		}
 	}
 
+	valWorkTotal := int64(len(candidateProposals)*valSamplesPerStratum) * stratumCost
 	diag.ValidationWork = valWorkTotal
 
 	type validationResult struct {
 		prop               AdaptivePointProposal
 		targetHits         int
+		valHitsPerCell     map[[2]int]int
 		validationSamples  int
-		targetHitRate      float64
 		pCondHit           map[[2]int]float64
 		varCondPerSample   map[[2]int]float64
 	}
@@ -780,18 +900,19 @@ func runAdaptivePointStratifiedSearch(
 				prop.Stratum, true, valSamplesPerStratum, valSeed)
 
 			targetHits := 0
+			valHitsPerCell := make(map[[2]int]int, len(prop.TargetCells))
 			pCondHit := make(map[[2]int]float64, len(prop.TargetCells))
 			varCondPerSample := make(map[[2]int]float64, len(prop.TargetCells))
 
 			for _, cell := range prop.TargetCells {
 				hits := valCounts[cell]
+				valHitsPerCell[cell] = hits
 				targetHits += hits
-				pCond := float64(hits) / float64(valSamplesPerStratum)
-				pCondHit[cell] = pCond
-				varCondPerSample[cell] = prop.Stratum.Mass * prop.Stratum.Mass * pCond * (1.0 - pCond)
-			}
 
-			targetHitRate := float64(targetHits) / float64(valSamplesPerStratum*len(prop.TargetCells))
+				qReg := (float64(hits) + 0.5) / (float64(valSamplesPerStratum) + 1.0)
+				pCondHit[cell] = qReg
+				varCondPerSample[cell] = prop.Stratum.Mass * prop.Stratum.Mass * qReg * (1.0 - qReg)
+			}
 
 			log.Printf("rare-position-adaptive-validation: proposal=%s samples=%d work=%d target_hits=%d decision=%s",
 				prop.ID, valSamplesPerStratum, int64(valSamplesPerStratum)*stratumCost, targetHits,
@@ -801,8 +922,8 @@ func runAdaptivePointStratifiedSearch(
 				valResults = append(valResults, validationResult{
 					prop:               prop,
 					targetHits:         targetHits,
+					valHitsPerCell:     valHitsPerCell,
 					validationSamples:  valSamplesPerStratum,
-					targetHitRate:      targetHitRate,
 					pCondHit:           pCondHit,
 					varCondPerSample:   varCondPerSample,
 				})
@@ -835,86 +956,139 @@ func runAdaptivePointStratifiedSearch(
 	prodStreams := make([]admittedProdStream, 0, len(valResults))
 	totalStratumWork := int64(0)
 
-	// Utility-driven production scheduler: allocate conditional budget in chunks
+	// Whole-matrix utility-driven production scheduler: SWAP conditional work against plain MC
 	if len(valResults) > 0 && maxCondWork >= stratumCost {
-		chunkWork := int64(100000)
-		if chunkWork < stratumCost {
-			chunkWork = stratumCost
+		chunkRequested := int64(100000)
+		chunkSamples := int(chunkRequested / stratumCost)
+		if chunkSamples <= 0 {
+			chunkSamples = 1
 		}
+		actualChunkWork := int64(chunkSamples) * stratumCost
 
 		allocatedSamples := make([]int, len(valResults))
 		allocatedWork := make([]int64, len(valResults))
 
-		initialPlainSamplesEstimate := int(remainingWork / plainCost)
-		currentCellESS := make(map[[2]int]float64, numTeams*numTeams)
+		cellA := make(map[[2]int]float64, numTeams*numTeams)
+		cellQ := make(map[[2]int]float64, numTeams*numTeams)
+		cellP := make(map[[2]int]float64, numTeams*numTeams)
+		cellPropIdx := make(map[[2]int]int, numTeams*numTeams)
 
 		for _, team := range group.Team_groups {
 			for pos := 0; pos < numTeams; pos++ {
 				cell := [2]int{team.Team_id, pos}
 				scoutHits := scout.TeamCounts[team.Team_id][pos]
-				if scoutHits > 0 {
-					p := float64(scoutHits) / float64(scoutSamples)
-					currentCellESS[cell] = p * float64(initialPlainSamplesEstimate)
+				pScout := (float64(scoutHits) + 0.5) / (float64(scoutSamples) + 1.0)
+				cellP[cell] = pScout
+				cellA[cell] = pScout
+				cellPropIdx[cell] = -1
+			}
+		}
+
+		for idx, vr := range valResults {
+			for _, cell := range vr.prop.TargetCells {
+				if vr.valHitsPerCell[cell] >= 2 {
+					cellPropIdx[cell] = idx
+					m := vr.prop.Mass
+					q := vr.pCondHit[cell]
+					cellQ[cell] = q
+					a := math.Max(0, cellP[cell]-m*q)
+					cellA[cell] = a
 				}
 			}
 		}
 
 		remainingCondWork := maxCondWork
 
-		for remainingCondWork >= chunkWork {
+		for remainingCondWork >= actualChunkWork {
 			bestValIdx := -1
-			bestUtilityGain := 0.0
+			bestUtilityDelta := 0.0
 
-			chunkSamples := int(chunkWork / stratumCost)
-			if chunkSamples <= 0 {
+			currentBProd := remainingWork
+			currentBQ := totalStratumWork
+			currentBP := currentBProd - currentBQ
+			currentNP := int(currentBP / plainCost)
+			if currentNP <= 1 {
 				break
 			}
 
-			for idx, vr := range valResults {
-				utilityGain := 0.0
+			currentWholeMatrixUtility := 0.0
+			for _, team := range group.Team_groups {
+				for pos := 0; pos < numTeams; pos++ {
+					cell := [2]int{team.Team_id, pos}
+					p := cellP[cell]
+					propIdx := cellPropIdx[cell]
 
-				for _, cell := range vr.prop.TargetCells {
-					vCond := vr.varCondPerSample[cell]
-					currentESS := currentCellESS[cell]
-
-					deltaESS := 0.0
-					if vCond > 0 {
-						deltaESS = (vr.prop.Mass * vr.prop.Mass) * float64(chunkSamples) / vCond
-					} else if vr.targetHits > 0 {
-						deltaESS = float64(chunkSamples)
+					vCell := p * (1.0 - p) / float64(currentNP)
+					if propIdx >= 0 && allocatedSamples[propIdx] > 0 {
+						a := cellA[cell]
+						q := cellQ[cell]
+						m := valResults[propIdx].prop.Mass
+						nQ := allocatedSamples[propIdx]
+						vCell = a*(1.0-a)/float64(currentNP) + m*m*q*(1.0-q)/float64(nQ)
 					}
 
-					newESS := currentESS + deltaESS
-					gain := adaptiveESSUtility(newESS) - adaptiveESSUtility(currentESS)
-					utilityGain += gain
+					essCell := 0.0
+					if vCell > 0 {
+						essCell = p * p / vCell
+					}
+					currentWholeMatrixUtility += adaptiveESSUtility(essCell)
+				}
+			}
+
+			for idx := range valResults {
+				tentativeBQ := currentBQ + actualChunkWork
+				tentativeBP := currentBProd - tentativeBQ
+				tentativeNP := int(tentativeBP / plainCost)
+				if tentativeNP <= 1 {
+					continue
 				}
 
-				if utilityGain > bestUtilityGain {
-					bestUtilityGain = utilityGain
+				tentativeNQ := allocatedSamples[idx] + chunkSamples
+				tentativeWholeMatrixUtility := 0.0
+
+				for _, team := range group.Team_groups {
+					for pos := 0; pos < numTeams; pos++ {
+						cell := [2]int{team.Team_id, pos}
+						p := cellP[cell]
+						propIdx := cellPropIdx[cell]
+
+						vCell := p * (1.0 - p) / float64(tentativeNP)
+						if propIdx >= 0 {
+							nQ := allocatedSamples[propIdx]
+							if propIdx == idx {
+								nQ = tentativeNQ
+							}
+							if nQ > 0 {
+								a := cellA[cell]
+								q := cellQ[cell]
+								m := valResults[propIdx].prop.Mass
+								vCell = a*(1.0-a)/float64(tentativeNP) + m*m*q*(1.0-q)/float64(nQ)
+							}
+						}
+
+						essCell := 0.0
+						if vCell > 0 {
+							essCell = p * p / vCell
+						}
+						tentativeWholeMatrixUtility += adaptiveESSUtility(essCell)
+					}
+				}
+
+				deltaU := tentativeWholeMatrixUtility - currentWholeMatrixUtility
+				if deltaU > bestUtilityDelta {
+					bestUtilityDelta = deltaU
 					bestValIdx = idx
 				}
 			}
 
-			if bestValIdx < 0 || bestUtilityGain <= 0 {
+			if bestValIdx < 0 || bestUtilityDelta <= 0 {
 				break
 			}
 
-			allocatedWork[bestValIdx] += chunkWork
+			allocatedWork[bestValIdx] += actualChunkWork
 			allocatedSamples[bestValIdx] += chunkSamples
-			remainingCondWork -= chunkWork
-			totalStratumWork += chunkWork
-
-			bestVR := valResults[bestValIdx]
-			for _, cell := range bestVR.prop.TargetCells {
-				vCond := bestVR.varCondPerSample[cell]
-				deltaESS := 0.0
-				if vCond > 0 {
-					deltaESS = (bestVR.prop.Mass * bestVR.prop.Mass) * float64(chunkSamples) / vCond
-				} else if bestVR.targetHits > 0 {
-					deltaESS = float64(chunkSamples)
-				}
-				currentCellESS[cell] += deltaESS
-			}
+			remainingCondWork -= actualChunkWork
+			totalStratumWork += actualChunkWork
 		}
 
 		for idx, vr := range valResults {
@@ -944,6 +1118,41 @@ func runAdaptivePointStratifiedSearch(
 
 	if diag.ScoutWork+diag.DiscoveryWork+diag.ValidationWork+diag.ProductionWork > workLimit {
 		panic("adaptive stratum work budget exceeded")
+	}
+
+	// Freeze cell-level estimator decisions BEFORE fresh production based on design predicted variances
+	frozenUseHybrid := make(map[[2]int]bool, numTeams*numTeams)
+
+	for _, ps := range prodStreams {
+		nQ := ps.samples
+		if nQ <= 0 {
+			continue
+		}
+		m := ps.prop.Mass
+		for _, cell := range ps.prop.TargetCells {
+			scoutHits := scout.TeamCounts[cell[0]][cell[1]]
+			pScout := (float64(scoutHits) + 0.5) / (float64(scoutSamples) + 1.0)
+
+			// Find matching valResult for per-cell qVal
+			qVal := 0.0
+			for _, vr := range valResults {
+				if vr.prop.ID == ps.prop.ID {
+					qVal = vr.pCondHit[cell]
+					break
+				}
+			}
+			if qVal <= 0 {
+				qVal = 0.5 / float64(valSamplesPerStratum+1)
+			}
+			aScout := math.Max(0, pScout-m*qVal)
+
+			varPlainPred := pScout * (1.0 - pScout) / float64(plainSamples)
+			varHybridPred := aScout*(1.0-aScout)/float64(plainSamples) + m*m*qVal*(1.0-qVal)/float64(nQ)
+
+			if varHybridPred <= varPlainPred {
+				frozenUseHybrid[cell] = true
+			}
+		}
 	}
 
 	for _, ps := range prodStreams {
@@ -999,13 +1208,6 @@ func runAdaptivePointStratifiedSearch(
 
 		ps, hasStratum := streamByTeam[id]
 
-		targetSet := make(map[int]bool)
-		if hasStratum {
-			for _, cell := range ps.prop.TargetCells {
-				targetSet[cell[1]] = true
-			}
-		}
-
 		for pos := 0; pos < numTeams; pos++ {
 			cell := [2]int{id, pos}
 			plainHits := plainCounts[cell]
@@ -1017,7 +1219,7 @@ func runAdaptivePointStratifiedSearch(
 			samples := plainSamples
 			designName := "plain_mc"
 
-			if hasStratum && targetSet[pos] {
+			if hasStratum && frozenUseHybrid[cell] {
 				designName = "adaptive_point_stratum"
 				outsideHits := plainOutsideCounts[cell]
 				pOutside := float64(outsideHits) / float64(plainSamples)
@@ -1031,20 +1233,15 @@ func runAdaptivePointStratifiedSearch(
 				varHybrid := pOutside*(1-pOutside)/float64(plainSamples) +
 					stratumMass*stratumMass*pInside*(1-pInside)/float64(ps.samples)
 
-				// Frozen cell-level selection: use hybrid if predicted variance is better
-				if varHybrid <= varCell || pPlain == 0 {
-					p = pHybrid
-					varCell = varHybrid
-					hits = outsideHits + insideHits
-					samples = plainSamples + ps.samples
-				} else {
-					designName = "plain_mc"
-				}
+				p = pHybrid
+				varCell = varHybrid
+				hits = outsideHits + insideHits
+				samples = plainSamples + ps.samples
 			}
 
 			est := pointHybridEstimate(p, varCell, hits, samples, diag.ProductionWork, designName)
 
-			if hasStratum && targetSet[pos] && hits == 0 {
+			if hasStratum && frozenUseHybrid[cell] && hits == 0 {
 				stratumMass := ps.prop.Stratum.Mass
 				est.ZeroHitUpper95 = math.Min(1, -math.Log(0.025)/float64(plainSamples)+stratumMass*(-math.Log(0.025))/float64(ps.samples))
 			}

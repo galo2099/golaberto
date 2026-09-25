@@ -5,6 +5,48 @@ import (
 	"testing"
 )
 
+func TestAdaptiveScoutUsesSingleSimulationPass(t *testing.T) {
+	group, campaign, table, sortOrder, _ := createTestGroupForDiversified()
+	scoutSamples := 1000
+	unplayed := len(group.Games)
+	plainCost := estimateSeasonWork(unplayed, 1, len(group.Team_groups))
+
+	scout := runPlainMCScoutWithJointPoints(campaign, group.Games, table, sortOrder, group.Team_groups, scoutSamples, plainCost, nil)
+
+	if scout.Samples != scoutSamples {
+		t.Fatalf("scout.Samples = %d, want %d", scout.Samples, scoutSamples)
+	}
+
+	expectedWork := int64(scoutSamples) * plainCost
+	if scout.Work != expectedWork {
+		t.Fatalf("scout.Work = %d, want %d", scout.Work, expectedWork)
+	}
+
+	for _, team := range group.Team_groups {
+		id := team.Team_id
+		ts := scout.TeamScout[id]
+		if ts == nil {
+			t.Fatalf("missing TeamScout for team %d", id)
+		}
+
+		sumRank := 0
+		for _, c := range ts.RankCounts {
+			sumRank += c
+		}
+		if sumRank != scoutSamples {
+			t.Fatalf("team %d sum of rank counts = %d, want %d", id, sumRank, scoutSamples)
+		}
+
+		sumPoints := 0
+		for _, c := range ts.PointCounts {
+			sumPoints += c
+		}
+		if sumPoints != scoutSamples {
+			t.Fatalf("team %d sum of point counts = %d, want %d", id, sumPoints, scoutSamples)
+		}
+	}
+}
+
 func TestAdditionalPointsPMFSumsToOne(t *testing.T) {
 	table := NewTable([]uint32{1, 2})
 	games := []*GameType{
@@ -168,13 +210,11 @@ func TestBetterAndWorseTailUpperBounds(t *testing.T) {
 	}
 	pmf := additionalPointsPMF(universe)
 
-	// Better tail (1st place, rank 0): team 1 needs 6 points (2 wins)
 	ub1st, _, provenImp1st := computeHardCellUpperBound(1, 0, pmf, base, teamGroups, games, table)
 	if provenImp1st || ub1st <= 0 {
 		t.Fatalf("1st place should be possible with 2 wins for team 1")
 	}
 
-	// Worse tail (3rd place, rank 2): team 1 gets 0 points (10), team 3 gets 6 points (18) -> team 1 finishes 3rd
 	ub3rd, _, provenImp3rd := computeHardCellUpperBound(1, 2, pmf, base, teamGroups, games, table)
 	if provenImp3rd || ub3rd <= 0 {
 		t.Fatalf("3rd place should be possible for team 1")
