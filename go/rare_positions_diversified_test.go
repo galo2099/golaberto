@@ -653,6 +653,242 @@ func TestUnequalTargetedAllocations(t *testing.T) {
 	}
 }
 
+func TestConservativeVarianceTightensWithProbeSize(t *testing.T) {
+	// Discrete distribution: p_event = 0.02 under Q, r = 0.01 under P/Q
+	// Test N = 200 vs N = 2000 probe samples
+	eps := 0.05
+	rng200 := rand.New(rand.NewSource(42))
+	rng2000 := rand.New(rand.NewSource(42))
+
+	runProbe := func(N int, rng *rand.Rand) (meanZ2, seM2, m2Upper float64) {
+		sumZ2 := 0.0
+		sumZ2Sq := 0.0
+		for i := 0; i < N; i++ {
+			if rng.Float64() <= 0.02 { // event hit
+				r := 0.01
+				den := eps*r + (1.0 - eps)
+				z2 := (r * r) / den
+				sumZ2 += z2
+				sumZ2Sq += z2 * z2
+			}
+		}
+		n := float64(N)
+		meanZ2 = sumZ2 / n
+		sampleVarZ2 := (sumZ2Sq - n*meanZ2*meanZ2) / (n - 1.0)
+		seM2 = math.Sqrt(sampleVarZ2 / n)
+		m2Upper = meanZ2 + 1.96*seM2
+		return meanZ2, seM2, m2Upper
+	}
+
+	_, se200, _ := runProbe(200, rng200)
+	_, se2000, _ := runProbe(2000, rng2000)
+
+	if se2000 >= se200 {
+		t.Errorf("Expected standard error SE(m2) for N=2000 (%g) < N=200 (%g)", se2000, se200)
+	}
+}
+
+func TestConservativeVarianceRespondsToWeightVariability(t *testing.T) {
+	// Two proposals each with N = 200 samples and 4 event hits (hit rate = 2%)
+	// Proposal A: 4 hits with equal modest likelihood ratios r = 0.01
+	// Proposal B: 4 hits with 1 huge spike r = 1.0 and 3 modest r = 0.01
+	eps := 0.05
+	N := 200.0
+
+	// Proposal A
+	rA := 0.01
+	denA := eps*rA + (1.0 - eps)
+	z2A := (rA * rA) / denA
+	sumZ2A := 4.0 * z2A
+	sumZ2SqA := 4.0 * (z2A * z2A)
+	meanA := sumZ2A / N
+	varZ2A := (sumZ2SqA - N*meanA*meanA) / (N - 1.0)
+	seA := math.Sqrt(varZ2A / N)
+	m2UpperA := meanA + 1.96*seA
+
+	// Proposal B
+	rB1 := 1.0
+	denB1 := eps*rB1 + (1.0 - eps)
+	z2B1 := (rB1 * rB1) / denB1
+
+	sumZ2B := z2B1 + 3.0*z2A
+	sumZ2SqB := (z2B1 * z2B1) + 3.0*(z2A * z2A)
+	meanB := sumZ2B / N
+	varZ2B := (sumZ2SqB - N*meanB*meanB) / (N - 1.0)
+	seB := math.Sqrt(varZ2B / N)
+	m2UpperB := meanB + 1.96*seB
+
+	if m2UpperB <= m2UpperA*5.0 {
+		t.Errorf("Expected Proposal B (volatile weights) to have significantly higher m2Upper (%g) than Proposal A (%g)", m2UpperB, m2UpperA)
+	}
+}
+
+func TestExactEnumerableToyModelVarianceTransform(t *testing.T) {
+	// Discrete distribution over 3 outcomes {0, 1, 2}
+	// P: [0.01, 0.29, 0.70]
+	// Q: [0.20, 0.40, 0.40]
+	pProbs := []float64{0.01, 0.29, 0.70}
+	qProbs := []float64{0.20, 0.40, 0.40}
+	eps := 0.05
+
+	mProbs := make([]float64, 3)
+	for i := 0; i < 3; i++ {
+		mProbs[i] = eps*pProbs[i] + (1.0-eps)*qProbs[i]
+	}
+
+	w0 := pProbs[0] / mProbs[0]
+	exactM2 := w0 * w0 * mProbs[0] // exact second moment E_M[Y^2]
+
+	rng := rand.New(rand.NewSource(12345))
+	N := 10000
+	sumZ2 := 0.0
+	sumZ2Sq := 0.0
+
+	for s := 0; s < N; s++ {
+		u := rng.Float64()
+		outcome := 0
+		if u > qProbs[0] {
+			outcome = 1
+			if u > qProbs[0]+qProbs[1] {
+				outcome = 2
+			}
+		}
+
+		if outcome == 0 {
+			r := pProbs[0] / qProbs[0]
+			den := eps*r + (1.0 - eps)
+			z2 := (r * r) / den
+			sumZ2 += z2
+			sumZ2Sq += z2 * z2
+		}
+	}
+
+	n := float64(N)
+	meanZ2 := sumZ2 / n
+	sampleVarZ2 := (sumZ2Sq - n*meanZ2*meanZ2) / (n - 1.0)
+	seM2 := math.Sqrt(sampleVarZ2 / n)
+	m2Upper := meanZ2 + 1.96*seM2
+
+	if math.Abs(meanZ2-exactM2) > 0.001 {
+		t.Errorf("Expected sample meanZ2 (%g) ~ exactM2 (%g)", meanZ2, exactM2)
+	}
+	if m2Upper < exactM2-1e-6 {
+		t.Errorf("Expected m2Upper (%g) >= exactM2 (%g)", m2Upper, exactM2)
+	}
+}
+
+func TestSparseHitsISProposalBeatsPlainMC(t *testing.T) {
+	// Rare cell pReg = 1e-5
+	// Plain P: var = 1e-5
+	pReg := 1e-5
+	plainVar := pReg * (1.0 - pReg)
+
+	// Targeted Q probe: N = 200, 4 event hits, r = 0.001
+	// r = 1e-3, den = 0.05*(1e-3) + 0.95 = 0.95005
+	// z2 = (1e-6) / 0.95005 = 1.05257e-6
+	eps := 0.05
+	r := 1e-3
+	den := eps*r + (1.0 - eps)
+	z2 := (r * r) / den
+
+	N := 200.0
+	sumZ2 := 4.0 * z2
+	sumZ2Sq := 4.0 * (z2 * z2)
+
+	meanZ2 := sumZ2 / N
+	sampleVarZ2 := (sumZ2Sq - N*meanZ2*meanZ2) / (N - 1.0)
+	seM2 := math.Sqrt(sampleVarZ2 / N)
+	m2Upper := meanZ2 + 1.96*seM2 // consVar for rare cell
+
+	// Compare relative-ESS gain per work unit (wWork = 350):
+	// gainQ = pReg^2 * (1 / m2Upper) / 350
+	// gainP = pReg^2 * (1 / plainVar) / 350
+	gainQ := (pReg * pReg) * (1.0 / m2Upper) / 350.0
+	gainP := (pReg * pReg) * (1.0 / plainVar) / 350.0
+
+	if gainQ <= gainP {
+		t.Fatalf("Expected strong sparse IS proposal gainQ (%g) > gainP (%g)", gainQ, gainP)
+	}
+	if gainQ/gainP < 5.0 {
+		t.Errorf("Expected strong IS proposal to beat Plain P by >= 5x, got ratio %f", gainQ/gainP)
+	}
+}
+
+func TestUnstableLikelihoodBadProposalLosesToPlainMC(t *testing.T) {
+	pReg := 1e-4
+	plainVar := pReg * (1.0 - pReg)
+
+	// Bad proposal Q: N = 200, 4 hits, 1 hit has massive r = 50.0 spike
+	eps := 0.05
+	rSpike := 50.0
+	denSpike := eps*rSpike + (1.0 - eps) // 2.5 + 0.95 = 3.45
+	z2Spike := (rSpike * rSpike) / denSpike // 2500 / 3.45 = 724.637
+
+	rNorm := 0.01
+	denNorm := eps*rNorm + (1.0 - eps)
+	z2Norm := (rNorm * rNorm) / denNorm
+
+	N := 200.0
+	sumZ2 := z2Spike + 3.0*z2Norm
+	sumZ2Sq := (z2Spike * z2Spike) + 3.0*(z2Norm * z2Norm)
+
+	meanZ2 := sumZ2 / N
+	sampleVarZ2 := (sumZ2Sq - N*meanZ2*meanZ2) / (N - 1.0)
+	seM2 := math.Sqrt(sampleVarZ2 / N)
+	m2Upper := meanZ2 + 1.96*seM2
+
+	gainQ := (pReg * pReg) * (1.0 / m2Upper) / 350.0
+	gainP := (pReg * pReg) * (1.0 / plainVar) / 350.0
+
+	if gainQ >= gainP {
+		t.Errorf("Expected unstable bad proposal gainQ (%g) < gainP (%g)", gainQ, gainP)
+	}
+}
+
+func TestConservativeVarianceConvergence(t *testing.T) {
+	// Probe sizes N = 100, 500, 5000
+	eps := 0.05
+	pEvent := 0.02
+	r := 0.01
+	den := eps*r + (1.0 - eps)
+	z2 := (r * r) / den
+	exactM2 := pEvent * z2
+
+	getM2Upper := func(N int, seed int64) float64 {
+		rng := rand.New(rand.NewSource(seed))
+		hits := 0
+		for i := 0; i < N; i++ {
+			if rng.Float64() <= pEvent {
+				hits++
+			}
+		}
+		n := float64(N)
+		sumZ2 := float64(hits) * z2
+		sumZ2Sq := float64(hits) * (z2 * z2)
+		meanZ2 := sumZ2 / n
+		sampleVarZ2 := 0.0
+		if N > 1 {
+			sampleVarZ2 = (sumZ2Sq - n*meanZ2*meanZ2) / (n - 1.0)
+		}
+		seM2 := math.Sqrt(sampleVarZ2 / n)
+		return meanZ2 + 1.96*seM2
+	}
+
+	m2Upper100 := getM2Upper(100, 42)
+	_ = getM2Upper(500, 42)
+	m2Upper5000 := getM2Upper(5000, 42)
+
+	diff100 := math.Abs(m2Upper100 - exactM2)
+	diff5000 := math.Abs(m2Upper5000 - exactM2)
+
+	if diff5000 >= diff100 {
+		t.Errorf("Expected m2Upper error for N=5000 (%g) < N=100 (%g)", diff5000, diff100)
+	}
+	if diff5000 > 1e-6 {
+		t.Errorf("Expected m2Upper to converge close to exactM2 (%g) for N=5000, got %g", exactM2, m2Upper5000)
+	}
+}
+
 func TestRetainedProposalSurvivesFreeze(t *testing.T) {
 	tg1 := TeamType{Team_id: 1, Bias: 0}
 	tg2 := TeamType{Team_id: 2, Bias: 1}
@@ -663,9 +899,9 @@ func TestRetainedProposalSurvivesFreeze(t *testing.T) {
 		Id:          16982,
 		Team_groups: []TeamType{tg1, tg2, tg3, tg4},
 		Games: []*GameType{
-			{Id: 101, HomeId: 1, AwayId: 2, HomePower: 1.5, AwayPower: 1.0, Played: false},
-			{Id: 102, HomeId: 1, AwayId: 3, HomePower: 1.4, AwayPower: 1.1, Played: false},
-			{Id: 103, HomeId: 1, AwayId: 4, HomePower: 1.6, AwayPower: 0.9, Played: false},
+			{Id: 101, HomeId: 1, AwayId: 2, HomePower: 2.5, AwayPower: 0.8, Played: false},
+			{Id: 102, HomeId: 1, AwayId: 3, HomePower: 2.4, AwayPower: 0.8, Played: false},
+			{Id: 103, HomeId: 1, AwayId: 4, HomePower: 2.6, AwayPower: 0.8, Played: false},
 			{Id: 104, HomeId: 2, AwayId: 3, HomePower: 1.2, AwayPower: 1.2, Played: false},
 			{Id: 105, HomeId: 2, AwayId: 4, HomePower: 1.3, AwayPower: 1.0, Played: false},
 			{Id: 106, HomeId: 3, AwayId: 4, HomePower: 1.1, AwayPower: 1.1, Played: false},
@@ -680,7 +916,7 @@ func TestRetainedProposalSurvivesFreeze(t *testing.T) {
 		g.away_table_index = table.Query(uint32(g.AwayId))
 	}
 
-	c1 := &TeamCampaign{id: 1, bias: 0, points: 17, points_win: 3, points_draw: 1, points_loss: 0}
+	c1 := &TeamCampaign{id: 1, bias: 0, points: 16, points_win: 3, points_draw: 1, points_loss: 0}
 	c2 := &TeamCampaign{id: 2, bias: 1, points: 11, points_win: 3, points_draw: 1, points_loss: 0}
 	c3 := &TeamCampaign{id: 3, bias: 2, points: 11, points_win: 3, points_draw: 1, points_loss: 0}
 	c4 := &TeamCampaign{id: 4, bias: 3, points: 11, points_win: 3, points_draw: 1, points_loss: 0}

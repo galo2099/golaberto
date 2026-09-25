@@ -85,16 +85,21 @@ type ProbeRankMetrics struct {
 }
 
 type ProposalProbeStats struct {
-	ProposalID                 string                   `json:"proposal_id"`
-	Samples                    int                      `json:"samples"`
-	Work                       int64                    `json:"work"`
-	RankHistograms             map[int][]int            `json:"-"`
-	CellHits                   map[[2]int]int           `json:"-"`
-	CellSumR                   map[[2]int]float64       `json:"-"`
-	CellSumR2OverDen           map[[2]int]float64       `json:"-"`
-	CellESS                    map[[2]int]float64       `json:"-"`
-	CellPredictedVarPerSample  map[[2]int]float64       `json:"-"`
-	Metrics                    map[int]ProbeRankMetrics `json:"metrics,omitempty"`
+	ProposalID                    string                   `json:"proposal_id"`
+	Samples                       int                      `json:"samples"`
+	Work                          int64                    `json:"work"`
+	RankHistograms                map[int][]int            `json:"-"`
+	CellHits                      map[[2]int]int           `json:"-"`
+	CellSumR                      map[[2]int]float64       `json:"-"`
+	CellSumR2OverDen              map[[2]int]float64       `json:"-"`
+	CellSumZ1                     map[[2]int]float64       `json:"-"`
+	CellSumZ1Sq                   map[[2]int]float64       `json:"-"`
+	CellSumZ2                     map[[2]int]float64       `json:"-"`
+	CellSumZ2Sq                   map[[2]int]float64       `json:"-"`
+	CellESS                       map[[2]int]float64       `json:"-"`
+	CellPredictedRawVarPerSample map[[2]int]float64       `json:"-"`
+	CellPredictedVarPerSample     map[[2]int]float64       `json:"-"`
+	Metrics                       map[int]ProbeRankMetrics `json:"metrics,omitempty"`
 }
 
 type FrozenProductionBatch struct {
@@ -434,16 +439,21 @@ func probeProposal(
 	actualWork := int64(samples) * proposal.WorkPerSample
 
 	stats := ProposalProbeStats{
-		ProposalID:                proposal.ID,
-		Samples:                   samples,
-		Work:                      actualWork,
-		RankHistograms:            make(map[int][]int, len(teamGroups)),
-		CellHits:                  make(map[[2]int]int),
-		CellSumR:                  make(map[[2]int]float64),
-		CellSumR2OverDen:          make(map[[2]int]float64),
-		CellESS:                   make(map[[2]int]float64),
-		CellPredictedVarPerSample: make(map[[2]int]float64),
-		Metrics:                   make(map[int]ProbeRankMetrics),
+		ProposalID:                    proposal.ID,
+		Samples:                       samples,
+		Work:                          actualWork,
+		RankHistograms:                make(map[int][]int, len(teamGroups)),
+		CellHits:                      make(map[[2]int]int),
+		CellSumR:                      make(map[[2]int]float64),
+		CellSumR2OverDen:              make(map[[2]int]float64),
+		CellSumZ1:                     make(map[[2]int]float64),
+		CellSumZ1Sq:                   make(map[[2]int]float64),
+		CellSumZ2:                     make(map[[2]int]float64),
+		CellSumZ2Sq:                   make(map[[2]int]float64),
+		CellESS:                       make(map[[2]int]float64),
+		CellPredictedRawVarPerSample: make(map[[2]int]float64),
+		CellPredictedVarPerSample:     make(map[[2]int]float64),
+		Metrics:                       make(map[int]ProbeRankMetrics),
 	}
 
 	for _, team := range teamGroups {
@@ -519,12 +529,17 @@ func probeProposal(
 			stats.CellHits[cell]++
 			stats.CellSumR[cell] += y1
 			stats.CellSumR2OverDen[cell] += y2
+			stats.CellSumZ1[cell] += y1
+			stats.CellSumZ1Sq[cell] += y1 * y1
+			stats.CellSumZ2[cell] += y2
+			stats.CellSumZ2Sq[cell] += y2 * y2
 		}
 	}
 
 	// Compute exact production mixture M variance and predicted per-sample variance for every cell
 	numTeams := len(teamGroups)
 	eps := DiversifiedDefensiveMixtureEpsilon
+	n := float64(samples)
 
 	for _, team := range teamGroups {
 		id := team.Team_id
@@ -538,6 +553,7 @@ func probeProposal(
 			refVar := pReg * (1.0 - pReg)
 
 			if proposal.Kind == ProposalPlainMC {
+				stats.CellPredictedRawVarPerSample[cell] = refVar
 				stats.CellPredictedVarPerSample[cell] = refVar
 				if scoutHits > 0 {
 					stats.CellESS[cell] = float64(scoutHits)
@@ -545,22 +561,40 @@ func probeProposal(
 			} else {
 				qHits := stats.CellHits[cell]
 				if qHits == 0 {
+					stats.CellPredictedRawVarPerSample[cell] = math.Inf(1)
 					stats.CellPredictedVarPerSample[cell] = math.Inf(1)
 				} else {
-					e1 := stats.CellSumR[cell] / float64(samples)
-					e2 := stats.CellSumR2OverDen[cell] / float64(samples)
-					rawVar := e2 - e1*e1
-					if rawVar < 1e-12 {
-						rawVar = 1e-12
+					sumZ1 := stats.CellSumZ1[cell]
+					sumZ2 := stats.CellSumZ2[cell]
+					sumZ2Sq := stats.CellSumZ2Sq[cell]
+
+					muHat := sumZ1 / n
+					meanZ2 := sumZ2 / n
+
+					sampleVarZ2 := 0.0
+					if samples > 1 {
+						sampleVarZ2 = (sumZ2Sq - n*meanZ2*meanZ2) / (n - 1.0)
+						if sampleVarZ2 < 0 {
+							sampleVarZ2 = 0.0
+						}
 					}
-					// Shrinkage towards Jeffreys prior reference variance
-					shrink := float64(qHits) / (float64(qHits) + 10.0)
-					varPerSample := shrink*rawVar + (1.0-shrink)*refVar
-					stats.CellPredictedVarPerSample[cell] = varPerSample
+
+					seMeanZ2 := math.Sqrt(sampleVarZ2 / n)
+					m2Upper := meanZ2 + 1.96*seMeanZ2
+
+					rawVar := math.Max(1e-18, meanZ2-muHat*muHat)
+					stats.CellPredictedRawVarPerSample[cell] = rawVar
+
+					consVar := 1e-18
+					if pReg < 1e-2 {
+						consVar = math.Max(1e-18, m2Upper)
+					} else {
+						consVar = math.Max(1e-18, m2Upper-muHat*muHat)
+					}
+					stats.CellPredictedVarPerSample[cell] = consVar
 
 					if rawVar > 0 {
-						// Effective ESS under M
-						stats.CellESS[cell] = (e1 * e1) / (rawVar + e1*e1*eps)
+						stats.CellESS[cell] = (muHat * muHat) / (rawVar + muHat*muHat*eps)
 					}
 				}
 			}
@@ -1212,17 +1246,28 @@ func freezeDiversifiedDesign(
 
 	remainingProdWork := productionWorkBudget - minPlainWork
 
-	// 2. Compute predicted per-sample precision prec = 1/varPerSample for each proposal per cell
+	// 2. Compute predicted per-sample precision prec = 1/varPerSample for each proposal per cell (conservative and raw)
 	precPerSample := make(map[string]map[[2]int]float64, len(proposals))
+	precPerSampleRaw := make(map[string]map[[2]int]float64, len(proposals))
+
 	for _, prop := range proposals {
 		stats := probeStats[prop.ID]
 		pMap := make(map[[2]int]float64)
+		pMapRaw := make(map[[2]int]float64)
+
 		for cell, varPerSample := range stats.CellPredictedVarPerSample {
 			if !math.IsNaN(varPerSample) && !math.IsInf(varPerSample, 0) && varPerSample > 0 {
 				pMap[cell] = 1.0 / varPerSample
 			}
 		}
+		for cell, rawVar := range stats.CellPredictedRawVarPerSample {
+			if !math.IsNaN(rawVar) && !math.IsInf(rawVar, 0) && rawVar > 0 {
+				pMapRaw[cell] = 1.0 / rawVar
+			}
+		}
+
 		precPerSample[prop.ID] = pMap
+		precPerSampleRaw[prop.ID] = pMapRaw
 	}
 
 	// 3. Greedy Marginal-Utility Allocation based on predicted precision gain
@@ -1236,21 +1281,6 @@ func freezeDiversifiedDesign(
 		}
 	}
 
-	// Target precision corresponds to relative ESS ~ 10: targetPrecision = DiversifiedTargetESS / (p_reg * p_reg)
-	targetPrecision := make(map[[2]int]float64, len(feasibleCells))
-	for _, cell := range feasibleCells {
-		scoutHits := scout.TeamCounts[cell[0]][cell[1]]
-		pReg := (float64(scoutHits) + 0.5) / (float64(scout.Samples) + 1.0)
-		if pReg < 1e-12 {
-			pReg = 1e-12
-		}
-		tPrec := DiversifiedTargetESS / (pReg * pReg)
-		if math.IsNaN(tPrec) || math.IsInf(tPrec, 0) || tPrec > 1e18 {
-			tPrec = 1e18
-		}
-		targetPrecision[cell] = tPrec
-	}
-
 	pRegMap := make(map[[2]int]float64, len(feasibleCells))
 	for _, cell := range feasibleCells {
 		pRegMap[cell] = regularizedScoutProbability(scout, cell)
@@ -1258,7 +1288,8 @@ func freezeDiversifiedDesign(
 
 	// Initial deficit summary logging after mandatory Plain P allocation
 	initPrec := make(map[[2]int]float64, len(feasibleCells))
-	initRelESS := make([]float64, 0, len(feasibleCells))
+	initRelESSMap := make(map[[2]int]float64, len(feasibleCells))
+	initRelESSList := make([]float64, 0, len(feasibleCells))
 	zeroDeficitCells, posDeficitCells := 0, 0
 
 	for _, cell := range feasibleCells {
@@ -1269,7 +1300,8 @@ func freezeDiversifiedDesign(
 		initPrec[cell] = precP
 
 		relESS := (pReg * pReg) * precP
-		initRelESS = append(initRelESS, relESS)
+		initRelESSMap[cell] = relESS
+		initRelESSList = append(initRelESSList, relESS)
 
 		if relESS >= DiversifiedTargetESS {
 			zeroDeficitCells++
@@ -1279,15 +1311,62 @@ func freezeDiversifiedDesign(
 	}
 
 	medianRelESS, p10RelESS, p90RelESS := 0.0, 0.0, 0.0
-	if len(initRelESS) > 0 {
-		sort.Float64s(initRelESS)
-		medianRelESS = initRelESS[len(initRelESS)/2]
-		p10RelESS = initRelESS[int(float64(len(initRelESS)-1)*0.10)]
-		p90RelESS = initRelESS[int(float64(len(initRelESS)-1)*0.90)]
+	if len(initRelESSList) > 0 {
+		sort.Float64s(initRelESSList)
+		medianRelESS = initRelESSList[len(initRelESSList)/2]
+		p10RelESS = initRelESSList[int(float64(len(initRelESSList)-1)*0.10)]
+		p90RelESS = initRelESSList[int(float64(len(initRelESSList)-1)*0.90)]
 	}
 
 	log.Printf("rare-position-diversified-initial-deficits: feasible_cells=%d cells_zero_deficit=%d cells_pos_deficit=%d median_rel_ess_predicted=%.4f p10_rel_ess=%.4f p90_rel_ess=%.4f min_plain_work=%d",
 		len(feasibleCells), zeroDeficitCells, posDeficitCells, medianRelESS, p10RelESS, p90RelESS, minPlainWork)
+
+	// First-round winner comparison logging: raw vs conservative variance model
+	chunkSamplesInit := int(DiversifiedAllocChunkWork / plainProp.WorkPerSample)
+	actualChunkWorkInit := int64(chunkSamplesInit) * plainProp.WorkPerSample
+
+	rawWinnerID, consWinnerID := "", ""
+	rawWinnerUtil, consWinnerUtil := -1.0, -1.0
+
+	for _, prop := range proposals {
+		uRaw := diversifiedChunkUtility(prop, chunkSamplesInit, actualChunkWorkInit, feasibleCells, initRelESSMap, pRegMap, precPerSampleRaw, DiversifiedTargetESS)
+		uCons := diversifiedChunkUtility(prop, chunkSamplesInit, actualChunkWorkInit, feasibleCells, initRelESSMap, pRegMap, precPerSample, DiversifiedTargetESS)
+
+		if uRaw > rawWinnerUtil {
+			rawWinnerUtil = uRaw
+			rawWinnerID = prop.ID
+		}
+		if uCons > consWinnerUtil {
+			consWinnerUtil = uCons
+			consWinnerID = prop.ID
+		}
+	}
+
+	log.Printf("rare-position-diversified-alloc-first-round-comparison: raw_winner=%s raw_util=%.6e conservative_winner=%s conservative_util=%.6e",
+		rawWinnerID, rawWinnerUtil, consWinnerID, consWinnerUtil)
+
+	// Sample adequacy per retained proposal
+	for _, prop := range proposals {
+		stats := probeStats[prop.ID]
+		qGe1, qGe3, qGe5, qGe10 := 0, 0, 0, 0
+		for _, cell := range feasibleCells {
+			hits := stats.CellHits[cell]
+			if hits >= 1 {
+				qGe1++
+			}
+			if hits >= 3 {
+				qGe3++
+			}
+			if hits >= 5 {
+				qGe5++
+			}
+			if hits >= 10 {
+				qGe10++
+			}
+		}
+		log.Printf("rare-position-diversified-proposal-adequacy: prop_id=%s kind=%s q_hits_ge_1=%d q_hits_ge_3=%d q_hits_ge_5=%d q_hits_ge_10=%d",
+			prop.ID, prop.Kind, qGe1, qGe3, qGe5, qGe10)
+	}
 
 	roundCount := 0
 	allocChunk := int64(DiversifiedAllocChunkWork)
@@ -1438,19 +1517,43 @@ func freezeDiversifiedDesign(
 			len(proposals)-1, posDeficitCells)
 
 		bestTargetedProp := proposals[1]
+		statsP := probeStats["plain_mc"]
+		statsQ := probeStats[bestTargetedProp.ID]
+
 		log.Printf("rare-position-diversified-allocation-pathology: comparing plain_mc vs %s:", bestTargetedProp.ID)
 		topCount := 0
 		for _, cell := range feasibleCells {
 			p := pRegMap[cell]
-			def := math.Max(0, DiversifiedTargetESS-initPrec[cell]*(p*p))
-			if def > 0 && topCount < 10 {
+			def := math.Max(0, DiversifiedTargetESS-initRelESSMap[cell])
+			if def > 0 && topCount < 20 {
 				topCount++
-				precP := precPerSample["plain_mc"][cell]
-				precQ := precPerSample[bestTargetedProp.ID][cell]
-				gainP := (p * p) * precP / float64(plainProp.WorkPerSample)
-				gainQ := (p * p) * precQ / float64(bestTargetedProp.WorkPerSample)
-				log.Printf("  cell=(team:%d,pos:%d) pReg=%.3e defRelESS=%.3f gainP/work=%.3e gainQ/work=%.3e",
-					cell[0], cell[1], p, def, gainP, gainQ)
+				qHits := statsQ.CellHits[cell]
+				plainVar := statsP.CellPredictedVarPerSample[cell]
+				rawVar := statsQ.CellPredictedRawVarPerSample[cell]
+				consVar := statsQ.CellPredictedVarPerSample[cell]
+
+				n := float64(statsQ.Samples)
+				meanZ2 := statsQ.CellSumZ2[cell] / n
+				sampleVarZ2 := 0.0
+				if statsQ.Samples > 1 {
+					sampleVarZ2 = (statsQ.CellSumZ2Sq[cell] - n*meanZ2*meanZ2) / (n - 1.0)
+					if sampleVarZ2 < 0 {
+						sampleVarZ2 = 0
+					}
+				}
+				seM2 := math.Sqrt(sampleVarZ2 / n)
+				m2Upper := meanZ2 + 1.96*seM2
+				seFactor := 0.0
+				if meanZ2 > 0 {
+					seFactor = (1.96 * seM2) / meanZ2
+				}
+
+				gainP := (p * p) * (1.0 / plainVar) / float64(plainProp.WorkPerSample)
+				gainRawQ := (p * p) * (1.0 / rawVar) / float64(bestTargetedProp.WorkPerSample)
+				gainConsQ := (p * p) * (1.0 / consVar) / float64(bestTargetedProp.WorkPerSample)
+
+				log.Printf("  cell=(team:%d,pos:%d) qHits=%d pReg=%.3e defRelESS=%.3f rawM2=%.3e seM2=%.3e m2Upper=%.3e seFactor=%.2f rawVar=%.3e consVar=%.3e plainVar=%.3e gainP/work=%.3e gainRawQ/work=%.3e gainConsQ/work=%.3e",
+					cell[0], cell[1], qHits, p, def, meanZ2, seM2, m2Upper, seFactor, rawVar, consVar, plainVar, gainP, gainRawQ, gainConsQ)
 			}
 		}
 	}
