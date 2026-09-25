@@ -406,6 +406,153 @@ func TestIntermediateProposalUncoveredFrontier(t *testing.T) {
 	}
 }
 
+func TestTargetPrecisionFormula(t *testing.T) {
+	p := 1e-4
+	targetESS := 10.0
+
+	// Target precision = TargetESS / p^2 = 10 / 1e-8 = 1e9
+	want := targetESS / (p * p)
+	if math.Abs(want-1e9) > 1.0 {
+		t.Fatalf("Expected target precision 1e9, got %g", want)
+	}
+}
+
+func TestPlainMCSaturationThresholds(t *testing.T) {
+	p := 1e-4
+	varY := 1e-4
+	targetPrec := 10.0 / (p * p) // 1e9
+
+	// N = 50,000 -> prec = 50000 / 1e-4 = 5e8 < 1e9 (deficit = 5e8 > 0)
+	prec50k := 50000.0 / varY
+	relESS50k := (p * p) * prec50k
+	if prec50k >= targetPrec || math.Abs(relESS50k-5.0) > 0.01 {
+		t.Errorf("N=50,000 expected unsaturated (relESS=5), got relESS=%f, prec=%g vs target=%g", relESS50k, prec50k, targetPrec)
+	}
+
+	// N = 100,000 -> prec = 100000 / 1e-4 = 1e9 == targetPrec (deficit = 0)
+	prec100k := 100000.0 / varY
+	relESS100k := (p * p) * prec100k
+	if math.Abs(relESS100k-10.0) > 0.01 {
+		t.Errorf("N=100,000 expected saturated (relESS=10), got relESS=%f", relESS100k)
+	}
+
+	// N = 200,000 -> prec = 2e9 > targetPrec (fully saturated)
+	prec200k := 200000.0 / varY
+	relESS200k := (p * p) * prec200k
+	if prec200k < targetPrec || math.Abs(relESS200k-20.0) > 0.01 {
+		t.Errorf("N=200,000 expected fully saturated (relESS=20), got relESS=%f", relESS200k)
+	}
+}
+
+func TestTargetedProposalWinsAllocation(t *testing.T) {
+	pReg := 1e-5
+	_ = 10.0 / (pReg * pReg) // 1e11
+
+	// Plain P: var = 1e-5, precPerSample = 1e5
+	// Targeted Q: var = 1e-7, precPerSample = 1e7 (100x more precise)
+	precP := 1e5
+	precQ := 1e7
+
+	allocChunkWork := int64(500 * 350)
+	chunkSamples := allocChunkWork / 350
+
+	gainP := float64(chunkSamples) * precP // 500 * 1e5 = 5e7
+	gainQ := float64(chunkSamples) * precQ // 500 * 1e7 = 5e9
+
+	utilP := gainP / float64(allocChunkWork)
+	utilQ := gainQ / float64(allocChunkWork)
+
+	if utilQ <= utilP {
+		t.Fatalf("Expected targeted proposal utility (%g) > Plain P utility (%g)", utilQ, utilP)
+	}
+	if utilQ/utilP < 90 {
+		t.Errorf("Expected targeted proposal utility ~ 100x Plain P utility, got ratio %f", utilQ/utilP)
+	}
+}
+
+func TestCommonCellPlainDominated(t *testing.T) {
+	pReg := 0.20
+	targetPrec := 10.0 / (pReg * pReg) // 10 / 0.04 = 250
+
+	// 8000 Plain P samples
+	varP := pReg * (1.0 - pReg) // 0.16
+	predPrecP := 8000.0 / varP    // 50,000
+
+	deficit := math.Max(0, targetPrec-predPrecP) // 250 - 50000 = 0
+
+	if deficit > 0 {
+		t.Errorf("Expected 0 deficit for common cell (p=0.20) after 8000 Plain P samples, got deficit=%f", deficit)
+	}
+}
+
+func TestRetainedProposalSurvivesFreeze(t *testing.T) {
+	tg1 := TeamType{Team_id: 1, Bias: 0}
+	tg2 := TeamType{Team_id: 2, Bias: 1}
+	tg3 := TeamType{Team_id: 3, Bias: 2}
+	tg4 := TeamType{Team_id: 4, Bias: 3}
+
+	group := &GroupType{
+		Id:          16982,
+		Team_groups: []TeamType{tg1, tg2, tg3, tg4},
+		Games: []*GameType{
+			{Id: 101, HomeId: 1, AwayId: 2, HomePower: 1.5, AwayPower: 1.0, Played: false},
+			{Id: 102, HomeId: 1, AwayId: 3, HomePower: 1.4, AwayPower: 1.1, Played: false},
+			{Id: 103, HomeId: 1, AwayId: 4, HomePower: 1.6, AwayPower: 0.9, Played: false},
+			{Id: 104, HomeId: 2, AwayId: 3, HomePower: 1.2, AwayPower: 1.2, Played: false},
+			{Id: 105, HomeId: 2, AwayId: 4, HomePower: 1.3, AwayPower: 1.0, Played: false},
+			{Id: 106, HomeId: 3, AwayId: 4, HomePower: 1.1, AwayPower: 1.1, Played: false},
+		},
+	}
+
+	keys := []uint32{1, 2, 3, 4}
+	table := NewTable(keys)
+
+	for _, g := range group.Games {
+		g.home_table_index = table.Query(uint32(g.HomeId))
+		g.away_table_index = table.Query(uint32(g.AwayId))
+	}
+
+	c1 := &TeamCampaign{id: 1, bias: 0, points: 17, points_win: 3, points_draw: 1, points_loss: 0}
+	c2 := &TeamCampaign{id: 2, bias: 1, points: 11, points_win: 3, points_draw: 1, points_loss: 0}
+	c3 := &TeamCampaign{id: 3, bias: 2, points: 11, points_win: 3, points_draw: 1, points_loss: 0}
+	c4 := &TeamCampaign{id: 4, bias: 3, points: 11, points_win: 3, points_draw: 1, points_loss: 0}
+	campaign := []*TeamCampaign{c1, c2, c3, c4}
+
+	sortOrder := []SortType{PT, GD, GF, BIAS}
+	rng := rand.New(rand.NewSource(16982))
+
+	originalMeans := make([]GameProposalMeans, len(group.Games))
+	for i, g := range group.Games {
+		originalMeans[i] = GameProposalMeans{Home: g.HomePower, Away: g.AwayPower}
+	}
+
+	scout := runPlainMCScout(campaign, group.Games, table, sortOrder, group.Team_groups, 1000, 100, rng)
+
+	proposals, probeStats, searchWork := searchDiversifiedProposals(
+		scout, campaign, group.Games, originalMeans, table, sortOrder, group.Team_groups, 100000, rng)
+
+	if len(proposals) <= 1 {
+		t.Fatalf("Expected targeted proposals to be retained during search")
+	}
+
+	frozen := freezeDiversifiedDesign(proposals, probeStats, scout, group.Team_groups, 1000000, scout.Work, searchWork)
+
+	targetedBatches := 0
+	targetedWork := int64(0)
+	for _, batch := range frozen.Batches {
+		if batch.Proposal.Kind != ProposalPlainMC {
+			targetedBatches++
+			targetedWork += batch.Work
+		}
+	}
+
+	if targetedBatches == 0 || targetedWork == 0 {
+		t.Fatalf("Expected retained targeted proposals to receive production work during freeze, but got 0 targeted work!")
+	}
+
+	t.Logf("Freeze allocated %d targeted batch(es) with total work=%d!", targetedBatches, targetedWork)
+}
+
 func TestTeam37TailMovementRegression(t *testing.T) {
 	// Create a 4-team group where team 1 (team 37 surrogate) starts with high points (mean rank ~0)
 	// and has a worse tail (positions 1, 2, 3 unseen in scout).

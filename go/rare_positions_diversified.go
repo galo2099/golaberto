@@ -1153,6 +1153,7 @@ func freezeDiversifiedDesign(
 		productionWorkBudget = 0
 	}
 
+	plainProp := proposals[0]
 	// 1. Minimum Plain-MC share
 	minPlainWork := int64(float64(productionWorkBudget) * diversifiedMinPlainFraction())
 	allocatedWork := make(map[string]int64, len(proposals))
@@ -1184,16 +1185,59 @@ func freezeDiversifiedDesign(
 		}
 	}
 
-	// Target precision corresponds to relative ESS ~ 10 for rare cells or 1.0 / (0.10 * p_reg)^2
+	// Target precision corresponds to relative ESS ~ 10: targetPrecision = DiversifiedTargetESS / (p_reg * p_reg)
 	targetPrecision := make(map[[2]int]float64, len(feasibleCells))
 	for _, cell := range feasibleCells {
 		scoutHits := scout.TeamCounts[cell[0]][cell[1]]
 		pReg := (float64(scoutHits) + 0.5) / (float64(scout.Samples) + 1.0)
-		targetPrecision[cell] = 10.0 / pReg
+		if pReg < 1e-12 {
+			pReg = 1e-12
+		}
+		tPrec := DiversifiedTargetESS / (pReg * pReg)
+		if math.IsNaN(tPrec) || math.IsInf(tPrec, 0) || tPrec > 1e18 {
+			tPrec = 1e18
+		}
+		targetPrecision[cell] = tPrec
 	}
 
+	// Initial deficit summary logging after mandatory Plain P allocation
+	initPrec := make(map[[2]int]float64, len(feasibleCells))
+	initRelESS := make([]float64, 0, len(feasibleCells))
+	zeroDeficitCells, posDeficitCells := 0, 0
+
+	for _, cell := range feasibleCells {
+		scoutHits := scout.TeamCounts[cell[0]][cell[1]]
+		pReg := (float64(scoutHits) + 0.5) / (float64(scout.Samples) + 1.0)
+		workP := allocatedWork["plain_mc"]
+		samplesP := workP / plainProp.WorkPerSample
+		precP := float64(samplesP) * precPerSample["plain_mc"][cell]
+		initPrec[cell] = precP
+
+		relESS := (pReg * pReg) * precP
+		initRelESS = append(initRelESS, relESS)
+
+		if precP >= targetPrecision[cell] {
+			zeroDeficitCells++
+		} else {
+			posDeficitCells++
+		}
+	}
+
+	medianRelESS, p10RelESS, p90RelESS := 0.0, 0.0, 0.0
+	if len(initRelESS) > 0 {
+		sort.Float64s(initRelESS)
+		medianRelESS = initRelESS[len(initRelESS)/2]
+		p10RelESS = initRelESS[int(float64(len(initRelESS)-1)*0.10)]
+		p90RelESS = initRelESS[int(float64(len(initRelESS)-1)*0.90)]
+	}
+
+	log.Printf("rare-position-diversified-initial-deficits: feasible_cells=%d cells_zero_deficit=%d cells_pos_deficit=%d median_rel_ess_predicted=%.4f p10_rel_ess=%.4f p90_rel_ess=%.4f min_plain_work=%d",
+		len(feasibleCells), zeroDeficitCells, posDeficitCells, medianRelESS, p10RelESS, p90RelESS, minPlainWork)
+
+	roundCount := 0
 	allocChunk := int64(DiversifiedAllocChunkWork)
 	for remainingProdWork >= allocChunk {
+		roundCount++
 		// Calculate current predicted precision per cell
 		predictedPrec := make(map[[2]int]float64, len(feasibleCells))
 		for _, cell := range feasibleCells {
@@ -1206,8 +1250,11 @@ func freezeDiversifiedDesign(
 			predictedPrec[cell] = totPrec
 		}
 
-		bestPropID := ""
-		bestUtility := -1.0
+		type propUtil struct {
+			id      string
+			utility float64
+		}
+		var propUtils []propUtil
 
 		for _, prop := range proposals {
 			chunkSamples := allocChunk / prop.WorkPerSample
@@ -1224,10 +1271,30 @@ func freezeDiversifiedDesign(
 			}
 
 			utility := totGain / float64(actualChunkWork)
-			if utility > bestUtility {
-				bestUtility = utility
-				bestPropID = prop.ID
-			}
+			propUtils = append(propUtils, propUtil{id: prop.ID, utility: utility})
+		}
+
+		sort.Slice(propUtils, func(i, j int) bool {
+			return propUtils[i].utility > propUtils[j].utility
+		})
+
+		bestPropID := ""
+		bestUtility := -1.0
+		secondBestPropID := ""
+		secondBestUtility := -1.0
+
+		if len(propUtils) > 0 {
+			bestPropID = propUtils[0].id
+			bestUtility = propUtils[0].utility
+		}
+		if len(propUtils) > 1 {
+			secondBestPropID = propUtils[1].id
+			secondBestUtility = propUtils[1].utility
+		}
+
+		if roundCount <= 10 {
+			log.Printf("rare-position-diversified-alloc-round: round=%d best_prop=%s best_util=%.6e second_prop=%s second_util=%.6e remaining_work=%d",
+				roundCount, bestPropID, bestUtility, secondBestPropID, secondBestUtility, remainingProdWork)
 		}
 
 		if bestPropID == "" || bestUtility <= 0 {
@@ -1249,6 +1316,40 @@ func freezeDiversifiedDesign(
 	if remainingProdWork > 0 {
 		allocatedWork["plain_mc"] += remainingProdWork
 		remainingProdWork = 0
+	}
+
+	targetedWork := int64(0)
+	for _, prop := range proposals {
+		work := allocatedWork[prop.ID]
+		samples := work / prop.WorkPerSample
+
+		if prop.Kind != ProposalPlainMC {
+			targetedWork += work
+		}
+
+		posPrecCells := 0
+		posDeficitGainCells := 0
+		totPredictedUtil := 0.0
+
+		for _, cell := range feasibleCells {
+			prec := precPerSample[prop.ID][cell]
+			if prec > 0 {
+				posPrecCells++
+			}
+			deficit := math.Max(0, targetPrecision[cell]-initPrec[cell])
+			if prec > 0 && deficit > 0 {
+				posDeficitGainCells++
+				totPredictedUtil += math.Min(deficit, float64(samples)*prec)
+			}
+		}
+
+		log.Printf("rare-position-diversified-proposal-alloc: prop_id=%s kind=%s team=%d dir=%s strength=%.2f allocated_work=%d planned_samples=%d pos_prec_cells=%d pos_deficit_gain_cells=%d tot_predicted_utility=%.6e",
+			prop.ID, prop.Kind, prop.TargetTeam, directionName(prop.Direction), prop.Strength, work, samples, posPrecCells, posDeficitGainCells, totPredictedUtil)
+	}
+
+	if len(proposals) > 1 && targetedWork == 0 {
+		log.Printf("rare-position-diversified-warning: %d targeted proposal(s) were retained during search, but freeze allocated 100%% work to plain_mc!",
+			len(proposals)-1)
 	}
 
 	// Build FrozenProductionBatch
@@ -1441,8 +1542,10 @@ func runDiversifiedProduction(
 		}
 	}
 
-	// Compute predicted vs realized variance calibration ratios across all batches and cells
-	var varRatios []float64
+	// Compute predicted vs realized variance calibration ratios separately for Plain P and targeted M batches
+	var pVarRatios []float64
+	var targetedVarRatios []float64
+
 	for j, batch := range design.Batches {
 		for cell, hits := range batchHits[j] {
 			if hits > 1 {
@@ -1452,23 +1555,38 @@ func runDiversifiedProduction(
 				if s2Batch > 0 {
 					predVar := design.CellPredictedVarPerSample[batch.Proposal.ID][cell]
 					if !math.IsNaN(predVar) && !math.IsInf(predVar, 0) && predVar > 0 {
-						varRatios = append(varRatios, s2Batch/predVar)
+						ratio := s2Batch / predVar
+						if batch.Proposal.Kind == ProposalPlainMC {
+							pVarRatios = append(pVarRatios, ratio)
+						} else {
+							targetedVarRatios = append(targetedVarRatios, ratio)
+						}
 					}
 				}
 			}
 		}
 	}
 
-	medianVarRatio, p10VarRatio, p90VarRatio := 1.0, 1.0, 1.0
-	if len(varRatios) > 0 {
-		sort.Float64s(varRatios)
-		medianVarRatio = varRatios[len(varRatios)/2]
-		p10VarRatio = varRatios[int(float64(len(varRatios)-1)*0.10)]
-		p90VarRatio = varRatios[int(float64(len(varRatios)-1)*0.90)]
+	medianPVarRatio, p10PVarRatio, p90PVarRatio := 1.0, 1.0, 1.0
+	if len(pVarRatios) > 0 {
+		sort.Float64s(pVarRatios)
+		medianPVarRatio = pVarRatios[len(pVarRatios)/2]
+		p10PVarRatio = pVarRatios[int(float64(len(pVarRatios)-1)*0.10)]
+		p90PVarRatio = pVarRatios[int(float64(len(pVarRatios)-1)*0.90)]
 	}
 
-	log.Printf("rare-position-diversified-variance-calibration: evaluated_batch_cells=%d median_var_ratio=%.4f p10_var_ratio=%.4f p90_var_ratio=%.4f",
-		len(varRatios), medianVarRatio, p10VarRatio, p90VarRatio)
+	medianTargetedVarRatio, p10TargetedVarRatio, p90TargetedVarRatio := 1.0, 1.0, 1.0
+	if len(targetedVarRatios) > 0 {
+		sort.Float64s(targetedVarRatios)
+		medianTargetedVarRatio = targetedVarRatios[len(targetedVarRatios)/2]
+		p10TargetedVarRatio = targetedVarRatios[int(float64(len(targetedVarRatios)-1)*0.10)]
+		p90TargetedVarRatio = targetedVarRatios[int(float64(len(targetedVarRatios)-1)*0.90)]
+	}
+
+	log.Printf("rare-position-diversified-variance-calibration-plain: evaluated_batch_cells=%d median_var_ratio=%.4f p10_var_ratio=%.4f p90_var_ratio=%.4f",
+		len(pVarRatios), medianPVarRatio, p10PVarRatio, p90PVarRatio)
+	log.Printf("rare-position-diversified-variance-calibration-targeted: evaluated_batch_cells=%d median_var_ratio=%.4f p10_var_ratio=%.4f p90_var_ratio=%.4f",
+		len(targetedVarRatios), medianTargetedVarRatio, p10TargetedVarRatio, p90TargetedVarRatio)
 
 	// Combine batch estimates per cell
 	estimates := make(map[int]map[int]DiversifiedEstimate, numTeams)
