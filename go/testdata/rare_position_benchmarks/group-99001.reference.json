@@ -1,0 +1,2408 @@
+{
+  "group": 99001,
+  "input_sha256": "4b1b4b0bc1b3d9fb462a149cdd1c2f6e05a08249debb21a79ec118ab5864aad9",
+  "samples": 5000000,
+  "seed": 72991,
+  "cells": [
+    {
+      "team": 1,
+      "position": 0,
+      "count": 693,
+      "p": 0.0001386
+    },
+    {
+      "team": 1,
+      "position": 1,
+      "count": 2212,
+      "p": 0.0004424
+    },
+    {
+      "team": 1,
+      "position": 2,
+      "count": 4794,
+      "p": 0.0009588
+    },
+    {
+      "team": 1,
+      "position": 3,
+      "count": 8689,
+      "p": 0.0017378
+    },
+    {
+      "team": 1,
+      "position": 4,
+      "count": 14425,
+      "p": 0.002885
+    },
+    {
+      "team": 1,
+      "position": 5,
+      "count": 21567,
+      "p": 0.0043134
+    },
+    {
+      "team": 1,
+      "position": 6,
+      "count": 32058,
+      "p": 0.0064116
+    },
+    {
+      "team": 1,
+      "position": 7,
+      "count": 44974,
+      "p": 0.0089948
+    },
+    {
+      "team": 1,
+      "position": 8,
+      "count": 62329,
+      "p": 0.0124658
+    },
+    {
+      "team": 1,
+      "position": 9,
+      "count": 84286,
+      "p": 0.0168572
+    },
+    {
+      "team": 1,
+      "position": 10,
+      "count": 111204,
+      "p": 0.0222408
+    },
+    {
+      "team": 1,
+      "position": 11,
+      "count": 146319,
+      "p": 0.0292638
+    },
+    {
+      "team": 1,
+      "position": 12,
+      "count": 190695,
+      "p": 0.038139
+    },
+    {
+      "team": 1,
+      "position": 13,
+      "count": 247106,
+      "p": 0.0494212
+    },
+    {
+      "team": 1,
+      "position": 14,
+      "count": 317391,
+      "p": 0.0634782
+    },
+    {
+      "team": 1,
+      "position": 15,
+      "count": 409649,
+      "p": 0.0819298
+    },
+    {
+      "team": 1,
+      "position": 16,
+      "count": 528766,
+      "p": 0.1057532
+    },
+    {
+      "team": 1,
+      "position": 17,
+      "count": 685271,
+      "p": 0.1370542
+    },
+    {
+      "team": 1,
+      "position": 18,
+      "count": 897336,
+      "p": 0.1794672
+    },
+    {
+      "team": 1,
+      "position": 19,
+      "count": 1190236,
+      "p": 0.2380472
+    },
+    {
+      "team": 2,
+      "position": 0,
+      "count": 1004,
+      "p": 0.0002008
+    },
+    {
+      "team": 2,
+      "position": 1,
+      "count": 3212,
+      "p": 0.0006424
+    },
+    {
+      "team": 2,
+      "position": 2,
+      "count": 7017,
+      "p": 0.0014034
+    },
+    {
+      "team": 2,
+      "position": 3,
+      "count": 12189,
+      "p": 0.0024378
+    },
+    {
+      "team": 2,
+      "position": 4,
+      "count": 19835,
+      "p": 0.003967
+    },
+    {
+      "team": 2,
+      "position": 5,
+      "count": 29704,
+      "p": 0.0059408
+    },
+    {
+      "team": 2,
+      "position": 6,
+      "count": 42461,
+      "p": 0.0084922
+    },
+    {
+      "team": 2,
+      "position": 7,
+      "count": 59100,
+      "p": 0.01182
+    },
+    {
+      "team": 2,
+      "position": 8,
+      "count": 78525,
+      "p": 0.015705
+    },
+    {
+      "team": 2,
+      "position": 9,
+      "count": 104426,
+      "p": 0.0208852
+    },
+    {
+      "team": 2,
+      "position": 10,
+      "count": 135356,
+      "p": 0.0270712
+    },
+    {
+      "team": 2,
+      "position": 11,
+      "count": 174435,
+      "p": 0.034887
+    },
+    {
+      "team": 2,
+      "position": 12,
+      "count": 221591,
+      "p": 0.0443182
+    },
+    {
+      "team": 2,
+      "position": 13,
+      "count": 280517,
+      "p": 0.0561034
+    },
+    {
+      "team": 2,
+      "position": 14,
+      "count": 352388,
+      "p": 0.0704776
+    },
+    {
+      "team": 2,
+      "position": 15,
+      "count": 441263,
+      "p": 0.0882526
+    },
+    {
+      "team": 2,
+      "position": 16,
+      "count": 550256,
+      "p": 0.1100512
+    },
+    {
+      "team": 2,
+      "position": 17,
+      "count": 679360,
+      "p": 0.135872
+    },
+    {
+      "team": 2,
+      "position": 18,
+      "count": 831593,
+      "p": 0.1663186
+    },
+    {
+      "team": 2,
+      "position": 19,
+      "count": 975768,
+      "p": 0.1951536
+    },
+    {
+      "team": 3,
+      "position": 0,
+      "count": 11402,
+      "p": 0.0022804
+    },
+    {
+      "team": 3,
+      "position": 1,
+      "count": 25238,
+      "p": 0.0050476
+    },
+    {
+      "team": 3,
+      "position": 2,
+      "count": 40909,
+      "p": 0.0081818
+    },
+    {
+      "team": 3,
+      "position": 3,
+      "count": 58655,
+      "p": 0.011731
+    },
+    {
+      "team": 3,
+      "position": 4,
+      "count": 78272,
+      "p": 0.0156544
+    },
+    {
+      "team": 3,
+      "position": 5,
+      "count": 100210,
+      "p": 0.020042
+    },
+    {
+      "team": 3,
+      "position": 6,
+      "count": 124220,
+      "p": 0.024844
+    },
+    {
+      "team": 3,
+      "position": 7,
+      "count": 151115,
+      "p": 0.030223
+    },
+    {
+      "team": 3,
+      "position": 8,
+      "count": 178110,
+      "p": 0.035622
+    },
+    {
+      "team": 3,
+      "position": 9,
+      "count": 210216,
+      "p": 0.0420432
+    },
+    {
+      "team": 3,
+      "position": 10,
+      "count": 244018,
+      "p": 0.0488036
+    },
+    {
+      "team": 3,
+      "position": 11,
+      "count": 280256,
+      "p": 0.0560512
+    },
+    {
+      "team": 3,
+      "position": 12,
+      "count": 318368,
+      "p": 0.0636736
+    },
+    {
+      "team": 3,
+      "position": 13,
+      "count": 358837,
+      "p": 0.0717674
+    },
+    {
+      "team": 3,
+      "position": 14,
+      "count": 399633,
+      "p": 0.0799266
+    },
+    {
+      "team": 3,
+      "position": 15,
+      "count": 439828,
+      "p": 0.0879656
+    },
+    {
+      "team": 3,
+      "position": 16,
+      "count": 476407,
+      "p": 0.0952814
+    },
+    {
+      "team": 3,
+      "position": 17,
+      "count": 503085,
+      "p": 0.100617
+    },
+    {
+      "team": 3,
+      "position": 18,
+      "count": 512074,
+      "p": 0.1024148
+    },
+    {
+      "team": 3,
+      "position": 19,
+      "count": 489147,
+      "p": 0.0978294
+    },
+    {
+      "team": 4,
+      "position": 0,
+      "count": 242809,
+      "p": 0.0485618
+    },
+    {
+      "team": 4,
+      "position": 1,
+      "count": 256004,
+      "p": 0.0512008
+    },
+    {
+      "team": 4,
+      "position": 2,
+      "count": 262361,
+      "p": 0.0524722
+    },
+    {
+      "team": 4,
+      "position": 3,
+      "count": 267061,
+      "p": 0.0534122
+    },
+    {
+      "team": 4,
+      "position": 4,
+      "count": 271291,
+      "p": 0.0542582
+    },
+    {
+      "team": 4,
+      "position": 5,
+      "count": 273646,
+      "p": 0.0547292
+    },
+    {
+      "team": 4,
+      "position": 6,
+      "count": 275714,
+      "p": 0.0551428
+    },
+    {
+      "team": 4,
+      "position": 7,
+      "count": 275425,
+      "p": 0.055085
+    },
+    {
+      "team": 4,
+      "position": 8,
+      "count": 276069,
+      "p": 0.0552138
+    },
+    {
+      "team": 4,
+      "position": 9,
+      "count": 274107,
+      "p": 0.0548214
+    },
+    {
+      "team": 4,
+      "position": 10,
+      "count": 272411,
+      "p": 0.0544822
+    },
+    {
+      "team": 4,
+      "position": 11,
+      "count": 267585,
+      "p": 0.053517
+    },
+    {
+      "team": 4,
+      "position": 12,
+      "count": 263879,
+      "p": 0.0527758
+    },
+    {
+      "team": 4,
+      "position": 13,
+      "count": 256561,
+      "p": 0.0513122
+    },
+    {
+      "team": 4,
+      "position": 14,
+      "count": 249063,
+      "p": 0.0498126
+    },
+    {
+      "team": 4,
+      "position": 15,
+      "count": 238030,
+      "p": 0.047606
+    },
+    {
+      "team": 4,
+      "position": 16,
+      "count": 224389,
+      "p": 0.0448778
+    },
+    {
+      "team": 4,
+      "position": 17,
+      "count": 206660,
+      "p": 0.041332
+    },
+    {
+      "team": 4,
+      "position": 18,
+      "count": 185210,
+      "p": 0.037042
+    },
+    {
+      "team": 4,
+      "position": 19,
+      "count": 161725,
+      "p": 0.032345
+    },
+    {
+      "team": 5,
+      "position": 0,
+      "count": 289058,
+      "p": 0.0578116
+    },
+    {
+      "team": 5,
+      "position": 1,
+      "count": 291710,
+      "p": 0.058342
+    },
+    {
+      "team": 5,
+      "position": 2,
+      "count": 291082,
+      "p": 0.0582164
+    },
+    {
+      "team": 5,
+      "position": 3,
+      "count": 291142,
+      "p": 0.0582284
+    },
+    {
+      "team": 5,
+      "position": 4,
+      "count": 288697,
+      "p": 0.0577394
+    },
+    {
+      "team": 5,
+      "position": 5,
+      "count": 286253,
+      "p": 0.0572506
+    },
+    {
+      "team": 5,
+      "position": 6,
+      "count": 284455,
+      "p": 0.056891
+    },
+    {
+      "team": 5,
+      "position": 7,
+      "count": 280796,
+      "p": 0.0561592
+    },
+    {
+      "team": 5,
+      "position": 8,
+      "count": 276329,
+      "p": 0.0552658
+    },
+    {
+      "team": 5,
+      "position": 9,
+      "count": 271560,
+      "p": 0.054312
+    },
+    {
+      "team": 5,
+      "position": 10,
+      "count": 266845,
+      "p": 0.053369
+    },
+    {
+      "team": 5,
+      "position": 11,
+      "count": 260554,
+      "p": 0.0521108
+    },
+    {
+      "team": 5,
+      "position": 12,
+      "count": 252285,
+      "p": 0.050457
+    },
+    {
+      "team": 5,
+      "position": 13,
+      "count": 242582,
+      "p": 0.0485164
+    },
+    {
+      "team": 5,
+      "position": 14,
+      "count": 231618,
+      "p": 0.0463236
+    },
+    {
+      "team": 5,
+      "position": 15,
+      "count": 217625,
+      "p": 0.043525
+    },
+    {
+      "team": 5,
+      "position": 16,
+      "count": 201103,
+      "p": 0.0402206
+    },
+    {
+      "team": 5,
+      "position": 17,
+      "count": 182186,
+      "p": 0.0364372
+    },
+    {
+      "team": 5,
+      "position": 18,
+      "count": 159981,
+      "p": 0.0319962
+    },
+    {
+      "team": 5,
+      "position": 19,
+      "count": 134139,
+      "p": 0.0268278
+    },
+    {
+      "team": 6,
+      "position": 0,
+      "count": 342458,
+      "p": 0.0684916
+    },
+    {
+      "team": 6,
+      "position": 1,
+      "count": 330664,
+      "p": 0.0661328
+    },
+    {
+      "team": 6,
+      "position": 2,
+      "count": 320516,
+      "p": 0.0641032
+    },
+    {
+      "team": 6,
+      "position": 3,
+      "count": 312466,
+      "p": 0.0624932
+    },
+    {
+      "team": 6,
+      "position": 4,
+      "count": 305622,
+      "p": 0.0611244
+    },
+    {
+      "team": 6,
+      "position": 5,
+      "count": 298550,
+      "p": 0.05971
+    },
+    {
+      "team": 6,
+      "position": 6,
+      "count": 289921,
+      "p": 0.0579842
+    },
+    {
+      "team": 6,
+      "position": 7,
+      "count": 283459,
+      "p": 0.0566918
+    },
+    {
+      "team": 6,
+      "position": 8,
+      "count": 275558,
+      "p": 0.0551116
+    },
+    {
+      "team": 6,
+      "position": 9,
+      "count": 267855,
+      "p": 0.053571
+    },
+    {
+      "team": 6,
+      "position": 10,
+      "count": 258358,
+      "p": 0.0516716
+    },
+    {
+      "team": 6,
+      "position": 11,
+      "count": 249334,
+      "p": 0.0498668
+    },
+    {
+      "team": 6,
+      "position": 12,
+      "count": 238876,
+      "p": 0.0477752
+    },
+    {
+      "team": 6,
+      "position": 13,
+      "count": 226475,
+      "p": 0.045295
+    },
+    {
+      "team": 6,
+      "position": 14,
+      "count": 213900,
+      "p": 0.04278
+    },
+    {
+      "team": 6,
+      "position": 15,
+      "count": 198105,
+      "p": 0.039621
+    },
+    {
+      "team": 6,
+      "position": 16,
+      "count": 179929,
+      "p": 0.0359858
+    },
+    {
+      "team": 6,
+      "position": 17,
+      "count": 160569,
+      "p": 0.0321138
+    },
+    {
+      "team": 6,
+      "position": 18,
+      "count": 136573,
+      "p": 0.0273146
+    },
+    {
+      "team": 6,
+      "position": 19,
+      "count": 110812,
+      "p": 0.0221624
+    },
+    {
+      "team": 7,
+      "position": 0,
+      "count": 243287,
+      "p": 0.0486574
+    },
+    {
+      "team": 7,
+      "position": 1,
+      "count": 255657,
+      "p": 0.0511314
+    },
+    {
+      "team": 7,
+      "position": 2,
+      "count": 263098,
+      "p": 0.0526196
+    },
+    {
+      "team": 7,
+      "position": 3,
+      "count": 267267,
+      "p": 0.0534534
+    },
+    {
+      "team": 7,
+      "position": 4,
+      "count": 270889,
+      "p": 0.0541778
+    },
+    {
+      "team": 7,
+      "position": 5,
+      "count": 273917,
+      "p": 0.0547834
+    },
+    {
+      "team": 7,
+      "position": 6,
+      "count": 274693,
+      "p": 0.0549386
+    },
+    {
+      "team": 7,
+      "position": 7,
+      "count": 275109,
+      "p": 0.0550218
+    },
+    {
+      "team": 7,
+      "position": 8,
+      "count": 275229,
+      "p": 0.0550458
+    },
+    {
+      "team": 7,
+      "position": 9,
+      "count": 275217,
+      "p": 0.0550434
+    },
+    {
+      "team": 7,
+      "position": 10,
+      "count": 272666,
+      "p": 0.0545332
+    },
+    {
+      "team": 7,
+      "position": 11,
+      "count": 267858,
+      "p": 0.0535716
+    },
+    {
+      "team": 7,
+      "position": 12,
+      "count": 263862,
+      "p": 0.0527724
+    },
+    {
+      "team": 7,
+      "position": 13,
+      "count": 257314,
+      "p": 0.0514628
+    },
+    {
+      "team": 7,
+      "position": 14,
+      "count": 249251,
+      "p": 0.0498502
+    },
+    {
+      "team": 7,
+      "position": 15,
+      "count": 238339,
+      "p": 0.0476678
+    },
+    {
+      "team": 7,
+      "position": 16,
+      "count": 223317,
+      "p": 0.0446634
+    },
+    {
+      "team": 7,
+      "position": 17,
+      "count": 205844,
+      "p": 0.0411688
+    },
+    {
+      "team": 7,
+      "position": 18,
+      "count": 184795,
+      "p": 0.036959
+    },
+    {
+      "team": 7,
+      "position": 19,
+      "count": 162391,
+      "p": 0.0324782
+    },
+    {
+      "team": 8,
+      "position": 0,
+      "count": 289909,
+      "p": 0.0579818
+    },
+    {
+      "team": 8,
+      "position": 1,
+      "count": 291486,
+      "p": 0.0582972
+    },
+    {
+      "team": 8,
+      "position": 2,
+      "count": 291185,
+      "p": 0.058237
+    },
+    {
+      "team": 8,
+      "position": 3,
+      "count": 290828,
+      "p": 0.0581656
+    },
+    {
+      "team": 8,
+      "position": 4,
+      "count": 288110,
+      "p": 0.057622
+    },
+    {
+      "team": 8,
+      "position": 5,
+      "count": 286445,
+      "p": 0.057289
+    },
+    {
+      "team": 8,
+      "position": 6,
+      "count": 284425,
+      "p": 0.056885
+    },
+    {
+      "team": 8,
+      "position": 7,
+      "count": 280535,
+      "p": 0.056107
+    },
+    {
+      "team": 8,
+      "position": 8,
+      "count": 277384,
+      "p": 0.0554768
+    },
+    {
+      "team": 8,
+      "position": 9,
+      "count": 271575,
+      "p": 0.054315
+    },
+    {
+      "team": 8,
+      "position": 10,
+      "count": 265533,
+      "p": 0.0531066
+    },
+    {
+      "team": 8,
+      "position": 11,
+      "count": 260556,
+      "p": 0.0521112
+    },
+    {
+      "team": 8,
+      "position": 12,
+      "count": 252229,
+      "p": 0.0504458
+    },
+    {
+      "team": 8,
+      "position": 13,
+      "count": 242556,
+      "p": 0.0485112
+    },
+    {
+      "team": 8,
+      "position": 14,
+      "count": 231856,
+      "p": 0.0463712
+    },
+    {
+      "team": 8,
+      "position": 15,
+      "count": 217584,
+      "p": 0.0435168
+    },
+    {
+      "team": 8,
+      "position": 16,
+      "count": 200890,
+      "p": 0.040178
+    },
+    {
+      "team": 8,
+      "position": 17,
+      "count": 183079,
+      "p": 0.0366158
+    },
+    {
+      "team": 8,
+      "position": 18,
+      "count": 159777,
+      "p": 0.0319554
+    },
+    {
+      "team": 8,
+      "position": 19,
+      "count": 134058,
+      "p": 0.0268116
+    },
+    {
+      "team": 9,
+      "position": 0,
+      "count": 343447,
+      "p": 0.0686894
+    },
+    {
+      "team": 9,
+      "position": 1,
+      "count": 329727,
+      "p": 0.0659454
+    },
+    {
+      "team": 9,
+      "position": 2,
+      "count": 319186,
+      "p": 0.0638372
+    },
+    {
+      "team": 9,
+      "position": 3,
+      "count": 311480,
+      "p": 0.062296
+    },
+    {
+      "team": 9,
+      "position": 4,
+      "count": 304738,
+      "p": 0.0609476
+    },
+    {
+      "team": 9,
+      "position": 5,
+      "count": 298054,
+      "p": 0.0596108
+    },
+    {
+      "team": 9,
+      "position": 6,
+      "count": 291222,
+      "p": 0.0582444
+    },
+    {
+      "team": 9,
+      "position": 7,
+      "count": 284040,
+      "p": 0.056808
+    },
+    {
+      "team": 9,
+      "position": 8,
+      "count": 275500,
+      "p": 0.0551
+    },
+    {
+      "team": 9,
+      "position": 9,
+      "count": 268468,
+      "p": 0.0536936
+    },
+    {
+      "team": 9,
+      "position": 10,
+      "count": 259322,
+      "p": 0.0518644
+    },
+    {
+      "team": 9,
+      "position": 11,
+      "count": 249462,
+      "p": 0.0498924
+    },
+    {
+      "team": 9,
+      "position": 12,
+      "count": 238712,
+      "p": 0.0477424
+    },
+    {
+      "team": 9,
+      "position": 13,
+      "count": 226770,
+      "p": 0.045354
+    },
+    {
+      "team": 9,
+      "position": 14,
+      "count": 213252,
+      "p": 0.0426504
+    },
+    {
+      "team": 9,
+      "position": 15,
+      "count": 198094,
+      "p": 0.0396188
+    },
+    {
+      "team": 9,
+      "position": 16,
+      "count": 180249,
+      "p": 0.0360498
+    },
+    {
+      "team": 9,
+      "position": 17,
+      "count": 160444,
+      "p": 0.0320888
+    },
+    {
+      "team": 9,
+      "position": 18,
+      "count": 137266,
+      "p": 0.0274532
+    },
+    {
+      "team": 9,
+      "position": 19,
+      "count": 110567,
+      "p": 0.0221134
+    },
+    {
+      "team": 10,
+      "position": 0,
+      "count": 243143,
+      "p": 0.0486286
+    },
+    {
+      "team": 10,
+      "position": 1,
+      "count": 255662,
+      "p": 0.0511324
+    },
+    {
+      "team": 10,
+      "position": 2,
+      "count": 263106,
+      "p": 0.0526212
+    },
+    {
+      "team": 10,
+      "position": 3,
+      "count": 268076,
+      "p": 0.0536152
+    },
+    {
+      "team": 10,
+      "position": 4,
+      "count": 271456,
+      "p": 0.0542912
+    },
+    {
+      "team": 10,
+      "position": 5,
+      "count": 273856,
+      "p": 0.0547712
+    },
+    {
+      "team": 10,
+      "position": 6,
+      "count": 274530,
+      "p": 0.054906
+    },
+    {
+      "team": 10,
+      "position": 7,
+      "count": 275722,
+      "p": 0.0551444
+    },
+    {
+      "team": 10,
+      "position": 8,
+      "count": 275693,
+      "p": 0.0551386
+    },
+    {
+      "team": 10,
+      "position": 9,
+      "count": 273465,
+      "p": 0.054693
+    },
+    {
+      "team": 10,
+      "position": 10,
+      "count": 272270,
+      "p": 0.054454
+    },
+    {
+      "team": 10,
+      "position": 11,
+      "count": 268101,
+      "p": 0.0536202
+    },
+    {
+      "team": 10,
+      "position": 12,
+      "count": 263833,
+      "p": 0.0527666
+    },
+    {
+      "team": 10,
+      "position": 13,
+      "count": 256424,
+      "p": 0.0512848
+    },
+    {
+      "team": 10,
+      "position": 14,
+      "count": 248611,
+      "p": 0.0497222
+    },
+    {
+      "team": 10,
+      "position": 15,
+      "count": 238328,
+      "p": 0.0476656
+    },
+    {
+      "team": 10,
+      "position": 16,
+      "count": 224336,
+      "p": 0.0448672
+    },
+    {
+      "team": 10,
+      "position": 17,
+      "count": 207222,
+      "p": 0.0414444
+    },
+    {
+      "team": 10,
+      "position": 18,
+      "count": 184871,
+      "p": 0.0369742
+    },
+    {
+      "team": 10,
+      "position": 19,
+      "count": 161295,
+      "p": 0.032259
+    },
+    {
+      "team": 11,
+      "position": 0,
+      "count": 289762,
+      "p": 0.0579524
+    },
+    {
+      "team": 11,
+      "position": 1,
+      "count": 291568,
+      "p": 0.0583136
+    },
+    {
+      "team": 11,
+      "position": 2,
+      "count": 291879,
+      "p": 0.0583758
+    },
+    {
+      "team": 11,
+      "position": 3,
+      "count": 290396,
+      "p": 0.0580792
+    },
+    {
+      "team": 11,
+      "position": 4,
+      "count": 289440,
+      "p": 0.057888
+    },
+    {
+      "team": 11,
+      "position": 5,
+      "count": 286607,
+      "p": 0.0573214
+    },
+    {
+      "team": 11,
+      "position": 6,
+      "count": 284280,
+      "p": 0.056856
+    },
+    {
+      "team": 11,
+      "position": 7,
+      "count": 280991,
+      "p": 0.0561982
+    },
+    {
+      "team": 11,
+      "position": 8,
+      "count": 276511,
+      "p": 0.0553022
+    },
+    {
+      "team": 11,
+      "position": 9,
+      "count": 272757,
+      "p": 0.0545514
+    },
+    {
+      "team": 11,
+      "position": 10,
+      "count": 265888,
+      "p": 0.0531776
+    },
+    {
+      "team": 11,
+      "position": 11,
+      "count": 259647,
+      "p": 0.0519294
+    },
+    {
+      "team": 11,
+      "position": 12,
+      "count": 252632,
+      "p": 0.0505264
+    },
+    {
+      "team": 11,
+      "position": 13,
+      "count": 242110,
+      "p": 0.048422
+    },
+    {
+      "team": 11,
+      "position": 14,
+      "count": 231190,
+      "p": 0.046238
+    },
+    {
+      "team": 11,
+      "position": 15,
+      "count": 217586,
+      "p": 0.0435172
+    },
+    {
+      "team": 11,
+      "position": 16,
+      "count": 201807,
+      "p": 0.0403614
+    },
+    {
+      "team": 11,
+      "position": 17,
+      "count": 181694,
+      "p": 0.0363388
+    },
+    {
+      "team": 11,
+      "position": 18,
+      "count": 159332,
+      "p": 0.0318664
+    },
+    {
+      "team": 11,
+      "position": 19,
+      "count": 133923,
+      "p": 0.0267846
+    },
+    {
+      "team": 12,
+      "position": 0,
+      "count": 343581,
+      "p": 0.0687162
+    },
+    {
+      "team": 12,
+      "position": 1,
+      "count": 329852,
+      "p": 0.0659704
+    },
+    {
+      "team": 12,
+      "position": 2,
+      "count": 319914,
+      "p": 0.0639828
+    },
+    {
+      "team": 12,
+      "position": 3,
+      "count": 312387,
+      "p": 0.0624774
+    },
+    {
+      "team": 12,
+      "position": 4,
+      "count": 305028,
+      "p": 0.0610056
+    },
+    {
+      "team": 12,
+      "position": 5,
+      "count": 297143,
+      "p": 0.0594286
+    },
+    {
+      "team": 12,
+      "position": 6,
+      "count": 291402,
+      "p": 0.0582804
+    },
+    {
+      "team": 12,
+      "position": 7,
+      "count": 284108,
+      "p": 0.0568216
+    },
+    {
+      "team": 12,
+      "position": 8,
+      "count": 275867,
+      "p": 0.0551734
+    },
+    {
+      "team": 12,
+      "position": 9,
+      "count": 268553,
+      "p": 0.0537106
+    },
+    {
+      "team": 12,
+      "position": 10,
+      "count": 258551,
+      "p": 0.0517102
+    },
+    {
+      "team": 12,
+      "position": 11,
+      "count": 248866,
+      "p": 0.0497732
+    },
+    {
+      "team": 12,
+      "position": 12,
+      "count": 238540,
+      "p": 0.047708
+    },
+    {
+      "team": 12,
+      "position": 13,
+      "count": 227202,
+      "p": 0.0454404
+    },
+    {
+      "team": 12,
+      "position": 14,
+      "count": 212737,
+      "p": 0.0425474
+    },
+    {
+      "team": 12,
+      "position": 15,
+      "count": 196962,
+      "p": 0.0393924
+    },
+    {
+      "team": 12,
+      "position": 16,
+      "count": 180692,
+      "p": 0.0361384
+    },
+    {
+      "team": 12,
+      "position": 17,
+      "count": 159746,
+      "p": 0.0319492
+    },
+    {
+      "team": 12,
+      "position": 18,
+      "count": 137615,
+      "p": 0.027523
+    },
+    {
+      "team": 12,
+      "position": 19,
+      "count": 111254,
+      "p": 0.0222508
+    },
+    {
+      "team": 13,
+      "position": 0,
+      "count": 243444,
+      "p": 0.0486888
+    },
+    {
+      "team": 13,
+      "position": 1,
+      "count": 255841,
+      "p": 0.0511682
+    },
+    {
+      "team": 13,
+      "position": 2,
+      "count": 262463,
+      "p": 0.0524926
+    },
+    {
+      "team": 13,
+      "position": 3,
+      "count": 267599,
+      "p": 0.0535198
+    },
+    {
+      "team": 13,
+      "position": 4,
+      "count": 271011,
+      "p": 0.0542022
+    },
+    {
+      "team": 13,
+      "position": 5,
+      "count": 273625,
+      "p": 0.054725
+    },
+    {
+      "team": 13,
+      "position": 6,
+      "count": 274796,
+      "p": 0.0549592
+    },
+    {
+      "team": 13,
+      "position": 7,
+      "count": 276376,
+      "p": 0.0552752
+    },
+    {
+      "team": 13,
+      "position": 8,
+      "count": 275538,
+      "p": 0.0551076
+    },
+    {
+      "team": 13,
+      "position": 9,
+      "count": 273572,
+      "p": 0.0547144
+    },
+    {
+      "team": 13,
+      "position": 10,
+      "count": 272092,
+      "p": 0.0544184
+    },
+    {
+      "team": 13,
+      "position": 11,
+      "count": 268240,
+      "p": 0.053648
+    },
+    {
+      "team": 13,
+      "position": 12,
+      "count": 263293,
+      "p": 0.0526586
+    },
+    {
+      "team": 13,
+      "position": 13,
+      "count": 257984,
+      "p": 0.0515968
+    },
+    {
+      "team": 13,
+      "position": 14,
+      "count": 248807,
+      "p": 0.0497614
+    },
+    {
+      "team": 13,
+      "position": 15,
+      "count": 237841,
+      "p": 0.0475682
+    },
+    {
+      "team": 13,
+      "position": 16,
+      "count": 222998,
+      "p": 0.0445996
+    },
+    {
+      "team": 13,
+      "position": 17,
+      "count": 206912,
+      "p": 0.0413824
+    },
+    {
+      "team": 13,
+      "position": 18,
+      "count": 185556,
+      "p": 0.0371112
+    },
+    {
+      "team": 13,
+      "position": 19,
+      "count": 162012,
+      "p": 0.0324024
+    },
+    {
+      "team": 14,
+      "position": 0,
+      "count": 289733,
+      "p": 0.0579466
+    },
+    {
+      "team": 14,
+      "position": 1,
+      "count": 290802,
+      "p": 0.0581604
+    },
+    {
+      "team": 14,
+      "position": 2,
+      "count": 291793,
+      "p": 0.0583586
+    },
+    {
+      "team": 14,
+      "position": 3,
+      "count": 289581,
+      "p": 0.0579162
+    },
+    {
+      "team": 14,
+      "position": 4,
+      "count": 288660,
+      "p": 0.057732
+    },
+    {
+      "team": 14,
+      "position": 5,
+      "count": 287498,
+      "p": 0.0574996
+    },
+    {
+      "team": 14,
+      "position": 6,
+      "count": 284844,
+      "p": 0.0569688
+    },
+    {
+      "team": 14,
+      "position": 7,
+      "count": 280672,
+      "p": 0.0561344
+    },
+    {
+      "team": 14,
+      "position": 8,
+      "count": 277456,
+      "p": 0.0554912
+    },
+    {
+      "team": 14,
+      "position": 9,
+      "count": 272161,
+      "p": 0.0544322
+    },
+    {
+      "team": 14,
+      "position": 10,
+      "count": 266810,
+      "p": 0.053362
+    },
+    {
+      "team": 14,
+      "position": 11,
+      "count": 260269,
+      "p": 0.0520538
+    },
+    {
+      "team": 14,
+      "position": 12,
+      "count": 251708,
+      "p": 0.0503416
+    },
+    {
+      "team": 14,
+      "position": 13,
+      "count": 242681,
+      "p": 0.0485362
+    },
+    {
+      "team": 14,
+      "position": 14,
+      "count": 231432,
+      "p": 0.0462864
+    },
+    {
+      "team": 14,
+      "position": 15,
+      "count": 216154,
+      "p": 0.0432308
+    },
+    {
+      "team": 14,
+      "position": 16,
+      "count": 201214,
+      "p": 0.0402428
+    },
+    {
+      "team": 14,
+      "position": 17,
+      "count": 183129,
+      "p": 0.0366258
+    },
+    {
+      "team": 14,
+      "position": 18,
+      "count": 159407,
+      "p": 0.0318814
+    },
+    {
+      "team": 14,
+      "position": 19,
+      "count": 133996,
+      "p": 0.0267992
+    },
+    {
+      "team": 15,
+      "position": 0,
+      "count": 343284,
+      "p": 0.0686568
+    },
+    {
+      "team": 15,
+      "position": 1,
+      "count": 328806,
+      "p": 0.0657612
+    },
+    {
+      "team": 15,
+      "position": 2,
+      "count": 320954,
+      "p": 0.0641908
+    },
+    {
+      "team": 15,
+      "position": 3,
+      "count": 312506,
+      "p": 0.0625012
+    },
+    {
+      "team": 15,
+      "position": 4,
+      "count": 305213,
+      "p": 0.0610426
+    },
+    {
+      "team": 15,
+      "position": 5,
+      "count": 298464,
+      "p": 0.0596928
+    },
+    {
+      "team": 15,
+      "position": 6,
+      "count": 291246,
+      "p": 0.0582492
+    },
+    {
+      "team": 15,
+      "position": 7,
+      "count": 283546,
+      "p": 0.0567092
+    },
+    {
+      "team": 15,
+      "position": 8,
+      "count": 275688,
+      "p": 0.0551376
+    },
+    {
+      "team": 15,
+      "position": 9,
+      "count": 268154,
+      "p": 0.0536308
+    },
+    {
+      "team": 15,
+      "position": 10,
+      "count": 258480,
+      "p": 0.051696
+    },
+    {
+      "team": 15,
+      "position": 11,
+      "count": 249126,
+      "p": 0.0498252
+    },
+    {
+      "team": 15,
+      "position": 12,
+      "count": 238211,
+      "p": 0.0476422
+    },
+    {
+      "team": 15,
+      "position": 13,
+      "count": 226128,
+      "p": 0.0452256
+    },
+    {
+      "team": 15,
+      "position": 14,
+      "count": 213357,
+      "p": 0.0426714
+    },
+    {
+      "team": 15,
+      "position": 15,
+      "count": 198817,
+      "p": 0.0397634
+    },
+    {
+      "team": 15,
+      "position": 16,
+      "count": 179918,
+      "p": 0.0359836
+    },
+    {
+      "team": 15,
+      "position": 17,
+      "count": 160126,
+      "p": 0.0320252
+    },
+    {
+      "team": 15,
+      "position": 18,
+      "count": 137050,
+      "p": 0.02741
+    },
+    {
+      "team": 15,
+      "position": 19,
+      "count": 110926,
+      "p": 0.0221852
+    },
+    {
+      "team": 16,
+      "position": 0,
+      "count": 243549,
+      "p": 0.0487098
+    },
+    {
+      "team": 16,
+      "position": 1,
+      "count": 256205,
+      "p": 0.051241
+    },
+    {
+      "team": 16,
+      "position": 2,
+      "count": 263086,
+      "p": 0.0526172
+    },
+    {
+      "team": 16,
+      "position": 3,
+      "count": 268380,
+      "p": 0.053676
+    },
+    {
+      "team": 16,
+      "position": 4,
+      "count": 271076,
+      "p": 0.0542152
+    },
+    {
+      "team": 16,
+      "position": 5,
+      "count": 272713,
+      "p": 0.0545426
+    },
+    {
+      "team": 16,
+      "position": 6,
+      "count": 274940,
+      "p": 0.054988
+    },
+    {
+      "team": 16,
+      "position": 7,
+      "count": 275753,
+      "p": 0.0551506
+    },
+    {
+      "team": 16,
+      "position": 8,
+      "count": 276013,
+      "p": 0.0552026
+    },
+    {
+      "team": 16,
+      "position": 9,
+      "count": 273536,
+      "p": 0.0547072
+    },
+    {
+      "team": 16,
+      "position": 10,
+      "count": 270983,
+      "p": 0.0541966
+    },
+    {
+      "team": 16,
+      "position": 11,
+      "count": 268706,
+      "p": 0.0537412
+    },
+    {
+      "team": 16,
+      "position": 12,
+      "count": 263134,
+      "p": 0.0526268
+    },
+    {
+      "team": 16,
+      "position": 13,
+      "count": 257374,
+      "p": 0.0514748
+    },
+    {
+      "team": 16,
+      "position": 14,
+      "count": 248651,
+      "p": 0.0497302
+    },
+    {
+      "team": 16,
+      "position": 15,
+      "count": 237445,
+      "p": 0.047489
+    },
+    {
+      "team": 16,
+      "position": 16,
+      "count": 224592,
+      "p": 0.0449184
+    },
+    {
+      "team": 16,
+      "position": 17,
+      "count": 206326,
+      "p": 0.0412652
+    },
+    {
+      "team": 16,
+      "position": 18,
+      "count": 185698,
+      "p": 0.0371396
+    },
+    {
+      "team": 16,
+      "position": 19,
+      "count": 161840,
+      "p": 0.032368
+    },
+    {
+      "team": 17,
+      "position": 0,
+      "count": 307635,
+      "p": 0.061527
+    },
+    {
+      "team": 17,
+      "position": 1,
+      "count": 301300,
+      "p": 0.06026
+    },
+    {
+      "team": 17,
+      "position": 2,
+      "count": 296869,
+      "p": 0.0593738
+    },
+    {
+      "team": 17,
+      "position": 3,
+      "count": 292092,
+      "p": 0.0584184
+    },
+    {
+      "team": 17,
+      "position": 4,
+      "count": 290030,
+      "p": 0.058006
+    },
+    {
+      "team": 17,
+      "position": 5,
+      "count": 285753,
+      "p": 0.0571506
+    },
+    {
+      "team": 17,
+      "position": 6,
+      "count": 281985,
+      "p": 0.056397
+    },
+    {
+      "team": 17,
+      "position": 7,
+      "count": 278189,
+      "p": 0.0556378
+    },
+    {
+      "team": 17,
+      "position": 8,
+      "count": 273561,
+      "p": 0.0547122
+    },
+    {
+      "team": 17,
+      "position": 9,
+      "count": 268977,
+      "p": 0.0537954
+    },
+    {
+      "team": 17,
+      "position": 10,
+      "count": 262962,
+      "p": 0.0525924
+    },
+    {
+      "team": 17,
+      "position": 11,
+      "count": 255383,
+      "p": 0.0510766
+    },
+    {
+      "team": 17,
+      "position": 12,
+      "count": 247270,
+      "p": 0.049454
+    },
+    {
+      "team": 17,
+      "position": 13,
+      "count": 237262,
+      "p": 0.0474524
+    },
+    {
+      "team": 17,
+      "position": 14,
+      "count": 226762,
+      "p": 0.0453524
+    },
+    {
+      "team": 17,
+      "position": 15,
+      "count": 214233,
+      "p": 0.0428466
+    },
+    {
+      "team": 17,
+      "position": 16,
+      "count": 199573,
+      "p": 0.0399146
+    },
+    {
+      "team": 17,
+      "position": 17,
+      "count": 181754,
+      "p": 0.0363508
+    },
+    {
+      "team": 17,
+      "position": 18,
+      "count": 160491,
+      "p": 0.0320982
+    },
+    {
+      "team": 17,
+      "position": 19,
+      "count": 137919,
+      "p": 0.0275838
+    },
+    {
+      "team": 18,
+      "position": 0,
+      "count": 364999,
+      "p": 0.0729998
+    },
+    {
+      "team": 18,
+      "position": 1,
+      "count": 339319,
+      "p": 0.0678638
+    },
+    {
+      "team": 18,
+      "position": 2,
+      "count": 325301,
+      "p": 0.0650602
+    },
+    {
+      "team": 18,
+      "position": 3,
+      "count": 315043,
+      "p": 0.0630086
+    },
+    {
+      "team": 18,
+      "position": 4,
+      "count": 303891,
+      "p": 0.0607782
+    },
+    {
+      "team": 18,
+      "position": 5,
+      "count": 297574,
+      "p": 0.0595148
+    },
+    {
+      "team": 18,
+      "position": 6,
+      "count": 287912,
+      "p": 0.0575824
+    },
+    {
+      "team": 18,
+      "position": 7,
+      "count": 280509,
+      "p": 0.0561018
+    },
+    {
+      "team": 18,
+      "position": 8,
+      "count": 272682,
+      "p": 0.0545364
+    },
+    {
+      "team": 18,
+      "position": 9,
+      "count": 263075,
+      "p": 0.052615
+    },
+    {
+      "team": 18,
+      "position": 10,
+      "count": 255193,
+      "p": 0.0510386
+    },
+    {
+      "team": 18,
+      "position": 11,
+      "count": 244822,
+      "p": 0.0489644
+    },
+    {
+      "team": 18,
+      "position": 12,
+      "count": 233963,
+      "p": 0.0467926
+    },
+    {
+      "team": 18,
+      "position": 13,
+      "count": 222669,
+      "p": 0.0445338
+    },
+    {
+      "team": 18,
+      "position": 14,
+      "count": 208557,
+      "p": 0.0417114
+    },
+    {
+      "team": 18,
+      "position": 15,
+      "count": 195289,
+      "p": 0.0390578
+    },
+    {
+      "team": 18,
+      "position": 16,
+      "count": 178565,
+      "p": 0.035713
+    },
+    {
+      "team": 18,
+      "position": 17,
+      "count": 159279,
+      "p": 0.0318558
+    },
+    {
+      "team": 18,
+      "position": 18,
+      "count": 137931,
+      "p": 0.0275862
+    },
+    {
+      "team": 18,
+      "position": 19,
+      "count": 113427,
+      "p": 0.0226854
+    },
+    {
+      "team": 19,
+      "position": 0,
+      "count": 258843,
+      "p": 0.0517686
+    },
+    {
+      "team": 19,
+      "position": 1,
+      "count": 263746,
+      "p": 0.0527492
+    },
+    {
+      "team": 19,
+      "position": 2,
+      "count": 267876,
+      "p": 0.0535752
+    },
+    {
+      "team": 19,
+      "position": 3,
+      "count": 270523,
+      "p": 0.0541046
+    },
+    {
+      "team": 19,
+      "position": 4,
+      "count": 272419,
+      "p": 0.0544838
+    },
+    {
+      "team": 19,
+      "position": 5,
+      "count": 273216,
+      "p": 0.0546432
+    },
+    {
+      "team": 19,
+      "position": 6,
+      "count": 272921,
+      "p": 0.0545842
+    },
+    {
+      "team": 19,
+      "position": 7,
+      "count": 272961,
+      "p": 0.0545922
+    },
+    {
+      "team": 19,
+      "position": 8,
+      "count": 272734,
+      "p": 0.0545468
+    },
+    {
+      "team": 19,
+      "position": 9,
+      "count": 270323,
+      "p": 0.0540646
+    },
+    {
+      "team": 19,
+      "position": 10,
+      "count": 267757,
+      "p": 0.0535514
+    },
+    {
+      "team": 19,
+      "position": 11,
+      "count": 264735,
+      "p": 0.052947
+    },
+    {
+      "team": 19,
+      "position": 12,
+      "count": 259651,
+      "p": 0.0519302
+    },
+    {
+      "team": 19,
+      "position": 13,
+      "count": 252876,
+      "p": 0.0505752
+    },
+    {
+      "team": 19,
+      "position": 14,
+      "count": 244139,
+      "p": 0.0488278
+    },
+    {
+      "team": 19,
+      "position": 15,
+      "count": 234312,
+      "p": 0.0468624
+    },
+    {
+      "team": 19,
+      "position": 16,
+      "count": 221881,
+      "p": 0.0443762
+    },
+    {
+      "team": 19,
+      "position": 17,
+      "count": 205764,
+      "p": 0.0411528
+    },
+    {
+      "team": 19,
+      "position": 18,
+      "count": 186571,
+      "p": 0.0373142
+    },
+    {
+      "team": 19,
+      "position": 19,
+      "count": 166752,
+      "p": 0.0333504
+    },
+    {
+      "team": 20,
+      "position": 0,
+      "count": 307960,
+      "p": 0.061592
+    },
+    {
+      "team": 20,
+      "position": 1,
+      "count": 300989,
+      "p": 0.0601978
+    },
+    {
+      "team": 20,
+      "position": 2,
+      "count": 296611,
+      "p": 0.0593222
+    },
+    {
+      "team": 20,
+      "position": 3,
+      "count": 293640,
+      "p": 0.058728
+    },
+    {
+      "team": 20,
+      "position": 4,
+      "count": 289897,
+      "p": 0.0579794
+    },
+    {
+      "team": 20,
+      "position": 5,
+      "count": 285205,
+      "p": 0.057041
+    },
+    {
+      "team": 20,
+      "position": 6,
+      "count": 281975,
+      "p": 0.056395
+    },
+    {
+      "team": 20,
+      "position": 7,
+      "count": 276620,
+      "p": 0.055324
+    },
+    {
+      "team": 20,
+      "position": 8,
+      "count": 273224,
+      "p": 0.0546448
+    },
+    {
+      "team": 20,
+      "position": 9,
+      "count": 267717,
+      "p": 0.0535434
+    },
+    {
+      "team": 20,
+      "position": 10,
+      "count": 263301,
+      "p": 0.0526602
+    },
+    {
+      "team": 20,
+      "position": 11,
+      "count": 255746,
+      "p": 0.0511492
+    },
+    {
+      "team": 20,
+      "position": 12,
+      "count": 247268,
+      "p": 0.0494536
+    },
+    {
+      "team": 20,
+      "position": 13,
+      "count": 238572,
+      "p": 0.0477144
+    },
+    {
+      "team": 20,
+      "position": 14,
+      "count": 227405,
+      "p": 0.045481
+    },
+    {
+      "team": 20,
+      "position": 15,
+      "count": 214516,
+      "p": 0.0429032
+    },
+    {
+      "team": 20,
+      "position": 16,
+      "count": 199118,
+      "p": 0.0398236
+    },
+    {
+      "team": 20,
+      "position": 17,
+      "count": 181550,
+      "p": 0.03631
+    },
+    {
+      "team": 20,
+      "position": 18,
+      "count": 160873,
+      "p": 0.0321746
+    },
+    {
+      "team": 20,
+      "position": 19,
+      "count": 137813,
+      "p": 0.0275626
+    }
+  ]
+}

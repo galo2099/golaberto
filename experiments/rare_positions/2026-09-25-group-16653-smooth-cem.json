@@ -1,0 +1,35 @@
+{
+  "experiment_date": "2026-09-25",
+  "group": 16653,
+  "reference_samples": 5000000,
+  "work_limit_per_run": 35000000,
+  "master_seeds": "1001 through 1005",
+  "hypothesis": "A smooth rank-distance target will give focused attack/concession CEM enough effective discovery samples while retaining rare-tail targeting",
+  "design": "One scout-selected tail, three pure-Q discovery batches of up to 800 samples, independent validation, frozen fresh production. The smooth discovery score weighted nearby ranks around the rare frontier; no reference probabilities entered the estimator.",
+  "baseline": {
+    "coverage_score_mean": 287.04230147671393,
+    "targeted_production_work_mean": 105000,
+    "vs_equal_work_plain_coverage_score_mean": -1.0578363723052804
+  },
+  "kernel_tau_2": {
+    "activated_updates": 15,
+    "paired_coverage_score_mean": -0.022221195863892262,
+    "paired_ess_ge_10_mean": 0,
+    "targeted_production_work_mean": 35000,
+    "vs_equal_work_plain_coverage_score_mean": -1.0800575681691726,
+    "raw_results": "local/2026-09-25/cem-smooth-16653-5/"
+  },
+  "kernel_tau_0_5": {
+    "activated_updates": 14,
+    "paired_coverage_score_mean": 0.0032788907309054594,
+    "paired_coverage_score_stddev": 0.08112754728012798,
+    "paired_ess_ge_10_mean": 0,
+    "paired_ess_ge_25_mean": -0.2,
+    "targeted_production_work_mean": 105000,
+    "vs_equal_work_plain_coverage_score_mean": -1.0545574815743748,
+    "raw_results": "local/2026-09-25/cem-smooth-tau05-16653-5/"
+  },
+  "decision": "reject",
+  "reason": "The broad kernel moved the fit toward P and reduced targeted production. The narrow kernel restored targeting but added no ESS>=10 cells and reduced ESS>=25 coverage. Both remained behind equal-work plain MC; the prior adjacent-window CEM trial also failed at 20 seeds. Further tuning of this proposal family is not warranted.",
+  "candidate_source": "local/2026-09-25/cem-smooth-tau05-16653-5/rejected-smooth-cem-builder.go"
+}

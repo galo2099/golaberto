@@ -1,0 +1,27 @@
+{
+  "experiment_date": "2026-09-25",
+  "group": 16653,
+  "reference_samples": 5000000,
+  "work_limit_per_run": 35000000,
+  "master_seeds": "1001 through 1005",
+  "hypothesis": "Allowing an independently admitted focused CEM proposal to fill more predicted relative ESS before switching to plain MC improves the complete matrix",
+  "design": "Focused CEM discovery, independent validation, frozen fresh production. Only the allocation utility target changed from relative ESS 10 to 50; the reported coverage score retained its cap at 10.",
+  "paired_coverage_score": {
+    "mean": 0.04504478134541614,
+    "median": 0,
+    "stddev": 0.15622065059297127
+  },
+  "paired_ess_ge_10_mean": 0,
+  "paired_ess_ge_25_mean": -0.4,
+  "candidate_vs_equal_work_plain_coverage_score_mean": -1.0127915909598642,
+  "rare_band_1e-5_to_1e-4_paired_coverage_score_mean": 0.0027098298396765587,
+  "rare_band_1e-6_to_1e-5_paired_coverage_score_mean": 0.04233495150574389,
+  "targeted_production_work_by_seed": {
+    "baseline": [175000, 0, 175000, 175000, 0],
+    "candidate": [175000, 0, 1050000, 525000, 0]
+  },
+  "decision": "reject",
+  "reason": "Extra targeted production in two runs yielded no new ESS>=10 cells, reduced ESS>=25 coverage, and did not close the equal-work plain MC gap. A 20-seed confirmation was not warranted.",
+  "raw_results": "local/2026-09-25/cem-alloc50-16653-5/",
+  "candidate_source": "local/2026-09-25/cem-alloc50-16653-5/rejected-cem-builder.go"
+}
