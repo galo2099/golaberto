@@ -3,6 +3,7 @@ package main
 import (
 	"math"
 	"math/rand"
+	"reflect"
 	"testing"
 )
 
@@ -45,6 +46,22 @@ func createTestGroupForDiversified() (*GroupType, []*TeamCampaign, *Table, []Sor
 	return group, campaign, table, sortOrder, counts
 }
 
+func discoverAndValidateForTest(t *testing.T, scout ScoutData, group *GroupType, campaign []*TeamCampaign, means []GameProposalMeans, table *Table, sortOrder []SortType, discoveryCap, validationCap int64, rng *rand.Rand) ([]DiversifiedCandidate, map[string]DiversifiedValidationStats, int64, int64) {
+	t.Helper()
+	all, discoveryWork := discoverDiversifiedProposals(scout, campaign, group.Games, means, table, sortOrder, group.Team_groups, discoveryCap, rng)
+	shortlist := shortlistDiversifiedCandidates(all, DiversifiedDefaultMaxValidatedProposals)
+	var targeted []DiversifiedCandidate
+	for _, candidate := range shortlist {
+		if candidate.Proposal.Kind != ProposalPlainMC {
+			targeted = append(targeted, candidate)
+		}
+	}
+	validation, validationWork, validated := validateDiversifiedCandidates(targeted, validationCap, 20, rng.Int63(), campaign, group.Games, means, table, sortOrder, group.Team_groups)
+	result := []DiversifiedCandidate{all[0]}
+	result = append(result, validated...)
+	return result, validation, discoveryWork, validationWork
+}
+
 func TestDiversifiedScoutAndTailDiscovery(t *testing.T) {
 	group, campaign, table, sortOrder, _ := createTestGroupForDiversified()
 	rng := rand.New(rand.NewSource(42))
@@ -74,19 +91,18 @@ func TestDiversifiedProposalSearchAndFreeze(t *testing.T) {
 
 	scout := runPlainMCScout(campaign, group.Games, table, sortOrder, group.Team_groups, 500, 100, rng)
 
-	proposals, probeStats, searchWork := searchDiversifiedProposals(
-		scout, campaign, group.Games, originalMeans, table, sortOrder, group.Team_groups, 50000, rng)
+	proposals, validationStats, discoveryWork, validationWork := discoverAndValidateForTest(t, scout, group, campaign, originalMeans, table, sortOrder, 50000, 50000, rng)
 
 	if len(proposals) == 0 {
 		t.Fatalf("Expected at least plain_mc proposal, got 0")
 	}
-	if proposals[0].Kind != ProposalPlainMC {
-		t.Errorf("Expected first proposal to be plain_mc, got %s", proposals[0].Kind)
+	if proposals[0].Proposal.Kind != ProposalPlainMC {
+		t.Errorf("Expected first proposal to be plain_mc, got %s", proposals[0].Proposal.Kind)
 	}
 
-	t.Logf("Proposals found: %d, searchWork: %d", len(proposals), searchWork)
+	t.Logf("Proposals found: %d, discoveryWork: %d, validationWork: %d", len(proposals), discoveryWork, validationWork)
 
-	frozen := freezeDiversifiedDesign(proposals, probeStats, scout, group.Team_groups, 500000, scout.Work, searchWork)
+	frozen := freezeDiversifiedDesign(proposals, validationStats, scout, group.Team_groups, 500000, scout.Work, discoveryWork, validationWork)
 
 	if len(frozen.Batches) == 0 {
 		t.Fatalf("Expected non-empty frozen batches")
@@ -105,10 +121,9 @@ func TestDiversifiedProductionExecution(t *testing.T) {
 	}
 
 	scout := runPlainMCScout(campaign, group.Games, table, sortOrder, group.Team_groups, 500, 100, rng)
-	proposals, probeStats, searchWork := searchDiversifiedProposals(
-		scout, campaign, group.Games, originalMeans, table, sortOrder, group.Team_groups, 50000, rng)
+	proposals, validationStats, discoveryWork, validationWork := discoverAndValidateForTest(t, scout, group, campaign, originalMeans, table, sortOrder, 50000, 50000, rng)
 
-	frozen := freezeDiversifiedDesign(proposals, probeStats, scout, group.Team_groups, 200000, scout.Work, searchWork)
+	frozen := freezeDiversifiedDesign(proposals, validationStats, scout, group.Team_groups, 200000, scout.Work, discoveryWork, validationWork)
 
 	estimates := runDiversifiedProduction(frozen, campaign, group.Games, originalMeans, table, sortOrder, group.Team_groups, 54321)
 
@@ -293,15 +308,15 @@ func TestZeroSearchHitsBetaZero(t *testing.T) {
 	}
 
 	cell := [2]int{1, 10} // rare cell
-	probeStats := map[string]ProposalProbeStats{
-		"targeted": {CellPredictedVarPerSample: map[[2]int]float64{cell: math.Inf(1)}}, // 0 hits => Inf variance
-		"plain_mc": {CellPredictedVarPerSample: map[[2]int]float64{cell: 1e-4}},
+	probeStats := map[string]DiversifiedValidationStats{
+		"targeted": {CellVariancePerSample: map[[2]int]float64{cell: math.Inf(1)}}, // zero-hit/no-information case
+		"plain_mc": {CellVariancePerSample: map[[2]int]float64{cell: 1e-4}},
 	}
 
 	betas := make([]float64, len(batches))
 	sumScore := 0.0
 	for j, batch := range batches {
-		varPerSample := probeStats[batch.Proposal.ID].CellPredictedVarPerSample[cell]
+		varPerSample := probeStats[batch.Proposal.ID].CellVariancePerSample[cell]
 		score := 0.0
 		if !math.IsNaN(varPerSample) && !math.IsInf(varPerSample, 0) && varPerSample > 0 && batch.Samples > 0 {
 			score = float64(batch.Samples) / varPerSample
@@ -354,7 +369,7 @@ func TestPureQToProductionMixtureVarianceTransform(t *testing.T) {
 
 		if outcome == 0 {
 			r := pProbs[0] / qProbs[0]
-			den := eps*r + (1.0-eps)
+			den := eps*r + (1.0 - eps)
 			y2 := (r * r) / den
 			sumY2 += y2
 		}
@@ -476,7 +491,7 @@ func TestCommonCellPlainDominated(t *testing.T) {
 
 	// 8000 Plain P samples
 	varP := pReg * (1.0 - pReg) // 0.16
-	predPrecP := 8000.0 / varP    // 50,000
+	predPrecP := 8000.0 / varP  // 50,000
 
 	deficit := math.Max(0, targetPrec-predPrecP) // 250 - 50000 = 0
 
@@ -712,7 +727,7 @@ func TestConservativeVarianceRespondsToWeightVariability(t *testing.T) {
 	z2B1 := (rB1 * rB1) / denB1
 
 	sumZ2B := z2B1 + 3.0*z2A
-	sumZ2SqB := (z2B1 * z2B1) + 3.0*(z2A * z2A)
+	sumZ2SqB := (z2B1 * z2B1) + 3.0*(z2A*z2A)
 	meanB := sumZ2B / N
 	varZ2B := (sumZ2SqB - N*meanB*meanB) / (N - 1.0)
 	seB := math.Sqrt(varZ2B / N)
@@ -821,7 +836,7 @@ func TestUnstableLikelihoodBadProposalLosesToPlainMC(t *testing.T) {
 	// Bad proposal Q: N = 200, 4 hits, 1 hit has massive r = 50.0 spike
 	eps := 0.05
 	rSpike := 50.0
-	denSpike := eps*rSpike + (1.0 - eps) // 2.5 + 0.95 = 3.45
+	denSpike := eps*rSpike + (1.0 - eps)    // 2.5 + 0.95 = 3.45
 	z2Spike := (rSpike * rSpike) / denSpike // 2500 / 3.45 = 724.637
 
 	rNorm := 0.01
@@ -830,7 +845,7 @@ func TestUnstableLikelihoodBadProposalLosesToPlainMC(t *testing.T) {
 
 	N := 200.0
 	sumZ2 := z2Spike + 3.0*z2Norm
-	sumZ2Sq := (z2Spike * z2Spike) + 3.0*(z2Norm * z2Norm)
+	sumZ2Sq := (z2Spike * z2Spike) + 3.0*(z2Norm*z2Norm)
 
 	meanZ2 := sumZ2 / N
 	sampleVarZ2 := (sumZ2Sq - N*meanZ2*meanZ2) / (N - 1.0)
@@ -932,14 +947,13 @@ func TestRetainedProposalSurvivesFreeze(t *testing.T) {
 
 	scout := runPlainMCScout(campaign, group.Games, table, sortOrder, group.Team_groups, 1000, 100, rng)
 
-	proposals, probeStats, searchWork := searchDiversifiedProposals(
-		scout, campaign, group.Games, originalMeans, table, sortOrder, group.Team_groups, 100000, rng)
+	proposals, probeStats, discoveryWork, validationWork := discoverAndValidateForTest(t, scout, group, campaign, originalMeans, table, sortOrder, 100000, 100000, rng)
 
 	if len(proposals) <= 1 {
 		t.Fatalf("Expected targeted proposals to be retained during search")
 	}
 
-	frozen := freezeDiversifiedDesign(proposals, probeStats, scout, group.Team_groups, 1000000, scout.Work, searchWork)
+	frozen := freezeDiversifiedDesign(proposals, probeStats, scout, group.Team_groups, 1000000, scout.Work, discoveryWork, validationWork)
 
 	targetedBatches := 0
 	targetedWork := int64(0)
@@ -1002,7 +1016,7 @@ func TestTeam37TailMovementRegression(t *testing.T) {
 
 	scout := runPlainMCScout(campaign, group.Games, table, sortOrder, group.Team_groups, 1000, 100, rng)
 
-	proposals, _, _ := searchDiversifiedProposals(
+	proposals, _ := discoverDiversifiedProposals(
 		scout, campaign, group.Games, originalMeans, table, sortOrder, group.Team_groups, 100000, rng)
 
 	if len(proposals) <= 1 {
@@ -1011,6 +1025,212 @@ func TestTeam37TailMovementRegression(t *testing.T) {
 
 	t.Logf("Retained %d proposal(s) for team 1 worse-tail search!", len(proposals))
 	for _, p := range proposals {
-		t.Logf("Retained proposal: ID=%s Kind=%s Strength=%.2f KL=%.3f", p.ID, p.Kind, p.Strength, p.KL)
+		t.Logf("Retained proposal: ID=%s Kind=%s Strength=%.2f KL=%.3f", p.Proposal.ID, p.Proposal.Kind, p.Proposal.Strength, p.Proposal.KL)
+	}
+}
+
+func TestDiscoveryStatsDoNotContainVarianceInputs(t *testing.T) {
+	typeOf := reflect.TypeOf(DiversifiedDiscoveryStats{})
+	for _, field := range []string{"CellVariancePerSample", "CellPredictedVarPerSample", "CellPredictedRawVarPerSample", "CellSumY2"} {
+		if _, ok := typeOf.FieldByName(field); ok {
+			t.Fatalf("discovery stats must not carry estimator variance field %q", field)
+		}
+	}
+	freezeType := reflect.TypeOf(freezeDiversifiedDesign)
+	if freezeType.NumIn() != 8 || freezeType.In(0) != reflect.TypeOf([]DiversifiedCandidate{}) || freezeType.In(1) != reflect.TypeOf(map[string]DiversifiedValidationStats{}) {
+		t.Fatalf("freeze must consume candidates and independent validation stats only: %v", freezeType)
+	}
+}
+
+func TestDiscoveryProbeHonorsExactWorkCap(t *testing.T) {
+	group, campaign, table, sortOrder, _ := createTestGroupForDiversified()
+	rng := rand.New(rand.NewSource(44))
+	means := make([]GameProposalMeans, len(group.Games))
+	for i, g := range group.Games {
+		means[i] = GameProposalMeans{Home: g.HomePower, Away: g.AwayPower}
+	}
+	proposal, _ := buildDirectTeamProposal(1, RareWorse, .75, means, group.Games, teamIDsFromGroups(group.Team_groups), len(group.Team_groups))
+	cap := int64(125) * proposal.WorkPerSample
+	discovery := probeProposal(proposal, campaign, group.Games, means, table, sortOrder, group.Team_groups, cap, rng, 1, 2, map[[2]int]bool{}, ScoutData{})
+	if discovery.Samples != 125 || discovery.Work > cap {
+		t.Fatalf("discovery exceeded/request failed to honor cap: samples=%d work=%d cap=%d", discovery.Samples, discovery.Work, cap)
+	}
+}
+
+func TestValidationEligibilityGatesIntendedAndOffTargetCells(t *testing.T) {
+	cell := [2]int{1, 2}
+	for _, tc := range []struct {
+		name     string
+		ess      float64
+		intended bool
+		eligible bool
+		cap      float64
+	}{
+		{"intended_below_2", 1.9, true, false, 0}, {"intended_2_to_4", 3, true, true, .1}, {"intended_4_to_8", 6, true, true, .5}, {"intended_8_plus", 9, true, true, 1},
+		{"off_target_below_8", 7.9, false, false, 0}, {"off_target_8_to_15", 10, false, true, .1}, {"off_target_15_to_25", 20, false, true, .5}, {"off_target_25_plus", 30, false, true, 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ok, cap := validationEligibility(DiversifiedValidationStats{CellEventESS: map[[2]int]float64{cell: tc.ess}}, cell, tc.intended)
+			if ok != tc.eligible || cap != tc.cap {
+				t.Fatalf("got eligible=%t cap=%g; want %t %g", ok, cap, tc.eligible, tc.cap)
+			}
+		})
+	}
+}
+
+func TestValidationBetasRespectCapsAndSumToOne(t *testing.T) {
+	cell := [2]int{8, 3}
+	batches := []FrozenProductionBatch{{Proposal: DiversifiedProposal{ID: "plain_mc", Kind: ProposalPlainMC}, Samples: 1000}, {Proposal: DiversifiedProposal{ID: "target", Kind: ProposalSingleTeam}, Samples: 1000}}
+	candidates := map[string]DiversifiedCandidate{"target": {IntendedCells: map[[2]int]bool{cell: true}}}
+	validation := map[string]DiversifiedValidationStats{"target": {CellVariancePerSample: map[[2]int]float64{cell: .001}, CellEventESS: map[[2]int]float64{cell: 3}}}
+	betas := combineValidationBetas(batches, candidates, validation, cell, .1)
+	if math.Abs(betas[1]-.1) > 1e-12 || math.Abs(betas[0]-.9) > 1e-12 {
+		t.Fatalf("validation beta cap should transfer excess to P; got %v", betas)
+	}
+	if math.Abs(betas[0]+betas[1]-1) > 1e-12 {
+		t.Fatalf("betas must sum to 1: %v", betas)
+	}
+}
+
+func TestIntendedCellsAreTargetTeamTailOnly(t *testing.T) {
+	scout := ScoutData{TeamCounts: map[int][]int{1: {20, 0, 0}, 2: {20, 0, 0}}, Feasibility: map[[2]int]string{{1, 0}: "observed", {1, 1}: "feasible_unseen", {1, 2}: "feasible_unseen", {2, 1}: "feasible_unseen", {2, 2}: "proven_impossible"}}
+	tail := DirectionalTail{TeamID: 1, Direction: RareWorse, ObservedMaxRank: 0, FrontierRank: 1}
+	discovery := DiversifiedDiscoveryStats{RankHistograms: map[int][]int{1: {0, 0, 0}, 2: {0, 0, 0}}, CellHits: map[[2]int]int{}}
+	c := makeDiversifiedCandidate(DiversifiedProposal{ID: "target", TargetTeam: 1}, tail, discovery, ProposalQuality{}, scout)
+	if len(c.IntendedCells) != 2 || !c.IntendedCells[[2]int{1, 1}] || !c.IntendedCells[[2]int{1, 2}] {
+		t.Fatalf("unexpected intended cells: %v", c.IntendedCells)
+	}
+	for cell := range c.IntendedCells {
+		if cell[0] != 1 {
+			t.Fatalf("off-target cell was marked intended: %v", cell)
+		}
+	}
+}
+
+func TestValidationVarianceChangesCombinationWeights(t *testing.T) {
+	cell := [2]int{1, 2}
+	batches := []FrozenProductionBatch{{Proposal: DiversifiedProposal{ID: "plain_mc", Kind: ProposalPlainMC}, Samples: 100}, {Proposal: DiversifiedProposal{ID: "lowvar", Kind: ProposalSingleTeam}, Samples: 100}, {Proposal: DiversifiedProposal{ID: "highvar", Kind: ProposalSingleTeam}, Samples: 100}}
+	candidates := map[string]DiversifiedCandidate{"lowvar": {IntendedCells: map[[2]int]bool{cell: true}}, "highvar": {IntendedCells: map[[2]int]bool{cell: true}}}
+	validation := map[string]DiversifiedValidationStats{"lowvar": {CellVariancePerSample: map[[2]int]float64{cell: .01}, CellEventESS: map[[2]int]float64{cell: 10}}, "highvar": {CellVariancePerSample: map[[2]int]float64{cell: .1}, CellEventESS: map[[2]int]float64{cell: 10}}}
+	betas := combineValidationBetas(batches, candidates, validation, cell, .01)
+	if betas[1] <= betas[2] {
+		t.Fatalf("lower independently validated variance should receive larger beta: %v", betas)
+	}
+}
+
+func TestValidationVarianceChangesFrozenProductionAllocation(t *testing.T) {
+	group, _, _, _, counts := createTestGroupForDiversified()
+	cell := [2]int{1, 2}
+	scout := ScoutData{Samples: 1000, TeamCounts: counts, Feasibility: map[[2]int]string{}}
+	for _, team := range group.Team_groups {
+		for pos := range group.Team_groups {
+			scout.Feasibility[[2]int{team.Team_id, pos}] = "observed"
+		}
+	}
+	scout.Feasibility[cell] = "feasible_unseen"
+	scout.TeamCounts[1][2] = 0
+	plain := DiversifiedCandidate{Proposal: DiversifiedProposal{ID: "plain_mc", Kind: ProposalPlainMC, WorkPerSample: 100}}
+	target := DiversifiedCandidate{Proposal: DiversifiedProposal{ID: "target", Kind: ProposalSingleTeam, WorkPerSample: 100}, IntendedCells: map[[2]int]bool{cell: true}}
+	freeze := func(variance float64) FrozenDiversifiedDesign {
+		v := DiversifiedValidationStats{CellVariancePerSample: map[[2]int]float64{cell: variance}, CellEventESS: map[[2]int]float64{cell: 20}}
+		return freezeDiversifiedDesign([]DiversifiedCandidate{plain, target}, map[string]DiversifiedValidationStats{"target": v}, scout, group.Team_groups, 500000, 1000, 1000, 400)
+	}
+	tweak := freeze(.00001)
+	tweakHighVariance := freeze(.1)
+	work := func(d FrozenDiversifiedDesign) int64 {
+		for _, b := range d.Batches {
+			if b.Proposal.ID == "target" {
+				return b.Work
+			}
+		}
+		return 0
+	}
+	if work(tweak) <= work(tweakHighVariance) {
+		t.Fatalf("independent validation variance must affect frozen allocation: lowvar=%d highvar=%d", work(tweak), work(tweakHighVariance))
+	}
+}
+
+func TestValidationWorkNeverExceedsCap(t *testing.T) {
+	group, campaign, table, sortOrder, _ := createTestGroupForDiversified()
+	means := make([]GameProposalMeans, len(group.Games))
+	for i, g := range group.Games {
+		means[i] = GameProposalMeans{Home: g.HomePower, Away: g.AwayPower}
+	}
+	proposal, _ := buildDirectTeamProposal(1, RareWorse, .75, means, group.Games, teamIDsFromGroups(group.Team_groups), len(group.Team_groups))
+	proposal.WorkPerSample = 100
+	candidates := []DiversifiedCandidate{{Proposal: proposal}}
+	stats, spent, _ := validateDiversifiedCandidates(candidates, 45000, 200, 123, campaign, group.Games, means, table, sortOrder, group.Team_groups)
+	if spent > 45000 || spent < 20000 {
+		t.Fatalf("validation work should fit cap and include minimum samples: spent=%d", spent)
+	}
+	if stats[proposal.ID].Samples != int(spent/100) {
+		t.Fatalf("sample accounting mismatch: stats=%+v spent=%d", stats[proposal.ID], spent)
+	}
+}
+
+func TestFreezeTruncatesToGlobalWorkBudget(t *testing.T) {
+	group, _, _, _, counts := createTestGroupForDiversified()
+	scout := ScoutData{Samples: 100, Work: 100, TeamCounts: counts, Feasibility: map[[2]int]string{}}
+	for _, team := range group.Team_groups {
+		for pos := range group.Team_groups {
+			scout.Feasibility[[2]int{team.Team_id, pos}] = "observed"
+		}
+	}
+	plain := DiversifiedCandidate{Proposal: DiversifiedProposal{ID: "plain_mc", Kind: ProposalPlainMC, WorkPerSample: 100}}
+	design := freezeDiversifiedDesign([]DiversifiedCandidate{plain}, nil, scout, group.Team_groups, 1050, 100, 100, 0)
+	if design.ProductionWork+design.DiscoveryWork+design.ValidationWork+design.ScoutWork > design.TotalWork || design.UnusedWork < 0 {
+		t.Fatalf("budget invariant violated: %+v", design)
+	}
+	for _, batch := range design.Batches {
+		if batch.Work != int64(batch.Samples)*batch.WorkPerSample {
+			t.Fatalf("batch work mismatch: %+v", batch)
+		}
+	}
+}
+
+func TestSharedMixtureSimulatorDrivesProductionStatistics(t *testing.T) {
+	group, campaign, table, sortOrder, _ := createTestGroupForDiversified()
+	means := make([]GameProposalMeans, len(group.Games))
+	for i, g := range group.Games {
+		means[i] = GameProposalMeans{Home: g.HomePower, Away: g.AwayPower}
+	}
+	proposal := DiversifiedProposal{ID: "target", Kind: ProposalSingleTeam, Means: means, WorkPerSample: 1}
+	master := int64(9001)
+	prodSeed := deriveRarePositionSeed(master, "diversified-prod-batch-0-target")
+	shared := simulateDiversifiedMixtureBatch(proposal, 1200, prodSeed, campaign, group.Games, means, table, sortOrder, group.Team_groups)
+	betas := map[[2]int][]float64{}
+	for _, team := range group.Team_groups {
+		for pos := range group.Team_groups {
+			betas[[2]int{team.Team_id, pos}] = []float64{1}
+		}
+	}
+	design := FrozenDiversifiedDesign{Batches: []FrozenProductionBatch{{Proposal: proposal, Samples: 1200, Work: 1200, WorkPerSample: 1}}, CellCombinationWeights: betas}
+	prod := runDiversifiedProduction(design, campaign, group.Games, means, table, sortOrder, group.Team_groups, master)
+	for cell, sum := range shared.CellSumY {
+		got := prod[cell[0]][cell[1]].Probability
+		want := sum / 1200
+		if math.Abs(got-want) > 1e-14 {
+			t.Fatalf("production did not reuse shared mixture simulator for %v: got=%g want=%g", cell, got, want)
+		}
+	}
+}
+
+func TestDiscoveryShortlistPreservesTailDiversity(t *testing.T) {
+	mk := func(id string, team int, dir RareDirection, score float64) DiversifiedCandidate {
+		return DiversifiedCandidate{Proposal: DiversifiedProposal{ID: id, TargetTeam: team, Direction: dir, Strength: .5}, Tail: DirectionalTail{TeamID: team, Direction: dir}, DiscoveryScore: score, FrontierCovered: true}
+	}
+	all := []DiversifiedCandidate{{Proposal: DiversifiedProposal{ID: "plain_mc", Kind: ProposalPlainMC}}, mk("a1", 1, RareWorse, 10), mk("a2", 1, RareWorse, 9), mk("b1", 2, RareBetter, 2)}
+	short := shortlistDiversifiedCandidates(all, 2)
+	if len(short) != 3 || short[0].Proposal.ID != "plain_mc" {
+		t.Fatalf("unexpected shortlist length/order: %+v", short)
+	}
+	seen := map[int]bool{}
+	for _, c := range short {
+		if c.Proposal.ID != "plain_mc" {
+			seen[c.Tail.TeamID] = true
+		}
+	}
+	if !seen[1] || !seen[2] {
+		t.Fatalf("shortlist should cover distinct team/tail directions: %v", seen)
 	}
 }

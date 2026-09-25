@@ -11,17 +11,21 @@ import (
 )
 
 const (
-	DiversifiedDefaultScoutSamples       = 15000
-	DiversifiedDefaultSearchWorkCap      = 5000 * 350 // MC-equivalent work
-	DiversifiedDefaultTotalWork          = 35000000   // 35M nominal work
-	DiversifiedDefensiveMixtureEpsilon   = 0.05
-	DiversifiedProbeChunkWork            = 150 * 350
-	DiversifiedAllocChunkWork            = 500 * 350
-	DiversifiedDefaultMinPlainFraction   = 0.10
-	DiversifiedMaxSingleTeamPerDirection = 2
-	DiversifiedMaxCompetitors            = 3
-	DiversifiedMaxKL                     = 3.0
-	DiversifiedTargetESS                 = 10.0
+	DiversifiedDefaultScoutSamples          = 15000
+	DiversifiedDefaultDiscoveryWorkCap      = 5000 * 350 // MC-equivalent work
+	DiversifiedDefaultValidationWorkCap     = 5000 * 350 // MC-equivalent work
+	DiversifiedDefaultMaxValidatedProposals = 6
+	DiversifiedValidationMinSamples         = 200
+	DiversifiedDiscoverySamples             = 200
+	DiversifiedDefaultTotalWork             = 35000000 // 35M nominal work
+	DiversifiedDefensiveMixtureEpsilon      = 0.05
+	DiversifiedProbeChunkWork               = 150 * 350
+	DiversifiedAllocChunkWork               = 500 * 350
+	DiversifiedDefaultMinPlainFraction      = 0.10
+	DiversifiedMaxSingleTeamPerDirection    = 2
+	DiversifiedMaxCompetitors               = 3
+	DiversifiedMaxKL                        = 3.0
+	DiversifiedTargetESS                    = 10.0
 )
 
 func diversifiedIsEnabled() bool {
@@ -44,6 +48,48 @@ func diversifiedMinPlainFraction() float64 {
 		}
 	}
 	return DiversifiedDefaultMinPlainFraction
+}
+
+func diversifiedWorkCap(envName string, defaultEquivalent int64, plainWorkPerSample int64) int64 {
+	equivalent := defaultEquivalent
+	if raw := os.Getenv(envName); raw != "" {
+		if parsed, err := strconv.ParseInt(raw, 10, 64); err == nil && parsed >= 0 {
+			equivalent = parsed
+		}
+	}
+	if plainWorkPerSample <= 0 {
+		return 0
+	}
+	return equivalent * plainWorkPerSample
+}
+
+func diversifiedMaxValidatedProposals() int {
+	if raw := os.Getenv("RARE_POSITION_DIVERSIFIED_MAX_VALIDATED_PROPOSALS"); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil && n >= 0 {
+			return n
+		}
+	}
+	return DiversifiedDefaultMaxValidatedProposals
+}
+
+func diversifiedValidationMinSamples() int {
+	if raw := os.Getenv("RARE_POSITION_DIVERSIFIED_VALIDATION_MIN_SAMPLES"); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil && n > 0 {
+			return n
+		}
+	}
+	return DiversifiedValidationMinSamples
+}
+
+func logDiversifiedEnvironment() {
+	keys := []string{"RARE_POSITION_IMPORTANCE_SAMPLING", "RARE_POSITION_DIVERSIFIED_IS", "RARE_POSITION_DIVERSIFIED_SCOUT_SAMPLES", "RARE_POSITION_DIVERSIFIED_MIN_PLAIN_FRACTION", "RARE_POSITION_DIVERSIFIED_DISCOVERY_EQ", "RARE_POSITION_DIVERSIFIED_VALIDATION_EQ", "RARE_POSITION_DIVERSIFIED_MAX_VALIDATED_PROPOSALS", "RARE_POSITION_DIVERSIFIED_VALIDATION_MIN_SAMPLES", "RARE_POSITION_MIN_INTERESTING_PROBABILITY"}
+	for _, key := range keys {
+		value, ok := os.LookupEnv(key)
+		if !ok {
+			value = "<unset>"
+		}
+		log.Printf("rare-position-environment: %s=%q", key, value)
+	}
 }
 
 type DiversifiedProposalKind string
@@ -84,22 +130,36 @@ type ProbeRankMetrics struct {
 	UnresolvedSupport int     `json:"unresolved_support"`
 }
 
-type ProposalProbeStats struct {
-	ProposalID                    string                   `json:"proposal_id"`
-	Samples                       int                      `json:"samples"`
-	Work                          int64                    `json:"work"`
-	RankHistograms                map[int][]int            `json:"-"`
-	CellHits                      map[[2]int]int           `json:"-"`
-	CellSumR                      map[[2]int]float64       `json:"-"`
-	CellSumR2OverDen              map[[2]int]float64       `json:"-"`
-	CellSumZ1                     map[[2]int]float64       `json:"-"`
-	CellSumZ1Sq                   map[[2]int]float64       `json:"-"`
-	CellSumZ2                     map[[2]int]float64       `json:"-"`
-	CellSumZ2Sq                   map[[2]int]float64       `json:"-"`
-	CellESS                       map[[2]int]float64       `json:"-"`
-	CellPredictedRawVarPerSample map[[2]int]float64       `json:"-"`
-	CellPredictedVarPerSample     map[[2]int]float64       `json:"-"`
-	Metrics                       map[int]ProbeRankMetrics `json:"metrics,omitempty"`
+type DiversifiedDiscoveryStats struct {
+	ProposalID     string                   `json:"proposal_id"`
+	Samples        int                      `json:"samples"`
+	Work           int64                    `json:"work"`
+	RankHistograms map[int][]int            `json:"-"`
+	CellHits       map[[2]int]int           `json:"-"`
+	Metrics        map[int]ProbeRankMetrics `json:"metrics,omitempty"`
+}
+
+type DiversifiedCandidate struct {
+	Proposal        DiversifiedProposal
+	Tail            DirectionalTail
+	IntendedCells   map[[2]int]bool
+	DiscoveryScore  float64
+	FrontierCovered bool
+	Discovery       DiversifiedDiscoveryStats
+}
+
+type DiversifiedValidationStats struct {
+	ProposalID            string
+	Samples               int
+	Work                  int64
+	CellHits              map[[2]int]int
+	CellSumY              map[[2]int]float64
+	CellSumY2             map[[2]int]float64
+	CellMaxY              map[[2]int]float64
+	CellEventESS          map[[2]int]float64
+	CellVariancePerSample map[[2]int]float64
+	ComponentSampleCount  map[int]int
+	ComponentRankHist     map[int]map[int][]int
 }
 
 type FrozenProductionBatch struct {
@@ -110,43 +170,46 @@ type FrozenProductionBatch struct {
 }
 
 type FrozenDiversifiedDesign struct {
-	Batches                   []FrozenProductionBatch       `json:"batches"`
-	CellCombinationWeights    map[[2]int][]float64           `json:"-"` // (teamID, pos) -> beta per batch
-	CellPredictedVarPerSample map[string]map[[2]int]float64 `json:"-"`
-	TotalWork                 int64                         `json:"total_work"`
-	ScoutWork                 int64                         `json:"scout_work"`
-	SearchWork                int64                         `json:"search_work"`
-	ProductionWork            int64                         `json:"production_work"`
-	UnusedWork                int64                         `json:"unused_work"`
+	Batches                    []FrozenProductionBatch       `json:"batches"`
+	CellCombinationWeights     map[[2]int][]float64          `json:"-"` // (teamID, pos) -> beta per batch
+	CellValidationVarPerSample map[string]map[[2]int]float64 `json:"-"`
+	CellValidationESS          map[string]map[[2]int]float64 `json:"-"`
+	IntendedCells              map[string]map[[2]int]bool    `json:"-"`
+	TotalWork                  int64                         `json:"total_work"`
+	ScoutWork                  int64                         `json:"scout_work"`
+	DiscoveryWork              int64                         `json:"discovery_work"`
+	ValidationWork             int64                         `json:"validation_work"`
+	ProductionWork             int64                         `json:"production_work"`
+	UnusedWork                 int64                         `json:"unused_work"`
 }
 
 type DiversifiedEstimate struct {
-	Probability         float64              `json:"probability"`
-	StdErr              float64              `json:"std_err"`
-	RelativeSE          *float64             `json:"relative_se"`
-	ESS                 float64              `json:"ess"`
-	ESSPerWork          float64              `json:"ess_per_work"`
-	RawHits             int                  `json:"raw_hits"`
-	Samples             int                  `json:"samples"`
-	WorkSpent           int64                `json:"work_spent"`
-	Available           bool                 `json:"available"`
-	MeetsPrecisionGoal  bool                 `json:"meets_precision_goal"`
-	ZeroHitUpper95      float64              `json:"zero_hit_upper_95"`
-	Design              string               `json:"design"`
-	BatchProbabilities  []float64            `json:"batch_probabilities,omitempty"`
-	BatchVariances      []float64            `json:"batch_variances,omitempty"`
-	CombinationBetas    []float64            `json:"combination_betas,omitempty"`
+	Probability        float64   `json:"probability"`
+	StdErr             float64   `json:"std_err"`
+	RelativeSE         *float64  `json:"relative_se"`
+	ESS                float64   `json:"ess"`
+	ESSPerWork         float64   `json:"ess_per_work"`
+	RawHits            int       `json:"raw_hits"`
+	Samples            int       `json:"samples"`
+	WorkSpent          int64     `json:"work_spent"`
+	Available          bool      `json:"available"`
+	MeetsPrecisionGoal bool      `json:"meets_precision_goal"`
+	ZeroHitUpper95     float64   `json:"zero_hit_upper_95"`
+	Design             string    `json:"design"`
+	BatchProbabilities []float64 `json:"batch_probabilities,omitempty"`
+	BatchVariances     []float64 `json:"batch_variances,omitempty"`
+	CombinationBetas   []float64 `json:"combination_betas,omitempty"`
 }
 
 type ScoutData struct {
-	Samples              int
-	Work                 int64
-	TeamCounts           map[int][]int
-	TeamProbs            map[int][]float64
-	TeamMeanRanks        map[int]float64
-	MinObservedRank      map[int]int
-	MaxObservedRank      map[int]int
-	Feasibility          map[[2]int]string // (teamID, pos) -> "observed", "feasible_unseen", "proven_impossible"
+	Samples         int
+	Work            int64
+	TeamCounts      map[int][]int
+	TeamProbs       map[int][]float64
+	TeamMeanRanks   map[int]float64
+	MinObservedRank map[int]int
+	MaxObservedRank map[int]int
+	Feasibility     map[[2]int]string // (teamID, pos) -> "observed", "feasible_unseen", "proven_impossible"
 }
 
 func runPlainMCScout(
@@ -369,8 +432,8 @@ func discoverDirectionalTails(scout ScoutData, teamGroups []TeamType) []Directio
 				UnseenFeasibleCount:     len(betterUnseen),
 				ScoutMeanRank:           scout.TeamMeanRanks[id],
 				ScoutP10:                p10, ScoutP25: p25, ScoutP50: p50, ScoutP75: p75, ScoutP90: p90,
-				ExtremityScore:          extremity,
-				Priority:                priority,
+				ExtremityScore: extremity,
+				Priority:       priority,
 			})
 		}
 
@@ -400,8 +463,8 @@ func discoverDirectionalTails(scout ScoutData, teamGroups []TeamType) []Directio
 				UnseenFeasibleCount:     len(worseUnseen),
 				ScoutMeanRank:           scout.TeamMeanRanks[id],
 				ScoutP10:                p10, ScoutP25: p25, ScoutP50: p50, ScoutP75: p75, ScoutP90: p90,
-				ExtremityScore:          extremity,
-				Priority:                priority,
+				ExtremityScore: extremity,
+				Priority:       priority,
 			})
 		}
 	}
@@ -431,29 +494,12 @@ func probeProposal(
 	frontierRank int,
 	unresolvedCells map[[2]int]bool,
 	scout ScoutData,
-) ProposalProbeStats {
+) DiversifiedDiscoveryStats {
 	samples := int(probeWork / proposal.WorkPerSample)
-	if samples < 150 {
-		samples = 200 // Default 200 proposal Q samples for robust quantiles
-	}
-	actualWork := int64(samples) * proposal.WorkPerSample
-
-	stats := ProposalProbeStats{
-		ProposalID:                    proposal.ID,
-		Samples:                       samples,
-		Work:                          actualWork,
-		RankHistograms:                make(map[int][]int, len(teamGroups)),
-		CellHits:                      make(map[[2]int]int),
-		CellSumR:                      make(map[[2]int]float64),
-		CellSumR2OverDen:              make(map[[2]int]float64),
-		CellSumZ1:                     make(map[[2]int]float64),
-		CellSumZ1Sq:                   make(map[[2]int]float64),
-		CellSumZ2:                     make(map[[2]int]float64),
-		CellSumZ2Sq:                   make(map[[2]int]float64),
-		CellESS:                       make(map[[2]int]float64),
-		CellPredictedRawVarPerSample: make(map[[2]int]float64),
-		CellPredictedVarPerSample:     make(map[[2]int]float64),
-		Metrics:                       make(map[int]ProbeRankMetrics),
+	stats := DiversifiedDiscoveryStats{
+		ProposalID: proposal.ID, Samples: samples, Work: int64(samples) * proposal.WorkPerSample,
+		RankHistograms: make(map[int][]int, len(teamGroups)),
+		CellHits:       make(map[[2]int]int), Metrics: make(map[int]ProbeRankMetrics),
 	}
 
 	for _, team := range teamGroups {
@@ -478,19 +524,12 @@ func probeProposal(
 			}
 		}
 
-		logQOverP := 0.0
-
 		for i, g := range games {
 			if g.Played {
 				continue
 			}
 			hScore := poissonRand(rng, activeMeans[i].Home)
 			aScore := poissonRand(rng, activeMeans[i].Away)
-
-			if proposal.Kind != ProposalPlainMC {
-				logQOverP += logPoissonQOverP(hScore, originalMeans[i].Home, activeMeans[i].Home)
-				logQOverP += logPoissonQOverP(aScore, originalMeans[i].Away, activeMeans[i].Away)
-			}
 
 			home, away := g.home_table_index, g.away_table_index
 			if simCampaign[home] != nil {
@@ -500,18 +539,6 @@ func probeProposal(
 				simCampaign[away].add_game(&GameType{g.Id, g.HomeId, g.AwayId, hScore, aScore, 0, 0, true, home, away})
 			}
 		}
-
-		// Weight under pure Q draw: r = P/Q = exp(-logQOverP)
-		r := 1.0
-		if proposal.Kind != ProposalPlainMC {
-			r = math.Exp(-logQOverP)
-			if math.IsNaN(r) || math.IsInf(r, 0) {
-				r = 0.0
-			}
-		}
-		den := DiversifiedDefensiveMixtureEpsilon*r + (1.0 - DiversifiedDefensiveMixtureEpsilon)
-		y1 := r
-		y2 := (r * r) / den
 
 		idx := 0
 		for _, tg := range teamGroups {
@@ -527,77 +554,6 @@ func probeProposal(
 			stats.RankHistograms[teamID][rankPos]++
 			cell := [2]int{teamID, rankPos}
 			stats.CellHits[cell]++
-			stats.CellSumR[cell] += y1
-			stats.CellSumR2OverDen[cell] += y2
-			stats.CellSumZ1[cell] += y1
-			stats.CellSumZ1Sq[cell] += y1 * y1
-			stats.CellSumZ2[cell] += y2
-			stats.CellSumZ2Sq[cell] += y2 * y2
-		}
-	}
-
-	// Compute exact production mixture M variance and predicted per-sample variance for every cell
-	numTeams := len(teamGroups)
-	eps := DiversifiedDefensiveMixtureEpsilon
-	n := float64(samples)
-
-	for _, team := range teamGroups {
-		id := team.Team_id
-		for pos := 0; pos < numTeams; pos++ {
-			cell := [2]int{id, pos}
-			scoutHits := 0
-			if len(scout.TeamCounts[id]) > pos {
-				scoutHits = scout.TeamCounts[id][pos]
-			}
-			pReg := (float64(scoutHits) + 0.5) / (float64(scout.Samples) + 1.0)
-			refVar := pReg * (1.0 - pReg)
-
-			if proposal.Kind == ProposalPlainMC {
-				stats.CellPredictedRawVarPerSample[cell] = refVar
-				stats.CellPredictedVarPerSample[cell] = refVar
-				if scoutHits > 0 {
-					stats.CellESS[cell] = float64(scoutHits)
-				}
-			} else {
-				qHits := stats.CellHits[cell]
-				if qHits == 0 {
-					stats.CellPredictedRawVarPerSample[cell] = math.Inf(1)
-					stats.CellPredictedVarPerSample[cell] = math.Inf(1)
-				} else {
-					sumZ1 := stats.CellSumZ1[cell]
-					sumZ2 := stats.CellSumZ2[cell]
-					sumZ2Sq := stats.CellSumZ2Sq[cell]
-
-					muHat := sumZ1 / n
-					meanZ2 := sumZ2 / n
-
-					sampleVarZ2 := 0.0
-					if samples > 1 {
-						sampleVarZ2 = (sumZ2Sq - n*meanZ2*meanZ2) / (n - 1.0)
-						if sampleVarZ2 < 0 {
-							sampleVarZ2 = 0.0
-						}
-					}
-
-					seMeanZ2 := math.Sqrt(sampleVarZ2 / n)
-					m2Upper := meanZ2 + 1.96*seMeanZ2
-
-					rawVar := math.Max(1e-18, meanZ2-muHat*muHat)
-					stats.CellPredictedRawVarPerSample[cell] = rawVar
-
-					consVar := 1e-18
-					if pReg < 1e-2 {
-						consVar = math.Max(1e-18, m2Upper)
-					} else {
-						consVar = math.Max(1e-18, m2Upper-muHat*muHat)
-					}
-					stats.CellPredictedVarPerSample[cell] = consVar
-
-					if rawVar > 0 {
-						stats.CellESS[cell] = (muHat * muHat) / (rawVar + muHat*muHat*eps)
-					}
-				}
-			}
 		}
 	}
 
@@ -608,6 +564,81 @@ func probeProposal(
 	}
 
 	return stats
+}
+
+func makeDiversifiedCandidate(proposal DiversifiedProposal, tail DirectionalTail, discovery DiversifiedDiscoveryStats, quality ProposalQuality, scout ScoutData) DiversifiedCandidate {
+	intended := make(map[[2]int]bool)
+	for pos := 0; pos < len(discovery.RankHistograms[tail.TeamID]); pos++ {
+		cell := [2]int{tail.TeamID, pos}
+		count := 0
+		if len(scout.TeamCounts[tail.TeamID]) > pos {
+			count = scout.TeamCounts[tail.TeamID][pos]
+		}
+		if count >= int(DiversifiedTargetESS) || scout.Feasibility[cell] == "proven_impossible" {
+			continue
+		}
+		if tail.Direction == RareBetter && pos >= tail.ObservedMinRank || tail.Direction == RareWorse && pos <= tail.ObservedMaxRank {
+			continue
+		}
+		if scout.Feasibility[cell] == "feasible_unseen" {
+			intended[cell] = true
+		}
+	}
+	return DiversifiedCandidate{Proposal: proposal, Tail: tail, IntendedCells: intended, DiscoveryScore: quality.TailScore, FrontierCovered: quality.IsFrontierCovered, Discovery: discovery}
+}
+
+func shortlistDiversifiedCandidates(candidates []DiversifiedCandidate, limit int) []DiversifiedCandidate {
+	if len(candidates) == 0 {
+		return nil
+	}
+	plain := candidates[0]
+	others := append([]DiversifiedCandidate(nil), candidates[1:]...)
+	sort.SliceStable(others, func(i, j int) bool {
+		if discoveryCandidatePriority(others[i]) != discoveryCandidatePriority(others[j]) {
+			return discoveryCandidatePriority(others[i]) > discoveryCandidatePriority(others[j])
+		}
+		return others[i].Proposal.ID < others[j].Proposal.ID
+	})
+	if limit < 0 {
+		limit = 0
+	}
+	selected := []DiversifiedCandidate{plain}
+	used := make(map[string]bool)
+	// First take the strongest discovery candidate for each team/tail direction.
+	for _, c := range others {
+		key := fmt.Sprintf("%d/%d", c.Tail.TeamID, c.Tail.Direction)
+		if !used[key] && len(selected)-1 < limit {
+			selected = append(selected, c)
+			used[key] = true
+		}
+	}
+	for _, c := range others {
+		if len(selected)-1 >= limit {
+			break
+		}
+		found := false
+		for _, kept := range selected {
+			if kept.Proposal.ID == c.Proposal.ID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			selected = append(selected, c)
+		}
+	}
+	return selected
+}
+
+func discoveryCandidatePriority(c DiversifiedCandidate) float64 {
+	priority := c.DiscoveryScore - 0.05*c.Proposal.Strength - 0.01*c.Proposal.KL
+	if c.FrontierCovered {
+		priority += 1
+	}
+	if c.Proposal.Kind == ProposalCompetitorAssisted {
+		priority -= 0.1
+	}
+	return priority
 }
 
 func selectCompetitorsForTail(
@@ -947,7 +978,7 @@ func proposalHistogramTVD(h1, h2 []int, s1, s2 int) float64 {
 	return 0.5 * sum
 }
 
-func searchDiversifiedProposals(
+func discoverDiversifiedProposals(
 	scout ScoutData,
 	baseCampaign []*TeamCampaign,
 	games []*GameType,
@@ -955,11 +986,10 @@ func searchDiversifiedProposals(
 	table *Table,
 	sortOrder []SortType,
 	teamGroups []TeamType,
-	searchWorkCap int64,
+	discoveryWorkCap int64,
 	rng *rand.Rand,
-) ([]DiversifiedProposal, map[string]ProposalProbeStats, int64) {
-	var retained []DiversifiedProposal
-	probeStatsMap := make(map[string]ProposalProbeStats)
+) ([]DiversifiedCandidate, int64) {
+	var retained []DiversifiedCandidate
 
 	unplayedGames := 0
 	for _, g := range games {
@@ -976,34 +1006,14 @@ func searchDiversifiedProposals(
 		KL:            0.0,
 		WorkPerSample: plainWorkPerSample,
 	}
-	retained = append(retained, plainProp)
-
-	plainStats := ProposalProbeStats{
-		ProposalID:                "plain_mc",
-		Samples:                   scout.Samples,
-		Work:                      scout.Work,
-		RankHistograms:            scout.TeamCounts,
-		CellHits:                  make(map[[2]int]int),
-		CellSumR:                  make(map[[2]int]float64),
-		CellSumR2OverDen:          make(map[[2]int]float64),
-		CellESS:                   make(map[[2]int]float64),
-		CellPredictedVarPerSample: make(map[[2]int]float64),
-		Metrics:                   make(map[int]ProbeRankMetrics),
-	}
+	plainStats := DiversifiedDiscoveryStats{ProposalID: "plain_mc", Samples: scout.Samples, Work: scout.Work, RankHistograms: scout.TeamCounts, CellHits: make(map[[2]int]int), Metrics: make(map[int]ProbeRankMetrics)}
 	for teamID, counts := range scout.TeamCounts {
 		for pos, c := range counts {
 			cell := [2]int{teamID, pos}
 			plainStats.CellHits[cell] = c
-			plainStats.CellSumR[cell] = float64(c)
-			plainStats.CellSumR2OverDen[cell] = float64(c)
-			if c > 0 {
-				plainStats.CellESS[cell] = float64(c)
-			}
-			pReg := (float64(c) + 0.5) / (float64(scout.Samples) + 1.0)
-			plainStats.CellPredictedVarPerSample[cell] = pReg * (1.0 - pReg)
 		}
 	}
-	probeStatsMap["plain_mc"] = plainStats
+	retained = append(retained, DiversifiedCandidate{Proposal: plainProp, Discovery: plainStats})
 
 	// Identify all unresolved cells (scout count == 0 OR predicted ESS < 10)
 	unresolvedCells := make(map[[2]int]bool)
@@ -1032,15 +1042,15 @@ func searchDiversifiedProposals(
 	tailsExhausted := 0
 
 	for _, tail := range tails {
-		if workSpent >= searchWorkCap {
+		if workSpent >= discoveryWorkCap {
 			break
 		}
 
-		retainedForTail := make([]DiversifiedProposal, 0)
+		retainedForTail := make([]DiversifiedCandidate, 0)
 		tailFrontierCovered := false
 
 		for _, s := range strengthLadder {
-			if workSpent >= searchWorkCap || len(retainedForTail) >= DiversifiedMaxSingleTeamPerDirection {
+			if workSpent >= discoveryWorkCap || len(retainedForTail) >= DiversifiedMaxSingleTeamPerDirection {
 				break
 			}
 
@@ -1051,9 +1061,9 @@ func searchDiversifiedProposals(
 				continue
 			}
 
-			probeWork := int64(200 * prop.WorkPerSample)
-			if workSpent+probeWork > searchWorkCap {
-				probeWork = searchWorkCap - workSpent
+			probeWork := int64(DiversifiedDiscoverySamples) * prop.WorkPerSample
+			if workSpent+probeWork > discoveryWorkCap {
+				probeWork = discoveryWorkCap - workSpent
 			}
 			if probeWork < 10*prop.WorkPerSample {
 				break
@@ -1078,7 +1088,7 @@ func searchDiversifiedProposals(
 				// Deduplicate against already retained proposals for this tail
 				isDuplicate := false
 				for _, prev := range retainedForTail {
-					prevStats := probeStatsMap[prev.ID]
+					prevStats := prev.Discovery
 					tvd := proposalHistogramTVD(stats.RankHistograms[tail.TeamID], prevStats.RankHistograms[tail.TeamID], stats.Samples, prevStats.Samples)
 					if tvd < 0.15 {
 						isDuplicate = true
@@ -1089,9 +1099,9 @@ func searchDiversifiedProposals(
 				}
 
 				if !isDuplicate {
-					retained = append(retained, prop)
-					probeStatsMap[prop.ID] = stats
-					retainedForTail = append(retainedForTail, prop)
+					candidate := makeDiversifiedCandidate(prop, tail, stats, q, scout)
+					retained = append(retained, candidate)
+					retainedForTail = append(retainedForTail, candidate)
 				}
 			}
 
@@ -1102,11 +1112,11 @@ func searchDiversifiedProposals(
 
 		// Competitor Escalation if frontier was NOT covered by target-only search
 		competitorCovered := false
-		if !tailFrontierCovered && workSpent < searchWorkCap {
+		if !tailFrontierCovered && workSpent < discoveryWorkCap {
 			competitors := selectCompetitorsForTail(tail.TeamID, tail.Direction, tail.FrontierRank, scout, teamGroups, DiversifiedMaxCompetitors)
 			if len(competitors) > 0 {
 				for _, s := range []float64{0.75, 1.25} {
-					if workSpent >= searchWorkCap || len(retainedForTail) >= DiversifiedMaxSingleTeamPerDirection+1 {
+					if workSpent >= discoveryWorkCap || len(retainedForTail) >= DiversifiedMaxSingleTeamPerDirection+1 {
 						break
 					}
 
@@ -1117,9 +1127,9 @@ func searchDiversifiedProposals(
 						continue
 					}
 
-					probeWork := int64(200 * prop.WorkPerSample)
-					if workSpent+probeWork > searchWorkCap {
-						probeWork = searchWorkCap - workSpent
+					probeWork := int64(DiversifiedDiscoverySamples) * prop.WorkPerSample
+					if workSpent+probeWork > discoveryWorkCap {
+						probeWork = discoveryWorkCap - workSpent
 					}
 					if probeWork < 10*prop.WorkPerSample {
 						break
@@ -1142,9 +1152,11 @@ func searchDiversifiedProposals(
 					}
 
 					if q.ShouldRetain {
-						retained = append(retained, prop)
-						probeStatsMap[prop.ID] = stats
-						retainedForTail = append(retainedForTail, prop)
+						q.ShouldRetain = true
+						q.TailScore = m.FrontierMass + m.Near1Mass + m.Near2Mass
+						candidate := makeDiversifiedCandidate(prop, tail, stats, q, scout)
+						retained = append(retained, candidate)
+						retainedForTail = append(retainedForTail, candidate)
 					}
 				}
 			}
@@ -1165,10 +1177,10 @@ func searchDiversifiedProposals(
 		}
 	}
 
-	log.Printf("rare-position-diversified-search-summary: tails_total=%d tails_frontier_covered_single_team=%d tails_frontier_covered_competitors=%d tails_partially_covered=%d tails_search_exhausted=%d proposals_retained=%d search_work_spent=%d search_work_cap=%d",
-		tailsTotal, tailsFrontierCoveredSingleTeam, tailsFrontierCoveredCompetitors, tailsPartiallyCovered, tailsExhausted, len(retained), workSpent, searchWorkCap)
+	log.Printf("rare-position-diversified-discovery-summary: tails_total=%d tails_frontier_covered_single_team=%d tails_frontier_covered_competitors=%d tails_partially_covered=%d tails_exhausted=%d candidates=%d discovery_work=%d discovery_work_cap=%d",
+		tailsTotal, tailsFrontierCoveredSingleTeam, tailsFrontierCoveredCompetitors, tailsPartiallyCovered, tailsExhausted, len(retained), workSpent, discoveryWorkCap)
 
-	return retained, probeStatsMap, workSpent
+	return retained, workSpent
 }
 
 func regularizedScoutProbability(scout ScoutData, cell [2]int) float64 {
@@ -1223,415 +1235,158 @@ func diversifiedChunkUtility(
 }
 
 func freezeDiversifiedDesign(
-	proposals []DiversifiedProposal,
-	probeStats map[string]ProposalProbeStats,
+	candidates []DiversifiedCandidate,
+	validation map[string]DiversifiedValidationStats,
 	scout ScoutData,
 	teamGroups []TeamType,
-	totalWorkBudget int64,
-	scoutWork int64,
-	searchWork int64,
+	totalWorkBudget, scoutWork, discoveryWork, validationWork int64,
 ) FrozenDiversifiedDesign {
-	numPositions := len(teamGroups)
-
-	productionWorkBudget := totalWorkBudget - scoutWork - searchWork
-	if productionWorkBudget < 0 {
-		productionWorkBudget = 0
+	proposals := make([]DiversifiedProposal, 0, len(candidates))
+	candidateByID := make(map[string]DiversifiedCandidate, len(candidates))
+	for _, c := range candidates {
+		proposals = append(proposals, c.Proposal)
+		candidateByID[c.Proposal.ID] = c
 	}
-
-	plainProp := proposals[0]
-	// 1. Minimum Plain-MC share
-	minPlainWork := int64(float64(productionWorkBudget) * diversifiedMinPlainFraction())
-	allocatedWork := make(map[string]int64, len(proposals))
-	allocatedWork["plain_mc"] = minPlainWork
-
-	remainingProdWork := productionWorkBudget - minPlainWork
-
-	// 2. Compute predicted per-sample precision prec = 1/varPerSample for each proposal per cell (conservative and raw)
-	precPerSample := make(map[string]map[[2]int]float64, len(proposals))
-	precPerSampleRaw := make(map[string]map[[2]int]float64, len(proposals))
-
-	for _, prop := range proposals {
-		stats := probeStats[prop.ID]
-		pMap := make(map[[2]int]float64)
-		pMapRaw := make(map[[2]int]float64)
-
-		for cell, varPerSample := range stats.CellPredictedVarPerSample {
-			if !math.IsNaN(varPerSample) && !math.IsInf(varPerSample, 0) && varPerSample > 0 {
-				pMap[cell] = 1.0 / varPerSample
-			}
-		}
-		for cell, rawVar := range stats.CellPredictedRawVarPerSample {
-			if !math.IsNaN(rawVar) && !math.IsInf(rawVar, 0) && rawVar > 0 {
-				pMapRaw[cell] = 1.0 / rawVar
-			}
-		}
-
-		precPerSample[prop.ID] = pMap
-		precPerSampleRaw[prop.ID] = pMapRaw
+	if len(proposals) == 0 {
+		return FrozenDiversifiedDesign{TotalWork: totalWorkBudget, ScoutWork: scoutWork, DiscoveryWork: discoveryWork, ValidationWork: validationWork, UnusedWork: maxInt64(0, totalWorkBudget-scoutWork-discoveryWork-validationWork)}
 	}
-
-	// 3. Greedy Marginal-Utility Allocation based on predicted precision gain
-	feasibleCells := make([][2]int, 0)
+	available := totalWorkBudget - scoutWork - discoveryWork - validationWork
+	if available < 0 {
+		available = 0
+	}
+	minPlain := int64(float64(available) * diversifiedMinPlainFraction())
+	allocated := map[string]int64{"plain_mc": minPlain}
+	remaining := available - minPlain
+	cells := make([][2]int, 0, len(teamGroups)*len(teamGroups))
 	for _, team := range teamGroups {
-		for pos := 0; pos < numPositions; pos++ {
+		for pos := range teamGroups {
 			cell := [2]int{team.Team_id, pos}
 			if scout.Feasibility[cell] != "proven_impossible" {
-				feasibleCells = append(feasibleCells, cell)
+				cells = append(cells, cell)
 			}
 		}
 	}
-
-	pRegMap := make(map[[2]int]float64, len(feasibleCells))
-	for _, cell := range feasibleCells {
-		pRegMap[cell] = regularizedScoutProbability(scout, cell)
+	pReg := make(map[[2]int]float64, len(cells))
+	prec := make(map[string]map[[2]int]float64, len(proposals))
+	for _, cell := range cells {
+		pReg[cell] = regularizedScoutProbability(scout, cell)
 	}
-
-	// Initial deficit summary logging after mandatory Plain P allocation
-	initPrec := make(map[[2]int]float64, len(feasibleCells))
-	initRelESSMap := make(map[[2]int]float64, len(feasibleCells))
-	initRelESSList := make([]float64, 0, len(feasibleCells))
-	zeroDeficitCells, posDeficitCells := 0, 0
-
-	for _, cell := range feasibleCells {
-		pReg := pRegMap[cell]
-		workP := allocatedWork["plain_mc"]
-		samplesP := workP / plainProp.WorkPerSample
-		precP := float64(samplesP) * precPerSample["plain_mc"][cell]
-		initPrec[cell] = precP
-
-		relESS := (pReg * pReg) * precP
-		initRelESSMap[cell] = relESS
-		initRelESSList = append(initRelESSList, relESS)
-
-		if relESS >= DiversifiedTargetESS {
-			zeroDeficitCells++
-		} else {
-			posDeficitCells++
-		}
-	}
-
-	medianRelESS, p10RelESS, p90RelESS := 0.0, 0.0, 0.0
-	if len(initRelESSList) > 0 {
-		sort.Float64s(initRelESSList)
-		medianRelESS = initRelESSList[len(initRelESSList)/2]
-		p10RelESS = initRelESSList[int(float64(len(initRelESSList)-1)*0.10)]
-		p90RelESS = initRelESSList[int(float64(len(initRelESSList)-1)*0.90)]
-	}
-
-	log.Printf("rare-position-diversified-initial-deficits: feasible_cells=%d cells_zero_deficit=%d cells_pos_deficit=%d median_rel_ess_predicted=%.4f p10_rel_ess=%.4f p90_rel_ess=%.4f min_plain_work=%d",
-		len(feasibleCells), zeroDeficitCells, posDeficitCells, medianRelESS, p10RelESS, p90RelESS, minPlainWork)
-
-	// First-round winner comparison logging: raw vs conservative variance model
-	chunkSamplesInit := int(DiversifiedAllocChunkWork / plainProp.WorkPerSample)
-	actualChunkWorkInit := int64(chunkSamplesInit) * plainProp.WorkPerSample
-
-	rawWinnerID, consWinnerID := "", ""
-	rawWinnerUtil, consWinnerUtil := -1.0, -1.0
-
 	for _, prop := range proposals {
-		uRaw := diversifiedChunkUtility(prop, chunkSamplesInit, actualChunkWorkInit, feasibleCells, initRelESSMap, pRegMap, precPerSampleRaw, DiversifiedTargetESS)
-		uCons := diversifiedChunkUtility(prop, chunkSamplesInit, actualChunkWorkInit, feasibleCells, initRelESSMap, pRegMap, precPerSample, DiversifiedTargetESS)
-
-		if uRaw > rawWinnerUtil {
-			rawWinnerUtil = uRaw
-			rawWinnerID = prop.ID
+		prec[prop.ID] = map[[2]int]float64{}
+		if prop.Kind == ProposalPlainMC {
+			for _, cell := range cells {
+				p := pReg[cell]
+				v := p * (1 - p)
+				if v > 0 {
+					prec[prop.ID][cell] = 1 / v
+				}
+			}
+			continue
 		}
-		if uCons > consWinnerUtil {
-			consWinnerUtil = uCons
-			consWinnerID = prop.ID
+		v, ok := validation[prop.ID]
+		if !ok {
+			continue
+		}
+		c := candidateByID[prop.ID]
+		for _, cell := range cells {
+			intended := c.IntendedCells[cell]
+			eligible, _ := validationEligibility(v, cell, intended)
+			variance := v.CellVariancePerSample[cell]
+			if eligible && variance > 0 && !math.IsNaN(variance) && !math.IsInf(variance, 0) {
+				prec[prop.ID][cell] = 1 / variance
+			}
 		}
 	}
-
-	log.Printf("rare-position-diversified-alloc-first-round-comparison: raw_winner=%s raw_util=%.6e conservative_winner=%s conservative_util=%.6e",
-		rawWinnerID, rawWinnerUtil, consWinnerID, consWinnerUtil)
-
-	// Sample adequacy per retained proposal
-	for _, prop := range proposals {
-		stats := probeStats[prop.ID]
-		qGe1, qGe3, qGe5, qGe10 := 0, 0, 0, 0
-		for _, cell := range feasibleCells {
-			hits := stats.CellHits[cell]
-			if hits >= 1 {
-				qGe1++
-			}
-			if hits >= 3 {
-				qGe3++
-			}
-			if hits >= 5 {
-				qGe5++
-			}
-			if hits >= 10 {
-				qGe10++
-			}
-		}
-		log.Printf("rare-position-diversified-proposal-adequacy: prop_id=%s kind=%s q_hits_ge_1=%d q_hits_ge_3=%d q_hits_ge_5=%d q_hits_ge_10=%d",
-			prop.ID, prop.Kind, qGe1, qGe3, qGe5, qGe10)
-	}
-
-	roundCount := 0
-	allocChunk := int64(DiversifiedAllocChunkWork)
-	for remainingProdWork >= allocChunk {
-		roundCount++
-
-		// Compute current predicted relative ESS per cell
-		predictedRelESS := make(map[[2]int]float64, len(feasibleCells))
-		for _, cell := range feasibleCells {
-			p := pRegMap[cell]
-			totPrec := 0.0
+	chunk := int64(DiversifiedAllocChunkWork)
+	for remaining >= chunk {
+		relESS := map[[2]int]float64{}
+		for _, cell := range cells {
+			total := 0.0
 			for _, prop := range proposals {
-				work := allocatedWork[prop.ID]
-				samples := work / prop.WorkPerSample
-				totPrec += float64(samples) * precPerSample[prop.ID][cell]
+				total += float64(allocated[prop.ID]/prop.WorkPerSample) * prec[prop.ID][cell]
 			}
-			predictedRelESS[cell] = (p * p) * totPrec
+			p := pReg[cell]
+			relESS[cell] = p * p * total
 		}
-
-		type propUtil struct {
-			id      string
-			utility float64
-		}
-		var propUtils []propUtil
-
+		best := ""
+		bestUtility := 0.0
 		for _, prop := range proposals {
-			chunkSamples := int(allocChunk / prop.WorkPerSample)
-			actualChunkWork := int64(chunkSamples) * prop.WorkPerSample
-			if actualChunkWork <= 0 || actualChunkWork > remainingProdWork {
+			n := int(chunk / prop.WorkPerSample)
+			work := int64(n) * prop.WorkPerSample
+			if n <= 0 || work > remaining {
 				continue
 			}
-
-			utility := diversifiedChunkUtility(
-				prop, chunkSamples, actualChunkWork, feasibleCells,
-				predictedRelESS, pRegMap, precPerSample, DiversifiedTargetESS)
-
-			propUtils = append(propUtils, propUtil{id: prop.ID, utility: utility})
+			u := diversifiedChunkUtility(prop, n, work, cells, relESS, pReg, prec, DiversifiedTargetESS)
+			if u > bestUtility {
+				best, bestUtility = prop.ID, u
+			}
 		}
-
-		sort.Slice(propUtils, func(i, j int) bool {
-			return propUtils[i].utility > propUtils[j].utility
-		})
-
-		bestPropID := ""
-		bestUtility := -1.0
-		secondBestPropID := ""
-		secondBestUtility := -1.0
-
-		if len(propUtils) > 0 {
-			bestPropID = propUtils[0].id
-			bestUtility = propUtils[0].utility
-		}
-		if len(propUtils) > 1 {
-			secondBestPropID = propUtils[1].id
-			secondBestUtility = propUtils[1].utility
-		}
-
-		if roundCount <= 10 {
-			log.Printf("rare-position-diversified-alloc-round: round=%d best_prop=%s best_rel_ess_gain_per_work=%.6e second_prop=%s second_rel_ess_gain_per_work=%.6e remaining_work=%d",
-				roundCount, bestPropID, bestUtility, secondBestPropID, secondBestUtility, remainingProdWork)
-		}
-
-		if bestPropID == "" || bestUtility <= 0 {
-			// Deficits saturated or no proposal offers utility; allocate rest to plain MC
-			allocatedWork["plain_mc"] += remainingProdWork
-			remainingProdWork = 0
+		if best == "" {
+			allocated["plain_mc"] += remaining
+			remaining = 0
 			break
 		}
-
-		// Allocate chunk to best proposal
-		prop := findProposalByID(proposals, bestPropID)
-		chunkSamples := int(allocChunk / prop.WorkPerSample)
-		actualChunkWork := int64(chunkSamples) * prop.WorkPerSample
-		allocatedWork[bestPropID] += actualChunkWork
-		remainingProdWork -= actualChunkWork
+		prop := findProposalByID(proposals, best)
+		work := int64(int(chunk/prop.WorkPerSample)) * prop.WorkPerSample
+		if work <= 0 || work > remaining {
+			break
+		}
+		allocated[best] += work
+		remaining -= work
 	}
-
-	// Any small leftover unallocated production work goes to plain MC
-	if remainingProdWork > 0 {
-		allocatedWork["plain_mc"] += remainingProdWork
-		remainingProdWork = 0
+	if remaining > 0 {
+		allocated["plain_mc"] += remaining
+		remaining = 0
 	}
-
-	targetedWork := int64(0)
+	batches := make([]FrozenProductionBatch, 0, len(proposals))
+	productionWork := int64(0)
 	for _, prop := range proposals {
-		work := allocatedWork[prop.ID]
-		samples := work / prop.WorkPerSample
-
-		if prop.Kind != ProposalPlainMC {
-			targetedWork += work
-		}
-
-		posPrecCells := 0
-		posDeficitGainCells := 0
-		totPredictedUtil := 0.0
-
-		for _, cell := range feasibleCells {
-			prec := precPerSample[prop.ID][cell]
-			p := pRegMap[cell]
-			if prec > 0 {
-				posPrecCells++
-			}
-			initESS := (p * p) * initPrec[cell]
-			deficitESS := math.Max(0, DiversifiedTargetESS-initESS)
-			if prec > 0 && deficitESS > 0 {
-				posDeficitGainCells++
-				totPredictedUtil += math.Min(deficitESS, (p*p)*float64(samples)*prec)
-			}
-		}
-
-		log.Printf("rare-position-diversified-proposal-alloc: prop_id=%s kind=%s team=%d dir=%s strength=%.2f allocated_work=%d planned_samples=%d pos_prec_cells=%d pos_deficit_gain_cells=%d tot_predicted_rel_ess_gain=%.6e",
-			prop.ID, prop.Kind, prop.TargetTeam, directionName(prop.Direction), prop.Strength, work, samples, posPrecCells, posDeficitGainCells, totPredictedUtil)
-
-		if prop.Kind != ProposalPlainMC {
-			type cellGainInfo struct {
-				team, pos           int
-				pReg                float64
-				initRelESS          float64
-				deltaRelESSPerChunk float64
-			}
-			var topCells []cellGainInfo
-			for _, cell := range feasibleCells {
-				prec := precPerSample[prop.ID][cell]
-				p := pRegMap[cell]
-				if prec > 0 {
-					initE := (p * p) * initPrec[cell]
-					deltaE := (p * p) * prec * float64(allocChunk/prop.WorkPerSample)
-					topCells = append(topCells, cellGainInfo{
-						team: cell[0], pos: cell[1], pReg: p, initRelESS: initE, deltaRelESSPerChunk: deltaE,
-					})
-				}
-			}
-			sort.Slice(topCells, func(i, j int) bool {
-				return topCells[i].deltaRelESSPerChunk > topCells[j].deltaRelESSPerChunk
-			})
-			if len(topCells) > 5 {
-				topCells = topCells[:5]
-			}
-			for _, tc := range topCells {
-				log.Printf("  top_cell: prop_id=%s team=%d rank=%d pReg=%.3e init_rel_ess=%.2f delta_rel_ess_per_chunk=%.3f",
-					prop.ID, tc.team, tc.pos, tc.pReg, tc.initRelESS, tc.deltaRelESSPerChunk)
-			}
-		}
-	}
-
-	if len(proposals) > 1 && targetedWork == 0 {
-		log.Printf("rare-position-diversified-warning: %d targeted proposal(s) were retained during search, but freeze allocated 100%% work to plain_mc! pos_deficits=%d",
-			len(proposals)-1, posDeficitCells)
-
-		bestTargetedProp := proposals[1]
-		statsP := probeStats["plain_mc"]
-		statsQ := probeStats[bestTargetedProp.ID]
-
-		log.Printf("rare-position-diversified-allocation-pathology: comparing plain_mc vs %s:", bestTargetedProp.ID)
-		topCount := 0
-		for _, cell := range feasibleCells {
-			p := pRegMap[cell]
-			def := math.Max(0, DiversifiedTargetESS-initRelESSMap[cell])
-			if def > 0 && topCount < 20 {
-				topCount++
-				qHits := statsQ.CellHits[cell]
-				plainVar := statsP.CellPredictedVarPerSample[cell]
-				rawVar := statsQ.CellPredictedRawVarPerSample[cell]
-				consVar := statsQ.CellPredictedVarPerSample[cell]
-
-				n := float64(statsQ.Samples)
-				meanZ2 := statsQ.CellSumZ2[cell] / n
-				sampleVarZ2 := 0.0
-				if statsQ.Samples > 1 {
-					sampleVarZ2 = (statsQ.CellSumZ2Sq[cell] - n*meanZ2*meanZ2) / (n - 1.0)
-					if sampleVarZ2 < 0 {
-						sampleVarZ2 = 0
-					}
-				}
-				seM2 := math.Sqrt(sampleVarZ2 / n)
-				m2Upper := meanZ2 + 1.96*seM2
-				seFactor := 0.0
-				if meanZ2 > 0 {
-					seFactor = (1.96 * seM2) / meanZ2
-				}
-
-				gainP := (p * p) * (1.0 / plainVar) / float64(plainProp.WorkPerSample)
-				gainRawQ := (p * p) * (1.0 / rawVar) / float64(bestTargetedProp.WorkPerSample)
-				gainConsQ := (p * p) * (1.0 / consVar) / float64(bestTargetedProp.WorkPerSample)
-
-				log.Printf("  cell=(team:%d,pos:%d) qHits=%d pReg=%.3e defRelESS=%.3f rawM2=%.3e seM2=%.3e m2Upper=%.3e seFactor=%.2f rawVar=%.3e consVar=%.3e plainVar=%.3e gainP/work=%.3e gainRawQ/work=%.3e gainConsQ/work=%.3e",
-					cell[0], cell[1], qHits, p, def, meanZ2, seM2, m2Upper, seFactor, rawVar, consVar, plainVar, gainP, gainRawQ, gainConsQ)
-			}
-		}
-	}
-
-	// Build FrozenProductionBatch
-	batches := make([]FrozenProductionBatch, 0)
-	actualProductionWork := int64(0)
-	for _, prop := range proposals {
-		work := allocatedWork[prop.ID]
-		if work <= 0 {
+		n := int(allocated[prop.ID] / prop.WorkPerSample)
+		if n <= 0 {
 			continue
 		}
-		samples := int(work / prop.WorkPerSample)
-		if samples <= 0 {
-			continue
-		}
-		actualWork := int64(samples) * prop.WorkPerSample
-		actualProductionWork += actualWork
-		batches = append(batches, FrozenProductionBatch{
-			Proposal:      prop,
-			Samples:       samples,
-			Work:          actualWork,
-			WorkPerSample: prop.WorkPerSample,
-		})
+		work := int64(n) * prop.WorkPerSample
+		productionWork += work
+		batches = append(batches, FrozenProductionBatch{Proposal: prop, Samples: n, Work: work, WorkPerSample: prop.WorkPerSample})
 	}
-
-	// 4. Compute statistically optimal inverse-variance combination weights (beta_j,A) using planned batch sample counts
-	cellBetas := make(map[[2]int][]float64, len(feasibleCells))
-	for _, cell := range feasibleCells {
-		betas := make([]float64, len(batches))
-		sumScore := 0.0
-		for j, batch := range batches {
-			stats := probeStats[batch.Proposal.ID]
-			varPerSample := stats.CellPredictedVarPerSample[cell]
-			score := 0.0
-			if !math.IsNaN(varPerSample) && !math.IsInf(varPerSample, 0) && varPerSample > 0 && batch.Samples > 0 {
-				score = float64(batch.Samples) / varPerSample
-			}
-			betas[j] = score
-			sumScore += score
-		}
-
-		if sumScore > 0 {
-			for j := range betas {
-				betas[j] /= sumScore
-			}
-		} else {
-			// Fallback: 100% plain MC
-			for j, batch := range batches {
-				if batch.Proposal.Kind == ProposalPlainMC {
-					betas[j] = 1.0
-				} else {
-					betas[j] = 0.0
-				}
-			}
-		}
-
-		cellBetas[cell] = betas
-	}
-
-	unusedWork := totalWorkBudget - scoutWork - searchWork - actualProductionWork
-
-	predVarMap := make(map[string]map[[2]int]float64, len(proposals))
+	betas := make(map[[2]int][]float64, len(cells))
+	validationESS := map[string]map[[2]int]float64{}
+	intendedCells := map[string]map[[2]int]bool{}
 	for _, prop := range proposals {
-		stats := probeStats[prop.ID]
-		predVarMap[prop.ID] = stats.CellPredictedVarPerSample
+		validationESS[prop.ID] = map[[2]int]float64{}
+		intendedCells[prop.ID] = candidateByID[prop.ID].IntendedCells
+		for cell, ess := range validation[prop.ID].CellEventESS {
+			validationESS[prop.ID][cell] = ess
+		}
 	}
+	for _, cell := range cells {
+		betas[cell] = combineValidationBetas(batches, candidateByID, validation, cell, pReg[cell])
+	}
+	unused := totalWorkBudget - scoutWork - discoveryWork - validationWork - productionWork
+	if unused < 0 {
+		panic("diversified work budget exceeded")
+	}
+	if scoutWork+discoveryWork+validationWork+productionWork > totalWorkBudget {
+		panic("diversified work budget exceeded")
+	}
+	log.Printf("rare-position-diversified-freeze: scout_work=%d discovery_work=%d validation_work=%d production_work=%d unused_work=%d", scoutWork, discoveryWork, validationWork, productionWork, unused)
+	varianceMap := make(map[string]map[[2]int]float64, len(validation)+1)
+	for id, stats := range validation {
+		varianceMap[id] = stats.CellVariancePerSample
+	}
+	varianceMap["plain_mc"] = make(map[[2]int]float64, len(cells))
+	for _, cell := range cells {
+		p := pReg[cell]
+		varianceMap["plain_mc"][cell] = p * (1 - p)
+	}
+	return FrozenDiversifiedDesign{Batches: batches, CellCombinationWeights: betas, CellValidationVarPerSample: varianceMap, CellValidationESS: validationESS, IntendedCells: intendedCells, TotalWork: totalWorkBudget, ScoutWork: scoutWork, DiscoveryWork: discoveryWork, ValidationWork: validationWork, ProductionWork: productionWork, UnusedWork: unused}
+}
 
-	return FrozenDiversifiedDesign{
-		Batches:                   batches,
-		CellCombinationWeights:    cellBetas,
-		CellPredictedVarPerSample: predVarMap,
-		TotalWork:                 totalWorkBudget,
-		ScoutWork:                 scoutWork,
-		SearchWork:                searchWork,
-		ProductionWork:            actualProductionWork,
-		UnusedWork:                unusedWork,
+func maxInt64(a, b int64) int64 {
+	if a > b {
+		return a
 	}
+	return b
 }
 
 func findProposalByID(proposals []DiversifiedProposal, id string) DiversifiedProposal {
@@ -1641,6 +1396,243 @@ func findProposalByID(proposals []DiversifiedProposal, id string) DiversifiedPro
 		}
 	}
 	return proposals[0]
+}
+
+func simulateDiversifiedMixtureBatch(
+	proposal DiversifiedProposal,
+	samples int,
+	seed int64,
+	baseCampaign []*TeamCampaign,
+	games []*GameType,
+	originalMeans []GameProposalMeans,
+	table *Table,
+	sortOrder []SortType,
+	teamGroups []TeamType,
+) DiversifiedValidationStats {
+	stats := DiversifiedValidationStats{ProposalID: proposal.ID, Samples: samples, CellHits: map[[2]int]int{}, CellSumY: map[[2]int]float64{}, CellSumY2: map[[2]int]float64{}, CellMaxY: map[[2]int]float64{}, CellEventESS: map[[2]int]float64{}, CellVariancePerSample: map[[2]int]float64{}, ComponentSampleCount: map[int]int{}, ComponentRankHist: map[int]map[int][]int{}}
+	if proposal.WorkPerSample > 0 {
+		stats.Work = int64(samples) * proposal.WorkPerSample
+	}
+	if samples <= 0 {
+		return stats
+	}
+	rng := rand.New(rand.NewSource(seed))
+	components := []ProposalComponent{{Name: "P", Weight: DiversifiedDefensiveMixtureEpsilon, Means: originalMeans}, {Name: "Q", Weight: 1 - DiversifiedDefensiveMixtureEpsilon, Means: proposal.Means}}
+	weights := []float64{DiversifiedDefensiveMixtureEpsilon, 1 - DiversifiedDefensiveMixtureEpsilon}
+	if proposal.Kind == ProposalPlainMC {
+		components = []ProposalComponent{{Name: "P", Weight: 1, Means: originalMeans}}
+		weights = []float64{1}
+	}
+	for k := range components {
+		stats.ComponentRankHist[k] = make(map[int][]int, len(teamGroups))
+		for _, team := range teamGroups {
+			stats.ComponentRankHist[k][team.Team_id] = make([]int, len(teamGroups))
+		}
+	}
+	simCampaign := make([]*TeamCampaign, len(baseCampaign))
+	teamSlice := make([]*TeamCampaign, len(teamGroups))
+	logQ := make([]float64, len(components))
+	for s := 0; s < samples; s++ {
+		for i, v := range baseCampaign {
+			if v != nil {
+				simCampaign[i] = v.clone()
+			} else {
+				simCampaign[i] = nil
+			}
+		}
+		for i := range logQ {
+			logQ[i] = 0
+		}
+		chosen := 0
+		if len(components) > 1 && rng.Float64() > DiversifiedDefensiveMixtureEpsilon {
+			chosen = 1
+		}
+		active := components[chosen].Means
+		stats.ComponentSampleCount[chosen]++
+		for i, g := range games {
+			if g.Played {
+				continue
+			}
+			hs := poissonRand(rng, active[i].Home)
+			as := poissonRand(rng, active[i].Away)
+			for k, component := range components {
+				logQ[k] += logPoissonQOverP(hs, originalMeans[i].Home, component.Means[i].Home)
+				logQ[k] += logPoissonQOverP(as, originalMeans[i].Away, component.Means[i].Away)
+			}
+			home, away := g.home_table_index, g.away_table_index
+			if simCampaign[home] != nil {
+				simCampaign[home].add_game(&GameType{g.Id, g.HomeId, g.AwayId, hs, as, 0, 0, true, home, away})
+			}
+			if simCampaign[away] != nil {
+				simCampaign[away].add_game(&GameType{g.Id, g.HomeId, g.AwayId, hs, as, 0, 0, true, home, away})
+			}
+		}
+		w := mixtureImportanceWeightMulti(logQ, weights)
+		idx := 0
+		for _, tg := range teamGroups {
+			if c := simCampaign[table.Query(uint32(tg.Team_id))]; c != nil {
+				teamSlice[idx] = c
+				idx++
+			}
+		}
+		sort.Sort(TeamCampaignSorted{t: teamSlice[:idx], sort: sortOrder, rng: rng})
+		for rank, team := range teamSlice[:idx] {
+			cell := [2]int{team.id, rank}
+			stats.ComponentRankHist[chosen][team.id][rank]++
+			stats.CellHits[cell]++
+			stats.CellSumY[cell] += w
+			stats.CellSumY2[cell] += w * w
+			if w > stats.CellMaxY[cell] {
+				stats.CellMaxY[cell] = w
+			}
+		}
+	}
+	for cell, sumY := range stats.CellSumY {
+		sumY2 := stats.CellSumY2[cell]
+		mean := sumY / float64(samples)
+		if samples > 1 {
+			variance := (sumY2 - float64(samples)*mean*mean) / float64(samples-1)
+			if variance < 0 {
+				variance = 0
+			}
+			stats.CellVariancePerSample[cell] = variance
+		}
+		if sumY2 > 0 {
+			stats.CellEventESS[cell] = sumY * sumY / sumY2
+		}
+	}
+	return stats
+}
+
+func validationEligibility(stats DiversifiedValidationStats, cell [2]int, intended bool) (bool, float64) {
+	ess := stats.CellEventESS[cell]
+	if intended {
+		if ess < 2 {
+			return false, 0
+		}
+		if ess < 4 {
+			return true, .1
+		}
+		if ess < 8 {
+			return true, .5
+		}
+		return true, 1
+	}
+	if ess < 8 {
+		return false, 0
+	}
+	if ess < 15 {
+		return true, .1
+	}
+	if ess < 25 {
+		return true, .5
+	}
+	return true, 1
+}
+
+func combineValidationBetas(batches []FrozenProductionBatch, candidates map[string]DiversifiedCandidate, validation map[string]DiversifiedValidationStats, cell [2]int, plainProbability float64) []float64 {
+	betas := make([]float64, len(batches))
+	sum := 0.0
+	plainIndex := -1
+	for i, batch := range batches {
+		if batch.Proposal.Kind == ProposalPlainMC {
+			plainIndex = i
+			variance := plainProbability * (1 - plainProbability)
+			if variance > 0 {
+				betas[i] = float64(batch.Samples) / variance
+				sum += betas[i]
+			}
+			continue
+		}
+		v := validation[batch.Proposal.ID]
+		variance := v.CellVariancePerSample[cell]
+		if variance <= 0 || math.IsNaN(variance) || math.IsInf(variance, 0) {
+			continue
+		}
+		eligible, cap := validationEligibility(v, cell, candidates[batch.Proposal.ID].IntendedCells[cell])
+		if !eligible {
+			continue
+		}
+		betas[i] = float64(batch.Samples) / variance
+		sum += betas[i]
+		_ = cap
+	}
+	if sum > 0 {
+		for i := range betas {
+			betas[i] /= sum
+		}
+	} else if plainIndex >= 0 {
+		betas[plainIndex] = 1
+	}
+	targeted := 0.0
+	for i, batch := range batches {
+		if batch.Proposal.Kind == ProposalPlainMC {
+			continue
+		}
+		_, cap := validationEligibility(validation[batch.Proposal.ID], cell, candidates[batch.Proposal.ID].IntendedCells[cell])
+		if betas[i] > cap {
+			betas[i] = cap
+		}
+		targeted += betas[i]
+	}
+	if targeted > 1 {
+		for i, batch := range batches {
+			if batch.Proposal.Kind != ProposalPlainMC {
+				betas[i] /= targeted
+			}
+		}
+		targeted = 1
+	}
+	if plainIndex >= 0 {
+		betas[plainIndex] = 1 - targeted
+	}
+	return betas
+}
+
+func validateDiversifiedCandidates(candidates []DiversifiedCandidate, validationCap int64, minSamples int, validationSeed int64, baseCampaign []*TeamCampaign, games []*GameType, originalMeans []GameProposalMeans, table *Table, sortOrder []SortType, teamGroups []TeamType) (map[string]DiversifiedValidationStats, int64, []DiversifiedCandidate) {
+	requestedCandidates := len(candidates)
+	if len(candidates) == 0 || validationCap <= 0 {
+		return map[string]DiversifiedValidationStats{}, 0, nil
+	}
+	if minSamples < 1 {
+		minSamples = 1
+	}
+	active := append([]DiversifiedCandidate(nil), candidates...)
+	for len(active) > 0 {
+		minimum := int64(0)
+		for _, c := range active {
+			minimum += int64(minSamples) * c.Proposal.WorkPerSample
+		}
+		if minimum <= validationCap {
+			break
+		}
+		active = active[:len(active)-1]
+	}
+	stats := make(map[string]DiversifiedValidationStats, len(active))
+	spent := int64(0)
+	for i, c := range active {
+		remainingCandidates := len(active) - i
+		remaining := validationCap - spent
+		minimumRemaining := int64(0)
+		for _, future := range active[i:] {
+			minimumRemaining += int64(minSamples) * future.Proposal.WorkPerSample
+		}
+		extraShare := int64(0)
+		if remaining > minimumRemaining {
+			extraShare = (remaining - minimumRemaining) / int64(remainingCandidates)
+		}
+		samples := minSamples + int(extraShare/c.Proposal.WorkPerSample)
+		seed := deriveRarePositionSeed(validationSeed, "diversified-validation-"+c.Proposal.ID)
+		v := simulateDiversifiedMixtureBatch(c.Proposal, samples, seed, baseCampaign, games, originalMeans, table, sortOrder, teamGroups)
+		if v.Work > remaining {
+			panic("validation work exceeded cap")
+		}
+		spent += v.Work
+		stats[c.Proposal.ID] = v
+		log.Printf("rare-position-diversified-validation: proposal=%s samples=%d work=%d", c.Proposal.ID, v.Samples, v.Work)
+	}
+	log.Printf("rare-position-diversified-validation-summary: shortlisted=%d candidates_fitting_minimum=%d validated=%d reduced_for_budget=%d validation_work=%d validation_cap=%d", requestedCandidates, len(active), len(stats), requestedCandidates-len(active), spent, validationCap)
+	return stats, spent, active
 }
 
 func runDiversifiedProduction(
@@ -1664,86 +1656,14 @@ func runDiversifiedProduction(
 	batchSumY2 := make([]map[[2]int]float64, numBatches)
 
 	for j, batch := range design.Batches {
-		batchHits[j] = make(map[[2]int]int)
-		batchSumY[j] = make(map[[2]int]float64)
-		batchSumY2[j] = make(map[[2]int]float64)
-
-		batchSeed := deriveRarePositionSeed(masterSeed, fmt.Sprintf("diversified-prod-batch-%d-%s", j, batch.Proposal.ID))
-		rng := rand.New(rand.NewSource(batchSeed))
-
-		components := []ProposalComponent{
-			{Name: "P", Weight: DiversifiedDefensiveMixtureEpsilon, Means: originalMeans},
-			{Name: "Q", Weight: 1.0 - DiversifiedDefensiveMixtureEpsilon, Means: batch.Proposal.Means},
-		}
-		compWeights := []float64{DiversifiedDefensiveMixtureEpsilon, 1.0 - DiversifiedDefensiveMixtureEpsilon}
-		if batch.Proposal.Kind == ProposalPlainMC {
-			components = []ProposalComponent{{Name: "P", Weight: 1.0, Means: originalMeans}}
-			compWeights = []float64{1.0}
-		}
-
-		simCampaign := make([]*TeamCampaign, len(baseCampaign))
-		teamSlice := make([]*TeamCampaign, len(teamGroups))
-		logQBuf := make([]float64, len(components))
-
-		for s := 0; s < batch.Samples; s++ {
-			for k, v := range baseCampaign {
-				if v != nil {
-					simCampaign[k] = v.clone()
-				} else {
-					simCampaign[k] = nil
-				}
-			}
-
-			for i := range logQBuf {
-				logQBuf[i] = 0.0
-			}
-
-			chosen := 0
-			if len(components) > 1 {
-				chosen = 1
-				if rng.Float64() <= DiversifiedDefensiveMixtureEpsilon {
-					chosen = 0
-				}
-			}
-			activeMeans := components[chosen].Means
-
-			for i, g := range games {
-				if g.Played {
-					continue
-				}
-				hScore := poissonRand(rng, activeMeans[i].Home)
-				aScore := poissonRand(rng, activeMeans[i].Away)
-
-				for k, component := range components {
-					logQBuf[k] += logPoissonQOverP(hScore, originalMeans[i].Home, component.Means[i].Home)
-					logQBuf[k] += logPoissonQOverP(aScore, originalMeans[i].Away, component.Means[i].Away)
-				}
-
-				home, away := g.home_table_index, g.away_table_index
-				if simCampaign[home] != nil {
-					simCampaign[home].add_game(&GameType{g.Id, g.HomeId, g.AwayId, hScore, aScore, 0, 0, true, home, away})
-				}
-				if simCampaign[away] != nil {
-					simCampaign[away].add_game(&GameType{g.Id, g.HomeId, g.AwayId, hScore, aScore, 0, 0, true, home, away})
-				}
-			}
-
-			w := mixtureImportanceWeightMulti(logQBuf, compWeights)
-
-			idx := 0
-			for _, tg := range teamGroups {
-				if c := simCampaign[table.Query(uint32(tg.Team_id))]; c != nil {
-					teamSlice[idx] = c
-					idx++
-				}
-			}
-			sort.Sort(TeamCampaignSorted{t: teamSlice[:idx], sort: sortOrder, rng: rng})
-
-			for rankPos, teamComp := range teamSlice[:idx] {
-				cell := [2]int{teamComp.id, rankPos}
-				batchHits[j][cell]++
-				batchSumY[j][cell] += w
-				batchSumY2[j][cell] += w * w
+		seed := deriveRarePositionSeed(masterSeed, fmt.Sprintf("diversified-prod-batch-%d-%s", j, batch.Proposal.ID))
+		batchStats := simulateDiversifiedMixtureBatch(batch.Proposal, batch.Samples, seed, baseCampaign, games, originalMeans, table, sortOrder, teamGroups)
+		batchHits[j] = batchStats.CellHits
+		batchSumY[j] = batchStats.CellSumY
+		batchSumY2[j] = batchStats.CellSumY2
+		for component, count := range batchStats.ComponentSampleCount {
+			for team, hist := range batchStats.ComponentRankHist[component] {
+				log.Printf("rare-position-diversified-component-hist: prop_id=%s component=%d component_samples=%d team=%d rank_hist=%v", batch.Proposal.ID, component, count, team, hist)
 			}
 		}
 	}
@@ -1751,6 +1671,7 @@ func runDiversifiedProduction(
 	// Compute predicted vs realized variance calibration ratios separately for Plain P and targeted M batches
 	var pVarRatios []float64
 	var targetedVarRatios []float64
+	validationESSBuckets := map[string]int{"2_4": 0, "4_8": 0, "ge_8": 0}
 
 	for j, batch := range design.Batches {
 		for cell, hits := range batchHits[j] {
@@ -1759,7 +1680,21 @@ func runDiversifiedProduction(
 				pBatch := batchSumY[j][cell] / float64(n)
 				s2Batch := (batchSumY2[j][cell] - float64(n)*pBatch*pBatch) / float64(n-1)
 				if s2Batch > 0 {
-					predVar := design.CellPredictedVarPerSample[batch.Proposal.ID][cell]
+					predVar := design.CellValidationVarPerSample[batch.Proposal.ID][cell]
+					if batch.Proposal.Kind != ProposalPlainMC {
+						ess := design.CellValidationESS[batch.Proposal.ID][cell]
+						intended := design.IntendedCells[batch.Proposal.ID][cell]
+						if eligible, _ := validationEligibility(DiversifiedValidationStats{CellEventESS: map[[2]int]float64{cell: ess}}, cell, intended); !eligible {
+							continue
+						}
+						if ess < 4 {
+							validationESSBuckets["2_4"]++
+						} else if ess < 8 {
+							validationESSBuckets["4_8"]++
+						} else {
+							validationESSBuckets["ge_8"]++
+						}
+					}
 					if !math.IsNaN(predVar) && !math.IsInf(predVar, 0) && predVar > 0 {
 						ratio := s2Batch / predVar
 						if batch.Proposal.Kind == ProposalPlainMC {
@@ -1793,6 +1728,7 @@ func runDiversifiedProduction(
 		len(pVarRatios), medianPVarRatio, p10PVarRatio, p90PVarRatio)
 	log.Printf("rare-position-diversified-variance-calibration-targeted: evaluated_batch_cells=%d median_var_ratio=%.4f p10_var_ratio=%.4f p90_var_ratio=%.4f",
 		len(targetedVarRatios), medianTargetedVarRatio, p10TargetedVarRatio, p90TargetedVarRatio)
+	log.Printf("rare-position-diversified-validation-eligibility: ess_2_4=%d ess_4_8=%d ess_ge_8=%d", validationESSBuckets["2_4"], validationESSBuckets["4_8"], validationESSBuckets["ge_8"])
 
 	// Combine batch estimates per cell
 	estimates := make(map[int]map[int]DiversifiedEstimate, numTeams)
@@ -1874,21 +1810,21 @@ func runDiversifiedProduction(
 			}
 
 			estimates[id][pos] = DiversifiedEstimate{
-				Probability:         pHatCombined,
-				StdErr:              stdErr,
-				RelativeSE:          relativeSEPointer(relSE),
-				ESS:                 relativeESS,
-				ESSPerWork:          essPerWork,
-				RawHits:             totHits,
-				Samples:             totSamples,
-				WorkSpent:           totWork,
-				Available:           totSamples > 0,
-				MeetsPrecisionGoal:  estimateMeetsPrecisionGoal(relativeESS, relSE),
-				ZeroHitUpper95:      upper95,
-				Design:              "diversified_importance_sampling",
-				BatchProbabilities:  batchProbs,
-				BatchVariances:      batchVars,
-				CombinationBetas:    betas,
+				Probability:        pHatCombined,
+				StdErr:             stdErr,
+				RelativeSE:         relativeSEPointer(relSE),
+				ESS:                relativeESS,
+				ESSPerWork:         essPerWork,
+				RawHits:            totHits,
+				Samples:            totSamples,
+				WorkSpent:          totWork,
+				Available:          totSamples > 0,
+				MeetsPrecisionGoal: estimateMeetsPrecisionGoal(relativeESS, relSE),
+				ZeroHitUpper95:     upper95,
+				Design:             "diversified_importance_sampling",
+				BatchProbabilities: batchProbs,
+				BatchVariances:     batchVars,
+				CombinationBetas:   betas,
 			}
 		}
 	}
@@ -1905,12 +1841,14 @@ func runDiversifiedSearchAndProduction(
 	totalWorkLimit int64,
 	masterSeed int64,
 ) map[int]map[int]ProductionEstimate {
+	logDiversifiedEnvironment()
 	scoutSeed := deriveRarePositionSeed(masterSeed, "diversified-scout")
-	searchSeed := deriveRarePositionSeed(masterSeed, "diversified-search")
+	discoverySeed := deriveRarePositionSeed(masterSeed, "diversified-discovery")
+	validationSeed := deriveRarePositionSeed(masterSeed, "diversified-validation")
 	prodSeed := deriveRarePositionSeed(masterSeed, "diversified-production")
 
 	scoutRNG := rand.New(rand.NewSource(scoutSeed))
-	searchRNG := rand.New(rand.NewSource(searchSeed))
+	discoveryRNG := rand.New(rand.NewSource(discoverySeed))
 
 	unplayedGames := 0
 	for _, game := range group.Games {
@@ -1926,20 +1864,72 @@ func runDiversifiedSearchAndProduction(
 		originalMeans[i] = GameProposalMeans{Home: game.HomePower, Away: game.AwayPower}
 	}
 
-	scoutSamples := minInt(diversifiedScoutSamples(), int(totalWorkLimit/plainWorkPerSample))
+	scoutSamples := affordableSamples(diversifiedScoutSamples(), totalWorkLimit, plainWorkPerSample)
 	log.Printf("rare-position-diversified-scout: group=%d scout_samples=%d scout_work=%d",
 		group.Id, scoutSamples, int64(scoutSamples)*plainWorkPerSample)
 
 	scout := runPlainMCScout(campaign, group.Games, table, sortOrder, group.Team_groups, scoutSamples, plainWorkPerSample, scoutRNG)
 
-	searchCapWork := int64(DiversifiedDefaultSearchWorkCap)
-	proposals, probeStats, searchWork := searchDiversifiedProposals(
-		scout, campaign, group.Games, originalMeans, table, sortOrder, group.Team_groups, searchCapWork, searchRNG)
+	remainingAfterScout := totalWorkLimit - scout.Work
+	if remainingAfterScout < 0 {
+		remainingAfterScout = 0
+	}
+	discoveryCapWork := diversifiedWorkCap("RARE_POSITION_DIVERSIFIED_DISCOVERY_EQ", int64(DiversifiedDefaultDiscoveryWorkCap/350), plainWorkPerSample)
+	validationCapWork := diversifiedWorkCap("RARE_POSITION_DIVERSIFIED_VALIDATION_EQ", int64(DiversifiedDefaultValidationWorkCap/350), plainWorkPerSample)
+	// Preserve room for validation and production even when the overall budget is
+	// smaller than the two configured exploration caps combined.
+	capShare := remainingAfterScout / 3
+	if discoveryCapWork > capShare {
+		discoveryCapWork = capShare
+	}
+	if validationCapWork > capShare {
+		validationCapWork = capShare
+	}
+	discoveryBudget := totalWorkLimit - scout.Work - validationCapWork
+	if discoveryBudget < 0 {
+		discoveryBudget = 0
+	}
+	if discoveryCapWork > discoveryBudget {
+		discoveryCapWork = discoveryBudget
+	}
+	candidates, discoveryWork := discoverDiversifiedProposals(scout, campaign, group.Games, originalMeans, table, sortOrder, group.Team_groups, discoveryCapWork, discoveryRNG)
+	shortlist := shortlistDiversifiedCandidates(candidates, diversifiedMaxValidatedProposals())
+	for rank, candidate := range shortlist {
+		if candidate.Proposal.Kind != ProposalPlainMC {
+			log.Printf("rare-position-diversified-shortlist: rank=%d proposal=%s team=%d direction=%s frontier=%d discovery_score=%.4f priority=%.4f frontier_covered=%t", rank, candidate.Proposal.ID, candidate.Tail.TeamID, directionName(candidate.Tail.Direction), candidate.Tail.FrontierRank, candidate.DiscoveryScore, discoveryCandidatePriority(candidate), candidate.FrontierCovered)
+		}
+	}
+	plainCandidate := candidates[0]
+	targeted := make([]DiversifiedCandidate, 0, len(shortlist))
+	for _, c := range shortlist {
+		if c.Proposal.Kind != ProposalPlainMC {
+			targeted = append(targeted, c)
+		}
+	}
+	validationBudget := totalWorkLimit - scout.Work - discoveryWork
+	if validationBudget < 0 {
+		validationBudget = 0
+	}
+	if validationCapWork > validationBudget {
+		validationCapWork = validationBudget
+	}
+	validationStats, validationWork, validated := validateDiversifiedCandidates(targeted, validationCapWork, diversifiedValidationMinSamples(), validationSeed, campaign, group.Games, originalMeans, table, sortOrder, group.Team_groups)
+	proposals := make([]DiversifiedCandidate, 0, len(validated)+1)
+	proposals = append(proposals, plainCandidate)
+	proposals = append(proposals, validated...)
+	for _, candidate := range validated {
+		v := validationStats[candidate.Proposal.ID]
+		log.Printf("rare-position-diversified-validation-selection: proposal=%s team=%d position=%d samples=%d work=%d intended_cells=%d discovery_priority=%.4f", candidate.Proposal.ID, candidate.Tail.TeamID, candidate.Tail.FrontierRank, v.Samples, v.Work, len(candidate.IntendedCells), discoveryCandidatePriority(candidate))
+		for cell := range candidate.IntendedCells {
+			hits := v.CellHits[cell]
+			rate := float64(hits) / float64(v.Samples)
+			log.Printf("rare-position-diversified-validation-cell: proposal=%s team=%d position=%d intended=true hits=%d rate=%.6f event_ess=%.3f variance=%.6g", candidate.Proposal.ID, cell[0], cell[1], hits, rate, v.CellEventESS[cell], v.CellVariancePerSample[cell])
+		}
+	}
+	frozenDesign := freezeDiversifiedDesign(proposals, validationStats, scout, group.Team_groups, totalWorkLimit, scout.Work, discoveryWork, validationWork)
 
-	frozenDesign := freezeDiversifiedDesign(proposals, probeStats, scout, group.Team_groups, totalWorkLimit, scout.Work, searchWork)
-
-	log.Printf("rare-position-diversified-freeze: group=%d proposals=%d scout_work=%d search_work=%d production_work=%d unused_work=%d",
-		group.Id, len(frozenDesign.Batches), frozenDesign.ScoutWork, frozenDesign.SearchWork, frozenDesign.ProductionWork, frozenDesign.UnusedWork)
+	log.Printf("rare-position-diversified-freeze: group=%d proposals=%d scout_work=%d discovery_work=%d validation_work=%d production_work=%d unused_work=%d",
+		group.Id, len(frozenDesign.Batches), frozenDesign.ScoutWork, frozenDesign.DiscoveryWork, frozenDesign.ValidationWork, frozenDesign.ProductionWork, frozenDesign.UnusedWork)
 
 	for _, batch := range frozenDesign.Batches {
 		log.Printf("rare-position-diversified-batch: group=%d prop_id=%s kind=%s samples=%d work=%d",
