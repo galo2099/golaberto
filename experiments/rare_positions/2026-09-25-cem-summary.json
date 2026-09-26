@@ -1,0 +1,44 @@
+{
+  "experiment_date": "2026-09-25",
+  "hypothesis": "Two-step attack/concession CEM bank with a KL 2.5 standings-directed warm start improves rare-position estimates",
+  "baseline": "intended-cell-gated diversified estimator at commit 3d67fb81eb31c78119bb7c39fee341b958c998f9 plus uncommitted gate and benchmark harness",
+  "groups": [16982, 16986, 16498, 16983, 16653],
+  "master_seeds": [1001, 1002, 1003, 1004, 1005],
+  "work_limit_per_run": 35000000,
+  "reference_samples_per_group": 5000000,
+  "proposal_family": "CEMTeamAttackConcession with pure-Q adaptation, independent mixture validation, and frozen production",
+  "initial_kl_cap": 2.5,
+  "warm_start_scaling": 4,
+  "adaptation": "up to two 300-sample CEM batches for each of the four highest-priority directional tails; all charged to discovery",
+  "runs": 25,
+  "cem_production_runs": 15,
+  "mean_cem_production_work": 202795.84,
+  "mean_whole_table": {
+    "baseline_coverage_score": 306.91028860349223,
+    "cem_coverage_score": 307.0227364026807,
+    "plain_mc_coverage_score": 309.49637273540225,
+    "baseline_ess_ge_10": 297.92,
+    "cem_ess_ge_10": 298.08,
+    "plain_mc_ess_ge_10": 300.28,
+    "baseline_ess_ge_25": 286.84,
+    "cem_ess_ge_25": 287.12,
+    "plain_mc_ess_ge_25": 289.8
+  },
+  "paired_cem_minus_baseline": {
+    "coverage_score": {"mean": 0.112447799188526, "stddev": 0.21019333290481387},
+    "ess_ge_10": {"mean": 0.16, "stddev": 0.3741657386773941},
+    "ess_ge_25": {"mean": 0.28, "stddev": 0.6782329983125268},
+    "band_1e-5_to_1e-4_coverage_score": {"mean": 0.08439763},
+    "band_1e-6_to_1e-5_coverage_score": {"mean": 0.01844722}
+  },
+  "cem_minus_equal_work_plain_mc": {
+    "coverage_score": {"mean": -2.4736363327214916},
+    "band_1e-5_to_1e-4_coverage_score": {"mean": -1.71608},
+    "band_1e-5_to_1e-4_mean_estimated_relative_variance_reliable": {"mean": 0.04503}
+  },
+  "decision": "inconclusive as a tuning lead; do not promote to default production",
+  "reason": "CEM improved the existing diversified baseline modestly, but rare-band precision and complete-matrix coverage remained below equal-work plain MC. A 20-seed confirmation would be required before accepting a future revision.",
+  "legacy_benchmark": "The older 20-seed CEM family benchmark failed its own matched scout/frontier check at seed 1008 on the current group-16982 database export, so it was not used as evidence.",
+  "raw_results": "local/2026-09-25/cem-warm25-real/",
+  "rejected_candidate_source": "local/2026-09-25/cem-warm25-real/rejected-cem-builder.go"
+}

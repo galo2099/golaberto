@@ -1,0 +1,46 @@
+{
+  "experiment_date": "2026-09-25",
+  "baseline": "two-step attack/concession CEM bank, four tails, KL 2.5 warm-start cap, six validated proposals",
+  "groups": [16982, 16986, 16498, 16983, 16653],
+  "master_seeds": [1001, 1002, 1003, 1004, 1005],
+  "work_limit_per_run": 35000000,
+  "reference_samples_per_group": 5000000,
+  "decision": "reject all three variants; leave CEM out of default production",
+  "variants": [
+    {
+      "hypothesis": "Lower CEM warm-start KL to 1.25 to improve held-out variance per work",
+      "paired_coverage_score": {"mean": -0.03328965665913301, "stddev": 0.10827625881509581},
+      "paired_ess_ge_10": {"mean": 0.04, "stddev": 0.2},
+      "paired_ess_ge_25": {"mean": 0.04, "stddev": 0.3511884584284246},
+      "candidate_vs_plain_coverage_score_mean": -2.506925989380625,
+      "cem_production_runs": 6,
+      "mean_cem_production_work": 55939.36,
+      "decision": "reject",
+      "raw_results": "local/2026-09-25/cem-warm125-real/"
+    },
+    {
+      "hypothesis": "Spread the same CEM discovery budget over eight tails with one adaptation batch each",
+      "paired_coverage_score": {"mean": -0.06022168803805925, "stddev": 0.13225382539025934},
+      "paired_ess_ge_10": {"mean": -0.08, "stddev": 0.27688746209726917},
+      "paired_ess_ge_25": {"mean": -0.2, "stddev": 0.6454972243679028},
+      "candidate_vs_plain_coverage_score_mean": -2.533858020759551,
+      "cem_production_runs": 14,
+      "mean_cem_production_work": 251713.6,
+      "decision": "reject",
+      "raw_results": "local/2026-09-25/cem-breadth8-real/"
+    },
+    {
+      "hypothesis": "Validate four CEM proposals more deeply at fixed validation work rather than six",
+      "paired_coverage_score": {"mean": -0.02143677090182564, "stddev": 0.15623848982146882},
+      "paired_ess_ge_10": {"mean": -0.12, "stddev": 0.33166247903553997},
+      "paired_ess_ge_25": {"mean": -0.08, "stddev": 0.4},
+      "candidate_vs_plain_coverage_score_mean": -2.4950731036233176,
+      "cem_production_runs": 20,
+      "mean_cem_production_work": 398553.12,
+      "decision": "reject",
+      "raw_results": "local/2026-09-25/cem-validation4-real/"
+    }
+  ],
+  "interpretation": "Lower KL, broader targeting, and deeper validation each failed to improve the complete matrix over the original CEM pilot. The four-proposal arm admitted more CEM work but realized fewer ESS>=10 cells, so validation admission and production allocation alone are not evidence of useful variance reduction.",
+  "next_research_direction": "Change the proposal objective to target second-moment reduction across multiple rare cells, then validate independently. Avoid further tuning of this frontier-distance CEM family without new evidence."
+}

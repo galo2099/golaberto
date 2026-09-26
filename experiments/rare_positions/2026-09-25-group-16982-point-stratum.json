@@ -1,0 +1,80 @@
+{
+  "experiment_date": "2026-09-25",
+  "group": 16982,
+  "target_team": 1526,
+  "target_final_positions": "1 through 4",
+  "reference_samples": 5000000,
+  "reference_seed": 72991,
+  "fixture_sha256": "70e0d90c06c16c0529ec04dd9824f02e43a8cced244ec3c7b785293632e7e14a",
+  "work_limit_per_run": 35000000,
+  "master_seeds": "1001 through 1020",
+  "hypothesis": "A shallow exact points stratum and conditional Monte Carlo can improve team 1526 top-four estimates while plain Monte Carlo estimates the broad matrix",
+  "current_points": 3,
+  "remaining_games": 33,
+  "minimum_additional_points_for_top_4": 6,
+  "exact_probability_of_at_least_6_points": 0.999994654,
+  "conditioned_additional_points_threshold": 52,
+  "exact_stratum_probability": 0.00164752529,
+  "design_work": {
+    "scout": 350000,
+    "discovery": 169000,
+    "validation": 680000,
+    "production": 33800970,
+    "total": 34999970
+  },
+  "production_samples": {
+    "plain": 94643,
+    "conditional": 994
+  },
+  "twenty_seed_mean": {
+    "current_diversified": {
+      "coverage_score": 349.99747852328363,
+      "ess_ge_10": 339.7,
+      "ess_ge_25": 326.35
+    },
+    "point_hybrid": {
+      "coverage_score": 353.9665251170668,
+      "ess_ge_10": 344.55,
+      "ess_ge_25": 330.6
+    },
+    "equal_work_plain_mc": {
+      "coverage_score": 353.3705147350237,
+      "ess_ge_10": 344.35,
+      "ess_ge_25": 331.8
+    }
+  },
+  "twenty_seed_paired_vs_current_diversified": {
+    "coverage_score_mean": 3.9690465937831165,
+    "coverage_score_stddev": 1.1037586032692523,
+    "ess_ge_10_mean": 4.85,
+    "ess_ge_25_mean": 4.25
+  },
+  "twenty_seed_vs_equal_work_plain_mc": {
+    "coverage_score_mean": 0.5960103820431157,
+    "coverage_score_stddev": 1.4151457886184868,
+    "ess_ge_10_mean": 0.2,
+    "ess_ge_25_mean": -1.2,
+    "common_band_mean_estimated_variance_ratio": 1.0566
+  },
+  "target_fourth_place": {
+    "reference_hits": 105,
+    "reference_probability": 0.000021,
+    "hybrid_mean_probability": 0.00002453055768867167,
+    "plain_mean_probability": 0.0000245,
+    "hybrid_mean_ess": 15.03143923990235,
+    "plain_mean_ess": 2.4500845033051384,
+    "hybrid_runs_ess_ge_10": 20,
+    "plain_runs_ess_ge_10": 0
+  },
+  "decision": "retain as explicit group-specific option; do not enable by default",
+  "reason": "The hybrid improves the chosen rare cells and beats the current diversified estimator, but its whole-table advantage over equal-work plain MC is small and ESS>=25 is lower.",
+  "raw_results": "local/2026-09-25/point-hybrid-16982-20/",
+  "production_opt_in": {
+    "RARE_POSITION_DIVERSIFIED_IS": "1",
+    "RARE_POSITION_POINT_HYBRID_GROUP": "16982",
+    "RARE_POSITION_POINT_HYBRID_TEAM": "1526",
+    "RARE_POSITION_POINT_HYBRID_MAX_RANK": "3",
+    "RARE_POSITION_POINT_HYBRID_TARGET_MASS": "0.0015",
+    "RARE_POSITION_POINT_HYBRID_Q_PERCENT": "2"
+  }
+}

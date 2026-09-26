@@ -41,7 +41,7 @@ class GameControllerTest < ActionController::TestCase
     get :show, params: { id: @game.to_param }
 
     assert_response :success
-    assert_select "td.game_show_home_team a[href=?]", url_for(controller: :championship, action: :team, id: @championship, team: teams(:first))
-    assert_select "td.game_show_away_team a[href=?]", url_for(controller: :championship, action: :team, id: @championship, team: teams(:another))
+    assert_select "td.game_show_home_team a[href=?]", @controller.url_for(controller: :championship, action: :team, id: @championship, team: teams(:first), only_path: true)
+    assert_select "td.game_show_away_team a[href=?]", @controller.url_for(controller: :championship, action: :team, id: @championship, team: teams(:another), only_path: true)
   end
 end

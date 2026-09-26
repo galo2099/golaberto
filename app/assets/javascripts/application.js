@@ -15,6 +15,7 @@
 //= require ability
 //= require jstz
 //= require title-ellipsis
+//= require odds_format
 
 // this is now my preferred way of dealing with confirmation dialog
 // it is just much simpler than Turbo way

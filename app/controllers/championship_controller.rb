@@ -305,7 +305,7 @@ class ChampionshipController < ApplicationController
         {
           name: zone["name"],
           color: zone["color"],
-          value: [value, 100.0].min.round(2),
+          value: [value, 100.0].min,
         }
       end
     end
@@ -330,7 +330,7 @@ class ChampionshipController < ApplicationController
         next if odds.nil?
 
         value = odds[position - 1].to_f
-        points << [recorded_on.to_time.to_i * 1000, [value, 100.0].min.round(4)]
+        points << [recorded_on.to_time.to_i * 1000, [value, 100.0].min]
 
         game = latest_game_by_timestamp[snapshot_time]
         points_meta << {

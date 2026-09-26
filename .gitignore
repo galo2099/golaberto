@@ -29,3 +29,6 @@ public/stylesheets/base_packaged.css
 /stats/.idea/
 /stats/stats.iml
 /stats/target/
+
+# Local benchmark exports can contain database-derived group data.
+/experiments/rare_positions/local/
