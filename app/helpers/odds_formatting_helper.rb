@@ -1,5 +1,3 @@
-require "bigdecimal"
-
 module OddsFormattingHelper
   # Odds in views are percentages (0..100), not fractions (0..1).
   def formatted_odds(percentage)
@@ -17,11 +15,10 @@ module OddsFormattingHelper
 
     value = percentage.to_f
     if value > 0 && value < 0.01
-      _, digits, _, exponent = BigDecimal(value.to_s).split
-      rest = digits[1..].to_s.sub(/0+\z/, "")
+      mantissa, exponent = format("%.2e", value).split("e")
       separator = I18n.t("number.format.separator", default: ".")
-      mantissa = digits[0] + (rest.empty? ? "" : "#{separator}#{rest}")
-      return "#{mantissa}e#{exponent - 1}%"
+      mantissa = mantissa.sub(/0+\z/, "").sub(/\.\z/, "").tr(".", separator)
+      return "#{mantissa}e#{exponent.to_i}%"
     end
 
     number_to_percentage(value, precision: 16, strip_insignificant_zeros: true)

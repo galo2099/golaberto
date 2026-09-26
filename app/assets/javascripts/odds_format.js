@@ -32,8 +32,9 @@
         var decimal = new Intl.NumberFormat(locale).formatToParts(1.1).filter(function(part) {
           return part.type === "decimal";
         })[0].value;
-        return number.toExponential().replace(".", decimal)
-          .replace(/e([+-])0+(\d+)/, "e$1$2").replace("e+", "e") + "%";
+        var scientific = number.toExponential(2).split("e");
+        var mantissa = scientific[0].replace(/0+$/, "").replace(/\.$/, "").replace(".", decimal);
+        return mantissa + "e" + Number(scientific[1]) + "%";
       }
       return number.toLocaleString(locale, {
         maximumSignificantDigits: 17,
