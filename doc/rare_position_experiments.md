@@ -208,3 +208,9 @@ real groups are recorded in
 The pooled points/rank scout and standings-gap experiment, including its
 opt-in settings, calibration limits, and matched-work checks, are recorded in
 [`experiments/rare_positions/2026-09-25-point-gap-pooling.md`](../experiments/rare_positions/2026-09-25-point-gap-pooling.md).
+
+The follow-up matched-pool experiment uses 100,000 scout seasons, 20 seeds,
+all five DB-exported groups, and an independent reference seed to test
+position probabilities near `1e-6`. Its method, whole-matrix checks, and
+remaining calibration limits are in
+[`experiments/rare_positions/2026-09-25-matched-pooled-points.md`](../experiments/rare_positions/2026-09-25-matched-pooled-points.md).

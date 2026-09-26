@@ -211,6 +211,13 @@ func TestDiversifiedBuildReference(t *testing.T) {
 	paths, out := diversifiedBenchmarkPaths(t)
 	n := diversifiedBenchmarkIntEnv(t, "RARE_POSITION_REFERENCE_SAMPLES", 5000000)
 	seed := int64(72991)
+	if raw := os.Getenv("RARE_POSITION_REFERENCE_SEED"); raw != "" {
+		parsed, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil {
+			t.Fatalf("RARE_POSITION_REFERENCE_SEED must be an integer: %v", err)
+		}
+		seed = parsed
+	}
 	for _, path := range paths {
 		group, hash := diversifiedBenchmarkInput(t, path)
 		campaign, table, sortOrder := diversifiedBenchmarkSetup(&group)

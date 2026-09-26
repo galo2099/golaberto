@@ -1,0 +1,106 @@
+# Matched pooling for probabilities near 1e-6
+
+Date: 2026-09-25. The question was whether actual points/rank outcomes from
+other teams can give a more useful estimate of a roughly `1e-6` position than
+100,000 ordinary MC seasons. The previous full-group pool was too biased for
+many cells, and frozen-table counterfactuals were worse. This experiment uses
+only actual simulated finishes and gives more weight to teams with a similar
+expected final point total.
+
+## Design and evaluation
+
+For each target team, an exact points dynamic program gives its marginal
+probability of every final point total `x`. For each `x`, the scout pools
+actual point/rank observations from the 20 teams. Donor team `d` receives
+weight `exp(-abs(expected_final_points_d - expected_final_points_target)/3)`.
+The weighted fraction of donors with `x` points and rank `r` estimates the
+target's conditional rank probability at `x`; the exact target points PMF
+then weights those fractions. The target's own actual finishes are included.
+This is called `matched_3` in the analysis script.
+
+Every arm uses **the same 100,000 simulated seasons per group and seed**.
+Plain MC estimates each cell directly from its rank count. The combined
+matrix uses `matched_3` when plain MC observed at most 10 hits for that cell.
+For other cells, it uses the target's own points/rank counts with five pooled
+actual observations as a prior at each point total (`shrink_5`). Finally,
+100 rounds of row/column normalization reconcile the matrix. The ten-hit
+switch is based only on the scout, not on reference probabilities.
+
+Five DB-exported groups (16498, 16653, 16982, 16983, 16986) and 20 scout
+seeds (1001–1020) produced 100 runs and 2,000 team-position cells per run.
+The original independent 5M-season references (seed 72991) were used to
+screen the candidate and **define** the near-`1e-6` band
+`[5e-7, 2e-6)`. A fresh independent 5M-season reference for each group
+(seed 84321) scored the frozen candidate. This band has 43 cells across the
+five groups. RMSE below averages squared error over the 20 scout seeds and
+the selected cells, then takes the square root. The estimate and reference
+use the same fixture model; neither represents observed real-world odds.
+The [per-cell CSV](2026-09-25-matched-pooled-points-cells.csv) records the
+reference counts and 20-seed mean and spread of each principal estimate for
+all 2,000 cells. Positions in that file are one-based.
+
+| Group | Near-`1e-6` cells | 100k plain MC RMSE | Matched pool RMSE | Whole 400-cell plain RMSE | Reconciled hybrid RMSE |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 16498 | 11 | 3.16e-6 | 0.703e-6 | 0.000625 | 0.000542 |
+| 16653 | 10 | 3.46e-6 | 0.653e-6 | 0.000633 | 0.000542 |
+| 16982 | 3 | 3.25e-6 | 0.772e-6 | 0.000652 | 0.000568 |
+| 16983 | 9 | 3.22e-6 | 1.01e-6 | 0.000632 | 0.000554 |
+| 16986 | 10 | 3.18e-6 | 0.413e-6 | 0.000641 | 0.000557 |
+| **All** | **43** | **3.25e-6** | **0.722e-6** | **0.000636** | **0.000553** |
+
+The matched pool had a nonzero estimate in all 860 near-band cell/run cases;
+plain MC did so in 10%. On the `[1e-6, 1e-5)` band (88 cells), the matched
+pool's RMSE was `2.05e-6` versus `6.17e-6` for plain MC. On the
+`[5e-6, 1e-4)` band (146 cells), the hybrid's RMSE was `1.29e-5` versus
+`1.84e-5`. For common cells (`>=1e-3`), the reconciled hybrid's RMSE was
+`0.000683` versus `0.000787`. Thus the rare gain was not purchased by a
+measured whole-matrix loss on these fixtures. The unrestricted matched pool
+alone was inaccurate on common positions (RMSE `0.00649`); the hit-count
+switch is essential.
+
+Before reconciliation, the hybrid matrix's mean absolute row-sum deviation
+was `1.65e-5` (maximum `0.000150`) and mean absolute column-sum deviation
+was `0.00103` (maximum `0.00523`). Row/column normalization improved the
+whole-matrix RMSE from `0.000565` to `0.000553` while changing near-band
+RMSE only from `0.723e-6` to `0.722e-6`.
+
+## Sharper check: group 16653, team 125
+
+A third independent reference (20M seasons, seed 91873) gives 30M combined
+seasons for group 16653. Across the ten cells selected near `1e-6` by the
+original reference, matched pooling still has RMSE `0.574e-6`, versus
+`3.45e-6` for 100k plain MC.
+
+Team 125 finished 15th in 80 of the 30M reference seasons, giving
+`2.667e-6` with an approximate binomial standard error of `0.298e-6`.
+Across 20 scouts, the matched estimate averaged `1.574e-6` with a seed
+standard deviation of `0.104e-6`. Plain MC returned zero in 17/20 scouts;
+its mean was `1.5e-6` with standard deviation `3.66e-6`. The matched
+estimate is much steadier and has lower squared error, but **underestimates
+this specific cell by about 41%**. It is not yet a calibrated per-cell
+uncertainty interval.
+
+## Decision and limits
+
+This meets the experimental goal **on the five tested fixtures**: at the
+same number of simulated seasons, a pooled point/rank estimator substantially
+reduces measured error for cells near `1e-6`, and the hit-count hybrid also
+reduces whole-matrix error. It is not an official production probability
+source yet. The point model adds analysis work beyond the 100,000 seasons;
+the comparison controls simulation count, not wall-clock time. The reference
+at `1e-6` has only a few hits per 5M seasons, so one cell's result remains
+noisy; the 30M team-125 check shows a material remaining bias. The five
+fixture groups were used for candidate screening, so an unseen-group check
+and a calibrated standard error are still needed before a default switch.
+
+The tracked benchmark harness is
+[`go/rare_position_pooled_estimator_benchmark_test.go`](../../go/rare_position_pooled_estimator_benchmark_test.go),
+and the analysis is
+[`compare_pooled_100k.py`](compare_pooled_100k.py). The former saves the
+point/rank counts and exact points PMFs; the latter computes all candidates,
+the ten-hit hybrid, reconciliation, and error by band. Fresh reference seeds
+are supported by `RARE_POSITION_REFERENCE_SEED` in the reference builder.
+Raw DB-derived fixtures, scouts, and references remain ignored under
+`experiments/rare_positions/local/2026-09-24/` and
+`local/2026-09-25/`. Their seed and fixture hashes are recorded in the
+reference JSON files. The method is experimental and has no runtime flag yet.
