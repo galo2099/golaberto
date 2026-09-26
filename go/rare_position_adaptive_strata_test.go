@@ -513,7 +513,7 @@ func TestPointRankProfileDistance(t *testing.T) {
 func TestPointRankProfileNormalization(t *testing.T) {
 	pmf := map[int]float64{0: 0.2, 3: 0.5, 6: 0.3}
 	scout := &TeamPointRankScout{
-		Samples: 100,
+		Samples:     100,
 		PointCounts: map[int]int{0: 20, 3: 50, 6: 30},
 		PointRankCounts: map[int][]int{
 			0: {0, 5, 15},
@@ -552,10 +552,59 @@ func TestPointProfileGrouping(t *testing.T) {
 	}
 }
 
+func TestPointTailProfileGroupsRetainSmallUpperTail(t *testing.T) {
+	profiles := []PointRankProfile{
+		{AddedPoints: 0, PointMass: .499, RankProb: []float64{0, 1}},
+		{AddedPoints: 3, PointMass: .499, RankProb: []float64{.1, .9}},
+		{AddedPoints: 6, PointMass: .002, RankProb: []float64{.8, .2}},
+	}
+	groups := pointTailProfileGroups(profiles, 2)
+	found := false
+	for _, group := range groups {
+		if len(group.AllowedPoints) == 1 && group.AllowedPoints[0] == 6 {
+			found = true
+			if math.Abs(group.Mass-.002) > 1e-12 || math.Abs(group.ConditionalRankProfile[0]-.8) > 1e-12 {
+				t.Fatalf("upper tail profile changed: %+v", group)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("small exact upper tail was lost among broad profile groups")
+	}
+}
+
+func TestAdaptiveWrapperReportsChargedWork(t *testing.T) {
+	t.Setenv("RARE_POSITION_POINT_HYBRID_GROUP", "")
+	t.Setenv("RARE_POSITION_LEGACY_PROPOSAL_SEARCH", "0")
+	t.Setenv("RARE_POSITION_ADAPTIVE_SCOUT_SAMPLES", "1000")
+	t.Setenv("RARE_POSITION_ADAPTIVE_TAIL_ONLY", "1")
+	t.Setenv("RARE_POSITION_ADAPTIVE_MIN_PLAIN_PRODUCTION_FRACTION", "0.975")
+	group, campaign, table, order, _ := createTestGroupForDiversified()
+	const limit int64 = 1000000
+	var diagnostics DiversifiedRunDiagnostics
+	estimates := runDiversifiedSearchAndProductionDetailed(group, campaign, table, order, nil, limit, 12345, &diagnostics)
+	if len(estimates) != len(group.Team_groups) {
+		t.Fatalf("missing production estimates: %d teams", len(estimates))
+	}
+	design := diagnostics.Design
+	spent := design.ScoutWork + design.DiscoveryWork + design.ValidationWork + design.ProductionWork
+	if design.TotalWork != limit || design.ScoutWork == 0 || design.DiscoveryWork == 0 ||
+		spent > limit || design.UnusedWork != limit-spent {
+		t.Fatalf("adaptive work was not reported correctly: %+v", design)
+	}
+	batchWork := int64(0)
+	for _, batch := range design.Batches {
+		batchWork += batch.Work
+	}
+	if batchWork != design.ProductionWork {
+		t.Fatalf("production batches charge %d, design reports %d", batchWork, design.ProductionWork)
+	}
+}
+
 func TestPointRankProfileDoesNotLeakNearbyRanksExcessively(t *testing.T) {
 	pmf := map[int]float64{0: 0.5, 3: 0.5}
 	scout := &TeamPointRankScout{
-		Samples: 100,
+		Samples:     100,
 		PointCounts: map[int]int{0: 50, 3: 50},
 		PointRankCounts: map[int][]int{
 			0: {0, 0, 50},

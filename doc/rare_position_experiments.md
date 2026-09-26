@@ -1,7 +1,9 @@
 # Rare finishing-position experiments
 
-The diversified estimator has a fixed 35,000,000 nominal-work limit. The
-offline reference is separate and must never be passed to the estimator.
+The matched-work benchmark defaults to a 35,000,000 nominal-work limit.
+Set `RARE_POSITION_BENCHMARK_WORK_LIMIT` to a smaller positive value to test
+both arms at a production-sized budget. The offline reference is separate
+and must never be passed to the estimator.
 
 ## Inputs
 
@@ -60,7 +62,7 @@ Use distinct output directories for baseline and candidate. Each run appends
 one JSON object for the diversified estimator and one for plain MC to
 `runs.jsonl`. Remove that file before rerunning the same arm; the comparison
 script rejects duplicate group/seed/method keys. Each method has the same
-35M-work limit and the same master seeds. The JSON includes phase work,
+work limit (35M by default) and the same master seeds. The JSON includes phase work,
 proposal shortlist, validation samples and cell ESS, frozen production
 allocation, quality, all estimated cells, and error/calibration by reference
 probability band. Proposal discovery and validation data are reported but
@@ -198,3 +200,7 @@ changes, rerun the matched-work benchmark before using the option again.
 The corresponding 20-seed group 16982 trial, both groups' full results,
 limitations, and reproduction settings are in
 [`experiments/rare_positions/2026-09-25-point-stratum-hybrid.md`](../experiments/rare_positions/2026-09-25-point-stratum-hybrid.md).
+
+The adaptive points-stratum code review and 20-seed confirmation across five
+real groups are recorded in
+[`experiments/rare_positions/2026-09-25-adaptive-points-review.md`](../experiments/rare_positions/2026-09-25-adaptive-points-review.md).

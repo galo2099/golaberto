@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare paired 35M-work benchmark JSONL files and save an experiment record."""
+"""Compare paired equal-work benchmark JSONL files and save a record."""
 
 import argparse
 import json
@@ -76,7 +76,7 @@ def load(path):
         if key in rows:
             raise ValueError(f"duplicate run {key} in {path}")
         work = row["work"]
-        if work["total"] > work["limit"] or work["limit"] != 35_000_000:
+        if work["total"] > work["limit"] or not 0 < work["limit"] <= 35_000_000:
             raise ValueError(f"work budget violation {key} in {path}")
         rows[key] = row
     return rows
@@ -96,6 +96,8 @@ def main():
     for key in base:
         if base[key]["reference_samples"] != cand[key]["reference_samples"]:
             raise ValueError(f"reference mismatch for {key}")
+        if base[key]["work"]["limit"] != cand[key]["work"]["limit"]:
+            raise ValueError(f"work limit mismatch for {key}")
     report = {
         "hypothesis": args.hypothesis,
         "decision": args.decision,
@@ -143,6 +145,9 @@ def main():
                     report["paired"][method]["bands"][band][metric] = summary(diffs)
     for arm_name, rows in (("baseline", base), ("candidate", cand)):
         group_seeds = sorted({(group, seed) for group, seed, _ in rows})
+        for group, seed in group_seeds:
+            if rows[(group, seed, "diversified")]["work"]["limit"] != rows[(group, seed, "plain_mc")]["work"]["limit"]:
+                raise ValueError(f"method work limit mismatch for {(group, seed)} in {arm_name}")
         report["against_plain"][arm_name] = {
             metric: summary([
                 rows[(group, seed, "diversified")]["quality"][metric] - rows[(group, seed, "plain_mc")]["quality"][metric]

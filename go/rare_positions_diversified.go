@@ -82,7 +82,7 @@ func diversifiedValidationMinSamples() int {
 }
 
 func logDiversifiedEnvironment() {
-	keys := []string{"RARE_POSITION_IMPORTANCE_SAMPLING", "RARE_POSITION_DIVERSIFIED_IS", "RARE_POSITION_DIVERSIFIED_SCOUT_SAMPLES", "RARE_POSITION_DIVERSIFIED_MIN_PLAIN_FRACTION", "RARE_POSITION_DIVERSIFIED_DISCOVERY_EQ", "RARE_POSITION_DIVERSIFIED_VALIDATION_EQ", "RARE_POSITION_DIVERSIFIED_MAX_VALIDATED_PROPOSALS", "RARE_POSITION_DIVERSIFIED_VALIDATION_MIN_SAMPLES", "RARE_POSITION_POINT_HYBRID_GROUP", "RARE_POSITION_POINT_HYBRID_TEAM", "RARE_POSITION_POINT_HYBRID_MAX_RANK", "RARE_POSITION_POINT_HYBRID_TARGET_MASS", "RARE_POSITION_POINT_HYBRID_Q_PERCENT", "RARE_POSITION_MIN_INTERESTING_PROBABILITY"}
+	keys := []string{"RARE_POSITION_IMPORTANCE_SAMPLING", "RARE_POSITION_DIVERSIFIED_IS", "RARE_POSITION_DIVERSIFIED_SCOUT_SAMPLES", "RARE_POSITION_DIVERSIFIED_MIN_PLAIN_FRACTION", "RARE_POSITION_DIVERSIFIED_DISCOVERY_EQ", "RARE_POSITION_DIVERSIFIED_VALIDATION_EQ", "RARE_POSITION_DIVERSIFIED_MAX_VALIDATED_PROPOSALS", "RARE_POSITION_DIVERSIFIED_VALIDATION_MIN_SAMPLES", "RARE_POSITION_POINT_HYBRID_GROUP", "RARE_POSITION_POINT_HYBRID_TEAM", "RARE_POSITION_POINT_HYBRID_MAX_RANK", "RARE_POSITION_POINT_HYBRID_TARGET_MASS", "RARE_POSITION_POINT_HYBRID_Q_PERCENT", "RARE_POSITION_ADAPTIVE_SCOUT_SAMPLES", "RARE_POSITION_ADAPTIVE_TAIL_ONLY", "RARE_POSITION_ADAPTIVE_MIN_PLAIN_PRODUCTION_FRACTION", "RARE_POSITION_MIN_INTERESTING_PROBABILITY"}
 	for _, key := range keys {
 		value, ok := os.LookupEnv(key)
 		if !ok {
@@ -1929,6 +1929,35 @@ func runDiversifiedSearchAndProductionDetailed(
 		if ok {
 			if diagnostics != nil {
 				diagnostics.Feasibility = adaptiveDiag.Feasibility
+				diagnostics.Candidates = adaptiveDiag.Candidates
+				diagnostics.Shortlisted = adaptiveDiag.Validated
+				diagnostics.Validated = adaptiveDiag.Validated
+				diagnostics.Shortlist = adaptiveDiag.Shortlist
+				diagnostics.ValidationSamples = adaptiveDiag.ValidationSamples
+				diagnostics.ValidationCells = adaptiveDiag.ValidationCells
+				unplayed := 0
+				for _, game := range group.Games {
+					if !game.Played {
+						unplayed++
+					}
+				}
+				plainCost := estimateSeasonWork(unplayed, 1, len(group.Team_groups))
+				stratumCost := estimateSeasonWork(unplayed, 2, len(group.Team_groups))
+				diagnostics.Design = FrozenDiversifiedDesign{
+					TotalWork: totalWorkLimit, ScoutWork: adaptiveDiag.ScoutWork,
+					DiscoveryWork: adaptiveDiag.DiscoveryWork, ValidationWork: adaptiveDiag.ValidationWork,
+					ProductionWork: adaptiveDiag.ProductionWork,
+					UnusedWork:     totalWorkLimit - adaptiveDiag.TotalWork,
+					Batches: []FrozenProductionBatch{{Proposal: DiversifiedProposal{ID: "plain_mc", Kind: ProposalPlainMC, WorkPerSample: plainCost},
+						Samples: adaptiveDiag.PlainSamples, Work: int64(adaptiveDiag.PlainSamples) * plainCost, WorkPerSample: plainCost}},
+				}
+				for _, admitted := range adaptiveDiag.AdmittedStrata {
+					prop := DiversifiedProposal{ID: admitted.ID, Kind: "point_outcome_stratum", TargetTeam: admitted.TeamID,
+						Strength: float64(admitted.Threshold), KL: -math.Log(admitted.Mass), WorkPerSample: stratumCost}
+					diagnostics.Design.Batches = append(diagnostics.Design.Batches, FrozenProductionBatch{
+						Proposal: prop, Samples: admitted.Samples, Work: admitted.Work, WorkPerSample: stratumCost,
+					})
+				}
 			}
 			return adaptiveEstimates
 		}

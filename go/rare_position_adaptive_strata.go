@@ -51,8 +51,7 @@ func (dp *pointSetDP) samplePattern(rng *rand.Rand) uint64 {
 			}
 		}
 		if total <= 0 {
-			total = 1.0
-			weights[0] = 1.0
+			panic("point-set conditional path has zero probability")
 		}
 		u := rng.Float64() * total
 		chosenDigit := 2
@@ -162,8 +161,8 @@ func computePointRankProfile(
 			w := math.Exp(-math.Abs(float64(sNeighbor-addedPoints)) / bandwidth)
 			weightedTotal += float64(count) * w
 			hits := scout.PointRankCounts[sNeighbor]
-			for r := 0; r < numPositions && r < len(hits); r++ {
-				rankProb[r] += float64(hits[r]) * w
+			for rank := 0; rank < numPositions && rank < len(hits); rank++ {
+				rankProb[rank] += float64(hits[rank]) * w
 			}
 		}
 	}
@@ -333,6 +332,55 @@ func groupPointRankProfiles(
 	return groups
 }
 
+// pointTailProfileGroups adds small, exact-mass tail events. Broad adjacent
+// profile groups tend to cover almost the entire points distribution and
+// cannot concentrate the rare ranks that motivated conditional sampling.
+func pointTailProfileGroups(profiles []PointRankProfile, numPositions int) []PointProfileGroup {
+	ordered := append([]PointRankProfile(nil), profiles...)
+	sort.Slice(ordered, func(i, j int) bool { return ordered[i].AddedPoints < ordered[j].AddedPoints })
+	groups := make([]PointProfileGroup, 0, 6)
+	for _, targetMass := range []float64{0.0015, 0.005, 0.02} {
+		for _, high := range []bool{false, true} {
+			group := PointProfileGroup{ConditionalRankProfile: make([]float64, numPositions)}
+			for i := 0; i < len(ordered); i++ {
+				profile := ordered[i]
+				if high {
+					profile = ordered[len(ordered)-1-i]
+				}
+				group.AllowedPoints = append(group.AllowedPoints, profile.AddedPoints)
+				group.Mass += profile.PointMass
+				for rank := range group.ConditionalRankProfile {
+					group.ConditionalRankProfile[rank] += profile.PointMass * profile.RankProb[rank]
+				}
+				if group.Mass >= targetMass {
+					break
+				}
+			}
+			if group.Mass <= 0 || group.Mass >= 0.25 {
+				continue
+			}
+			for rank := range group.ConditionalRankProfile {
+				group.ConditionalRankProfile[rank] /= group.Mass
+			}
+			groups = append(groups, group)
+		}
+	}
+	return groups
+}
+
+// Only candidate ordering borrows a small amount of nearby-rank evidence.
+// Conditional validation, never this heuristic, decides whether a cell can
+// use the stratum in production.
+func proposalConditionalRankScore(profile []float64, rank int) float64 {
+	score := profile[rank]
+	for other, probability := range profile {
+		if other != rank {
+			score += 0.3 * probability * math.Exp(-math.Abs(float64(rank-other))/2)
+		}
+	}
+	return score
+}
+
 type AdaptivePointProposal struct {
 	ID                     string        `json:"id"`
 	Team                   int           `json:"team"`
@@ -346,6 +394,7 @@ type AdaptivePointProposal struct {
 }
 
 type AdaptiveStratumAdmitted struct {
+	ID             string  `json:"id"`
 	TeamID         int     `json:"team_id"`
 	MaxRank        int     `json:"max_rank"`
 	Threshold      int     `json:"threshold"`
@@ -356,18 +405,23 @@ type AdaptiveStratumAdmitted struct {
 }
 
 type AdaptiveStratumDiagnostics struct {
-	ScoutWork        int64                           `json:"scout_work"`
-	DiscoveryWork    int64                           `json:"discovery_work"`
-	ValidationWork   int64                           `json:"validation_work"`
-	ProductionWork   int64                           `json:"production_work"`
-	TotalWork        int64                           `json:"total_work"`
-	TotalWorkLimit   int64                           `json:"total_work_limit"`
-	PlainSamples     int                             `json:"plain_samples"`
-	Feasibility      map[[2]int]string               `json:"feasibility,omitempty"`
-	UpperBounds      map[[2]int]float64              `json:"upper_bounds,omitempty"`
-	CellAnalysis     map[[2]int]AdaptiveCellAnalysis `json:"cell_analysis,omitempty"`
-	AdmittedStrata   []AdaptiveStratumAdmitted       `json:"admitted_strata,omitempty"`
-	ReconciledMatrix map[int]map[int]float64         `json:"reconciled_matrix,omitempty"`
+	ScoutWork         int64                           `json:"scout_work"`
+	DiscoveryWork     int64                           `json:"discovery_work"`
+	ValidationWork    int64                           `json:"validation_work"`
+	ProductionWork    int64                           `json:"production_work"`
+	TotalWork         int64                           `json:"total_work"`
+	TotalWorkLimit    int64                           `json:"total_work_limit"`
+	PlainSamples      int                             `json:"plain_samples"`
+	Feasibility       map[[2]int]string               `json:"feasibility,omitempty"`
+	UpperBounds       map[[2]int]float64              `json:"upper_bounds,omitempty"`
+	CellAnalysis      map[[2]int]AdaptiveCellAnalysis `json:"cell_analysis,omitempty"`
+	AdmittedStrata    []AdaptiveStratumAdmitted       `json:"admitted_strata,omitempty"`
+	Candidates        int                             `json:"candidates"`
+	Validated         int                             `json:"validated"`
+	Shortlist         []DiversifiedProposal           `json:"shortlist,omitempty"`
+	ValidationSamples map[string]int                  `json:"validation_samples,omitempty"`
+	ValidationCells   []DiversifiedValidationCell     `json:"validation_cells,omitempty"`
+	ReconciledMatrix  map[int]map[int]float64         `json:"reconciled_matrix,omitempty"`
 }
 
 func adaptiveESSUtility(ess float64) float64 {
@@ -459,43 +513,31 @@ func computePriorityEstimate(
 	return score
 }
 
-// rankNotRuledOutAtAddedPoints returns false if exact rank targetRank is
-// impossible for targetTeam when it earns exactly addedPoints additional points.
-func rankNotRuledOutAtAddedPoints(
-	targetTeamID int, targetRank int, addedPoints int,
-	campaign []*TeamCampaign, teamGroups []TeamType, games []*GameType, table *Table,
-) bool {
-	numTeams := len(teamGroups)
-	targetIdx := table.Query(uint32(targetTeamID))
-	if targetIdx < 0 || int(targetIdx) >= len(campaign) || campaign[targetIdx] == nil {
-		return false
-	}
-	targetCampaign := campaign[targetIdx]
-	targetFinalPoints := targetCampaign.points + addedPoints
+// pointRankBounds caches the independent minimum and maximum points each team
+// can finish with. It gives conservative rank feasibility bounds.
+type pointRankBounds struct {
+	current map[int]int
+	minimum map[int]int
+	maximum map[int]int
+	teams   []TeamType
+}
 
-	unplayedPerTeam := make(map[int]int, numTeams)
+func buildPointRankBounds(campaign []*TeamCampaign, teamGroups []TeamType, games []*GameType, table *Table) pointRankBounds {
+	bounds := pointRankBounds{current: make(map[int]int), minimum: make(map[int]int), maximum: make(map[int]int), teams: teamGroups}
+	unplayedPerTeam := make(map[int]int, len(teamGroups))
 	for _, g := range games {
 		if !g.Played {
 			unplayedPerTeam[g.HomeId]++
 			unplayedPerTeam[g.AwayId]++
 		}
 	}
-
-	minPoints := make(map[int]int, numTeams)
-	maxPoints := make(map[int]int, numTeams)
-
 	for _, tg := range teamGroups {
 		id := tg.Team_id
 		c := campaign[table.Query(uint32(id))]
 		if c == nil {
 			continue
 		}
-		if id == targetTeamID {
-			minPoints[id] = targetFinalPoints
-			maxPoints[id] = targetFinalPoints
-			continue
-		}
-
+		bounds.current[id] = c.points
 		unplayed := unplayedPerTeam[id]
 		pWin := c.points_win
 		if pWin < 0 {
@@ -526,22 +568,32 @@ func rankNotRuledOutAtAddedPoints(
 			minGain = pWin
 		}
 
-		minPoints[id] = c.points + unplayed*minGain
-		maxPoints[id] = c.points + unplayed*maxGain
+		bounds.minimum[id] = c.points + unplayed*minGain
+		bounds.maximum[id] = c.points + unplayed*maxGain
 	}
+	return bounds
+}
+
+func (bounds pointRankBounds) rankNotRuledOut(targetTeamID, targetRank, addedPoints int) bool {
+	current, found := bounds.current[targetTeamID]
+	if !found {
+		return false
+	}
+	targetFinalPoints := current + addedPoints
+	numTeams := len(bounds.teams)
 
 	strictlyBetter := 0
 	strictlyWorse := 0
 
-	for _, tg := range teamGroups {
+	for _, tg := range bounds.teams {
 		id := tg.Team_id
 		if id == targetTeamID {
 			continue
 		}
-		if minPoints[id] > targetFinalPoints {
+		if bounds.minimum[id] > targetFinalPoints {
 			strictlyBetter++
 		}
-		if maxPoints[id] < targetFinalPoints {
+		if bounds.maximum[id] < targetFinalPoints {
 			strictlyWorse++
 		}
 	}
@@ -552,12 +604,29 @@ func rankNotRuledOutAtAddedPoints(
 	return targetRank >= bestPossibleRank && targetRank <= worstPossibleRank
 }
 
+// rankNotRuledOutAtAddedPoints returns false if exact rank targetRank is
+// impossible for targetTeam when it earns exactly addedPoints additional points.
+func rankNotRuledOutAtAddedPoints(
+	targetTeamID int, targetRank int, addedPoints int,
+	campaign []*TeamCampaign, teamGroups []TeamType, games []*GameType, table *Table,
+) bool {
+	bounds := buildPointRankBounds(campaign, teamGroups, games, table)
+	return bounds.rankNotRuledOut(targetTeamID, targetRank, addedPoints)
+}
+
 // computeHardCellUpperBound calculates HardUpperBound(team, rank) as
 // sum_{s in PossiblePointTotals} P(S = s).
 func computeHardCellUpperBound(
 	targetTeamID int, targetRank int,
 	pmf map[int]float64,
 	campaign []*TeamCampaign, teamGroups []TeamType, games []*GameType, table *Table,
+) (hardBound float64, possibleTotals []int, provenImpossible bool) {
+	bounds := buildPointRankBounds(campaign, teamGroups, games, table)
+	return computeHardCellUpperBoundWithBounds(targetTeamID, targetRank, pmf, bounds)
+}
+
+func computeHardCellUpperBoundWithBounds(
+	targetTeamID int, targetRank int, pmf map[int]float64, bounds pointRankBounds,
 ) (hardBound float64, possibleTotals []int, provenImpossible bool) {
 	possibleTotals = make([]int, 0, len(pmf))
 	hardBound = 0.0
@@ -566,7 +635,7 @@ func computeHardCellUpperBound(
 		if p <= 0 {
 			continue
 		}
-		if rankNotRuledOutAtAddedPoints(targetTeamID, targetRank, s, campaign, teamGroups, games, table) {
+		if bounds.rankNotRuledOut(targetTeamID, targetRank, s) {
 			possibleTotals = append(possibleTotals, s)
 			hardBound += p
 		}
@@ -840,7 +909,7 @@ func buildAdaptivePointProposalsForTeam(
 		if p > 0 {
 			prof := computePointRankProfile(s, pmf, scout, numPositions, 0)
 			profiles = append(profiles, prof)
-			if teamID == 125 {
+			if os.Getenv("RARE_POSITION_ADAPTIVE_DEBUG") == "1" {
 				log.Printf("rare-position-point-profile: team=%d points=%d pmf_mass=%.6g scout_count=%d rank_profile=%v",
 					teamID, s, p, prof.ScoutCount, prof.RankProb)
 			}
@@ -851,7 +920,11 @@ func buildAdaptivePointProposalsForTeam(
 		return nil
 	}
 
-	groups := groupPointRankProfiles(profiles, numPositions, "", 0)
+	tailGroups := pointTailProfileGroups(profiles, numPositions)
+	groups := tailGroups
+	if os.Getenv("RARE_POSITION_ADAPTIVE_TAIL_ONLY") == "0" {
+		groups = append(groupPointRankProfiles(profiles, numPositions, "", 0), tailGroups...)
+	}
 	if len(groups) == 0 {
 		return nil
 	}
@@ -866,7 +939,7 @@ func buildAdaptivePointProposalsForTeam(
 	proposals := make([]AdaptivePointProposal, 0, len(groups))
 
 	for idx, g := range groups {
-		if g.Mass <= 0 {
+		if g.Mass <= 0 || g.Mass >= 0.25 {
 			continue
 		}
 
@@ -875,11 +948,26 @@ func buildAdaptivePointProposalsForTeam(
 
 		for _, cell := range targetCells {
 			r := cell[1]
-			pCond := g.ConditionalRankProfile[r]
-			contrib := g.Mass * pCond
-			if contrib > 0 {
-				usefulCells = append(usefulCells, cell)
-				targetUtility += contrib
+			pCond := proposalConditionalRankScore(g.ConditionalRankProfile, r)
+			if pCond <= 0 {
+				continue
+			}
+			usefulCells = append(usefulCells, cell)
+			inside := g.Mass * pCond
+			outside := float64(directScoutOutsideHits(teamID, r, g.AllowedPoints, scout)) / float64(scout.Samples)
+			pPred := outside + inside
+			const predictedPlainSamples = 100000.0
+			const predictedConditionalSamples = 1000.0
+			plainVariance := pPred * (1 - pPred) / predictedPlainSamples
+			hybridVariance := outside*(1-outside)/predictedPlainSamples +
+				g.Mass*g.Mass*pCond*(1-pCond)/predictedConditionalSamples
+			if hybridVariance > 0 && plainVariance > 0 {
+				plainESS := pPred * pPred / plainVariance
+				hybridESS := pPred * pPred / hybridVariance
+				gain := math.Min(hybridESS, 10) - math.Min(plainESS, 10)
+				if gain > 0 {
+					targetUtility += gain
+				}
 			}
 		}
 
@@ -929,13 +1017,16 @@ func buildAdaptivePointProposalsForTeam(
 		}
 		proposals = append(proposals, prop)
 
-		if teamID == 125 {
+		if os.Getenv("RARE_POSITION_ADAPTIVE_DEBUG") == "1" {
 			log.Printf("rare-position-adaptive-proposal: proposal=%s team=%d points=%v mass=%.6g target_cells=%v predicted_rank_probs=%v predicted_utility=%.6g",
 				prop.ID, prop.Team, prop.AllowedPoints, prop.Mass, prop.TargetCells, prop.ConditionalRankProfile, prop.PredictedUtility)
 		}
 	}
 
 	sort.Slice(proposals, func(i, j int) bool {
+		if proposals[i].PredictedUtility == proposals[j].PredictedUtility {
+			return proposals[i].ID < proposals[j].ID
+		}
 		return proposals[i].PredictedUtility > proposals[j].PredictedUtility
 	})
 
@@ -975,7 +1066,7 @@ func runAdaptivePointStratifiedSearch(
 	}
 
 	// 1. Initial plain-MC design scout run with joint points x rank tracking
-	scoutRequested := 15000
+	scoutRequested := 1000
 	if raw := os.Getenv("RARE_POSITION_ADAPTIVE_SCOUT_SAMPLES"); raw != "" {
 		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
 			scoutRequested = parsed
@@ -994,6 +1085,7 @@ func runAdaptivePointStratifiedSearch(
 
 	scoutRNG := rand.New(rand.NewSource(deriveRarePositionSeed(masterSeed, "adaptive-scout")))
 	scout := runPlainMCScoutWithJointPoints(base, group.Games, table, order, group.Team_groups, scoutSamples, plainCost, scoutRNG)
+	rankBounds := buildPointRankBounds(base, group.Team_groups, group.Games, table)
 
 	for cell, status := range scout.Feasibility {
 		diag.Feasibility[cell] = status
@@ -1022,7 +1114,9 @@ func runAdaptivePointStratifiedSearch(
 
 	// 2 & 3 & 4. Points/rank analysis, exact PMF, priority estimates, and hard upper bounds
 	candidateProposals := make([]AdaptivePointProposal, 0, numTeams)
-	diag.DiscoveryWork = 0 // Remove arbitrary synthetic discovery work
+	// Charge the points DP and repeated rank-bound scans as design work.
+	// A work unit follows estimateSeasonWork's game/team operation convention.
+	diag.DiscoveryWork = 0
 
 	for _, team := range group.Team_groups {
 		teamID := team.Team_id
@@ -1032,6 +1126,7 @@ func runAdaptivePointStratifiedSearch(
 		}
 
 		pmf := additionalPointsPMF(universe)
+		diag.DiscoveryWork += int64(len(universe.GameIndices)*len(pmf)*3 + numTeams*len(pmf)*numTeams)
 		teamScout := scout.TeamScout[teamID]
 
 		unresolvedTargetCells := make([][2]int, 0, numTeams)
@@ -1039,7 +1134,7 @@ func runAdaptivePointStratifiedSearch(
 		for pos := 0; pos < numTeams; pos++ {
 			cell := [2]int{teamID, pos}
 
-			hardUB, possibleTotals, provenImp := computeHardCellUpperBound(teamID, pos, pmf, base, group.Team_groups, group.Games, table)
+			hardUB, possibleTotals, provenImp := computeHardCellUpperBoundWithBounds(teamID, pos, pmf, rankBounds)
 			scoutHits := scout.TeamCounts[teamID][pos]
 			scoutProb := float64(scoutHits) / float64(scoutSamples)
 			priorityEst := computePriorityEstimate(teamID, pos, pmf, teamScout, numTeams)
@@ -1069,8 +1164,10 @@ func runAdaptivePointStratifiedSearch(
 			diag.CellAnalysis[cell] = analysis
 			diag.UpperBounds[cell] = hardUB
 
-			log.Printf("rare-position-adaptive-cell: team=%d rank=%d scout_hits=%d hard_upper_bound=%.6g priority=%.6g possible_points=%v decision=%s",
-				teamID, pos, scoutHits, hardUB, priorityEst, possibleTotals, decision)
+			if os.Getenv("RARE_POSITION_ADAPTIVE_DEBUG") == "1" {
+				log.Printf("rare-position-adaptive-cell: team=%d rank=%d scout_hits=%d hard_upper_bound=%.6g priority=%.6g possible_points=%v decision=%s",
+					teamID, pos, scoutHits, hardUB, priorityEst, possibleTotals, decision)
+			}
 
 			if !provenImp && scoutHits < targetScoutESS && hardUB >= simulateThreshold {
 				unresolvedTargetCells = append(unresolvedTargetCells, cell)
@@ -1090,24 +1187,13 @@ func runAdaptivePointStratifiedSearch(
 		}
 	}
 
-	// Diagnostic run for Team 125 manual stratum comparison (oracle reference only, does not affect estimator selection)
-	if teamScout125, has125 := scout.TeamScout[125]; has125 && teamScout125 != nil {
-		if universe125, ok125 := pointOutcomeUniverse(125, base, table, group.Games, 39); ok125 && universe125 != nil {
-			if manualStratum, okMan := makePointTailStratum(universe125, 21); okMan && manualStratum != nil {
-				manualSeed := deriveRarePositionSeed(masterSeed, "adaptive-val-team125-manual")
-				manualValCounts, _ := simulatePointHybridSeasons(base, group.Games, table, order, group.Team_groups,
-					manualStratum, true, valSamplesPerStratum, manualSeed)
-				r15Hits := manualValCounts[[2]int{125, 14}]
-				r16Hits := manualValCounts[[2]int{125, 15}]
-				log.Printf("rare-position-team125-manual-diagnostic: allowed_points=[21..27] mass=%.6g validation_samples=%d rank15_hits=%d rank16_hits=%d",
-					manualStratum.Mass, valSamplesPerStratum, r15Hits, r16Hits)
-			}
-		}
-	}
-
 	sort.Slice(candidateProposals, func(i, j int) bool {
+		if candidateProposals[i].PredictedUtility == candidateProposals[j].PredictedUtility {
+			return candidateProposals[i].ID < candidateProposals[j].ID
+		}
 		return candidateProposals[i].PredictedUtility > candidateProposals[j].PredictedUtility
 	})
+	diag.Candidates = len(candidateProposals)
 
 	// 5. Validation probes on shortlisted candidate proposals (Design)
 
@@ -1145,20 +1231,30 @@ func runAdaptivePointStratifiedSearch(
 
 	valWorkTotal := int64(len(candidateProposals)*valSamplesPerStratum) * stratumCost
 	diag.ValidationWork = valWorkTotal
+	if diag.ScoutWork+diag.DiscoveryWork+diag.ValidationWork+2*plainCost > workLimit {
+		return nil, diag, false
+	}
+	diag.Validated = len(candidateProposals)
+	diag.ValidationSamples = make(map[string]int, len(candidateProposals))
+	for _, prop := range candidateProposals {
+		diag.Shortlist = append(diag.Shortlist, DiversifiedProposal{ID: prop.ID, Kind: "point_outcome_stratum",
+			TargetTeam: prop.Team, Strength: float64(prop.AllowedPoints[0]), KL: -math.Log(prop.Mass), WorkPerSample: stratumCost})
+	}
 
 	type validationResult struct {
-		prop               AdaptivePointProposal
-		targetHits         int
-		valHitsPerCell     map[[2]int]int
-		validationSamples  int
-		pCondHit           map[[2]int]float64
-		varCondPerSample   map[[2]int]float64
+		prop              AdaptivePointProposal
+		targetHits        int
+		valHitsPerCell    map[[2]int]int
+		validationSamples int
+		pCondHit          map[[2]int]float64
+		varCondPerSample  map[[2]int]float64
 	}
 
 	valResults := make([]validationResult, 0, len(candidateProposals))
 
 	if valSamplesPerStratum > 0 && valWorkTotal > 0 {
 		for _, prop := range candidateProposals {
+			diag.ValidationSamples[prop.ID] = valSamplesPerStratum
 			valSeed := deriveRarePositionSeed(masterSeed, fmt.Sprintf("adaptive-val-team%d", prop.Team))
 			valCounts, _ := simulatePointHybridSeasons(base, group.Games, table, order, group.Team_groups,
 				prop.Stratum, true, valSamplesPerStratum, valSeed)
@@ -1178,6 +1274,10 @@ func runAdaptivePointStratifiedSearch(
 				qReg := (float64(hits) + 0.5) / (float64(valSamplesPerStratum) + 1.0)
 				pCondHit[cell] = qReg
 				varCondPerSample[cell] = prop.Stratum.Mass * prop.Stratum.Mass * qReg * (1.0 - qReg)
+				diag.ValidationCells = append(diag.ValidationCells, DiversifiedValidationCell{
+					Proposal: prop.ID, Team: cell[0], Position: cell[1], Intended: true,
+					ESS: float64(hits), Eligible: hits >= 2, VariancePerSample: varCondPerSample[cell],
+				})
 			}
 
 			log.Printf("rare-position-adaptive-validation: proposal=%s team=%d points=%v mass=%.6g samples=%d work=%d rank_hits=%v target_hits=%d decision=%s",
@@ -1187,24 +1287,35 @@ func runAdaptivePointStratifiedSearch(
 
 			if targetHits >= 2 {
 				valResults = append(valResults, validationResult{
-					prop:               prop,
-					targetHits:         targetHits,
-					valHitsPerCell:     valHitsPerCell,
-					validationSamples:  valSamplesPerStratum,
-					pCondHit:           pCondHit,
-					varCondPerSample:   varCondPerSample,
+					prop:              prop,
+					targetHits:        targetHits,
+					valHitsPerCell:    valHitsPerCell,
+					validationSamples: valSamplesPerStratum,
+					pCondHit:          pCondHit,
+					varCondPerSample:  varCondPerSample,
 				})
 			}
 		}
 	}
+	// Production supports one conditional stratum per team. Keep the first
+	// independently admitted proposal in the frozen utility order.
+	uniqueResults := valResults[:0]
+	seenTeam := make(map[int]bool, len(valResults))
+	for _, result := range valResults {
+		if !seenTeam[result.prop.Team] {
+			uniqueResults = append(uniqueResults, result)
+			seenTeam[result.prop.Team] = true
+		}
+	}
+	valResults = uniqueResults
 
-	// 6. Freeze work allocation using greedy ESS utility scheduler and 80% plain production floor
+	// 6. Freeze work allocation using greedy ESS utility and a plain-work floor.
 	remainingWork := workLimit - diag.ScoutWork - diag.DiscoveryWork - diag.ValidationWork
 	if remainingWork <= 0 {
 		return nil, diag, false
 	}
 
-	minPlainFraction := 0.80
+	minPlainFraction := 0.975
 	if raw := os.Getenv("RARE_POSITION_ADAPTIVE_MIN_PLAIN_PRODUCTION_FRACTION"); raw != "" {
 		if parsed, err := strconv.ParseFloat(raw, 64); err == nil && parsed >= 0 && parsed <= 1 {
 			minPlainFraction = parsed
@@ -1258,7 +1369,9 @@ func runAdaptivePointStratifiedSearch(
 					q := vr.pCondHit[cell]
 					cellQ[cell] = q
 					scoutOutsideHits := directScoutOutsideHits(cell[0], cell[1], vr.prop.AllowedPoints, scout.TeamScout[cell[0]])
-					cellA[cell] = (float64(scoutOutsideHits) + 0.5) / (float64(scoutSamples) + 1.0)
+					inside := vr.prop.Mass * q
+					cellA[cell] = float64(scoutOutsideHits) / float64(scoutSamples)
+					cellP[cell] = cellA[cell] + inside
 				}
 			}
 		}
@@ -1381,8 +1494,9 @@ func runAdaptivePointStratifiedSearch(
 
 	diag.PlainSamples = plainSamples
 	diag.ProductionWork = int64(plainSamples)*plainCost + totalStratumWork
+	diag.TotalWork = diag.ScoutWork + diag.DiscoveryWork + diag.ValidationWork + diag.ProductionWork
 
-	if diag.ScoutWork+diag.DiscoveryWork+diag.ValidationWork+diag.ProductionWork > workLimit {
+	if diag.TotalWork > workLimit {
 		panic("adaptive stratum work budget exceeded")
 	}
 
@@ -1412,13 +1526,13 @@ func runAdaptivePointStratifiedSearch(
 				continue
 			}
 
-			scoutHits := scout.TeamCounts[cell[0]][cell[1]]
-			pScout := (float64(scoutHits) + 0.5) / (float64(scoutSamples) + 1.0)
 			scoutOutsideHits := directScoutOutsideHits(cell[0], cell[1], ps.prop.AllowedPoints, scout.TeamScout[cell[0]])
-			aScout := (float64(scoutOutsideHits) + 0.5) / (float64(scoutSamples) + 1.0)
 			qVal := vrMatching.pCondHit[cell]
+			inside := m * qVal
+			aScout := float64(scoutOutsideHits) / float64(scoutSamples)
+			pDesign := aScout + inside
 
-			varPlainPred := pScout * (1.0 - pScout) / float64(plainSamples)
+			varPlainPred := pDesign * (1.0 - pDesign) / float64(plainSamples)
 			varHybridPred := aScout*(1.0-aScout)/float64(plainSamples) + m*m*qVal*(1.0-qVal)/float64(nQ)
 
 			if varHybridPred <= varPlainPred {
@@ -1435,6 +1549,7 @@ func runAdaptivePointStratifiedSearch(
 			}
 		}
 		diag.AdmittedStrata = append(diag.AdmittedStrata, AdaptiveStratumAdmitted{
+			ID:             ps.prop.ID,
 			TeamID:         ps.prop.Team,
 			MaxRank:        maxR,
 			Threshold:      0,
