@@ -32,17 +32,17 @@
         var decimal = new Intl.NumberFormat(locale).formatToParts(1.1).filter(function(part) {
           return part.type === "decimal";
         })[0].value;
-        var scientific = number.toExponential(2).split("e");
+        var scientific = number.toExponential(3).split("e");
         var mantissa = scientific[0].replace(/0+$/, "").replace(/\.$/, "").replace(".", decimal);
         return mantissa + "e" + Number(scientific[1]) + "%";
       }
       if (number >= 0.01 && number <= 99.99) {
         var formatter = new Intl.NumberFormat(locale, {
-          maximumSignificantDigits: 3,
+          maximumSignificantDigits: 4,
           useGrouping: false
         });
         var rounded = formatter.format(number);
-        return (rounded === formatter.format(100) ? formatter.format(99.9) : rounded) + "%";
+        return (rounded === formatter.format(100) ? formatter.format(99.99) : rounded) + "%";
       }
       return number.toLocaleString(locale, {
         maximumSignificantDigits: 17,
