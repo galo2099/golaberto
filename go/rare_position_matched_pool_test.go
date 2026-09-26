@@ -46,7 +46,7 @@ func TestMatchedPointPoolParallelBatchesPreserveCounts(t *testing.T) {
 	group, campaign, table, order, _ := createTestGroupForDiversified()
 	const samples = 1003
 	scout := runMatchedPointPoolScoutBatches(campaign, group.Games, table, order,
-		group.Team_groups, samples, 6, rand.New(rand.NewSource(17)), 3)
+		group.Team_groups, samples, 6, rand.New(rand.NewSource(17)), 4)
 	if scout.Samples != samples || len(scout.PointRankBatches) != 10 {
 		t.Fatalf("parallel scout samples=%d batches=%d", scout.Samples, len(scout.PointRankBatches))
 	}

@@ -18,8 +18,8 @@ func matchedPointPoolWorkers(unplayed int) int {
 		return 1
 	}
 	workers := runtime.GOMAXPROCS(0)
-	if workers > 2 {
-		workers = 2
+	if workers > 4 {
+		workers = 4
 	}
 	if raw := os.Getenv("RARE_POSITION_MATCHED_POINT_POOL_WORKERS"); raw != "" {
 		if configured, err := strconv.Atoi(raw); err == nil && configured > 0 {

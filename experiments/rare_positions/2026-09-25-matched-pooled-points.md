@@ -168,8 +168,8 @@ across three measurements of five requests each:
 | Before the first profiling pass | 1.995 s | 1.94× slower |
 | Reused campaigns and games, Poisson CDF, dense full scout | 1.029 s | Baseline |
 | Dense batch counters and dense matrix balancing, one worker | 0.662 s | 36% faster |
-| Same code, two matched-pool workers (default on at least two cores) | 0.447 s | 57% faster |
-| Same code, four matched-pool workers | 0.357 s | 65% faster |
+| Same code, two matched-pool workers | 0.447 s | 57% faster |
+| Same code, four matched-pool workers (default on at least four cores) | 0.355 s | 65% faster |
 
 The CPU profiles led to four changes: reuse per-season campaign and game
 storage; precompute each fixture's Poisson CDF with a small lookup table;
@@ -181,10 +181,10 @@ reduce request latency by using more cores; they do not divide CPU work by
 the worker count.
 
 For groups with at least 20 unfinished fixtures, the matched pool runs its
-ten existing batches independently using up to two workers by default, or
-one worker when only one is available. Set
-`RARE_POSITION_MATCHED_POINT_POOL_WORKERS=1` for serial execution or `=4`
-for lower latency on a machine with spare cores (capped at ten workers).
+ten existing batches independently using up to four workers by default,
+limited by `GOMAXPROCS`. Set
+`RARE_POSITION_MATCHED_POINT_POOL_WORKERS=1` for serial execution or `=2`
+to reduce simultaneous core use (capped at ten workers).
 Smaller groups use one worker. The total remains 100,000 sampled seasons,
 with ten batches for the same jackknife estimator. The independent worker
 streams change seeded results, while the sampled probability model remains
