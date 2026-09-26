@@ -225,16 +225,17 @@ type DiversifiedEstimate struct {
 }
 
 type ScoutData struct {
-	Samples         int
-	Work            int64
-	TeamCounts      map[int][]int
-	TeamProbs       map[int][]float64
-	TeamMeanRanks   map[int]float64
-	MinObservedRank map[int]int
-	MaxObservedRank map[int]int
-	Feasibility     map[[2]int]string // (teamID, pos) -> "observed", "feasible_unseen", "proven_impossible"
-	TeamScout       map[int]*TeamPointRankScout
-	PointGaps       *PointGapScout
+	Samples          int
+	Work             int64
+	TeamCounts       map[int][]int
+	TeamProbs        map[int][]float64
+	TeamMeanRanks    map[int]float64
+	MinObservedRank  map[int]int
+	MaxObservedRank  map[int]int
+	Feasibility      map[[2]int]string // (teamID, pos) -> "observed", "feasible_unseen", "proven_impossible"
+	TeamScout        map[int]*TeamPointRankScout
+	PointRankBatches []map[int]*TeamPointRankScout
+	PointGaps        *PointGapScout
 }
 
 func runPlainMCScout(

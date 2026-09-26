@@ -214,3 +214,17 @@ all five DB-exported groups, and an independent reference seed to test
 position probabilities near `1e-6`. Its method, whole-matrix checks, and
 remaining calibration limits are in
 [`experiments/rare_positions/2026-09-25-matched-pooled-points.md`](../experiments/rare_positions/2026-09-25-matched-pooled-points.md).
+
+The matched point/rank hybrid is available as an opt-in production odds mode:
+
+```sh
+RARE_POSITION_MATCHED_POINT_POOL=1
+```
+
+It uses 100,000 ordinary seasons plus exact points distributions, replaces
+the full position matrix, and falls back to ordinary MC when unsupported or
+when matrix reconciliation fails. It does not need
+`RARE_POSITION_IMPORTANCE_SAMPLING=1`. The pooled estimate's `std_err` captures
+sampling variability only; `meets_precision_goal` remains false because
+donor mismatch can bias an individual rare cell. The implementation and
+holdout results are documented in the matched-pool report above.

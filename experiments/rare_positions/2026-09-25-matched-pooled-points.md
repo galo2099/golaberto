@@ -85,8 +85,7 @@ uncertainty interval.
 This meets the experimental goal **on the five tested fixtures**: at the
 same number of simulated seasons, a pooled point/rank estimator substantially
 reduces measured error for cells near `1e-6`, and the hit-count hybrid also
-reduces whole-matrix error. It is not an official production probability
-source yet. The point model adds analysis work beyond the 100,000 seasons;
+reduces whole-matrix error. The point model adds analysis work beyond the 100,000 seasons;
 the comparison controls simulation count, not wall-clock time. The reference
 at `1e-6` has only a few hits per 5M seasons, so one cell's result remains
 noisy; the 30M team-125 check shows a material remaining bias. The five
@@ -103,4 +102,54 @@ are supported by `RARE_POSITION_REFERENCE_SEED` in the reference builder.
 Raw DB-derived fixtures, scouts, and references remain ignored under
 `experiments/rare_positions/local/2026-09-24/` and
 `local/2026-09-25/`. Their seed and fixture hashes are recorded in the
-reference JSON files. The method is experimental and has no runtime flag yet.
+reference JSON files.
+
+## Production implementation (2026-09-25)
+
+The Go odds service offers the tested hybrid through
+`RARE_POSITION_MATCHED_POINT_POOL=1`. The flag enables rare-position processing
+on its own and takes precedence over the CEM and diversified flags. It runs
+100,000 ordinary seasons in one joint scout, computes each team's exact
+additional-points distribution, applies the ten-hit `matched_3`/`shrink_5`
+rule, and replaces the full `team_odds` position matrix with its reconciled
+result. The original 20,000-season request scout still supplies game-score
+odds and game importance. The response retains the existing JSON shape and
+includes one `rare_position_estimates` entry per team and position with
+`design: "matched_point_pool"`.
+
+Production continues row/column normalization until each sum differs from
+one by at most `1e-6`. The 100 rounds used in offline screening were not
+sufficient for the sparse matrices of three reference groups. The extra
+rounds keep structural zeros from the points feasibility check. If the
+standings are not points-led, a team has more than 39 remaining fixtures,
+the exact points model is unavailable, or reconciliation fails, the request
+uses a 100,000-season ordinary MC estimate and logs the reason. When
+reconciliation fails after the joint scout, its own rank counts supply this
+fallback; unsupported standings draw a separate ordinary-MC batch.
+
+Ten equal batches of the *same* 100,000 seasons provide delete-one-batch
+jackknife `std_err` and `relative_se`. They describe sampling variability
+only. They do not include donor mismatch or model bias; therefore
+`meets_precision_goal` is false for all pooled cells and `ess` is left at
+zero (not applicable). `hits` reports ordinary scout rank hits, while
+`zero_hit_upper_95` is the smaller of the ordinary-MC zero-hit bound and the
+exact points-feasibility bound. A nonzero pooled estimate remains a rough
+order-of-magnitude result, especially for an individual rare cell such as
+team 125 finishing 15th. Do not interpret the jackknife error as a calibrated
+confidence interval.
+
+The production path was scored against the independent 5M-season holdout
+references with the original reference fixing the 43 near-`1e-6` cells.
+Across 20 seeds per group (100 production runs, 860 selected cell/runs), its
+near-band RMSE was `0.722e-6` versus `3.25e-6` for 100k plain MC.
+Whole-matrix RMSE over 40,000 cell/runs was `0.000553` versus `0.000636`.
+All five groups used the pooled path with no fallback. The full benchmark
+took 287 seconds locally, averaging 2.9 seconds for the 100,000-season
+pooled calculation including batch jackknifing; the ordinary initial request
+scout is additional work. The regression test
+`TestMatchedPointPoolReferenceBenchmark` reproduces this check using the
+five saved fixture paths, the original selection-reference directory, the
+independent holdout-reference directory, and
+`RARE_POSITION_BENCHMARK_SEEDS=20`. The feature remains **opt-in** because
+these groups were used to select the method and per-cell bias remains
+uncalibrated.

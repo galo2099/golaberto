@@ -661,6 +661,22 @@ func runPlainMCScoutWithJointPoints(
 	plainWorkPerSample int64,
 	rng *rand.Rand,
 ) ScoutData {
+	return runPlainMCScoutWithJointPointsBatched(baseCampaign, games, table, sortOrder,
+		teamGroups, scoutSamples, plainWorkPerSample, rng, 0, true)
+}
+
+func runPlainMCScoutWithJointPointsBatched(
+	baseCampaign []*TeamCampaign,
+	games []*GameType,
+	table *Table,
+	sortOrder []SortType,
+	teamGroups []TeamType,
+	scoutSamples int,
+	plainWorkPerSample int64,
+	rng *rand.Rand,
+	batchCount int,
+	capturePointGaps bool,
+) ScoutData {
 	if rng == nil {
 		rng = rand.New(rand.NewSource(1))
 	}
@@ -679,11 +695,28 @@ func runPlainMCScoutWithJointPoints(
 			PointCounts:     make(map[int]int),
 		}
 	}
+	var batches []map[int]*TeamPointRankScout
+	if batchCount > 0 && scoutSamples > 0 {
+		if batchCount > scoutSamples {
+			batchCount = scoutSamples
+		}
+		batches = make([]map[int]*TeamPointRankScout, batchCount)
+		for batch := range batches {
+			batches[batch] = make(map[int]*TeamPointRankScout, len(teamGroups))
+			for _, team := range teamGroups {
+				batches[batch][team.Team_id] = &TeamPointRankScout{
+					RankCounts:      make([]int, numPositions),
+					PointRankCounts: make(map[int][]int),
+					PointCounts:     make(map[int]int),
+				}
+			}
+		}
+	}
 
 	simCampaign := make([]*TeamCampaign, len(baseCampaign))
 	teamSlice := make([]*TeamCampaign, len(teamGroups))
 	var pointGaps *PointGapScout
-	if os.Getenv("RARE_POSITION_POINT_GAP") == "1" && len(sortOrder) > 0 && sortOrder[0] == PT {
+	if capturePointGaps && os.Getenv("RARE_POSITION_POINT_GAP") == "1" && len(sortOrder) > 0 && sortOrder[0] == PT {
 		bounds := buildPointRankBounds(baseCampaign, teamGroups, games, table)
 		minPoints, maxPoints := math.MaxInt, math.MinInt
 		for _, team := range teamGroups {
@@ -700,6 +733,10 @@ func runPlainMCScoutWithJointPoints(
 	}
 
 	for s := 0; s < scoutSamples; s++ {
+		batchIndex := 0
+		if len(batches) > 0 {
+			batchIndex = s * len(batches) / scoutSamples
+		}
 		for i, c := range baseCampaign {
 			if c != nil {
 				simCampaign[i] = c.clone()
@@ -749,20 +786,31 @@ func runPlainMCScoutWithJointPoints(
 			}
 			ts.PointRankCounts[added][rank]++
 			ts.PointCounts[added]++
+			if len(batches) > 0 {
+				bs := batches[batchIndex][teamID]
+				bs.Samples++
+				bs.RankCounts[rank]++
+				if bs.PointRankCounts[added] == nil {
+					bs.PointRankCounts[added] = make([]int, numPositions)
+				}
+				bs.PointRankCounts[added][rank]++
+				bs.PointCounts[added]++
+			}
 		}
 	}
 
 	data := ScoutData{
-		Samples:         scoutSamples,
-		Work:            int64(scoutSamples) * plainWorkPerSample,
-		TeamCounts:      counts,
-		TeamProbs:       make(map[int][]float64, len(teamGroups)),
-		TeamMeanRanks:   make(map[int]float64, len(teamGroups)),
-		MinObservedRank: make(map[int]int, len(teamGroups)),
-		MaxObservedRank: make(map[int]int, len(teamGroups)),
-		Feasibility:     make(map[[2]int]string),
-		TeamScout:       teamScoutMap,
-		PointGaps:       pointGaps,
+		Samples:          scoutSamples,
+		Work:             int64(scoutSamples) * plainWorkPerSample,
+		TeamCounts:       counts,
+		TeamProbs:        make(map[int][]float64, len(teamGroups)),
+		TeamMeanRanks:    make(map[int]float64, len(teamGroups)),
+		MinObservedRank:  make(map[int]int, len(teamGroups)),
+		MaxObservedRank:  make(map[int]int, len(teamGroups)),
+		Feasibility:      make(map[[2]int]string),
+		TeamScout:        teamScoutMap,
+		PointRankBatches: batches,
+		PointGaps:        pointGaps,
 	}
 
 	for _, team := range teamGroups {

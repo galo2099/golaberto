@@ -36,6 +36,7 @@ func logRarePositionRequestEnvironment() {
 		"RARE_POSITION_RANDOM_SEED",
 		"RARE_POSITION_BENCHMARK_ITERATIONS",
 		"RARE_POSITION_IMPORTANCE_SAMPLING",
+		"RARE_POSITION_MATCHED_POINT_POOL",
 		"RARE_POSITION_DIVERSIFIED_IS",
 		"RARE_POSITION_CEM_RACING_MODE",
 		"RARE_POSITION_CEM_PARAMETERIZATION",
@@ -420,7 +421,7 @@ type SearchResult struct {
 }
 
 func rarePositionSamplingEnabled() bool {
-	return os.Getenv("RARE_POSITION_IMPORTANCE_SAMPLING") == "1"
+	return os.Getenv("RARE_POSITION_IMPORTANCE_SAMPLING") == "1" || matchedPointPoolEnabled()
 }
 
 func estimateSeasonWork(unplayedGames int, componentCount int, teamCount int) int64 {
@@ -1534,6 +1535,19 @@ func searchAndMergeRarePositions(
 ) map[int]map[int]ProductionEstimate {
 	estimates := runRarePositionSearchEvaluationProduction(group, campaign, table, sortOrder,
 		normalPositionCounts, teamOdds, normalSamples)
+	if matchedPointPoolEnabled() {
+		for _, tg := range group.Team_groups {
+			if cells := estimates[tg.Team_id]; len(cells) == len(group.Team_groups) {
+				odds := teamOdds[table.Query(uint32(tg.Team_id))].team
+				for pos, est := range cells {
+					if pos < len(odds.Pos) && est.Available {
+						odds.Pos[pos] = est.Probability
+					}
+				}
+			}
+		}
+		return estimates
+	}
 	for _, tg := range group.Team_groups {
 		teamID := tg.Team_id
 		if teamEstimates := estimates[teamID]; len(teamEstimates) > 0 {
@@ -1670,6 +1684,9 @@ func runRarePositionSearchEvaluationProduction(group *GroupType, campaign []*Tea
 	table *Table, sortOrder []SortType, normalPositionCounts map[int][]int,
 	teamOdds []OddsType, normalSamples int) map[int]map[int]ProductionEstimate {
 	seed, seedSource := rarePositionSeed()
+	if matchedPointPoolEnabled() {
+		return runMatchedPointPoolProduction(group, campaign, table, sortOrder, seed)
+	}
 	if diversifiedIsEnabled() {
 		unplayedGames := 0
 		for _, game := range group.Games {
