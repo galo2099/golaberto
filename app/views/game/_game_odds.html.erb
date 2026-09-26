@@ -1,4 +1,5 @@
 <%= javascript_include_flot %>
+<% initial_game_odds = @game.odds unless @game.played? %>
 <script type="text/javascript">
 function poisson(k, lambda) {
     var exponential = 2.718281828;
@@ -123,17 +124,18 @@ $(function() {
   var homeTeamName = "<%= j(@game.home.name).html_safe %>";
   var awayTeamName = "<%= j(@game.away.name).html_safe %>";
   var drawLabel = "<%= j(_("Draw")).html_safe %>";
+  var initialOddsPercentages = <%== (initial_game_odds ? initial_game_odds.map { |odd| 100 * odd } : [nil, nil, nil]).to_json %>;
   var initialOddsLabels = [
-    homeTeamName + "<% if not @game.played %>: <%= number_to_percentage(100*@game.odds[0], :precision => 2) %> <% end %>",
-    drawLabel + "<% if not @game.played %>: <%= number_to_percentage(100*@game.odds[1], :precision => 2) %><% end %>",
-    awayTeamName + "<% if not @game.played %>: <%= number_to_percentage(100*@game.odds[2], :precision => 2) %><% end %>"
+    homeTeamName + "<% if initial_game_odds %>: <%= formatted_odds(100*initial_game_odds[0]) %> <% end %>",
+    drawLabel + "<% if initial_game_odds %>: <%= formatted_odds(100*initial_game_odds[1]) %><% end %>",
+    awayTeamName + "<% if initial_game_odds %>: <%= formatted_odds(100*initial_game_odds[2]) %><% end %>"
   ];
 
   var buildOddsSeries = function(odds_data) {
     return [
-      {data: odds_data.map(function(x) { return [ x[0], x[1] ]; }), label: initialOddsLabels[0], originalIndex: 0, color: graphOptions.colors[0]},
-      {data: odds_data.map(function(x) { return [ x[0], x[2] ]; }), label: initialOddsLabels[1], originalIndex: 1, color: graphOptions.colors[1]},
-      {data: odds_data.map(function(x) { return [ x[0], x[3] ]; }), label: initialOddsLabels[2], originalIndex: 2, color: graphOptions.colors[2]},
+      {data: odds_data.map(function(x) { return [ x[0], x[1] ]; }), label: initialOddsLabels[0], rawOdds: initialOddsPercentages[0], originalIndex: 0, color: graphOptions.colors[0]},
+      {data: odds_data.map(function(x) { return [ x[0], x[2] ]; }), label: initialOddsLabels[1], rawOdds: initialOddsPercentages[1], originalIndex: 1, color: graphOptions.colors[1]},
+      {data: odds_data.map(function(x) { return [ x[0], x[3] ]; }), label: initialOddsLabels[2], rawOdds: initialOddsPercentages[2], originalIndex: 2, color: graphOptions.colors[2]},
     ];
   };
 
@@ -151,6 +153,9 @@ $(function() {
     fullOddsData.forEach(function(series, index) {
       var item = $("<div class='odds-live-legend-item'></div>");
       item.attr("data-series-index", series.originalIndex);
+      if (series.rawOdds != null) {
+        item.attr("title", GolabertoOdds.title(series.rawOdds, "<%= I18n.locale %>"));
+      }
       item.append($("<span class='odds-live-legend-swatch'></span>").css({ color: series.color || graphOptions.colors[index] || "#999999" }).text("▣"));
       item.append(" ");
       item.append($("<span class='odds-live-legend-label'></span>").text(series.label || ""));
@@ -295,10 +300,16 @@ $(function() {
           if (indexToRemove == -1) {
             indexToRemove = cur.label.length;
           }
-          return acc + div + "<td>" + cur.label.substr(0, indexToRemove) + "</td><td style='text-align: right'>" + (cur.point[1] * 100).toLocaleString("<%= I18n.locale %>",  { minimumFractionDigits: 2, maximumFractionDigits: 2, }) + "%" + "</td></tr>";
+          var value = cur.point[1] * 100;
+          return acc + div + "<td>" + cur.label.substr(0, indexToRemove) + "</td><td style='text-align: right' title='" + GolabertoOdds.title(value, "<%= I18n.locale %>") + "'>" + GolabertoOdds.html(value, "<%= I18n.locale %>") + "</td></tr>";
         }, "") +
         "<tr><td colspan=3 style='text-align: center'>" + points[0].point[0] + "</tr>"
-     ).css({top: pos.pageY + 10, left: pos.pageX + 10}).fadeIn(200);
+     ).attr("title", points.map(function(point) {
+       return GolabertoOdds.title(point.point[1] * 100, "<%= I18n.locale %>");
+     }).join(" / ")).css({top: pos.pageY + 10, left: pos.pageX + 10}).fadeIn(200);
+     graphDiv.attr("title", points.map(function(point) {
+       return GolabertoOdds.title(point.point[1] * 100, "<%= I18n.locale %>");
+     }).join(" / "));
     };
 
     graphDiv.off("plothover");
@@ -310,6 +321,7 @@ $(function() {
       if (pos.x < axes.xaxis.min || pos.x > axes.xaxis.max ||
         pos.y < axes.yaxis.min || pos.y > axes.yaxis.max) {
         $("#tooltip").hide();
+        graphDiv.removeAttr("title");
         plot.draw();
         return;
       }
@@ -364,9 +376,12 @@ $(function() {
         var odds = compute_odds(hp, ap, home_adv, away_adv);
         $('#odds_current_time').text(("" + Math.floor(current_time / 60)).padStart(2, '0') + ":" + ("" + (current_time % 60)).padStart(2, '0'));
         plot.getOptions().grid.markings[1] = { xaxis: { from: current_time / 60, to: current_time/60 }, color: "rgba(0,0,0,0.15)" };
-        fullOddsData[0].label = homeTeamName + ": " + (odds[0] * 100).toLocaleString("<%= I18n.locale %>",  { minimumFractionDigits: 2, maximumFractionDigits: 2, }) + "%";
-        fullOddsData[1].label = drawLabel + ": " + (odds[1] * 100).toLocaleString("<%= I18n.locale %>",  { minimumFractionDigits: 2, maximumFractionDigits: 2, }) + "%";
-        fullOddsData[2].label = awayTeamName + ": " + (odds[2] * 100).toLocaleString("<%= I18n.locale %>",  { minimumFractionDigits: 2, maximumFractionDigits: 2, }) + "%";
+        fullOddsData[0].rawOdds = odds[0] * 100;
+        fullOddsData[1].rawOdds = odds[1] * 100;
+        fullOddsData[2].rawOdds = odds[2] * 100;
+        fullOddsData[0].label = homeTeamName + ": " + GolabertoOdds.format(fullOddsData[0].rawOdds, "<%= I18n.locale %>");
+        fullOddsData[1].label = drawLabel + ": " + GolabertoOdds.format(fullOddsData[1].rawOdds, "<%= I18n.locale %>");
+        fullOddsData[2].label = awayTeamName + ": " + GolabertoOdds.format(fullOddsData[2].rawOdds, "<%= I18n.locale %>");
         plot.setupGrid();
         plot.draw();
         renderOddsLegend();

@@ -64,11 +64,11 @@ away_importance = calculate_importance(@game.away_importance.to_f)
   <% if !@game.played? && odds then %>
     <tr><td colspan="100"><b><%= _("Odds") %></td></tr>
     <tr>
-    <td align="center"><%= number_to_percentage(100*odds[0], :precision => 2) %></td>
+    <%= content_tag :td, formatted_odds(100*odds[0]), align: "center", title: odds_title(100*odds[0]) %>
     <td colspan="3"/>
-    <td align="center"><%= number_to_percentage(100*odds[1], :precision => 2) %></td>
+    <%= content_tag :td, formatted_odds(100*odds[1]), align: "center", title: odds_title(100*odds[1]) %>
     <td colspan="3"/>
-    <td align="center"><%= number_to_percentage(100*odds[2], :precision => 2) %></td>
+    <%= content_tag :td, formatted_odds(100*odds[2]), align: "center", title: odds_title(100*odds[2]) %>
     </tr>
   <% end %>
   <% if !@game.played? and (@game.home_importance != nil or @game.away_importance != nil) then %>

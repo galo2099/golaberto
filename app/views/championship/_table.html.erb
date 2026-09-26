@@ -92,11 +92,6 @@
         }
         </style>
         <script type="text/javascript">
-          var oddsNumberFormatter_<%= group.id %> = new Intl.NumberFormat("<%= I18n.locale %>", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-          });
-
           $.widget("custom.iconselectmenu", $.ui.selectmenu, {
 						_create: function() {
 							this._super();
@@ -168,8 +163,10 @@
 
                 if (value == null) {
                   cell.text("");
+                  cell.removeAttr("title");
                 } else {
-                  cell.text(oddsNumberFormatter_<%= group.id %>.format(Number(value)));
+                  cell.text(GolabertoOdds.format(value, "<%= I18n.locale %>"));
+                  cell.attr("title", GolabertoOdds.title(value, "<%= I18n.locale %>"));
                 }
                 var bgColor = ui.item.element.attr("data-cell-color") || ui.item.element.attr("data-color") || "lightgray";
                 cell.css("background-color", bgColor);
@@ -301,9 +298,10 @@
                           end %>
            <% first_color = first_zone.is_a?(Hash) ? first_zone["color"] : "lightgray" %>
            <%= content_tag :td,
-                           first_odds.nil? ? "" : number_to_rounded(first_odds, precision: 2),
+                           formatted_odds(first_odds),
                            "data-group-id": group.id,
                            "data-odds-array": (t[0].odds || []).to_json,
+                           title: odds_title(first_odds),
                            class: "odds odds-value",
                            style: "background-color: #{first_color}; color: #{first_color == "black" ? "white" : "inherit"}" %>
          <% end %>

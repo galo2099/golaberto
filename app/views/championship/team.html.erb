@@ -143,12 +143,15 @@ $(function() {
     if (x > 0 && x <= <%= @groups[0].team_groups.size %> &&
         pos.y > 0 && pos.y < 100) {
       var names = <%== (1..@groups[0].team_groups.size).map{|i|i.ordinalize}.to_json %>;
-      var value = plot.getData()[0].data[x-1][1].toLocaleString("<%= I18n.locale %>",  { minimumFractionDigits: 2, maximumFractionDigits: 2, })
-      $("#odds_tooltip").html(names[x-1] + ": " + value + "%")
+      var value = plot.getData()[0].data[x-1][1];
+      $("#odds_tooltip").text(names[x-1] + ": " + GolabertoOdds.format(value, "<%= I18n.locale %>"))
+        .attr("title", GolabertoOdds.title(value, "<%= I18n.locale %>"))
         .css({top: pos.pageY+5, left: pos.pageX+5})
         .fadeIn(200);
+      graphDiv.attr("title", GolabertoOdds.title(value, "<%= I18n.locale %>"));
     } else {
       $("#odds_tooltip").hide();
+      graphDiv.removeAttr("title");
     }
   });
 
@@ -184,10 +187,12 @@ $(function() {
     }
     var fromIndex = Math.round(ranges.xaxis.from) - 1;
     var toIndex = Math.round(ranges.xaxis.to) - 1;
-    var value = plot.getData()[0].data.slice(fromIndex, toIndex).reduce((a, b) => a + b[1], 0).toLocaleString("<%= I18n.locale %>", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    var value = plot.getData()[0].data.slice(fromIndex, toIndex).reduce((a, b) => a + b[1], 0);
     var posFrom = plot.pointOffset({x: ranges.xaxis.from, y: ranges.yaxis.to});
     var posTo = plot.pointOffset({x: ranges.xaxis.to, y: ranges.yaxis.to});
-    var odds_selection = $("#odds_selection").html("<%= _("Selected:") %> " + value + "%");
+    var odds_selection = $("#odds_selection")
+      .text("<%= _("Selected:") %> " + GolabertoOdds.format(value, "<%= I18n.locale %>"))
+      .attr("title", GolabertoOdds.title(value, "<%= I18n.locale %>"));
     odds_selection.css({top: posFrom.top+5, left: (posFrom.left+posTo.left)/2 - odds_selection.width()/2})
       .fadeIn(200);
   });
@@ -207,7 +212,8 @@ $(function() {
   <% @groups[0].zones.each do |z| %>
     <tr class="odds-graph-legend-item" data-zone-name="<%= ERB::Util.html_escape(z['name']) %>" data-group-id="<%= @groups[0].id %>">
       <td><span style="color: <%= z["color"]%>">▣</span> <%= z["name"] %>:</td>
-      <td><%= number_to_percentage(@groups[0].team_groups.select{|t|t.team_id == @team.id}.first.calculate_odds(z["position"]).to_f, precision: 2) %></td>
+      <% zone_odds = @groups[0].team_groups.select{|t|t.team_id == @team.id}.first.calculate_odds(z["position"]) %>
+      <%= content_tag :td, formatted_odds(zone_odds), title: odds_title(zone_odds) %>
     </tr>
   <% end %>
 </table>
@@ -739,27 +745,31 @@ $(document).ready(function() {
       oddsHistoryPlaceholder.bind("plothover", function(event, pos, item) {
         if (!item) {
           oddsHistoryTooltip.hide();
+          oddsHistoryPlaceholder.removeAttr("title");
           return;
         }
 
         var series = oddsHistoryPlot.getData()[item.seriesIndex];
         var pointMeta = (series.point_meta || [])[item.dataIndex] || {};
         var seriesPoint = (series.data || [])[item.dataIndex] || [null, 0];
-        var oddValue = seriesPoint[1].toLocaleString("<%= I18n.locale %>", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        var oddValue = GolabertoOdds.html(seriesPoint[1], oddsHistoryLocale);
 
         var zoneOddsLines = (pointMeta.zone_odds || []).map(function(zoneOdd) {
           var zoneColor = zoneOdd.color || "#999999";
-          var zoneValue = (zoneOdd.value || 0).toLocaleString("<%= I18n.locale %>", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-          return "<span style=\"color:" + zoneColor + "\">▣</span> " + (zoneOdd.name || "") + ": " + zoneValue + "%";
+          var zoneValue = GolabertoOdds.html(zoneOdd.value || 0, oddsHistoryLocale);
+          var exactZoneValue = GolabertoOdds.title(zoneOdd.value || 0, oddsHistoryLocale);
+          return "<span style=\"color:" + zoneColor + "\">▣</span> " + (zoneOdd.name || "") + ": <span title=\"" + exactZoneValue + "\">" + zoneValue + "</span>";
         });
 
         oddsHistoryTooltip.html(
           (series.label || "") + "<br>" +
           (formatOddsHistoryDate(pointMeta.recorded_on, fullDateFormatter, true) || "-") + "<br>" +
-          oddValue + "%<br>" +
+          oddValue + "<br>" +
           (pointMeta.game_label || "-") +
           (zoneOddsLines.length > 0 ? "<br>" + zoneOddsLines.join("<br>") : "")
-        ).css({ top: pos.pageY + 5, left: pos.pageX + 5 }).fadeIn(200);
+        ).attr("title", GolabertoOdds.title(seriesPoint[1], oddsHistoryLocale))
+          .css({ top: pos.pageY + 5, left: pos.pageX + 5 }).fadeIn(200);
+        oddsHistoryPlaceholder.attr("title", GolabertoOdds.title(seriesPoint[1], oddsHistoryLocale));
       });
     } else {
       $("#odds-history-wrapper-<%=idx%>").hide();

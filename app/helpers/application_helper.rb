@@ -1,6 +1,7 @@
 # Methods added to this helper will be available to all templates in the application.
 module ApplicationHelper
   include Pagy::Frontend
+  include OddsFormattingHelper
 
   def game_date(game)
     if game.has_time then game.date.in_time_zone(cookie_timezone) else game.date end

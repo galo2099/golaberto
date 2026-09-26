@@ -176,6 +176,7 @@ body {
 span.game_odds {
   font-size: small;
   vertical-align: bottom;
+  white-space: nowrap;
 }
 .class_table .odds
 {
@@ -432,6 +433,18 @@ DIV.table_cell {
 .away_score {
   width: 4%;
   text-align: left;
+}
+.with_game_odds .home_team,
+.with_game_odds .away_team {
+  width: 34%;
+}
+.with_game_odds .home_score,
+.with_game_odds .game_x,
+.with_game_odds .away_score {
+  width: 8%;
+}
+.with_game_odds .game_odds {
+  font-size: 11px;
 }
 .away_team {
   width: 39.5%;
