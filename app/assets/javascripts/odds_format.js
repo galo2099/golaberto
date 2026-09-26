@@ -28,6 +28,13 @@
     title: function(value, locale) {
       var number = validNumber(value);
       if (number === null) return "";
+      if (number > 0 && number < 0.01) {
+        var decimal = new Intl.NumberFormat(locale).formatToParts(1.1).filter(function(part) {
+          return part.type === "decimal";
+        })[0].value;
+        return number.toExponential().replace(".", decimal)
+          .replace(/e([+-])0+(\d+)/, "e$1$2").replace("e+", "e") + "%";
+      }
       return number.toLocaleString(locale, {
         maximumSignificantDigits: 17,
         useGrouping: false
