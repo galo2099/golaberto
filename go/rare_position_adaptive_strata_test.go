@@ -47,6 +47,75 @@ func TestAdaptiveScoutUsesSingleSimulationPass(t *testing.T) {
 	}
 }
 
+func TestPointGapScoutUsesWholeTableAtNearbyTotals(t *testing.T) {
+	gap := newPointGapScout(25, 40, 4)
+	gap.addTable([]*TeamCampaign{
+		{id: 1, points: 35},
+		{id: 2, points: 32},
+		{id: 3, points: 32},
+		{id: 4, points: 29},
+	})
+	if gap.PointRankCounts[33][1] != 3 || gap.PointRankCounts[33][2] != 0 {
+		t.Fatalf("three teams would rank 1 if moved to the empty 33-point slot: %v", gap.PointRankCounts[33])
+	}
+	if gap.PointRankCounts[31][2] != 3 || gap.PointRankCounts[31][1] != 0 {
+		t.Fatalf("three teams would rank 2 if moved to the empty 31-point slot: %v", gap.PointRankCounts[31])
+	}
+	if gap.PointRankCounts[32][1] != 1 || gap.PointRankCounts[32][2] != 1 {
+		t.Fatalf("observed tie ranks must both be retained: %v", gap.PointRankCounts[32])
+	}
+	if gap.PointCounts[32] != 4 || gap.PointCounts[33] != 4 || gap.PointCounts[35] != 4 {
+		t.Fatal("each point total must consider every team, including ones whose rank changes")
+	}
+	pmf := map[int]float64{0: 0.4, 1: 0.6}
+	estimate, support := pointGapEstimate(pmf, 32, 1, gap)
+	if math.Abs(estimate-0.55) > 1e-12 || math.Abs(support-1) > 1e-12 {
+		t.Fatalf("gap weighted estimate = %.6g, support = %.6g; want 0.55 and 1", estimate, support)
+	}
+}
+
+func TestPointGapScoutProducesNormalizedRankCurve(t *testing.T) {
+	t.Setenv("RARE_POSITION_POINT_GAP", "1")
+	group, campaign, table, order, _ := createTestGroupForDiversified()
+	scout := runPlainMCScoutWithJointPoints(campaign, group.Games, table, order, group.Team_groups, 100,
+		estimateSeasonWork(len(group.Games), 1, len(group.Team_groups)), nil)
+	gap := scout.PointGaps
+	if gap == nil || gap.Work <= 0 {
+		t.Fatal("opt-in point-gap scout was not recorded and charged")
+	}
+	for points := gap.MinPoints; points <= gap.MaxPoints; points++ {
+		want := 100 * len(group.Team_groups)
+		if gap.PointCounts[points] != want {
+			t.Fatalf("point total %d has %d placements, want %d", points, gap.PointCounts[points], want)
+		}
+		rankTotal := 0
+		for _, count := range gap.PointRankCounts[points] {
+			rankTotal += count
+		}
+		if rankTotal != want {
+			t.Fatalf("point total %d has %d ranked placements, want %d", points, rankTotal, want)
+		}
+	}
+	team := group.Team_groups[0].Team_id
+	universe, ok := pointOutcomeUniverse(team, campaign, table, group.Games, 39)
+	if !ok {
+		t.Fatal("point outcome universe unavailable")
+	}
+	pmf := additionalPointsPMF(universe)
+	current := campaign[table.Query(uint32(team))].points
+	total := 0.0
+	for rank := range group.Team_groups {
+		estimate, support := pointGapSmoothedEstimate(pmf, current, rank, gap, 0)
+		if math.Abs(support-1) > 1e-10 {
+			t.Fatalf("rank %d has incomplete points support %.12g", rank, support)
+		}
+		total += estimate
+	}
+	if math.Abs(total-1) > 1e-10 {
+		t.Fatalf("point-gap rank curve sums to %.12g, want 1", total)
+	}
+}
+
 func TestAdditionalPointsPMFSumsToOne(t *testing.T) {
 	table := NewTable([]uint32{1, 2})
 	games := []*GameType{

@@ -205,6 +205,8 @@ type AdaptiveCellAnalysis struct {
 	PossiblePointTotals []int   `json:"possible_point_totals"`
 	HardUpperBound      float64 `json:"hard_upper_bound"`
 	PriorityEstimate    float64 `json:"priority_estimate"`
+	PointGapEstimate    float64 `json:"point_gap_estimate"`
+	PointGapSupport     float64 `json:"point_gap_support"`
 	Decision            string  `json:"decision"`
 }
 
@@ -680,6 +682,22 @@ func runPlainMCScoutWithJointPoints(
 
 	simCampaign := make([]*TeamCampaign, len(baseCampaign))
 	teamSlice := make([]*TeamCampaign, len(teamGroups))
+	var pointGaps *PointGapScout
+	if os.Getenv("RARE_POSITION_POINT_GAP") == "1" && len(sortOrder) > 0 && sortOrder[0] == PT {
+		bounds := buildPointRankBounds(baseCampaign, teamGroups, games, table)
+		minPoints, maxPoints := math.MaxInt, math.MinInt
+		for _, team := range teamGroups {
+			if minimum, ok := bounds.minimum[team.Team_id]; ok && minimum < minPoints {
+				minPoints = minimum
+			}
+			if maximum, ok := bounds.maximum[team.Team_id]; ok && maximum > maxPoints {
+				maxPoints = maximum
+			}
+		}
+		if minPoints <= maxPoints {
+			pointGaps = newPointGapScout(minPoints, maxPoints, numPositions)
+		}
+	}
 
 	for s := 0; s < scoutSamples; s++ {
 		for i, c := range baseCampaign {
@@ -714,6 +732,9 @@ func runPlainMCScoutWithJointPoints(
 			}
 		}
 		sort.Sort(TeamCampaignSorted{t: teamSlice[:idx], sort: sortOrder, rng: rng})
+		if pointGaps != nil {
+			pointGaps.addTable(teamSlice[:idx])
+		}
 
 		for rank, c := range teamSlice[:idx] {
 			teamID := c.id
@@ -741,6 +762,7 @@ func runPlainMCScoutWithJointPoints(
 		MaxObservedRank: make(map[int]int, len(teamGroups)),
 		Feasibility:     make(map[[2]int]string),
 		TeamScout:       teamScoutMap,
+		PointGaps:       pointGaps,
 	}
 
 	for _, team := range teamGroups {
@@ -893,10 +915,12 @@ func directScoutOutsideHits(teamID int, rank int, allowedPoints []int, scout *Te
 
 func buildAdaptivePointProposalsForTeam(
 	teamID int,
+	currentPoints int,
 	targetCells [][2]int,
 	universe *PointStratumUniverse,
 	pmf map[int]float64,
 	scout *TeamPointRankScout,
+	pointGaps *PointGapScout,
 	numPositions int,
 	cellAnalysis map[[2]int]AdaptiveCellAnalysis,
 ) []AdaptivePointProposal {
@@ -949,6 +973,12 @@ func buildAdaptivePointProposalsForTeam(
 		for _, cell := range targetCells {
 			r := cell[1]
 			pCond := proposalConditionalRankScore(g.ConditionalRankProfile, r)
+			if os.Getenv("RARE_POSITION_POINT_GAP_USE_PRIORITY") == "1" && pointGaps != nil {
+				gapCond, supportedMass := pointGapConditionalEstimate(pmf, g.AllowedPoints, currentPoints, r, pointGaps)
+				if supportedMass >= 0.95*g.Mass {
+					pCond = 0.5*pCond + 0.5*gapCond
+				}
+			}
 			if pCond <= 0 {
 				continue
 			}
@@ -1117,6 +1147,9 @@ func runAdaptivePointStratifiedSearch(
 	// Charge the points DP and repeated rank-bound scans as design work.
 	// A work unit follows estimateSeasonWork's game/team operation convention.
 	diag.DiscoveryWork = 0
+	if scout.PointGaps != nil {
+		diag.DiscoveryWork += scout.PointGaps.Work
+	}
 
 	for _, team := range group.Team_groups {
 		teamID := team.Team_id
@@ -1128,6 +1161,7 @@ func runAdaptivePointStratifiedSearch(
 		pmf := additionalPointsPMF(universe)
 		diag.DiscoveryWork += int64(len(universe.GameIndices)*len(pmf)*3 + numTeams*len(pmf)*numTeams)
 		teamScout := scout.TeamScout[teamID]
+		currentPoints := rankBounds.current[teamID]
 
 		unresolvedTargetCells := make([][2]int, 0, numTeams)
 
@@ -1138,6 +1172,12 @@ func runAdaptivePointStratifiedSearch(
 			scoutHits := scout.TeamCounts[teamID][pos]
 			scoutProb := float64(scoutHits) / float64(scoutSamples)
 			priorityEst := computePriorityEstimate(teamID, pos, pmf, teamScout, numTeams)
+			gapEst, gapSupport := pointGapSmoothedEstimate(pmf, currentPoints, pos, scout.PointGaps, 0)
+			if provenImp {
+				gapEst = 0
+			} else if gapEst > hardUB {
+				gapEst = hardUB
+			}
 
 			decision := "under_resolved_candidate"
 			if provenImp {
@@ -1159,6 +1199,8 @@ func runAdaptivePointStratifiedSearch(
 				PossiblePointTotals: possibleTotals,
 				HardUpperBound:      hardUB,
 				PriorityEstimate:    priorityEst,
+				PointGapEstimate:    gapEst,
+				PointGapSupport:     gapSupport,
 				Decision:            decision,
 			}
 			diag.CellAnalysis[cell] = analysis
@@ -1175,7 +1217,7 @@ func runAdaptivePointStratifiedSearch(
 		}
 
 		if len(unresolvedTargetCells) > 0 {
-			teamProps := buildAdaptivePointProposalsForTeam(teamID, unresolvedTargetCells, universe, pmf, teamScout, numTeams, diag.CellAnalysis)
+			teamProps := buildAdaptivePointProposalsForTeam(teamID, currentPoints, unresolvedTargetCells, universe, pmf, teamScout, scout.PointGaps, numTeams, diag.CellAnalysis)
 			candidateProposals = append(candidateProposals, teamProps...)
 		}
 	}

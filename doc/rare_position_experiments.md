@@ -204,3 +204,7 @@ limitations, and reproduction settings are in
 The adaptive points-stratum code review and 20-seed confirmation across five
 real groups are recorded in
 [`experiments/rare_positions/2026-09-25-adaptive-points-review.md`](../experiments/rare_positions/2026-09-25-adaptive-points-review.md).
+
+The pooled points/rank scout and standings-gap experiment, including its
+opt-in settings, calibration limits, and matched-work checks, are recorded in
+[`experiments/rare_positions/2026-09-25-point-gap-pooling.md`](../experiments/rare_positions/2026-09-25-point-gap-pooling.md).
