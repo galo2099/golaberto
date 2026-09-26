@@ -2,8 +2,55 @@ package main
 
 import (
 	"math"
+	"math/rand"
+	"reflect"
 	"testing"
 )
+
+func TestPoissonScoreSamplerMatchesPoissonProbabilities(t *testing.T) {
+	const samples = 200000
+	for _, mean := range []float64{0.2, 1.5, 4.0, 32.0} {
+		sampler := newPoissonScoreSampler(mean)
+		rng := rand.New(rand.NewSource(int64(mean * 1000)))
+		counts := make([]int, 128)
+		for i := 0; i < samples; i++ {
+			score := sampler.sample(rng)
+			if score >= len(counts) {
+				t.Fatalf("mean %.1f produced unexpected score %d", mean, score)
+			}
+			counts[score]++
+		}
+
+		probability := math.Exp(-mean)
+		for score := range counts {
+			observed := float64(counts[score]) / samples
+			tolerance := 6*math.Sqrt(probability*(1-probability)/samples) + 0.0002
+			if math.Abs(observed-probability) > tolerance {
+				t.Errorf("mean %.1f, score %d: observed %.5f, Poisson probability %.5f (tolerance %.5f)",
+					mean, score, observed, probability, tolerance)
+			}
+			probability *= mean / float64(score+1)
+		}
+	}
+}
+
+func TestAddSimulatedGameMatchesCampaignUpdates(t *testing.T) {
+	for _, scores := range [][2]int{{2, 0}, {1, 1}, {0, 2}} {
+		game := &GameType{HomeId: 1, AwayId: 2, HomeScore: scores[0], AwayScore: scores[1]}
+		home := &TeamCampaign{id: 1, points: 5, wins: 2, goals_for: 7, goals_against: 4,
+			points_win: 3, points_draw: 1, points_loss: 0, uses_head: true}
+		away := &TeamCampaign{id: 2, points: 8, draws: 1, goals_for: 11, goals_against: 6,
+			goals_away: 3, points_win: 3, points_draw: 1, points_loss: 0, uses_head: true}
+		previousHome, previousAway := home.clone(), away.clone()
+		jointHome, jointAway := home.clone(), away.clone()
+		previousHome.add_game(game)
+		previousAway.add_game(game)
+		addSimulatedGame(jointHome, jointAway, game)
+		if !reflect.DeepEqual(jointHome, previousHome) || !reflect.DeepEqual(jointAway, previousAway) {
+			t.Fatalf("scores %v: joint update changed campaign results", scores)
+		}
+	}
+}
 
 func TestAdaptiveScoutUsesSingleSimulationPass(t *testing.T) {
 	group, campaign, table, sortOrder, _ := createTestGroupForDiversified()

@@ -153,3 +153,44 @@ independent holdout-reference directory, and
 `RARE_POSITION_BENCHMARK_SEEDS=20`. The feature remains **opt-in** because
 these groups were used to select the method and per-cell bias remains
 uncalibrated.
+
+## Runtime optimization (2026-09-26)
+
+I profiled the complete odds request for group 16653 (20 teams, 90 unplayed
+fixtures) on an Apple M2 Pro with Go 1.26. The benchmark keeps the production
+20,000-season request scout and 100,000-season matched pool, uses random seed
+808, and runs five requests per measurement. The request JSON was captured
+from the local database. Times below are median wall time per complete request
+across three measurements of five requests each:
+
+| Implementation | Time/request | Relative to 1.03 s baseline |
+| --- | ---: | ---: |
+| Before the first profiling pass | 1.995 s | 1.94× slower |
+| Reused campaigns and games, Poisson CDF, dense full scout | 1.029 s | Baseline |
+| Dense batch counters and dense matrix balancing, one worker | 0.662 s | 36% faster |
+| Same code, two matched-pool workers (default on at least two cores) | 0.447 s | 57% faster |
+| Same code, four matched-pool workers | 0.357 s | 65% faster |
+
+The CPU profiles led to four changes: reuse per-season campaign and game
+storage; precompute each fixture's Poisson CDF with a small lookup table;
+record the full scout and its ten jackknife batches in dense arrays before
+converting them to response maps; and balance each probability matrix in a
+dense array. Updating both teams' standings together also reduced work per
+fixture. The one-worker timing reflects CPU improvements. Multiple workers
+reduce request latency by using more cores; they do not divide CPU work by
+the worker count.
+
+For groups with at least 20 unfinished fixtures, the matched pool runs its
+ten existing batches independently using up to two workers by default, or
+one worker when only one is available. Set
+`RARE_POSITION_MATCHED_POINT_POOL_WORKERS=1` for serial execution or `=4`
+for lower latency on a machine with spare cores (capped at ten workers).
+Smaller groups use one worker. The total remains 100,000 sampled seasons,
+with ten batches for the same jackknife estimator. The independent worker
+streams change seeded results, while the sampled probability model remains
+the same.
+
+The Go package tests pass, including the Poisson distribution check and the
+parallel batch aggregation test. The latter also passes under Go's race
+detector. These benchmarks describe one representative group on one machine;
+throughput with simultaneous odds requests depends on available cores.

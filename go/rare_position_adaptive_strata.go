@@ -102,6 +102,63 @@ type TeamPointRankScout struct {
 	PointCounts     map[int]int   `json:"point_counts"`
 }
 
+// poissonScoreSampler amortizes the Poisson CDF for a fixture across all
+// simulated seasons. The small residual tail is folded into the final bucket.
+// For unusually large means, retain the exact general-purpose sampler.
+type poissonScoreSampler struct {
+	mean     float64
+	cdf      []float64
+	lookup   [256]uint8
+	fallback bool
+}
+
+func newPoissonScoreSampler(mean float64) poissonScoreSampler {
+	sampler := poissonScoreSampler{mean: mean}
+	if mean <= 0 {
+		sampler.cdf = []float64{1}
+		return sampler
+	}
+	if mean > 32 {
+		sampler.fallback = true
+		return sampler
+	}
+
+	probability := math.Exp(-mean)
+	cumulative := probability
+	sampler.cdf = append(sampler.cdf, cumulative)
+	for score := 1; cumulative < 1-1e-15; score++ {
+		probability *= mean / float64(score)
+		cumulative += probability
+		sampler.cdf = append(sampler.cdf, cumulative)
+	}
+	sampler.cdf[len(sampler.cdf)-1] = 1
+	score := 0
+	for bin := range sampler.lookup {
+		lower := float64(bin) / float64(len(sampler.lookup))
+		for sampler.cdf[score] < lower {
+			score++
+		}
+		sampler.lookup[bin] = uint8(score)
+	}
+	return sampler
+}
+
+func (sampler *poissonScoreSampler) sample(rng *rand.Rand) int {
+	if sampler.fallback {
+		return poissonRand(rng, sampler.mean)
+	}
+	if sampler.mean <= 0 {
+		return 0
+	}
+	u := rng.Float64()
+	bin := int(u * float64(len(sampler.lookup)))
+	score := int(sampler.lookup[bin])
+	for sampler.cdf[score] < u {
+		score++
+	}
+	return score
+}
+
 type PointRankProfile struct {
 	AddedPoints int       `json:"added_points"`
 	PointMass   float64   `json:"point_mass"`
@@ -682,15 +739,13 @@ func runPlainMCScoutWithJointPointsBatched(
 	}
 	numPositions := len(teamGroups)
 
-	counts := make(map[int][]int, len(teamGroups))
 	teamScoutMap := make(map[int]*TeamPointRankScout, len(teamGroups))
 
 	for _, team := range teamGroups {
 		id := team.Team_id
-		counts[id] = make([]int, numPositions)
 		teamScoutMap[id] = &TeamPointRankScout{
 			Samples:         scoutSamples,
-			RankCounts:      counts[id],
+			RankCounts:      make([]int, numPositions),
 			PointRankCounts: make(map[int][]int),
 			PointCounts:     make(map[int]int),
 		}
@@ -715,9 +770,51 @@ func runPlainMCScoutWithJointPointsBatched(
 
 	simCampaign := make([]*TeamCampaign, len(baseCampaign))
 	teamSlice := make([]*TeamCampaign, len(teamGroups))
+	simulatedGames := make([]GameType, len(games))
+	for i, campaign := range baseCampaign {
+		simCampaign[i] = cloneCampaignInto(nil, campaign)
+		if simCampaign[i] != nil {
+			simCampaign[i].scoutIndex = -1
+		}
+	}
+	basePointsByTeam := make([]int, len(teamGroups))
+	for teamIndex, team := range teamGroups {
+		campaignIndex := int(table.Query(uint32(team.Team_id)))
+		if campaignIndex >= 0 && campaignIndex < len(simCampaign) && simCampaign[campaignIndex] != nil {
+			simCampaign[campaignIndex].scoutIndex = teamIndex
+			basePointsByTeam[teamIndex] = baseCampaign[campaignIndex].points
+		}
+	}
+	bounds := buildPointRankBounds(baseCampaign, teamGroups, games, table)
+	minimumAdded, maximumAdded := 0, 0
+	for _, team := range teamGroups {
+		id := team.Team_id
+		current := bounds.current[id]
+		if minimum, ok := bounds.minimum[id]; ok && minimum-current < minimumAdded {
+			minimumAdded = minimum - current
+		}
+		if maximum, ok := bounds.maximum[id]; ok && maximum-current > maximumAdded {
+			maximumAdded = maximum - current
+		}
+	}
+	pointSpan := maximumAdded - minimumAdded + 1
+	denseRankCounts := make([]int, len(teamGroups)*numPositions)
+	densePointCounts := make([]int, len(teamGroups)*pointSpan)
+	densePointRankCounts := make([]int, len(teamGroups)*pointSpan*numPositions)
+	denseBatchSamples := make([]int, len(batches)*len(teamGroups))
+	denseBatchRankCounts := make([]int, len(batches)*len(teamGroups)*numPositions)
+	denseBatchPointCounts := make([]int, len(batches)*len(teamGroups)*pointSpan)
+	denseBatchPointRankCounts := make([]int, len(batches)*len(teamGroups)*pointSpan*numPositions)
+	homeSamplers := make([]poissonScoreSampler, len(games))
+	awaySamplers := make([]poissonScoreSampler, len(games))
+	for i, game := range games {
+		if !game.Played {
+			homeSamplers[i] = newPoissonScoreSampler(game.HomePower)
+			awaySamplers[i] = newPoissonScoreSampler(game.AwayPower)
+		}
+	}
 	var pointGaps *PointGapScout
 	if capturePointGaps && os.Getenv("RARE_POSITION_POINT_GAP") == "1" && len(sortOrder) > 0 && sortOrder[0] == PT {
-		bounds := buildPointRankBounds(baseCampaign, teamGroups, games, table)
 		minPoints, maxPoints := math.MaxInt, math.MinInt
 		for _, team := range teamGroups {
 			if minimum, ok := bounds.minimum[team.Team_id]; ok && minimum < minPoints {
@@ -738,27 +835,19 @@ func runPlainMCScoutWithJointPointsBatched(
 			batchIndex = s * len(batches) / scoutSamples
 		}
 		for i, c := range baseCampaign {
-			if c != nil {
-				simCampaign[i] = c.clone()
-			} else {
-				simCampaign[i] = nil
-			}
+			simCampaign[i] = cloneCampaignInto(simCampaign[i], c)
 		}
 
-		for _, game := range games {
+		for gameIndex, game := range games {
 			if game.Played {
 				continue
 			}
-			hs := poissonRand(rng, game.HomePower)
-			as := poissonRand(rng, game.AwayPower)
+			hs := homeSamplers[gameIndex].sample(rng)
+			as := awaySamplers[gameIndex].sample(rng)
 			home, away := game.home_table_index, game.away_table_index
-			played := &GameType{game.Id, game.HomeId, game.AwayId, hs, as, 0, 0, true, home, away}
-			if simCampaign[home] != nil {
-				simCampaign[home].add_game(played)
-			}
-			if simCampaign[away] != nil {
-				simCampaign[away].add_game(played)
-			}
+			played := &simulatedGames[gameIndex]
+			*played = GameType{game.Id, game.HomeId, game.AwayId, hs, as, 0, 0, true, home, away}
+			addSimulatedGame(simCampaign[home], simCampaign[away], played)
 		}
 
 		idx := 0
@@ -774,28 +863,63 @@ func runPlainMCScoutWithJointPointsBatched(
 		}
 
 		for rank, c := range teamSlice[:idx] {
-			teamID := c.id
-			baseC := baseCampaign[table.Query(uint32(teamID))]
-			added := c.points - baseC.points
-
-			counts[teamID][rank]++
-
-			ts := teamScoutMap[teamID]
-			if ts.PointRankCounts[added] == nil {
-				ts.PointRankCounts[added] = make([]int, numPositions)
+			teamIndex := c.scoutIndex
+			if teamIndex < 0 || teamIndex >= len(teamGroups) {
+				continue
 			}
-			ts.PointRankCounts[added][rank]++
-			ts.PointCounts[added]++
+			added := c.points - basePointsByTeam[teamIndex]
+			pointIndex := added - minimumAdded
+			if pointIndex < 0 || pointIndex >= pointSpan {
+				continue
+			}
+			denseRankCounts[teamIndex*numPositions+rank]++
+			densePointCounts[teamIndex*pointSpan+pointIndex]++
+			densePointRankCounts[(teamIndex*pointSpan+pointIndex)*numPositions+rank]++
 			if len(batches) > 0 {
-				bs := batches[batchIndex][teamID]
-				bs.Samples++
-				bs.RankCounts[rank]++
-				if bs.PointRankCounts[added] == nil {
-					bs.PointRankCounts[added] = make([]int, numPositions)
-				}
-				bs.PointRankCounts[added][rank]++
-				bs.PointCounts[added]++
+				batchTeamIndex := batchIndex*len(teamGroups) + teamIndex
+				denseBatchSamples[batchTeamIndex]++
+				denseBatchRankCounts[batchTeamIndex*numPositions+rank]++
+				denseBatchPointCounts[batchTeamIndex*pointSpan+pointIndex]++
+				denseBatchPointRankCounts[(batchTeamIndex*pointSpan+pointIndex)*numPositions+rank]++
 			}
+		}
+	}
+	for batchIndex, batch := range batches {
+		for teamIndex, team := range teamGroups {
+			bs := batch[team.Team_id]
+			batchTeamIndex := batchIndex*len(teamGroups) + teamIndex
+			bs.Samples = denseBatchSamples[batchTeamIndex]
+			copy(bs.RankCounts, denseBatchRankCounts[batchTeamIndex*numPositions:(batchTeamIndex+1)*numPositions])
+			for pointIndex := 0; pointIndex < pointSpan; pointIndex++ {
+				count := denseBatchPointCounts[batchTeamIndex*pointSpan+pointIndex]
+				if count == 0 {
+					continue
+				}
+				added := minimumAdded + pointIndex
+				rankCounts := make([]int, numPositions)
+				copy(rankCounts, denseBatchPointRankCounts[(batchTeamIndex*pointSpan+pointIndex)*numPositions:(batchTeamIndex*pointSpan+pointIndex+1)*numPositions])
+				bs.PointCounts[added] = count
+				bs.PointRankCounts[added] = rankCounts
+			}
+		}
+	}
+	counts := make(map[int][]int, len(teamGroups))
+	for teamIndex, team := range teamGroups {
+		id := team.Team_id
+		counts[id] = teamScoutMap[id].RankCounts
+		for rank := 0; rank < numPositions; rank++ {
+			teamScoutMap[id].RankCounts[rank] = denseRankCounts[teamIndex*numPositions+rank]
+		}
+		for pointIndex := 0; pointIndex < pointSpan; pointIndex++ {
+			count := densePointCounts[teamIndex*pointSpan+pointIndex]
+			if count == 0 {
+				continue
+			}
+			added := minimumAdded + pointIndex
+			rankCounts := make([]int, numPositions)
+			copy(rankCounts, densePointRankCounts[(teamIndex*pointSpan+pointIndex)*numPositions:(teamIndex*pointSpan+pointIndex+1)*numPositions])
+			teamScoutMap[id].PointCounts[added] = count
+			teamScoutMap[id].PointRankCounts[added] = rankCounts
 		}
 	}
 

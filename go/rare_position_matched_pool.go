@@ -5,10 +5,106 @@ import (
 	"math"
 	"math/rand"
 	"os"
+	"runtime"
 	"sort"
+	"strconv"
+	"sync"
 )
 
 const matchedPointPoolSamples = 100000
+
+func matchedPointPoolWorkers(unplayed int) int {
+	if unplayed < 20 {
+		return 1
+	}
+	workers := runtime.GOMAXPROCS(0)
+	if workers > 2 {
+		workers = 2
+	}
+	if raw := os.Getenv("RARE_POSITION_MATCHED_POINT_POOL_WORKERS"); raw != "" {
+		if configured, err := strconv.Atoi(raw); err == nil && configured > 0 {
+			workers = configured
+		}
+	}
+	if workers > 10 {
+		workers = 10
+	}
+	return workers
+}
+
+func runMatchedPointPoolScoutBatches(campaign []*TeamCampaign, games []*GameType,
+	table *Table, sortOrder []SortType, teamGroups []TeamType, samples int,
+	workPerSample int64, rng *rand.Rand, workers int) ScoutData {
+	const batchCount = 10
+	batchSeeds := make([]int64, batchCount)
+	for i := range batchSeeds {
+		batchSeeds[i] = rng.Int63()
+	}
+	results := make([]ScoutData, batchCount)
+	jobs := make(chan int, batchCount)
+	var wait sync.WaitGroup
+	for worker := 0; worker < workers; worker++ {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			for batch := range jobs {
+				batchSamples := (batch+1)*samples/batchCount - batch*samples/batchCount
+				results[batch] = runPlainMCScoutWithJointPointsBatched(campaign, games, table,
+					sortOrder, teamGroups, batchSamples, workPerSample,
+					rand.New(rand.NewSource(batchSeeds[batch])), 0, false)
+			}
+		}()
+	}
+	for batch := range results {
+		jobs <- batch
+	}
+	close(jobs)
+	wait.Wait()
+
+	numPositions := len(teamGroups)
+	scout := ScoutData{
+		Samples:          samples,
+		Work:             int64(samples) * workPerSample,
+		TeamCounts:       make(map[int][]int, numPositions),
+		TeamScout:        make(map[int]*TeamPointRankScout, numPositions),
+		PointRankBatches: make([]map[int]*TeamPointRankScout, batchCount),
+	}
+	for batch := range results {
+		scout.PointRankBatches[batch] = results[batch].TeamScout
+	}
+	for _, team := range teamGroups {
+		id := team.Team_id
+		full := &TeamPointRankScout{
+			Samples:         samples,
+			RankCounts:      make([]int, numPositions),
+			PointRankCounts: make(map[int][]int),
+			PointCounts:     make(map[int]int),
+		}
+		for batch := range results {
+			part := results[batch].TeamScout[id]
+			observed := 0
+			for rank, count := range part.RankCounts {
+				full.RankCounts[rank] += count
+				observed += count
+			}
+			part.Samples = observed
+			for added, count := range part.PointCounts {
+				full.PointCounts[added] += count
+			}
+			for added, rankCounts := range part.PointRankCounts {
+				if full.PointRankCounts[added] == nil {
+					full.PointRankCounts[added] = make([]int, numPositions)
+				}
+				for rank, count := range rankCounts {
+					full.PointRankCounts[added][rank] += count
+				}
+			}
+		}
+		scout.TeamScout[id] = full
+		scout.TeamCounts[id] = full.RankCounts
+	}
+	return scout
+}
 
 func matchedPointPoolEnabled() bool {
 	return os.Getenv("RARE_POSITION_MATCHED_POINT_POOL") == "1"
@@ -134,36 +230,78 @@ func matchedPointPoolValid(matrix map[int]map[int]float64, teams []int) bool {
 }
 
 func balanceMatchedPointPool(matrix map[int]map[int]float64, teams []int) bool {
+	n := len(teams)
+	values := make([]float64, n*n)
+	for teamIndex, id := range teams {
+		for rank := range teams {
+			values[teamIndex*n+rank] = matrix[id][rank]
+		}
+	}
+	valid := func() bool {
+		for teamIndex := range teams {
+			sum := 0.0
+			for rank := range teams {
+				p := values[teamIndex*n+rank]
+				if math.IsNaN(p) || math.IsInf(p, 0) || p < 0 || p > 1 {
+					return false
+				}
+				sum += p
+			}
+			if math.Abs(sum-1) > 1e-6 {
+				return false
+			}
+		}
+		for rank := range teams {
+			sum := 0.0
+			for teamIndex := range teams {
+				sum += values[teamIndex*n+rank]
+			}
+			if math.Abs(sum-1) > 1e-6 {
+				return false
+			}
+		}
+		return true
+	}
+	writeBack := func() {
+		for teamIndex, id := range teams {
+			for rank := range teams {
+				matrix[id][rank] = values[teamIndex*n+rank]
+			}
+		}
+	}
 	// Sparse support can need substantially more than the 100 screening rounds.
 	// Continue to the production tolerance while preserving every structural zero.
 	for iteration := 0; iteration < 20000; iteration++ {
-		for _, id := range teams {
+		for teamIndex := range teams {
 			sum := 0.0
 			for rank := range teams {
-				sum += matrix[id][rank]
+				sum += values[teamIndex*n+rank]
 			}
 			if sum > 0 {
 				for rank := range teams {
-					matrix[id][rank] /= sum
+					values[teamIndex*n+rank] /= sum
 				}
 			}
 		}
 		for rank := range teams {
 			sum := 0.0
-			for _, id := range teams {
-				sum += matrix[id][rank]
+			for teamIndex := range teams {
+				sum += values[teamIndex*n+rank]
 			}
 			if sum > 0 {
-				for _, id := range teams {
-					matrix[id][rank] /= sum
+				for teamIndex := range teams {
+					values[teamIndex*n+rank] /= sum
 				}
 			}
 		}
-		if iteration%100 == 0 && matchedPointPoolValid(matrix, teams) {
+		if iteration%100 == 0 && valid() {
+			writeBack()
 			return true
 		}
 	}
-	return matchedPointPoolValid(matrix, teams)
+	result := valid()
+	writeBack()
+	return result
 }
 
 func subtractPointRankBatch(full, batch map[int]*TeamPointRankScout, teams []int) map[int]*TeamPointRankScout {
@@ -226,8 +364,14 @@ func runMatchedPointPoolProduction(group *GroupType, campaign []*TeamCampaign,
 		counts := simulatePlainRankCounts(campaign, group.Games, table, sortOrder, group.Team_groups, matchedPointPoolSamples, rng)
 		return summarizePlainProductionCounts(counts, matchedPointPoolSamples, work)
 	}
-	scout := runPlainMCScoutWithJointPointsBatched(campaign, group.Games, table, sortOrder,
-		group.Team_groups, matchedPointPoolSamples, work/matchedPointPoolSamples, rng, 10, false)
+	var scout ScoutData
+	if workers := matchedPointPoolWorkers(unplayed); workers > 1 {
+		scout = runMatchedPointPoolScoutBatches(campaign, group.Games, table, sortOrder,
+			group.Team_groups, matchedPointPoolSamples, work/matchedPointPoolSamples, rng, workers)
+	} else {
+		scout = runPlainMCScoutWithJointPointsBatched(campaign, group.Games, table, sortOrder,
+			group.Team_groups, matchedPointPoolSamples, work/matchedPointPoolSamples, rng, 10, false)
+	}
 	bounds := buildPointRankBounds(campaign, group.Team_groups, group.Games, table)
 	matrix := matchedPointPoolMatrix(teams, scout.TeamScout, current, pmfs, bounds)
 	if !balanceMatchedPointPool(matrix, teams) {

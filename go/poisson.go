@@ -98,6 +98,7 @@ type TeamCampaign struct {
 	points_loss   int
 	home_games    []*GameType
 	uses_head     bool
+	scoutIndex    int // dense point-rank scout slot; -1 when the campaign is not in the scout table
 }
 
 func (campaign *TeamCampaign) goals_diff() int {
@@ -134,6 +135,33 @@ func (campaign *TeamCampaign) clone() *TeamCampaign {
 	return t
 }
 
+// cloneCampaignInto reuses a season's TeamCampaign storage while restoring the
+// baseline state. Head-to-head history needs its own slice because simulated
+// games are appended as the season is played.
+func cloneCampaignInto(dst, source *TeamCampaign) *TeamCampaign {
+	if source == nil {
+		return nil
+	}
+	if dst == nil {
+		dst = &TeamCampaign{}
+	}
+	homeGames := dst.home_games
+	scoutIndex := dst.scoutIndex
+	*dst = *source
+	dst.scoutIndex = scoutIndex
+	if source.uses_head {
+		required := len(source.home_games)
+		if cap(homeGames) < required+32 {
+			homeGames = make([]*GameType, required, required+32)
+		} else {
+			homeGames = homeGames[:required]
+		}
+		copy(homeGames, source.home_games)
+		dst.home_games = homeGames
+	}
+	return dst
+}
+
 func (campaign *TeamCampaign) add_game(game *GameType) {
 	is_home := campaign.id == game.HomeId
 	if game.HomeScore > game.AwayScore {
@@ -166,6 +194,47 @@ func (campaign *TeamCampaign) add_game(game *GameType) {
 		campaign.goals_for += game.AwayScore
 		campaign.goals_against += game.HomeScore
 		campaign.goals_away += game.AwayScore
+	}
+}
+
+func addSimulatedGame(home, away *TeamCampaign, game *GameType) {
+	if home != nil && home == away {
+		home.add_game(game)
+		away.add_game(game)
+		return
+	}
+	homeScore, awayScore := game.HomeScore, game.AwayScore
+	if home != nil {
+		if homeScore > awayScore {
+			home.wins++
+			home.points += home.points_win
+		} else if homeScore < awayScore {
+			home.losses++
+			home.points += home.points_loss
+		} else {
+			home.draws++
+			home.points += home.points_draw
+		}
+		home.goals_for += homeScore
+		home.goals_against += awayScore
+		if home.uses_head {
+			home.home_games = append(home.home_games, game)
+		}
+	}
+	if away != nil {
+		if homeScore > awayScore {
+			away.losses++
+			away.points += away.points_loss
+		} else if homeScore < awayScore {
+			away.wins++
+			away.points += away.points_win
+		} else {
+			away.draws++
+			away.points += away.points_draw
+		}
+		away.goals_for += awayScore
+		away.goals_against += homeScore
+		away.goals_away += awayScore
 	}
 }
 
@@ -562,27 +631,33 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
 	var elapsed2 time.Duration
 	simulated_scores := make([]SimulatedScore, len(group.Games))
 	simulated_campaign := make([]*TeamCampaign, len(all_team_ids))
+	simulated_games := make([]GameType, len(group.Games))
+	home_score_samplers := make([]poissonScoreSampler, len(group.Games))
+	away_score_samplers := make([]poissonScoreSampler, len(group.Games))
+	for i, g := range group.Games {
+		if !g.Played {
+			home_score_samplers[i] = newPoissonScoreSampler(g.HomePower)
+			away_score_samplers[i] = newPoissonScoreSampler(g.AwayPower)
+		}
+	}
 	team_slice := make([]*TeamCampaign, len(group.Team_groups))
 	numIterations := rarePositionScoutIterations()
 	for i := 0; i < numIterations; i++ {
 		for k, v := range campaign {
-			simulated_campaign[k] = v.clone()
+			simulated_campaign[k] = cloneCampaignInto(simulated_campaign[k], v)
 		}
 
 		start3 := time.Now()
 		for i, g := range group.Games {
 			if !g.Played {
-				home_score := poissonRandWith(scoutRNG, g.HomePower)
-				away_score := poissonRandWith(scoutRNG, g.AwayPower)
+				home_score := home_score_samplers[i].sample(scoutRNG)
+				away_score := away_score_samplers[i].sample(scoutRNG)
 				simulated_scores[i] = SimulatedScore{home_score, away_score}
 				home := g.home_table_index
 				away := g.away_table_index
-				if simulated_campaign[home] != nil {
-					simulated_campaign[home].add_game(&GameType{g.Id, g.HomeId, g.AwayId, home_score, away_score, 0.0, 0.0, true, home, away})
-				}
-				if simulated_campaign[away] != nil {
-					simulated_campaign[away].add_game(&GameType{g.Id, g.HomeId, g.AwayId, home_score, away_score, 0.0, 0.0, true, home, away})
-				}
+				played := &simulated_games[i]
+				*played = GameType{g.Id, g.HomeId, g.AwayId, home_score, away_score, 0.0, 0.0, true, home, away}
+				addSimulatedGame(simulated_campaign[home], simulated_campaign[away], played)
 			}
 		}
 		elapsed2 += time.Since(start3)

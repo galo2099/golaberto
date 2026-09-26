@@ -42,6 +42,52 @@ func TestMatchedPointPoolBatchesPreserveScout(t *testing.T) {
 	}
 }
 
+func TestMatchedPointPoolParallelBatchesPreserveCounts(t *testing.T) {
+	group, campaign, table, order, _ := createTestGroupForDiversified()
+	const samples = 1003
+	scout := runMatchedPointPoolScoutBatches(campaign, group.Games, table, order,
+		group.Team_groups, samples, 6, rand.New(rand.NewSource(17)), 3)
+	if scout.Samples != samples || len(scout.PointRankBatches) != 10 {
+		t.Fatalf("parallel scout samples=%d batches=%d", scout.Samples, len(scout.PointRankBatches))
+	}
+	for _, team := range group.Team_groups {
+		id := team.Team_id
+		full := scout.TeamScout[id]
+		if full.Samples != samples || !reflect.DeepEqual(full.RankCounts, scout.TeamCounts[id]) {
+			t.Fatalf("team %d: incomplete aggregate scout", id)
+		}
+		for rank, count := range full.RankCounts {
+			sum := 0
+			for _, batch := range scout.PointRankBatches {
+				sum += batch[id].RankCounts[rank]
+			}
+			if sum != count {
+				t.Fatalf("team %d rank %d: batches=%d aggregate=%d", id, rank, sum, count)
+			}
+		}
+		for added, count := range full.PointCounts {
+			sum := 0
+			for _, batch := range scout.PointRankBatches {
+				sum += batch[id].PointCounts[added]
+			}
+			if sum != count {
+				t.Fatalf("team %d points %d: batches=%d aggregate=%d", id, added, sum, count)
+			}
+			for rank, hits := range full.PointRankCounts[added] {
+				rankSum := 0
+				for _, batch := range scout.PointRankBatches {
+					if ranks := batch[id].PointRankCounts[added]; rank < len(ranks) {
+						rankSum += ranks[rank]
+					}
+				}
+				if rankSum != hits {
+					t.Fatalf("team %d points %d rank %d: batches=%d aggregate=%d", id, added, rank, rankSum, hits)
+				}
+			}
+		}
+	}
+}
+
 func TestMatchedPointPoolProductionMatrix(t *testing.T) {
 	t.Setenv("RARE_POSITION_POINT_GAP", "0")
 	t.Setenv("RARE_POSITION_MATCHED_POINT_POOL", "1")

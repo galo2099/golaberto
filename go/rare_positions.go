@@ -1465,24 +1465,21 @@ func simulatePlainRankCounts(baseCampaign []*TeamCampaign, games []*GameType,
 	}
 	simCampaign := make([]*TeamCampaign, len(baseCampaign))
 	teamSlice := make([]*TeamCampaign, len(teamGroups))
+	simulatedGames := make([]GameType, len(games))
 	for n := 0; n < samples; n++ {
 		for k, campaign := range baseCampaign {
-			simCampaign[k] = campaign.clone()
+			simCampaign[k] = cloneCampaignInto(simCampaign[k], campaign)
 		}
-		for _, g := range games {
+		for gameIndex, g := range games {
 			if g.Played {
 				continue
 			}
 			homeScore := poissonRand(rng, g.HomePower)
 			awayScore := poissonRand(rng, g.AwayPower)
-			score := &GameType{g.Id, g.HomeId, g.AwayId, homeScore, awayScore, 0, 0, true,
+			score := &simulatedGames[gameIndex]
+			*score = GameType{g.Id, g.HomeId, g.AwayId, homeScore, awayScore, 0, 0, true,
 				g.home_table_index, g.away_table_index}
-			if simCampaign[g.home_table_index] != nil {
-				simCampaign[g.home_table_index].add_game(score)
-			}
-			if simCampaign[g.away_table_index] != nil {
-				simCampaign[g.away_table_index].add_game(score)
-			}
+			addSimulatedGame(simCampaign[g.home_table_index], simCampaign[g.away_table_index], score)
 		}
 		for i, team := range teamGroups {
 			teamSlice[i] = simCampaign[table.Query(uint32(team.Team_id))]
