@@ -36,6 +36,14 @@
         var mantissa = scientific[0].replace(/0+$/, "").replace(/\.$/, "").replace(".", decimal);
         return mantissa + "e" + Number(scientific[1]) + "%";
       }
+      if (number >= 0.01 && number <= 99.99) {
+        var formatter = new Intl.NumberFormat(locale, {
+          maximumSignificantDigits: 3,
+          useGrouping: false
+        });
+        var rounded = formatter.format(number);
+        return (rounded === formatter.format(100) ? formatter.format(99.9) : rounded) + "%";
+      }
       return number.toLocaleString(locale, {
         maximumSignificantDigits: 17,
         useGrouping: false

@@ -21,6 +21,13 @@ module OddsFormattingHelper
       return "#{mantissa}e#{exponent.to_i}%"
     end
 
+    if value >= 0.01 && value <= 99.99
+      formatted = number_to_percentage(value, precision: 3, significant: true, strip_insignificant_zeros: true)
+      return number_to_percentage(99.9, precision: 1) if formatted == number_to_percentage(100, precision: 3, significant: true)
+
+      return formatted
+    end
+
     number_to_percentage(value, precision: 16, strip_insignificant_zeros: true)
   end
 end

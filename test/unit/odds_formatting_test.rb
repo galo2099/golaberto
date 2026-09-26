@@ -19,6 +19,12 @@ class OddsFormattingTest < Minitest::Test
   def test_near_certain_odds_do_not_round_to_certain
     assert_equal '>99.99%', @view.formatted_odds(99.9999)
     assert_equal '99.9999%', @view.odds_title(99.9999)
+    assert_equal '99.9%', @view.odds_title(99.95)
+  end
+
+  def test_ordinary_titles_have_at_most_three_significant_digits
+    assert_equal '0.0123%', @view.odds_title(0.012345)
+    assert_equal '12.3%', @view.odds_title(12.3456)
   end
 
   def test_exact_endpoints_and_missing_odds
