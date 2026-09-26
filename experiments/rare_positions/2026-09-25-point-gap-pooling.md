@@ -45,6 +45,8 @@ five-million-season references. Fixtures and raw JSONL runs are local under
 ignored `experiments/rare_positions/local/2026-09-25/point-gap-smoothed-fivegroups-final/`.
 The requests and references are the same as in the
 [`adaptive points review`](2026-09-25-adaptive-points-review.md).
+The [all-position comparison](2026-09-25-point-gap-all-positions.md) extends
+this check to every team-position cell in the five groups.
 
 | Target cell | Reference probability | Team-only exact-point scout | Group observed-point proxy | Full frozen-table gap proxy |
 | --- | ---: | ---: | ---: | ---: |
