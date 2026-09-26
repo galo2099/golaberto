@@ -165,8 +165,8 @@
                   cell.text("");
                   cell.removeAttr("title");
                 } else {
-                  cell.text(GolabertoOdds.format(value, "<%= I18n.locale %>"));
-                  cell.attr("title", GolabertoOdds.title(value, "<%= I18n.locale %>"));
+                  cell.text(GolabertoOdds.format(value, "<%= I18n.locale %>").replace(/%$/, ""));
+                  cell.attr("title", GolabertoOdds.title(value, "<%= I18n.locale %>").replace(/%$/, ""));
                 }
                 var bgColor = ui.item.element.attr("data-cell-color") || ui.item.element.attr("data-color") || "lightgray";
                 cell.css("background-color", bgColor);
@@ -298,10 +298,10 @@
                           end %>
            <% first_color = first_zone.is_a?(Hash) ? first_zone["color"] : "lightgray" %>
            <%= content_tag :td,
-                           formatted_odds(first_odds),
+                           formatted_odds(first_odds).delete_suffix("%"),
                            "data-group-id": group.id,
                            "data-odds-array": (t[0].odds || []).to_json,
-                           title: odds_title(first_odds),
+                           title: odds_title(first_odds)&.delete_suffix("%"),
                            class: "odds odds-value",
                            style: "background-color: #{first_color}; color: #{first_color == "black" ? "white" : "inherit"}" %>
          <% end %>
