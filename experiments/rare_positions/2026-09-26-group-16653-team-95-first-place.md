@@ -37,3 +37,5 @@ assert max(value for team, value in points.items() if team != 95) == 54
 ```
 
 The currently stored first-place odds for team 95 are zero. That value reflects a missing probability estimate, not impossibility. A reachability witness should be recorded separately from the estimated probability.
+
+`TestGroup16653Team95FirstPlaceWitness` in `go/rare_position_reachability_witness_test.go` also applies this fixture to the Go `TeamCampaign` standings and sorter. It verifies that Go's conservative bounds do not rule out first place and that the completed witness ranks team 95 first, 55 to 54. Production Go code does not yet search for or persist such a witness automatically.
