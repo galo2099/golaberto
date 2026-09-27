@@ -422,6 +422,15 @@ func runMatchedPointPoolProduction(group *GroupType, campaign []*TeamCampaign,
 			}
 		}
 	}
-	log.Printf("rare-position-matched-pool: group=%d samples=%d work=%d", group.Id, matchedPointPoolSamples, work)
+	witnesses, extraWork := runConditionedZeroSearch(group, campaign, table, sortOrder,
+		seed, teams, current, pmfs, bounds, estimates)
+	for _, id := range teams {
+		for rank := range teams {
+			est := estimates[id][rank]
+			est.WorkSpent += extraWork
+			estimates[id][rank] = est
+		}
+	}
+	log.Printf("rare-position-matched-pool: group=%d samples=%d conditioned_witnesses=%d work=%d", group.Id, matchedPointPoolSamples, witnesses, work+extraWork)
 	return estimates
 }

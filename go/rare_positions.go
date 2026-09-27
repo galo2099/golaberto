@@ -37,6 +37,7 @@ func logRarePositionRequestEnvironment() {
 		"RARE_POSITION_BENCHMARK_ITERATIONS",
 		"RARE_POSITION_IMPORTANCE_SAMPLING",
 		"RARE_POSITION_MATCHED_POINT_POOL",
+		"RARE_POSITION_CONDITIONED_ZERO",
 		"RARE_POSITION_DIVERSIFIED_IS",
 		"RARE_POSITION_CEM_RACING_MODE",
 		"RARE_POSITION_CEM_PARAMETERIZATION",
@@ -263,6 +264,10 @@ type ProductionEstimate struct {
 	MaxEventWeightShare float64                        `json:"max_event_weight_share"`
 	ZeroHitUpper95      float64                        `json:"zero_hit_upper_95"`
 	Design              string                         `json:"design"`
+	Reachability        string                         `json:"reachability,omitempty"`
+	ConditionalMass     float64                        `json:"conditional_mass,omitempty"`
+	ConditionalSamples  int                            `json:"conditional_samples,omitempty"`
+	ConditionalHits     int                            `json:"conditional_hits,omitempty"`
 	SufficientStats     EventSufficientStats           `json:"-"`
 	SearchDiagnostics   *RarePositionSearchDiagnostics `json:"search_diagnostics,omitempty"`
 }
