@@ -203,8 +203,9 @@ per game can be negative or fixtures include teams outside the group.
 It preserves the same probability distribution and does not change
 the ordinary request path.
 
-`RARE_POSITION_CONDITIONED_ZERO_LOOKAHEAD=1` enables an opt-in weighted
-alternative after the ordinary search has no first-place hits. It
+The weighted lookahead is enabled by default after the ordinary search
+has no first-place hits. Set `RARE_POSITION_CONDITIONED_ZERO_LOOKAHEAD=0`
+to disable it. It
 conditions on three blocking rivals, or four when the three-rival
 event mass is below `1e-9`. For each remaining game, the proposal
 scores each win/draw/loss outcome using the rivals' marginal chances
@@ -214,15 +215,18 @@ outcome probability divided by proposal probability. Scorelines are
 sampled conditional on the outcomes only when teams tie on points.
 Thus the proposal changes variance and cost, not the expected estimate.
 
-The mode uses 20,000 weighted pilot draws per zero first-place cell.
+The production mode uses 20,000 weighted pilot draws per zero
+first-place cell.
 It accepts the proposal only with at least 100 finishing paths,
 effective sample size at least 200, estimated relative standard error
 at most 10%, largest hit weight at most 3% of the total, and a gap of
 at most 20% between the two half-sample means. If accepted, a separate
 independent 20,000 draws produce the estimate. Separating the pilot
 prevents selection on the estimate's own sampling noise. A rejected
-pilot falls back to the points-screened million-draw search. Both
-modes are opt-in; the ordinary request remains the default.
+pilot falls back to the points-screened million-draw search. The
+million-draw fallback remains opt-in with
+`RARE_POSITION_CONDITIONED_ZERO_DEEP=1`; the ordinary request now uses
+lookahead automatically when conditioned zero search is enabled.
 
 Group 16653, phase 4489, seed 808, full matrix after reconciliation:
 
@@ -251,3 +255,34 @@ times faster than the earlier 18.46-second deep search. Group 16982
 still has no zero cells, so the lookahead mode does no extra search
 there. The Go package tests, `go vet`, and the saved group 16653 and
 16982 regressions passed.
+
+## Second-place zero in group 16653
+
+The first-place lookahead found Botafogo-SP (team 457) at `6.412e-13`,
+while its second-place cell stayed zero and `undecided`. This was a
+sampling miss, not a reachability result. In a saved first-place finish,
+Botafogo-SP has 59 points and every rival has at most 58. Changing
+game 364696 (team 22 versus team 550) from a draw to a home win gives
+team 22 60 points and leaves Botafogo-SP second on 59. The change has
+positive probability under the game model.
+
+The ordinary second-place search conditions on two likely blocking
+rivals and draws 2,000 seasons. Its necessary points event has mass
+`2.823e-5`; no second-place finish appeared. A third blocker shrinks
+that event to mass `1.340e-6`. Production now tries this three-blocker
+event, up to 250,000 dynamic-program states and 50,000 conditional
+draws, only when a second-place or second-to-last zero remains and the
+original event mass is at most `1e-3`. The event is still a necessary
+condition, so `event mass × conditional finish frequency` is an
+unbiased estimate. If the deeper event cannot be built, the original
+result remains.
+
+On the same saved group 16653 request and seed 808, the full estimator
+found Botafogo-SP second 10 times in 50,000 conditional draws. Its
+reconciled probability is `2.680e-10`, with estimated standard error
+`8.47e-11` (31.6% relative); first place remained `6.412e-13`.
+The total recorded work rose from 25.83 million to 41.58 million work
+units (1.61×), and the test run rose from about 1.6 to 2.95 seconds.
+The same search found no second-place finish for teams 68 and 95, so
+those cells remain undecided with tighter 95% upper limits of
+`3.48e-12` and `9.81e-17`, respectively.

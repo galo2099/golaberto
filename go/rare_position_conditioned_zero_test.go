@@ -195,6 +195,7 @@ func TestConditionedZeroRealGroup(t *testing.T) {
 	t.Setenv("RARE_POSITION_MATCHED_POINT_POOL", "1")
 	t.Setenv("RARE_POSITION_IMPORTANCE_SAMPLING", "0")
 	t.Setenv("RARE_POSITION_RANDOM_SEED", "808")
+	t.Setenv("RARE_POSITION_CONDITIONED_ZERO_LOOKAHEAD", "0")
 	t.Setenv("RARE_POSITION_CONDITIONED_ZERO", "0")
 	baseline := cloneGroupForBenchmark(input).calculate_odds()["rare_position_estimates"].(map[int]map[int]ProductionEstimate)
 	t.Setenv("RARE_POSITION_CONDITIONED_ZERO", "1")
@@ -325,6 +326,14 @@ func TestConditionedZeroLookaheadRealGroup(t *testing.T) {
 			id, est.Probability, est.ConditionalMass, est.ConditionalHits,
 			est.ESS, est.MaxEventWeightShare)
 	}
+	second := estimates[457][1]
+	if second.Probability <= 0 || second.Reachability != "witness" ||
+		second.ConditionalSamples != conditionedZeroNearEdgeRuns || second.ConditionalHits <= 0 ||
+		second.ConditionalMass <= 0 || second.Probability > second.ConditionalMass {
+		t.Fatalf("Botafogo-SP second-place search did not find a valid estimate: %+v", second)
+	}
+	t.Logf("Botafogo-SP second-place probability=%.12g mass=%.12g hits=%d samples=%d",
+		second.Probability, second.ConditionalMass, second.ConditionalHits, second.ConditionalSamples)
 	for rank := range input.Team_groups {
 		column := 0.0
 		for _, team := range input.Team_groups {

@@ -15,12 +15,13 @@ import (
 // points: the event contains every finish at the requested rank, including
 // finishes decided by a score or head-to-head tiebreaker.
 const (
-	conditionedZeroMaxStates  = 20000
-	conditionedZeroDeepStates = 250000
-	conditionedZeroDeepRuns   = 1000000
-	conditionedZeroSamples    = 2000
-	conditionedZeroEdgeRuns   = 20000
-	conditionedZeroBatch      = 1000
+	conditionedZeroMaxStates    = 20000
+	conditionedZeroDeepStates   = 250000
+	conditionedZeroDeepRuns     = 1000000
+	conditionedZeroSamples      = 2000
+	conditionedZeroEdgeRuns     = 20000
+	conditionedZeroNearEdgeRuns = 50000
+	conditionedZeroBatch        = 1000
 )
 
 type conditionedPointState [6]uint8
@@ -78,7 +79,7 @@ func conditionedZeroDeepEnabled() bool {
 }
 
 func conditionedZeroLookaheadEnabled() bool {
-	return os.Getenv("RARE_POSITION_CONDITIONED_ZERO_LOOKAHEAD") == "1"
+	return os.Getenv("RARE_POSITION_CONDITIONED_ZERO_LOOKAHEAD") != "0"
 }
 
 func conditionedZeroBlockers(target, rank int, teams []int, current map[int]int,
@@ -468,6 +469,24 @@ func searchConditionedZeroCell(target, rank int, group *GroupType,
 	cellSeed := deriveRarePositionSeed(seed, fmt.Sprintf("conditioned-zero-%d-%d", target, rank))
 	result := sampleConditionedZeroCell(event, target, rank,
 		group, campaign, table, sortOrder, samplers, samples, cellSeed)
+	if result.hits == 0 && len(teams) > 3 &&
+		(rank == 1 || rank == len(teams)-2) && event.mass <= 1e-3 {
+		// A third rival can make a missed near-edge finish observable without
+		// running a full season search for every zero cell. The event remains a
+		// necessary points condition, so its samples give an unbiased estimate.
+		blockers := conditionedZeroBlockers(target, rank, teams, current, pmfs, group.Games, 3)
+		if deeper, built := buildConditionedPointEventWithLimit(target, rank, blockers,
+			group, campaign, table, bounds, conditionedZeroDeepStates); built {
+			if deeper.mass <= 0 {
+				return conditionedZeroSearchResult{impossible: len(deeper.terminal) == 0}
+			}
+			deeperSeed := deriveRarePositionSeed(seed, fmt.Sprintf("conditioned-zero-near-edge-%d-%d", target, rank))
+			deeperResult := sampleConditionedZeroCell(deeper, target, rank,
+				group, campaign, table, sortOrder, samplers, conditionedZeroNearEdgeRuns, deeperSeed)
+			deeperResult.work += result.work
+			result = deeperResult
+		}
+	}
 	if rank != 0 || (!conditionedZeroDeepEnabled() && !conditionedZeroLookaheadEnabled()) || result.hits > 0 {
 		return conditionedZeroSearchResult{result: result}
 	}
