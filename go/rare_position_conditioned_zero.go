@@ -15,13 +15,15 @@ import (
 // points: the event contains every finish at the requested rank, including
 // finishes decided by a score or head-to-head tiebreaker.
 const (
-	conditionedZeroMaxStates = 20000
-	conditionedZeroSamples   = 2000
-	conditionedZeroEdgeRuns  = 20000
-	conditionedZeroBatch     = 1000
+	conditionedZeroMaxStates  = 20000
+	conditionedZeroDeepStates = 250000
+	conditionedZeroDeepRuns   = 1000000
+	conditionedZeroSamples    = 2000
+	conditionedZeroEdgeRuns   = 20000
+	conditionedZeroBatch      = 1000
 )
 
-type conditionedPointState [4]uint8
+type conditionedPointState [6]uint8
 
 type conditionedPointGame struct {
 	index  int
@@ -64,6 +66,10 @@ type conditionedZeroSearchResult struct {
 
 func conditionedZeroEnabled() bool {
 	return os.Getenv("RARE_POSITION_CONDITIONED_ZERO") != "0"
+}
+
+func conditionedZeroDeepEnabled() bool {
+	return os.Getenv("RARE_POSITION_CONDITIONED_ZERO_DEEP") == "1"
 }
 
 func conditionedZeroBlockers(target, rank int, teams []int, current map[int]int,
@@ -130,6 +136,12 @@ func conditionedZeroBlockers(target, rank int, teams []int, current map[int]int,
 
 func buildConditionedPointEvent(target, rank int, blockers []int, group *GroupType,
 	campaign []*TeamCampaign, table *Table, bounds pointRankBounds) (*conditionedPointEvent, bool) {
+	return buildConditionedPointEventWithLimit(target, rank, blockers, group,
+		campaign, table, bounds, conditionedZeroMaxStates)
+}
+
+func buildConditionedPointEventWithLimit(target, rank int, blockers []int, group *GroupType,
+	campaign []*TeamCampaign, table *Table, bounds pointRankBounds, maxStates int) (*conditionedPointEvent, bool) {
 	selected := append([]int{target}, blockers...)
 	indices := make(map[int]int, len(selected))
 	for i, id := range selected {
@@ -216,7 +228,7 @@ func buildConditionedPointEvent(target, rank int, blockers []int, group *GroupTy
 				}
 			}
 		}
-		if len(next) > conditionedZeroMaxStates {
+		if len(next) > maxStates {
 			return nil, false
 		}
 		event.forward = append(event.forward, next)
@@ -445,8 +457,30 @@ func searchConditionedZeroCell(target, rank int, group *GroupType,
 		samples = conditionedZeroBatch
 	}
 	cellSeed := deriveRarePositionSeed(seed, fmt.Sprintf("conditioned-zero-%d-%d", target, rank))
-	return conditionedZeroSearchResult{result: sampleConditionedZeroCell(event, target, rank,
-		group, campaign, table, sortOrder, samplers, samples, cellSeed)}
+	result := sampleConditionedZeroCell(event, target, rank,
+		group, campaign, table, sortOrder, samplers, samples, cellSeed)
+	if rank != 0 || !conditionedZeroDeepEnabled() || result.hits > 0 {
+		return conditionedZeroSearchResult{result: result}
+	}
+	if event.mass < 1e-9 {
+		for count := 5; count >= 4; count-- {
+			blockers := conditionedZeroBlockers(target, rank, teams, current, pmfs, group.Games, count)
+			deeper, built := buildConditionedPointEventWithLimit(target, rank, blockers,
+				group, campaign, table, bounds, conditionedZeroDeepStates)
+			if built {
+				event = deeper
+				break
+			}
+		}
+		if event.mass <= 0 {
+			return conditionedZeroSearchResult{impossible: len(event.terminal) == 0}
+		}
+	}
+	deepSeed := deriveRarePositionSeed(seed, fmt.Sprintf("conditioned-zero-deep-%d-%d", target, rank))
+	deeperResult := sampleConditionedZeroCell(event, target, rank,
+		group, campaign, table, sortOrder, samplers, conditionedZeroDeepRuns, deepSeed)
+	deeperResult.work += result.work
+	return conditionedZeroSearchResult{result: deeperResult}
 }
 
 // runConditionedZeroSearch is called after the pool and its uncertainty
@@ -511,6 +545,11 @@ func runConditionedZeroSearch(group *GroupType, campaign []*TeamCampaign, table 
 	workers := runtime.GOMAXPROCS(0)
 	if workers > 4 {
 		workers = 4
+	}
+	if conditionedZeroDeepEnabled() {
+		// Keep the large first-place dynamic program and its sampled seasons
+		// from running alongside other cell searches.
+		workers = 1
 	}
 	if workers > len(cells) {
 		workers = len(cells)

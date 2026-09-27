@@ -216,3 +216,37 @@ func TestConditionedZeroRealGroup(t *testing.T) {
 		t.Logf("Ceará first: %+v", estimates[69][0])
 	}
 }
+
+func TestConditionedZeroDeepRealGroup(t *testing.T) {
+	path := os.Getenv("RARE_POSITION_BENCHMARK_GROUP_JSON")
+	if path == "" {
+		t.Skip("set RARE_POSITION_BENCHMARK_GROUP_JSON to a saved group request")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var input GroupType
+	if err := json.Unmarshal(data, &input); err != nil {
+		t.Fatal(err)
+	}
+	if input.Id != 16653 {
+		t.Skip("the deep first-place regression uses group 16653")
+	}
+	t.Setenv("RARE_POSITION_MATCHED_POINT_POOL", "1")
+	t.Setenv("RARE_POSITION_IMPORTANCE_SAMPLING", "0")
+	t.Setenv("RARE_POSITION_RANDOM_SEED", "808")
+	t.Setenv("RARE_POSITION_CONDITIONED_ZERO_DEEP", "1")
+	estimates := cloneGroupForBenchmark(input).calculate_odds()["rare_position_estimates"].(map[int]map[int]ProductionEstimate)
+	for _, id := range []int{457, 68} {
+		est := estimates[id][0]
+		if est.Probability <= 0 || est.ConditionalHits <= 0 || est.Reachability != "witness" {
+			t.Fatalf("team=%d first-place deep search did not find a witness: %+v", id, est)
+		}
+		if est.ConditionalSamples != conditionedZeroDeepRuns {
+			t.Fatalf("team=%d first-place deep search used %d samples", id, est.ConditionalSamples)
+		}
+		t.Logf("team=%d first-place probability=%.12g mass=%.12g hits=%d samples=%d",
+			id, est.Probability, est.ConditionalMass, est.ConditionalHits, est.ConditionalSamples)
+	}
+}

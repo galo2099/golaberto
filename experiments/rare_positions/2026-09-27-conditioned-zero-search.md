@@ -86,3 +86,61 @@ unbiased before matrix reconciliation under the Poisson model, but the
 few-hit estimates have substantial sampling uncertainty. The extra
 allocated memory, about 94 MB per group 16653 operation, is the main
 resource cost to monitor in production.
+
+## Deeper first-place search for Botafogo-SP and Avaí
+
+The ordinary conditioned search left Botafogo-SP (team 457) and Avaí
+(team 68) first place at zero with `undecided` reachability. Both are
+reachable: complete schedules found in the earlier witness experiment
+give Botafogo-SP 59 points with every rival at most 58, and Avaí 57
+with every rival at most 56. The ordinary three-rival necessary events
+had masses `1.13766660424e-8` and `7.13413982305e-11`, respectively.
+With zero hits in 1,000 conditioned seasons, their previous 95% upper
+bounds were approximately `3.40e-11` and `2.13e-13` as probabilities.
+
+For Botafogo-SP, a million draws under the same three-rival event
+produced 60 first-place finishes. For Avaí, a necessary event including
+five rivals (Fortaleza, Vila Nova, Juventude, the rival with team ID
+2064, and the rival with team ID 279) had exact mass
+`5.81378882712e-15`. Its point-state dynamic program reached 211,680
+states across 45 relevant games. A million conditioned draws produced
+58 first-place finishes. The full Go standings sorter, including
+scoreline tiebreakers, verified every hit.
+
+| Team | Necessary-event mass | Hits / conditioned draws | First-place estimate (probability) | Approximate relative sampling error |
+| --- | ---: | ---: | ---: | ---: |
+| Botafogo-SP | `1.13766660424e-8` | 60 / 1,000,000 | `6.826e-13` | 13% |
+| Avaí | `5.81378882712e-15` | 58 / 1,000,000 | `3.372e-19` | 13% |
+
+Independent experiment seeds yielded 63 / 1,000,000 for Botafogo-SP,
+and 126 / 2,000,000 plus 69 / 1,000,000 for Avaí. The Avaí estimates
+from those seeds were `3.663e-19` and `4.012e-19`. This agreement
+supports the order of magnitude, while the sampling uncertainty and
+the underlying match-probability model still limit precision. Exact
+binomial 95% sampling intervals for the independent 63-hit and 126-hit
+runs are approximately `[5.51e-13, 9.17e-13]` and
+`[3.05e-19, 4.36e-19]` as probabilities. These intervals do not
+include uncertainty in match power estimates.
+
+`RARE_POSITION_CONDITIONED_ZERO_DEEP=1` enables the deeper search.
+It runs only after the ordinary conditioned search finds no first-place
+finish. It uses one million additional draws, and when the ordinary
+necessary-event mass is below `1e-9`, it tries five, then four,
+blocking rivals with a 250,000-state cap. The flag is opt-in because
+it adds roughly two million simulated seasons for this group.
+
+Apple M2 Pro full-request benchmark on the same saved group 16653 JSON:
+
+| Configuration | Time per request | Allocated bytes per request |
+| --- | ---: | ---: |
+| Ordinary conditioned search, deep flag off | 526.7 ms (3 runs) | 118.9 MB |
+| Deep first-place search enabled | 18.46 s (1 run) | 518.3 MB |
+
+The deep run used one million additional conditioned seasons for each
+of the two previously zero first-place cells; Ceará was already found
+by the ordinary search and did not get the extra draws. The sampled
+season work in the request rose from 17.4 million to 227.4 million
+season-work units, as reported by the Go estimator. Because the deep
+benchmark has one run, treat its timing as approximate. The feature is
+intended for offline or explicitly requested high-effort calculations,
+not the default request path.
