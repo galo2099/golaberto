@@ -2,17 +2,38 @@
 
 require 'httparty'
 require 'fuzzy/fuzzy'
+require 'open3'
 
 class ChampionshipGet
   include HTTParty
 
   def self.get(url)
     body = with_http_retries(url)
-    ActiveSupport::JSON.decode(body)
+    data = ActiveSupport::JSON.decode(body)
+    if data.is_a?(Hash) && data["error"]
+      raise "SofaScore request failed for #{url}: #{data['error'].inspect}"
+    end
+    data
+  end
+end
+
+class SofaScoreFetch
+  def self.get(url)
+    binary = ENV["SOFASCORE_FETCH_BIN"] || File.expand_path("../bin/sofascore_fetch", __dir__)
+    raise "SofaScore fetcher is missing; build it with go -C go/sofascore_fetch build -o ../../bin/sofascore_fetch ." unless File.executable?(binary)
+
+    body, error, status = Open3.capture3(binary, url)
+    raise "SofaScore request failed for #{url}: #{error.strip}" unless status.success?
+
+    body
   end
 end
 
 def with_http_retries(url)
+  # Stored phase URLs and the lineup/incident links may still use HTTP.
+  url = url.sub(/\Ahttp:\/\/((?:www\.|api\.)?sofascore\.com)(?=\/)/i, 'https://\1')
+  return SofaScoreFetch.get(url) if url.match?(/\Ahttps:\/\/(?:www\.|api\.)?sofascore\.com\/api\/v1\//i)
+
   begin
     ret = ""
     loop do

@@ -8,6 +8,15 @@ set :linked_files, %w{config/database.yml config/secrets.yml}
 set :linked_dirs, %w{bin log tmp/pids tmp/cache tmp/sockets vendor/bundle public/system}
 
 namespace :deploy do
+  desc 'Build the SofaScore API fetcher'
+  task :build_sofascore_fetch do
+    on roles(:app) do
+      within release_path.join('go/sofascore_fetch') do
+        execute :go, :build, '-o', release_path.join('bin/sofascore_fetch'), '.'
+      end
+    end
+  end
+
   desc 'Restart application'
   task :restart do
     on roles(:app), in: :sequence, wait: 5 do
@@ -24,6 +33,7 @@ namespace :deploy do
   end
 
   after :publishing, 'deploy:restart'
+  before 'deploy:restart', 'deploy:build_sofascore_fetch'
   before 'deploy:restart', 'deploy:install_google_analytics'
   after :finishing, 'deploy:cleanup'
 end

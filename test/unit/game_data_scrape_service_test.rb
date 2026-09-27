@@ -1,7 +1,61 @@
 require "test_helper"
 require "scrape"
+require "tmpdir"
 
 class GameDataScrapeServiceTest < ActiveSupport::TestCase
+  test "SofaScore requests use HTTPS and the Go fetcher" do
+    requested_url = nil
+
+    SofaScoreFetch.stub(:get, ->(url) {
+      requested_url = url
+      '{"events":[]}'
+    }) do
+      assert_equal({ "events" => [] }, ChampionshipGet.get("http://www.sofascore.com/api/v1/event/42/lineups"))
+    end
+
+    assert_equal "https://www.sofascore.com/api/v1/event/42/lineups", requested_url
+  end
+
+  test "SofaScore fetcher returns data and reports transport errors" do
+    Dir.mktmpdir("fake-sofascore-fetch-") do |dir|
+      fetcher = File.join(dir, "sofascore_fetch")
+      File.write(fetcher, "#!/bin/sh\nprintf '{\"events\":[]}'\n")
+      File.chmod(0755, fetcher)
+      previous_fetcher = ENV["SOFASCORE_FETCH_BIN"]
+      begin
+        ENV["SOFASCORE_FETCH_BIN"] = fetcher
+        assert_equal '{"events":[]}', SofaScoreFetch.get("https://www.sofascore.com/api/v1/event/42")
+
+        File.write(fetcher, "#!/bin/sh\nprintf 'HTTP 403: Forbidden\\n' >&2\nexit 1\n")
+        error = assert_raises(RuntimeError) { SofaScoreFetch.get("https://www.sofascore.com/api/v1/event/42") }
+        assert_includes error.message, "HTTP 403: Forbidden"
+      ensure
+        ENV["SOFASCORE_FETCH_BIN"] = previous_fetcher
+      end
+    end
+  end
+
+  test "SofaScore error responses are logged for the phase" do
+    url = "http://www.sofascore.com/api/v1/unique-tournament/390/season/89840/events/round/30"
+    body = '{"error":{"code":403,"reason":"challenge"}}'
+    phase = FakePhase.new(id: 42, name: "Liga", scrape_url: url.chomp("30"))
+    errors = []
+
+    Phase.stub(:find, phase) do
+      ChampionshipGet.stub(:with_http_retries, body) do
+        Rails.logger.stub(:error, ->(message) { errors << message }) do
+          GameDataScrapeService.scrape_phase(phase, rounds: [30])
+        end
+      end
+    end
+
+    assert_equal 1, errors.size
+    assert_includes errors.first, "ERROR phase #42"
+    assert_includes errors.first, url
+    assert_includes errors.first, "403"
+    assert_includes errors.first, "challenge"
+  end
+
   class FakePhase
     attr_reader :id, :name, :scrape_url, :scraped
 
