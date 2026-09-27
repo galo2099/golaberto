@@ -140,6 +140,45 @@ func TestConditionedScoreSamplerPreservesOutcome(t *testing.T) {
 	}
 }
 
+func TestConditionedFirstPointScreenMatchesFullSampling(t *testing.T) {
+	group, campaign, table, order, _ := createTestGroupForDiversified()
+	bounds := buildPointRankBounds(campaign, group.Team_groups, group.Games, table)
+	event, ok := buildConditionedPointEvent(1, 0, []int{2, 3}, group, campaign, table, bounds)
+	if !ok || event.mass <= 0 {
+		t.Fatal("could not build conditioned first-place event")
+	}
+	samplers := newConditionedScoreSamplers(group.Games)
+	const draws = 20000
+	full := sampleConditionedZeroCell(event, 1, 0, group, campaign, table,
+		order, samplers, draws, 46)
+	fast := sampleConditionedZeroFirstCellFast(event, 1, group, campaign, table,
+		order, samplers, draws, 76)
+	if full.samples != draws || fast.samples != draws ||
+		math.Abs(float64(full.hits-fast.hits)/draws) > 0.02 {
+		t.Fatalf("first-place hit rates differ: full=%+v fast=%+v", full, fast)
+	}
+}
+
+func TestConditionedFirstLookaheadMatchesFullSampling(t *testing.T) {
+	group, campaign, table, order, _ := createTestGroupForDiversified()
+	bounds := buildPointRankBounds(campaign, group.Team_groups, group.Games, table)
+	event, ok := buildConditionedPointEvent(1, 0, nil, group, campaign, table, bounds)
+	if !ok || event.mass <= 0 {
+		t.Fatal("could not build conditioned first-place event")
+	}
+	samplers := newConditionedScoreSamplers(group.Games)
+	const draws = 50000
+	full := sampleConditionedZeroCell(event, 1, 0, group, campaign, table,
+		order, samplers, draws, 29)
+	weighted, _ := sampleConditionedZeroFirstLookahead(event, 1, group, campaign,
+		table, order, bounds, samplers, draws, 57)
+	want := event.mass * float64(full.hits) / draws
+	if weighted.samples != draws || weighted.hits <= 0 || !weighted.weighted ||
+		math.Abs(weighted.probability-want) > 0.03 {
+		t.Fatalf("lookahead probability=%g, full probability=%g: %+v", weighted.probability, want, weighted)
+	}
+}
+
 func TestConditionedZeroRealGroup(t *testing.T) {
 	path := os.Getenv("RARE_POSITION_BENCHMARK_GROUP_JSON")
 	if path == "" {
@@ -237,6 +276,7 @@ func TestConditionedZeroDeepRealGroup(t *testing.T) {
 	t.Setenv("RARE_POSITION_IMPORTANCE_SAMPLING", "0")
 	t.Setenv("RARE_POSITION_RANDOM_SEED", "808")
 	t.Setenv("RARE_POSITION_CONDITIONED_ZERO_DEEP", "1")
+	t.Setenv("RARE_POSITION_CONDITIONED_ZERO_LOOKAHEAD", "0")
 	estimates := cloneGroupForBenchmark(input).calculate_odds()["rare_position_estimates"].(map[int]map[int]ProductionEstimate)
 	for _, id := range []int{457, 68} {
 		est := estimates[id][0]
@@ -248,5 +288,50 @@ func TestConditionedZeroDeepRealGroup(t *testing.T) {
 		}
 		t.Logf("team=%d first-place probability=%.12g mass=%.12g hits=%d samples=%d",
 			id, est.Probability, est.ConditionalMass, est.ConditionalHits, est.ConditionalSamples)
+	}
+}
+
+func TestConditionedZeroLookaheadRealGroup(t *testing.T) {
+	path := os.Getenv("RARE_POSITION_BENCHMARK_GROUP_JSON")
+	if path == "" {
+		t.Skip("set RARE_POSITION_BENCHMARK_GROUP_JSON to a saved group request")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var input GroupType
+	if err := json.Unmarshal(data, &input); err != nil {
+		t.Fatal(err)
+	}
+	if input.Id != 16653 {
+		t.Skip("the lookahead first-place regression uses group 16653")
+	}
+	t.Setenv("RARE_POSITION_MATCHED_POINT_POOL", "1")
+	t.Setenv("RARE_POSITION_IMPORTANCE_SAMPLING", "0")
+	t.Setenv("RARE_POSITION_RANDOM_SEED", "808")
+	t.Setenv("RARE_POSITION_CONDITIONED_ZERO_DEEP", "0")
+	t.Setenv("RARE_POSITION_CONDITIONED_ZERO_LOOKAHEAD", "1")
+	estimates := cloneGroupForBenchmark(input).calculate_odds()["rare_position_estimates"].(map[int]map[int]ProductionEstimate)
+	for _, id := range []int{457, 68} {
+		est := estimates[id][0]
+		if est.Probability <= 0 || est.ConditionalHits <= 0 || est.Reachability != "witness" ||
+			est.Design != "matched_point_pool_conditioned_lookahead" ||
+			est.ConditionalSamples != conditionedZeroLookaheadSamples ||
+			est.MaxEventWeightShare > 0.03 || est.ESS < 200 {
+			t.Fatalf("team=%d lookahead did not produce a stable first-place estimate: %+v", id, est)
+		}
+		t.Logf("team=%d probability=%.12g mass=%.12g hits=%d ESS=%.1f max_share=%.4g",
+			id, est.Probability, est.ConditionalMass, est.ConditionalHits,
+			est.ESS, est.MaxEventWeightShare)
+	}
+	for rank := range input.Team_groups {
+		column := 0.0
+		for _, team := range input.Team_groups {
+			column += estimates[team.Team_id][rank].Probability
+		}
+		if math.Abs(column-1) > 1e-6 {
+			t.Fatalf("rank=%d: column sum=%g", rank, column)
+		}
 	}
 }

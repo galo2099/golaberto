@@ -190,3 +190,64 @@ against the full conditioned-search reference. A points-first filter
 can be added independently because it does not change the probability
 estimator. Early rejection assumes nonnegative points earned per game;
 other scoring rules need a remaining-points bound instead.
+
+## Exact points screen and lookahead experiment
+
+The points screen is now used by the million-draw deep first-place
+search. After drawing win/draw/loss outcomes, it rejects a season as
+soon as a rival exceeds the target's fixed final points. A strict
+points lead is counted immediately; a points tie goes through the
+existing conditional scoreline sampler and Go standings sorter. The
+screen falls back to the original full-season simulation when points
+per game can be negative or fixtures include teams outside the group.
+It preserves the same probability distribution and does not change
+the ordinary request path.
+
+`RARE_POSITION_CONDITIONED_ZERO_LOOKAHEAD=1` enables an opt-in weighted
+alternative after the ordinary search has no first-place hits. It
+conditions on three blocking rivals, or four when the three-rival
+event mass is below `1e-9`. For each remaining game, the proposal
+scores each win/draw/loss outcome using the rivals' marginal chances
+of staying below the target's final points over their remaining
+fixtures. The sampled path receives the exact product of original
+outcome probability divided by proposal probability. Scorelines are
+sampled conditional on the outcomes only when teams tie on points.
+Thus the proposal changes variance and cost, not the expected estimate.
+
+The mode uses 20,000 weighted pilot draws per zero first-place cell.
+It accepts the proposal only with at least 100 finishing paths,
+effective sample size at least 200, estimated relative standard error
+at most 10%, largest hit weight at most 3% of the total, and a gap of
+at most 20% between the two half-sample means. If accepted, a separate
+independent 20,000 draws produce the estimate. Separating the pilot
+prevents selection on the estimate's own sampling noise. A rejected
+pilot falls back to the points-screened million-draw search. Both
+modes are opt-in; the ordinary request remains the default.
+
+Group 16653, phase 4489, seed 808, full matrix after reconciliation:
+
+| Team | First-place probability | Weighted finishing paths / draws | ESS | Largest hit-weight share |
+| --- | ---: | ---: | ---: | ---: |
+| Botafogo-SP | `6.412e-13` | 7,770 / 20,000 | 1,422 | 0.51% |
+| Avaí | `3.383e-19` | 9,279 / 20,000 | 1,010 | 0.74% |
+
+In four independent 20,000-draw prototype seeds, Botafogo-SP ranged
+from `5.88e-13` to `6.21e-13`, and Avaí from `3.21e-19` to
+`3.37e-19`. These estimates are consistent in order of magnitude
+with the earlier million-draw conditioned search. Between-seed
+agreement and weight concentration matter more here than the
+within-run standard error alone.
+
+Apple M2 Pro full-request benchmarks on the same saved input:
+
+| Configuration | Time per request | Allocated bytes per request |
+| --- | ---: | ---: |
+| Ordinary request | 539.3 ms (3 runs) | 118.9 MB |
+| Million-draw deep search with exact points screen | 9.79 s (1 run) | 385.6 MB |
+| Lookahead, 20,000 pilot plus 20,000 estimate draws per zero first-place cell | 1.568 s (3 runs) | 152.6 MB |
+
+Lookahead took 2.91 times the ordinary request time and was 11.8
+times faster than the earlier 18.46-second deep search. Group 16982
+still has no zero cells, so the lookahead mode does no extra search
+there. The Go package tests, `go vet`, and the saved group 16653 and
+16982 regressions passed.

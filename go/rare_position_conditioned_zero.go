@@ -53,10 +53,15 @@ type conditionedScoreSampler struct {
 }
 
 type conditionedZeroResult struct {
-	mass    float64
-	samples int
-	hits    int
-	work    int64
+	mass           float64
+	samples        int
+	hits           int
+	work           int64
+	weighted       bool
+	probability    float64
+	stdErr         float64
+	ess            float64
+	maxWeightShare float64
 }
 
 type conditionedZeroSearchResult struct {
@@ -70,6 +75,10 @@ func conditionedZeroEnabled() bool {
 
 func conditionedZeroDeepEnabled() bool {
 	return os.Getenv("RARE_POSITION_CONDITIONED_ZERO_DEEP") == "1"
+}
+
+func conditionedZeroLookaheadEnabled() bool {
+	return os.Getenv("RARE_POSITION_CONDITIONED_ZERO_LOOKAHEAD") == "1"
 }
 
 func conditionedZeroBlockers(target, rank int, teams []int, current map[int]int,
@@ -459,8 +468,38 @@ func searchConditionedZeroCell(target, rank int, group *GroupType,
 	cellSeed := deriveRarePositionSeed(seed, fmt.Sprintf("conditioned-zero-%d-%d", target, rank))
 	result := sampleConditionedZeroCell(event, target, rank,
 		group, campaign, table, sortOrder, samplers, samples, cellSeed)
-	if rank != 0 || !conditionedZeroDeepEnabled() || result.hits > 0 {
+	if rank != 0 || (!conditionedZeroDeepEnabled() && !conditionedZeroLookaheadEnabled()) || result.hits > 0 {
 		return conditionedZeroSearchResult{result: result}
+	}
+	extraWork := result.work
+	if conditionedZeroLookaheadEnabled() {
+		weightedEvent := event
+		if event.mass < 1e-9 {
+			blockers := conditionedZeroBlockers(target, rank, teams, current, pmfs, group.Games, 4)
+			if deeper, built := buildConditionedPointEventWithLimit(target, rank, blockers,
+				group, campaign, table, bounds, conditionedZeroLookaheadStates); built {
+				weightedEvent = deeper
+			}
+		}
+		if weightedEvent.mass <= 0 {
+			return conditionedZeroSearchResult{impossible: len(weightedEvent.terminal) == 0}
+		}
+		pilotSeed := deriveRarePositionSeed(seed, fmt.Sprintf("conditioned-zero-lookahead-pilot-%d-%d", target, rank))
+		pilot, accepted := sampleConditionedZeroFirstLookahead(weightedEvent, target,
+			group, campaign, table, sortOrder, bounds, samplers,
+			conditionedZeroLookaheadSamples, pilotSeed)
+		extraWork += pilot.work
+		if accepted {
+			lookaheadSeed := deriveRarePositionSeed(seed, fmt.Sprintf("conditioned-zero-lookahead-estimate-%d-%d", target, rank))
+			weighted, _ := sampleConditionedZeroFirstLookahead(weightedEvent, target,
+				group, campaign, table, sortOrder, bounds, samplers,
+				conditionedZeroLookaheadSamples, lookaheadSeed)
+			extraWork += weighted.work
+			if weighted.weighted && weighted.hits > 0 {
+				weighted.work = extraWork
+				return conditionedZeroSearchResult{result: weighted}
+			}
+		}
 	}
 	if event.mass < 1e-9 {
 		for count := 5; count >= 4; count-- {
@@ -477,9 +516,9 @@ func searchConditionedZeroCell(target, rank int, group *GroupType,
 		}
 	}
 	deepSeed := deriveRarePositionSeed(seed, fmt.Sprintf("conditioned-zero-deep-%d-%d", target, rank))
-	deeperResult := sampleConditionedZeroCell(event, target, rank,
+	deeperResult := sampleConditionedZeroFirstCellFast(event, target,
 		group, campaign, table, sortOrder, samplers, conditionedZeroDeepRuns, deepSeed)
-	deeperResult.work += result.work
+	deeperResult.work += extraWork
 	return conditionedZeroSearchResult{result: deeperResult}
 }
 
@@ -546,7 +585,7 @@ func runConditionedZeroSearch(group *GroupType, campaign []*TeamCampaign, table 
 	if workers > 4 {
 		workers = 4
 	}
-	if conditionedZeroDeepEnabled() {
+	if conditionedZeroDeepEnabled() || conditionedZeroLookaheadEnabled() {
 		// Keep the large first-place dynamic program and its sampled seasons
 		// from running alongside other cell searches.
 		workers = 1
@@ -591,12 +630,22 @@ func runConditionedZeroSearch(group *GroupType, campaign []*TeamCampaign, table 
 		est.ConditionalSamples = result.samples
 		est.ConditionalHits = result.hits
 		if result.hits > 0 {
-			est.Probability = result.mass * float64(result.hits) / float64(result.samples)
-			frequency := float64(result.hits) / float64(result.samples)
-			est.StdErr = result.mass * math.Sqrt(frequency*(1-frequency)/float64(result.samples))
+			if result.weighted {
+				est.Probability = result.probability
+				est.StdErr = result.stdErr
+				est.ESS = result.ess
+				est.MaxEventWeightShare = result.maxWeightShare
+				est.Design = "matched_point_pool_conditioned_lookahead"
+				est.MeetsPrecisionGoal = estimateMeetsPrecisionGoal(result.ess,
+					result.stdErr/result.probability)
+			} else {
+				est.Probability = result.mass * float64(result.hits) / float64(result.samples)
+				frequency := float64(result.hits) / float64(result.samples)
+				est.StdErr = result.mass * math.Sqrt(frequency*(1-frequency)/float64(result.samples))
+				est.Design = "matched_point_pool_conditioned"
+			}
 			est.RelativeSE = relativeSEPointer(est.StdErr / est.Probability)
 			est.Reachability = "witness"
-			est.Design = "matched_point_pool_conditioned"
 			est.ZeroHitUpper95 = 0
 			witnesses++
 		} else {
