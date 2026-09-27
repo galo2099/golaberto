@@ -144,3 +144,49 @@ season-work units, as reported by the Go estimator. Because the deep
 benchmark has one run, treat its timing as approximate. The feature is
 intended for offline or explicitly requested high-effort calculations,
 not the default request path.
+
+## Faster first-place search prototype (not shipped)
+
+The deep implementation simulates scorelines and sorts the standings
+for every conditioned season. A first-place result can be screened by
+points first: a rival above the target makes the draw a certain miss;
+a strict target lead makes it a certain hit; only a points tie requires
+scorelines and the full sorter. In one million draws for each team,
+the points-only prototype found just 61 Botafogo-SP and 54 Avaí draws
+that could still finish first. All 115 were points ties. The two
+million points-only draws took 8.2 seconds in the prototype, compared
+with 18.5 seconds for a full deep request. The comparison includes
+different surrounding work, so it is an indication of savings, not a
+full-request benchmark.
+
+A second prototype sampled each remaining game's win/draw/loss outcome
+only among outcomes that kept both teams at or below the target's final
+points. It multiplied each path by the product of the probabilities of
+the allowed outcomes. That weight makes the estimate unbiased under
+the same match model. The full Go sorter ran only for paths that passed
+the points check. With 100,000 weighted draws per team and the same
+three-rival and five-rival conditioning events, respectively, it gave:
+
+| Team | Weighted first-place estimate | Within-run estimated relative SE | Draw time after event construction |
+| --- | ---: | ---: | ---: |
+| Botafogo-SP | `5.71e-13` | 9.7% | 0.33 s |
+| Avaí | `3.07e-19` | 6.5% | 0.73 s |
+
+The two event constructions and weighted runs together took 2.5
+seconds in the prototype. Independent 100,000-draw Avaí seeds gave
+`3.68e-19` and `2.87e-19`; the within-run error estimates did not
+fully capture this spread. Some paths carried 1.6–2.9% of the total
+hit weight. Using four rather than five rivals reduced dynamic-program
+size, but made the weight tail worse: estimates were `2.46e-19` at
+100,000 draws, `2.98e-19` at 500,000 draws, and `3.68e-19` in a
+separate million-draw run. The largest path supplied 6.9% of hit
+weight in that last run. These results are exploratory; no weighted
+search code was added to production.
+
+The next candidate is a sequential proposal that looks ahead to each
+rival's remaining fixtures, or a particle sampler that resamples when
+weights concentrate. It should be checked across independent seeds
+against the full conditioned-search reference. A points-first filter
+can be added independently because it does not change the probability
+estimator. Early rejection assumes nonnegative points earned per game;
+other scoring rules need a remaining-points bound instead.
