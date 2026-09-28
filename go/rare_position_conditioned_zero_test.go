@@ -224,13 +224,15 @@ func TestConditionedRankLookaheadMatchesFullSampling(t *testing.T) {
 		}
 		full := sampleConditionedZeroCell(event, target, rank, group, campaign,
 			table, order, samplers, draws, 29)
-		weighted, _ := sampleConditionedZeroRankLookahead(event, target, rank,
-			group, campaign, table, order, bounds, samplers, draws, 57)
 		want := event.mass * float64(full.hits) / draws
-		if weighted.samples != draws || weighted.hits <= 0 || !weighted.weighted ||
-			math.Abs(weighted.probability-want) > 0.015 {
-			t.Fatalf("rank=%d: lookahead probability=%g, full probability=%g: %+v",
-				rank, weighted.probability, want, weighted)
+		for _, tilt := range []float64{1, 2, 4} {
+			weighted, _ := sampleConditionedZeroRankLookaheadWithTilt(event, target, rank,
+				group, campaign, table, order, bounds, samplers, draws, 57, tilt)
+			if weighted.samples != draws || weighted.hits <= 0 || !weighted.weighted ||
+				math.Abs(weighted.probability-want) > 0.015 {
+				t.Fatalf("rank=%d tilt=%g: lookahead probability=%g, full probability=%g: %+v",
+					rank, tilt, weighted.probability, want, weighted)
+			}
 		}
 	}
 }

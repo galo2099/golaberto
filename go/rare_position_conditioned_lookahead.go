@@ -51,6 +51,14 @@ func sampleConditionedZeroRankLookahead(event *conditionedPointEvent, target, ra
 	group *GroupType, campaign []*TeamCampaign, table *Table, sortOrder []SortType,
 	bounds pointRankBounds, samplers []conditionedScoreSampler, samples int,
 	seed int64) (conditionedZeroResult, bool) {
+	return sampleConditionedZeroRankLookaheadWithTilt(event, target, rank, group,
+		campaign, table, sortOrder, bounds, samplers, samples, seed, 1)
+}
+
+func sampleConditionedZeroRankLookaheadWithTilt(event *conditionedPointEvent, target, rank int,
+	group *GroupType, campaign []*TeamCampaign, table *Table, sortOrder []SortType,
+	bounds pointRankBounds, samplers []conditionedScoreSampler, samples int,
+	seed int64, tilt float64) (conditionedZeroResult, bool) {
 	result := conditionedZeroResult{mass: event.mass}
 	if event.mass <= 0 || samples <= 0 {
 		return result, false
@@ -160,6 +168,10 @@ func sampleConditionedZeroRankLookahead(event *conditionedPointEvent, target, ra
 		}
 		if expectedBelow > 0 {
 			belowWeight = math.Min(1, float64(len(group.Team_groups)-1-rank)/expectedBelow)
+		}
+		if tilt != 1 {
+			aboveWeight = math.Pow(aboveWeight, tilt)
+			belowWeight = math.Pow(belowWeight, tilt)
 		}
 		weight := 1.0
 		if above > rank {
