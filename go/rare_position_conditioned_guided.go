@@ -79,6 +79,9 @@ func runConditionedGuidedSearch(group *GroupType, campaign []*TeamCampaign,
 					group, campaign, table, sortOrder, bounds, samplers,
 					conditionedGuidedPilotSamples, pilotSeed)
 				search.result.work += pilot.work
+				if search.witnessOutcomes == nil {
+					search.witnessOutcomes = pilot.witnessOutcomes
+				}
 				search.event = event
 				results[index] = search
 				// The pilot only selects cells. The fresh production draw has
@@ -133,6 +136,9 @@ func runConditionedGuidedSearch(group *GroupType, campaign []*TeamCampaign,
 				weighted, accepted := sampleConditionedZeroRankLookahead(search.event,
 					cell.id, cell.rank, group, campaign, table, sortOrder, bounds,
 					samplers, conditionedZeroLookaheadSamples, productionSeed)
+				if search.witnessOutcomes == nil {
+					search.witnessOutcomes = weighted.witnessOutcomes
+				}
 				if accepted && weighted.weighted && weighted.hits > 0 {
 					weighted.work += search.result.work
 					weighted.blockers = len(search.event.teams) - 1
@@ -198,6 +204,9 @@ func runConditionedGuidedDeep(group *GroupType, campaign []*TeamCampaign,
 				fmt.Sprintf("conditioned-guided-deep-%d-%d", cell.id, cell.rank))
 			deep := sampleConditionedZeroCellFast(event, cell.id, cell.rank,
 				group, campaign, table, sortOrder, samplers, conditionedZeroDeepRuns, deepSeed)
+			if search.witnessOutcomes == nil {
+				search.witnessOutcomes = deep.witnessOutcomes
+			}
 			deep.work += search.result.work
 			deep.blockers = len(event.teams) - 1
 			search.result = deep

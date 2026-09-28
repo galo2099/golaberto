@@ -246,6 +246,9 @@ func sampleConditionedZeroRankLookaheadWithTilt(event *conditionedPointEvent, ta
 		}
 		if hit {
 			result.hits++
+			if result.witnessOutcomes == nil {
+				result.witnessOutcomes = append([]uint8(nil), outcomes...)
+			}
 			sumY += weight
 			sumY2 += weight * weight
 			if weight > maxY {

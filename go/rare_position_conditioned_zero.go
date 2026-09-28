@@ -56,22 +56,24 @@ type conditionedScoreSampler struct {
 }
 
 type conditionedZeroResult struct {
-	mass           float64
-	samples        int
-	hits           int
-	blockers       int
-	work           int64
-	weighted       bool
-	probability    float64
-	stdErr         float64
-	ess            float64
-	maxWeightShare float64
+	mass            float64
+	samples         int
+	hits            int
+	blockers        int
+	work            int64
+	weighted        bool
+	probability     float64
+	stdErr          float64
+	ess             float64
+	maxWeightShare  float64
+	witnessOutcomes []uint8
 }
 
 type conditionedZeroSearchResult struct {
-	result     conditionedZeroResult
-	impossible bool
-	event      *conditionedPointEvent
+	result          conditionedZeroResult
+	impossible      bool
+	event           *conditionedPointEvent
+	witnessOutcomes []uint8
 }
 
 type conditionedZeroCell struct{ id, rank int }
@@ -427,6 +429,13 @@ func sampleConditionedZeroCell(event *conditionedPointEvent, target, rank int,
 			} else {
 				home = samplers[index].home.sample(rng)
 				away = samplers[index].away.sample(rng)
+				if home < away {
+					outcomes[index] = 0
+				} else if home == away {
+					outcomes[index] = 1
+				} else {
+					outcomes[index] = 2
+				}
 			}
 			score := &simGames[index]
 			*score = GameType{Id: game.Id, HomeId: game.HomeId, AwayId: game.AwayId,
@@ -440,6 +449,9 @@ func sampleConditionedZeroCell(event *conditionedPointEvent, target, rank int,
 		sort.Sort(TeamCampaignSorted{t: teamSlice, sort: sortOrder, rng: rng})
 		if teamSlice[rank].id == target {
 			result.hits++
+			if result.witnessOutcomes == nil {
+				result.witnessOutcomes = append([]uint8(nil), outcomes...)
+			}
 		}
 		result.samples++
 	}
@@ -493,7 +505,7 @@ func searchConditionedZeroCell(target, rank int, group *GroupType,
 	result := sampleConditionedZeroCellFast(event, target, rank,
 		group, campaign, table, sortOrder, samplers, samples, cellSeed)
 	result.blockers = len(event.teams) - 1
-	return conditionedZeroSearchResult{result: result, event: event}
+	return conditionedZeroSearchResult{result: result, event: event, witnessOutcomes: result.witnessOutcomes}
 }
 
 // Gain measures how many log units of a cell's 95% zero-hit upper bound a
@@ -660,6 +672,9 @@ func allocateConditionedZeroExtra(group *GroupType, campaign []*TeamCampaign,
 		extra.blockers = len(job.event.teams) - 1
 		extra.work += results[job.index].result.work
 		results[job.index].result = extra
+		if results[job.index].witnessOutcomes == nil {
+			results[job.index].witnessOutcomes = extra.witnessOutcomes
+		}
 	}
 }
 
@@ -795,6 +810,19 @@ func runConditionedZeroSearch(group *GroupType, campaign []*TeamCampaign, table 
 			}
 		}
 		estimates[target.id][target.rank] = est
+	}
+	if reachabilityNeighborEnabled() {
+		proofs, attempts := searchReachabilityNeighbors(group, campaign, table,
+			sortOrder, cells, results, estimates, reachabilityNeighborBudget())
+		for _, proof := range proofs {
+			est := estimates[proof.cell.id][proof.cell.rank]
+			est.Reachability = "reachable_by_construction"
+			estimates[proof.cell.id][proof.cell.rank] = est
+			log.Printf("rare-position-neighborhood-proof: group=%d team=%d rank=%d",
+				group.Id, proof.cell.id, proof.cell.rank+1)
+		}
+		log.Printf("rare-position-neighborhood: group=%d search_cells=%d candidates=%d proofs=%d",
+			group.Id, len(results), attempts, len(proofs))
 	}
 	if witnesses == 0 {
 		return 0, totalWork

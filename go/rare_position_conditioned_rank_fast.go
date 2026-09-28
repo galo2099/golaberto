@@ -95,6 +95,9 @@ func sampleConditionedZeroCellFast(event *conditionedPointEvent, target, rank in
 		if above <= rank && above+tied >= rank &&
 			(tied == 0 || scoreContext.finishesAtRank(target, rank, outcomes, rng)) {
 			result.hits++
+			if result.witnessOutcomes == nil {
+				result.witnessOutcomes = append([]uint8(nil), outcomes...)
+			}
 		}
 		result.samples++
 	}
