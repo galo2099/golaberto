@@ -317,10 +317,20 @@ Botafogo-SP 2nd was observed 9 times in 50,000 draws under event mass
 standard error near 33%. Team 95 3rd stayed zero but its 95% upper
 bound fell to `3.47e-12`; team 22 17th stayed zero with upper bound
 `5.20e-7`. The request recorded 46.83 million work units, 12.6% above
-the fixed-position escalation's 41.58 million. On Apple M2 Pro, the
-three-run full-request benchmark took 3.769 seconds per request and
-allocated 366 MB per request. The earlier fixed-position test took
-about 2.95 seconds; the timings use different test and benchmark
-methods, so the difference is approximate. Group 16982 had no zero
-cells and spent no extra draws. A small-group regression confirms that
-the scheduler can select the middle rank when it offers the best gain.
+the fixed-position escalation's 41.58 million. A small-group
+regression confirms that the scheduler can select the middle rank when
+it offers the best gain.
+
+Direct three-run full-request benchmarks on Apple M2 Pro, comparing
+commit `acaeb6ce` (fixed-position extra search) with `5a899e42`
+(difficulty-based allocation), gave:
+
+| Group | Previous time | New time | Time change | Previous allocated bytes | New allocated bytes |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 16653 | 3.005 s | 3.704 s | +23.3% | 244 MB | 366 MB |
+| 16982 | 0.954 s | 0.959 s | +0.5% | 48.0 MB | 48.0 MB |
+
+Allocated bytes are cumulative per-request allocations, not peak
+resident memory. Group 16982 had no zero cells and spent no extra
+draws; its small time difference is benchmark noise. Candidate point
+event construction adds cost beyond the recorded simulation-work units.
