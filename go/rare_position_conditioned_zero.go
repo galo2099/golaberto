@@ -824,6 +824,9 @@ func runConditionedZeroSearch(group *GroupType, campaign []*TeamCampaign, table 
 		log.Printf("rare-position-neighborhood: group=%d search_cells=%d candidates=%d proofs=%d",
 			group.Id, len(results), attempts, len(proofs))
 	}
+	if jointPointCapEnabled() {
+		runJointPointCapProofs(group, campaign, table, sortOrder, cells, estimates)
+	}
 	if witnesses == 0 {
 		return 0, totalWork
 	}
