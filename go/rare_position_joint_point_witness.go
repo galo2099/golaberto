@@ -18,18 +18,19 @@ func jointPointWitnessEnabled() bool {
 }
 
 type jointPointWitnessSearch struct {
-	problem  *jointPointCapProblem
-	group    *GroupType
-	campaign []*TeamCampaign
-	table    *Table
-	order    []SortType
-	cell     conditionedZeroCell
-	cap      int
-	nodes    int
-	maxNodes int
-	verified int
-	initial  []uint8
-	proof    []uint8
+	problem       *jointPointCapProblem
+	group         *GroupType
+	campaign      []*TeamCampaign
+	table         *Table
+	order         []SortType
+	cell          conditionedZeroCell
+	cap           int
+	nodes         int
+	maxNodes      int
+	verified      int
+	initial       []uint8
+	proof         []uint8
+	targetMinimum bool
 }
 
 func (search *jointPointWitnessSearch) complete(domains []uint8) bool {
@@ -133,15 +134,26 @@ func (search *jointPointWitnessSearch) find(target int32) bool {
 	for index, game := range search.problem.games {
 		domain := uint8(0)
 		bestGain := -int(^uint(0)>>1) - 1
+		if search.targetMinimum {
+			bestGain = int(^uint(0) >> 1)
+		}
 		if game.home == target {
 			for outcome := 0; outcome < 3; outcome++ {
-				if game.prob[outcome] > 0 && game.homeGain[outcome] > bestGain {
+				better := game.homeGain[outcome] > bestGain
+				if search.targetMinimum {
+					better = game.homeGain[outcome] < bestGain
+				}
+				if game.prob[outcome] > 0 && better {
 					bestGain = game.homeGain[outcome]
 				}
 			}
 		} else if game.away == target {
 			for outcome := 0; outcome < 3; outcome++ {
-				if game.prob[outcome] > 0 && game.awayGain[outcome] > bestGain {
+				better := game.awayGain[outcome] > bestGain
+				if search.targetMinimum {
+					better = game.awayGain[outcome] < bestGain
+				}
+				if game.prob[outcome] > 0 && better {
 					bestGain = game.awayGain[outcome]
 				}
 			}

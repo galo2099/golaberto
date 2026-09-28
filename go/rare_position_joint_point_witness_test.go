@@ -29,6 +29,41 @@ func TestJointPointWitnessVerifiesFullStandings(t *testing.T) {
 	}
 }
 
+func TestJointPointWitnessMinimumPointsVerifiesFullStandings(t *testing.T) {
+	group, campaign, table, order, _ := createTestGroupForDiversified()
+	problem := newJointPointCapProblem(group, campaign)
+	target := int32(table.Query(2))
+	minimum := problem.base[target]
+	for _, game := range problem.games {
+		if game.home == target {
+			minimum += min(game.homeGain[0], min(game.homeGain[1], game.homeGain[2]))
+		} else if game.away == target {
+			minimum += min(game.awayGain[0], min(game.awayGain[1], game.awayGain[2]))
+		}
+	}
+	for rank := 0; rank < len(group.Team_groups); rank++ {
+		search := jointPointWitnessSearch{
+			problem: problem, group: group, campaign: campaign, table: table, order: order,
+			cell: conditionedZeroCell{id: 2, rank: rank}, cap: minimum, maxNodes: 300,
+			targetMinimum: true,
+		}
+		if !search.find(target) {
+			continue
+		}
+		if got := canonicalReachabilityRank(group, campaign, table, order, search.proof, 2); got != rank {
+			t.Fatalf("constructed minimum-point rank=%d, want %d", got, rank)
+		}
+		for index, game := range group.Games {
+			if targetOutcomeProbabilities(game)[search.proof[index]] <= 0 {
+				t.Fatalf("game %d has an impossible minimum-point outcome", game.Id)
+			}
+		}
+		t.Logf("minimum-point witness: team=2 rank=%d points=%d nodes=%d", rank+1, minimum, search.nodes)
+		return
+	}
+	t.Fatalf("could not construct a minimum-point finish for team 2")
+}
+
 func TestJointPointWitnessReferenceGroups(t *testing.T) {
 	path := os.Getenv("RARE_POSITION_BENCHMARK_GROUP_JSON")
 	if path == "" {
