@@ -36,4 +36,12 @@ On an Apple M2 Pro with four Go cores, a paired five-iteration full-request benc
 
 The complete schedule is a **reachability proof**, not a probability estimate. Canonical scorelines may miss witnesses that need a different winning score or tiebreaker. Fixing the target to its maximum points and the bounded node count can also leave reachable cells undecided. The implementation never declares impossibility from a failed witness search.
 
+## How long would “all cases” take?
+
+There is no finite timeout that makes this particular search complete. It fixes the target at its maximum attainable points and only explores the resulting point-cap domain. A valid finish at a lower point total, or one requiring a different exemption order, remains outside that search regardless of the node budget.
+
+As a measured sensitivity check, I reran every remaining zero cell independently with 100, 1,000, and 10,000 nodes per cell. Group 16653 had 19 cells remaining after the production pass; 190,000 extra nodes took about 2.4 seconds and found no additional witness. Group 16498 had 28 cells; 280,000 nodes took about 3.2 seconds and also found no additional witness. These times exclude the roughly one-second odds calculation itself. They show the cost of a larger bounded search, not a proof that the cells are impossible.
+
+An exact reachability solver would have to enumerate target point totals, which teams are allowed above each target total, all surviving fixture outcomes, and the final tiebreaker order. With 85 fixtures, the unpruned outcome space is `3^85`, about `3.5e40` assignments. Point-cap propagation reduces that dramatically in typical cases, but the worst case is still exponential. A practical exact mode should therefore use a separate time budget and return `reachable`, `impossible`, or `undecided` when the budget expires; it should not be treated as a request-time operation with a fixed guarantee.
+
 Validation: synthetic standings-sorter test, saved group 16653 and 16498 regression tests with seed 808, and the full Go test suite.
