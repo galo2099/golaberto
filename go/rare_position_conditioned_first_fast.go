@@ -35,6 +35,11 @@ func newConditionedFirstScoreContext(group *GroupType, campaign []*TeamCampaign,
 
 func (context *conditionedFirstScoreContext) finishesFirst(target int, outcomes []uint8,
 	rng *rand.Rand) bool {
+	return context.finishesAtRank(target, 0, outcomes, rng)
+}
+
+func (context *conditionedFirstScoreContext) finishesAtRank(target, rank int,
+	outcomes []uint8, rng *rand.Rand) bool {
 	for index, team := range context.campaign {
 		context.simCampaign[index] = cloneCampaignInto(context.simCampaign[index], team)
 	}
@@ -54,7 +59,7 @@ func (context *conditionedFirstScoreContext) finishesFirst(target int, outcomes 
 		context.teamSlice[index] = context.simCampaign[context.table.Query(uint32(team.Team_id))]
 	}
 	sort.Sort(TeamCampaignSorted{t: context.teamSlice, sort: context.sortOrder, rng: rng})
-	return context.teamSlice[0].id == target
+	return context.teamSlice[rank].id == target
 }
 
 // sampleConditionedZeroFirstCellFast resolves most first-place draws using

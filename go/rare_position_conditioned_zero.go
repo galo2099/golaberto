@@ -170,6 +170,11 @@ func buildConditionedPointEventWithLimit(target, rank int, blockers []int, group
 		indices[id] = i
 	}
 	event := &conditionedPointEvent{teams: selected}
+	targetMaximum := bounds.maximum[target]
+	rivalCurrent := make([]int, len(blockers))
+	for i, id := range blockers {
+		rivalCurrent[i] = bounds.current[id]
+	}
 	for gameIndex, game := range group.Games {
 		if game.Played {
 			continue
@@ -236,8 +241,8 @@ func buildConditionedPointEventWithLimit(target, rank int, blockers []int, group
 				}
 				if valid && len(selected) > 1 {
 					forcedAbove := 0
-					for slot, id := range selected[1:] {
-						if bounds.current[id]+int(newState[slot+1]) > bounds.maximum[target] {
+					for slot, current := range rivalCurrent {
+						if current+int(newState[slot+1]) > targetMaximum {
 							forcedAbove++
 						}
 					}
@@ -479,7 +484,7 @@ func searchConditionedZeroCell(target, rank int, group *GroupType,
 		samples = conditionedZeroBatch
 	}
 	cellSeed := deriveRarePositionSeed(seed, fmt.Sprintf("conditioned-zero-%d-%d", target, rank))
-	result := sampleConditionedZeroCell(event, target, rank,
+	result := sampleConditionedZeroCellFast(event, target, rank,
 		group, campaign, table, sortOrder, samplers, samples, cellSeed)
 	result.blockers = len(event.teams) - 1
 	if rank != 0 || (!conditionedZeroDeepEnabled() && !conditionedZeroLookaheadEnabled()) || result.hits > 0 {
@@ -563,18 +568,21 @@ func allocateConditionedZeroExtra(group *GroupType, campaign []*TeamCampaign,
 	current map[int]int, pmfs map[int]map[int]float64, bounds pointRankBounds,
 	samplers []conditionedScoreSampler, cells []conditionedZeroCell,
 	estimates map[int]map[int]ProductionEstimate, results []conditionedZeroSearchResult) {
-	candidates := make([]conditionedExtraCell, 0, len(cells))
-	for index, cell := range cells {
+	planned := make([]conditionedExtraCell, len(cells))
+	eligible := make([]bool, len(cells))
+	impossible := make([]bool, len(cells))
+	planCell := func(index int) {
+		cell := cells[index]
 		result := results[index].result
 		if results[index].impossible || result.samples == 0 || result.hits > 0 || result.mass <= 0 {
-			continue
+			return
 		}
 		upper := result.mass * zeroHitUpper95(result.samples)
 		if prior := estimates[cell.id][cell.rank].ZeroHitUpper95; prior > 0 && prior < upper {
 			upper = prior
 		}
 		if upper <= 10*conditionedZeroExtraFloor {
-			continue
+			return
 		}
 		mass := result.mass
 		var refined *conditionedPointEvent
@@ -590,8 +598,8 @@ func allocateConditionedZeroExtra(group *GroupType, campaign []*TeamCampaign,
 			if deeper, ok := buildConditionedPointEventWithLimit(cell.id, cell.rank,
 				trial, group, campaign, table, bounds, conditionedZeroExtraStates); ok {
 				if deeper.mass <= 0 {
-					results[index].impossible = true
-					continue
+					impossible[index] = true
+					return
 				}
 				if deeper.mass < mass*(1-1e-8) {
 					mass = deeper.mass
@@ -600,7 +608,40 @@ func allocateConditionedZeroExtra(group *GroupType, campaign []*TeamCampaign,
 			}
 		}
 		if gain := conditionedExtraGain(upper, mass); gain > 0 {
-			candidates = append(candidates, conditionedExtraCell{index, refined, gain})
+			planned[index] = conditionedExtraCell{index, refined, gain}
+			eligible[index] = true
+		}
+	}
+	planningWorkers := runtime.GOMAXPROCS(0)
+	if planningWorkers > 4 {
+		planningWorkers = 4
+	}
+	if planningWorkers > len(cells) {
+		planningWorkers = len(cells)
+	}
+	planQueue := make(chan int, len(cells))
+	var planWait sync.WaitGroup
+	for worker := 0; worker < planningWorkers; worker++ {
+		planWait.Add(1)
+		go func() {
+			defer planWait.Done()
+			for index := range planQueue {
+				planCell(index)
+			}
+		}()
+	}
+	for index := range cells {
+		planQueue <- index
+	}
+	close(planQueue)
+	planWait.Wait()
+	candidates := make([]conditionedExtraCell, 0, len(cells))
+	for index := range cells {
+		if impossible[index] {
+			results[index].impossible = true
+		}
+		if eligible[index] {
+			candidates = append(candidates, planned[index])
 		}
 	}
 	sort.Slice(candidates, func(i, j int) bool {
@@ -614,6 +655,12 @@ func allocateConditionedZeroExtra(group *GroupType, campaign []*TeamCampaign,
 		return a.rank < b.rank
 	})
 	budget := conditionedZeroExtraBudget
+	type extraJob struct {
+		index int
+		cell  conditionedZeroCell
+		event *conditionedPointEvent
+	}
+	jobs := make([]extraJob, 0, budget/conditionedZeroExtraRuns)
 	for _, candidate := range candidates {
 		if budget < conditionedZeroExtraRuns {
 			break
@@ -627,14 +674,45 @@ func allocateConditionedZeroExtra(group *GroupType, campaign []*TeamCampaign,
 		if !ok || event.mass <= 0 {
 			continue
 		}
-		extraSeed := deriveRarePositionSeed(seed,
-			fmt.Sprintf("conditioned-zero-extra-%d-%d", cell.id, cell.rank))
-		extra := sampleConditionedZeroCell(event, cell.id, cell.rank,
-			group, campaign, table, sortOrder, samplers, conditionedZeroExtraRuns, extraSeed)
-		extra.blockers = len(event.teams) - 1
-		extra.work += results[candidate.index].result.work
-		results[candidate.index].result = extra
+		jobs = append(jobs, extraJob{candidate.index, cell, event})
 		budget -= conditionedZeroExtraRuns
+	}
+	if len(jobs) == 0 {
+		return
+	}
+	extras := make([]conditionedZeroResult, len(jobs))
+	workers := runtime.GOMAXPROCS(0)
+	if workers > 4 {
+		workers = 4
+	}
+	if workers > len(jobs) {
+		workers = len(jobs)
+	}
+	queue := make(chan int, len(jobs))
+	var wait sync.WaitGroup
+	for worker := 0; worker < workers; worker++ {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			for index := range queue {
+				job := jobs[index]
+				extraSeed := deriveRarePositionSeed(seed,
+					fmt.Sprintf("conditioned-zero-extra-%d-%d", job.cell.id, job.cell.rank))
+				extras[index] = sampleConditionedZeroCellFast(job.event, job.cell.id, job.cell.rank,
+					group, campaign, table, sortOrder, samplers, conditionedZeroExtraRuns, extraSeed)
+			}
+		}()
+	}
+	for index := range jobs {
+		queue <- index
+	}
+	close(queue)
+	wait.Wait()
+	for index, job := range jobs {
+		extra := extras[index]
+		extra.blockers = len(job.event.teams) - 1
+		extra.work += results[job.index].result.work
+		results[job.index].result = extra
 	}
 }
 
@@ -699,11 +777,6 @@ func runConditionedZeroSearch(group *GroupType, campaign []*TeamCampaign, table 
 	workers := runtime.GOMAXPROCS(0)
 	if workers > 4 {
 		workers = 4
-	}
-	if conditionedZeroDeepEnabled() || conditionedZeroLookaheadEnabled() {
-		// Keep the large first-place dynamic program and its sampled seasons
-		// from running alongside other cell searches.
-		workers = 1
 	}
 	if workers > len(cells) {
 		workers = len(cells)

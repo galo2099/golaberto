@@ -334,3 +334,40 @@ Allocated bytes are cumulative per-request allocations, not peak
 resident memory. Group 16982 had no zero cells and spent no extra
 draws; its small time difference is benchmark noise. Candidate point
 event construction adds cost beyond the recorded simulation-work units.
+
+## Four-core latency optimization
+
+The same saved group 16653 request and seed 808 previously took 3.704 s
+per full request. CPU sampling showed substantial time in points-event
+maps, scoreline simulation, standings sorting, and memory management.
+The first-place lookahead setting also forced the initial zero-cell
+search onto one worker, even when other cells were independent.
+
+The zero-cell search now uses at most four workers. Each conditional
+draw first computes every team's final points from win/draw/loss
+outcomes. It generates full scorelines and applies the existing
+standings tiebreakers only when teams tied on points can affect the
+target rank. This preserves the point-event mass, draw count, and
+conditional estimator; it changes the random stream and therefore
+individual Monte Carlo hit counts. Candidate event refinement and the
+four selected 50,000-draw extra batches also run across four workers.
+The points dynamic program caches the rival starting points and target
+maximum outside its inner state loop.
+
+On Apple M2 Pro with `GOMAXPROCS=4`, the five-run full-request benchmark
+for group 16653 averaged **0.925 s/request**, with 389 MB cumulative
+allocations. The saved-request regression completed in 0.947 s, and
+five independent single-request measurements ranged from 0.924 to
+0.957 s. The scout remains at 100,000 seasons, the extra-search budget remains
+200,000 conditional draws, and recorded work remains 46.83 million
+units. Botafogo-SP first and Avaí first retained their lookahead
+estimates (`6.412e-13` and `3.383e-19`); Botafogo-SP second was found
+7 times in its 50,000-draw batch, with estimate `1.876e-10`. This is
+consistent with the prior 9-hit estimate given its sampling error.
+For group 16982, which has no zero cells, the three-run benchmark was
+0.868 s/request versus the earlier 0.959 s measurement.
+
+The full Go suite, the saved group regressions, and the race detector
+on the parallel zero-cell paths passed. The new all-rank points-screen
+test compares its conditional hit rates with the original full
+scoreline sampler.

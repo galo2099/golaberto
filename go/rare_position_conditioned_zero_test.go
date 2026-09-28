@@ -193,6 +193,35 @@ func TestConditionedFirstPointScreenMatchesFullSampling(t *testing.T) {
 	}
 }
 
+func TestConditionedRankPointScreenMatchesFullSampling(t *testing.T) {
+	group, campaign, table, order, _ := createTestGroupForDiversified()
+	bounds := buildPointRankBounds(campaign, group.Team_groups, group.Games, table)
+	samplers := newConditionedScoreSamplers(group.Games)
+	const draws = 20000
+	for rank := range group.Team_groups {
+		var event *conditionedPointEvent
+		target := 0
+		for _, team := range group.Team_groups {
+			candidate, ok := buildConditionedPointEvent(team.Team_id, rank, nil,
+				group, campaign, table, bounds)
+			if ok && candidate.mass > 0 {
+				event, target = candidate, team.Team_id
+				break
+			}
+		}
+		if event == nil {
+			t.Fatalf("rank=%d: could not build point event", rank)
+		}
+		full := sampleConditionedZeroCell(event, target, rank, group, campaign,
+			table, order, samplers, draws, 46)
+		fast := sampleConditionedZeroCellFast(event, target, rank, group, campaign,
+			table, order, samplers, draws, 76)
+		if fast.samples != draws || math.Abs(float64(full.hits-fast.hits)/draws) > 0.02 {
+			t.Fatalf("rank=%d: hit rates differ: full=%+v fast=%+v", rank, full, fast)
+		}
+	}
+}
+
 func TestConditionedFirstLookaheadMatchesFullSampling(t *testing.T) {
 	group, campaign, table, order, _ := createTestGroupForDiversified()
 	bounds := buildPointRankBounds(campaign, group.Team_groups, group.Games, table)
