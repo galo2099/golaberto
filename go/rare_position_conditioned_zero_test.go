@@ -140,6 +140,40 @@ func TestConditionedScoreSamplerPreservesOutcome(t *testing.T) {
 	}
 }
 
+func TestConditionedExtraGainUsesUpperBoundReduction(t *testing.T) {
+	if gain := conditionedExtraGain(1e-8, 1e-6); gain <= 0 {
+		t.Fatalf("expected extra search to improve the upper bound, gain=%g", gain)
+	}
+	if gain := conditionedExtraGain(1e-13, 1e-6); gain != 0 {
+		t.Fatalf("already resolved upper bound should not receive extra search, gain=%g", gain)
+	}
+	if gain := conditionedExtraGain(1e-8, 1); gain != 0 {
+		t.Fatalf("broader event should not receive extra search, gain=%g", gain)
+	}
+}
+
+func TestConditionedExtraCanSelectMiddleRank(t *testing.T) {
+	group, campaign, table, order, _ := createTestGroupForDiversified()
+	bounds := buildPointRankBounds(campaign, group.Team_groups, group.Games, table)
+	event, ok := buildConditionedPointEvent(2, 1, nil, group, campaign, table, bounds)
+	if !ok || event.mass <= 0 {
+		t.Fatal("could not build middle-rank point event")
+	}
+	cells := []conditionedZeroCell{{2, 1}}
+	results := []conditionedZeroSearchResult{{result: conditionedZeroResult{
+		mass: event.mass, samples: 1000, work: 1000,
+	}}}
+	estimates := map[int]map[int]ProductionEstimate{
+		2: {1: {ZeroHitUpper95: 1}},
+	}
+	allocateConditionedZeroExtra(group, campaign, table, order, 808,
+		[]int{1, 2, 3}, nil, nil, bounds, newConditionedScoreSamplers(group.Games),
+		cells, estimates, results)
+	if got := results[0].result.samples; got != conditionedZeroExtraRuns {
+		t.Fatalf("middle rank received %d extra draws, want %d", got, conditionedZeroExtraRuns)
+	}
+}
+
 func TestConditionedFirstPointScreenMatchesFullSampling(t *testing.T) {
 	group, campaign, table, order, _ := createTestGroupForDiversified()
 	bounds := buildPointRankBounds(campaign, group.Team_groups, group.Games, table)
@@ -328,12 +362,31 @@ func TestConditionedZeroLookaheadRealGroup(t *testing.T) {
 	}
 	second := estimates[457][1]
 	if second.Probability <= 0 || second.Reachability != "witness" ||
-		second.ConditionalSamples != conditionedZeroNearEdgeRuns || second.ConditionalHits <= 0 ||
+		second.ConditionalSamples != conditionedZeroExtraRuns || second.ConditionalHits <= 0 ||
 		second.ConditionalMass <= 0 || second.Probability > second.ConditionalMass {
 		t.Fatalf("Botafogo-SP second-place search did not find a valid estimate: %+v", second)
 	}
 	t.Logf("Botafogo-SP second-place probability=%.12g mass=%.12g hits=%d samples=%d",
 		second.Probability, second.ConditionalMass, second.ConditionalHits, second.ConditionalSamples)
+	for _, cell := range [][2]int{{95, 2}, {22, 16}} {
+		est := estimates[cell[0]][cell[1]]
+		if est.ConditionalSamples != conditionedZeroExtraRuns || est.ConditionalMass <= 0 {
+			t.Fatalf("team=%d rank=%d did not receive difficulty-allocated search: %+v",
+				cell[0], cell[1]+1, est)
+		}
+	}
+	extraCells := 0
+	for _, team := range input.Team_groups {
+		for rank := range input.Team_groups {
+			if estimates[team.Team_id][rank].ConditionalSamples == conditionedZeroExtraRuns {
+				extraCells++
+			}
+		}
+	}
+	if extraCells > conditionedZeroExtraBudget/conditionedZeroExtraRuns {
+		t.Fatalf("extra search used %d batches, budget allows %d",
+			extraCells, conditionedZeroExtraBudget/conditionedZeroExtraRuns)
+	}
 	for rank := range input.Team_groups {
 		column := 0.0
 		for _, team := range input.Team_groups {

@@ -286,3 +286,41 @@ units (1.61×), and the test run rose from about 1.6 to 2.95 seconds.
 The same search found no second-place finish for teams 68 and 95, so
 those cells remain undecided with tighter 95% upper limits of
 `3.48e-12` and `9.81e-17`, respectively.
+
+## Difficulty-based extra-search allocation
+
+The fixed 50,000-draw escalation for second and penultimate place is
+replaced by a request-wide budget of 200,000 conditional draws. Every
+zero cell not ruled out by points can compete for one 50,000-draw
+batch. For each cell, the scheduler measures its current 95% zero-hit
+upper bound and the upper bound achievable by a fresh batch. When
+three tracked rivals can constrain the requested rank, it builds a
+more selective points event (up to 120,000 states) and uses its exact
+mass. A cell's priority is the log reduction in its upper bound,
+capped at a `1e-12` probability floor. A cell already within ten times
+that floor receives no extra search. The top four candidates get
+independent conditional draws. Only those fresh draws supply a new
+point estimate, avoiding selection of a lucky pilot hit.
+Position number does not enter the priority score or the draw budget.
+The three-rival event is only attempted where three rivals can
+mathematically exclude the rank by points; other ranks remain eligible
+under their target-points event. First-place weighted lookahead remains
+a separate rank-specific proposal because it relies on the condition
+that no rival can finish above the target. A rejected lookahead pilot
+now returns to the ordinary zero-cell result unless the million-draw
+deep-search flag is explicitly enabled.
+
+On the saved group 16653 request with seed 808, the selected extra
+cells were Botafogo-SP 2nd, Avaí 2nd, team 95 3rd, and team 22 17th.
+Botafogo-SP 2nd was observed 9 times in 50,000 draws under event mass
+`1.340e-6`, giving a reconciled estimate of `2.412e-10` and a relative
+standard error near 33%. Team 95 3rd stayed zero but its 95% upper
+bound fell to `3.47e-12`; team 22 17th stayed zero with upper bound
+`5.20e-7`. The request recorded 46.83 million work units, 12.6% above
+the fixed-position escalation's 41.58 million. On Apple M2 Pro, the
+three-run full-request benchmark took 3.769 seconds per request and
+allocated 366 MB per request. The earlier fixed-position test took
+about 2.95 seconds; the timings use different test and benchmark
+methods, so the difference is approximate. Group 16982 had no zero
+cells and spent no extra draws. A small-group regression confirms that
+the scheduler can select the middle rank when it offers the best gain.
