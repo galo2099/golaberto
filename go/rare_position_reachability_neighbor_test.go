@@ -59,15 +59,16 @@ func TestReachabilityNeighborsRealGroup16653(t *testing.T) {
 	t.Setenv("RARE_POSITION_IMPORTANCE_SAMPLING", "0")
 	t.Setenv("RARE_POSITION_RANDOM_SEED", "808")
 	t.Setenv("RARE_POSITION_CONDITIONED_ZERO_LOOKAHEAD", "1")
+	t.Setenv("RARE_POSITION_CONDITIONED_POINT_TILT", "1")
 	t.Setenv("RARE_POSITION_CONDITIONED_ZERO_DEEP", "0")
 	t.Setenv("RARE_POSITION_NEIGHBORHOOD_SEARCH", "1")
 	estimates := cloneGroupForBenchmark(input).calculate_odds()["rare_position_estimates"].(map[int]map[int]ProductionEstimate)
 	for _, rank := range []int{1, 2} {
 		est := estimates[68][rank]
-		if est.Reachability != "reachable_by_construction" || est.Probability != 0 ||
-			est.ZeroHitUpper95 <= 0 {
-			t.Errorf("Avaí rank=%d: expected a reachability proof without an odds estimate: %+v",
-				rank+1, est)
+		if est.Probability <= 0 || est.Reachability != "witness" ||
+			est.Design != "matched_point_pool_conditioned_point_tilt" || est.ESS < 8 {
+			t.Errorf("Avaí rank=%d: invalid point-tilt estimate: %+v", rank+1, est)
 		}
+		t.Logf("Avaí rank=%d probability=%g ess=%g reachability=%s", rank+1, est.Probability, est.ESS, est.Reachability)
 	}
 }

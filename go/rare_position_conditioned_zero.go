@@ -66,6 +66,7 @@ type conditionedZeroResult struct {
 	stdErr          float64
 	ess             float64
 	maxWeightShare  float64
+	batchGap        float64
 	witnessOutcomes []uint8
 }
 
@@ -317,6 +318,10 @@ func (event *conditionedPointEvent) sampleOutcomes(rng *rand.Rand, outcomes []ui
 	if terminal == len(event.terminal) {
 		terminal--
 	}
+	event.sampleOutcomesFromTerminal(rng, outcomes, terminal)
+}
+
+func (event *conditionedPointEvent) sampleOutcomesFromTerminal(rng *rand.Rand, outcomes []uint8, terminal int) {
 	state := event.terminal[terminal].state
 	for i := len(event.games) - 1; i >= 0; i-- {
 		game := event.games[i]
@@ -830,6 +835,10 @@ func runConditionedZeroSearch(group *GroupType, campaign []*TeamCampaign, table 
 	if jointPointWitnessEnabled() {
 		runJointPointWitnessSearch(group, campaign, table, sortOrder, cells, estimates)
 	}
+	pointTiltWitnesses, pointTiltWork := runConditionedPointTiltSearch(group,
+		campaign, table, sortOrder, seed, bounds, samplers, cells, estimates)
+	witnesses += pointTiltWitnesses
+	totalWork += pointTiltWork
 	if witnesses == 0 {
 		return 0, totalWork
 	}

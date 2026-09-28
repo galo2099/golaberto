@@ -3,6 +3,7 @@ package main
 import (
 	"math"
 	"math/rand"
+	"sort"
 )
 
 const (
@@ -59,6 +60,17 @@ func sampleConditionedZeroRankLookaheadWithTilt(event *conditionedPointEvent, ta
 	group *GroupType, campaign []*TeamCampaign, table *Table, sortOrder []SortType,
 	bounds pointRankBounds, samplers []conditionedScoreSampler, samples int,
 	seed int64, tilt float64) (conditionedZeroResult, bool) {
+	return sampleConditionedZeroRankLookaheadWithPointTilt(event, target, rank,
+		group, campaign, table, sortOrder, bounds, samplers, samples, seed, tilt, 0)
+}
+
+// pointTilt changes the distribution of final target points while preserving
+// positive probability for every feasible terminal state. The returned
+// likelihood ratio covers the complete cell, not one selected point total.
+func sampleConditionedZeroRankLookaheadWithPointTilt(event *conditionedPointEvent, target, rank int,
+	group *GroupType, campaign []*TeamCampaign, table *Table, sortOrder []SortType,
+	bounds pointRankBounds, samplers []conditionedScoreSampler, samples int,
+	seed int64, tilt, pointTilt float64) (conditionedZeroResult, bool) {
 	result := conditionedZeroResult{mass: event.mass}
 	if event.mass <= 0 || samples <= 0 {
 		return result, false
@@ -129,10 +141,22 @@ func sampleConditionedZeroRankLookaheadWithTilt(event *conditionedPointEvent, ta
 	outcomes := make([]uint8, len(group.Games))
 	scoreContext := newConditionedRankScoreContext(group, campaign, table, sortOrder, samplers)
 	rng := rand.New(rand.NewSource(seed))
+	terminalCDF, terminalRatio := conditionedPointTiltTerminals(event, pointTilt)
 	var sumY, sumY2, maxY float64
 	var batchY [2]float64
 	for draw := 0; draw < samples; draw++ {
-		event.sampleOutcomes(rng, outcomes)
+		terminalWeight := 1.0
+		if pointTilt == 0 {
+			event.sampleOutcomes(rng, outcomes)
+		} else {
+			u := rng.Float64()
+			terminal := sort.SearchFloat64s(terminalCDF, u)
+			if terminal == len(terminalCDF) {
+				terminal--
+			}
+			event.sampleOutcomesFromTerminal(rng, outcomes, terminal)
+			terminalWeight = terminalRatio[terminal]
+		}
 		copy(points, basePoints)
 		for _, game := range selectedGames {
 			outcome := outcomes[game.index]
@@ -173,7 +197,7 @@ func sampleConditionedZeroRankLookaheadWithTilt(event *conditionedPointEvent, ta
 			aboveWeight = math.Pow(aboveWeight, tilt)
 			belowWeight = math.Pow(belowWeight, tilt)
 		}
-		weight := 1.0
+		weight := terminalWeight
 		if above > rank {
 			weight = 0
 		}
@@ -278,7 +302,51 @@ func sampleConditionedZeroRankLookaheadWithTilt(event *conditionedPointEvent, ta
 	result.maxWeightShare = maxY / sumY
 	left, right := batchY[0]/float64(samples/2), batchY[1]/float64(samples-samples/2)
 	batchGap := math.Abs(left-right) / mean
+	result.batchGap = batchGap
 	accepted := result.hits >= 100 && result.ess >= 200 &&
 		result.stdErr/result.probability <= 0.1 && result.maxWeightShare <= 0.03 && batchGap <= 0.2
 	return result, accepted
+}
+
+func conditionedPointTiltTerminals(event *conditionedPointEvent, pointTilt float64) ([]float64, []float64) {
+	if pointTilt == 0 || event.mass <= 0 {
+		return nil, nil
+	}
+	terminalCDF := make([]float64, len(event.terminal))
+	terminalRatio := make([]float64, len(event.terminal))
+	maxExponent := math.Inf(-1)
+	for i, terminal := range event.terminal {
+		p := terminal.cumulative
+		if i > 0 {
+			p -= event.terminal[i-1].cumulative
+		}
+		if p > 0 {
+			maxExponent = math.Max(maxExponent, pointTilt*float64(terminal.state[0]))
+		}
+	}
+	tiltedWeights := make([]float64, len(event.terminal))
+	var tiltedMass float64
+	for i, terminal := range event.terminal {
+		p := terminal.cumulative
+		if i > 0 {
+			p -= event.terminal[i-1].cumulative
+		}
+		tiltedWeights[i] = p * math.Exp(pointTilt*float64(terminal.state[0])-maxExponent)
+		tiltedMass += tiltedWeights[i]
+	}
+	var cumulative float64
+	for i, terminal := range event.terminal {
+		p := terminal.cumulative
+		if i > 0 {
+			p -= event.terminal[i-1].cumulative
+		}
+		q := 0.02*p/event.mass + 0.98*tiltedWeights[i]/tiltedMass
+		if q > 0 {
+			terminalRatio[i] = (p / event.mass) / q
+		}
+		cumulative += q
+		terminalCDF[i] = cumulative
+	}
+	terminalCDF[len(terminalCDF)-1] = 1
+	return terminalCDF, terminalRatio
 }

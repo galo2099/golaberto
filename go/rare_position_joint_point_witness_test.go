@@ -89,11 +89,19 @@ func TestJointPointWitnessReferenceGroups(t *testing.T) {
 	t.Setenv("RARE_POSITION_MATCHED_POINT_POOL", "1")
 	t.Setenv("RARE_POSITION_RANDOM_SEED", "808")
 	t.Setenv("RARE_POSITION_JOINT_POINT_WITNESS", "1")
+	t.Setenv("RARE_POSITION_CONDITIONED_POINT_TILT", "1")
 	estimates := cloneGroupForBenchmark(input).calculate_odds()["rare_position_estimates"].(map[int]map[int]ProductionEstimate)
 	for _, cell := range cells {
 		est := estimates[cell.id][cell.rank]
-		if est.Reachability != "reachable_by_construction" || est.Probability != 0 || est.ZeroHitUpper95 <= 0 {
-			t.Errorf("team=%d rank=%d: %+v", cell.id, cell.rank+1, est)
+		t.Logf("team=%d rank=%d probability=%g ess=%g reachability=%s",
+			cell.id, cell.rank+1, est.Probability, est.ESS, est.Reachability)
+		expectEstimate := input.Id == 16498 && (cell.id == 20 || cell.id == 110)
+		if expectEstimate && (est.Probability <= 0 || est.Reachability != "witness" ||
+			est.Design != "matched_point_pool_conditioned_point_tilt" || est.ESS < 8) {
+			t.Errorf("team=%d rank=%d: invalid point-tilt estimate: %+v", cell.id, cell.rank+1, est)
+		} else if !expectEstimate &&
+			(est.Reachability != "reachable_by_construction" || est.ZeroHitUpper95 <= 0) {
+			t.Errorf("team=%d rank=%d: expected a reachability proof: %+v", cell.id, cell.rank+1, est)
 		}
 	}
 	if input.Id == 16653 {
