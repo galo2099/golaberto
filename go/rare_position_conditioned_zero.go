@@ -827,6 +827,9 @@ func runConditionedZeroSearch(group *GroupType, campaign []*TeamCampaign, table 
 	if jointPointCapEnabled() {
 		runJointPointCapProofs(group, campaign, table, sortOrder, cells, estimates)
 	}
+	if jointPointWitnessEnabled() {
+		runJointPointWitnessSearch(group, campaign, table, sortOrder, cells, estimates)
+	}
 	if witnesses == 0 {
 		return 0, totalWork
 	}

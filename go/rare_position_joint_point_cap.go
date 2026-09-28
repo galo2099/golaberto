@@ -12,9 +12,11 @@ const (
 )
 
 type jointPointCapGame struct {
+	index      int
 	home, away int32
 	homeGain   [3]int
 	awayGain   [3]int
+	prob       [3]float64
 }
 
 type jointPointCapProblem struct {
@@ -38,7 +40,7 @@ func newJointPointCapProblem(group *GroupType, campaign []*TeamCampaign) *jointP
 			problem.ranked[index] = true
 		}
 	}
-	for _, game := range group.Games {
+	for index, game := range group.Games {
 		if game.Played {
 			continue
 		}
@@ -56,9 +58,11 @@ func newJointPointCapProblem(group *GroupType, campaign []*TeamCampaign) *jointP
 		hLoss, hDraw, hWin := gain(campaign[home])
 		aLoss, aDraw, aWin := gain(campaign[away])
 		problem.games = append(problem.games, jointPointCapGame{
-			home: home, away: away,
+			index: index,
+			home:  home, away: away,
 			homeGain: [3]int{hLoss, hDraw, hWin},
 			awayGain: [3]int{aWin, aDraw, aLoss},
+			prob:     targetOutcomeProbabilities(game),
 		})
 	}
 	return problem
@@ -82,6 +86,13 @@ func (problem *jointPointCapProblem) jointPointCapConsistent(cap int, exempt uin
 	for index := range domains {
 		domains[index] = 0b111
 	}
+	_, _, ok := problem.jointPointCapPropagate(cap, exempt, domains)
+	return ok
+}
+
+// jointPointCapPropagate applies the same sound cap pruning to caller-owned
+// domains. The returned lower bounds guide the constructive witness search.
+func (problem *jointPointCapProblem) jointPointCapPropagate(cap int, exempt uint64, domains []uint8) ([]uint8, []int, bool) {
 	lower := make([]int, len(problem.base))
 	homeMin := make([]int, len(problem.games))
 	awayMin := make([]int, len(problem.games))
@@ -89,7 +100,7 @@ func (problem *jointPointCapProblem) jointPointCapConsistent(cap int, exempt uin
 		copy(lower, problem.base)
 		for index, game := range problem.games {
 			if domains[index] == 0 {
-				return false
+				return nil, nil, false
 			}
 			homeMin[index] = minJointPointGain(domains[index], game.homeGain)
 			awayMin[index] = minJointPointGain(domains[index], game.awayGain)
@@ -98,7 +109,7 @@ func (problem *jointPointCapProblem) jointPointCapConsistent(cap int, exempt uin
 		}
 		for index, points := range lower {
 			if exempt&(uint64(1)<<index) == 0 && points > cap {
-				return false
+				return nil, nil, false
 			}
 		}
 		changed := false
@@ -118,12 +129,12 @@ func (problem *jointPointCapProblem) jointPointCapConsistent(cap int, exempt uin
 				}
 			}
 			if domain == 0 {
-				return false
+				return nil, nil, false
 			}
 			domains[index] = domain
 		}
 		if !changed {
-			return true
+			return domains, lower, true
 		}
 	}
 }
