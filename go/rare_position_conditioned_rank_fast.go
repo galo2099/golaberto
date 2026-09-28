@@ -40,7 +40,7 @@ func sampleConditionedZeroCellFast(event *conditionedPointEvent, target, rank in
 		}
 		basePoints[i] = team.points
 	}
-	pointGames := make([]conditionedFirstPointGame, 0, len(group.Games))
+	pointGames := make([]conditionedPointOutcomeGame, 0, len(group.Games))
 	for index, game := range group.Games {
 		if game.Played {
 			continue
@@ -51,7 +51,7 @@ func sampleConditionedZeroCellFast(event *conditionedPointEvent, target, rank in
 			return fallback()
 		}
 		home, away := campaign[homeIndex], campaign[awayIndex]
-		pointGames = append(pointGames, conditionedFirstPointGame{
+		pointGames = append(pointGames, conditionedPointOutcomeGame{
 			index: index, home: homeIndex, away: awayIndex,
 			prob:     targetOutcomeProbabilities(game),
 			homeGain: [3]int{home.points_loss, home.points_draw, home.points_win},
@@ -60,7 +60,7 @@ func sampleConditionedZeroCellFast(event *conditionedPointEvent, target, rank in
 	}
 	points := make([]int, len(campaign))
 	outcomes := make([]uint8, len(group.Games))
-	scoreContext := newConditionedFirstScoreContext(group, campaign, table, sortOrder, samplers)
+	scoreContext := newConditionedRankScoreContext(group, campaign, table, sortOrder, samplers)
 	rng := rand.New(rand.NewSource(seed))
 	for n := 0; n < samples; n++ {
 		event.sampleOutcomes(rng, outcomes)

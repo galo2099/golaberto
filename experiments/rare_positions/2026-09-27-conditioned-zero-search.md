@@ -371,3 +371,56 @@ The full Go suite, the saved group regressions, and the race detector
 on the parallel zero-cell paths passed. The new all-rank points-screen
 test compares its conditional hit rates with the original full
 scoreline sampler.
+
+## Rank-general guided search
+
+The previous search gave first place a 20,000-draw guided pilot and a
+fresh 20,000-draw estimate, while initial draw counts and blocker
+counts had explicit first/last and second/penultimate branches. The
+production search now uses the requested rank as a numerical constraint
+throughout, with no branch naming a particular position:
+
+- The narrower side of the rank determines whether a small set of
+  tracked rivals can constrain it. Initial point events use at most
+  three blockers; the adaptive extra-search planner can build a deeper
+  event if it measurably reduces the upper bound.
+- Initial conditional draws use the same event-mass rule for every
+  cell: 2,000 draws for event mass in `[1e-7, 1e-3]`, otherwise 1,000.
+- Every still-unobserved cell gets a 200-draw guided pilot. A pilot
+  with at least 20 hits, effective sample size at least 10, and no
+  single hit carrying over 20% of the weight can compete for a fresh
+  20,000-draw estimate. At most three estimates run per request,
+  selected by pilot effective sample size. The pilots choose cells;
+  only fresh draws supply the reported estimate.
+- The optional deep mode uses the same pilot evidence to choose up to
+  two cells for one million ordinary conditional draws each. It no
+  longer chooses by position number.
+
+The guided proposal forecasts each rival's chance of finishing above,
+equal to, or below the target's final points from the remaining
+fixtures. It weights the three possible outcomes of the next match by
+those forecasts and by how many rivals the requested rank permits on
+each side. At rank 1, the allowed number above is zero, recovering the
+earlier first-place proposal. At the last rank, the allowed number
+below is zero. For intermediate ranks, both sides contribute. These
+marginal forecasts are only proposal heuristics; the product of the
+original-outcome/proposal-outcome ratios corrects their approximation.
+Full scoreline tiebreakers still decide point ties.
+
+An all-rank comparison test found and fixed one incorrect shortcut:
+teams currently below the target may still gain enough points to catch
+up, so only a rival already above a target with fixed final points can
+be pruned early. A separate scheduler test confirms that a middle-rank
+cell can receive a guided estimate.
+
+On saved group 16653 with seed 808, the generalized search retained
+nine conditional witnesses. Botafogo-SP first was `6.019e-13`, Avaí
+first `3.257e-19`, and Botafogo-SP second `1.876e-10` (7 hits in
+50,000 extra draws). Ceará first was also witnessed by the guided
+search. The scout remains 100,000 seasons and the extra-search budget
+remains 200,000 draws. Recorded work was 43.47 million units, versus
+46.83 million before this change. With four cores, five independent
+full-request measurements ranged from **0.947 to 0.981 s**; a five-run
+benchmark averaged **0.949 s/request**. Group 16498 averaged 0.875 s
+over three requests. The saved group regressions, full Go suite, and
+race detector passed.

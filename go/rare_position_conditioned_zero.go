@@ -19,7 +19,6 @@ const (
 	conditionedZeroDeepStates  = 250000
 	conditionedZeroDeepRuns    = 1000000
 	conditionedZeroSamples     = 2000
-	conditionedZeroEdgeRuns    = 20000
 	conditionedZeroExtraRuns   = 50000
 	conditionedZeroExtraBudget = 200000
 	conditionedZeroExtraStates = 120000
@@ -72,6 +71,7 @@ type conditionedZeroResult struct {
 type conditionedZeroSearchResult struct {
 	result     conditionedZeroResult
 	impossible bool
+	event      *conditionedPointEvent
 }
 
 type conditionedZeroCell struct{ id, rank int }
@@ -80,6 +80,14 @@ type conditionedExtraCell struct {
 	index int
 	event *conditionedPointEvent
 	gain  float64
+}
+
+func conditionedRankBlockerNeed(rank, teams int) int {
+	needed := rank + 1
+	if opposite := teams - rank; opposite < needed {
+		needed = opposite
+	}
+	return needed
 }
 
 func conditionedZeroEnabled() bool {
@@ -455,11 +463,13 @@ func searchConditionedZeroCell(target, rank int, group *GroupType,
 	bounds pointRankBounds, samplers []conditionedScoreSampler) conditionedZeroSearchResult {
 	var event *conditionedPointEvent
 	var ok bool
+	// The fewer rivals needed to overfill one side of the rank, the more
+	// useful it is to condition on them now. Defer deeper events to the
+	// extra-search planner when the narrower side needs three or more.
+	needed := conditionedRankBlockerNeed(rank, len(teams))
 	blockerCount := 0
-	if rank == 0 || rank == len(teams)-1 {
-		blockerCount = 3
-	} else if rank == 1 || rank == len(teams)-2 {
-		blockerCount = 2
+	if needed < 3 {
+		blockerCount = 4 - needed
 	}
 	for ; blockerCount >= 0; blockerCount-- {
 		blockers := conditionedZeroBlockers(target, rank, teams, current, pmfs, group.Games, blockerCount)
@@ -473,13 +483,9 @@ func searchConditionedZeroCell(target, rank int, group *GroupType,
 		return conditionedZeroSearchResult{}
 	}
 	if event.mass <= 0 {
-		return conditionedZeroSearchResult{impossible: len(event.terminal) == 0}
+		return conditionedZeroSearchResult{impossible: len(event.terminal) == 0, event: event}
 	}
 	samples := conditionedZeroSamples
-	if (rank == 0 || rank == len(teams)-1) &&
-		event.mass >= 1e-7 && event.mass <= 1e-3 {
-		samples = conditionedZeroEdgeRuns
-	}
 	if event.mass < 1e-7 || event.mass > 1e-3 {
 		samples = conditionedZeroBatch
 	}
@@ -487,63 +493,7 @@ func searchConditionedZeroCell(target, rank int, group *GroupType,
 	result := sampleConditionedZeroCellFast(event, target, rank,
 		group, campaign, table, sortOrder, samplers, samples, cellSeed)
 	result.blockers = len(event.teams) - 1
-	if rank != 0 || (!conditionedZeroDeepEnabled() && !conditionedZeroLookaheadEnabled()) || result.hits > 0 {
-		return conditionedZeroSearchResult{result: result}
-	}
-	extraWork := result.work
-	if conditionedZeroLookaheadEnabled() {
-		weightedEvent := event
-		if event.mass < 1e-9 {
-			blockers := conditionedZeroBlockers(target, rank, teams, current, pmfs, group.Games, 4)
-			if deeper, built := buildConditionedPointEventWithLimit(target, rank, blockers,
-				group, campaign, table, bounds, conditionedZeroLookaheadStates); built {
-				weightedEvent = deeper
-			}
-		}
-		if weightedEvent.mass <= 0 {
-			return conditionedZeroSearchResult{impossible: len(weightedEvent.terminal) == 0}
-		}
-		pilotSeed := deriveRarePositionSeed(seed, fmt.Sprintf("conditioned-zero-lookahead-pilot-%d-%d", target, rank))
-		pilot, accepted := sampleConditionedZeroFirstLookahead(weightedEvent, target,
-			group, campaign, table, sortOrder, bounds, samplers,
-			conditionedZeroLookaheadSamples, pilotSeed)
-		extraWork += pilot.work
-		if accepted {
-			lookaheadSeed := deriveRarePositionSeed(seed, fmt.Sprintf("conditioned-zero-lookahead-estimate-%d-%d", target, rank))
-			weighted, _ := sampleConditionedZeroFirstLookahead(weightedEvent, target,
-				group, campaign, table, sortOrder, bounds, samplers,
-				conditionedZeroLookaheadSamples, lookaheadSeed)
-			extraWork += weighted.work
-			if weighted.weighted && weighted.hits > 0 {
-				weighted.work = extraWork
-				return conditionedZeroSearchResult{result: weighted}
-			}
-		}
-	}
-	if !conditionedZeroDeepEnabled() {
-		result.work = extraWork
-		return conditionedZeroSearchResult{result: result}
-	}
-	if event.mass < 1e-9 {
-		for count := 5; count >= 4; count-- {
-			blockers := conditionedZeroBlockers(target, rank, teams, current, pmfs, group.Games, count)
-			deeper, built := buildConditionedPointEventWithLimit(target, rank, blockers,
-				group, campaign, table, bounds, conditionedZeroDeepStates)
-			if built {
-				event = deeper
-				break
-			}
-		}
-		if event.mass <= 0 {
-			return conditionedZeroSearchResult{impossible: len(event.terminal) == 0}
-		}
-	}
-	deepSeed := deriveRarePositionSeed(seed, fmt.Sprintf("conditioned-zero-deep-%d-%d", target, rank))
-	deeperResult := sampleConditionedZeroFirstCellFast(event, target,
-		group, campaign, table, sortOrder, samplers, conditionedZeroDeepRuns, deepSeed)
-	deeperResult.blockers = len(event.teams) - 1
-	deeperResult.work += extraWork
-	return conditionedZeroSearchResult{result: deeperResult}
+	return conditionedZeroSearchResult{result: result, event: event}
 }
 
 // Gain measures how many log units of a cell's 95% zero-hit upper bound a
@@ -588,10 +538,7 @@ func allocateConditionedZeroExtra(group *GroupType, campaign []*TeamCampaign,
 		var refined *conditionedPointEvent
 		// Three tracked rivals can constrain a rank only when three of them
 		// could already put the target above or below that rank.
-		needed := cell.rank + 1
-		if otherSide := len(teams) - cell.rank; otherSide < needed {
-			needed = otherSide
-		}
+		needed := conditionedRankBlockerNeed(cell.rank, len(teams))
 		if len(teams) > 3 && needed <= 3 && result.blockers < 3 && mass <= 1e-3 {
 			trial := conditionedZeroBlockers(cell.id, cell.rank, teams, current,
 				pmfs, group.Games, 3)
@@ -799,6 +746,8 @@ func runConditionedZeroSearch(group *GroupType, campaign []*TeamCampaign, table 
 	}
 	close(jobs)
 	wait.Wait()
+	runConditionedGuidedSearch(group, campaign, table, sortOrder, seed,
+		teams, current, pmfs, bounds, samplers, cells, results)
 	allocateConditionedZeroExtra(group, campaign, table, sortOrder, seed,
 		teams, current, pmfs, bounds, samplers, cells, estimates, results)
 	for index, target := range cells {

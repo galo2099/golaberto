@@ -11,10 +11,10 @@ const (
 	conditionedZeroLookaheadMaxCap  = 128
 )
 
-// conditionedFirstSuffix holds each team's marginal chance of earning at most
+// conditionedRankSuffix holds each team's marginal chance of earning at most
 // cap additional points from the remaining games. It guides the proposal;
 // importance weights correct for correlations between teams.
-func conditionedFirstSuffix(games []conditionedFirstPointGame, teamCount, maxCap int) [][][]float64 {
+func conditionedRankSuffix(games []conditionedPointOutcomeGame, teamCount, maxCap int) [][][]float64 {
 	suffix := make([][][]float64, len(games)+1)
 	suffix[len(games)] = make([][]float64, teamCount)
 	for team := 0; team < teamCount; team++ {
@@ -47,7 +47,7 @@ func conditionedFirstSuffix(games []conditionedFirstPointGame, teamCount, maxCap
 	return suffix
 }
 
-func sampleConditionedZeroFirstLookahead(event *conditionedPointEvent, target int,
+func sampleConditionedZeroRankLookahead(event *conditionedPointEvent, target, rank int,
 	group *GroupType, campaign []*TeamCampaign, table *Table, sortOrder []SortType,
 	bounds pointRankBounds, samplers []conditionedScoreSampler, samples int,
 	seed int64) (conditionedZeroResult, bool) {
@@ -62,14 +62,19 @@ func sampleConditionedZeroFirstLookahead(event *conditionedPointEvent, target in
 	}
 	targetIndex := table.Query(uint32(target))
 	ranked := make([]bool, len(campaign))
+	rankedIndices := make([]int32, 0, len(group.Team_groups)-1)
 	for _, team := range group.Team_groups {
-		ranked[table.Query(uint32(team.Team_id))] = true
+		index := table.Query(uint32(team.Team_id))
+		ranked[index] = true
+		if index != targetIndex {
+			rankedIndices = append(rankedIndices, index)
+		}
 	}
 	selected := make([]bool, len(group.Games))
 	for _, game := range event.games {
 		selected[game.index] = true
 	}
-	var selectedGames, remaining []conditionedFirstPointGame
+	var selectedGames, remaining []conditionedPointOutcomeGame
 	for index, game := range group.Games {
 		if game.Played {
 			continue
@@ -84,7 +89,7 @@ func sampleConditionedZeroFirstLookahead(event *conditionedPointEvent, target in
 		}
 		home := campaign[game.home_table_index]
 		away := campaign[game.away_table_index]
-		pointGame := conditionedFirstPointGame{
+		pointGame := conditionedPointOutcomeGame{
 			index: index, home: game.home_table_index, away: game.away_table_index,
 			prob:     targetOutcomeProbabilities(game),
 			homeGain: [3]int{home.points_loss, home.points_draw, home.points_win},
@@ -105,7 +110,7 @@ func sampleConditionedZeroFirstLookahead(event *conditionedPointEvent, target in
 	if maxCap > conditionedZeroLookaheadMaxCap {
 		return result, false
 	}
-	suffix := conditionedFirstSuffix(remaining, len(campaign), maxCap)
+	suffix := conditionedRankSuffix(remaining, len(campaign), maxCap)
 	basePoints := make([]int, len(campaign))
 	for index, team := range campaign {
 		if team != nil {
@@ -114,7 +119,7 @@ func sampleConditionedZeroFirstLookahead(event *conditionedPointEvent, target in
 	}
 	points := make([]int, len(campaign))
 	outcomes := make([]uint8, len(group.Games))
-	scoreContext := newConditionedFirstScoreContext(group, campaign, table, sortOrder, samplers)
+	scoreContext := newConditionedRankScoreContext(group, campaign, table, sortOrder, samplers)
 	rng := rand.New(rand.NewSource(seed))
 	var sumY, sumY2, maxY float64
 	var batchY [2]float64
@@ -127,31 +132,62 @@ func sampleConditionedZeroFirstLookahead(event *conditionedPointEvent, target in
 			points[game.away] += game.awayGain[outcome]
 		}
 		targetPoints := points[targetIndex]
-		weight := 1.0
-		for _, team := range group.Team_groups {
-			if team.Team_id != target && points[table.Query(uint32(team.Team_id))] > targetPoints {
-				weight = 0
-				break
+		// Use the expected counts of rivals above and below the target to
+		// decide how strongly each side needs to be tilted. At either edge,
+		// one coefficient becomes zero without a position-specific proposal.
+		expectedAbove, expectedBelow := 0.0, 0.0
+		above := 0
+		for _, index := range rankedIndices {
+			cap := targetPoints - points[index]
+			cdfAt := func(limit int) float64 {
+				if limit < 0 {
+					return 0
+				}
+				if limit > maxCap {
+					return 1
+				}
+				return suffix[0][index][limit]
 			}
+			expectedAbove += 1 - cdfAt(cap)
+			expectedBelow += cdfAt(cap - 1)
+			if points[index] > targetPoints {
+				above++
+			}
+		}
+		aboveWeight, belowWeight := 1.0, 1.0
+		if expectedAbove > 0 {
+			aboveWeight = math.Min(1, float64(rank)/expectedAbove)
+		}
+		if expectedBelow > 0 {
+			belowWeight = math.Min(1, float64(len(group.Team_groups)-1-rank)/expectedBelow)
+		}
+		weight := 1.0
+		if above > rank {
+			weight = 0
 		}
 		if weight > 0 {
 			for step, game := range remaining {
 				var score [3]float64
 				total := 0.0
 				for outcome, p := range game.prob {
-					homeCap := targetPoints - points[game.home] - game.homeGain[outcome]
-					awayCap := targetPoints - points[game.away] - game.awayGain[outcome]
-					if homeCap < 0 || awayCap < 0 {
-						continue
+					sideFactor := func(index int32, gain int) float64 {
+						cap := targetPoints - points[index] - gain
+						cdfAt := func(limit int) float64 {
+							if limit < 0 {
+								return 0
+							}
+							if limit > maxCap {
+								return 1
+							}
+							return suffix[step+1][index][limit]
+						}
+						belowProb := cdfAt(cap - 1)
+						atMostProb := cdfAt(cap)
+						return belowWeight*belowProb + (atMostProb - belowProb) +
+							aboveWeight*(1-atMostProb)
 					}
-					if homeCap > maxCap {
-						homeCap = maxCap
-					}
-					if awayCap > maxCap {
-						awayCap = maxCap
-					}
-					score[outcome] = p * suffix[step+1][game.home][homeCap] *
-						suffix[step+1][game.away][awayCap]
+					score[outcome] = p * sideFactor(game.home, game.homeGain[outcome]) *
+						sideFactor(game.away, game.awayGain[outcome])
 					total += score[outcome]
 				}
 				if total <= 0 {
@@ -180,16 +216,21 @@ func sampleConditionedZeroFirstLookahead(event *conditionedPointEvent, target in
 		if weight <= 0 {
 			continue
 		}
-		tied := false
-		for _, team := range group.Team_groups {
-			if team.Team_id != target && points[table.Query(uint32(team.Team_id))] == targetPoints {
-				tied = true
-				break
+		above, below := 0, 0
+		for _, index := range rankedIndices {
+			p := points[index]
+			if p > targetPoints {
+				above++
+			} else if p < targetPoints {
+				below++
 			}
 		}
-		hit := !tied
-		if tied {
-			hit = scoreContext.finishesFirst(target, outcomes, rng)
+		if above > rank || below > len(group.Team_groups)-1-rank {
+			continue
+		}
+		hit := above == rank && above+below == len(group.Team_groups)-1
+		if !hit && above <= rank && rank <= len(group.Team_groups)-1-below {
+			hit = scoreContext.finishesAtRank(target, rank, outcomes, rng)
 		}
 		if hit {
 			result.hits++

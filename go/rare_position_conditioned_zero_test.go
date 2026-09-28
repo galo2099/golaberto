@@ -174,25 +174,6 @@ func TestConditionedExtraCanSelectMiddleRank(t *testing.T) {
 	}
 }
 
-func TestConditionedFirstPointScreenMatchesFullSampling(t *testing.T) {
-	group, campaign, table, order, _ := createTestGroupForDiversified()
-	bounds := buildPointRankBounds(campaign, group.Team_groups, group.Games, table)
-	event, ok := buildConditionedPointEvent(1, 0, []int{2, 3}, group, campaign, table, bounds)
-	if !ok || event.mass <= 0 {
-		t.Fatal("could not build conditioned first-place event")
-	}
-	samplers := newConditionedScoreSamplers(group.Games)
-	const draws = 20000
-	full := sampleConditionedZeroCell(event, 1, 0, group, campaign, table,
-		order, samplers, draws, 46)
-	fast := sampleConditionedZeroFirstCellFast(event, 1, group, campaign, table,
-		order, samplers, draws, 76)
-	if full.samples != draws || fast.samples != draws ||
-		math.Abs(float64(full.hits-fast.hits)/draws) > 0.02 {
-		t.Fatalf("first-place hit rates differ: full=%+v fast=%+v", full, fast)
-	}
-}
-
 func TestConditionedRankPointScreenMatchesFullSampling(t *testing.T) {
 	group, campaign, table, order, _ := createTestGroupForDiversified()
 	bounds := buildPointRankBounds(campaign, group.Team_groups, group.Games, table)
@@ -222,23 +203,56 @@ func TestConditionedRankPointScreenMatchesFullSampling(t *testing.T) {
 	}
 }
 
-func TestConditionedFirstLookaheadMatchesFullSampling(t *testing.T) {
+func TestConditionedRankLookaheadMatchesFullSampling(t *testing.T) {
 	group, campaign, table, order, _ := createTestGroupForDiversified()
 	bounds := buildPointRankBounds(campaign, group.Team_groups, group.Games, table)
-	event, ok := buildConditionedPointEvent(1, 0, nil, group, campaign, table, bounds)
-	if !ok || event.mass <= 0 {
-		t.Fatal("could not build conditioned first-place event")
-	}
 	samplers := newConditionedScoreSamplers(group.Games)
 	const draws = 50000
-	full := sampleConditionedZeroCell(event, 1, 0, group, campaign, table,
-		order, samplers, draws, 29)
-	weighted, _ := sampleConditionedZeroFirstLookahead(event, 1, group, campaign,
-		table, order, bounds, samplers, draws, 57)
-	want := event.mass * float64(full.hits) / draws
-	if weighted.samples != draws || weighted.hits <= 0 || !weighted.weighted ||
-		math.Abs(weighted.probability-want) > 0.03 {
-		t.Fatalf("lookahead probability=%g, full probability=%g: %+v", weighted.probability, want, weighted)
+	for rank := range group.Team_groups {
+		var event *conditionedPointEvent
+		target := 0
+		for _, team := range group.Team_groups {
+			candidate, ok := buildConditionedPointEvent(team.Team_id, rank, nil,
+				group, campaign, table, bounds)
+			if ok && candidate.mass > 0 {
+				event, target = candidate, team.Team_id
+				break
+			}
+		}
+		if event == nil {
+			t.Fatalf("rank=%d: could not build point event", rank)
+		}
+		full := sampleConditionedZeroCell(event, target, rank, group, campaign,
+			table, order, samplers, draws, 29)
+		weighted, _ := sampleConditionedZeroRankLookahead(event, target, rank,
+			group, campaign, table, order, bounds, samplers, draws, 57)
+		want := event.mass * float64(full.hits) / draws
+		if weighted.samples != draws || weighted.hits <= 0 || !weighted.weighted ||
+			math.Abs(weighted.probability-want) > 0.015 {
+			t.Fatalf("rank=%d: lookahead probability=%g, full probability=%g: %+v",
+				rank, weighted.probability, want, weighted)
+		}
+	}
+}
+
+func TestConditionedGuidedSearchCanSelectMiddleRank(t *testing.T) {
+	t.Setenv("RARE_POSITION_CONDITIONED_ZERO_LOOKAHEAD", "1")
+	t.Setenv("RARE_POSITION_CONDITIONED_ZERO_DEEP", "0")
+	group, campaign, table, order, _ := createTestGroupForDiversified()
+	bounds := buildPointRankBounds(campaign, group.Team_groups, group.Games, table)
+	event, ok := buildConditionedPointEvent(1, 1, nil, group, campaign, table, bounds)
+	if !ok || event.mass <= 0 {
+		t.Fatal("could not build a middle-rank point event")
+	}
+	results := []conditionedZeroSearchResult{{
+		result: conditionedZeroResult{mass: event.mass, samples: 1000}, event: event,
+	}}
+	runConditionedGuidedSearch(group, campaign, table, order, 808,
+		[]int{1, 2, 3}, nil, nil, bounds, newConditionedScoreSamplers(group.Games),
+		[]conditionedZeroCell{{1, 1}}, results)
+	if result := results[0].result; !result.weighted || result.hits <= 0 ||
+		result.samples != conditionedZeroLookaheadSamples {
+		t.Fatalf("middle rank did not receive a guided estimate: %+v", result)
 	}
 }
 
@@ -298,7 +312,8 @@ func TestConditionedZeroRealGroup(t *testing.T) {
 	}
 	if input.Id == 16653 {
 		ceara := estimates[69][0]
-		if ceara.Reachability != "witness" || ceara.Probability <= 0 ||
+		if (ceara.Reachability != "witness" && ceara.Reachability != "undecided") ||
+			(ceara.ZeroHitUpper95 <= 0 && ceara.Reachability == "undecided") ||
 			math.Abs(ceara.ConditionalMass-5.14342797285146e-7) > 1e-11 {
 			t.Fatalf("Ceará first-place search did not match the joint-points event: %+v", ceara)
 		}
@@ -388,6 +403,10 @@ func TestConditionedZeroLookaheadRealGroup(t *testing.T) {
 		t.Logf("team=%d probability=%.12g mass=%.12g hits=%d ESS=%.1f max_share=%.4g",
 			id, est.Probability, est.ConditionalMass, est.ConditionalHits,
 			est.ESS, est.MaxEventWeightShare)
+	}
+	if ceara := estimates[69][0]; ceara.Reachability != "witness" ||
+		ceara.Probability <= 0 || ceara.Design != "matched_point_pool_conditioned_lookahead" {
+		t.Fatalf("general guided search missed Ceará first place: %+v", ceara)
 	}
 	second := estimates[457][1]
 	if second.Probability <= 0 || second.Reachability != "witness" ||
