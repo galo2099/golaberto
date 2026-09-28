@@ -387,11 +387,11 @@ throughout, with no branch naming a particular position:
 - Initial conditional draws use the same event-mass rule for every
   cell: 2,000 draws for event mass in `[1e-7, 1e-3]`, otherwise 1,000.
 - Every still-unobserved cell gets a 200-draw guided pilot. A pilot
-  with at least 20 hits, effective sample size at least 10, and no
-  single hit carrying over 20% of the weight can compete for a fresh
-  20,000-draw estimate. At most three estimates run per request,
-  selected by pilot effective sample size. The pilots choose cells;
-  only fresh draws supply the reported estimate.
+  with at least 20 hits can compete for a fresh 20,000-draw estimate.
+  At most three estimates run per request, selected by pilot hit count
+  with effective sample size as a tie breaker. The pilots choose cells;
+  only fresh draws that pass the precision checks supply the reported
+  estimate.
 - The optional deep mode uses the same pilot evidence to choose up to
   two cells for one million ordinary conditional draws each. It no
   longer chooses by position number.
@@ -424,3 +424,30 @@ full-request measurements ranged from **0.947 to 0.981 s**; a five-run
 benchmark averaged **0.949 s/request**. Group 16498 averaged 0.875 s
 over three requests. The saved group regressions, full Go suite, and
 race detector passed.
+
+### Production flag and seed regression
+
+The matched-point pool path takes precedence over the legacy importance
+sampling path. Consequently, with `RARE_POSITION_MATCHED_POINT_POOL=1`,
+the importance sampling, diversified IS, CEM parameterization, sequential
+pruning, and minimum interesting probability flags do not affect this
+estimator. Conditioned zero search and its guided lookahead are enabled
+by default, unless their flags are explicitly set to `0`.
+
+The first 200-draw guided pilot was initially using effective sample size
+at least 10 and a maximum single weight share of 20% as promotion gates.
+Across seeds 801–812 on the saved group 16653 request, those gates
+sometimes prevented Botafogo-SP or Avaí from receiving the independent
+20,000-draw estimate, despite dozens of pilot hits. With the user's exact
+flag combination, Botafogo-SP first remained zero for four of the 12
+seeds and Avaí first for four. The short pilot now requires at least
+20 hits, ranking eligible cells by hit count; only the independent
+20,000-draw estimate must pass the existing precision checks. With the
+same 12 seeds, Botafogo-SP, Avaí, and Ceará each received a positive
+first-place estimate in all 12 requests. Seeds 804, 805, and 811 now
+have an environment-gated regression test because they exposed the
+original failure. The four-core, five-request benchmark measured
+0.932–0.979 s/request, averaging 0.947 s, versus 0.949 s before the
+fix. This improves seed robustness for this saved request;
+it does not guarantee that every future draw or changed fixture set
+will find every extremely rare event.

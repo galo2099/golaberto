@@ -445,3 +445,41 @@ func TestConditionedZeroLookaheadRealGroup(t *testing.T) {
 		}
 	}
 }
+
+func TestConditionedZeroLookaheadSeedRobustness(t *testing.T) {
+	path := os.Getenv("RARE_POSITION_BENCHMARK_GROUP_JSON")
+	if path == "" {
+		t.Skip("set RARE_POSITION_BENCHMARK_GROUP_JSON to a saved group request")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var input GroupType
+	if err := json.Unmarshal(data, &input); err != nil {
+		t.Fatal(err)
+	}
+	if input.Id != 16653 {
+		t.Skip("the seed robustness regression uses group 16653")
+	}
+	t.Setenv("RARE_POSITION_MATCHED_POINT_POOL", "1")
+	t.Setenv("RARE_POSITION_IMPORTANCE_SAMPLING", "1")
+	t.Setenv("RARE_POSITION_DIVERSIFIED_IS", "1")
+	t.Setenv("RARE_POSITION_CEM_PARAMETERIZATION", "team_attack_concession")
+	t.Setenv("RARE_POSITION_SEQUENTIAL_PRUNING", "1")
+	t.Setenv("RARE_POSITION_MIN_INTERESTING_PROBABILITY", "1e-6")
+	t.Setenv("RARE_POSITION_CONDITIONED_ZERO", "1")
+	t.Setenv("RARE_POSITION_CONDITIONED_ZERO_LOOKAHEAD", "1")
+	t.Setenv("RARE_POSITION_CONDITIONED_ZERO_DEEP", "0")
+	for _, seed := range []string{"804", "805", "811"} {
+		t.Run(seed, func(t *testing.T) {
+			t.Setenv("RARE_POSITION_RANDOM_SEED", seed)
+			estimates := cloneGroupForBenchmark(input).calculate_odds()["rare_position_estimates"].(map[int]map[int]ProductionEstimate)
+			for _, id := range []int{457, 68, 69} {
+				if estimate := estimates[id][0]; estimate.Probability <= 0 {
+					t.Fatalf("seed=%s team=%d first place was missed: %+v", seed, id, estimate)
+				}
+			}
+		})
+	}
+}

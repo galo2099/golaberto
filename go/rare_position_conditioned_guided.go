@@ -16,6 +16,7 @@ const (
 
 type conditionedGuidedCandidate struct {
 	index int
+	hits  int
 	ess   float64
 }
 
@@ -80,10 +81,13 @@ func runConditionedGuidedSearch(group *GroupType, campaign []*TeamCampaign,
 				search.result.work += pilot.work
 				search.event = event
 				results[index] = search
-				if pilot.weighted && pilot.hits >= 20 && pilot.ess >= 10 &&
-					pilot.maxWeightShare <= 0.2 && !math.IsNaN(pilot.ess) {
+				// The pilot only selects cells. The fresh production draw has
+				// its own precision checks, so a noisy 200-draw weight must
+				// not veto an otherwise well discovered cell.
+				if pilot.weighted && pilot.hits >= 20 &&
+					!math.IsNaN(pilot.ess) && !math.IsInf(pilot.ess, 0) {
 					eligible[index] = true
-					candidates[index] = conditionedGuidedCandidate{index, pilot.ess}
+					candidates[index] = conditionedGuidedCandidate{index, pilot.hits, pilot.ess}
 				}
 			}
 		}()
@@ -100,6 +104,9 @@ func runConditionedGuidedSearch(group *GroupType, campaign []*TeamCampaign,
 		}
 	}
 	sort.Slice(selected, func(i, j int) bool {
+		if selected[i].hits != selected[j].hits {
+			return selected[i].hits > selected[j].hits
+		}
 		if selected[i].ess != selected[j].ess {
 			return selected[i].ess > selected[j].ess
 		}
