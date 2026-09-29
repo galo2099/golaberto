@@ -10,6 +10,27 @@ import (
 	"testing"
 )
 
+func TestCrossCheckExtremePointTilt(t *testing.T) {
+	sharp := conditionedZeroResult{weighted: true, probability: 1e-15,
+		stdErr: 1e-16, hits: 600, ess: 20, maxWeightShare: 0.1, batchGap: 0.2}
+	gentle := conditionedZeroResult{weighted: true, probability: 1e-12,
+		stdErr: 2e-13, hits: 50, ess: 12, maxWeightShare: 0.12, batchGap: 0.3}
+	result, valid, corrected := crossCheckExtremePointTilt(sharp, gentle)
+	if !valid || !corrected || result.probability != gentle.probability {
+		t.Fatalf("independent estimate should replace a discrepant sharp tilt: %+v valid=%t corrected=%t", result, valid, corrected)
+	}
+	gentle.batchGap = 1.2
+	_, valid, corrected = crossCheckExtremePointTilt(sharp, gentle)
+	if valid || corrected {
+		t.Fatal("a clear but unstable discrepancy should suppress the sharp estimate")
+	}
+	gentle.hits = 2
+	_, valid, corrected = crossCheckExtremePointTilt(sharp, gentle)
+	if !valid || corrected {
+		t.Fatal("an inconclusive check should leave the existing estimate available")
+	}
+}
+
 func TestPointTiltConfirmationSpilloverPreservesQuotas(t *testing.T) {
 	tests := []struct {
 		name             string

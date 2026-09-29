@@ -21,6 +21,7 @@ const (
 	conditionedPointTiltGapCells                 = 2
 	conditionedPointTiltUndecidedGapSamples      = 15000
 	conditionedPointTiltUndecidedGapPilotSamples = 1000
+	conditionedPointTiltCrossCheckSamples        = 50000
 )
 
 type conditionedPointTiltCandidate struct {
@@ -95,6 +96,48 @@ func conditionedPointTiltUndecidedGapEnabled() bool {
 func conditionedPointTiltResultValid(result conditionedZeroResult) bool {
 	return result.weighted && result.probability > 0 && result.hits >= 30 && result.ess >= 8 &&
 		result.stdErr/result.probability <= 0.35 && result.maxWeightShare <= 0.25 && result.batchGap <= 1
+}
+
+// A very sharp rank tilt can produce many hits while missing the rare,
+// high-weight paths that dominate the estimate. Compare accepted sharp-tilt
+// results with fresh draws from a gentler proposal before reporting them.
+func crossCheckExtremePointTilt(result, check conditionedZeroResult) (conditionedZeroResult, bool, bool) {
+	if check.probability <= 0 || check.hits < 30 || check.ess < 5 ||
+		check.stdErr/check.probability > 0.6 {
+		return result, true, false
+	}
+	ratio := result.probability / check.probability
+	if ratio >= 1.0/30 && ratio <= 30 {
+		return result, true, false
+	}
+	if conditionedPointTiltResultValid(check) {
+		return check, true, true
+	}
+	return result, false, false
+}
+
+func verifyExtremePointTilt(result conditionedZeroResult, valid bool,
+	candidate conditionedPointTiltCandidate, cell conditionedZeroCell,
+	group *GroupType, campaign []*TeamCampaign, table *Table, sortOrder []SortType,
+	bounds pointRankBounds, samplers []conditionedScoreSampler, seed int64,
+) (conditionedZeroResult, bool, bool, bool, int) {
+	if !valid || candidate.tilt < 12 || os.Getenv("RARE_POSITION_POINT_TILT_CROSSCHECK") == "0" {
+		return result, valid, false, false, 0
+	}
+	checkSeed := deriveRarePositionSeed(seed, fmt.Sprintf(
+		"conditioned-point-tilt-crosscheck-%d-%d", cell.id, cell.rank))
+	pointTilt := math.Copysign(0.5, candidate.pointTilt)
+	check, _ := sampleConditionedZeroRankLookaheadWithPointTilt(
+		candidate.event, cell.id, cell.rank, group, campaign, table,
+		sortOrder, bounds, samplers, conditionedPointTiltCrossCheckSamples,
+		checkSeed, 3, pointTilt)
+	originalWork := result.work
+	result, valid, corrected := crossCheckExtremePointTilt(result, check)
+	if corrected {
+		result.work += originalWork
+	}
+	result.work += check.work
+	return result, valid, true, corrected, check.samples
 }
 
 func applyConditionedPointTiltEstimate(est ProductionEstimate, result conditionedZeroResult, design string) ProductionEstimate {
@@ -263,9 +306,12 @@ func runConditionedPointTiltSearch(group *GroupType, campaign []*TeamCampaign,
 		}
 	}
 	type confirmed struct {
-		result conditionedZeroResult
-		valid  bool
-		draws  int
+		result    conditionedZeroResult
+		valid     bool
+		draws     int
+		checked   bool
+		corrected bool
+		rejected  bool
 	}
 	confirmations := make([]confirmed, len(candidates))
 	var wait sync.WaitGroup
@@ -299,13 +345,28 @@ func runConditionedPointTiltSearch(group *GroupType, campaign []*TeamCampaign,
 				result = pointResult
 				valid = conditionedPointTiltResultValid(result)
 			}
-			confirmations[i] = confirmed{result, valid, draws}
+			result, valid, checked, corrected, checkDraws := verifyExtremePointTilt(
+				result, valid, candidate, cell, group, campaign, table,
+				sortOrder, bounds, samplers, seed)
+			draws += checkDraws
+			rejected := checked && !valid
+			confirmations[i] = confirmed{result, valid, draws, checked, corrected, rejected}
 		}(i, candidate)
 	}
 	wait.Wait()
 	witnesses := 0
+	checked, corrected, rejected := 0, 0, 0
 	for i, candidate := range candidates {
 		confirmation := confirmations[i]
+		if confirmation.checked {
+			checked++
+		}
+		if confirmation.corrected {
+			corrected++
+		}
+		if confirmation.rejected {
+			rejected++
+		}
 		totalWork += confirmation.result.work
 		finalDraws += confirmation.draws
 		if !confirmation.valid {
@@ -313,8 +374,12 @@ func runConditionedPointTiltSearch(group *GroupType, campaign []*TeamCampaign,
 		}
 		cell := cells[candidate.index]
 		result := confirmation.result
+		design := "matched_point_pool_conditioned_point_tilt"
+		if confirmation.corrected {
+			design += "_crosschecked"
+		}
 		estimates[cell.id][cell.rank] = applyConditionedPointTiltEstimate(
-			estimates[cell.id][cell.rank], result, "matched_point_pool_conditioned_point_tilt")
+			estimates[cell.id][cell.rank], result, design)
 		witnesses++
 	}
 	gapAttempts, gapAccepted, gapDraws := 0, 0, 0
@@ -516,13 +581,29 @@ func runConditionedPointTiltSearch(group *GroupType, campaign []*TeamCampaign,
 				candidate.event, cell.id, cell.rank, group, campaign, table,
 				sortOrder, bounds, samplers, recycledSamples, freshSeed,
 				candidate.tilt, candidate.pointTilt)
-			recycledDraws = result.samples
+			originalDraws := result.samples
+			result, valid, wasChecked, wasCorrected, checkDraws := verifyExtremePointTilt(
+				result, conditionedPointTiltResultValid(result), candidate, cell,
+				group, campaign, table, sortOrder, bounds, samplers, seed)
+			if wasChecked {
+				checked++
+			}
+			if wasCorrected {
+				corrected++
+			}
+			if wasChecked && !valid {
+				rejected++
+			}
+			recycledDraws = originalDraws + checkDraws
 			totalWork += result.work
-			finalDraws += result.samples
-			if conditionedPointTiltResultValid(result) {
+			finalDraws += recycledDraws
+			if valid {
+				design := "matched_point_pool_conditioned_point_tilt_recycled"
+				if wasCorrected {
+					design += "_crosschecked"
+				}
 				estimates[cell.id][cell.rank] = applyConditionedPointTiltEstimate(
-					estimates[cell.id][cell.rank], result,
-					"matched_point_pool_conditioned_point_tilt_recycled")
+					estimates[cell.id][cell.rank], result, design)
 				witnesses++
 				recycledAccepted = 1
 			}
@@ -578,12 +659,28 @@ func runConditionedPointTiltSearch(group *GroupType, campaign []*TeamCampaign,
 				pilot.candidate.event, cell.id, cell.rank, group, campaign, table,
 				sortOrder, bounds, samplers, conditionedPointTiltFinalSamples,
 				freshSeed, pilot.candidate.tilt, pilot.candidate.pointTilt)
+			originalDraws := result.samples
+			result, valid, wasChecked, wasCorrected, checkDraws := verifyExtremePointTilt(
+				result, conditionedPointTiltResultValid(result), pilot.candidate,
+				cell, group, campaign, table, sortOrder, bounds, samplers, seed)
+			if wasChecked {
+				checked++
+			}
+			if wasCorrected {
+				corrected++
+			}
+			if wasChecked && !valid {
+				rejected++
+			}
 			totalWork += result.work
-			finalDraws += result.samples
-			if conditionedPointTiltResultValid(result) {
+			finalDraws += originalDraws + checkDraws
+			if valid {
+				design := "matched_point_pool_conditioned_point_tilt_cross_team"
+				if wasCorrected {
+					design += "_crosschecked"
+				}
 				estimates[cell.id][cell.rank] = applyConditionedPointTiltEstimate(
-					estimates[cell.id][cell.rank], result,
-					"matched_point_pool_conditioned_point_tilt_cross_team")
+					estimates[cell.id][cell.rank], result, design)
 				witnesses++
 				accepted = 1
 			}
@@ -592,11 +689,11 @@ func runConditionedPointTiltSearch(group *GroupType, campaign []*TeamCampaign,
 			group.Id, len(seeds), attempts, len(proofs), bestCellFound, accepted)
 	}
 	if len(pilotCells) > 0 {
-		log.Printf("rare-position-point-tilt: group=%d attempted=%d built=%d pilot_draws=%d final_draws=%d proved_final=%d undecided_final=%d recycled_draws=%d recycled_accepted=%d gap_attempted=%d gap_accepted=%d gap_draws=%d undecided_gap_attempted=%d undecided_gap_accepted=%d undecided_gap_draws=%d accepted=%d work=%d elapsed=%s",
+		log.Printf("rare-position-point-tilt: group=%d attempted=%d built=%d pilot_draws=%d final_draws=%d proved_final=%d undecided_final=%d recycled_draws=%d recycled_accepted=%d gap_attempted=%d gap_accepted=%d gap_draws=%d undecided_gap_attempted=%d undecided_gap_accepted=%d undecided_gap_draws=%d crosschecked=%d corrected=%d rejected=%d accepted=%d work=%d elapsed=%s",
 			group.Id, len(pilotCells), built, pilotDraws, finalDraws,
 			provedFinals, undecidedFinals, recycledDraws, recycledAccepted, gapAttempts, gapAccepted, gapDraws,
 			undecidedGapAttempts, undecidedGapAccepted, undecidedGapDraws,
-			witnesses, totalWork, time.Since(start))
+			checked, corrected, rejected, witnesses, totalWork, time.Since(start))
 	}
 	return witnesses, totalWork
 }
