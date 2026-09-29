@@ -141,3 +141,38 @@ The new confirmation is a bounded improvement in coverage, not a
 guarantee that every future seed or updated fixture snapshot will have
 a positive estimate. Paired same-seed tests separate this allocation
 change from ordinary Monte Carlo variation.
+
+## Follow-up: Avaí second place fails the final-sample quality gate
+
+A live group 16653 run with time seed `1790644074581708000` proved
+Avaí (team 68) could finish second but published zero. The saved live
+request above has the same simulation inputs as the database request at
+the time of this investigation. The ordinary conditional search found
+no rank hits. The point-tilt pass selected Avaí for confirmation using
+the gentle `(rank tilt 3, point tilt 0.5)` proposal. Its 1,000-draw pilot
+had four hits and ESS 2.59. The 15,000-draw confirmation found 47 hits
+and estimated `9.91e-15`, but its largest hit carried 28.7% of the total
+weight, exceeding the 25% publication limit. Keeping zero was the
+correct action under that quality rule.
+
+We now use 30,000 confirmation draws for any constructed-reachable
+candidate whose selected pilot has at least three hits but ESS below
+ten. This uses the same unbiased proposal and acceptance gates; it
+allocates more samples only where the pilot suggests a usable but noisy
+proposal. With the reported seed, Avaí second had 98 final hits, ESS
+24.4, a largest weight share of 12.4%, and an accepted probability
+`1.15e-14`. The result remained positive after matrix reconciliation.
+
+Paired comparisons of 15,000 versus adaptive confirmation draws used
+the reported seed plus seeds 808–827, with four Go cores:
+
+| Request | Extra positive cell-runs | Lost positive cell-runs | Avaí second positive runs | Mean request time before → after |
+| --- | ---: | ---: | ---: | ---: |
+| Live group 16653 | 1 | 0 | 19 → 20 of 21 | 1.138 → 1.171 s (+2.9%) |
+| Reference group 16653 | 3 | 0 | 16 → 17 of 21 | 1.125 → 1.169 s (+3.9%) |
+| Reference group 16498 | 8 | 0 | not applicable | 1.158 → 1.180 s (+1.9%) |
+
+The rule does not guarantee a positive result for every seed. Candidates
+can still miss the pilot, receive no final allocation, or fail the
+independent quality check. The fixed random seed in the regression test
+replays this particular failure and verifies its recovery.

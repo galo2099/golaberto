@@ -112,6 +112,37 @@ func TestPointTiltUndecidedReferenceGroups(t *testing.T) {
 	}
 }
 
+func TestPointTiltLowEvidenceFinalReferenceGroup(t *testing.T) {
+	path := os.Getenv("RARE_POSITION_BENCHMARK_GROUP_JSON")
+	if path == "" {
+		t.Skip("set RARE_POSITION_BENCHMARK_GROUP_JSON to the saved live group 16653 request")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fmt.Sprintf("%x", sha256.Sum256(data)) != "71d4fea8502c3086b8787c764a94b5f8a5caa6549300f2a7687ead8897e11aec" {
+		t.Skip("request differs from the saved live group 16653 input")
+	}
+	var input GroupType
+	if err := json.Unmarshal(data, &input); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("RARE_POSITION_RANDOM_SEED", "1790644074581708000")
+	t.Setenv("RARE_POSITION_MATCHED_POINT_POOL", "1")
+	t.Setenv("RARE_POSITION_IMPORTANCE_SAMPLING", "1")
+	t.Setenv("RARE_POSITION_CONDITIONED_ZERO", "1")
+	t.Setenv("RARE_POSITION_CONDITIONED_ZERO_LOOKAHEAD", "1")
+	t.Setenv("RARE_POSITION_CONDITIONED_POINT_TILT", "1")
+	t.Setenv("RARE_POSITION_POINT_TILT_UNDECIDED", "1")
+	estimates := cloneGroupForBenchmark(input).calculate_odds()["rare_position_estimates"].(map[int]map[int]ProductionEstimate)
+	avaiSecond := estimates[68][1]
+	if avaiSecond.Probability <= 0 || avaiSecond.ConditionalSamples != conditionedPointTiltLowEvidenceSamples ||
+		avaiSecond.Design != "matched_point_pool_conditioned_point_tilt" || avaiSecond.Reachability != "witness" {
+		t.Fatalf("Avaí second-place estimate: %+v", avaiSecond)
+	}
+}
+
 func TestConditionedPointTiltCanEstimateUndecidedCell(t *testing.T) {
 	group, campaign, table, order, _ := createTestGroupForDiversified()
 	bounds := buildPointRankBounds(campaign, group.Team_groups, group.Games, table)

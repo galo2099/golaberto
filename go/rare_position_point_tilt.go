@@ -13,6 +13,7 @@ import (
 const (
 	conditionedPointTiltPilotSamples        = 1000
 	conditionedPointTiltFinalSamples        = 15000
+	conditionedPointTiltLowEvidenceSamples  = 30000
 	conditionedPointTiltFinalCells          = 4
 	conditionedPointTiltPilotCells          = 12
 	conditionedPointTiltUndecidedFinalCells = 3
@@ -159,9 +160,15 @@ func runConditionedPointTiltSearch(group *GroupType, campaign []*TeamCampaign,
 			cell := cells[candidate.index]
 			freshSeed := deriveRarePositionSeed(seed, fmt.Sprintf(
 				"conditioned-point-tilt-final-%d-%d", cell.id, cell.rank))
+			samples := conditionedPointTiltFinalSamples
+			// A few pilot hits can identify a useful proposal while leaving
+			// its confirmation vulnerable to one dominating event weight.
+			if candidate.proved && candidate.ess < 10 && candidate.hits >= 3 {
+				samples = conditionedPointTiltLowEvidenceSamples
+			}
 			result, _ := sampleConditionedZeroRankLookaheadWithPointTilt(
 				candidate.event, cell.id, cell.rank, group, campaign, table,
-				sortOrder, bounds, samplers, conditionedPointTiltFinalSamples,
+				sortOrder, bounds, samplers, samples,
 				freshSeed, candidate.tilt, candidate.pointTilt)
 			valid := result.weighted && result.hits >= 30 && result.ess >= 8 &&
 				result.stdErr/result.probability <= 0.35 &&
