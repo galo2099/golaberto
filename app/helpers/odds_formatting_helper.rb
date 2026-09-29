@@ -8,7 +8,11 @@ module OddsFormattingHelper
       mantissa, exponent = format("%.0e", value).split("e")
       return "#{mantissa}e#{exponent.to_i}%"
     end
-    return ">#{number_to_percentage(99.99, precision: 2)}" if value > 99.99 && value < 100
+    if value > 99.99 && value < 100
+      # Express the complement as a fraction: 99.9999% is 1 - 1e-6.
+      mantissa, exponent = format("%.0e", (100 - value) / 100).split("e")
+      return "1-#{mantissa}e#{exponent.to_i}"
+    end
 
     number_to_percentage(value, precision: 2)
   end

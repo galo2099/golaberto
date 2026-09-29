@@ -34,7 +34,11 @@
         var scientific = number.toExponential(0).split("e");
         return scientific[0] + "e" + Number(scientific[1]) + "%";
       }
-      if (number > 99.99 && number < 100) return ">" + (99.99).toLocaleString(locale, options) + "%";
+      if (number > 99.99 && number < 100) {
+        // Express the complement as a fraction: 99.9999% is 1 - 1e-6.
+        var complement = ((100 - number) / 100).toExponential(0).split("e");
+        return "1-" + complement[0] + "e" + Number(complement[1]);
+      }
       return number.toLocaleString(locale, options) + "%";
     },
 

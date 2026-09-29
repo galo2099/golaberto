@@ -19,7 +19,8 @@ class OddsFormattingTest < Minitest::Test
   end
 
   def test_near_certain_odds_do_not_round_to_certain
-    assert_equal '>99.99%', @view.formatted_odds(99.9999)
+    assert_equal '1-1e-6', @view.formatted_odds(99.9999)
+    assert_equal '1-4e-7', @view.formatted_odds(99.99996)
     assert_equal '99.9999%', @view.odds_title(99.9999)
     assert_equal '99.95%', @view.odds_title(99.95)
   end
