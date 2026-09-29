@@ -10,7 +10,9 @@ class OddsFormattingTest < Minitest::Test
   end
 
   def test_small_nonzero_odds_remain_visible_and_recoverable
-    assert_equal '<0.01%', @view.formatted_odds(0.0001)
+    assert_equal '1e-4%', @view.formatted_odds(0.0001)
+    assert_equal '4e-5%', @view.formatted_odds(0.00004321)
+    assert_equal '1e-2%', @view.formatted_odds(0.009999)
     assert_equal '1e-4%', @view.odds_title(0.0001)
     assert_equal '4.321e-5%', @view.odds_title(0.00004321)
     assert_equal '9.999e-3%', @view.odds_title(0.009999)
@@ -37,6 +39,7 @@ class OddsFormattingTest < Minitest::Test
   end
 
   def test_very_small_title_does_not_round_to_zero
+    assert_equal '1e-15%', @view.formatted_odds(1e-15)
     assert_equal '1e-15%', @view.odds_title(1e-15)
     refute_equal '100%', @view.odds_title(99.99999999999999)
   end

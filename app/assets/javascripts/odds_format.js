@@ -30,7 +30,10 @@
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
       };
-      if (number > 0 && number < 0.01) return "<" + (0.01).toLocaleString(locale, options) + "%";
+      if (number > 0 && number < 0.01) {
+        var scientific = number.toExponential(0).split("e");
+        return scientific[0] + "e" + Number(scientific[1]) + "%";
+      }
       if (number > 99.99 && number < 100) return ">" + (99.99).toLocaleString(locale, options) + "%";
       return number.toLocaleString(locale, options) + "%";
     },

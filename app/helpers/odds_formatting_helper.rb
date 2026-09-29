@@ -4,7 +4,10 @@ module OddsFormattingHelper
     return "" if percentage.nil?
 
     value = percentage.to_f
-    return "<#{number_to_percentage(0.01, precision: 2)}" if value > 0 && value < 0.01
+    if value > 0 && value < 0.01
+      mantissa, exponent = format("%.0e", value).split("e")
+      return "#{mantissa}e#{exponent.to_i}%"
+    end
     return ">#{number_to_percentage(99.99, precision: 2)}" if value > 99.99 && value < 100
 
     number_to_percentage(value, precision: 2)
