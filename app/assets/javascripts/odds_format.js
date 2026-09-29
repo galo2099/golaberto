@@ -23,7 +23,7 @@
       return value;
     },
 
-    format: function(value, locale) {
+    format: function(value, locale, compact) {
       var number = validNumber(value);
       if (number === null) return "";
       var options = {
@@ -32,14 +32,14 @@
       };
       if (number > 0 && number < 0.01) {
         var scientific = number.toExponential(0).split("e");
-        return scientific[0] + "e" + Number(scientific[1]) + "%";
+        return scientific[0] + "e" + Number(scientific[1]) + (compact ? "" : "%");
       }
       if (number > 99.99 && number < 100) {
-        // Express the complement as a fraction: 99.9999% is 1 - 1e-6.
-        var complement = ((100 - number) / 100).toExponential(0).split("e");
-        return "1-" + complement[0] + "e" + Number(complement[1]);
+        // The compact table uses a fraction; other views retain percent units.
+        var complement = (compact ? (100 - number) / 100 : 100 - number).toExponential(0).split("e");
+        return (compact ? "1-" : "100%-") + complement[0] + "e" + Number(complement[1]) + (compact ? "" : "%");
       }
-      return number.toLocaleString(locale, options) + "%";
+      return number.toLocaleString(locale, options) + (compact ? "" : "%");
     },
 
     html: function(value, locale) {

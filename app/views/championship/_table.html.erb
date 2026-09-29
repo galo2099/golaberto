@@ -3,7 +3,7 @@
 <% omit_comments = false if omit_comments.nil? %>
 <% omit_popup = false if omit_popup.nil? %>
 <% show_country = false if show_country.nil? %>
-<% cache [ "v2",
+<% cache [ "v3",
            I18n.locale,
            digest_cache_key(group.teams),
            group,
@@ -162,7 +162,7 @@
                   cell.text("");
                   cell.removeAttr("title");
                 } else {
-                  cell.text(GolabertoOdds.format(value, "<%= I18n.locale %>").replace(/%$/, ""));
+                  cell.text(GolabertoOdds.format(value, "<%= I18n.locale %>", true));
                   cell.attr("title", GolabertoOdds.title(value, "<%= I18n.locale %>").replace(/%$/, ""));
                 }
                 var bgColor = ui.item.element.attr("data-cell-color") || ui.item.element.attr("data-color") || "lightgray";
@@ -295,7 +295,7 @@
                           end %>
            <% first_color = first_zone.is_a?(Hash) ? first_zone["color"] : "lightgray" %>
            <%= content_tag :td,
-                           formatted_odds(first_odds).delete_suffix("%"),
+                           formatted_odds(first_odds, compact: true),
                            "data-group-id": group.id,
                            "data-odds-array": (t[0].odds || []).to_json,
                            title: odds_title(first_odds)&.delete_suffix("%"),

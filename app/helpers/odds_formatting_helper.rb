@@ -1,20 +1,22 @@
 module OddsFormattingHelper
   # Odds in views are percentages (0..100), not fractions (0..1).
-  def formatted_odds(percentage)
+  def formatted_odds(percentage, compact: false)
     return "" if percentage.nil?
 
     value = percentage.to_f
     if value > 0 && value < 0.01
       mantissa, exponent = format("%.0e", value).split("e")
-      return "#{mantissa}e#{exponent.to_i}%"
+      return "#{mantissa}e#{exponent.to_i}#{compact ? '' : '%'}"
     end
     if value > 99.99 && value < 100
-      # Express the complement as a fraction: 99.9999% is 1 - 1e-6.
-      mantissa, exponent = format("%.0e", (100 - value) / 100).split("e")
-      return "1-#{mantissa}e#{exponent.to_i}"
+      # The compact table uses a fraction; other views retain percent units.
+      complement = compact ? (100 - value) / 100 : 100 - value
+      mantissa, exponent = format("%.0e", complement).split("e")
+      return compact ? "1-#{mantissa}e#{exponent.to_i}" : "100%-#{mantissa}e#{exponent.to_i}%"
     end
 
-    number_to_percentage(value, precision: 2)
+    formatted = number_to_percentage(value, precision: 2)
+    compact ? formatted.delete_suffix("%") : formatted
   end
 
   def odds_title(percentage)
