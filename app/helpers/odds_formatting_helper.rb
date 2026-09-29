@@ -9,10 +9,8 @@ module OddsFormattingHelper
       return "#{mantissa}e#{exponent.to_i}#{compact ? '' : '%'}"
     end
     if value > 99.99 && value < 100
-      # The compact table uses a fraction; other views retain percent units.
-      complement = compact ? (100 - value) / 100 : 100 - value
-      mantissa, exponent = format("%.0e", complement).split("e")
-      return compact ? "1-#{mantissa}e#{exponent.to_i}" : "100%-#{mantissa}e#{exponent.to_i}%"
+      formatted = ">#{number_to_percentage(99.99, precision: 2)}"
+      return compact ? formatted.delete_suffix("%") : formatted
     end
 
     formatted = number_to_percentage(value, precision: 2)

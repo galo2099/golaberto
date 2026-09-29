@@ -35,9 +35,7 @@
         return scientific[0] + "e" + Number(scientific[1]) + (compact ? "" : "%");
       }
       if (number > 99.99 && number < 100) {
-        // The compact table uses a fraction; other views retain percent units.
-        var complement = (compact ? (100 - number) / 100 : 100 - number).toExponential(0).split("e");
-        return (compact ? "1-" : "100%-") + complement[0] + "e" + Number(complement[1]) + (compact ? "" : "%");
+        return ">" + (99.99).toLocaleString(locale, options) + (compact ? "" : "%");
       }
       return number.toLocaleString(locale, options) + (compact ? "" : "%");
     },
