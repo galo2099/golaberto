@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"math"
+	"os"
 	"runtime"
 	"sort"
 	"sync"
@@ -75,9 +76,10 @@ func runConditionedGuidedSearch(group *GroupType, campaign []*TeamCampaign,
 				}
 				pilotSeed := deriveRarePositionSeed(seed,
 					fmt.Sprintf("conditioned-guided-pilot-%d-%d", cell.id, cell.rank))
-				pilot, _ := sampleConditionedZeroRankLookahead(event, cell.id, cell.rank,
+				pilot, _ := sampleConditionedZeroRankLookaheadWithPointTiltMode(event, cell.id, cell.rank,
 					group, campaign, table, sortOrder, bounds, samplers,
-					conditionedGuidedPilotSamples, pilotSeed)
+					conditionedGuidedPilotSamples, pilotSeed, 1, 0,
+					os.Getenv("RARE_POSITION_WIN_AWARE_STABLE_SELECTION") != "0")
 				search.result.work += pilot.work
 				if search.witnessOutcomes == nil {
 					search.witnessOutcomes = pilot.witnessOutcomes
@@ -136,6 +138,15 @@ func runConditionedGuidedSearch(group *GroupType, campaign []*TeamCampaign,
 				weighted, accepted := sampleConditionedZeroRankLookahead(search.event,
 					cell.id, cell.rank, group, campaign, table, sortOrder, bounds,
 					samplers, conditionedZeroLookaheadSamples, productionSeed)
+				if (!accepted || !weighted.weighted || weighted.hits == 0) &&
+					os.Getenv("RARE_POSITION_WIN_AWARE_FALLBACK") != "0" &&
+					conditionedRankWinStride(sortOrder, group, campaign, table, "lookahead") > 1 {
+					pointResult, pointAccepted := sampleConditionedZeroRankLookaheadWithPointTiltMode(
+						search.event, cell.id, cell.rank, group, campaign, table, sortOrder,
+						bounds, samplers, conditionedZeroLookaheadSamples, productionSeed, 1, 0, true)
+					pointResult.work += weighted.work
+					weighted, accepted = pointResult, pointAccepted
+				}
 				if search.witnessOutcomes == nil {
 					search.witnessOutcomes = weighted.witnessOutcomes
 				}

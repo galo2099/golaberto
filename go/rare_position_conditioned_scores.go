@@ -2,6 +2,7 @@ package main
 
 import (
 	"math/rand"
+	"os"
 	"sort"
 )
 
@@ -10,6 +11,44 @@ type conditionedPointOutcomeGame struct {
 	home, away         int32
 	prob               [3]float64
 	homeGain, awayGain [3]int
+}
+
+func conditionedWinAwareRankMode() string {
+	mode := os.Getenv("RARE_POSITION_WIN_AWARE_RANK")
+	if mode == "" {
+		return "lookahead"
+	}
+	return mode
+}
+
+// A points/wins prefix can be represented as one ordered integer. The stride
+// exceeds every attainable win total, so later tiebreakers only matter when
+// the encoded values are equal.
+func conditionedRankWinStride(sortOrder []SortType, group *GroupType, campaign []*TeamCampaign,
+	table *Table, stage string) int {
+	mode := conditionedWinAwareRankMode()
+	if (mode != "1" && mode != stage) ||
+		len(sortOrder) < 2 || sortOrder[0] != PT || sortOrder[1] != W {
+		return 1
+	}
+	remaining := make(map[int]int, len(group.Team_groups))
+	for _, game := range group.Games {
+		if !game.Played {
+			remaining[game.HomeId]++
+			remaining[game.AwayId]++
+		}
+	}
+	maximum := 0
+	for _, team := range group.Team_groups {
+		c := campaign[table.Query(uint32(team.Team_id))]
+		if c == nil || c.wins < 0 {
+			return 1
+		}
+		if total := c.wins + remaining[team.Team_id]; total > maximum {
+			maximum = total
+		}
+	}
+	return maximum + 1
 }
 
 type conditionedRankScoreContext struct {

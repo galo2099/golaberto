@@ -80,6 +80,7 @@ func runConditionedPointTiltSearch(group *GroupType, campaign []*TeamCampaign,
 	if os.Getenv("RARE_POSITION_CONDITIONED_POINT_TILT") == "0" {
 		return 0, 0
 	}
+	stableSelection := os.Getenv("RARE_POSITION_WIN_AWARE_STABLE_SELECTION") != "0"
 	start := time.Now()
 	var candidates []conditionedPointTiltCandidate
 	var totalWork int64
@@ -134,10 +135,10 @@ func runConditionedPointTiltSearch(group *GroupType, campaign []*TeamCampaign,
 			pilotSeed := deriveRarePositionSeed(seed, fmt.Sprintf(
 				"conditioned-point-tilt-pilot-%d-%d-%g-%g",
 				cell.id, cell.rank, config[0], pointTilt))
-			pilot, _ := sampleConditionedZeroRankLookaheadWithPointTilt(event,
+			pilot, _ := sampleConditionedZeroRankLookaheadWithPointTiltMode(event,
 				cell.id, cell.rank, group, campaign, table, sortOrder, bounds,
 				samplers, conditionedPointTiltPilotSamples, pilotSeed,
-				config[0], pointTilt)
+				config[0], pointTilt, stableSelection)
 			totalWork += pilot.work
 			pilotDraws += pilot.samples
 			// A handful of pilot hits cannot distinguish high-tilt tails.
@@ -184,6 +185,7 @@ func runConditionedPointTiltSearch(group *GroupType, campaign []*TeamCampaign,
 	type confirmed struct {
 		result conditionedZeroResult
 		valid  bool
+		draws  int
 	}
 	confirmations := make([]confirmed, len(candidates))
 	var wait sync.WaitGroup
@@ -205,7 +207,19 @@ func runConditionedPointTiltSearch(group *GroupType, campaign []*TeamCampaign,
 				sortOrder, bounds, samplers, samples,
 				freshSeed, candidate.tilt, candidate.pointTilt)
 			valid := conditionedPointTiltResultValid(result)
-			confirmations[i] = confirmed{result, valid}
+			draws := result.samples
+			if !valid && os.Getenv("RARE_POSITION_WIN_AWARE_FALLBACK") != "0" &&
+				conditionedRankWinStride(sortOrder, group, campaign, table, "lookahead") > 1 {
+				pointResult, _ := sampleConditionedZeroRankLookaheadWithPointTiltMode(
+					candidate.event, cell.id, cell.rank, group, campaign, table,
+					sortOrder, bounds, samplers, samples,
+					freshSeed, candidate.tilt, candidate.pointTilt, true)
+				pointResult.work += result.work
+				draws += pointResult.samples
+				result = pointResult
+				valid = conditionedPointTiltResultValid(result)
+			}
+			confirmations[i] = confirmed{result, valid, draws}
 		}(i, candidate)
 	}
 	wait.Wait()
@@ -213,7 +227,7 @@ func runConditionedPointTiltSearch(group *GroupType, campaign []*TeamCampaign,
 	for i, candidate := range candidates {
 		confirmation := confirmations[i]
 		totalWork += confirmation.result.work
-		finalDraws += confirmation.result.samples
+		finalDraws += confirmation.draws
 		if !confirmation.valid {
 			continue
 		}
@@ -265,9 +279,9 @@ func runConditionedPointTiltSearch(group *GroupType, campaign []*TeamCampaign,
 			}
 			pilot := func(name string, tilt, pointTilt float64) conditionedZeroResult {
 				pilotSeed := deriveRarePositionSeed(seed, fmt.Sprintf("split-gap-%s-pilot-%d-%d", name, cell.id, cell.rank))
-				result, _ := sampleConditionedZeroRankLookaheadWithPointTilt(event, cell.id, cell.rank,
+				result, _ := sampleConditionedZeroRankLookaheadWithPointTiltMode(event, cell.id, cell.rank,
 					group, campaign, table, sortOrder, bounds, samplers,
-					conditionedPointTiltPilotSamples, pilotSeed, tilt, pointTilt)
+					conditionedPointTiltPilotSamples, pilotSeed, tilt, pointTilt, stableSelection)
 				budget -= result.samples
 				pilotDraws += result.samples
 				gapDraws += result.samples
@@ -349,10 +363,10 @@ func runConditionedPointTiltSearch(group *GroupType, campaign []*TeamCampaign,
 			pilot := func(name string, tilt, pointTilt float64) conditionedZeroResult {
 				pilotSeed := deriveRarePositionSeed(seed, fmt.Sprintf(
 					"conditioned-point-tilt-undecided-gap-%s-pilot-%d-%d", name, cell.id, cell.rank))
-				result, _ := sampleConditionedZeroRankLookaheadWithPointTilt(event,
+				result, _ := sampleConditionedZeroRankLookaheadWithPointTiltMode(event,
 					cell.id, cell.rank, group, campaign, table, sortOrder, bounds,
 					samplers, conditionedPointTiltUndecidedGapPilotSamples,
-					pilotSeed, tilt, pointTilt)
+					pilotSeed, tilt, pointTilt, stableSelection)
 				totalWork += result.work
 				pilotDraws += result.samples
 				undecidedGapDraws += result.samples

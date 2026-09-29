@@ -71,6 +71,15 @@ func sampleConditionedZeroRankLookaheadWithPointTilt(event *conditionedPointEven
 	group *GroupType, campaign []*TeamCampaign, table *Table, sortOrder []SortType,
 	bounds pointRankBounds, samplers []conditionedScoreSampler, samples int,
 	seed int64, tilt, pointTilt float64) (conditionedZeroResult, bool) {
+	return sampleConditionedZeroRankLookaheadWithPointTiltMode(event, target, rank,
+		group, campaign, table, sortOrder, bounds, samplers, samples, seed,
+		tilt, pointTilt, false)
+}
+
+func sampleConditionedZeroRankLookaheadWithPointTiltMode(event *conditionedPointEvent, target, rank int,
+	group *GroupType, campaign []*TeamCampaign, table *Table, sortOrder []SortType,
+	bounds pointRankBounds, samplers []conditionedScoreSampler, samples int,
+	seed int64, tilt, pointTilt float64, forcePoints bool) (conditionedZeroResult, bool) {
 	result := conditionedZeroResult{mass: event.mass}
 	if event.mass <= 0 || samples <= 0 {
 		return result, false
@@ -91,6 +100,10 @@ func sampleConditionedZeroRankLookaheadWithPointTilt(event *conditionedPointEven
 		}
 	}
 	selected := make([]bool, len(group.Games))
+	stride := 1
+	if !forcePoints {
+		stride = conditionedRankWinStride(sortOrder, group, campaign, table, "lookahead")
+	}
 	for _, game := range event.games {
 		selected[game.index] = true
 	}
@@ -112,8 +125,12 @@ func sampleConditionedZeroRankLookaheadWithPointTilt(event *conditionedPointEven
 		pointGame := conditionedPointOutcomeGame{
 			index: index, home: game.home_table_index, away: game.away_table_index,
 			prob:     targetOutcomeProbabilities(game),
-			homeGain: [3]int{home.points_loss, home.points_draw, home.points_win},
-			awayGain: [3]int{away.points_win, away.points_draw, away.points_loss},
+			homeGain: [3]int{home.points_loss * stride, home.points_draw * stride, home.points_win * stride},
+			awayGain: [3]int{away.points_win * stride, away.points_draw * stride, away.points_loss * stride},
+		}
+		if stride > 1 {
+			pointGame.homeGain[2]++
+			pointGame.awayGain[0]++
 		}
 		if selected[index] {
 			selectedGames = append(selectedGames, pointGame)
@@ -123,18 +140,31 @@ func sampleConditionedZeroRankLookaheadWithPointTilt(event *conditionedPointEven
 	}
 	maxCap := 0
 	for _, team := range campaign {
-		if team != nil && bounds.maximum[target]-team.points > maxCap {
-			maxCap = bounds.maximum[target] - team.points
+		if team != nil {
+			current := team.points * stride
+			if stride > 1 {
+				current += team.wins
+			}
+			cap := bounds.maximum[target]*stride + stride - 1 - current
+			if stride == 1 {
+				cap = bounds.maximum[target] - team.points
+			}
+			if cap > maxCap {
+				maxCap = cap
+			}
 		}
 	}
-	if maxCap > conditionedZeroLookaheadMaxCap {
+	if maxCap > conditionedZeroLookaheadMaxCap*stride+stride-1 {
 		return result, false
 	}
 	suffix := conditionedRankSuffix(remaining, len(campaign), maxCap)
 	basePoints := make([]int, len(campaign))
 	for index, team := range campaign {
 		if team != nil {
-			basePoints[index] = team.points
+			basePoints[index] = team.points * stride
+			if stride > 1 {
+				basePoints[index] += team.wins
+			}
 		}
 	}
 	points := make([]int, len(campaign))

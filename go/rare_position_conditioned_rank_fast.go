@@ -1,6 +1,9 @@
 package main
 
-import "math/rand"
+import (
+	"math/rand"
+	"os"
+)
 
 // sampleConditionedZeroCellFast resolves ranks from points and only generates
 // scorelines when teams tied on points can affect the target's rank.
@@ -31,6 +34,7 @@ func sampleConditionedZeroCellFast(event *conditionedPointEvent, target, rank in
 		inGroup[index] = true
 	}
 	basePoints := make([]int, len(campaign))
+	stride := conditionedRankWinStride(sortOrder, group, campaign, table, "screen")
 	for i, team := range campaign {
 		if team == nil {
 			continue
@@ -38,7 +42,10 @@ func sampleConditionedZeroCellFast(event *conditionedPointEvent, target, rank in
 		if team.points_win < 0 || team.points_draw < 0 || team.points_loss < 0 {
 			return fallback()
 		}
-		basePoints[i] = team.points
+		basePoints[i] = team.points * stride
+		if stride > 1 {
+			basePoints[i] += team.wins
+		}
 	}
 	pointGames := make([]conditionedPointOutcomeGame, 0, len(group.Games))
 	for index, game := range group.Games {
@@ -54,14 +61,23 @@ func sampleConditionedZeroCellFast(event *conditionedPointEvent, target, rank in
 		pointGames = append(pointGames, conditionedPointOutcomeGame{
 			index: index, home: homeIndex, away: awayIndex,
 			prob:     targetOutcomeProbabilities(game),
-			homeGain: [3]int{home.points_loss, home.points_draw, home.points_win},
-			awayGain: [3]int{away.points_win, away.points_draw, away.points_loss},
+			homeGain: [3]int{home.points_loss * stride, home.points_draw * stride, home.points_win * stride},
+			awayGain: [3]int{away.points_win * stride, away.points_draw * stride, away.points_loss * stride},
 		})
+		if stride > 1 {
+			pointGames[len(pointGames)-1].homeGain[2]++
+			pointGames[len(pointGames)-1].awayGain[0]++
+		}
 	}
 	points := make([]int, len(campaign))
 	outcomes := make([]uint8, len(group.Games))
 	scoreContext := newConditionedRankScoreContext(group, campaign, table, sortOrder, samplers)
 	rng := rand.New(rand.NewSource(seed))
+	pairedScores := os.Getenv("RARE_POSITION_PAIRED_SCREEN_RNG") == "1"
+	var scoreRNG *rand.Rand
+	if pairedScores {
+		scoreRNG = rand.New(rand.NewSource(seed))
+	}
 	for n := 0; n < samples; n++ {
 		event.sampleOutcomes(rng, outcomes)
 		copy(points, basePoints)
@@ -92,8 +108,16 @@ func sampleConditionedZeroCellFast(event *conditionedPointEvent, target, rank in
 				tied++
 			}
 		}
-		if above <= rank && above+tied >= rank &&
-			(tied == 0 || scoreContext.finishesAtRank(target, rank, outcomes, rng)) {
+		hit := above <= rank && above+tied >= rank
+		if hit && tied > 0 {
+			rankRNG := rng
+			if pairedScores {
+				scoreRNG.Seed(seed + int64(n)*6364136223846793005)
+				rankRNG = scoreRNG
+			}
+			hit = scoreContext.finishesAtRank(target, rank, outcomes, rankRNG)
+		}
+		if hit {
 			result.hits++
 			if result.witnessOutcomes == nil {
 				result.witnessOutcomes = append([]uint8(nil), outcomes...)
