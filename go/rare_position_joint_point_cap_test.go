@@ -193,6 +193,8 @@ func TestJointPointCapRealGroup16653(t *testing.T) {
 	}
 	t.Setenv("RARE_POSITION_MATCHED_POINT_POOL", "1")
 	t.Setenv("RARE_POSITION_RANDOM_SEED", "808")
+	t.Setenv("RARE_POSITION_JOINT_POINT_CAP", "0")
+	without := cloneGroupForBenchmark(input).calculate_odds()["rare_position_estimates"].(map[int]map[int]ProductionEstimate)
 	t.Setenv("RARE_POSITION_JOINT_POINT_CAP", "1")
 	estimates := cloneGroupForBenchmark(input).calculate_odds()["rare_position_estimates"].(map[int]map[int]ProductionEstimate)
 	if est := estimates[95][1]; est.Reachability != "impossible_by_joint_points" ||
@@ -202,6 +204,19 @@ func TestJointPointCapRealGroup16653(t *testing.T) {
 	if est := estimates[125][8]; est.Reachability != "impossible_by_joint_points" ||
 		est.Probability != 0 || est.ZeroHitUpper95 != 0 {
 		t.Fatalf("team 125 ninth place: %+v", est)
+	}
+	for _, team := range input.Team_groups {
+		for rank := range input.Team_groups {
+			before := without[team.Team_id][rank]
+			after := estimates[team.Team_id][rank]
+			if (before.Probability > 0) != (after.Probability > 0) {
+				t.Fatalf("team=%d rank=%d: nonzero estimate changed", team.Team_id, rank+1)
+			}
+		}
+	}
+	firstTeam := input.Team_groups[0].Team_id
+	if estimates[firstTeam][0].WorkSpent >= without[firstTeam][0].WorkSpent {
+		t.Fatal("early cap proof did not reduce search work")
 	}
 }
 

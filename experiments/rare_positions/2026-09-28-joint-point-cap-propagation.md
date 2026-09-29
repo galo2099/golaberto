@@ -28,3 +28,21 @@ The focused Go benchmark, which runs the entire pass on the same 23 cells after 
 A hand-built fixture test reproduces the Londrina-style contradiction. A deterministic exhaustive test checks 40 small random schedules and verifies that the solver never rules out a rank attainable under any tie order. The real-group regression checks both new impossibility statuses; the full Go suite and the saved reference-group regressions pass.
 
 This is a conservative proof pass. A nonempty set of local fixture domains is not a reachability witness, and the 500-node budget can leave a cell undecided. The pass does not change positive probability estimates or supply new odds. It is on by default; `RARE_POSITION_JOINT_POINT_CAP=0` disables it.
+
+## 2026-09-29 ordering follow-up
+
+The joint point-cap proof now runs with the minimum-points floor proof after
+the initial scout and hard individual-points screen, before conditioned
+candidate searches. Proven-impossible cells are removed from that targeted
+search list. A zero-mass conditioned event remains a separate proof discovered
+while constructing the event for a searched cell.
+
+On the saved group 16653 request at seed 811, this skips 357,000 reported
+work units, equivalent to 3,400 plain seasons. Nonzero cells and final
+reachability statuses were unchanged. Group 16498 at seeds 808 and 811 was
+unchanged by moving the cap proof. Five-request full-request benchmarks for
+group 16653 measured 0.928 s with the cap pass disabled and 0.932 s with the
+early pass enabled (three-run means), so the wall-time difference is within
+noise; allocated bytes fell by about 2 MB per request. The saved group 16653
+regression now checks that the early proof preserves nonzero coverage and
+reduces reported search work.

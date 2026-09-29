@@ -798,16 +798,6 @@ func runConditionedZeroSearch(group *GroupType, campaign []*TeamCampaign, table 
 			estimates[id][rank] = est
 		}
 	}
-	if len(cells) > 0 {
-		runJointPointFloorProofs(group, campaign, table, sortOrder, cells, estimates)
-		remaining := cells[:0]
-		for _, cell := range cells {
-			if estimates[cell.id][cell.rank].Reachability == "undecided" {
-				remaining = append(remaining, cell)
-			}
-		}
-		cells = remaining
-	}
 	if len(cells) == 0 {
 		return 0, 0
 	}
@@ -829,6 +819,20 @@ func runConditionedZeroSearch(group *GroupType, campaign []*TeamCampaign, table 
 		}
 		return cells[i].rank < cells[j].rank
 	})
+	runJointPointFloorProofs(group, campaign, table, sortOrder, cells, estimates)
+	if jointPointCapEnabled() {
+		runJointPointCapProofs(group, campaign, table, sortOrder, cells, estimates)
+	}
+	remaining := cells[:0]
+	for _, cell := range cells {
+		if estimates[cell.id][cell.rank].Reachability == "undecided" {
+			remaining = append(remaining, cell)
+		}
+	}
+	cells = remaining
+	if len(cells) == 0 {
+		return 0, 0
+	}
 	totalWork, witnesses := int64(0), 0
 	samplers := newConditionedScoreSamplers(group.Games)
 	results := make([]conditionedZeroSearchResult, len(cells))
@@ -919,9 +923,6 @@ func runConditionedZeroSearch(group *GroupType, campaign []*TeamCampaign, table 
 		}
 		log.Printf("rare-position-neighborhood: group=%d search_cells=%d candidates=%d proofs=%d",
 			group.Id, len(results), attempts, len(proofs))
-	}
-	if jointPointCapEnabled() {
-		runJointPointCapProofs(group, campaign, table, sortOrder, cells, estimates)
 	}
 	if jointPointWitnessEnabled() {
 		runJointPointWitnessSearch(group, campaign, table, sortOrder, cells, estimates)
