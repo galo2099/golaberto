@@ -215,17 +215,20 @@ func (search *jointPointWitnessSearch) find(target int32) bool {
 	return false
 }
 
+// Return complete verified assignments so later reachability searches can
+// explore nearby schedules without repeating the fixture-domain search.
 func runJointPointWitnessSearch(group *GroupType, campaign []*TeamCampaign, table *Table,
-	order []SortType, cells []conditionedZeroCell, estimates map[int]map[int]ProductionEstimate) (int, int) {
+	order []SortType, cells []conditionedZeroCell, estimates map[int]map[int]ProductionEstimate) (int, int, [][]uint8) {
 	if len(order) == 0 || order[0] != PT {
-		return 0, 0
+		return 0, 0, nil
 	}
 	problem := newJointPointCapProblem(group, campaign)
 	if problem == nil {
-		return 0, 0
+		return 0, 0, nil
 	}
 	start := time.Now()
 	proofs, nodes, considered := 0, 0, 0
+	var assignments [][]uint8
 	for _, cell := range cells {
 		est := estimates[cell.id][cell.rank]
 		if est.Probability != 0 || est.Reachability != "undecided" || nodes >= jointPointWitnessTotalNodes {
@@ -248,6 +251,7 @@ func runJointPointWitnessSearch(group *GroupType, campaign []*TeamCampaign, tabl
 		found := search.find(target)
 		nodes += search.nodes
 		if found {
+			assignments = append(assignments, search.proof)
 			est.Reachability = "reachable_by_construction"
 			estimates[cell.id][cell.rank] = est
 			proofs++
@@ -257,5 +261,5 @@ func runJointPointWitnessSearch(group *GroupType, campaign []*TeamCampaign, tabl
 	}
 	log.Printf("rare-position-joint-point-witness: group=%d cells=%d proofs=%d nodes=%d elapsed=%s",
 		group.Id, considered, proofs, nodes, time.Since(start))
-	return proofs, nodes
+	return proofs, nodes, assignments
 }

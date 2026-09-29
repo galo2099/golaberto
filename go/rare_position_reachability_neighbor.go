@@ -10,6 +10,36 @@ import (
 
 const reachabilityNeighborCandidateBudget = 10000
 const reachabilityNeighborTieChecks = 500
+const reachabilityNeighborWalkRounds = 2
+const reachabilityNeighborWalkBudget = 4000
+
+// The first neighborhood search stops after two fixture changes. Feeding its
+// verified assignments back into the same bounded search reaches schedules
+// that need several changes, without trusting an unverified intermediate rank.
+func extendReachabilityNeighbors(group *GroupType, campaign []*TeamCampaign,
+	table *Table, sortOrder []SortType, cells []conditionedZeroCell,
+	assignments [][]uint8, estimates map[int]map[int]ProductionEstimate,
+	rounds, budget int) (int, int) {
+	seeds := make([]conditionedZeroSearchResult, 0, len(assignments))
+	for _, outcomes := range assignments {
+		seeds = append(seeds, conditionedZeroSearchResult{witnessOutcomes: outcomes})
+	}
+	totalProofs, totalAttempts := 0, 0
+	for round := 0; round < rounds && len(seeds) > 0; round++ {
+		proofs, attempts := searchReachabilityNeighbors(group, campaign, table,
+			sortOrder, cells, seeds, estimates, budget)
+		totalAttempts += attempts
+		totalProofs += len(proofs)
+		seeds = seeds[:0]
+		for _, proof := range proofs {
+			est := estimates[proof.cell.id][proof.cell.rank]
+			est.Reachability = "reachable_by_construction"
+			estimates[proof.cell.id][proof.cell.rank] = est
+			seeds = append(seeds, conditionedZeroSearchResult{witnessOutcomes: proof.outcomes})
+		}
+	}
+	return totalProofs, totalAttempts
+}
 
 type reachabilityNeighborProof struct {
 	cell     conditionedZeroCell

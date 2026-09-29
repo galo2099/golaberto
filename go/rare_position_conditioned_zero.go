@@ -912,10 +912,12 @@ func runConditionedZeroSearch(group *GroupType, campaign []*TeamCampaign, table 
 		}
 		estimates[target.id][target.rank] = est
 	}
+	var neighborAssignments [][]uint8
 	if reachabilityNeighborEnabled() {
 		proofs, attempts := searchReachabilityNeighbors(group, campaign, table,
 			sortOrder, cells, results, estimates, reachabilityNeighborBudget())
 		for _, proof := range proofs {
+			neighborAssignments = append(neighborAssignments, proof.outcomes)
 			est := estimates[proof.cell.id][proof.cell.rank]
 			est.Reachability = "reachable_by_construction"
 			estimates[proof.cell.id][proof.cell.rank] = est
@@ -925,8 +927,9 @@ func runConditionedZeroSearch(group *GroupType, campaign []*TeamCampaign, table 
 		log.Printf("rare-position-neighborhood: group=%d search_cells=%d candidates=%d proofs=%d",
 			group.Id, len(results), attempts, len(proofs))
 	}
+	var jointAssignments [][]uint8
 	if jointPointWitnessEnabled() {
-		runJointPointWitnessSearch(group, campaign, table, sortOrder, cells, estimates)
+		_, _, jointAssignments = runJointPointWitnessSearch(group, campaign, table, sortOrder, cells, estimates)
 	}
 	recycledSamples := min(4000, 1000*(floorProofs+capProofs))
 	if os.Getenv("RARE_POSITION_RECYCLE_PROOF_WORK") == "0" {
@@ -937,6 +940,17 @@ func runConditionedZeroSearch(group *GroupType, campaign []*TeamCampaign, table 
 		recycledSamples)
 	witnesses += pointTiltWitnesses
 	totalWork += pointTiltWork
+	if reachabilityNeighborEnabled() && os.Getenv("RARE_POSITION_NEIGHBORHOOD_WALK") != "0" {
+		assignments := make([][]uint8, 0,
+			len(neighborAssignments)+len(jointAssignments))
+		assignments = append(assignments, neighborAssignments...)
+		assignments = append(assignments, jointAssignments...)
+		proofs, attempts := extendReachabilityNeighbors(group, campaign, table,
+			sortOrder, cells, assignments, estimates,
+			reachabilityNeighborWalkRounds, reachabilityNeighborWalkBudget)
+		log.Printf("rare-position-neighborhood-walk: group=%d seeds=%d candidates=%d proofs=%d",
+			group.Id, len(assignments), attempts, proofs)
+	}
 	if witnesses == 0 {
 		return 0, totalWork
 	}

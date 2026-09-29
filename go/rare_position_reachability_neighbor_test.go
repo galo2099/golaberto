@@ -39,6 +39,56 @@ func TestReachabilityNeighborsVerifyCompleteStandings(t *testing.T) {
 	}
 }
 
+func TestReachabilityNeighborWalkUsesVerifiedIntermediateAssignment(t *testing.T) {
+	group := &GroupType{Id: 2, Team_groups: []TeamType{
+		{Team_id: 1, Bias: 0}, {Team_id: 2, Bias: 1},
+		{Team_id: 3, Bias: 2}, {Team_id: 4, Bias: 3},
+		{Team_id: 5, Bias: 4},
+	}}
+	for index := 0; index < 4; index++ {
+		group.Games = append(group.Games, &GameType{
+			Id: index + 1, HomeId: 1, AwayId: 5,
+			HomePower: 1.5, AwayPower: 1.2,
+			home_table_index: 0, away_table_index: 4,
+		})
+	}
+	table := NewTable([]uint32{1, 2, 3, 4, 5})
+	campaign := []*TeamCampaign{
+		{id: 1, points: 0, points_win: 3, points_draw: 1},
+		{id: 2, points: 5, points_win: 3, points_draw: 1},
+		{id: 3, points: 8, points_win: 3, points_draw: 1},
+		{id: 4, points: 11, points_win: 3, points_draw: 1},
+		{id: 5, points: 0, points_win: 3, points_draw: 1},
+	}
+	order := []SortType{PT, GD, GF, BIAS}
+	seed := []uint8{0, 0, 0, 0}
+	intermediate := []uint8{2, 2, 0, 0}
+	intermediateRank := canonicalReachabilityRank(group, campaign, table, order, intermediate, 1)
+	if intermediateRank <= 0 || intermediateRank >= 4 {
+		t.Fatalf("unexpected intermediate rank %d", intermediateRank)
+	}
+	cells := []conditionedZeroCell{{id: 1, rank: intermediateRank}, {id: 1, rank: 0}}
+	makeEstimates := func() map[int]map[int]ProductionEstimate {
+		return map[int]map[int]ProductionEstimate{1: {
+			intermediateRank: {Reachability: "undecided"},
+			0:                {Reachability: "undecided"},
+		}}
+	}
+	oneRound := makeEstimates()
+	proofs, attempts := extendReachabilityNeighbors(group, campaign, table,
+		order, cells, [][]uint8{seed}, oneRound, 1, 1000)
+	if proofs != 1 || attempts > 1000 || oneRound[1][intermediateRank].Reachability != "reachable_by_construction" ||
+		oneRound[1][0].Reachability != "undecided" {
+		t.Fatalf("one round: proofs=%d attempts=%d estimates=%+v", proofs, attempts, oneRound[1])
+	}
+	twoRounds := makeEstimates()
+	proofs, attempts = extendReachabilityNeighbors(group, campaign, table,
+		order, cells, [][]uint8{seed}, twoRounds, 2, 1000)
+	if proofs != 2 || attempts > 2000 || twoRounds[1][0].Reachability != "reachable_by_construction" {
+		t.Fatalf("two rounds: proofs=%d attempts=%d estimates=%+v", proofs, attempts, twoRounds[1])
+	}
+}
+
 func TestReachabilityNeighborsRealGroup16653(t *testing.T) {
 	path := os.Getenv("RARE_POSITION_BENCHMARK_GROUP_JSON")
 	if path == "" {
