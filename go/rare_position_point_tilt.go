@@ -33,6 +33,46 @@ type conditionedPointTiltCandidate struct {
 	proved    bool
 }
 
+// Keep the proved and undecided confirmation quotas, then give vacant slots
+// to the strongest remaining pilot candidates. Existing finalists retain
+// their slots even when the other category has stronger pilots.
+func selectConditionedPointTiltFinalists(ranked []conditionedPointTiltCandidate,
+	includeUndecided bool) []conditionedPointTiltCandidate {
+	limit := conditionedPointTiltFinalCells
+	if includeUndecided {
+		limit += conditionedPointTiltUndecidedFinalCells
+	}
+	selected := make([]conditionedPointTiltCandidate, 0, limit)
+	provedFinals, undecidedFinals := 0, 0
+	for _, candidate := range ranked {
+		if candidate.proved && provedFinals < conditionedPointTiltFinalCells {
+			selected = append(selected, candidate)
+			provedFinals++
+		} else if includeUndecided && !candidate.proved &&
+			undecidedFinals < conditionedPointTiltUndecidedFinalCells {
+			selected = append(selected, candidate)
+			undecidedFinals++
+		}
+	}
+	if len(selected) == limit {
+		return selected
+	}
+	chosen := make(map[int]bool, len(selected))
+	for _, candidate := range selected {
+		chosen[candidate.index] = true
+	}
+	for _, candidate := range ranked {
+		if len(selected) == limit {
+			break
+		}
+		if (candidate.proved || includeUndecided) && !chosen[candidate.index] {
+			selected = append(selected, candidate)
+			chosen[candidate.index] = true
+		}
+	}
+	return selected
+}
+
 func conditionedPointTiltUndecidedEnabled() bool {
 	return os.Getenv("RARE_POSITION_CONDITIONED_POINT_TILT") != "0" &&
 		os.Getenv("RARE_POSITION_POINT_TILT_UNDECIDED") != "0"
@@ -204,22 +244,15 @@ func runConditionedPointTiltSearch(group *GroupType, campaign []*TeamCampaign,
 		return a.rank < b.rank
 	})
 	rankedCandidates := candidates
-	// Preserve the previous four proved-cell slots. Undecided cells can
-	// use three additional fresh estimates without displacing those cells.
-	selected := make([]conditionedPointTiltCandidate, 0,
-		conditionedPointTiltFinalCells+conditionedPointTiltUndecidedFinalCells)
+	candidates = selectConditionedPointTiltFinalists(candidates, includeUndecided)
 	provedFinals, undecidedFinals := 0, 0
 	for _, candidate := range candidates {
-		if candidate.proved && provedFinals < conditionedPointTiltFinalCells {
-			selected = append(selected, candidate)
+		if candidate.proved {
 			provedFinals++
-		} else if includeUndecided && !candidate.proved &&
-			undecidedFinals < conditionedPointTiltUndecidedFinalCells {
-			selected = append(selected, candidate)
+		} else {
 			undecidedFinals++
 		}
 	}
-	candidates = selected
 	type confirmed struct {
 		result conditionedZeroResult
 		valid  bool

@@ -6,8 +6,97 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"slices"
 	"testing"
 )
+
+func TestPointTiltConfirmationSpilloverPreservesQuotas(t *testing.T) {
+	tests := []struct {
+		name             string
+		candidateCount   int
+		proved           []int
+		includeUndecided bool
+		want             []int
+	}{
+		{
+			name:             "full quotas do not change",
+			candidateCount:   9,
+			proved:           []int{2, 4, 6, 8, 9},
+			includeUndecided: true,
+			want:             []int{1, 2, 3, 4, 5, 6, 8},
+		},
+		{
+			name:             "unused proved slot goes to next undecided pilot",
+			candidateCount:   9,
+			proved:           []int{6, 7, 8},
+			includeUndecided: true,
+			want:             []int{1, 2, 3, 6, 7, 8, 4},
+		},
+		{
+			name:             "unused undecided slot goes to next proved pilot",
+			candidateCount:   7,
+			proved:           []int{1, 2, 3, 4, 5},
+			includeUndecided: true,
+			want:             []int{1, 2, 3, 4, 6, 7, 5},
+		},
+		{
+			name:             "undecided opt-out is respected",
+			candidateCount:   6,
+			proved:           []int{2, 4, 6},
+			includeUndecided: false,
+			want:             []int{2, 4, 6},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			proved := make(map[int]bool, len(test.proved))
+			for _, index := range test.proved {
+				proved[index] = true
+			}
+			candidates := make([]conditionedPointTiltCandidate, test.candidateCount)
+			for i := range candidates {
+				candidates[i] = conditionedPointTiltCandidate{index: i + 1, proved: proved[i+1]}
+			}
+			selected := selectConditionedPointTiltFinalists(candidates, test.includeUndecided)
+			got := make([]int, len(selected))
+			for i, candidate := range selected {
+				got[i] = candidate.index
+			}
+			if !slices.Equal(got, test.want) {
+				t.Fatalf("selected %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
+func TestPointTiltSpilloverSavedGroup16653(t *testing.T) {
+	path := os.Getenv("RARE_POSITION_BENCHMARK_GROUP_JSON")
+	if path == "" {
+		t.Skip("set RARE_POSITION_BENCHMARK_GROUP_JSON to the saved group 16653 request")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fmt.Sprintf("%x", sha256.Sum256(data)) != "2d1c1d6f70a64d5b86f5129b32cbf77bedc4c42e464cd849011ca0b3018b3d87" {
+		t.Skip("request differs from the saved group 16653 input")
+	}
+	var input GroupType
+	if err := json.Unmarshal(data, &input); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("RARE_POSITION_RANDOM_SEED", "809")
+	t.Setenv("RARE_POSITION_MATCHED_POINT_POOL", "1")
+	t.Setenv("RARE_POSITION_IMPORTANCE_SAMPLING", "0")
+	estimates := cloneGroupForBenchmark(input).calculate_odds()["rare_position_estimates"].(map[int]map[int]ProductionEstimate)
+	for _, cell := range []conditionedZeroCell{{68, 0}, {95, 3}} {
+		est := estimates[cell.id][cell.rank]
+		if est.Probability <= 0 || est.Reachability != "witness" {
+			t.Errorf("team=%d rank=%d: expected retained or spillover estimate, got %+v",
+				cell.id, cell.rank+1, est)
+		}
+	}
+}
 
 func TestConditionedPointTiltCoversTerminalsAndMatchesDirectSampling(t *testing.T) {
 	group, campaign, table, order, _ := createTestGroupForDiversified()
@@ -323,7 +412,7 @@ func TestConditionedPointTiltCanEstimateUndecidedCell(t *testing.T) {
 	}
 }
 
-func TestPointTiltRecyclesEarlyProofBudgetOnSavedGroup16653(t *testing.T) {
+func TestPointTiltRecycledProofBudgetPreservesSpilloverEstimate(t *testing.T) {
 	path := os.Getenv("RARE_POSITION_BENCHMARK_GROUP_JSON")
 	if path == "" {
 		t.Skip("set RARE_POSITION_BENCHMARK_GROUP_JSON to the saved live group 16653 request")
@@ -346,10 +435,10 @@ func TestPointTiltRecyclesEarlyProofBudgetOnSavedGroup16653(t *testing.T) {
 	baseline := cloneGroupForBenchmark(input).calculate_odds()["rare_position_estimates"].(map[int]map[int]ProductionEstimate)
 	t.Setenv("RARE_POSITION_RECYCLE_PROOF_WORK", "1")
 	recycled := cloneGroupForBenchmark(input).calculate_odds()["rare_position_estimates"].(map[int]map[int]ProductionEstimate)
-	cell := recycled[12][16]
-	if baseline[12][16].Probability != 0 || cell.Probability <= 0 ||
-		cell.Reachability != "witness" || cell.Design != "matched_point_pool_conditioned_point_tilt_recycled" ||
-		cell.ConditionalSamples != 2000 || cell.ESS < 8 {
+	before, cell := baseline[12][16], recycled[12][16]
+	if before.Probability <= 0 || cell.Probability <= 0 ||
+		cell.Reachability != "witness" || before.Design != "matched_point_pool_conditioned_point_tilt" ||
+		cell.Design != before.Design || cell.ConditionalSamples != conditionedPointTiltFinalSamples || cell.ESS < 8 {
 		t.Fatalf("team 12 finishing 17th: baseline=%+v recycled=%+v", baseline[12][16], cell)
 	}
 	for id, ranks := range baseline {
