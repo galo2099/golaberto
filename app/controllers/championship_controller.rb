@@ -301,7 +301,7 @@ class ChampionshipController < ApplicationController
     zone_odds_by_snapshot = history_by_day.map do |_, _, odds|
       zones.map do |zone|
         positions = zone["position"].map(&:to_i).uniq
-        value = positions.sum { |position| odds[position - 1].to_f }
+        value = TeamGroup.calculate_odds_for(odds, positions)
         {
           name: zone["name"],
           color: zone["color"],

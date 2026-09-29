@@ -6,6 +6,23 @@
   }
 
   window.GolabertoOdds = {
+    zoneValue: function(odds, positions) {
+      var value = positions.reduce(function(sum, pos) {
+        var probability = odds[Number(pos) - 1];
+        return sum + (probability == null ? 0 : Number(probability));
+      }, 0);
+      var uniquePositions = positions.filter(function(pos, index) {
+        return positions.indexOf(pos) === index;
+      });
+      var noOutsideOdds = odds.every(function(probability, index) {
+        return positions.indexOf(index + 1) !== -1 || validNumber(probability) === 0;
+      });
+      var allOddsKnown = odds.every(function(probability) { return validNumber(probability) !== null; });
+      if (uniquePositions.length === positions.length && noOutsideOdds && allOddsKnown &&
+          Math.abs(value - 100) <= 0.0001) return 100;
+      return value;
+    },
+
     format: function(value, locale) {
       var number = validNumber(value);
       if (number === null) return "";

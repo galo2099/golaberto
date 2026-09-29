@@ -17,8 +17,22 @@ class TeamGroup < ApplicationRecord
   # Field: comment , SQL Definition:text
 
   def calculate_odds(positions)
-    return nil if not odds or positions.nil?
-    positions.map{|p| odds[p-1]}.sum
+    self.class.calculate_odds_for(odds, positions)
+  end
+
+  def self.calculate_odds_for(odds, positions)
+    return nil if odds.nil? || positions.nil?
+
+    value = positions.sum{|p| odds[p-1].to_f}
+    if odds.all?{|probability| probability.is_a?(Numeric)} &&
+       positions.uniq.size == positions.size &&
+       odds.each_with_index.all?{|probability, index| positions.include?(index + 1) || probability == 0} &&
+       # The odds service allows this much row-sum error when balancing rare estimates.
+       (value - 100).abs <= 0.0001
+      return 100.0
+    end
+
+    value
   end
 
   def record_odds_snapshot!(captured_at = Time.zone.now)
