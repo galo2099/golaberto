@@ -73,13 +73,14 @@ func sampleConditionedZeroCellFast(event *conditionedPointEvent, target, rank in
 	outcomes := make([]uint8, len(group.Games))
 	scoreContext := newConditionedRankScoreContext(group, campaign, table, sortOrder, samplers)
 	rng := rand.New(rand.NewSource(seed))
+	backwardSampler := newConditionedPointBackwardSampler(event)
 	pairedScores := os.Getenv("RARE_POSITION_PAIRED_SCREEN_RNG") == "1"
 	var scoreRNG *rand.Rand
 	if pairedScores {
 		scoreRNG = rand.New(rand.NewSource(seed))
 	}
 	for n := 0; n < samples; n++ {
-		event.sampleOutcomes(rng, outcomes)
+		backwardSampler.sampleOutcomes(rng, outcomes)
 		copy(points, basePoints)
 		for _, game := range pointGames {
 			outcome := outcomes[game.index]

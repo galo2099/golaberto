@@ -116,14 +116,23 @@ func runConditionedPointTiltSearch(group *GroupType, campaign []*TeamCampaign,
 	if len(pilotCells) > conditionedPointTiltPilotCells {
 		pilotCells = pilotCells[:conditionedPointTiltPilotCells]
 	}
-	for _, index := range pilotCells {
+	type pilotOutcome struct {
+		candidate conditionedPointTiltCandidate
+		work      int64
+		draws     int
+		built     bool
+		eligible  bool
+	}
+	pilotResults := make([]pilotOutcome, len(pilotCells))
+	runPilot := func(index int) pilotOutcome {
+		outcome := pilotOutcome{}
 		cell := cells[index]
 		event, ok := buildConditionedPointEvent(cell.id, cell.rank, nil,
 			group, campaign, table, bounds)
 		if !ok || event.mass <= 0 {
-			continue
+			return outcome
 		}
-		built++
+		outcome.built = true
 		direction := 1.0
 		if cell.rank > len(group.Team_groups)/2 {
 			direction = -1
@@ -139,8 +148,8 @@ func runConditionedPointTiltSearch(group *GroupType, campaign []*TeamCampaign,
 				cell.id, cell.rank, group, campaign, table, sortOrder, bounds,
 				samplers, conditionedPointTiltPilotSamples, pilotSeed,
 				config[0], pointTilt, stableSelection)
-			totalWork += pilot.work
-			pilotDraws += pilot.samples
+			outcome.work += pilot.work
+			outcome.draws += pilot.samples
 			// A handful of pilot hits cannot distinguish high-tilt tails.
 			// Prefer the first successful, gentler proposal until a pilot
 			// has enough effective hits to compare reliably.
@@ -150,7 +159,35 @@ func runConditionedPointTiltSearch(group *GroupType, campaign []*TeamCampaign,
 			}
 		}
 		if best.hits > 0 && !math.IsNaN(best.ess) && !math.IsInf(best.ess, 0) {
-			candidates = append(candidates, best)
+			outcome.candidate = best
+			outcome.eligible = true
+		}
+		return outcome
+	}
+	pilotQueue := make(chan int, len(pilotCells))
+	var pilotWait sync.WaitGroup
+	for worker := 0; worker < conditionedGuidedWorkers(len(pilotCells)); worker++ {
+		pilotWait.Add(1)
+		go func() {
+			defer pilotWait.Done()
+			for position := range pilotQueue {
+				pilotResults[position] = runPilot(pilotCells[position])
+			}
+		}()
+	}
+	for position := range pilotCells {
+		pilotQueue <- position
+	}
+	close(pilotQueue)
+	pilotWait.Wait()
+	for _, outcome := range pilotResults {
+		totalWork += outcome.work
+		pilotDraws += outcome.draws
+		if outcome.built {
+			built++
+		}
+		if outcome.eligible {
+			candidates = append(candidates, outcome.candidate)
 		}
 	}
 	sort.Slice(candidates, func(i, j int) bool {

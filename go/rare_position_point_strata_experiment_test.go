@@ -143,7 +143,7 @@ func (experiment pointStrataExperiment) pointEvent(t *testing.T, rank, finalPoin
 		if experiment.current+int(terminal.state[0]) != finalPoints {
 			continue
 		}
-		filtered.mass += last[terminal.state]
+		filtered.mass += last[packConditionedPointState(terminal.state)]
 		terminal.cumulative = filtered.mass
 		filtered.terminal = append(filtered.terminal, terminal)
 	}

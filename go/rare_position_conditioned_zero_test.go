@@ -121,6 +121,30 @@ func TestConditionedPointEventContainsEveryTargetFinish(t *testing.T) {
 	}
 }
 
+func TestConditionedBackwardSamplerMatchesUncachedDraws(t *testing.T) {
+	group, campaign, table, _, _ := createTestGroupForDiversified()
+	bounds := buildPointRankBounds(campaign, group.Team_groups, group.Games, table)
+	event, ok := buildConditionedPointEvent(2, 1, []int{1, 3}, group, campaign, table, bounds)
+	if !ok || event.mass <= 0 {
+		t.Fatal("could not build conditioned point event")
+	}
+	cached := newConditionedPointBackwardSampler(event)
+	cachedRNG := rand.New(rand.NewSource(727))
+	uncachedRNG := rand.New(rand.NewSource(727))
+	cachedOutcomes := make([]uint8, len(group.Games))
+	uncachedOutcomes := make([]uint8, len(group.Games))
+	for draw := 0; draw < 5000; draw++ {
+		cached.sampleOutcomes(cachedRNG, cachedOutcomes)
+		event.sampleOutcomes(uncachedRNG, uncachedOutcomes)
+		for _, game := range event.games {
+			if cachedOutcomes[game.index] != uncachedOutcomes[game.index] {
+				t.Fatalf("draw=%d game=%d: cached=%d uncached=%d", draw,
+					game.index, cachedOutcomes[game.index], uncachedOutcomes[game.index])
+			}
+		}
+	}
+}
+
 func TestConditionedScoreSamplerPreservesOutcome(t *testing.T) {
 	group, _, _, _, _ := createTestGroupForDiversified()
 	samplers := newConditionedScoreSamplers(group.Games)

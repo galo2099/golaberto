@@ -28,10 +28,23 @@ const (
 
 type conditionedPointState [6]uint8
 
+func packConditionedPointState(state conditionedPointState) uint64 {
+	return uint64(state[0]) | uint64(state[1])<<8 | uint64(state[2])<<16 |
+		uint64(state[3])<<24 | uint64(state[4])<<32 | uint64(state[5])<<40
+}
+
+func unpackConditionedPointState(key uint64) conditionedPointState {
+	return conditionedPointState{
+		uint8(key), uint8(key >> 8), uint8(key >> 16),
+		uint8(key >> 24), uint8(key >> 32), uint8(key >> 40),
+	}
+}
+
 type conditionedPointGame struct {
-	index  int
-	prob   [3]float64 // home loss, draw, home win
-	deltas [3]conditionedPointState
+	index        int
+	prob         [3]float64 // home loss, draw, home win
+	deltas       [3]conditionedPointState
+	packedDeltas [3]uint64
 }
 
 type conditionedPointTerminal struct {
@@ -42,9 +55,76 @@ type conditionedPointTerminal struct {
 type conditionedPointEvent struct {
 	teams    []int
 	games    []conditionedPointGame
-	forward  []map[conditionedPointState]float64
+	forward  []map[uint64]float64
 	terminal []conditionedPointTerminal
 	mass     float64
+}
+
+type conditionedPointBackwardTransition struct {
+	previous [3]uint64
+	weights  [3]float64
+	total    float64
+}
+
+type conditionedPointBackwardSampler struct {
+	event *conditionedPointEvent
+	cache []map[uint64]conditionedPointBackwardTransition
+}
+
+func newConditionedPointBackwardSampler(event *conditionedPointEvent) *conditionedPointBackwardSampler {
+	return &conditionedPointBackwardSampler{event: event,
+		cache: make([]map[uint64]conditionedPointBackwardTransition, len(event.games))}
+}
+
+func (sampler *conditionedPointBackwardSampler) sampleOutcomes(rng *rand.Rand, outcomes []uint8) {
+	u := rng.Float64() * sampler.event.mass
+	terminal := sort.Search(len(sampler.event.terminal), func(i int) bool {
+		return sampler.event.terminal[i].cumulative >= u
+	})
+	if terminal == len(sampler.event.terminal) {
+		terminal--
+	}
+	sampler.sampleOutcomesFromTerminal(rng, outcomes, terminal)
+}
+
+func (sampler *conditionedPointBackwardSampler) sampleOutcomesFromTerminal(rng *rand.Rand,
+	outcomes []uint8, terminal int) {
+	state := packConditionedPointState(sampler.event.terminal[terminal].state)
+	for i := len(sampler.event.games) - 1; i >= 0; i-- {
+		transition, found := sampler.cache[i][state]
+		if !found {
+			game := sampler.event.games[i]
+			for outcome := 0; outcome < 3; outcome++ {
+				valid := true
+				for slot := range sampler.event.teams {
+					if uint8(state>>(8*slot)) < game.deltas[outcome][slot] {
+						valid = false
+						break
+					}
+				}
+				if valid {
+					transition.previous[outcome] = state - game.packedDeltas[outcome]
+					transition.weights[outcome] = sampler.event.forward[i][transition.previous[outcome]] * game.prob[outcome]
+				}
+			}
+			transition.total = transition.weights[0] + transition.weights[1] + transition.weights[2]
+			if len(sampler.cache[i]) < 4096 {
+				if sampler.cache[i] == nil {
+					sampler.cache[i] = make(map[uint64]conditionedPointBackwardTransition)
+				}
+				sampler.cache[i][state] = transition
+			}
+		}
+		u := rng.Float64() * transition.total
+		outcome := 2
+		if u < transition.weights[0] {
+			outcome = 0
+		} else if u < transition.weights[0]+transition.weights[1] {
+			outcome = 1
+		}
+		outcomes[sampler.event.games[i].index] = uint8(outcome)
+		state = transition.previous[outcome]
+	}
 }
 
 type conditionedScore struct{ home, away int }
@@ -229,31 +309,31 @@ func buildConditionedPointEventWithLimit(target, rank int, blockers []int, group
 				}
 				pointGame.deltas[outcome][awaySlot] = uint8(gain)
 			}
+			pointGame.packedDeltas[outcome] = packConditionedPointState(pointGame.deltas[outcome])
 		}
 		event.games = append(event.games, pointGame)
 	}
-	event.forward = []map[conditionedPointState]float64{{{}: 1}}
+	event.forward = []map[uint64]float64{{0: 1}}
 	for _, game := range event.games {
 		previous := event.forward[len(event.forward)-1]
-		next := make(map[conditionedPointState]float64, len(previous)*2)
+		next := make(map[uint64]float64, len(previous))
 		for state, mass := range previous {
 			for outcome, p := range game.prob {
 				if p <= 0 {
 					continue
 				}
-				newState := state
+				newState := state + game.packedDeltas[outcome]
 				valid := true
 				for i := range selected {
-					if int(state[i])+int(game.deltas[outcome][i]) > 255 {
+					if int(uint8(state>>(8*i)))+int(game.deltas[outcome][i]) > 255 {
 						valid = false
 						break
 					}
-					newState[i] += game.deltas[outcome][i]
 				}
 				if valid && len(selected) > 1 {
 					forcedAbove := 0
 					for slot, current := range rivalCurrent {
-						if current+int(newState[slot+1]) > targetMaximum {
+						if current+int(uint8(newState>>(8*(slot+1)))) > targetMaximum {
 							forcedAbove++
 						}
 					}
@@ -271,7 +351,8 @@ func buildConditionedPointEventWithLimit(target, rank int, blockers []int, group
 		}
 		event.forward = append(event.forward, next)
 	}
-	for state, p := range event.forward[len(event.forward)-1] {
+	for key, p := range event.forward[len(event.forward)-1] {
+		state := unpackConditionedPointState(key)
 		targetPoints := bounds.current[target] + int(state[0])
 		if !bounds.rankNotRuledOut(target, rank, int(state[0])) {
 			continue
@@ -306,7 +387,7 @@ func buildConditionedPointEventWithLimit(target, rank int, blockers []int, group
 	event.mass = 0
 	last := event.forward[len(event.forward)-1]
 	for i := range event.terminal {
-		event.mass += last[event.terminal[i].state]
+		event.mass += last[packConditionedPointState(event.terminal[i].state)]
 		event.terminal[i].cumulative = event.mass
 	}
 	return event, true
@@ -322,22 +403,21 @@ func (event *conditionedPointEvent) sampleOutcomes(rng *rand.Rand, outcomes []ui
 }
 
 func (event *conditionedPointEvent) sampleOutcomesFromTerminal(rng *rand.Rand, outcomes []uint8, terminal int) {
-	state := event.terminal[terminal].state
+	state := packConditionedPointState(event.terminal[terminal].state)
 	for i := len(event.games) - 1; i >= 0; i-- {
 		game := event.games[i]
 		var weights [3]float64
-		var previous [3]conditionedPointState
+		var previous [3]uint64
 		for outcome := 0; outcome < 3; outcome++ {
 			valid := true
-			previous[outcome] = state
 			for slot := range event.teams {
-				if previous[outcome][slot] < game.deltas[outcome][slot] {
+				if uint8(state>>(8*slot)) < game.deltas[outcome][slot] {
 					valid = false
 					break
 				}
-				previous[outcome][slot] -= game.deltas[outcome][slot]
 			}
 			if valid {
+				previous[outcome] = state - game.packedDeltas[outcome]
 				weights[outcome] = event.forward[i][previous[outcome]] * game.prob[outcome]
 			}
 		}
@@ -411,6 +491,7 @@ func sampleConditionedZeroCell(event *conditionedPointEvent, target, rank int,
 		return result
 	}
 	rng := rand.New(rand.NewSource(seed))
+	backwardSampler := newConditionedPointBackwardSampler(event)
 	slots := make([]bool, len(group.Games))
 	for _, game := range event.games {
 		slots[game.index] = true
@@ -420,7 +501,7 @@ func sampleConditionedZeroCell(event *conditionedPointEvent, target, rank int,
 	teamSlice := make([]*TeamCampaign, len(group.Team_groups))
 	simGames := make([]GameType, len(group.Games))
 	for n := 0; n < samples; n++ {
-		event.sampleOutcomes(rng, outcomes)
+		backwardSampler.sampleOutcomes(rng, outcomes)
 		for index, team := range campaign {
 			simCampaign[index] = cloneCampaignInto(simCampaign[index], team)
 		}

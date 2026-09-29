@@ -48,6 +48,22 @@ func conditionedRankSuffix(games []conditionedPointOutcomeGame, teamCount, maxCa
 	return suffix
 }
 
+func conditionedRankCDFAt(cdf []float64, limit int) float64 {
+	if limit < 0 {
+		return 0
+	}
+	if limit >= len(cdf) {
+		return 1
+	}
+	return cdf[limit]
+}
+
+func conditionedRankSideFactor(cdf []float64, cap int, belowWeight, aboveWeight float64) float64 {
+	belowProb := conditionedRankCDFAt(cdf, cap-1)
+	atMostProb := conditionedRankCDFAt(cdf, cap)
+	return belowWeight*belowProb + (atMostProb - belowProb) + aboveWeight*(1-atMostProb)
+}
+
 func sampleConditionedZeroRankLookahead(event *conditionedPointEvent, target, rank int,
 	group *GroupType, campaign []*TeamCampaign, table *Table, sortOrder []SortType,
 	bounds pointRankBounds, samplers []conditionedScoreSampler, samples int,
@@ -171,20 +187,21 @@ func sampleConditionedZeroRankLookaheadWithPointTiltMode(event *conditionedPoint
 	outcomes := make([]uint8, len(group.Games))
 	scoreContext := newConditionedRankScoreContext(group, campaign, table, sortOrder, samplers)
 	rng := rand.New(rand.NewSource(seed))
+	backwardSampler := newConditionedPointBackwardSampler(event)
 	terminalCDF, terminalRatio := conditionedPointTiltTerminals(event, pointTilt)
 	var sumY, sumY2, maxY float64
 	var batchY [2]float64
 	for draw := 0; draw < samples; draw++ {
 		terminalWeight := 1.0
 		if pointTilt == 0 {
-			event.sampleOutcomes(rng, outcomes)
+			backwardSampler.sampleOutcomes(rng, outcomes)
 		} else {
 			u := rng.Float64()
 			terminal := sort.SearchFloat64s(terminalCDF, u)
 			if terminal == len(terminalCDF) {
 				terminal--
 			}
-			event.sampleOutcomesFromTerminal(rng, outcomes, terminal)
+			backwardSampler.sampleOutcomesFromTerminal(rng, outcomes, terminal)
 			terminalWeight = terminalRatio[terminal]
 		}
 		copy(points, basePoints)
@@ -201,17 +218,9 @@ func sampleConditionedZeroRankLookaheadWithPointTiltMode(event *conditionedPoint
 		above := 0
 		for _, index := range rankedIndices {
 			cap := targetPoints - points[index]
-			cdfAt := func(limit int) float64 {
-				if limit < 0 {
-					return 0
-				}
-				if limit > maxCap {
-					return 1
-				}
-				return suffix[0][index][limit]
-			}
-			expectedAbove += 1 - cdfAt(cap)
-			expectedBelow += cdfAt(cap - 1)
+			cdf := suffix[0][index]
+			expectedAbove += 1 - conditionedRankCDFAt(cdf, cap)
+			expectedBelow += conditionedRankCDFAt(cdf, cap-1)
 			if points[index] > targetPoints {
 				above++
 			}
@@ -235,25 +244,16 @@ func sampleConditionedZeroRankLookaheadWithPointTiltMode(event *conditionedPoint
 			for step, game := range remaining {
 				var score [3]float64
 				total := 0.0
+				homeCDF := suffix[step+1][game.home]
+				awayCDF := suffix[step+1][game.away]
+				homeCap := targetPoints - points[game.home]
+				awayCap := targetPoints - points[game.away]
 				for outcome, p := range game.prob {
-					sideFactor := func(index int32, gain int) float64 {
-						cap := targetPoints - points[index] - gain
-						cdfAt := func(limit int) float64 {
-							if limit < 0 {
-								return 0
-							}
-							if limit > maxCap {
-								return 1
-							}
-							return suffix[step+1][index][limit]
-						}
-						belowProb := cdfAt(cap - 1)
-						atMostProb := cdfAt(cap)
-						return belowWeight*belowProb + (atMostProb - belowProb) +
-							aboveWeight*(1-atMostProb)
-					}
-					score[outcome] = p * sideFactor(game.home, game.homeGain[outcome]) *
-						sideFactor(game.away, game.awayGain[outcome])
+					homeFactor := conditionedRankSideFactor(homeCDF,
+						homeCap-game.homeGain[outcome], belowWeight, aboveWeight)
+					awayFactor := conditionedRankSideFactor(awayCDF,
+						awayCap-game.awayGain[outcome], belowWeight, aboveWeight)
+					score[outcome] = p * homeFactor * awayFactor
 					total += score[outcome]
 				}
 				if total <= 0 {
