@@ -920,6 +920,7 @@ func runConditionedZeroSearch(group *GroupType, campaign []*TeamCampaign, table 
 		campaign, table, sortOrder, seed, bounds, samplers, cells, estimates)
 	witnesses += pointTiltWitnesses
 	totalWork += pointTiltWork
+	runJointPointFloorProofs(group, campaign, table, sortOrder, cells, estimates)
 	if witnesses == 0 {
 		return 0, totalWork
 	}

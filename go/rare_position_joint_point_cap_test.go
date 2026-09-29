@@ -122,11 +122,20 @@ func TestJointPointCapNeverRejectsPossibleSmallSchedules(t *testing.T) {
 				homeGain: [3]int{0, 1, 3}, awayGain: [3]int{3, 1, 0},
 			})
 		}
+		dual := problem.negated()
 		for target := 0; target < 4; target++ {
 			cap := problem.base[target]
+			floor := dual.base[target]
 			for _, game := range problem.games {
 				if game.home == int32(target) || game.away == int32(target) {
 					cap += 3
+				}
+			}
+			for _, game := range dual.games {
+				if game.home == int32(target) {
+					floor += max(game.homeGain[0], max(game.homeGain[1], game.homeGain[2]))
+				} else if game.away == int32(target) {
+					floor += max(game.awayGain[0], max(game.awayGain[1], game.awayGain[2]))
 				}
 			}
 			var possible [4]bool
@@ -157,6 +166,9 @@ func TestJointPointCapNeverRejectsPossibleSmallSchedules(t *testing.T) {
 			for rank := 0; rank < 4; rank++ {
 				if impossible, _ := problem.proveJointPointCapImpossible(int32(target), rank, cap, 500); impossible && possible[rank] {
 					t.Fatalf("trial=%d target=%d rank=%d: rejected a possible schedule", trial, target, rank)
+				}
+				if impossible, _ := dual.proveJointPointCapImpossible(int32(target), 3-rank, floor, 500); impossible && possible[rank] {
+					t.Fatalf("trial=%d target=%d rank=%d: floor rejected a possible schedule", trial, target, rank)
 				}
 			}
 		}
@@ -190,5 +202,32 @@ func TestJointPointCapRealGroup16653(t *testing.T) {
 	if est := estimates[125][8]; est.Reachability != "impossible_by_joint_points" ||
 		est.Probability != 0 || est.ZeroHitUpper95 != 0 {
 		t.Fatalf("team 125 ninth place: %+v", est)
+	}
+}
+
+func TestJointPointFloorRealGroup16498(t *testing.T) {
+	path := os.Getenv("RARE_POSITION_BENCHMARK_GROUP_JSON")
+	if path == "" {
+		t.Skip("set RARE_POSITION_BENCHMARK_GROUP_JSON to the group 16498 request")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var input GroupType
+	if err := json.Unmarshal(data, &input); err != nil {
+		t.Fatal(err)
+	}
+	if input.Id != 16498 {
+		t.Skip("this regression uses group 16498")
+	}
+	t.Setenv("RARE_POSITION_MATCHED_POINT_POOL", "1")
+	t.Setenv("RARE_POSITION_RANDOM_SEED", "808")
+	estimates := cloneGroupForBenchmark(input).calculate_odds()["rare_position_estimates"].(map[int]map[int]ProductionEstimate)
+	for _, cell := range []conditionedZeroCell{{17, 15}, {16, 17}} {
+		est := estimates[cell.id][cell.rank]
+		if est.Probability != 0 || est.Reachability != "impossible_by_joint_points" {
+			t.Fatalf("team=%d rank=%d: %+v", cell.id, cell.rank+1, est)
+		}
 	}
 }

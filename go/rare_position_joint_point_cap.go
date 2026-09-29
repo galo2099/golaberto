@@ -29,6 +29,10 @@ func jointPointCapEnabled() bool {
 	return os.Getenv("RARE_POSITION_JOINT_POINT_CAP") != "0"
 }
 
+func jointPointFloorEnabled() bool {
+	return os.Getenv("RARE_POSITION_JOINT_POINT_FLOOR") != "0"
+}
+
 func newJointPointCapProblem(group *GroupType, campaign []*TeamCampaign) *jointPointCapProblem {
 	if len(campaign) == 0 || len(campaign) > 64 {
 		return nil
@@ -66,6 +70,28 @@ func newJointPointCapProblem(group *GroupType, campaign []*TeamCampaign) *jointP
 		})
 	}
 	return problem
+}
+
+// Negating points turns a required minimum into the same cap constraint used
+// above. A team's minimum attainable negated score is its negative maximum
+// attainable points, so the mandatory-slot check remains sound.
+func (problem *jointPointCapProblem) negated() *jointPointCapProblem {
+	dual := &jointPointCapProblem{
+		base:   make([]int, len(problem.base)),
+		ranked: append([]bool(nil), problem.ranked...),
+		games:  make([]jointPointCapGame, len(problem.games)),
+	}
+	for index, points := range problem.base {
+		dual.base[index] = -points
+	}
+	for index, game := range problem.games {
+		dual.games[index] = game
+		for outcome := 0; outcome < 3; outcome++ {
+			dual.games[index].homeGain[outcome] = -game.homeGain[outcome]
+			dual.games[index].awayGain[outcome] = -game.awayGain[outcome]
+		}
+	}
+	return dual
 }
 
 func minJointPointGain(domain uint8, gain [3]int) int {
@@ -148,7 +174,12 @@ func (problem *jointPointCapProblem) proveJointPointCapImpossible(target int32, 
 	}
 	exempt := uint64(1) << target
 	mandatory := 0
-	for index, points := range problem.base {
+	minimumFinal := append([]int(nil), problem.base...)
+	for _, game := range problem.games {
+		minimumFinal[game.home] += min(game.homeGain[0], min(game.homeGain[1], game.homeGain[2]))
+		minimumFinal[game.away] += min(game.awayGain[0], min(game.awayGain[1], game.awayGain[2]))
+	}
+	for index, points := range minimumFinal {
 		if len(problem.ranked) > 0 && !problem.ranked[index] {
 			exempt |= uint64(1) << index
 			continue
@@ -237,6 +268,55 @@ func runJointPointCapProofs(group *GroupType, campaign []*TeamCampaign, table *T
 		}
 	}
 	log.Printf("rare-position-joint-point-cap: group=%d cells=%d proofs=%d nodes=%d elapsed=%s",
+		group.Id, considered, proofs, nodes, time.Since(start))
+	return proofs, nodes
+}
+
+// A target finishing at rank r can have at most n-1-r teams strictly below
+// it. Any rival unable to reach the target's minimum points consumes one of
+// those slots. The negated cap problem proves that the remaining rivals cannot
+// all reach that minimum under any shared-fixture assignment.
+func runJointPointFloorProofs(group *GroupType, campaign []*TeamCampaign, table *Table, sortOrder []SortType,
+	cells []conditionedZeroCell, estimates map[int]map[int]ProductionEstimate) (int, int) {
+	if len(sortOrder) == 0 || sortOrder[0] != PT || !jointPointFloorEnabled() {
+		return 0, 0
+	}
+	problem := newJointPointCapProblem(group, campaign)
+	if problem == nil {
+		return 0, 0
+	}
+	start := time.Now()
+	dual := problem.negated()
+	proofs, nodes, considered := 0, 0, 0
+	for _, cell := range cells {
+		est := estimates[cell.id][cell.rank]
+		if est.Probability != 0 || est.Reachability != "undecided" || nodes >= jointPointCapTotalNodes {
+			continue
+		}
+		considered++
+		target := table.Query(uint32(cell.id))
+		floor := dual.base[target]
+		for _, game := range dual.games {
+			if game.home == target {
+				floor += max(game.homeGain[0], max(game.homeGain[1], game.homeGain[2]))
+			} else if game.away == target {
+				floor += max(game.awayGain[0], max(game.awayGain[1], game.awayGain[2]))
+			}
+		}
+		budget := min(jointPointCapNodesPerCell, jointPointCapTotalNodes-nodes)
+		impossible, spent := dual.proveJointPointCapImpossible(target,
+			len(group.Team_groups)-1-cell.rank, floor, budget)
+		nodes += spent
+		if impossible {
+			est.Reachability = "impossible_by_joint_points"
+			est.ZeroHitUpper95 = 0
+			estimates[cell.id][cell.rank] = est
+			proofs++
+			log.Printf("rare-position-joint-point-floor-proof: group=%d team=%d rank=%d floor=%d nodes=%d",
+				group.Id, cell.id, cell.rank+1, -floor, spent)
+		}
+	}
+	log.Printf("rare-position-joint-point-floor: group=%d cells=%d proofs=%d nodes=%d elapsed=%s",
 		group.Id, considered, proofs, nodes, time.Since(start))
 	return proofs, nodes
 }
