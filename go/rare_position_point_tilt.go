@@ -18,6 +18,7 @@ const (
 	conditionedPointTiltPilotCells               = 12
 	conditionedPointTiltUndecidedFinalCells      = 3
 	conditionedPointTiltGapSamples               = 60000
+	conditionedPointTiltGapCells                 = 2
 	conditionedPointTiltUndecidedGapSamples      = 15000
 	conditionedPointTiltUndecidedGapPilotSamples = 1000
 )
@@ -224,37 +225,90 @@ func runConditionedPointTiltSearch(group *GroupType, campaign []*TeamCampaign,
 	}
 	gapAttempts, gapAccepted, gapDraws := 0, 0, 0
 	if conditionedPointTiltGapEnabled() {
-		for _, candidate := range candidates {
-			cell := cells[candidate.index]
-			if !candidate.proved || cell.rank == 0 || cell.rank+1 >= len(group.Team_groups) ||
-				estimates[cell.id][cell.rank].Probability > 0 ||
-				estimates[cell.id][cell.rank-1].Probability == 0 ||
-				estimates[cell.id][cell.rank+1].Probability == 0 {
+		var gapCells []conditionedZeroCell
+		for _, cell := range cells {
+			if cell.rank == 0 || cell.rank+1 >= len(group.Team_groups) {
 				continue
 			}
-			freshSeed := deriveRarePositionSeed(seed, fmt.Sprintf(
-				"conditioned-point-tilt-gap-%d-%d", cell.id, cell.rank))
-			pointTilt := 0.5
-			if cell.rank > len(group.Team_groups)/2 {
-				pointTilt = -0.5
+			row := estimates[cell.id]
+			if row[cell.rank].Probability == 0 && row[cell.rank].Reachability == "reachable_by_construction" &&
+				row[cell.rank-1].Probability > 0 && row[cell.rank+1].Probability > 0 {
+				gapCells = append(gapCells, cell)
 			}
-			// The gentle proposal keeps rare, high-weight tails visible.
-			// Aggressive pilot tilts gave misleadingly low gap estimates.
-			result, _ := sampleConditionedZeroRankLookaheadWithPointTilt(candidate.event,
-				cell.id, cell.rank, group, campaign, table, sortOrder, bounds, samplers,
-				conditionedPointTiltGapSamples, freshSeed, 3, pointTilt)
-			totalWork += result.work
-			finalDraws += result.samples
+		}
+		sort.Slice(gapCells, func(i, j int) bool {
+			a, b := gapCells[i], gapCells[j]
+			upperA, upperB := estimates[a.id][a.rank].ZeroHitUpper95, estimates[b.id][b.rank].ZeroHitUpper95
+			if upperA != upperB {
+				return upperA > upperB
+			}
+			if a.id != b.id {
+				return a.id < b.id
+			}
+			return a.rank < b.rank
+		})
+		// Share the former one-cell confirmation budget across at most two
+		// proved gaps. Pilots and confirmations both count against the cap.
+		budget := conditionedPointTiltGapSamples
+		for _, cell := range gapCells {
+			if gapAttempts >= conditionedPointTiltGapCells ||
+				budget < 2*conditionedPointTiltPilotSamples+conditionedPointTiltFinalSamples {
+				break
+			}
+			event, ok := buildConditionedPointEvent(cell.id, cell.rank, nil, group, campaign, table, bounds)
+			if !ok || event.mass <= 0 {
+				continue
+			}
+			pointDirection := 0.5
+			if cell.rank > len(group.Team_groups)/2 {
+				pointDirection = -0.5
+			}
+			pilot := func(name string, tilt, pointTilt float64) conditionedZeroResult {
+				pilotSeed := deriveRarePositionSeed(seed, fmt.Sprintf("split-gap-%s-pilot-%d-%d", name, cell.id, cell.rank))
+				result, _ := sampleConditionedZeroRankLookaheadWithPointTilt(event, cell.id, cell.rank,
+					group, campaign, table, sortOrder, bounds, samplers,
+					conditionedPointTiltPilotSamples, pilotSeed, tilt, pointTilt)
+				budget -= result.samples
+				pilotDraws += result.samples
+				gapDraws += result.samples
+				totalWork += result.work
+				return result
+			}
+			gentle := pilot("gentle", 3, pointDirection)
+			moderate := pilot("moderate", 8, 2*pointDirection)
+			// Only prefer the stronger tilt when the gentle pilot almost
+			// never reaches the rank. High hit counts alone are unreliable
+			// when a proposal has very uneven event weights.
+			moderateFirst := gentle.hits <= 2 && moderate.hits >= 10 && moderate.ess >= 1.5
+			firstName, firstTilt, firstPoint := "gentle", 3.0, pointDirection
+			secondName, secondTilt, secondPoint := "moderate", 8.0, 2*pointDirection
+			if moderateFirst {
+				firstName, secondName = secondName, firstName
+				firstTilt, secondTilt = secondTilt, firstTilt
+				firstPoint, secondPoint = secondPoint, firstPoint
+			}
+			confirm := func(name string, tilt, pointTilt float64) (conditionedZeroResult, bool) {
+				freshSeed := deriveRarePositionSeed(seed, fmt.Sprintf("split-gap-%s-final-%d-%d", name, cell.id, cell.rank))
+				result, _ := sampleConditionedZeroRankLookaheadWithPointTilt(event, cell.id, cell.rank,
+					group, campaign, table, sortOrder, bounds, samplers,
+					conditionedPointTiltFinalSamples, freshSeed, tilt, pointTilt)
+				budget -= result.samples
+				finalDraws += result.samples
+				gapDraws += result.samples
+				totalWork += result.work
+				return result, conditionedPointTiltResultValid(result)
+			}
 			gapAttempts++
-			gapDraws += result.samples
-			if conditionedPointTiltResultValid(result) {
+			result, accepted := confirm(firstName, firstTilt, firstPoint)
+			if !accepted && budget >= conditionedPointTiltFinalSamples {
+				result, accepted = confirm(secondName, secondTilt, secondPoint)
+			}
+			if accepted {
 				estimates[cell.id][cell.rank] = applyConditionedPointTiltEstimate(
-					estimates[cell.id][cell.rank], result,
-					"matched_point_pool_conditioned_point_tilt_gap")
+					estimates[cell.id][cell.rank], result, "matched_point_pool_conditioned_point_tilt_gap")
 				witnesses++
 				gapAccepted++
 			}
-			break
 		}
 	}
 	undecidedGapAttempts, undecidedGapAccepted, undecidedGapDraws := 0, 0, 0

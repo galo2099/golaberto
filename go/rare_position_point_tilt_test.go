@@ -183,9 +183,58 @@ func TestPointTiltProvedNeighborGapReferenceGroup(t *testing.T) {
 	rescued := cloneGroupForBenchmark(input).calculate_odds()["rare_position_estimates"].(map[int]map[int]ProductionEstimate)
 	est := rescued[68][rank]
 	if est.Probability <= 0 || est.Design != "matched_point_pool_conditioned_point_tilt_gap" ||
-		est.ConditionalSamples != conditionedPointTiltGapSamples || est.Reachability != "witness" ||
+		est.ConditionalSamples < conditionedPointTiltFinalSamples ||
+		est.ConditionalSamples > conditionedPointTiltGapSamples || est.Reachability != "witness" ||
 		est.ESS < 8 || est.MaxEventWeightShare > 0.25 {
 		t.Fatalf("Avaí rank %d gap rescue: %+v", rank+1, est)
+	}
+}
+
+func TestPointTiltSharesProvedGapBudgetOnSavedRequests(t *testing.T) {
+	path := os.Getenv("RARE_POSITION_BENCHMARK_GROUP_JSON")
+	if path == "" {
+		t.Skip("set RARE_POSITION_BENCHMARK_GROUP_JSON to a saved group request")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var seed string
+	var gained conditionedZeroCell
+	var retained []conditionedZeroCell
+	switch fmt.Sprintf("%x", sha256.Sum256(data)) {
+	case "2d1c1d6f70a64d5b86f5129b32cbf77bedc4c42e464cd849011ca0b3018b3d87":
+		seed = "816"
+		gained = conditionedZeroCell{68, 1} // Avaí second, after team 457 second.
+		retained = []conditionedZeroCell{{457, 1}}
+	case "b37c82f317d5f0e412b2642101929cca778857c2792dc89c0fbb830e702e701e":
+		seed = "825"
+		gained = conditionedZeroCell{74, 18}
+	default:
+		t.Skip("request differs from the saved group inputs")
+	}
+	var input GroupType
+	if err := json.Unmarshal(data, &input); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("RARE_POSITION_RANDOM_SEED", seed)
+	t.Setenv("RARE_POSITION_MATCHED_POINT_POOL", "1")
+	t.Setenv("RARE_POSITION_IMPORTANCE_SAMPLING", "1")
+	t.Setenv("RARE_POSITION_CONDITIONED_ZERO", "1")
+	t.Setenv("RARE_POSITION_CONDITIONED_ZERO_LOOKAHEAD", "1")
+	t.Setenv("RARE_POSITION_CONDITIONED_POINT_TILT", "1")
+	t.Setenv("RARE_POSITION_POINT_TILT_UNDECIDED", "1")
+	t.Setenv("RARE_POSITION_POINT_TILT_GAP_RESCUE", "1")
+	t.Setenv("RARE_POSITION_POINT_TILT_UNDECIDED_GAP", "1")
+	estimates := cloneGroupForBenchmark(input).calculate_odds()["rare_position_estimates"].(map[int]map[int]ProductionEstimate)
+	for _, cell := range append(retained, gained) {
+		est := estimates[cell.id][cell.rank]
+		if est.Probability <= 0 || est.Reachability != "witness" ||
+			est.Design != "matched_point_pool_conditioned_point_tilt_gap" ||
+			est.ConditionalSamples < conditionedPointTiltFinalSamples ||
+			est.ConditionalSamples > conditionedPointTiltGapSamples {
+			t.Errorf("team=%d rank=%d: %+v", cell.id, cell.rank+1, est)
+		}
 	}
 }
 

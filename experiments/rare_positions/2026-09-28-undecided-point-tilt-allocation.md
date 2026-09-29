@@ -263,3 +263,54 @@ extra gap check. Its maximum additional sample budget is 2,000 pilot
 draws plus 30,000 confirmation draws for one cell. The measured cost is
 below the requested 20% limit on these three requests; other fixture
 sets may cost more when both confirmations are needed.
+
+## Follow-up: share the proved-gap budget
+
+Two remaining gaps showed that the single-cell proved-gap pass could
+spend its 60,000 draws on one cell while skipping another, or skip a
+proved gap entirely because it missed the ordinary point-tilt final
+shortlist. On the older group 16653 request at seed 816, team 457 rank
+2 received the 60,000-draw rescue; Avaí rank 2 remained zero. On group
+16498 at seed 825, team 74 rank 19 had a proof and positive neighbors
+but no gap rescue. Its ordinary conditional search used 1,000 draws.
+
+Direct proposal checks gave a reason to split the budget. Three
+independent 15,000-draw gentle-tilt estimates for both team 457 and
+Avaí rank 2 passed the publication gate. Team 74 rank 19 needed the
+moderate tilt: two of three 15,000-draw checks passed, and three of
+three 60,000-draw checks passed with estimates `3.21e-12` to
+`3.86e-12`. The moderate proposal is selected only if a short gentle
+pilot has at most two hits and the moderate pilot has at least ten hits
+and ESS at least 1.5. Pilot draws do not enter the published estimate.
+
+The revised pass scans all proved, still-zero gaps after the ordinary
+point-tilt confirmations. It orders them by their existing zero-hit
+upper bound and considers at most two. Each cell gets two independent
+1,000-draw pilots and a fresh 15,000-draw confirmation, with one fresh
+15,000-draw alternative if the first fails. All draws count against the
+same 60,000-draw cap used by the earlier one-cell pass. The estimator
+still needs an accepted weighted sample to assign a positive value.
+
+Paired full requests used four cores, the reported time seed plus
+seeds 808–827 for the three affected snapshots, and five seeds for
+each other reference group. Each pair differed only in the proved-gap
+allocator; the matched-point-pool, ordinary conditional, undecided,
+and reconciliation passes were otherwise identical.
+
+| Saved request | Paired runs | Extra positive cell-runs | Lost positive cell-runs | Zero-hit upper bounds worsened | Remaining gaps before → after | Mean time before → after |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Live group 16653 | 21 | 0 | 0 | 0 | 0 → 0 | 1.246 → 1.245 s |
+| Reference group 16653 | 21 | 1 | 0 | 0 | 1 → 0 | 1.273 → 1.263 s |
+| Reference group 16498 | 21 | 1 | 0 | 0 | 1 → 0 | 1.357 → 1.374 s (+1.2%) |
+| Reference group 16982 | 5 | 0 | 0 | 0 | 0 → 0 | 1.193 → 1.181 s |
+| Reference group 16983 | 5 | 0 | 0 | 0 | 0 → 0 | 1.169 → 1.168 s |
+| Reference group 16986 | 5 | 0 | 0 | 0 | 0 → 0 | 1.219 → 1.224 s |
+
+At seed 816 the new Avaí rank-2 estimate was `1.51e-13` (ESS 22.1),
+while team 457 rank 2 retained a positive estimate. At seed 825 team
+74 rank 19 was estimated at `2.81e-12` (ESS 8.69). The independent
+longer runs support their order of magnitude, but do not establish
+exact probabilities. No upper bound grew on a still-zero cell in the
+paired runs. The measured time differences are small enough that only
+the +1.2% group 16498 result should be treated as a cost signal;
+slightly negative differences are timing noise.
