@@ -203,6 +203,10 @@ func matchedPointPoolMatrix(teams []int, scouts map[int]*TeamPointRankScout,
 	return reconcileProbabilityMatrix(raw, teams)
 }
 
+// Matrix entries are fractions; keep row and column errors well below the
+// precision of percentages sent to Rails.
+const matchedPointPoolBalanceTolerance = 1e-12
+
 func matchedPointPoolValid(matrix map[int]map[int]float64, teams []int) bool {
 	for _, id := range teams {
 		sum := 0.0
@@ -213,7 +217,7 @@ func matchedPointPoolValid(matrix map[int]map[int]float64, teams []int) bool {
 			}
 			sum += p
 		}
-		if math.Abs(sum-1) > 1e-6 {
+		if math.Abs(sum-1) > matchedPointPoolBalanceTolerance {
 			return false
 		}
 	}
@@ -222,7 +226,7 @@ func matchedPointPoolValid(matrix map[int]map[int]float64, teams []int) bool {
 		for _, id := range teams {
 			sum += matrix[id][rank]
 		}
-		if math.Abs(sum-1) > 1e-6 {
+		if math.Abs(sum-1) > matchedPointPoolBalanceTolerance {
 			return false
 		}
 	}
@@ -247,7 +251,7 @@ func balanceMatchedPointPool(matrix map[int]map[int]float64, teams []int) bool {
 				}
 				sum += p
 			}
-			if math.Abs(sum-1) > 1e-6 {
+			if math.Abs(sum-1) > matchedPointPoolBalanceTolerance {
 				return false
 			}
 		}
@@ -256,7 +260,7 @@ func balanceMatchedPointPool(matrix map[int]map[int]float64, teams []int) bool {
 			for teamIndex := range teams {
 				sum += values[teamIndex*n+rank]
 			}
-			if math.Abs(sum-1) > 1e-6 {
+			if math.Abs(sum-1) > matchedPointPoolBalanceTolerance {
 				return false
 			}
 		}

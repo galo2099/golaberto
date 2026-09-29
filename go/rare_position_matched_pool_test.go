@@ -109,7 +109,7 @@ func TestMatchedPointPoolProductionMatrix(t *testing.T) {
 			}
 			row += est.Probability
 		}
-		if math.Abs(row-1) > 1e-6 {
+		if math.Abs(row-1) > matchedPointPoolBalanceTolerance {
 			t.Fatalf("team %d row sum=%g", id, row)
 		}
 	}
@@ -118,7 +118,7 @@ func TestMatchedPointPoolProductionMatrix(t *testing.T) {
 		for _, team := range group.Team_groups {
 			column += estimates[team.Team_id][rank].Probability
 		}
-		if math.Abs(column-1) > 1e-6 {
+		if math.Abs(column-1) > matchedPointPoolBalanceTolerance {
 			t.Fatalf("rank %d column sum=%g", rank, column)
 		}
 	}
@@ -127,6 +127,18 @@ func TestMatchedPointPoolProductionMatrix(t *testing.T) {
 	}
 	if estimates[3][0].ZeroHitUpper95 != 0 {
 		t.Fatal("points-impossible rank retained a nonzero upper bound")
+	}
+}
+
+func TestMatchedPointPoolBalanceContinuesPastSmallRowError(t *testing.T) {
+	teams := []int{1, 2, 3}
+	matrix := map[int]map[int]float64{
+		1: {0: 0.5, 1: 0.3000008, 2: 0.2},
+		2: {0: 0.3, 1: 0.3999992, 2: 0.3},
+		3: {0: 0.2, 1: 0.3, 2: 0.5},
+	}
+	if !balanceMatchedPointPool(matrix, teams) || !matchedPointPoolValid(matrix, teams) {
+		t.Fatalf("matrix still has a row or column error: %+v", matrix)
 	}
 }
 
