@@ -189,7 +189,7 @@ func TestPointTiltProvedNeighborGapReferenceGroup(t *testing.T) {
 	}
 }
 
-func TestPointTiltNeighborGapDoesNotAssumeReachability(t *testing.T) {
+func TestPointTiltUndecidedNeighborGapNeedsSampledWitness(t *testing.T) {
 	path := os.Getenv("RARE_POSITION_BENCHMARK_GROUP_JSON")
 	if path == "" {
 		t.Skip("set RARE_POSITION_BENCHMARK_GROUP_JSON to the saved group 16498 request")
@@ -212,11 +212,26 @@ func TestPointTiltNeighborGapDoesNotAssumeReachability(t *testing.T) {
 	t.Setenv("RARE_POSITION_CONDITIONED_ZERO_LOOKAHEAD", "1")
 	t.Setenv("RARE_POSITION_CONDITIONED_POINT_TILT", "1")
 	t.Setenv("RARE_POSITION_POINT_TILT_GAP_RESCUE", "1")
-	estimates := cloneGroupForBenchmark(input).calculate_odds()["rare_position_estimates"].(map[int]map[int]ProductionEstimate)
-	row := estimates[110]
-	if row[2].Probability <= 0 || row[3].Probability != 0 || row[4].Probability <= 0 ||
-		row[3].Reachability != "undecided" {
-		t.Fatalf("team 110 fourth-place reachability changed: %+v", row[3])
+	t.Setenv("RARE_POSITION_POINT_TILT_UNDECIDED_GAP", "0")
+	baseline := cloneGroupForBenchmark(input).calculate_odds()["rare_position_estimates"].(map[int]map[int]ProductionEstimate)
+	if baseline[110][2].Probability <= 0 || baseline[110][3].Probability != 0 ||
+		baseline[110][4].Probability <= 0 || baseline[110][3].Reachability != "undecided" {
+		t.Fatalf("expected undecided fourth-place gap: %+v", baseline[110][3])
+	}
+	t.Setenv("RARE_POSITION_POINT_TILT_UNDECIDED_GAP", "")
+	rescued := cloneGroupForBenchmark(input).calculate_odds()["rare_position_estimates"].(map[int]map[int]ProductionEstimate)
+	est := rescued[110][3]
+	if est.Probability <= 0 || est.Reachability != "witness" ||
+		est.Design != "matched_point_pool_conditioned_point_tilt_undecided_gap" ||
+		est.ConditionalSamples != conditionedPointTiltUndecidedGapSamples || est.ESS < 50 {
+		t.Fatalf("team 110 fourth-place gap rescue: %+v", est)
+	}
+	for id, ranks := range baseline {
+		for rank, before := range ranks {
+			if before.Probability > 0 && rescued[id][rank].Probability == 0 {
+				t.Errorf("team=%d rank=%d lost a positive estimate", id, rank+1)
+			}
+		}
 	}
 }
 

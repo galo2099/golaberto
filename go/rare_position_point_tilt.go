@@ -11,13 +11,15 @@ import (
 )
 
 const (
-	conditionedPointTiltPilotSamples        = 1000
-	conditionedPointTiltFinalSamples        = 15000
-	conditionedPointTiltLowEvidenceSamples  = 30000
-	conditionedPointTiltFinalCells          = 4
-	conditionedPointTiltPilotCells          = 12
-	conditionedPointTiltUndecidedFinalCells = 3
-	conditionedPointTiltGapSamples          = 60000
+	conditionedPointTiltPilotSamples             = 1000
+	conditionedPointTiltFinalSamples             = 15000
+	conditionedPointTiltLowEvidenceSamples       = 30000
+	conditionedPointTiltFinalCells               = 4
+	conditionedPointTiltPilotCells               = 12
+	conditionedPointTiltUndecidedFinalCells      = 3
+	conditionedPointTiltGapSamples               = 60000
+	conditionedPointTiltUndecidedGapSamples      = 15000
+	conditionedPointTiltUndecidedGapPilotSamples = 1000
 )
 
 type conditionedPointTiltCandidate struct {
@@ -37,6 +39,11 @@ func conditionedPointTiltUndecidedEnabled() bool {
 
 func conditionedPointTiltGapEnabled() bool {
 	return os.Getenv("RARE_POSITION_POINT_TILT_GAP_RESCUE") != "0"
+}
+
+func conditionedPointTiltUndecidedGapEnabled() bool {
+	return conditionedPointTiltUndecidedEnabled() &&
+		os.Getenv("RARE_POSITION_POINT_TILT_UNDECIDED_GAP") != "0"
 }
 
 func conditionedPointTiltResultValid(result conditionedZeroResult) bool {
@@ -250,10 +257,99 @@ func runConditionedPointTiltSearch(group *GroupType, campaign []*TeamCampaign,
 			break
 		}
 	}
+	undecidedGapAttempts, undecidedGapAccepted, undecidedGapDraws := 0, 0, 0
+	if conditionedPointTiltUndecidedGapEnabled() {
+		var gapCells []conditionedZeroCell
+		for _, cell := range cells {
+			if cell.rank == 0 || cell.rank+1 >= len(group.Team_groups) {
+				continue
+			}
+			row := estimates[cell.id]
+			if row[cell.rank].Probability == 0 && row[cell.rank].Reachability == "undecided" &&
+				row[cell.rank-1].Probability > 0 && row[cell.rank+1].Probability > 0 {
+				gapCells = append(gapCells, cell)
+			}
+		}
+		sort.Slice(gapCells, func(i, j int) bool {
+			a, b := gapCells[i], gapCells[j]
+			upperA, upperB := estimates[a.id][a.rank].ZeroHitUpper95, estimates[b.id][b.rank].ZeroHitUpper95
+			if upperA != upperB {
+				return upperA > upperB
+			}
+			if a.id != b.id {
+				return a.id < b.id
+			}
+			return a.rank < b.rank
+		})
+		for _, cell := range gapCells {
+			event, ok := buildConditionedPointEvent(cell.id, cell.rank, nil, group, campaign, table, bounds)
+			if !ok || event.mass <= 0 {
+				continue
+			}
+			pointDirection := 0.5
+			if cell.rank > len(group.Team_groups)/2 {
+				pointDirection = -0.5
+			}
+			// Short, independent pilots choose the first proposal. Confirmation
+			// uses fresh draws so pilot outcomes cannot bias the estimate.
+			pilot := func(name string, tilt, pointTilt float64) conditionedZeroResult {
+				pilotSeed := deriveRarePositionSeed(seed, fmt.Sprintf(
+					"conditioned-point-tilt-undecided-gap-%s-pilot-%d-%d", name, cell.id, cell.rank))
+				result, _ := sampleConditionedZeroRankLookaheadWithPointTilt(event,
+					cell.id, cell.rank, group, campaign, table, sortOrder, bounds,
+					samplers, conditionedPointTiltUndecidedGapPilotSamples,
+					pilotSeed, tilt, pointTilt)
+				totalWork += result.work
+				pilotDraws += result.samples
+				undecidedGapDraws += result.samples
+				return result
+			}
+			gentlePilot := pilot("gentle", 3, pointDirection)
+			moderatePilot := pilot("moderate", 8, 2*pointDirection)
+			moderateFirst := gentlePilot.hits <= 2 && moderatePilot.hits >= 25 && moderatePilot.ess >= 3
+			confirm := func(name string, tilt, pointTilt float64) (conditionedZeroResult, bool) {
+				freshSeed := deriveRarePositionSeed(seed, fmt.Sprintf(
+					"conditioned-point-tilt-undecided-gap-%s-final-%d-%d", name, cell.id, cell.rank))
+				result, _ := sampleConditionedZeroRankLookaheadWithPointTilt(event,
+					cell.id, cell.rank, group, campaign, table, sortOrder, bounds,
+					samplers, conditionedPointTiltUndecidedGapSamples,
+					freshSeed, tilt, pointTilt)
+				totalWork += result.work
+				finalDraws += result.samples
+				undecidedGapDraws += result.samples
+				valid := conditionedPointTiltResultValid(result)
+				if name == "moderate" {
+					valid = valid && result.ess >= 50 && result.maxWeightShare <= 0.05 && result.batchGap <= 0.5
+				}
+				return result, valid
+			}
+			firstName, firstTilt, firstPoint := "gentle", 3.0, pointDirection
+			secondName, secondTilt, secondPoint := "moderate", 8.0, 2*pointDirection
+			if moderateFirst {
+				firstName, secondName = secondName, firstName
+				firstTilt, secondTilt = secondTilt, firstTilt
+				firstPoint, secondPoint = secondPoint, firstPoint
+			}
+			undecidedGapAttempts++
+			result, accepted := confirm(firstName, firstTilt, firstPoint)
+			if !accepted {
+				result, accepted = confirm(secondName, secondTilt, secondPoint)
+			}
+			if accepted {
+				estimates[cell.id][cell.rank] = applyConditionedPointTiltEstimate(
+					estimates[cell.id][cell.rank], result,
+					"matched_point_pool_conditioned_point_tilt_undecided_gap")
+				witnesses++
+				undecidedGapAccepted++
+			}
+			break
+		}
+	}
 	if len(pilotCells) > 0 {
-		log.Printf("rare-position-point-tilt: group=%d attempted=%d built=%d pilot_draws=%d final_draws=%d proved_final=%d undecided_final=%d gap_attempted=%d gap_accepted=%d gap_draws=%d accepted=%d work=%d elapsed=%s",
+		log.Printf("rare-position-point-tilt: group=%d attempted=%d built=%d pilot_draws=%d final_draws=%d proved_final=%d undecided_final=%d gap_attempted=%d gap_accepted=%d gap_draws=%d undecided_gap_attempted=%d undecided_gap_accepted=%d undecided_gap_draws=%d accepted=%d work=%d elapsed=%s",
 			group.Id, len(pilotCells), built, pilotDraws, finalDraws,
 			provedFinals, undecidedFinals, gapAttempts, gapAccepted, gapDraws,
+			undecidedGapAttempts, undecidedGapAccepted, undecidedGapDraws,
 			witnesses, totalWork, time.Since(start))
 	}
 	return witnesses, totalWork

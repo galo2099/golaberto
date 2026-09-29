@@ -216,3 +216,50 @@ from `9.42e-11` to `1.20e-10` and from `7.94e-10` to `9.97e-10`,
 respectively. These checks show proposal stability, not exact truth;
 the 5-million-season references have too few observations at this
 scale. `RARE_POSITION_POINT_TILT_GAP_RESCUE=0` disables the extra pass.
+
+## Follow-up: sample gaps whose reachability is undecided
+
+The group 16498 gap for team 110 rank 4 remained undecided under the
+constructive solver, but that status only meant the proof budget ended.
+Direct point-conditioned importance samples found rank-4 finishes in
+three independent 60,000-draw moderate-tilt runs. Their estimates were
+`1.45e-12`, `1.63e-12`, and `1.70e-12`, each with effective sample size
+above 400. Thus the gap is reachable, and leaving it at zero missed an
+event that the weighted sampler can measure.
+
+The new pass checks at most one undecided, still-zero gap per request.
+It selects a gap with positive immediate neighbors and the largest
+existing zero-hit upper bound. It constructs the full target-point event,
+then runs independent 1,000-draw pilots at gentle and moderate rank
+tilts. A moderate proposal runs first only when the gentle pilot gets
+at most two hits and the moderate pilot gets at least 25 hits and ESS at
+least three. A fresh 15,000-draw confirmation supplies the estimate;
+the other proposal gets one fresh 15,000-draw fallback if needed.
+Both proposals retain exact likelihood correction. The moderate
+confirmation has stricter weight-concentration and ESS gates because
+the aggressive proposal was unstable for Avaí rank 4. A sampled rank
+hit is required before reachability becomes `witness`; neighboring
+positive ranks alone never establish it.
+
+Paired four-core requests used the reported time seed plus seeds
+808–827, with this pass off and on for each saved request:
+
+| Request | Extra positive cell-runs | Lost positive cell-runs | Main gap, before → after | Mean request time before → after |
+| --- | ---: | ---: | ---: | ---: |
+| Group 16498 reference | 21 | 0 | Team 110 rank 4: 0 → 21 of 21 | 1.194 → 1.266 s (+6.0%) |
+| Group 16653 live | 1 | 0 | Avaí rank 4: 20 → 21 of 21 | 1.171 → 1.163 s (timing noise) |
+| Group 16653 reference | 3 | 0 | Team 22 rank 17 twice; team 95 rank 5 once | 1.120 → 1.138 s (+1.6%) |
+
+Team 110's 21 accepted estimates ranged from `1.36e-12` to `2.04e-12`.
+Independent 60,000-draw checks for Avaí rank 4 with the gentle proposal
+gave `5.21e-9`, `5.81e-9`, and `6.49e-9`; the live paired gain was
+`5.11e-9`. Independent moderate checks for team 22 rank 17 gave
+`4.47e-12` to `5.18e-12`; the paired gains were `5.11e-12` and
+`5.20e-12`. These are proposal-stability checks, not exact truth.
+
+The pass is enabled by default when the undecided point-tilt search is
+enabled. `RARE_POSITION_POINT_TILT_UNDECIDED_GAP=0` disables only this
+extra gap check. Its maximum additional sample budget is 2,000 pilot
+draws plus 30,000 confirmation draws for one cell. The measured cost is
+below the requested 20% limit on these three requests; other fixture
+sets may cost more when both confirmations are needed.
