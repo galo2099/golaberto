@@ -176,3 +176,43 @@ The rule does not guarantee a positive result for every seed. Candidates
 can still miss the pilot, receive no final allocation, or fail the
 independent quality check. The fixed random seed in the regression test
 replays this particular failure and verifies its recovery.
+
+## Follow-up: prioritize proven gaps between estimated ranks
+
+A zero between two positive ranks is a useful search cue, but it does
+not prove that the middle rank is reachable. Across 41 seeds per saved
+request, the live group 16653 request had five gap cell-runs for Avaí
+across ranks 2–4. The earlier group 16653 request had ten gap cell-runs
+across five cells. In group 16498, team 110 rank 4 was a gap in 40 of
+41 runs, yet its reachability remained undecided. That case should not
+be filled merely by interpolating its neighbors.
+
+The new bounded pass considers only a still-zero cell with a
+constructed reachability proof, positive estimates on both neighboring
+ranks, and an existing point-tilt pilot candidate. It runs after the
+ordinary point-tilt confirmations, so a neighbor found in that same
+pass can establish the gap. At most one gap per request receives a
+fresh 60,000-draw full-cell confirmation. It uses the gentle rank tilt
+3 and point tilt ±0.5, with exact importance weights and the unchanged
+publication gates. The pilot's strongest tilt was unsuitable here:
+despite passing the gates, it produced estimates far below gentler
+independent runs because rare high-weight tails were poorly sampled.
+
+Paired four-core measurements with the gap pass off versus on used the
+reported time seed plus seeds 808–827 (808–817 for group 16498):
+
+| Request | Additional positive cell-runs | Lost positive cell-runs | Remaining gaps | Mean time before → after |
+| --- | ---: | ---: | ---: | ---: |
+| Live group 16653 | 1 | 0 | 2 → 1 | 1.212 → 1.220 s (+0.6%) |
+| Reference group 16653 | 3 | 0 | 7 → 4 | 1.177 → 1.217 s (+3.4%) |
+| Reference group 16498 | 0 | 0 | 11 → 11 | 1.203 → 1.195 s (timing noise) |
+
+At live seed 816, the pass estimated Avaí second at `1.89e-14` from
+246 weighted rank hits (ESS 67.7). Five independent confirmation
+streams for that same cell ranged from `1.43e-14` to `1.98e-14`.
+On the older group 16653 request it also filled Avaí third and
+Botafogo-SP second. Five independent streams for those cells ranged
+from `9.42e-11` to `1.20e-10` and from `7.94e-10` to `9.97e-10`,
+respectively. These checks show proposal stability, not exact truth;
+the 5-million-season references have too few observations at this
+scale. `RARE_POSITION_POINT_TILT_GAP_RESCUE=0` disables the extra pass.

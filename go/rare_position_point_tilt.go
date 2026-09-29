@@ -17,6 +17,7 @@ const (
 	conditionedPointTiltFinalCells          = 4
 	conditionedPointTiltPilotCells          = 12
 	conditionedPointTiltUndecidedFinalCells = 3
+	conditionedPointTiltGapSamples          = 60000
 )
 
 type conditionedPointTiltCandidate struct {
@@ -32,6 +33,31 @@ type conditionedPointTiltCandidate struct {
 func conditionedPointTiltUndecidedEnabled() bool {
 	return os.Getenv("RARE_POSITION_CONDITIONED_POINT_TILT") != "0" &&
 		os.Getenv("RARE_POSITION_POINT_TILT_UNDECIDED") != "0"
+}
+
+func conditionedPointTiltGapEnabled() bool {
+	return os.Getenv("RARE_POSITION_POINT_TILT_GAP_RESCUE") != "0"
+}
+
+func conditionedPointTiltResultValid(result conditionedZeroResult) bool {
+	return result.weighted && result.probability > 0 && result.hits >= 30 && result.ess >= 8 &&
+		result.stdErr/result.probability <= 0.35 && result.maxWeightShare <= 0.25 && result.batchGap <= 1
+}
+
+func applyConditionedPointTiltEstimate(est ProductionEstimate, result conditionedZeroResult, design string) ProductionEstimate {
+	est.Probability = result.probability
+	est.StdErr = result.stdErr
+	est.RelativeSE = relativeSEPointer(result.stdErr / result.probability)
+	est.ESS = result.ess
+	est.MaxEventWeightShare = result.maxWeightShare
+	est.ConditionalMass = result.mass
+	est.ConditionalSamples = result.samples
+	est.ConditionalHits = result.hits
+	est.Design = design
+	est.MeetsPrecisionGoal = estimateMeetsPrecisionGoal(result.ess, result.stdErr/result.probability)
+	est.Reachability = "witness"
+	est.ZeroHitUpper95 = 0
+	return est
 }
 
 // The proof searches identify some zero cells; unresolved cells can also
@@ -170,9 +196,7 @@ func runConditionedPointTiltSearch(group *GroupType, campaign []*TeamCampaign,
 				candidate.event, cell.id, cell.rank, group, campaign, table,
 				sortOrder, bounds, samplers, samples,
 				freshSeed, candidate.tilt, candidate.pointTilt)
-			valid := result.weighted && result.hits >= 30 && result.ess >= 8 &&
-				result.stdErr/result.probability <= 0.35 &&
-				result.maxWeightShare <= 0.25 && result.batchGap <= 1
+			valid := conditionedPointTiltResultValid(result)
 			confirmations[i] = confirmed{result, valid}
 		}(i, candidate)
 	}
@@ -186,28 +210,51 @@ func runConditionedPointTiltSearch(group *GroupType, campaign []*TeamCampaign,
 			continue
 		}
 		cell := cells[candidate.index]
-		est := estimates[cell.id][cell.rank]
 		result := confirmation.result
-		est.Probability = result.probability
-		est.StdErr = result.stdErr
-		est.RelativeSE = relativeSEPointer(result.stdErr / result.probability)
-		est.ESS = result.ess
-		est.MaxEventWeightShare = result.maxWeightShare
-		est.ConditionalMass = result.mass
-		est.ConditionalSamples = result.samples
-		est.ConditionalHits = result.hits
-		est.Design = "matched_point_pool_conditioned_point_tilt"
-		est.MeetsPrecisionGoal = estimateMeetsPrecisionGoal(result.ess,
-			result.stdErr/result.probability)
-		est.Reachability = "witness"
-		est.ZeroHitUpper95 = 0
-		estimates[cell.id][cell.rank] = est
+		estimates[cell.id][cell.rank] = applyConditionedPointTiltEstimate(
+			estimates[cell.id][cell.rank], result, "matched_point_pool_conditioned_point_tilt")
 		witnesses++
 	}
+	gapAttempts, gapAccepted, gapDraws := 0, 0, 0
+	if conditionedPointTiltGapEnabled() {
+		for _, candidate := range candidates {
+			cell := cells[candidate.index]
+			if !candidate.proved || cell.rank == 0 || cell.rank+1 >= len(group.Team_groups) ||
+				estimates[cell.id][cell.rank].Probability > 0 ||
+				estimates[cell.id][cell.rank-1].Probability == 0 ||
+				estimates[cell.id][cell.rank+1].Probability == 0 {
+				continue
+			}
+			freshSeed := deriveRarePositionSeed(seed, fmt.Sprintf(
+				"conditioned-point-tilt-gap-%d-%d", cell.id, cell.rank))
+			pointTilt := 0.5
+			if cell.rank > len(group.Team_groups)/2 {
+				pointTilt = -0.5
+			}
+			// The gentle proposal keeps rare, high-weight tails visible.
+			// Aggressive pilot tilts gave misleadingly low gap estimates.
+			result, _ := sampleConditionedZeroRankLookaheadWithPointTilt(candidate.event,
+				cell.id, cell.rank, group, campaign, table, sortOrder, bounds, samplers,
+				conditionedPointTiltGapSamples, freshSeed, 3, pointTilt)
+			totalWork += result.work
+			finalDraws += result.samples
+			gapAttempts++
+			gapDraws += result.samples
+			if conditionedPointTiltResultValid(result) {
+				estimates[cell.id][cell.rank] = applyConditionedPointTiltEstimate(
+					estimates[cell.id][cell.rank], result,
+					"matched_point_pool_conditioned_point_tilt_gap")
+				witnesses++
+				gapAccepted++
+			}
+			break
+		}
+	}
 	if len(pilotCells) > 0 {
-		log.Printf("rare-position-point-tilt: group=%d attempted=%d built=%d pilot_draws=%d final_draws=%d proved_final=%d undecided_final=%d accepted=%d work=%d elapsed=%s",
+		log.Printf("rare-position-point-tilt: group=%d attempted=%d built=%d pilot_draws=%d final_draws=%d proved_final=%d undecided_final=%d gap_attempted=%d gap_accepted=%d gap_draws=%d accepted=%d work=%d elapsed=%s",
 			group.Id, len(pilotCells), built, pilotDraws, finalDraws,
-			provedFinals, undecidedFinals, witnesses, totalWork, time.Since(start))
+			provedFinals, undecidedFinals, gapAttempts, gapAccepted, gapDraws,
+			witnesses, totalWork, time.Since(start))
 	}
 	return witnesses, totalWork
 }
