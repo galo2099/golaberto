@@ -78,6 +78,11 @@ func conditionedPointTiltUndecidedEnabled() bool {
 		os.Getenv("RARE_POSITION_POINT_TILT_UNDECIDED") != "0"
 }
 
+func crossTeamWitnessEnabled() bool {
+	return os.Getenv("RARE_POSITION_CONDITIONED_POINT_TILT") != "0" &&
+		reachabilityNeighborEnabled() && os.Getenv("RARE_POSITION_CROSS_TEAM_WITNESS") != "0"
+}
+
 func conditionedPointTiltGapEnabled() bool {
 	return os.Getenv("RARE_POSITION_POINT_TILT_GAP_RESCUE") != "0"
 }
@@ -158,6 +163,7 @@ func runConditionedPointTiltSearch(group *GroupType, campaign []*TeamCampaign,
 	}
 	type pilotOutcome struct {
 		candidate conditionedPointTiltCandidate
+		witness   []uint8
 		work      int64
 		draws     int
 		built     bool
@@ -190,6 +196,9 @@ func runConditionedPointTiltSearch(group *GroupType, campaign []*TeamCampaign,
 				config[0], pointTilt, stableSelection)
 			outcome.work += pilot.work
 			outcome.draws += pilot.samples
+			if outcome.witness == nil && pilot.witnessOutcomes != nil {
+				outcome.witness = pilot.witnessOutcomes
+			}
 			// A handful of pilot hits cannot distinguish high-tilt tails.
 			// Prefer the first successful, gentler proposal until a pilot
 			// has enough effective hits to compare reliably.
@@ -519,6 +528,68 @@ func runConditionedPointTiltSearch(group *GroupType, campaign []*TeamCampaign,
 			}
 			break
 		}
+	}
+	// Reuse complete outcomes from ordinary point-tilt pilots. A proof only
+	// chooses one extra target; its estimate still needs fresh, weighted draws.
+	if crossTeamWitnessEnabled() {
+		var seeds []conditionedZeroSearchResult
+		for _, result := range pilotResults {
+			if result.witness != nil {
+				seeds = append(seeds, conditionedZeroSearchResult{witnessOutcomes: result.witness})
+			}
+		}
+		proofs, attempts := searchReachabilityNeighbors(group, campaign, table,
+			sortOrder, cells, seeds, estimates, 4000)
+		selectedPilot := make(map[conditionedZeroCell]bool, len(pilotCells))
+		for _, index := range pilotCells {
+			selectedPilot[cells[index]] = true
+		}
+		var bestCell conditionedZeroCell
+		bestCellFound := false
+		for _, proof := range proofs {
+			est := estimates[proof.cell.id][proof.cell.rank]
+			est.Reachability = "reachable_by_construction"
+			estimates[proof.cell.id][proof.cell.rank] = est
+			if est.Probability == 0 && !selectedPilot[proof.cell] &&
+				(!bestCellFound || est.ZeroHitUpper95 > estimates[bestCell.id][bestCell.rank].ZeroHitUpper95 ||
+					est.ZeroHitUpper95 == estimates[bestCell.id][bestCell.rank].ZeroHitUpper95 &&
+						(proof.cell.id < bestCell.id || proof.cell.id == bestCell.id && proof.cell.rank < bestCell.rank)) {
+				bestCell, bestCellFound = proof.cell, true
+			}
+		}
+		var pilot pilotOutcome
+		if bestCellFound {
+			for index, candidateCell := range cells {
+				if candidateCell != bestCell {
+					continue
+				}
+				pilot = runPilot(index)
+				totalWork += pilot.work
+				pilotDraws += pilot.draws
+				break
+			}
+		}
+		accepted := 0
+		if pilot.eligible {
+			cell := cells[pilot.candidate.index]
+			freshSeed := deriveRarePositionSeed(seed, fmt.Sprintf(
+				"cross-team-final-%d-%d", cell.id, cell.rank))
+			result, _ := sampleConditionedZeroRankLookaheadWithPointTilt(
+				pilot.candidate.event, cell.id, cell.rank, group, campaign, table,
+				sortOrder, bounds, samplers, conditionedPointTiltFinalSamples,
+				freshSeed, pilot.candidate.tilt, pilot.candidate.pointTilt)
+			totalWork += result.work
+			finalDraws += result.samples
+			if conditionedPointTiltResultValid(result) {
+				estimates[cell.id][cell.rank] = applyConditionedPointTiltEstimate(
+					estimates[cell.id][cell.rank], result,
+					"matched_point_pool_conditioned_point_tilt_cross_team")
+				witnesses++
+				accepted = 1
+			}
+		}
+		log.Printf("rare-position-cross-team-witness: group=%d pilot_seeds=%d attempts=%d proofs=%d pilot=%t accepted=%d",
+			group.Id, len(seeds), attempts, len(proofs), bestCellFound, accepted)
 	}
 	if len(pilotCells) > 0 {
 		log.Printf("rare-position-point-tilt: group=%d attempted=%d built=%d pilot_draws=%d final_draws=%d proved_final=%d undecided_final=%d recycled_draws=%d recycled_accepted=%d gap_attempted=%d gap_accepted=%d gap_draws=%d undecided_gap_attempted=%d undecided_gap_accepted=%d undecided_gap_draws=%d accepted=%d work=%d elapsed=%s",

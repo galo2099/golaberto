@@ -98,6 +98,63 @@ func TestPointTiltSpilloverSavedGroup16653(t *testing.T) {
 	}
 }
 
+func TestCrossTeamWitnessSavedGroup16653(t *testing.T) {
+	path := os.Getenv("RARE_POSITION_BENCHMARK_GROUP_JSON")
+	if path == "" {
+		t.Skip("set RARE_POSITION_BENCHMARK_GROUP_JSON to the saved group 16653 request")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fmt.Sprintf("%x", sha256.Sum256(data)) != "2d1c1d6f70a64d5b86f5129b32cbf77bedc4c42e464cd849011ca0b3018b3d87" {
+		t.Skip("request differs from the saved group 16653 input")
+	}
+	var input GroupType
+	if err := json.Unmarshal(data, &input); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("RARE_POSITION_RANDOM_SEED", "808")
+	t.Setenv("RARE_POSITION_MATCHED_POINT_POOL", "1")
+	t.Setenv("RARE_POSITION_IMPORTANCE_SAMPLING", "0")
+	t.Setenv("RARE_POSITION_BENCHMARK_ITERATIONS", "20000")
+	t.Setenv("RARE_POSITION_CROSS_TEAM_WITNESS", "0")
+	baseline := cloneGroupForBenchmark(input).calculate_odds()["rare_position_estimates"].(map[int]map[int]ProductionEstimate)
+	t.Setenv("RARE_POSITION_CROSS_TEAM_WITNESS", "1")
+	variant := cloneGroupForBenchmark(input).calculate_odds()["rare_position_estimates"].(map[int]map[int]ProductionEstimate)
+	cell := variant[95][3]
+	if baseline[95][3].Probability != 0 || cell.Probability <= 0 ||
+		cell.Reachability != "witness" ||
+		cell.Design != "matched_point_pool_conditioned_point_tilt_cross_team" || cell.ESS < 8 {
+		t.Fatalf("team 95 / 4th baseline=%+v variant=%+v", baseline[95][3], cell)
+	}
+	for team, row := range baseline {
+		for rank, before := range row {
+			if before.Probability > 0 && variant[team][rank].Probability <= 0 {
+				t.Errorf("team=%d rank=%d lost its positive estimate", team, rank+1)
+			}
+		}
+	}
+}
+
+func TestCrossTeamWitnessEnablement(t *testing.T) {
+	t.Setenv("RARE_POSITION_CONDITIONED_POINT_TILT", "")
+	t.Setenv("RARE_POSITION_NEIGHBORHOOD_SEARCH", "")
+	t.Setenv("RARE_POSITION_CROSS_TEAM_WITNESS", "")
+	if !crossTeamWitnessEnabled() {
+		t.Fatal("cross-team witness reuse should be enabled by default")
+	}
+	t.Setenv("RARE_POSITION_CROSS_TEAM_WITNESS", "0")
+	if crossTeamWitnessEnabled() {
+		t.Fatal("explicit cross-team opt-out was ignored")
+	}
+	t.Setenv("RARE_POSITION_CROSS_TEAM_WITNESS", "")
+	t.Setenv("RARE_POSITION_NEIGHBORHOOD_SEARCH", "0")
+	if crossTeamWitnessEnabled() {
+		t.Fatal("neighborhood opt-out was ignored")
+	}
+}
+
 func TestConditionedPointTiltCoversTerminalsAndMatchesDirectSampling(t *testing.T) {
 	group, campaign, table, order, _ := createTestGroupForDiversified()
 	bounds := buildPointRankBounds(campaign, group.Team_groups, group.Games, table)
