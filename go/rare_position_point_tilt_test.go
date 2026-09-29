@@ -51,7 +51,7 @@ func TestConditionedPointTiltCoversTerminalsAndMatchesDirectSampling(t *testing.
 	}
 }
 
-// Optional fixture regression: the two saved requests are identified by hash
+// Optional fixture regression: saved requests are identified by hash
 // so a later snapshot of the same group does not silently change this check.
 func TestPointTiltUndecidedReferenceGroups(t *testing.T) {
 	path := os.Getenv("RARE_POSITION_BENCHMARK_GROUP_JSON")
@@ -64,13 +64,18 @@ func TestPointTiltUndecidedReferenceGroups(t *testing.T) {
 	}
 	hash := fmt.Sprintf("%x", sha256.Sum256(data))
 	var targetCells []conditionedZeroCell
+	seed := "808"
 	switch hash {
 	case "2d1c1d6f70a64d5b86f5129b32cbf77bedc4c42e464cd849011ca0b3018b3d87":
 		targetCells = []conditionedZeroCell{{12, 16}, {95, 4}}
 	case "b37c82f317d5f0e412b2642101929cca778857c2792dc89c0fbb830e702e701e":
 		targetCells = []conditionedZeroCell{{8, 17}, {74, 18}}
+	case "71d4fea8502c3086b8787c764a94b5f8a5caa6549300f2a7687ead8897e11aec":
+		// Criciúma's 18th place pilot ranks third among undecided cells at this seed.
+		targetCells = []conditionedZeroCell{{73, 17}}
+		seed = "817"
 	default:
-		t.Skip("request differs from the two saved reference-group inputs")
+		t.Skip("request differs from the saved reference-group inputs")
 	}
 	var input GroupType
 	if err := json.Unmarshal(data, &input); err != nil {
@@ -79,7 +84,7 @@ func TestPointTiltUndecidedReferenceGroups(t *testing.T) {
 	t.Setenv("RARE_POSITION_MATCHED_POINT_POOL", "1")
 	t.Setenv("RARE_POSITION_IMPORTANCE_SAMPLING", "0")
 	t.Setenv("RARE_POSITION_CONDITIONED_POINT_TILT", "1")
-	t.Setenv("RARE_POSITION_RANDOM_SEED", "808")
+	t.Setenv("RARE_POSITION_RANDOM_SEED", seed)
 	t.Setenv("RARE_POSITION_POINT_TILT_UNDECIDED", "0")
 	baseline := cloneGroupForBenchmark(input).calculate_odds()["rare_position_estimates"].(map[int]map[int]ProductionEstimate)
 	t.Setenv("RARE_POSITION_POINT_TILT_UNDECIDED", "1")

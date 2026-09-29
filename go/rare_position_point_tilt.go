@@ -15,7 +15,7 @@ const (
 	conditionedPointTiltFinalSamples        = 15000
 	conditionedPointTiltFinalCells          = 4
 	conditionedPointTiltPilotCells          = 12
-	conditionedPointTiltUndecidedFinalCells = 2
+	conditionedPointTiltUndecidedFinalCells = 3
 )
 
 type conditionedPointTiltCandidate struct {
@@ -131,7 +131,7 @@ func runConditionedPointTiltSearch(group *GroupType, campaign []*TeamCampaign,
 		return a.rank < b.rank
 	})
 	// Preserve the previous four proved-cell slots. Undecided cells can
-	// use two additional fresh estimates without displacing those cells.
+	// use three additional fresh estimates without displacing those cells.
 	selected := make([]conditionedPointTiltCandidate, 0,
 		conditionedPointTiltFinalCells+conditionedPointTiltUndecidedFinalCells)
 	provedFinals, undecidedFinals := 0, 0

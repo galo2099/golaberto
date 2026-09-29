@@ -1,10 +1,10 @@
 # Spending a small point-tilt budget on undecided zero cells
 
-## Decision
+## Initial decision
 
 Extend the existing point-tilt pass to cells whose reachability is still
 undecided. Keep the four confirmation slots for constructed-reachable
-cells and allow two additional, independently confirmed undecided cells.
+cells and initially allow two additional, independently confirmed undecided cells.
 The ordinary conditional search and its four 50,000-draw extra batches
 remain in place. The extension is on by default in matched-point-pool
 mode; `RARE_POSITION_POINT_TILT_UNDECIDED=0` restores the previous
@@ -33,7 +33,7 @@ but loosened some still-zero cells' reported 95% upper bounds by about
 50 times. That trade-off was rejected. The chosen version retains the
 extra batch and measures its added wall time directly.
 
-## Paired 20-seed results
+## Initial paired 20-seed results
 
 The inputs were the five saved requests in
 `/tmp/golaberto-real-fixtures`, each checked against its independent
@@ -73,7 +73,7 @@ longer checks. Those checks used the same full-cell proposal family but
 independent seeds, so they test sampling stability rather than provide
 an external exact truth.
 
-## Work and limits
+## Initial work and limits
 
 The pass now logs attempted and built point events, pilot and final
 draws, accepted estimates, work units, and elapsed time. At seed 808:
@@ -94,8 +94,9 @@ floating-point precision in the final paired runs for cells that
 remained zero.
 
 The extra time is measured on these reference requests, not a universal
-latency guarantee. Groups with many eligible zeros can use the full
-twelve-cell pilot and six-cell final allowance. Some newly estimated
+latency guarantee. In this initial two-slot experiment, groups with many
+eligible zeros could use the full twelve-cell pilot and six-cell final
+allowance. Some newly estimated
 cells have low but accepted ESS and should be read as order-of-magnitude
 estimates.
 
@@ -104,3 +105,39 @@ for groups 16653 and 16498, and the group 16653 regression passed with
 the Go race detector. A three-team test confirms that an undecided cell
 can receive a full-cell estimate and that both opt-out flags prevent
 that work.
+
+## Follow-up: Criciúma 18th place disappeared between runs
+
+The saved live request for group 16653 at
+`/tmp/group16653-live-20260927.json` has a different fixture and power
+snapshot from the reference request above. Its Criciúma cell is team 73,
+rank 18. With seed 816, both the old allocation and the new two-slot
+allocation report `1.95e-10` from the matched point pool. This has no
+direct season hits and a `1.39e-10` standard error (72% relative error).
+With seed 817, **both** allocations report zero. Thus changing the
+allocation did not remove a nonzero estimate; the separate runs used
+different seeds. The default seed is based on the current time unless
+`RARE_POSITION_RANDOM_SEED` is set.
+
+At seed 817, the targeted point-tilt pass did pilot Criciúma 18th and
+recorded 121 hits with pilot ESS 24.2. It ranked third among undecided
+candidates, behind team 95 rank 7 and team 588 rank 18, so the two
+confirmation slots excluded it. We increased only the undecided final
+allowance from two to three; the four constructed-reachable slots and
+twelve-cell pilot cap stay the same. Criciúma then receives an independent
+15,000-draw confirmation at seed 817 and is estimated at `1.83e-9`
+(ESS 365). Seed 815 independently estimates `1.65e-9` (ESS 322).
+
+Paired 20-seed comparisons of two versus three final slots, using the
+same request and seed on each side with four cores:
+
+| Request | Extra positive cell-runs | Lost positive cell-runs | Criciúma 18th positive runs | Mean request time, two → three slots |
+| --- | ---: | ---: | ---: | ---: |
+| Live group 16653 | 20 | 0 | 16 → 20 of 20 | 1.111 → 1.122 s (+1.1%) |
+| Reference group 16653 | 7 | 0 | 20 → 20 of 20 | 1.099 → 1.104 s (+0.5%) |
+| Reference group 16498 | 0 | 0 | not applicable | 1.103 → 1.124 s (+1.9%) |
+
+The new confirmation is a bounded improvement in coverage, not a
+guarantee that every future seed or updated fixture snapshot will have
+a positive estimate. Paired same-seed tests separate this allocation
+change from ordinary Monte Carlo variation.
