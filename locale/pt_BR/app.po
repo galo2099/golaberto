@@ -18,6 +18,12 @@ msgstr ""
 msgid "#"
 msgstr "#"
 
+msgid "SofaScore tournament IDs"
+msgstr "IDs de torneios do SofaScore"
+
+msgid "Enter the numeric ID from each event's tournament.id field. Separate multiple IDs with commas."
+msgstr "Informe o ID numérico do campo tournament.id de cada evento. Separe vários IDs por vírgulas."
+
 msgid "%d%% done."
 msgstr "%d%% pronto."
 
