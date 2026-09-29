@@ -20,8 +20,8 @@ module OddsFormattingHelper
     return "" if percentage.nil?
 
     value = percentage.to_f
-    return "0" if value.zero?
-    return "1" if value == 100
+    return ".0000" if value.zero?
+    return "1.000" if value == 100
 
     probability = value / 100
     if probability > 0 && probability < 0.0001
@@ -33,7 +33,7 @@ module OddsFormattingHelper
       return "1-#{mantissa}e#{exponent.to_i}"
     end
 
-    format("%.4f", probability).sub(/0+\z/, "").sub(/\.\z/, "").sub(/\A0\./, ".")
+    format("%.4f", probability).sub(/\A0\./, ".")
   end
 
   def odds_title(percentage)

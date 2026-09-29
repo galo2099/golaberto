@@ -47,13 +47,14 @@ class OddsFormattingTest < Minitest::Test
 
   def test_standings_table_uses_fraction_scale
     assert_equal '', @view.formatted_odds_fraction(nil)
-    assert_equal '0', @view.formatted_odds_fraction(0)
-    assert_equal '.98', @view.formatted_odds_fraction(98)
+    assert_equal '.0000', @view.formatted_odds_fraction(0)
+    assert_equal '.9800', @view.formatted_odds_fraction(98)
+    assert_equal '.5000', @view.formatted_odds_fraction(50)
     assert_equal '.9975', @view.formatted_odds_fraction(99.75)
     assert_equal '.9999', @view.formatted_odds_fraction(99.99)
     assert_equal '1-3e-7', @view.formatted_odds_fraction(99.99997)
     assert_equal '.0001', @view.formatted_odds_fraction(0.01)
     assert_equal '4e-7', @view.formatted_odds_fraction(0.00004321)
-    assert_equal '1', @view.formatted_odds_fraction(100)
+    assert_equal '1.000', @view.formatted_odds_fraction(100)
   end
 end

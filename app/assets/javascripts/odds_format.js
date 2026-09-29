@@ -44,8 +44,8 @@
     fraction: function(value) {
       var number = validNumber(value);
       if (number === null) return "";
-      if (number === 0) return "0";
-      if (number === 100) return "1";
+      if (number === 0) return ".0000";
+      if (number === 100) return "1.000";
 
       var probability = number / 100;
       if (probability > 0 && probability < 0.0001) {
@@ -57,7 +57,7 @@
         return "1-" + complement[0] + "e" + Number(complement[1]);
       }
 
-      return probability.toFixed(4).replace(/0+$/, "").replace(/\.$/, "").replace(/^0\./, ".");
+      return probability.toFixed(4).replace(/^0\./, ".");
     },
 
     html: function(value, locale) {
