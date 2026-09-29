@@ -798,6 +798,16 @@ func runConditionedZeroSearch(group *GroupType, campaign []*TeamCampaign, table 
 			estimates[id][rank] = est
 		}
 	}
+	if len(cells) > 0 {
+		runJointPointFloorProofs(group, campaign, table, sortOrder, cells, estimates)
+		remaining := cells[:0]
+		for _, cell := range cells {
+			if estimates[cell.id][cell.rank].Reachability == "undecided" {
+				remaining = append(remaining, cell)
+			}
+		}
+		cells = remaining
+	}
 	if len(cells) == 0 {
 		return 0, 0
 	}
@@ -920,7 +930,6 @@ func runConditionedZeroSearch(group *GroupType, campaign []*TeamCampaign, table 
 		campaign, table, sortOrder, seed, bounds, samplers, cells, estimates)
 	witnesses += pointTiltWitnesses
 	totalWork += pointTiltWork
-	runJointPointFloorProofs(group, campaign, table, sortOrder, cells, estimates)
 	if witnesses == 0 {
 		return 0, totalWork
 	}

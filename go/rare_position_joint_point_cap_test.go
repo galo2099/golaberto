@@ -223,11 +223,27 @@ func TestJointPointFloorRealGroup16498(t *testing.T) {
 	}
 	t.Setenv("RARE_POSITION_MATCHED_POINT_POOL", "1")
 	t.Setenv("RARE_POSITION_RANDOM_SEED", "808")
+	t.Setenv("RARE_POSITION_JOINT_POINT_FLOOR", "0")
+	without := cloneGroupForBenchmark(input).calculate_odds()["rare_position_estimates"].(map[int]map[int]ProductionEstimate)
+	t.Setenv("RARE_POSITION_JOINT_POINT_FLOOR", "1")
 	estimates := cloneGroupForBenchmark(input).calculate_odds()["rare_position_estimates"].(map[int]map[int]ProductionEstimate)
 	for _, cell := range []conditionedZeroCell{{17, 15}, {16, 17}} {
 		est := estimates[cell.id][cell.rank]
 		if est.Probability != 0 || est.Reachability != "impossible_by_joint_points" {
 			t.Fatalf("team=%d rank=%d: %+v", cell.id, cell.rank+1, est)
 		}
+	}
+	for _, team := range input.Team_groups {
+		for rank := range input.Team_groups {
+			before := without[team.Team_id][rank]
+			after := estimates[team.Team_id][rank]
+			if (before.Probability > 0) != (after.Probability > 0) {
+				t.Fatalf("team=%d rank=%d: nonzero estimate changed", team.Team_id, rank+1)
+			}
+		}
+	}
+	firstTeam := input.Team_groups[0].Team_id
+	if estimates[firstTeam][0].WorkSpent >= without[firstTeam][0].WorkSpent {
+		t.Fatal("early floor proof did not reduce search work")
 	}
 }
