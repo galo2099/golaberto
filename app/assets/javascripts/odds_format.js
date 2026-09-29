@@ -23,7 +23,7 @@
       return value;
     },
 
-    format: function(value, locale, compact) {
+    format: function(value, locale) {
       var number = validNumber(value);
       if (number === null) return "";
       var options = {
@@ -32,12 +32,32 @@
       };
       if (number > 0 && number < 0.01) {
         var scientific = number.toExponential(0).split("e");
-        return scientific[0] + "e" + Number(scientific[1]) + (compact ? "" : "%");
+        return scientific[0] + "e" + Number(scientific[1]) + "%";
       }
       if (number > 99.99 && number < 100) {
-        return ">" + (99.99).toLocaleString(locale, options) + (compact ? "" : "%");
+        return ">" + (99.99).toLocaleString(locale, options) + "%";
       }
-      return number.toLocaleString(locale, options) + (compact ? "" : "%");
+      return number.toLocaleString(locale, options) + "%";
+    },
+
+    // Match the server-rendered standings cells, including the decimal dot.
+    fraction: function(value) {
+      var number = validNumber(value);
+      if (number === null) return "";
+      if (number === 0) return "0";
+      if (number === 100) return "1";
+
+      var probability = number / 100;
+      if (probability > 0 && probability < 0.0001) {
+        var small = probability.toExponential(0).split("e");
+        return small[0] + "e" + Number(small[1]);
+      }
+      if (probability > 0.9999 && probability < 1) {
+        var complement = ((100 - number) / 100).toExponential(0).split("e");
+        return "1-" + complement[0] + "e" + Number(complement[1]);
+      }
+
+      return probability.toFixed(4).replace(/0+$/, "").replace(/\.$/, "").replace(/^0\./, ".");
     },
 
     html: function(value, locale) {

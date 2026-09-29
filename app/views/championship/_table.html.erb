@@ -3,7 +3,7 @@
 <% omit_comments = false if omit_comments.nil? %>
 <% omit_popup = false if omit_popup.nil? %>
 <% show_country = false if show_country.nil? %>
-<% cache [ "v4",
+<% cache [ "v5",
            I18n.locale,
            digest_cache_key(group.teams),
            group,
@@ -162,8 +162,8 @@
                   cell.text("");
                   cell.removeAttr("title");
                 } else {
-                  cell.text(GolabertoOdds.format(value, "<%= I18n.locale %>", true));
-                  cell.attr("title", GolabertoOdds.title(value, "<%= I18n.locale %>").replace(/%$/, ""));
+                  cell.text(GolabertoOdds.fraction(value));
+                  cell.attr("title", GolabertoOdds.title(value, "<%= I18n.locale %>"));
                 }
                 var bgColor = ui.item.element.attr("data-cell-color") || ui.item.element.attr("data-color") || "lightgray";
                 cell.css("background-color", bgColor);
@@ -295,10 +295,10 @@
                           end %>
            <% first_color = first_zone.is_a?(Hash) ? first_zone["color"] : "lightgray" %>
            <%= content_tag :td,
-                           formatted_odds(first_odds, compact: true),
+                           formatted_odds_fraction(first_odds),
                            "data-group-id": group.id,
                            "data-odds-array": (t[0].odds || []).to_json,
-                           title: odds_title(first_odds)&.delete_suffix("%"),
+                           title: odds_title(first_odds),
                            class: "odds odds-value",
                            style: "background-color: #{first_color}; color: #{first_color == "black" ? "white" : "inherit"}" %>
          <% end %>

@@ -13,7 +13,6 @@ class OddsFormattingTest < Minitest::Test
     assert_equal '1e-4%', @view.formatted_odds(0.0001)
     assert_equal '4e-5%', @view.formatted_odds(0.00004321)
     assert_equal '1e-2%', @view.formatted_odds(0.009999)
-    assert_equal '4e-5', @view.formatted_odds(0.00004321, compact: true)
     assert_equal '1e-4%', @view.odds_title(0.0001)
     assert_equal '4.321e-5%', @view.odds_title(0.00004321)
     assert_equal '9.999e-3%', @view.odds_title(0.009999)
@@ -22,8 +21,6 @@ class OddsFormattingTest < Minitest::Test
   def test_near_certain_odds_do_not_round_to_certain
     assert_equal '>99.99%', @view.formatted_odds(99.9999)
     assert_equal '>99.99%', @view.formatted_odds(99.99996)
-    assert_equal '>99.99', @view.formatted_odds(99.9999, compact: true)
-    assert_equal '>99.99', @view.formatted_odds(99.99996, compact: true)
     assert_equal '99.9999%', @view.odds_title(99.9999)
     assert_equal '99.95%', @view.odds_title(99.95)
   end
@@ -38,8 +35,6 @@ class OddsFormattingTest < Minitest::Test
     assert_equal '0.01%', @view.formatted_odds(0.01)
     assert_equal '99.99%', @view.formatted_odds(99.99)
     assert_equal '100.00%', @view.formatted_odds(100)
-    assert_equal '12.35', @view.formatted_odds(12.345, compact: true)
-    assert_equal '100.00', @view.formatted_odds(100, compact: true)
     assert_equal '', @view.formatted_odds(nil)
     assert_nil @view.odds_title(nil)
   end
@@ -48,5 +43,17 @@ class OddsFormattingTest < Minitest::Test
     assert_equal '1e-15%', @view.formatted_odds(1e-15)
     assert_equal '1e-15%', @view.odds_title(1e-15)
     refute_equal '100%', @view.odds_title(99.99999999999999)
+  end
+
+  def test_standings_table_uses_fraction_scale
+    assert_equal '', @view.formatted_odds_fraction(nil)
+    assert_equal '0', @view.formatted_odds_fraction(0)
+    assert_equal '.98', @view.formatted_odds_fraction(98)
+    assert_equal '.9975', @view.formatted_odds_fraction(99.75)
+    assert_equal '.9999', @view.formatted_odds_fraction(99.99)
+    assert_equal '1-3e-7', @view.formatted_odds_fraction(99.99997)
+    assert_equal '.0001', @view.formatted_odds_fraction(0.01)
+    assert_equal '4e-7', @view.formatted_odds_fraction(0.00004321)
+    assert_equal '1', @view.formatted_odds_fraction(100)
   end
 end

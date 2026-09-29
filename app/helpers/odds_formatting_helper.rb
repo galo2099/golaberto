@@ -1,20 +1,39 @@
 module OddsFormattingHelper
   # Odds in views are percentages (0..100), not fractions (0..1).
-  def formatted_odds(percentage, compact: false)
+  def formatted_odds(percentage)
     return "" if percentage.nil?
 
     value = percentage.to_f
     if value > 0 && value < 0.01
       mantissa, exponent = format("%.0e", value).split("e")
-      return "#{mantissa}e#{exponent.to_i}#{compact ? '' : '%'}"
+      return "#{mantissa}e#{exponent.to_i}%"
     end
     if value > 99.99 && value < 100
-      formatted = ">#{number_to_percentage(99.99, precision: 2)}"
-      return compact ? formatted.delete_suffix("%") : formatted
+      return ">#{number_to_percentage(99.99, precision: 2)}"
     end
 
-    formatted = number_to_percentage(value, precision: 2)
-    compact ? formatted.delete_suffix("%") : formatted
+    number_to_percentage(value, precision: 2)
+  end
+
+  # The standings table uses probabilities on a 0..1 scale with a decimal dot.
+  def formatted_odds_fraction(percentage)
+    return "" if percentage.nil?
+
+    value = percentage.to_f
+    return "0" if value.zero?
+    return "1" if value == 100
+
+    probability = value / 100
+    if probability > 0 && probability < 0.0001
+      mantissa, exponent = format("%.0e", probability).split("e")
+      return "#{mantissa}e#{exponent.to_i}"
+    end
+    if probability > 0.9999 && probability < 1
+      mantissa, exponent = format("%.0e", (100 - value) / 100).split("e")
+      return "1-#{mantissa}e#{exponent.to_i}"
+    end
+
+    format("%.4f", probability).sub(/0+\z/, "").sub(/\.\z/, "").sub(/\A0\./, ".")
   end
 
   def odds_title(percentage)
