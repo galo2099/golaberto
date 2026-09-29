@@ -76,7 +76,7 @@ func applyConditionedPointTiltEstimate(est ProductionEstimate, result conditione
 func runConditionedPointTiltSearch(group *GroupType, campaign []*TeamCampaign,
 	table *Table, sortOrder []SortType, seed int64, bounds pointRankBounds,
 	samplers []conditionedScoreSampler, cells []conditionedZeroCell,
-	estimates map[int]map[int]ProductionEstimate) (int, int64) {
+	estimates map[int]map[int]ProductionEstimate, recycledSamples int) (int, int64) {
 	if os.Getenv("RARE_POSITION_CONDITIONED_POINT_TILT") == "0" {
 		return 0, 0
 	}
@@ -203,6 +203,7 @@ func runConditionedPointTiltSearch(group *GroupType, campaign []*TeamCampaign,
 		}
 		return a.rank < b.rank
 	})
+	rankedCandidates := candidates
 	// Preserve the previous four proved-cell slots. Undecided cells can
 	// use three additional fresh estimates without displacing those cells.
 	selected := make([]conditionedPointTiltCandidate, 0,
@@ -450,10 +451,46 @@ func runConditionedPointTiltSearch(group *GroupType, campaign []*TeamCampaign,
 			break
 		}
 	}
+	// An early impossibility proof can free enough targeted work for one
+	// independent, short confirmation of a pilot-positive cell that missed
+	// the regular final slots. A failed confirmation does not enter the odds.
+	recycledDraws, recycledAccepted := 0, 0
+	if recycledSamples > 0 {
+		selected := make(map[int]bool, len(candidates))
+		for _, candidate := range candidates {
+			selected[candidate.index] = true
+		}
+		for _, candidate := range rankedCandidates {
+			if selected[candidate.index] {
+				continue
+			}
+			cell := cells[candidate.index]
+			if estimates[cell.id][cell.rank].Probability > 0 {
+				continue
+			}
+			freshSeed := deriveRarePositionSeed(seed, fmt.Sprintf(
+				"conditioned-point-tilt-final-%d-%d", cell.id, cell.rank))
+			result, _ := sampleConditionedZeroRankLookaheadWithPointTilt(
+				candidate.event, cell.id, cell.rank, group, campaign, table,
+				sortOrder, bounds, samplers, recycledSamples, freshSeed,
+				candidate.tilt, candidate.pointTilt)
+			recycledDraws = result.samples
+			totalWork += result.work
+			finalDraws += result.samples
+			if conditionedPointTiltResultValid(result) {
+				estimates[cell.id][cell.rank] = applyConditionedPointTiltEstimate(
+					estimates[cell.id][cell.rank], result,
+					"matched_point_pool_conditioned_point_tilt_recycled")
+				witnesses++
+				recycledAccepted = 1
+			}
+			break
+		}
+	}
 	if len(pilotCells) > 0 {
-		log.Printf("rare-position-point-tilt: group=%d attempted=%d built=%d pilot_draws=%d final_draws=%d proved_final=%d undecided_final=%d gap_attempted=%d gap_accepted=%d gap_draws=%d undecided_gap_attempted=%d undecided_gap_accepted=%d undecided_gap_draws=%d accepted=%d work=%d elapsed=%s",
+		log.Printf("rare-position-point-tilt: group=%d attempted=%d built=%d pilot_draws=%d final_draws=%d proved_final=%d undecided_final=%d recycled_draws=%d recycled_accepted=%d gap_attempted=%d gap_accepted=%d gap_draws=%d undecided_gap_attempted=%d undecided_gap_accepted=%d undecided_gap_draws=%d accepted=%d work=%d elapsed=%s",
 			group.Id, len(pilotCells), built, pilotDraws, finalDraws,
-			provedFinals, undecidedFinals, gapAttempts, gapAccepted, gapDraws,
+			provedFinals, undecidedFinals, recycledDraws, recycledAccepted, gapAttempts, gapAccepted, gapDraws,
 			undecidedGapAttempts, undecidedGapAccepted, undecidedGapDraws,
 			witnesses, totalWork, time.Since(start))
 	}

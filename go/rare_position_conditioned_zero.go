@@ -819,9 +819,10 @@ func runConditionedZeroSearch(group *GroupType, campaign []*TeamCampaign, table 
 		}
 		return cells[i].rank < cells[j].rank
 	})
-	runJointPointFloorProofs(group, campaign, table, sortOrder, cells, estimates)
+	floorProofs, _ := runJointPointFloorProofs(group, campaign, table, sortOrder, cells, estimates)
+	capProofs := 0
 	if jointPointCapEnabled() {
-		runJointPointCapProofs(group, campaign, table, sortOrder, cells, estimates)
+		capProofs, _ = runJointPointCapProofs(group, campaign, table, sortOrder, cells, estimates)
 	}
 	remaining := cells[:0]
 	for _, cell := range cells {
@@ -927,8 +928,13 @@ func runConditionedZeroSearch(group *GroupType, campaign []*TeamCampaign, table 
 	if jointPointWitnessEnabled() {
 		runJointPointWitnessSearch(group, campaign, table, sortOrder, cells, estimates)
 	}
+	recycledSamples := min(4000, 1000*(floorProofs+capProofs))
+	if os.Getenv("RARE_POSITION_RECYCLE_PROOF_WORK") == "0" {
+		recycledSamples = 0
+	}
 	pointTiltWitnesses, pointTiltWork := runConditionedPointTiltSearch(group,
-		campaign, table, sortOrder, seed, bounds, samplers, cells, estimates)
+		campaign, table, sortOrder, seed, bounds, samplers, cells, estimates,
+		recycledSamples)
 	witnesses += pointTiltWitnesses
 	totalWork += pointTiltWork
 	if witnesses == 0 {

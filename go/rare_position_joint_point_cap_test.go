@@ -193,6 +193,7 @@ func TestJointPointCapRealGroup16653(t *testing.T) {
 	}
 	t.Setenv("RARE_POSITION_MATCHED_POINT_POOL", "1")
 	t.Setenv("RARE_POSITION_RANDOM_SEED", "808")
+	t.Setenv("RARE_POSITION_RECYCLE_PROOF_WORK", "0")
 	t.Setenv("RARE_POSITION_JOINT_POINT_CAP", "0")
 	without := cloneGroupForBenchmark(input).calculate_odds()["rare_position_estimates"].(map[int]map[int]ProductionEstimate)
 	t.Setenv("RARE_POSITION_JOINT_POINT_CAP", "1")
@@ -238,6 +239,7 @@ func TestJointPointFloorRealGroup16498(t *testing.T) {
 	}
 	t.Setenv("RARE_POSITION_MATCHED_POINT_POOL", "1")
 	t.Setenv("RARE_POSITION_RANDOM_SEED", "808")
+	t.Setenv("RARE_POSITION_RECYCLE_PROOF_WORK", "0")
 	t.Setenv("RARE_POSITION_JOINT_POINT_FLOOR", "0")
 	without := cloneGroupForBenchmark(input).calculate_odds()["rare_position_estimates"].(map[int]map[int]ProductionEstimate)
 	t.Setenv("RARE_POSITION_JOINT_POINT_FLOOR", "1")

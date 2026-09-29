@@ -298,7 +298,7 @@ func TestConditionedPointTiltCanEstimateUndecidedCell(t *testing.T) {
 	t.Setenv("RARE_POSITION_POINT_TILT_UNDECIDED", "0")
 	disabled := newEstimates()
 	witnesses, work := runConditionedPointTiltSearch(group, campaign, table,
-		order, 808, bounds, samplers, []conditionedZeroCell{cell}, disabled)
+		order, 808, bounds, samplers, []conditionedZeroCell{cell}, disabled, 0)
 	if witnesses != 0 || work != 0 || disabled[2][1].Probability != 0 {
 		t.Fatalf("undecided opt-out sampled the cell: witnesses=%d work=%d estimate=%+v",
 			witnesses, work, disabled[2][1])
@@ -306,7 +306,7 @@ func TestConditionedPointTiltCanEstimateUndecidedCell(t *testing.T) {
 	t.Setenv("RARE_POSITION_POINT_TILT_UNDECIDED", "1")
 	enabled := newEstimates()
 	witnesses, work = runConditionedPointTiltSearch(group, campaign, table,
-		order, 808, bounds, samplers, []conditionedZeroCell{cell}, enabled)
+		order, 808, bounds, samplers, []conditionedZeroCell{cell}, enabled, 0)
 	est := enabled[2][1]
 	if witnesses != 1 || work <= 0 || est.Probability <= 0 ||
 		est.Reachability != "witness" || est.Design != "matched_point_pool_conditioned_point_tilt" {
@@ -316,9 +316,50 @@ func TestConditionedPointTiltCanEstimateUndecidedCell(t *testing.T) {
 	t.Setenv("RARE_POSITION_CONDITIONED_POINT_TILT", "0")
 	allDisabled := newEstimates()
 	witnesses, work = runConditionedPointTiltSearch(group, campaign, table,
-		order, 808, bounds, samplers, []conditionedZeroCell{cell}, allDisabled)
+		order, 808, bounds, samplers, []conditionedZeroCell{cell}, allDisabled, 0)
 	if witnesses != 0 || work != 0 || allDisabled[2][1].Probability != 0 {
 		t.Fatalf("point-tilt opt-out sampled the cell: witnesses=%d work=%d estimate=%+v",
 			witnesses, work, allDisabled[2][1])
+	}
+}
+
+func TestPointTiltRecyclesEarlyProofBudgetOnSavedGroup16653(t *testing.T) {
+	path := os.Getenv("RARE_POSITION_BENCHMARK_GROUP_JSON")
+	if path == "" {
+		t.Skip("set RARE_POSITION_BENCHMARK_GROUP_JSON to the saved live group 16653 request")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fmt.Sprintf("%x", sha256.Sum256(data)) != "b87207393a283ae4b7cc986c49a60fdd0943057295872ddcda27926d9d6597dd" {
+		t.Skip("request differs from the saved live group 16653 input")
+	}
+	var input GroupType
+	if err := json.Unmarshal(data, &input); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("RARE_POSITION_RANDOM_SEED", "808")
+	t.Setenv("RARE_POSITION_MATCHED_POINT_POOL", "1")
+	t.Setenv("RARE_POSITION_IMPORTANCE_SAMPLING", "0")
+	t.Setenv("RARE_POSITION_RECYCLE_PROOF_WORK", "0")
+	baseline := cloneGroupForBenchmark(input).calculate_odds()["rare_position_estimates"].(map[int]map[int]ProductionEstimate)
+	t.Setenv("RARE_POSITION_RECYCLE_PROOF_WORK", "1")
+	recycled := cloneGroupForBenchmark(input).calculate_odds()["rare_position_estimates"].(map[int]map[int]ProductionEstimate)
+	cell := recycled[12][16]
+	if baseline[12][16].Probability != 0 || cell.Probability <= 0 ||
+		cell.Reachability != "witness" || cell.Design != "matched_point_pool_conditioned_point_tilt_recycled" ||
+		cell.ConditionalSamples != 2000 || cell.ESS < 8 {
+		t.Fatalf("team 12 finishing 17th: baseline=%+v recycled=%+v", baseline[12][16], cell)
+	}
+	for id, ranks := range baseline {
+		for rank, before := range ranks {
+			if before.Probability > 0 && recycled[id][rank].Probability == 0 {
+				t.Errorf("team=%d rank=%d: lost baseline estimate", id, rank+1)
+			}
+		}
+	}
+	if got := recycled[12][16].WorkSpent - baseline[12][16].WorkSpent; got != 2000*105 {
+		t.Fatalf("unexpected recycled work: %d", got)
 	}
 }

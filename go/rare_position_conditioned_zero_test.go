@@ -1,7 +1,9 @@
 package main
 
 import (
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"math"
 	"math/rand"
 	"os"
@@ -336,7 +338,9 @@ func TestConditionedZeroRealGroup(t *testing.T) {
 	if baselineZeros-zeros != witnesses {
 		t.Fatalf("baseline zeros=%d final zeros=%d witnesses=%d", baselineZeros, zeros, witnesses)
 	}
-	if input.Id == 16653 {
+	// This event mass belongs to the original saved fixture, not every
+	// later request for the same group.
+	if fmt.Sprintf("%x", sha256.Sum256(data)) == "2d1c1d6f70a64d5b86f5129b32cbf77bedc4c42e464cd849011ca0b3018b3d87" {
 		ceara := estimates[69][0]
 		if (ceara.Reachability != "witness" && ceara.Reachability != "undecided") ||
 			(ceara.ZeroHitUpper95 <= 0 && ceara.Reachability == "undecided") ||
