@@ -8,13 +8,24 @@ const source = fs.readFileSync(path.join(__dirname, "../../app/assets/javascript
 vm.runInNewContext(source, context);
 const odds = context.window.GolabertoOdds;
 
-assert.equal(odds.backgroundColor(null, "#90EE90"), "lightgray");
-assert.equal(odds.backgroundColor(0, "#90EE90"), "lightgray");
-assert.equal(odds.backgroundColor(25, "#90EE90"), "color-mix(in srgb, lightgray 75%, #90EE90 25%)");
-assert.equal(odds.backgroundColor(100, "#90EE90"), "#90EE90");
-assert.equal(odds.backgroundColor(100, null), "lightgray");
-assert.equal(odds.textColor(44, "black"), "inherit");
-assert.equal(odds.textColor(45, "black"), "white");
+assert.equal(odds.maximum([null, 0, 12.5, 25]), 25);
+assert.equal(odds.maximum([null, 0]), 0);
+assert.equal(odds.backgroundColor(null, "#90EE90", 25), "lightgray");
+assert.equal(odds.backgroundColor(0, "#90EE90", 25), "lightgray");
+assert.equal(odds.backgroundColor(12.5, "#90EE90", 25), "color-mix(in srgb, lightgray 50%, #90EE90 50%)");
+assert.equal(odds.backgroundColor(1e-10, "#90EE90", 25), "color-mix(in srgb, lightgray 100%, #90EE90 0%)");
+assert.equal(odds.backgroundColor(25, "#90EE90", 25), "#90EE90");
+assert.equal(odds.backgroundColor(25, null, 25), "lightgray");
+assert.equal(odds.textColor(11, "black", 25), "inherit");
+assert.equal(odds.textColor(11.25, "black", 25), "white");
+
+const teamOdds = [[0.5, 0.1], [0.25, 0.4]];
+const firstZoneOdds = teamOdds.map(function(row) { return odds.zoneValue(row, [1]); });
+const secondZoneOdds = teamOdds.map(function(row) { return odds.zoneValue(row, [2]); });
+assert.equal(odds.backgroundColor(firstZoneOdds[0], "#00ff00", odds.maximum(firstZoneOdds)), "#00ff00");
+assert.equal(odds.backgroundColor(firstZoneOdds[1], "#00ff00", odds.maximum(firstZoneOdds)), "color-mix(in srgb, lightgray 50%, #00ff00 50%)");
+assert.equal(odds.backgroundColor(secondZoneOdds[1], "#ff0000", odds.maximum(secondZoneOdds)), "#ff0000");
+assert.equal(odds.backgroundColor(secondZoneOdds[0], "#ff0000", odds.maximum(secondZoneOdds)), "color-mix(in srgb, lightgray 75%, #ff0000 25%)");
 
 assert.equal(odds.format(0.0001, "en-US"), "1e-4%");
 assert.equal(odds.html(0.0001, "en-US"), "1e-4%");

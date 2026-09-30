@@ -3,7 +3,7 @@
 <% omit_comments = false if omit_comments.nil? %>
 <% omit_popup = false if omit_popup.nil? %>
 <% show_country = false if show_country.nil? %>
-<% cache [ "v6",
+<% cache [ "v7",
            I18n.locale,
            digest_cache_key(group.teams),
            group,
@@ -132,7 +132,8 @@
           $("#oddsSelect_<%=group.id%>").iconselectmenu({
             width: false,
             change: function(event, ui) {
-              $("td.odds-value[data-group-id=<%=group.id%>]").each(function(index) {
+              var selectedOdds = [];
+              $("td.odds-value[data-group-id=<%=group.id%>]").each(function() {
                 var cell = $(this);
                 var oddsArray = cell.data("oddsArray");
                 if (!oddsArray) {
@@ -158,16 +159,21 @@
                   }
                 }
 
-                if (value == null) {
-                  cell.text("");
-                  cell.removeAttr("title");
+                selectedOdds.push({ cell: cell, value: value });
+              });
+
+              var highestOdds = GolabertoOdds.maximum(selectedOdds.map(function(item) { return item.value; }));
+              var bgColor = ui.item.element.attr("data-cell-color") || ui.item.element.attr("data-color") || "lightgray";
+              selectedOdds.forEach(function(item) {
+                if (item.value == null) {
+                  item.cell.text("");
+                  item.cell.removeAttr("title");
                 } else {
-                  cell.text(GolabertoOdds.fraction(value));
-                  cell.attr("title", GolabertoOdds.title(value, "<%= I18n.locale %>"));
+                  item.cell.text(GolabertoOdds.fraction(item.value));
+                  item.cell.attr("title", GolabertoOdds.title(item.value, "<%= I18n.locale %>"));
                 }
-                var bgColor = ui.item.element.attr("data-cell-color") || ui.item.element.attr("data-color") || "lightgray";
-                cell.css("background-color", GolabertoOdds.backgroundColor(value, bgColor));
-                cell.css("color", GolabertoOdds.textColor(value, bgColor));
+                item.cell.css("background-color", GolabertoOdds.backgroundColor(item.value, bgColor, highestOdds));
+                item.cell.css("color", GolabertoOdds.textColor(item.value, bgColor, highestOdds));
               });
             }
           });
@@ -179,6 +185,10 @@
   <% notes = Array.new %>
   <% max_form = 0 %>
   <% team_table = group.team_table %>
+  <% first_zone = group.zones.first %>
+  <% first_color = first_zone.is_a?(Hash) ? first_zone["color"] : "lightgray" %>
+  <% initial_odds = omit_columns[:odds] ? [] : team_table.map { |entry| first_zone ? entry[0].calculate_odds(first_zone["position"]) : entry[0].odds&.first } %>
+  <% highest_initial_odds = initial_odds.compact.max || 0 %>
   <% team_ids = team_table.map { |t| t[0].team_id } %>
   <% next_games = next_games_by_team(group.phase, team_ids) %>
   <% team_table.each do |t|
@@ -287,20 +297,14 @@
          <%= content_tag :td, stats.goals_diff unless omit_columns[:GD] %>
          <% if not omit_columns[:odds] then %>
            <%= content_tag :td, "", class: "odds_spacing" %>
-           <% first_zone = group.zones.first %>
-           <% first_odds = if first_zone
-                            t[0].calculate_odds(first_zone["position"])
-                          elsif t[0].odds
-                            t[0].odds[0]
-                          end %>
-           <% first_color = first_zone.is_a?(Hash) ? first_zone["color"] : "lightgray" %>
+           <% first_odds = initial_odds[pos - 1] %>
            <%= content_tag :td,
                            formatted_odds_fraction(first_odds),
                            "data-group-id": group.id,
                            "data-odds-array": (t[0].odds || []).to_json,
                            title: odds_title(first_odds),
                            class: "odds odds-value",
-                           style: "background-color: #{odds_background_color(first_odds, first_color)}; color: #{odds_text_color(first_odds, first_color)}" %>
+                           style: "background-color: #{odds_background_color(first_odds, first_color, highest_initial_odds)}; color: #{odds_text_color(first_odds, first_color, highest_initial_odds)}" %>
          <% end %>
        </tr>
      <% end %>

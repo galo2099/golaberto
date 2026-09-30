@@ -5,18 +5,35 @@
     return isFinite(number) ? number : null;
   }
 
+  function colorStrength(value, maximum) {
+    var percentage = validNumber(value);
+    var highest = validNumber(maximum);
+    if (percentage === null || highest === null || highest <= 0) return 0;
+    return Math.min(100, Math.max(0, percentage / highest * 100));
+  }
+
+  function cssPercentage(value) {
+    return value.toFixed(6).replace(/0+$/, "").replace(/\.$/, "");
+  }
+
   window.GolabertoOdds = {
-    backgroundColor: function(value, zoneColor) {
-      var color = zoneColor || "lightgray";
-      var percentage = validNumber(value);
-      if (percentage === null || percentage <= 0) return "lightgray";
-      if (percentage >= 100) return color;
-      return "color-mix(in srgb, lightgray " + (100 - percentage) + "%, " + color + " " + percentage + "%)";
+    maximum: function(values) {
+      return values.reduce(function(highest, value) {
+        var number = validNumber(value);
+        return number === null ? highest : Math.max(highest, number);
+      }, 0);
     },
 
-    textColor: function(value, zoneColor) {
-      var percentage = validNumber(value);
-      return zoneColor === "black" && percentage !== null && percentage >= 45 ? "white" : "inherit";
+    backgroundColor: function(value, zoneColor, maximum) {
+      var color = zoneColor || "lightgray";
+      var strength = colorStrength(value, maximum);
+      if (strength <= 0) return "lightgray";
+      if (strength >= 100) return color;
+      return "color-mix(in srgb, lightgray " + cssPercentage(100 - strength) + "%, " + color + " " + cssPercentage(strength) + "%)";
+    },
+
+    textColor: function(value, zoneColor, maximum) {
+      return zoneColor === "black" && colorStrength(value, maximum) >= 45 ? "white" : "inherit";
     },
 
     zoneValue: function(odds, positions) {

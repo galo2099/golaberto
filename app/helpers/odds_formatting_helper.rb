@@ -1,14 +1,23 @@
 module OddsFormattingHelper
-  def odds_background_color(percentage, zone_color)
+  def odds_background_color(percentage, zone_color, maximum)
     color = zone_color.to_s.empty? ? "lightgray" : zone_color
-    return "lightgray" if percentage.nil? || percentage.to_f <= 0
-    return color if percentage.to_f >= 100
+    strength = odds_color_strength(percentage, maximum)
+    return "lightgray" if strength <= 0
+    return color if strength >= 100
 
-    "color-mix(in srgb, lightgray #{100 - percentage.to_f}%, #{color} #{percentage.to_f}%)"
+    gray_weight = format("%.6f", 100 - strength).sub(/0+\z/, "").sub(/\.\z/, "")
+    color_weight = format("%.6f", strength).sub(/0+\z/, "").sub(/\.\z/, "")
+    "color-mix(in srgb, lightgray #{gray_weight}%, #{color} #{color_weight}%)"
   end
 
-  def odds_text_color(percentage, zone_color)
-    zone_color == "black" && percentage.to_f >= 45 ? "white" : "inherit"
+  def odds_text_color(percentage, zone_color, maximum)
+    zone_color == "black" && odds_color_strength(percentage, maximum) >= 45 ? "white" : "inherit"
+  end
+
+  def odds_color_strength(percentage, maximum)
+    return 0 if percentage.nil? || maximum.to_f <= 0
+
+    [[percentage.to_f / maximum.to_f * 100, 0].max, 100].min
   end
 
   # Odds in views are percentages (0..100), not fractions (0..1).
