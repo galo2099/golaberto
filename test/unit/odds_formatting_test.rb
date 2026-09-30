@@ -58,28 +58,20 @@ class OddsFormattingTest < Minitest::Test
     assert_equal '1.000', @view.formatted_odds_fraction(100)
   end
 
-  def test_odds_background_blends_from_gray_to_zone_color
-    assert_equal 'lightgray', @view.odds_background_color(0, '#90EE90', 25)
-    assert_equal 'lightgray', @view.odds_background_color(nil, '#90EE90', 25)
-    assert_equal 'lightgray', @view.odds_background_color(0, '#90EE90', 0)
-    assert_equal 'rgb(164, 230, 164)', @view.odds_background_color(12.5, '#90EE90', 25)
-    assert_equal 'rgb(183, 222, 183)', @view.odds_background_color(10, '#90EE90', 57)
-    assert_equal 'rgb(211, 211, 211)', @view.odds_background_color(1e-10, '#90EE90', 25)
-    assert_equal 'rgb(62, 242, 62)', @view.odds_background_color(12.5, 'rgb(0,255,0)', 25)
-    assert_equal 'rgb(242, 62, 242)', @view.odds_background_color(12.5, '#f0f', 25)
-    assert_equal '#90EE90', @view.odds_background_color(25, '#90EE90', 25)
-    assert_equal 'lightgray', @view.odds_background_color(25, nil, 25)
-    assert_equal 'lightgray', @view.odds_background_color(0, 'dimgray', 57)
-    assert_equal 'rgb(167, 167, 167)', @view.odds_background_color(10, 'dimgray', 57)
-    assert_equal 'dimgray', @view.odds_background_color(57, 'dimgray', 57)
+  def test_odds_background_blends_from_lightgray_to_dimgray
+    assert_equal 'lightgray', @view.odds_background_color(0, 25)
+    assert_equal 'lightgray', @view.odds_background_color(nil, 25)
+    assert_equal 'lightgray', @view.odds_background_color(25, 0)
+    assert_equal 'rgb(136, 136, 136)', @view.odds_background_color(12.5, 25)
+    assert_equal 'rgb(167, 167, 167)', @view.odds_background_color(10, 57)
+    assert_equal 'rgb(211, 211, 211)', @view.odds_background_color(1e-10, 25)
+    assert_equal 'dimgray', @view.odds_background_color(25, 25)
   end
 
-  def test_black_zone_text_remains_readable_during_blend
-    assert_equal 'inherit', @view.odds_text_color(0, 'black', 25)
-    assert_equal 'inherit', @view.odds_text_color(5, 'black', 25)
-    assert_equal 'white', @view.odds_text_color(5.0625, 'black', 25)
-    assert_equal 'white', @view.odds_text_color(25, 'black', 25)
-    assert_equal 'inherit', @view.odds_text_color(10, 'dimgray', 25)
-    assert_equal 'white', @view.odds_text_color(11, 'dimgray', 25)
+  def test_odds_text_switches_to_white_on_darker_gray
+    assert_equal 'inherit', @view.odds_text_color(0, 25)
+    assert_equal 'inherit', @view.odds_text_color(10, 25)
+    assert_equal 'white', @view.odds_text_color(11, 25)
+    assert_equal 'white', @view.odds_text_color(25, 25)
   end
 end

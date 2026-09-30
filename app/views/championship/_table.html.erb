@@ -3,7 +3,7 @@
 <% omit_comments = false if omit_comments.nil? %>
 <% omit_popup = false if omit_popup.nil? %>
 <% show_country = false if show_country.nil? %>
-<% cache [ "v13",
+<% cache [ "v14",
            I18n.locale,
            digest_cache_key(group.teams),
            group,
@@ -65,8 +65,7 @@
           <option value="<%= i %>"
                   title="<%= sprintf(_("odds of %s"), i)%>"
                   data-rank="<%= i %>"
-                  data-color="black"
-                  data-cell-color="dimgray"><%=i%></option>
+                  data-color="black"><%=i%></option>
         <% end %>
         </select>
         <style>
@@ -163,7 +162,6 @@
               });
 
               var highestOdds = GolabertoOdds.maximum(selectedOdds.map(function(item) { return item.value; }));
-              var bgColor = ui.item.element.attr("data-cell-color") || ui.item.element.attr("data-color") || "lightgray";
               selectedOdds.forEach(function(item) {
                 if (item.value == null) {
                   item.cell.text("");
@@ -172,8 +170,8 @@
                   item.cell.text(GolabertoOdds.fraction(item.value));
                   item.cell.attr("title", GolabertoOdds.title(item.value, "<%= I18n.locale %>"));
                 }
-                item.cell.css("background-color", GolabertoOdds.backgroundColor(item.value, bgColor, highestOdds));
-                item.cell.css("color", GolabertoOdds.textColor(item.value, bgColor, highestOdds));
+                item.cell.css("background-color", GolabertoOdds.backgroundColor(item.value, highestOdds));
+                item.cell.css("color", GolabertoOdds.textColor(item.value, highestOdds));
               });
             }
           });
@@ -186,7 +184,6 @@
   <% max_form = 0 %>
   <% team_table = group.team_table %>
   <% first_zone = group.zones.first %>
-  <% first_color = first_zone.is_a?(Hash) ? first_zone["color"] : "dimgray" %>
   <% initial_odds = omit_columns[:odds] ? [] : team_table.map { |entry| first_zone ? entry[0].calculate_odds(first_zone["position"]) : entry[0].odds&.first } %>
   <% highest_initial_odds = initial_odds.compact.max || 0 %>
   <% team_ids = team_table.map { |t| t[0].team_id } %>
@@ -304,7 +301,7 @@
                            "data-odds-array": (t[0].odds || []).to_json,
                            title: odds_title(first_odds),
                            class: "odds odds-value",
-                           style: "background-color: #{odds_background_color(first_odds, first_color, highest_initial_odds)}; color: #{odds_text_color(first_odds, first_color, highest_initial_odds)}" %>
+                           style: "background-color: #{odds_background_color(first_odds, highest_initial_odds)}; color: #{odds_text_color(first_odds, highest_initial_odds)}" %>
          <% end %>
        </tr>
      <% end %>

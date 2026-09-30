@@ -12,32 +12,6 @@
     return Math.sqrt(Math.min(1, Math.max(0, percentage / highest))) * 100;
   }
 
-  function zoneRgb(color) {
-    var value = String(color || "").trim();
-    var match = /^#([0-9a-f]{3})$/i.exec(value);
-    if (match) return match[1].split("").map(function(digit) { return parseInt(digit + digit, 16); });
-    match = /^#([0-9a-f]{6})$/i.exec(value);
-    if (match) return match[1].match(/../g).map(function(channel) { return parseInt(channel, 16); });
-    match = /^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$/i.exec(value);
-    if (match) {
-      var channels = match.slice(1).map(Number);
-      return channels.every(function(channel) { return channel <= 255; }) ? channels : null;
-    }
-    var named = { black: [0, 0, 0], dimgray: [105, 105, 105], dimgrey: [105, 105, 105], white: [255, 255, 255], lightgray: [211, 211, 211], lightgrey: [211, 211, 211] };
-    if (named[value.toLowerCase()]) return named[value.toLowerCase()];
-
-    // The zone editor can also store CSS color names. Resolve those with the browser.
-    if (!window.document || !window.document.body || !window.getComputedStyle) return null;
-    var probe = window.document.createElement("span");
-    probe.style.color = value;
-    if (!probe.style.color) return null;
-    window.document.body.appendChild(probe);
-    var computed = window.getComputedStyle(probe).color;
-    window.document.body.removeChild(probe);
-    match = /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/.exec(computed);
-    return match ? match.slice(1).map(Number) : null;
-  }
-
   window.GolabertoOdds = {
     maximum: function(values) {
       return values.reduce(function(highest, value) {
@@ -46,24 +20,16 @@
       }, 0);
     },
 
-    backgroundColor: function(value, zoneColor, maximum) {
-      var color = zoneColor || "lightgray";
+    backgroundColor: function(value, maximum) {
       var strength = colorStrength(value, maximum);
       if (strength <= 0) return "lightgray";
-      if (strength >= 100) return color;
-      var rgb = zoneRgb(color);
-      if (!rgb) return "lightgray";
-      var weight = strength / 100;
-      return "rgb(" + rgb.map(function(channel) {
-        return Math.round(211 * (1 - weight) + channel * weight);
-      }).join(", ") + ")";
+      if (strength >= 100) return "dimgray";
+      var shade = Math.round(211 - 106 * strength / 100);
+      return "rgb(" + shade + ", " + shade + ", " + shade + ")";
     },
 
-    textColor: function(value, zoneColor, maximum) {
-      var strength = colorStrength(value, maximum);
-      var darkBackground = (zoneColor === "black" && strength >= 45) ||
-        (zoneColor === "dimgray" && strength >= 65);
-      return darkBackground ? "white" : "inherit";
+    textColor: function(value, maximum) {
+      return colorStrength(value, maximum) >= 65 ? "white" : "inherit";
     },
 
     zoneValue: function(odds, positions) {

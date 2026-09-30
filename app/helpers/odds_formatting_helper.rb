@@ -1,23 +1,15 @@
 module OddsFormattingHelper
-  def odds_background_color(percentage, zone_color, maximum)
-    color = zone_color.to_s.empty? ? "lightgray" : zone_color
+  def odds_background_color(percentage, maximum)
     strength = odds_color_strength(percentage, maximum)
     return "lightgray" if strength <= 0
-    return color if strength >= 100
+    return "dimgray" if strength >= 100
 
-    rgb = odds_zone_rgb(color)
-    return "lightgray" unless rgb
-
-    weight = strength / 100
-    channels = rgb.map { |channel| (211 * (1 - weight) + channel * weight).round }
-    "rgb(#{channels.join(', ')})"
+    shade = (211 - 106 * strength / 100).round
+    "rgb(#{shade}, #{shade}, #{shade})"
   end
 
-  def odds_text_color(percentage, zone_color, maximum)
-    strength = odds_color_strength(percentage, maximum)
-    dark_background = (zone_color == "black" && strength >= 45) ||
-                      (zone_color == "dimgray" && strength >= 65)
-    dark_background ? "white" : "inherit"
+  def odds_text_color(percentage, maximum)
+    odds_color_strength(percentage, maximum) >= 65 ? "white" : "inherit"
   end
 
   def odds_color_strength(percentage, maximum)
@@ -25,22 +17,6 @@ module OddsFormattingHelper
 
     ratio = [[percentage.to_f / maximum.to_f, 0].max, 1].min
     Math.sqrt(ratio) * 100
-  end
-
-  def odds_zone_rgb(color)
-    case color.to_s.strip
-    when /\A#([0-9a-f]{3})\z/i
-      Regexp.last_match(1).chars.map { |digit| (digit * 2).to_i(16) }
-    when /\A#([0-9a-f]{6})\z/i
-      Regexp.last_match(1).scan(/../).map { |channel| channel.to_i(16) }
-    when /\Argb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)\z/i
-      channels = Regexp.last_match.captures.map(&:to_i)
-      channels if channels.all? { |channel| channel <= 255 }
-    when /\Ablack\z/i then [0, 0, 0]
-    when /\Adimgr[ae]y\z/i then [105, 105, 105]
-    when /\Awhite\z/i then [255, 255, 255]
-    when /\Alightgr[ae]y\z/i then [211, 211, 211]
-    end
   end
 
   # Odds in views are percentages (0..100), not fractions (0..1).
