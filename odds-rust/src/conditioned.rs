@@ -25,6 +25,111 @@ impl Hasher for IntegerHasher {
     }
 }
 pub type IntMap<V> = HashMap<u64, V, BuildHasherDefault<IntegerHasher>>;
+
+/// Immutable DP masses in their original hash-map iteration order. Only the
+/// active construction layer needs a growing hash table; saved layers use
+/// compact entries plus a u32 lookup index instead of oversized hash buckets.
+pub struct ForwardLayer {
+    entries: Box<[(u64, f64)]>,
+    index: ForwardIndex,
+}
+enum ForwardIndex {
+    // One-team layers fit in one point-total byte. Direct mass lookup avoids
+    // hashing on the frequent point-tilt and backward-transition paths.
+    Dense {
+        values: Box<[f64]>,
+        present: [u64; 4],
+    },
+    Sparse(Box<[u32]>),
+}
+
+impl ForwardLayer {
+    const EMPTY: u32 = u32::MAX;
+
+    fn from_map(map: IntMap<f64>) -> Self {
+        // Keep this order: subsequent mass summations must remain bit-for-bit
+        // identical to iteration over the original construction hash table.
+        let entries: Box<[_]> = map.into_iter().collect();
+        assert!(entries.len() < Self::EMPTY as usize);
+        if entries.iter().all(|(key, _)| *key < 256) {
+            let span = entries
+                .iter()
+                .map(|(key, _)| *key as usize + 1)
+                .max()
+                .unwrap_or(0);
+            let mut values = vec![0.; span].into_boxed_slice();
+            let mut present = [0; 4];
+            for &(key, mass) in &entries {
+                values[key as usize] = mass;
+                present[key as usize / 64] |= 1 << (key % 64);
+            }
+            return Self {
+                entries,
+                index: ForwardIndex::Dense { values, present },
+            };
+        }
+        let buckets = (entries.len() * 4 / 3 + 1).next_power_of_two();
+        let mut index = vec![Self::EMPTY; buckets].into_boxed_slice();
+        for (entry, &(key, _)) in entries.iter().enumerate() {
+            let mut slot = Self::slot(key, buckets);
+            while index[slot] != Self::EMPTY {
+                slot = (slot + 1) & (buckets - 1);
+            }
+            index[slot] = entry as u32;
+        }
+        Self {
+            entries,
+            index: ForwardIndex::Sparse(index),
+        }
+    }
+
+    #[inline]
+    fn slot(key: u64, buckets: usize) -> usize {
+        // Multiplicative hashing uses the high product bits so every packed
+        // point-total byte participates, rather than masking the low key byte.
+        (key.wrapping_mul(0x9e3779b97f4a7c15) >> 32) as usize & (buckets - 1)
+    }
+
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&u64, &f64)> {
+        self.entries.iter().map(|(key, mass)| (key, mass))
+    }
+
+    #[inline]
+    pub fn get(&self, key: &u64) -> Option<&f64> {
+        let index = match &self.index {
+            ForwardIndex::Dense { values, present } => {
+                if *key >= values.len() as u64
+                    || present[*key as usize / 64] & (1 << (*key % 64)) == 0
+                {
+                    return None;
+                }
+                return Some(&values[*key as usize]);
+            }
+            ForwardIndex::Sparse(index) => index,
+        };
+        let mut slot = Self::slot(*key, index.len());
+        loop {
+            let entry = index[slot];
+            if entry == Self::EMPTY {
+                return None;
+            }
+            let (found, mass) = &self.entries[entry as usize];
+            if found == key {
+                return Some(mass);
+            }
+            slot = (slot + 1) & (index.len() - 1);
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct PointGame {
     pub index: usize,
@@ -34,7 +139,7 @@ pub struct PointGame {
 pub struct Event {
     pub teams: Vec<usize>,
     pub games: Vec<PointGame>,
-    pub forward: Vec<IntMap<f64>>,
+    pub forward: Vec<ForwardLayer>,
     pub terminals: Vec<(u64, f64)>,
     pub mass: f64,
 }
@@ -101,12 +206,13 @@ impl Event {
                 delta,
             });
         }
-        let mut forward = vec![IntMap::default()];
-        forward[0].insert(0, 1.);
+        let mut start = IntMap::default();
+        start.insert(0, 1.);
+        let mut forward = vec![ForwardLayer::from_map(start)];
         for g in &games {
             let mut next = IntMap::default();
             next.reserve((forward.last()?.len() * 3).min(limit + 1));
-            for (&state, &mass) in forward.last()? {
+            for (&state, &mass) in forward.last()?.iter() {
                 for o in 0..3 {
                     if g.prob[o] <= 0. {
                         continue;
@@ -137,10 +243,10 @@ impl Event {
             if next.len() > limit {
                 return None;
             }
-            forward.push(next);
+            forward.push(ForwardLayer::from_map(next));
         }
         let mut terminals = Vec::new();
-        for (&state, &mass) in forward.last()? {
+        for (&state, &mass) in forward.last()?.iter() {
             if !bounds.allowed(target, rank, byte(state, 0)) {
                 continue;
             }
@@ -223,7 +329,7 @@ impl<'a> Backward<'a> {
         let dense = if event.teams.len() == 1 {
             let mut steps = vec![[Transition::default(); 256]; event.games.len()];
             for (i, g) in event.games.iter().enumerate() {
-                for (&state, _) in &event.forward[i + 1] {
+                for (&state, _) in event.forward[i + 1].iter() {
                     let mut tr = Transition::default();
                     for o in 0..3 {
                         if state >= g.delta[o] {
@@ -548,4 +654,85 @@ pub fn fast(
     result.samples = samples;
     result.work = samples as u64 * work_per_sample(model);
     result
+}
+
+#[cfg(test)]
+mod forward_layer_tests {
+    use super::{ForwardLayer, IntMap};
+
+    #[test]
+    fn frozen_layers_preserve_iteration_bits_and_packed_key_lookups() {
+        for count in [0, 1, 3, 31, 1000, 12000, 120000] {
+            let mut map = IntMap::default();
+            map.reserve(count * 3);
+            for i in 0..count as u64 {
+                // Exercise low and high point-total bytes, including key zero.
+                map.insert((i << 32) | (i << 8) | (i % 251), (i as f64 + 1.) * 1e-200);
+            }
+            map.insert(u64::MAX, -0.0);
+            let expected: Vec<_> = map.iter().map(|(&k, &v)| (k, v.to_bits())).collect();
+            let layer = ForwardLayer::from_map(map);
+            assert_eq!(layer.len(), expected.len());
+            assert_eq!(
+                layer
+                    .iter()
+                    .map(|(&k, &v)| (k, v.to_bits()))
+                    .collect::<Vec<_>>(),
+                expected
+            );
+            for (key, bits) in expected {
+                assert_eq!(layer.get(&key).unwrap().to_bits(), bits);
+            }
+            for key in [1, 252, 1 << 63, u64::MAX - 1] {
+                assert_eq!(layer.get(&key), None);
+            }
+        }
+        let empty = ForwardLayer::from_map(IntMap::default());
+        assert!(empty.is_empty());
+        assert_eq!(empty.get(&0), None);
+    }
+
+    #[test]
+    fn dense_layers_preserve_zero_masses_and_absent_point_totals() {
+        let map: IntMap<f64> = IntMap::from_iter([(0, -0.0), (3, 0.25), (255, 1e-200)]);
+        let expected: Vec<_> = map.iter().map(|(&k, &v)| (k, v.to_bits())).collect();
+        let layer = ForwardLayer::from_map(map);
+        assert!(matches!(layer.index, super::ForwardIndex::Dense { .. }));
+        assert_eq!(
+            layer
+                .iter()
+                .map(|(&k, &v)| (k, v.to_bits()))
+                .collect::<Vec<_>>(),
+            expected
+        );
+        for (key, bits) in expected {
+            assert_eq!(layer.get(&key).unwrap().to_bits(), bits);
+        }
+        for key in [1, 254, 256, u64::MAX] {
+            assert_eq!(layer.get(&key), None);
+        }
+    }
+
+    #[test]
+    fn collisions_find_every_mass_and_terminate_on_missing_keys() {
+        let mut map = IntMap::default();
+        for key in 0..10000 {
+            map.insert(key, key as f64);
+        }
+        let layer = ForwardLayer::from_map(map);
+        let super::ForwardIndex::Sparse(index) = &layer.index else {
+            panic!("wide keys need the sparse index");
+        };
+        // At this load, multiple entries must share initial slots.
+        assert!((0..10000).any(|key| {
+            let entry = index[ForwardLayer::slot(key, index.len())];
+            layer.entries[entry as usize].0 != key
+        }));
+        for key in 0..10000 {
+            assert_eq!(layer.get(&key), Some(&(key as f64)));
+        }
+        for key in 10000..11000 {
+            assert_eq!(layer.get(&key), None);
+        }
+    }
 }

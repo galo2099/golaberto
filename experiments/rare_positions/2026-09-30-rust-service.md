@@ -64,6 +64,80 @@ The repeated harness run measured 164.6 ms for the Go SPI oracle process and
 43.6 ms for the Rust SPI CLI on that export. These are single process-level
 observations with different logging/output costs, not a controlled speedup claim.
 
+## Paired HTTP speed and memory benchmark
+
+Measured all four active endpoints on the local macOS machine after the
+replacement was completed, using the release Rust executable at `69f820a5`
+and a compiled Go test host that calls the original production HTTP handlers.
+Two persistent servers run on unused loopback ports. Requests alternate between
+implementations, with two warmups followed by seven timed requests per endpoint.
+Only one request calculates at a time. Go has `GOMAXPROCS=4`; Rust keeps its
+existing four estimator workers. Request logs are disabled for both, and seed
+808 is fixed. Latency includes HTTP upload, calculation and response transfer.
+
+Peak memory is the **whole server process maximum resident set size** reported
+by macOS `/usr/bin/time -l` over all nine requests, not a per-request allocation
+count. Each scenario uses fresh processes. The Go benchmark host includes the
+test runtime; the production handlers themselves are unchanged. The ratings
+payload contains 27,465 real matches and 3,425 teams, spanning approximately four
+years. Evaluation selects the last 40 matches across eight UTC dates, retaining
+the preceding matches for training; synthetic phase tags select those matches.
+Historical requests include real MySQL upserts in a disposable InnoDB schema
+with the Rails FLOAT column types and unique team/date key. That schema was
+dropped after the run; application tables were not changed.
+
+| Endpoint / workload | Go median | Rust median | Speedup | Go peak RSS | Rust peak RSS |
+|---|---:|---:|---:|---:|---:|
+| `/odds`, group 16653 | 1,157.5 ms | 658.7 ms | 1.76x | 293.3 MiB | 430.9 MiB |
+| `/odds`, group 16982 | 873.8 ms | 293.2 ms | 2.98x | 41.8 MiB | 25.7 MiB |
+| `/spi`, database export | 108.9 ms | 37.0 ms | 2.94x | 39.5 MiB | 67.4 MiB |
+| `/eval`, last 40 matches | 395.3 ms | 97.7 ms | 4.05x | 39.8 MiB | 65.6 MiB |
+| `/historic_ratings`, database export | 351.3 ms | 111.7 ms | 3.14x | 41.5 MiB | 72.0 MiB |
+
+All tested requests are faster in Rust. **Peak memory is higher for four of
+the five workloads**, by approximately 47–74%; group 16982 uses about 39% less.
+Startup idle RSS is lower in Rust, approximately 6.4 MiB versus 11.8–12.2 MiB,
+but that does not predict peak memory under repeated requests. The high-water
+measurement includes allocator-retained memory; it does not establish a leak
+or identify which allocations should be reduced. Memory profiling remains a
+useful next investigation. These local measurements do not establish Linux
+memory consumption or throughput under concurrent requests. The Rust server's
+calculation gate intentionally serializes simultaneous calculation requests.
+
+This is not a speedup from reducing the measured odds budget. Both languages
+report identical work: 78,708,000 fixture-work units and 394,000 conditional
+draws for 16653, and 35,000,000 units with no conditional draws for 16982.
+Both use the 20,000 initial scout and 100,000 matched-pool seasons. Per-cell
+sample counts, conditional draws, estimator designs and reachability statuses
+match. Maximum absolute position probability differences are 1.3500e-13
+percentage points for 16653 and 3.5527e-14 for 16982. The initial game-importance
+scout differs between the implementations, so the benchmark does not assert
+identical game-importance output. No CEM configuration is compared here:
+Go uses `RARE_POSITION_MATCHED_POINT_POOL=1`,
+`RARE_POSITION_IMPORTANCE_SAMPLING=0`, with remaining search flags at defaults.
+
+The SPI response differs by at most 1.1369e-13 and evaluation by 4.4409e-16.
+Historical HTTP responses and all 2,230 stored historical rows match exactly.
+All per-request timings and process resource logs are saved under
+`/private/tmp/golaberto-rust-service/http-performance`, with the timing summary
+also retained beside this report as `2026-09-30-rust-service-http-benchmark.json`.
+Private database-derived input and response bodies remain outside the repository.
+
+Reproduce on macOS with a local MySQL root account:
+
+```sh
+(cd go && go test -mod=mod -c -o /tmp/golaberto-service-benchmark.test .)
+python3 experiments/rare_positions/benchmark_rust_service.py \
+  --rust odds-rust/target/release/golaberto-odds \
+  --go /tmp/golaberto-service-benchmark.test \
+  --ratings-request /path/to/read-only-ratings-export.json \
+  --output /tmp/golaberto-http-performance --iterations 7
+```
+
+The benchmark creates a randomly named `golaberto_rust_bench_` schema and drops
+it in cleanup. The Go host refuses historical benchmarking against a schema
+without that prefix. It is opt-in and does not change the production Go server.
+
 ## Existing odds regression check
 
 Built the starting Rust revision independently and ran three alternating paired

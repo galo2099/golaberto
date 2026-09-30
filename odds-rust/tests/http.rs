@@ -75,6 +75,31 @@ impl Service {
     }
 }
 #[test]
+fn incomplete_upload_does_not_block_health_or_ready_calculations() {
+    let service = Service::start();
+    let mut upload = TcpStream::connect(&service.address).unwrap();
+    write!(
+        upload,
+        "POST /odds HTTP/1.1\r\nHost: localhost\r\nContent-Length: 1024\r\n\r\n{{"
+    )
+    .unwrap();
+    upload.flush().unwrap();
+    assert_eq!(service.request("GET", "/health", &[], false).0, 200);
+    let (status, body) = service.request(
+        "POST",
+        "/spi",
+        br#"{"games":[],"ratings":[{"id":1}]}"#,
+        false,
+    );
+    assert_eq!(status, 200);
+    assert_eq!(
+        serde_json::from_slice::<Value>(&body).unwrap(),
+        json!({"1":null})
+    );
+    drop(upload);
+}
+
+#[test]
 fn active_routes_chunked_json_errors_and_health_work_over_http() {
     let service = Service::start();
     assert_eq!(service.request("GET", "/health", &[], false).0, 200);

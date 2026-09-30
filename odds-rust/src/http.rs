@@ -1,5 +1,5 @@
 //! HTTP replacement for the active Go application endpoints.
-//! Calculation requests share a gate, keeping the estimator's four-core budget.
+//! A dedicated calculation thread keeps the estimator's four-core budget.
 use crate::{database, logging::RequestLog, ratings};
 use serde_json::json;
 use std::{
@@ -131,8 +131,16 @@ fn error_reply(request: Request, error: EndpointError, log: &RequestLog) {
         log,
     );
 }
-fn handle(mut request: Request, gate: &Mutex<()>, log: RequestLog) {
-    let path = request.url().split('?').next().unwrap_or("").to_string();
+type CalculationResult = Result<Vec<u8>, EndpointError>;
+type Calculation = (
+    String,
+    Vec<u8>,
+    Instant,
+    RequestLog,
+    mpsc::SyncSender<CalculationResult>,
+);
+
+fn read_body(mut request: Request, calculator: &mpsc::SyncSender<Calculation>, log: RequestLog) {
     let read = Instant::now();
     if request.body_length().is_some_and(|size| size > MAX_BODY) {
         error_reply(
@@ -167,41 +175,69 @@ fn handle(mut request: Request, gate: &Mutex<()>, log: RequestLog) {
     }
     log.stage("http.read", read, json!({"request_bytes":body.len()}));
     let wait = Instant::now();
-    let guard = gate.lock().unwrap_or_else(|e| e.into_inner());
+    // Keep slow uploads on the readers. One calculation thread reuses its heap
+    // across requests instead of retaining separate working sets in each reader.
+    let path = request.url().split('?').next().unwrap_or("").to_string();
+    let (response, completed) = mpsc::sync_channel(1);
+    let result = if calculator.send((path, body, wait, log, response)).is_ok() {
+        completed.recv().unwrap_or_else(|_| {
+            Err(EndpointError {
+                status: 503,
+                message: "calculation worker unavailable".into(),
+            })
+        })
+    } else {
+        Err(EndpointError {
+            status: 503,
+            message: "calculation worker unavailable".into(),
+        })
+    };
+    // Response I/O stays on the reader, so a slow client cannot hold the
+    // calculation worker after its result is ready.
+    match result {
+        Ok(bytes) => reply(request, 200, bytes, &log),
+        Err(error) => error_reply(request, error, &log),
+    }
+}
+
+fn calculate(path: &str, body: Vec<u8>, wait: Instant, log: RequestLog) -> CalculationResult {
     log.stage("http.queue", wait, json!({}));
     let result =
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| execute(&path, &body, &log)));
-    drop(guard);
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| execute(path, &body, &log)));
+    drop(body);
     match result {
-        Ok(Ok(bytes)) => reply(request, 200, bytes, &log),
-        Ok(Err(e)) => error_reply(request, e, &log),
-        Err(_) => error_reply(
-            request,
-            EndpointError {
-                status: 500,
-                message: "calculation failed".into(),
-            },
-            &log,
-        ),
+        Ok(result) => result,
+        Err(_) => Err(EndpointError {
+            status: 500,
+            message: "calculation failed".into(),
+        }),
     }
 }
 pub fn serve(address: &str) -> Result<(), Box<dyn std::error::Error>> {
     let server = Server::http(address).map_err(|e| -> Box<dyn std::error::Error> { e })?;
     RequestLog::new().event("rust_odds_server_start", json!({"listen":address,"workers":4,
+        "body_readers":4,"calculation_workers":1,
         "endpoints":ENDPOINTS,"scout_samples":20000,"pool_samples":100000,"pipeline":"matched_point_pool"}));
-    let gate = Arc::new(Mutex::new(()));
     let (sender, receiver) = mpsc::sync_channel::<(Request, RequestLog)>(16);
     let receiver = Arc::new(Mutex::new(receiver));
+    // A rendezvous channel keeps prepared bodies bounded by the reader count.
+    let (calculator, ready) = mpsc::sync_channel::<Calculation>(0);
     std::thread::scope(|scope| {
+        scope.spawn(move || {
+            for (path, body, wait, log, response) in ready {
+                let result = calculate(&path, body, wait, log);
+                let _ = response.send(result);
+            }
+        });
         for _ in 0..4 {
-            let gate = gate.clone();
+            let calculator = calculator.clone();
             let receiver = receiver.clone();
             scope.spawn(move || loop {
                 let next = receiver.lock().unwrap().recv();
                 let Ok((request, log)) = next else {
                     break;
                 };
-                handle(request, &gate, log);
+                read_body(request, &calculator, log);
             });
         }
         for request in server.incoming_requests() {
@@ -248,6 +284,7 @@ pub fn serve(address: &str) -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         drop(sender);
+        drop(calculator);
     });
     Ok(())
 }

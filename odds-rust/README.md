@@ -40,6 +40,30 @@ RUST_ODDS_PROFILE=1 odds-rust/target/release/golaberto-odds estimate \
 
 `bench` repeats complete requests and reports a median.
 
+## Odds memory
+
+Completed conditioning DP layers use compact immutable storage with their
+original iteration order. One-team layers have direct point-total lookups;
+larger layers use a compact index. Obsolete events are released before deeper
+search allocates its replacements. Sampling budgets and estimates are unchanged.
+
+The HTTP service uses one calculation worker with four estimator cores, four
+body readers and a bounded request queue. Response I/O stays on the readers,
+so slow uploads or downloads do not occupy the calculator.
+
+For an allocation trace of a full four-worker calculation:
+
+```sh
+RUST_ODDS_PROFILE=1 cargo run --release --locked \
+  --manifest-path odds-rust/Cargo.toml --example profile_memory -- REQUEST.json \
+  > /tmp/odds-heap.csv 2> /tmp/odds-heap-stages.log
+```
+
+The optional diagnostic counts requested live/peak Rust heap bytes and emits a
+CSV trace. It adds allocation-counter overhead; benchmark the ordinary service
+binary for latency and process RSS. Measurements and reproduction are documented
+in `experiments/rare_positions/2026-09-30-rust-odds-memory.md`.
+
 ## Timing logs
 
 Request and stage logs are enabled by default and written as JSON lines to
