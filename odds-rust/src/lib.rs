@@ -2,6 +2,7 @@ pub mod api;
 pub mod conditioned;
 pub mod domains;
 pub mod http;
+pub mod logging;
 pub mod lookahead;
 pub mod model;
 pub mod neighbors;

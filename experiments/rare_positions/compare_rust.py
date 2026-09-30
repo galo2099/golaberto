@@ -35,7 +35,8 @@ def main():
     if args.cases:
         inputs = [p for p in inputs if any(s in p.name for s in args.cases.split(","))]
     env = {k: v for k, v in os.environ.items() if not k.startswith("RARE_POSITION_")}
-    env.update(GOMAXPROCS="4", RARE_POSITION_MATCHED_POINT_POOL="1", RARE_POSITION_IMPORTANCE_SAMPLING="0")
+    env.update(GOMAXPROCS="4", RARE_POSITION_MATCHED_POINT_POOL="1", RARE_POSITION_IMPORTANCE_SAMPLING="0",
+               RUST_ODDS_LOG="0", RUST_ODDS_PROFILE="0")
     rows = []
     for request in inputs:
         data = json.loads(request.read_text())

@@ -1,9 +1,11 @@
 use crate::{
+    logging::{cell_counts, RequestLog},
     model::{Model, Request},
     pool::{self, Estimate},
     rng::{derive, Rng},
 };
 use serde::Serialize;
+use serde_json::json;
 use std::{collections::BTreeMap, time::Instant};
 #[derive(Serialize)]
 pub struct Odds {
@@ -130,24 +132,58 @@ pub fn calculate(
     workers: usize,
     scout_samples: usize,
 ) -> Result<(Response, Timings), String> {
+    let log = RequestLog::new().context(request.id, seed);
+    calculate_logged(request, seed, workers, scout_samples, &log)
+}
+
+pub fn calculate_logged(
+    request: Request,
+    seed: i64,
+    workers: usize,
+    scout_samples: usize,
+    log: &RequestLog,
+) -> Result<(Response, Timings), String> {
+    log.event(
+        "rust_odds_start",
+        json!({"teams":request.team_groups.len(),
+        "games":request.games.len(),"workers":workers,"scout_samples":scout_samples,
+        "pool_samples":100000,"sort":request.phase.sort}),
+    );
     if workers == 0 || workers > 4 || scout_samples == 0 {
         return Err("workers must be 1..4 and scout samples positive".into());
     }
     let start = Instant::now();
     let model = Model::new(request)?;
     let setup_ms = start.elapsed().as_secs_f64() * 1000.;
+    log.stage(
+        "setup",
+        start,
+        json!({"remaining_fixtures":model.fixtures.len()}),
+    );
     let phase = Instant::now();
     let game_importance = initial_scout(&model, scout_samples, seed);
     let scout_ms = phase.elapsed().as_secs_f64() * 1000.;
+    log.stage(
+        "scout",
+        phase,
+        json!({"samples":scout_samples,"stream_seed":derive(seed,"pipeline-scout")}),
+    );
     let phase = Instant::now();
-    let mut estimates = pool::production(&model, seed, workers);
+    let mut estimates = pool::production_logged(&model, seed, workers, Some(log));
     let pool_ms = phase.elapsed().as_secs_f64() * 1000.;
+    log.stage("pool", phase, json!({"cells":cell_counts(&estimates)}));
     let phase = Instant::now();
-    let work = crate::search::run(&model, seed, workers, &mut estimates);
+    let work = crate::search::run_logged(&model, seed, workers, &mut estimates, Some(log));
     for e in &mut estimates {
         e.work_spent += work;
     }
     let search_ms = phase.elapsed().as_secs_f64() * 1000.;
+    log.stage(
+        "search",
+        phase,
+        json!({"work":work,"cells":cell_counts(&estimates)}),
+    );
+    let phase = Instant::now();
     let mut team_odds = BTreeMap::new();
     let mut rare_position_estimates = BTreeMap::new();
     for t in 0..model.n {
@@ -161,18 +197,25 @@ pub fn calculate(
         rare_position_estimates.insert(model.ids[t], row.into_iter().enumerate().collect());
     }
     let total_ms = start.elapsed().as_secs_f64() * 1000.;
+    log.stage("response", phase, json!({}));
+    let timings = Timings {
+        setup_ms,
+        scout_ms,
+        pool_ms,
+        search_ms,
+        total_ms,
+    };
+    log.event(
+        "rust_odds_complete",
+        json!({"timings":timings,"cells":cell_counts(&estimates),
+        "work_spent":estimates.first().map(|e|e.work_spent).unwrap_or(0)}),
+    );
     Ok((
         Response {
             team_odds,
             game_importance,
             rare_position_estimates,
         },
-        Timings {
-            setup_ms,
-            scout_ms,
-            pool_ms,
-            search_ms,
-            total_ms,
-        },
+        timings,
     ))
 }

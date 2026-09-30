@@ -369,9 +369,22 @@ pub fn crosscheck(result: Result, check: Result) -> (Result, bool, bool) {
     }
 }
 pub fn run(model: &Model, seed: i64, workers: usize, estimates: &mut [Estimate]) -> u64 {
+    run_logged(model, seed, workers, estimates, None)
+}
+pub fn run_logged(
+    model: &Model,
+    seed: i64,
+    workers: usize,
+    estimates: &mut [Estimate],
+    log: Option<&crate::logging::RequestLog>,
+) -> u64 {
     if !enabled("RARE_POSITION_CONDITIONED_ZERO")
         || estimates.iter().all(|e| e.design == "plain_mc")
     {
+        if let Some(log) = log {
+            log.event("rust_odds_search_skipped", serde_json::json!({"reason":
+                if !enabled("RARE_POSITION_CONDITIONED_ZERO") {"disabled"} else {"plain_mc_fallback"}}));
+        }
         return 0;
     }
     let Some(pmfs) = crate::pool::point_pmfs(model) else {
@@ -381,8 +394,10 @@ pub fn run(model: &Model, seed: i64, workers: usize, estimates: &mut [Estimate])
     let baseline = estimates.to_vec();
     let profile = std::env::var("RUST_ODDS_PROFILE").as_deref() == Ok("1");
     let mut phase = std::time::Instant::now();
-    let mut report = |label: &str| {
-        if profile {
+    let mut report = |label: &str, fields: serde_json::Value| {
+        if let Some(log) = log {
+            log.stage(&format!("search.{label}"), phase, fields);
+        } else if profile {
             eprintln!(
                 "rust-search-stage {label} ms={:.3}",
                 phase.elapsed().as_secs_f64() * 1000.
@@ -406,18 +421,28 @@ pub fn run(model: &Model, seed: i64, workers: usize, estimates: &mut [Estimate])
         }
     }
     cells.sort_by_key(|c| (c.rank.min(model.n - 1 - c.rank), model.ids[c.team], c.rank));
+    report(
+        "screen",
+        serde_json::json!({"candidate_cells":cells.len(),"cells":crate::logging::cell_counts(estimates)}),
+    );
     let proofs = crate::proof::early(model, &cells, estimates);
-    report("early_proofs");
     cells.retain(|c| estimates[c.index(model.n)].reachability == "undecided");
+    report(
+        "early_proofs",
+        serde_json::json!({"proofs":proofs,"candidate_cells":cells.len()}),
+    );
     if cells.is_empty() {
         return 0;
     }
     let mut results = parallel(cells.len(), workers, |i| {
         initial(model, &bounds, &pmfs, cells[i], seed)
     });
-    report("initial_conditioning");
+    report(
+        "initial_conditioning",
+        serde_json::json!({"candidate_cells":cells.len()}),
+    );
     guided(model, &bounds, &pmfs, &cells, seed, workers, &mut results);
-    report("guided");
+    report("guided", serde_json::json!({}));
     extra(
         model,
         &bounds,
@@ -428,7 +453,7 @@ pub fn run(model: &Model, seed: i64, workers: usize, estimates: &mut [Estimate])
         workers,
         &mut results,
     );
-    report("extra");
+    report("extra", serde_json::json!({}));
     let mut work = 0;
     let mut witnesses = 0;
     for (cell, search) in cells.iter().zip(&results) {
@@ -468,6 +493,11 @@ pub fn run(model: &Model, seed: i64, workers: usize, estimates: &mut [Estimate])
         }
     }
     let seeds: Vec<_> = results.into_iter().filter_map(|r| r.witness).collect();
+    report(
+        "apply",
+        serde_json::json!({"accepted":witnesses,"distinct_seeds":seeds.len(),"work":work,
+        "cells":crate::logging::cell_counts(estimates)}),
+    );
     let budget = std::env::var("RARE_POSITION_NEIGHBORHOOD_BUDGET")
         .ok()
         .and_then(|s| s.parse::<usize>().ok())
@@ -477,7 +507,11 @@ pub fn run(model: &Model, seed: i64, workers: usize, estimates: &mut [Estimate])
     crate::neighbors::mark(model, &neighbor, estimates);
     let mut assignments: Vec<_> = neighbor.into_iter().map(|p| p.outcomes).collect();
     assignments.extend(crate::proof::witnesses(model, &cells, estimates));
-    report("witnesses");
+    report(
+        "witnesses",
+        serde_json::json!({"assignments":assignments.len(),"neighborhood_budget":budget,
+        "cells":crate::logging::cell_counts(estimates)}),
+    );
     let recycled = if enabled("RARE_POSITION_RECYCLE_PROOF_WORK") {
         (1000 * proofs).min(4000)
     } else {
@@ -487,21 +521,38 @@ pub fn run(model: &Model, seed: i64, workers: usize, estimates: &mut [Estimate])
         crate::tilt::run(model, &cells, &bounds, seed, workers, estimates, recycled);
     witnesses += found;
     work += spent;
-    report("point_tilt");
+    report(
+        "point_tilt",
+        serde_json::json!({"accepted":found,"work":spent,"recycled_draws":recycled,
+        "cells":crate::logging::cell_counts(estimates)}),
+    );
     crate::neighbors::walk(model, &cells, &assignments, estimates);
-    report("neighbor_walk");
+    report(
+        "neighbor_walk",
+        serde_json::json!({"cells":crate::logging::cell_counts(estimates)}),
+    );
     let (found, spent) = crate::rescue::peers(model, &bounds, seed, workers, estimates);
     witnesses += found;
     work += spent;
-    report("peers");
+    report(
+        "peers",
+        serde_json::json!({"accepted":found,"work":spent,"cells":crate::logging::cell_counts(estimates)}),
+    );
     let (found, spent) = crate::rescue::domains(model, &bounds, seed, workers, estimates);
     witnesses += found;
     work += spent;
-    report("domains");
+    report(
+        "domains",
+        serde_json::json!({"accepted":found,"work":spent,"cells":crate::logging::cell_counts(estimates)}),
+    );
     if witnesses > 0 {
         let mut matrix: Vec<_> = estimates.iter().map(|e| e.probability).collect();
         if !crate::pool::balance(&mut matrix, model.n) {
             estimates.clone_from_slice(&baseline);
+            report(
+                "reconcile",
+                serde_json::json!({"rolled_back":true,"cells":crate::logging::cell_counts(estimates)}),
+            );
             return work;
         }
         for (e, p) in estimates.iter_mut().zip(matrix) {
@@ -512,5 +563,9 @@ pub fn run(model: &Model, seed: i64, workers: usize, estimates: &mut [Estimate])
             e.probability = p;
         }
     }
+    report(
+        "reconcile",
+        serde_json::json!({"rolled_back":false,"cells":crate::logging::cell_counts(estimates)}),
+    );
     work
 }

@@ -33,8 +33,40 @@ RUST_ODDS_PROFILE=1 odds-rust/target/release/golaberto-odds estimate \
   REQUEST.json /tmp/odds.json 808 4
 ```
 
-`bench` repeats complete requests and reports a median. The profiling toggle
-prints timings for the search stages.
+`bench` repeats complete requests and reports a median.
+
+## Timing logs
+
+Request and stage logs are enabled by default and written as JSON lines to
+stderr. Each record includes a Unix timestamp in milliseconds, a request ID,
+and cumulative request wall time. Estimator records also include the group
+and seed, making a slow run reproducible.
+
+The stages include setup, the initial scout, pool MC, point PMFs, the matched
+matrix, jackknife uncertainty, point proofs, initial conditioning, guided and
+extra search, witnesses, point tilts, neighborhood walk, peer/domain rescues,
+and reconciliation. Stage records report `elapsed_ms`; enclosing `pool` and
+`search` totals include their sub-stages, so do not add parent and child times.
+The completion record reports positive/zero cells, certified impossible zeros,
+reachable zeros without estimates, unresolved zeros, and modeled pool/search
+work. Work units are not a count of ordinary MC seasons and exclude the
+initial scout and constraint proof nodes.
+
+HTTP additionally reports request reading/JSON decoding, response encoding,
+writing, status, byte counts, and `http_total_ms`. This total begins when the
+connection is accepted and includes reading and writing. It excludes time
+waiting to be accepted while an earlier serial request runs. Estimator
+`total_ms` covers calculation and response construction, excluding JSON and
+network I/O. All durations are wall time, not summed CPU time across workers.
+
+```sh
+odds-rust/target/release/golaberto-odds serve 127.0.0.1:6578 \
+  2> /tmp/rust-odds.log
+```
+
+Use `RUST_ODDS_LOG=0` to disable these request/stage logs for benchmarks.
+The CLI's compact timing summary remains available. `RUST_ODDS_PROFILE=1`
+also enables logs, including when the quiet toggle is set.
 
 ## Local HTTP adapter
 

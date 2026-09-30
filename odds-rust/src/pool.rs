@@ -1,11 +1,14 @@
 use crate::{
+    logging::RequestLog,
     model::{Key, Model},
     rng::{derive, Rng},
 };
 use serde::Serialize;
+use serde_json::json;
 use std::{
     collections::BTreeMap,
     sync::atomic::{AtomicUsize, Ordering},
+    time::Instant,
 };
 
 #[derive(Clone, Serialize, Default)]
@@ -385,26 +388,68 @@ pub fn work_per_sample(model: &Model) -> u64 {
     }
 }
 pub fn production(model: &Model, seed: i64, workers: usize) -> Vec<Estimate> {
+    production_logged(model, seed, workers, None)
+}
+pub fn production_logged(
+    model: &Model,
+    seed: i64,
+    workers: usize,
+    log: Option<&RequestLog>,
+) -> Vec<Estimate> {
     let samples = 100000;
+    let phase = Instant::now();
     let (scout, parts) = batched_scout(model, samples, derive(seed, "pooled-point-scout"), workers);
+    if let Some(log) = log {
+        log.stage(
+            "pool.mc",
+            phase,
+            json!({"samples":samples,"batches":10,"workers":workers,
+            "work":samples as u64 * work_per_sample(model),
+            "stream_seed":derive(seed,"pooled-point-scout")}),
+        );
+    }
+    let phase = Instant::now();
     let mut estimates = Vec::new();
     let work = work_per_sample(model) * samples as u64;
     let bounds = Bounds::new(model);
     let pmfs = point_pmfs(model);
+    let mut fallback_reason = if pmfs.is_none() {
+        Some("unsupported_point_pmfs")
+    } else {
+        None
+    };
+    if let Some(log) = log {
+        log.stage(
+            "pool.point_pmfs",
+            phase,
+            json!({"supported":pmfs.is_some()}),
+        );
+    }
+    let phase = Instant::now();
     let mut matrix = pmfs
         .as_ref()
         .map(|pmfs| matched(model, &scout, pmfs, &bounds));
     if let Some(m) = &mut matrix {
         if !balance(m, model.n) {
             matrix = None;
+            fallback_reason = Some("invalid_balanced_matrix");
         }
     }
+    if let Some(log) = log {
+        log.stage(
+            "pool.matched_matrix",
+            phase,
+            json!({"matched":matrix.is_some()}),
+        );
+    }
+    let phase = Instant::now();
     let leaveout = if let (Some(pmfs), Some(_)) = (&pmfs, &matrix) {
         let mut matrices = Vec::new();
         for part in parts {
             let mut m = matched(model, &scout.subtract(&part), pmfs, &bounds);
             if !balance(&mut m, model.n) {
                 matrix = None;
+                fallback_reason = Some("invalid_jackknife_matrix");
                 break;
             }
             matrices.push(m);
@@ -413,6 +458,15 @@ pub fn production(model: &Model, seed: i64, workers: usize) -> Vec<Estimate> {
     } else {
         Vec::new()
     };
+    if let Some(log) = log {
+        log.stage("pool.jackknife", phase, json!({"batches":leaveout.len()}));
+        if let Some(reason) = fallback_reason {
+            log.event(
+                "rust_odds_fallback",
+                json!({"design":"plain_mc","reason":reason}),
+            );
+        }
+    }
     for t in 0..model.n {
         for r in 0..model.n {
             let index = t * model.n + r;
