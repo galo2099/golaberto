@@ -3,7 +3,7 @@
 <% omit_comments = false if omit_comments.nil? %>
 <% omit_popup = false if omit_popup.nil? %>
 <% show_country = false if show_country.nil? %>
-<% cache [ "v12",
+<% cache [ "v13",
            I18n.locale,
            digest_cache_key(group.teams),
            group,
@@ -174,7 +174,6 @@
                 }
                 item.cell.css("background-color", GolabertoOdds.backgroundColor(item.value, bgColor, highestOdds));
                 item.cell.css("color", GolabertoOdds.textColor(item.value, bgColor, highestOdds));
-                item.cell.css("text-shadow", GolabertoOdds.textShadow(item.value, bgColor, highestOdds));
               });
             }
           });
@@ -305,7 +304,7 @@
                            "data-odds-array": (t[0].odds || []).to_json,
                            title: odds_title(first_odds),
                            class: "odds odds-value",
-                           style: "background-color: #{odds_background_color(first_odds, first_color, highest_initial_odds)}; color: #{odds_text_color(first_odds, first_color, highest_initial_odds)}; text-shadow: #{odds_text_shadow(first_odds, first_color, highest_initial_odds)}" %>
+                           style: "background-color: #{odds_background_color(first_odds, first_color, highest_initial_odds)}; color: #{odds_text_color(first_odds, first_color, highest_initial_odds)}" %>
          <% end %>
        </tr>
      <% end %>

@@ -81,7 +81,5 @@ class OddsFormattingTest < Minitest::Test
     assert_equal 'white', @view.odds_text_color(25, 'black', 25)
     assert_equal 'inherit', @view.odds_text_color(10, 'dimgray', 25)
     assert_equal 'white', @view.odds_text_color(11, 'dimgray', 25)
-    assert_equal '0.5px 0 #fff, -0.5px 0 #fff, 0 0.5px #fff, 0 -0.5px #fff', @view.odds_text_shadow(10, 'dimgray', 25)
-    assert_equal '0.5px 0 #222, -0.5px 0 #222, 0 0.5px #222, 0 -0.5px #222', @view.odds_text_shadow(11, 'dimgray', 25)
   end
 end

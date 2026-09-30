@@ -66,12 +66,6 @@
       return darkBackground ? "white" : "inherit";
     },
 
-    textShadow: function(value, zoneColor, maximum) {
-      var outline = this.textColor(value, zoneColor, maximum) === "white" ? "#222" : "#fff";
-      return "0.5px 0 " + outline + ", -0.5px 0 " + outline +
-        ", 0 0.5px " + outline + ", 0 -0.5px " + outline;
-    },
-
     zoneValue: function(odds, positions) {
       var value = positions.reduce(function(sum, pos) {
         var probability = odds[Number(pos) - 1];
