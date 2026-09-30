@@ -49,6 +49,7 @@ func logRarePositionRequestEnvironment() {
 		"RARE_POSITION_POINT_TILT_GAP_RESCUE",
 		"RARE_POSITION_POINT_TILT_UNDECIDED_GAP",
 		"RARE_POSITION_POINT_TILT_CROSSCHECK",
+		"RARE_POSITION_DIRECTIONAL_PEER_RESCUE",
 		"RARE_POSITION_NEIGHBORHOOD_SEARCH",
 		"RARE_POSITION_CROSS_TEAM_WITNESS",
 		"RARE_POSITION_DIVERSIFIED_IS",
@@ -1551,9 +1552,11 @@ func searchAndMergeRarePositions(
 	normalPositionCounts map[int][]int,
 	teamOdds []OddsType,
 	normalSamples int,
+	seed int64,
+	seedSource string,
 ) map[int]map[int]ProductionEstimate {
 	estimates := runRarePositionSearchEvaluationProduction(group, campaign, table, sortOrder,
-		normalPositionCounts, teamOdds, normalSamples)
+		normalPositionCounts, teamOdds, normalSamples, seed, seedSource)
 	if matchedPointPoolEnabled() {
 		for _, tg := range group.Team_groups {
 			if cells := estimates[tg.Team_id]; len(cells) == len(group.Team_groups) {
@@ -1701,9 +1704,10 @@ func summarizePlainProductionCounts(counts map[int][]int, samples int, work int6
 
 func runRarePositionSearchEvaluationProduction(group *GroupType, campaign []*TeamCampaign,
 	table *Table, sortOrder []SortType, normalPositionCounts map[int][]int,
-	teamOdds []OddsType, normalSamples int) map[int]map[int]ProductionEstimate {
-	seed, seedSource := rarePositionSeed()
+	teamOdds []OddsType, normalSamples int, seed int64, seedSource string) map[int]map[int]ProductionEstimate {
 	if matchedPointPoolEnabled() {
+		log.Printf("rare-position-rng: group=%d seed=%d stream_seed=%d source=%s phase=matched_pool",
+			group.Id, seed, deriveRarePositionSeed(seed, "pooled-point-scout"), seedSource)
 		return runMatchedPointPoolProduction(group, campaign, table, sortOrder, seed)
 	}
 	if diversifiedIsEnabled() {

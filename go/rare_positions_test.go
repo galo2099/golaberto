@@ -1,14 +1,54 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"log"
 	"math"
 	"math/rand"
+	"os"
 	"reflect"
 	"sort"
 	"strings"
 	"testing"
 )
+
+func TestRarePositionTimeSeedIsReusedForMatchedPool(t *testing.T) {
+	t.Setenv("RARE_POSITION_RANDOM_SEED", "")
+	t.Setenv("RARE_POSITION_MATCHED_POINT_POOL", "1")
+	t.Setenv("RARE_POSITION_IMPORTANCE_SAMPLING", "0")
+	t.Setenv("RARE_POSITION_BENCHMARK_ITERATIONS", "10")
+	data, err := os.ReadFile("testdata/rare_position_benchmarks/group-99001-tight.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var group GroupType
+	if err := json.Unmarshal(data, &group); err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	previous := log.Writer()
+	log.SetOutput(&output)
+	defer log.SetOutput(previous)
+	_ = group.calculate_odds()
+	seeds := make(map[string]string)
+	for _, line := range strings.Split(output.String(), "\n") {
+		for _, phase := range []string{"scout", "matched_pool"} {
+			if !strings.Contains(line, "phase="+phase) {
+				continue
+			}
+			for _, field := range strings.Fields(line) {
+				if strings.HasPrefix(field, "seed=") {
+					seeds[phase] = strings.TrimPrefix(field, "seed=")
+					break
+				}
+			}
+		}
+	}
+	if seeds["scout"] == "" || seeds["scout"] != seeds["matched_pool"] {
+		t.Fatalf("scout and matched pool did not share one time seed: %v", seeds)
+	}
+}
 
 func TestRarePositionConfiguredSeedIsDeterministic(t *testing.T) {
 	t.Setenv("RARE_POSITION_RANDOM_SEED", "1001")
@@ -319,7 +359,7 @@ func TestRareSearchKeepsScoutRowAndDoesNotPoolFreshPlainProduction(t *testing.T)
 		{team: &TeamOdds{Pos: []float64{0.8, 0.2}}}}
 	before := [][]float64{append([]float64(nil), teamOdds[0].team.Pos...), append([]float64(nil), teamOdds[1].team.Pos...)}
 	results := searchAndMergeRarePositions(group, campaign, table, []SortType{PT, GD, GF, BIAS},
-		counts, teamOdds, ScoutIterations)
+		counts, teamOdds, ScoutIterations, 1001, "test")
 	for teamIndex := range teamOdds {
 		for pos := range teamOdds[teamIndex].team.Pos {
 			if teamOdds[teamIndex].team.Pos[pos] != before[teamIndex][pos] {

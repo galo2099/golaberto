@@ -781,7 +781,7 @@ func (group *GroupType) calculate_odds() map[string]interface{} {
 	var rarePositionEstimates map[int]map[int]ProductionEstimate
 	if rarePositionSamplingEnabled() {
 		rarePositionEstimates = searchAndMergeRarePositions(group, campaign, table,
-			sort_order, normalPositionCounts, team_odds, numIterations)
+			sort_order, normalPositionCounts, team_odds, numIterations, seed, seedSource)
 	}
 
 	json_team_odds := make(map[int]*TeamOdds, len(team_odds))

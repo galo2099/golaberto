@@ -164,7 +164,7 @@ func TestMatchedPointPoolReplacesScoutMatrix(t *testing.T) {
 		teamOdds[table.Query(uint32(team.Team_id))] = OddsType{team: &TeamOdds{Pos: []float64{1, 0, 0}}}
 		counts[team.Team_id] = []int{1000, 0, 0}
 	}
-	estimates := searchAndMergeRarePositions(group, campaign, table, order, counts, teamOdds, 1000)
+	estimates := searchAndMergeRarePositions(group, campaign, table, order, counts, teamOdds, 1000, 1001, "configured")
 	for _, team := range group.Team_groups {
 		id := team.Team_id
 		for rank, got := range teamOdds[table.Query(uint32(id))].team.Pos {

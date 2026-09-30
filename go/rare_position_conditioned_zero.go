@@ -951,6 +951,10 @@ func runConditionedZeroSearch(group *GroupType, campaign []*TeamCampaign, table 
 		log.Printf("rare-position-neighborhood-walk: group=%d seeds=%d candidates=%d proofs=%d",
 			group.Id, len(assignments), attempts, proofs)
 	}
+	peerWitnesses, peerWork := runDirectionalPeerRescue(group, campaign, table,
+		sortOrder, seed, bounds, samplers, estimates)
+	witnesses += peerWitnesses
+	totalWork += peerWork
 	if witnesses == 0 {
 		return 0, totalWork
 	}
