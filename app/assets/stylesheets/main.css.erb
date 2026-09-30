@@ -225,13 +225,15 @@ span.game_odds {
   width: 1ch;
   height: 1.25em;
   white-space: nowrap;
+  /* Balance the space between the narrow decimal point and the full-width digit. */
+  --odds-marker-center: 35%;
 }
 .odds-compact-count-digit
 {
   position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-80%);
+  bottom: 0.55em;
+  left: var(--odds-marker-center);
+  transform: translateX(-50%);
   font-size: 0.9em;
   font-weight: normal;
   line-height: 1;
@@ -239,15 +241,17 @@ span.game_odds {
 .odds-compact-count-two-digits
 {
   font-size: 0.6em;
-  transform: translateX(-80%) scaleX(0.82);
+  bottom: 0.825em;
+  transform: translateX(-50%) scaleX(0.82);
 }
 .odds-compact-count-dots
 {
   position: absolute;
-  bottom: 0;
-  left: 50%;
+  bottom: 0.45em;
+  left: var(--odds-marker-center);
   transform: translateX(-50%);
-  font-weight: 700;
+  font-size: 0.7em;
+  font-weight: normal;
   line-height: 1;
 }
 .odds-compact-fallback
