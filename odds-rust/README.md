@@ -1,4 +1,4 @@
-# Rust finishing-position estimator
+# Rust odds and ratings service
 
 Native Rust implementation of the current Go **matched point pool** estimator.
 It includes the initial game-importance scout, 100,000-season pool, exact point
@@ -10,6 +10,11 @@ domains, reduced fixtures, and final matrix reconciliation.
 The executable does not call Go and does not read the golden probabilities.
 Go is used only by the offline comparison harness. Sampling budgets and
 acceptance thresholds, including the 35% relative-SE gate, are preserved.
+
+The native service also replaces the active Go `/spi`, `/eval`, and
+`/historic_ratings` endpoints. It does not run or proxy Go. The deprecated Go
+`/player_ratings` endpoint is intentionally omitted; the independent `stats/`
+Rust service and Rails player-rating route on port 6578 remain in place.
 
 ## Build and run
 
@@ -35,6 +40,30 @@ RUST_ODDS_PROFILE=1 odds-rust/target/release/golaberto-odds estimate \
 
 `bench` repeats complete requests and reports a median.
 
+## Odds memory
+
+Completed conditioning DP layers use compact immutable storage with their
+original iteration order. One-team layers have direct point-total lookups;
+larger layers use a compact index. Obsolete events are released before deeper
+search allocates its replacements. Sampling budgets and estimates are unchanged.
+
+The HTTP service uses one calculation worker with four estimator cores, four
+body readers and a bounded request queue. Response I/O stays on the readers,
+so slow uploads or downloads do not occupy the calculator.
+
+For an allocation trace of a full four-worker calculation:
+
+```sh
+RUST_ODDS_PROFILE=1 cargo run --release --locked \
+  --manifest-path odds-rust/Cargo.toml --example profile_memory -- REQUEST.json \
+  > /tmp/odds-heap.csv 2> /tmp/odds-heap-stages.log
+```
+
+The optional diagnostic counts requested live/peak Rust heap bytes and emits a
+CSV trace. It adds allocation-counter overhead; benchmark the ordinary service
+binary for latency and process RSS. Measurements and reproduction are documented
+in `experiments/rare_positions/2026-09-30-rust-odds-memory.md`.
+
 ## Timing logs
 
 Request and stage logs are enabled by default and written as JSON lines to
@@ -54,13 +83,13 @@ initial scout and constraint proof nodes.
 
 HTTP additionally reports request reading/JSON decoding, response encoding,
 writing, status, byte counts, and `http_total_ms`. This total begins when the
-connection is accepted and includes reading and writing. It excludes time
-waiting to be accepted while an earlier serial request runs. Estimator
+HTTP server dispatches the parsed request and includes body reading, calculation
+queue time, and response writing. It excludes earlier TCP/header parsing time. Estimator
 `total_ms` covers calculation and response construction, excluding JSON and
 network I/O. All durations are wall time, not summed CPU time across workers.
 
 ```sh
-odds-rust/target/release/golaberto-odds serve 127.0.0.1:6578 \
+odds-rust/target/release/golaberto-odds serve 127.0.0.1:6577 \
   2> /tmp/rust-odds.log
 ```
 
@@ -68,13 +97,13 @@ Use `RUST_ODDS_LOG=0` to disable these request/stage logs for benchmarks.
 The CLI's compact timing summary remains available. `RUST_ODDS_PROFILE=1`
 also enables logs, including when the quiet toggle is set.
 
-## Local HTTP adapter
+## HTTP service and Go replacement
 
 ```sh
 RARE_POSITION_RANDOM_SEED=808 \
-  odds-rust/target/release/golaberto-odds serve 127.0.0.1:6578
+  odds-rust/target/release/golaberto-odds serve 127.0.0.1:6577
 curl -H 'Content-Type: application/json' --data-binary @REQUEST.json \
-  http://127.0.0.1:6578/odds
+  http://127.0.0.1:6577/odds
 ```
 
 `POST /odds` preserves `team_odds`, `game_importance`, and
@@ -84,10 +113,62 @@ score/bias fields are accepted. `GET /health` is available. HTTP requests run
 serially with up to four estimator workers. Without a configured seed, HTTP
 uses the current time and logs the seed.
 
-The existing Rails/Go service routing is unchanged. This adapter implements
-only `/odds`; Go still provides `/spi` and the rating endpoints. Route `/odds`
-separately when evaluating a deployment. The adapter expects Content-Length
-requests, as sent by the current Rails client.
+Running the executable without arguments also starts the service at
+`127.0.0.1:6577`. For a deployment trial, use an explicit unused port, then
+replace the Go process on port 6577 after validation. Do not run both processes
+on the same address. The Rails odds, SPI and evaluation call sites already use
+6577 and require no request/response changes. Keep the separate `stats` process
+on 6578 for player ratings.
+
+| Endpoint | Request | Response and side effects |
+|---|---|---|
+| `POST /odds` | Existing group JSON | Existing odds, importance and rare-position metadata |
+| `POST /spi` | `games`, `ratings` | Team ID map with `Id`, `Offense`, `Defense`, `Team`; inactive teams are `null` |
+| `POST /eval` | `games`, `ratings`, `phases_to_eval` | `rps`, `team_rps`; no database writes |
+| `POST /historic_ratings` | `games`, `ratings` | Upserts `historical_ratings`, then returns `ratings`, `offense`, `defense` as empty objects and `dates` as an empty array, matching Go |
+| `GET /health` | None | `{"status":"ok"}` without a database connection |
+
+Rating requests accept the Rails lowercase field names, Go field names, and
+null rating numbers. Games must be chronological and every participating team
+must appear in `ratings`. Empty SPI requests return null ratings; evaluation
+with no selected games returns HTTP 400. Invalid input returns JSON HTTP 400;
+database failures return HTTP 500 and are logged without exposing connection
+configuration to the caller. Unknown paths, including `/player_ratings`, return
+404; non-POST methods on application endpoints return 405.
+
+Content-Length and chunked request bodies are supported, including rating
+histories larger than the old adapter's 16 MiB limit. The new body limit is
+128 MiB. Four HTTP workers and a bounded queue accept requests; calculation
+requests run one at a time with up to four estimator CPU workers. Health checks
+are served independently. A full queue returns 503. HTTP totals include queue
+time; CLI calculation timing does not.
+
+Only `/historic_ratings` requires MySQL. Set `DATABASE_URL` to a `mysql://` or
+Rails-compatible `mysql2://` URL pointing to the same database as Rails.
+If unset, the legacy development default
+is `mysql://root@127.0.0.1:3306/GolAberto_development`. Production must set this
+explicitly. Database credentials belong in the process environment, not the
+repository. Historical updates use parameterized batches and a transaction;
+the table must use a transactional engine such as InnoDB. Numeric persistence
+retains Go's six fractional digits.
+
+`TeamController#historic_ratings` recognizes the service-persisted empty series
+and redirects without attempting a second, empty SQL insert. It still accepts
+nonempty series from older implementations and checks HTTP failures before
+decoding the response.
+
+For read-only comparisons and offline computation:
+
+```sh
+odds-rust/target/release/golaberto-odds spi RATINGS_REQUEST.json /tmp/spi.json
+odds-rust/target/release/golaberto-odds eval RATINGS_REQUEST.json /tmp/eval.json
+odds-rust/target/release/golaberto-odds historic RATINGS_REQUEST.json /tmp/history.json
+```
+
+The `historic` CLI exports computed rows and does **not** write MySQL.
+The implementation preserves the legacy fitting formulas, convergence policy,
+evaluation advantage convention, day-of-month refit policy, four-year history
+window and historical sampling schedule.
 
 ## Configuration and scope
 
@@ -175,6 +256,11 @@ cargo test --release --locked --manifest-path odds-rust/Cargo.toml
 cargo check --locked --manifest-path odds-rust/Cargo.toml
 cargo fmt --manifest-path odds-rust/Cargo.toml -- --check
 
+# Explicit DB check: all writes use a connection-local temporary table.
+MYSQL_TEST_URL=mysql://root@127.0.0.1:3306/GolAberto_development \
+  cargo test --release --locked --manifest-path odds-rust/Cargo.toml \
+  --test database -- --ignored
+
 (cd go && GOMAXPROCS=4 go test -c -o /tmp/golaberto-go-baseline.test .)
 python3 experiments/rare_positions/compare_rust.py \
   --go /tmp/golaberto-go-baseline.test \
@@ -191,3 +277,13 @@ The `oracle` CLI mode and `TestRustEstimatorOracle` Go test compare intermediate
 RNG, MC, point-PMF, pool, and conditional-kernel results. See the experiment
 report under `experiments/rare_positions/2026-09-30-rust.md` for measured results
 and the limits of the quality comparison.
+
+The active endpoint replacement has a Go differential oracle and paired
+comparison harness. See `experiments/rare_positions/2026-09-30-rust-service.md`
+for results and commands. The oracle's historical writes also use a temporary
+table; neither comparison modifies application rating data.
+
+The service branch was merged with the enabled reachability improvements;
+[merge verification](../experiments/rare_positions/2026-09-30-rust-service-merge.md)
+records response equivalence, memory reductions and measured latency increases
+against that current Rust baseline.

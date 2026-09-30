@@ -13,15 +13,35 @@ fn main() {
 }
 fn run() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = env::args().collect();
-    if args.get(1).is_some_and(|a| a == "serve") {
-        let address = args.get(2).map(String::as_str).unwrap_or("127.0.0.1:6578");
+    if args.len() == 1 || args.get(1).is_some_and(|a| a == "serve") {
+        let address = args.get(2).map(String::as_str).unwrap_or("127.0.0.1:6577");
         return golaberto_odds::http::serve(address);
     }
     if args.len() < 3 {
         return Err(
-            "usage: golaberto-odds estimate|oracle REQUEST.json [OUTPUT.json] [SEED] [WORKERS]"
+            "usage: golaberto-odds serve [ADDRESS] | estimate|oracle|bench|spi|eval|historic REQUEST.json [OUTPUT.json] [SEED] [WORKERS]"
                 .into(),
         );
+    }
+    if ["spi", "eval", "historic"].contains(&args[1].as_str()) {
+        let request: golaberto_odds::ratings::Request =
+            serde_json::from_slice(&fs::read(&args[2])?)?;
+        request.validate()?;
+        let result = match args[1].as_str() {
+            "spi" => serde_json::to_value(golaberto_odds::ratings::spi(
+                &request.games,
+                &request.initial(),
+            )?)?,
+            "eval" => serde_json::to_value(golaberto_odds::ratings::evaluate(&request)?)?,
+            _ => serde_json::to_value(golaberto_odds::ratings::historical(&request)?)?,
+        };
+        let encoded = serde_json::to_vec(&result)?;
+        if let Some(path) = args.get(3) {
+            fs::write(path, encoded)?;
+        } else {
+            println!("{}", String::from_utf8(encoded)?);
+        }
+        return Ok(());
     }
     let request: Request = serde_json::from_slice(&fs::read(&args[2])?)?;
     if args[1] == "estimate" {
@@ -59,7 +79,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     let model = Model::new(request)?;
     let start = Instant::now();
     if args[1] != "oracle" {
-        return Err("unknown mode; expected estimate, bench, oracle, or serve".into());
+        return Err(
+            "unknown mode; expected estimate, bench, oracle, spi, eval, historic, or serve".into(),
+        );
     }
     let mut rng = Rng::new(808);
     let floats: Vec<_> = (0..1000).map(|_| rng.float()).collect();

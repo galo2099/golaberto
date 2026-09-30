@@ -25,7 +25,13 @@ class TeamController < ApplicationController
     req = Net::HTTP::Post.new("/historic_ratings", {'Content-Type' =>'application/json'})
     req.body = Oj.dump(json_map, mode: :compat)
     response = Net::HTTP.new("localhost", 6577).start {|http| http.read_timeout = 300; http.request(req) }
+    response.value
     ratings = ActiveSupport::JSON.decode(response.body)
+    # The service persists historical ratings itself and returns an empty series.
+    if ratings.fetch("ratings").empty?
+      redirect_back(fallback_location: root_path)
+      return
+    end
     sql = "INSERT INTO historical_ratings (team_id,off_rating,def_rating,rating,measure_date) VALUES ";
     dates = ratings["dates"]
     ratings["ratings"].each do |k,v|

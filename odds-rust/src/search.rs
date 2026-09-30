@@ -81,6 +81,7 @@ pub fn initial(
     };
     if event.mass <= 0. {
         search.impossible = event.terminals.is_empty();
+        search.event = None;
         return search;
     }
     let samples = if event.mass < 1e-7 || event.mass > 1e-3 {
@@ -96,6 +97,11 @@ pub fn initial(
     result.blockers = event.teams.len() - 1;
     search.witness = result.witness.clone();
     search.result = result;
+    // Guided and extra searches only revisit zero-hit cells. Completed cells
+    // need their estimate and witness, not the large conditioning DP layers.
+    if search.result.hits > 0 {
+        search.event = None;
+    }
     search
 }
 pub fn policy(
@@ -180,6 +186,7 @@ fn guided(
             results[i].event = Some(event.clone());
             if event.mass <= 0. {
                 results[i].impossible = event.terminals.is_empty();
+                results[i].event = None;
                 continue;
             }
             if pilot.weighted && pilot.hits >= 20 && pilot.ess.is_finite() {
@@ -240,6 +247,7 @@ fn guided(
             result.work += search.result.work;
             result.blockers = search.event.as_ref().unwrap().teams.len() - 1;
             search.result = result;
+            search.event = None;
         } else {
             search.result.work += result.work;
         }
@@ -444,6 +452,11 @@ pub fn run_logged(
     );
     guided(model, &bounds, &pmfs, &cells, seed, workers, &mut results);
     report("guided", serde_json::json!({}));
+    // Extra search builds fresh conditioning events from the result metadata.
+    // Release the earlier layers before those larger refinements are allocated.
+    for search in &mut results {
+        search.event = None;
+    }
     extra(
         model,
         &bounds,

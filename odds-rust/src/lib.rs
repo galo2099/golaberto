@@ -1,5 +1,6 @@
 pub mod api;
 pub mod conditioned;
+pub mod database;
 pub mod domains;
 pub mod goal_completion;
 pub mod http;
@@ -9,6 +10,7 @@ pub mod model;
 pub mod neighbors;
 pub mod pool;
 pub mod proof;
+pub mod ratings;
 pub mod reachability;
 pub mod rescue;
 pub mod rng;
