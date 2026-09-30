@@ -44,9 +44,10 @@ or guarantee a low-variance probability estimate.
 
 Rarity alone does not determine simulation cost. More forced results can
 make a rarer cell cheaper to estimate: multiply their probabilities exactly
-and sample only the conditional remainder. That constant probability factor
-scales the estimate and its standard error equally, so it does not increase
-relative error or reduce ESS.
+and sample only the conditional remainder. Within a fixed target-assignment
+case, that constant probability factor scales the estimate and its standard
+error equally, so it does not increase relative error or reduce ESS. Pooling
+different conditioning cases can still introduce variation in their weights.
 
 A diagnostic sampled 1,000 target-only fixture assignments for each rank,
 then propagated points/wins domains for the 93 rival fixtures. This bypasses
