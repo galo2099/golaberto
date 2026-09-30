@@ -16,8 +16,13 @@ module OddsFormattingHelper
   def odds_text_color(percentage, zone_color, maximum)
     strength = odds_color_strength(percentage, maximum)
     dark_background = (zone_color == "black" && strength >= 45) ||
-                      (zone_color == "dimgray" && strength >= 88)
+                      (zone_color == "dimgray" && strength >= 65)
     dark_background ? "white" : "inherit"
+  end
+
+  def odds_text_shadow(percentage, zone_color, maximum)
+    outline = odds_text_color(percentage, zone_color, maximum) == "white" ? "#222" : "#fff"
+    "0.5px 0 #{outline}, -0.5px 0 #{outline}, 0 0.5px #{outline}, 0 -0.5px #{outline}"
   end
 
   def odds_color_strength(percentage, maximum)

@@ -62,8 +62,14 @@
     textColor: function(value, zoneColor, maximum) {
       var strength = colorStrength(value, maximum);
       var darkBackground = (zoneColor === "black" && strength >= 45) ||
-        (zoneColor === "dimgray" && strength >= 88);
+        (zoneColor === "dimgray" && strength >= 65);
       return darkBackground ? "white" : "inherit";
+    },
+
+    textShadow: function(value, zoneColor, maximum) {
+      var outline = this.textColor(value, zoneColor, maximum) === "white" ? "#222" : "#fff";
+      return "0.5px 0 " + outline + ", -0.5px 0 " + outline +
+        ", 0 0.5px " + outline + ", 0 -0.5px " + outline;
     },
 
     zoneValue: function(odds, positions) {

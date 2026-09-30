@@ -24,8 +24,10 @@ assert.equal(odds.backgroundColor(10, "dimgray", 57), "rgb(167, 167, 167)");
 assert.equal(odds.backgroundColor(57, "dimgray", 57), "dimgray");
 assert.equal(odds.textColor(5, "black", 25), "inherit");
 assert.equal(odds.textColor(5.0625, "black", 25), "white");
-assert.equal(odds.textColor(19, "dimgray", 25), "inherit");
-assert.equal(odds.textColor(20, "dimgray", 25), "white");
+assert.equal(odds.textColor(10, "dimgray", 25), "inherit");
+assert.equal(odds.textColor(11, "dimgray", 25), "white");
+assert.equal(odds.textShadow(10, "dimgray", 25), "0.5px 0 #fff, -0.5px 0 #fff, 0 0.5px #fff, 0 -0.5px #fff");
+assert.equal(odds.textShadow(11, "dimgray", 25), "0.5px 0 #222, -0.5px 0 #222, 0 0.5px #222, 0 -0.5px #222");
 
 const teamOdds = [[0.5, 0.1], [0.25, 0.4]];
 const firstZoneOdds = teamOdds.map(function(row) { return odds.zoneValue(row, [1]); });
