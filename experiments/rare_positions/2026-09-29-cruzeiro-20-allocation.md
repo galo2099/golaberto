@@ -40,6 +40,43 @@ Simpler necessary constraints can make a reachability witness easier to
 construct. They do not make the required fixture combinations more probable
 or guarantee a low-variance probability estimate.
 
+## Forced-fixture measurements
+
+Rarity alone does not determine simulation cost. More forced results can
+make a rarer cell cheaper to estimate: multiply their probabilities exactly
+and sample only the conditional remainder. That constant probability factor
+scales the estimate and its standard error equally, so it does not increase
+relative error or reduce ESS.
+
+A diagnostic sampled 1,000 target-only fixture assignments for each rank,
+then propagated points/wins domains for the 93 rival fixtures. This bypasses
+the production cache limit to inspect the constraints themselves. At the same
+50-point total:
+
+| Rank | Sampled feasible target assignments | Forced rival fixtures |
+|---|---:|---:|
+| 19th | 68 | 0–9 |
+| 20th | 83 | 18 in every case |
+
+The 20th-place assignments therefore have only 75 unresolved rival fixtures.
+At lower target totals, some assignments have no individually fixed results:
+constraints such as a rival needing most of its wins can still admit several
+choices for each particular fixture. At 51 points, all 530 sampled assignments
+for 20th were rejected by propagation before rival simulation.
+
+There is an execution limitation: the compacted loop requires both guide
+coefficients to be positive. At a final rank the below coefficient is zero,
+so even a propagated-domain draw retains the original loop. Its domains still
+filter outcomes, but its forced fixtures are not removed from that loop.
+This guard preserves the original zero-score rejection behavior and seeded
+stream. Safely validating and compacting forced fixtures with zero guide
+coefficients is another useful optimization experiment.
+
+Thus the measured `1e-18` probability is not a reason to assign proportionally
+more draws than an `1e-12` cell. The useful measurements are conditional
+variance/ESS, propagation strength, and cost per draw. Both search allocation
+and compact execution leave potential benefits unused in this case.
+
 ## Diagnostic targeted searches
 
 Using the existing sampler, target-only event, rank tilt 3 and point tilt
