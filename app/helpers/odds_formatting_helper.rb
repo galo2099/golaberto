@@ -1,3 +1,5 @@
+require 'bigdecimal'
+
 module OddsFormattingHelper
   def odds_background_color(percentage, maximum)
     strength = odds_color_strength(percentage, maximum)
@@ -54,6 +56,81 @@ module OddsFormattingHelper
     end
 
     format("%.4f", probability).sub(/\A0\./, ".")
+  end
+
+  def compact_team_odds_parts(percentage)
+    return nil if percentage.nil?
+
+    value = BigDecimal(percentage.to_s)
+    return nil unless value.finite? && value >= 0 && value <= 100
+    return { integer: '0', first: '0', second: '' } if value.zero?
+    return { integer: '100', first: '0', second: '' } if value == 100
+
+    rounded = value.round(2, BigDecimal::ROUND_HALF_UP)
+    if rounded > 0 && rounded < 100
+      integer, fraction = rounded.to_s('F').split('.', 2)
+      digits = (fraction || '').ljust(2, '0')[0, 2]
+      return { integer: integer, first: digits[0], second: digits[1] }
+    end
+
+    if rounded.zero?
+      significant = value.round(1 - value.exponent, BigDecimal::ROUND_HALF_UP)
+      _, digits, _, exponent = significant.split
+      count = -exponent
+      return { fallback: "#{digits[0]}e#{exponent - 1}" } if count > 99
+
+      return { integer: '0', first: compact_odds_count(count), second: digits[0], count: :first }
+    end
+
+    gap = BigDecimal('100') - value
+    # Rounding a halfway gap down rounds the displayed percentage upward.
+    significant = gap.round(1 - gap.exponent, BigDecimal::ROUND_HALF_DOWN)
+    _, digits, _, exponent = significant.split
+    count = -exponent
+    return { fallback: "100 − #{digits[0]}e#{exponent - 1}" } if count > 99
+
+    { integer: '99', first: compact_odds_count(count), second: (10 - digits[0].to_i).to_s, count: :first }
+  end
+
+  def compact_team_odds_text(percentage)
+    parts = compact_team_odds_parts(percentage)
+    return '' if parts.nil?
+
+    parts[:fallback] || "#{parts[:integer]}.#{parts[:first]}#{parts[:second]}"
+  end
+
+  def formatted_compact_team_odds(percentage)
+    parts = compact_team_odds_parts(percentage)
+    return '' if parts.nil?
+    return content_tag(:span, parts[:fallback], class: 'odds-compact-fallback') if parts[:fallback]
+
+    fraction = [:first, :second].map do |slot|
+      text = parts[slot]
+      if parts[:count] == slot
+        visible_count = text[1, 2].to_i.to_s
+        count_class = 'odds-compact-count-digit'
+        count_class += ' odds-compact-count-two-digits' if visible_count.length == 2
+        count = content_tag(:span, visible_count, class: count_class, 'aria-hidden': true)
+        dots = content_tag(:span, '..', class: 'odds-compact-count-dots', 'aria-hidden': true)
+        text = content_tag(:span, count + dots, class: 'odds-compact-count', 'aria-label': text)
+      end
+      content_tag(:span, text, class: 'odds-compact-slot')
+    end
+    content_tag(:span, class: 'odds-compact-number') do
+      content_tag(:span, parts[:integer], class: 'odds-compact-integer') +
+        content_tag(:span, '.', class: 'odds-compact-dot') +
+        content_tag(:span, fraction.join.html_safe, class: 'odds-compact-fraction')
+    end
+  end
+
+  def compact_team_odds_title(percentage)
+    return nil if percentage.nil?
+
+    "#{percentage}%"
+  end
+
+  def compact_odds_count(count)
+    "[#{count.to_s.rjust(2, '0')}]"
   end
 
   def odds_title(percentage)

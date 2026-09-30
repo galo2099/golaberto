@@ -180,7 +180,85 @@ span.game_odds {
 .class_table .odds
 {
   text-align: right;
-  width: 10%;
+  width: 12%;
+}
+.class_table .odds-value
+{
+  text-align: center;
+}
+.odds-compact-number
+{
+  display: inline-flex;
+  width: 6ch;
+  align-items: center;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.odds-compact-integer
+{
+  flex: 0 0 3ch;
+  text-align: right;
+}
+.odds-compact-dot
+{
+  flex: 0 0 1ch;
+  text-align: center;
+}
+.odds-compact-fraction
+{
+  display: inline-flex;
+  flex: 0 0 2ch;
+  min-width: 0;
+  align-items: center;
+}
+.odds-compact-slot
+{
+  display: inline-flex;
+  flex: 0 0 1ch;
+  min-width: 0;
+  justify-content: center;
+}
+.odds-compact-count
+{
+  display: inline-block;
+  position: relative;
+  width: 1ch;
+  height: 1.25em;
+  white-space: nowrap;
+}
+.odds-compact-count-digit
+{
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-80%);
+  font-size: 0.9em;
+  font-weight: normal;
+  line-height: 1;
+}
+.odds-compact-count-two-digits
+{
+  font-size: 0.6em;
+  transform: translateX(-80%) scaleX(0.82);
+}
+.odds-compact-count-dots
+{
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  font-weight: 700;
+  line-height: 1;
+}
+.odds-compact-fallback
+{
+  white-space: nowrap;
+  font-size: 0.85em;
+}
+.odds-compact-legend
+{
+  font-size: 0.75em;
+  margin: 0.2em 0 0.5em;
 }
 .class_table th
 {

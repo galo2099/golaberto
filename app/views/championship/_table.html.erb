@@ -3,7 +3,7 @@
 <% omit_comments = false if omit_comments.nil? %>
 <% omit_popup = false if omit_popup.nil? %>
 <% show_country = false if show_country.nil? %>
-<% cache [ "v14",
+<% cache [ "v21",
            I18n.locale,
            digest_cache_key(group.teams),
            group,
@@ -167,8 +167,8 @@
                   item.cell.text("");
                   item.cell.removeAttr("title");
                 } else {
-                  item.cell.text(GolabertoOdds.fraction(item.value));
-                  item.cell.attr("title", GolabertoOdds.title(item.value, "<%= I18n.locale %>"));
+                  item.cell.html(GolabertoOdds.compactHtml(item.value));
+                  item.cell.attr("title", GolabertoOdds.compactTitle(item.value));
                 }
                 item.cell.css("background-color", GolabertoOdds.backgroundColor(item.value, highestOdds));
                 item.cell.css("color", GolabertoOdds.textColor(item.value, highestOdds));
@@ -296,16 +296,19 @@
            <%= content_tag :td, "", class: "odds_spacing" %>
            <% first_odds = initial_odds[pos - 1] %>
            <%= content_tag :td,
-                           formatted_odds_fraction(first_odds),
+                           formatted_compact_team_odds(first_odds),
                            "data-group-id": group.id,
                            "data-odds-array": (t[0].odds || []).to_json,
-                           title: odds_title(first_odds),
+                           title: compact_team_odds_title(first_odds),
                            class: "odds odds-value",
                            style: "background-color: #{odds_background_color(first_odds, highest_initial_odds)}; color: #{odds_text_color(first_odds, highest_initial_odds)}" %>
          <% end %>
        </tr>
      <% end %>
    </table>
+   <% unless omit_columns[:odds] %>
+     <div class="odds-compact-legend"><%= _("The number above the extra dots counts omitted zeros or nines. Values are rounded; 0.0 and 100.0 denote exact endpoints.") %></div>
+   <% end %>
    <% count = 0 %>
    <% notes.each do |n| %>
      <% count += 1 %>

@@ -2127,3 +2127,6 @@ msgstr "tempo"
 
 msgid "wins"
 msgstr "vitórias"
+
+msgid "The number above the extra dots counts omitted zeros or nines. Values are rounded; 0.0 and 100.0 denote exact endpoints."
+msgstr "O número acima dos pontos adicionais conta zeros ou noves omitidos. Os valores são arredondados; 0.0 e 100.0 indicam extremos exatos."

@@ -69,3 +69,42 @@ assert.equal(odds.fraction(99.99997), "1-3e-7");
 assert.equal(odds.fraction(0.01), ".0001");
 assert.equal(odds.fraction(0.00004321), "4e-7");
 assert.equal(odds.fraction(100), "1.000");
+
+const compactExamples = [
+  [99.98, "99.98"],
+  [99.9999999321, "99.[07]3"],
+  [99.9999999789, "99.[07]8"],
+  [99.9999994, "99.[06]4"],
+  [99.999999905, "99.[07]1"],
+  [99.9999999049, "99.[06]9"],
+  [99.995, "99.[02]5"],
+  [42.35453, "42.35"],
+  [0.0000004, "0.[06]4"],
+  [0.0000000000876, "0.[10]9"],
+  [12, "12.00"],
+  [100, "100.0"],
+  [0, "0.0"],
+  [1.005, "1.01"],
+  [0.005, "0.01"],
+  [0.00000045, "0.[06]5"],
+  [0.00000095, "0.[05]1"],
+  [99.99945, "99.[03]5"],
+  [99.999449999, "99.[03]4"],
+  [99.99999999999999, "99.[13]9"],
+  [1e-100, "0.[99]1"],
+  [1e-101, "1e-101"]
+];
+compactExamples.forEach(function(example) {
+  assert.equal(odds.compactText(example[0]), example[1], String(example[0]));
+});
+assert.equal(odds.compactText(null), "");
+assert.match(odds.compactHtml(0.0000004), /odds-compact-count/);
+assert.match(odds.compactHtml(0.0000004), /\[06\]/);
+function visibleCountDigits(value) {
+  return [...odds.compactHtml(value).matchAll(/class="odds-compact-count-digit(?: odds-compact-count-two-digits)?" aria-hidden="true">(\d+)<\/span>/g)]
+    .map(function(match) { return match[1]; });
+}
+assert.deepEqual(visibleCountDigits(0.0000004), ["6"]);
+assert.deepEqual(visibleCountDigits(0.0000000000876), ["10"]);
+assert.match(odds.compactHtml(0.0000004), /class="odds-compact-count-dots" aria-hidden="true">\.\.<\/span>/);
+assert.equal(odds.compactTitle(0.0000004), "4e-7%");

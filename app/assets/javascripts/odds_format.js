@@ -12,6 +12,54 @@
     return Math.sqrt(Math.min(1, Math.max(0, percentage / highest))) * 100;
   }
 
+  function compactCount(count) {
+    return "[" + String(count).padStart(2, "0") + "]";
+  }
+
+  // Work from the decimal representation so halfway values round upward even
+  // when multiplying their binary floating-point value would cross the tie.
+  function decimalComponents(number) {
+    var match = String(number).match(/^(\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/i);
+    var raw = match[1] + (match[2] || "");
+    var leadingZeros = (raw.match(/^0*/) || [""])[0].length;
+    return {
+      digits: raw.slice(leadingZeros),
+      exponent: match[1].length - leadingZeros - 1 + Number(match[3] || 0)
+    };
+  }
+
+  function roundedCents(number) {
+    var decimal = decimalComponents(number);
+    if (!decimal.digits) return 0;
+    var split = decimal.exponent + 3;
+    var whole = split > 0 ? decimal.digits.slice(0, split).padEnd(split, "0") : "0";
+    var nextDigit = split < 0 ? "0" : decimal.digits[split];
+    return Number(whole) + (nextDigit >= "5" ? 1 : 0);
+  }
+
+  function roundedUpperGap(number) {
+    // This branch only handles values in [99.995, 100), whose decimal
+    // representation starts with 99. Its complement has exact decimal digits.
+    var fraction = String(number).split(".")[1];
+    var complement = fraction.split("");
+    var carry = 1;
+    for (var i = complement.length - 1; i >= 0; i--) {
+      var digit = 9 - Number(complement[i]) + carry;
+      complement[i] = String(digit % 10);
+      carry = digit === 10 ? 1 : 0;
+    }
+    var gapDigits = complement.join("");
+    var zeros = (gapDigits.match(/^0*/) || [""])[0].length;
+    var significant = gapDigits.slice(zeros);
+    var exponent = -zeros - 1;
+    var digit = Number(significant[0]);
+    var nextDigit = significant[1] || "0";
+    // Halfway gaps round down, so halfway displayed percentages round up.
+    if (nextDigit > "5" || (nextDigit === "5" && /[1-9]/.test(significant.slice(2)))) digit++;
+    if (digit === 10) { digit = 1; exponent++; }
+    return { digit: digit, exponent: exponent };
+  }
+
   window.GolabertoOdds = {
     maximum: function(values) {
       return values.reduce(function(highest, value) {
@@ -84,6 +132,66 @@
       }
 
       return probability.toFixed(4).replace(/^0\./, ".");
+    },
+
+    compactParts: function(value) {
+      var number = validNumber(value);
+      if (number === null || number < 0 || number > 100) return null;
+      if (number === 0) return { integer: "0", first: "0", second: "" };
+      if (number === 100) return { integer: "100", first: "0", second: "" };
+
+      var cents = roundedCents(number);
+      if (cents > 0 && cents < 10000) {
+        var fraction = String(cents % 100).padStart(2, "0");
+        return { integer: String(Math.floor(cents / 100)), first: fraction[0], second: fraction[1] };
+      }
+
+      if (cents === 0) {
+        var decimal = decimalComponents(number);
+        var digit = Number(decimal.digits[0]) + (decimal.digits[1] >= "5" ? 1 : 0);
+        var exponent = decimal.exponent;
+        if (digit === 10) { digit = 1; exponent++; }
+        var lowerCount = -exponent - 1;
+        if (lowerCount > 99) return { fallback: digit + "e" + exponent };
+        return { integer: "0", first: compactCount(lowerCount), second: String(digit), count: "first" };
+      }
+
+      var gap = roundedUpperGap(number);
+      var upperCount = -gap.exponent - 1;
+      if (upperCount > 99) return { fallback: "100 − " + gap.digit + "e" + gap.exponent };
+      return { integer: "99", first: compactCount(upperCount), second: String(10 - gap.digit), count: "first" };
+    },
+
+    compactText: function(value) {
+      var parts = this.compactParts(value);
+      if (parts === null) return "";
+      return parts.fallback || parts.integer + "." + parts.first + parts.second;
+    },
+
+    compactHtml: function(value) {
+      var parts = this.compactParts(value);
+      if (parts === null) return "";
+      if (parts.fallback) return '<span class="odds-compact-fallback">' + parts.fallback + '</span>';
+      var fraction = function(name) {
+        var text = parts[name];
+        if (parts.count === name) {
+          var visibleCount = String(Number(text.slice(1, 3)));
+          var countClass = "odds-compact-count-digit" +
+            (visibleCount.length === 2 ? " odds-compact-count-two-digits" : "");
+          text = '<span class="odds-compact-count" aria-label="' + text + '">' +
+            '<span class="' + countClass + '" aria-hidden="true">' + visibleCount + '</span>' +
+            '<span class="odds-compact-count-dots" aria-hidden="true">..</span></span>';
+        }
+        return '<span class="odds-compact-slot">' + text + '</span>';
+      };
+      return '<span class="odds-compact-number"><span class="odds-compact-integer">' +
+        parts.integer + '</span><span class="odds-compact-dot">.</span><span class="odds-compact-fraction">' +
+        fraction("first") + fraction("second") + '</span></span>';
+    },
+
+    compactTitle: function(value) {
+      var number = validNumber(value);
+      return number === null ? "" : String(number) + "%";
     },
 
     html: function(value, locale) {
