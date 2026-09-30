@@ -273,6 +273,12 @@ func TestCompactZeroGuideFullRequestExperiment(t *testing.T) {
 		"RARE_POSITION_COMPACT_ZERO_GUIDE")
 }
 
+func TestReducedSimulationFullRequestExperiment(t *testing.T) {
+	runRankSamplerFullRequestExperiment(t, os.Getenv("RARE_POSITION_REDUCED_EXPERIMENT_REQUESTS"),
+		os.Getenv("RARE_POSITION_REDUCED_EXPERIMENT_OUTPUT"), os.Getenv("RARE_POSITION_REDUCED_EXPERIMENT_SEEDS"),
+		"RARE_POSITION_REDUCED_SIMULATION")
+}
+
 func runRankSamplerFullRequestExperiment(t *testing.T, paths, output, seeds, flag string) {
 	t.Helper()
 	if paths == "" || output == "" {
@@ -323,7 +329,12 @@ func runRankSamplerFullRequestExperiment(t *testing.T, paths, output, seeds, fla
 				arms = []string{"1", "0"}
 			}
 			for _, arm := range arms {
-				t.Setenv(flag, arm)
+				mode := arm
+				if flag == "RARE_POSITION_REDUCED_SIMULATION" && arm == "1" && os.Getenv("RARE_POSITION_REDUCED_EXPERIMENT_MODE") != "" {
+					mode = os.Getenv("RARE_POSITION_REDUCED_EXPERIMENT_MODE")
+				}
+				t.Setenv(flag, mode)
+				report["mode_"+arm] = mode
 				started := time.Now()
 				matrix := cloneGroupForBenchmark(input).calculate_odds()["rare_position_estimates"].(map[int]map[int]ProductionEstimate)
 				report["matrix_"+arm] = matrix

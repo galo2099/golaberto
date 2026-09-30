@@ -74,6 +74,11 @@ func newConditionedRankScoreContext(group *GroupType, campaign []*TeamCampaign,
 
 func (context *conditionedRankScoreContext) finishesAtRank(target, rank int,
 	outcomes []uint8, rng *rand.Rand) bool {
+	return context.finishesAtRankReduced(target, rank, outcomes, rng, nil)
+}
+
+func (context *conditionedRankScoreContext) finishesAtRankReduced(target, rank int,
+	outcomes []uint8, rng *rand.Rand, omitted []bool) bool {
 	for index, team := range context.campaign {
 		context.simCampaign[index] = cloneCampaignInto(context.simCampaign[index], team)
 	}
@@ -81,7 +86,18 @@ func (context *conditionedRankScoreContext) finishesAtRank(target, rank int,
 		if game.Played {
 			continue
 		}
-		home, away := context.samplers[index].sample(rng, outcomes[index])
+		var home, away int
+		if index < len(omitted) && omitted[index] {
+			// Neither side can tie the target's ordered prefix. These goals
+			// cannot affect its rank; retain a legal representative score.
+			if outcomes[index] == 0 {
+				away = 1
+			} else if outcomes[index] == 2 {
+				home = 1
+			}
+		} else {
+			home, away = context.samplers[index].sample(rng, outcomes[index])
+		}
 		score := &context.simGames[index]
 		*score = GameType{Id: game.Id, HomeId: game.HomeId, AwayId: game.AwayId,
 			HomeScore: home, AwayScore: away, Played: true,

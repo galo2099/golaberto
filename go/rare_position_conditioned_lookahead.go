@@ -3,6 +3,7 @@ package main
 import (
 	"math"
 	"math/rand"
+	"os"
 	"sort"
 )
 
@@ -191,11 +192,15 @@ func sampleConditionedZeroRankLookaheadPolicy(event *conditionedPointEvent, targ
 		return result, false
 	}
 	suffix := conditionedRankSuffix(remaining, len(campaign), maxCap)
+	reduce := reducedSimulationEnabled() && compactForcedFixturesEnabled() &&
+		(propagate || os.Getenv("RARE_POSITION_REDUCED_SIMULATION") == "all")
 	var domainCache *conditionedRankDomainCache
-	if propagate && len(sortOrder) > 0 && sortOrder[0] == PT {
+	if (propagate || reduce) && len(sortOrder) > 0 && sortOrder[0] == PT {
 		domainCache = newConditionedRankDomainCache(remaining, selectedGames, rankedIndices, rank, len(campaign))
 		if domainCache != nil {
 			domainCache.suffix = suffix
+			domainCache.reduce = reduce
+			domainCache.propagate = propagate
 		}
 	}
 	basePoints := make([]int, len(campaign))
@@ -213,7 +218,7 @@ func sampleConditionedZeroRankLookaheadPolicy(event *conditionedPointEvent, targ
 	rng := rand.New(rand.NewSource(seed))
 	backwardSampler := newConditionedPointBackwardSampler(event)
 	terminalCDF, terminalRatio := conditionedPointTiltTerminals(event, pointTilt)
-	compactForced := propagate && compactForcedFixturesEnabled()
+	compactForced := (propagate || reduce) && compactForcedFixturesEnabled()
 	compactZeroGuide := compactForced && compactZeroGuideEnabled()
 	var sumY, sumY2, maxY float64
 	var batchY [2]float64
@@ -278,6 +283,7 @@ func sampleConditionedZeroRankLookaheadPolicy(event *conditionedPointEvent, targ
 				compact = compactZeroGuide && domains.canCompactZeroGuide(remaining, points, targetPoints, suffix, aboveWeight, belowWeight)
 			}
 			if compact {
+				result.omittedDraws += int64(domains.omittedCount)
 				copy(points, domains.compactBase)
 				weight *= domains.forcedMass
 				for _, forced := range domains.forced {
@@ -301,8 +307,8 @@ func sampleConditionedZeroRankLookaheadPolicy(event *conditionedPointEvent, targ
 					for outcome, p := range game.prob {
 						home, away := homePrefix+game.homeGain[outcome], awayPrefix+game.awayGain[outcome]
 						if entry.domain&(1<<outcome) == 0 ||
-							home+entry.homeMinimum > entry.homeUpper || home+entry.homeMaximum < entry.homeLower ||
-							away+entry.awayMinimum > entry.awayUpper || away+entry.awayMaximum < entry.awayLower {
+							domains.restricted && (home+entry.homeMinimum > entry.homeUpper || home+entry.homeMaximum < entry.homeLower ||
+								away+entry.awayMinimum > entry.awayUpper || away+entry.awayMaximum < entry.awayLower) {
 							continue
 						}
 						homeFactor := conditionedRankSideFactor(homeCDF,
@@ -352,7 +358,7 @@ func sampleConditionedZeroRankLookaheadPolicy(event *conditionedPointEvent, targ
 					homeCap := targetPoints - homePrefix
 					awayCap := targetPoints - awayPrefix
 					for outcome, p := range game.prob {
-						if domains != nil && !domains.allows(step, game, outcome, points) {
+						if domains != nil && domains.restricted && !domains.allows(step, game, outcome, points) {
 							continue
 						}
 						homeFactor := conditionedRankSideFactor(homeCDF,
@@ -403,7 +409,11 @@ func sampleConditionedZeroRankLookaheadPolicy(event *conditionedPointEvent, targ
 		}
 		hit := above == rank && above+below == len(group.Team_groups)-1
 		if !hit && above <= rank && rank <= len(group.Team_groups)-1-below {
-			hit = scoreContext.finishesAtRank(target, rank, outcomes, rng)
+			if domains != nil && domains.omittedScores != nil {
+				hit = scoreContext.finishesAtRankReduced(target, rank, outcomes, rng, domains.omittedScores)
+			} else {
+				hit = scoreContext.finishesAtRank(target, rank, outcomes, rng)
+			}
 		}
 		if hit {
 			result.hits++

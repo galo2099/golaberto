@@ -136,6 +136,7 @@ type conditionedScoreSampler struct {
 }
 
 type conditionedZeroResult struct {
+	omittedDraws    int64
 	mass            float64
 	samples         int
 	hits            int

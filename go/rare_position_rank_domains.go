@@ -15,6 +15,13 @@ func compactZeroGuideEnabled() bool {
 	return os.Getenv("RARE_POSITION_COMPACT_ZERO_GUIDE") != "0"
 }
 
+// The default reduces domain-constrained rescue draws. "all" also changes
+// the main directed proposal and remains an experimental opt-in.
+func reducedSimulationEnabled() bool {
+	mode := os.Getenv("RARE_POSITION_REDUCED_SIMULATION")
+	return mode == "" || mode == "1" || mode == "all"
+}
+
 type conditionedRankLoopStep struct {
 	step                                               int
 	skippedBefore                                      int
@@ -46,6 +53,10 @@ type conditionedRankDomains struct {
 	forcedAfter                     int
 	forcedMass                      float64
 	zeroGuideChecked, zeroGuideSafe bool
+	omitted                         []bool
+	omittedScores                   []bool
+	omittedCount                    int
+	restricted                      bool
 }
 
 // A zero guide can give a forced outcome zero proposal score. Check every
@@ -57,6 +68,23 @@ func (domains *conditionedRankDomains) canCompactZeroGuide(games []conditionedPo
 		return domains.zeroGuideSafe
 	}
 	domains.zeroGuideChecked = true
+	for step, omitted := range domains.omitted {
+		if !omitted {
+			continue
+		}
+		game := games[step]
+		factors := [2]float64{belowWeight, belowWeight}
+		for side, team := range []int32{game.home, game.away} {
+			if points[team]+domains.minimumSuffix[0][team] > targetPoints {
+				factors[side] = aboveWeight
+			}
+		}
+		for _, p := range game.prob {
+			if p > 0 && !(p*factors[0]*factors[1] > 0) {
+				return false
+			}
+		}
+	}
 	minimum, maximum := append([]int(nil), points...), append([]int(nil), points...)
 	for step, game := range games {
 		domain := domains.domains[step]
@@ -70,8 +98,11 @@ func (domains *conditionedRankDomains) canCompactZeroGuide(games []conditionedPo
 				{game.home, game.homeGain[outcome]}, {game.away, game.awayGain[outcome]},
 			} {
 				team := pair.team
-				lo := max(minimum[team], domains.lower[team]-domains.maximumSuffix[step][team])
-				hi := min(maximum[team], domains.upper[team]-domains.minimumSuffix[step][team])
+				lo, hi := minimum[team], maximum[team]
+				if domains.restricted {
+					lo = max(lo, domains.lower[team]-domains.maximumSuffix[step][team])
+					hi = min(hi, domains.upper[team]-domains.minimumSuffix[step][team])
+				}
 				if lo > hi {
 					return false
 				}
@@ -106,6 +137,8 @@ type conditionedRankDomainCache struct {
 	rank             int
 	minimum, maximum []int
 	entries          map[uint64]*conditionedRankDomains
+	reduce           bool
+	propagate        bool
 }
 
 func newConditionedRankDomainCache(games, selected []conditionedPointOutcomeGame,
@@ -116,6 +149,7 @@ func newConditionedRankDomainCache(games, selected []conditionedPointOutcomeGame
 	cache := &conditionedRankDomainCache{games: games, selected: selected, rivals: rivals,
 		rank: rank, minimum: make([]int, teams), maximum: make([]int, teams),
 		entries: make(map[uint64]*conditionedRankDomains)}
+	cache.propagate = true
 	for _, game := range games {
 		domain := uint8(0)
 		for outcome, p := range game.prob {
@@ -167,18 +201,48 @@ func (cache *conditionedRankDomainCache) get(points []int, targetPoints int, out
 		}
 	}
 	var result *conditionedRankDomains
-	if above >= cache.rank || below >= len(cache.rivals)-cache.rank {
-		result = propagateConditionedRankDomains(cache.games, points, cache.rivals, cache.rank, targetPoints)
+	var omitted []bool
+	if cache.reduce {
+		// Use unrestricted bounds: every completion must keep these teams
+		// strictly on the same side of the target, including later ties.
+		settled := make([]bool, len(points))
+		for _, team := range cache.rivals {
+			settled[team] = points[team]+cache.minimum[team] > targetPoints ||
+				points[team]+cache.maximum[team] < targetPoints
+		}
+		for step, game := range cache.games {
+			if settled[game.home] && settled[game.away] {
+				if omitted == nil {
+					omitted = make([]bool, len(cache.games))
+				}
+				omitted[step] = true
+			}
+		}
+	}
+	if cache.propagate && (above >= cache.rank || below >= len(cache.rivals)-cache.rank) || omitted != nil {
+		if cache.propagate {
+			result = propagateConditionedRankDomains(cache.games, points, cache.rivals, cache.rank, targetPoints)
+		} else {
+			// Marginalization also serves the original directed proposal;
+			// do not introduce additional rank-domain restrictions there.
+			result = unrestrictedConditionedRankDomains(cache.games, points)
+		}
+		if result.feasible && omitted != nil {
+			result.omitted = omitted
+			result.compact(cache.games, points)
+		}
 		if result.feasible && cache.suffix != nil {
 			for index := range result.variable {
 				entry := &result.variable[index]
 				game, next := entry.game, entry.step+1
 				entry.homeCDF, entry.awayCDF = cache.suffix[next][game.home], cache.suffix[next][game.away]
 				entry.domain = result.domains[entry.step]
-				entry.homeMinimum, entry.homeMaximum = result.minimumSuffix[next][game.home], result.maximumSuffix[next][game.home]
-				entry.awayMinimum, entry.awayMaximum = result.minimumSuffix[next][game.away], result.maximumSuffix[next][game.away]
-				entry.homeLower, entry.homeUpper = result.lower[game.home], result.upper[game.home]
-				entry.awayLower, entry.awayUpper = result.lower[game.away], result.upper[game.away]
+				if result.restricted {
+					entry.homeMinimum, entry.homeMaximum = result.minimumSuffix[next][game.home], result.maximumSuffix[next][game.home]
+					entry.awayMinimum, entry.awayMaximum = result.minimumSuffix[next][game.away], result.maximumSuffix[next][game.away]
+					entry.homeLower, entry.homeUpper = result.lower[game.home], result.upper[game.home]
+					entry.awayLower, entry.awayUpper = result.lower[game.away], result.upper[game.away]
+				}
 			}
 		}
 	}
@@ -192,7 +256,7 @@ func (cache *conditionedRankDomainCache) get(points []int, targetPoints int, out
 func propagateConditionedRankDomains(games []conditionedPointOutcomeGame, points []int,
 	rivals []int32, rank, targetPoints int) *conditionedRankDomains {
 	result := &conditionedRankDomains{domains: make([]uint8, len(games)),
-		lower: make([]int, len(points)), upper: make([]int, len(points)), feasible: true}
+		lower: make([]int, len(points)), upper: make([]int, len(points)), feasible: true, restricted: true}
 	const infinity = int(^uint(0)>>1) / 4
 	for team := range points {
 		result.lower[team], result.upper[team] = -infinity, infinity
@@ -269,6 +333,39 @@ func propagateConditionedRankDomains(games []conditionedPointOutcomeGame, points
 			break
 		}
 	}
+	result.compile(games, points)
+	return result
+}
+
+func unrestrictedConditionedRankDomains(games []conditionedPointOutcomeGame, points []int) *conditionedRankDomains {
+	result := &conditionedRankDomains{domains: make([]uint8, len(games)), lower: make([]int, len(points)), upper: make([]int, len(points)), feasible: true}
+	const infinity = int(^uint(0)>>1) / 4
+	for team := range points {
+		result.lower[team], result.upper[team] = -infinity, infinity
+	}
+	for step, game := range games {
+		for outcome, p := range game.prob {
+			if p > 0 {
+				result.domains[step] |= 1 << outcome
+			}
+		}
+	}
+	// No rival thresholds are enforced in the original proposal. Only
+	// whole-schedule bounds are needed to check an omitted guide factor.
+	result.minimumSuffix = [][]int{make([]int, len(points))}
+	result.maximumSuffix = [][]int{make([]int, len(points))}
+	for step, game := range games {
+		domain := result.domains[step]
+		result.minimumSuffix[0][game.home] += minJointPointGain(domain, game.homeGain)
+		result.minimumSuffix[0][game.away] += minJointPointGain(domain, game.awayGain)
+		result.maximumSuffix[0][game.home] += maxJointPointGain(domain, game.homeGain)
+		result.maximumSuffix[0][game.away] += maxJointPointGain(domain, game.awayGain)
+	}
+	result.compact(games, points)
+	return result
+}
+
+func (result *conditionedRankDomains) compile(games []conditionedPointOutcomeGame, points []int) {
 	// These cheap suffix bounds enforce each necessary team threshold after
 	// every sampled fixture, rather than waiting for a rejected full season.
 	result.minimumSuffix = make([][]int, len(games)+1)
@@ -285,7 +382,6 @@ func propagateConditionedRankDomains(games []conditionedPointOutcomeGame, points
 		result.maximumSuffix[step][game.away] += maxJointPointGain(domain, game.awayGain)
 	}
 	result.compact(games, points)
-	return result
 }
 
 // Cache the fixed score increments and their probability mass. Future fixed
@@ -294,20 +390,34 @@ func propagateConditionedRankDomains(games []conditionedPointOutcomeGame, points
 func (domains *conditionedRankDomains) compact(games []conditionedPointOutcomeGame, points []int) {
 	domains.forcedMass = 1
 	fixed := 0
-	for _, domain := range domains.domains {
-		if bits.OnesCount8(domain) == 1 {
+	for step, domain := range domains.domains {
+		if bits.OnesCount8(domain) == 1 || domains.omitted != nil && domains.omitted[step] {
 			fixed++
 		}
 	}
 	if fixed == 0 {
 		return
 	}
+	if domains.omitted != nil && len(games) > 0 {
+		last := 0
+		for _, game := range games {
+			last = max(last, game.index)
+		}
+		domains.omittedScores = make([]bool, last+1)
+		domains.omittedCount = 0
+		for step, game := range games {
+			domains.omittedScores[game.index] = domains.omitted[step]
+			if domains.omitted[step] {
+				domains.omittedCount++
+			}
+		}
+	}
 	domains.variable = make([]conditionedRankLoopStep, 0, len(games)-fixed)
 	domains.forced = make([]conditionedRankForcedOutcome, 0, fixed)
 	future := make([]int, len(points))
 	for step := len(games) - 1; step >= 0; step-- {
 		game, domain := games[step], domains.domains[step]
-		if bits.OnesCount8(domain) == 1 {
+		if bits.OnesCount8(domain) == 1 || domains.omitted != nil && domains.omitted[step] {
 			outcome := bits.TrailingZeros8(domain)
 			future[game.home] += game.homeGain[outcome]
 			future[game.away] += game.awayGain[outcome]
@@ -326,10 +436,15 @@ func (domains *conditionedRankDomains) compact(games []conditionedPointOutcomeGa
 	skipped, variable := 0, 0
 	for step, game := range games {
 		domain := domains.domains[step]
-		if bits.OnesCount8(domain) == 1 {
+		if bits.OnesCount8(domain) == 1 || domains.omitted != nil && domains.omitted[step] {
 			outcome := uint8(bits.TrailingZeros8(domain))
 			domains.forced = append(domains.forced, conditionedRankForcedOutcome{game.index, outcome})
-			domains.forcedMass *= game.prob[outcome]
+			// An irrelevant fixture is marginalized over all its outcomes.
+			// The representative outcome completes witnesses, but carries
+			// mass one rather than the probability of a forced result.
+			if domains.omitted == nil || !domains.omitted[step] {
+				domains.forcedMass *= game.prob[outcome]
+			}
 			skipped++
 		} else {
 			domains.variable[variable].skippedBefore = skipped
