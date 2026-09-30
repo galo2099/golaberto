@@ -14,6 +14,9 @@ const (
 	directionalPeerMinimumPointMass   = 1e-4
 	directionalPeerPilotSamples       = 5000
 	directionalPeerSamples            = 50000
+	constraintPeerSamples             = directionalPeerSamples - directionalPeerPilotSamples
+	constraintPeerProbeAssignments    = 32
+	constraintPeerProbeCells          = 8
 )
 
 func directionalPeerSupports(targetStart, peerStart, targetRank int) bool {
@@ -30,6 +33,12 @@ func directionalPeerRetryEligible(result conditionedZeroResult) bool {
 	}
 	result.batchGap = 0
 	return conditionedPointTiltResultValid(result)
+}
+
+type directionalPeerTarget struct {
+	cell  conditionedZeroCell
+	event *conditionedPointEvent
+	upper float64
 }
 
 // A rarer-ranked peer can identify a zero worth another independent search.
@@ -51,12 +60,8 @@ func runDirectionalPeerRescue(group *GroupType, campaign []*TeamCampaign,
 	for rank, team := range standing {
 		currentRank[team.id] = rank
 	}
-	type target struct {
-		cell  conditionedZeroCell
-		event *conditionedPointEvent
-		upper float64
-	}
-	var best target
+	var best directionalPeerTarget
+	var targets []directionalPeerTarget
 	found := false
 	eligible := 0
 	for _, team := range standing {
@@ -86,11 +91,12 @@ func runDirectionalPeerRescue(group *GroupType, campaign []*TeamCampaign,
 				continue
 			}
 			eligible++
+			targets = append(targets, directionalPeerTarget{conditionedZeroCell{id, rank}, event, est.ZeroHitUpper95})
 			if !found || est.ZeroHitUpper95 > best.upper ||
 				est.ZeroHitUpper95 == best.upper && event.mass > best.event.mass ||
 				est.ZeroHitUpper95 == best.upper && event.mass == best.event.mass &&
 					(id < best.cell.id || id == best.cell.id && rank < best.cell.rank) {
-				best = target{conditionedZeroCell{id, rank}, event, est.ZeroHitUpper95}
+				best = directionalPeerTarget{conditionedZeroCell{id, rank}, event, est.ZeroHitUpper95}
 				found = true
 			}
 		}
@@ -148,6 +154,13 @@ func runDirectionalPeerRescue(group *GroupType, campaign []*TeamCampaign,
 		pilot.hits, result.hits, result.ess, result.probability, result.stdErr/result.probability,
 		result.maxWeightShare, result.batchGap, firstBatchGap, retryDraws, accepted, work)
 	if accepted {
+		// A successful first confirmation leaves its retry allowance unused.
+		// Spend that allowance on a second, demonstrably constrained cell.
+		if retryDraws == 0 && os.Getenv("RARE_POSITION_CONSTRAINT_PEER_RESCUE") != "0" {
+			added, extraWork := runConstraintPeerRescue(targets, currentRank, group, campaign,
+				table, sortOrder, seed, bounds, samplers, estimates)
+			return 1 + added, work + extraWork
+		}
 		return 1, work
 	}
 	return 0, work

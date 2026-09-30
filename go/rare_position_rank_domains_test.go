@@ -267,6 +267,12 @@ func TestCompactForcedFullRequestExperiment(t *testing.T) {
 	runRankSamplerFullRequestExperiment(t, paths, output, os.Getenv("RARE_POSITION_COMPACT_EXPERIMENT_SEEDS"), "RARE_POSITION_COMPACT_FORCED_FIXTURES")
 }
 
+func TestCompactZeroGuideFullRequestExperiment(t *testing.T) {
+	runRankSamplerFullRequestExperiment(t, os.Getenv("RARE_POSITION_COMPACT_EXPERIMENT_REQUESTS"),
+		os.Getenv("RARE_POSITION_COMPACT_EXPERIMENT_OUTPUT"), os.Getenv("RARE_POSITION_COMPACT_EXPERIMENT_SEEDS"),
+		"RARE_POSITION_COMPACT_ZERO_GUIDE")
+}
+
 func runRankSamplerFullRequestExperiment(t *testing.T, paths, output, seeds, flag string) {
 	t.Helper()
 	if paths == "" || output == "" {
@@ -328,7 +334,7 @@ func runRankSamplerFullRequestExperiment(t *testing.T, paths, output, seeds, fla
 			for team, row := range a {
 				for rank, est := range row {
 					other := b[team][rank]
-					if flag == "RARE_POSITION_COMPACT_FORCED_FIXTURES" &&
+					if (flag == "RARE_POSITION_COMPACT_FORCED_FIXTURES" || flag == "RARE_POSITION_COMPACT_ZERO_GUIDE") &&
 						(est.ConditionalHits != other.ConditionalHits || est.ConditionalSamples != other.ConditionalSamples ||
 							est.Samples != other.Samples || est.Hits != other.Hits || est.WorkSpent != other.WorkSpent ||
 							est.Design != other.Design || est.Reachability != other.Reachability ||

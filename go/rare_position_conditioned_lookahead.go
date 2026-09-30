@@ -214,6 +214,7 @@ func sampleConditionedZeroRankLookaheadPolicy(event *conditionedPointEvent, targ
 	backwardSampler := newConditionedPointBackwardSampler(event)
 	terminalCDF, terminalRatio := conditionedPointTiltTerminals(event, pointTilt)
 	compactForced := propagate && compactForcedFixturesEnabled()
+	compactZeroGuide := compactForced && compactZeroGuideEnabled()
 	var sumY, sumY2, maxY float64
 	var batchY [2]float64
 	for draw := 0; draw < samples; draw++ {
@@ -271,10 +272,11 @@ func sampleConditionedZeroRankLookaheadPolicy(event *conditionedPointEvent, targ
 			weight = 0
 		}
 		if weight > 0 {
-			// Zero guide coefficients retain the original loop's early rejection
-			// behavior. Fall back if pre-multiplication would underflow as well.
 			compact := compactForced && domains != nil && len(domains.forced) > 0 &&
-				aboveWeight > 0 && belowWeight > 0 && weight*domains.forcedMass > 0
+				weight*domains.forcedMass > 0
+			if compact && !(aboveWeight > 0 && belowWeight > 0) {
+				compact = compactZeroGuide && domains.canCompactZeroGuide(remaining, points, targetPoints, suffix, aboveWeight, belowWeight)
+			}
 			if compact {
 				copy(points, domains.compactBase)
 				weight *= domains.forcedMass

@@ -11,6 +11,10 @@ func compactForcedFixturesEnabled() bool {
 	return os.Getenv("RARE_POSITION_COMPACT_FORCED_FIXTURES") != "0"
 }
 
+func compactZeroGuideEnabled() bool {
+	return os.Getenv("RARE_POSITION_COMPACT_ZERO_GUIDE") != "0"
+}
+
 type conditionedRankLoopStep struct {
 	step                                               int
 	skippedBefore                                      int
@@ -31,16 +35,67 @@ type conditionedRankForcedOutcome struct {
 // points/wins remain possible on either side until the full sorter resolves
 // later tiebreakers. Discarding a domain therefore cannot discard a rank hit.
 type conditionedRankDomains struct {
-	domains       []uint8
-	lower, upper  []int
-	minimumSuffix [][]int
-	maximumSuffix [][]int
-	feasible      bool
-	compactBase   []int
-	forced        []conditionedRankForcedOutcome
-	variable      []conditionedRankLoopStep
-	forcedAfter   int
-	forcedMass    float64
+	domains                         []uint8
+	lower, upper                    []int
+	minimumSuffix                   [][]int
+	maximumSuffix                   [][]int
+	feasible                        bool
+	compactBase                     []int
+	forced                          []conditionedRankForcedOutcome
+	variable                        []conditionedRankLoopStep
+	forcedAfter                     int
+	forcedMass                      float64
+	zeroGuideChecked, zeroGuideSafe bool
+}
+
+// A zero guide can give a forced outcome zero proposal score. Check every
+// feasible prefix once per cached target assignment, including floating-point
+// cancellation and underflow, before skipping those original rejection sites.
+func (domains *conditionedRankDomains) canCompactZeroGuide(games []conditionedPointOutcomeGame,
+	points []int, targetPoints int, suffix [][][]float64, aboveWeight, belowWeight float64) bool {
+	if domains.zeroGuideChecked {
+		return domains.zeroGuideSafe
+	}
+	domains.zeroGuideChecked = true
+	minimum, maximum := append([]int(nil), points...), append([]int(nil), points...)
+	for step, game := range games {
+		domain := domains.domains[step]
+		if bits.OnesCount8(domain) == 1 {
+			outcome := bits.TrailingZeros8(domain)
+			factors := [2]float64{}
+			for side, pair := range []struct {
+				team int32
+				gain int
+			}{
+				{game.home, game.homeGain[outcome]}, {game.away, game.awayGain[outcome]},
+			} {
+				team := pair.team
+				lo := max(minimum[team], domains.lower[team]-domains.maximumSuffix[step][team])
+				hi := min(maximum[team], domains.upper[team]-domains.minimumSuffix[step][team])
+				if lo > hi {
+					return false
+				}
+				for prefix := lo; prefix <= hi; prefix++ {
+					factor := conditionedRankSideFactor(suffix[step+1][team], targetPoints-prefix-pair.gain, belowWeight, aboveWeight)
+					if !(factor > 0) {
+						return false
+					}
+					if prefix == lo || factor < factors[side] {
+						factors[side] = factor
+					}
+				}
+			}
+			if !(game.prob[outcome]*factors[0]*factors[1] > 0) {
+				return false
+			}
+		}
+		minimum[game.home] += minJointPointGain(domain, game.homeGain)
+		minimum[game.away] += minJointPointGain(domain, game.awayGain)
+		maximum[game.home] += maxJointPointGain(domain, game.homeGain)
+		maximum[game.away] += maxJointPointGain(domain, game.awayGain)
+	}
+	domains.zeroGuideSafe = true
+	return true
 }
 
 type conditionedRankDomainCache struct {
