@@ -21,6 +21,17 @@ func directionalPeerSupports(targetStart, peerStart, targetRank int) bool {
 		targetRank < targetStart && peerStart > targetStart
 }
 
+// Another fresh confirmation is useful when the existing sample has enough
+// effective evidence but its two halves disagree. Other failures retain the
+// current budget. The retry must pass the unchanged full validity gate.
+func directionalPeerRetryEligible(result conditionedZeroResult) bool {
+	if !(result.batchGap > 1) {
+		return false
+	}
+	result.batchGap = 0
+	return conditionedPointTiltResultValid(result)
+}
+
 // A rarer-ranked peer can identify a zero worth another independent search.
 // Current standing is used only to prioritize a target; it never transfers
 // probability from one team's fixtures to another's.
@@ -101,22 +112,43 @@ func runDirectionalPeerRescue(group *GroupType, campaign []*TeamCampaign,
 			group.Id, eligible, best.cell.id, best.cell.rank+1, best.event.mass, pilot.work)
 		return 0, pilot.work
 	}
+	if est := estimates[best.cell.id][best.cell.rank]; est.Reachability == "undecided" || est.Reachability == "" {
+		est.Reachability = "reachable_by_construction"
+		estimates[best.cell.id][best.cell.rank] = est
+	}
 	freshSeed := deriveRarePositionSeed(seed, fmt.Sprintf(
 		"directional-peer-rescue-%d-%d", best.cell.id, best.cell.rank))
 	result, _ := sampleConditionedZeroRankLookaheadWithPointTilt(
 		best.event, best.cell.id, best.cell.rank, group, campaign, table,
 		sortOrder, bounds, samplers, directionalPeerSamples, freshSeed, 3, pointTilt)
 	accepted := conditionedPointTiltResultValid(result)
+	work := pilot.work + result.work
+	firstBatchGap, retryDraws := result.batchGap, 0
+	if !accepted && directionalPeerRetryEligible(result) && os.Getenv("RARE_POSITION_DIRECTIONAL_PEER_RETRY") != "0" {
+		retrySeed := deriveRarePositionSeed(seed, fmt.Sprintf(
+			"directional-peer-fallback-%d-%d", best.cell.id, best.cell.rank))
+		retry, _ := sampleConditionedZeroRankLookaheadWithPointTilt(
+			best.event, best.cell.id, best.cell.rank, group, campaign, table,
+			sortOrder, bounds, samplers, directionalPeerSamples, retrySeed, 3, pointTilt)
+		work += retry.work
+		retryDraws = retry.samples
+		if conditionedPointTiltResultValid(retry) {
+			// A fresh result must also agree in order of magnitude with the
+			// first, sufficiently informative confirmation.
+			result, accepted, _ = crossCheckExtremePointTilt(retry, result)
+		}
+	}
 	if accepted {
 		estimates[best.cell.id][best.cell.rank] = applyConditionedPointTiltEstimate(
 			estimates[best.cell.id][best.cell.rank], result,
 			"matched_point_pool_conditioned_point_tilt_peer")
 	}
-	log.Printf("rare-position-directional-peer: group=%d eligible=%d team=%d rank=%d mass=%g pilot_hits=%d hits=%d ess=%.1f accepted=%t work=%d",
+	log.Printf("rare-position-directional-peer: group=%d eligible=%d team=%d rank=%d mass=%g pilot_hits=%d hits=%d ess=%.1f probability=%g relative_se=%g max_weight_share=%g batch_gap=%g first_batch_gap=%g retry_draws=%d accepted=%t work=%d",
 		group.Id, eligible, best.cell.id, best.cell.rank+1, best.event.mass,
-		pilot.hits, result.hits, result.ess, accepted, pilot.work+result.work)
+		pilot.hits, result.hits, result.ess, result.probability, result.stdErr/result.probability,
+		result.maxWeightShare, result.batchGap, firstBatchGap, retryDraws, accepted, work)
 	if accepted {
-		return 1, pilot.work + result.work
+		return 1, work
 	}
-	return 0, pilot.work + result.work
+	return 0, work
 }
