@@ -1,0 +1,1539 @@
+{
+  "go_commit": "8d9f2136",
+  "rust_branch": "codex/rare-position-rust",
+  "workers": 4,
+  "scout_samples": 20000,
+  "pool_samples": 100000,
+  "pairs": 100,
+  "total_go_ms": 104129.36625199999,
+  "total_rust_ms": 53811.652753000024,
+  "median_paired_speedup": 1.7099757844297918,
+  "gained_cell_runs": 17,
+  "lost_cell_runs": 11,
+  "cases": [
+    {
+      "input": "group-16498-44eabb47.json",
+      "input_sha256": "2e08f162592ded09393f0438686a60690dda6e85cd54da5dc0d20224c81aa625",
+      "seeds": [
+        801,
+        804,
+        808,
+        817,
+        911,
+        1790746108560577000,
+        1790744713633556000,
+        802,
+        803,
+        805,
+        806,
+        807,
+        809,
+        810,
+        811,
+        812,
+        813,
+        814,
+        815,
+        816
+      ],
+      "median_go_ms": 1298.881104,
+      "median_rust_ms": 810.2093545,
+      "median_paired_speedup": 1.6868553600357066,
+      "max_rust_ms": 929.375209,
+      "gained_cell_runs": 17,
+      "lost_cell_runs": 11,
+      "quality": {
+        "go": {
+          "covered_positive_cell_runs": 5970,
+          "missing_positive_cell_runs": 210,
+          "impossible_positive_errors": 0,
+          "mean_mc_rmse": 0.0006502806620074205,
+          "is_nonzero_compared": 50,
+          "is_within_factor_10": 49,
+          "is_mean_absolute_log10_error": 0.21118778102891278
+        },
+        "rust": {
+          "covered_positive_cell_runs": 5976,
+          "missing_positive_cell_runs": 204,
+          "impossible_positive_errors": 0,
+          "mean_mc_rmse": 0.0006502806620072842,
+          "is_nonzero_compared": 56,
+          "is_within_factor_10": 55,
+          "is_mean_absolute_log10_error": 0.19761436586627232
+        }
+      },
+      "runs": [
+        {
+          "seed": 801,
+          "duration_ms": {
+            "go": 1160.5215,
+            "rust": 639.125459
+          },
+          "speedup": 1.815796075180288,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000041473
+        },
+        {
+          "seed": 804,
+          "duration_ms": {
+            "rust": 833.248416,
+            "go": 1335.464708
+          },
+          "speedup": 1.602720968148831,
+          "gained": [
+            {
+              "team": 15,
+              "position": 20,
+              "p": 2.697239478341178e-18
+            },
+            {
+              "team": 74,
+              "position": 20,
+              "p": 4.73228079056151e-19
+            }
+          ],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000004397451
+        },
+        {
+          "seed": 808,
+          "duration_ms": {
+            "go": 1244.221375,
+            "rust": 699.368667
+          },
+          "speedup": 1.779063652275403,
+          "gained": [],
+          "lost": [
+            {
+              "team": 15,
+              "position": 20,
+              "p": 1.5162370031936031e-18
+            },
+            {
+              "team": 74,
+              "position": 20,
+              "p": 4.610913268976977e-19
+            }
+          ],
+          "largest_paired_ratio": 1.0000000004089737
+        },
+        {
+          "seed": 817,
+          "duration_ms": {
+            "rust": 929.375209,
+            "go": 1212.375583
+          },
+          "speedup": 1.3045060501500851,
+          "gained": [
+            {
+              "team": 15,
+              "position": 19,
+              "p": 1.1687652027653182e-12
+            },
+            {
+              "team": 15,
+              "position": 20,
+              "p": 1.1524621294094927e-18
+            },
+            {
+              "team": 74,
+              "position": 19,
+              "p": 3.8633837266235966e-12
+            },
+            {
+              "team": 74,
+              "position": 20,
+              "p": 5.344241933926393e-19
+            }
+          ],
+          "lost": [],
+          "largest_paired_ratio": 1.0032121179987388
+        },
+        {
+          "seed": 911,
+          "duration_ms": {
+            "go": 1511.450167,
+            "rust": 767.7239999999999
+          },
+          "speedup": 1.9687415881228152,
+          "gained": [],
+          "lost": [
+            {
+              "team": 15,
+              "position": 20,
+              "p": 1.5173790669066055e-18
+            },
+            {
+              "team": 74,
+              "position": 20,
+              "p": 5.776745601601886e-19
+            }
+          ],
+          "largest_paired_ratio": 1.0830502430701
+        },
+        {
+          "seed": 1790746108560577000,
+          "duration_ms": {
+            "rust": 819.3615,
+            "go": 1432.477542
+          },
+          "speedup": 1.7482851488628648,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.5898347202744296
+        },
+        {
+          "seed": 1790744713633556000,
+          "duration_ms": {
+            "go": 1425.342416,
+            "rust": 833.916333
+          },
+          "speedup": 1.7092151329766556,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000004031457
+        },
+        {
+          "seed": 802,
+          "duration_ms": {
+            "rust": 840.22775,
+            "go": 1087.483417
+          },
+          "speedup": 1.294272198222446,
+          "gained": [
+            {
+              "team": 74,
+              "position": 19,
+              "p": 3.2924277435493797e-12
+            },
+            {
+              "team": 74,
+              "position": 20,
+              "p": 4.981389620300742e-19
+            }
+          ],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000139735
+        },
+        {
+          "seed": 803,
+          "duration_ms": {
+            "go": 1228.687375,
+            "rust": 819.4275829999999
+          },
+          "speedup": 1.4994459553114654,
+          "gained": [
+            {
+              "team": 15,
+              "position": 19,
+              "p": 2.136622849622611e-12
+            }
+          ],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000094769
+        },
+        {
+          "seed": 805,
+          "duration_ms": {
+            "rust": 764.446292,
+            "go": 1307.766125
+          },
+          "speedup": 1.7107364358829282,
+          "gained": [],
+          "lost": [
+            {
+              "team": 15,
+              "position": 20,
+              "p": 1.340948034534016e-18
+            }
+          ],
+          "largest_paired_ratio": 1.0000000004041323
+        },
+        {
+          "seed": 806,
+          "duration_ms": {
+            "go": 1253.148667,
+            "rust": 742.049833
+          },
+          "speedup": 1.688766186946908,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000004157343
+        },
+        {
+          "seed": 807,
+          "duration_ms": {
+            "rust": 803.3914589999999,
+            "go": 1304.209833
+          },
+          "speedup": 1.6233802567721847,
+          "gained": [
+            {
+              "team": 15,
+              "position": 20,
+              "p": 1.742543767605126e-18
+            },
+            {
+              "team": 74,
+              "position": 20,
+              "p": 3.815676406732389e-19
+            }
+          ],
+          "lost": [],
+          "largest_paired_ratio": 1.00000000044177
+        },
+        {
+          "seed": 809,
+          "duration_ms": {
+            "go": 1063.709375,
+            "rust": 861.464792
+          },
+          "speedup": 1.234768251561928,
+          "gained": [
+            {
+              "team": 15,
+              "position": 19,
+              "p": 2.185799953185059e-12
+            },
+            {
+              "team": 15,
+              "position": 20,
+              "p": 2.2297404219452638e-18
+            },
+            {
+              "team": 74,
+              "position": 19,
+              "p": 2.743695320574393e-12
+            },
+            {
+              "team": 74,
+              "position": 20,
+              "p": 8.278316351382166e-19
+            }
+          ],
+          "lost": [],
+          "largest_paired_ratio": 1.000000000021249
+        },
+        {
+          "seed": 810,
+          "duration_ms": {
+            "rust": 870.50625,
+            "go": 1353.009708
+          },
+          "speedup": 1.5542791427402158,
+          "gained": [
+            {
+              "team": 15,
+              "position": 20,
+              "p": 2.6670564528372134e-18
+            },
+            {
+              "team": 74,
+              "position": 20,
+              "p": 7.477074583397691e-19
+            }
+          ],
+          "lost": [],
+          "largest_paired_ratio": 1.029655509306274
+        },
+        {
+          "seed": 811,
+          "duration_ms": {
+            "go": 1474.417667,
+            "rust": 817.02725
+          },
+          "speedup": 1.804612596458686,
+          "gained": [],
+          "lost": [
+            {
+              "team": 15,
+              "position": 20,
+              "p": 2.270678238973674e-18
+            },
+            {
+              "team": 74,
+              "position": 20,
+              "p": 7.755962557950294e-19
+            }
+          ],
+          "largest_paired_ratio": 1.1099677646218669
+        },
+        {
+          "seed": 812,
+          "duration_ms": {
+            "rust": 681.1034999999999,
+            "go": 1293.552375
+          },
+          "speedup": 1.899200892375388,
+          "gained": [],
+          "lost": [
+            {
+              "team": 74,
+              "position": 20,
+              "p": 4.478092706799753e-19
+            }
+          ],
+          "largest_paired_ratio": 1.000000000410978
+        },
+        {
+          "seed": 813,
+          "duration_ms": {
+            "go": 1290.742167,
+            "rust": 770.556208
+          },
+          "speedup": 1.675078538852029,
+          "gained": [],
+          "lost": [
+            {
+              "team": 74,
+              "position": 20,
+              "p": 4.598907828732331e-19
+            }
+          ],
+          "largest_paired_ratio": 1.0000000004735412
+        },
+        {
+          "seed": 814,
+          "duration_ms": {
+            "rust": 852.262167,
+            "go": 1380.196791
+          },
+          "speedup": 1.6194509676034934,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0066580989232563
+        },
+        {
+          "seed": 815,
+          "duration_ms": {
+            "go": 1350.669375,
+            "rust": 607.68075
+          },
+          "speedup": 2.2226627633012894,
+          "gained": [],
+          "lost": [
+            {
+              "team": 15,
+              "position": 20,
+              "p": 2.909130930075526e-18
+            },
+            {
+              "team": 74,
+              "position": 20,
+              "p": 5.5225496066660405e-19
+            }
+          ],
+          "largest_paired_ratio": 1.0000000000048646
+        },
+        {
+          "seed": 816,
+          "duration_ms": {
+            "rust": 746.085292,
+            "go": 1257.112334
+          },
+          "speedup": 1.684944533124505,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0818060178935813
+        }
+      ]
+    },
+    {
+      "input": "group-16653-2d1c1d6f.json",
+      "input_sha256": "a2ea66a82ec8c34ec58c1b8a0cc004b19f04b203f4733a88fa0cf9172eeb9596",
+      "seeds": [
+        801,
+        804,
+        808,
+        817,
+        911,
+        1790746108560577000,
+        1790744713633556000,
+        802,
+        803,
+        805,
+        806,
+        807,
+        809,
+        810,
+        811,
+        812,
+        813,
+        814,
+        815,
+        816
+      ],
+      "median_go_ms": 1088.8455829999998,
+      "median_rust_ms": 665.0585,
+      "median_paired_speedup": 1.6206833634951026,
+      "max_rust_ms": 787.195792,
+      "gained_cell_runs": 0,
+      "lost_cell_runs": 0,
+      "quality": {
+        "go": {
+          "covered_positive_cell_runs": 5934,
+          "missing_positive_cell_runs": 166,
+          "impossible_positive_errors": 0,
+          "mean_mc_rmse": 0.0006589709610547354,
+          "is_nonzero_compared": 54,
+          "is_within_factor_10": 45,
+          "is_mean_absolute_log10_error": 0.47443704794780833
+        },
+        "rust": {
+          "covered_positive_cell_runs": 5934,
+          "missing_positive_cell_runs": 166,
+          "impossible_positive_errors": 0,
+          "mean_mc_rmse": 0.0006589709610547264,
+          "is_nonzero_compared": 54,
+          "is_within_factor_10": 45,
+          "is_mean_absolute_log10_error": 0.4744370479478082
+        }
+      },
+      "runs": [
+        {
+          "seed": 801,
+          "duration_ms": {
+            "go": 1029.043125,
+            "rust": 617.31675
+          },
+          "speedup": 1.666961288511935,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000000688
+        },
+        {
+          "seed": 804,
+          "duration_ms": {
+            "rust": 655.497209,
+            "go": 1039.278416
+          },
+          "speedup": 1.5854810695311443,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.000000000000118
+        },
+        {
+          "seed": 808,
+          "duration_ms": {
+            "go": 1085.396958,
+            "rust": 670.2624999999999
+          },
+          "speedup": 1.6193610085600794,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000000837
+        },
+        {
+          "seed": 817,
+          "duration_ms": {
+            "rust": 649.229167,
+            "go": 1085.829916
+          },
+          "speedup": 1.6724909649661504,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000000797
+        },
+        {
+          "seed": 911,
+          "duration_ms": {
+            "go": 1079.545625,
+            "rust": 685.163625
+          },
+          "speedup": 1.575602652578061,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.000000000000137
+        },
+        {
+          "seed": 1790746108560577000,
+          "duration_ms": {
+            "rust": 671.532,
+            "go": 1113.202791
+          },
+          "speedup": 1.6577062463143972,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000000933
+        },
+        {
+          "seed": 1790744713633556000,
+          "duration_ms": {
+            "go": 1115.196416,
+            "rust": 685.573666
+          },
+          "speedup": 1.626661686856566,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000247995
+        },
+        {
+          "seed": 802,
+          "duration_ms": {
+            "rust": 575.0806670000001,
+            "go": 962.155291
+          },
+          "speedup": 1.673078832608365,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.000000000000089
+        },
+        {
+          "seed": 803,
+          "duration_ms": {
+            "go": 1251.646083,
+            "rust": 787.195792
+          },
+          "speedup": 1.5900060642092457,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000470866
+        },
+        {
+          "seed": 805,
+          "duration_ms": {
+            "rust": 550.744542,
+            "go": 888.162417
+          },
+          "speedup": 1.6126576829516723,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000001013
+        },
+        {
+          "seed": 806,
+          "duration_ms": {
+            "go": 1138.759583,
+            "rust": 738.050917
+          },
+          "speedup": 1.5429282137183498,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000001155
+        },
+        {
+          "seed": 807,
+          "duration_ms": {
+            "rust": 704.7810410000001,
+            "go": 1115.687458
+          },
+          "speedup": 1.583027058186714,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000000986
+        },
+        {
+          "seed": 809,
+          "duration_ms": {
+            "go": 1018.809042,
+            "rust": 633.434417
+          },
+          "speedup": 1.6083891475697947,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000231992
+        },
+        {
+          "seed": 810,
+          "duration_ms": {
+            "rust": 689.288125,
+            "go": 1142.134
+          },
+          "speedup": 1.6569761737879931,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.000000000000106
+        },
+        {
+          "seed": 811,
+          "duration_ms": {
+            "go": 1091.86125,
+            "rust": 614.921542
+          },
+          "speedup": 1.7756106680679595,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.000000000047079
+        },
+        {
+          "seed": 812,
+          "duration_ms": {
+            "rust": 659.8545,
+            "go": 1106.864042
+          },
+          "speedup": 1.677436528810518,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000001563
+        },
+        {
+          "seed": 813,
+          "duration_ms": {
+            "go": 1104.106209,
+            "rust": 688.472375
+          },
+          "speedup": 1.6037044463839234,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.000000000000099
+        },
+        {
+          "seed": 814,
+          "duration_ms": {
+            "rust": 626.1554169999999,
+            "go": 1015.627667
+          },
+          "speedup": 1.622005718430126,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000000997
+        },
+        {
+          "seed": 815,
+          "duration_ms": {
+            "go": 1105.2735,
+            "rust": 720.714917
+          },
+          "speedup": 1.5335793306467667,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.000000000000106
+        },
+        {
+          "seed": 816,
+          "duration_ms": {
+            "rust": 640.6044589999999,
+            "go": 1077.845458
+          },
+          "speedup": 1.6825444201286774,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.000000000000102
+        }
+      ]
+    },
+    {
+      "input": "group-16653-71d4fea8.json",
+      "input_sha256": "b56f2ac8bdb017ab98814a8f653b511b54340f4437c8e890894e827ce3ee9962",
+      "seeds": [
+        801,
+        804,
+        808,
+        817,
+        911,
+        1790746108560577000,
+        1790744713633556000,
+        802,
+        803,
+        805,
+        806,
+        807,
+        809,
+        810,
+        811,
+        812,
+        813,
+        814,
+        815,
+        816
+      ],
+      "median_go_ms": 1093.1597505,
+      "median_rust_ms": 660.9554165,
+      "median_paired_speedup": 1.6450461238328191,
+      "max_rust_ms": 746.910292,
+      "gained_cell_runs": 0,
+      "lost_cell_runs": 0,
+      "quality": {
+        "go": {
+          "covered_positive_cell_runs": 5836,
+          "missing_positive_cell_runs": 184,
+          "impossible_positive_errors": 0,
+          "mean_mc_rmse": 0.0006526588765900523,
+          "is_nonzero_compared": 56,
+          "is_within_factor_10": 54,
+          "is_mean_absolute_log10_error": 0.13629029439973836
+        },
+        "rust": {
+          "covered_positive_cell_runs": 5836,
+          "missing_positive_cell_runs": 184,
+          "impossible_positive_errors": 0,
+          "mean_mc_rmse": 0.0006526588765900527,
+          "is_nonzero_compared": 56,
+          "is_within_factor_10": 54,
+          "is_mean_absolute_log10_error": 0.13629029439972495
+        }
+      },
+      "runs": [
+        {
+          "seed": 801,
+          "duration_ms": {
+            "go": 1098.559542,
+            "rust": 672.209208
+          },
+          "speedup": 1.634252445408335,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000001772
+        },
+        {
+          "seed": 804,
+          "duration_ms": {
+            "rust": 609.306584,
+            "go": 1006.03225
+          },
+          "speedup": 1.651110092058352,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000001708
+        },
+        {
+          "seed": 808,
+          "duration_ms": {
+            "go": 1136.214875,
+            "rust": 670.0337920000001
+          },
+          "speedup": 1.6957575700898377,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000454912
+        },
+        {
+          "seed": 817,
+          "duration_ms": {
+            "rust": 700.405458,
+            "go": 1095.113334
+          },
+          "speedup": 1.5635419762819722,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000001066396
+        },
+        {
+          "seed": 911,
+          "duration_ms": {
+            "go": 1102.723417,
+            "rust": 659.282792
+          },
+          "speedup": 1.6726106465706145,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000000928
+        },
+        {
+          "seed": 1790746108560577000,
+          "duration_ms": {
+            "rust": 609.339667,
+            "go": 1057.672875
+          },
+          "speedup": 1.7357689516707602,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000452363
+        },
+        {
+          "seed": 1790744713633556000,
+          "duration_ms": {
+            "go": 1108.300333,
+            "rust": 687.8802499999999
+          },
+          "speedup": 1.6111820814742102,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000001066314
+        },
+        {
+          "seed": 802,
+          "duration_ms": {
+            "rust": 669.878959,
+            "go": 1062.976083
+          },
+          "speedup": 1.5868181388870881,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000002063
+        },
+        {
+          "seed": 803,
+          "duration_ms": {
+            "go": 1018.369375,
+            "rust": 614.337
+          },
+          "speedup": 1.6576722141104965,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000001856
+        },
+        {
+          "seed": 805,
+          "duration_ms": {
+            "rust": 746.910292,
+            "go": 1222.703834
+          },
+          "speedup": 1.6370156457825324,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000001066363
+        },
+        {
+          "seed": 806,
+          "duration_ms": {
+            "go": 1007.723208,
+            "rust": 593.698583
+          },
+          "speedup": 1.6973650213344034,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.000000000000164
+        },
+        {
+          "seed": 807,
+          "duration_ms": {
+            "rust": 647.560833,
+            "go": 1080.547917
+          },
+          "speedup": 1.6686431018288594,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000001066274
+        },
+        {
+          "seed": 809,
+          "duration_ms": {
+            "go": 1118.474625,
+            "rust": 689.997625
+          },
+          "speedup": 1.6209832968627973,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000001066216
+        },
+        {
+          "seed": 810,
+          "duration_ms": {
+            "rust": 714.4974579999999,
+            "go": 1101.242292
+          },
+          "speedup": 1.5412823092227153,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000001066323
+        },
+        {
+          "seed": 811,
+          "duration_ms": {
+            "go": 1177.324667,
+            "rust": 730.666417
+          },
+          "speedup": 1.6113025583328542,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000287037
+        },
+        {
+          "seed": 812,
+          "duration_ms": {
+            "rust": 631.577292,
+            "go": 1047.832708
+          },
+          "speedup": 1.6590728027631492,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000001732
+        },
+        {
+          "seed": 813,
+          "duration_ms": {
+            "go": 987.624833,
+            "rust": 602.58425
+          },
+          "speedup": 1.6389821556072863,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000001528
+        },
+        {
+          "seed": 814,
+          "duration_ms": {
+            "rust": 647.821792,
+            "go": 1091.206167
+          },
+          "speedup": 1.6844233714817671,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.000000000106627
+        },
+        {
+          "seed": 815,
+          "duration_ms": {
+            "go": 1074.494333,
+            "rust": 657.359708
+          },
+          "speedup": 1.6345606825662033,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000466736
+        },
+        {
+          "seed": 816,
+          "duration_ms": {
+            "rust": 662.6280409999999,
+            "go": 1108.307041
+          },
+          "speedup": 1.672593027194272,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000001066218
+        }
+      ]
+    },
+    {
+      "input": "group-16982-9327edcd.json",
+      "input_sha256": "96c2eeeeec5b4e00015919009c9da30b6a4269b4017a651edbd3cfbd90fd635c",
+      "seeds": [
+        801,
+        804,
+        808,
+        817,
+        911,
+        1790746108560577000,
+        1790744713633556000,
+        802,
+        803,
+        805,
+        806,
+        807,
+        809,
+        810,
+        811,
+        812,
+        813,
+        814,
+        815,
+        816
+      ],
+      "median_go_ms": 873.3296255,
+      "median_rust_ms": 292.4113125,
+      "median_paired_speedup": 2.9903275120609405,
+      "max_rust_ms": 311.945625,
+      "gained_cell_runs": 0,
+      "lost_cell_runs": 0,
+      "quality": {
+        "go": {
+          "covered_positive_cell_runs": 7360,
+          "missing_positive_cell_runs": 0,
+          "impossible_positive_errors": 0,
+          "mean_mc_rmse": 0.000600259259222095,
+          "is_nonzero_compared": 0,
+          "is_within_factor_10": 0,
+          "is_mean_absolute_log10_error": null
+        },
+        "rust": {
+          "covered_positive_cell_runs": 7360,
+          "missing_positive_cell_runs": 0,
+          "impossible_positive_errors": 0,
+          "mean_mc_rmse": 0.0006002592592220961,
+          "is_nonzero_compared": 0,
+          "is_within_factor_10": 0,
+          "is_mean_absolute_log10_error": null
+        }
+      },
+      "runs": [
+        {
+          "seed": 801,
+          "duration_ms": {
+            "go": 886.736,
+            "rust": 292.287875
+          },
+          "speedup": 3.033776204367013,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000000078
+        },
+        {
+          "seed": 804,
+          "duration_ms": {
+            "rust": 292.284625,
+            "go": 879.68375
+          },
+          "speedup": 3.009681915359044,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.000000000000006
+        },
+        {
+          "seed": 808,
+          "duration_ms": {
+            "go": 870.790042,
+            "rust": 293.945166
+          },
+          "speedup": 2.962423413351863,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000000038
+        },
+        {
+          "seed": 817,
+          "duration_ms": {
+            "rust": 304.264333,
+            "go": 869.647459
+          },
+          "speedup": 2.858197181461949,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000000038
+        },
+        {
+          "seed": 911,
+          "duration_ms": {
+            "go": 869.656083,
+            "rust": 288.220458
+          },
+          "speedup": 3.0173294742318393,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000000056
+        },
+        {
+          "seed": 1790746108560577000,
+          "duration_ms": {
+            "rust": 292.53475000000003,
+            "go": 872.656667
+          },
+          "speedup": 2.9830871956237672,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000000064
+        },
+        {
+          "seed": 1790744713633556000,
+          "duration_ms": {
+            "go": 866.0005,
+            "rust": 287.657583
+          },
+          "speedup": 3.010525538622773,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000000129
+        },
+        {
+          "seed": 802,
+          "duration_ms": {
+            "rust": 296.239,
+            "go": 880.146834
+          },
+          "speedup": 2.971070095429704,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000000109
+        },
+        {
+          "seed": 803,
+          "duration_ms": {
+            "go": 881.920708,
+            "rust": 291.415208
+          },
+          "speedup": 3.026337280242423,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000000047
+        },
+        {
+          "seed": 805,
+          "duration_ms": {
+            "rust": 300.493667,
+            "go": 874.094042
+          },
+          "speedup": 2.908860112516115,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.000000000000008
+        },
+        {
+          "seed": 806,
+          "duration_ms": {
+            "go": 874.002584,
+            "rust": 286.321417
+          },
+          "speedup": 3.0525225571931283,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000000064
+        },
+        {
+          "seed": 807,
+          "duration_ms": {
+            "rust": 288.46258400000005,
+            "go": 867.827083
+          },
+          "speedup": 3.008456316816464,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000000038
+        },
+        {
+          "seed": 809,
+          "duration_ms": {
+            "go": 875.363292,
+            "rust": 292.573541
+          },
+          "speedup": 2.991942774483493,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.000000000000004
+        },
+        {
+          "seed": 810,
+          "duration_ms": {
+            "rust": 311.945625,
+            "go": 881.190167
+          },
+          "speedup": 2.8248197646625113,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000000036
+        },
+        {
+          "seed": 811,
+          "duration_ms": {
+            "go": 870.400417,
+            "rust": 297.511666
+          },
+          "speedup": 2.925600964501338,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000000069
+        },
+        {
+          "seed": 812,
+          "duration_ms": {
+            "rust": 291.657958,
+            "go": 875.331541
+          },
+          "speedup": 3.0012263234730594,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000000089
+        },
+        {
+          "seed": 813,
+          "duration_ms": {
+            "go": 879.087542,
+            "rust": 291.52858399999997
+          },
+          "speedup": 3.0154420192292366,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.000000000000005
+        },
+        {
+          "seed": 814,
+          "duration_ms": {
+            "rust": 291.42591699999997,
+            "go": 870.988208
+          },
+          "speedup": 2.9887122496383878,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000000049
+        },
+        {
+          "seed": 815,
+          "duration_ms": {
+            "go": 872.573791,
+            "rust": 298.755541
+          },
+          "speedup": 2.9206949202659307,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000000056
+        },
+        {
+          "seed": 816,
+          "duration_ms": {
+            "rust": 299.861292,
+            "go": 871.631417
+          },
+          "speedup": 2.906782036409021,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.000000000000004
+        }
+      ]
+    },
+    {
+      "input": "group-16983-43969b02.json",
+      "input_sha256": "03dc3178d40d5c534f217b25c58e56d861906e6f1c2225b83be302065f5a293b",
+      "seeds": [
+        801,
+        804,
+        808,
+        817,
+        911,
+        1790746108560577000,
+        1790744713633556000,
+        802,
+        803,
+        805,
+        806,
+        807,
+        809,
+        810,
+        811,
+        812,
+        813,
+        814,
+        815,
+        816
+      ],
+      "median_go_ms": 869.687625,
+      "median_rust_ms": 287.1172705,
+      "median_paired_speedup": 3.0334169827554858,
+      "max_rust_ms": 310.26191600000004,
+      "gained_cell_runs": 0,
+      "lost_cell_runs": 0,
+      "quality": {
+        "go": {
+          "covered_positive_cell_runs": 6340,
+          "missing_positive_cell_runs": 0,
+          "impossible_positive_errors": 0,
+          "mean_mc_rmse": 0.0006109566994352819,
+          "is_nonzero_compared": 0,
+          "is_within_factor_10": 0,
+          "is_mean_absolute_log10_error": null
+        },
+        "rust": {
+          "covered_positive_cell_runs": 6340,
+          "missing_positive_cell_runs": 0,
+          "impossible_positive_errors": 0,
+          "mean_mc_rmse": 0.0006109534820744553,
+          "is_nonzero_compared": 0,
+          "is_within_factor_10": 0,
+          "is_mean_absolute_log10_error": null
+        }
+      },
+      "runs": [
+        {
+          "seed": 801,
+          "duration_ms": {
+            "go": 869.778375,
+            "rust": 310.26191600000004
+          },
+          "speedup": 2.803368154923661,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0011247010116453
+        },
+        {
+          "seed": 804,
+          "duration_ms": {
+            "rust": 288.114625,
+            "go": 862.3635
+          },
+          "speedup": 2.9931264336199526,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.000000000000008
+        },
+        {
+          "seed": 808,
+          "duration_ms": {
+            "go": 871.008292,
+            "rust": 278.146375
+          },
+          "speedup": 3.131474541057744,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0030446815308718
+        },
+        {
+          "seed": 817,
+          "duration_ms": {
+            "rust": 279.16324999999995,
+            "go": 870.419292
+          },
+          "speedup": 3.1179580120234314,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000000115
+        },
+        {
+          "seed": 911,
+          "duration_ms": {
+            "go": 865.651959,
+            "rust": 281.49508299999997
+          },
+          "speedup": 3.075193888910664,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0012267124977732
+        },
+        {
+          "seed": 1790746108560577000,
+          "duration_ms": {
+            "rust": 294.438292,
+            "go": 879.901125
+          },
+          "speedup": 2.988405886419148,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0014191579667653
+        },
+        {
+          "seed": 1790744713633556000,
+          "duration_ms": {
+            "go": 866.7325,
+            "rust": 291.05416699999995
+          },
+          "speedup": 2.977907888877606,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000000144
+        },
+        {
+          "seed": 802,
+          "duration_ms": {
+            "rust": 292.21425,
+            "go": 871.237875
+          },
+          "speedup": 2.981503725434335,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0003826210902391
+        },
+        {
+          "seed": 803,
+          "duration_ms": {
+            "go": 877.46825,
+            "rust": 281.14241699999997
+          },
+          "speedup": 3.121080978684195,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000000089
+        },
+        {
+          "seed": 805,
+          "duration_ms": {
+            "rust": 282.26166600000005,
+            "go": 865.79375
+          },
+          "speedup": 3.067344433515814,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000000098
+        },
+        {
+          "seed": 806,
+          "duration_ms": {
+            "go": 869.596875,
+            "rust": 288.85275
+          },
+          "speedup": 3.010519633273354,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000000073
+        },
+        {
+          "seed": 807,
+          "duration_ms": {
+            "rust": 284.04875000000004,
+            "go": 864.998708
+          },
+          "speedup": 3.045247366869243,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000000115
+        },
+        {
+          "seed": 809,
+          "duration_ms": {
+            "go": 870.675417,
+            "rust": 281.142583
+          },
+          "speedup": 3.096917612797205,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0002999325289905
+        },
+        {
+          "seed": 810,
+          "duration_ms": {
+            "rust": 283.45795899999996,
+            "go": 865.369084
+          },
+          "speedup": 3.052900991218949,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000000107
+        },
+        {
+          "seed": 811,
+          "duration_ms": {
+            "go": 862.193917,
+            "rust": 287.868583
+          },
+          "speedup": 2.995095567618784,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0002897238015227
+        },
+        {
+          "seed": 812,
+          "duration_ms": {
+            "rust": 277.429959,
+            "go": 872.768292
+          },
+          "speedup": 3.14590498858128,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.000000000000011
+        },
+        {
+          "seed": 813,
+          "duration_ms": {
+            "go": 878.099333,
+            "rust": 297.86620800000003
+          },
+          "speedup": 2.9479655946739682,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0006408768226702
+        },
+        {
+          "seed": 814,
+          "duration_ms": {
+            "rust": 288.011333,
+            "go": 888.223417
+          },
+          "speedup": 3.0839877297467324,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.0000000000000075
+        },
+        {
+          "seed": 815,
+          "duration_ms": {
+            "go": 865.279541,
+            "rust": 286.365958
+          },
+          "speedup": 3.0215865986417283,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.005159673950032
+        },
+        {
+          "seed": 816,
+          "duration_ms": {
+            "rust": 288.7315,
+            "go": 865.651167
+          },
+          "speedup": 2.998118206707616,
+          "gained": [],
+          "lost": [],
+          "largest_paired_ratio": 1.000000000000007
+        }
+      ]
+    }
+  ]
+}
