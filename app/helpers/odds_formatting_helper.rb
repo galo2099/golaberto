@@ -1,12 +1,4 @@
 module OddsFormattingHelper
-  def odds_rank_color(zones, rank)
-    zone = zones.find do |candidate|
-      candidate.is_a?(Hash) && candidate["position"].is_a?(Array) &&
-        candidate["position"].include?(rank) && !candidate["color"].to_s.empty?
-    end
-    zone ? zone["color"] : "dimgray"
-  end
-
   def odds_background_color(percentage, zone_color, maximum)
     color = zone_color.to_s.empty? ? "lightgray" : zone_color
     strength = odds_color_strength(percentage, maximum)

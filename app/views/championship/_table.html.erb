@@ -3,7 +3,7 @@
 <% omit_comments = false if omit_comments.nil? %>
 <% omit_popup = false if omit_popup.nil? %>
 <% show_country = false if show_country.nil? %>
-<% cache [ "v10",
+<% cache [ "v11",
            I18n.locale,
            digest_cache_key(group.teams),
            group,
@@ -66,7 +66,7 @@
                   title="<%= sprintf(_("odds of %s"), i)%>"
                   data-rank="<%= i %>"
                   data-color="black"
-                  data-cell-color="<%= odds_rank_color(group.zones, i) %>"><%=i%></option>
+                  data-cell-color="dimgray"><%=i%></option>
         <% end %>
         </select>
         <style>

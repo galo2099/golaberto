@@ -82,14 +82,4 @@ class OddsFormattingTest < Minitest::Test
     assert_equal 'inherit', @view.odds_text_color(19, 'dimgray', 25)
     assert_equal 'white', @view.odds_text_color(20, 'dimgray', 25)
   end
-
-  def test_numbered_rank_uses_zone_color_when_assigned
-    zones = [
-      { 'position' => [1, 2], 'color' => '#90EE90' },
-      { 'position' => [2, 3], 'color' => '#FFA0A0' }
-    ]
-    assert_equal '#90EE90', @view.odds_rank_color(zones, 2)
-    assert_equal '#FFA0A0', @view.odds_rank_color(zones, 3)
-    assert_equal 'dimgray', @view.odds_rank_color(zones, 4)
-  end
 end
