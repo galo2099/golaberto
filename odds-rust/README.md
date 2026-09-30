@@ -18,6 +18,24 @@ Rust service and Rails player-rating route on port 6578 remain in place.
 
 ## Build and run
 
+Use a recent stable Rust toolchain. The locked ICU dependencies require Rust
+**1.88 or newer**, and the service was verified with Rust/Cargo **1.93.1**.
+The application uses edition 2021, but some dependencies use edition 2024.
+An older Cargo can fail with `feature edition2024 is required` before compiling.
+
+With [rustup](https://rust-lang.org/tools/install), update the stable toolchain
+and make its Cargo available in the current shell:
+
+```sh
+rustup update stable
+source "$HOME/.cargo/env"
+cargo +stable build --release --locked --manifest-path odds-rust/Cargo.toml
+```
+
+`+stable` explicitly selects the updated toolchain if a directory override or
+older default selects another version. If rustup is not installed, install it
+using the linked Rust instructions first. Nightly is not required.
+
 From the repository root:
 
 ```sh
