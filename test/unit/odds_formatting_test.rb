@@ -69,6 +69,9 @@ class OddsFormattingTest < Minitest::Test
     assert_equal 'rgb(242, 62, 242)', @view.odds_background_color(12.5, '#f0f', 25)
     assert_equal '#90EE90', @view.odds_background_color(25, '#90EE90', 25)
     assert_equal 'lightgray', @view.odds_background_color(25, nil, 25)
+    assert_equal 'lightgray', @view.odds_background_color(0, 'dimgray', 57)
+    assert_equal 'rgb(167, 167, 167)', @view.odds_background_color(10, 'dimgray', 57)
+    assert_equal 'dimgray', @view.odds_background_color(57, 'dimgray', 57)
   end
 
   def test_black_zone_text_remains_readable_during_blend
@@ -76,5 +79,17 @@ class OddsFormattingTest < Minitest::Test
     assert_equal 'inherit', @view.odds_text_color(5, 'black', 25)
     assert_equal 'white', @view.odds_text_color(5.0625, 'black', 25)
     assert_equal 'white', @view.odds_text_color(25, 'black', 25)
+    assert_equal 'inherit', @view.odds_text_color(19, 'dimgray', 25)
+    assert_equal 'white', @view.odds_text_color(20, 'dimgray', 25)
+  end
+
+  def test_numbered_rank_uses_zone_color_when_assigned
+    zones = [
+      { 'position' => [1, 2], 'color' => '#90EE90' },
+      { 'position' => [2, 3], 'color' => '#FFA0A0' }
+    ]
+    assert_equal '#90EE90', @view.odds_rank_color(zones, 2)
+    assert_equal '#FFA0A0', @view.odds_rank_color(zones, 3)
+    assert_equal 'dimgray', @view.odds_rank_color(zones, 4)
   end
 end

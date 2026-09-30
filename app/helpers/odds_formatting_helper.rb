@@ -1,4 +1,12 @@
 module OddsFormattingHelper
+  def odds_rank_color(zones, rank)
+    zone = zones.find do |candidate|
+      candidate.is_a?(Hash) && candidate["position"].is_a?(Array) &&
+        candidate["position"].include?(rank) && !candidate["color"].to_s.empty?
+    end
+    zone ? zone["color"] : "dimgray"
+  end
+
   def odds_background_color(percentage, zone_color, maximum)
     color = zone_color.to_s.empty? ? "lightgray" : zone_color
     strength = odds_color_strength(percentage, maximum)
@@ -14,7 +22,10 @@ module OddsFormattingHelper
   end
 
   def odds_text_color(percentage, zone_color, maximum)
-    zone_color == "black" && odds_color_strength(percentage, maximum) >= 45 ? "white" : "inherit"
+    strength = odds_color_strength(percentage, maximum)
+    dark_background = (zone_color == "black" && strength >= 45) ||
+                      (zone_color == "dimgray" && strength >= 88)
+    dark_background ? "white" : "inherit"
   end
 
   def odds_color_strength(percentage, maximum)
@@ -34,6 +45,7 @@ module OddsFormattingHelper
       channels = Regexp.last_match.captures.map(&:to_i)
       channels if channels.all? { |channel| channel <= 255 }
     when /\Ablack\z/i then [0, 0, 0]
+    when /\Adimgr[ae]y\z/i then [105, 105, 105]
     when /\Awhite\z/i then [255, 255, 255]
     when /\Alightgr[ae]y\z/i then [211, 211, 211]
     end

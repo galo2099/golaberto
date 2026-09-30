@@ -3,7 +3,7 @@
 <% omit_comments = false if omit_comments.nil? %>
 <% omit_popup = false if omit_popup.nil? %>
 <% show_country = false if show_country.nil? %>
-<% cache [ "v9",
+<% cache [ "v10",
            I18n.locale,
            digest_cache_key(group.teams),
            group,
@@ -66,7 +66,7 @@
                   title="<%= sprintf(_("odds of %s"), i)%>"
                   data-rank="<%= i %>"
                   data-color="black"
-                  data-cell-color="lightgray"><%=i%></option>
+                  data-cell-color="<%= odds_rank_color(group.zones, i) %>"><%=i%></option>
         <% end %>
         </select>
         <style>
@@ -186,7 +186,7 @@
   <% max_form = 0 %>
   <% team_table = group.team_table %>
   <% first_zone = group.zones.first %>
-  <% first_color = first_zone.is_a?(Hash) ? first_zone["color"] : "lightgray" %>
+  <% first_color = first_zone.is_a?(Hash) ? first_zone["color"] : "dimgray" %>
   <% initial_odds = omit_columns[:odds] ? [] : team_table.map { |entry| first_zone ? entry[0].calculate_odds(first_zone["position"]) : entry[0].odds&.first } %>
   <% highest_initial_odds = initial_odds.compact.max || 0 %>
   <% team_ids = team_table.map { |t| t[0].team_id } %>

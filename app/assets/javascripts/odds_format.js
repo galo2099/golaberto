@@ -23,7 +23,7 @@
       var channels = match.slice(1).map(Number);
       return channels.every(function(channel) { return channel <= 255; }) ? channels : null;
     }
-    var named = { black: [0, 0, 0], white: [255, 255, 255], lightgray: [211, 211, 211], lightgrey: [211, 211, 211] };
+    var named = { black: [0, 0, 0], dimgray: [105, 105, 105], dimgrey: [105, 105, 105], white: [255, 255, 255], lightgray: [211, 211, 211], lightgrey: [211, 211, 211] };
     if (named[value.toLowerCase()]) return named[value.toLowerCase()];
 
     // The zone editor can also store CSS color names. Resolve those with the browser.
@@ -60,7 +60,10 @@
     },
 
     textColor: function(value, zoneColor, maximum) {
-      return zoneColor === "black" && colorStrength(value, maximum) >= 45 ? "white" : "inherit";
+      var strength = colorStrength(value, maximum);
+      var darkBackground = (zoneColor === "black" && strength >= 45) ||
+        (zoneColor === "dimgray" && strength >= 88);
+      return darkBackground ? "white" : "inherit";
     },
 
     zoneValue: function(odds, positions) {
