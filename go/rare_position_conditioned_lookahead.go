@@ -96,6 +96,23 @@ func sampleConditionedZeroRankLookaheadWithPointTiltMode(event *conditionedPoint
 	group *GroupType, campaign []*TeamCampaign, table *Table, sortOrder []SortType,
 	bounds pointRankBounds, samplers []conditionedScoreSampler, samples int,
 	seed int64, tilt, pointTilt float64, forcePoints bool) (conditionedZeroResult, bool) {
+	return sampleConditionedZeroRankLookaheadPolicy(event, target, rank, group, campaign,
+		table, sortOrder, bounds, samplers, samples, seed, tilt, pointTilt, forcePoints,
+		false)
+}
+
+func sampleConditionedZeroRankWithDomains(event *conditionedPointEvent, target, rank int,
+	group *GroupType, campaign []*TeamCampaign, table *Table, sortOrder []SortType,
+	bounds pointRankBounds, samplers []conditionedScoreSampler, samples int,
+	seed int64, tilt, pointTilt float64) (conditionedZeroResult, bool) {
+	return sampleConditionedZeroRankLookaheadPolicy(event, target, rank, group, campaign,
+		table, sortOrder, bounds, samplers, samples, seed, tilt, pointTilt, false, true)
+}
+
+func sampleConditionedZeroRankLookaheadPolicy(event *conditionedPointEvent, target, rank int,
+	group *GroupType, campaign []*TeamCampaign, table *Table, sortOrder []SortType,
+	bounds pointRankBounds, samplers []conditionedScoreSampler, samples int,
+	seed int64, tilt, pointTilt float64, forcePoints, propagate bool) (conditionedZeroResult, bool) {
 	result := conditionedZeroResult{mass: event.mass}
 	if event.mass <= 0 || samples <= 0 {
 		return result, false
@@ -174,6 +191,10 @@ func sampleConditionedZeroRankLookaheadWithPointTiltMode(event *conditionedPoint
 		return result, false
 	}
 	suffix := conditionedRankSuffix(remaining, len(campaign), maxCap)
+	var domainCache *conditionedRankDomainCache
+	if propagate && len(sortOrder) > 0 && sortOrder[0] == PT {
+		domainCache = newConditionedRankDomainCache(remaining, selectedGames, rankedIndices, rank, len(campaign))
+	}
 	basePoints := make([]int, len(campaign))
 	for index, team := range campaign {
 		if team != nil {
@@ -211,6 +232,11 @@ func sampleConditionedZeroRankLookaheadWithPointTiltMode(event *conditionedPoint
 			points[game.away] += game.awayGain[outcome]
 		}
 		targetPoints := points[targetIndex]
+		domains := domainCache.get(points, targetPoints, outcomes)
+		if domains != nil && !domains.feasible {
+			result.samples++
+			continue
+		}
 		// Use the expected counts of rivals above and below the target to
 		// decide how strongly each side needs to be tilted. At either edge,
 		// one coefficient becomes zero without a position-specific proposal.
@@ -249,6 +275,9 @@ func sampleConditionedZeroRankLookaheadWithPointTiltMode(event *conditionedPoint
 				homeCap := targetPoints - points[game.home]
 				awayCap := targetPoints - points[game.away]
 				for outcome, p := range game.prob {
+					if domains != nil && !domains.allows(step, game, outcome, points) {
+						continue
+					}
 					homeFactor := conditionedRankSideFactor(homeCDF,
 						homeCap-game.homeGain[outcome], belowWeight, aboveWeight)
 					awayFactor := conditionedRankSideFactor(awayCDF,

@@ -955,6 +955,10 @@ func runConditionedZeroSearch(group *GroupType, campaign []*TeamCampaign, table 
 		sortOrder, seed, bounds, samplers, estimates)
 	witnesses += peerWitnesses
 	totalWork += peerWork
+	domainWitnesses, domainWork := runConditionedDomainRescue(group, campaign, table,
+		sortOrder, seed, bounds, samplers, estimates)
+	witnesses += domainWitnesses
+	totalWork += domainWork
 	if witnesses == 0 {
 		return 0, totalWork
 	}
