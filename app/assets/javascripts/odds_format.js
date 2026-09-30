@@ -12,8 +12,30 @@
     return Math.min(100, Math.max(0, percentage / highest * 100));
   }
 
-  function cssPercentage(value) {
-    return value.toFixed(6).replace(/0+$/, "").replace(/\.$/, "");
+  function zoneRgb(color) {
+    var value = String(color || "").trim();
+    var match = /^#([0-9a-f]{3})$/i.exec(value);
+    if (match) return match[1].split("").map(function(digit) { return parseInt(digit + digit, 16); });
+    match = /^#([0-9a-f]{6})$/i.exec(value);
+    if (match) return match[1].match(/../g).map(function(channel) { return parseInt(channel, 16); });
+    match = /^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$/i.exec(value);
+    if (match) {
+      var channels = match.slice(1).map(Number);
+      return channels.every(function(channel) { return channel <= 255; }) ? channels : null;
+    }
+    var named = { black: [0, 0, 0], white: [255, 255, 255], lightgray: [211, 211, 211], lightgrey: [211, 211, 211] };
+    if (named[value.toLowerCase()]) return named[value.toLowerCase()];
+
+    // The zone editor can also store CSS color names. Resolve those with the browser.
+    if (!window.document || !window.document.body || !window.getComputedStyle) return null;
+    var probe = window.document.createElement("span");
+    probe.style.color = value;
+    if (!probe.style.color) return null;
+    window.document.body.appendChild(probe);
+    var computed = window.getComputedStyle(probe).color;
+    window.document.body.removeChild(probe);
+    match = /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/.exec(computed);
+    return match ? match.slice(1).map(Number) : null;
   }
 
   window.GolabertoOdds = {
@@ -29,7 +51,12 @@
       var strength = colorStrength(value, maximum);
       if (strength <= 0) return "lightgray";
       if (strength >= 100) return color;
-      return "color-mix(in srgb, lightgray " + cssPercentage(100 - strength) + "%, " + color + " " + cssPercentage(strength) + "%)";
+      var rgb = zoneRgb(color);
+      if (!rgb) return "lightgray";
+      var weight = strength / 100;
+      return "rgb(" + rgb.map(function(channel) {
+        return Math.round(211 * (1 - weight) + channel * weight);
+      }).join(", ") + ")";
     },
 
     textColor: function(value, zoneColor, maximum) {

@@ -5,9 +5,12 @@ module OddsFormattingHelper
     return "lightgray" if strength <= 0
     return color if strength >= 100
 
-    gray_weight = format("%.6f", 100 - strength).sub(/0+\z/, "").sub(/\.\z/, "")
-    color_weight = format("%.6f", strength).sub(/0+\z/, "").sub(/\.\z/, "")
-    "color-mix(in srgb, lightgray #{gray_weight}%, #{color} #{color_weight}%)"
+    rgb = odds_zone_rgb(color)
+    return "lightgray" unless rgb
+
+    weight = strength / 100
+    channels = rgb.map { |channel| (211 * (1 - weight) + channel * weight).round }
+    "rgb(#{channels.join(', ')})"
   end
 
   def odds_text_color(percentage, zone_color, maximum)
@@ -18,6 +21,21 @@ module OddsFormattingHelper
     return 0 if percentage.nil? || maximum.to_f <= 0
 
     [[percentage.to_f / maximum.to_f * 100, 0].max, 100].min
+  end
+
+  def odds_zone_rgb(color)
+    case color.to_s.strip
+    when /\A#([0-9a-f]{3})\z/i
+      Regexp.last_match(1).chars.map { |digit| (digit * 2).to_i(16) }
+    when /\A#([0-9a-f]{6})\z/i
+      Regexp.last_match(1).scan(/../).map { |channel| channel.to_i(16) }
+    when /\Argb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)\z/i
+      channels = Regexp.last_match.captures.map(&:to_i)
+      channels if channels.all? { |channel| channel <= 255 }
+    when /\Ablack\z/i then [0, 0, 0]
+    when /\Awhite\z/i then [255, 255, 255]
+    when /\Alightgr[ae]y\z/i then [211, 211, 211]
+    end
   end
 
   # Odds in views are percentages (0..100), not fractions (0..1).
