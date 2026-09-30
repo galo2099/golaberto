@@ -61,8 +61,20 @@ impl Suffix {
     }
     #[inline]
     pub fn factor(&self, step: usize, team: usize, cap: i32, below: f64, above: f64) -> f64 {
-        let lower = self.cdf(step, team, cap - 1);
-        let at = self.cdf(step, team, cap);
+        // The adjacent CDF entries share a row. Resolve the boundary case and
+        // row lookup once in this proposal's innermost loop; retain arithmetic
+        // order exactly so fixed-seed weights do not change.
+        let (lower, at) = if cap < 0 {
+            (0., 0.)
+        } else if cap as usize > self.span {
+            (1., 1.)
+        } else {
+            let row = &self.values[step * self.teams + team];
+            let index = cap as usize;
+            let lower = if index == 0 { 0. } else { row[index - 1] };
+            let at = if index == self.span { 1. } else { row[index] };
+            (lower, at)
+        };
         below * lower + (at - lower) + above * (1. - at)
     }
 }

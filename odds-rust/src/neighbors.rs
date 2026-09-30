@@ -22,6 +22,8 @@ struct Checker<'a> {
     total_ties: usize,
     tie_limit: usize,
     use_wins: bool,
+    verify_all: bool,
+    sorter_checks: usize,
 }
 impl Checker<'_> {
     fn check(&mut self) {
@@ -47,9 +49,14 @@ impl Checker<'_> {
                 continue;
             }
             let mut verified = tied == 0 && above == cell.rank;
+            if verified && self.verify_all {
+                self.sorter_checks += 1;
+                verified = canonical_ranks(self.model, &self.candidate)[cell.team] == cell.rank;
+            }
             if !verified && self.ties < self.tie_limit && self.total_ties < 500 {
                 self.ties += 1;
                 self.total_ties += 1;
+                self.sorter_checks += 1;
                 verified = canonical_ranks(self.model, &self.candidate)[cell.team] == cell.rank;
             }
             if verified {
@@ -83,6 +90,17 @@ pub fn search(
     assignments: &[Vec<u8>],
     estimates: &[Estimate],
     budget: usize,
+) -> Vec<Proof> {
+    let order = std::env::var("RUST_ODDS_NEIGHBOR_ORDER").unwrap_or_default();
+    search_order(model, cells, assignments, estimates, budget, &order)
+}
+pub fn search_order(
+    model: &Model,
+    cells: &[Cell],
+    assignments: &[Vec<u8>],
+    estimates: &[Estimate],
+    budget: usize,
+    order: &str,
 ) -> Vec<Proof> {
     if !enabled("RARE_POSITION_NEIGHBORHOOD_SEARCH")
         || model.keys.first() != Some(&Key::Pt)
@@ -128,10 +146,14 @@ pub fn search(
         total_ties: 0,
         tie_limit,
         use_wins: model.keys.get(1) == Some(&Key::W),
+        verify_all: matches!(order, "breadth" | "spread"),
+        sorter_checks: 0,
     };
     let c = &model.request.phase.championship;
     let hp = [c.point_loss, c.point_draw, c.point_win];
     let ap = [c.point_win, c.point_draw, c.point_loss];
+    let breadth = order == "breadth" || order == "spread";
+    let start = std::time::Instant::now();
     for seed in seeds {
         if check.attempts >= budget || check.unresolved.is_empty() {
             break;
@@ -159,12 +181,66 @@ pub fn search(
         check.candidate = seed.clone();
         check.ties = 0;
         check.check();
+        if breadth {
+            // Spend each seed's existing quota across every single-fixture
+            // mutation before enumerating pairs. No extra candidates.
+            for i in 0..model.fixtures.len() {
+                let old = check.candidate[i];
+                for next in 0..3 {
+                    if check.attempts >= limit || check.unresolved.is_empty() {
+                        break;
+                    }
+                    if next == old || model.fixtures[i].prob[next as usize] <= 0. {
+                        continue;
+                    }
+                    check.apply(i, next);
+                    check.check();
+                    check.apply(i, old);
+                }
+            }
+        }
+        if order == "spread" {
+            // Visit pairs across the fixture list rather than exhausting all
+            // pairs involving its first fixture. Keep the same candidate quota.
+            let m = model.fixtures.len();
+            'pairs: for distance in 1..m {
+                for i in 0..m - distance {
+                    if check.attempts >= limit || check.unresolved.is_empty() {
+                        break 'pairs;
+                    }
+                    let j = i + distance;
+                    let old = check.candidate[i];
+                    let other_old = check.candidate[j];
+                    for next in 0..3 {
+                        if next == old || model.fixtures[i].prob[next as usize] <= 0. {
+                            continue;
+                        }
+                        check.apply(i, next);
+                        for other_next in 0..3 {
+                            if check.attempts >= limit || check.unresolved.is_empty() {
+                                break;
+                            }
+                            if other_next == other_old
+                                || model.fixtures[j].prob[other_next as usize] <= 0.
+                            {
+                                continue;
+                            }
+                            check.apply(j, other_next);
+                            check.check();
+                            check.apply(j, other_old);
+                        }
+                        check.apply(i, old);
+                    }
+                }
+            }
+            continue;
+        }
         for i in 0..model.fixtures.len() {
             if check.attempts >= limit || check.unresolved.is_empty() {
                 break;
             }
             let old = check.candidate[i];
-            for next in 0..3 {
+            for next in 0..if breadth { 0 } else { 3 } {
                 if check.attempts >= limit {
                     break;
                 }
@@ -209,6 +285,15 @@ pub fn search(
             }
         }
     }
+    if std::env::var("RUST_ODDS_REACHABILITY_TRACE").as_deref() == Ok("1") {
+        eprintln!(
+            "{}",
+            serde_json::json!({"event":"rust_reachability_neighborhood","group":model.request.id,
+            "order":order,"breadth":breadth,"attempts":check.attempts,"sorter_checks":check.sorter_checks,
+            "tie_sorter_checks":check.total_ties,
+            "found":check.proofs.len(),"budget":budget,"elapsed_ms":start.elapsed().as_secs_f64()*1000.})
+        );
+    }
     check.proofs
 }
 pub fn mark(model: &Model, proofs: &[Proof], estimates: &mut [Estimate]) {
@@ -217,11 +302,20 @@ pub fn mark(model: &Model, proofs: &[Proof], estimates: &mut [Estimate]) {
     }
 }
 pub fn walk(model: &Model, cells: &[Cell], assignments: &[Vec<u8>], estimates: &mut [Estimate]) {
+    walk_passes(model, cells, assignments, estimates, 2);
+}
+pub fn walk_passes(
+    model: &Model,
+    cells: &[Cell],
+    assignments: &[Vec<u8>],
+    estimates: &mut [Estimate],
+    passes: usize,
+) {
     if !enabled("RARE_POSITION_NEIGHBORHOOD_WALK") {
         return;
     }
     let mut seeds = assignments.to_vec();
-    for _ in 0..2 {
+    for _ in 0..passes {
         if seeds.is_empty() {
             break;
         }

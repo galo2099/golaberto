@@ -109,6 +109,58 @@ Rust also retains these batch streams with one worker; Go's serial pool uses
 a different stream layout. Non-points standings or unsupported point PMFs
 fall back to plain MC.
 
+### Reachability defaults and experiments
+
+The native Rust experiments and paired results are documented in
+[`2026-09-30-rust-reachability.md`](../experiments/rare_positions/2026-09-30-rust-reachability.md).
+The measured deferred configuration and verified goal completion are enabled by
+default. No extra flags are required. Sampling acceptance gates are unchanged.
+
+| Configuration flag | Values / effect |
+|---|---|
+| `RUST_ODDS_REACHABILITY_TRACE=1` | Actual proof nodes, candidate counts, sorter calls and stage cost on stderr |
+| `RUST_ODDS_WITNESS_MODE` (default `deferred`) | `deferred`: screen maximum-points patterns, replace rejected queries with minimum-points construction, and publish new witnesses after probability sampling; `adaptive`: publish those witnesses immediately; `skip`: only skip screened maximum patterns; `reuse`: reuse all constructive ranks; `dual`: choose direction by rank cardinality; `joint`: bounded shared-fixture solver |
+| `RUST_ODDS_NEIGHBOR_ORDER` | `breadth`: all single changes before pairs; `spread`: also distribute pairs across fixture indices |
+| `RUST_ODDS_AGGREGATE_CUTS` (default `early`) | `early`: shared-fixture subset capacity cuts in early proofs; `1`: also use them in construction |
+| `RUST_ODDS_PROOF_RECYCLE_CREDIT` (default `legacy`) | For strengthened early proofs, check recycling eligibility using the original relaxation, within the remaining cell/direction node budget |
+| `RUST_ODDS_GOAL_COMPLETION` (default enabled; `0` disables) | With `deferred` mode, complete failed canonical seasons using independent outside-cohort winning margins and equal-goal additions; verify with the production sorter and publish compact certificates after sampling |
+| `RUST_ODDS_REACHABILITY_ALLOCATION` | `replace_neighborhood`, `replace_walk`, `split_walk`, `adaptive_tail`: experimental replacements described in the report |
+| `RUST_ODDS_JOINT_ROOT_SWEEP=1` | Visit each unresolved joint query's root before spending the remaining joint node budget |
+
+Alternative witness modes, neighborhood ordering and work reallocations remain
+experimental; the report distinguishes useful cuts from rejected reallocations. A
+verified witness changes reachability metadata, never assigns a probability.
+Reachability tracing also splits neighborhood and constructive stage timing;
+normal logs retain the combined `search.witnesses` stage. The comparison harness
+supports `--no-trace` for production timing and `--http` to separate complete
+HTTP request latency from server startup.
+
+The default measured combination is `RUST_ODDS_WITNESS_MODE=deferred`,
+`RUST_ODDS_AGGREGATE_CUTS=early`, and
+`RUST_ODDS_PROOF_RECYCLE_CREDIT=legacy`. It preserves the original node,
+candidate, sampling and worker ceilings. Minimum construction uses attainable
+final bounds in the negated point model. Additional complete seasons are reused
+after sampling so they cannot alter proposal priorities. Immediate publication
+and joint replacement lost estimates in experiments; see the report for paired
+coverage gains, latency increases in the dense control, and remaining undecideds.
+
+The goal-difference / goals-scored completion experiment is documented in
+[`2026-09-30-rust-goal-completion.md`](../experiments/rare_positions/2026-09-30-rust-goal-completion.md).
+It keeps the existing fixture-search ceilings, tries at most two completions per
+cell and sixteen algebraic layouts per completion, and never turns a failed
+score completion into an impossibility proof. Stored certificates contain outcome
+assignments, fixture adjustments and verified ranks; full score arrays are only
+temporary verification data. The comparison harness accepts
+`--baseline-variant deferred` to compare against the previous best Rust algorithm.
+The final full-request comparison measured +0.24% wall time and +1.25% CPU time;
+strict latency non-increase is not established. The user authorized enabling this
+measured tradeoff. Set `RUST_ODDS_GOAL_COMPLETION=0` to disable score completion.
+To restore the original pre-research pipeline, also set
+`RUST_ODDS_WITNESS_MODE=legacy`, `RUST_ODDS_AGGREGATE_CUTS=0` and
+`RUST_ODDS_PROOF_RECYCLE_CREDIT=0`.
+The proposal's adjacent CDF lookup also shares its row lookup while preserving
+the original weight arithmetic and fixed-seed probability values.
+
 Go's random-comparison tiebreaker requires its original sorter: Rust includes
 a translated PDQsort rather than passing that comparator to Rust's standard
 sort. The Go RNG, sorter, and associated constants retain their BSD attribution

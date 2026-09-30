@@ -425,7 +425,8 @@ pub fn run_logged(
         "screen",
         serde_json::json!({"candidate_cells":cells.len(),"cells":crate::logging::cell_counts(estimates)}),
     );
-    let proofs = crate::proof::early(model, &cells, estimates);
+    let proof_report = crate::proof::early_report(model, &cells, estimates);
+    let proofs = proof_report.proofs;
     cells.retain(|c| estimates[c.index(model.n)].reachability == "undecided");
     report(
         "early_proofs",
@@ -503,17 +504,30 @@ pub fn run_logged(
         .and_then(|s| s.parse::<usize>().ok())
         .filter(|b| *b > 0 && *b <= 250000)
         .unwrap_or(10000);
-    let neighbor = crate::neighbors::search(model, &cells, &seeds, estimates, budget);
+    let allocation = std::env::var("RUST_ODDS_REACHABILITY_ALLOCATION").unwrap_or_default();
+    let neighbor = if allocation == "replace_neighborhood" {
+        Vec::new()
+    } else {
+        crate::neighbors::search(model, &cells, &seeds, estimates, budget)
+    };
     crate::neighbors::mark(model, &neighbor, estimates);
     let mut assignments: Vec<_> = neighbor.into_iter().map(|p| p.outcomes).collect();
-    assignments.extend(crate::proof::witnesses(model, &cells, estimates));
+    if std::env::var("RUST_ODDS_REACHABILITY_TRACE").as_deref() == Ok("1") {
+        report(
+            "neighborhood",
+            serde_json::json!({"assignments":assignments.len(),"budget":budget}),
+        );
+    }
+    let witness_mode = crate::proof::witness_mode();
+    let construction = crate::proof::witnesses_report(model, &cells, estimates, &witness_mode);
+    assignments.extend(construction.outcomes);
     report(
         "witnesses",
         serde_json::json!({"assignments":assignments.len(),"neighborhood_budget":budget,
         "cells":crate::logging::cell_counts(estimates)}),
     );
     let recycled = if enabled("RARE_POSITION_RECYCLE_PROOF_WORK") {
-        (1000 * proofs).min(4000)
+        (1000 * proof_report.recycle_credit).min(4000)
     } else {
         0
     };
@@ -526,7 +540,13 @@ pub fn run_logged(
         serde_json::json!({"accepted":found,"work":spent,"recycled_draws":recycled,
         "cells":crate::logging::cell_counts(estimates)}),
     );
-    crate::neighbors::walk(model, &cells, &assignments, estimates);
+    if allocation == "replace_walk" {
+        crate::proof::witnesses_mode(model, &cells, estimates, "dual");
+    } else if allocation == "split_walk" {
+        crate::neighbors::walk_passes(model, &cells, &assignments, estimates, 1);
+    } else {
+        crate::neighbors::walk(model, &cells, &assignments, estimates);
+    }
     report(
         "neighbor_walk",
         serde_json::json!({"cells":crate::logging::cell_counts(estimates)}),
@@ -545,6 +565,64 @@ pub fn run_logged(
         "domains",
         serde_json::json!({"accepted":found,"work":spent,"cells":crate::logging::cell_counts(estimates)}),
     );
+    if allocation == "split_walk" {
+        // Replace the second 4,000-candidate walk with a small joint search.
+        // Run after estimators so proof discovery cannot reshuffle their quotas.
+        crate::reachability::run(
+            model,
+            &cells,
+            estimates,
+            25,
+            400.min(3200 - construction.nodes),
+        );
+        report(
+            "joint_tail",
+            serde_json::json!({"cells":crate::logging::cell_counts(estimates)}),
+        );
+    } else if allocation == "adaptive_tail" {
+        // Experimental: fund a small joint search by the work skipped by the
+        // adaptive constructive screen; preserve both original walk passes.
+        crate::reachability::run(
+            model,
+            &cells,
+            estimates,
+            100,
+            200.min(3200 - construction.nodes),
+        );
+        report(
+            "joint_tail",
+            serde_json::json!({"cells":crate::logging::cell_counts(estimates)}),
+        );
+    }
+    if !construction.deferred.is_empty() || !construction.goal_witnesses.is_empty() {
+        for outcomes in &construction.deferred {
+            for (team, rank) in crate::conditioned::canonical_ranks(model, outcomes)
+                .into_iter()
+                .enumerate()
+            {
+                let e = &mut estimates[team * model.n + rank];
+                if e.probability == 0. && e.reachability == "undecided" {
+                    e.reachability = "reachable_by_construction".into();
+                }
+            }
+        }
+        // Certificates have already materialized legal scores and passed the
+        // production sorter. Keep only their compact adjustments and actual ranks.
+        for proof in &construction.goal_witnesses {
+            for (team, &rank) in proof.ranks.iter().enumerate() {
+                let e = &mut estimates[team * model.n + rank];
+                if e.probability == 0. && e.reachability == "undecided" {
+                    e.reachability = "reachable_by_construction".into();
+                }
+            }
+        }
+        report(
+            "deferred_witnesses",
+            serde_json::json!({"seasons":construction.deferred.len(),
+            "goal_certificates":construction.goal_witnesses.len(),
+            "cells":crate::logging::cell_counts(estimates)}),
+        );
+    }
     if witnesses > 0 {
         let mut matrix: Vec<_> = estimates.iter().map(|e| e.probability).collect();
         if !crate::pool::balance(&mut matrix, model.n) {

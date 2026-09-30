@@ -279,3 +279,547 @@ fn packed_point_overflow_skips_conditioning_instead_of_losing_support() {
     let model = Model::new(request).unwrap();
     assert!(Event::build(&model, &Bounds::new(&model), 0, 0, &[], 20000).is_none());
 }
+
+#[test]
+fn joint_rank_propagation_preserves_every_enumerated_witness() {
+    for sort in ["pt,w,bias", "pt,gd,w,bias"] {
+        let mut request = tiny().request;
+        request.phase.sort = sort.into();
+        let model = Model::new(request).unwrap();
+        let problem = golaberto_odds::reachability::JointProblem::new(&model).unwrap();
+        enumerate(&model, |outcomes, _| {
+            let ranks = conditioned::canonical_ranks(&model, outcomes);
+            for target in 0..4 {
+                for prefix in [0, 2, 4, 6] {
+                    let mut domains = problem.initial_domains();
+                    for i in 0..prefix {
+                        domains[i] = 1 << outcomes[i];
+                    }
+                    assert!(
+                        problem
+                            .propagate(target, ranks[target], &mut domains)
+                            .is_some(),
+                        "{sort} lost {outcomes:?}, target {target}, prefix {prefix}"
+                    );
+                    for i in 0..outcomes.len() {
+                        assert_ne!(domains[i] & (1 << outcomes[i]), 0);
+                    }
+                }
+            }
+        });
+    }
+}
+
+#[test]
+fn joint_score_failure_and_budget_exhaustion_remain_undecided() {
+    let request:Request=serde_json::from_value(json!({"id":1,"phase":{"sort":"pt,w,gd,gf","championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+        "team_groups":[{"team_id":1},{"team_id":2}],"games":[
+        {"id":0,"home_id":2,"away_id":1,"home_score":5,"away_score":0,"played":true},
+        {"id":1,"home_id":1,"away_id":2,"home_power":1.,"away_power":1.,"played":false}]})).unwrap();
+    let model = Model::new(request).unwrap();
+    let cell = golaberto_odds::search::Cell { team: 0, rank: 0 };
+    let mut estimates = vec![
+        pool::Estimate {
+            reachability: "undecided".into(),
+            ..Default::default()
+        };
+        4
+    ];
+    let run = golaberto_odds::reachability::run(&model, &[cell], &mut estimates, 100, 3200);
+    assert_eq!(run.stats.impossible, 0);
+    assert_eq!(estimates[0].reachability, "undecided");
+    // The same WDL pattern really is reachable with different goals.
+    let mut campaign = model.base.clone();
+    let mut scores = model.empty_scores();
+    scores[1] = [6, 0];
+    model.add(&mut campaign, 0, [6, 0]);
+    let mut order = vec![0; 2];
+    model.standings(&mut order, &campaign, &scores, &mut Rng::new(1));
+    assert_eq!(order[0], 0);
+    let mut estimates = vec![
+        pool::Estimate {
+            reachability: "undecided".into(),
+            ..Default::default()
+        };
+        4
+    ];
+    let run = golaberto_odds::reachability::run(&model, &[cell], &mut estimates, 0, 0);
+    assert_eq!(run.stats.impossible, 0);
+    assert_eq!(estimates[0].reachability, "undecided");
+}
+
+#[test]
+fn joint_verified_seasons_are_reused_and_never_become_estimates() {
+    let model = tiny();
+    let cells: Vec<_> = (0..4)
+        .flat_map(|team| (0..4).map(move |rank| golaberto_odds::search::Cell { team, rank }))
+        .collect();
+    let mut estimates = vec![
+        pool::Estimate {
+            reachability: "undecided".into(),
+            ..Default::default()
+        };
+        16
+    ];
+    let result =
+        golaberto_odds::reachability::run_ordered(&model, &cells, &mut estimates, 100, 3200, true);
+    assert!(result.stats.reachable > 0);
+    assert!(result.stats.nodes <= 3200);
+    for (i, e) in estimates.iter().enumerate() {
+        assert_eq!(e.probability, 0.);
+        if e.reachability == "reachable_by_construction" {
+            assert!(result
+                .outcomes
+                .iter()
+                .any(|o| conditioned::canonical_ranks(&model, o)[i / 4] == i % 4));
+        }
+    }
+}
+
+#[test]
+fn aggregate_fixture_cut_preserves_all_feasible_caps_and_floors() {
+    let model = tiny();
+    let positive = Problem::new(&model).unwrap();
+    let negative = positive.negated();
+    for problem in [&positive, &negative] {
+        enumerate(&model, |outcomes, _| {
+            let mut points = problem.base.clone();
+            for (i, g) in problem.games.iter().enumerate() {
+                points[g.home] += g.hg[outcomes[i] as usize];
+                points[g.away] += g.ag[outcomes[i] as usize];
+            }
+            for mask in 0..16 {
+                for cap in -9..=9 {
+                    if (0..4).all(|t| mask & (1 << t) != 0 || points[t] <= cap) {
+                        let mut domains = vec![7; problem.games.len()];
+                        assert!(problem
+                            .propagate_policy(cap, mask, &mut domains, true)
+                            .is_some());
+                        for i in 0..outcomes.len() {
+                            assert_ne!(domains[i] & (1 << outcomes[i]), 0);
+                        }
+                    }
+                }
+            }
+        });
+    }
+}
+
+#[test]
+fn aggregate_cut_detects_a_shared_fixture_contradiction_marginals_miss() {
+    let mut request = tiny().request;
+    request.team_groups.push(request.team_groups[0].clone());
+    request.team_groups[4].team_id = 4;
+    for t in 0..4 {
+        let mut g = request.games[0].clone();
+        g.home_id = t;
+        g.away_id = 4;
+        g.id = request.games.len() as i32;
+        request.games.push(g);
+    }
+    let model = Model::new(request).unwrap();
+    let problem = Problem::new(&model).unwrap();
+    assert!(problem
+        .propagate_policy(3, 0, &mut vec![7; 10], false)
+        .is_some());
+    assert!(problem
+        .propagate_policy(3, 0, &mut vec![7; 10], true)
+        .is_none());
+}
+
+#[test]
+fn reordered_neighbors_return_only_production_sorted_witnesses() {
+    let mut model = tiny();
+    model.keys = vec![
+        golaberto_odds::model::Key::Pt,
+        golaberto_odds::model::Key::Gd,
+        golaberto_odds::model::Key::W,
+        golaberto_odds::model::Key::Bias,
+    ];
+    let cells: Vec<_> = (0..model.n)
+        .flat_map(|team| (0..model.n).map(move |rank| golaberto_odds::search::Cell { team, rank }))
+        .collect();
+    let estimates = vec![
+        pool::Estimate {
+            reachability: "undecided".into(),
+            ..Default::default()
+        };
+        model.n * model.n
+    ];
+    for order in ["breadth", "spread"] {
+        let proofs = golaberto_odds::neighbors::search_order(
+            &model,
+            &cells,
+            &[vec![0; model.fixtures.len()], vec![2; model.fixtures.len()]],
+            &estimates,
+            100,
+            order,
+        );
+        assert!(!proofs.is_empty());
+        for proof in proofs {
+            assert_eq!(
+                conditioned::canonical_ranks(&model, &proof.outcomes)[proof.cell.team],
+                proof.cell.rank
+            );
+        }
+    }
+}
+
+#[test]
+fn constructive_reuse_marks_only_ranks_in_verified_seasons() {
+    let model = tiny();
+    let cells: Vec<_> = (0..model.n)
+        .flat_map(|team| (0..model.n).map(move |rank| golaberto_odds::search::Cell { team, rank }))
+        .collect();
+    let mut estimates = vec![
+        pool::Estimate {
+            reachability: "undecided".into(),
+            ..Default::default()
+        };
+        model.n * model.n
+    ];
+    let seasons = golaberto_odds::proof::witnesses_mode(&model, &cells, &mut estimates, "reuse");
+    for (index, estimate) in estimates.iter().enumerate() {
+        assert_eq!(estimate.probability, 0.);
+        if estimate.reachability == "reachable_by_construction" {
+            assert!(seasons
+                .iter()
+                .any(
+                    |o| conditioned::canonical_ranks(&model, o)[index / model.n] == index % model.n
+                ));
+        }
+    }
+}
+
+#[test]
+fn extreme_rank_screen_never_rejects_a_matching_complete_season() {
+    for sort in ["pt,w,bias", "pt,gd,w,bias"] {
+        for draw_points in [1, 3] {
+            let mut request = tiny().request;
+            request.phase.sort = sort.into();
+            request.phase.championship.point_draw = draw_points;
+            let model = Model::new(request).unwrap();
+            let screen = golaberto_odds::reachability::JointProblem::new(&model).unwrap();
+            enumerate(&model, |outcomes, _| {
+                let ranks = conditioned::canonical_ranks(&model, outcomes);
+                for team in 0..model.n {
+                    for maximum in [true, false] {
+                        let mut extreme = true;
+                        for (i, g) in model.fixtures.iter().enumerate() {
+                            let points = if g.home == team {
+                                Some([0, draw_points, 3])
+                            } else if g.away == team {
+                                Some([3, draw_points, 0])
+                            } else {
+                                None
+                            };
+                            if let Some(points) = points {
+                                let v = if maximum {
+                                    *points.iter().max().unwrap()
+                                } else {
+                                    *points.iter().min().unwrap()
+                                };
+                                extreme &= points[outcomes[i] as usize] == v;
+                            }
+                        }
+                        if extreme {
+                            assert!(screen.extreme_possible(
+                                &model,
+                                golaberto_odds::search::Cell {
+                                    team,
+                                    rank: ranks[team]
+                                },
+                                maximum
+                            ));
+                        }
+                    }
+                }
+            });
+        }
+    }
+}
+
+#[test]
+fn numeric_zero_outcome_mass_cannot_prove_unrestricted_impossibility() {
+    let request: Request = serde_json::from_value(json!({"id":1,
+        "phase":{"sort":"pt,w,bias","championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+        "team_groups":[{"team_id":1},{"team_id":2,"add_sub":2}],
+        "games":[{"id":1,"home_id":1,"away_id":2,"home_power":1e-20,"away_power":1e-20,"played":false}]})).unwrap();
+    let model = Model::new(request).unwrap();
+    assert_eq!(model.fixtures[0].prob, [0., 1., 0.]);
+    let cell = golaberto_odds::search::Cell { team: 0, rank: 0 };
+    let mut estimates = vec![
+        pool::Estimate {
+            reachability: "undecided".into(),
+            ..Default::default()
+        };
+        4
+    ];
+    let run = golaberto_odds::reachability::run(&model, &[cell], &mut estimates, 100, 3200);
+    assert_eq!(run.stats.impossible, 0);
+    assert_eq!(estimates[0].reachability, "reachable_by_construction");
+    assert!(run
+        .outcomes
+        .iter()
+        .any(|o| conditioned::canonical_ranks(&model, o)[0] == 0));
+    assert_eq!(estimates[0].probability, 0.);
+}
+
+#[test]
+fn reference_joint_domains_match_the_measured_positive_outcome_masks() {
+    let inputs = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../experiments/rare_positions/reference/2026-09-30-hundredfold/inputs");
+    for entry in std::fs::read_dir(inputs).unwrap() {
+        let path = entry.unwrap().path();
+        if path.extension().is_none_or(|s| s != "json") {
+            continue;
+        }
+        let model =
+            Model::new(serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap()).unwrap();
+        let problem = golaberto_odds::reachability::JointProblem::new(&model).unwrap();
+        for (domain, g) in problem.initial_domains().iter().zip(&model.fixtures) {
+            let old_mask = (0..3).fold(0, |d, o| if g.prob[o] > 0. { d | (1 << o) } else { d });
+            assert_eq!(*domain, old_mask);
+        }
+    }
+}
+
+#[test]
+fn minimum_witness_uses_final_bounds_and_defers_new_proofs() {
+    let request: Request = serde_json::from_value(json!({"id":1,
+        "phase":{"sort":"pt,w,bias","championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+        "team_groups":[{"team_id":1,"add_sub":3},{"team_id":2}],
+        "games":[{"id":1,"home_id":1,"away_id":2,"home_power":1.,"away_power":1.,"played":false}]}))
+    .unwrap();
+    let model = Model::new(request).unwrap();
+    let cell = golaberto_odds::search::Cell { team: 0, rank: 1 };
+    let mut estimates = vec![
+        pool::Estimate {
+            reachability: "undecided".into(),
+            ..Default::default()
+        };
+        4
+    ];
+    let result =
+        golaberto_odds::proof::witnesses_report(&model, &[cell], &mut estimates, "deferred");
+    // Target loses, opponent catches its three points and wins the wins tie.
+    // The opponent's current zero points must not force it below the target.
+    assert_eq!(result.deferred.len(), 1);
+    assert!(result.outcomes.is_empty());
+    assert!(result.nodes <= 100);
+    assert_eq!(
+        conditioned::canonical_ranks(&model, &result.deferred[0])[0],
+        1
+    );
+    assert!(estimates
+        .iter()
+        .all(|e| e.probability == 0. && e.reachability == "undecided"));
+}
+
+#[test]
+fn goal_completion_resolves_palmeiras_ties_with_verified_compact_certificates() {
+    let root =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../experiments/rare_positions");
+    let model = Model::new(
+        serde_json::from_slice(
+            &std::fs::read(
+                root.join("reference/2026-09-30-hundredfold/inputs/group-16498-44eabb47.json"),
+            )
+            .unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let saved: Value = serde_json::from_slice(
+        &std::fs::read(root.join("results/2026-09-30-palmeiras-15-goal-witness.json")).unwrap(),
+    )
+    .unwrap();
+    let outcomes: Vec<_> = saved["remaining_fixture_assignment"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|g| {
+            match g["score"][0]
+                .as_i64()
+                .unwrap()
+                .cmp(&g["score"][1].as_i64().unwrap())
+            {
+                std::cmp::Ordering::Less => 0,
+                std::cmp::Ordering::Equal => 1,
+                std::cmp::Ordering::Greater => 2,
+            }
+        })
+        .collect();
+    let team = model.indices[&16];
+    assert_eq!(conditioned::canonical_ranks(&model, &outcomes)[team], 12);
+    for rank in [13, 14] {
+        let cell = golaberto_odds::search::Cell { team, rank };
+        let proof = golaberto_odds::goal_completion::complete(&model, &outcomes, cell).unwrap();
+        assert!(golaberto_odds::goal_completion::verify(
+            &model, &proof, cell
+        ));
+        assert_eq!(proof.ranks[team], rank);
+        assert!(!proof.adjustments.is_empty());
+    }
+    // This particular pattern has only fourteen other teams at or above the
+    // target's points/wins. Changing goals cannot put fifteen ahead.
+    assert!(golaberto_odds::goal_completion::complete(
+        &model,
+        &outcomes,
+        golaberto_odds::search::Cell { team, rank: 15 }
+    )
+    .is_none());
+}
+
+#[test]
+fn equal_goals_on_a_draw_break_a_goals_scored_tie_without_changing_gd() {
+    let request: Request = serde_json::from_value(json!({"id":1,
+        "phase":{"sort":"pt,w,gd,gf,bias","championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+        "team_groups":[{"team_id":1,"add_sub":10},{"team_id":2,"add_sub":11,"bias":1},{"team_id":3}],
+        "games":[{"id":1,"home_id":1,"away_id":3,"home_power":1.,"away_power":1.,"played":false}]})).unwrap();
+    let model = Model::new(request).unwrap();
+    let cell = golaberto_odds::search::Cell { team: 0, rank: 0 };
+    assert_eq!(conditioned::canonical_ranks(&model, &[1])[0], 1);
+    let proof = golaberto_odds::goal_completion::complete(&model, &[1], cell).unwrap();
+    assert!(proof.adjustments.iter().all(|a| a.margin == 0));
+    assert!(proof.adjustments.iter().any(|a| a.equal_goals > 0));
+    assert!(golaberto_odds::goal_completion::verify(
+        &model, &proof, cell
+    ));
+}
+
+#[test]
+fn shared_equal_goal_adjustments_do_not_independently_order_tied_endpoints() {
+    let request: Request = serde_json::from_value(json!({"id":1,
+        "phase":{"sort":"pt,w,gd,gf,bias","championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+        "team_groups":[{"team_id":1},{"team_id":2,"bias":1}],
+        "games":[{"id":1,"home_id":1,"away_id":2,"home_power":1.,"away_power":1.,"played":false}]})).unwrap();
+    let model = Model::new(request).unwrap();
+    assert!(golaberto_odds::goal_completion::complete(
+        &model,
+        &[1],
+        golaberto_odds::search::Cell { team: 0, rank: 0 }
+    )
+    .is_none());
+}
+
+#[test]
+fn every_goal_completion_in_the_enumerated_league_is_a_real_sorted_season() {
+    for sort in ["pt,w,gd,gf,bias", "pt,gd,gf,w,bias", "pt,w,gf,bias"] {
+        let mut request = tiny().request;
+        request.phase.sort = sort.into();
+        let model = Model::new(request).unwrap();
+        let mut completed = 0;
+        enumerate(&model, |outcomes, _| {
+            for team in 0..model.n {
+                for rank in 0..model.n {
+                    let cell = golaberto_odds::search::Cell { team, rank };
+                    if let Some(proof) =
+                        golaberto_odds::goal_completion::complete(&model, outcomes, cell)
+                    {
+                        assert!(golaberto_odds::goal_completion::verify(
+                            &model, &proof, cell
+                        ));
+                        // Replay independently through Model::add to check the
+                        // helper's incremental campaign updates as well.
+                        let mut scores: Vec<_> = outcomes
+                            .iter()
+                            .map(|o| conditioned::canonical(*o))
+                            .collect();
+                        for a in &proof.adjustments {
+                            let score = &mut scores[a.fixture];
+                            score[0] += a.equal_goals;
+                            score[1] += a.equal_goals;
+                            let winner = if score[0] > score[1] { 0 } else { 1 };
+                            assert!(a.margin == 0 || score[0] != score[1]);
+                            score[winner] += a.margin;
+                        }
+                        let mut campaigns = model.base.clone();
+                        let mut full_scores = model.empty_scores();
+                        for (i, f) in model.fixtures.iter().enumerate() {
+                            model.add(&mut campaigns, i, scores[i]);
+                            full_scores[f.request_index] = scores[i];
+                        }
+                        let mut order = vec![0; model.n];
+                        model.standings(&mut order, &campaigns, &full_scores, &mut Rng::new(1));
+                        let mut ranks = vec![0; model.n];
+                        for (rank, team) in order.into_iter().enumerate() {
+                            ranks[team] = rank;
+                        }
+                        assert_eq!(ranks, proof.ranks);
+                        completed += 1;
+                    }
+                }
+            }
+        });
+        assert!(completed > 0);
+    }
+}
+
+#[test]
+fn goal_certificates_are_deferred_without_changing_probabilities_or_early_labels() {
+    let request: Request = serde_json::from_value(json!({"id":1,
+        "phase":{"sort":"pt,w,gd,gf,bias","championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+        "team_groups":[{"team_id":1},{"team_id":2},{"team_id":3,"add_sub":6},{"team_id":4}],
+        "games":[{"id":1,"home_id":1,"away_id":4,"home_score":5,"away_score":0,"played":true},
+                 {"id":2,"home_id":2,"away_id":4,"home_score":1,"away_score":0,"played":true},
+                 {"id":3,"home_id":1,"away_id":3,"home_power":1.,"away_power":1.,"played":false}]})).unwrap();
+    let model = Model::new(request).unwrap();
+    let cell = golaberto_odds::search::Cell { team: 0, rank: 2 };
+    assert_eq!(conditioned::canonical_ranks(&model, &[0])[0], 1);
+    let mut estimates = vec![
+        pool::Estimate {
+            reachability: "undecided".into(),
+            ..Default::default()
+        };
+        16
+    ];
+    let report = golaberto_odds::proof::witnesses_report_with_goals(
+        &model,
+        &[cell],
+        &mut estimates,
+        "deferred",
+        true,
+    );
+    assert_eq!(report.goal_witnesses.len(), 1);
+    assert!(report.outcomes.is_empty());
+    assert!(report.nodes < 100);
+    assert!(estimates
+        .iter()
+        .all(|e| e.probability == 0. && e.reachability == "undecided"));
+    assert!(golaberto_odds::goal_completion::verify(
+        &model,
+        &report.goal_witnesses[0],
+        cell
+    ));
+}
+
+#[test]
+fn adjacent_cdf_factor_preserves_the_original_weight_bits_at_boundaries() {
+    let games = [lookahead::RankGame {
+        index: 0,
+        home: 0,
+        away: 1,
+        prob: [0.2, 0.3, 0.5],
+        hg: [0, 1, 3],
+        ag: [3, 1, 0],
+    }];
+    for cap_max in [0, 1, 3, 8] {
+        let suffix = lookahead::Suffix::new(&games, 2, cap_max);
+        for step in 0..=1 {
+            for team in 0..2 {
+                for cap in -5..=cap_max + 5 {
+                    for (below, above) in [(0., 1.), (0.03125, 18.), (1., 1.), (123.456, 0.789)] {
+                        let lower = suffix.cdf(step, team, cap - 1);
+                        let at = suffix.cdf(step, team, cap);
+                        let original = below * lower + (at - lower) + above * (1. - at);
+                        assert_eq!(
+                            suffix.factor(step, team, cap, below, above).to_bits(),
+                            original.to_bits()
+                        );
+                    }
+                }
+            }
+        }
+    }
+}

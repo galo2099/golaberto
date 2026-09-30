@@ -1,0 +1,1095 @@
+{
+  "changes": [
+    {
+      "after": [
+        0,
+        100
+      ],
+      "away_id": 74,
+      "before": [
+        0,
+        1
+      ],
+      "game_id": 364084,
+      "home_id": 16
+    }
+  ],
+  "probability_estimate": null,
+  "remaining_fixture_assignment": [
+    {
+      "away_id": 18,
+      "game_id": 364001,
+      "home_id": 318,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 6,
+      "game_id": 364007,
+      "home_id": 14,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 225,
+      "game_id": 363999,
+      "home_id": 4,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 24,
+      "game_id": 364083,
+      "home_id": 20,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 584,
+      "game_id": 364085,
+      "home_id": 225,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 79,
+      "game_id": 364086,
+      "home_id": 110,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 318,
+      "game_id": 364088,
+      "home_id": 67,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 18,
+      "game_id": 364080,
+      "home_id": 7,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 14,
+      "game_id": 364081,
+      "home_id": 15,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 17,
+      "game_id": 364087,
+      "home_id": 6,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 4,
+      "game_id": 364079,
+      "home_id": 5,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 10,
+      "game_id": 364082,
+      "home_id": 8,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 74,
+      "game_id": 364084,
+      "home_id": 16,
+      "score": [
+        0,
+        100
+      ]
+    },
+    {
+      "away_id": 110,
+      "game_id": 364098,
+      "home_id": 18,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 67,
+      "game_id": 364097,
+      "home_id": 14,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 6,
+      "game_id": 364089,
+      "home_id": 4,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 8,
+      "game_id": 364093,
+      "home_id": 17,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 20,
+      "game_id": 364094,
+      "home_id": 79,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 24,
+      "game_id": 364095,
+      "home_id": 16,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 584,
+      "game_id": 364090,
+      "home_id": 74,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 7,
+      "game_id": 364092,
+      "home_id": 10,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 5,
+      "game_id": 364091,
+      "home_id": 318,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 15,
+      "game_id": 364096,
+      "home_id": 225,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 16,
+      "game_id": 364099,
+      "home_id": 5,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 10,
+      "game_id": 364100,
+      "home_id": 4,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 17,
+      "game_id": 364101,
+      "home_id": 74,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 318,
+      "game_id": 364102,
+      "home_id": 7,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 67,
+      "game_id": 364103,
+      "home_id": 24,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 6,
+      "game_id": 364104,
+      "home_id": 8,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 15,
+      "game_id": 364105,
+      "home_id": 79,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 20,
+      "game_id": 364106,
+      "home_id": 584,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 225,
+      "game_id": 364107,
+      "home_id": 110,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 18,
+      "game_id": 364108,
+      "home_id": 14,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 8,
+      "game_id": 364109,
+      "home_id": 318,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 79,
+      "game_id": 364110,
+      "home_id": 10,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 110,
+      "game_id": 364111,
+      "home_id": 15,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 4,
+      "game_id": 364112,
+      "home_id": 17,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 7,
+      "game_id": 364113,
+      "home_id": 20,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 14,
+      "game_id": 364114,
+      "home_id": 584,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 225,
+      "game_id": 364115,
+      "home_id": 16,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 74,
+      "game_id": 364116,
+      "home_id": 6,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 24,
+      "game_id": 364117,
+      "home_id": 18,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 5,
+      "game_id": 364118,
+      "home_id": 67,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 15,
+      "game_id": 364119,
+      "home_id": 4,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 14,
+      "game_id": 364120,
+      "home_id": 74,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 584,
+      "game_id": 364121,
+      "home_id": 24,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 67,
+      "game_id": 364122,
+      "home_id": 10,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 20,
+      "game_id": 364123,
+      "home_id": 8,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 5,
+      "game_id": 364124,
+      "home_id": 79,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 318,
+      "game_id": 364125,
+      "home_id": 225,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 7,
+      "game_id": 364126,
+      "home_id": 110,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 16,
+      "game_id": 364127,
+      "home_id": 6,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 17,
+      "game_id": 364128,
+      "home_id": 18,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 18,
+      "game_id": 364129,
+      "home_id": 5,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 4,
+      "game_id": 364130,
+      "home_id": 7,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 584,
+      "game_id": 364131,
+      "home_id": 318,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 74,
+      "game_id": 364132,
+      "home_id": 15,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 79,
+      "game_id": 364133,
+      "home_id": 17,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 10,
+      "game_id": 364134,
+      "home_id": 20,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 110,
+      "game_id": 364135,
+      "home_id": 16,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 6,
+      "game_id": 364136,
+      "home_id": 225,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 24,
+      "game_id": 364137,
+      "home_id": 14,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 8,
+      "game_id": 364138,
+      "home_id": 67,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 7,
+      "game_id": 364139,
+      "home_id": 24,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 6,
+      "game_id": 364140,
+      "home_id": 10,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 16,
+      "game_id": 364141,
+      "home_id": 15,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 5,
+      "game_id": 364142,
+      "home_id": 17,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 74,
+      "game_id": 364143,
+      "home_id": 79,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 4,
+      "game_id": 364144,
+      "home_id": 584,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 318,
+      "game_id": 364145,
+      "home_id": 110,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 8,
+      "game_id": 364146,
+      "home_id": 14,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 20,
+      "game_id": 364147,
+      "home_id": 18,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 225,
+      "game_id": 364148,
+      "home_id": 67,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 110,
+      "game_id": 364149,
+      "home_id": 5,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 24,
+      "game_id": 364150,
+      "home_id": 4,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 10,
+      "game_id": 364151,
+      "home_id": 74,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 14,
+      "game_id": 364152,
+      "home_id": 7,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 15,
+      "game_id": 364153,
+      "home_id": 318,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 584,
+      "game_id": 364154,
+      "home_id": 8,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 67,
+      "game_id": 364155,
+      "home_id": 20,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 17,
+      "game_id": 364156,
+      "home_id": 16,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 18,
+      "game_id": 364157,
+      "home_id": 225,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 79,
+      "game_id": 364158,
+      "home_id": 6,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 18,
+      "game_id": 364159,
+      "home_id": 4,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 74,
+      "game_id": 364160,
+      "home_id": 7,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 16,
+      "game_id": 364161,
+      "home_id": 318,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 79,
+      "game_id": 364162,
+      "home_id": 24,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 17,
+      "game_id": 364163,
+      "home_id": 10,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 15,
+      "game_id": 364164,
+      "home_id": 8,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 225,
+      "game_id": 364165,
+      "home_id": 20,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 5,
+      "game_id": 364166,
+      "home_id": 584,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 110,
+      "game_id": 364167,
+      "home_id": 14,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 6,
+      "game_id": 364168,
+      "home_id": 67,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 14,
+      "game_id": 364169,
+      "home_id": 5,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 4,
+      "game_id": 364170,
+      "home_id": 74,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 20,
+      "game_id": 364171,
+      "home_id": 15,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 318,
+      "game_id": 364172,
+      "home_id": 17,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 584,
+      "game_id": 364173,
+      "home_id": 79,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 10,
+      "game_id": 364174,
+      "home_id": 16,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 8,
+      "game_id": 364175,
+      "home_id": 225,
+      "score": [
+        1,
+        0
+      ]
+    },
+    {
+      "away_id": 24,
+      "game_id": 364176,
+      "home_id": 110,
+      "score": [
+        0,
+        1
+      ]
+    },
+    {
+      "away_id": 7,
+      "game_id": 364177,
+      "home_id": 6,
+      "score": [
+        0,
+        0
+      ]
+    },
+    {
+      "away_id": 67,
+      "game_id": 364178,
+      "home_id": 18,
+      "score": [
+        1,
+        0
+      ]
+    }
+  ],
+  "requested_position": 15,
+  "snapshot": "experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16498-44eabb47.json",
+  "sort": "pt,w,gd,gf,gp,name",
+  "standings": [
+    {
+      "goal_difference": 28,
+      "points": 69,
+      "position": 1,
+      "team_id": 17,
+      "wins": 21
+    },
+    {
+      "goal_difference": 11,
+      "points": 64,
+      "position": 2,
+      "team_id": 5,
+      "wins": 19
+    },
+    {
+      "goal_difference": 1,
+      "points": 62,
+      "position": 3,
+      "team_id": 584,
+      "wins": 18
+    },
+    {
+      "goal_difference": 7,
+      "points": 61,
+      "position": 4,
+      "team_id": 4,
+      "wins": 18
+    },
+    {
+      "goal_difference": 2,
+      "points": 61,
+      "position": 5,
+      "team_id": 18,
+      "wins": 18
+    },
+    {
+      "goal_difference": 7,
+      "points": 60,
+      "position": 6,
+      "team_id": 225,
+      "wins": 18
+    },
+    {
+      "goal_difference": 7,
+      "points": 60,
+      "position": 7,
+      "team_id": 14,
+      "wins": 18
+    },
+    {
+      "goal_difference": 2,
+      "points": 60,
+      "position": 8,
+      "team_id": 15,
+      "wins": 18
+    },
+    {
+      "goal_difference": -6,
+      "points": 60,
+      "position": 9,
+      "team_id": 67,
+      "wins": 18
+    },
+    {
+      "goal_difference": 6,
+      "points": 60,
+      "position": 10,
+      "team_id": 8,
+      "wins": 17
+    },
+    {
+      "goal_difference": -2,
+      "points": 59,
+      "position": 11,
+      "team_id": 10,
+      "wins": 17
+    },
+    {
+      "goal_difference": 105,
+      "points": 58,
+      "position": 12,
+      "team_id": 74,
+      "wins": 16
+    },
+    {
+      "goal_difference": 3,
+      "points": 57,
+      "position": 13,
+      "team_id": 6,
+      "wins": 16
+    },
+    {
+      "goal_difference": 1,
+      "points": 57,
+      "position": 14,
+      "team_id": 7,
+      "wins": 16
+    },
+    {
+      "goal_difference": -83,
+      "points": 57,
+      "position": 15,
+      "team_id": 16,
+      "wins": 16
+    },
+    {
+      "goal_difference": -7,
+      "points": 41,
+      "position": 16,
+      "team_id": 24,
+      "wins": 11
+    },
+    {
+      "goal_difference": -14,
+      "points": 35,
+      "position": 17,
+      "team_id": 79,
+      "wins": 9
+    },
+    {
+      "goal_difference": -14,
+      "points": 31,
+      "position": 18,
+      "team_id": 20,
+      "wins": 7
+    },
+    {
+      "goal_difference": -23,
+      "points": 26,
+      "position": 19,
+      "team_id": 110,
+      "wins": 6
+    },
+    {
+      "goal_difference": -31,
+      "points": 24,
+      "position": 20,
+      "team_id": 318,
+      "wins": 5
+    }
+  ],
+  "team_id": 16,
+  "verification": "Campaigns rebuilt from complete scores; verified with Model::standings and the production sorter",
+  "verified_position": 15
+}
