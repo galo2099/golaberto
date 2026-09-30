@@ -111,7 +111,7 @@ fn invalid_rating_requests_are_rejected_before_computation() {
 }
 
 #[test]
-fn empty_historical_request_needs_no_database_and_deprecated_route_is_absent() {
+fn empty_historical_request_needs_no_database_and_unknown_route_is_absent() {
     let log = RequestLog::new();
     let response =
         http::execute("/historic_ratings", br#"{"games":[],"ratings":[]}"#, &log).unwrap();
@@ -120,9 +120,7 @@ fn empty_historical_request_needs_no_database_and_deprecated_route_is_absent() {
         json!({"ratings":{},"offense":{},"defense":{},"dates":[]})
     );
     assert_eq!(
-        http::execute("/player_ratings", b"", &log)
-            .unwrap_err()
-            .status,
+        http::execute("/unknown", b"", &log).unwrap_err().status,
         404
     );
     assert_eq!(

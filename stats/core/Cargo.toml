@@ -1,0 +1,15 @@
+[package]
+name = "golaberto-player-ratings"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "player_ratings"
+
+[dependencies]
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+smallvec = "1.10.0"
+
+[dev-dependencies]
+serde_json = { version = "1", features = ["float_roundtrip"] }

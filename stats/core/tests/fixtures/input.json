@@ -1,0 +1,1283 @@
+{
+  "now": 1790812800,
+  "games": [
+    {
+      "id": 1,
+      "home_id": 1,
+      "away_id": 2,
+      "date": "2026-09-24 12:00:00",
+      "home_field": 0,
+      "home_aet": null
+    },
+    {
+      "id": 2,
+      "home_id": 2,
+      "away_id": 1,
+      "date": "2026-09-25 12:00:00",
+      "home_field": 1,
+      "home_aet": 0
+    },
+    {
+      "id": 3,
+      "home_id": 1,
+      "away_id": 2,
+      "date": "2026-09-26 12:00:00",
+      "home_field": 2,
+      "home_aet": null
+    },
+    {
+      "id": 4,
+      "home_id": 2,
+      "away_id": 1,
+      "date": "2026-09-27 12:00:00",
+      "home_field": 0,
+      "home_aet": 0
+    }
+  ],
+  "goals": [
+    {
+      "game_id": 1,
+      "player_id": 109,
+      "team_id": 1,
+      "time": 20,
+      "penalty": false,
+      "own_goal": false
+    },
+    {
+      "game_id": 1,
+      "player_id": 106,
+      "team_id": 1,
+      "time": 45,
+      "penalty": true,
+      "own_goal": false
+    },
+    {
+      "game_id": 1,
+      "player_id": 108,
+      "team_id": 1,
+      "time": 90,
+      "penalty": false,
+      "own_goal": false
+    },
+    {
+      "game_id": 1,
+      "player_id": 102,
+      "team_id": 1,
+      "time": 45,
+      "penalty": false,
+      "own_goal": true
+    },
+    {
+      "game_id": 1,
+      "player_id": 209,
+      "team_id": 2,
+      "time": 20,
+      "penalty": false,
+      "own_goal": false
+    },
+    {
+      "game_id": 1,
+      "player_id": 206,
+      "team_id": 2,
+      "time": 45,
+      "penalty": true,
+      "own_goal": false
+    },
+    {
+      "game_id": 1,
+      "player_id": 208,
+      "team_id": 2,
+      "time": 90,
+      "penalty": false,
+      "own_goal": false
+    },
+    {
+      "game_id": 1,
+      "player_id": 202,
+      "team_id": 2,
+      "time": 45,
+      "penalty": false,
+      "own_goal": true
+    },
+    {
+      "game_id": 2,
+      "player_id": 109,
+      "team_id": 1,
+      "time": 20,
+      "penalty": false,
+      "own_goal": false
+    },
+    {
+      "game_id": 2,
+      "player_id": 106,
+      "team_id": 1,
+      "time": 45,
+      "penalty": true,
+      "own_goal": false
+    },
+    {
+      "game_id": 2,
+      "player_id": 108,
+      "team_id": 1,
+      "time": 90,
+      "penalty": false,
+      "own_goal": false
+    },
+    {
+      "game_id": 2,
+      "player_id": 102,
+      "team_id": 1,
+      "time": 45,
+      "penalty": false,
+      "own_goal": true
+    },
+    {
+      "game_id": 2,
+      "player_id": 209,
+      "team_id": 2,
+      "time": 20,
+      "penalty": false,
+      "own_goal": false
+    },
+    {
+      "game_id": 2,
+      "player_id": 206,
+      "team_id": 2,
+      "time": 45,
+      "penalty": true,
+      "own_goal": false
+    },
+    {
+      "game_id": 2,
+      "player_id": 208,
+      "team_id": 2,
+      "time": 90,
+      "penalty": false,
+      "own_goal": false
+    },
+    {
+      "game_id": 2,
+      "player_id": 202,
+      "team_id": 2,
+      "time": 45,
+      "penalty": false,
+      "own_goal": true
+    },
+    {
+      "game_id": 3,
+      "player_id": 109,
+      "team_id": 1,
+      "time": 20,
+      "penalty": false,
+      "own_goal": false
+    },
+    {
+      "game_id": 3,
+      "player_id": 106,
+      "team_id": 1,
+      "time": 45,
+      "penalty": true,
+      "own_goal": false
+    },
+    {
+      "game_id": 3,
+      "player_id": 108,
+      "team_id": 1,
+      "time": 90,
+      "penalty": false,
+      "own_goal": false
+    },
+    {
+      "game_id": 3,
+      "player_id": 102,
+      "team_id": 1,
+      "time": 45,
+      "penalty": false,
+      "own_goal": true
+    },
+    {
+      "game_id": 3,
+      "player_id": 209,
+      "team_id": 2,
+      "time": 20,
+      "penalty": false,
+      "own_goal": false
+    },
+    {
+      "game_id": 3,
+      "player_id": 206,
+      "team_id": 2,
+      "time": 45,
+      "penalty": true,
+      "own_goal": false
+    },
+    {
+      "game_id": 3,
+      "player_id": 208,
+      "team_id": 2,
+      "time": 90,
+      "penalty": false,
+      "own_goal": false
+    },
+    {
+      "game_id": 3,
+      "player_id": 202,
+      "team_id": 2,
+      "time": 45,
+      "penalty": false,
+      "own_goal": true
+    },
+    {
+      "game_id": 4,
+      "player_id": 109,
+      "team_id": 1,
+      "time": 20,
+      "penalty": false,
+      "own_goal": false
+    },
+    {
+      "game_id": 4,
+      "player_id": 106,
+      "team_id": 1,
+      "time": 45,
+      "penalty": true,
+      "own_goal": false
+    },
+    {
+      "game_id": 4,
+      "player_id": 108,
+      "team_id": 1,
+      "time": 90,
+      "penalty": false,
+      "own_goal": false
+    },
+    {
+      "game_id": 4,
+      "player_id": 102,
+      "team_id": 1,
+      "time": 45,
+      "penalty": false,
+      "own_goal": true
+    },
+    {
+      "game_id": 4,
+      "player_id": 209,
+      "team_id": 2,
+      "time": 20,
+      "penalty": false,
+      "own_goal": false
+    },
+    {
+      "game_id": 4,
+      "player_id": 206,
+      "team_id": 2,
+      "time": 45,
+      "penalty": true,
+      "own_goal": false
+    },
+    {
+      "game_id": 4,
+      "player_id": 208,
+      "team_id": 2,
+      "time": 90,
+      "penalty": false,
+      "own_goal": false
+    },
+    {
+      "game_id": 4,
+      "player_id": 202,
+      "team_id": 2,
+      "time": 45,
+      "penalty": false,
+      "own_goal": true
+    }
+  ],
+  "ratings": [
+    {
+      "team_id": 1,
+      "measure_date": "2026-09-01",
+      "off_rating": 1.2000000000000002,
+      "def_rating": 1.4000000000000001
+    },
+    {
+      "team_id": 1,
+      "measure_date": "2026-09-26",
+      "off_rating": 1.35,
+      "def_rating": 1.33
+    },
+    {
+      "team_id": 2,
+      "measure_date": "2026-09-01",
+      "off_rating": 1.3,
+      "def_rating": 1.5
+    },
+    {
+      "team_id": 2,
+      "measure_date": "2026-09-26",
+      "off_rating": 1.45,
+      "def_rating": 1.43
+    }
+  ],
+  "appearances": [
+    {
+      "id": 1100,
+      "game_id": 1,
+      "player_id": 100,
+      "team_id": 1,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "g"
+    },
+    {
+      "id": 1101,
+      "game_id": 1,
+      "player_id": 101,
+      "team_id": 1,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "dc"
+    },
+    {
+      "id": 1102,
+      "game_id": 1,
+      "player_id": 102,
+      "team_id": 1,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "dc"
+    },
+    {
+      "id": 1103,
+      "game_id": 1,
+      "player_id": 103,
+      "team_id": 1,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "dc"
+    },
+    {
+      "id": 1104,
+      "game_id": 1,
+      "player_id": 104,
+      "team_id": 1,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "dc"
+    },
+    {
+      "id": 1105,
+      "game_id": 1,
+      "player_id": 105,
+      "team_id": 1,
+      "on": 0,
+      "off": 45,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 1106,
+      "game_id": 1,
+      "player_id": 106,
+      "team_id": 1,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 1107,
+      "game_id": 1,
+      "player_id": 107,
+      "team_id": 1,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 1108,
+      "game_id": 1,
+      "player_id": 108,
+      "team_id": 1,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 1109,
+      "game_id": 1,
+      "player_id": 109,
+      "team_id": 1,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "fw"
+    },
+    {
+      "id": 1110,
+      "game_id": 1,
+      "player_id": 110,
+      "team_id": 1,
+      "on": 0,
+      "off": 60,
+      "red": true,
+      "pos": "fw"
+    },
+    {
+      "id": 1111,
+      "game_id": 1,
+      "player_id": 111,
+      "team_id": 1,
+      "on": 45,
+      "off": 90,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 1200,
+      "game_id": 1,
+      "player_id": 200,
+      "team_id": 2,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "g"
+    },
+    {
+      "id": 1201,
+      "game_id": 1,
+      "player_id": 201,
+      "team_id": 2,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "dc"
+    },
+    {
+      "id": 1202,
+      "game_id": 1,
+      "player_id": 202,
+      "team_id": 2,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "dc"
+    },
+    {
+      "id": 1203,
+      "game_id": 1,
+      "player_id": 203,
+      "team_id": 2,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "dc"
+    },
+    {
+      "id": 1204,
+      "game_id": 1,
+      "player_id": 204,
+      "team_id": 2,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "dc"
+    },
+    {
+      "id": 1205,
+      "game_id": 1,
+      "player_id": 205,
+      "team_id": 2,
+      "on": 0,
+      "off": 45,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 1206,
+      "game_id": 1,
+      "player_id": 206,
+      "team_id": 2,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 1207,
+      "game_id": 1,
+      "player_id": 207,
+      "team_id": 2,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 1208,
+      "game_id": 1,
+      "player_id": 208,
+      "team_id": 2,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 1209,
+      "game_id": 1,
+      "player_id": 209,
+      "team_id": 2,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "fw"
+    },
+    {
+      "id": 1210,
+      "game_id": 1,
+      "player_id": 210,
+      "team_id": 2,
+      "on": 0,
+      "off": 60,
+      "red": true,
+      "pos": "fw"
+    },
+    {
+      "id": 1211,
+      "game_id": 1,
+      "player_id": 211,
+      "team_id": 2,
+      "on": 45,
+      "off": 90,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 2100,
+      "game_id": 2,
+      "player_id": 100,
+      "team_id": 1,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "g"
+    },
+    {
+      "id": 2101,
+      "game_id": 2,
+      "player_id": 101,
+      "team_id": 1,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "dc"
+    },
+    {
+      "id": 2102,
+      "game_id": 2,
+      "player_id": 102,
+      "team_id": 1,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "dc"
+    },
+    {
+      "id": 2103,
+      "game_id": 2,
+      "player_id": 103,
+      "team_id": 1,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "dc"
+    },
+    {
+      "id": 2104,
+      "game_id": 2,
+      "player_id": 104,
+      "team_id": 1,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "dc"
+    },
+    {
+      "id": 2105,
+      "game_id": 2,
+      "player_id": 105,
+      "team_id": 1,
+      "on": 0,
+      "off": 45,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 2106,
+      "game_id": 2,
+      "player_id": 106,
+      "team_id": 1,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 2107,
+      "game_id": 2,
+      "player_id": 107,
+      "team_id": 1,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 2108,
+      "game_id": 2,
+      "player_id": 108,
+      "team_id": 1,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 2109,
+      "game_id": 2,
+      "player_id": 109,
+      "team_id": 1,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "fw"
+    },
+    {
+      "id": 2110,
+      "game_id": 2,
+      "player_id": 110,
+      "team_id": 1,
+      "on": 0,
+      "off": 60,
+      "red": true,
+      "pos": "fw"
+    },
+    {
+      "id": 2111,
+      "game_id": 2,
+      "player_id": 111,
+      "team_id": 1,
+      "on": 45,
+      "off": 120,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 2200,
+      "game_id": 2,
+      "player_id": 200,
+      "team_id": 2,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "g"
+    },
+    {
+      "id": 2201,
+      "game_id": 2,
+      "player_id": 201,
+      "team_id": 2,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "dc"
+    },
+    {
+      "id": 2202,
+      "game_id": 2,
+      "player_id": 202,
+      "team_id": 2,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "dc"
+    },
+    {
+      "id": 2203,
+      "game_id": 2,
+      "player_id": 203,
+      "team_id": 2,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "dc"
+    },
+    {
+      "id": 2204,
+      "game_id": 2,
+      "player_id": 204,
+      "team_id": 2,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "dc"
+    },
+    {
+      "id": 2205,
+      "game_id": 2,
+      "player_id": 205,
+      "team_id": 2,
+      "on": 0,
+      "off": 45,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 2206,
+      "game_id": 2,
+      "player_id": 206,
+      "team_id": 2,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 2207,
+      "game_id": 2,
+      "player_id": 207,
+      "team_id": 2,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 2208,
+      "game_id": 2,
+      "player_id": 208,
+      "team_id": 2,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 2209,
+      "game_id": 2,
+      "player_id": 209,
+      "team_id": 2,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "fw"
+    },
+    {
+      "id": 2210,
+      "game_id": 2,
+      "player_id": 210,
+      "team_id": 2,
+      "on": 0,
+      "off": 60,
+      "red": true,
+      "pos": "fw"
+    },
+    {
+      "id": 2211,
+      "game_id": 2,
+      "player_id": 211,
+      "team_id": 2,
+      "on": 45,
+      "off": 120,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 3100,
+      "game_id": 3,
+      "player_id": 100,
+      "team_id": 1,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "g"
+    },
+    {
+      "id": 3101,
+      "game_id": 3,
+      "player_id": 101,
+      "team_id": 1,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "dc"
+    },
+    {
+      "id": 3102,
+      "game_id": 3,
+      "player_id": 102,
+      "team_id": 1,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "dc"
+    },
+    {
+      "id": 3103,
+      "game_id": 3,
+      "player_id": 103,
+      "team_id": 1,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "dc"
+    },
+    {
+      "id": 3104,
+      "game_id": 3,
+      "player_id": 104,
+      "team_id": 1,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "dc"
+    },
+    {
+      "id": 3105,
+      "game_id": 3,
+      "player_id": 105,
+      "team_id": 1,
+      "on": 0,
+      "off": 45,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 3106,
+      "game_id": 3,
+      "player_id": 106,
+      "team_id": 1,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 3107,
+      "game_id": 3,
+      "player_id": 107,
+      "team_id": 1,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 3108,
+      "game_id": 3,
+      "player_id": 108,
+      "team_id": 1,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 3109,
+      "game_id": 3,
+      "player_id": 109,
+      "team_id": 1,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "fw"
+    },
+    {
+      "id": 3110,
+      "game_id": 3,
+      "player_id": 110,
+      "team_id": 1,
+      "on": 0,
+      "off": 60,
+      "red": true,
+      "pos": "fw"
+    },
+    {
+      "id": 3111,
+      "game_id": 3,
+      "player_id": 111,
+      "team_id": 1,
+      "on": 45,
+      "off": 90,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 3200,
+      "game_id": 3,
+      "player_id": 200,
+      "team_id": 2,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "g"
+    },
+    {
+      "id": 3201,
+      "game_id": 3,
+      "player_id": 201,
+      "team_id": 2,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "dc"
+    },
+    {
+      "id": 3202,
+      "game_id": 3,
+      "player_id": 202,
+      "team_id": 2,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "dc"
+    },
+    {
+      "id": 3203,
+      "game_id": 3,
+      "player_id": 203,
+      "team_id": 2,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "dc"
+    },
+    {
+      "id": 3204,
+      "game_id": 3,
+      "player_id": 204,
+      "team_id": 2,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "dc"
+    },
+    {
+      "id": 3205,
+      "game_id": 3,
+      "player_id": 205,
+      "team_id": 2,
+      "on": 0,
+      "off": 45,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 3206,
+      "game_id": 3,
+      "player_id": 206,
+      "team_id": 2,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 3207,
+      "game_id": 3,
+      "player_id": 207,
+      "team_id": 2,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 3208,
+      "game_id": 3,
+      "player_id": 208,
+      "team_id": 2,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 3209,
+      "game_id": 3,
+      "player_id": 209,
+      "team_id": 2,
+      "on": 0,
+      "off": 90,
+      "red": false,
+      "pos": "fw"
+    },
+    {
+      "id": 3210,
+      "game_id": 3,
+      "player_id": 210,
+      "team_id": 2,
+      "on": 0,
+      "off": 60,
+      "red": true,
+      "pos": "fw"
+    },
+    {
+      "id": 3211,
+      "game_id": 3,
+      "player_id": 211,
+      "team_id": 2,
+      "on": 45,
+      "off": 90,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 4100,
+      "game_id": 4,
+      "player_id": 100,
+      "team_id": 1,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "g"
+    },
+    {
+      "id": 4101,
+      "game_id": 4,
+      "player_id": 101,
+      "team_id": 1,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "dc"
+    },
+    {
+      "id": 4102,
+      "game_id": 4,
+      "player_id": 102,
+      "team_id": 1,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "dc"
+    },
+    {
+      "id": 4103,
+      "game_id": 4,
+      "player_id": 103,
+      "team_id": 1,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "dc"
+    },
+    {
+      "id": 4104,
+      "game_id": 4,
+      "player_id": 104,
+      "team_id": 1,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "dc"
+    },
+    {
+      "id": 4105,
+      "game_id": 4,
+      "player_id": 105,
+      "team_id": 1,
+      "on": 0,
+      "off": 45,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 4106,
+      "game_id": 4,
+      "player_id": 106,
+      "team_id": 1,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 4107,
+      "game_id": 4,
+      "player_id": 107,
+      "team_id": 1,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 4108,
+      "game_id": 4,
+      "player_id": 108,
+      "team_id": 1,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 4109,
+      "game_id": 4,
+      "player_id": 109,
+      "team_id": 1,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "fw"
+    },
+    {
+      "id": 4110,
+      "game_id": 4,
+      "player_id": 110,
+      "team_id": 1,
+      "on": 0,
+      "off": 60,
+      "red": true,
+      "pos": "fw"
+    },
+    {
+      "id": 4111,
+      "game_id": 4,
+      "player_id": 111,
+      "team_id": 1,
+      "on": 45,
+      "off": 120,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 4200,
+      "game_id": 4,
+      "player_id": 200,
+      "team_id": 2,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "g"
+    },
+    {
+      "id": 4201,
+      "game_id": 4,
+      "player_id": 201,
+      "team_id": 2,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "dc"
+    },
+    {
+      "id": 4202,
+      "game_id": 4,
+      "player_id": 202,
+      "team_id": 2,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "dc"
+    },
+    {
+      "id": 4203,
+      "game_id": 4,
+      "player_id": 203,
+      "team_id": 2,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "dc"
+    },
+    {
+      "id": 4204,
+      "game_id": 4,
+      "player_id": 204,
+      "team_id": 2,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "dc"
+    },
+    {
+      "id": 4205,
+      "game_id": 4,
+      "player_id": 205,
+      "team_id": 2,
+      "on": 0,
+      "off": 45,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 4206,
+      "game_id": 4,
+      "player_id": 206,
+      "team_id": 2,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 4207,
+      "game_id": 4,
+      "player_id": 207,
+      "team_id": 2,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 4208,
+      "game_id": 4,
+      "player_id": 208,
+      "team_id": 2,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "cm"
+    },
+    {
+      "id": 4209,
+      "game_id": 4,
+      "player_id": 209,
+      "team_id": 2,
+      "on": 0,
+      "off": 120,
+      "red": false,
+      "pos": "fw"
+    },
+    {
+      "id": 4210,
+      "game_id": 4,
+      "player_id": 210,
+      "team_id": 2,
+      "on": 0,
+      "off": 60,
+      "red": true,
+      "pos": "fw"
+    },
+    {
+      "id": 4211,
+      "game_id": 4,
+      "player_id": 211,
+      "team_id": 2,
+      "on": 45,
+      "off": 120,
+      "red": false,
+      "pos": "cm"
+    }
+  ]
+}

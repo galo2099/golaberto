@@ -105,7 +105,7 @@ fn active_routes_chunked_json_errors_and_health_work_over_http() {
     assert_eq!(service.request("GET", "/health", &[], false).0, 200);
     assert_eq!(
         service.request("POST", "/player_ratings", &[], false).0,
-        404
+        500
     );
     assert_eq!(service.request("GET", "/spi", &[], false).0, 405);
     assert_eq!(service.request("POST", "/spi", b"invalid", false).0, 400);

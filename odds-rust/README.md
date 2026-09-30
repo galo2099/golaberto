@@ -12,9 +12,10 @@ Go is used only by the offline comparison harness. Sampling budgets and
 acceptance thresholds, including the 35% relative-SE gate, are preserved.
 
 The native service also replaces the active Go `/spi`, `/eval`, and
-`/historic_ratings` endpoints. It does not run or proxy Go. The deprecated Go
-`/player_ratings` endpoint is intentionally omitted; the independent `stats/`
-Rust service and Rails player-rating route on port 6578 remain in place.
+`/historic_ratings` endpoints and integrates the active `stats` `/player_ratings`
+command. It does not run or proxy Go or the stats executable. The player formulas
+are shared with the standalone stats service through `stats/core`; one release
+binary now serves all five application endpoints on port 6577.
 
 ## Build and run
 
@@ -135,8 +136,9 @@ Running the executable without arguments also starts the service at
 `127.0.0.1:6577`. For a deployment trial, use an explicit unused port, then
 replace the Go process on port 6577 after validation. Do not run both processes
 on the same address. The Rails odds, SPI and evaluation call sites already use
-6577 and require no request/response changes. Keep the separate `stats` process
-on 6578 for player ratings.
+6577 and require no request/response changes. The updated Rails player-rating
+caller also uses 6577. Deploy the Rails change with the unified service; after
+that deployment the separate `stats` process on 6578 can be stopped.
 
 | Endpoint | Request | Response and side effects |
 |---|---|---|
@@ -144,6 +146,7 @@ on 6578 for player ratings.
 | `POST /spi` | `games`, `ratings` | Team ID map with `Id`, `Offense`, `Defense`, `Team`; inactive teams are `null` |
 | `POST /eval` | `games`, `ratings`, `phases_to_eval` | `rps`, `team_rps`; no database writes |
 | `POST /historic_ratings` | `games`, `ratings` | Upserts `historical_ratings`, then returns `ratings`, `offense`, `defense` as empty objects and `dates` as an empty array, matching Go |
+| `POST /player_ratings` | No body required | Reads the same four-year category-1 data as stats; atomically updates existing player and appearance ratings, then returns `{"status":"ok"}` |
 | `GET /health` | None | `{"status":"ok"}` without a database connection |
 
 Rating requests accept the Rails lowercase field names, Go field names, and
@@ -151,8 +154,8 @@ null rating numbers. Games must be chronological and every participating team
 must appear in `ratings`. Empty SPI requests return null ratings; evaluation
 with no selected games returns HTTP 400. Invalid input returns JSON HTTP 400;
 database failures return HTTP 500 and are logged without exposing connection
-configuration to the caller. Unknown paths, including `/player_ratings`, return
-404; non-POST methods on application endpoints return 405.
+configuration to the caller. Unknown paths return 404; non-POST methods on
+application endpoints return 405.
 
 Content-Length and chunked request bodies are supported, including rating
 histories larger than the old adapter's 16 MiB limit. The new body limit is
@@ -161,14 +164,16 @@ requests run one at a time with up to four estimator CPU workers. Health checks
 are served independently. A full queue returns 503. HTTP totals include queue
 time; CLI calculation timing does not.
 
-Only `/historic_ratings` requires MySQL. Set `DATABASE_URL` to a `mysql://` or
+`/historic_ratings` and `/player_ratings` require MySQL. Set `DATABASE_URL` to a `mysql://` or
 Rails-compatible `mysql2://` URL pointing to the same database as Rails.
 If unset, the legacy development default
 is `mysql://root@127.0.0.1:3306/GolAberto_development`. Production must set this
 explicitly. Database credentials belong in the process environment, not the
 repository. Historical updates use parameterized batches and a transaction;
 the table must use a transactional engine such as InnoDB. Numeric persistence
-retains Go's six fractional digits.
+retains Go's six fractional digits. Player updates retain the existing stats
+`f32` formulas, weights, interval boundaries and normalization. The `players`
+and `player_games` tables must also use InnoDB for their joint transaction.
 
 `TeamController#historic_ratings` recognizes the service-persisted empty series
 and redirects without attempting a second, empty SQL insert. It still accepts
@@ -305,3 +310,54 @@ The service branch was merged with the enabled reachability improvements;
 [merge verification](../experiments/rare_positions/2026-09-30-rust-service-merge.md)
 records response equivalence, memory reductions and measured latency increases
 against that current Rust baseline.
+
+## Unified player ratings
+
+Build from the complete repository checkout: `odds-rust` depends on the shared
+library in `stats/core`. The unified binary uses its existing native MySQL driver
+and does not need Diesel or a system MySQL client library. Its `DATABASE_URL`
+must point to the same database as Rails and permit player/appearance updates.
+
+```sh
+DATABASE_URL='mysql://USER:PASSWORD@127.0.0.1:3306/DATABASE' \
+  odds-rust/target/release/golaberto-odds serve 127.0.0.1:6577
+curl -X POST http://127.0.0.1:6577/player_ratings
+```
+
+Calling the endpoint updates player data; it is not a preview. Calculation and
+persistence finish before `{"status":"ok"}` is returned. A failed input or write
+returns HTTP 500, and the Rails caller raises on failed HTTP responses.
+The player and appearance updates are batched into one transaction. Names,
+appearance identities and other columns remain intact; deleted records are not
+recreated. One timestamp controls the complete job's time-decay weights.
+
+The existing calculation queue serializes player updates with odds and team
+ratings. This preserves four estimator cores without running a competing player
+calculation. Odds requests queue behind a player job; `/health` remains separate.
+Player stage logs report `players.load`, `players.calculate`, `players.persist`.
+The Rails caller retains its 300-second read timeout.
+
+For a read-only check on application data:
+
+```sh
+DATABASE_URL='mysql://USER:PASSWORD@127.0.0.1:3306/DATABASE' \
+  cargo run --release --locked --manifest-path odds-rust/Cargo.toml \
+  --example player_ratings_dry_run -- /tmp/player-ratings.json
+```
+
+This example writes an output file with IDs and raw float bits; it performs no
+DB updates. An optional fixed timestamp and input-export filename allow offline
+formula comparisons. Keep database-derived exports outside the repository.
+
+Tests of the shared library run separately:
+
+```sh
+cargo test --release --locked --manifest-path stats/core/Cargo.toml
+MYSQL_TEST_URL=mysql://root@127.0.0.1:3306/GolAberto_development \
+  cargo test --release --locked --manifest-path odds-rust/Cargo.toml \
+  --test player_ratings -- --ignored
+```
+
+The optional DB test shadows every queried table with connection-local temporary
+tables. [Player integration verification](../experiments/rare_positions/2026-09-30-unified-player-ratings.md)
+documents the real-data comparison and disposable-schema HTTP check.

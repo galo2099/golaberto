@@ -2,7 +2,7 @@ use crate::models::{Game, Goal, HistoricalRating, PlayerGame};
 use crate::schema::games;
 use crate::schema::phases;
 use crate::schema::{championships, goals, players};
-use chrono::{Duration, NaiveDate};
+use chrono::Duration;
 use diesel::connection::DefaultLoadingMode;
 use diesel::dsl::sql;
 use diesel::mysql::MysqlConnection;
@@ -14,6 +14,9 @@ use diesel::RunQueryDsl;
 use diesel::{sql_query, ExpressionMethods, JoinOnDsl, SelectableHelper};
 use dotenv::dotenv;
 use itertools::Itertools;
+#[cfg(test)]
+use player_ratings::red_card_penalty_remaining_per90;
+use player_ratings::squash_rating;
 use smallvec::{smallvec, SmallVec};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::{Arc, Mutex};
@@ -24,8 +27,6 @@ use tiny_http::{Header, Method, Response, Server};
 pub mod models;
 pub mod schema;
 
-const AVG_BASE: f32 = 1.335_025_8;
-const HOME_ADV: f32 = 0.161_336_76;
 const WRITE_MAX_RETRIES: usize = 2;
 const WRITE_RETRY_SLEEP: StdDuration = StdDuration::from_secs(1);
 const PLAYER_UPSERT_BATCH_SIZE: usize = 1_000;
@@ -179,23 +180,12 @@ fn load_players(conn: &mut MysqlConnection, games: &[Game]) -> HashMap<i32, Vec<
     x1
 }
 
-fn squash_date(timestamp: i64, now: i64) -> f32 {
-    use std::f32::consts::E;
-    let x = (timestamp - now) as f32 / (730.0 * 24.0 * 60.0 * 60.0);
-    1.0 + (E.powf(x) - E.powf(-x)) / (E.powf(x) + E.powf(-x))
-}
-
-fn squash_rating(minutes: f32) -> f32 {
-    use std::f32::consts::E;
-    1.0 / (1.0 + E.powf(-(minutes - 2000.0) / 400.0))
-}
-
 fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
     let start = Instant::now();
     let games = Arc::new(load_games(&mut pool.get().unwrap()));
     println!("Loaded games from DB in {:?}", start.elapsed());
 
-    let (goals, mut ratings, players) = thread::scope(|s| {
+    let (goals, ratings, players) = thread::scope(|s| {
         let g1 = games.clone();
         let p1 = pool.clone();
         let goals = s.spawn(move || load_goals(&mut p1.get().unwrap(), &g1));
@@ -224,354 +214,85 @@ fn compute_ratings(pool: &Pool<ConnectionManager<MysqlConnection>>) {
     println!("Loaded rating histories for {} teams", ratings.len());
     println!("Loaded player entries for {} games", players.len());
 
-    struct PlayerRating {
-        off: f32,
-        def: f32,
-        minutes: f32,
-    }
-    let mut player_ratings = HashMap::<i32, PlayerRating>::new();
-    let mut player_game_ratings = HashMap::<(i32, i32), PlayerRating>::new();
-    for game in games.iter() {
-        if players.get(&game.id).is_none() {
-            continue;
-        }
-
-        let home_adv: f32 = match game.home_field {
-            0 => HOME_ADV,
-            1 => 0.0,
-            2 => -HOME_ADV,
-            _ => panic!("invalid home_adv"),
-        };
-
-        let now = chrono::offset::Utc::now().timestamp();
-        let weight = squash_date(game.date.timestamp(), now);
-
-        let length = match game.home_aet {
-            Some(_) => 120.0,
-            None => 90.0,
-        };
-
-        get_rating(&mut ratings, game.date.date(), game.home_id);
-        get_rating(&mut ratings, game.date.date(), game.away_id);
-
-        let home_rating: &HistoricalRating = ratings[&game.home_id].front().unwrap();
-        let away_rating: &HistoricalRating = ratings[&game.away_id].front().unwrap();
-
-        let home_for_zero_per90 = -(away_rating.def_rating + home_adv)
-            / ((away_rating.def_rating + home_adv) * 0.424 + 0.548)
-            * (AVG_BASE * 0.424 + 0.548)
-            / length
-            / 11.0;
-        let home_for_goal_weight = 1.0 / ((away_rating.def_rating + home_adv) * 0.424 + 0.548)
-            * (AVG_BASE * 0.424 + 0.548);
-        let home_agg_zero_per90 = (away_rating.off_rating - home_adv)
-            / ((away_rating.off_rating - home_adv) * 0.424 + 0.548)
-            * (AVG_BASE * 0.424 + 0.548)
-            / length
-            / 11.0;
-        let home_agg_goal_weight = -1.0 / ((away_rating.off_rating - home_adv) * 0.424 + 0.548)
-            * (AVG_BASE * 0.424 + 0.548);
-
-        let away_for_zero_per90 = -(home_rating.def_rating - home_adv)
-            / ((home_rating.def_rating - home_adv) * 0.424 + 0.548)
-            * (AVG_BASE * 0.424 + 0.548)
-            / length
-            / 11.0;
-        let away_for_goal_weight = 1.0 / ((home_rating.def_rating - home_adv) * 0.424 + 0.548)
-            * (AVG_BASE * 0.424 + 0.548);
-        let away_agg_zero_per90 = (home_rating.off_rating + home_adv)
-            / ((home_rating.off_rating + home_adv) * 0.424 + 0.548)
-            * (AVG_BASE * 0.424 + 0.548)
-            / length
-            / 11.0;
-        let away_agg_goal_weight = -1.0 / ((home_rating.off_rating + home_adv) * 0.424 + 0.548)
-            * (AVG_BASE * 0.424 + 0.548);
-
-        let home_players = players[&game.id]
-            .iter()
-            .filter(|x| x.pg.team_id == game.home_id)
-            .collect::<Vec<_>>();
-        let away_players = players[&game.id]
-            .iter()
-            .filter(|x| x.pg.team_id == game.away_id)
-            .collect::<Vec<_>>();
-
-        let empty_vec = SmallVec::<[_; 4]>::new();
-        let home_goals = goals
-            .get(&game.id)
-            .unwrap_or(&empty_vec)
-            .iter()
-            .filter(|&goal| {
-                (goal.team_id == game.away_id && goal.own_goal)
-                    || (goal.team_id == game.home_id && !goal.own_goal)
-            })
-            .collect::<SmallVec<[_; 4]>>();
-        let away_goals = goals
-            .get(&game.id)
-            .unwrap_or(&empty_vec)
-            .iter()
-            .filter(|&goal| {
-                (goal.team_id == game.home_id && goal.own_goal)
-                    || (goal.team_id == game.away_id && !goal.own_goal)
-            })
-            .collect::<SmallVec<[_; 4]>>();
-
-        let intervals = home_players
-            .iter()
-            .flat_map(|x| [x.pg.on, x.pg.off])
-            .unique()
-            .sorted();
-        let mut off_penalty = 0.0;
-        let mut def_penalty = 0.0;
-        for (from, to) in intervals.tuple_windows() {
-            let off_penalty_interval = off_penalty;
-            let def_penalty_interval = def_penalty;
-            let hp = home_players
-                .iter()
-                .copied()
-                .filter(|x| std::cmp::max(from, x.pg.on) < std::cmp::min(to, x.pg.off))
-                .collect::<Vec<_>>();
-            let pos = hp.iter().fold(
-                HashMap::from(["g", "dc", "cm", "fw", ""].map(|x| (x, 0.0))),
-                |mut h, x| {
-                    *h.entry(&x.pos).or_default() += 1.0;
-                    h
-                },
-            );
-            let off_windividual = hp.len() as f32
-                / (pos["g"] * 0.3 + pos["dc"] * 0.7 + pos["cm"] + pos["fw"] * 1.0 + pos[""]);
-            let off_w = HashMap::from([
-                ("g", off_windividual * 0.3),
-                ("dc", off_windividual * 0.7),
-                ("dl", off_windividual * 0.7),
-                ("dr", off_windividual * 0.7),
-                ("cm", off_windividual),
-                ("fw", off_windividual * 1.0),
-                ("", off_windividual),
-            ]);
-            let def_windividual = hp.len() as f32
-                / (pos["g"] * 4.0 + pos["dc"] * 2.0 + pos["cm"] + pos["fw"] * 0.5 + pos[""]);
-            let def_w = HashMap::from([
-                ("g", def_windividual * 4.0),
-                ("dc", def_windividual * 2.0),
-                ("dr", def_windividual * 2.0),
-                ("dl", def_windividual * 2.0),
-                ("cm", def_windividual),
-                ("fw", def_windividual * 0.5),
-                ("", def_windividual),
-            ]);
-
-            let home_goals_interval = home_goals
-                .iter()
-                .copied()
-                .filter(|g| goal_interval_filter(g, from, to))
-                .collect::<SmallVec<[_; 4]>>();
-            let away_goals_interval = away_goals
-                .iter()
-                .filter(|g| goal_interval_filter(g, from, to))
-                .count();
-            let home_goals_own = home_goals_interval.iter().filter(|g| g.own_goal).count();
-            let home_goals_regular = home_goals_interval
-                .iter()
-                .copied()
-                .filter(|g| !g.own_goal && !g.penalty)
-                .collect::<SmallVec<[_; 4]>>();
-            let home_goals_penalty = home_goals_interval
-                .iter()
-                .copied()
-                .filter(|g| !g.own_goal && g.penalty)
-                .collect::<SmallVec<[_; 4]>>();
-
-            for &v in &hp {
-                let player_rating = player_ratings
-                    .entry(v.pg.player_id)
-                    .or_insert(PlayerRating {
-                        off: 0.0,
-                        def: 0.0,
-                        minutes: 0.0,
-                    });
-                let player_game_rating = player_game_ratings
-                    .entry((v.pg.id, v.pg.game_id))
-                    .or_insert(PlayerRating {
-                        off: 0.0,
-                        def: 0.0,
-                        minutes: 0.0,
-                    });
-                if v.pg.off == to && v.pg.red {
-                    let red_penalty_per90 = red_card_penalty_remaining_per90(length, v.pg.off);
-                    player_game_rating.off -= 0.3 * red_penalty_per90;
-                    player_game_rating.def -= 0.5 * red_penalty_per90;
-                    player_rating.off -= 0.3 * red_penalty_per90 * weight;
-                    player_rating.def -= 0.5 * red_penalty_per90 * weight;
-                    off_penalty += 0.3 / 90.0;
-                    def_penalty += 0.5 / 90.0;
-                }
-                let minutes = (to - from) as f32;
-                player_rating.minutes += minutes * weight;
-                player_game_rating.minutes += minutes;
-                let off_player_weight = off_w[&*v.pos];
-                let regular_goals = home_goals_regular
-                    .iter()
-                    .filter(|x| x.player_id == v.pg.player_id)
-                    .count();
-                let penalty_goals = home_goals_penalty
-                    .iter()
-                    .filter(|x| x.player_id == v.pg.player_id)
-                    .count();
-
-                let off = off_penalty_interval * minutes / (hp.len() as f32)
-                    + minutes * home_for_zero_per90 * off_player_weight
-                    + home_goals_own as f32 * home_for_goal_weight * off_player_weight
-                        / (hp.len() as f32)
-                    + (home_goals_regular.len() as f32) * home_for_goal_weight * off_player_weight
-                        / (hp.len() as f32)
-                        / 4.0
-                        * 3.0
-                    + (home_goals_penalty.len() as f32) * home_for_goal_weight * off_player_weight
-                        / (hp.len() as f32)
-                        / 6.0
-                        * 5.0
-                    + regular_goals as f32 * home_for_goal_weight / 4.0
-                    + penalty_goals as f32 * home_for_goal_weight / 6.0;
-                let def = def_penalty_interval * minutes / (hp.len() as f32)
-                    + (minutes * home_agg_zero_per90
-                        + away_goals_interval as f32 * home_agg_goal_weight / (hp.len() as f32))
-                        * def_w[&*v.pos];
-                player_rating.off += off * weight;
-                player_rating.def += def * weight;
-                player_game_rating.off += off;
-                player_game_rating.def += def;
-            }
-        }
-
-        let intervals = away_players
-            .iter()
-            .flat_map(|x| [x.pg.on, x.pg.off])
-            .unique()
-            .sorted();
-        let mut off_penalty = 0.0;
-        let mut def_penalty = 0.0;
-        for (from, to) in intervals.tuple_windows() {
-            let off_penalty_interval = off_penalty;
-            let def_penalty_interval = def_penalty;
-            let ap = away_players
-                .iter()
-                .copied()
-                .filter(|x| std::cmp::max(from, x.pg.on) < std::cmp::min(to, x.pg.off))
-                .collect::<Vec<_>>();
-            let pos = ap.iter().fold(
-                HashMap::from(["g", "dc", "cm", "fw", ""].map(|x| (x, 0.0))),
-                |mut h, x| {
-                    *h.entry(&x.pos).or_default() += 1.0;
-                    h
-                },
-            );
-            let off_windividual = ap.len() as f32
-                / (pos["g"] * 0.3 + pos["dc"] * 0.7 + pos["cm"] + pos["fw"] * 1.0 + pos[""]);
-            let off_w = HashMap::from([
-                ("g", off_windividual * 0.3),
-                ("dc", off_windividual * 0.7),
-                ("dl", off_windividual * 0.7),
-                ("dr", off_windividual * 0.7),
-                ("cm", off_windividual),
-                ("fw", off_windividual * 1.0),
-                ("", off_windividual),
-            ]);
-            let def_windividual = ap.len() as f32
-                / (pos["g"] * 4.0 + pos["dc"] * 2.0 + pos["cm"] + pos["fw"] * 0.5 + pos[""]);
-            let def_w = HashMap::from([
-                ("g", def_windividual * 4.0),
-                ("dc", def_windividual * 2.0),
-                ("dr", def_windividual * 2.0),
-                ("dl", def_windividual * 2.0),
-                ("cm", def_windividual),
-                ("fw", def_windividual * 0.5),
-                ("", def_windividual),
-            ]);
-
-            let away_goals_interval = away_goals
-                .iter()
-                .copied()
-                .filter(|g| goal_interval_filter(g, from, to))
-                .collect::<SmallVec<[_; 4]>>();
-            let home_goals_interval = home_goals
-                .iter()
-                .filter(|g| goal_interval_filter(g, from, to))
-                .count();
-            let away_goals_own = away_goals_interval.iter().filter(|g| g.own_goal).count();
-            let away_goals_regular = away_goals_interval
-                .iter()
-                .copied()
-                .filter(|g| !g.own_goal && !g.penalty)
-                .collect::<SmallVec<[_; 4]>>();
-            let away_goals_penalty = away_goals_interval
-                .iter()
-                .copied()
-                .filter(|g| !g.own_goal && g.penalty)
-                .collect::<SmallVec<[_; 4]>>();
-
-            for &v in &ap {
-                let player_rating = player_ratings
-                    .entry(v.pg.player_id)
-                    .or_insert(PlayerRating {
-                        off: 0.0,
-                        def: 0.0,
-                        minutes: 0.0,
-                    });
-                let player_game_rating = player_game_ratings
-                    .entry((v.pg.id, v.pg.game_id))
-                    .or_insert(PlayerRating {
-                        off: 0.0,
-                        def: 0.0,
-                        minutes: 0.0,
-                    });
-                if v.pg.off == to && v.pg.red {
-                    let red_penalty_per90 = red_card_penalty_remaining_per90(length, v.pg.off);
-                    player_game_rating.off -= 0.3 * red_penalty_per90;
-                    player_game_rating.def -= 0.5 * red_penalty_per90;
-                    player_rating.off -= 0.3 * red_penalty_per90 * weight;
-                    player_rating.def -= 0.5 * red_penalty_per90 * weight;
-                    off_penalty += 0.3 / 90.0;
-                    def_penalty += 0.5 / 90.0;
-                }
-                let minutes = (to - from) as f32;
-                player_rating.minutes += minutes * weight;
-                player_game_rating.minutes += minutes;
-                let off_player_weight = off_w[&*v.pos];
-                let regular_goals = away_goals_regular
-                    .iter()
-                    .filter(|x| x.player_id == v.pg.player_id)
-                    .count();
-                let penalty_goals = away_goals_penalty
-                    .iter()
-                    .filter(|x| x.player_id == v.pg.player_id)
-                    .count();
-
-                let off = off_penalty_interval * minutes / (ap.len() as f32)
-                    + minutes * away_for_zero_per90 * off_player_weight
-                    + away_goals_own as f32 * away_for_goal_weight * off_player_weight
-                        / (ap.len() as f32)
-                    + (away_goals_regular.len() as f32) * away_for_goal_weight * off_player_weight
-                        / (ap.len() as f32)
-                        / 4.0
-                        * 3.0
-                    + (away_goals_penalty.len() as f32) * away_for_goal_weight * off_player_weight
-                        / (ap.len() as f32)
-                        / 6.0
-                        * 5.0
-                    + regular_goals as f32 * away_for_goal_weight / 4.0
-                    + penalty_goals as f32 * away_for_goal_weight / 6.0;
-                let def = def_penalty_interval * minutes / (ap.len() as f32)
-                    + (minutes * away_agg_zero_per90
-                        + home_goals_interval as f32 * away_agg_goal_weight / (ap.len() as f32))
-                        * def_w[&*v.pos];
-                player_rating.off += off * weight;
-                player_rating.def += def * weight;
-                player_game_rating.off += off;
-                player_game_rating.def += def;
-            }
-        }
-    }
+    let core_games: Vec<_> = games
+        .iter()
+        .map(|g| player_ratings::Game {
+            id: g.id,
+            home_id: g.home_id,
+            away_id: g.away_id,
+            date: g.date,
+            home_field: g.home_field,
+            home_aet: g.home_aet,
+        })
+        .collect();
+    let core_goals = goals
+        .into_iter()
+        .map(|(id, entries)| {
+            (
+                id,
+                entries
+                    .into_iter()
+                    .map(|g| player_ratings::Goal {
+                        player_id: g.player_id,
+                        team_id: g.team_id,
+                        time: g.time,
+                        penalty: g.penalty,
+                        own_goal: g.own_goal,
+                    })
+                    .collect(),
+            )
+        })
+        .collect();
+    let core_ratings = ratings
+        .into_iter()
+        .map(|(id, entries)| {
+            (
+                id,
+                entries
+                    .into_iter()
+                    .map(|r| player_ratings::HistoricalRating {
+                        team_id: r.team_id,
+                        measure_date: r.measure_date,
+                        off_rating: r.off_rating,
+                        def_rating: r.def_rating,
+                    })
+                    .collect(),
+            )
+        })
+        .collect();
+    let core_players = players
+        .into_iter()
+        .map(|(id, entries)| {
+            (
+                id,
+                entries
+                    .into_iter()
+                    .map(|entry| player_ratings::PlayerGamePos {
+                        pg: player_ratings::PlayerGame {
+                            id: entry.pg.id,
+                            game_id: entry.pg.game_id,
+                            player_id: entry.pg.player_id,
+                            team_id: entry.pg.team_id,
+                            on: entry.pg.on,
+                            off: entry.pg.off,
+                            red: entry.pg.red,
+                        },
+                        pos: entry.pos,
+                    })
+                    .collect(),
+            )
+        })
+        .collect();
+    let computed = player_ratings::calculate(
+        &core_games,
+        &core_goals,
+        core_ratings,
+        &core_players,
+        chrono::Utc::now().timestamp(),
+    )
+    .expect("player-rating calculation failed");
+    let player_ratings = computed.player_ratings;
+    let player_game_ratings = computed.player_game_ratings;
 
     println!(
         "Computed player and player-game ratings in {:?}",
@@ -784,24 +505,6 @@ fn main() {
                 );
             }
         }
-    }
-}
-
-fn goal_interval_filter(g: &Goal, from: i32, to: i32) -> bool {
-    g.time >= from && (g.time < to || (g.time == 90 && to == 90) || (g.time == 45 && to == 45))
-}
-
-fn red_card_penalty_remaining_per90(game_length: f32, player_off: i32) -> f32 {
-    // Red-card penalties are calibrated per 90 minutes, not per match. An overtime
-    // match can therefore charge more than a normal match's full-game penalty when
-    // the player misses more than 90 minutes.
-    ((game_length - player_off as f32) / 90.0).max(0.0)
-}
-
-fn get_rating(ratings: &mut HashMap<i32, VecDeque<HistoricalRating>>, date: NaiveDate, id: i32) {
-    let r = ratings.get_mut(&id).expect("");
-    while r.len() > 1 && date > r[1].measure_date {
-        r.pop_front();
     }
 }
 

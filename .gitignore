@@ -30,6 +30,7 @@ public/stylesheets/base_packaged.css
 /stats/.idea/
 /stats/stats.iml
 /stats/target/
+/stats/core/target/
 /odds-rust/target/
 
 # Local benchmark exports can contain database-derived group data.

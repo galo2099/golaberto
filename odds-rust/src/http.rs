@@ -10,7 +10,13 @@ use std::{
 use tiny_http::{Header, Method, Request, Response, Server, StatusCode};
 
 pub const MAX_BODY: usize = 128 * 1024 * 1024;
-pub const ENDPOINTS: [&str; 4] = ["/odds", "/spi", "/eval", "/historic_ratings"];
+pub const ENDPOINTS: [&str; 5] = [
+    "/odds",
+    "/spi",
+    "/eval",
+    "/historic_ratings",
+    "/player_ratings",
+];
 
 #[derive(Debug)]
 pub struct EndpointError {
@@ -52,6 +58,11 @@ pub fn execute(path: &str, body: &[u8], log: &RequestLog) -> Result<Vec<u8>, End
             let (response, _) =
                 crate::api::calculate_logged(request, seed, 4, 20000, &log).map_err(bad)?;
             serde_json::to_value(response).map_err(bad)?
+        }
+        "/player_ratings" => {
+            // Like the existing stats endpoint, this command has no JSON payload.
+            crate::player_ratings::run(log).map_err(|e| database_error(e, log))?;
+            json!({"status":"ok"})
         }
         "/spi" | "/eval" | "/historic_ratings" => {
             let request: ratings::Request = serde_json::from_slice(body).map_err(bad)?;

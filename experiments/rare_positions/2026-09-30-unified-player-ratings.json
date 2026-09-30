@@ -1,0 +1,207 @@
+{
+  "baseline_commit": "dd61c883",
+  "toolchain": "rustc/cargo 1.93.1",
+  "player_parity": {
+    "clock": 1790812800,
+    "games": 27278,
+    "players": 41124,
+    "appearances": 823217,
+    "native_vs_original_diesel_loaders_and_formulas_identical": true,
+    "sorted_raw_float_bits_sha256": "0476d3c698065c6be5966daa428b86bab7f35a0be7ea73d33511f8b2e2479c66",
+    "application_database_writes": 0
+  },
+  "http_smoke": {
+    "endpoint": "/player_ratings",
+    "success_status": 200,
+    "response": {
+      "status": "ok"
+    },
+    "updated_players": 2,
+    "updated_appearances": 2,
+    "identities_preserved": true,
+    "invalid_data_status": 500,
+    "ratings_unchanged_on_failure": true,
+    "health_after_failure": true,
+    "application_database_writes": 0,
+    "disposable_schema_cleaned": true
+  },
+  "tests": {
+    "odds_rust_passed": 40,
+    "odds_rust_optional_db_ignored": 2,
+    "shared_core_passed": 7,
+    "stats_passed": 4,
+    "player_temporary_table_passed": 1,
+    "rails_runs": 120,
+    "rails_assertions": 349,
+    "rails_failures": 0,
+    "rails_errors": 0,
+    "rails_skips": 1
+  },
+  "odds_http_benchmark": {
+    "seed": 808,
+    "workers": 4,
+    "warmups": 2,
+    "iterations": 3,
+    "scenarios": [
+      {
+        "input": "group-16498-44eabb47.json",
+        "identical": true,
+        "latency_ms": {
+          "baseline": [
+            651.6129579999998,
+            660.7459159999997,
+            655.4307499999999
+          ],
+          "candidate": [
+            652.0301250000005,
+            649.2363750000001,
+            651.3844579999999
+          ]
+        },
+        "median_ms": {
+          "baseline": 655.4307499999999,
+          "candidate": 651.3844579999999
+        },
+        "resources": {
+          "baseline": {
+            "idle_rss_mib": 6.5625,
+            "peak_rss_mib": 158.703125
+          },
+          "candidate": {
+            "idle_rss_mib": 6.53125,
+            "peak_rss_mib": 136.515625
+          }
+        },
+        "median_change_percent": -0.6173485146981572
+      },
+      {
+        "input": "group-16653-2d1c1d6f.json",
+        "identical": true,
+        "latency_ms": {
+          "baseline": [
+            636.0513749999992,
+            664.4049170000006,
+            637.0644589999994
+          ],
+          "candidate": [
+            639.1416660000004,
+            634.8932919999992,
+            637.3847500000007
+          ]
+        },
+        "median_ms": {
+          "baseline": 637.0644589999994,
+          "candidate": 637.3847500000007
+        },
+        "resources": {
+          "baseline": {
+            "idle_rss_mib": 6.546875,
+            "peak_rss_mib": 168.875
+          },
+          "candidate": {
+            "idle_rss_mib": 6.53125,
+            "peak_rss_mib": 169.453125
+          }
+        },
+        "median_change_percent": 0.05027607418315316
+      },
+      {
+        "input": "group-16653-71d4fea8.json",
+        "identical": true,
+        "latency_ms": {
+          "baseline": [
+            657.3534579999994,
+            652.6591659999995,
+            649.8679159999981
+          ],
+          "candidate": [
+            643.687583000002,
+            642.5589589999987,
+            655.9614170000003
+          ]
+        },
+        "median_ms": {
+          "baseline": 652.6591659999995,
+          "candidate": 643.687583000002
+        },
+        "resources": {
+          "baseline": {
+            "idle_rss_mib": 6.53125,
+            "peak_rss_mib": 164.71875
+          },
+          "candidate": {
+            "idle_rss_mib": 6.546875,
+            "peak_rss_mib": 159.796875
+          }
+        },
+        "median_change_percent": -1.374619934472432
+      },
+      {
+        "input": "group-16982-9327edcd.json",
+        "identical": true,
+        "latency_ms": {
+          "baseline": [
+            289.2615840000019,
+            290.9178750000017,
+            288.1525409999988
+          ],
+          "candidate": [
+            290.2488329999997,
+            289.8229579999985,
+            293.8727909999983
+          ]
+        },
+        "median_ms": {
+          "baseline": 289.2615840000019,
+          "candidate": 290.2488329999997
+        },
+        "resources": {
+          "baseline": {
+            "idle_rss_mib": 6.515625,
+            "peak_rss_mib": 22.625
+          },
+          "candidate": {
+            "idle_rss_mib": 6.53125,
+            "peak_rss_mib": 25.359375
+          }
+        },
+        "median_change_percent": 0.34129972820649
+      },
+      {
+        "input": "group-16983-43969b02.json",
+        "identical": true,
+        "latency_ms": {
+          "baseline": [
+            280.81191599999755,
+            283.30612500000285,
+            283.29654099999857
+          ],
+          "candidate": [
+            282.8670829999993,
+            280.75895799999984,
+            283.7340000000026
+          ]
+        },
+        "median_ms": {
+          "baseline": 283.29654099999857,
+          "candidate": 282.8670829999993
+        },
+        "resources": {
+          "baseline": {
+            "idle_rss_mib": 6.515625,
+            "peak_rss_mib": 21.90625
+          },
+          "candidate": {
+            "idle_rss_mib": 6.53125,
+            "peak_rss_mib": 22.03125
+          }
+        },
+        "median_change_percent": -0.1515930969306356
+      }
+    ]
+  },
+  "limits": [
+    "Full-size player persistence and queue latency were not benchmarked on application data.",
+    "Three timed requests per snapshot are insufficient to establish a small performance change."
+  ]
+}

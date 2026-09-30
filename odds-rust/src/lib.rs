@@ -8,6 +8,7 @@ pub mod logging;
 pub mod lookahead;
 pub mod model;
 pub mod neighbors;
+pub mod player_ratings;
 pub mod pool;
 pub mod proof;
 pub mod ratings;

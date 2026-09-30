@@ -40,9 +40,21 @@ class PlayerRatingUpdateServiceTest < Minitest::Test
 
     assert_equal response, actual_response
     assert_equal PlayerRatingUpdateService::HOST, host
-    assert_equal PlayerRatingUpdateService::PORT, port
+    assert_equal 6577, port
     assert_equal PlayerRatingUpdateService::READ_TIMEOUT_SECONDS, fake_http.read_timeout
     assert_equal PlayerRatingUpdateService::PATH, fake_http.last_request.path
     assert_equal "application/json", fake_http.last_request["Content-Type"]
+  end
+
+  def test_failed_update_is_raised_instead_of_reported_as_success
+    response = Net::HTTPInternalServerError.new("1.1", "500", "Internal Server Error")
+    fake_http = FakeHttp.new(response)
+    original_new = Net::HTTP.method(:new)
+    begin
+      Net::HTTP.singleton_class.send(:define_method, :new) { |*| fake_http }
+      assert_raises(Net::HTTPFatalError) { PlayerRatingUpdateService.run }
+    ensure
+      Net::HTTP.singleton_class.send(:define_method, :new, original_new)
+    end
   end
 end

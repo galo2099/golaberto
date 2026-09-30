@@ -11,6 +11,8 @@ serde_json = { version = "1", features = ["float_roundtrip"] }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 mysql = { version = "26", default-features = false, features = ["minimal-rust"] }
 tiny_http = "0.12"
+smallvec = "1.10.0"
+player-ratings = { package = "golaberto-player-ratings", path = "../stats/core" }
 
 [profile.release]
 lto = "thin"
