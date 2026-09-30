@@ -8,6 +8,14 @@ const source = fs.readFileSync(path.join(__dirname, "../../app/assets/javascript
 vm.runInNewContext(source, context);
 const odds = context.window.GolabertoOdds;
 
+assert.equal(odds.backgroundColor(null, "#90EE90"), "lightgray");
+assert.equal(odds.backgroundColor(0, "#90EE90"), "lightgray");
+assert.equal(odds.backgroundColor(25, "#90EE90"), "color-mix(in srgb, lightgray 75%, #90EE90 25%)");
+assert.equal(odds.backgroundColor(100, "#90EE90"), "#90EE90");
+assert.equal(odds.backgroundColor(100, null), "lightgray");
+assert.equal(odds.textColor(44, "black"), "inherit");
+assert.equal(odds.textColor(45, "black"), "white");
+
 assert.equal(odds.format(0.0001, "en-US"), "1e-4%");
 assert.equal(odds.html(0.0001, "en-US"), "1e-4%");
 assert.equal(odds.format(0.00004321, "en-US"), "4e-5%");

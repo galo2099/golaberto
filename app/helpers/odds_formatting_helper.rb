@@ -1,4 +1,16 @@
 module OddsFormattingHelper
+  def odds_background_color(percentage, zone_color)
+    color = zone_color.to_s.empty? ? "lightgray" : zone_color
+    return "lightgray" if percentage.nil? || percentage.to_f <= 0
+    return color if percentage.to_f >= 100
+
+    "color-mix(in srgb, lightgray #{100 - percentage.to_f}%, #{color} #{percentage.to_f}%)"
+  end
+
+  def odds_text_color(percentage, zone_color)
+    zone_color == "black" && percentage.to_f >= 45 ? "white" : "inherit"
+  end
+
   # Odds in views are percentages (0..100), not fractions (0..1).
   def formatted_odds(percentage)
     return "" if percentage.nil?

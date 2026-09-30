@@ -166,8 +166,8 @@
                   cell.attr("title", GolabertoOdds.title(value, "<%= I18n.locale %>"));
                 }
                 var bgColor = ui.item.element.attr("data-cell-color") || ui.item.element.attr("data-color") || "lightgray";
-                cell.css("background-color", bgColor);
-                cell.css("color", bgColor === "black" ? "white" : "");
+                cell.css("background-color", GolabertoOdds.backgroundColor(value, bgColor));
+                cell.css("color", GolabertoOdds.textColor(value, bgColor));
               });
             }
           });
@@ -300,7 +300,7 @@
                            "data-odds-array": (t[0].odds || []).to_json,
                            title: odds_title(first_odds),
                            class: "odds odds-value",
-                           style: "background-color: #{first_color}; color: #{first_color == "black" ? "white" : "inherit"}" %>
+                           style: "background-color: #{odds_background_color(first_odds, first_color)}; color: #{odds_text_color(first_odds, first_color)}" %>
          <% end %>
        </tr>
      <% end %>

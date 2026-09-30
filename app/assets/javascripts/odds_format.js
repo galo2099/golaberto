@@ -6,6 +6,19 @@
   }
 
   window.GolabertoOdds = {
+    backgroundColor: function(value, zoneColor) {
+      var color = zoneColor || "lightgray";
+      var percentage = validNumber(value);
+      if (percentage === null || percentage <= 0) return "lightgray";
+      if (percentage >= 100) return color;
+      return "color-mix(in srgb, lightgray " + (100 - percentage) + "%, " + color + " " + percentage + "%)";
+    },
+
+    textColor: function(value, zoneColor) {
+      var percentage = validNumber(value);
+      return zoneColor === "black" && percentage !== null && percentage >= 45 ? "white" : "inherit";
+    },
+
     zoneValue: function(odds, positions) {
       var value = positions.reduce(function(sum, pos) {
         var probability = odds[Number(pos) - 1];

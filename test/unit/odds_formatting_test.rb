@@ -57,4 +57,19 @@ class OddsFormattingTest < Minitest::Test
     assert_equal '4e-7', @view.formatted_odds_fraction(0.00004321)
     assert_equal '1.000', @view.formatted_odds_fraction(100)
   end
+
+  def test_odds_background_blends_from_gray_to_zone_color
+    assert_equal 'lightgray', @view.odds_background_color(0, '#90EE90')
+    assert_equal 'lightgray', @view.odds_background_color(nil, '#90EE90')
+    assert_equal 'color-mix(in srgb, lightgray 75.0%, #90EE90 25.0%)', @view.odds_background_color(25, '#90EE90')
+    assert_equal '#90EE90', @view.odds_background_color(100, '#90EE90')
+    assert_equal 'lightgray', @view.odds_background_color(100, nil)
+  end
+
+  def test_black_zone_text_remains_readable_during_blend
+    assert_equal 'inherit', @view.odds_text_color(0, 'black')
+    assert_equal 'inherit', @view.odds_text_color(44, 'black')
+    assert_equal 'white', @view.odds_text_color(45, 'black')
+    assert_equal 'white', @view.odds_text_color(100, 'black')
+  end
 end
