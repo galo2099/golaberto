@@ -26,6 +26,7 @@ func TestRankDomainsRetainEveryPossibleRankAssignment(t *testing.T) {
 			{home: 3, away: 1, prob: [3]float64{0.3, 0.2, 0.5}},
 		}
 		for i := range games {
+			games[i].index = i
 			games[i].homeGain = [3]int{0, stride, 3 * stride}
 			games[i].awayGain = [3]int{3 * stride, stride, 0}
 			if stride > 1 {
@@ -197,6 +198,9 @@ func TestRankDomainsSavedFortaleza(t *testing.T) {
 	if forced != 8 {
 		t.Fatalf("forced %d Londrina wins, want 8", forced)
 	}
+	if len(domains.forced) != 8 || len(domains.variable) != len(games)-8 {
+		t.Fatalf("forced wins were not compacted: fixed=%d variable=%d remaining=%d", len(domains.forced), len(domains.variable), len(games))
+	}
 	bounds := buildPointRankBounds(campaign, group.Team_groups, group.Games, table)
 	event, ok := buildConditionedPointEvent(22, 17, nil, group, campaign, table, bounds)
 	if !ok || !conditionedDomainUniformSide(event, conditionedZeroCell{22, 17}, group, campaign, table, order, bounds) {
@@ -255,6 +259,16 @@ func TestRankDomainImportanceWeightsMatchPlainSampling(t *testing.T) {
 // the ignored local experiment directory. Opt in with absolute input/output.
 func TestPropagatedDomainsFullRequestExperiment(t *testing.T) {
 	paths, output := os.Getenv("RARE_POSITION_DOMAIN_EXPERIMENT_REQUESTS"), os.Getenv("RARE_POSITION_DOMAIN_EXPERIMENT_OUTPUT")
+	runRankSamplerFullRequestExperiment(t, paths, output, os.Getenv("RARE_POSITION_DOMAIN_EXPERIMENT_SEEDS"), "RARE_POSITION_PROPAGATED_DOMAINS")
+}
+
+func TestCompactForcedFullRequestExperiment(t *testing.T) {
+	paths, output := os.Getenv("RARE_POSITION_COMPACT_EXPERIMENT_REQUESTS"), os.Getenv("RARE_POSITION_COMPACT_EXPERIMENT_OUTPUT")
+	runRankSamplerFullRequestExperiment(t, paths, output, os.Getenv("RARE_POSITION_COMPACT_EXPERIMENT_SEEDS"), "RARE_POSITION_COMPACT_FORCED_FIXTURES")
+}
+
+func runRankSamplerFullRequestExperiment(t *testing.T, paths, output, seeds, flag string) {
+	t.Helper()
 	if paths == "" || output == "" {
 		t.Skip("set saved requests and an absolute output directory")
 	}
@@ -275,7 +289,9 @@ func TestPropagatedDomainsFullRequestExperiment(t *testing.T) {
 	t.Setenv("RARE_POSITION_IMPORTANCE_SAMPLING", "0")
 	t.Setenv("RARE_POSITION_BENCHMARK_ITERATIONS", "20000")
 	t.Setenv("RARE_POSITION_MATCHED_POINT_POOL_WORKERS", "4")
-	seeds := os.Getenv("RARE_POSITION_DOMAIN_EXPERIMENT_SEEDS")
+	if flag == "RARE_POSITION_COMPACT_FORCED_FIXTURES" {
+		t.Setenv("RARE_POSITION_PROPAGATED_DOMAINS", "1")
+	}
 	if seeds == "" {
 		seeds = "801,804,808,817,911"
 	}
@@ -291,7 +307,7 @@ func TestPropagatedDomainsFullRequestExperiment(t *testing.T) {
 		hash := fmt.Sprintf("%x", sha256.Sum256(data))
 		for _, seed := range strings.Split(seeds, ",") {
 			t.Setenv("RARE_POSITION_RANDOM_SEED", seed)
-			report := map[string]interface{}{"group": input.Id, "input_sha256": hash, "seed": seed}
+			report := map[string]interface{}{"group": input.Id, "input_sha256": hash, "seed": seed, "flag": flag}
 			arms := []string{"0", "1"}
 			seedValue, err := strconv.ParseInt(seed, 10, 64)
 			if err != nil {
@@ -301,7 +317,7 @@ func TestPropagatedDomainsFullRequestExperiment(t *testing.T) {
 				arms = []string{"1", "0"}
 			}
 			for _, arm := range arms {
-				t.Setenv("RARE_POSITION_PROPAGATED_DOMAINS", arm)
+				t.Setenv(flag, arm)
 				started := time.Now()
 				matrix := cloneGroupForBenchmark(input).calculate_odds()["rare_position_estimates"].(map[int]map[int]ProductionEstimate)
 				report["matrix_"+arm] = matrix
@@ -311,6 +327,15 @@ func TestPropagatedDomainsFullRequestExperiment(t *testing.T) {
 			a, b := report["matrix_0"].(map[int]map[int]ProductionEstimate), report["matrix_1"].(map[int]map[int]ProductionEstimate)
 			for team, row := range a {
 				for rank, est := range row {
+					other := b[team][rank]
+					if flag == "RARE_POSITION_COMPACT_FORCED_FIXTURES" &&
+						(est.ConditionalHits != other.ConditionalHits || est.ConditionalSamples != other.ConditionalSamples ||
+							est.Samples != other.Samples || est.Hits != other.Hits || est.WorkSpent != other.WorkSpent ||
+							est.Design != other.Design || est.Reachability != other.Reachability ||
+							est.Available != other.Available || est.MeetsPrecisionGoal != other.MeetsPrecisionGoal ||
+							math.Abs(est.Probability-other.Probability) > 1e-9*math.Max(est.Probability, other.Probability)) {
+						t.Fatalf("compaction changed team=%d rank=%d: before=%+v after=%+v", team, rank+1, est, other)
+					}
 					if est.Probability == 0 && b[team][rank].Probability > 0 {
 						gained++
 					}

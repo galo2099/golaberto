@@ -1,6 +1,31 @@
 package main
 
+import (
+	"math/bits"
+	"os"
+)
+
 const conditionedRankDomainCacheLimit = 64
+
+func compactForcedFixturesEnabled() bool {
+	return os.Getenv("RARE_POSITION_COMPACT_FORCED_FIXTURES") != "0"
+}
+
+type conditionedRankLoopStep struct {
+	step                                               int
+	skippedBefore                                      int
+	homeForced, awayForced                             int
+	game                                               *conditionedPointOutcomeGame
+	homeCDF, awayCDF                                   []float64
+	domain                                             uint8
+	homeMinimum, homeMaximum, awayMinimum, awayMaximum int
+	homeLower, homeUpper, awayLower, awayUpper         int
+}
+
+type conditionedRankForcedOutcome struct {
+	index   int
+	outcome uint8
+}
 
 // These are necessary rank constraints, not a witness's chosen results. Equal
 // points/wins remain possible on either side until the full sorter resolves
@@ -11,10 +36,16 @@ type conditionedRankDomains struct {
 	minimumSuffix [][]int
 	maximumSuffix [][]int
 	feasible      bool
+	compactBase   []int
+	forced        []conditionedRankForcedOutcome
+	variable      []conditionedRankLoopStep
+	forcedAfter   int
+	forcedMass    float64
 }
 
 type conditionedRankDomainCache struct {
 	games            []conditionedPointOutcomeGame
+	suffix           [][][]float64
 	selected         []conditionedPointOutcomeGame
 	rivals           []int32
 	rank             int
@@ -83,6 +114,18 @@ func (cache *conditionedRankDomainCache) get(points []int, targetPoints int, out
 	var result *conditionedRankDomains
 	if above >= cache.rank || below >= len(cache.rivals)-cache.rank {
 		result = propagateConditionedRankDomains(cache.games, points, cache.rivals, cache.rank, targetPoints)
+		if result.feasible && cache.suffix != nil {
+			for index := range result.variable {
+				entry := &result.variable[index]
+				game, next := entry.game, entry.step+1
+				entry.homeCDF, entry.awayCDF = cache.suffix[next][game.home], cache.suffix[next][game.away]
+				entry.domain = result.domains[entry.step]
+				entry.homeMinimum, entry.homeMaximum = result.minimumSuffix[next][game.home], result.maximumSuffix[next][game.home]
+				entry.awayMinimum, entry.awayMaximum = result.minimumSuffix[next][game.away], result.maximumSuffix[next][game.away]
+				entry.homeLower, entry.homeUpper = result.lower[game.home], result.upper[game.home]
+				entry.awayLower, entry.awayUpper = result.lower[game.away], result.upper[game.away]
+			}
+		}
 	}
 	cache.entries[key] = result
 	return result
@@ -186,7 +229,60 @@ func propagateConditionedRankDomains(games []conditionedPointOutcomeGame, points
 		result.maximumSuffix[step][game.home] += maxJointPointGain(domain, game.homeGain)
 		result.maximumSuffix[step][game.away] += maxJointPointGain(domain, game.awayGain)
 	}
+	result.compact(games, points)
 	return result
+}
+
+// Cache the fixed score increments and their probability mass. Future fixed
+// increments are subtracted from proposal caps so the existing marginal
+// lookahead and sequential feasibility checks see exactly the old prefix.
+func (domains *conditionedRankDomains) compact(games []conditionedPointOutcomeGame, points []int) {
+	domains.forcedMass = 1
+	fixed := 0
+	for _, domain := range domains.domains {
+		if bits.OnesCount8(domain) == 1 {
+			fixed++
+		}
+	}
+	if fixed == 0 {
+		return
+	}
+	domains.variable = make([]conditionedRankLoopStep, 0, len(games)-fixed)
+	domains.forced = make([]conditionedRankForcedOutcome, 0, fixed)
+	future := make([]int, len(points))
+	for step := len(games) - 1; step >= 0; step-- {
+		game, domain := games[step], domains.domains[step]
+		if bits.OnesCount8(domain) == 1 {
+			outcome := bits.TrailingZeros8(domain)
+			future[game.home] += game.homeGain[outcome]
+			future[game.away] += game.awayGain[outcome]
+		} else {
+			domains.variable = append(domains.variable, conditionedRankLoopStep{
+				step: step, homeForced: future[game.home], awayForced: future[game.away], game: &games[step]})
+		}
+	}
+	domains.compactBase = append([]int(nil), points...)
+	for team, gain := range future {
+		domains.compactBase[team] += gain
+	}
+	for left, right := 0, len(domains.variable)-1; left < right; left, right = left+1, right-1 {
+		domains.variable[left], domains.variable[right] = domains.variable[right], domains.variable[left]
+	}
+	skipped, variable := 0, 0
+	for step, game := range games {
+		domain := domains.domains[step]
+		if bits.OnesCount8(domain) == 1 {
+			outcome := uint8(bits.TrailingZeros8(domain))
+			domains.forced = append(domains.forced, conditionedRankForcedOutcome{game.index, outcome})
+			domains.forcedMass *= game.prob[outcome]
+			skipped++
+		} else {
+			domains.variable[variable].skippedBefore = skipped
+			variable++
+			skipped = 0
+		}
+	}
+	domains.forcedAfter = skipped
 }
 
 func (domains *conditionedRankDomains) allows(step int, game conditionedPointOutcomeGame, outcome int, points []int) bool {

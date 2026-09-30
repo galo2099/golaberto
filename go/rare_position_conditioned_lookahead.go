@@ -194,6 +194,9 @@ func sampleConditionedZeroRankLookaheadPolicy(event *conditionedPointEvent, targ
 	var domainCache *conditionedRankDomainCache
 	if propagate && len(sortOrder) > 0 && sortOrder[0] == PT {
 		domainCache = newConditionedRankDomainCache(remaining, selectedGames, rankedIndices, rank, len(campaign))
+		if domainCache != nil {
+			domainCache.suffix = suffix
+		}
 	}
 	basePoints := make([]int, len(campaign))
 	for index, team := range campaign {
@@ -210,6 +213,7 @@ func sampleConditionedZeroRankLookaheadPolicy(event *conditionedPointEvent, targ
 	rng := rand.New(rand.NewSource(seed))
 	backwardSampler := newConditionedPointBackwardSampler(event)
 	terminalCDF, terminalRatio := conditionedPointTiltTerminals(event, pointTilt)
+	compactForced := propagate && compactForcedFixturesEnabled()
 	var sumY, sumY2, maxY float64
 	var batchY [2]float64
 	for draw := 0; draw < samples; draw++ {
@@ -267,44 +271,116 @@ func sampleConditionedZeroRankLookaheadPolicy(event *conditionedPointEvent, targ
 			weight = 0
 		}
 		if weight > 0 {
-			for step, game := range remaining {
-				var score [3]float64
-				total := 0.0
-				homeCDF := suffix[step+1][game.home]
-				awayCDF := suffix[step+1][game.away]
-				homeCap := targetPoints - points[game.home]
-				awayCap := targetPoints - points[game.away]
-				for outcome, p := range game.prob {
-					if domains != nil && !domains.allows(step, game, outcome, points) {
-						continue
+			// Zero guide coefficients retain the original loop's early rejection
+			// behavior. Fall back if pre-multiplication would underflow as well.
+			compact := compactForced && domains != nil && len(domains.forced) > 0 &&
+				aboveWeight > 0 && belowWeight > 0 && weight*domains.forcedMass > 0
+			if compact {
+				copy(points, domains.compactBase)
+				weight *= domains.forcedMass
+				for _, forced := range domains.forced {
+					outcomes[forced.index] = forced.outcome
+				}
+				completed := true
+				for index := range domains.variable {
+					entry := &domains.variable[index]
+					// Keep seeded streams aligned without evaluating fixed fixtures.
+					for skipped := 0; skipped < entry.skippedBefore; skipped++ {
+						rng.Float64()
 					}
-					homeFactor := conditionedRankSideFactor(homeCDF,
-						homeCap-game.homeGain[outcome], belowWeight, aboveWeight)
-					awayFactor := conditionedRankSideFactor(awayCDF,
-						awayCap-game.awayGain[outcome], belowWeight, aboveWeight)
-					score[outcome] = p * homeFactor * awayFactor
-					total += score[outcome]
+					game := entry.game
+					var score [3]float64
+					total := 0.0
+					homeCDF := entry.homeCDF
+					awayCDF := entry.awayCDF
+					homePrefix, awayPrefix := points[game.home]-entry.homeForced, points[game.away]-entry.awayForced
+					homeCap := targetPoints - homePrefix
+					awayCap := targetPoints - awayPrefix
+					for outcome, p := range game.prob {
+						home, away := homePrefix+game.homeGain[outcome], awayPrefix+game.awayGain[outcome]
+						if entry.domain&(1<<outcome) == 0 ||
+							home+entry.homeMinimum > entry.homeUpper || home+entry.homeMaximum < entry.homeLower ||
+							away+entry.awayMinimum > entry.awayUpper || away+entry.awayMaximum < entry.awayLower {
+							continue
+						}
+						homeFactor := conditionedRankSideFactor(homeCDF,
+							homeCap-game.homeGain[outcome], belowWeight, aboveWeight)
+						awayFactor := conditionedRankSideFactor(awayCDF,
+							awayCap-game.awayGain[outcome], belowWeight, aboveWeight)
+						score[outcome] = p * homeFactor * awayFactor
+						total += score[outcome]
+					}
+					if total <= 0 {
+						weight = 0
+						completed = false
+						break
+					}
+					u := rng.Float64() * total
+					outcome := 2
+					if u < score[0] {
+						outcome = 0
+					} else if u < score[0]+score[1] {
+						outcome = 1
+					}
+					q := score[outcome] / total
+					if q <= 0 {
+						weight = 0
+						completed = false
+						break
+					}
+					weight *= game.prob[outcome] / q
+					outcomes[game.index] = uint8(outcome)
+					points[game.home] += game.homeGain[outcome]
+					points[game.away] += game.awayGain[outcome]
 				}
-				if total <= 0 {
-					weight = 0
-					break
+				if completed {
+					for skipped := 0; skipped < domains.forcedAfter; skipped++ {
+						rng.Float64()
+					}
 				}
-				u := rng.Float64() * total
-				outcome := 2
-				if u < score[0] {
-					outcome = 0
-				} else if u < score[0]+score[1] {
-					outcome = 1
+			} else {
+				// Keep the original loop separate: compact-plan branches and
+				// offsets otherwise slow every fixture in unaffected simulations.
+				for step, game := range remaining {
+					var score [3]float64
+					total := 0.0
+					homeCDF := suffix[step+1][game.home]
+					awayCDF := suffix[step+1][game.away]
+					homePrefix, awayPrefix := points[game.home], points[game.away]
+					homeCap := targetPoints - homePrefix
+					awayCap := targetPoints - awayPrefix
+					for outcome, p := range game.prob {
+						if domains != nil && !domains.allows(step, game, outcome, points) {
+							continue
+						}
+						homeFactor := conditionedRankSideFactor(homeCDF,
+							homeCap-game.homeGain[outcome], belowWeight, aboveWeight)
+						awayFactor := conditionedRankSideFactor(awayCDF,
+							awayCap-game.awayGain[outcome], belowWeight, aboveWeight)
+						score[outcome] = p * homeFactor * awayFactor
+						total += score[outcome]
+					}
+					if total <= 0 {
+						weight = 0
+						break
+					}
+					u := rng.Float64() * total
+					outcome := 2
+					if u < score[0] {
+						outcome = 0
+					} else if u < score[0]+score[1] {
+						outcome = 1
+					}
+					q := score[outcome] / total
+					if q <= 0 {
+						weight = 0
+						break
+					}
+					weight *= game.prob[outcome] / q
+					outcomes[game.index] = uint8(outcome)
+					points[game.home] += game.homeGain[outcome]
+					points[game.away] += game.awayGain[outcome]
 				}
-				q := score[outcome] / total
-				if q <= 0 {
-					weight = 0
-					break
-				}
-				weight *= game.prob[outcome] / q
-				outcomes[game.index] = uint8(outcome)
-				points[game.home] += game.homeGain[outcome]
-				points[game.away] += game.awayGain[outcome]
 			}
 		}
 		result.samples++
