@@ -20,7 +20,8 @@ module OddsFormattingHelper
   def odds_color_strength(percentage, maximum)
     return 0 if percentage.nil? || maximum.to_f <= 0
 
-    [[percentage.to_f / maximum.to_f * 100, 0].max, 100].min
+    ratio = [[percentage.to_f / maximum.to_f, 0].max, 1].min
+    Math.sqrt(ratio) * 100
   end
 
   def odds_zone_rgb(color)

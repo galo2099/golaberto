@@ -9,7 +9,7 @@
     var percentage = validNumber(value);
     var highest = validNumber(maximum);
     if (percentage === null || highest === null || highest <= 0) return 0;
-    return Math.min(100, Math.max(0, percentage / highest * 100));
+    return Math.sqrt(Math.min(1, Math.max(0, percentage / highest))) * 100;
   }
 
   function zoneRgb(color) {

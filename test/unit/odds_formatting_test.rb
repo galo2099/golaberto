@@ -62,18 +62,19 @@ class OddsFormattingTest < Minitest::Test
     assert_equal 'lightgray', @view.odds_background_color(0, '#90EE90', 25)
     assert_equal 'lightgray', @view.odds_background_color(nil, '#90EE90', 25)
     assert_equal 'lightgray', @view.odds_background_color(0, '#90EE90', 0)
-    assert_equal 'rgb(178, 225, 178)', @view.odds_background_color(12.5, '#90EE90', 25)
+    assert_equal 'rgb(164, 230, 164)', @view.odds_background_color(12.5, '#90EE90', 25)
+    assert_equal 'rgb(183, 222, 183)', @view.odds_background_color(10, '#90EE90', 57)
     assert_equal 'rgb(211, 211, 211)', @view.odds_background_color(1e-10, '#90EE90', 25)
-    assert_equal 'rgb(106, 233, 106)', @view.odds_background_color(12.5, 'rgb(0,255,0)', 25)
-    assert_equal 'rgb(233, 106, 233)', @view.odds_background_color(12.5, '#f0f', 25)
+    assert_equal 'rgb(62, 242, 62)', @view.odds_background_color(12.5, 'rgb(0,255,0)', 25)
+    assert_equal 'rgb(242, 62, 242)', @view.odds_background_color(12.5, '#f0f', 25)
     assert_equal '#90EE90', @view.odds_background_color(25, '#90EE90', 25)
     assert_equal 'lightgray', @view.odds_background_color(25, nil, 25)
   end
 
   def test_black_zone_text_remains_readable_during_blend
     assert_equal 'inherit', @view.odds_text_color(0, 'black', 25)
-    assert_equal 'inherit', @view.odds_text_color(11, 'black', 25)
-    assert_equal 'white', @view.odds_text_color(11.25, 'black', 25)
+    assert_equal 'inherit', @view.odds_text_color(5, 'black', 25)
+    assert_equal 'white', @view.odds_text_color(5.0625, 'black', 25)
     assert_equal 'white', @view.odds_text_color(25, 'black', 25)
   end
 end
