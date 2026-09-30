@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"math"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -18,21 +19,22 @@ import (
 	"time"
 )
 
-// Offline experiment: keep the production matrix and spend at most nine
-// additional production work budgets on its unresolved zeros. No production
+// Offline experiment: keep the production matrix and spend a bounded
+// additional production work budget on its unresolved zeros. No production
 // defaults or service responses are changed by this harness.
 type budgetExperimentSample struct {
-	Tilt      float64  `json:"tilt"`
-	PointTilt float64  `json:"point_tilt"`
-	Samples   int      `json:"samples"`
-	Hits      int      `json:"hits"`
-	P         float64  `json:"p"`
-	SE        float64  `json:"se"`
-	ESS       float64  `json:"ess"`
-	MaxShare  float64  `json:"max_share"`
-	BatchGap  float64  `json:"batch_gap"`
-	Relative  *float64 `json:"relative_se"`
-	Valid     bool     `json:"valid"`
+	Tilt       float64  `json:"tilt"`
+	PointTilt  float64  `json:"point_tilt"`
+	Samples    int      `json:"samples"`
+	Hits       int      `json:"hits"`
+	P          float64  `json:"p"`
+	SE         float64  `json:"se"`
+	ESS        float64  `json:"ess"`
+	MaxShare   float64  `json:"max_share"`
+	BatchGap   float64  `json:"batch_gap"`
+	Relative   *float64 `json:"relative_se"`
+	Valid      bool     `json:"valid"`
+	StreamSeed int64    `json:"stream_seed,omitempty"`
 }
 
 func describeBudgetSample(result conditionedZeroResult, tilt, pointTilt float64) budgetExperimentSample {
@@ -43,7 +45,7 @@ func describeBudgetSample(result conditionedZeroResult, tilt, pointTilt float64)
 	}
 	return budgetExperimentSample{tilt, pointTilt, result.samples, result.hits,
 		result.probability, result.stdErr, result.ess, result.maxWeightShare,
-		result.batchGap, relative, conditionedPointTiltResultValid(result)}
+		result.batchGap, relative, conditionedPointTiltResultValid(result), 0}
 }
 
 type budgetExperimentCell struct {
@@ -215,6 +217,15 @@ func extendBudgetExperiment(input GroupType, baseline map[int]map[int]Production
 }
 
 func TestRarePositionTenfoldWorkExperiment(t *testing.T) {
+	runRarePositionWorkExperiment(t, 10)
+}
+
+func TestRarePositionHundredfoldWorkExperiment(t *testing.T) {
+	runRarePositionWorkExperiment(t, 100)
+}
+
+func runRarePositionWorkExperiment(t *testing.T, multiplier int64) {
+	t.Helper()
 	paths, output := os.Getenv("RARE_POSITION_BUDGET_EXPERIMENT_REQUESTS"), os.Getenv("RARE_POSITION_BUDGET_EXPERIMENT_OUTPUT")
 	if paths == "" || output == "" {
 		t.Skip("set request paths and output directory for the offline work-budget experiment")
@@ -270,10 +281,10 @@ func TestRarePositionTenfoldWorkExperiment(t *testing.T) {
 			}
 			baselineWork := productionWork + 20000*estimateSeasonWork(unplayed, 1, len(input.Team_groups))
 			started = time.Now()
-			extended, cells, extraWork := extendBudgetExperiment(input, baseline, seed, 9*baselineWork)
+			extended, cells, extraWork := extendBudgetExperiment(input, baseline, seed, (multiplier-1)*baselineWork)
 			extraMS := float64(time.Since(started).Microseconds()) / 1000
-			if extraWork > 9*baselineWork {
-				t.Fatalf("work cap exceeded: extra=%d cap=%d", extraWork, 9*baselineWork)
+			if extraWork > (multiplier-1)*baselineWork {
+				t.Fatalf("work cap exceeded: extra=%d cap=%d", extraWork, (multiplier-1)*baselineWork)
 			}
 			for team, row := range baseline {
 				for rank, est := range row {
@@ -283,7 +294,7 @@ func TestRarePositionTenfoldWorkExperiment(t *testing.T) {
 				}
 			}
 			run := budgetExperimentRun{input.Id, path, hash, seed, unplayed, baselineMS, extraMS,
-				baselineWork, extraWork, 10 * baselineWork, baseline, extended, cells}
+				baselineWork, extraWork, multiplier * baselineWork, baseline, extended, cells}
 			encoded, err := json.MarshalIndent(run, "", "  ")
 			if err != nil {
 				t.Fatal(err)
@@ -325,6 +336,15 @@ func TestRarePositionBudgetProposalCheck(t *testing.T) {
 	}
 	previousProcs := runtime.GOMAXPROCS(4)
 	defer runtime.GOMAXPROCS(previousProcs)
+	samples := diversifiedBenchmarkIntEnv(t, "RARE_POSITION_BUDGET_CHECK_SAMPLES", 300000)
+	checkSeed := int64(1211)
+	if raw := os.Getenv("RARE_POSITION_BUDGET_CHECK_SEED"); raw != "" {
+		var err error
+		checkSeed, err = strconv.ParseInt(raw, 10, 64)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
 	for _, path := range strings.Split(paths, ",") {
 		data, err := os.ReadFile(path)
 		if err != nil {
@@ -338,6 +358,15 @@ func TestRarePositionBudgetProposalCheck(t *testing.T) {
 		campaign, table, order := diversifiedBenchmarkSetup(group)
 		bounds := buildPointRankBounds(campaign, group.Team_groups, group.Games, table)
 		samplers := newConditionedScoreSamplers(group.Games)
+		standing := make([]*TeamCampaign, 0, len(group.Team_groups))
+		for _, team := range group.Team_groups {
+			standing = append(standing, campaign[table.Query(uint32(team.Team_id))])
+		}
+		sort.Sort(TeamCampaignSorted{t: standing, sort: order, rng: rand.New(rand.NewSource(1))})
+		current := make(map[int]int, len(standing))
+		for rank, team := range standing {
+			current[team.id] = rank
+		}
 		var cells []budgetExperimentCell
 		for _, spec := range strings.Split(specs, ",") {
 			var id, team, position int
@@ -361,17 +390,18 @@ func TestRarePositionBudgetProposalCheck(t *testing.T) {
 		parallelBudgetCells(cells, func(index int) {
 			cell := &cells[index]
 			direction := 1.0
-			if cell.Position > len(input.Team_groups)/2 {
+			if cell.Position-1 > current[cell.Team] {
 				direction = -1
 			}
 			for _, config := range [][2]float64{{4, 0.5}, {6, 0.75}, {10, 1}} {
-				stream := deriveRarePositionSeed(1211, fmt.Sprintf("budget-check-%d-%d-%d-%g", input.Id,
+				stream := deriveRarePositionSeed(checkSeed, fmt.Sprintf("budget-check-%d-%d-%d-%g", input.Id,
 					cell.Team, cell.Position, config[0]))
 				result, _ := sampleConditionedZeroRankLookaheadWithPointTilt(cell.event,
 					cell.Team, cell.Position-1, group, campaign, table, order, bounds, samplers,
-					300000, stream, config[0], direction*config[1])
+					samples, stream, config[0], direction*config[1])
 				cell.Work += result.work
 				cell.Pilots = append(cell.Pilots, describeBudgetSample(result, config[0], direction*config[1]))
+				cell.Pilots[len(cell.Pilots)-1].StreamSeed = stream
 			}
 		})
 		hash := fmt.Sprintf("%x", sha256.Sum256(data))
