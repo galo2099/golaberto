@@ -1,0 +1,1461 @@
+{
+  "spi": {
+    "1": {
+      "Defense": 1.696122363397318,
+      "Id": 1,
+      "Offense": 1.4227935189757857,
+      "Team": 40.18699575076356
+    },
+    "2": {
+      "Defense": 1.6630351271923376,
+      "Id": 2,
+      "Offense": 1.4383106142390365,
+      "Team": 41.192634641193486
+    },
+    "3": {
+      "Defense": 1.4609394241457119,
+      "Id": 3,
+      "Offense": 1.557834637629712,
+      "Team": 48.09359242296232
+    },
+    "4": null
+  },
+  "eval": {
+    "rps": 0.24614911295450304,
+    "team_rps": {
+      "1": 0.23846530737145097,
+      "2": 0.2524697924367284,
+      "3": 0.24751223905532985
+    }
+  },
+  "historic": [
+    {
+      "def_rating": 1.461414,
+      "measure_date": "2021-07-13",
+      "off_rating": 1.518871,
+      "rating": 47.203696,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.445638,
+      "measure_date": "2021-07-18",
+      "off_rating": 1.567456,
+      "rating": 48.64029,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.523276,
+      "measure_date": "2021-07-23",
+      "off_rating": 1.529946,
+      "rating": 46.135889,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.575318,
+      "measure_date": "2021-07-28",
+      "off_rating": 1.514137,
+      "rating": 44.691418,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.602826,
+      "measure_date": "2021-08-02",
+      "off_rating": 1.457356,
+      "rating": 42.83864,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.667227,
+      "measure_date": "2021-08-07",
+      "off_rating": 1.422396,
+      "rating": 40.747285,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.638031,
+      "measure_date": "2021-08-12",
+      "off_rating": 1.429242,
+      "rating": 41.485353,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.642689,
+      "measure_date": "2021-08-17",
+      "off_rating": 1.441034,
+      "rating": 41.66086,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.512429,
+      "measure_date": "2021-08-22",
+      "off_rating": 1.508228,
+      "rating": 45.873686,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.497319,
+      "measure_date": "2021-08-27",
+      "off_rating": 1.51339,
+      "rating": 46.311192,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.487269,
+      "measure_date": "2021-09-01",
+      "off_rating": 1.526762,
+      "rating": 46.828246,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.490961,
+      "measure_date": "2021-09-06",
+      "off_rating": 1.529879,
+      "rating": 46.819924,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.488695,
+      "measure_date": "2021-09-11",
+      "off_rating": 1.532836,
+      "rating": 46.935066,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.47551,
+      "measure_date": "2021-09-16",
+      "off_rating": 1.542316,
+      "rating": 47.43106,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.468776,
+      "measure_date": "2021-09-21",
+      "off_rating": 1.542183,
+      "rating": 47.572671,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.481143,
+      "measure_date": "2021-09-26",
+      "off_rating": 1.538305,
+      "rating": 47.21993,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.503204,
+      "measure_date": "2021-10-01",
+      "off_rating": 1.508921,
+      "rating": 46.084796,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.623688,
+      "measure_date": "2021-10-06",
+      "off_rating": 1.44759,
+      "rating": 42.192639,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.654029,
+      "measure_date": "2021-10-11",
+      "off_rating": 1.43697,
+      "rating": 41.341552,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.665913,
+      "measure_date": "2021-10-16",
+      "off_rating": 1.408589,
+      "rating": 40.458265,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.592343,
+      "measure_date": "2021-10-21",
+      "off_rating": 1.450727,
+      "rating": 42.901382,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.538029,
+      "measure_date": "2021-10-26",
+      "off_rating": 1.468259,
+      "rating": 44.424866,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.526821,
+      "measure_date": "2021-10-31",
+      "off_rating": 1.50731,
+      "rating": 45.54931,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.450144,
+      "measure_date": "2021-11-05",
+      "off_rating": 1.545477,
+      "rating": 48.048715,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.502137,
+      "measure_date": "2021-11-10",
+      "off_rating": 1.531812,
+      "rating": 46.625636,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.484113,
+      "measure_date": "2021-11-15",
+      "off_rating": 1.56779,
+      "rating": 47.818672,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.53298,
+      "measure_date": "2021-11-20",
+      "off_rating": 1.543942,
+      "rating": 46.246324,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.507175,
+      "measure_date": "2021-11-25",
+      "off_rating": 1.552962,
+      "rating": 46.994522,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.535321,
+      "measure_date": "2021-11-30",
+      "off_rating": 1.482603,
+      "rating": 44.809093,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.569518,
+      "measure_date": "2021-12-05",
+      "off_rating": 1.459375,
+      "rating": 43.567902,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.561193,
+      "measure_date": "2021-12-10",
+      "off_rating": 1.458857,
+      "rating": 43.728118,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.570773,
+      "measure_date": "2021-12-15",
+      "off_rating": 1.456758,
+      "rating": 43.48219,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.555921,
+      "measure_date": "2021-12-20",
+      "off_rating": 1.474714,
+      "rating": 44.199614,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.560335,
+      "measure_date": "2021-12-25",
+      "off_rating": 1.474064,
+      "rating": 44.093196,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.553998,
+      "measure_date": "2021-12-30",
+      "off_rating": 1.4737,
+      "rating": 44.216445,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.531293,
+      "measure_date": "2022-01-04",
+      "off_rating": 1.488234,
+      "rating": 45.021831,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.548418,
+      "measure_date": "2022-01-09",
+      "off_rating": 1.4854,
+      "rating": 44.599207,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.529306,
+      "measure_date": "2022-01-14",
+      "off_rating": 1.54631,
+      "rating": 46.376886,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.49577,
+      "measure_date": "2022-01-19",
+      "off_rating": 1.558952,
+      "rating": 47.371608,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.525571,
+      "measure_date": "2022-01-24",
+      "off_rating": 1.55094,
+      "rating": 46.559558,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.547886,
+      "measure_date": "2022-01-29",
+      "off_rating": 1.507737,
+      "rating": 45.117334,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.638839,
+      "measure_date": "2022-02-03",
+      "off_rating": 1.460428,
+      "rating": 42.178996,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.589576,
+      "measure_date": "2022-02-08",
+      "off_rating": 1.47347,
+      "rating": 43.476501,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.602781,
+      "measure_date": "2022-02-13",
+      "off_rating": 1.432375,
+      "rating": 42.268623,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.503736,
+      "measure_date": "2022-02-18",
+      "off_rating": 1.486112,
+      "rating": 45.554166,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.470444,
+      "measure_date": "2022-02-23",
+      "off_rating": 1.496206,
+      "rating": 46.493818,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.461816,
+      "measure_date": "2022-02-28",
+      "off_rating": 1.522044,
+      "rating": 47.26702,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.493096,
+      "measure_date": "2022-03-05",
+      "off_rating": 1.512963,
+      "rating": 46.39137,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.593961,
+      "measure_date": "2022-03-10",
+      "off_rating": 1.484014,
+      "rating": 43.625952,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.580505,
+      "measure_date": "2022-03-15",
+      "off_rating": 1.504603,
+      "rating": 44.368937,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.601967,
+      "measure_date": "2022-03-20",
+      "off_rating": 1.494424,
+      "rating": 43.697556,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.595395,
+      "measure_date": "2022-03-25",
+      "off_rating": 1.496694,
+      "rating": 43.883599,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.617871,
+      "measure_date": "2022-03-30",
+      "off_rating": 1.479716,
+      "rating": 43.040322,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.622157,
+      "measure_date": "2022-04-04",
+      "off_rating": 1.46932,
+      "rating": 42.717686,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.629665,
+      "measure_date": "2022-04-09",
+      "off_rating": 1.466261,
+      "rating": 42.496336,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.637354,
+      "measure_date": "2022-04-14",
+      "off_rating": 1.451124,
+      "rating": 41.997567,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.593913,
+      "measure_date": "2022-04-19",
+      "off_rating": 1.480228,
+      "rating": 43.541053,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.519093,
+      "measure_date": "2022-04-24",
+      "off_rating": 1.50429,
+      "rating": 45.643581,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.514696,
+      "measure_date": "2022-04-29",
+      "off_rating": 1.490952,
+      "rating": 45.432931,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.464999,
+      "measure_date": "2022-05-04",
+      "off_rating": 1.51728,
+      "rating": 47.09046,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.500011,
+      "measure_date": "2022-05-09",
+      "off_rating": 1.507554,
+      "rating": 46.121515,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.483347,
+      "measure_date": "2022-05-14",
+      "off_rating": 1.556,
+      "rating": 47.570892,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.561671,
+      "measure_date": "2022-05-19",
+      "off_rating": 1.519128,
+      "rating": 45.087281,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.613563,
+      "measure_date": "2022-05-24",
+      "off_rating": 1.503913,
+      "rating": 43.674634,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.642392,
+      "measure_date": "2022-05-29",
+      "off_rating": 1.446635,
+      "rating": 41.794274,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.728066,
+      "measure_date": "2022-06-03",
+      "off_rating": 1.401327,
+      "rating": 39.078922,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.697199,
+      "measure_date": "2022-06-08",
+      "off_rating": 1.408302,
+      "rating": 39.836606,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.702444,
+      "measure_date": "2022-06-13",
+      "off_rating": 1.419733,
+      "rating": 39.993851,
+      "team_id": 1
+    },
+    {
+      "def_rating": 1.505046,
+      "measure_date": "2021-07-13",
+      "off_rating": 1.566601,
+      "rating": 47.345255,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.457157,
+      "measure_date": "2021-07-18",
+      "off_rating": 1.580774,
+      "rating": 48.688737,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.54985,
+      "measure_date": "2021-07-23",
+      "off_rating": 1.527204,
+      "rating": 45.515884,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.572384,
+      "measure_date": "2021-07-28",
+      "off_rating": 1.475866,
+      "rating": 43.884923,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.628654,
+      "measure_date": "2021-08-02",
+      "off_rating": 1.459887,
+      "rating": 42.372082,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.682484,
+      "measure_date": "2021-08-07",
+      "off_rating": 1.434508,
+      "rating": 40.721001,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.66894,
+      "measure_date": "2021-08-12",
+      "off_rating": 1.464253,
+      "rating": 41.662889,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.641986,
+      "measure_date": "2021-08-17",
+      "off_rating": 1.471717,
+      "rating": 42.371395,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.516721,
+      "measure_date": "2021-08-22",
+      "off_rating": 1.536359,
+      "rating": 46.418898,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.51888,
+      "measure_date": "2021-08-27",
+      "off_rating": 1.539619,
+      "rating": 46.446635,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.502643,
+      "measure_date": "2021-09-01",
+      "off_rating": 1.54625,
+      "rating": 46.940081,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.524581,
+      "measure_date": "2021-09-06",
+      "off_rating": 1.532363,
+      "rating": 46.16284,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.505109,
+      "measure_date": "2021-09-11",
+      "off_rating": 1.554189,
+      "rating": 47.065968,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.508435,
+      "measure_date": "2021-09-16",
+      "off_rating": 1.554941,
+      "rating": 47.012145,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.488713,
+      "measure_date": "2021-09-21",
+      "off_rating": 1.565845,
+      "rating": 47.676705,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.489573,
+      "measure_date": "2021-09-26",
+      "off_rating": 1.558644,
+      "rating": 47.497012,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.507751,
+      "measure_date": "2021-10-01",
+      "off_rating": 1.553114,
+      "rating": 46.985687,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.635507,
+      "measure_date": "2021-10-06",
+      "off_rating": 1.485686,
+      "rating": 42.817793,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.656688,
+      "measure_date": "2021-10-11",
+      "off_rating": 1.450388,
+      "rating": 41.593354,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.688188,
+      "measure_date": "2021-10-16",
+      "off_rating": 1.44188,
+      "rating": 40.775544,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.634757,
+      "measure_date": "2021-10-21",
+      "off_rating": 1.464259,
+      "rating": 42.348116,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.613404,
+      "measure_date": "2021-10-26",
+      "off_rating": 1.511973,
+      "rating": 43.859328,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.562199,
+      "measure_date": "2021-10-31",
+      "off_rating": 1.52681,
+      "rating": 45.249344,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.478089,
+      "measure_date": "2021-11-05",
+      "off_rating": 1.572259,
+      "rating": 48.047753,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.489837,
+      "measure_date": "2021-11-10",
+      "off_rating": 1.528494,
+      "rating": 46.812589,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.455731,
+      "measure_date": "2021-11-15",
+      "off_rating": 1.539465,
+      "rating": 47.792368,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.510965,
+      "measure_date": "2021-11-20",
+      "off_rating": 1.508632,
+      "rating": 45.913843,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.488595,
+      "measure_date": "2021-11-25",
+      "off_rating": 1.546678,
+      "rating": 47.249175,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.562035,
+      "measure_date": "2021-11-30",
+      "off_rating": 1.525953,
+      "rating": 45.233481,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.578315,
+      "measure_date": "2021-12-05",
+      "off_rating": 1.52081,
+      "rating": 44.779739,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.57875,
+      "measure_date": "2021-12-10",
+      "off_rating": 1.527751,
+      "rating": 44.926861,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.570013,
+      "measure_date": "2021-12-15",
+      "off_rating": 1.53026,
+      "rating": 45.164449,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.593274,
+      "measure_date": "2021-12-20",
+      "off_rating": 1.512854,
+      "rating": 44.291862,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.606623,
+      "measure_date": "2021-12-25",
+      "off_rating": 1.493731,
+      "rating": 43.586649,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.610314,
+      "measure_date": "2021-12-30",
+      "off_rating": 1.49397,
+      "rating": 43.516625,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.595795,
+      "measure_date": "2022-01-04",
+      "off_rating": 1.49761,
+      "rating": 43.896094,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.586933,
+      "measure_date": "2022-01-09",
+      "off_rating": 1.49744,
+      "rating": 44.074455,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.518617,
+      "measure_date": "2022-01-14",
+      "off_rating": 1.516198,
+      "rating": 45.923599,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.467669,
+      "measure_date": "2022-01-19",
+      "off_rating": 1.545339,
+      "rating": 47.667604,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.476734,
+      "measure_date": "2022-01-24",
+      "off_rating": 1.517879,
+      "rating": 46.852264,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.510608,
+      "measure_date": "2022-01-29",
+      "off_rating": 1.508416,
+      "rating": 45.916487,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.599353,
+      "measure_date": "2022-02-03",
+      "off_rating": 1.464365,
+      "rating": 43.069153,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.574792,
+      "measure_date": "2022-02-08",
+      "off_rating": 1.517057,
+      "rating": 44.768157,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.624493,
+      "measure_date": "2022-02-13",
+      "off_rating": 1.503926,
+      "rating": 43.452237,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.537565,
+      "measure_date": "2022-02-18",
+      "off_rating": 1.546962,
+      "rating": 46.21762,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.530249,
+      "measure_date": "2022-02-23",
+      "off_rating": 1.571945,
+      "rating": 46.930517,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.499614,
+      "measure_date": "2022-02-28",
+      "off_rating": 1.58157,
+      "rating": 47.795003,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.557649,
+      "measure_date": "2022-03-05",
+      "off_rating": 1.546185,
+      "rating": 45.779359,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.592034,
+      "measure_date": "2022-03-10",
+      "off_rating": 1.456227,
+      "rating": 43.033292,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.578099,
+      "measure_date": "2022-03-15",
+      "off_rating": 1.459624,
+      "rating": 43.396784,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.596782,
+      "measure_date": "2022-03-20",
+      "off_rating": 1.448601,
+      "rating": 42.762118,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.585442,
+      "measure_date": "2022-03-25",
+      "off_rating": 1.464065,
+      "rating": 43.347199,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.586604,
+      "measure_date": "2022-03-30",
+      "off_rating": 1.462906,
+      "rating": 43.296934,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.564676,
+      "measure_date": "2022-04-04",
+      "off_rating": 1.479142,
+      "rating": 44.118931,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.572357,
+      "measure_date": "2022-04-09",
+      "off_rating": 1.46792,
+      "rating": 43.704435,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.582451,
+      "measure_date": "2022-04-14",
+      "off_rating": 1.465554,
+      "rating": 43.442598,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.569767,
+      "measure_date": "2022-04-19",
+      "off_rating": 1.468016,
+      "rating": 43.760063,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.537446,
+      "measure_date": "2022-04-24",
+      "off_rating": 1.539102,
+      "rating": 46.043625,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.560133,
+      "measure_date": "2022-04-29",
+      "off_rating": 1.53461,
+      "rating": 45.467807,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.510891,
+      "measure_date": "2022-05-04",
+      "off_rating": 1.559334,
+      "rating": 47.058456,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.514648,
+      "measure_date": "2022-05-09",
+      "off_rating": 1.536362,
+      "rating": 46.462838,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.465961,
+      "measure_date": "2022-05-14",
+      "off_rating": 1.550232,
+      "rating": 47.814515,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.55861,
+      "measure_date": "2022-05-19",
+      "off_rating": 1.497435,
+      "rating": 44.660425,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.580697,
+      "measure_date": "2022-05-24",
+      "off_rating": 1.447374,
+      "rating": 43.063274,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.638064,
+      "measure_date": "2022-05-29",
+      "off_rating": 1.430821,
+      "rating": 41.520766,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.708631,
+      "measure_date": "2022-06-03",
+      "off_rating": 1.398228,
+      "rating": 39.384667,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.694783,
+      "measure_date": "2022-06-08",
+      "off_rating": 1.428552,
+      "rating": 40.343884,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.668145,
+      "measure_date": "2022-06-13",
+      "off_rating": 1.43548,
+      "rating": 41.026806,
+      "team_id": 2
+    },
+    {
+      "def_rating": 1.393039,
+      "measure_date": "2021-07-13",
+      "off_rating": 1.742282,
+      "rating": 53.607831,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.382659,
+      "measure_date": "2021-07-18",
+      "off_rating": 1.796721,
+      "rating": 54.981826,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.424055,
+      "measure_date": "2021-07-23",
+      "off_rating": 1.699556,
+      "rating": 52.013781,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.432758,
+      "measure_date": "2021-07-28",
+      "off_rating": 1.646728,
+      "rating": 50.676412,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.441465,
+      "measure_date": "2021-08-02",
+      "off_rating": 1.593495,
+      "rating": 49.312132,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.468198,
+      "measure_date": "2021-08-07",
+      "off_rating": 1.533782,
+      "rating": 47.395472,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.465888,
+      "measure_date": "2021-08-12",
+      "off_rating": 1.559996,
+      "rating": 48.035477,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.447344,
+      "measure_date": "2021-08-17",
+      "off_rating": 1.601399,
+      "rating": 49.360105,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.387492,
+      "measure_date": "2021-08-22",
+      "off_rating": 1.739944,
+      "rating": 53.680303,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.374888,
+      "measure_date": "2021-08-27",
+      "off_rating": 1.765319,
+      "rating": 54.495136,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.369863,
+      "measure_date": "2021-09-01",
+      "off_rating": 1.783586,
+      "rating": 54.989578,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.376036,
+      "measure_date": "2021-09-06",
+      "off_rating": 1.769889,
+      "rating": 54.565956,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.393484,
+      "measure_date": "2021-09-11",
+      "off_rating": 1.755657,
+      "rating": 53.881452,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.40527,
+      "measure_date": "2021-09-16",
+      "off_rating": 1.736749,
+      "rating": 53.221499,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.399559,
+      "measure_date": "2021-09-21",
+      "off_rating": 1.750312,
+      "rating": 53.634825,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.407221,
+      "measure_date": "2021-09-26",
+      "off_rating": 1.730274,
+      "rating": 53.040738,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.399107,
+      "measure_date": "2021-10-01",
+      "off_rating": 1.7259,
+      "rating": 53.125534,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.458173,
+      "measure_date": "2021-10-06",
+      "off_rating": 1.593067,
+      "rating": 48.940592,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.456312,
+      "measure_date": "2021-10-11",
+      "off_rating": 1.569695,
+      "rating": 48.4594,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.463167,
+      "measure_date": "2021-10-16",
+      "off_rating": 1.538544,
+      "rating": 47.61126,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.432485,
+      "measure_date": "2021-10-21",
+      "off_rating": 1.60425,
+      "rating": 49.746345,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.418717,
+      "measure_date": "2021-10-26",
+      "off_rating": 1.663959,
+      "rating": 51.359387,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.39886,
+      "measure_date": "2021-10-31",
+      "off_rating": 1.729011,
+      "rating": 53.197348,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.361704,
+      "measure_date": "2021-11-05",
+      "off_rating": 1.821015,
+      "rating": 55.947867,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.378685,
+      "measure_date": "2021-11-10",
+      "off_rating": 1.755263,
+      "rating": 54.199156,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.374837,
+      "measure_date": "2021-11-15",
+      "off_rating": 1.787956,
+      "rating": 54.971185,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.400151,
+      "measure_date": "2021-11-20",
+      "off_rating": 1.728096,
+      "rating": 53.149453,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.406954,
+      "measure_date": "2021-11-25",
+      "off_rating": 1.744786,
+      "rating": 53.355409,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.423016,
+      "measure_date": "2021-11-30",
+      "off_rating": 1.665093,
+      "rating": 51.290074,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.434777,
+      "measure_date": "2021-12-05",
+      "off_rating": 1.637769,
+      "rating": 50.436016,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.433529,
+      "measure_date": "2021-12-10",
+      "off_rating": 1.644736,
+      "rating": 50.61599,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.420484,
+      "measure_date": "2021-12-15",
+      "off_rating": 1.66753,
+      "rating": 51.398451,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.421804,
+      "measure_date": "2021-12-20",
+      "off_rating": 1.665522,
+      "rating": 51.325887,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.409276,
+      "measure_date": "2021-12-25",
+      "off_rating": 1.673422,
+      "rating": 51.772065,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.412918,
+      "measure_date": "2021-12-30",
+      "off_rating": 1.664804,
+      "rating": 51.504795,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.40345,
+      "measure_date": "2022-01-04",
+      "off_rating": 1.685108,
+      "rating": 52.153293,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.421563,
+      "measure_date": "2022-01-09",
+      "off_rating": 1.655091,
+      "rating": 51.103713,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.403245,
+      "measure_date": "2022-01-14",
+      "off_rating": 1.73316,
+      "rating": 53.189497,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.38413,
+      "measure_date": "2022-01-19",
+      "off_rating": 1.779898,
+      "rating": 54.597701,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.390772,
+      "measure_date": "2022-01-24",
+      "off_rating": 1.745284,
+      "rating": 53.721425,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.390279,
+      "measure_date": "2022-01-29",
+      "off_rating": 1.717278,
+      "rating": 53.135474,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.432338,
+      "measure_date": "2022-02-03",
+      "off_rating": 1.62103,
+      "rating": 50.120716,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.429527,
+      "measure_date": "2022-02-08",
+      "off_rating": 1.665037,
+      "rating": 51.14666,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.443925,
+      "measure_date": "2022-02-13",
+      "off_rating": 1.608804,
+      "rating": 49.598421,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.399633,
+      "measure_date": "2022-02-18",
+      "off_rating": 1.710007,
+      "rating": 52.77373,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.38712,
+      "measure_date": "2022-02-23",
+      "off_rating": 1.750869,
+      "rating": 53.920232,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.375651,
+      "measure_date": "2022-02-28",
+      "off_rating": 1.79113,
+      "rating": 55.019533,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.396518,
+      "measure_date": "2022-03-05",
+      "off_rating": 1.741531,
+      "rating": 53.515366,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.422379,
+      "measure_date": "2022-03-10",
+      "off_rating": 1.6304,
+      "rating": 50.544576,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.428126,
+      "measure_date": "2022-03-15",
+      "off_rating": 1.634316,
+      "rating": 50.505167,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.436892,
+      "measure_date": "2022-03-20",
+      "off_rating": 1.61241,
+      "rating": 49.831098,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.444712,
+      "measure_date": "2022-03-25",
+      "off_rating": 1.61206,
+      "rating": 49.653401,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.429469,
+      "measure_date": "2022-03-30",
+      "off_rating": 1.63049,
+      "rating": 50.391706,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.425491,
+      "measure_date": "2022-04-04",
+      "off_rating": 1.639376,
+      "rating": 50.673809,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.422134,
+      "measure_date": "2022-04-09",
+      "off_rating": 1.634919,
+      "rating": 50.649313,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.420154,
+      "measure_date": "2022-04-14",
+      "off_rating": 1.62861,
+      "rating": 50.553835,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.407284,
+      "measure_date": "2022-04-19",
+      "off_rating": 1.659871,
+      "rating": 51.520894,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.392942,
+      "measure_date": "2022-04-24",
+      "off_rating": 1.738809,
+      "rating": 53.536173,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.404201,
+      "measure_date": "2022-04-29",
+      "off_rating": 1.704705,
+      "rating": 52.559445,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.380906,
+      "measure_date": "2022-05-04",
+      "off_rating": 1.760308,
+      "rating": 54.256693,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.399255,
+      "measure_date": "2022-05-09",
+      "off_rating": 1.710021,
+      "rating": 52.782348,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.388849,
+      "measure_date": "2022-05-14",
+      "off_rating": 1.764194,
+      "rating": 54.16366,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.429972,
+      "measure_date": "2022-05-19",
+      "off_rating": 1.668472,
+      "rating": 51.211699,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.43813,
+      "measure_date": "2022-05-24",
+      "off_rating": 1.617163,
+      "rating": 49.909248,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.447477,
+      "measure_date": "2022-05-29",
+      "off_rating": 1.563362,
+      "rating": 48.508656,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.482679,
+      "measure_date": "2022-06-03",
+      "off_rating": 1.486264,
+      "rating": 46.00508,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.480203,
+      "measure_date": "2022-06-08",
+      "off_rating": 1.512983,
+      "rating": 46.666912,
+      "team_id": 3
+    },
+    {
+      "def_rating": 1.461917,
+      "measure_date": "2022-06-13",
+      "off_rating": 1.552905,
+      "rating": 47.961738,
+      "team_id": 3
+    }
+  ]
+}
