@@ -11,6 +11,7 @@ pub mod neighbors;
 pub mod player_ratings;
 pub mod pool;
 pub mod proof;
+pub mod rank_proof;
 pub mod ratings;
 pub mod reachability;
 pub mod rescue;

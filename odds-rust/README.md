@@ -226,6 +226,7 @@ default. No extra flags are required. Sampling acceptance gates are unchanged.
 | `RUST_ODDS_WITNESS_MODE` (default `deferred`) | `deferred`: screen maximum-points patterns, replace rejected queries with minimum-points construction, and publish new witnesses after probability sampling; `adaptive`: publish those witnesses immediately; `skip`: only skip screened maximum patterns; `reuse`: reuse all constructive ranks; `dual`: choose direction by rank cardinality; `joint`: bounded shared-fixture solver |
 | `RUST_ODDS_NEIGHBOR_ORDER` | `breadth`: all single changes before pairs; `spread`: also distribute pairs across fixture indices |
 | `RUST_ODDS_AGGREGATE_CUTS` (default `early`) | `early`: shared-fixture subset capacity cuts in early proofs; `1`: also use them in construction |
+| `RUST_ODDS_RANK_PROOF` (default enabled; `0` disables) | After a conflicting but unresolved point-cohort proof, use the remaining shared 500-node cell / 10,000-node direction quota for packed points/wins fixture branching, explained backjumping, and conflicting-cohort reuse |
 | `RUST_ODDS_PROOF_RECYCLE_CREDIT` (default `legacy`) | For strengthened early proofs, check recycling eligibility using the original relaxation, within the remaining cell/direction node budget |
 | `RUST_ODDS_GOAL_COMPLETION` (default enabled; `0` disables) | With `deferred` mode, complete failed canonical seasons using independent outside-cohort winning margins and equal-goal additions; verify with the production sorter and publish compact certificates after sampling |
 | `RUST_ODDS_REACHABILITY_ALLOCATION` | `replace_neighborhood`, `replace_walk`, `split_walk`, `adaptive_tail`: experimental replacements described in the report |
@@ -247,6 +248,16 @@ final bounds in the negated point model. Additional complete seasons are reused
 after sampling so they cannot alter proposal priorities. Immediate publication
 and joint replacement lost estimates in experiments; see the report for paired
 coverage gains, latency increases in the dense control, and remaining undecideds.
+
+The default generic explained rank proof is documented in
+[`2026-09-30-rust-proof-search.md`](../experiments/rare_positions/2026-09-30-rust-proof-search.md).
+It resolves Flamengo/14th in frozen group 16498 within the existing proof
+ceilings. It supports both rank-bound directions and uses wins only immediately
+after points in the phase ordering. No score caps or numerical outcome-mass
+filters are used. Relaxation feasibility and budget exhaustion remain undecided.
+No additional flag is required; set `RUST_ODDS_RANK_PROOF=0` to disable it.
+Probabilities and sampler acceptance gates are unchanged. Full-request latency
+and CPU increases observed in the paired controls are reported explicitly.
 
 The goal-difference / goals-scored completion experiment is documented in
 [`2026-09-30-rust-goal-completion.md`](../experiments/rare_positions/2026-09-30-rust-goal-completion.md).

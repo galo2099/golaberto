@@ -1,0 +1,1154 @@
+diff --git a/experiments/rare_positions/compare_rust_reachability.py b/experiments/rare_positions/compare_rust_reachability.py
+index 33aecd13..4a313af8 100644
+--- a/experiments/rare_positions/compare_rust_reachability.py
++++ b/experiments/rare_positions/compare_rust_reachability.py
+@@ -50,9 +50,15 @@ LEGACY_FLAGS = {
+     "RUST_ODDS_AGGREGATE_CUTS": "0",
+     "RUST_ODDS_PROOF_RECYCLE_CREDIT": "0",
+     "RUST_ODDS_GOAL_COMPLETION": "0",
++    "RUST_ODDS_DISCRETE_CUTS": "0",
+ }
+ VARIANTS = {name: dict(LEGACY_FLAGS, **flags) for name, flags in VARIANTS.items()}
++VARIANTS["probe_draws_only"]={"RUST_ODDS_DOMAIN_PROBE_REALLOCATE":"1"}
++VARIANTS["probe_local"]={"RUST_ODDS_DOMAIN_PROBES":"12","RUST_ODDS_DOMAIN_PROBE_NODES":"0"}
++VARIANTS["probe_joint"]={"RUST_ODDS_DOMAIN_PROBES":"6","RUST_ODDS_DOMAIN_PROBE_NODES":"16"}
++VARIANTS["probe_realloc"]={"RUST_ODDS_DOMAIN_PROBES":"6","RUST_ODDS_DOMAIN_PROBE_NODES":"16","RUST_ODDS_DOMAIN_PROBE_REALLOCATE":"1"}
+ VARIANTS["defaults"] = {}
++VARIANTS["discrete"] = {"RUST_ODDS_DISCRETE_CUTS": "1"}
+ 
+ 
+ def states(export):
+@@ -116,7 +122,7 @@ def run(binary, request, seed, flags, path, env, case, http=False):
+     complete = next(e for e in events if e["event"] == "rust_odds_complete")
+     cpu_ms = 1000 * (after.ru_utime + after.ru_stime - before.ru_utime - before.ru_stime)
+     stages = {e["stage"]: e["elapsed_ms"] for e in events if e["event"] == "rust_odds_stage"}
+-    diagnostics = [e for e in events if e["event"].startswith("rust_reachability_")]
++    diagnostics = [e for e in events if e["event"].startswith("rust_reachability_") or e["event"]=="rust_odds_domain_probes"]
+     http_events = [e for e in events if e["event"] == "rust_odds_http_complete"
+                    and e.get("request_id") == complete["request_id"]]
+     return export, {"timings": complete["timings"], "stages": stages, "cells": complete["cells"],
+diff --git a/odds-rust/README.md b/odds-rust/README.md
+index bd11d63e..0a456192 100644
+--- a/odds-rust/README.md
++++ b/odds-rust/README.md
+@@ -226,6 +226,7 @@ default. No extra flags are required. Sampling acceptance gates are unchanged.
+ | `RUST_ODDS_WITNESS_MODE` (default `deferred`) | `deferred`: screen maximum-points patterns, replace rejected queries with minimum-points construction, and publish new witnesses after probability sampling; `adaptive`: publish those witnesses immediately; `skip`: only skip screened maximum patterns; `reuse`: reuse all constructive ranks; `dual`: choose direction by rank cardinality; `joint`: bounded shared-fixture solver |
+ | `RUST_ODDS_NEIGHBOR_ORDER` | `breadth`: all single changes before pairs; `spread`: also distribute pairs across fixture indices |
+ | `RUST_ODDS_AGGREGATE_CUTS` (default `early`) | `early`: shared-fixture subset capacity cuts in early proofs; `1`: also use them in construction |
++| `RUST_ODDS_DISCRETE_CUTS` (default enabled; `0` disables) | In early floor proofs for standard 3/1/0 scoring without bonus points, check every team coalition for incompatible integer win/draw requirements using one graph cut |
+ | `RUST_ODDS_PROOF_RECYCLE_CREDIT` (default `legacy`) | For strengthened early proofs, check recycling eligibility using the original relaxation, within the remaining cell/direction node budget |
+ | `RUST_ODDS_GOAL_COMPLETION` (default enabled; `0` disables) | With `deferred` mode, complete failed canonical seasons using independent outside-cohort winning margins and equal-goal additions; verify with the production sorter and publish compact certificates after sampling |
+ | `RUST_ODDS_REACHABILITY_ALLOCATION` | `replace_neighborhood`, `replace_walk`, `split_walk`, `adaptive_tail`: experimental replacements described in the report |
+@@ -248,6 +249,18 @@ after sampling so they cannot alter proposal priorities. Immediate publication
+ and joint replacement lost estimates in experiments; see the report for paired
+ coverage gains, latency increases in the dense control, and remaining undecideds.
+ 
++The default discrete win/draw proof and paired request measurements are documented in
++[`2026-09-30-rust-discrete-cut.md`](../experiments/rare_positions/2026-09-30-rust-discrete-cut.md).
++It adds a necessary coalition point-floor inequality to the existing early
++joint proof stage and retains its 500-node cell / 10,000-node direction limits.
++Passing this relaxation does not establish reachability. The new cut proves
++Palmeiras/17th impossible in the frozen group 16498 request, independently of
++score margins and later tiebreakers. Legacy recycling eligibility is retained,
++so stronger proofs do not add probability draws. Full-request latency variation
++and the small measured proof-stage overhead are reported explicitly. The user
++authorized enabling it after reviewing the CPU and stage costs. No additional
++flag is required; set `RUST_ODDS_DISCRETE_CUTS=0` to disable it.
++
+ The goal-difference / goals-scored completion experiment is documented in
+ [`2026-09-30-rust-goal-completion.md`](../experiments/rare_positions/2026-09-30-rust-goal-completion.md).
+ It keeps the existing fixture-search ceilings, tries at most two completions per
+@@ -361,3 +374,16 @@ MYSQL_TEST_URL=mysql://root@127.0.0.1:3306/GolAberto_development \
+ The optional DB test shadows every queried table with connection-local temporary
+ tables. [Player integration verification](../experiments/rare_positions/2026-09-30-unified-player-ratings.md)
+ documents the real-data comparison and disposable-schema HTTP check.
++
++### Experimental conditional fixture probes
++
++`RUST_ODDS_DOMAIN_PROBES` (default `0`) enables a bounded number of hypothetical
++outcome checks per propagated-domain sampler call. `RUST_ODDS_DOMAIN_PROBE_NODES`
++(default `16`) limits exemption-search nodes per proof direction; use `0` for
++local propagation only. `RUST_ODDS_DOMAIN_PROBE_REALLOCATE=1` changes domain-rescue
++pilot/final/check draws from 1,000/15,000/5,000 to 750/14,000/5,000.
++
++These options remain experimental and disabled by default. Six-seed comparisons
++found no additional estimates attributable to the probes. See the
++[paired experiment report](../experiments/rare_positions/2026-09-30-rust-domain-probes.md)
++for measurements, correctness assumptions, and the draw-only ablation.
+diff --git a/odds-rust/src/domains.rs b/odds-rust/src/domains.rs
+index 14a63112..79c4c8d0 100644
+--- a/odds-rust/src/domains.rs
++++ b/odds-rust/src/domains.rs
+@@ -56,8 +56,23 @@ impl Domains {
+         rivals: &[usize],
+         rank: usize,
+         target: i32,
++    ) -> Self {
++        Self::seeded(games, points, rivals, rank, target, None)
++    }
++    fn seeded(
++        games: &[RankGame],
++        points: &[i32],
++        rivals: &[usize],
++        rank: usize,
++        target: i32,
++        seed: Option<&[u8]>,
+     ) -> Self {
+         let mut result = Self::new(games, points.len(), true);
++        if let Some(seed) = seed {
++            for (d, mask) in result.domains.iter_mut().zip(seed) {
++                *d &= mask;
++            }
++        }
+         let mut min = points.to_vec();
+         let mut max = min.clone();
+         let mut hm = vec![0; games.len()];
+@@ -280,6 +295,151 @@ impl Domains {
+         true
+     }
+ }
++#[derive(Clone, Copy, Default)]
++pub struct ProbeConfig {
++    pub checks: usize,
++    pub nodes: usize,
++}
++#[derive(Default)]
++pub struct ProbeStats {
++    pub checks: usize,
++    pub nodes: usize,
++    pub removed: usize,
++    pub forced: usize,
++    pub infeasible: usize,
++    pub elapsed_ms: f64,
++}
++impl Domains {
++    fn probe(
++        &mut self,
++        games: &[RankGame],
++        points: &[i32],
++        rivals: &[usize],
++        rank: usize,
++        target: usize,
++        stride: i32,
++        budget: &mut usize,
++        nodes: usize,
++        stats: &mut ProbeStats,
++    ) {
++        if !self.feasible || *budget == 0 {
++            return;
++        }
++        let started = std::time::Instant::now();
++        let before = self.domains.iter().filter(|d| d.count_ones() == 1).count();
++        let mut order: Vec<_> = (0..games.len()).collect();
++        order.sort_by_key(|i| {
++            let g = &games[*i];
++            (
++                self.domains[*i].count_ones(),
++                (points[g.home] - points[target])
++                    .abs()
++                    .min((points[g.away] - points[target]).abs()),
++                *i,
++            )
++        });
++        for i in order {
++            if self.domains[i].count_ones() < 2 {
++                continue;
++            }
++            for o in 0..3 {
++                if *budget == 0 || self.domains[i] & (1 << o) == 0 {
++                    continue;
++                }
++                *budget -= 1;
++                stats.checks += 1;
++                let mut masks = self.domains.clone();
++                masks[i] = 1 << o;
++                let trial = Self::seeded(games, points, rivals, rank, points[target], Some(&masks));
++                let mut impossible = !trial.feasible;
++                if !impossible && nodes > 0 {
++                    // Fixed W/D/L results contribute to the base exactly once.
++                    // Residual domains are a relaxation; score tiebreakers stay free.
++                    let mut base = points.to_vec();
++                    let mut residual = Vec::new();
++                    let mut ds = Vec::new();
++                    for (g, d) in games.iter().zip(&trial.domains) {
++                        if d.count_ones() == 1 {
++                            let o = d.trailing_zeros() as usize;
++                            base[g.home] += g.hg[o];
++                            base[g.away] += g.ag[o];
++                        } else {
++                            residual.push(crate::proof::Game {
++                                home: g.home,
++                                away: g.away,
++                                hg: g.hg,
++                                ag: g.ag,
++                                prob: g.prob,
++                            });
++                            ds.push(*d);
++                        }
++                    }
++                    let encoded =
++                        crate::proof::Problem::conditional(base.clone(), residual.clone());
++                    if let Some(p) = encoded {
++                        let (bad, n) =
++                            p.impossible_domains(target, rank, points[target], &ds, nodes);
++                        stats.nodes += n;
++                        impossible = bad;
++                        if !impossible {
++                            let (bad, n) = p.negated().impossible_domains(
++                                target,
++                                rivals.len() - rank,
++                                -points[target],
++                                &ds,
++                                nodes,
++                            );
++                            stats.nodes += n;
++                            impossible = bad;
++                        }
++                    }
++                    if !impossible && stride > 1 {
++                        for b in &mut base {
++                            *b = b.div_euclid(stride);
++                        }
++                        for g in &mut residual {
++                            g.hg = g.hg.map(|v| v.div_euclid(stride));
++                            g.ag = g.ag.map(|v| v.div_euclid(stride));
++                        }
++                        if let Some(p) = crate::proof::Problem::conditional(base, residual) {
++                            let (bad, n) = p.negated().impossible_domains(
++                                target,
++                                rivals.len() - rank,
++                                -points[target].div_euclid(stride),
++                                &ds,
++                                nodes,
++                            );
++                            stats.nodes += n;
++                            impossible = bad;
++                        }
++                    }
++                }
++                if impossible {
++                    stats.removed += 1;
++                    let mut masks = self.domains.clone();
++                    masks[i] &= !(1 << o);
++                    *self = Self::seeded(games, points, rivals, rank, points[target], Some(&masks));
++                    if !self.feasible {
++                        stats.infeasible += 1;
++                        break;
++                    }
++                }
++            }
++            if !self.feasible {
++                break;
++            }
++        }
++        if self.feasible {
++            stats.forced += self
++                .domains
++                .iter()
++                .filter(|d| d.count_ones() == 1)
++                .count()
++                .saturating_sub(before);
++        }
++        stats.elapsed_ms += started.elapsed().as_secs_f64() * 1000.;
++    }
++}
+ pub struct Cache<'a> {
+     games: &'a [RankGame],
+     selected: &'a [RankGame],
+@@ -291,6 +451,10 @@ pub struct Cache<'a> {
+     pub zero_safe: IntMap<bool>,
+     reduce: bool,
+     propagate: bool,
++    target: usize,
++    stride: i32,
++    probes: ProbeConfig,
++    pub stats: ProbeStats,
+ }
+ impl<'a> Cache<'a> {
+     pub fn new(
+@@ -325,8 +489,17 @@ impl<'a> Cache<'a> {
+             zero_safe: IntMap::default(),
+             reduce,
+             propagate,
++            target,
++            stride: 1,
++            probes: ProbeConfig::default(),
++            stats: ProbeStats::default(),
+         })
+     }
++    pub fn with_probes(mut self, stride: i32, probes: ProbeConfig) -> Self {
++        self.stride = stride;
++        self.probes = probes;
++        self
++    }
+     pub fn get(
+         &mut self,
+         points: &[i32],
+@@ -369,6 +542,7 @@ impl<'a> Cache<'a> {
+         let result = if self.propagate
+             && (above >= self.rank || below >= self.rivals.len() - self.rank)
+             || has_omitted
++            || self.probes.checks > 0
+         {
+             let mut d = if self.propagate {
+                 Domains::propagate(self.games, points, &self.rivals, self.rank, target)
+@@ -377,6 +551,19 @@ impl<'a> Cache<'a> {
+                 d.compile(self.games, points);
+                 d
+             };
++            if self.probes.checks > 0 {
++                d.probe(
++                    self.games,
++                    points,
++                    &self.rivals,
++                    self.rank,
++                    self.target,
++                    self.stride,
++                    &mut self.probes.checks,
++                    self.probes.nodes,
++                    &mut self.stats,
++                );
++            }
+             if d.feasible && has_omitted {
+                 d.omitted = omitted;
+                 d.compact(self.games, points);
+diff --git a/odds-rust/src/lookahead.rs b/odds-rust/src/lookahead.rs
+index e1930781..a5795dde 100644
+--- a/odds-rust/src/lookahead.rs
++++ b/odds-rust/src/lookahead.rs
+@@ -95,6 +95,31 @@ pub fn sample(
+     bounds: &Bounds,
+     policy: Policy,
+ ) -> Result {
++    sample_with_probes(
++        model,
++        event,
++        target,
++        rank,
++        bounds,
++        policy,
++        crate::domains::ProbeConfig::default(),
++    )
++}
++pub fn sample_with_probes(
++    model: &Model,
++    event: &Event,
++    target: usize,
++    rank: usize,
++    bounds: &Bounds,
++    policy: Policy,
++    mut probes: crate::domains::ProbeConfig,
++) -> Result {
++    let rules = &model.request.phase.championship;
++    if (rules.point_loss, rules.point_draw, rules.point_win) != (0, 1, 3)
++        || model.request.phase.bonus_points != 0
++    {
++        probes = crate::domains::ProbeConfig::default();
++    }
+     let mut result = Result {
+         mass: event.mass,
+         ..Default::default()
+@@ -181,6 +206,7 @@ pub fn sample(
+     } else {
+         None
+     };
++    domain_cache = domain_cache.map(|c| c.with_probes(stride, probes));
+     let mut points = base.clone();
+     let mut outcomes = vec![0; model.fixtures.len()];
+     let mut score_context = ScoreContext::new(model);
+@@ -427,6 +453,18 @@ pub fn sample(
+             batches[usize::from(draw >= policy.samples / 2)] += weight;
+         }
+     }
++    if probes.checks > 0 && std::env::var("RUST_ODDS_LOG").as_deref() != Ok("0") {
++        if let Some(c) = &domain_cache {
++            eprintln!(
++                "{}",
++                serde_json::json!({
++                    "event":"rust_odds_domain_probes", "team":model.ids[target], "rank":rank+1,
++                    "checks":c.stats.checks,"nodes":c.stats.nodes,"removed":c.stats.removed,
++                    "forced":c.stats.forced,"infeasible":c.stats.infeasible,"elapsed_ms":c.stats.elapsed_ms
++                })
++            );
++        }
++    }
+     result.work = result.samples as u64 * work_per_sample(model);
+     result.summarize(sum, sum2, max, batches);
+     result
+diff --git a/odds-rust/src/proof.rs b/odds-rust/src/proof.rs
+index 98758519..19ea1b92 100644
+--- a/odds-rust/src/proof.rs
++++ b/odds-rust/src/proof.rs
+@@ -5,6 +5,12 @@ use crate::{
+     search::Cell,
+ };
+ use std::collections::HashSet;
++#[derive(Clone, Copy, PartialEq)]
++enum DiscreteDirection {
++    Unsupported,
++    Cap,
++    Floor,
++}
+ #[derive(Clone)]
+ pub struct Game {
+     pub home: usize,
+@@ -19,6 +25,70 @@ pub struct Problem {
+     pub ranked: Vec<bool>,
+     pub games: Vec<Game>,
+     aggregate_cuts: bool,
++    discrete_direction: DiscreteDirection,
++    discrete_cuts: bool,
++}
++
++// Problem::new limits the model to 64 teams; source and sink add two nodes.
++// Fixed storage avoids changing the sampler's heap layout after an early proof.
++struct Flow {
++    capacity: [[i64; 66]; 66],
++    n: usize,
++}
++impl Flow {
++    fn new(n: usize) -> Self {
++        Self {
++            capacity: [[0; 66]; 66],
++            n,
++        }
++    }
++    fn add(&mut self, from: usize, to: usize, capacity: i64) {
++        self.capacity[from][to] += capacity;
++    }
++    fn maximum(&mut self, source: usize, sink: usize, limit: i64) -> i64 {
++        // Small, integer-capacity proof graphs need only a few augmentations.
++        // An iterative breadth-first augmenting path avoids recursive frames
++        // and keeps graph setup to one fixed matrix.
++        let mut total = 0;
++        while total < limit {
++            let mut parent = [usize::MAX; 66];
++            parent[source] = source;
++            let mut queue = [0; 66];
++            queue[0] = source;
++            let mut read = 0;
++            let mut write = 1;
++            while read < write && parent[sink] == usize::MAX {
++                let at = queue[read];
++                read += 1;
++                for to in 0..self.n {
++                    if self.capacity[at][to] > 0 && parent[to] == usize::MAX {
++                        parent[to] = at;
++                        queue[write] = to;
++                        write += 1;
++                    }
++                }
++            }
++            if parent[sink] == usize::MAX {
++                break;
++            }
++            let mut sent = limit - total;
++            let mut at = sink;
++            while at != source {
++                let from = parent[at];
++                sent = sent.min(self.capacity[from][at]);
++                at = from;
++            }
++            at = sink;
++            while at != source {
++                let from = parent[at];
++                self.capacity[from][at] -= sent;
++                self.capacity[at][from] += sent;
++                at = from;
++            }
++            total += sent;
++        }
++        total
++    }
+ }
+ pub fn min_gain(domain: u8, gain: [i32; 3]) -> i32 {
+     (0..3)
+@@ -44,6 +114,14 @@ impl Problem {
+         let ag = [c.point_win, c.point_draw, c.point_loss];
+         Some(Self {
+             aggregate_cuts: std::env::var("RUST_ODDS_AGGREGATE_CUTS").as_deref() == Ok("1"),
++            discrete_direction: if (c.point_win, c.point_draw, c.point_loss) == (3, 1, 0)
++                && model.request.phase.bonus_points == 0
++            {
++                DiscreteDirection::Cap
++            } else {
++                DiscreteDirection::Unsupported
++            },
++            discrete_cuts: crate::search::enabled("RUST_ODDS_DISCRETE_CUTS"),
+             base: model.base.iter().map(|c| c.points).collect(),
+             ranked: (0..model.ids.len()).map(|t| t < model.n).collect(),
+             games: model
+@@ -59,9 +137,39 @@ impl Problem {
+                 .collect(),
+         })
+     }
++    /// Conditional sampler relaxation: fixed outcomes have already been applied
++    /// to base and removed from games. This does not publish reachability.
++    pub fn conditional(base: Vec<i32>, games: Vec<Game>) -> Option<Self> {
++        if base.len() > 64
++            || games
++                .iter()
++                .any(|g| g.home == g.away || g.home >= base.len() || g.away >= base.len())
++        {
++            return None;
++        }
++        let standard = games.iter().all(|g| g.hg == [0, 1, 3] && g.ag == [3, 1, 0]);
++        Some(Self {
++            ranked: vec![true; base.len()],
++            base,
++            games,
++            aggregate_cuts: true,
++            discrete_direction: if standard {
++                DiscreteDirection::Cap
++            } else {
++                DiscreteDirection::Unsupported
++            },
++            discrete_cuts: crate::search::enabled("RUST_ODDS_DISCRETE_CUTS"),
++        })
++    }
+     pub fn negated(&self) -> Self {
+         Self {
+             aggregate_cuts: self.aggregate_cuts,
++            discrete_direction: match self.discrete_direction {
++                DiscreteDirection::Cap => DiscreteDirection::Floor,
++                DiscreteDirection::Floor => DiscreteDirection::Cap,
++                DiscreteDirection::Unsupported => DiscreteDirection::Unsupported,
++            },
++            discrete_cuts: self.discrete_cuts,
+             base: self.base.iter().map(|p| -p).collect(),
+             ranked: self.ranked.clone(),
+             games: self
+@@ -75,6 +183,69 @@ impl Problem {
+                 .collect(),
+         }
+     }
++    /// Explicit control for comparisons/tests without changing global flags.
++    pub fn with_discrete_cuts(mut self, enabled: bool) -> Self {
++        self.discrete_cuts = enabled;
++        self
++    }
++    /// Check every coalition's discrete floor cut with one small graph cut.
++    /// This uses unrestricted W/D/L outcomes, so later goal tiebreakers and
++    /// numerical score-table truncation cannot create a false impossibility.
++    #[cold]
++    #[inline(never)]
++    fn discrete_floor_impossible(&self, cap: i32, exempt: u64) -> bool {
++        let n = self.base.len();
++        let source = n;
++        let sink = n + 1;
++        let mut reward = [0_i64; 64];
++        for (t, value) in reward[..n].iter_mut().enumerate() {
++            if exempt & (1 << t) == 0 {
++                // The problem is negated: deficit = floor - current points.
++                let deficit = i64::from(self.base[t]) - i64::from(cap);
++                *value = deficit + (deficit.max(0) + 2) / 3;
++            }
++        }
++        for g in &self.games {
++            let h = exempt & (1 << g.home) == 0;
++            let a = exempt & (1 << g.away) == 0;
++            match (h, a) {
++                (true, true) => {
++                    reward[g.home] -= 2;
++                    reward[g.away] -= 2;
++                }
++                (true, false) => reward[g.home] -= 4,
++                (false, true) => reward[g.away] -= 4,
++                _ => {}
++            }
++        }
++        let positive: i64 = reward[..n].iter().filter(|v| **v > 0).sum();
++        // With no positive unary reward every coalition has nonpositive
++        // violation. Avoid constructing a graph for these common easy floors.
++        if positive == 0 {
++            return false;
++        }
++        let mut flow = Flow::new(n + 2);
++        for g in &self.games {
++            if exempt & ((1 << g.home) | (1 << g.away)) == 0 {
++                flow.add(g.home, g.away, 2);
++                flow.add(g.away, g.home, 2);
++            }
++        }
++        for (t, value) in reward[..n].iter().copied().enumerate() {
++            if value > 0 {
++                flow.add(source, t, value);
++            } else if value < 0 {
++                flow.add(t, sink, -value);
++            }
++        }
++        // For S: Q=sum ceil(max(0,floor-current)/3), M=incident games,
++        // slack=sum(current)+3M-floor*|S|. Necessary: Q-M <= slack.
++        // Violation = sum(deficit+ceil(deficit/3)) - 4M > 0.
++        // Each internal fixture contributes -2 at both endpoints and a
++        // capacity-2 undirected cut edge; each boundary fixture contributes
++        // -4. Maximum coalition violation = positive source reward - mincut.
++        positive > flow.maximum(source, sink, positive)
++    }
+     pub fn target_max(&self, t: usize) -> i32 {
+         self.base[t]
+             + self
+@@ -104,6 +275,10 @@ impl Problem {
+         let mut lower = self.base.clone();
+         let mut hm = vec![0; self.games.len()];
+         let mut am = hm.clone();
++        // Reuse aggregate-cut scratch storage across propagation rounds. This
++        // offsets part of the discrete cut cost without changing any search.
++        let mut weights = Vec::new();
++        let mut teams = Vec::new();
+         loop {
+             lower.copy_from_slice(&self.base);
+             for (i, g) in self.games.iter().enumerate() {
+@@ -124,7 +299,12 @@ impl Problem {
+             }
+             if cuts {
+                 let n = self.base.len();
+-                let mut weights = vec![0; n * n];
++                if weights.is_empty() {
++                    weights.resize(n * n, 0);
++                    teams.extend((0..n).filter(|t| exempt & (1 << t) == 0));
++                } else {
++                    weights.fill(0);
++                }
+                 for (i, g) in self.games.iter().enumerate() {
+                     if exempt & (1 << g.home) != 0 || exempt & (1 << g.away) != 0 {
+                         continue;
+@@ -134,7 +314,6 @@ impl Problem {
+                     weights[g.home * n + g.away] += extra;
+                     weights[g.away * n + g.home] += extra;
+                 }
+-                let mut teams: Vec<_> = (0..n).filter(|t| exempt & (1 << t) == 0).collect();
+                 teams.sort_by_key(|t| (cap - lower[*t], *t));
+                 let mut capacity = 0;
+                 let mut demand = 0;
+@@ -169,17 +348,38 @@ impl Problem {
+                 domains[i] = domain;
+             }
+             if !changed {
++                if cuts
++                    && self.discrete_cuts
++                    && self.discrete_direction == DiscreteDirection::Floor
++                    && self.discrete_floor_impossible(cap, exempt)
++                {
++                    return None;
++                }
+                 return Some(lower);
+             }
+         }
+     }
+     pub fn impossible(&self, t: usize, rank: usize, cap: i32, budget: usize) -> (bool, usize) {
++        self.impossible_domains(t, rank, cap, &vec![7; self.games.len()], budget)
++    }
++    pub fn impossible_domains(
++        &self,
++        t: usize,
++        rank: usize,
++        cap: i32,
++        domains: &[u8],
++        budget: usize,
++    ) -> (bool, usize) {
++        assert_eq!(domains.len(), self.games.len());
++        if domains.iter().any(|d| *d == 0) {
++            return (true, 0);
++        }
+         let mut exempt = 1 << t;
+         let mut mandatory = 0;
+         let mut min = self.base.clone();
+-        for g in &self.games {
+-            min[g.home] += min_gain(7, g.hg);
+-            min[g.away] += min_gain(7, g.ag);
++        for (g, d) in self.games.iter().zip(domains) {
++            min[g.home] += min_gain(*d, g.hg);
++            min[g.away] += min_gain(*d, g.ag);
+         }
+         for (i, p) in min.iter().enumerate() {
+             if !self.ranked[i] {
+@@ -200,6 +400,7 @@ impl Problem {
+             budget: usize,
+             nodes: &mut usize,
+             seen: &mut HashSet<u64>,
++            domains: &[u8],
+         ) -> u8 {
+             if !seen.insert(mask) {
+                 return 2;
+@@ -208,9 +409,7 @@ impl Problem {
+                 return 0;
+             }
+             *nodes += 1;
+-            if p.propagate(cap, mask, &mut vec![7; p.games.len()])
+-                .is_some()
+-            {
++            if p.propagate(cap, mask, &mut domains.to_vec()).is_some() {
+                 return 1;
+             }
+             if slots == 0 {
+@@ -220,7 +419,16 @@ impl Problem {
+                 if mask & (1 << i) != 0 || !p.ranked[i] {
+                     continue;
+                 }
+-                let result = visit(p, cap, mask | (1 << i), slots - 1, budget, nodes, seen);
++                let result = visit(
++                    p,
++                    cap,
++                    mask | (1 << i),
++                    slots - 1,
++                    budget,
++                    nodes,
++                    seen,
++                    domains,
++                );
+                 if result != 2 {
+                     return result;
+                 }
+@@ -236,6 +444,7 @@ impl Problem {
+             budget,
+             &mut nodes,
+             &mut HashSet::new(),
++            domains,
+         );
+         (outcome == 2, nodes)
+     }
+@@ -278,6 +487,7 @@ pub fn early_report(model: &Model, cells: &[Cell], estimates: &mut [Estimate]) -
+         let credit_problem = preserve_credit.then(|| {
+             let mut legacy = problem.clone();
+             legacy.aggregate_cuts = false;
++            legacy.discrete_cuts = false;
+             legacy
+         });
+         let mut nodes = 0;
+@@ -697,3 +907,76 @@ pub fn witnesses_report_with_goals(
+         goal_witnesses,
+     }
+ }
++
++#[cfg(test)]
++mod discrete_tests {
++    use super::*;
++    use crate::model::Request;
++
++    #[test]
++    fn graph_cut_matches_exhaustive_coalition_certificates() {
++        let request: Request = serde_json::from_value(serde_json::json!({
++            "id":1,"phase":{"sort":"pt","championship":{"point_win":3,"point_draw":1,"point_loss":0}},
++            "team_groups":[{"team_id":0,"add_sub":-3},{"team_id":1,"add_sub":1},{"team_id":2,"add_sub":4},{"team_id":3,"add_sub":8},{"team_id":4,"add_sub":2}],
++            "games":[{"id":0,"home_id":0,"away_id":1},{"id":1,"home_id":0,"away_id":2},{"id":2,"home_id":1,"away_id":2},{"id":3,"home_id":1,"away_id":3},{"id":4,"home_id":2,"away_id":4},{"id":5,"home_id":3,"away_id":4},{"id":6,"home_id":0,"away_id":4}]
++        })).unwrap();
++        let model = Model::new(request).unwrap();
++        let p = Problem::new(&model).unwrap().negated();
++        for floor in -3..=15 {
++            for exempt in 0..32_u64 {
++                let mut expected = false;
++                for subset in 1..32_u64 {
++                    if subset & exempt != 0 {
++                        continue;
++                    }
++                    let mut current = 0_i64;
++                    let mut needed = 0_i64;
++                    let mut count = 0;
++                    for t in 0..5 {
++                        if subset & (1 << t) != 0 {
++                            let points = i64::from(model.base[t].points);
++                            current += points;
++                            needed += ((i64::from(floor) - points).max(0) + 2) / 3;
++                            count += 1;
++                        }
++                    }
++                    let incident = p
++                        .games
++                        .iter()
++                        .filter(|g| subset & ((1 << g.home) | (1 << g.away)) != 0)
++                        .count() as i64;
++                    let slack = current + 3 * incident - i64::from(floor) * count;
++                    expected |= needed - incident > slack;
++                }
++                assert_eq!(
++                    p.discrete_floor_impossible(-floor, exempt),
++                    expected,
++                    "floor={floor} exempt={exempt}"
++                );
++            }
++        }
++    }
++
++    #[test]
++    fn complete_early_floor_proof_resolves_seventeenth_with_existing_budget() {
++        let request: Request = serde_json::from_str(include_str!(
++            "../../experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16498-44eabb47.json"
++        )).unwrap();
++        let model = Model::new(request).unwrap();
++        let t = model.indices[&16];
++        let mut p = Problem::new(&model)
++            .unwrap()
++            .negated()
++            .with_discrete_cuts(true);
++        p.aggregate_cuts = true;
++        let cap = p.target_max(t);
++        let (proof, nodes) = p.impossible(t, 3, cap, 500);
++        assert!(proof);
++        assert!(nodes <= 500);
++        for below in [4, 5] {
++            assert!(!p.impossible(t, below, cap, 500).0);
++        }
++        p.discrete_cuts = false;
++        assert!(!p.impossible(t, 3, cap, 500).0);
++    }
++}
+diff --git a/odds-rust/src/rescue.rs b/odds-rust/src/rescue.rs
+index bd007ee8..1b4bfdda 100644
+--- a/odds-rust/src/rescue.rs
++++ b/odds-rust/src/rescue.rs
+@@ -99,6 +99,17 @@ pub fn domains(
+     if !enabled("RARE_POSITION_PROPAGATED_DOMAINS") || model.keys.first() != Some(&Key::Pt) {
+         return (0, 0);
+     }
++    let probes = crate::domains::ProbeConfig {
++        checks: std::env::var("RUST_ODDS_DOMAIN_PROBES")
++            .ok()
++            .and_then(|v| v.parse().ok())
++            .unwrap_or(0),
++        nodes: std::env::var("RUST_ODDS_DOMAIN_PROBE_NODES")
++            .ok()
++            .and_then(|v| v.parse().ok())
++            .unwrap_or(16),
++    };
++    let reallocate = std::env::var("RUST_ODDS_DOMAIN_PROBE_REALLOCATE").as_deref() == Ok("1");
+     let (_, current) = current_ranks(model);
+     let mut cells = Vec::new();
+     for t in 0..model.n {
+@@ -135,7 +146,7 @@ pub fn domains(
+         } else {
+             0.5
+         };
+-        let pilot = lookahead::sample(
++        let pilot = lookahead::sample_with_probes(
+             model,
+             &event,
+             cell.team,
+@@ -146,12 +157,13 @@ pub fn domains(
+                 cell,
+                 seed,
+                 "rank-domain-pilot",
+-                1000,
++                if reallocate { 750 } else { 1000 },
+                 6.,
+                 point,
+                 false,
+                 true,
+             ),
++            probes,
+         );
+         Some(Candidate {
+             cell,
+@@ -182,7 +194,7 @@ pub fn domains(
+     finalists.truncate(3);
+     let confirmed = parallel(finalists.len(), workers, |i| {
+         let c = &finalists[i];
+-        let r = lookahead::sample(
++        let r = lookahead::sample_with_probes(
+             model,
+             &c.event,
+             c.cell.team,
+@@ -193,14 +205,15 @@ pub fn domains(
+                 c.cell,
+                 seed,
+                 "rank-domain-final",
+-                15000,
++                if reallocate { 14000 } else { 15000 },
+                 6.,
+                 c.point,
+                 false,
+                 true,
+             ),
++            probes,
+         );
+-        let check = lookahead::sample(
++        let check = lookahead::sample_with_probes(
+             model,
+             &c.event,
+             c.cell.team,
+@@ -217,6 +230,7 @@ pub fn domains(
+                 false,
+                 true,
+             ),
++            probes,
+         );
+         (r, check)
+     });
+diff --git a/odds-rust/tests/estimator.rs b/odds-rust/tests/estimator.rs
+index 80cb7062..abe30c42 100644
+--- a/odds-rust/tests/estimator.rs
++++ b/odds-rust/tests/estimator.rs
+@@ -101,7 +101,7 @@ fn conditional_event_contains_every_rank_hit_and_has_exact_mass() {
+ #[test]
+ fn cap_and_floor_proofs_never_exclude_a_feasible_relaxation() {
+     let model = tiny();
+-    let problem = Problem::new(&model).unwrap();
++    let problem = Problem::new(&model).unwrap().with_discrete_cuts(true);
+     for dual in [false, true] {
+         let negative = problem.negated();
+         let problem = if dual { &negative } else { &problem };
+@@ -216,6 +216,45 @@ fn weighted_sampler_agrees_with_exhaustive_probability() {
+         }
+     }
+ }
++#[test]
++fn proof_guided_sampler_agrees_with_exhaustive_probability() {
++    let model = tiny();
++    let bounds = Bounds::new(&model);
++    let mut exact = [0.; 4];
++    enumerate(&model, |o, p| {
++        exact[conditioned::canonical_ranks(&model, o)[0]] += p
++    });
++    for rank in 0..4 {
++        let event = Event::build(&model, &bounds, 0, rank, &[], 20000).unwrap();
++        let result = lookahead::sample_with_probes(
++            &model,
++            &event,
++            0,
++            rank,
++            &bounds,
++            Policy {
++                samples: 30000,
++                seed: 808,
++                tilt: 3.,
++                point_tilt: 0.5,
++                force_points: false,
++                propagate: true,
++            },
++            golaberto_odds::domains::ProbeConfig {
++                checks: 24,
++                nodes: 32,
++            },
++        );
++        assert!(result.weighted);
++        assert!(
++            (result.probability - exact[rank]).abs() < 6. * result.std_err + 1e-6,
++            "rank={rank} estimate={} exact={}",
++            result.probability,
++            exact[rank]
++        );
++    }
++}
++
+ #[test]
+ fn production_acceptance_gate_is_unchanged() {
+     let mut result = Result {
+@@ -427,6 +466,143 @@ fn aggregate_cut_detects_a_shared_fixture_contradiction_marginals_miss() {
+         .is_none());
+ }
+ 
++#[test]
++fn discrete_floor_proves_palmeiras_seventeenth_and_preserves_reachable_ranks() {
++    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(
++        "../experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16498-44eabb47.json",
++    );
++    let request: Request = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
++    for reverse in [false, true] {
++        let mut request = request.clone();
++        if reverse {
++            request.team_groups.reverse();
++            request.games.reverse();
++        }
++        let model = Model::new(request).unwrap();
++        let team = model.indices[&16];
++        let problem = Problem::new(&model).unwrap().negated();
++        let cap = problem.target_max(team);
++        assert_eq!(cap, -57);
++        let discrete = problem.clone().with_discrete_cuts(true);
++        let legacy = problem.with_discrete_cuts(false);
++        // Enable the existing aggregate stage independently of environment flags.
++        // impossible() uses that stage when RUST_ODDS_AGGREGATE_CUTS=1; test the
++        // explicit point-domain policy first for each required exemption set.
++        let mandatory = [16, 110, 318].map(|id| model.indices[&id]);
++        for additional in [20, 79] {
++            let mask = mandatory.into_iter().fold(0, |m, t| m | (1 << t))
++                | (1 << model.indices[&additional]);
++            assert!(discrete
++                .propagate_policy(cap, mask, &mut vec![7; model.fixtures.len()], true)
++                .is_none());
++            if additional == 20 {
++                assert!(legacy
++                    .propagate_policy(cap, mask, &mut vec![7; model.fixtures.len()], true)
++                    .is_some());
++            }
++        }
++        // The complete verified 15th-place witness must retain a feasible floor.
++        let certificate: Value = serde_json::from_str(include_str!(
++            "../../experiments/rare_positions/results/2026-09-30-palmeiras-15-goal-witness.json"
++        ))
++        .unwrap();
++        let mut campaigns = model.base.clone();
++        let mut full_scores = model.empty_scores();
++        for (i, g) in model.fixtures.iter().enumerate() {
++            let id = model.request.games[g.request_index].id;
++            let score = certificate["remaining_fixture_assignment"]
++                .as_array()
++                .unwrap()
++                .iter()
++                .find(|a| a["game_id"] == id)
++                .unwrap()["score"]
++                .as_array()
++                .unwrap();
++            let score = [
++                score[0].as_i64().unwrap() as i32,
++                score[1].as_i64().unwrap() as i32,
++            ];
++            model.add(&mut campaigns, i, score);
++            full_scores[g.request_index] = score;
++        }
++        let mut order = vec![0; model.n];
++        model.standings(&mut order, &campaigns, &full_scores, &mut Rng::new(1));
++        assert_eq!(order[14], team);
++        let mask = (0..model.ids.len())
++            .filter(|t| *t == team || campaigns[*t].points < 57)
++            .fold(0, |m, t| m | (1 << t));
++        assert!(discrete
++            .propagate_policy(cap, mask, &mut vec![7; model.fixtures.len()], true)
++            .is_some());
++    }
++}
++
++#[test]
++fn discrete_floor_retains_feasible_restricted_domains_with_point_adjustments() {
++    for adjustments in [[0, 1, 2, 4], [-2, 0, 3, 7]] {
++        let mut request = tiny().request;
++        for (team, adjustment) in request.team_groups.iter_mut().zip(adjustments) {
++            team.add_sub = adjustment;
++        }
++        let model = Model::new(request).unwrap();
++        let problem = Problem::new(&model)
++            .unwrap()
++            .negated()
++            .with_discrete_cuts(true);
++        enumerate(&model, |outcomes, _| {
++            let mut points = problem.base.clone();
++            for (g, &o) in problem.games.iter().zip(outcomes) {
++                points[g.home] += g.hg[o as usize];
++                points[g.away] += g.ag[o as usize];
++            }
++            for mask in 0..16 {
++                for cap in -9..=2 {
++                    if (0..4).all(|t| mask & (1 << t) != 0 || points[t] <= cap) {
++                        let mut domains: Vec<_> = outcomes.iter().map(|o| (1 << o) | 2).collect();
++                        assert!(problem
++                            .propagate_policy(cap, mask, &mut domains, true)
++                            .is_some());
++                        for (d, o) in domains.into_iter().zip(outcomes) {
++                            assert_ne!(d & (1 << o), 0);
++                        }
++                    }
++                }
++            }
++        });
++    }
++}
++
++#[test]
++fn discrete_cut_is_disabled_for_other_scoring_and_bonus_rules() {
++    for bonus in [false, true] {
++        let mut request = tiny().request;
++        if bonus {
++            request.phase.bonus_points = 1;
++        } else {
++            request.phase.championship.point_win = 2;
++        }
++        let model = Model::new(request).unwrap();
++        let problem = Problem::new(&model).unwrap().negated();
++        for mask in 0..16 {
++            for cap in -9..=3 {
++                let mut on = vec![7; problem.games.len()];
++                let mut off = on.clone();
++                assert_eq!(
++                    problem
++                        .clone()
++                        .with_discrete_cuts(true)
++                        .propagate_policy(cap, mask, &mut on, true),
++                    problem
++                        .clone()
++                        .with_discrete_cuts(false)
++                        .propagate_policy(cap, mask, &mut off, true)
++                );
++                assert_eq!(on, off);
++            }
++        }
++    }
++}
++
+ #[test]
+ fn reordered_neighbors_return_only_production_sorted_witnesses() {
+     let mut model = tiny();
+@@ -823,3 +999,74 @@ fn adjacent_cdf_factor_preserves_the_original_weight_bits_at_boundaries() {
+         }
+     }
+ }
++
++#[test]
++fn proof_probes_preserve_every_enumerated_rank_hit_with_wins_and_negative_points() {
++    use golaberto_odds::domains::{Cache, ProbeConfig};
++    let mut request = tiny().request.clone();
++    request.team_groups[0].add_sub = -3;
++    let model = Model::new(request).unwrap();
++    let mut checks = 0;
++    let mut removals = 0;
++    for stride in [1, 8] {
++        for target in 0..model.n {
++            let mut selected = Vec::new();
++            let mut remaining = Vec::new();
++            for (index, f) in model.fixtures.iter().enumerate() {
++                let g = RankGame {
++                    index,
++                    home: f.home,
++                    away: f.away,
++                    prob: f.prob,
++                    hg: [0, stride, 3 * stride + i32::from(stride > 1)],
++                    ag: [3 * stride + i32::from(stride > 1), stride, 0],
++                };
++                if g.home == target || g.away == target {
++                    selected.push(g)
++                } else {
++                    remaining.push(g)
++                }
++            }
++            for rank in 0..model.n {
++                enumerate(&model, |outcomes, _| {
++                    if conditioned::canonical_ranks(&model, outcomes)[target] != rank {
++                        return;
++                    }
++                    let mut points: Vec<_> = model
++                        .base
++                        .iter()
++                        .map(|b| b.points * stride + if stride > 1 { b.wins } else { 0 })
++                        .collect();
++                    for g in &selected {
++                        let o = outcomes[g.index] as usize;
++                        points[g.home] += g.hg[o];
++                        points[g.away] += g.ag[o];
++                    }
++                    // Fresh budgets exercise each possible conditional target pattern.
++                    let mut cache =
++                        Cache::new(&remaining, &selected, target, rank, model.n, false, true)
++                            .unwrap()
++                            .with_probes(
++                                stride,
++                                ProbeConfig {
++                                    checks: 12,
++                                    nodes: 32,
++                                },
++                            );
++                    let (_, domains) = cache.get(&points, points[target], outcomes);
++                    if let Some(d) = domains {
++                        assert!(d.feasible, "lost rank hit {target}/{rank} {outcomes:?}");
++                        for (g, mask) in remaining.iter().zip(&d.domains) {
++                            assert_ne!(*mask & (1 << outcomes[g.index]), 0, "pruned valid outcome");
++                        }
++                    }
++                    checks += cache.stats.checks;
++                    removals += cache.stats.removed;
++                    assert!(cache.stats.checks <= 12);
++                });
++            }
++        }
++    }
++    assert!(checks > 0);
++    assert!(removals > 0);
++}

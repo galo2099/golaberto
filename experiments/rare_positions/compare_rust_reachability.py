@@ -50,8 +50,11 @@ LEGACY_FLAGS = {
     "RUST_ODDS_AGGREGATE_CUTS": "0",
     "RUST_ODDS_PROOF_RECYCLE_CREDIT": "0",
     "RUST_ODDS_GOAL_COMPLETION": "0",
+    "RUST_ODDS_RANK_PROOF": "0",
 }
 VARIANTS = {name: dict(LEGACY_FLAGS, **flags) for name, flags in VARIANTS.items()}
+VARIANTS["rank_proof"] = {"RUST_ODDS_RANK_PROOF": "1"}
+VARIANTS["no_rank_proof"] = {"RUST_ODDS_RANK_PROOF": "0"}
 VARIANTS["defaults"] = {}
 
 

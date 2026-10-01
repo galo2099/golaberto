@@ -258,6 +258,10 @@ pub fn early_report(model: &Model, cells: &[Cell], estimates: &mut [Estimate]) -
     if std::env::var("RUST_ODDS_AGGREGATE_CUTS").unwrap_or_else(|_| "early".into()) == "early" {
         p.aggregate_cuts = true;
     }
+    let rank_proof = (!cells.is_empty()
+        && matches!(std::env::var("RUST_ODDS_RANK_PROOF").as_deref(), Err(_) | Ok("1")))
+    .then(|| crate::rank_proof::RankProof::new(model))
+    .flatten();
     let mut proofs = 0;
     let mut recycle_credit = 0;
     let preserve_credit = p.aggregate_cuts
@@ -280,6 +284,14 @@ pub fn early_report(model: &Model, cells: &[Cell], estimates: &mut [Estimate]) -
             legacy.aggregate_cuts = false;
             legacy
         });
+        let packed_negative = (!dual)
+            .then(|| rank_proof.as_ref().map(|p| p.negated()))
+            .flatten();
+        let packed = if dual {
+            rank_proof.as_ref()
+        } else {
+            packed_negative.as_ref()
+        };
         let mut nodes = 0;
         for &cell in cells {
             let index = cell.index(model.n);
@@ -294,10 +306,48 @@ pub fn early_report(model: &Model, cells: &[Cell], estimates: &mut [Estimate]) -
             };
             let cap = problem.target_max(cell.team);
             let allowance = 500.min(10000 - nodes);
-            let (impossible, spent) = problem.impossible(cell.team, rank, cap, allowance);
+            let (mut impossible, mut spent) = problem.impossible(cell.team, rank, cap, allowance);
+            let mut rank_impossible = false;
+            // Spend fixture-search work only where the existing cohort proof
+            // already encountered a conflict. A one-node consistent relaxation
+            // is a weak priority signal, and retains its existing undecided state.
+            if !impossible && spent > 1 && spent < allowance {
+                if let Some(packed) = packed {
+                    let timer = std::time::Instant::now();
+                    let result = packed.prove(
+                        cell,
+                        if dual {
+                            cell.rank
+                        } else {
+                            model.n - 1 - cell.rank
+                        },
+                        allowance - spent,
+                        crate::rank_proof::Options {
+                            require_root_pressure: true,
+                            ..crate::rank_proof::Options::default()
+                        },
+                    );
+                    spent += result.stats.nodes;
+                    rank_impossible = result.impossible;
+                    impossible |= rank_impossible;
+                    if std::env::var("RUST_ODDS_REACHABILITY_TRACE").as_deref() == Ok("1") {
+                        eprintln!(
+                            "{}",
+                            serde_json::json!({"event":"rust_reachability_rank_proof","group":model.request.id,
+                            "team":model.ids[cell.team],"rank":cell.rank+1,"direction":if dual {"floor"}else{"cap"},
+                            "impossible":rank_impossible,"stats":result.stats,"elapsed_ms":timer.elapsed().as_secs_f64()*1000.})
+                        );
+                    }
+                }
+            }
             nodes += spent;
             if impossible {
-                est.reachability = "impossible_by_joint_points".into();
+                est.reachability = if rank_impossible {
+                    "impossible_by_joint_rank"
+                } else {
+                    "impossible_by_joint_points"
+                }
+                .into();
                 est.zero_hit_upper_95 = 0.;
                 proofs += 1;
                 if preserve_credit {
@@ -313,7 +363,8 @@ pub fn early_report(model: &Model, cells: &[Cell], estimates: &mut [Estimate]) -
                     nodes += credit_nodes;
                     recycle_credit += usize::from(old_proof);
                 } else {
-                    recycle_credit += 1;
+                    // A new fixture proof does not mint extra probability draws.
+                    recycle_credit += usize::from(!rank_impossible);
                 }
             }
         }
