@@ -1,0 +1,34 @@
+{
+  "rare_position_estimates": {
+    "1": {
+      "0": {
+        "probability": 0,
+        "reachability": "undecided"
+      }
+    },
+    "2": {
+      "0": {
+        "probability": 0,
+        "reachability": "undecided"
+      }
+    },
+    "3": {
+      "0": {
+        "probability": 0,
+        "reachability": "undecided"
+      }
+    },
+    "4": {
+      "0": {
+        "probability": 0,
+        "reachability": "undecided"
+      }
+    },
+    "5": {
+      "0": {
+        "probability": 0,
+        "reachability": "undecided"
+      }
+    }
+  }
+}

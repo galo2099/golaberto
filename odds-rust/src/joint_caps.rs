@@ -11,10 +11,12 @@ use crate::{
 use serde_json::json;
 
 pub mod broad;
+pub mod propagated;
 
 pub enum JointProposal {
     Exact(JointCaps),
     Broad(broad::BroadJoint),
+    Propagated(propagated::PropagatedJoint),
 }
 impl JointProposal {
     pub fn new(model: &Model, cell: Cell) -> Option<Self> {
@@ -38,12 +40,14 @@ impl JointProposal {
                 value
             }
             Self::Broad(plan) => plan.describe(model),
+            Self::Propagated(plan) => plan.describe(model),
         }
     }
     pub fn sample(&self, model: &Model, samples: usize, seed: i64, guided: bool) -> Result {
         match self {
             Self::Exact(plan) => plan.sample(model, samples, seed, guided),
             Self::Broad(plan) => plan.sample(model, samples, seed, guided),
+            Self::Propagated(plan) => plan.sample(model, samples, seed, guided),
         }
     }
 }

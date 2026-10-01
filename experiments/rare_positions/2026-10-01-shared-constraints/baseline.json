@@ -1,0 +1,22 @@
+{
+  "binary": "/private/tmp/golaberto-r25-baseline",
+  "sha256": "95b1c6c43bd9b84dabf0428f87fb89ac8628f71b7384e065b6d199c29e73bdbd",
+  "flags": {
+    "RUST_ODDS_RARE_TAIL": "coverage"
+  },
+  "workers": 4,
+  "development_seeds": [
+    801,
+    808,
+    818
+  ],
+  "validation_seeds": [
+    804,
+    817,
+    911,
+    1201,
+    1213,
+    1229
+  ],
+  "git_head": "7b1dc616dd152a84ffa0ba9fc6d6f8422655de25"
+}

@@ -9,6 +9,103 @@ impl Drop for OutputDir {
 }
 
 #[test]
+fn propagated_default_preserves_old_work_and_rejects_unconfirmed_estimates() {
+    let request = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(
+        "../experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16498-44eabb47.json",
+    );
+    let dir = OutputDir(
+        std::env::temp_dir().join(format!("golaberto-propagated-test-{}", std::process::id())),
+    );
+    fs::create_dir(&dir.0).unwrap();
+    for seed in [808, 818] {
+        let run = |enabled: bool| {
+            let output = dir.0.join(format!("{seed}-{enabled}.json"));
+            let mut command = Command::new(env!("CARGO_BIN_EXE_golaberto-odds"));
+            for (key, _) in std::env::vars_os() {
+                let name = key.to_string_lossy();
+                if name.starts_with("RUST_ODDS_") || name.starts_with("RARE_POSITION_") {
+                    command.env_remove(key);
+                }
+            }
+            command.env("RUST_ODDS_LOG", "1");
+            if !enabled {
+                command.env("RUST_ODDS_JOINT_PROPAGATION", "0");
+            }
+            let result = command
+                .arg("estimate")
+                .arg(&request)
+                .arg(&output)
+                .arg(seed.to_string())
+                .arg("4")
+                .output()
+                .unwrap();
+            assert!(
+                result.status.success(),
+                "{}",
+                String::from_utf8_lossy(&result.stderr)
+            );
+            let response: Value = serde_json::from_slice(&fs::read(output).unwrap()).unwrap();
+            let logs: Vec<Value> = String::from_utf8(result.stderr)
+                .unwrap()
+                .lines()
+                .filter_map(|line| serde_json::from_str(line).ok())
+                .collect();
+            (response, logs)
+        };
+        let (before, _) = run(false);
+        let (after, logs) = run(true);
+        for (team, ranks) in before["rare_position_estimates"].as_object().unwrap() {
+            for (rank, old) in ranks.as_object().unwrap() {
+                let new = &after["rare_position_estimates"][team][rank];
+                if old["probability"].as_f64().unwrap() > 0. {
+                    assert_eq!(
+                        old["probability"], new["probability"],
+                        "{seed} {team}/{rank}"
+                    );
+                    assert_eq!(old["std_err"], new["std_err"], "{seed} {team}/{rank}");
+                }
+                if old["reachability"]
+                    .as_str()
+                    .unwrap_or("")
+                    .starts_with("impossible")
+                {
+                    assert_eq!(old["reachability"], new["reachability"]);
+                }
+            }
+        }
+        assert_eq!(before["game_importance"], after["game_importance"]);
+        let cell = &after["rare_position_estimates"]["5"]["19"];
+        assert_eq!(cell["reachability"], "witness");
+        let joint = logs
+            .iter()
+            .find(|e| {
+                e["event"] == "rust_odds_joint_caps"
+                    && e["setup"]["mode"] == "propagated_target_union"
+            })
+            .unwrap();
+        assert_eq!(joint["setup"]["target_patterns"], 56);
+        assert_eq!(joint["setup"]["feasible_patterns"], 9);
+        assert_eq!(joint["setup"]["forced_min"], 28);
+        assert_eq!(joint["joint_draws"], 5000);
+        assert_eq!(joint["check_draws"], 3000);
+        assert!(joint["saved_draws"].as_u64().unwrap() >= 8000);
+        assert_eq!(joint["ordinary_draws"], 0);
+        assert_eq!(joint["accepted"], seed == 808);
+        if seed == 808 {
+            assert!(cell["probability"].as_f64().unwrap() > 1e-35);
+            assert!(cell["probability"].as_f64().unwrap() < 1e-33);
+        } else {
+            assert_eq!(cell["probability"], 0.);
+            assert_eq!(
+                cell["zero_hit_upper_95"],
+                joint["setup"]["conditioning_mass"]
+            );
+            assert!(cell["zero_hit_upper_95"].as_f64().unwrap() < 2e-25);
+        }
+    }
+}
+
+#[test]
 fn normal_binary_enables_joint_caps_and_preserves_existing_estimates_and_proofs() {
     let request = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(
         "../experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16498-44eabb47.json",
@@ -169,6 +266,9 @@ fn broad_replacement_preserves_estimates_that_short_ordinary_batches_lost() {
                 }
             }
             command.env("RUST_ODDS_LOG", "1");
+            // Isolate the previously shipped broad allocation from the new
+            // funded propagated candidate tested separately above.
+            command.env("RUST_ODDS_JOINT_PROPAGATION", "0");
             if !broad {
                 command.env("RUST_ODDS_JOINT_CAP_BROAD", "0");
             }

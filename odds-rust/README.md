@@ -8,8 +8,9 @@ rescues, cross-team witness reuse, directional/constraint peer rescues, propagat
 domains, reduced fixtures, and final matrix reconciliation.
 
 The executable does not call Go and does not read the golden probabilities.
-Go is used only by the offline comparison harness. Sampling budgets and
-acceptance thresholds, including the 35% relative-SE gate, are preserved.
+Go is used only by the offline comparison harness. The default path preserves sampling budgets and
+acceptance thresholds, including the 35% relative-SE gate. An opt-in additional
+coverage profile is documented below.
 
 The native service also replaces the active Go `/spi`, `/eval`, and
 `/historic_ratings` endpoints and integrates the active `stats` `/player_ratings`
@@ -153,7 +154,7 @@ otherwise retain 35,000 (46,000 or 38,000 total). This forecast guides allocatio
 and is logged as `ordinary_hit_forecast`; it is not a probability bound. The exact fast path retains its previous 5,000
 main plus 2,000 confirmation draws, with 10,000 ordinary draws when accepted
 and 43,000 when rejected. Unsupported models retain 50,000 ordinary draws.
-The four-candidate limit and four workers are unchanged. Accepted estimates
+The four ordinary candidates and four workers are retained. Accepted estimates
 are published after existing search and witness reuse, before reconciliation.
 
 The model supports ordinary 3/1/0 scoring with points first, and packs wins only
@@ -163,6 +164,44 @@ empty models skip this proposal without changing reachability. The logged
 an expectation of the proposal's terminal weight and **is not an upper bound**.
 Witnesses alone do not supply probability estimates. Finite samples and the
 confirmation diagnostics do not certify tiny-event accuracy.
+
+### Propagated constraints and work transfer
+
+Propagated joint conditioning is enabled by default. It can consider a zero
+below the previous `1e-11` allocation cutoff when its complete target outcome
+union fits a bounded model. Propagation supplies necessary rival points/wins
+bounds and allowed fixture outcomes; forced fixtures are compacted out of the
+sampling loop. Ties remain allowed until the production sorter checks scores.
+Target cases and shared rival fixtures have exact probability normalizers;
+soft case tilts and residual proposals use corrected importance weights.
+
+The setup retains every supported target case or skips the model: at most 64
+target patterns, 16 feasible propagated cases, six jointly conditioned rivals,
+and 60,000 internal enumeration nodes including retries. Forward/reverse guides
+have a four-million-value allocation limit. Every feasible case must force
+at least four non-target fixtures. Unsupported or exhausted models retain the
+existing search path and cannot establish impossibility.
+
+One extra propagated candidate can be funded from the existing four candidates.
+Broad attempts with an ordinary-hit forecast below 0.01 retain 25,000 ordinary
+draws instead of 35,000, saving 10,000 per such candidate. Once at least 8,000
+draws are saved, allocate 5,000 main and 3,000 independent confirmation draws to
+the propagated candidate. Preserve the other candidates' joint attempts and
+43,000 ordinary draws for promising candidates. This reduces total draws; setup
+and sample costs are measured separately. Long batches run first within each
+phase, using at most four workers.
+
+Acceptance gates are unchanged. If confirmation fails, keep any verified
+reachability witness and tighten the upper bound to the necessary conditioning
+event mass, while retaining a zero estimate. Do not apply binomial zero-hit
+bounds to importance samples. This mass is an upper bound, not an estimate.
+
+`RUST_ODDS_JOINT_PROPAGATION=0` or `RUST_ODDS_JOINT_ALLOCATION=legacy` restores
+the previous allocation. `rust_odds_start` reports both settings; planning,
+allocation and sampler logs include actual setup time, forced fixtures, case
+counts, saved draws and independent-check diagnostics. The
+[propagated conditioning report](../experiments/rare_positions/2026-10-01-rust-propagated-joint.md)
+records the paired results and rejected allocation variants.
 
 The [broad conditioning report](../experiments/rare_positions/2026-09-30-rust-broad-joint.md)
 records paired coverage, regressions fixed during tuning, request/stage timings,
@@ -466,3 +505,65 @@ verification. Both default to disabled. They added no reference coverage in
 
 The `residual_components` example audits small residual point-cap components
 offline; it does not change production reachability labels.
+
+
+### Additional rare-position coverage (50% time allowance experiment)
+
+The opt-in profile below funds a final weighted portfolio for cells still zero
+after the existing pipeline, with at most four workers. It preserves the
+scout, pooled MC, proofs and earlier positive estimates.
+
+```sh
+RUST_ODDS_RARE_TAIL=coverage ./odds-rust/target/release/golaberto-odds serve
+```
+
+Use the server arguments documented above for your port/database. Unset (or
+`RUST_ODDS_RARE_TAIL=0`) keeps the previous pipeline. The profile combines full
+support sampled target paths, four-rival exact joint blocks, Poisson-binomial
+rank guidance, conditional goal tilts, adaptive witness proposals and omission
+of strictly irrelevant fixtures. Frozen suffix probability guides are shared
+across cells only when fixture order, gains and probabilities match exactly.
+Final main/check batches are fresh and fixed;
+proposals are frozen after training. Remaining zeros are not assigned witnesses
+or probability bounds as estimates.
+
+It targets order-of-magnitude coverage: final estimates may have relative
+standard error up to 60%, with a separate check up to 75% and agreement within
+a factor of 5. `meets_precision_goal` still reports the existing stricter criterion.
+Set `RUST_ODDS_RARE_TAIL_QUALITY=current` to retain the previous final acceptance
+checks; coverage will be lower. Explicit experimental flags override profile
+defaults. Case enumeration, learned fixture bias, inside-draw propagation and
+point-tilt reallocation remain disabled in this profile.
+
+The portfolio receives 35% of elapsed native calculation time, excluding
+upload/queue wait. Training stops starting jobs after 65% of that allowance;
+final allocation uses measured pilot cost. This is a work controller, not a hard real-time
+latency guarantee. See the [campaign report](../experiments/rare_positions/2026-10-01-rust-rare50.md)
+and [progress ledger](../FUTURE_EXPERIMENTS.md) for paired latency, CPU, memory,
+regressions, seeds and independent-reference comparisons.
+
+### Shared blocker conditioning in the coverage profile
+
+The `RUST_ODDS_RARE_TAIL=coverage` profile now enables the strongest tested
+multi-cell sampler automatically: cardinality guidance, two blockers constrained
+against each recipient's actual final points/wins, concurrent independent
+main/check batches, and 50% of the existing tail allowance. Four-worker usage,
+the total 35% tail allowance and the acceptance gates are unchanged. No extra
+shared-sampler flags are needed.
+
+Set `RUST_ODDS_SHARED_CONSTRAINTS=0` to disable shared sampling while retaining
+the individual coverage portfolio. Explicit settings override profile defaults:
+`RUST_ODDS_SHARED_CONSTRAINTS=blocker|mixture|guided`,
+`RUST_ODDS_SHARED_CONSTRAINTS_BLOCKERS`,
+`RUST_ODDS_SHARED_CONSTRAINTS_RELATIVE`,
+`RUST_ODDS_SHARED_CONSTRAINTS_CONFIRMATION`, and
+`RUST_ODDS_SHARED_CONSTRAINTS_FRACTION`. The native pipeline still applies when
+the coverage profile is unset.
+
+Across 39 paired requests the selected configuration gained seven cell-runs and
+lost one; eight warm comparisons had no net coverage gain. Warm median latency
+was 830.18 → 825.83ms; the largest cold-pair increase was 6.70%. This is a measured
+coverage tradeoff, not a guarantee that every previous estimate survives
+allocation changes. Flags, weighting, timing, regressions and reproduction
+commands are in
+[the shared-constraint report](../experiments/rare_positions/2026-10-01-rust-shared-constraints.md).

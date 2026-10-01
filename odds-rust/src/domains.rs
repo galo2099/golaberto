@@ -57,7 +57,29 @@ impl Domains {
         rank: usize,
         target: i32,
     ) -> Self {
-        Self::seeded(games, points, rivals, rank, target, None)
+        Self::seeded(games, points, rivals, rank, target, None, None)
+    }
+    /// Proposal-only intervals can tighten a branch without proving the whole
+    /// rank event impossible. Callers must retain other branches or a fallback.
+    pub fn condition(
+        games: &[RankGame],
+        points: &[i32],
+        rivals: &[usize],
+        rank: usize,
+        target: i32,
+        lower: &[i32],
+        upper: &[i32],
+        masks: &[u8],
+    ) -> Self {
+        Self::seeded(
+            games,
+            points,
+            rivals,
+            rank,
+            target,
+            Some(masks),
+            Some((lower, upper)),
+        )
     }
     fn seeded(
         games: &[RankGame],
@@ -66,8 +88,13 @@ impl Domains {
         rank: usize,
         target: i32,
         seed: Option<&[u8]>,
+        bounds: Option<(&[i32], &[i32])>,
     ) -> Self {
         let mut result = Self::new(games, points.len(), true);
+        if let Some((lower, upper)) = bounds {
+            result.lower.copy_from_slice(lower);
+            result.upper.copy_from_slice(upper);
+        }
         if let Some(seed) = seed {
             for (d, mask) in result.domains.iter_mut().zip(seed) {
                 *d &= mask;
@@ -350,7 +377,15 @@ impl Domains {
                 stats.checks += 1;
                 let mut masks = self.domains.clone();
                 masks[i] = 1 << o;
-                let trial = Self::seeded(games, points, rivals, rank, points[target], Some(&masks));
+                let trial = Self::seeded(
+                    games,
+                    points,
+                    rivals,
+                    rank,
+                    points[target],
+                    Some(&masks),
+                    None,
+                );
                 let mut impossible = !trial.feasible;
                 if !impossible && nodes > 0 {
                     // Fixed W/D/L results contribute to the base exactly once.
@@ -418,7 +453,15 @@ impl Domains {
                     stats.removed += 1;
                     let mut masks = self.domains.clone();
                     masks[i] &= !(1 << o);
-                    *self = Self::seeded(games, points, rivals, rank, points[target], Some(&masks));
+                    *self = Self::seeded(
+                        games,
+                        points,
+                        rivals,
+                        rank,
+                        points[target],
+                        Some(&masks),
+                        None,
+                    );
                     if !self.feasible {
                         stats.infeasible += 1;
                         break;

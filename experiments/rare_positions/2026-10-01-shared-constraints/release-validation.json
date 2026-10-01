@@ -1,0 +1,473 @@
+{
+  "defaults": {
+    "baseline_sha256": "1d65d3dd39ea02fd6a5034a74c85d199e7384feca76bc85eaa31bc72fc3fb353",
+    "candidate_sha256": "a02039101a2fbd7a0164fe3f75e978a89b65ac98d1a8a563656553ec0e9d217e",
+    "baseline_flags": {
+      "RUST_ODDS_RARE_TAIL": "coverage",
+      "RUST_ODDS_SHARED_CONSTRAINTS": "guided",
+      "RUST_ODDS_SHARED_CONSTRAINTS_BLOCKERS": "2",
+      "RUST_ODDS_SHARED_CONSTRAINTS_RELATIVE": "1",
+      "RUST_ODDS_SHARED_CONSTRAINTS_CONFIRMATION": "parallel",
+      "RUST_ODDS_SHARED_CONSTRAINTS_FRACTION": "0.5"
+    },
+    "flags": {
+      "RUST_ODDS_RARE_TAIL": "coverage"
+    },
+    "workers": 4,
+    "input_sha256": {
+      "experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-15902-31d66705.json": "3caab564a5518d6a1385cec917b1b3d404d31539f9e07ed98f528785236a6443",
+      "experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16413-a2eef0a8.json": "daf825535a62d100121d14233b69814a3d87d4f16cdfb4f8f0171a9d22836dd4",
+      "experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16498-44eabb47.json": "2e08f162592ded09393f0438686a60690dda6e85cd54da5dc0d20224c81aa625",
+      "experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16653-71d4fea8.json": "b56f2ac8bdb017ab98814a8f653b511b54340f4437c8e890894e827ce3ee9962",
+      "experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16982-9327edcd.json": "96c2eeeeec5b4e00015919009c9da30b6a4269b4017a651edbd3cfbd90fd635c",
+      "experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16983-43969b02.json": "03dc3178d40d5c534f217b25c58e56d861906e6f1c2225b83be302065f5a293b",
+      "odds-rust/tests/fixtures/group-16653-2d1c1d6f.json": "a2ea66a82ec8c34ec58c1b8a0cc004b19f04b203f4733a88fa0cf9172eeb9596"
+    },
+    "median_paired_wall_change_percent": -0.3086369408521694,
+    "max_paired_wall_increase_percent": 7.430888730091656,
+    "pairs": [
+      {
+        "input": "group-15902-31d66705.json",
+        "seed": 808,
+        "comparison": {
+          "gains": [],
+          "lost": [],
+          "lost_reachability": [],
+          "max_existing_standard_error_difference": 0.0,
+          "impossible_regressions": [],
+          "max_existing_probability_difference": 0.0,
+          "game_importance_identical": true
+        },
+        "wall_ms": {
+          "baseline": 211.45883300000003,
+          "candidate": 215.55412500000014
+        },
+        "cells": {
+          "baseline": {
+            "impossible_zero": 0,
+            "positive": 400,
+            "reachable_zero": 0,
+            "undecided_zero": 0,
+            "zeros": 0
+          },
+          "candidate": {
+            "impossible_zero": 0,
+            "positive": 400,
+            "reachable_zero": 0,
+            "undecided_zero": 0,
+            "zeros": 0
+          }
+        },
+        "shared_summary": {
+          "baseline": [],
+          "candidate": []
+        }
+      },
+      {
+        "input": "group-16413-a2eef0a8.json",
+        "seed": 808,
+        "comparison": {
+          "gains": [],
+          "lost": [],
+          "lost_reachability": [],
+          "max_existing_standard_error_difference": 0.0,
+          "impossible_regressions": [],
+          "max_existing_probability_difference": 0.0,
+          "game_importance_identical": true
+        },
+        "wall_ms": {
+          "baseline": 183.48912499999992,
+          "candidate": 186.13633399999995
+        },
+        "cells": {
+          "baseline": {
+            "impossible_zero": 0,
+            "positive": 324,
+            "reachable_zero": 0,
+            "undecided_zero": 0,
+            "zeros": 0
+          },
+          "candidate": {
+            "impossible_zero": 0,
+            "positive": 324,
+            "reachable_zero": 0,
+            "undecided_zero": 0,
+            "zeros": 0
+          }
+        },
+        "shared_summary": {
+          "baseline": [],
+          "candidate": []
+        }
+      },
+      {
+        "input": "group-16498-44eabb47.json",
+        "seed": 808,
+        "comparison": {
+          "gains": [],
+          "lost": [],
+          "lost_reachability": [],
+          "max_existing_standard_error_difference": 0.0,
+          "impossible_regressions": [],
+          "max_existing_probability_difference": 0.0,
+          "game_importance_identical": true
+        },
+        "wall_ms": {
+          "baseline": 874.243041,
+          "candidate": 870.4458329999998
+        },
+        "cells": {
+          "baseline": {
+            "impossible_zero": 17,
+            "positive": 372,
+            "reachable_zero": 11,
+            "undecided_zero": 0,
+            "zeros": 28
+          },
+          "candidate": {
+            "impossible_zero": 17,
+            "positive": 372,
+            "reachable_zero": 11,
+            "undecided_zero": 0,
+            "zeros": 28
+          }
+        },
+        "shared_summary": {
+          "baseline": [
+            {
+              "accepted": 2,
+              "budget_ms": 114.543275,
+              "concurrent_confirmation": true,
+              "elapsed_ms": 27.741249999999997,
+              "eligible": 3,
+              "event": "rust_odds_shared_constraints_summary",
+              "funded": 1,
+              "group": 16498,
+              "groups": 1,
+              "mode": "guided",
+              "request_elapsed_ms": 682.854,
+              "request_id": 3,
+              "seed": 808,
+              "setup_ms": 2.121041,
+              "setup_nodes": 16275,
+              "timestamp_unix_ms": 1790874401587,
+              "work": 438987
+            }
+          ],
+          "candidate": [
+            {
+              "accepted": 2,
+              "budget_ms": 114.28112499999999,
+              "concurrent_confirmation": true,
+              "elapsed_ms": 28.964125,
+              "eligible": 3,
+              "event": "rust_odds_shared_constraints_summary",
+              "funded": 1,
+              "group": 16498,
+              "groups": 1,
+              "mode": "guided",
+              "request_elapsed_ms": 682.587,
+              "request_id": 3,
+              "seed": 808,
+              "setup_ms": 2.279541,
+              "setup_nodes": 16275,
+              "timestamp_unix_ms": 1790874402485,
+              "work": 438987
+            }
+          ]
+        }
+      },
+      {
+        "input": "group-16653-71d4fea8.json",
+        "seed": 808,
+        "comparison": {
+          "gains": [],
+          "lost": [],
+          "lost_reachability": [],
+          "max_existing_standard_error_difference": 0.0,
+          "impossible_regressions": [],
+          "max_existing_probability_difference": 0.0,
+          "game_importance_identical": true
+        },
+        "wall_ms": {
+          "baseline": 861.2490419999998,
+          "candidate": 925.2475000000002
+        },
+        "cells": {
+          "baseline": {
+            "impossible_zero": 48,
+            "positive": 349,
+            "reachable_zero": 3,
+            "undecided_zero": 0,
+            "zeros": 51
+          },
+          "candidate": {
+            "impossible_zero": 48,
+            "positive": 349,
+            "reachable_zero": 3,
+            "undecided_zero": 0,
+            "zeros": 51
+          }
+        },
+        "shared_summary": {
+          "baseline": [
+            {
+              "accepted": 1,
+              "budget_ms": 115.36734999999999,
+              "concurrent_confirmation": true,
+              "elapsed_ms": 69.312208,
+              "eligible": 3,
+              "event": "rust_odds_shared_constraints_summary",
+              "funded": 1,
+              "group": 16653,
+              "groups": 1,
+              "mode": "guided",
+              "request_elapsed_ms": 729.148,
+              "request_id": 3,
+              "seed": 808,
+              "setup_ms": 1.227791,
+              "setup_nodes": 2517,
+              "timestamp_unix_ms": 1790874403426,
+              "work": 805770
+            }
+          ],
+          "candidate": [
+            {
+              "accepted": 1,
+              "budget_ms": 123.190375,
+              "concurrent_confirmation": true,
+              "elapsed_ms": 80.47945800000001,
+              "eligible": 3,
+              "event": "rust_odds_shared_constraints_summary",
+              "funded": 1,
+              "group": 16653,
+              "groups": 1,
+              "mode": "guided",
+              "request_elapsed_ms": 785.018,
+              "request_id": 3,
+              "seed": 808,
+              "setup_ms": 1.321791,
+              "setup_nodes": 2517,
+              "timestamp_unix_ms": 1790874404361,
+              "work": 805770
+            }
+          ]
+        }
+      },
+      {
+        "input": "group-16982-9327edcd.json",
+        "seed": 808,
+        "comparison": {
+          "gains": [],
+          "lost": [],
+          "lost_reachability": [],
+          "max_existing_standard_error_difference": 0.0,
+          "impossible_regressions": [],
+          "max_existing_probability_difference": 0.0,
+          "game_importance_identical": true
+        },
+        "wall_ms": {
+          "baseline": 315.71545799999967,
+          "candidate": 304.80379199999953
+        },
+        "cells": {
+          "baseline": {
+            "impossible_zero": 0,
+            "positive": 400,
+            "reachable_zero": 0,
+            "undecided_zero": 0,
+            "zeros": 0
+          },
+          "candidate": {
+            "impossible_zero": 0,
+            "positive": 400,
+            "reachable_zero": 0,
+            "undecided_zero": 0,
+            "zeros": 0
+          }
+        },
+        "shared_summary": {
+          "baseline": [],
+          "candidate": []
+        }
+      },
+      {
+        "input": "group-16983-43969b02.json",
+        "seed": 808,
+        "comparison": {
+          "gains": [],
+          "lost": [],
+          "lost_reachability": [],
+          "max_existing_standard_error_difference": 0.0,
+          "impossible_regressions": [],
+          "max_existing_probability_difference": 0.0,
+          "game_importance_identical": true
+        },
+        "wall_ms": {
+          "baseline": 295.86345799999947,
+          "candidate": 288.2510000000007
+        },
+        "cells": {
+          "baseline": {
+            "impossible_zero": 0,
+            "positive": 400,
+            "reachable_zero": 0,
+            "undecided_zero": 0,
+            "zeros": 0
+          },
+          "candidate": {
+            "impossible_zero": 0,
+            "positive": 400,
+            "reachable_zero": 0,
+            "undecided_zero": 0,
+            "zeros": 0
+          }
+        },
+        "shared_summary": {
+          "baseline": [],
+          "candidate": []
+        }
+      },
+      {
+        "input": "group-16653-2d1c1d6f.json",
+        "seed": 808,
+        "comparison": {
+          "gains": [],
+          "lost": [],
+          "lost_reachability": [],
+          "max_existing_standard_error_difference": 0.0,
+          "impossible_regressions": [],
+          "max_existing_probability_difference": 0.0,
+          "game_importance_identical": true
+        },
+        "wall_ms": {
+          "baseline": 824.0128330000002,
+          "candidate": 821.4696249999997
+        },
+        "cells": {
+          "baseline": {
+            "impossible_zero": 43,
+            "positive": 355,
+            "reachable_zero": 2,
+            "undecided_zero": 0,
+            "zeros": 45
+          },
+          "candidate": {
+            "impossible_zero": 43,
+            "positive": 355,
+            "reachable_zero": 2,
+            "undecided_zero": 0,
+            "zeros": 45
+          }
+        },
+        "shared_summary": {
+          "baseline": [
+            {
+              "accepted": 1,
+              "budget_ms": 112.81059999999998,
+              "concurrent_confirmation": true,
+              "elapsed_ms": 52.103625,
+              "eligible": 5,
+              "event": "rust_odds_shared_constraints_summary",
+              "funded": 1,
+              "group": 16653,
+              "groups": 1,
+              "mode": "guided",
+              "request_elapsed_ms": 697.331,
+              "request_id": 3,
+              "seed": 808,
+              "setup_ms": 1.6297499999999998,
+              "setup_nodes": 16443,
+              "timestamp_unix_ms": 1790874406489,
+              "work": 495000
+            }
+          ],
+          "candidate": [
+            {
+              "accepted": 1,
+              "budget_ms": 114.356375,
+              "concurrent_confirmation": true,
+              "elapsed_ms": 51.929916999999996,
+              "eligible": 5,
+              "event": "rust_odds_shared_constraints_summary",
+              "funded": 1,
+              "group": 16653,
+              "groups": 1,
+              "mode": "guided",
+              "request_elapsed_ms": 706.018,
+              "request_id": 3,
+              "seed": 808,
+              "setup_ms": 1.634792,
+              "setup_nodes": 16443,
+              "timestamp_unix_ms": 1790874407343,
+              "work": 495000
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "rollback": {
+    "baseline_sha256": "1d65d3dd39ea02fd6a5034a74c85d199e7384feca76bc85eaa31bc72fc3fb353",
+    "candidate_sha256": "a02039101a2fbd7a0164fe3f75e978a89b65ac98d1a8a563656553ec0e9d217e",
+    "baseline_flags": {
+      "RUST_ODDS_RARE_TAIL": "coverage",
+      "RUST_ODDS_SHARED_CONSTRAINTS": "0"
+    },
+    "flags": {
+      "RUST_ODDS_RARE_TAIL": "coverage",
+      "RUST_ODDS_SHARED_CONSTRAINTS": "0"
+    },
+    "workers": 4,
+    "input_sha256": {
+      "experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16498-44eabb47.json": "2e08f162592ded09393f0438686a60690dda6e85cd54da5dc0d20224c81aa625"
+    },
+    "median_paired_wall_change_percent": -0.5762516407682883,
+    "max_paired_wall_increase_percent": -0.5762516407682883,
+    "pairs": [
+      {
+        "input": "group-16498-44eabb47.json",
+        "seed": 808,
+        "comparison": {
+          "gains": [
+            {
+              "team": 318,
+              "position": 4,
+              "probability": 2.7289978275037947e-19
+            }
+          ],
+          "lost": [],
+          "lost_reachability": [],
+          "max_existing_standard_error_difference": 0.0,
+          "impossible_regressions": [],
+          "max_existing_probability_difference": 0.0,
+          "game_importance_identical": true
+        },
+        "wall_ms": {
+          "baseline": 891.826875,
+          "candidate": 886.6877079999999
+        },
+        "cells": {
+          "baseline": {
+            "impossible_zero": 17,
+            "positive": 372,
+            "reachable_zero": 11,
+            "undecided_zero": 0,
+            "zeros": 28
+          },
+          "candidate": {
+            "impossible_zero": 17,
+            "positive": 373,
+            "reachable_zero": 10,
+            "undecided_zero": 0,
+            "zeros": 27
+          }
+        },
+        "shared_summary": {
+          "baseline": [],
+          "candidate": []
+        }
+      }
+    ]
+  }
+}

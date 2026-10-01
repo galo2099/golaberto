@@ -46,7 +46,7 @@ enum ForwardIndex {
 impl ForwardLayer {
     const EMPTY: u32 = u32::MAX;
 
-    fn from_map(map: IntMap<f64>) -> Self {
+    pub(crate) fn from_map(map: IntMap<f64>) -> Self {
         // Keep this order: subsequent mass summations must remain bit-for-bit
         // identical to iteration over the original construction hash table.
         let entries: Box<[_]> = map.into_iter().collect();

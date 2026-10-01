@@ -27,13 +27,13 @@ const SPAN_LIMIT: usize = 4096;
 
 /// Backward DP for an arbitrary terminal mask, indexed by points/wins already
 /// accumulated. It supports unions of totals, upper caps and lower floors.
-struct TerminalTable {
-    games: Vec<RankGame>,
+pub(super) struct TerminalTable {
+    pub(super) games: Vec<RankGame>,
     team: usize,
-    rows: Vec<Vec<f64>>,
+    pub(super) rows: Vec<Vec<f64>>,
 }
 impl TerminalTable {
-    fn new(games: Vec<RankGame>, team: usize, terminal: Vec<f64>) -> Self {
+    pub(super) fn new(games: Vec<RankGame>, team: usize, terminal: Vec<f64>) -> Self {
         let span = terminal.len();
         let mut rows = vec![vec![0.; span]; games.len() + 1];
         rows[games.len()] = terminal;
@@ -51,10 +51,10 @@ impl TerminalTable {
         }
         Self { games, team, rows }
     }
-    fn mass(&self, added: usize) -> f64 {
+    pub(super) fn mass(&self, added: usize) -> f64 {
         self.rows[0].get(added).copied().unwrap_or(0.)
     }
-    fn sample(&self, mut added: usize, rng: &mut Rng, out: &mut [u8]) {
+    pub(super) fn sample(&self, mut added: usize, rng: &mut Rng, out: &mut [u8]) {
         for (i, g) in self.games.iter().enumerate() {
             let gain = if g.home == self.team { g.hg } else { g.ag };
             let weights = std::array::from_fn(|o| {

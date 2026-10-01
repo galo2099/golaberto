@@ -1,0 +1,146 @@
+[
+  {
+    "input": "group-16498-44eabb47.json",
+    "seed": 801,
+    "team": 74,
+    "position": 20,
+    "probability": 4.636272677357038e-19,
+    "previous_probability": 4.697252318457947e-19,
+    "ratio": 0.9870180188402297
+  },
+  {
+    "input": "group-16498-44eabb47.json",
+    "seed": 801,
+    "team": 15,
+    "position": 20,
+    "probability": 1.6460906685919434e-18,
+    "previous_probability": 2.303114185854554e-18,
+    "ratio": 0.714723863324724
+  },
+  {
+    "input": "group-16498-44eabb47.json",
+    "seed": 808,
+    "team": 74,
+    "position": 20,
+    "probability": 6.400731607785504e-19,
+    "previous_probability": 3.5948063140547574e-19,
+    "ratio": 1.7805497844933422
+  },
+  {
+    "input": "group-16498-44eabb47.json",
+    "seed": 808,
+    "team": 15,
+    "position": 20,
+    "probability": 1.9407975772797892e-18,
+    "previous_probability": 1.87589852497646e-18,
+    "ratio": 1.0345962489117815
+  },
+  {
+    "input": "group-16653-71d4fea8.json",
+    "seed": 801,
+    "team": 12,
+    "position": 18,
+    "probability": 4.523728489936368e-15,
+    "previous_probability": 4.223463363622834e-15,
+    "ratio": 1.071094526094331
+  },
+  {
+    "input": "group-16653-71d4fea8.json",
+    "seed": 801,
+    "team": 2064,
+    "position": 18,
+    "probability": 1.4440612825150515e-19,
+    "previous_probability": 9.991684770871963e-20,
+    "ratio": 1.4452630518576997
+  },
+  {
+    "input": "group-16653-71d4fea8.json",
+    "seed": 808,
+    "team": 12,
+    "position": 18,
+    "probability": 5.2908046125562926e-15,
+    "previous_probability": 4.15821509915499e-15,
+    "ratio": 1.272373960075192
+  },
+  {
+    "input": "group-16653-2d1c1d6f.json",
+    "seed": 801,
+    "team": 22,
+    "position": 18,
+    "probability": 1.210530034419972e-16,
+    "previous_probability": 1.276800596489493e-16,
+    "ratio": 0.9480963885420095
+  },
+  {
+    "input": "group-16653-2d1c1d6f.json",
+    "seed": 808,
+    "team": 22,
+    "position": 18,
+    "probability": 2.0445275438392936e-16,
+    "previous_probability": 1.2347061671973837e-16,
+    "ratio": 1.6558818593091627
+  },
+  {
+    "input": "group-16498-44eabb47.json",
+    "seed": 911,
+    "team": 74,
+    "position": 20,
+    "probability": 4.455269002336475e-19,
+    "previous_probability": 4.2892777429308585e-19,
+    "ratio": 1.0386991165771875
+  },
+  {
+    "input": "group-16498-44eabb47.json",
+    "seed": 911,
+    "team": 15,
+    "position": 20,
+    "probability": 1.9966634931532316e-18,
+    "previous_probability": 1.6971937965331457e-18,
+    "ratio": 1.1764499123387158
+  },
+  {
+    "input": "group-16653-71d4fea8.json",
+    "seed": 817,
+    "team": 12,
+    "position": 18,
+    "probability": 4.1846871407060355e-15,
+    "previous_probability": 4.026653251368224e-15,
+    "ratio": 1.0392469575780117
+  },
+  {
+    "input": "group-16653-2d1c1d6f.json",
+    "seed": 804,
+    "team": 2064,
+    "position": 18,
+    "probability": 2.1295085091630632e-16,
+    "previous_probability": 3.131448767200244e-16,
+    "ratio": 0.6800393899041841
+  },
+  {
+    "input": "group-16653-2d1c1d6f.json",
+    "seed": 804,
+    "team": 22,
+    "position": 18,
+    "probability": 1.2978543020936348e-16,
+    "previous_probability": 1.2357688297988403e-16,
+    "ratio": 1.0502403611401179
+  },
+  {
+    "input": "group-16498-44eabb47.json",
+    "seed": 1213,
+    "team": 74,
+    "position": 20,
+    "probability": 5.664761079223821e-19,
+    "previous_probability": 0.0,
+    "ratio": null
+  },
+  {
+    "input": "group-16498-44eabb47.json",
+    "seed": 1213,
+    "team": 15,
+    "position": 20,
+    "probability": 2.1774606363642924e-18,
+    "previous_probability": 2.013323791372586e-18,
+    "ratio": 1.0815253093889117
+  }
+]

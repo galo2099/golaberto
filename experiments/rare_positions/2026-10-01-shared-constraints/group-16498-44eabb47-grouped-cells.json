@@ -1,0 +1,16 @@
+{
+  "rare_position_estimates": {
+    "15": {
+      "19": {
+        "probability": 0,
+        "reachability": "witness"
+      }
+    },
+    "74": {
+      "19": {
+        "probability": 0,
+        "reachability": "witness"
+      }
+    }
+  }
+}

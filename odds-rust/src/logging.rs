@@ -15,6 +15,7 @@ pub struct RequestLog {
     group: Option<i32>,
     seed: Option<i64>,
     start: Instant,
+    calculation_start: Instant,
     enabled: bool,
 }
 
@@ -26,11 +27,13 @@ impl Default for RequestLog {
 
 impl RequestLog {
     pub fn new() -> Self {
+        let start = Instant::now();
         Self {
             request_id: NEXT_REQUEST.fetch_add(1, Ordering::Relaxed),
             group: None,
             seed: None,
-            start: Instant::now(),
+            start,
+            calculation_start: start,
             enabled: std::env::var("RUST_ODDS_LOG").as_deref() != Ok("0")
                 || std::env::var("RUST_ODDS_PROFILE").as_deref() == Ok("1"),
         }
@@ -44,6 +47,14 @@ impl RequestLog {
         }
     }
 
+    /// Calculation budgets exclude uploads and time waiting in the HTTP queue.
+    pub fn calculating(mut self) -> Self {
+        self.calculation_start = Instant::now();
+        self
+    }
+    pub fn calculation_elapsed_ms(&self) -> f64 {
+        millis(self.calculation_start)
+    }
     pub fn elapsed_ms(&self) -> f64 {
         millis(self.start)
     }
@@ -122,6 +133,17 @@ pub fn cell_counts(estimates: &[Estimate]) -> CellCounts {
 mod tests {
     use super::*;
 
+    #[test]
+    fn calculation_budget_excludes_queue_time_without_losing_request_context() {
+        let mut log = RequestLog::new().context(1, 808);
+        log.start -= std::time::Duration::from_secs(1);
+        let scoped = log.calculating();
+        assert!(scoped.elapsed_ms() >= 1000.);
+        assert!(scoped.calculation_elapsed_ms() < 100.);
+        assert_eq!(scoped.request_id, log.request_id);
+        assert_eq!(scoped.group, log.group);
+        assert_eq!(scoped.seed, log.seed);
+    }
     #[test]
     fn request_context_survives_each_stage_and_fields_are_structured() {
         let log = RequestLog::new().context(16653, 808);

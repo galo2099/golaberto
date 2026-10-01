@@ -1,0 +1,262 @@
+{
+  "id": 0,
+  "zones": [],
+  "phase": {
+    "sort": "pt,w,bias",
+    "championship": {
+      "point_win": 3,
+      "point_draw": 1,
+      "point_loss": 0
+    }
+  },
+  "games": [
+    {
+      "id": 0,
+      "home_id": 0,
+      "away_id": 5,
+      "home_power": 1.2,
+      "away_power": 1.0,
+      "played": false
+    },
+    {
+      "id": 1,
+      "home_id": 1,
+      "away_id": 4,
+      "home_power": 1.2,
+      "away_power": 1.0,
+      "played": false
+    },
+    {
+      "id": 2,
+      "home_id": 2,
+      "away_id": 3,
+      "home_power": 1.2,
+      "away_power": 1.0,
+      "played": false
+    },
+    {
+      "id": 3,
+      "home_id": 4,
+      "away_id": 0,
+      "home_power": 1.2,
+      "away_power": 1.0,
+      "played": false
+    },
+    {
+      "id": 4,
+      "home_id": 3,
+      "away_id": 5,
+      "home_power": 1.2,
+      "away_power": 1.0,
+      "played": false
+    },
+    {
+      "id": 5,
+      "home_id": 2,
+      "away_id": 1,
+      "home_power": 1.2,
+      "away_power": 1.0,
+      "played": false
+    },
+    {
+      "id": 6,
+      "home_id": 0,
+      "away_id": 3,
+      "home_power": 1.2,
+      "away_power": 1.0,
+      "played": false
+    },
+    {
+      "id": 7,
+      "home_id": 4,
+      "away_id": 2,
+      "home_power": 1.2,
+      "away_power": 1.0,
+      "played": false
+    },
+    {
+      "id": 8,
+      "home_id": 5,
+      "away_id": 1,
+      "home_power": 1.2,
+      "away_power": 1.0,
+      "played": false
+    },
+    {
+      "id": 9,
+      "home_id": 2,
+      "away_id": 0,
+      "home_power": 1.2,
+      "away_power": 1.0,
+      "played": false
+    },
+    {
+      "id": 10,
+      "home_id": 1,
+      "away_id": 3,
+      "home_power": 1.2,
+      "away_power": 1.0,
+      "played": false
+    },
+    {
+      "id": 11,
+      "home_id": 5,
+      "away_id": 4,
+      "home_power": 1.2,
+      "away_power": 1.0,
+      "played": false
+    },
+    {
+      "id": 12,
+      "home_id": 0,
+      "away_id": 1,
+      "home_power": 1.2,
+      "away_power": 1.0,
+      "played": false
+    },
+    {
+      "id": 13,
+      "home_id": 2,
+      "away_id": 5,
+      "home_power": 1.2,
+      "away_power": 1.0,
+      "played": false
+    },
+    {
+      "id": 14,
+      "home_id": 3,
+      "away_id": 4,
+      "home_power": 1.2,
+      "away_power": 1.0,
+      "played": false
+    },
+    {
+      "id": 15,
+      "home_id": 5,
+      "away_id": 0,
+      "home_power": 1.2,
+      "away_power": 1.0,
+      "played": false
+    },
+    {
+      "id": 16,
+      "home_id": 4,
+      "away_id": 1,
+      "home_power": 1.2,
+      "away_power": 1.0,
+      "played": false
+    },
+    {
+      "id": 17,
+      "home_id": 3,
+      "away_id": 2,
+      "home_power": 1.2,
+      "away_power": 1.0,
+      "played": false
+    },
+    {
+      "id": 18,
+      "home_id": 0,
+      "away_id": 4,
+      "home_power": 1.2,
+      "away_power": 1.0,
+      "played": false
+    },
+    {
+      "id": 19,
+      "home_id": 5,
+      "away_id": 3,
+      "home_power": 1.2,
+      "away_power": 1.0,
+      "played": false
+    },
+    {
+      "id": 20,
+      "home_id": 1,
+      "away_id": 2,
+      "home_power": 1.2,
+      "away_power": 1.0,
+      "played": false
+    },
+    {
+      "id": 21,
+      "home_id": 3,
+      "away_id": 0,
+      "home_power": 1.2,
+      "away_power": 1.0,
+      "played": false
+    },
+    {
+      "id": 22,
+      "home_id": 2,
+      "away_id": 4,
+      "home_power": 1.2,
+      "away_power": 1.0,
+      "played": false
+    },
+    {
+      "id": 23,
+      "home_id": 1,
+      "away_id": 5,
+      "home_power": 1.2,
+      "away_power": 1.0,
+      "played": false
+    },
+    {
+      "id": 24,
+      "home_id": 0,
+      "away_id": 2,
+      "home_power": 1.2,
+      "away_power": 1.0,
+      "played": false
+    },
+    {
+      "id": 25,
+      "home_id": 3,
+      "away_id": 1,
+      "home_power": 1.2,
+      "away_power": 1.0,
+      "played": false
+    },
+    {
+      "id": 26,
+      "home_id": 4,
+      "away_id": 5,
+      "home_power": 1.2,
+      "away_power": 1.0,
+      "played": false
+    }
+  ],
+  "team_groups": [
+    {
+      "team_id": 0,
+      "add_sub": 27,
+      "bias": 0
+    },
+    {
+      "team_id": 1,
+      "add_sub": 2,
+      "bias": 1
+    },
+    {
+      "team_id": 2,
+      "add_sub": 1,
+      "bias": 2
+    },
+    {
+      "team_id": 3,
+      "add_sub": 0,
+      "bias": 3
+    },
+    {
+      "team_id": 4,
+      "add_sub": 2,
+      "bias": 4
+    },
+    {
+      "team_id": 5,
+      "add_sub": 0,
+      "bias": 5
+    }
+  ]
+}

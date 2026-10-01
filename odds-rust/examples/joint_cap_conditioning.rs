@@ -43,7 +43,13 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let seeds = [801, 804, 808, 817, 818, 911];
     let setup = Instant::now();
     let broad = a.get(6).is_some_and(|s| s == "broad");
-    let p = if broad {
+    let propagated = a.get(6).is_some_and(|s| s == "propagated");
+    let p = if propagated {
+        joint_caps::JointProposal::Propagated(
+            joint_caps::propagated::PropagatedJoint::new(&m, cell)
+                .ok_or("unsupported propagated model")?,
+        )
+    } else if broad {
         joint_caps::JointProposal::Broad(
             joint_caps::broad::BroadJoint::new(&m, cell).ok_or("unsupported broad model")?,
         )
@@ -64,7 +70,7 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         "{}",
         json!({"group":m.request.id,"setup_ms":setup_ms,"batch_wall_ms":start.elapsed().as_secs_f64()*1000.,"setup":p.describe(&m),"runs":results})
     );
-    if count == 0 && !dual && !broad {
+    if count == 0 && !dual && !broad && !propagated {
         let b = Bounds::new(&m);
         let e = Event::build(&m, &b, cell.team, cell.rank, &[], 20000).unwrap();
         let start = Instant::now();

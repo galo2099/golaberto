@@ -254,6 +254,13 @@ fn guided(
         }
     }
 }
+struct ExtraPlan {
+    index: usize,
+    event: Option<Arc<Event>>,
+    gain: f64,
+    native: Option<Arc<crate::joint_caps::propagated::PropagatedJoint>>,
+    setup_ms: f64,
+}
 fn extra(
     model: &Model,
     bounds: &Bounds,
@@ -265,6 +272,13 @@ fn extra(
     results: &mut [SearchResult],
     log: Option<&crate::logging::RequestLog>,
 ) -> Vec<(Cell, Result)> {
+    let allocation_mode =
+        std::env::var("RUST_ODDS_JOINT_ALLOCATION").unwrap_or_else(|_| "transfer".into());
+    let replace = matches!(allocation_mode.as_str(), "swap" | "transfer")
+        && enabled("RUST_ODDS_JOINT_PROPAGATION")
+        && enabled("RUST_ODDS_JOINT_CAP_CONDITIONING")
+        && enabled("RUST_ODDS_JOINT_CAP_BROAD");
+    let planning = std::time::Instant::now();
     let plans = parallel(cells.len(), workers, |i| {
         let cell = cells[i];
         let search = &results[i];
@@ -278,7 +292,21 @@ fn extra(
             upper = prior;
         }
         if upper <= 1e-11 {
-            return None;
+            if !replace {
+                return None;
+            }
+            let setup = std::time::Instant::now();
+            let native = crate::joint_caps::propagated::PropagatedJoint::new(model, cell)?;
+            let description = native.describe(model);
+            let gain = description["forced_min"].as_u64()? as f64
+                / (1. + description["variable_max"].as_u64()? as f64);
+            return Some(ExtraPlan {
+                index: i,
+                event: None,
+                gain,
+                native: Some(Arc::new(native)),
+                setup_ms: crate::logging::millis(setup),
+            });
         }
         let mut mass = r.mass;
         let mut refined = None;
@@ -287,7 +315,13 @@ fn extra(
             let selected = blockers(model, bounds, pmfs, cell.team, cell.rank, 3);
             if let Some(e) = Event::build(model, bounds, cell.team, cell.rank, &selected, 120000) {
                 if e.mass <= 0. {
-                    return Some((i, Arc::new(e), f64::INFINITY));
+                    return Some(ExtraPlan {
+                        index: i,
+                        event: Some(Arc::new(e)),
+                        gain: f64::INFINITY,
+                        native: None,
+                        setup_ms: 0.,
+                    });
                 }
                 if e.mass < mass * (1. - 1e-8) {
                     mass = e.mass;
@@ -306,57 +340,115 @@ fn extra(
         if event.mass <= 0. {
             return None;
         }
-        Some((i, event, gain))
+        Some(ExtraPlan {
+            index: i,
+            event: Some(event),
+            gain,
+            native: None,
+            setup_ms: 0.,
+        })
     });
-    let mut candidates = Vec::new();
-    for (i, p) in plans.into_iter().enumerate() {
-        if let Some((_, event, gain)) = p {
-            if gain.is_infinite() {
-                results[i].impossible = true;
-            } else {
-                candidates.push((i, event, gain));
-            }
+    if replace {
+        if let Some(log) = log {
+            log.event(
+                "rust_odds_joint_planning",
+                serde_json::json!({"elapsed_ms":crate::logging::millis(planning)}),
+            );
         }
     }
-    candidates.sort_by(|(a, _, x), (b, _, y)| {
-        y.total_cmp(x)
-            .then(model.ids[cells[*a].team].cmp(&model.ids[cells[*b].team]))
-            .then(cells[*a].rank.cmp(&cells[*b].rank))
-    });
-    candidates.truncate(4);
+    let mut candidates = Vec::new();
+    let mut rare = Vec::new();
+    for plan in plans.into_iter().flatten() {
+        if plan.gain.is_infinite() {
+            results[plan.index].impossible = true;
+        } else if plan.native.is_some() {
+            rare.push(plan);
+        } else {
+            candidates.push(plan);
+        }
+    }
+    let order = |a: &ExtraPlan, b: &ExtraPlan| {
+        b.gain
+            .total_cmp(&a.gain)
+            .then(model.ids[cells[a.index].team].cmp(&model.ids[cells[b.index].team]))
+            .then(cells[a.index].rank.cmp(&cells[b.index].rank))
+    };
+    candidates.sort_by(order);
+    rare.sort_by(order);
+    if candidates.len() >= 4 && !rare.is_empty() {
+        candidates.truncate(if allocation_mode == "swap" { 3 } else { 4 });
+        candidates.push(rare.remove(0));
+    } else {
+        candidates.truncate(4);
+    }
+    if replace {
+        if let Some(log) = log {
+            log.event("rust_odds_joint_allocation",serde_json::json!({"mode":allocation_mode,"selected":candidates.iter().map(|p|serde_json::json!({
+            "team":model.ids[cells[p.index].team],"rank":cells[p.index].rank+1,"propagated":p.native.is_some(),"score":p.gain})).collect::<Vec<_>>() }));
+        }
+    }
+    let transfer = allocation_mode == "transfer" && candidates.iter().any(|p| p.native.is_some());
+    if transfer {
+        candidates.sort_by_key(|p| p.native.is_none());
+    }
     let joint_enabled = enabled("RUST_ODDS_JOINT_CAP_CONDITIONING");
-    let extras = parallel(candidates.len(), workers, |i| {
-        let (index, event, _) = &candidates[i];
-        let cell = cells[*index];
+    let mut extras = parallel(candidates.len(), workers, |i| {
+        let allocation = &candidates[i];
+        let index = allocation.index;
+        let event = allocation.event.as_ref();
+        let cell = cells[index];
         let mut pending = None;
         let mut joint_work = 0;
         let mut ordinary_draws = 50000;
-        if joint_enabled {
+        if joint_enabled && !(transfer && allocation.native.is_some()) {
             let start = std::time::Instant::now();
             // Use the cheap exact extreme case when its gate is proved;
             // otherwise cover all allowed target totals with a defensive mixture.
-            if let Some(plan) = JointProposal::new(model, cell) {
+            let fallback = if allocation.native.is_none() {
+                JointProposal::new(model, cell)
+            } else {
+                None
+            };
+            if allocation.native.is_some() || fallback.is_some() {
+                let propagated = allocation.native.as_deref();
+                let description = propagated.map_or_else(
+                    || fallback.as_ref().unwrap().describe(model),
+                    |p| p.describe(model),
+                );
+                let sample = |count, stream| {
+                    propagated.map_or_else(
+                        || {
+                            fallback
+                                .as_ref()
+                                .unwrap()
+                                .sample(model, count, stream, true)
+                        },
+                        |p| p.sample(model, count, stream, true),
+                    )
+                };
                 let setup_ms = crate::logging::millis(start);
-                let broad = matches!(plan, JointProposal::Broad(_));
-                let main_draws = if broad { 1500 } else { 5000 };
+                let broad = !matches!(fallback, Some(JointProposal::Exact(_)));
+                let main_draws = if propagated.is_some() {
+                    3000
+                } else if broad {
+                    1500
+                } else {
+                    5000
+                };
                 let check_draws = if broad { 1500 } else { 2000 };
-                let mut result = plan.sample(
-                    model,
+                let mut result = sample(
                     main_draws,
                     derive(
                         seed,
                         &format!("joint-cap-final-{}-{}", model.ids[cell.team], cell.rank),
                     ),
-                    true,
                 );
-                let check = plan.sample(
-                    model,
+                let check = sample(
                     check_draws,
                     derive(
                         seed,
                         &format!("joint-cap-check-{}-{}", model.ids[cell.team], cell.rank),
                     ),
-                    true,
                 );
                 let accepted = crate::joint_caps::confirmed(&result, &check);
                 joint_work = result.work + check.work;
@@ -365,14 +457,18 @@ fn extra(
                 // Forecast ordinary hits from the two independent joint streams.
                 // This is allocation guidance, not a probability bound. Retain
                 // more ordinary draws when they may contribute useful witnesses.
-                let ordinary_hit_forecast = if broad {
-                    Some(50000. * result.probability.max(check.probability) / event.mass)
+                let ordinary_hit_forecast = if broad && event.is_some() {
+                    Some(50000. * result.probability.max(check.probability) / event.unwrap().mass)
                 } else {
                     None
                 };
-                ordinary_draws = if broad {
+                ordinary_draws = if propagated.is_some() {
+                    0
+                } else if broad {
                     if ordinary_hit_forecast.unwrap() >= 0.01 {
                         43000
+                    } else if transfer {
+                        25000
                     } else {
                         35000
                     }
@@ -383,7 +479,7 @@ fn extra(
                 };
                 if let Some(log) = log {
                     log.event("rust_odds_joint_caps", serde_json::json!({
-                        "setup":plan.describe(model),"setup_ms":setup_ms,
+                        "setup":description,"setup_ms":setup_ms,
                         "elapsed_ms":crate::logging::millis(start),
                         "probability":result.probability,"hits":result.hits,"ess":result.ess,
                         "relative_se":if result.probability>0. {Some(result.std_err/result.probability)} else {None},
@@ -407,13 +503,113 @@ fn extra(
                 model.ids[cell.team], cell.rank
             ),
         );
-        let mut result = fast(model, event, cell.team, cell.rank, ordinary_draws, seed);
-        result.blockers = event.teams.len() - 1;
+        let mut result = if ordinary_draws == 0 || transfer {
+            let mut r = results[index].result.clone();
+            r.work = 0;
+            r
+        } else {
+            fast(
+                model,
+                event.unwrap(),
+                cell.team,
+                cell.rank,
+                ordinary_draws,
+                seed,
+            )
+        };
+        if let Some(event) = event {
+            result.blockers = event.teams.len() - 1;
+        }
         result.work += joint_work;
-        (*index, result, pending)
+        (index, result, pending, ordinary_draws)
     });
+    if transfer {
+        let phase_order = {
+            let mut order = (0..candidates.len()).collect::<Vec<_>>();
+            order.sort_by_key(|&i| {
+                (
+                    candidates[i].native.is_none(),
+                    std::cmp::Reverse(extras[i].3),
+                )
+            });
+            order
+        };
+        let saved_draws: usize = extras.iter().filter(|e| e.3 == 25000).count() * 10000;
+        extras = parallel(candidates.len(), workers, |job| {
+            let i = phase_order[job];
+            let allocation = &candidates[i];
+            let (index, placeholder, pending, draws) = &extras[i];
+            let cell = cells[*index];
+            if let Some(plan) = &allocation.native {
+                if saved_draws < 8000 {
+                    return (*index, placeholder.clone(), None, 0);
+                }
+                let start = std::time::Instant::now();
+                let mut main = plan.sample(
+                    model,
+                    5000,
+                    derive(
+                        seed,
+                        &format!("joint-cap-final-{}-{}", model.ids[cell.team], cell.rank),
+                    ),
+                    true,
+                );
+                let check = plan.sample(
+                    model,
+                    3000,
+                    derive(
+                        seed,
+                        &format!("joint-cap-check-{}-{}", model.ids[cell.team], cell.rank),
+                    ),
+                    true,
+                );
+                let accepted = crate::joint_caps::confirmed(&main, &check);
+                let work = main.work + check.work;
+                if let Some(log) = log {
+                    log.event("rust_odds_joint_caps",serde_json::json!({
+                    "setup":plan.describe(model),"setup_ms":allocation.setup_ms,
+                    "elapsed_ms":crate::logging::millis(start)+allocation.setup_ms,
+                    "sampling_ms":crate::logging::millis(start),"saved_draws":saved_draws,
+                    "probability":main.probability,"hits":main.hits,"ess":main.ess,"max_share":main.max_share,
+                    "relative_se":if main.probability>0.{Some(main.std_err/main.probability)}else{None},
+                    "check_probability":check.probability,"check_hits":check.hits,"check_ess":check.ess,
+                    "accepted":accepted,"publication":"deferred","joint_draws":main.samples,"check_draws":check.samples,"ordinary_draws":0
+                }));
+                }
+                main.work = work;
+                // A verified hit and the necessary event mass remain useful
+                // even when the probability fails the independent check.
+                // Do not turn an IS zero-hit count into a binomial bound.
+                if !accepted {
+                    main.probability = 0.;
+                    main.std_err = 0.;
+                }
+                let mut result = placeholder.clone();
+                result.work += work;
+                return (*index, result, Some(main), 0);
+            }
+            let event = allocation.event.as_ref().unwrap();
+            let mut result = fast(
+                model,
+                event,
+                cell.team,
+                cell.rank,
+                *draws,
+                derive(
+                    seed,
+                    &format!(
+                        "conditioned-zero-extra-{}-{}",
+                        model.ids[cell.team], cell.rank
+                    ),
+                ),
+            );
+            result.blockers = event.teams.len() - 1;
+            result.work += placeholder.work;
+            (*index, result, pending.clone(), *draws)
+        });
+    }
     let mut pending_joint = Vec::new();
-    for (i, mut extra, pending) in extras {
+    for (i, mut extra, pending, _) in extras {
         if let Some(result) = pending {
             pending_joint.push((cells[i], result));
         }
@@ -476,6 +672,7 @@ pub fn run_logged(
         }
         return 0;
     }
+    let search_start = std::time::Instant::now();
     let Some(pmfs) = crate::pool::point_pmfs(model) else {
         return 0;
     };
@@ -724,15 +921,57 @@ pub fn run_logged(
     for (cell, result) in pending_joint {
         let est = &mut estimates[cell.index(model.n)];
         if est.probability == 0. && !est.reachability.starts_with("impossible") {
-            apply(est, &result, "matched_point_pool_joint_caps");
-            witnesses += 1;
-            joint_found += 1;
+            if result.probability > 0. {
+                apply(est, &result, "matched_point_pool_joint_caps");
+                witnesses += 1;
+                joint_found += 1;
+            } else {
+                if est.zero_hit_upper_95 <= 0. || result.mass < est.zero_hit_upper_95 {
+                    est.zero_hit_upper_95 = result.mass;
+                }
+                if result.witness.is_some() {
+                    est.reachability = "witness".into();
+                }
+            }
         }
     }
     report(
         "joint_caps_publish",
         serde_json::json!({"enabled":enabled("RUST_ODDS_JOINT_CAP_CONDITIONING"),
         "accepted":joint_found,"cells":crate::logging::cell_counts(estimates)}),
+    );
+    let tail_seasons: Vec<_> = if std::env::var("RUST_ODDS_RARE_TAIL")
+        .as_deref()
+        .is_ok_and(|m| m == "lazy" || m == "portfolio" || m == "coverage")
+    {
+        assignments
+            .iter()
+            .chain(&construction.deferred)
+            .map(|o| (o.clone(), crate::conditioned::canonical_ranks(model, o)))
+            .chain(
+                construction
+                    .goal_witnesses
+                    .iter()
+                    .map(|c| (c.outcomes.clone(), c.ranks.clone())),
+            )
+            .collect()
+    } else {
+        Vec::new()
+    };
+    let (found, spent) = crate::rare_tail::run(
+        model,
+        seed,
+        workers,
+        estimates,
+        log,
+        &tail_seasons,
+        search_start.elapsed().as_secs_f64() * 1000.,
+    );
+    witnesses += found;
+    work += spent;
+    report(
+        "rare_tail",
+        serde_json::json!({"accepted":found,"work":spent,"cells":crate::logging::cell_counts(estimates)}),
     );
     if witnesses > 0 {
         let mut matrix: Vec<_> = estimates.iter().map(|e| e.probability).collect();

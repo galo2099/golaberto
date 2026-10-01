@@ -1,0 +1,9 @@
+{
+  "rustc": "1.93.1 (01f6ddf75 2026-02-11)",
+  "cargo": "1.93.1 (083ac5135 2025-12-15)",
+  "architecture": "arm64",
+  "platform": "macOS",
+  "workers": 4,
+  "cpu_model": null,
+  "cpu_model_note": "sysctl denied in filesystem sandbox"
+}

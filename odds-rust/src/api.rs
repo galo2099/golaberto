@@ -143,14 +143,29 @@ pub fn calculate_logged(
     scout_samples: usize,
     log: &RequestLog,
 ) -> Result<(Response, Timings), String> {
+    let scoped_log = log.calculating();
+    let log = &scoped_log;
     log.event(
         "rust_odds_start",
         json!({"teams":request.team_groups.len(),
         "games":request.games.len(),"workers":workers,"scout_samples":scout_samples,
         "pool_samples":100000,"sort":request.phase.sort,
+        "rare_tail_profile":std::env::var("RUST_ODDS_RARE_TAIL").unwrap_or_default(),
+        "rare_tail_quality":crate::rare_tail::value("RUST_ODDS_RARE_TAIL_QUALITY"),
+        "rare_tail_shared_guides":crate::rare_tail::value("RUST_ODDS_RARE_TAIL_SHARE")=="1",
+        "shared_constraints":crate::rare_tail::value("RUST_ODDS_SHARED_CONSTRAINTS"),
+        "shared_constraints_blockers":crate::rare_tail::value("RUST_ODDS_SHARED_CONSTRAINTS_BLOCKERS"),
+        "shared_constraints_relative":crate::rare_tail::value("RUST_ODDS_SHARED_CONSTRAINTS_RELATIVE")=="1",
+        "shared_constraints_confirmation":crate::rare_tail::value("RUST_ODDS_SHARED_CONSTRAINTS_CONFIRMATION"),
+        "shared_constraints_fraction":crate::rare_tail::value("RUST_ODDS_SHARED_CONSTRAINTS_FRACTION"),
         "joint_cap_conditioning":crate::search::enabled("RUST_ODDS_JOINT_CAP_CONDITIONING"),
         "joint_cap_broad":crate::search::enabled("RUST_ODDS_JOINT_CAP_CONDITIONING")
-            && crate::search::enabled("RUST_ODDS_JOINT_CAP_BROAD")}),
+            && crate::search::enabled("RUST_ODDS_JOINT_CAP_BROAD"),
+        "joint_propagation":crate::search::enabled("RUST_ODDS_JOINT_CAP_CONDITIONING")
+            && crate::search::enabled("RUST_ODDS_JOINT_CAP_BROAD")
+            && crate::search::enabled("RUST_ODDS_JOINT_PROPAGATION"),
+        "joint_allocation":std::env::var("RUST_ODDS_JOINT_ALLOCATION")
+            .unwrap_or_else(|_| "transfer".into())}),
     );
     if workers == 0 || workers > 4 || scout_samples == 0 {
         return Err("workers must be 1..4 and scout samples positive".into());
