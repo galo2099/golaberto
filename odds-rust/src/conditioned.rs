@@ -206,33 +206,90 @@ impl Event {
                 delta,
             });
         }
+        // Prefix cardinality can never exceed the number of blockers. When
+        // pruning is possible, prepare byte thresholds once rather than loading
+        // campaign bounds and subtracting them for every DP transition.
+        let mut guaranteed_above = 0;
+        let caps: Vec<_> = if rank < teams.len() - 1 {
+            teams[1..]
+                .iter()
+                .enumerate()
+                .filter_map(|(slot, &t)| {
+                    let cap = i64::from(bounds.max[target]) - i64::from(bounds.current[t]);
+                    if cap < 0 {
+                        guaranteed_above += 1;
+                        None
+                    } else if cap >= 255 {
+                        None
+                    } else {
+                        Some(((slot + 1) * 8, cap as u64))
+                    }
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
+        // Accumulate sufficiently small point lattices by direct index. The
+        // hash table still receives first insertions in the original order and
+        // with its original capacity, preserving every saved layer's order.
+        let mut dense_strides = Vec::new();
+        let mut dense_size = 1usize;
+        for slot in 0..teams.len() {
+            dense_strides.push(dense_size);
+            let width = games
+                .iter()
+                .map(|g| g.delta.iter().map(|&d| byte(d, slot)).max().unwrap())
+                .sum::<i32>() as usize
+                + 1;
+            dense_size = dense_size.saturating_mul(width);
+        }
+        let dense = dense_size <= 65536;
+        let index = |state: u64| -> usize {
+            dense_strides
+                .iter()
+                .enumerate()
+                .map(|(slot, &stride)| byte(state, slot) as usize * stride)
+                .sum()
+        };
+        let mut dense_mass = vec![0.; if dense { dense_size } else { 0 }];
+        let mut dense_seen = vec![0usize; dense_mass.len()];
+        let mut generation = 0usize;
         let mut start = IntMap::default();
         start.insert(0, 1.);
         let mut forward = vec![ForwardLayer::from_map(start)];
         for g in &games {
+            generation += 1;
+            let dense_delta = if dense { g.delta.map(index) } else { [0; 3] };
             let mut next = IntMap::default();
             next.reserve((forward.last()?.len() * 3).min(limit + 1));
             for (&state, &mass) in forward.last()?.iter() {
+                let dense_state = if dense { index(state) } else { 0 };
                 for o in 0..3 {
                     if g.prob[o] <= 0. {
                         continue;
                     }
-                    if (0..teams.len()).any(|slot| byte(state, slot) + byte(g.delta[o], slot) > 255)
-                    {
-                        continue;
-                    }
+                    // The fixture-count maximum above guarantees every total
+                    // fits its byte, including all intermediate prefixes.
                     let new = state + g.delta[o];
-                    let above = teams[1..]
-                        .iter()
-                        .enumerate()
-                        .filter(|(slot, t)| {
-                            bounds.current[**t] + byte(new, slot + 1) > bounds.max[target]
-                        })
-                        .count();
+                    let above = guaranteed_above
+                        + caps
+                            .iter()
+                            .filter(|&&(shift, cap)| ((new >> shift) & 255) > cap)
+                            .count();
                     if above > rank {
                         continue;
                     }
-                    *next.entry(new).or_default() += mass * g.prob[o];
+                    if dense {
+                        let slot = dense_state + dense_delta[o];
+                        if dense_seen[slot] != generation {
+                            dense_seen[slot] = generation;
+                            dense_mass[slot] = 0.;
+                            next.insert(new, 0.);
+                        }
+                        dense_mass[slot] += mass * g.prob[o];
+                    } else {
+                        *next.entry(new).or_default() += mass * g.prob[o];
+                    }
                     // A failed event is discarded entirely. Stop as soon as
                     // its state limit is exceeded instead of finishing the layer.
                     if next.len() > limit {
@@ -242,6 +299,11 @@ impl Event {
             }
             if next.len() > limit {
                 return None;
+            }
+            if dense {
+                for (&state, mass) in &mut next {
+                    *mass = dense_mass[index(state)];
+                }
             }
             forward.push(ForwardLayer::from_map(next));
         }
@@ -608,6 +670,23 @@ pub fn fast(
         rules.point_win * stride + if stride > 1 { 1 } else { 0 },
     ];
     let ag = [hg[2], hg[1], hg[0]];
+    // Sampling uses only these compact fields. Keep the unconditioned games
+    // in fixture order so the random stream is identical, and avoid touching
+    // the larger score-sampler objects or checking selection on every draw.
+    let remaining: Vec<_> = model
+        .fixtures
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| !selected[*i])
+        .map(|(i, f)| (i, f.home, f.away, f.prob))
+        .collect();
+    let fixed: Vec<_> = model
+        .fixtures
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| selected[*i])
+        .map(|(i, f)| (i, f.home, f.away))
+        .collect();
     let base: Vec<_> = model
         .base
         .iter()
@@ -618,20 +697,23 @@ pub fn fast(
     for _ in 0..samples {
         backward.sample(&mut rng, &mut outcomes);
         points.copy_from_slice(&base);
-        for (i, f) in model.fixtures.iter().enumerate() {
-            if !selected[i] {
-                let u = rng.float();
-                outcomes[i] = if u < f.prob[0] {
-                    0
-                } else if u < f.prob[0] + f.prob[1] {
-                    1
-                } else {
-                    2
-                };
-            }
+        for &(i, home, away) in &fixed {
             let o = outcomes[i] as usize;
-            points[f.home] += hg[o];
-            points[f.away] += ag[o];
+            points[home] += hg[o];
+            points[away] += ag[o];
+        }
+        for &(i, home, away, prob) in &remaining {
+            let u = rng.float();
+            let o = if u < prob[0] {
+                0
+            } else if u < prob[0] + prob[1] {
+                1
+            } else {
+                2
+            };
+            outcomes[i] = o as u8;
+            points[home] += hg[o];
+            points[away] += ag[o];
         }
         let p = points[target];
         let above = (0..model.n)
@@ -733,6 +815,76 @@ mod forward_layer_tests {
         }
         for key in 10000..11000 {
             assert_eq!(layer.get(&key), None);
+        }
+    }
+}
+
+#[cfg(test)]
+mod transition_accumulation_tests {
+    use super::*;
+    #[test]
+    fn direct_accumulation_preserves_hash_order_and_every_mass_bit() {
+        for rules in [[0, 1, 3], [1, 2, 4], [0, 0, 2]] {
+            let games: Vec<_> = [(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)]
+                .into_iter()
+                .enumerate()
+                .map(|(i, (h, a))| {
+                    serde_json::json!({
+                        "id":i,"home_id":h,"away_id":a,"home_power":1.23,"away_power":0.87
+                    })
+                })
+                .collect();
+            let request = serde_json::from_value(serde_json::json!({
+                "id":0,"phase":{"sort":"pt,w,gd,gf","championship":{
+                    "point_loss":rules[0],"point_draw":rules[1],"point_win":rules[2]
+                }},"team_groups":[{"team_id":0},{"team_id":1},{"team_id":2},{"team_id":3}],
+                "games":games
+            }))
+            .unwrap();
+            let model = Model::new(request).unwrap();
+            let bounds = Bounds::new(&model);
+            for target in 0..4 {
+                let rivals: Vec<_> = (0..4).filter(|&t| t != target).collect();
+                for rank in 0..4 {
+                    for count in 0..=3 {
+                        let event =
+                            Event::build(&model, &bounds, target, rank, &rivals[..count], 20000)
+                                .unwrap();
+                        let mut original = IntMap::default();
+                        original.insert(0, 1f64);
+                        for (step, game) in event.games.iter().enumerate() {
+                            let mut next = IntMap::<f64>::default();
+                            next.reserve((original.len() * 3).min(20001));
+                            for (&state, &mass) in &original {
+                                for o in 0..3 {
+                                    if game.prob[o] <= 0. {
+                                        continue;
+                                    }
+                                    let new = state + game.delta[o];
+                                    let above = event.teams[1..]
+                                        .iter()
+                                        .enumerate()
+                                        .filter(|(slot, t)| {
+                                            bounds.current[**t] + byte(new, slot + 1)
+                                                > bounds.max[target]
+                                        })
+                                        .count();
+                                    if above > rank {
+                                        continue;
+                                    }
+                                    *next.entry(new).or_default() += mass * game.prob[o];
+                                }
+                            }
+                            assert_eq!(
+                                event.forward[step + 1].iter().map(|(&s, &m)| (s, m.to_bits())).collect::<Vec<_>>(),
+                                next.iter().map(|(&s, &m)| (s, m.to_bits())).collect::<Vec<_>>(),
+                                "rules={rules:?}, target={target}, rank={rank}, count={count}, step={step}"
+                            );
+                            original = next;
+                        }
+                    }
+                }
+            }
         }
     }
 }

@@ -74,6 +74,7 @@ pub fn masses(mean: f64) -> Vec<f64> {
 pub struct Scores {
     pub prob: [f64; 3],
     values: [Vec<([i32; 2], f64)>; 3],
+    lookup: Box<[[u32; 256]; 3]>,
 }
 impl Scores {
     pub fn new(home: f64, away: f64) -> Self {
@@ -107,14 +108,68 @@ impl Scores {
         for p in &mut prob {
             *p /= total;
         }
-        Self { prob, values }
+        let lookup = std::array::from_fn(|o| {
+            let v = &values[o];
+            let mut i = 0;
+            std::array::from_fn(|bin| {
+                while i < v.len() && v[i].1 < bin as f64 / 256. {
+                    i += 1;
+                }
+                i as u32
+            })
+        });
+        Self {
+            prob,
+            values,
+            lookup: Box::new(lookup),
+        }
     }
     #[inline]
     pub fn sample(&self, outcome: usize, rng: &mut Rng) -> [i32; 2] {
         let v = &self.values[outcome];
         assert!(!v.is_empty(), "zero mass outcome");
         let u = rng.float();
-        let i = v.partition_point(|(_, c)| *c < u);
+        let mut i = self.lookup[outcome][(u * 256.) as usize] as usize;
+        while i < v.len() && v[i].1 < u {
+            i += 1;
+        }
         v[i.min(v.len() - 1)].0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn indexed_scores_match_binary_search_at_boundaries_and_fixed_rng() {
+        for (h, a) in [(0., 0.), (0., 1.2), (1.1, 0.), (1.4, 0.9), (7.3, 12.6)] {
+            let scores = Scores::new(h, a);
+            for outcome in 0..3 {
+                let v = &scores.values[outcome];
+                if v.is_empty() {
+                    continue;
+                }
+                for u in (0..256)
+                    .map(|b| b as f64 / 256.)
+                    .chain(v.iter().flat_map(|(_, c)| [*c, c.next_down(), c.next_up()]))
+                    .filter(|&u| (0. ..1.).contains(&u))
+                {
+                    let expected = v.partition_point(|(_, c)| *c < u).min(v.len() - 1);
+                    let mut i = scores.lookup[outcome][(u * 256.) as usize] as usize;
+                    while i < v.len() && v[i].1 < u {
+                        i += 1;
+                    }
+                    assert_eq!(i.min(v.len() - 1), expected, "{h}/{a}, {outcome}, {u}");
+                }
+                let mut old_rng = Rng::new(808);
+                let mut new_rng = Rng::new(808);
+                for _ in 0..10000 {
+                    let u = old_rng.float();
+                    let i = v.partition_point(|(_, c)| *c < u).min(v.len() - 1);
+                    assert_eq!(scores.sample(outcome, &mut new_rng), v[i].0);
+                }
+                assert_eq!(old_rng.float(), new_rng.float());
+            }
+        }
     }
 }

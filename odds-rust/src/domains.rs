@@ -16,6 +16,7 @@ pub struct Domains {
     pub upper: Vec<i32>,
     pub min: Vec<Vec<i32>>,
     pub max: Vec<Vec<i32>>,
+    prefix_bounds: Vec<[i64; 4]>,
     pub feasible: bool,
     pub restricted: bool,
     pub base: Vec<i32>,
@@ -38,6 +39,7 @@ impl Domains {
             upper: vec![i32::MAX / 4; teams],
             min: Vec::new(),
             max: Vec::new(),
+            prefix_bounds: Vec::new(),
             feasible: true,
             restricted,
             base: Vec::new(),
@@ -180,6 +182,20 @@ impl Domains {
             self.max[step][g.home] += max_gain(d, g.hg);
             self.max[step][g.away] += max_gain(d, g.ag);
         }
+        // These bounds stay fixed for this compiled assignment. Loading one
+        // endpoint record avoids walking six vectors on every proposal draw.
+        self.prefix_bounds = games
+            .iter()
+            .enumerate()
+            .map(|(step, g)| {
+                [
+                    i64::from(self.lower[g.home]) - i64::from(self.max[step + 1][g.home]),
+                    i64::from(self.upper[g.home]) - i64::from(self.min[step + 1][g.home]),
+                    i64::from(self.lower[g.away]) - i64::from(self.max[step + 1][g.away]),
+                    i64::from(self.upper[g.away]) - i64::from(self.min[step + 1][g.away]),
+                ]
+            })
+            .collect();
         self.compact(games, points);
     }
     fn compact(&mut self, games: &[RankGame], points: &[i32]) {
@@ -251,6 +267,29 @@ impl Domains {
             && h + self.max[step + 1][g.home] >= self.lower[g.home]
             && a + self.min[step + 1][g.away] <= self.upper[g.away]
             && a + self.max[step + 1][g.away] >= self.lower[g.away]
+    }
+    /// Load the shared endpoint bounds once for the three outcome checks.
+    #[inline]
+    pub fn prefix_mask(&self, step: usize, g: &RankGame, hp: i32, ap: i32) -> u8 {
+        let mut mask = self.domains[step];
+        if self.restricted {
+            let [hlo, hhi, alo, ahi] = self.prefix_bounds[step];
+            let hlo = hlo - i64::from(hp);
+            let hhi = hhi - i64::from(hp);
+            let alo = alo - i64::from(ap);
+            let ahi = ahi - i64::from(ap);
+            for o in 0..3 {
+                if mask & (1 << o) == 0 {
+                    continue;
+                }
+                let h = i64::from(g.hg[o]);
+                let a = i64::from(g.ag[o]);
+                if !(h <= hhi && h >= hlo && a <= ahi && a >= alo) {
+                    mask &= !(1 << o);
+                }
+            }
+        }
+        mask
     }
     pub fn zero_guide_safe(
         &self,

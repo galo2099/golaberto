@@ -1289,3 +1289,136 @@ Formatting and whitespace checks pass. Rebuild/restart needs no added flags.
 
 R29 release build completed with the locked manifest. Executable SHA256:
 `e695437bedb38f36ef2dc65c5316cc3e85c3f2bf58afd1bb94f6cf28f44a8334`. Default enablement shipped to master.
+
+## R30 — CPU optimization without losing zero-cell coverage
+
+Status: validated and approved for shipment. Experiment history follows.
+Baseline e9cce7dc (default sequential retry), four cores; preserve existing
+samples, proposals, gates and proof rules.
+An8-second full-request native sample on16498 identifies lookahead proposal
+loops, propagated rank proposals and event construction as the largest active
+stacks. Do not count thread waits as useful CPU. First test exact memoization of
+lookahead guide factors for repeated fixed point/win states; bound setup/memory,
+retain original floating-point operation order and RNG draws. Compare identical
+kernels and paired full requests across all seven snapshots. Faster earlier
+stages shrink the elapsed-time funding allowance, which can lose coverage even
+when a kernel is mathematically unchanged; explicitly audit this feedback.
+
+R30 intermediate results: whole-state factor cache9 pairs CPU+2.32%, rejected;
+weight-key cache9 pairs CPU+1.56%, rejected. Exact loop changes9 pairs CPU−17.91%,
+wall−18.42%, but2 gained/10 lost cell-runs due elapsed-time tail funding.
+Seven snapshot deterministic oracles were identical. Additional exact CDF-tail
+and cardinality work9 pairs CPU−20.43%, wall−19.78%,1 gained/3 lost; an incorrectly
+named fraction flag in that run had no effect (effective coverage budget remained
+0.35). Correct fraction0.45 reallocates savings:21 fresh pairs/all7 snapshots,
+CPU−14.14%, wall−12.92%,8 gained/0 lost cell-runs. This is a useful coverage-safe
+candidate, not the25% goal. Next: prepared DP prefix caps and profile-guided
+compiler optimization, preserving random draws and every probability gate.
+
+R30 final portable candidate: compact fixture fields, separate score-index table,
+prepared prefix caps and gain intervals, exact CDF/cardinality shortcuts, integer
+leading comparison. Restore tail funding with coverage fraction0.5; no extra
+absolute-time allowance, samples or relaxed gates. Fresh21 pairs/all7 snapshots,
+seeds1567/1571/1579:CPU−14.41%, wall−13.89%,9 gained/0 lost cell-runs; no proof,
+reachability-label or game-importance regressions. Native compact screen9 pairs
+was−17.91% CPU/9 gained/0 lost. Sampler-mode specialization worsened to−15.56%
+and was discarded. Intermediate PGO9 pairs CPU−22.11%/6 gained/1 lost, optional
+only. Production is Intel Xeon E5-2697@2.7GHz/four cores; local ARM measurements
+are not production verification. Approximately25% goal remains outstanding.
+95 tests passed,2 DB tests ignored. Reproducible isolated native/PGO Xeon harness,
+source patch, raw summaries, profile and report retained in
+experiments/rare_positions/2026-10-01-rust-cpu.md and2026-10-01-cpu-optimization/.
+No commit/push. Next: Xeon paired benchmark, then target its remaining hot loops.
+
+R30 final validation:all7 complete deterministic oracle JSON outputs equal;
+source patch applies cleanly to e9cce7dc and reproduces final code/tests exactly.
+Read-only SSH discovery of the configured host failed(publickey); no production
+load or changes were made. Await accessible Xeon test host or benchmark output.
+
+R30 continuation:production access is unavailable; user authorizes treating
+portable local CPU reductions as applicable to the Xeon unless CPU-specific.
+Do not gate progress on production access or promote ARM-specific PGO claims.
+Next exact native experiment removes unused non-cardinality guide weights and
+per-draw root-key allocation, then evaluates bounded rank DP and compact suffix
+storage. Retain four cores, candidate fraction0.5 and all zero-coverage checks.
+
+R30 continuation screens (four workers, nine paired full requests each):
+- Skip unused cardinality-mode guide weights and reuse borrowed/inline target
+  keys: CPU −19.26%, wall −18.23%, 11 gained / 0 lost cell-runs.
+- Compress suffix CDF storage: CPU −13.60%, wall −12.66%, 5 gained / 0 lost;
+  rejected because extra hot-path indexing outweighed setup savings.
+- Bound rank-DP updates to nonzero support: CPU −18.05%, wall −16.41%,
+  8 gained / 0 lost. Exhaustive bitwise sequence test passed.
+- Prepared endpoint bounds and explicit CDF boundary branches: CPU −19.10%,
+  wall −17.56%, 6 gained / 1 lost. Loss is 16498/318/rank5 at seed1669:
+  identical pilot, more training admitted, ordinary final no longer funded.
+  Investigating allocation feedback before accepting this continuation.
+- Next: branchless shared match-outcome updates, paired all-snapshot validation
+  including the regression seed. Production access is not a prerequisite.
+
+
+## R31 — Shared Poisson indices on a discretized mean grid
+
+Status: completed; production changes rejected. Experiment history follows.
+Compare against the retained R30
+portable candidate, with four workers and unchanged tail fraction0.45. Test0.01
+mean-grid sharing of 256-bin Poisson starting indices while retaining the actual
+mean and exact CDF. Correct both upward and downward before returning a score;
+keep the same RNG draws, zero-mean behavior and large-mean sampler. This tests
+lookup reuse and smaller fixtures without changing the target distribution.
+Boundary/RNG tests cover rounding on both sides, tiny positive means and means
+above32. Actual mean rounding would change the model and can compound across
+rare-event fixture combinations; assess separately if lookup reuse is useful.
+
+R30 continuation validation: lazy prepared chance rows, dense small point DP,
+exact bounded rank support and private RNG cursor bounds are retained. Final
+default tail fraction0.45 reallocates savings. Twenty-eight cold paired requests
+(all7 snapshots, seeds1669/1847/1861/1867): CPU−20.22%, wall−18.62%,14 gained/0 lost
+cell-runs. Warm defaults:56 pairs/all7, CPU−22.01%, wall−19.72%,31 gained/0 lost
+cell-runs. Warm CPU includes two warmups per arm; wall/coverage exclude them.
+98 tests passed,2 DB tests ignored. Reject fused campaign updates (no benefit),
+CDF-only Poisson paths (about0% change), and compact suffix rows (slower).
+Production access is unavailable and not a gate under the user's instruction;
+these are portable source changes, not ARM-specific compiler tuning. About25%
+CPU target remains short. Next exact experiment removes redundant conditional
+score bounds checks, using the existing CDF=1/u<1 invariant.
+
+R31 results: nearest-grid index plus two-way correction12 pairs CPU+56.69%,
+wall+52.72%, rejected. Conservative bucket indices and smaller fixture layout
+initially saved13.37% CPU on four MC-heavy groups. Full28-pair/all7 comparison
+against retained R30: CPU−1.31%, wall−1.31%,1 gained/1 lost (16498/318/rank5,
+seed1669). Rare-heavy snapshots increased CPU2.46–4.07%; MC-heavy decreased
+10.67–19.35%. Same-binary grid-sharing ablation14 pairs: CPU−2.18%, wall−1.74%,
+0 gained/0 lost. This isolates sharing from moving lookup arrays out of fixtures.
+Rejected as production default: weak full-request gain and coverage regression.
+Grid patch and summaries archived; source reverted. Actual modeled means were
+never rounded: only cache keys, and exact per-mean CDFs/RNG draws were retained.
+Rounding actual means would be a distinct model approximation, not an established
+speedup. No commits or pushes.
+
+R30 final loop screen: omit redundant conditional-score terminal bounds/minimum
+checks under existing CDF=1/u<1 invariant. Nine paired rare-heavy requests:
+CPU+5.34%, wall+3.92%,2 gained/0 lost. Reverted because
+CPU worsened. Retained R30 source remains the98-test/default0.45 candidate.
+
+R30 retained final checks: all seven full deterministic oracle outputs exactly
+equal to e9cce7dc; archived patch applies cleanly and reproduces all ten changed
+source/test files byte for byte. Experimental Poisson grid and score-bounds
+changes are reverted. Four-core defaults require no added flags.
+
+R31 literal follow-up: rounded actual fixture means to nearest0.01, preserving
+zero/positive support, without table reuse. Same retained binary,14 pairs/all7
+snapshots at seeds1987/1993: CPU+1.17%, wall+1.15%,2 gained/4 lost cell-runs.
+All losses16498/seed1993:16/r12,318/r4,5/r18,8/r20. Maximum existing-estimate
+difference0.003123 (0.3123 percentage points). Median rounded/original ratio of
+695 paired tiny positive estimates1.005, but wide individual estimator ratios
+are not ground-truth errors; models, sample candidates, fits and time admission
+all differ. Do not enable: no performance benefit and losses. Full rounded
+distribution sharing is a separate potential cache experiment, not yet tested.
+Reproducible script:experiments/rare_positions/experiment_poisson_mean_grid.py.
+
+R30 shipment authorized by the user. Ship the validated portable candidate with
+default tail fraction0.45 and no new required flags:20.22% cold/22.01% warm CPU
+reduction,14/31 gained cell-runs and zero losses in the final cohorts.98 tests
+passed,2 DB-write tests ignored; all7 full deterministic oracles identical.
+R31 Poisson approximations and unrelated late-gap changes are excluded.

@@ -1,0 +1,14 @@
+Baseline: e9cce7dcf570ba53b2d489add5569db9eedd45db
+Workers: 4
+rustc 1.93.1 (01f6ddf75 2026-02-11)
+binary: rustc
+commit-hash: 01f6ddf7588f42ae2d7eb0a2f21d44e8e96674cf
+commit-date: 2026-02-11
+host: aarch64-apple-darwin
+release: 1.93.1
+LLVM version: 21.1.8
+Darwin Robsons-MacBook-Pro.local 25.6.0 Darwin Kernel Version 25.6.0: Fri Jul 31 19:18:48 PDT 2026; root:xnu-12377.161.14~5/RELEASE_ARM64_T6020 arm64
+/private/tmp/golaberto-r30-baseline e695437bedb38f36ef2dc65c5316cc3e85c3f2bf58afd1bb94f6cf28f44a8334
+/private/tmp/golaberto-r30-final-native 9b76149a66bda051c1ae7dc07f4497bee1b1542cca2a59d4e1ea2863cf45aee3
+/private/tmp/golaberto-r31-conservative-grid 5794fa1a531130aa8e8193f110a98d7b80adf223b43576f0daeea13af15333ff
+portable.patch.gz df2562b762488814aab8b6cbe404fe5526e8a334b47bb98e4726ad2a126a40ae

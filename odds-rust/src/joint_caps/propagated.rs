@@ -12,7 +12,10 @@ use crate::{
     search::Cell,
 };
 use serde_json::json;
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    sync::{Arc, OnceLock},
+};
 
 pub mod lazy;
 
@@ -290,6 +293,7 @@ pub(crate) struct Guide {
     pub(crate) min: Vec<Vec<i32>>,
     pub(crate) max: Vec<Vec<i32>>,
     origin: Vec<Vec<i32>>,
+    chance_rows: [OnceLock<Vec<Arc<[f64]>>>; 2],
 }
 impl Guide {
     pub(crate) fn new(games: Vec<RankGame>, teams: usize) -> Self {
@@ -342,15 +346,66 @@ impl Guide {
             min,
             max,
             origin,
+            chance_rows: std::array::from_fn(|_| OnceLock::new()),
         }
     }
+    fn prepare_chances(&self, below: bool) -> &[Arc<[f64]>] {
+        self.chance_rows[usize::from(below)].get_or_init(|| {
+            let terminal: Arc<[f64]> = vec![0.5].into();
+            let teams = self.cdf.teams;
+            let mut rows = vec![terminal; (self.games.len() + 1) * teams];
+            for step in (0..self.games.len()).rev() {
+                let split = (step + 1) * teams;
+                let (first, last) = rows.split_at_mut(split);
+                first[step * teams..split].clone_from_slice(&last[..teams]);
+                let g = &self.games[step];
+                for t in [g.home, g.away] {
+                    let span = (self.max[step][t] as usize + 1).min(self.cdf.span);
+                    first[step * teams + t] = (0..span)
+                        .map(|cap| self.chance(step, t, cap as i32, below))
+                        .collect::<Vec<_>>()
+                        .into();
+                }
+            }
+            rows
+        })
+    }
+    #[inline]
+    fn cached_chance(
+        &self,
+        rows: &[Arc<[f64]>],
+        step: usize,
+        t: usize,
+        cap: i32,
+        below: bool,
+    ) -> f64 {
+        if cap >= 0 {
+            if let Some(&value) = rows[step * self.cdf.teams + t].get(cap as usize) {
+                return value;
+            }
+        }
+        self.chance(step, t, cap, below)
+    }
+    #[inline]
     pub(crate) fn chance(&self, step: usize, t: usize, cap: i32, below: bool) -> f64 {
-        let low = self.cdf.cdf(step, t, cap - 1);
-        let high = self.reverse.cdf(step, t, self.origin[step][t] - cap - 1);
+        if cap < 0 {
+            // Both forward CDF terms are zero, so the original tie term is
+            // exactly zero. Preserve the reverse tail's rounding residue.
+            return if below {
+                0.
+            } else {
+                self.reverse.cdf(step, t, self.origin[step][t] - cap - 1) + 0.
+            };
+        }
+        let low_row = &self.cdf.values[step * self.cdf.teams + t];
+        let high_row = &self.reverse.values[step * self.reverse.teams + t];
+        let origin = self.origin[step][t];
+        let low = Suffix::cdf_row(low_row, cap - 1);
+        let high = Suffix::cdf_row(high_row, origin - cap - 1);
         let tie = if low <= 0.5 {
-            self.cdf.cdf(step, t, cap) - low
+            Suffix::cdf_row(low_row, cap) - low
         } else {
-            self.reverse.cdf(step, t, self.origin[step][t] - cap) - high
+            Suffix::cdf_row(high_row, origin - cap) - high
         };
         (if below { low } else { high }) + tie.max(0.) * 0.5
     }
@@ -376,6 +431,30 @@ impl Guide {
         below * low + tie.max(0.) + above * high
     }
 }
+/// Exact shortcuts for deterministic Bernoulli terms in the rank DP.
+/// DP entries and clamped chances are finite and nonnegative, so multiplying
+/// by zero/one adds no rounding and consumes no randomness.
+#[inline]
+fn update_cardinality(values: &mut [f64], p: f64, support: &mut (usize, usize)) {
+    if p == 0. || support.0 >= values.len() {
+        return;
+    }
+    let (lo, hi) = *support;
+    let next_hi = (hi + 1).min(values.len() - 1);
+    if p == 1. {
+        for j in (lo + 1..=next_hi).rev() {
+            values[j] = values[j - 1];
+        }
+        values[lo] = 0.;
+        *support = (lo + 1, next_hi);
+        return;
+    }
+    for j in (lo..=next_hi).rev() {
+        values[j] = values[j] * (1. - p) + if j > 0 { values[j - 1] * p } else { 0. };
+    }
+    support.1 = next_hi;
+}
+
 #[derive(Clone)]
 struct Pattern {
     fixed: Vec<(usize, u8)>,
@@ -441,23 +520,28 @@ impl Pattern {
         let Some(mut counts) = self.counts(0, points, cell) else {
             return 0.;
         };
-        let mut ea = 0.;
-        let mut eb = 0.;
-        for t in 0..points.len() {
-            if t != cell.team {
-                ea += self.guide.factor(0, t, target - points[t], 0., 1.);
-                eb += self.guide.factor(0, t, target - points[t], 1., 0.);
+        let (above, below) = if guided && !cardinality {
+            let mut ea = 0.;
+            let mut eb = 0.;
+            for t in 0..points.len() {
+                if t != cell.team {
+                    ea += self.guide.factor(0, t, target - points[t], 0., 1.);
+                    eb += self.guide.factor(0, t, target - points[t], 1., 0.);
+                }
             }
-        }
-        let above = if ea > 0. {
-            (cell.rank as f64 / ea).min(1.).powi(6)
+            let above = if ea > 0. {
+                (cell.rank as f64 / ea).min(1.).powi(6)
+            } else {
+                1.
+            };
+            let below = if eb > 0. {
+                ((points.len() - 1 - cell.rank) as f64 / eb).min(1.).powi(6)
+            } else {
+                1.
+            };
+            (above, below)
         } else {
-            1.
-        };
-        let below = if eb > 0. {
-            ((points.len() - 1 - cell.rank) as f64 / eb).min(1.).powi(6)
-        } else {
-            1.
+            (1., 1.)
         };
         let mut weight = 1.;
         let count_below = cell.rank > (points.len() - 1) / 2;
@@ -466,8 +550,14 @@ impl Pattern {
         } else {
             cell.rank
         };
+        let chance_rows = if cardinality {
+            self.guide.prepare_chances(count_below)
+        } else {
+            &[]
+        };
         let chance = |step: usize, t: usize, value: i32| {
-            self.guide.chance(step, t, target - value, count_below)
+            self.guide
+                .cached_chance(chance_rows, step, t, target - value, count_below)
         };
         let mut chances = if cardinality {
             (0..points.len())
@@ -513,20 +603,20 @@ impl Pattern {
                     masks[step + i] &= mask;
                 }
             }
-            other.fill(0.);
             if cardinality {
+                other.fill(0.);
                 other[0] = 1.;
+                let mut support = (0, 0);
                 for (t, &p) in chances.iter().enumerate() {
                     if t == cell.team || t == g.home || t == g.away {
                         continue;
                     }
-                    for j in (0..=needed).rev() {
-                        other[j] = other[j] * (1. - p) + if j > 0 { other[j - 1] * p } else { 0. };
-                    }
+                    update_cardinality(&mut other, p, &mut support);
                 }
             }
             let mut q = [0.; 3];
             let mut support = 0.;
+            let mut endpoint_chances = [[0.; 2]; 3];
             let next: [Option<(usize, usize)>; 3] =
                 std::array::from_fn(|o| self.next_counts(step, points, cell, o, counts));
             let allowed: [bool; 3] = std::array::from_fn(|o| {
@@ -541,6 +631,7 @@ impl Pattern {
                     * if cardinality {
                         let ph = chance(step + 1, g.home, points[g.home] + g.hg[o]).clamp(0., 1.);
                         let pa = chance(step + 1, g.away, points[g.away] + g.ag[o]).clamp(0., 1.);
+                        endpoint_chances[o] = [ph, pa];
                         other[needed] * (1. - ph) * (1. - pa)
                             + if needed > 0 {
                                 other[needed - 1] * (ph * (1. - pa) + (1. - ph) * pa)
@@ -605,8 +696,8 @@ impl Pattern {
             points[g.home] += g.hg[o];
             points[g.away] += g.ag[o];
             if cardinality {
-                chances[g.home] = chance(step + 1, g.home, points[g.home]).clamp(0., 1.);
-                chances[g.away] = chance(step + 1, g.away, points[g.away]).clamp(0., 1.);
+                chances[g.home] = endpoint_chances[o][0];
+                chances[g.away] = endpoint_chances[o][1];
             }
         }
         weight
@@ -1266,5 +1357,88 @@ mod tests {
         assert!(PropagatedJoint::with_limits(&m, Cell { team: 0, rank: 1 }, 0, 1).is_none());
         m.keys = vec![Key::Gd, Key::Pt];
         assert!(PropagatedJoint::new(&m, Cell { team: 0, rank: 1 }).is_none());
+    }
+}
+
+#[cfg(test)]
+mod cardinality_fast_tests {
+    use super::update_cardinality;
+    #[test]
+    fn deterministic_rank_terms_preserve_every_dp_bit() {
+        let probabilities = [0., 1., 1e-30, 0.3, 1. - f64::EPSILON];
+        for code in 0..5usize.pow(6) {
+            for length in 1..8 {
+                let mut original = vec![0.; length];
+                let mut fast = original.clone();
+                original[0] = 1.;
+                fast[0] = 1.;
+                let mut sequence = code;
+                let mut support = (0, 0);
+                for _ in 0..6 {
+                    let p = probabilities[sequence % 5];
+                    sequence /= 5;
+                    for j in (0..length).rev() {
+                        original[j] =
+                            original[j] * (1. - p) + if j > 0 { original[j - 1] * p } else { 0. };
+                    }
+                    update_cardinality(&mut fast, p, &mut support);
+                    assert_eq!(
+                        original.iter().map(|v| v.to_bits()).collect::<Vec<_>>(),
+                        fast.iter().map(|v| v.to_bits()).collect::<Vec<_>>()
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod chance_table_tests {
+    use super::*;
+    #[test]
+    fn prepared_chances_preserve_bits_in_both_directions_and_outside_the_table() {
+        for stride in [1, 19] {
+            let hg = [0, stride, 3 * stride + i32::from(stride > 1)];
+            let games = (0..12)
+                .map(|i| RankGame {
+                    index: i,
+                    home: i % 4,
+                    away: (i + 1) % 4,
+                    prob: if i % 3 == 0 {
+                        [0.9999999999999999, 0., 1e-20]
+                    } else {
+                        [0.31, 0.27, 0.42]
+                    },
+                    hg,
+                    ag: [hg[2], hg[1], hg[0]],
+                })
+                .collect();
+            let guide = Guide::new(games, 4);
+            for below in [false, true] {
+                let rows = guide.prepare_chances(below);
+                for step in 0..=guide.games.len() {
+                    for t in 0..4 {
+                        for cap in -10..=guide.cdf.span as i32 + 10 {
+                            let low = guide.cdf.cdf(step, t, cap - 1);
+                            let high = guide.reverse.cdf(step, t, guide.origin[step][t] - cap - 1);
+                            let tie = if low <= 0.5 {
+                                guide.cdf.cdf(step, t, cap) - low
+                            } else {
+                                guide.reverse.cdf(step, t, guide.origin[step][t] - cap) - high
+                            };
+                            let original = (if below { low } else { high }) + tie.max(0.) * 0.5;
+                            assert_eq!(
+                                guide.cached_chance(rows, step, t, cap, below).to_bits(),
+                                original.to_bits()
+                            );
+                            assert_eq!(
+                                guide.chance(step, t, cap, below).to_bits(),
+                                original.to_bits()
+                            );
+                        }
+                    }
+                }
+            }
+        }
     }
 }

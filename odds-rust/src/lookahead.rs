@@ -25,14 +25,25 @@ impl Suffix {
         let span = (max_cap + 1).max(1) as usize;
         let terminal: Arc<[f64]> = vec![1.; span].into();
         let mut values = vec![terminal; (games.len() + 1) * teams];
+        let mut tail_starts = vec![0usize; teams];
         for step in (0..games.len()).rev() {
             let split = (step + 1) * teams;
             let (first, last) = values.split_at_mut(split);
             first[step * teams..split].clone_from_slice(&last[..teams]);
             let g = &games[step];
-            for (team, gains) in [(g.home, g.hg), (g.away, g.ag)] {
+            let old_tails = [tail_starts[g.home], tail_starts[g.away]];
+            for ((team, gains), old_tail) in
+                [(g.home, g.hg), (g.away, g.ag)].into_iter().zip(old_tails)
+            {
+                let tail_start = if gains.iter().all(|&g| g >= 0) {
+                    old_tail
+                        .saturating_add(*gains.iter().max().unwrap() as usize)
+                        .min(span)
+                } else {
+                    span
+                };
                 let mut cdf = vec![0.; span];
-                for cap in 0..span {
+                for cap in 0..tail_start {
                     for o in 0..3 {
                         let left = cap as i32 - gains[o];
                         if left >= 0 {
@@ -40,6 +51,17 @@ impl Suffix {
                         }
                     }
                 }
+                if tail_start < span {
+                    // Every predecessor lies in the same constant CDF tail.
+                    // Evaluate it in the original outcome order, including its
+                    // rounding residue, rather than assuming it equals one.
+                    let mut tail = 0.;
+                    for o in 0..3 {
+                        tail += g.prob[o] * last[team][tail_start - gains[o] as usize];
+                    }
+                    cdf[tail_start..].fill(tail);
+                }
+                tail_starts[team] = tail_start;
                 first[step * teams + team] = cdf.into();
             }
         }
@@ -51,30 +73,33 @@ impl Suffix {
     }
     #[inline]
     pub fn cdf(&self, step: usize, team: usize, cap: i32) -> f64 {
+        Self::cdf_row(&self.values[step * self.teams + team], cap)
+    }
+    #[inline]
+    pub(crate) fn cdf_row(row: &[f64], cap: i32) -> f64 {
         if cap < 0 {
             0.
-        } else if cap as usize >= self.span {
+        } else if cap as usize >= row.len() {
             1.
         } else {
-            self.values[step * self.teams + team][cap as usize]
+            row[cap as usize]
         }
     }
     #[inline]
     pub fn factor(&self, step: usize, team: usize, cap: i32, below: f64, above: f64) -> f64 {
-        // The adjacent CDF entries share a row. Resolve the boundary case and
-        // row lookup once in this proposal's innermost loop; retain arithmetic
-        // order exactly so fixed-seed weights do not change.
-        let (lower, at) = if cap < 0 {
-            (0., 0.)
-        } else if cap as usize > self.span {
-            (1., 1.)
-        } else {
-            let row = &self.values[step * self.teams + team];
-            let index = cap as usize;
-            let lower = if index == 0 { 0. } else { row[index - 1] };
-            let at = if index == self.span { 1. } else { row[index] };
-            (lower, at)
-        };
+        Self::factor_row(&self.values[step * self.teams + team], cap, below, above)
+    }
+    #[inline]
+    pub(crate) fn factor_row(row: &[f64], cap: i32, below: f64, above: f64) -> f64 {
+        if cap < 0 {
+            return below * 0. + 0. + above * 1.;
+        }
+        if cap as usize > row.len() {
+            return below * 1. + 0. + above * 0.;
+        }
+        let index = cap as usize;
+        let lower = if index == 0 { 0. } else { row[index - 1] };
+        let at = if index == row.len() { 1. } else { row[index] };
         below * lower + (at - lower) + above * (1. - at)
     }
 }
@@ -189,6 +214,7 @@ pub fn sample_with_probes(
     }
     let suffix = Suffix::new(&remaining, model.ids.len(), max_cap);
     let compact = crate::search::enabled("RARE_POSITION_COMPACT_FORCED_FIXTURES");
+    let compact_zero_guide = crate::search::enabled("RARE_POSITION_COMPACT_ZERO_GUIDE");
     let mode = std::env::var("RARE_POSITION_REDUCED_SIMULATION").unwrap_or_default();
     let reduce = (mode.is_empty() || mode == "1" || mode == "all")
         && compact
@@ -277,7 +303,7 @@ pub fn sample_with_probes(
                 .as_ref()
                 .is_some_and(|d| !d.forced.is_empty() && weight * d.mass > 0.);
         if compact_draw && !(above_weight > 0. && below_weight > 0.) {
-            compact_draw = crate::search::enabled("RARE_POSITION_COMPACT_ZERO_GUIDE")
+            compact_draw = compact_zero_guide
                 && if let Some(cache) = &mut domain_cache {
                     *cache.zero_safe.entry(domain_key).or_insert_with(|| {
                         domains.as_ref().unwrap().zero_guide_safe(
@@ -310,22 +336,23 @@ pub fn sample_with_probes(
                     let g = &remaining[entry.step];
                     let hp = points[g.home] - entry.hf;
                     let ap = points[g.away] - entry.af;
+                    let hrow = &suffix.values[(entry.step + 1) * suffix.teams + g.home];
+                    let arow = &suffix.values[(entry.step + 1) * suffix.teams + g.away];
+                    let allowed = d.prefix_mask(entry.step, g, hp, ap);
                     let mut scores = [0.; 3];
                     let mut total = 0.;
                     for o in 0..3 {
-                        if !d.allows_prefix(entry.step, g, o, hp, ap) {
+                        if allowed & (1 << o) == 0 {
                             continue;
                         }
-                        let h = suffix.factor(
-                            entry.step + 1,
-                            g.home,
+                        let h = Suffix::factor_row(
+                            hrow,
                             target_points - hp - g.hg[o],
                             below_weight,
                             above_weight,
                         );
-                        let a = suffix.factor(
-                            entry.step + 1,
-                            g.away,
+                        let a = Suffix::factor_row(
+                            arow,
                             target_points - ap - g.ag[o],
                             below_weight,
                             above_weight,
@@ -364,26 +391,29 @@ pub fn sample_with_probes(
                 }
             } else {
                 for (step, g) in remaining.iter().enumerate() {
+                    let hp = points[g.home];
+                    let ap = points[g.away];
+                    let hrow = &suffix.values[(step + 1) * suffix.teams + g.home];
+                    let arow = &suffix.values[(step + 1) * suffix.teams + g.away];
+                    let allowed = domains
+                        .as_ref()
+                        .filter(|d| d.restricted)
+                        .map_or(7, |d| d.prefix_mask(step, g, hp, ap));
                     let mut scores = [0.; 3];
                     let mut total = 0.;
                     for o in 0..3 {
-                        if domains
-                            .as_ref()
-                            .is_some_and(|d| d.restricted && !d.allows(step, g, o, &points))
-                        {
+                        if allowed & (1 << o) == 0 {
                             continue;
                         }
-                        let home = suffix.factor(
-                            step + 1,
-                            g.home,
-                            target_points - points[g.home] - g.hg[o],
+                        let home = Suffix::factor_row(
+                            hrow,
+                            target_points - hp - g.hg[o],
                             below_weight,
                             above_weight,
                         );
-                        let away = suffix.factor(
-                            step + 1,
-                            g.away,
-                            target_points - points[g.away] - g.ag[o],
+                        let away = Suffix::factor_row(
+                            arow,
+                            target_points - ap - g.ag[o],
                             below_weight,
                             above_weight,
                         );
@@ -468,4 +498,55 @@ pub fn sample_with_probes(
     result.work = result.samples as u64 * work_per_sample(model);
     result.summarize(sum, sum2, max, batches);
     result
+}
+
+#[cfg(test)]
+mod suffix_tail_tests {
+    use super::*;
+    #[test]
+    fn constant_tails_match_the_full_cdf_in_every_bit() {
+        for stride in [1, 13, 31] {
+            let hg = [0, stride, 3 * stride + i32::from(stride > 1)];
+            let games = (0..18)
+                .map(|i| RankGame {
+                    index: i,
+                    home: i % 4,
+                    away: (i + 1) % 4,
+                    prob: if i % 3 == 0 {
+                        [0.9999999999999999, 0., 1e-20]
+                    } else {
+                        [0.31, 0.27, 0.42]
+                    },
+                    hg,
+                    ag: [hg[2], hg[1], hg[0]],
+                })
+                .collect::<Vec<_>>();
+            let suffix = Suffix::new(&games, 4, 1000);
+            let mut original = vec![vec![1.; suffix.span]; (games.len() + 1) * 4];
+            for step in (0..games.len()).rev() {
+                for t in 0..4 {
+                    original[step * 4 + t] = original[(step + 1) * 4 + t].clone();
+                }
+                let g = &games[step];
+                for (t, gains) in [(g.home, g.hg), (g.away, g.ag)] {
+                    let mut row = vec![0.; suffix.span];
+                    for cap in 0..suffix.span {
+                        for o in 0..3 {
+                            let left = cap as i32 - gains[o];
+                            if left >= 0 {
+                                row[cap] += g.prob[o] * original[(step + 1) * 4 + t][left as usize];
+                            }
+                        }
+                    }
+                    original[step * 4 + t] = row;
+                }
+            }
+            for (new, old) in suffix.values.iter().zip(original) {
+                assert_eq!(
+                    new.iter().map(|v| v.to_bits()).collect::<Vec<_>>(),
+                    old.iter().map(|v| v.to_bits()).collect::<Vec<_>>()
+                );
+            }
+        }
+    }
 }

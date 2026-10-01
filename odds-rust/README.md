@@ -556,7 +556,7 @@ records the initial gains/losses. The
 [regression follow-up](../experiments/rare_positions/2026-10-01-rust-tail-regressions.md)
 records the decision to restore the previous default configuration.
 
-The portfolio receives 35% of elapsed native calculation time, excluding
+The portfolio receives 45% of elapsed native calculation time, excluding
 upload/queue wait. Training stops starting jobs after 65% of that allowance;
 final allocation uses measured pilot cost. This is a work controller, not a hard real-time
 latency guarantee. See the [campaign report](../experiments/rare_positions/2026-10-01-rust-rare50.md)
@@ -602,8 +602,11 @@ The default coverage profile enables the strongest tested
 multi-cell sampler automatically: cardinality guidance, two blockers constrained
 against each recipient's actual final points/wins, concurrent independent
 main/check batches, and 50% of the existing tail allowance. Four-worker usage,
-the total 35% tail allowance and the acceptance gates are unchanged. No extra
-shared-sampler flags are needed.
+the acceptance gates are unchanged. The relative tail allowance is 45% after
+native CPU optimization: faster earlier stages otherwise shrink search funding.
+This reallocates part of their measured savings; total request CPU and latency
+must be compared with the previous 35% profile. No extra shared-sampler flags
+are needed.
 
 Set `RUST_ODDS_SHARED_CONSTRAINTS=0` to disable shared sampling while retaining
 the individual coverage portfolio. Explicit settings override profile defaults:
@@ -621,3 +624,24 @@ coverage tradeoff, not a guarantee that every previous estimate survives
 allocation changes. Flags, weighting, timing, regressions and reproduction
 commands are in
 [the shared-constraint report](../experiments/rare_positions/2026-10-01-rust-shared-constraints.md).
+
+### Portable CPU optimizations
+
+Native release builds retain the same simulation counts, random streams and
+probability gates. Fixture bounds are loaded once, constant CDF tails retain
+their original floating-point residues, and deterministic rank terms skip
+redundant arithmetic. Score lookup and leading integer standings comparisons
+preserve the original samples and sorting rules. Prepared rank guidance rows,
+bounded rank DP, small dense point-state accumulation and borrowed root keys
+remove repeated work. The paired local measurements show 20.22% less CPU in cold
+requests and 22.01% less in warm servers, with no coverage losses in those cohorts.
+Poisson mean rounding/table sharing was tested and remains experimental.
+
+The paired CPU experiment uses four workers and process user+system time.
+Portable local gains are expected to apply to the Xeon; exact percentages may
+vary. Production access is not required for this work. See the
+[CPU report](../experiments/rare_positions/2026-10-01-rust-cpu.md) for source
+patches, all seven snapshots, coverage regressions and reproducible local
+commands. Optional profile-guided builds must generate their profiles on the
+intended architecture; a normal `cargo build --release --locked` needs no PGO
+tools or runtime optimization flags.

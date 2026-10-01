@@ -244,7 +244,23 @@ impl Model {
         scores: &[[i32; 2]],
         rng: &mut Rng,
     ) -> bool {
-        self.compare(&c[a], &c[b], Some((a, b)), scores, rng)
+        // Resolve the common leading integer keys before entering the generic
+        // (possibly recursive head-to-head) comparator. i32 values convert
+        // exactly to f64, so ordering and tie RNG consumption are unchanged.
+        let mut start = 0;
+        if self.keys.first() == Some(&Key::Pt) {
+            if c[a].points != c[b].points {
+                return c[a].points > c[b].points;
+            }
+            start = 1;
+            if self.keys.get(1) == Some(&Key::W) {
+                if c[a].wins != c[b].wins {
+                    return c[a].wins > c[b].wins;
+                }
+                start = 2;
+            }
+        }
+        self.compare_from(&c[a], &c[b], Some((a, b)), scores, rng, start)
     }
     fn compare(
         &self,
@@ -254,7 +270,18 @@ impl Model {
         scores: &[[i32; 2]],
         rng: &mut Rng,
     ) -> bool {
-        for key in &self.keys {
+        self.compare_from(a, b, pair, scores, rng, 0)
+    }
+    fn compare_from(
+        &self,
+        a: &Campaign,
+        b: &Campaign,
+        pair: Option<(usize, usize)>,
+        scores: &[[i32; 2]],
+        rng: &mut Rng,
+        start: usize,
+    ) -> bool {
+        for key in &self.keys[start..] {
             let (x, y) = match key {
                 Key::Pt => (a.points as f64, b.points as f64),
                 Key::W => (a.wins as f64, b.wins as f64),

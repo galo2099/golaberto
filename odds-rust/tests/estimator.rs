@@ -1131,3 +1131,46 @@ fn reverse_decisive_path_can_lower_target_gd_without_lowering_middle_team_gd() {
         &model, &proof, cell
     ));
 }
+
+#[test]
+fn fixture_mask_matches_individual_prefix_checks() {
+    let games = vec![
+        RankGame {
+            index: 0,
+            home: 0,
+            away: 1,
+            prob: [0.4, 0.2, 0.4],
+            hg: [0, 1, 3],
+            ag: [3, 1, 0],
+        },
+        RankGame {
+            index: 1,
+            home: 0,
+            away: 2,
+            prob: [0.4, 0.2, 0.4],
+            hg: [0, 1, 3],
+            ag: [3, 1, 0],
+        },
+        RankGame {
+            index: 2,
+            home: 1,
+            away: 2,
+            prob: [0.4, 0.2, 0.4],
+            hg: [0, 1, 3],
+            ag: [3, 1, 0],
+        },
+    ];
+    for rank in 0..3 {
+        let d = Domains::propagate(&games, &[0, 2, 4], &[1, 2], rank, 6);
+        for (step, g) in games.iter().enumerate() {
+            for hp in -2..12 {
+                for ap in -2..12 {
+                    let mask = d.prefix_mask(step, g, hp, ap);
+                    for o in 0..3 {
+                        assert_eq!(mask & (1 << o) != 0, d.allows_prefix(step, g, o, hp, ap));
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1092,33 +1092,30 @@ impl LazyJoint {
         let mut points = vec![0; m.n];
         let (mut sum, mut sum2, mut max, mut batches) = (0., 0., 0_f64, [0.; 2]);
         for draw in 0..samples {
-            let key = if rng.float() < alpha {
+            let mut fresh_key = smallvec::SmallVec::<[u8; 16]>::new();
+            let key: &[u8] = if rng.float() < alpha {
                 self.target.sample(0, &mut rng, &mut out);
-                self.target
-                    .games
-                    .iter()
-                    .map(|g| out[g.index])
-                    .collect::<Vec<_>>()
+                fresh_key.extend(self.target.games.iter().map(|g| out[g.index]));
+                &fresh_key
             } else {
                 let u = rng.float() * self.mixture_mass;
-                self.mixture[self
+                &self.mixture[self
                     .mixture
                     .partition_point(|(_, v)| *v < u)
                     .min(self.mixture.len() - 1)]
                 .0
-                .clone()
             };
             result.samples += 1;
             let root_prob: f64 = self
                 .target
                 .games
                 .iter()
-                .zip(&key)
+                .zip(key)
                 .map(|(g, &o)| g.prob[o as usize])
                 .product();
-            let mut weight = match self.roots.get(&key) {
+            let mut weight = match self.roots.get(key) {
                 Some(Some(p)) => {
-                    let q = if let Some(&allocation) = self.root_allocation.get(&key) {
+                    let q = if let Some(&allocation) = self.root_allocation.get(key) {
                         alpha * root_prob / mass + (1. - alpha) * allocation
                     } else {
                         // Preserve the pre-experiment floating-point operation
@@ -1127,7 +1124,7 @@ impl LazyJoint {
                             + (1. - alpha) * p.mass * p.joint.residual_hint.max(1e-80) * p.tilt
                                 / self.mixture_mass
                     };
-                    if let Some(cases) = self.cases.get(&key) {
+                    if let Some(cases) = self.cases.get(key) {
                         // Retain the primary guided mode even for an enumerated union.
                         // Numerical zero mass is not an unrestricted infeasibility proof.
                         let alpha = if cases.complete { 0.1 } else { 0.5 };
@@ -1226,7 +1223,7 @@ impl LazyJoint {
                             / (mass * q)
                             / (alpha * native_density + (1. - alpha) * case_density)
                     } else if let Some(alt) =
-                        self.biased.get(&key).or_else(|| self.alternates.get(&key))
+                        self.biased.get(key).or_else(|| self.alternates.get(key))
                     {
                         let draw_alt = rng.float() < 0.5;
                         let drawn = if draw_alt { alt } else { p };
@@ -1277,7 +1274,7 @@ impl LazyJoint {
                 }
                 Some(None) => 0., // only sound necessary-event infeasibility
                 None => {
-                    for (g, &o) in self.target.games.iter().zip(&key) {
+                    for (g, &o) in self.target.games.iter().zip(key) {
                         out[g.index] = o;
                     }
                     if let Some((joint, guide)) = &self.fallback {
@@ -1333,7 +1330,11 @@ impl LazyJoint {
             if weight > 0. {
                 result.hits += 1;
                 if let Some(moments) = moments.as_deref_mut() {
-                    *moments.squared.entry(key.clone()).or_default() += weight * weight;
+                    if let Some(sum) = moments.squared.get_mut(key) {
+                        *sum += weight * weight;
+                    } else {
+                        moments.squared.insert(key.to_vec(), weight * weight);
+                    }
                 }
                 if result.witness.is_none() {
                     result.witness = Some(out.clone());

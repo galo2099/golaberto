@@ -653,8 +653,11 @@ impl Rng {
     }
     #[inline]
     pub fn uint64(&mut self) -> u64 {
-        self.tap = if self.tap == 0 { 606 } else { self.tap - 1 };
-        self.feed = if self.feed == 0 { 606 } else { self.feed - 1 };
+        // Private cursors are always in 0..607. Underflow wraps to usize::MAX,
+        // then clamping maps only that wrap to 606. The explicit upper bound
+        // also lets the compiler remove redundant array bounds checks.
+        self.tap = self.tap.wrapping_sub(1).min(606);
+        self.feed = self.feed.wrapping_sub(1).min(606);
         let x = self.vec[self.feed].wrapping_add(self.vec[self.tap]);
         self.vec[self.feed] = x;
         x as u64
@@ -705,4 +708,26 @@ pub fn derive(seed: i64, stream: &str) -> i64 {
         h = (h ^ (*b as u64)).wrapping_mul(1099511628211);
     }
     h as i64
+}
+
+#[cfg(test)]
+mod cursor_tests {
+    use super::*;
+    #[test]
+    fn bounded_cursor_matches_legacy_across_wraps_and_seeds() {
+        for seed in [0, 1, -1, 808, i64::MIN, i64::MAX] {
+            let mut fast = Rng::new(seed);
+            let mut old = fast.clone();
+            for _ in 0..10000 {
+                old.tap = if old.tap == 0 { 606 } else { old.tap - 1 };
+                old.feed = if old.feed == 0 { 606 } else { old.feed - 1 };
+                let x = old.vec[old.feed].wrapping_add(old.vec[old.tap]);
+                old.vec[old.feed] = x;
+                assert_eq!(fast.uint64(), x as u64);
+            }
+            assert_eq!(fast.tap, old.tap);
+            assert_eq!(fast.feed, old.feed);
+            assert_eq!(fast.vec, old.vec);
+        }
+    }
 }

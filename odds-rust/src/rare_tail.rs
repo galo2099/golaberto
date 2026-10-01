@@ -46,7 +46,9 @@ fn profile_default(name: &str) -> &'static str {
         "RUST_ODDS_RARE_TAIL_FINALISTS" => "16",
         "RUST_ODDS_LAZY_RIVALS" => "4",
         "RUST_ODDS_RARE_TAIL_QUALITY" => "order",
-        "RUST_ODDS_RARE_TAIL_BUDGET_FRACTION" => "0.35",
+        // Faster native stages otherwise reduce funding for the same rare
+        // plans. Reallocate part of their CPU savings to preserve coverage.
+        "RUST_ODDS_RARE_TAIL_BUDGET_FRACTION" => "0.45",
         "RUST_ODDS_RARE_TAIL_EXTENSION" => "after",
         "RUST_ODDS_RARE_TAIL_UNION_PATTERNS" => "256",
         "RUST_ODDS_RARE_TAIL_RETRY" | "RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION" => "0",
@@ -786,7 +788,7 @@ mod tests {
         assert_eq!(profile_default("RUST_ODDS_RARE_TAIL_QUALITY"), "order");
         assert_eq!(
             profile_default("RUST_ODDS_RARE_TAIL_BUDGET_FRACTION"),
-            "0.35"
+            "0.45"
         );
         for flag in [
             "RUST_ODDS_LAZY_FIXTURE_BIAS",
