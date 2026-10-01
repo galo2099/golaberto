@@ -126,9 +126,9 @@ $(function() {
   var drawLabel = "<%= j(_("Draw")).html_safe %>";
   var initialOddsPercentages = <%== (initial_game_odds ? initial_game_odds.map { |odd| 100 * odd } : [nil, nil, nil]).to_json %>;
   var initialOddsLabels = [
-    homeTeamName + "<% if initial_game_odds %>: <%= formatted_odds(100*initial_game_odds[0]) %> <% end %>",
-    drawLabel + "<% if initial_game_odds %>: <%= formatted_odds(100*initial_game_odds[1]) %><% end %>",
-    awayTeamName + "<% if initial_game_odds %>: <%= formatted_odds(100*initial_game_odds[2]) %><% end %>"
+    homeTeamName + "<% if initial_game_odds %>: <%= j(formatted_odds(100*initial_game_odds[0])).html_safe %> <% end %>",
+    drawLabel + "<% if initial_game_odds %>: <%= j(formatted_odds(100*initial_game_odds[1])).html_safe %><% end %>",
+    awayTeamName + "<% if initial_game_odds %>: <%= j(formatted_odds(100*initial_game_odds[2])).html_safe %><% end %>"
   ];
 
   var buildOddsSeries = function(odds_data) {
@@ -379,9 +379,9 @@ $(function() {
         fullOddsData[0].rawOdds = odds[0] * 100;
         fullOddsData[1].rawOdds = odds[1] * 100;
         fullOddsData[2].rawOdds = odds[2] * 100;
-        fullOddsData[0].label = homeTeamName + ": " + GolabertoOdds.format(fullOddsData[0].rawOdds, "<%= I18n.locale %>");
-        fullOddsData[1].label = drawLabel + ": " + GolabertoOdds.format(fullOddsData[1].rawOdds, "<%= I18n.locale %>");
-        fullOddsData[2].label = awayTeamName + ": " + GolabertoOdds.format(fullOddsData[2].rawOdds, "<%= I18n.locale %>");
+        fullOddsData[0].label = homeTeamName + ": " + GolabertoOdds.html(fullOddsData[0].rawOdds, "<%= I18n.locale %>");
+        fullOddsData[1].label = drawLabel + ": " + GolabertoOdds.html(fullOddsData[1].rawOdds, "<%= I18n.locale %>");
+        fullOddsData[2].label = awayTeamName + ": " + GolabertoOdds.html(fullOddsData[2].rawOdds, "<%= I18n.locale %>");
         plot.setupGrid();
         plot.draw();
         renderOddsLegend();

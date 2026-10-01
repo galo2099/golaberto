@@ -28,16 +28,16 @@ assert.equal(odds.backgroundColor(firstZoneOdds[1], odds.maximum(firstZoneOdds))
 assert.equal(odds.backgroundColor(secondZoneOdds[1], odds.maximum(secondZoneOdds)), "dimgray");
 assert.equal(odds.backgroundColor(secondZoneOdds[0], odds.maximum(secondZoneOdds)), "rgb(158, 158, 158)");
 
-assert.equal(odds.format(0.0001, "en-US"), "1e-4%");
-assert.equal(odds.html(0.0001, "en-US"), "1e-4%");
-assert.equal(odds.format(0.00004321, "en-US"), "4e-5%");
-assert.equal(odds.format(0.009999, "en-US"), "1e-2%");
-assert.equal(odds.format(1e-15, "en-US"), "1e-15%");
+assert.equal(odds.format(0.0001, "en-US"), "0.[03]1%");
+assert.equal(odds.html(0.0001, "en-US"), odds.compactHtml(0.0001) + "%");
+assert.equal(odds.format(0.00004321, "en-US"), "0.[04]4%");
+assert.equal(odds.format(0.009999, "en-US"), "0.01%");
+assert.equal(odds.format(1e-15, "en-US"), "0.[14]1%");
 assert.equal(odds.title(0.0001, "en-US"), "1e-4%");
 assert.equal(odds.title(0.00004321, "en-US"), "4.321e-5%");
 assert.equal(odds.title(0.009999, "en-US"), "9.999e-3%");
-assert.equal(odds.format(99.9999, "en-US"), ">99.99%");
-assert.equal(odds.format(99.99996, "en-US"), ">99.99%");
+assert.equal(odds.format(99.9999, "en-US"), "99.[03]9%");
+assert.equal(odds.format(99.99996, "en-US"), "99.[04]6%");
 assert.equal(odds.zoneValue([77.75802002807019, 17.064525344641567, 5.177454627288232], [1, 2, 3]), 100);
 assert.equal(odds.zoneValue([99.9999999999, 0, 0], [1, 2]), 100);
 assert.equal(odds.zoneValue([99.9999999, 0, 0.0000001], [1, 2]), 99.9999999);
@@ -54,8 +54,8 @@ assert.equal(odds.format(99.99, "en-US"), "99.99%");
 assert.equal(odds.format(100, "en-US"), "100.00%");
 assert.equal(odds.format(null, "en-US"), "");
 assert.equal(odds.format(0.5, "pt-BR"), "0,50%");
-assert.equal(odds.format(0.0001, "pt-BR"), "1e-4%");
-assert.equal(odds.format(99.9999, "pt-BR"), ">99,99%");
+assert.equal(odds.format(0.0001, "pt-BR"), "0.[03]1%");
+assert.equal(odds.format(99.9999, "pt-BR"), "99.[03]9%");
 assert.equal(odds.title(0.0001, "pt-BR"), "1e-4%");
 assert.equal(odds.title(0.00004321, "pt-BR"), "4,321e-5%");
 assert.equal(odds.title(12.3456, "pt-BR"), "12,35%");
@@ -108,3 +108,20 @@ assert.deepEqual(visibleCountDigits(0.0000004), ["6"]);
 assert.deepEqual(visibleCountDigits(0.0000000000876), ["10"]);
 assert.match(odds.compactHtml(0.0000004), /class="odds-compact-count-dots" aria-hidden="true">\.\.<\/span>/);
 assert.equal(odds.compactTitle(0.0000004), "4e-7%");
+
+assert.equal(odds.title(0.01, "en-US"), "0.01%");
+assert.equal(odds.title(100, "en-US"), "100%");
+assert.equal(odds.compactTitle(0.0000123456, "en-US"), "1.235e-5%");
+assert.equal(odds.compactTitle(12.3456, "en-US"), "12.35%");
+
+assert.equal(odds.title(99.999912345, "en-US"), "99.99991235%");
+assert.equal(odds.compactTitle(99.99997891234, "en-US"), "99.99997891%");
+assert.equal(odds.title(99.999912345, "pt-BR"), "99,99991235%");
+
+// A numbered rank uses the same endpoint normalization as a zone.
+assert.equal(odds.zoneValue([99.99999999999062, 0, 0], [1]), 100);
+assert.equal(odds.compactText(odds.zoneValue([99.99999999999062, 0, 0], [1])), "100.0");
+assert.equal(odds.zoneValue([99.99999999999062, 9.38e-12, 0], [1]), 99.99999999999062);
+
+assert.equal(odds.html(99.999, "en-US"), odds.compactHtml(99.999) + "%");
+assert.ok(odds.html(99.999, "en-US").includes('class="odds-compact-count-dots"'));

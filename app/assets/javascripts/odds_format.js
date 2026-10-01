@@ -104,12 +104,8 @@
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
       };
-      if (number > 0 && number < 0.01) {
-        var scientific = number.toExponential(0).split("e");
-        return scientific[0] + "e" + Number(scientific[1]) + "%";
-      }
-      if (number > 99.99 && number < 100) {
-        return ">" + (99.99).toLocaleString(locale, options) + "%";
+      if ((number > 0 && number < 0.01) || (number > 99.99 && number < 100)) {
+        return this.compactText(number) + "%";
       }
       return number.toLocaleString(locale, options) + "%";
     },
@@ -189,12 +185,15 @@
         fraction("first") + fraction("second") + '</span></span>';
     },
 
-    compactTitle: function(value) {
-      var number = validNumber(value);
-      return number === null ? "" : String(number) + "%";
+    compactTitle: function(value, locale) {
+      return this.title(value, locale);
     },
 
     html: function(value, locale) {
+      var number = validNumber(value);
+      if (number !== null && ((number > 0 && number < 0.01) || (number > 99.99 && number < 100))) {
+        return this.compactHtml(number) + "%";
+      }
       return this.format(value, locale)
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
@@ -212,13 +211,29 @@
         var mantissa = scientific[0].replace(/0+$/, "").replace(/\.$/, "").replace(".", decimal);
         return mantissa + "e" + Number(scientific[1]) + "%";
       }
-      if (number >= 0.01 && number <= 99.99) {
+      if (number > 99.99 && number < 100) {
+        var fraction = String(number).split(".")[1];
+        var places = fraction.match(/^9*/)[0].length + 4;
+        // Round decimal digits directly: toFixed can expose binary noise here.
+        var digits = fraction.slice(0, places).padEnd(places, "0").split("");
+        if (fraction[places] >= "5") {
+          for (var i = digits.length - 1; i >= 0; i--) {
+            if (digits[i] !== "9") { digits[i] = String(Number(digits[i]) + 1); break; }
+            digits[i] = "0";
+          }
+        }
+        var separator = new Intl.NumberFormat(locale).formatToParts(1.1).filter(function(part) {
+          return part.type === "decimal";
+        })[0].value;
+        return "99" + separator + digits.join("").replace(/0+$/, "") + "%";
+      }
+      if (number >= 0.01) {
         var formatter = new Intl.NumberFormat(locale, {
           maximumSignificantDigits: 4,
           useGrouping: false
         });
         var rounded = formatter.format(number);
-        return (rounded === formatter.format(100) ? formatter.format(99.99) : rounded) + "%";
+        return (number < 100 && rounded === formatter.format(100) ? formatter.format(99.99) : rounded) + "%";
       }
       return number.toLocaleString(locale, {
         maximumSignificantDigits: 17,

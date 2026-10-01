@@ -189,7 +189,7 @@ span.game_odds {
 .odds-compact-number
 {
   display: inline-flex;
-  width: 6ch;
+  width: 5.5ch;
   padding: 0.125em 0;
   align-items: center;
   white-space: nowrap;
@@ -202,8 +202,9 @@ span.game_odds {
 }
 .odds-compact-dot
 {
-  flex: 0 0 1ch;
+  flex: 0 0 0.5ch;
   text-align: center;
+  line-height: 1;
 }
 .odds-compact-fraction
 {
@@ -216,6 +217,8 @@ span.game_odds {
 {
   display: inline-flex;
   flex: 0 0 1ch;
+  height: 1em;
+  line-height: 1;
   min-width: 0;
   justify-content: center;
 }
@@ -224,35 +227,35 @@ span.game_odds {
   display: inline-block;
   position: relative;
   width: 1ch;
-  height: 1.25em;
+  height: 1em;
   white-space: nowrap;
-  /* Balance the space between the narrow decimal point and the full-width digit. */
-  --odds-marker-center: 35%;
+  --odds-marker-center: 50%;
 }
 .odds-compact-count-digit
 {
   position: absolute;
   top: 0;
   left: var(--odds-marker-center);
-  transform: translateX(-50%);
-  font-size: 0.9em;
+  transform: translateX(-50%) scale(0.65);
+  transform-origin: center top;
+  font-size: 1em;
   font-weight: normal;
   line-height: 1;
 }
 .odds-compact-count-two-digits
 {
-  font-size: 0.6em;
-  top: 0.5em;
-  transform: translateX(-50%) scaleX(0.82);
+  /* Scaling avoids browser minimum-font-size enlarging this two-digit label. */
+  font-size: 1em;
+  top: 0.08em;
+  transform: translateX(-50%) scale(0.4);
 }
 .odds-compact-count-dots
 {
   position: absolute;
-  bottom: 0.2em;
-  left: var(--odds-marker-center);
-  transform: translateX(-50%);
-  font-size: 0.7em;
-  font-weight: normal;
+  bottom: 0;
+  left: 0;
+  font-size: 1em;
+  font-weight: inherit;
   line-height: 1;
 }
 .odds-compact-fallback
@@ -670,4 +673,28 @@ img.user-logo {
 .highlighted_game .game_x,
 .highlighted_game .away_score {
   font-weight: bold;
+}
+
+/* Compact odds include reserved digit slots; align their percent suffix with
+   ordinary percentages in the team graph legend. */
+.odds-graph-legend-item td:last-child
+{
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tooltips flow as text; only table cells need reserved integer slots. */
+#odds_tooltip .odds-compact-number,
+#odds_selection .odds-compact-number,
+[id^="odds_history_tooltip_"] .odds-compact-number
+{
+  width: auto;
+  padding: 0;
+}
+#odds_tooltip .odds-compact-integer,
+#odds_selection .odds-compact-integer,
+[id^="odds_history_tooltip_"] .odds-compact-integer
+{
+  flex: 0 0 auto;
 }

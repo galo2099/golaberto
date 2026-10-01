@@ -11,24 +11,30 @@ class OddsFormattingTest < Minitest::Test
   end
 
   def test_small_nonzero_odds_remain_visible_and_recoverable
-    assert_equal '1e-4%', @view.formatted_odds(0.0001)
-    assert_equal '4e-5%', @view.formatted_odds(0.00004321)
-    assert_equal '1e-2%', @view.formatted_odds(0.009999)
+    assert_equal @view.formatted_compact_team_odds(0.0001) + "%", @view.formatted_odds(0.0001)
+    assert_equal @view.formatted_compact_team_odds(0.00004321) + "%", @view.formatted_odds(0.00004321)
+    assert_equal @view.formatted_compact_team_odds(0.009999) + "%", @view.formatted_odds(0.009999)
     assert_equal '1e-4%', @view.odds_title(0.0001)
     assert_equal '4.321e-5%', @view.odds_title(0.00004321)
     assert_equal '9.999e-3%', @view.odds_title(0.009999)
   end
 
   def test_near_certain_odds_do_not_round_to_certain
-    assert_equal '>99.99%', @view.formatted_odds(99.9999)
-    assert_equal '>99.99%', @view.formatted_odds(99.99996)
+    assert_equal @view.formatted_compact_team_odds(99.9999) + "%", @view.formatted_odds(99.9999)
+    assert_equal @view.formatted_compact_team_odds(99.99996) + "%", @view.formatted_odds(99.99996)
     assert_equal '99.9999%', @view.odds_title(99.9999)
     assert_equal '99.95%', @view.odds_title(99.95)
+    assert_equal '99.99991235%', @view.odds_title(99.999912345)
+    assert_equal '99.99997891%', @view.compact_team_odds_title(99.99997891234)
   end
 
   def test_ordinary_titles_have_at_most_four_significant_digits
     assert_equal '0.01235%', @view.odds_title(0.012345)
     assert_equal '12.35%', @view.odds_title(12.3456)
+    assert_equal '0.01%', @view.odds_title(0.01)
+    assert_equal '100%', @view.odds_title(100)
+    assert_equal '1.235e-5%', @view.compact_team_odds_title(0.0000123456)
+    assert_equal '12.35%', @view.compact_team_odds_title(12.3456)
   end
 
   def test_exact_endpoints_and_missing_odds
@@ -41,7 +47,7 @@ class OddsFormattingTest < Minitest::Test
   end
 
   def test_very_small_title_does_not_round_to_zero
-    assert_equal '1e-15%', @view.formatted_odds(1e-15)
+    assert_equal @view.formatted_compact_team_odds(1e-15) + "%", @view.formatted_odds(1e-15)
     assert_equal '1e-15%', @view.odds_title(1e-15)
     refute_equal '100%', @view.odds_title(99.99999999999999)
   end
@@ -100,7 +106,7 @@ class OddsFormattingTest < Minitest::Test
     assert_equal '..', Nokogiri::HTML.fragment(markup).at_css('.odds-compact-count-dots').text
     double_digit = @view.formatted_compact_team_odds(0.0000000000876)
     assert_equal ['10'], Nokogiri::HTML.fragment(double_digit).css('.odds-compact-count-digit').map(&:text)
-    assert_equal "#{0.0000004}%", @view.compact_team_odds_title(0.0000004)
+    assert_equal "4e-7%", @view.compact_team_odds_title(0.0000004)
   end
 
   def test_odds_background_blends_from_lightgray_to_dimgray

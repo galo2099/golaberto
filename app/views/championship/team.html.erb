@@ -125,7 +125,7 @@ $(function() {
   };
   var plot = graphDiv.plot([
   {
-    data: <%= @groups[0].team_groups.select{|t|t.team_id == @team.id}.first.odds.map.with_index.map{|item,idx|[idx+1, item]} %>,
+    data: <%= @groups[0].team_groups.select{|t|t.team_id == @team.id}.first.then{|team_group| team_group.odds.each_index.map{|idx|[idx+1, team_group.calculate_odds([idx+1])]}} %>,
   },
   {
     data: [[<%=team_position%>, 0], [<%=team_position%>, 101]],
@@ -144,7 +144,7 @@ $(function() {
         pos.y > 0 && pos.y < 100) {
       var names = <%== (1..@groups[0].team_groups.size).map{|i|i.ordinalize}.to_json %>;
       var value = plot.getData()[0].data[x-1][1];
-      $("#odds_tooltip").text(names[x-1] + ": " + GolabertoOdds.format(value, "<%= I18n.locale %>"))
+      $("#odds_tooltip").html($("<span>").text(names[x-1]).html() + ": " + GolabertoOdds.html(value, "<%= I18n.locale %>"))
         .attr("title", GolabertoOdds.title(value, "<%= I18n.locale %>"))
         .css({top: pos.pageY+5, left: pos.pageX+5})
         .fadeIn(200);
@@ -187,11 +187,13 @@ $(function() {
     }
     var fromIndex = Math.round(ranges.xaxis.from) - 1;
     var toIndex = Math.round(ranges.xaxis.to) - 1;
-    var value = plot.getData()[0].data.slice(fromIndex, toIndex).reduce((a, b) => a + b[1], 0);
+    var positionOdds = plot.getData()[0].data.map(point => point[1]);
+    var selectedPositions = plot.getData()[0].data.slice(fromIndex, toIndex).map(point => point[0]);
+    var value = GolabertoOdds.zoneValue(positionOdds, selectedPositions);
     var posFrom = plot.pointOffset({x: ranges.xaxis.from, y: ranges.yaxis.to});
     var posTo = plot.pointOffset({x: ranges.xaxis.to, y: ranges.yaxis.to});
     var odds_selection = $("#odds_selection")
-      .text("<%= _("Selected:") %> " + GolabertoOdds.format(value, "<%= I18n.locale %>"))
+      .html("<%= j(ERB::Util.html_escape(_("Selected:"))).html_safe %> " + GolabertoOdds.html(value, "<%= I18n.locale %>"))
       .attr("title", GolabertoOdds.title(value, "<%= I18n.locale %>"));
     odds_selection.css({top: posFrom.top+5, left: (posFrom.left+posTo.left)/2 - odds_selection.width()/2})
       .fadeIn(200);

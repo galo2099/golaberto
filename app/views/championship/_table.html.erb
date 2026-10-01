@@ -148,7 +148,7 @@
                 var rank = ui.item.element.attr("data-rank");
                 var zonePositions = ui.item.element.attr("data-positions");
                 if (rank) {
-                  value = oddsArray[Number(rank) - 1];
+                  value = GolabertoOdds.zoneValue(oddsArray, [Number(rank)]);
                 } else if (zonePositions) {
                   try {
                     var positions = JSON.parse(zonePositions);
@@ -184,7 +184,7 @@
   <% max_form = 0 %>
   <% team_table = group.team_table %>
   <% first_zone = group.zones.first %>
-  <% initial_odds = omit_columns[:odds] ? [] : team_table.map { |entry| first_zone ? entry[0].calculate_odds(first_zone["position"]) : entry[0].odds&.first } %>
+  <% initial_odds = omit_columns[:odds] ? [] : team_table.map { |entry| first_zone ? entry[0].calculate_odds(first_zone["position"]) : entry[0].calculate_odds([1]) } %>
   <% highest_initial_odds = initial_odds.compact.max || 0 %>
   <% team_ids = team_table.map { |t| t[0].team_id } %>
   <% next_games = next_games_by_team(group.phase, team_ids) %>

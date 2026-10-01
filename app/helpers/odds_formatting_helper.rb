@@ -26,12 +26,8 @@ module OddsFormattingHelper
     return "" if percentage.nil?
 
     value = percentage.to_f
-    if value > 0 && value < 0.01
-      mantissa, exponent = format("%.0e", value).split("e")
-      return "#{mantissa}e#{exponent.to_i}%"
-    end
-    if value > 99.99 && value < 100
-      return ">#{number_to_percentage(99.99, precision: 2)}"
+    if (value > 0 && value < 0.01) || (value > 99.99 && value < 100)
+      return formatted_compact_team_odds(percentage) + "%"
     end
 
     number_to_percentage(value, precision: 2)
@@ -126,7 +122,7 @@ module OddsFormattingHelper
   def compact_team_odds_title(percentage)
     return nil if percentage.nil?
 
-    "#{percentage}%"
+    odds_title(percentage)
   end
 
   def compact_odds_count(count)
@@ -144,9 +140,16 @@ module OddsFormattingHelper
       return "#{mantissa}e#{exponent.to_i}%"
     end
 
-    if value >= 0.01 && value <= 99.99
+    if value > 99.99 && value < 100
+      decimal = BigDecimal(percentage.to_s)
+      fraction = decimal.to_s('F').split('.', 2)[1]
+      precision = fraction[/\A9*/].length + 4
+      return number_to_percentage(decimal, precision: precision, strip_insignificant_zeros: true)
+    end
+
+    if value >= 0.01
       formatted = number_to_percentage(value, precision: 4, significant: true, strip_insignificant_zeros: true)
-      return number_to_percentage(99.99, precision: 2) if formatted == number_to_percentage(100, precision: 4, significant: true)
+      return number_to_percentage(99.99, precision: 2) if value < 100 && value >= 99.995
 
       return formatted
     end

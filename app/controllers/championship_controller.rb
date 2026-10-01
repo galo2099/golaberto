@@ -329,7 +329,7 @@ class ChampionshipController < ApplicationController
       history_by_day.each_with_index do |(recorded_on, snapshot_time, odds), history_index|
         next if odds.nil?
 
-        value = odds[position - 1].to_f
+        value = TeamGroup.calculate_odds_for(odds, [position])
         points << [recorded_on.to_time.to_i * 1000, [value, 100.0].min]
 
         game = latest_game_by_timestamp[snapshot_time]

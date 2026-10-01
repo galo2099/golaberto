@@ -9,6 +9,7 @@ class TeamGroupTest < Test::Unit::TestCase
     team_group.odds = [99.9999999999, 0, 0]
     assert_equal 100.0, team_group.calculate_odds([1, 2])
     assert_equal 100.0, TeamGroup.calculate_odds_for(team_group.odds, [1, 2])
+    assert_equal 100.0, TeamGroup.calculate_odds_for([99.99999999999062, 0, 0], [1])
   end
 
   def test_zone_keeps_a_nonzero_residual_outside_it
