@@ -1265,3 +1265,27 @@ experiments/rare_positions/2026-10-01-rust-tail-preservation.md and
 unchanged under the latency constraint. Next experiment: deterministic ordinary
 work reservation, accounting for in-flight proposal setup before optional root
 learning or larger batches; include extension-off variation as a control.
+
+
+## R29 — Enable sequential retries by default
+
+Status: validated; default enablement authorized by the user after the R28 opt-in
+shipment. Promote exactly the tested `after` mode in the coverage profile;
+`overlap` remains experimental and explicit `RUST_ODDS_RARE_TAIL_EXTENSION=0`
+disables retries. No changes to sampling, gates, four workers or allowance.
+R28 sequential cohorts show28 gained/5 lost cell-runs across53 pairs (not28
+unique cells); warm total wall+0.10%, fresh cohort+2.09%, historical16653 warm
+median+4.49%. User accepts enabling the revision with these measured costs.
+Add default/rollback tests and verify the default HTTP profile reports `after`.
+
+
+R29 verification:91 Rust tests passed, zero failed, two DB tests ignored,
+serialized with `--test-threads=1`. The default HTTP request logs `after` and an
+extension summary; disabling the whole portfolio logs no extension work.
+A unit test covers default sequential retries, explicit0/empty rollback,
+explicitoverlap/after selection and non-coverage profiles. Sampling code is
+unchanged; the production change is the coverage profile's default value.
+Formatting and whitespace checks pass. Rebuild/restart needs no added flags.
+
+R29 release build completed with the locked manifest. Executable SHA256:
+`e695437bedb38f36ef2dc65c5316cc3e85c3f2bf58afd1bb94f6cf28f44a8334`. Default enablement shipped to master.

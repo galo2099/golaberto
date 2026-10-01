@@ -542,7 +542,8 @@ The tail allocation experiment remains opt-in after production regression
 reports. Default coverage uses the previous complete-union cap of 256,
 existing witness/alternate retries, and ordinary final-batch allocation.
 
-To explicitly enable the experiment, set all three:
+To explicitly enable the original allocation experiment, first disable the
+sequential extension with `RUST_ODDS_RARE_TAIL_EXTENSION=0`, then set
 `RUST_ODDS_RARE_TAIL_UNION_PATTERNS=64`, `RUST_ODDS_RARE_TAIL_RETRY=roots`, and
 `RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION=reserve`. It learns target-path allocation
 from pilot second moments and enlarges weak-pilot main/check batches from spare
@@ -562,9 +563,9 @@ latency guarantee. See the [campaign report](../experiments/rare_positions/2026-
 and [progress ledger](../FUTURE_EXPERIMENTS.md) for paired latency, CPU, memory,
 regressions, seeds and independent-reference comparisons.
 
-### Experimental retries after ordinary estimates
+### Retries after ordinary estimates
 
-`RUST_ODDS_RARE_TAIL_EXTENSION=after` enables a safer allocation experiment:
+The default coverage profile uses `RUST_ODDS_RARE_TAIL_EXTENSION=after`:
 ordinary coverage pilots, funding and final batches run first. Only remaining
 zeros can receive a fresh fixed main batch and independent confirmation, reusing
 an already trained proposal. Accepted ordinary estimates and their metadata are
@@ -574,17 +575,19 @@ It can increase actual request latency; unused allowance is not free wall time.
 
 `overlap` is a separate experiment using smaller batches on idle workers within
 the predicted ordinary final span. It skips retries whose ordinary result is
-still in flight. Neither mode is enabled by default. Both select the restored
-ordinary settings (`256` patterns, existing witness/alternate retries, ordinary
+still in flight. Sequential `after` is enabled by default; `overlap` remains
+experimental. Both select the restored ordinary settings (`256` patterns, existing witness/alternate retries, ordinary
 allocation), even if the three R26 experimental settings above are also set.
 Other explicit profile settings still apply. Use the normal coverage profile.
 
 ```sh
-RUST_ODDS_RARE_TAIL=coverage RUST_ODDS_RARE_TAIL_EXTENSION=after \
-  odds-rust/target/release/golaberto-odds serve
+odds-rust/target/release/golaberto-odds serve
 ```
 
-Set `RUST_ODDS_RARE_TAIL_EXTENSION=0` or unset it to disable the extension.
+Set `RUST_ODDS_RARE_TAIL_EXTENSION=0` to disable retries while retaining ordinary
+coverage. Unsetting the flag uses the default sequential retry. No extra flags
+are required after rebuilding and restarting the server.
+
 The preserved-result guarantee is within a request: the ordinary allocator still
 uses elapsed time, so separate runs can fund different ordinary cells even with
 a fixed seed. The [retry allocation report](../experiments/rare_positions/2026-10-01-rust-tail-preservation.md)

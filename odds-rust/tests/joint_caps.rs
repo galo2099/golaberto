@@ -57,6 +57,12 @@ fn default_coverage_runs_shared_sampling_and_zero_disables_the_portfolio() {
         .find(|e| e["event"] == "rust_odds_start")
         .unwrap();
     assert_eq!(start["rare_tail_profile"], "coverage");
+    assert_eq!(start["rare_tail_extension"], "after");
+    let extension = logs
+        .iter()
+        .find(|e| e["event"] == "rust_odds_rare_tail_extension_summary")
+        .unwrap();
+    assert_eq!(extension["mode"], "after");
     assert_eq!(start["shared_constraints"], "guided");
     assert_eq!(start["shared_constraints_blockers"], "2");
     assert_eq!(start["shared_constraints_relative"], true);
@@ -74,6 +80,7 @@ fn default_coverage_runs_shared_sampling_and_zero_disables_the_portfolio() {
         .find(|e| e["event"] == "rust_odds_start")
         .unwrap();
     assert_eq!(start["rare_tail_profile"], "0");
+    assert_eq!(start["rare_tail_extension"], "");
     assert!(!logs.iter().any(|e| e["event"].as_str().is_some_and(|s| {
         s.starts_with("rust_odds_shared_constraints") || s.starts_with("rust_odds_rare_tail")
     })));

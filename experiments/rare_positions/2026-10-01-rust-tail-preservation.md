@@ -1,5 +1,20 @@
 # Ordinary-result preservation and rare-tail retries — 2026-10-01
 
+## Default enablement update
+
+After reviewing the coverage and latency results, the user requested that the
+revision be turned on. The coverage profile now defaults to sequential `after`
+retries; `overlap` remains experimental. No changes were made to the measured
+algorithm, quality gates, four-worker usage or existing time allowance. Rebuild
+and restart the server; no new flag is required. Set
+`RUST_ODDS_RARE_TAIL_EXTENSION=0` to roll back only the retries. With the new
+default, this opt-out is also needed to run the original R26 allocation
+experiment described below.
+
+The decisions below describe the initial opt-in shipment and its measurements.
+Default/rollback tests and an HTTP profile check cover this promotion; the final
+validation result is recorded in FUTURE_EXPERIMENTS.md.
+
 ## Decision
 
 Keep production defaults unchanged. Implement an **opt-in sequential retry**

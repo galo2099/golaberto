@@ -47,6 +47,7 @@ fn profile_default(name: &str) -> &'static str {
         "RUST_ODDS_LAZY_RIVALS" => "4",
         "RUST_ODDS_RARE_TAIL_QUALITY" => "order",
         "RUST_ODDS_RARE_TAIL_BUDGET_FRACTION" => "0.35",
+        "RUST_ODDS_RARE_TAIL_EXTENSION" => "after",
         "RUST_ODDS_RARE_TAIL_UNION_PATTERNS" => "256",
         "RUST_ODDS_RARE_TAIL_RETRY" | "RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION" => "0",
         "RUST_ODDS_SHARED_CONSTRAINTS" => "guided",
@@ -684,10 +685,23 @@ mod tests {
         assert_eq!(est.probability, r.probability);
         assert_eq!(est.design, "matched_point_pool_rare_tail_extension");
         assert_eq!(est.reachability, "witness");
+    }
+    #[test]
+    fn coverage_defaults_to_sequential_retries_and_allows_rollback() {
         assert_eq!(
             resolve_value("RUST_ODDS_RARE_TAIL_EXTENSION", None, true),
+            "after"
+        );
+        assert_eq!(
+            resolve_value("RUST_ODDS_RARE_TAIL_EXTENSION", None, false),
             ""
         );
+        for mode in ["0", "after", "overlap", ""] {
+            assert_eq!(
+                resolve_value("RUST_ODDS_RARE_TAIL_EXTENSION", Some(mode.into()), true),
+                mode
+            );
+        }
     }
     #[test]
     fn retry_requires_independent_consistent_confirmation() {
