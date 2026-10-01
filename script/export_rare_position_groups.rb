@@ -1,16 +1,19 @@
-# Run with: bin/rails runner script/export_rare_position_groups.rb OUTPUT_DIR GROUP_ID...
+# Run with: bin/rails runner script/export_rare_position_groups.rb [--include-game-dates] OUTPUT_DIR GROUP_ID...
 # Reads the same request fields as Group#odds, without posting or saving odds.
+include_game_dates = ARGV.delete("--include-game-dates")
 output_dir, *ids = ARGV
-abort "usage: bin/rails runner script/export_rare_position_groups.rb OUTPUT_DIR GROUP_ID..." if output_dir.nil? || ids.empty?
+abort "usage: bin/rails runner script/export_rare_position_groups.rb [--include-game-dates] OUTPUT_DIR GROUP_ID..." if output_dir.nil? || ids.empty?
 
 require "fileutils"
 FileUtils.mkdir_p(output_dir)
 
 ids.each do |raw_id|
   group = Group.includes(phase: :championship, team_groups: :team).find(Integer(raw_id))
+  game_fields = [:id, :home_id, :away_id, :home_score, :away_score, :played]
+  game_fields.insert(1, :date) if include_game_dates
   games_json = group.games.includes(:home, :away).as_json(
     methods: [:home_power, :away_power],
-    only: [:id, :home_id, :away_id, :home_score, :away_score, :played]
+    only: game_fields
   )
   request = group.as_json(
     include: {

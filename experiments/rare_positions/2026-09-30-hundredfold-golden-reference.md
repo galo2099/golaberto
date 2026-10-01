@@ -25,7 +25,7 @@ Portable dataset:
 
 `reference/2026-09-30-hundredfold/reference.json`
 
-It contains all 2,000 cells across five snapshots, with probabilities as
+The active dataset now contains all **2,324 cells across six snapshots**, with probabilities as
 fractions, source fingerprints, seeds, MC counts, proof labels, baseline
 evidence and held-out importance confirmation diagnostics. The matching
 `inputs/` directory contains normalized requests. They preserve every field
@@ -37,15 +37,103 @@ after decoding into `GroupType`.
 | Reference input | Source SHA-256 prefix |
 |---|---|
 | 16498 current | `44eabb47` |
-| 16653 earlier, 90 unplayed fixtures | `2d1c1d6f` |
 | 16653 current, 85 unplayed fixtures | `71d4fea8` |
-| 16982 current | `9327edcd` |
+| 16982 current (phase 4529) | `9327edcd` |
 | 16983 saved | `43969b02` |
+| 15902, phase 4392 with 200 results removed | `31d66705` |
+| 16413, phase 4451 with 200 results removed | `a2eef0a8` |
 
-These are five inputs, including two different snapshots of group 16653.
+These are six inputs, with only the newer snapshot of group 16653 active.
 Full source and semantic input fingerprints are stored in the dataset.
 
-## Search experiment
+### Expanded benchmark suite
+
+The following controlled inputs were added on September 30, 2026. The latest
+**200 played results** were reopened in each private Rails export, selected by
+game date descending and fixture ID descending on ties. Their scores were
+cleared to zero and `played` set to false. All fixture IDs, fixture/team order,
+team adjustments, zones, tiebreak rules and exported fixture powers remain
+unchanged. The database was read only. These are estimator scenarios, not
+historical reconstructions of ratings at an earlier date.
+
+| Phase | Group | Championship | Teams | Fixtures | Played after removal | Remaining |
+|---|---:|---|---:|---:|---:|---:|
+| 4392 | 15902 | Campeonato Brasileiro 2025 | 20 | 380 | 180 | **200** |
+| 4451 | 16413 | Ligue 1 2025–26 | 18 | 306 | 105 | **201** |
+
+Phase 4451 already had one unplayed fixture; reopening 200 more therefore
+leaves 201. Each case's `dataset_transform` stores all 200 selected fixture
+IDs, the original export fingerprint, the selection rule and the before/after
+counts. Portable estimator inputs omit this metadata.
+
+Both cases received **5,000,000 independent plain-MC seasons**, using the same
+four private hash-derived worker streams and base seed 947117 as the existing
+reference. Generation took 18.94 seconds for group 15902 and 19.94 seconds for
+group 16413. Necessary-capacity proof passes took 0.11 seconds together and
+certified no impossible cells. Three production/100× runs per case used seeds
+801, 808 and 1790746108560577000. Every production cell was already nonzero,
+so the extra zero-search stage stopped at 1× rather than spending its allowance.
+The six runs together took 4.44 seconds.
+
+Group 15902 has **348 MC reference cells** and 52 uncertified cells; group
+16413 has **276 MC reference cells** and 48 uncertified cells. The expanded
+active suite has **1,982 scorable cells**, including 63 impossibility proofs.
+All uncertified probabilities retain the existing exclusion rules.
+
+A four-worker Rust smoke run at seed 808 successfully scored both new inputs
+against this reference: **348/348** known-positive cells covered for phase
+4392 and **276/276** for phase 4451, with no missing reference positives or
+impossibility contradictions. Go portable-input equivalence checks, Python
+transformation/reference tests and the Rust allocation regression using the
+archived fixture pass. The date-bearing Rails exporter reproduces both
+normalized transformed inputs and their lists of removed fixture IDs.
+
+The earlier group 16653 snapshot (`2d1c1d6f`, 90 remaining games) was removed
+from `reference.json` and its `inputs/` directory, so directory-based benchmark
+runners no longer include it. Its input survives only in
+`odds-rust/tests/fixtures/group-16653-2d1c1d6f.json` for the dedicated allocation
+regression test. Its old probability reference is available in Git history.
+
+To prepare another equivalent controlled snapshot from a date-bearing export:
+
+```sh
+bin/rails runner script/export_rare_position_groups.rb --include-game-dates \
+  experiments/rare_positions/local/expanded-source 15902 16413
+python3 experiments/rare_positions/prepare_golden_snapshot.py \
+  --source experiments/rare_positions/local/expanded-source/group-15902.json \
+  --output experiments/rare_positions/local/expanded-source/phase-4392-unplayed-200.json \
+  --remove-played 200
+```
+
+Run the same MC, proof and three-seed budget harnesses described below on the
+transformed requests, then build their cases with `build_golden_reference.py`.
+When regenerating the entire active reference, pass only these six snapshots;
+archived original experiment results can otherwise reintroduce the removed
+snapshot.
+
+### Phase 4529 coverage
+
+A fresh read-only Rails export of phase **4529** on September 30, 2026 is
+byte-for-byte identical to the existing group **16982** source snapshot:
+`9327edcdfcaa5cdc0f975771e9150b2436750231ea4b417a279fb372564e2aeb`.
+It contains 20 teams and 380 fixtures: 50 played and 330 remaining. No duplicate
+snapshot or regenerated probabilities are needed. The case now records
+`phase: 4529` as source metadata; the normalized estimator request is unchanged.
+Future reference builds preserve the source phase ID when present.
+
+This case already has 5,000,000 independent MC seasons, all 400 team/rank
+cells, and the three production/100× search seeds listed below. Its 368 MC
+reference cells are scored automatically by the comparison runners; the
+remaining 32 cells have insufficient reference evidence and are excluded from
+accuracy scoring. Those exclusions remain explicit rather than becoming zeros.
+Go and Python regression tests now require phase 4529's inclusion, validate the
+portable input, and check that its reference is actually scored. The Python
+test also verifies that MC hits sum to 5,000,000 for every team and every rank.
+
+Select this existing fixture for a focused Go/Rust comparison with
+`compare_rust.py --cases 16982`; omit `--cases` to include it in the full suite.
+
+## Original five-snapshot search experiment (historical results)
 
 Estimator commit: `64fa19c9`. Four cores throughout. Production starts with
 20,000 scout seasons and the 100,000-season matched-point pool. Existing

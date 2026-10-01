@@ -74,7 +74,8 @@ def make_case(runs, proof, mc, output, estimator_commit, checks=()):
     source_hash = digest(source)
     if source_hash != first["input_sha256"]:
         raise ValueError("saved source input changed")
-    request = normalized_request(json.loads(source))
+    raw_request = json.loads(source)
+    request = normalized_request(raw_request)
     semantic_hash = digest(canonical_bytes(request))
     case_id = f"group-{first['group']}-{source_hash[:8]}"
     request_path = f"inputs/{case_id}.json"
@@ -141,6 +142,8 @@ def make_case(runs, proof, mc, output, estimator_commit, checks=()):
             })
     return {
         "case": case_id, "group": first["group"], "source_input_sha256": source_hash,
+        **({"phase": int(raw_request["phase"]["id"])} if raw_request["phase"].get("id") is not None else {}),
+        **({"dataset_transform": raw_request["dataset_transform"]} if "dataset_transform" in raw_request else {}),
         "semantic_input_sha256": semantic_hash, "request": request_path,
         "estimator_commit": estimator_commit, "seeds": [r["seed"] for r in runs],
         "plain_mc_seed": mc["seed"], "plain_mc_workers": 4,

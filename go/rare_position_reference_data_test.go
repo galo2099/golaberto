@@ -20,9 +20,15 @@ func TestGoldenReferenceDataAndPortableInputs(t *testing.T) {
 	var reference struct {
 		Cases []struct {
 			Group     int    `json:"group"`
+			Phase     int    `json:"phase"`
 			Request   string `json:"request"`
 			SourceSHA string `json:"source_input_sha256"`
-			Cells     []struct {
+			Transform *struct {
+				Method  string `json:"method"`
+				Removed int    `json:"removed_played_games"`
+				IDs     []int  `json:"removed_game_ids"`
+			} `json:"dataset_transform"`
+			Cells []struct {
 				Team          int       `json:"team"`
 				Position      int       `json:"position"`
 				Status        string    `json:"status"`
@@ -43,9 +49,12 @@ func TestGoldenReferenceDataAndPortableInputs(t *testing.T) {
 	if err := json.Unmarshal(data, &reference); err != nil {
 		t.Fatal(err)
 	}
-	if len(reference.Cases) != 5 {
-		t.Fatal("five reference snapshots required")
+	if len(reference.Cases) < 6 {
+		t.Fatal("six active reference snapshots required")
 	}
+	phase4529 := false
+	transformedPhases := make(map[int]bool)
+	serieBSnapshots := 0
 	for _, c := range reference.Cases {
 		inputData, err := os.ReadFile(filepath.Join(root, c.Request))
 		if err != nil {
@@ -57,6 +66,31 @@ func TestGoldenReferenceDataAndPortableInputs(t *testing.T) {
 		}
 		if group.Id != c.Group || len(c.Cells) != len(group.Team_groups)*len(group.Team_groups) {
 			t.Fatal("reference dimensions mismatch")
+		}
+		if c.Group == 16653 {
+			serieBSnapshots++
+			if c.Request != "inputs/group-16653-71d4fea8.json" {
+				t.Fatal("the earlier group 16653 snapshot must not be in the active set")
+			}
+		}
+		if c.Phase == 4392 || c.Phase == 4451 {
+			wantGroup, wantTeams, wantGames, wantPlayed := 15902, 20, 380, 180
+			if c.Phase == 4451 {
+				wantGroup, wantTeams, wantGames, wantPlayed = 16413, 18, 306, 105
+			}
+			if transformedPhases[c.Phase] || c.Group != wantGroup || len(group.Team_groups) != wantTeams || len(group.Games) != wantGames || countPlayedGames(group.Games) != wantPlayed {
+				t.Fatalf("invalid transformed phase %d dimensions", c.Phase)
+			}
+			if c.Transform == nil || c.Transform.Method != "unplay_latest_played_games" || c.Transform.Removed != 200 || len(c.Transform.IDs) != 200 {
+				t.Fatal("each new phase must remove exactly 200 recorded results")
+			}
+			transformedPhases[c.Phase] = true
+		}
+		if c.Phase == 4529 {
+			if phase4529 || c.Group != 16982 || len(group.Team_groups) != 20 || len(group.Games) != 380 || countPlayedGames(group.Games) != 50 {
+				t.Fatal("phase 4529 snapshot missing, duplicated, or changed")
+			}
+			phase4529 = true
 		}
 		seen := make(map[[2]int]bool, len(c.Cells))
 		for _, cell := range c.Cells {
@@ -92,6 +126,12 @@ func TestGoldenReferenceDataAndPortableInputs(t *testing.T) {
 				t.Fatalf("unknown status %s", cell.Status)
 			}
 		}
+	}
+	if !phase4529 {
+		t.Fatal("phase 4529 must be included in the golden comparison set")
+	}
+	if !transformedPhases[4392] || !transformedPhases[4451] || serieBSnapshots != 1 {
+		t.Fatal("new phases and only the newer Serie B snapshot must be included")
 	}
 }
 
