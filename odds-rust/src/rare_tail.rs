@@ -46,9 +46,8 @@ fn profile_default(name: &str) -> &'static str {
         "RUST_ODDS_LAZY_RIVALS" => "4",
         "RUST_ODDS_RARE_TAIL_QUALITY" => "order",
         "RUST_ODDS_RARE_TAIL_BUDGET_FRACTION" => "0.35",
-        "RUST_ODDS_RARE_TAIL_UNION_PATTERNS" => "64",
-        "RUST_ODDS_RARE_TAIL_RETRY" => "roots",
-        "RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION" => "reserve",
+        "RUST_ODDS_RARE_TAIL_UNION_PATTERNS" => "256",
+        "RUST_ODDS_RARE_TAIL_RETRY" | "RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION" => "0",
         "RUST_ODDS_SHARED_CONSTRAINTS" => "guided",
         "RUST_ODDS_SHARED_CONSTRAINTS_BLOCKERS" => "2",
         "RUST_ODDS_SHARED_CONSTRAINTS_RELATIVE" => "1",
@@ -525,15 +524,18 @@ mod tests {
         );
     }
     #[test]
-    fn coverage_enables_reserved_batches_with_individual_overrides() {
-        for (flag, expected, rollback) in [
-            ("RUST_ODDS_RARE_TAIL_UNION_PATTERNS", "64", "256"),
-            ("RUST_ODDS_RARE_TAIL_RETRY", "roots", "0"),
-            ("RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION", "reserve", "0"),
+    fn coverage_retains_previous_tail_defaults_and_allows_experiment_opt_in() {
+        for (flag, expected, experiment) in [
+            ("RUST_ODDS_RARE_TAIL_UNION_PATTERNS", "256", "64"),
+            ("RUST_ODDS_RARE_TAIL_RETRY", "0", "roots"),
+            ("RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION", "0", "reserve"),
         ] {
             assert_eq!(resolve_value(flag, None, true), expected);
             assert_eq!(resolve_value(flag, None, false), "");
-            assert_eq!(resolve_value(flag, Some(rollback.into()), true), rollback);
+            assert_eq!(
+                resolve_value(flag, Some(experiment.into()), true),
+                experiment
+            );
         }
     }
     #[test]

@@ -1131,7 +1131,7 @@ default and explicit `0` opt-out both passed the child-process integration test.
 
 ## R26 — bounded branch conditioning and high-variance pilot retries
 
-Status: complete; enabled in the production coverage defaults. Shipping authorized
+Status: complete; R26 defaults shipped in af8dda53, then withdrawn by R27. Shipping authorized
 on 2026-10-01. User requested the generic improvement after Fluminense
 20/seed1229 produced 469 hits but failed ESS/max-weight-share checks. Freeze
 current default-coverage Rust (2c87b146), including shared sampling, as baseline.
@@ -1198,3 +1198,34 @@ whitespace checks passed. The local coverage defaults require no extra flags;
 individual rollback flags and reproducible commands are in the report. No
 further timing allowance was used. Cold/warm gains are reported separately and
 are not independent counts of distinct new cells.
+
+
+## R27 — R26 production regression follow-up
+
+Status: complete; previous defaults restored and experimental settings opt-in. User reports multiple regressions after af8dda53. Retest
+against2c87b146 on fixed fresh seeds1301/1303/1307/1319/1321, both16653
+snapshots and16498, four workers with serial full requests. Initial15 pairs
+have6 gains/3 losses. All three losses have unchanged/promising pilot evidence
+but no final allocation: Cruzeiro19/1303, Athletico18/1307, Chapecoense4/1319.
+They are not impossibility changes. Improved/new pilot candidates consume final
+capacity ahead of older candidates; reserve-first does not protect the older
+version's candidate set. Ablate root learning, union cutoff and batch upgrades
+individually, and validate full legacy-profile rollback. Preserve acceptance
+checks and existing native coverage/shared settings. Production examples/seeds
+have been requested asynchronously; do not claim those exact runs reproduced.
+
+
+R27 resolution: partial ablations (15 pairs each) do not preserve all prior
+cells: root-off4 gains/5 losses; union256-only5/3; upgrade-off8/3. Restore all
+three defaults together (256/0/0) and preserve original unfitted weight operation
+order. Normal-budget correction screen15 pairs:6 gains/1 loss (elapsed-time
+funding still varies);24 warm pairs5 gains/0 losses, total wall−0.33%, CPU+0.57%,
+max individual increase7.52%. Group16498 warm median wall+1.34%, CPU+4.18%; do
+not claim a speedup or exact cold-request coverage guarantee. A diagnostic pair
+with fraction2 in both arms returns identical complete response objects; this
+is an offline control, not additional production allowance. Full suite88 pass,
+2 DB tests ignored, serialized requests. Reports and raw summaries:
+experiments/rare_positions/2026-10-01-rust-tail-regressions.md and
+2026-10-01-tail-regressions/*.json.gz. No DB/UI changes. Next allocation research
+should publish ordinary baseline results before spending unused capacity on
+new proposals; deterministic work quotas require separate measurement.

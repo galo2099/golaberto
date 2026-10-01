@@ -1118,12 +1118,15 @@ impl LazyJoint {
                 .product();
             let mut weight = match self.roots.get(&key) {
                 Some(Some(p)) => {
-                    let q = alpha * root_prob / mass
-                        + (1. - alpha)
-                            * self.root_allocation.get(&key).copied().unwrap_or_else(|| {
-                                p.mass * p.joint.residual_hint.max(1e-80) * p.tilt
-                                    / self.mixture_mass
-                            });
+                    let q = if let Some(&allocation) = self.root_allocation.get(&key) {
+                        alpha * root_prob / mass + (1. - alpha) * allocation
+                    } else {
+                        // Preserve the pre-experiment floating-point operation
+                        // order when no learned allocation is active.
+                        alpha * root_prob / mass
+                            + (1. - alpha) * p.mass * p.joint.residual_hint.max(1e-80) * p.tilt
+                                / self.mixture_mass
+                    };
                     if let Some(cases) = self.cases.get(&key) {
                         // Retain the primary guided mode even for an enumerated union.
                         // Numerical zero mass is not an unrestricted infeasibility proof.

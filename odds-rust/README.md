@@ -538,25 +538,22 @@ checks; coverage will be lower. Explicit experimental flags override profile
 defaults. Case enumeration, learned fixture bias, inside-draw propagation and
 point-tilt reallocation remain disabled in this profile.
 
-Coverage also limits complete target-path union construction to 64 patterns;
-larger events use the existing full-support sampled-path proposal. For pilots
-below 12 effective samples, target-path second moments can train a branch
-allocation using the existing adaptive retry batch. Ordinary final main/check
-batches are reserved first; weak-pilot batches can then grow toward 32 predicted
-effective samples using spare measured worker capacity. Published samples and
-confirmation are independent of training, and acceptance gates are unchanged.
-This is generic across teams and ranks. It cannot guarantee that every reachable
-cell receives an estimate.
+The tail allocation experiment remains opt-in after production regression
+reports. Default coverage uses the previous complete-union cap of 256,
+existing witness/alternate retries, and ordinary final-batch allocation.
 
-These defaults can be rolled back individually with
-`RUST_ODDS_RARE_TAIL_UNION_PATTERNS=256`, `RUST_ODDS_RARE_TAIL_RETRY=0`, and
-`RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION=0`. See the
-[tail allocation experiment](../experiments/rare_positions/2026-10-01-rust-tail-retry.md)
-for paired gains, losses and latency increases. The allowance remains unchanged;
-49 paired requests gained 11 nonzero cell-runs and lost two. The final 24 warm
-pairs gained 13 and lost none, with total wall time down 1.15% and CPU down
-2.93%. Historical group 16653 median latency rose 0.55%. The largest cold-pair
-increase was 11.59%; see the report for the remaining funding-related misses.
+To explicitly enable the experiment, set all three:
+`RUST_ODDS_RARE_TAIL_UNION_PATTERNS=64`, `RUST_ODDS_RARE_TAIL_RETRY=roots`, and
+`RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION=reserve`. It learns target-path allocation
+from pilot second moments and enlarges weak-pilot main/check batches from spare
+capacity. Its published estimates retain the existing quality and confirmation
+gates, but altered candidate selection can displace earlier successful cells.
+Restore defaults individually with `256`, `0`, and `0`, respectively.
+
+The [tail allocation experiment](../experiments/rare_positions/2026-10-01-rust-tail-retry.md)
+records the initial gains/losses. The
+[regression follow-up](../experiments/rare_positions/2026-10-01-rust-tail-regressions.md)
+records the decision to restore the previous default configuration.
 
 The portfolio receives 35% of elapsed native calculation time, excluding
 upload/queue wait. Training stops starting jobs after 65% of that allowance;

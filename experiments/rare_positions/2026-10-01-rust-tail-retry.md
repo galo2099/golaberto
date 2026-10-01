@@ -2,12 +2,17 @@
 
 ## Status and objective
 
+**Production regression follow-up:** the three R26 defaults are restored
+to their pre-release settings; the new strategy remains opt-in. See the
+[regression follow-up](2026-10-01-rust-tail-regressions.md). The results below
+are the original R26 campaign, not evidence that every production cell improves.
+
 Implement a generic improvement for high-variance rare cells within the existing
 Rust coverage allowance. No team IDs or ranks appear in allocation/search rules.
 The previous shipped default (`2c87b146`) is the baseline. All probabilities in
 this report are fractions; multiply by 100 for percentages.
 
-The selected changes are enabled in the coverage profile. Shipping was authorized
+The selected changes were enabled in af8dda53 and are now opt-in. Shipping was authorized
 on 2026-10-01. Separate uncommitted late-gap changes are excluded from the
 measured release tree and this release.
 
@@ -186,7 +191,12 @@ python3 experiments/rare_positions/benchmark_propagated_joint.py \
   --output /tmp/golaberto-r26-validation
 ```
 
-Current coverage defaults require no flags. To reproduce legacy construction,
+The commands above describe the original af8dda53 defaults. On the corrected
+branch, reproducing the R26 strategy requires three candidate flags:
+`--flag RUST_ODDS_RARE_TAIL_UNION_PATTERNS=64`,
+`--flag RUST_ODDS_RARE_TAIL_RETRY=roots`, and
+`--flag RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION=reserve`. For the exact archived
+implementation, build af8dda53 in an isolated checkout. To reproduce legacy construction,
 retry and allocation with the same binary, set all three:
 
 ```sh
