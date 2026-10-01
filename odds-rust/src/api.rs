@@ -152,6 +152,7 @@ pub fn calculate_logged(
         "pool_samples":100000,"sort":request.phase.sort,
         "rare_tail_profile":crate::rare_tail::profile(),
         "rare_tail_quality":crate::rare_tail::value("RUST_ODDS_RARE_TAIL_QUALITY"),
+        "rare_tail_extension":crate::rare_tail::value("RUST_ODDS_RARE_TAIL_EXTENSION"),
         "rare_tail_shared_guides":crate::rare_tail::value("RUST_ODDS_RARE_TAIL_SHARE")=="1",
         "shared_constraints":crate::rare_tail::value("RUST_ODDS_SHARED_CONSTRAINTS"),
         "shared_constraints_blockers":crate::rare_tail::value("RUST_ODDS_SHARED_CONSTRAINTS_BLOCKERS"),

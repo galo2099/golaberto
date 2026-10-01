@@ -50,7 +50,7 @@ def main():
                     events=[json.loads(line) for line in log.splitlines() if line.endswith('}')]
                     resources[name]['stages']={stage:[e['elapsed_ms'] for e in events if e.get('event')=='rust_odds_stage' and e.get('stage')==stage][2:] for stage in ['scout','pool.mc','search.early_proofs','search.initial_conditioning','search.guided','search.extra','search.witnesses','search.point_tilt','search.peers','search.domains','search.rare_tail','search.late_gap_rescue','search.reconcile']}
                     resources[name]['shared']=[e for e in events if e.get('event','').startswith('rust_odds_shared_constraints')]
-                    resources[name]['tail']=[e for e in events if e.get('event') in ('rust_odds_rare_tail','rust_odds_rare_tail_summary','rust_odds_rare_tail_training')]
+                    resources[name]['tail']=[e for e in events if e.get('event','').startswith('rust_odds_rare_tail')]
                     resources[name]['joint']=[e for e in events if e.get('event') in ('rust_odds_joint_caps','rust_odds_joint_planning')]
             row=dict(input=path.name,latency_ms=times,resources=resources,comparisons=comparisons,comparison=compare(responses['baseline'],responses['candidate']))
             row['median_ms']={k:statistics.median(v) for k,v in times.items()}
@@ -66,7 +66,7 @@ def main():
                     responses[name]=json.loads(out.read_text())
                     events=[json.loads(line) for line in logs.splitlines() if line.endswith('}')]
                     complete=next(e for e in events if e.get('event')=='rust_odds_complete')
-                    timing[name]=dict(shared=[e for e in events if e.get('event','').startswith('rust_odds_shared_constraints')],tail=[e for e in events if e.get('event') in ('rust_odds_rare_tail','rust_odds_rare_tail_summary','rust_odds_rare_tail_training')],http_ms=elapsed,cpu_ms=1000*(after.ru_utime+after.ru_stime-before.ru_utime-before.ru_stime),cells=complete['cells'],stages={e['stage']:e['elapsed_ms'] for e in events if e.get('event')=='rust_odds_stage'},joint=[e for e in events if e.get('event') in ('rust_odds_joint_caps','rust_odds_joint_allocation')])
+                    timing[name]=dict(shared=[e for e in events if e.get('event','').startswith('rust_odds_shared_constraints')],tail=[e for e in events if e.get('event','').startswith('rust_odds_rare_tail')],http_ms=elapsed,cpu_ms=1000*(after.ru_utime+after.ru_stime-before.ru_utime-before.ru_stime),cells=complete['cells'],stages={e['stage']:e['elapsed_ms'] for e in events if e.get('event')=='rust_odds_stage'},joint=[e for e in events if e.get('event') in ('rust_odds_joint_caps','rust_odds_joint_allocation')])
                 row=dict(input=path.name,seed=seed,timing=timing,comparison=compare(responses['baseline'],responses['candidate']))
                 summary['pairs'].append(row)
                 print(json.dumps(dict(input=row['input'],seed=seed,baseline=timing['baseline']['cells'],candidate=timing['candidate']['cells'],gain=len(row['comparison']['gains']),lost=row['comparison']['lost'],wall_ms={k:round(v['http_ms'],2) for k,v in timing.items()})),flush=True)

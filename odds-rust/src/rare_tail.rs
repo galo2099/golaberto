@@ -15,6 +15,7 @@ use crate::{
     search::{apply, parallel, Cell},
 };
 use serde_json::json;
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::time::Instant;
 
 // Coverage is the default profile, with explicit environment overrides. Reading it does
@@ -93,6 +94,8 @@ pub fn run(
     if !["union", "lazy", "portfolio"].contains(&mode.as_str()) {
         return (0, 0);
     }
+    let extension_mode = value("RUST_ODDS_RARE_TAIL_EXTENSION");
+    let extension = mode == "portfolio" && ["after", "overlap"].contains(&extension_mode.as_str());
     let mut cells: Vec<_> = estimates
         .iter()
         .enumerate()
@@ -150,11 +153,15 @@ pub fn run(
                         .ok()
                         .filter(|&v| v >= 1 && v <= 6)
                         .unwrap_or(6),
-                    target_patterns: value("RUST_ODDS_RARE_TAIL_UNION_PATTERNS")
-                        .parse::<usize>()
-                        .ok()
-                        .filter(|&v| v >= 1 && v <= 256)
-                        .unwrap_or(256),
+                    target_patterns: if extension {
+                        256
+                    } else {
+                        value("RUST_ODDS_RARE_TAIL_UNION_PATTERNS")
+                            .parse::<usize>()
+                            .ok()
+                            .filter(|&v| v >= 1 && v <= 256)
+                            .unwrap_or(256)
+                    },
                     feasible_cases: 128,
                 },
             )
@@ -186,7 +193,7 @@ pub fn run(
                 shared.clone(),
             ) {
                 let clock = Instant::now();
-                let fit_roots = value("RUST_ODDS_RARE_TAIL_RETRY") == "roots";
+                let fit_roots = !extension && value("RUST_ODDS_RARE_TAIL_RETRY") == "roots";
                 let (mut r, moments) = if fit_roots {
                     let (r, moments) = p.sample_training(m, 1000, derive(stream, "lazy"));
                     (r, Some(moments))
@@ -352,20 +359,27 @@ pub fn run(
     let remaining_ms = (allowance_ms - start.elapsed().as_secs_f64() * 1000.).max(0.);
     let mut bins = vec![0_f64; workers.clamp(1, 4)];
     let mut funded = Vec::new();
+    let mut pending = Vec::new();
     let mut funded_bins = Vec::new();
-    let reserve = value("RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION") == "reserve";
-    let pilot_ess_target = match value("RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION").as_str() {
-        "robust" => 20.,
-        "robust32" => 32.,
-        _ => 10.,
+    let reserve = !extension && value("RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION") == "reserve";
+    let pilot_ess_target = if extension {
+        10.
+    } else {
+        match value("RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION").as_str() {
+            "robust" => 20.,
+            "robust32" => 32.,
+            _ => 10.,
+        }
     };
     for p in plans {
-        let ess_target =
-            if value("RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION") == "concentrated" && p.2.ess < 12. {
-                32.
-            } else {
-                pilot_ess_target
-            };
+        let ess_target = if !extension
+            && value("RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION") == "concentrated"
+            && p.2.ess < 12.
+        {
+            32.
+        } else {
+            pilot_ess_target
+        };
         let n = if mode == "union" {
             8000
         } else {
@@ -390,12 +404,14 @@ pub fn run(
             bins[bin] += cost;
             funded.push((p, n, check));
             funded_bins.push(bin);
+        } else if extension {
+            pending.push(p);
         }
     }
     // Fund the ordinary batches first. Weak pilots may consume spare capacity,
     // but cannot displace a batch already funded for another cell.
     if reserve && mode != "union" {
-        let mut loads = bins;
+        let mut loads = bins.clone();
         for ((p, n, check), bin) in funded.iter_mut().zip(funded_bins) {
             if !rough || p.2.ess >= 12. {
                 continue;
@@ -415,7 +431,53 @@ pub fn run(
         }
     }
     let plans = funded;
-    let results = parallel(plans.len(), workers, |i| {
+    // Original jobs and sampling streams are fixed before any extension work.
+    // Status 0 is in flight, 1 accepted, 2 rejected; only rejected jobs may retry.
+    let status: Vec<_> = (0..plans.len()).map(|_| AtomicU8::new(0)).collect();
+    let final_start = Instant::now();
+    let extension_deadline_ms = if extension_mode == "overlap" {
+        bins.iter().copied().fold(0., f64::max).min(remaining_ms)
+    } else {
+        remaining_ms
+    };
+    let mut extension_jobs: Vec<_> = if extension {
+        plans
+            .iter()
+            .enumerate()
+            .map(|(i, (p, _, _))| (Some(i), p))
+            .chain(pending.iter().map(|p| (None, p)))
+            .map(|(source, p)| {
+                // Overlap uses smaller fixed batches to fit idle-worker gaps;
+                // the sequential arm targets more effective samples. Gates are identical.
+                let ess_target = if extension_mode == "overlap" {
+                    if rough {
+                        10.
+                    } else {
+                        20.
+                    }
+                } else if rough {
+                    32.
+                } else {
+                    40.
+                };
+                let n = (ess_target * p.2.samples as f64 / p.2.ess.max(0.1)).ceil() as usize;
+                let n = n.clamp(
+                    if rough { 1000 } else { 2000 },
+                    if rough { 6000 } else { 8000 },
+                );
+                let check = (n / 2).max(1000);
+                let cost = 1.2 * p.5 / p.2.samples.max(1) as f64 * (n + check) as f64;
+                (source, p, n, check, cost)
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
+    extension_jobs.sort_by(|a, b| {
+        a.4.total_cmp(&b.4)
+            .then(a.1 .0.index(m.n).cmp(&b.1 .0.index(m.n)))
+    });
+    let ordinary = |i: usize| {
         let ((cell, plan, pilot, setup_ms, _, _), main_draws, check_draws) = &plans[i];
         let start = Instant::now();
         let main = plan.sample(
@@ -439,32 +501,121 @@ pub fn run(
             Result::default()
         };
         let accepted = accepted(&main, &check, rough);
+        status[i].store(if accepted { 1 } else { 2 }, Ordering::Release);
         emit(
             log,
             "rust_odds_rare_tail",
             json!({"group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,"setup_ms":setup_ms,"pilot_ess":pilot.ess,"pilot_hits":pilot.hits,"main_draws":main.samples,"main_hits":main.hits,"main_ess":main.ess,"main_max_share":main.max_share,"main_batch_gap":main.batch_gap,"check_relative_se":if check.probability>0.{Some(check.std_err/check.probability)}else{None},"quality":if rough{"order"}else{"current"},"probability":main.probability,"relative_se":if main.probability>0.{Some(main.std_err/main.probability)}else{None},"check_probability":check.probability,"check_ess":check.ess,"accepted":accepted,"sampling_ms":start.elapsed().as_secs_f64()*1000.,"plan":plan.describe(m)}),
         );
-        (*cell, main, check.work, accepted)
-    });
-    let mut found = shared_found;
-    for (cell, r, check_work, accepted) in results {
-        work += r.work + check_work;
-        if accepted {
-            apply(
-                &mut estimates[cell.index(m.n)],
-                &r,
-                "matched_point_pool_rare_tail",
-            );
-            found += 1;
+        (*cell, main, check.work, accepted, false)
+    };
+    let extra = |i: usize| {
+        let (source, p, n, check_n, cost) = &extension_jobs[i];
+        if source.is_some_and(|j| status[j].load(Ordering::Acquire) != 2)
+            || final_start.elapsed().as_secs_f64() * 1000. + cost > extension_deadline_ms
+        {
+            return None;
         }
+        let cell = p.0;
+        let clock = Instant::now();
+        // Retry selection can use an ordinary batch's failure, but none of its
+        // observations contribute to these fresh main/check estimates.
+        let main = p.1.sample(
+            m,
+            *n,
+            derive(
+                seed,
+                &format!(
+                    "rare-tail-extension-main-{}-{}",
+                    m.ids[cell.team], cell.rank
+                ),
+            ),
+        );
+        let check = if publishable(&main, rough) {
+            p.1.sample(
+                m,
+                *check_n,
+                derive(
+                    seed,
+                    &format!(
+                        "rare-tail-extension-check-{}-{}",
+                        m.ids[cell.team], cell.rank
+                    ),
+                ),
+            )
+        } else {
+            Result::default()
+        };
+        let ok = accepted(&main, &check, rough);
+        emit(
+            log,
+            "rust_odds_rare_tail_extension",
+            json!({"group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,"mode":extension_mode,"source":if source.is_some(){"rejected_final"}else{"unfunded_pilot"},"main_draws":main.samples,"main_hits":main.hits,"main_ess":main.ess,"main_max_share":main.max_share,"main_relative_se":if main.probability>0.{Some(main.std_err/main.probability)}else{None},"main_batch_gap":main.batch_gap,"probability":main.probability,"check_probability":check.probability,"check_hits":check.hits,"check_ess":check.ess,"check_relative_se":if check.probability>0.{Some(check.std_err/check.probability)}else{None},"accepted":ok,"forecast_ms":cost,"sampling_ms":clock.elapsed().as_secs_f64()*1000.}),
+        );
+        Some((cell, main, check.work, ok, true))
+    };
+    let results = if extension_mode == "overlap" && extension {
+        // All ordinary jobs are dispatched ahead of extension jobs, on the same
+        // worker queue. No extra worker or serial time allowance is introduced.
+        parallel(plans.len() + extension_jobs.len(), workers, |i| {
+            if i < plans.len() {
+                Some(ordinary(i))
+            } else {
+                extra(i - plans.len())
+            }
+        })
+    } else {
+        let mut r = parallel(plans.len(), workers, |i| Some(ordinary(i)));
+        if extension {
+            r.extend(parallel(extension_jobs.len(), workers, extra));
+        }
+        r
+    };
+    let mut found = shared_found;
+    let mut extra_found = 0;
+    let mut extra_draws = 0;
+    for (cell, r, check_work, accepted, extra) in results.into_iter().flatten() {
+        work += r.work + check_work;
+        if extra {
+            extra_draws += r.samples;
+        }
+        // Results are in queue order: commit all ordinary estimates first.
+        if accepted && commit_estimate(&mut estimates[cell.index(m.n)], &r, extra) {
+            found += 1;
+            extra_found += usize::from(extra);
+        }
+    }
+    if extension {
+        emit(
+            log,
+            "rust_odds_rare_tail_extension_summary",
+            json!({"group":m.request.id,"mode":extension_mode,"ordinary_finalists":plans.len(),"unfunded_pilots":pending.len(),"accepted":extra_found,"main_draws":extra_draws,"final_phase_ms":final_start.elapsed().as_secs_f64()*1000.,"deadline_ms":extension_deadline_ms}),
+        );
     }
     emit(
         log,
         "rust_odds_rare_tail_summary",
-        json!({"group":m.request.id,"cells":cells.len(),"finalists":plans.len(),"accepted":found,"elapsed_ms":start.elapsed().as_secs_f64()*1000.,"allowance_ms":allowance_ms,"remaining_after_training_ms":remaining_ms,"work":work,"batch_allocation":value("RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION"),"root_retry":value("RUST_ODDS_RARE_TAIL_RETRY"),"union_patterns":value("RUST_ODDS_RARE_TAIL_UNION_PATTERNS"),"shared_guides":shared.as_ref().map(|s|s.describe())}),
+        json!({"group":m.request.id,"cells":cells.len(),"finalists":plans.len(),"accepted":found,"elapsed_ms":start.elapsed().as_secs_f64()*1000.,"allowance_ms":allowance_ms,"remaining_after_training_ms":remaining_ms,"work":work,"batch_allocation":value("RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION"),"root_retry":value("RUST_ODDS_RARE_TAIL_RETRY"),"union_patterns":value("RUST_ODDS_RARE_TAIL_UNION_PATTERNS"),"extension":extension_mode,"effective_union_patterns":if extension{"256".into()}else{value("RUST_ODDS_RARE_TAIL_UNION_PATTERNS")},"effective_root_retry":if extension{"0".into()}else{value("RUST_ODDS_RARE_TAIL_RETRY")},"effective_batch_allocation":if extension{"0".into()}else{value("RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION")},"shared_guides":shared.as_ref().map(|s|s.describe())}),
     );
     (found, work)
 }
+// Ordinary results are committed first; extension results can only fill zeros.
+fn commit_estimate(est: &mut Estimate, result: &Result, extension: bool) -> bool {
+    if extension && est.probability != 0. {
+        return false;
+    }
+    apply(
+        est,
+        result,
+        if extension {
+            "matched_point_pool_rare_tail_extension"
+        } else {
+            "matched_point_pool_rare_tail"
+        },
+    );
+    true
+}
+
 fn reserve_extension(
     main: usize,
     check: usize,
@@ -509,6 +660,56 @@ fn publishable(r: &Result, rough: bool) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn extension_preserves_existing_estimate_and_its_metadata() {
+        let r = Result {
+            probability: 2e-26,
+            ess: 20.,
+            hits: 100,
+            samples: 2000,
+            ..Result::default()
+        };
+        let mut est = Estimate {
+            probability: 1e-25,
+            std_err: 2e-26,
+            design: "ordinary".into(),
+            reachability: "witness".into(),
+            ..Estimate::default()
+        };
+        let before = serde_json::to_value(&est).unwrap();
+        assert!(!commit_estimate(&mut est, &r, true));
+        assert_eq!(serde_json::to_value(&est).unwrap(), before);
+        est.probability = 0.;
+        assert!(commit_estimate(&mut est, &r, true));
+        assert_eq!(est.probability, r.probability);
+        assert_eq!(est.design, "matched_point_pool_rare_tail_extension");
+        assert_eq!(est.reachability, "witness");
+        assert_eq!(
+            resolve_value("RUST_ODDS_RARE_TAIL_EXTENSION", None, true),
+            ""
+        );
+    }
+    #[test]
+    fn retry_requires_independent_consistent_confirmation() {
+        let main = Result {
+            weighted: true,
+            probability: 1e-26,
+            std_err: 2e-27,
+            hits: 100,
+            ess: 20.,
+            max_share: 0.1,
+            batch_gap: 0.2,
+            ..Result::default()
+        };
+        assert!(accepted(&main, &main, true));
+        assert!(!accepted(&main, &Result::default(), true));
+        let mut check = main.clone();
+        check.probability = 1e-24;
+        assert!(!accepted(&main, &check, true));
+        check.probability = main.probability;
+        check.hits = 29;
+        assert!(!accepted(&main, &check, true));
+    }
     #[test]
     fn spare_capacity_only_extends_fixed_main_and_confirmation_batches() {
         assert!(reserve_extension(1000, 1000, 1000, 10., 0.01, 27.).is_none());

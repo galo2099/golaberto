@@ -562,6 +562,37 @@ latency guarantee. See the [campaign report](../experiments/rare_positions/2026-
 and [progress ledger](../FUTURE_EXPERIMENTS.md) for paired latency, CPU, memory,
 regressions, seeds and independent-reference comparisons.
 
+### Experimental retries after ordinary estimates
+
+`RUST_ODDS_RARE_TAIL_EXTENSION=after` enables a safer allocation experiment:
+ordinary coverage pilots, funding and final batches run first. Only remaining
+zeros can receive a fresh fixed main batch and independent confirmation, reusing
+an already trained proposal. Accepted ordinary estimates and their metadata are
+preserved before matrix reconciliation. The retry retains the same quality gates
+and four workers, and receives only the unused part of the existing allowance.
+It can increase actual request latency; unused allowance is not free wall time.
+
+`overlap` is a separate experiment using smaller batches on idle workers within
+the predicted ordinary final span. It skips retries whose ordinary result is
+still in flight. Neither mode is enabled by default. Both select the restored
+ordinary settings (`256` patterns, existing witness/alternate retries, ordinary
+allocation), even if the three R26 experimental settings above are also set.
+Other explicit profile settings still apply. Use the normal coverage profile.
+
+```sh
+RUST_ODDS_RARE_TAIL=coverage RUST_ODDS_RARE_TAIL_EXTENSION=after \
+  odds-rust/target/release/golaberto-odds serve
+```
+
+Set `RUST_ODDS_RARE_TAIL_EXTENSION=0` or unset it to disable the extension.
+The preserved-result guarantee is within a request: the ordinary allocator still
+uses elapsed time, so separate runs can fund different ordinary cells even with
+a fixed seed. The [retry allocation report](../experiments/rare_positions/2026-10-01-rust-tail-preservation.md)
+records paired coverage, remaining losses and latency increases. New log events
+`rust_odds_rare_tail_extension` and `rust_odds_rare_tail_extension_summary` record
+source, batch sizes, evidence, acceptance and time; start/summary logs identify
+the selected mode and effective ordinary settings.
+
 ### Shared blocker conditioning in the coverage profile
 
 The default coverage profile enables the strongest tested

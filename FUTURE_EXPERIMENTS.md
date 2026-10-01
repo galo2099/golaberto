@@ -1229,3 +1229,39 @@ experiments/rare_positions/2026-10-01-rust-tail-regressions.md and
 2026-10-01-tail-regressions/*.json.gz. No DB/UI changes. Next allocation research
 should publish ordinary baseline results before spending unused capacity on
 new proposals; deterministic work quotas require separate measurement.
+
+## R28 — Preserve ordinary estimates before retry allocation
+
+Status: complete; shipped as an opt-in, extension remains off by default.
+Baseline: current Rust master34000cc1, four workers. Freeze ordinary pilots, funding, sample counts
+and RNG streams; commit ordinary estimates before new work can fill zeros.
+Compare `RUST_ODDS_RARE_TAIL_EXTENSION=after` (leftover allowance after ordinary
+batches) against `overlap` (idle workers within the predicted ordinary final
+span). Reuse trained plans, fresh fixed main/check streams, unchanged acceptance
+gates, no added budget. Measure full-request wall/CPU, extra confirmed estimates,
+paired losses, and memory. A wall-clock admission forecast is not a hard latency
+bound and cannot guarantee identical coverage across separate processes.
+
+
+R28 results: sequential cold15 pairs9 gained/4 lost cell-runs, wall+1.24%,
+CPU+0.45%; all four losses are identical pilots with no ordinary final funding.
+Initial overlap15 pairs6/2, wall+0.94%, CPU+2.13%, only2 accepted retries.
+Smaller fixed overlap batches15 pairs10/2, wall+1.81%, CPU+3.00%,5 retries.
+Sequential warm24 pairs18/1, wall+0.10%, CPU−0.44%;16 direct retries are two
+historical16653 cells repeated eight times, not18 distinct cells. Historical
+16653 median wall+4.49% (tail+35.70ms). Smaller overlap warm24 pairs8/6,
+wall−0.57%, CPU−1.30%,8 direct retries for one historical cell. Fresh sequential
+holdout14 pairs/all7 snapshots:1/0, wall+2.09%, CPU+2.26%, max pair+4.90%.
+No proof/reachability/game-importance regressions. No extra allowance/fifth worker.
+
+Ordinary-result preservation is verified within requests; elapsed-time funding
+still prevents identical coverage across separate processes. Offline fraction2
+control/16498/1307 has all15 ordinary finals identical, retains all baseline
+positives and confirms one extra (318/rank4). This is a correctness control,
+not production timing.90 Rust tests pass,2 DB tests ignored. Report, source
+patches, input/executable hashes and raw summaries:
+experiments/rare_positions/2026-10-01-rust-tail-preservation.md and
+2026-10-01-tail-preservation/. Recommend only optional `after`; keep defaults
+unchanged under the latency constraint. Next experiment: deterministic ordinary
+work reservation, accounting for in-flight proposal setup before optional root
+learning or larger batches; include extension-off variation as a control.
