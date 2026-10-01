@@ -49,6 +49,7 @@ fn profile_default(name: &str) -> &'static str {
         // Faster native stages otherwise reduce funding for the same rare
         // plans. Reallocate part of their CPU savings to preserve coverage.
         "RUST_ODDS_RARE_TAIL_BUDGET_FRACTION" => "0.45",
+        "RUST_ODDS_RARE_TAIL_CONFIRM_MORE" => "1.5",
         "RUST_ODDS_RARE_TAIL_EXTENSION" => "after",
         "RUST_ODDS_RARE_TAIL_UNION_PATTERNS" => "256",
         "RUST_ODDS_RARE_TAIL_RETRY" | "RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION" => "0",
@@ -116,7 +117,9 @@ pub fn run(
         .ok()
         .filter(|v| v.is_finite() && *v >= 0. && *v <= 2.)
         .unwrap_or(0.45);
-    let allowance_ms = log.map_or(unlogged_search_ms, |l| l.calculation_elapsed_ms()) * fraction;
+    let native_ms = log.map_or(unlogged_search_ms, |l| l.calculation_elapsed_ms());
+    let allowance_ms = native_ms * fraction;
+    let more_fraction = confirmation_fraction(&value("RUST_ODDS_RARE_TAIL_CONFIRM_MORE"));
     let shared_fraction = value("RUST_ODDS_SHARED_CONSTRAINTS_FRACTION")
         .parse::<f64>()
         .ok()
@@ -357,8 +360,20 @@ pub fn run(
         .and_then(|s| s.parse::<usize>().ok())
         .unwrap_or(8)
         .min(32);
-    plans.retain(|p| p.2.hits >= 3 && p.2.ess >= if rough { 1.5 } else { 2. });
-    plans.truncate(finalists);
+    let mut weak = Vec::new();
+    if more_fraction > 0. {
+        let (strong, rest): (Vec<_>, Vec<_>) = plans
+            .into_iter()
+            .partition(|p| p.2.hits >= 3 && p.2.ess >= if rough { 1.5 } else { 2. });
+        plans = strong;
+        weak = rest;
+        if plans.len() > finalists {
+            weak.extend(plans.split_off(finalists));
+        }
+    } else {
+        plans.retain(|p| p.2.hits >= 3 && p.2.ess >= if rough { 1.5 } else { 2. });
+        plans.truncate(finalists);
+    }
     let remaining_ms = (allowance_ms - start.elapsed().as_secs_f64() * 1000.).max(0.);
     let mut bins = vec![0_f64; workers.clamp(1, 4)];
     let mut funded = Vec::new();
@@ -407,7 +422,7 @@ pub fn run(
             bins[bin] += cost;
             funded.push((p, n, check));
             funded_bins.push(bin);
-        } else if extension {
+        } else if extension || more_fraction > 0. {
             pending.push(p);
         }
     }
@@ -588,11 +603,136 @@ pub fn run(
             extra_found += usize::from(extra);
         }
     }
+    let ordinary_final_phase_ms = final_start.elapsed().as_secs_f64() * 1000.;
+    // The additional allowance confirms already-built proposals only.
+    // Ordinary results are frozen first; new independent streams can only fill zeros.
+    if more_fraction > 0. {
+        let before: Vec<_> = estimates
+            .iter()
+            .enumerate()
+            .filter(|(_, e)| e.probability > 0.)
+            .map(|(i, e)| (i, serde_json::to_value(e).unwrap()))
+            .collect();
+        let extra_start = Instant::now();
+        let extra_allowance = native_ms * more_fraction;
+        let mut jobs: Vec<_> = plans
+            .iter()
+            .map(|(p, _, _)| p)
+            .chain(pending.iter())
+            .chain(weak.iter())
+            .filter(|p| {
+                estimates[p.0.index(m.n)].probability == 0.
+                    && !estimates[p.0.index(m.n)]
+                        .reachability
+                        .starts_with("impossible")
+            })
+            .filter_map(|p| {
+                confirmation_batches(&p.2).map(|n| {
+                    let cost = 1.2 * p.5 / p.2.samples as f64 * (2 * n) as f64;
+                    (p, n, cost)
+                })
+            })
+            .collect();
+        jobs.sort_by(|a, b| {
+            a.2.total_cmp(&b.2)
+                .then(a.0 .0.index(m.n).cmp(&b.0 .0.index(m.n)))
+        });
+        let eligible = jobs.len();
+        let mut loads = vec![0_f64; workers.clamp(1, 4)];
+        jobs.retain(|(_, _, cost)| {
+            let bin = (0..loads.len())
+                .min_by(|&a, &b| loads[a].total_cmp(&loads[b]))
+                .unwrap();
+            if cost.is_finite() && *cost >= 0. && loads[bin] + cost <= extra_allowance {
+                loads[bin] += cost;
+                true
+            } else {
+                false
+            }
+        });
+        let funded = jobs.len();
+        let extra_results = parallel(jobs.len(), workers, |i| {
+            let (p, n, cost) = jobs[i];
+            if extra_start.elapsed().as_secs_f64() * 1000. + cost > extra_allowance {
+                return None;
+            }
+            let clock = Instant::now();
+            let cell = p.0;
+            // Fixed batch sizes are selected solely from independent training data.
+            let main = p.1.sample(
+                m,
+                n,
+                derive(
+                    seed,
+                    &format!(
+                        "rare-tail-confirm-more-main-{}-{}",
+                        m.ids[cell.team], cell.rank
+                    ),
+                ),
+            );
+            let check = if publishable(&main, rough) {
+                p.1.sample(
+                    m,
+                    n,
+                    derive(
+                        seed,
+                        &format!(
+                            "rare-tail-confirm-more-check-{}-{}",
+                            m.ids[cell.team], cell.rank
+                        ),
+                    ),
+                )
+            } else {
+                Result::default()
+            };
+            let ok = accepted(&main, &check, rough);
+            emit(
+                log,
+                "rust_odds_rare_tail_confirm_more",
+                json!({
+                    "group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,
+                    "pilot_hits":p.2.hits,"pilot_ess":p.2.ess,"main_draws":main.samples,
+                    "main_hits":main.hits,"main_ess":main.ess,"main_max_share":main.max_share,
+                    "probability":main.probability,"check_draws":check.samples,"check_hits":check.hits,
+                    "check_ess":check.ess,"check_probability":check.probability,"accepted":ok,
+                    "forecast_ms":cost,"sampling_ms":clock.elapsed().as_secs_f64()*1000.
+                }),
+            );
+            Some((cell, main, check.work, ok))
+        });
+        let mut added = 0;
+        let mut completed = 0;
+        let mut extra_work = 0;
+        for (cell, r, check_work, ok) in extra_results.into_iter().flatten() {
+            completed += 1;
+            extra_work += r.work + check_work;
+            if ok && commit_estimate(&mut estimates[cell.index(m.n)], &r, true) {
+                estimates[cell.index(m.n)].design =
+                    "matched_point_pool_rare_tail_confirm_more".into();
+                added += 1;
+            }
+        }
+        work += extra_work;
+        found += added;
+        let preserved = before
+            .iter()
+            .all(|(i, e)| *e == serde_json::to_value(&estimates[*i]).unwrap());
+        emit(
+            log,
+            "rust_odds_rare_tail_confirm_more_summary",
+            json!({
+                "group":m.request.id,"fraction":more_fraction,"allowance_ms":extra_allowance,
+                "eligible":eligible,"funded":funded,"completed":completed,"accepted":added,
+                "work":extra_work,"preserved_existing_estimates":preserved,
+                "elapsed_ms":extra_start.elapsed().as_secs_f64()*1000.
+            }),
+        );
+    }
     if extension {
         emit(
             log,
             "rust_odds_rare_tail_extension_summary",
-            json!({"group":m.request.id,"mode":extension_mode,"ordinary_finalists":plans.len(),"unfunded_pilots":pending.len(),"accepted":extra_found,"main_draws":extra_draws,"final_phase_ms":final_start.elapsed().as_secs_f64()*1000.,"deadline_ms":extension_deadline_ms}),
+            json!({"group":m.request.id,"mode":extension_mode,"ordinary_finalists":plans.len(),"unfunded_pilots":pending.len(),"accepted":extra_found,"main_draws":extra_draws,"final_phase_ms":ordinary_final_phase_ms,"deadline_ms":extension_deadline_ms}),
         );
     }
     emit(
@@ -617,6 +757,26 @@ fn commit_estimate(est: &mut Estimate, result: &Result, extension: bool) -> bool
         },
     );
     true
+}
+
+fn confirmation_fraction(value: &str) -> f64 {
+    value
+        .parse::<f64>()
+        .ok()
+        .filter(|f| f.is_finite() && *f > 0. && *f <= 2.)
+        .unwrap_or(0.)
+}
+
+fn confirmation_batches(pilot: &Result) -> Option<usize> {
+    if pilot.samples == 0 || pilot.hits == 0 || !pilot.ess.is_finite() || pilot.ess <= 0. {
+        return None;
+    }
+    // Both independent batches target enough hits and effective samples. Pilot
+    // observations and earlier failures never enter the published estimate.
+    let n = (120. * pilot.samples as f64 / pilot.hits as f64)
+        .max(32. * pilot.samples as f64 / pilot.ess)
+        .ceil() as usize;
+    Some(n.clamp(2000, 30000))
 }
 
 fn reserve_extension(
@@ -687,6 +847,41 @@ mod tests {
         assert_eq!(est.probability, r.probability);
         assert_eq!(est.design, "matched_point_pool_rare_tail_extension");
         assert_eq!(est.reachability, "witness");
+    }
+    #[test]
+    fn coverage_enables_larger_confirmation_with_explicit_overrides() {
+        let flag = "RUST_ODDS_RARE_TAIL_CONFIRM_MORE";
+        assert_eq!(resolve_value(flag, None, true), "1.5");
+        assert_eq!(resolve_value(flag, None, false), "");
+        for value in ["0", "0.25", "1.5", ""] {
+            assert_eq!(resolve_value(flag, Some(value.into()), true), value);
+        }
+    }
+    #[test]
+    fn extra_confirmation_rejects_empty_pilots_and_sizes_fresh_fixed_batches() {
+        let mut pilot = Result {
+            samples: 1000,
+            hits: 0,
+            ess: 0.,
+            ..Result::default()
+        };
+        assert_eq!(confirmation_batches(&pilot), None);
+        pilot.hits = 260;
+        pilot.ess = 23.;
+        assert_eq!(confirmation_batches(&pilot), Some(2000));
+        pilot.hits = 4;
+        pilot.ess = 2.8;
+        assert_eq!(confirmation_batches(&pilot), Some(30000));
+        pilot.hits = 8;
+        pilot.ess = 1.18;
+        assert_eq!(confirmation_batches(&pilot), Some(27119));
+        pilot.ess = f64::NAN;
+        assert_eq!(confirmation_batches(&pilot), None);
+        for invalid in ["", "0", "-1", "NaN", "inf", "2.1"] {
+            assert_eq!(confirmation_fraction(invalid), 0.);
+        }
+        assert_eq!(confirmation_fraction("0.25"), 0.25);
+        assert_eq!(confirmation_fraction("1.5"), 1.5);
     }
     #[test]
     fn coverage_defaults_to_sequential_retries_and_allows_rollback() {

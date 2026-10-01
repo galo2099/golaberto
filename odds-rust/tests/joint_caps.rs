@@ -58,6 +58,13 @@ fn default_coverage_runs_shared_sampling_and_zero_disables_the_portfolio() {
         .unwrap();
     assert_eq!(start["rare_tail_profile"], "coverage");
     assert_eq!(start["rare_tail_extension"], "after");
+    assert_eq!(start["rare_tail_confirm_more"], "1.5");
+    let confirmation = logs
+        .iter()
+        .find(|e| e["event"] == "rust_odds_rare_tail_confirm_more_summary")
+        .unwrap();
+    assert_eq!(confirmation["fraction"], 1.5);
+    assert_eq!(confirmation["preserved_existing_estimates"], true);
     let extension = logs
         .iter()
         .find(|e| e["event"] == "rust_odds_rare_tail_extension_summary")
@@ -81,6 +88,7 @@ fn default_coverage_runs_shared_sampling_and_zero_disables_the_portfolio() {
         .unwrap();
     assert_eq!(start["rare_tail_profile"], "0");
     assert_eq!(start["rare_tail_extension"], "");
+    assert_eq!(start["rare_tail_confirm_more"], "");
     assert!(!logs.iter().any(|e| e["event"].as_str().is_some_and(|s| {
         s.starts_with("rust_odds_shared_constraints") || s.starts_with("rust_odds_rare_tail")
     })));

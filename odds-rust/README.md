@@ -596,6 +596,28 @@ records paired coverage, remaining losses and latency increases. New log events
 source, batch sizes, evidence, acceptance and time; start/summary logs identify
 the selected mode and effective ordinary settings.
 
+### Additional confirmation for positive-hit pilots
+
+The default coverage profile uses `RUST_ODDS_RARE_TAIL_CONFIRM_MORE=1.5` for
+fresh confirmation of already-built proposals, including weak positive-hit
+pilots. No additional flag is required after rebuilding and restarting.
+Use `0.25` for a smaller allowance or `0` to disable this stage.
+The value is a fraction of measured pre-tail calculation time,
+**not** a full-request latency increase.
+Only remaining zeros are eligible. Batch sizes derive from pilot hits/ESS and
+are fixed before fresh main/check sampling; training observations never enter
+the estimate. Existing quality gates and the four-worker limit are retained.
+Zero-hit pilots are excluded. Each independent batch has 2,000–30,000 samples.
+
+The larger setting gained 34 nonzero cell-runs across 23 paired saved requests,
+with no losses, at 27% more CPU and 32% more aggregate wall time. The affected
+groups averaged approximately 0.33–0.39 seconds extra. Local timings do not
+establish a production deadline. See the
+[confirmation experiment](../experiments/rare_positions/2026-10-01-rust-more-pilot-confirmation.md)
+for per-group costs, seeds, and limitations. Logs
+`rust_odds_rare_tail_confirm_more` and `rust_odds_rare_tail_confirm_more_summary`
+record evidence, acceptance, work and additional time.
+
 ### Shared blocker conditioning in the coverage profile
 
 The default coverage profile enables the strongest tested

@@ -1,0 +1,12 @@
+{
+  "baseline_commit": "ee334cfb9b42075189cd22ad2fa598e94312a7ee",
+  "bench_candidate_sha256": "b3195383fd251bfb977a92ed9fa408227010b957310bc4a68bd5040015c6a2d4",
+  "final_candidate_sha256": "bfad4f2c2518855be9a24ae519a9ffbe7fa8a4238063bf6983d32fda4d710b07",
+  "passed": 99,
+  "ignored_database_write_tests": 2,
+  "final_check_pairs": 3,
+  "final_check_gains": 4,
+  "final_check_lost": 0,
+  "workers": 4,
+  "unrelated_late_gap_changes_excluded": true
+}

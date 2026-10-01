@@ -1422,3 +1422,42 @@ default tail fraction0.45 and no new required flags:20.22% cold/22.01% warm CPU
 reduction,14/31 gained cell-runs and zero losses in the final cohorts.98 tests
 passed,2 DB-write tests ignored; all7 full deterministic oracles identical.
 R31 Poisson approximations and unrelated late-gap changes are excluded.
+
+## R32 — More confirmation work for existing pilots
+
+Status: default enabled and release validated; confirmation1.5 in the coverage
+profile. User explicitly requested default enablement and shipping after the
+experiments. Baseline ee334cfb, four cores, saved snapshots.
+
+- Existing tail fraction0.75 versus0.45,9 pairs:11 gained cell-runs (10 distinct
+  cells),0 lost,+5.95% CPU,+6.15% wall. All gains in16498; no Londrina rescue.
+- Opt-in `RUST_ODDS_RARE_TAIL_CONFIRM_MORE=0.25`,9 pairs:7 gained cell-runs,
+  0 lost,+3.56% CPU,+5.35% wall. Cheap confirmations of existing proposals.
+- New confirmation1.5,9 pilot pairs plus14 fresh validation pairs across all7
+  snapshots:34 gained cell-runs (14 distinct cells),0 lost,+27.01% CPU,
+  +32.05% aggregate wall. Reachable-zero cell-runs64→30. Affected groups cost
+  more:16498 mean681.61→1016.98ms; current16653 mean614.04→1002.20ms.
+- Londrina/4 rescued5/5 seeds with30k independent main/check draws each,
+  estimates7.12e-23–1.78e-22. Londrina/3 remains zero; concentrated weights and
+  zero-hit pilots need better proposals. Weak Flamengo/12 rescued at seed1993.
+
+Additional allowance is a fraction of measured pre-tail time, not a request
+latency percentage. Reuse proposals; fixed fresh batches derive from training
+hits/ESS, with unchanged quality gates and target means. Freeze ordinary
+estimates before additional work; all larger runs logged preservation=true.
+Clock-based ordinary funding still varies between paired requests. No new
+proofs, no DB writes, no additional cores. Default confirmation1.5; explicit
+0.25 selects less work and0 disables the additional stage. Combining a larger
+ordinary tail allowance with the new default was not evaluated. Report and reproducible
+artifacts: `experiments/rare_positions/2026-10-01-rust-more-pilot-confirmation.md`
+and `2026-10-01-more-pilot-confirmation/`.
+Full Rust suite:99 passed,2 DB-write tests ignored. Final release rebuilt after
+timing-log correction;3 follow-up seed808 pairs had4 gains,0 losses. Those pairs
+are separate from the23-request totals. `rustfmt --check` and diff checks passed.
+
+Default enablement:100 Rust tests passed,2 DB-write tests ignored. Added coverage
+default/rollback tests, runtime confirmation activation/preservation assertions,
+and startup logging of the selected confirmation fraction. Existing tail0.45,
+four-core cap and acceptance gates are retained.
+Final no-flag release check across all7 snapshots,seed808:4 gained cell-runs,
+0 losses or proof regressions; Londrina/4 accepted. Archived as `default-check`.

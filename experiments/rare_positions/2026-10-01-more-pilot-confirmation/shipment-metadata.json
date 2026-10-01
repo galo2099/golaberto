@@ -1,0 +1,11 @@
+{
+  "candidate_sha256": "01a2737525c254896ff78c0f3836ca59ed5382f928bbec1199745a57af04b5ce",
+  "passed": 100,
+  "ignored_database_write_tests": 2,
+  "default_check_pairs": 7,
+  "gains": 4,
+  "lost": 0,
+  "workers": 4,
+  "flags": {},
+  "unrelated_late_gap_changes_excluded": true
+}
