@@ -1127,3 +1127,74 @@ Default follow-up verification: the exact release tree passed the full Rust
 suite (**85 passed, two database tests ignored**) with `--test-threads=1`,
 serializing full-request tests to preserve the four-worker limit. The no-flags
 default and explicit `0` opt-out both passed the child-process integration test.
+
+
+## R26 — bounded branch conditioning and high-variance pilot retries
+
+Status: complete; enabled in the production coverage defaults. Shipping authorized
+on 2026-10-01. User requested the generic improvement after Fluminense
+20/seed1229 produced 469 hits but failed ESS/max-weight-share checks. Freeze
+current default-coverage Rust (2c87b146), including shared sampling, as baseline.
+No additional time allowance: replace/reallocate existing tail work, four cores.
+
+Experiments: (A) reduce expensive complete-union rival enumeration while
+preserving support and actual sorting; (B) learn target-branch allocation from
+existing pilot second moments and reuse the existing adaptive-pilot slot for
+an independent retry; (C) allocate fixed independent confirmation to promising
+weighted cells using pilot evidence. Training never supplies published estimates,
+failed setup stays undecided, and no team/rank-specific rule is introduced.
+Development801/808/1229; validation804/817/911 across all seven snapshots;
+reserved1201/1213/1237. Compare coverage gains/losses, estimates, proof labels,
+stage/full-request timing and CPU. Retain the current budget and quality gates.
+
+R26 checkpoint: reducing complete-union rivals from6 to4/3/2/1 does not
+build Fluminense20's full186-branch union: six exhaust joint nodes; smaller
+blocks exhaust guide memory (17.7–33.7ms). Reject that construction-only arm.
+Nine-pair development screens: root-moment pilot retry gains5/loses2; bounded
+union64 gains3/loses0; bounded64 plus forecast ESS20 gains3/loses0. These are
+cell-runs and separate timing-dependent cohorts, not cumulative improvements.
+Root fitting was not retained for Fluminense/1229. Larger fixed batches improve
+its ESS3.80→7.54, but max-weight share35.34% still misses the unchanged35%
+gate. Test the generic ESS32 forecast next, with fixed independent confirmation.
+
+R26 second checkpoint: bounded64 plus ESS32 finds Fluminense20/1229 at
+6.325e-26 (main1331hits,ESS14.22,max-share22.30%), independently confirmed.
+Nine development pairs gain6/lose4; broad ESS32 funding starves good pilots,
+including Fluminense20/801. Refine allocation generically: forecast ESS32 only
+for pilots below the existing12-ESS adaptive threshold, retaining the old
+forecast for stronger pilots. Keep all acceptance gates unchanged.
+
+R26 validation checkpoint: concentrated allocation with/without root learning
+each gains1/loses4 across21 validation requests. Do not enable that allocator.
+Reserve ordinary main/check batches first and enlarge weak-pilot batches only
+from spare predicted worker capacity. With bounded64 and root learning, this
+revision gains9/loses1 in nine development requests, then gains16/loses3 across
+42 requests (seven snapshots ×804/817/911/1201/1213/1237). The three reserved
+seeds contribute11 gains/1 loss. No reachability, impossibility or game-importance
+regressions. Median paired full-request latency is unchanged; maximum increase
+6.12%, so latency preservation is not asserted per request. Warm-server check
+and final correctness suite pending. Fluminense/1229 independently confirmed
+at6.325e-26; Fluminense/1213 was not funded in one validation request.
+
+
+R26 final allocation checkpoint: retain witness/alternate retries for pilots
+with fewer than30 matching seasons. Final no-flags defaults use union64,
+guarded root learning and reserve-first allocation. Across49 paired full
+requests:11 gains/2 losses (nine distinct gained cells/two lost); Athletico19
+regressions at817/911 are resolved. Remaining losses at1213 are unfunded
+Chapecoense5/Athletico17 pilots. Fluminense is positive6/7 versus4/7 requests;
+1229 still lacks spare capacity for its larger final batch in this retest.
+Across24 warm pairs:13 gains/0 losses, total wall−1.15%, CPU−2.93%; historical
+16653 median wall+0.55%. Cold total wall−0.29%, CPU−1.21%, max increase11.59%
+(15902/804, no tail work); max difficult increase4.10%. No proof/reachability or
+game-importance regressions. No added allowance/fifth worker. Report and raw
+summaries:experiments/rare_positions/2026-10-01-rust-tail-retry.md and
+2026-10-01-tail-retry/*.json.gz.
+
+
+R26 final verification:88 Rust tests passed, zero failed, two DB tests ignored,
+using the final guarded source tree and `--test-threads=1`. Formatting and diff
+whitespace checks passed. The local coverage defaults require no extra flags;
+individual rollback flags and reproducible commands are in the report. No
+further timing allowance was used. Cold/warm gains are reported separately and
+are not independent counts of distinct new cells.

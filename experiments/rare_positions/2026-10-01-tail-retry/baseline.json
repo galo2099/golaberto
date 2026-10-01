@@ -1,0 +1,30 @@
+{
+  "git_head": "2c87b146e9b116db65ed0c19cf610461122d2722",
+  "binary": "/private/tmp/golaberto-r26-baseline",
+  "binary_sha256": "0f82dcaeaf9e6740a7b3b1fe041f8fa31f0e64291cdb4464e5f8e4a9928a56d0",
+  "flags": {},
+  "profile": "default coverage",
+  "workers": 4,
+  "development_seeds": [
+    801,
+    808,
+    1229
+  ],
+  "validation_seeds": [
+    804,
+    817,
+    911
+  ],
+  "reserved_seeds": [
+    1201,
+    1213,
+    1237
+  ],
+  "selected_defaults": {
+    "RUST_ODDS_RARE_TAIL_UNION_PATTERNS": "64",
+    "RUST_ODDS_RARE_TAIL_RETRY": "roots",
+    "RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION": "reserve"
+  },
+  "sparse_pilot_learning_min_hits": 30,
+  "release_tree_excludes": "uncommitted late-gap experiment"
+}

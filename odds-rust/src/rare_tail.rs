@@ -46,6 +46,9 @@ fn profile_default(name: &str) -> &'static str {
         "RUST_ODDS_LAZY_RIVALS" => "4",
         "RUST_ODDS_RARE_TAIL_QUALITY" => "order",
         "RUST_ODDS_RARE_TAIL_BUDGET_FRACTION" => "0.35",
+        "RUST_ODDS_RARE_TAIL_UNION_PATTERNS" => "64",
+        "RUST_ODDS_RARE_TAIL_RETRY" => "roots",
+        "RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION" => "reserve",
         "RUST_ODDS_SHARED_CONSTRAINTS" => "guided",
         "RUST_ODDS_SHARED_CONSTRAINTS_BLOCKERS" => "2",
         "RUST_ODDS_SHARED_CONSTRAINTS_RELATIVE" => "1",
@@ -143,8 +146,16 @@ pub fn run(
                 cell,
                 Limits {
                     minimum_forced: 0,
-                    rivals: 6,
-                    target_patterns: 256,
+                    rivals: value("RUST_ODDS_RARE_TAIL_UNION_RIVALS")
+                        .parse::<usize>()
+                        .ok()
+                        .filter(|&v| v >= 1 && v <= 6)
+                        .unwrap_or(6),
+                    target_patterns: value("RUST_ODDS_RARE_TAIL_UNION_PATTERNS")
+                        .parse::<usize>()
+                        .ok()
+                        .filter(|&v| v >= 1 && v <= 256)
+                        .unwrap_or(256),
                     feasible_cases: 128,
                 },
             )
@@ -176,11 +187,23 @@ pub fn run(
                 shared.clone(),
             ) {
                 let clock = Instant::now();
-                let mut r = p.sample(m, 1000, derive(stream, "lazy"));
+                let fit_roots = value("RUST_ODDS_RARE_TAIL_RETRY") == "roots";
+                let (mut r, moments) = if fit_roots {
+                    let (r, moments) = p.sample_training(m, 1000, derive(stream, "lazy"));
+                    (r, Some(moments))
+                } else {
+                    (p.sample(m, 1000, derive(stream, "lazy")), None)
+                };
                 let mut pilot_ms = clock.elapsed().as_secs_f64() * 1000.;
                 pilot_work += r.work;
                 if value("RUST_ODDS_LAZY_SUBSET") == "adaptive" && r.ess < 12. {
-                    p.add_alternates(m, &seeds);
+                    // Sparse pilot hits contain too little branch information.
+                    // Keep the existing witness/alternate-mode retry for them.
+                    let fitted =
+                        r.hits >= 30 && moments.as_ref().is_some_and(|s| p.fit_root_allocation(s));
+                    if !fitted {
+                        p.add_alternates(m, &seeds);
+                    }
                     let clock = Instant::now();
                     let alt = p.sample(m, 1000, derive(stream, "multimode"));
                     let alt_ms = clock.elapsed().as_secs_f64() * 1000.;
@@ -189,7 +212,11 @@ pub fn run(
                         r = alt;
                         pilot_ms = alt_ms;
                     } else {
-                        p.clear_alternates();
+                        if fitted {
+                            p.clear_root_allocation();
+                        } else {
+                            p.clear_alternates();
+                        }
                     }
                 }
                 if std::env::var("RUST_ODDS_LAZY_FIXTURE_BIAS").as_deref() == Ok("1") && r.ess < 12.
@@ -326,12 +353,25 @@ pub fn run(
     let remaining_ms = (allowance_ms - start.elapsed().as_secs_f64() * 1000.).max(0.);
     let mut bins = vec![0_f64; workers.clamp(1, 4)];
     let mut funded = Vec::new();
+    let mut funded_bins = Vec::new();
+    let reserve = value("RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION") == "reserve";
+    let pilot_ess_target = match value("RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION").as_str() {
+        "robust" => 20.,
+        "robust32" => 32.,
+        _ => 10.,
+    };
     for p in plans {
+        let ess_target =
+            if value("RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION") == "concentrated" && p.2.ess < 12. {
+                32.
+            } else {
+                pilot_ess_target
+            };
         let n = if mode == "union" {
             8000
         } else {
             (((if rough { 40. } else { 60. }) * p.2.samples as f64 / p.2.hits.max(1) as f64)
-                .max((if rough { 10. } else { 20. }) * p.2.samples as f64 / p.2.ess.max(0.1))
+                .max((if rough { ess_target } else { 20. }) * p.2.samples as f64 / p.2.ess.max(0.1))
                 .ceil() as usize)
                 .clamp(
                     if rough { 1000 } else { 2000 },
@@ -350,6 +390,29 @@ pub fn run(
         if mode == "union" || bins[bin] + cost <= remaining_ms {
             bins[bin] += cost;
             funded.push((p, n, check));
+            funded_bins.push(bin);
+        }
+    }
+    // Fund the ordinary batches first. Weak pilots may consume spare capacity,
+    // but cannot displace a batch already funded for another cell.
+    if reserve && mode != "union" {
+        let mut loads = bins;
+        for ((p, n, check), bin) in funded.iter_mut().zip(funded_bins) {
+            if !rough || p.2.ess >= 12. {
+                continue;
+            }
+            if let Some((desired, desired_check, extra)) = reserve_extension(
+                *n,
+                *check,
+                p.2.samples,
+                p.2.ess,
+                1.2 * p.5 / p.2.samples.max(1) as f64,
+                remaining_ms - loads[bin],
+            ) {
+                loads[bin] += extra;
+                *n = desired;
+                *check = desired_check;
+            }
         }
     }
     let plans = funded;
@@ -399,9 +462,26 @@ pub fn run(
     emit(
         log,
         "rust_odds_rare_tail_summary",
-        json!({"group":m.request.id,"cells":cells.len(),"finalists":plans.len(),"accepted":found,"elapsed_ms":start.elapsed().as_secs_f64()*1000.,"allowance_ms":allowance_ms,"remaining_after_training_ms":remaining_ms,"work":work,"shared_guides":shared.as_ref().map(|s|s.describe())}),
+        json!({"group":m.request.id,"cells":cells.len(),"finalists":plans.len(),"accepted":found,"elapsed_ms":start.elapsed().as_secs_f64()*1000.,"allowance_ms":allowance_ms,"remaining_after_training_ms":remaining_ms,"work":work,"batch_allocation":value("RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION"),"root_retry":value("RUST_ODDS_RARE_TAIL_RETRY"),"union_patterns":value("RUST_ODDS_RARE_TAIL_UNION_PATTERNS"),"shared_guides":shared.as_ref().map(|s|s.describe())}),
     );
     (found, work)
+}
+fn reserve_extension(
+    main: usize,
+    check: usize,
+    pilot_samples: usize,
+    pilot_ess: f64,
+    draw_ms: f64,
+    spare_ms: f64,
+) -> Option<(usize, usize, f64)> {
+    if main > 6000 || pilot_ess >= 12. {
+        return None;
+    }
+    let desired = (32. * pilot_samples as f64 / pilot_ess.max(0.1)).ceil() as usize;
+    let desired = desired.clamp(main, 6000);
+    let desired_check = (desired / 2).max(check);
+    let extra = draw_ms * (desired + desired_check - main - check) as f64;
+    (extra <= spare_ms).then_some((desired, desired_check, extra))
 }
 
 pub(crate) fn accepted(main: &Result, check: &Result, rough: bool) -> bool {
@@ -430,6 +510,32 @@ fn publishable(r: &Result, rough: bool) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn spare_capacity_only_extends_fixed_main_and_confirmation_batches() {
+        assert!(reserve_extension(1000, 1000, 1000, 10., 0.01, 27.).is_none());
+        let (main, check, extra) = reserve_extension(1000, 1000, 1000, 10., 0.01, 31.).unwrap();
+        assert_eq!((main, check), (3200, 1600));
+        assert_eq!(extra, 28.);
+        assert!(extra <= 31.);
+        assert!(reserve_extension(1000, 1000, 1000, 20., 0.01, 100.).is_none());
+        assert!(reserve_extension(8000, 4000, 1000, 2., 0.01, 100.).is_none());
+        assert_eq!(
+            reserve_extension(6000, 3000, 1000, 2., 0.01, 0.),
+            Some((6000, 3000, 0.))
+        );
+    }
+    #[test]
+    fn coverage_enables_reserved_batches_with_individual_overrides() {
+        for (flag, expected, rollback) in [
+            ("RUST_ODDS_RARE_TAIL_UNION_PATTERNS", "64", "256"),
+            ("RUST_ODDS_RARE_TAIL_RETRY", "roots", "0"),
+            ("RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION", "reserve", "0"),
+        ] {
+            assert_eq!(resolve_value(flag, None, true), expected);
+            assert_eq!(resolve_value(flag, None, false), "");
+            assert_eq!(resolve_value(flag, Some(rollback.into()), true), rollback);
+        }
+    }
     #[test]
     fn absent_profile_selects_coverage_and_preserves_explicit_modes() {
         assert_eq!(resolve_profile(None), "coverage");

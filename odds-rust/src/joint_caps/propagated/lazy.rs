@@ -63,6 +63,10 @@ struct Cases {
     mass: f64,
     complete: bool,
 }
+#[derive(Default)]
+pub(crate) struct RootMoments {
+    squared: HashMap<Vec<u8>, f64>,
+}
 pub struct LazyJoint {
     cell: Cell,
     subset: bool,
@@ -78,6 +82,7 @@ pub struct LazyJoint {
     biased: HashMap<Vec<u8>, Pattern>,
     mixture: Vec<(Vec<u8>, f64)>,
     mixture_mass: f64,
+    root_allocation: HashMap<Vec<u8>, f64>,
     nodes: usize,
     node_limit: usize,
     joint_cache: HashMap<JointKey, (Arc<NecessaryJoint>, Vec<RankGame>)>,
@@ -309,6 +314,7 @@ impl LazyJoint {
             biased: HashMap::new(),
             mixture: Vec::new(),
             mixture_mass: 0.,
+            root_allocation: HashMap::new(),
             nodes: 0,
             node_limit: 60000,
             joint_cache: HashMap::new(),
@@ -984,9 +990,83 @@ impl LazyJoint {
         self.alternates.clear();
     }
     pub fn describe(&self, m: &Model) -> serde_json::Value {
-        json!({"mode":"sampled_target_paths","team":m.ids[self.cell.team],"rank":self.cell.rank+1,"roots":self.roots.len(),"alternate_roots":self.alternates.len(),"biased_roots":self.biased.len(),"omitted_fixtures":self.roots.values().filter_map(|p|p.as_ref()).map(|p|p.omitted.len()).sum::<usize>(),"cardinality_roots":self.cases.len(),"cardinality_cases":self.cases.values().map(|c|c.patterns.len()).sum::<usize>(),"feasible_roots":self.mixture.len(),"conditioning_mass":self.target.mass(0),"cache_mass":self.mixture_mass,"setup_nodes":self.nodes,"guide_values":self.guide_values,"joint_profiles":self.joint_cache.len(),"guided_fallback":self.fallback.is_some()})
+        json!({"mode":"sampled_target_paths","team":m.ids[self.cell.team],"rank":self.cell.rank+1,"roots":self.roots.len(),"alternate_roots":self.alternates.len(),"biased_roots":self.biased.len(),"omitted_fixtures":self.roots.values().filter_map(|p|p.as_ref()).map(|p|p.omitted.len()).sum::<usize>(),"cardinality_roots":self.cases.len(),"cardinality_cases":self.cases.values().map(|c|c.patterns.len()).sum::<usize>(),"feasible_roots":self.mixture.len(),"conditioning_mass":self.target.mass(0),"cache_mass":self.mixture_mass,"setup_nodes":self.nodes,"guide_values":self.guide_values,"joint_profiles":self.joint_cache.len(),"guided_fallback":self.fallback.is_some(),"root_allocation_fitted":!self.root_allocation.is_empty()})
+    }
+    /// Learn branch frequencies from training only. Cached branches are disjoint
+    /// by target outcomes. The 10% full-support component remains unchanged.
+    pub(crate) fn fit_root_allocation(&mut self, moments: &RootMoments) -> bool {
+        if self.mixture.len() < 2 || self.mixture_mass <= 0. {
+            return false;
+        }
+        let mass = self.target.mass(0);
+        let scores: Vec<_> = self
+            .mixture
+            .iter()
+            .map(|(key, _)| {
+                let p = self.roots[key].as_ref().unwrap();
+                let old = p.mass * p.joint.residual_hint.max(1e-80) * p.tilt / self.mixture_mass;
+                let root: f64 = self
+                    .target
+                    .games
+                    .iter()
+                    .zip(key)
+                    .map(|(g, &o)| g.prob[o as usize])
+                    .product();
+                let q = DEFENSIVE * root / mass + (1. - DEFENSIVE) * old;
+                let second = moments.squared.get(key).copied().unwrap_or(0.);
+                (key.clone(), old, (q * second).sqrt())
+            })
+            .collect();
+        let total: f64 = scores.iter().map(|s| s.2).sum();
+        if !total.is_finite() || total <= 0. {
+            return false;
+        }
+        self.root_allocation = scores
+            .into_iter()
+            .map(|(key, old, learned)| (key, 0.5 * old + 0.5 * learned / total))
+            .collect();
+        self.rebuild_root_cdf();
+        true
+    }
+    pub(crate) fn clear_root_allocation(&mut self) {
+        self.root_allocation.clear();
+        self.rebuild_root_cdf();
+    }
+    fn rebuild_root_cdf(&mut self) {
+        let mut sum = 0.;
+        for (key, cumulative) in &mut self.mixture {
+            let p = self.roots[key].as_ref().unwrap();
+            sum += self.root_allocation.get(key).copied().map_or_else(
+                || p.mass * p.joint.residual_hint.max(1e-80) * p.tilt,
+                |q| q * self.mixture_mass,
+            );
+            *cumulative = sum;
+        }
+        // Absorb only floating-point accumulation error in the final interval.
+        if let Some((_, cumulative)) = self.mixture.last_mut() {
+            *cumulative = self.mixture_mass;
+        }
+    }
+    pub(crate) fn sample_training(
+        &self,
+        m: &Model,
+        samples: usize,
+        seed: i64,
+    ) -> (Result, RootMoments) {
+        let mut moments = RootMoments::default();
+        let result = self.sample_internal(m, samples, seed, Some(&mut moments));
+        (result, moments)
     }
     pub fn sample(&self, m: &Model, samples: usize, seed: i64) -> Result {
+        self.sample_internal(m, samples, seed, None)
+    }
+    fn sample_internal(
+        &self,
+        m: &Model,
+        samples: usize,
+        seed: i64,
+        mut moments: Option<&mut RootMoments>,
+    ) -> Result {
         let mass = self.target.mass(0);
         let alpha = if self.mixture_mass > 0. {
             DEFENSIVE
@@ -1039,8 +1119,11 @@ impl LazyJoint {
             let mut weight = match self.roots.get(&key) {
                 Some(Some(p)) => {
                     let q = alpha * root_prob / mass
-                        + (1. - alpha) * p.mass * p.joint.residual_hint.max(1e-80) * p.tilt
-                            / self.mixture_mass;
+                        + (1. - alpha)
+                            * self.root_allocation.get(&key).copied().unwrap_or_else(|| {
+                                p.mass * p.joint.residual_hint.max(1e-80) * p.tilt
+                                    / self.mixture_mass
+                            });
                     if let Some(cases) = self.cases.get(&key) {
                         // Retain the primary guided mode even for an enumerated union.
                         // Numerical zero mass is not an unrestricted infeasibility proof.
@@ -1246,6 +1329,9 @@ impl LazyJoint {
             }
             if weight > 0. {
                 result.hits += 1;
+                if let Some(moments) = moments.as_deref_mut() {
+                    *moments.squared.entry(key.clone()).or_default() += weight * weight;
+                }
                 if result.witness.is_none() {
                     result.witness = Some(out.clone());
                 }
@@ -1265,6 +1351,69 @@ impl LazyJoint {
 mod tests {
     use super::*;
     use crate::{conditioned::canonical_ranks, model::Request};
+    #[test]
+    fn pilot_root_fit_preserves_weighted_ranks_defensive_support_and_rollback() {
+        let request: Request = serde_json::from_value(json!({"id":1,
+            "phase":{"sort":"pt,w,bias","championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+            "team_groups":(0..3).map(|t|json!({"team_id":t,"add_sub":t,"bias":t})).collect::<Vec<_>>(),
+            "games":(0..3).flat_map(|h|(h+1..3).map(move|a|json!({"id":h*3+a,"home_id":h,"away_id":a,"home_power":1.1,"away_power":0.9}))).collect::<Vec<_>>() })).unwrap();
+        let m = Model::new(request).unwrap();
+        for rank in 0..m.n {
+            let mut expected = 0.;
+            for mut code in 0..3usize.pow(m.fixtures.len() as u32) {
+                let mut out = vec![0; m.fixtures.len()];
+                let mut mass = 1.;
+                for (i, g) in m.fixtures.iter().enumerate() {
+                    let o = code % 3;
+                    code /= 3;
+                    out[i] = o as u8;
+                    mass *= g.prob[o];
+                }
+                if canonical_ranks(&m, &out)[0] == rank {
+                    expected += mass;
+                }
+            }
+            for roots in [2, 32] {
+                let mut p = LazyJoint::with_mode(
+                    &m,
+                    Cell { team: 0, rank },
+                    801,
+                    &[],
+                    roots,
+                    false,
+                    false,
+                    None,
+                )
+                .unwrap();
+                let before = p.mixture.clone();
+                let ordinary = p.sample(&m, 2000, 911);
+                let (pilot, moments) = p.sample_training(&m, 2000, 911);
+                assert_eq!(ordinary.probability.to_bits(), pilot.probability.to_bits());
+                assert_eq!(ordinary.ess.to_bits(), pilot.ess.to_bits());
+                assert!(!p.fit_root_allocation(&RootMoments::default()));
+                if p.fit_root_allocation(&moments) {
+                    let q: f64 = p.root_allocation.values().sum();
+                    assert!((q - 1.).abs() < 1e-12);
+                    assert!(p.root_allocation.values().all(|&v| v.is_finite() && v > 0.));
+                    for seed in [817, 1229] {
+                        let result = p.sample(&m, 30000, seed);
+                        assert!(
+                            (result.probability - expected).abs() < 6. * result.std_err + 1e-4,
+                            "rank={rank} roots={roots}: {} vs {expected}",
+                            result.probability
+                        );
+                    }
+                    p.clear_root_allocation();
+                    assert_eq!(p.mixture, before);
+                    let restored = p.sample(&m, 2000, 911);
+                    assert_eq!(
+                        restored.probability.to_bits(),
+                        ordinary.probability.to_bits()
+                    );
+                }
+            }
+        }
+    }
     #[test]
     fn cached_and_uncached_roots_match_exhaustive_shared_fixture_rank_probabilities() {
         let request:Request=serde_json::from_value(json!({"id":1,

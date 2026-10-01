@@ -1,0 +1,37 @@
+[
+  {
+    "result": {
+      "error": "joint_node_limit"
+    },
+    "rivals": 6,
+    "setup_ms": 18.996125
+  },
+  {
+    "result": {
+      "error": "guide_memory_limit"
+    },
+    "rivals": 4,
+    "setup_ms": 33.693417000000004
+  },
+  {
+    "result": {
+      "error": "guide_memory_limit"
+    },
+    "rivals": 3,
+    "setup_ms": 20.705250000000003
+  },
+  {
+    "result": {
+      "error": "guide_memory_limit"
+    },
+    "rivals": 2,
+    "setup_ms": 17.678375
+  },
+  {
+    "result": {
+      "error": "guide_memory_limit"
+    },
+    "rivals": 1,
+    "setup_ms": 22.100709
+  }
+]
