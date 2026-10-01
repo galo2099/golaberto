@@ -8,9 +8,11 @@ rescues, cross-team witness reuse, directional/constraint peer rescues, propagat
 domains, reduced fixtures, and final matrix reconciliation.
 
 The executable does not call Go and does not read the golden probabilities.
-Go is used only by the offline comparison harness. The default path preserves sampling budgets and
-acceptance thresholds, including the 35% relative-SE gate. An opt-in additional
-coverage profile is documented below.
+Go is used only by the offline comparison harness. The default coverage profile
+adds a bounded portfolio for remaining zero cells, targeting order-of-magnitude
+estimates. Earlier sampling budgets and acceptance gates are preserved; the
+additional portfolio uses the documented rough-estimate gates below.
+`RUST_ODDS_RARE_TAIL=0` disables the additional portfolio.
 
 The native service also replaces the active Go `/spi`, `/eval`, and
 `/historic_ratings` endpoints and integrates the active `stats` `/player_ratings`
@@ -507,18 +509,19 @@ The `residual_components` example audits small residual point-cap components
 offline; it does not change production reachability labels.
 
 
-### Additional rare-position coverage (50% time allowance experiment)
+### Default rare-position coverage
 
-The opt-in profile below funds a final weighted portfolio for cells still zero
+The default profile below funds a final weighted portfolio for cells still zero
 after the existing pipeline, with at most four workers. It preserves the
 scout, pooled MC, proofs and earlier positive estimates.
 
 ```sh
-RUST_ODDS_RARE_TAIL=coverage ./odds-rust/target/release/golaberto-odds serve
+./odds-rust/target/release/golaberto-odds serve
 ```
 
-Use the server arguments documented above for your port/database. Unset (or
-`RUST_ODDS_RARE_TAIL=0`) keeps the previous pipeline. The profile combines full
+Use the server arguments documented above for your port/database. An unset
+`RUST_ODDS_RARE_TAIL` selects `coverage`; explicitly setting it to `0` keeps the
+previous pipeline. Explicit `coverage` remains supported. The profile combines full
 support sampled target paths, four-rival exact joint blocks, Poisson-binomial
 rank guidance, conditional goal tilts, adaptive witness proposals and omission
 of strictly irrelevant fixtures. Frozen suffix probability guides are shared
@@ -544,7 +547,7 @@ regressions, seeds and independent-reference comparisons.
 
 ### Shared blocker conditioning in the coverage profile
 
-The `RUST_ODDS_RARE_TAIL=coverage` profile now enables the strongest tested
+The default coverage profile enables the strongest tested
 multi-cell sampler automatically: cardinality guidance, two blockers constrained
 against each recipient's actual final points/wins, concurrent independent
 main/check batches, and 50% of the existing tail allowance. Four-worker usage,
@@ -558,7 +561,7 @@ the individual coverage portfolio. Explicit settings override profile defaults:
 `RUST_ODDS_SHARED_CONSTRAINTS_RELATIVE`,
 `RUST_ODDS_SHARED_CONSTRAINTS_CONFIRMATION`, and
 `RUST_ODDS_SHARED_CONSTRAINTS_FRACTION`. The native pipeline still applies when
-the coverage profile is unset.
+`RUST_ODDS_RARE_TAIL=0` is set.
 
 Across 39 paired requests the selected configuration gained seven cell-runs and
 lost one; eight warm comparisons had no net coverage gain. Warm median latency

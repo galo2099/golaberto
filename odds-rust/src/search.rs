@@ -940,9 +940,10 @@ pub fn run_logged(
         serde_json::json!({"enabled":enabled("RUST_ODDS_JOINT_CAP_CONDITIONING"),
         "accepted":joint_found,"cells":crate::logging::cell_counts(estimates)}),
     );
-    let tail_seasons: Vec<_> = if std::env::var("RUST_ODDS_RARE_TAIL")
-        .as_deref()
-        .is_ok_and(|m| m == "lazy" || m == "portfolio" || m == "coverage")
+    let tail_seasons: Vec<_> = if matches!(
+        crate::rare_tail::profile().as_str(),
+        "lazy" | "portfolio" | "coverage"
+    )
     {
         assignments
             .iter()

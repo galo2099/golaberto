@@ -1112,3 +1112,18 @@ current16653 latency pair was +7.43%, explicitly retained. Shared-only rollback
 was verified by a full16498 request with no shared events (one individual gain,
 no losses from runtime allocation). Portable evidence: shared-constraint
 `release-validation.json`.
+
+
+### R25 coverage default follow-up
+
+User requested coverage as the default. Unset `RUST_ODDS_RARE_TAIL` now resolves
+to `coverage` everywhere, including witness reuse and effective request logging.
+Explicit `0` restores native-only calculation; shared-only rollback remains
+`RUST_ODDS_SHARED_CONSTRAINTS=0`. Configuration, budgets, four-core usage and
+acceptance gates match the previously shipped explicit profile. Added a pure
+resolver test and child-process default/rollback integration coverage.
+
+Default follow-up verification: the exact release tree passed the full Rust
+suite (**85 passed, two database tests ignored**) with `--test-threads=1`,
+serializing full-request tests to preserve the four-worker limit. The no-flags
+default and explicit `0` opt-out both passed the child-process integration test.

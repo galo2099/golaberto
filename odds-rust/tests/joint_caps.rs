@@ -9,6 +9,92 @@ impl Drop for OutputDir {
 }
 
 #[test]
+fn default_coverage_runs_shared_sampling_and_zero_disables_the_portfolio() {
+    let request = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(
+        "../experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16498-44eabb47.json",
+    );
+    let dir = OutputDir(
+        std::env::temp_dir().join(format!("golaberto-coverage-test-{}", std::process::id())),
+    );
+    fs::create_dir(&dir.0).unwrap();
+    let run = |disabled: bool| {
+        let output = dir.0.join(format!("{disabled}.json"));
+        let mut command = Command::new(env!("CARGO_BIN_EXE_golaberto-odds"));
+        for (key, _) in std::env::vars_os() {
+            let name = key.to_string_lossy();
+            if name.starts_with("RUST_ODDS_") || name.starts_with("RARE_POSITION_") {
+                command.env_remove(key);
+            }
+        }
+        command.env("RUST_ODDS_LOG", "1");
+        if disabled {
+            command.env("RUST_ODDS_RARE_TAIL", "0");
+        }
+        let result = command
+            .arg("estimate")
+            .arg(&request)
+            .arg(&output)
+            .arg("808")
+            .arg("4")
+            .output()
+            .unwrap();
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        let response: Value = serde_json::from_slice(&fs::read(output).unwrap()).unwrap();
+        let logs: Vec<Value> = String::from_utf8(result.stderr)
+            .unwrap()
+            .lines()
+            .filter_map(|line| serde_json::from_str(line).ok())
+            .collect();
+        (response, logs)
+    };
+    let (coverage, logs) = run(false);
+    let start = logs
+        .iter()
+        .find(|e| e["event"] == "rust_odds_start")
+        .unwrap();
+    assert_eq!(start["rare_tail_profile"], "coverage");
+    assert_eq!(start["shared_constraints"], "guided");
+    assert_eq!(start["shared_constraints_blockers"], "2");
+    assert_eq!(start["shared_constraints_relative"], true);
+    assert_eq!(start["shared_constraints_confirmation"], "parallel");
+    assert_eq!(start["shared_constraints_fraction"], "0.5");
+    let shared = logs
+        .iter()
+        .find(|e| e["event"] == "rust_odds_shared_constraints_summary")
+        .unwrap();
+    assert_eq!(shared["mode"], "guided");
+    assert_eq!(shared["concurrent_confirmation"], true);
+    let (native, logs) = run(true);
+    let start = logs
+        .iter()
+        .find(|e| e["event"] == "rust_odds_start")
+        .unwrap();
+    assert_eq!(start["rare_tail_profile"], "0");
+    assert!(!logs.iter().any(|e| e["event"].as_str().is_some_and(|s| {
+        s.starts_with("rust_odds_shared_constraints") || s.starts_with("rust_odds_rare_tail")
+    })));
+    assert_eq!(coverage["game_importance"], native["game_importance"]);
+    for (team, ranks) in native["rare_position_estimates"].as_object().unwrap() {
+        for (rank, cell) in ranks.as_object().unwrap() {
+            if cell["reachability"]
+                .as_str()
+                .unwrap_or("")
+                .starts_with("impossible")
+            {
+                assert_eq!(
+                    cell["reachability"],
+                    coverage["rare_position_estimates"][team][rank]["reachability"]
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn propagated_default_preserves_old_work_and_rejects_unconfirmed_estimates() {
     let request = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(
         "../experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16498-44eabb47.json",
@@ -28,6 +114,8 @@ fn propagated_default_preserves_old_work_and_rejects_unconfirmed_estimates() {
                 }
             }
             command.env("RUST_ODDS_LOG", "1");
+            // Isolate joint allocation from the independent coverage portfolio.
+            command.env("RUST_ODDS_RARE_TAIL", "0");
             if !enabled {
                 command.env("RUST_ODDS_JOINT_PROPAGATION", "0");
             }
@@ -118,7 +206,7 @@ fn normal_binary_enables_joint_caps_and_preserves_existing_estimates_and_proofs(
         let output = dir.0.join(format!("{name}.json"));
         let mut command = Command::new(env!("CARGO_BIN_EXE_golaberto-odds"));
         // Child processes isolate toggles from the other tests and from local
-        // benchmark settings. In particular, the enabled run sets no sampler flag.
+        // benchmark settings. The joint sampler uses its own default settings.
         for (key, _) in std::env::vars_os() {
             let key_name = key.to_string_lossy();
             if key_name.starts_with("RUST_ODDS_") || key_name.starts_with("RARE_POSITION_") {
@@ -126,6 +214,7 @@ fn normal_binary_enables_joint_caps_and_preserves_existing_estimates_and_proofs(
             }
         }
         command.env("RUST_ODDS_LOG", "1");
+        command.env("RUST_ODDS_RARE_TAIL", "0");
         // Isolate the exact fast path regression from the broad replacement.
         command.env("RUST_ODDS_JOINT_CAP_BROAD", "0");
         if disabled {
@@ -266,6 +355,7 @@ fn broad_replacement_preserves_estimates_that_short_ordinary_batches_lost() {
                 }
             }
             command.env("RUST_ODDS_LOG", "1");
+            command.env("RUST_ODDS_RARE_TAIL", "0");
             // Isolate the previously shipped broad allocation from the new
             // funded propagated candidate tested separately above.
             command.env("RUST_ODDS_JOINT_PROPAGATION", "0");

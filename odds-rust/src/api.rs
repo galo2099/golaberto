@@ -150,7 +150,7 @@ pub fn calculate_logged(
         json!({"teams":request.team_groups.len(),
         "games":request.games.len(),"workers":workers,"scout_samples":scout_samples,
         "pool_samples":100000,"sort":request.phase.sort,
-        "rare_tail_profile":std::env::var("RUST_ODDS_RARE_TAIL").unwrap_or_default(),
+        "rare_tail_profile":crate::rare_tail::profile(),
         "rare_tail_quality":crate::rare_tail::value("RUST_ODDS_RARE_TAIL_QUALITY"),
         "rare_tail_shared_guides":crate::rare_tail::value("RUST_ODDS_RARE_TAIL_SHARE")=="1",
         "shared_constraints":crate::rare_tail::value("RUST_ODDS_SHARED_CONSTRAINTS"),

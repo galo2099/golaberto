@@ -18,12 +18,12 @@ were preserved. Database data was not changed.
 
 ### Release configuration
 
-Only `RUST_ODDS_RARE_TAIL=coverage` is required. Its shared-sampler defaults are
+Coverage is now the default when `RUST_ODDS_RARE_TAIL` is unset. Its shared-sampler defaults are
 `guided`, two blockers, relative final-total constraints, parallel independent
 confirmation, and 0.5 of the existing tail allowance. Explicit overrides take
 precedence. `RUST_ODDS_SHARED_CONSTRAINTS=0` restores individual coverage only.
 No new overall allowance or cores are added; native mode remains available by
-unsetting the coverage flag. Earlier experiment results below remain unchanged.
+setting `RUST_ODDS_RARE_TAIL=0`. Earlier experiment results below remain unchanged.
 
 ## Baseline and comparison
 
@@ -348,7 +348,7 @@ Rebuild and run after pulling:
 
 ```sh
 cargo build --release --manifest-path odds-rust/Cargo.toml
-RUST_ODDS_RARE_TAIL=coverage odds-rust/target/release/golaberto-odds serve
+odds-rust/target/release/golaberto-odds serve
 ```
 
 Retain the existing server address and database arguments/environment when
@@ -364,3 +364,20 @@ this small verification cohort is not a replacement for the earlier 39 pairs.
 A separate full16498 request with the rollback override emitted no shared
 sampler events, had no losses, and gained one timing-funded individual cell.
 Compact evidence and binary hashes: `2026-10-01-shared-constraints/release-validation.json`.
+
+### Default coverage follow-up
+
+The user requested coverage as the application default. A single profile resolver
+now supplies `coverage` for an unset environment variable to sampling, witness
+reuse, configuration defaults and request logging. Explicit `0` disables the
+portfolio; explicit experimental modes and per-setting overrides are preserved.
+The same measured profile and budgets apply; this changes selection, not work
+within that profile. Existing joint-allocation regression tests explicitly
+disable the independent portfolio to retain their isolated assertions. A new
+child-process test verifies default shared sampling, effective settings, native
+rollback, proof labels and game importance.
+
+Default follow-up verification: the exact release tree passed the full Rust
+suite (**85 passed, two database tests ignored**) with `--test-threads=1`,
+serializing full-request tests to preserve the four-worker limit. The no-flags
+default and explicit `0` opt-out both passed the child-process integration test.

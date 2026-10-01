@@ -17,14 +17,16 @@ use crate::{
 use serde_json::json;
 use std::time::Instant;
 
-// A single opt-in profile, with explicit environment overrides. Reading it does
+// Coverage is the default profile, with explicit environment overrides. Reading it does
 // not mutate the process environment or interfere with concurrent requests.
+pub fn profile() -> String {
+    resolve_profile(std::env::var("RUST_ODDS_RARE_TAIL").ok())
+}
+fn resolve_profile(explicit: Option<String>) -> String {
+    explicit.unwrap_or_else(|| "coverage".into())
+}
 pub fn value(name: &str) -> String {
-    resolve_value(
-        name,
-        std::env::var(name).ok(),
-        std::env::var("RUST_ODDS_RARE_TAIL").as_deref() == Ok("coverage"),
-    )
+    resolve_value(name, std::env::var(name).ok(), profile() == "coverage")
 }
 fn resolve_value(name: &str, explicit: Option<String>, coverage: bool) -> String {
     explicit.unwrap_or_else(|| {
@@ -80,7 +82,7 @@ pub fn run(
     witnesses: &[(Vec<u8>, Vec<usize>)],
     unlogged_search_ms: f64,
 ) -> (usize, u64) {
-    let mode = std::env::var("RUST_ODDS_RARE_TAIL").unwrap_or_default();
+    let mode = profile();
     let mode = if mode == "coverage" {
         "portfolio".to_string()
     } else {
@@ -428,6 +430,18 @@ fn publishable(r: &Result, rough: bool) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn absent_profile_selects_coverage_and_preserves_explicit_modes() {
+        assert_eq!(resolve_profile(None), "coverage");
+        for mode in ["coverage", "0", "union", "lazy", "portfolio", ""] {
+            assert_eq!(resolve_profile(Some(mode.into())), mode);
+        }
+        let coverage = resolve_profile(None) == "coverage";
+        assert_eq!(
+            resolve_value("RUST_ODDS_SHARED_CONSTRAINTS", None, coverage),
+            "guided"
+        );
+    }
     #[test]
     fn coverage_enables_the_tested_shared_profile_with_explicit_rollback() {
         for (flag, expected) in [
