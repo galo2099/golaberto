@@ -95,6 +95,31 @@ pub fn sample(
     bounds: &Bounds,
     policy: Policy,
 ) -> Result {
+    sample_with_probes(
+        model,
+        event,
+        target,
+        rank,
+        bounds,
+        policy,
+        crate::domains::ProbeConfig::default(),
+    )
+}
+pub fn sample_with_probes(
+    model: &Model,
+    event: &Event,
+    target: usize,
+    rank: usize,
+    bounds: &Bounds,
+    policy: Policy,
+    mut probes: crate::domains::ProbeConfig,
+) -> Result {
+    let rules = &model.request.phase.championship;
+    if (rules.point_loss, rules.point_draw, rules.point_win) != (0, 1, 3)
+        || model.request.phase.bonus_points != 0
+    {
+        probes = crate::domains::ProbeConfig::default();
+    }
     let mut result = Result {
         mass: event.mass,
         ..Default::default()
@@ -181,6 +206,7 @@ pub fn sample(
     } else {
         None
     };
+    domain_cache = domain_cache.map(|c| c.with_probes(stride, probes));
     let mut points = base.clone();
     let mut outcomes = vec![0; model.fixtures.len()];
     let mut score_context = ScoreContext::new(model);
@@ -425,6 +451,18 @@ pub fn sample(
             sum2 += weight * weight;
             max = max.max(weight);
             batches[usize::from(draw >= policy.samples / 2)] += weight;
+        }
+    }
+    if probes.checks > 0 && std::env::var("RUST_ODDS_LOG").as_deref() != Ok("0") {
+        if let Some(c) = &domain_cache {
+            eprintln!(
+                "{}",
+                serde_json::json!({
+                    "event":"rust_odds_domain_probes", "team":model.ids[target], "rank":rank+1,
+                    "checks":c.stats.checks,"nodes":c.stats.nodes,"removed":c.stats.removed,
+                    "forced":c.stats.forced,"infeasible":c.stats.infeasible,"elapsed_ms":c.stats.elapsed_ms
+                })
+            );
         }
     }
     result.work = result.samples as u64 * work_per_sample(model);

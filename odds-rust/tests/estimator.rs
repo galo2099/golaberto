@@ -101,7 +101,7 @@ fn conditional_event_contains_every_rank_hit_and_has_exact_mass() {
 #[test]
 fn cap_and_floor_proofs_never_exclude_a_feasible_relaxation() {
     let model = tiny();
-    let problem = Problem::new(&model).unwrap();
+    let problem = Problem::new(&model).unwrap().with_discrete_cuts(true);
     for dual in [false, true] {
         let negative = problem.negated();
         let problem = if dual { &negative } else { &problem };
@@ -216,6 +216,45 @@ fn weighted_sampler_agrees_with_exhaustive_probability() {
         }
     }
 }
+#[test]
+fn proof_guided_sampler_agrees_with_exhaustive_probability() {
+    let model = tiny();
+    let bounds = Bounds::new(&model);
+    let mut exact = [0.; 4];
+    enumerate(&model, |o, p| {
+        exact[conditioned::canonical_ranks(&model, o)[0]] += p
+    });
+    for rank in 0..4 {
+        let event = Event::build(&model, &bounds, 0, rank, &[], 20000).unwrap();
+        let result = lookahead::sample_with_probes(
+            &model,
+            &event,
+            0,
+            rank,
+            &bounds,
+            Policy {
+                samples: 30000,
+                seed: 808,
+                tilt: 3.,
+                point_tilt: 0.5,
+                force_points: false,
+                propagate: true,
+            },
+            golaberto_odds::domains::ProbeConfig {
+                checks: 24,
+                nodes: 32,
+            },
+        );
+        assert!(result.weighted);
+        assert!(
+            (result.probability - exact[rank]).abs() < 6. * result.std_err + 1e-6,
+            "rank={rank} estimate={} exact={}",
+            result.probability,
+            exact[rank]
+        );
+    }
+}
+
 #[test]
 fn production_acceptance_gate_is_unchanged() {
     let mut result = Result {
@@ -425,6 +464,143 @@ fn aggregate_cut_detects_a_shared_fixture_contradiction_marginals_miss() {
     assert!(problem
         .propagate_policy(3, 0, &mut vec![7; 10], true)
         .is_none());
+}
+
+#[test]
+fn discrete_floor_proves_palmeiras_seventeenth_and_preserves_reachable_ranks() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(
+        "../experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16498-44eabb47.json",
+    );
+    let request: Request = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+    for reverse in [false, true] {
+        let mut request = request.clone();
+        if reverse {
+            request.team_groups.reverse();
+            request.games.reverse();
+        }
+        let model = Model::new(request).unwrap();
+        let team = model.indices[&16];
+        let problem = Problem::new(&model).unwrap().negated();
+        let cap = problem.target_max(team);
+        assert_eq!(cap, -57);
+        let discrete = problem.clone().with_discrete_cuts(true);
+        let legacy = problem.with_discrete_cuts(false);
+        // Enable the existing aggregate stage independently of environment flags.
+        // impossible() uses that stage when RUST_ODDS_AGGREGATE_CUTS=1; test the
+        // explicit point-domain policy first for each required exemption set.
+        let mandatory = [16, 110, 318].map(|id| model.indices[&id]);
+        for additional in [20, 79] {
+            let mask = mandatory.into_iter().fold(0, |m, t| m | (1 << t))
+                | (1 << model.indices[&additional]);
+            assert!(discrete
+                .propagate_policy(cap, mask, &mut vec![7; model.fixtures.len()], true)
+                .is_none());
+            if additional == 20 {
+                assert!(legacy
+                    .propagate_policy(cap, mask, &mut vec![7; model.fixtures.len()], true)
+                    .is_some());
+            }
+        }
+        // The complete verified 15th-place witness must retain a feasible floor.
+        let certificate: Value = serde_json::from_str(include_str!(
+            "../../experiments/rare_positions/results/2026-09-30-palmeiras-15-goal-witness.json"
+        ))
+        .unwrap();
+        let mut campaigns = model.base.clone();
+        let mut full_scores = model.empty_scores();
+        for (i, g) in model.fixtures.iter().enumerate() {
+            let id = model.request.games[g.request_index].id;
+            let score = certificate["remaining_fixture_assignment"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|a| a["game_id"] == id)
+                .unwrap()["score"]
+                .as_array()
+                .unwrap();
+            let score = [
+                score[0].as_i64().unwrap() as i32,
+                score[1].as_i64().unwrap() as i32,
+            ];
+            model.add(&mut campaigns, i, score);
+            full_scores[g.request_index] = score;
+        }
+        let mut order = vec![0; model.n];
+        model.standings(&mut order, &campaigns, &full_scores, &mut Rng::new(1));
+        assert_eq!(order[14], team);
+        let mask = (0..model.ids.len())
+            .filter(|t| *t == team || campaigns[*t].points < 57)
+            .fold(0, |m, t| m | (1 << t));
+        assert!(discrete
+            .propagate_policy(cap, mask, &mut vec![7; model.fixtures.len()], true)
+            .is_some());
+    }
+}
+
+#[test]
+fn discrete_floor_retains_feasible_restricted_domains_with_point_adjustments() {
+    for adjustments in [[0, 1, 2, 4], [-2, 0, 3, 7]] {
+        let mut request = tiny().request;
+        for (team, adjustment) in request.team_groups.iter_mut().zip(adjustments) {
+            team.add_sub = adjustment;
+        }
+        let model = Model::new(request).unwrap();
+        let problem = Problem::new(&model)
+            .unwrap()
+            .negated()
+            .with_discrete_cuts(true);
+        enumerate(&model, |outcomes, _| {
+            let mut points = problem.base.clone();
+            for (g, &o) in problem.games.iter().zip(outcomes) {
+                points[g.home] += g.hg[o as usize];
+                points[g.away] += g.ag[o as usize];
+            }
+            for mask in 0..16 {
+                for cap in -9..=2 {
+                    if (0..4).all(|t| mask & (1 << t) != 0 || points[t] <= cap) {
+                        let mut domains: Vec<_> = outcomes.iter().map(|o| (1 << o) | 2).collect();
+                        assert!(problem
+                            .propagate_policy(cap, mask, &mut domains, true)
+                            .is_some());
+                        for (d, o) in domains.into_iter().zip(outcomes) {
+                            assert_ne!(d & (1 << o), 0);
+                        }
+                    }
+                }
+            }
+        });
+    }
+}
+
+#[test]
+fn discrete_cut_is_disabled_for_other_scoring_and_bonus_rules() {
+    for bonus in [false, true] {
+        let mut request = tiny().request;
+        if bonus {
+            request.phase.bonus_points = 1;
+        } else {
+            request.phase.championship.point_win = 2;
+        }
+        let model = Model::new(request).unwrap();
+        let problem = Problem::new(&model).unwrap().negated();
+        for mask in 0..16 {
+            for cap in -9..=3 {
+                let mut on = vec![7; problem.games.len()];
+                let mut off = on.clone();
+                assert_eq!(
+                    problem
+                        .clone()
+                        .with_discrete_cuts(true)
+                        .propagate_policy(cap, mask, &mut on, true),
+                    problem
+                        .clone()
+                        .with_discrete_cuts(false)
+                        .propagate_policy(cap, mask, &mut off, true)
+                );
+                assert_eq!(on, off);
+            }
+        }
+    }
 }
 
 #[test]
@@ -714,9 +890,9 @@ fn every_goal_completion_in_the_enumerated_league_is_a_real_sorted_season() {
             for team in 0..model.n {
                 for rank in 0..model.n {
                     let cell = golaberto_odds::search::Cell { team, rank };
-                    if let Some(proof) =
-                        golaberto_odds::goal_completion::complete(&model, outcomes, cell)
-                    {
+                    if let Some(proof) = golaberto_odds::goal_completion::complete_with_paths(
+                        &model, outcomes, cell, true,
+                    ) {
                         assert!(golaberto_odds::goal_completion::verify(
                             &model, &proof, cell
                         ));
@@ -822,4 +998,136 @@ fn adjacent_cdf_factor_preserves_the_original_weight_bits_at_boundaries() {
             }
         }
     }
+}
+
+#[test]
+fn proof_probes_preserve_every_enumerated_rank_hit_with_wins_and_negative_points() {
+    use golaberto_odds::domains::{Cache, ProbeConfig};
+    let mut request = tiny().request.clone();
+    request.team_groups[0].add_sub = -3;
+    let model = Model::new(request).unwrap();
+    let mut checks = 0;
+    let mut removals = 0;
+    for stride in [1, 8] {
+        for target in 0..model.n {
+            let mut selected = Vec::new();
+            let mut remaining = Vec::new();
+            for (index, f) in model.fixtures.iter().enumerate() {
+                let g = RankGame {
+                    index,
+                    home: f.home,
+                    away: f.away,
+                    prob: f.prob,
+                    hg: [0, stride, 3 * stride + i32::from(stride > 1)],
+                    ag: [3 * stride + i32::from(stride > 1), stride, 0],
+                };
+                if g.home == target || g.away == target {
+                    selected.push(g)
+                } else {
+                    remaining.push(g)
+                }
+            }
+            for rank in 0..model.n {
+                enumerate(&model, |outcomes, _| {
+                    if conditioned::canonical_ranks(&model, outcomes)[target] != rank {
+                        return;
+                    }
+                    let mut points: Vec<_> = model
+                        .base
+                        .iter()
+                        .map(|b| b.points * stride + if stride > 1 { b.wins } else { 0 })
+                        .collect();
+                    for g in &selected {
+                        let o = outcomes[g.index] as usize;
+                        points[g.home] += g.hg[o];
+                        points[g.away] += g.ag[o];
+                    }
+                    // Fresh budgets exercise each possible conditional target pattern.
+                    let mut cache =
+                        Cache::new(&remaining, &selected, target, rank, model.n, false, true)
+                            .unwrap()
+                            .with_probes(
+                                stride,
+                                ProbeConfig {
+                                    checks: 12,
+                                    nodes: 32,
+                                },
+                            );
+                    let (_, domains) = cache.get(&points, points[target], outcomes);
+                    if let Some(d) = domains {
+                        assert!(d.feasible, "lost rank hit {target}/{rank} {outcomes:?}");
+                        for (g, mask) in remaining.iter().zip(&d.domains) {
+                            assert_ne!(*mask & (1 << outcomes[g.index]), 0, "pruned valid outcome");
+                        }
+                    }
+                    checks += cache.stats.checks;
+                    removals += cache.stats.removed;
+                    assert!(cache.stats.checks <= 12);
+                });
+            }
+        }
+    }
+    assert!(checks > 0);
+    assert!(removals > 0);
+}
+
+#[test]
+fn decisive_path_completion_changes_endpoint_gd_and_preserves_intermediate_gd() {
+    let request:Request=serde_json::from_value(json!({"id":1,
+        "phase":{"sort":"pt,w,gd,gf,bias","championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+        "team_groups":[{"team_id":0},{"team_id":1,"bias":1},{"team_id":2,"add_sub":-10}],
+        "games":[{"id":0,"home_id":0,"away_id":2,"home_score":0,"away_score":10,"played":true},
+                 {"id":1,"home_id":0,"away_id":1,"played":false},
+                 {"id":2,"home_id":1,"away_id":2,"played":false}]})).unwrap();
+    let model = Model::new(request).unwrap();
+    let outcomes = [2, 2];
+    let cell = golaberto_odds::search::Cell { team: 0, rank: 0 };
+    assert_eq!(conditioned::canonical_ranks(&model, &outcomes)[0], 1);
+    assert!(
+        golaberto_odds::goal_completion::complete_with_paths(&model, &outcomes, cell, false)
+            .is_none()
+    );
+    let proof = golaberto_odds::goal_completion::complete_with_paths(&model, &outcomes, cell, true)
+        .unwrap();
+    assert!(golaberto_odds::goal_completion::verify(
+        &model, &proof, cell
+    ));
+    let mut campaigns = model.base.clone();
+    for (i, f) in model.fixtures.iter().enumerate() {
+        let mut score = conditioned::canonical(outcomes[i]);
+        for a in &proof.adjustments {
+            if a.fixture == i {
+                assert_eq!(a.equal_goals, 0);
+                score[0] += a.margin;
+            }
+        }
+        model.add(&mut campaigns, i, score);
+        assert_eq!(f.home, i);
+    }
+    assert_eq!(campaigns[1].gf - campaigns[1].ga, 0);
+    assert!(campaigns[1].gf > 1 && campaigns[1].ga > 1);
+    assert!(proof.adjustments.len() >= 2);
+}
+
+#[test]
+fn reverse_decisive_path_can_lower_target_gd_without_lowering_middle_team_gd() {
+    let request:Request=serde_json::from_value(json!({"id":1,
+        "phase":{"sort":"pt,w,gd,gf,bias","championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+        "team_groups":[{"team_id":0},{"team_id":1},{"team_id":2,"add_sub":100},{"team_id":3,"add_sub":-100}],
+        "games":[{"id":0,"home_id":0,"away_id":3,"home_score":10,"away_score":0,"played":true},
+                 {"id":1,"home_id":1,"away_id":0,"played":false},
+                 {"id":2,"home_id":2,"away_id":1,"played":false}]})).unwrap();
+    let model = Model::new(request).unwrap();
+    let outcomes = [2, 2];
+    let cell = golaberto_odds::search::Cell { team: 0, rank: 2 };
+    assert_eq!(conditioned::canonical_ranks(&model, &outcomes)[0], 1);
+    assert!(
+        golaberto_odds::goal_completion::complete_with_paths(&model, &outcomes, cell, false)
+            .is_none()
+    );
+    let proof = golaberto_odds::goal_completion::complete_with_paths(&model, &outcomes, cell, true)
+        .unwrap();
+    assert!(golaberto_odds::goal_completion::verify(
+        &model, &proof, cell
+    ));
 }

@@ -119,7 +119,12 @@ struct Interval {
     up: Option<usize>,
     down: Option<usize>,
 }
-fn intervals(s: &State<'_>, cohort: &[usize], key: Key) -> Vec<Interval> {
+fn intervals(
+    s: &State<'_>,
+    cohort: &[usize],
+    key: Key,
+    paths: bool,
+) -> (Vec<Interval>, Vec<Vec<usize>>) {
     let mut inside = vec![false; s.c.len()];
     for &t in cohort {
         inside[t] = true;
@@ -162,9 +167,82 @@ fn intervals(s: &State<'_>, cohort: &[usize], key: Key) -> Vec<Interval> {
             v.lo = i64::MIN / 4;
         }
     }
-    values
+    let mut routes = Vec::new();
+    if paths && key == Key::Gd && inside.iter().any(|v| !*v) {
+        let mut forward = vec![Vec::new(); s.c.len()];
+        let mut reverse = forward.clone();
+        for (i, f) in s.model.fixtures.iter().enumerate() {
+            let score = s.scores[f.request_index];
+            let (winner, loser) = match score[0].cmp(&score[1]) {
+                std::cmp::Ordering::Greater => (f.home, f.away),
+                std::cmp::Ordering::Less => (f.away, f.home),
+                _ => continue,
+            };
+            forward[winner].push((loser, i));
+            reverse[loser].push((winner, i));
+        }
+        for (&t, v) in cohort.iter().zip(&mut values) {
+            if v.up.is_none() {
+                if let Some(route) = outside_path(&forward, &inside, t) {
+                    v.up = Some(s.model.fixtures.len() + routes.len());
+                    v.hi = i64::MAX / 4;
+                    routes.push(route);
+                }
+            }
+            if v.down.is_none() {
+                if let Some(route) = outside_path(&reverse, &inside, t) {
+                    v.down = Some(s.model.fixtures.len() + routes.len());
+                    v.lo = i64::MIN / 4;
+                    routes.push(route);
+                }
+            }
+        }
+    }
+    (values, routes)
 }
-fn set_value(s: &mut State<'_>, v: Interval, value: i64, key: Key) -> Option<()> {
+// A simple directed path changes GD only at its endpoints. Its interior can
+// belong to the cohort: increased goals scored AND conceded cancel their GD.
+// Later goals-scored ordering must still be verified after applying all paths.
+fn outside_path(
+    edges: &[Vec<(usize, usize)>],
+    inside: &[bool],
+    start: usize,
+) -> Option<Vec<usize>> {
+    let mut previous = vec![None; edges.len()];
+    let mut queue = vec![start];
+    previous[start] = Some((start, usize::MAX));
+    let mut read = 0;
+    while read < queue.len() {
+        let at = queue[read];
+        read += 1;
+        for &(next, fixture) in &edges[at] {
+            if previous[next].is_some() {
+                continue;
+            }
+            previous[next] = Some((at, fixture));
+            if !inside[next] {
+                let mut route = Vec::new();
+                let mut cursor = next;
+                while cursor != start {
+                    let (parent, game) = previous[cursor]?;
+                    route.push(game);
+                    cursor = parent;
+                }
+                route.reverse();
+                return Some(route);
+            }
+            queue.push(next);
+        }
+    }
+    None
+}
+fn set_value(
+    s: &mut State<'_>,
+    v: Interval,
+    value: i64,
+    key: Key,
+    routes: &[Vec<usize>],
+) -> Option<()> {
     let delta = value - v.base;
     if delta == 0 {
         return Some(());
@@ -172,7 +250,14 @@ fn set_value(s: &mut State<'_>, v: Interval, value: i64, key: Key) -> Option<()>
     let amount = i32::try_from(delta.abs()).ok()?;
     let fixture = if delta > 0 { v.up? } else { v.down? };
     if key == Key::Gd {
-        s.adjust(fixture, amount, 0)
+        if fixture < s.model.fixtures.len() {
+            s.adjust(fixture, amount, 0)
+        } else {
+            for &game in routes.get(fixture - s.model.fixtures.len())? {
+                s.adjust(game, amount, 0)?;
+            }
+            Some(())
+        }
     } else {
         s.adjust(fixture, 0, amount)
     }
@@ -226,6 +311,7 @@ fn stage(
     wins: bool,
     gf_next: bool,
     trials: &mut usize,
+    paths: bool,
 ) -> Option<Certificate> {
     let prefix = s.prefix(cell.team, wins, key == Key::Gf && gf_next);
     let ahead = (0..s.model.n)
@@ -239,7 +325,7 @@ fn stage(
         return None;
     }
     let target = cohort.iter().position(|t| *t == cell.team)?;
-    let values = intervals(s, &cohort, key);
+    let (values, routes) = intervals(s, &cohort, key, paths);
     let v = values[target];
     let mut candidates = vec![v.base];
     for peer in &values {
@@ -260,7 +346,7 @@ fn stage(
         let mut trial = s.clone();
         let mut legal = true;
         for (&v, &value) in values.iter().zip(&assigned) {
-            if set_value(&mut trial, v, value, key).is_none() {
+            if set_value(&mut trial, v, value, key, &routes).is_none() {
                 legal = false;
                 break;
             }
@@ -272,7 +358,7 @@ fn stage(
             return Some(proof);
         }
         if key == Key::Gd && gf_next {
-            if let Some(proof) = stage(&trial, outcomes, cell, Key::Gf, wins, true, trials) {
+            if let Some(proof) = stage(&trial, outcomes, cell, Key::Gf, wins, true, trials, paths) {
                 return Some(proof);
             }
         }
@@ -285,6 +371,21 @@ fn stage(
 #[cold]
 #[inline(never)]
 pub fn complete(model: &Model, outcomes: &[u8], cell: Cell) -> Option<Certificate> {
+    complete_with_paths(
+        model,
+        outcomes,
+        cell,
+        std::env::var("RUST_ODDS_GOAL_PATHS").as_deref() == Ok("1"),
+    )
+}
+/// Extend independent GD adjustments through decisive paths, within the same
+/// sixteen layout attempts. Paths are witnesses, never impossibility proofs.
+pub fn complete_with_paths(
+    model: &Model,
+    outcomes: &[u8],
+    cell: Cell,
+    paths: bool,
+) -> Option<Certificate> {
     if cell.team >= model.n || cell.rank >= model.n || model.request.phase.bonus_points != 0 {
         return None;
     }
@@ -299,7 +400,7 @@ pub fn complete(model: &Model, outcomes: &[u8], cell: Cell) -> Option<Certificat
     }
     let gf_next = key == Key::Gd && model.keys.get(offset + 1) == Some(&Key::Gf);
     let state = State::new(model, outcomes)?;
-    stage(&state, outcomes, cell, key, wins, gf_next, &mut 0)
+    stage(&state, outcomes, cell, key, wins, gf_next, &mut 0, paths)
 }
 
 /// Reconstruct compact adjustments and verify their complete season on demand.

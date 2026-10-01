@@ -57,7 +57,22 @@ impl Domains {
         rank: usize,
         target: i32,
     ) -> Self {
+        Self::seeded(games, points, rivals, rank, target, None)
+    }
+    fn seeded(
+        games: &[RankGame],
+        points: &[i32],
+        rivals: &[usize],
+        rank: usize,
+        target: i32,
+        seed: Option<&[u8]>,
+    ) -> Self {
         let mut result = Self::new(games, points.len(), true);
+        if let Some(seed) = seed {
+            for (d, mask) in result.domains.iter_mut().zip(seed) {
+                *d &= mask;
+            }
+        }
         let mut min = points.to_vec();
         let mut max = min.clone();
         let mut hm = vec![0; games.len()];
@@ -280,6 +295,151 @@ impl Domains {
         true
     }
 }
+#[derive(Clone, Copy, Default)]
+pub struct ProbeConfig {
+    pub checks: usize,
+    pub nodes: usize,
+}
+#[derive(Default)]
+pub struct ProbeStats {
+    pub checks: usize,
+    pub nodes: usize,
+    pub removed: usize,
+    pub forced: usize,
+    pub infeasible: usize,
+    pub elapsed_ms: f64,
+}
+impl Domains {
+    fn probe(
+        &mut self,
+        games: &[RankGame],
+        points: &[i32],
+        rivals: &[usize],
+        rank: usize,
+        target: usize,
+        stride: i32,
+        budget: &mut usize,
+        nodes: usize,
+        stats: &mut ProbeStats,
+    ) {
+        if !self.feasible || *budget == 0 {
+            return;
+        }
+        let started = std::time::Instant::now();
+        let before = self.domains.iter().filter(|d| d.count_ones() == 1).count();
+        let mut order: Vec<_> = (0..games.len()).collect();
+        order.sort_by_key(|i| {
+            let g = &games[*i];
+            (
+                self.domains[*i].count_ones(),
+                (points[g.home] - points[target])
+                    .abs()
+                    .min((points[g.away] - points[target]).abs()),
+                *i,
+            )
+        });
+        for i in order {
+            if self.domains[i].count_ones() < 2 {
+                continue;
+            }
+            for o in 0..3 {
+                if *budget == 0 || self.domains[i] & (1 << o) == 0 {
+                    continue;
+                }
+                *budget -= 1;
+                stats.checks += 1;
+                let mut masks = self.domains.clone();
+                masks[i] = 1 << o;
+                let trial = Self::seeded(games, points, rivals, rank, points[target], Some(&masks));
+                let mut impossible = !trial.feasible;
+                if !impossible && nodes > 0 {
+                    // Fixed W/D/L results contribute to the base exactly once.
+                    // Residual domains are a relaxation; score tiebreakers stay free.
+                    let mut base = points.to_vec();
+                    let mut residual = Vec::new();
+                    let mut ds = Vec::new();
+                    for (g, d) in games.iter().zip(&trial.domains) {
+                        if d.count_ones() == 1 {
+                            let o = d.trailing_zeros() as usize;
+                            base[g.home] += g.hg[o];
+                            base[g.away] += g.ag[o];
+                        } else {
+                            residual.push(crate::proof::Game {
+                                home: g.home,
+                                away: g.away,
+                                hg: g.hg,
+                                ag: g.ag,
+                                prob: g.prob,
+                            });
+                            ds.push(*d);
+                        }
+                    }
+                    let encoded =
+                        crate::proof::Problem::conditional(base.clone(), residual.clone());
+                    if let Some(p) = encoded {
+                        let (bad, n) =
+                            p.impossible_domains(target, rank, points[target], &ds, nodes);
+                        stats.nodes += n;
+                        impossible = bad;
+                        if !impossible {
+                            let (bad, n) = p.negated().impossible_domains(
+                                target,
+                                rivals.len() - rank,
+                                -points[target],
+                                &ds,
+                                nodes,
+                            );
+                            stats.nodes += n;
+                            impossible = bad;
+                        }
+                    }
+                    if !impossible && stride > 1 {
+                        for b in &mut base {
+                            *b = b.div_euclid(stride);
+                        }
+                        for g in &mut residual {
+                            g.hg = g.hg.map(|v| v.div_euclid(stride));
+                            g.ag = g.ag.map(|v| v.div_euclid(stride));
+                        }
+                        if let Some(p) = crate::proof::Problem::conditional(base, residual) {
+                            let (bad, n) = p.negated().impossible_domains(
+                                target,
+                                rivals.len() - rank,
+                                -points[target].div_euclid(stride),
+                                &ds,
+                                nodes,
+                            );
+                            stats.nodes += n;
+                            impossible = bad;
+                        }
+                    }
+                }
+                if impossible {
+                    stats.removed += 1;
+                    let mut masks = self.domains.clone();
+                    masks[i] &= !(1 << o);
+                    *self = Self::seeded(games, points, rivals, rank, points[target], Some(&masks));
+                    if !self.feasible {
+                        stats.infeasible += 1;
+                        break;
+                    }
+                }
+            }
+            if !self.feasible {
+                break;
+            }
+        }
+        if self.feasible {
+            stats.forced += self
+                .domains
+                .iter()
+                .filter(|d| d.count_ones() == 1)
+                .count()
+                .saturating_sub(before);
+        }
+        stats.elapsed_ms += started.elapsed().as_secs_f64() * 1000.;
+    }
+}
 pub struct Cache<'a> {
     games: &'a [RankGame],
     selected: &'a [RankGame],
@@ -291,6 +451,10 @@ pub struct Cache<'a> {
     pub zero_safe: IntMap<bool>,
     reduce: bool,
     propagate: bool,
+    target: usize,
+    stride: i32,
+    probes: ProbeConfig,
+    pub stats: ProbeStats,
 }
 impl<'a> Cache<'a> {
     pub fn new(
@@ -325,7 +489,16 @@ impl<'a> Cache<'a> {
             zero_safe: IntMap::default(),
             reduce,
             propagate,
+            target,
+            stride: 1,
+            probes: ProbeConfig::default(),
+            stats: ProbeStats::default(),
         })
+    }
+    pub fn with_probes(mut self, stride: i32, probes: ProbeConfig) -> Self {
+        self.stride = stride;
+        self.probes = probes;
+        self
     }
     pub fn get(
         &mut self,
@@ -369,6 +542,7 @@ impl<'a> Cache<'a> {
         let result = if self.propagate
             && (above >= self.rank || below >= self.rivals.len() - self.rank)
             || has_omitted
+            || self.probes.checks > 0
         {
             let mut d = if self.propagate {
                 Domains::propagate(self.games, points, &self.rivals, self.rank, target)
@@ -377,6 +551,19 @@ impl<'a> Cache<'a> {
                 d.compile(self.games, points);
                 d
             };
+            if self.probes.checks > 0 {
+                d.probe(
+                    self.games,
+                    points,
+                    &self.rivals,
+                    self.rank,
+                    self.target,
+                    self.stride,
+                    &mut self.probes.checks,
+                    self.probes.nodes,
+                    &mut self.stats,
+                );
+            }
             if d.feasible && has_omitted {
                 d.omitted = omitted;
                 d.compact(self.games, points);

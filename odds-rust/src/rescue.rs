@@ -99,6 +99,17 @@ pub fn domains(
     if !enabled("RARE_POSITION_PROPAGATED_DOMAINS") || model.keys.first() != Some(&Key::Pt) {
         return (0, 0);
     }
+    let probes = crate::domains::ProbeConfig {
+        checks: std::env::var("RUST_ODDS_DOMAIN_PROBES")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(0),
+        nodes: std::env::var("RUST_ODDS_DOMAIN_PROBE_NODES")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(16),
+    };
+    let reallocate = std::env::var("RUST_ODDS_DOMAIN_PROBE_REALLOCATE").as_deref() == Ok("1");
     let (_, current) = current_ranks(model);
     let mut cells = Vec::new();
     for t in 0..model.n {
@@ -135,7 +146,7 @@ pub fn domains(
         } else {
             0.5
         };
-        let pilot = lookahead::sample(
+        let pilot = lookahead::sample_with_probes(
             model,
             &event,
             cell.team,
@@ -146,12 +157,13 @@ pub fn domains(
                 cell,
                 seed,
                 "rank-domain-pilot",
-                1000,
+                if reallocate { 750 } else { 1000 },
                 6.,
                 point,
                 false,
                 true,
             ),
+            probes,
         );
         Some(Candidate {
             cell,
@@ -182,7 +194,7 @@ pub fn domains(
     finalists.truncate(3);
     let confirmed = parallel(finalists.len(), workers, |i| {
         let c = &finalists[i];
-        let r = lookahead::sample(
+        let r = lookahead::sample_with_probes(
             model,
             &c.event,
             c.cell.team,
@@ -193,14 +205,15 @@ pub fn domains(
                 c.cell,
                 seed,
                 "rank-domain-final",
-                15000,
+                if reallocate { 14000 } else { 15000 },
                 6.,
                 c.point,
                 false,
                 true,
             ),
+            probes,
         );
-        let check = lookahead::sample(
+        let check = lookahead::sample_with_probes(
             model,
             &c.event,
             c.cell.team,
@@ -217,6 +230,7 @@ pub fn domains(
                 false,
                 true,
             ),
+            probes,
         );
         (r, check)
     });

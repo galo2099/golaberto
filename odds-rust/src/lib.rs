@@ -4,6 +4,7 @@ pub mod database;
 pub mod domains;
 pub mod goal_completion;
 pub mod http;
+pub mod joint_caps;
 pub mod logging;
 pub mod lookahead;
 pub mod model;

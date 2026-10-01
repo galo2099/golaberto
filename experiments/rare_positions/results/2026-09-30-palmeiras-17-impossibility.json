@@ -1,0 +1,95 @@
+{
+  "all_teams_reaching_floor_impossible": true,
+  "boundary_fixtures": 51,
+  "current_points": 380,
+  "group": 16498,
+  "incident_fixtures": 83,
+  "internal_fixtures": 32,
+  "maximum_final_points": 629,
+  "meaning": "Infeasibility is a certificate; passing this screen proves neither joint feasibility nor rank reachability.",
+  "minimum_internal_draws": 4,
+  "point_floor": 57,
+  "point_slack": 2,
+  "required_final_points": 627,
+  "setup_and_certificate_ms": 1.212709,
+  "teams": [
+    {
+      "points": 40,
+      "remaining": 11,
+      "team": 4,
+      "wins": 11,
+      "wins_needed_without_draws": 6
+    },
+    {
+      "points": 35,
+      "remaining": 10,
+      "team": 7,
+      "wins": 9,
+      "wins_needed_without_draws": 8
+    },
+    {
+      "points": 36,
+      "remaining": 11,
+      "team": 225,
+      "wins": 10,
+      "wins_needed_without_draws": 7
+    },
+    {
+      "points": 32,
+      "remaining": 10,
+      "team": 24,
+      "wins": 8,
+      "wins_needed_without_draws": 9
+    },
+    {
+      "points": 38,
+      "remaining": 10,
+      "team": 10,
+      "wins": 10,
+      "wins_needed_without_draws": 7
+    },
+    {
+      "points": 29,
+      "remaining": 10,
+      "team": 79,
+      "wins": 7,
+      "wins_needed_without_draws": 10
+    },
+    {
+      "points": 32,
+      "remaining": 10,
+      "team": 584,
+      "wins": 8,
+      "wins_needed_without_draws": 9
+    },
+    {
+      "points": 38,
+      "remaining": 11,
+      "team": 6,
+      "wins": 10,
+      "wins_needed_without_draws": 7
+    },
+    {
+      "points": 36,
+      "remaining": 11,
+      "team": 14,
+      "wins": 10,
+      "wins_needed_without_draws": 7
+    },
+    {
+      "points": 31,
+      "remaining": 11,
+      "team": 18,
+      "wins": 8,
+      "wins_needed_without_draws": 9
+    },
+    {
+      "points": 33,
+      "remaining": 10,
+      "team": 67,
+      "wins": 9,
+      "wins_needed_without_draws": 8
+    }
+  ],
+  "wins_needed_without_draws": 87
+}

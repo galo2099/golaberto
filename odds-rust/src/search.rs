@@ -1,5 +1,6 @@
 use crate::{
     conditioned::{blockers, fast, Event, Result},
+    joint_caps::JointProposal,
     lookahead::{self, Policy},
     model::Model,
     pool::{zero_upper, Bounds, Estimate},
@@ -262,7 +263,8 @@ fn extra(
     seed: i64,
     workers: usize,
     results: &mut [SearchResult],
-) {
+    log: Option<&crate::logging::RequestLog>,
+) -> Vec<(Cell, Result)> {
     let plans = parallel(cells.len(), workers, |i| {
         let cell = cells[i];
         let search = &results[i];
@@ -322,9 +324,82 @@ fn extra(
             .then(cells[*a].rank.cmp(&cells[*b].rank))
     });
     candidates.truncate(4);
+    let joint_enabled = enabled("RUST_ODDS_JOINT_CAP_CONDITIONING");
     let extras = parallel(candidates.len(), workers, |i| {
         let (index, event, _) = &candidates[i];
         let cell = cells[*index];
+        let mut pending = None;
+        let mut joint_work = 0;
+        let mut ordinary_draws = 50000;
+        if joint_enabled {
+            let start = std::time::Instant::now();
+            // Use the cheap exact extreme case when its gate is proved;
+            // otherwise cover all allowed target totals with a defensive mixture.
+            if let Some(plan) = JointProposal::new(model, cell) {
+                let setup_ms = crate::logging::millis(start);
+                let broad = matches!(plan, JointProposal::Broad(_));
+                let main_draws = if broad { 1500 } else { 5000 };
+                let check_draws = if broad { 1500 } else { 2000 };
+                let mut result = plan.sample(
+                    model,
+                    main_draws,
+                    derive(
+                        seed,
+                        &format!("joint-cap-final-{}-{}", model.ids[cell.team], cell.rank),
+                    ),
+                    true,
+                );
+                let check = plan.sample(
+                    model,
+                    check_draws,
+                    derive(
+                        seed,
+                        &format!("joint-cap-check-{}-{}", model.ids[cell.team], cell.rank),
+                    ),
+                    true,
+                );
+                let accepted = crate::joint_caps::confirmed(&result, &check);
+                joint_work = result.work + check.work;
+                // Replace existing draws, including the independent check. Do
+                // not give unsuccessful attempts an extra simulation budget.
+                // Forecast ordinary hits from the two independent joint streams.
+                // This is allocation guidance, not a probability bound. Retain
+                // more ordinary draws when they may contribute useful witnesses.
+                let ordinary_hit_forecast = if broad {
+                    Some(50000. * result.probability.max(check.probability) / event.mass)
+                } else {
+                    None
+                };
+                ordinary_draws = if broad {
+                    if ordinary_hit_forecast.unwrap() >= 0.01 {
+                        43000
+                    } else {
+                        35000
+                    }
+                } else if accepted {
+                    10000
+                } else {
+                    43000
+                };
+                if let Some(log) = log {
+                    log.event("rust_odds_joint_caps", serde_json::json!({
+                        "setup":plan.describe(model),"setup_ms":setup_ms,
+                        "elapsed_ms":crate::logging::millis(start),
+                        "probability":result.probability,"hits":result.hits,"ess":result.ess,
+                        "relative_se":if result.probability>0. {Some(result.std_err/result.probability)} else {None},
+                        "check_probability":check.probability,"check_hits":check.hits,"check_ess":check.ess,
+                        "accepted":accepted,"publication":"deferred",
+                        "joint_draws":result.samples,"check_draws":check.samples,
+                        "ordinary_draws":ordinary_draws,
+                        "ordinary_hit_forecast":ordinary_hit_forecast
+                    }));
+                }
+                if accepted {
+                    result.work = joint_work;
+                    pending = Some(result);
+                }
+            }
+        }
         let seed = derive(
             seed,
             &format!(
@@ -332,17 +407,23 @@ fn extra(
                 model.ids[cell.team], cell.rank
             ),
         );
-        let mut result = fast(model, event, cell.team, cell.rank, 50000, seed);
+        let mut result = fast(model, event, cell.team, cell.rank, ordinary_draws, seed);
         result.blockers = event.teams.len() - 1;
-        (*index, result)
+        result.work += joint_work;
+        (*index, result, pending)
     });
-    for (i, mut extra) in extras {
+    let mut pending_joint = Vec::new();
+    for (i, mut extra, pending) in extras {
+        if let Some(result) = pending {
+            pending_joint.push((cells[i], result));
+        }
         extra.work += results[i].result.work;
         if results[i].witness.is_none() {
             results[i].witness = extra.witness.clone();
         }
         results[i].result = extra;
     }
+    pending_joint
 }
 pub fn apply(est: &mut Estimate, result: &Result, design: &str) {
     est.probability = result.probability;
@@ -457,7 +538,7 @@ pub fn run_logged(
     for search in &mut results {
         search.event = None;
     }
-    extra(
+    let pending_joint = extra(
         model,
         &bounds,
         &pmfs,
@@ -466,6 +547,7 @@ pub fn run_logged(
         seed,
         workers,
         &mut results,
+        log,
     );
     report("extra", serde_json::json!({}));
     let mut work = 0;
@@ -636,6 +718,22 @@ pub fn run_logged(
             "cells":crate::logging::cell_counts(estimates)}),
         );
     }
+    // Publishing earlier removed neighborhood queries and their useful seasons.
+    // Keep the original witness allocation, then fill only remaining zeros.
+    let mut joint_found = 0;
+    for (cell, result) in pending_joint {
+        let est = &mut estimates[cell.index(model.n)];
+        if est.probability == 0. && !est.reachability.starts_with("impossible") {
+            apply(est, &result, "matched_point_pool_joint_caps");
+            witnesses += 1;
+            joint_found += 1;
+        }
+    }
+    report(
+        "joint_caps_publish",
+        serde_json::json!({"enabled":enabled("RUST_ODDS_JOINT_CAP_CONDITIONING"),
+        "accepted":joint_found,"cells":crate::logging::cell_counts(estimates)}),
+    );
     if witnesses > 0 {
         let mut matrix: Vec<_> = estimates.iter().map(|e| e.probability).collect();
         if !crate::pool::balance(&mut matrix, model.n) {

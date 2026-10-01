@@ -93,7 +93,10 @@ and seed, making a slow run reproducible.
 The stages include setup, the initial scout, pool MC, point PMFs, the matched
 matrix, jackknife uncertainty, point proofs, initial conditioning, guided and
 extra search, witnesses, point tilts, neighborhood walk, peer/domain rescues,
-and reconciliation. Stage records report `elapsed_ms`; enclosing `pool` and
+deferred joint-cap publication, and reconciliation. `rust_odds_joint_caps`
+records include the seed, setup/sampling times, acceptance and confirmation
+diagnostics, and joint/confirmation/ordinary draw counts. `rust_odds_start`
+reports whether joint-cap conditioning and its broader fallback are enabled. Stage records report `elapsed_ms`; enclosing `pool` and
 `search` totals include their sub-stages, so do not add parent and child times.
 The completion record reports positive/zero cells, certified impossible zeros,
 reachable zeros without estimates, unresolved zeros, and modeled pool/search
@@ -117,6 +120,55 @@ The CLI's compact timing summary remains available. `RUST_ODDS_PROFILE=1`
 also enables logs, including when the quiet toggle is set.
 
 ## HTTP service and Go replacement
+
+### Joint rival conditioning
+
+Joint conditioning and its broader fallback are **enabled by default** in the
+normal binary. Build and restart the Rust service; no enabling flag is needed.
+`RUST_ODDS_JOINT_CAP_CONDITIONING=0` disables both, while
+`RUST_ODDS_JOINT_CAP_BROAD=0` retains only the previous exact extreme fast path.
+
+For zeros already selected for an extra batch, the exact fast path first checks
+whether extreme target results and a particular ahead set are necessary. When
+that gate is not proved, the broader sampler covers **all attainable target
+points/wins totals allowed by safe rank bounds**. It favors promising totals
+and joint rival caps/floors through a defensive proposal mixture: 10% target-only
+conditioning and 90% tilted joint conditioning. Rival caps/floors guide sampling;
+they are not treated as requirements of the requested rank.
+
+Shared fixtures are modeled once. Internal outcomes are enumerated within a
+20,000-state setup limit, and external streams use exact backward DP masses.
+Weights use the density of the **whole mixture**, including its overlap and
+soft target tilt, followed by corrected residual-fixture proposal weights. A
+small base-distribution component in the residual proposal preserves outcome
+support even when a guide rounds to zero.
+Scores and actual phase tiebreakers are checked with the production sorter.
+The same model handles every rank and both directions without team constants.
+
+Broader attempts replace work in an existing 50,000-draw batch: 1,500 main
+plus an independent 1,500-draw confirmation. The two streams forecast how
+many ordinary hits the replaced 50,000-draw batch might produce. If the larger
+forecast is at least 0.01, retain 43,000 ordinary draws for witness reuse;
+otherwise retain 35,000 (46,000 or 38,000 total). This forecast guides allocation
+and is logged as `ordinary_hit_forecast`; it is not a probability bound. The exact fast path retains its previous 5,000
+main plus 2,000 confirmation draws, with 10,000 ordinary draws when accepted
+and 43,000 when rejected. Unsupported models retain 50,000 ordinary draws.
+The four-candidate limit and four workers are unchanged. Accepted estimates
+are published after existing search and witness reuse, before reconciliation.
+
+The model supports ordinary 3/1/0 scoring with points first, and packs wins only
+when wins immediately follow points. Unsupported, oversized or numerically
+empty models skip this proposal without changing reachability. The logged
+`target_mass` is a necessary target-event probability; `joint_normalizer` is
+an expectation of the proposal's terminal weight and **is not an upper bound**.
+Witnesses alone do not supply probability estimates. Finite samples and the
+confirmation diagnostics do not certify tiny-event accuracy.
+
+The [broad conditioning report](../experiments/rare_positions/2026-09-30-rust-broad-joint.md)
+records paired coverage, regressions fixed during tuning, request/stage timings,
+CPU usage, correctness tests and reproduction commands. The
+[earlier exact-cap report](../experiments/rare_positions/2026-09-30-rust-joint-caps.md)
+records the previous Chapecoense/3rd integration.
 
 ```sh
 RARE_POSITION_RANDOM_SEED=808 \
@@ -226,6 +278,7 @@ default. No extra flags are required. Sampling acceptance gates are unchanged.
 | `RUST_ODDS_WITNESS_MODE` (default `deferred`) | `deferred`: screen maximum-points patterns, replace rejected queries with minimum-points construction, and publish new witnesses after probability sampling; `adaptive`: publish those witnesses immediately; `skip`: only skip screened maximum patterns; `reuse`: reuse all constructive ranks; `dual`: choose direction by rank cardinality; `joint`: bounded shared-fixture solver |
 | `RUST_ODDS_NEIGHBOR_ORDER` | `breadth`: all single changes before pairs; `spread`: also distribute pairs across fixture indices |
 | `RUST_ODDS_AGGREGATE_CUTS` (default `early`) | `early`: shared-fixture subset capacity cuts in early proofs; `1`: also use them in construction |
+| `RUST_ODDS_DISCRETE_CUTS` (default enabled; `0` disables) | In early floor proofs for standard 3/1/0 scoring without bonus points, check every team coalition for incompatible integer win/draw requirements using one graph cut |
 | `RUST_ODDS_RANK_PROOF` (default enabled; `0` disables) | After a conflicting but unresolved point-cohort proof, use the remaining shared 500-node cell / 10,000-node direction quota for packed points/wins fixture branching, explained backjumping, and conflicting-cohort reuse |
 | `RUST_ODDS_PROOF_RECYCLE_CREDIT` (default `legacy`) | For strengthened early proofs, check recycling eligibility using the original relaxation, within the remaining cell/direction node budget |
 | `RUST_ODDS_GOAL_COMPLETION` (default enabled; `0` disables) | With `deferred` mode, complete failed canonical seasons using independent outside-cohort winning margins and equal-goal additions; verify with the production sorter and publish compact certificates after sampling |
@@ -248,6 +301,18 @@ final bounds in the negated point model. Additional complete seasons are reused
 after sampling so they cannot alter proposal priorities. Immediate publication
 and joint replacement lost estimates in experiments; see the report for paired
 coverage gains, latency increases in the dense control, and remaining undecideds.
+
+The default discrete win/draw proof and paired request measurements are documented in
+[`2026-09-30-rust-discrete-cut.md`](../experiments/rare_positions/2026-09-30-rust-discrete-cut.md).
+It adds a necessary coalition point-floor inequality to the existing early
+joint proof stage and retains its 500-node cell / 10,000-node direction limits.
+Passing this relaxation does not establish reachability. The new cut proves
+Palmeiras/17th impossible in the frozen group 16498 request, independently of
+score margins and later tiebreakers. Legacy recycling eligibility is retained,
+so stronger proofs do not add probability draws. Full-request latency variation
+and the small measured proof-stage overhead are reported explicitly. The user
+authorized enabling it after reviewing the CPU and stage costs. No additional
+flag is required; set `RUST_ODDS_DISCRETE_CUTS=0` to disable it.
 
 The default generic explained rank proof is documented in
 [`2026-09-30-rust-proof-search.md`](../experiments/rare_positions/2026-09-30-rust-proof-search.md).
@@ -372,3 +437,32 @@ MYSQL_TEST_URL=mysql://root@127.0.0.1:3306/GolAberto_development \
 The optional DB test shadows every queried table with connection-local temporary
 tables. [Player integration verification](../experiments/rare_positions/2026-09-30-unified-player-ratings.md)
 documents the real-data comparison and disposable-schema HTTP check.
+
+### Experimental conditional fixture probes
+
+`RUST_ODDS_DOMAIN_PROBES` (default `0`) enables a bounded number of hypothetical
+outcome checks per propagated-domain sampler call. `RUST_ODDS_DOMAIN_PROBE_NODES`
+(default `16`) limits exemption-search nodes per proof direction; use `0` for
+local propagation only. `RUST_ODDS_DOMAIN_PROBE_REALLOCATE=1` changes domain-rescue
+pilot/final/check draws from 1,000/15,000/5,000 to 750/14,000/5,000.
+
+These options remain experimental and disabled by default. Six-seed comparisons
+found no additional estimates attributable to the probes. See the
+[paired experiment report](../experiments/rare_positions/2026-09-30-rust-domain-probes.md)
+for measurements, correctness assumptions, and the draw-only ablation.
+
+The [larger-budget follow-up](../experiments/rare_positions/2026-09-30-rust-domain-probes-larger.md)
+also tested 24, 96, and 384 hypotheses per call. More outcomes were pruned, but
+no additional estimates were found; these budgets are not recommended defaults.
+
+### Experimental coalition branching and directed goal paths
+
+`RUST_ODDS_COALITION_BRANCHING=1` restricts early proof exemption branching to
+members of a violated discrete coalition. `RUST_ODDS_GOAL_PATHS=1` allows
+symbolic GD completion along decisive winner-to-loser paths, with full sorter
+verification. Both default to disabled. They added no reference coverage in
+90 paired comparisons; the combined persistent benchmark increased current
+16653 latency by 3.18%. See the [experiment report](../experiments/rare_positions/2026-09-30-rust-path-coalitions.md).
+
+The `residual_components` example audits small residual point-cap components
+offline; it does not change production reachability labels.

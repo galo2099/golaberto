@@ -51,11 +51,26 @@ LEGACY_FLAGS = {
     "RUST_ODDS_PROOF_RECYCLE_CREDIT": "0",
     "RUST_ODDS_GOAL_COMPLETION": "0",
     "RUST_ODDS_RANK_PROOF": "0",
+    "RUST_ODDS_DISCRETE_CUTS": "0",
 }
 VARIANTS = {name: dict(LEGACY_FLAGS, **flags) for name, flags in VARIANTS.items()}
 VARIANTS["rank_proof"] = {"RUST_ODDS_RANK_PROOF": "1"}
 VARIANTS["no_rank_proof"] = {"RUST_ODDS_RANK_PROOF": "0"}
+VARIANTS["probe_draws_only"]={"RUST_ODDS_DOMAIN_PROBE_REALLOCATE":"1"}
+VARIANTS["probe_local"]={"RUST_ODDS_DOMAIN_PROBES":"12","RUST_ODDS_DOMAIN_PROBE_NODES":"0"}
+VARIANTS["probe_joint"]={"RUST_ODDS_DOMAIN_PROBES":"6","RUST_ODDS_DOMAIN_PROBE_NODES":"16"}
+VARIANTS["probe_realloc"]={"RUST_ODDS_DOMAIN_PROBES":"6","RUST_ODDS_DOMAIN_PROBE_NODES":"16","RUST_ODDS_DOMAIN_PROBE_REALLOCATE":"1"}
+for budget in (24, 96, 384):
+    VARIANTS[f"probe_joint_{budget}"] = {
+        "RUST_ODDS_DOMAIN_PROBES": str(budget),
+        "RUST_ODDS_DOMAIN_PROBE_NODES": "16",
+    }
+VARIANTS["probe_realloc_96"] = dict(VARIANTS["probe_joint_96"], RUST_ODDS_DOMAIN_PROBE_REALLOCATE="1")
+VARIANTS["goal_paths"] = {"RUST_ODDS_GOAL_PATHS": "1"}
+VARIANTS["coalition_branching"] = {"RUST_ODDS_COALITION_BRANCHING": "1"}
+VARIANTS["paths_coalitions"] = dict(VARIANTS["goal_paths"], **VARIANTS["coalition_branching"])
 VARIANTS["defaults"] = {}
+VARIANTS["discrete"] = {"RUST_ODDS_DISCRETE_CUTS": "1"}
 
 
 def states(export):
@@ -115,11 +130,14 @@ def run(binary, request, seed, flags, path, env, case, http=False):
     after = resource.getrusage(resource.RUSAGE_CHILDREN)
     path.with_suffix(".log").write_text(stderr)
     export = json.loads(path.read_text())
-    events = [json.loads(line) for line in stderr.splitlines() if '"event":' in line]
+    # Termination can interrupt the optional post-response HTTP log line.
+    # Keep complete records; required estimator completion still must exist.
+    events = [json.loads(line) for line in stderr.splitlines(keepends=True)
+              if '"event":' in line and line.endswith("\n")]
     complete = next(e for e in events if e["event"] == "rust_odds_complete")
     cpu_ms = 1000 * (after.ru_utime + after.ru_stime - before.ru_utime - before.ru_stime)
     stages = {e["stage"]: e["elapsed_ms"] for e in events if e["event"] == "rust_odds_stage"}
-    diagnostics = [e for e in events if e["event"].startswith("rust_reachability_")]
+    diagnostics = [e for e in events if e["event"].startswith("rust_reachability_") or e["event"]=="rust_odds_domain_probes"]
     http_events = [e for e in events if e["event"] == "rust_odds_http_complete"
                    and e.get("request_id") == complete["request_id"]]
     return export, {"timings": complete["timings"], "stages": stages, "cells": complete["cells"],

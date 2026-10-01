@@ -1,0 +1,272 @@
+use serde_json::Value;
+use std::{fs, path::PathBuf, process::Command};
+
+struct OutputDir(PathBuf);
+impl Drop for OutputDir {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.0);
+    }
+}
+
+#[test]
+fn normal_binary_enables_joint_caps_and_preserves_existing_estimates_and_proofs() {
+    let request = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(
+        "../experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16498-44eabb47.json",
+    );
+    let dir = OutputDir(
+        std::env::temp_dir().join(format!("golaberto-joint-test-{}", std::process::id())),
+    );
+    fs::create_dir(&dir.0).unwrap();
+    let run = |name: &str, disabled: bool| {
+        let output = dir.0.join(format!("{name}.json"));
+        let mut command = Command::new(env!("CARGO_BIN_EXE_golaberto-odds"));
+        // Child processes isolate toggles from the other tests and from local
+        // benchmark settings. In particular, the enabled run sets no sampler flag.
+        for (key, _) in std::env::vars_os() {
+            let key_name = key.to_string_lossy();
+            if key_name.starts_with("RUST_ODDS_") || key_name.starts_with("RARE_POSITION_") {
+                command.env_remove(key);
+            }
+        }
+        command.env("RUST_ODDS_LOG", "1");
+        // Isolate the exact fast path regression from the broad replacement.
+        command.env("RUST_ODDS_JOINT_CAP_BROAD", "0");
+        if disabled {
+            command.env("RUST_ODDS_JOINT_CAP_CONDITIONING", "0");
+        }
+        let result = command
+            .arg("estimate")
+            .arg(&request)
+            .arg(&output)
+            .arg("1790832522033172000")
+            .arg("4")
+            .output()
+            .unwrap();
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        let response: Value = serde_json::from_slice(&fs::read(output).unwrap()).unwrap();
+        let events: Vec<Value> = String::from_utf8(result.stderr)
+            .unwrap()
+            .lines()
+            .filter_map(|line| serde_json::from_str(line).ok())
+            .collect();
+        (response, events)
+    };
+    let (baseline, disabled_logs) = run("disabled", true);
+    let (candidate, logs) = run("default", false);
+    let old = &baseline["rare_position_estimates"];
+    let new = &candidate["rare_position_estimates"];
+    assert_eq!(old["318"]["2"]["probability"], 0.);
+    let cell = &new["318"]["2"];
+    let probability = cell["probability"].as_f64().unwrap();
+    assert!((probability / 5.1079036442014455e-24 - 1.).abs() < 0.01);
+    assert_eq!(cell["design"], "matched_point_pool_joint_caps");
+    assert_eq!(cell["conditional_samples"], 5000);
+    assert_eq!(cell["conditional_hits"], 90);
+    assert!(candidate["rare_position_estimates"]["318"]["3"]["reachability"] != "undecided");
+
+    for (team, ranks) in old.as_object().unwrap() {
+        for (rank, before) in ranks.as_object().unwrap() {
+            let after = &new[team][rank];
+            if before["probability"].as_f64().unwrap() > 0. {
+                assert_eq!(
+                    before["probability"], after["probability"],
+                    "team={team} rank={rank}"
+                );
+                assert_eq!(
+                    before["std_err"], after["std_err"],
+                    "team={team} rank={rank}"
+                );
+            }
+            match before["reachability"].as_str().unwrap_or("") {
+                "witness" | "reachable_by_construction" => {
+                    assert!(
+                        after["probability"].as_f64().unwrap() > 0.
+                            || matches!(
+                                after["reachability"].as_str(),
+                                Some("witness" | "reachable_by_construction")
+                            ),
+                        "lost reachable team={team} rank={rank}"
+                    );
+                }
+                label if label.starts_with("impossible") => {
+                    assert_eq!(before["reachability"], after["reachability"])
+                }
+                _ => {}
+            }
+        }
+    }
+    assert_eq!(baseline["game_importance"], candidate["game_importance"]);
+    assert!(!disabled_logs
+        .iter()
+        .any(|v| v["event"] == "rust_odds_joint_caps"));
+    let joint = logs
+        .iter()
+        .find(|v| {
+            v["event"] == "rust_odds_joint_caps"
+                && v["setup"]["team"] == 318
+                && v["setup"]["rank"] == 3
+        })
+        .unwrap();
+    assert_eq!(joint["accepted"], true);
+    assert_eq!(joint["seed"], 1790832522033172000_i64);
+    assert_eq!(joint["joint_draws"], 5000);
+    assert_eq!(joint["check_draws"], 2000);
+    assert_eq!(joint["ordinary_draws"], 10000);
+    assert!(joint["setup_ms"].as_f64().unwrap() >= 0.);
+    let stages: Vec<_> = logs.iter().filter_map(|v| v["stage"].as_str()).collect();
+    let publish = stages
+        .iter()
+        .position(|v| *v == "search.joint_caps_publish")
+        .unwrap();
+    assert!(stages.iter().position(|v| *v == "search.domains").unwrap() < publish);
+    assert!(
+        publish
+            < stages
+                .iter()
+                .position(|v| *v == "search.reconcile")
+                .unwrap()
+    );
+}
+
+#[test]
+fn broad_replacement_preserves_estimates_that_short_ordinary_batches_lost() {
+    let dir = OutputDir(
+        std::env::temp_dir().join(format!("golaberto-broad-test-{}", std::process::id())),
+    );
+    fs::create_dir(&dir.0).unwrap();
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../experiments/rare_positions/reference/2026-09-30-hundredfold/inputs");
+    for (request, seed, regression_team, regression_rank, gained_team, gained_rank) in [
+        (
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/fixtures/group-16653-2d1c1d6f.json"),
+            808,
+            "95",
+            "3",
+            "95",
+            "1",
+        ),
+        (
+            root.join("group-16653-71d4fea8.json"),
+            818,
+            "12",
+            "16",
+            "22",
+            "16",
+        ),
+    ] {
+        let run = |broad: bool| {
+            let output = dir.0.join(format!("{seed}-{broad}.json"));
+            let mut command = Command::new(env!("CARGO_BIN_EXE_golaberto-odds"));
+            for (key, _) in std::env::vars_os() {
+                let name = key.to_string_lossy();
+                if name.starts_with("RUST_ODDS_") || name.starts_with("RARE_POSITION_") {
+                    command.env_remove(key);
+                }
+            }
+            command.env("RUST_ODDS_LOG", "1");
+            if !broad {
+                command.env("RUST_ODDS_JOINT_CAP_BROAD", "0");
+            }
+            let result = command
+                .arg("estimate")
+                .arg(&request)
+                .arg(&output)
+                .arg(seed.to_string())
+                .arg("4")
+                .output()
+                .unwrap();
+            assert!(
+                result.status.success(),
+                "{}",
+                String::from_utf8_lossy(&result.stderr)
+            );
+            let response: Value = serde_json::from_slice(&fs::read(output).unwrap()).unwrap();
+            let events: Vec<Value> = String::from_utf8(result.stderr)
+                .unwrap()
+                .lines()
+                .filter_map(|line| serde_json::from_str(line).ok())
+                .collect();
+            (response, events)
+        };
+        let (before, _) = run(false);
+        let (after, logs) = run(true);
+        let old = &before["rare_position_estimates"];
+        let new = &after["rare_position_estimates"];
+        assert!(
+            old[regression_team][regression_rank]["probability"]
+                .as_f64()
+                .unwrap()
+                > 0.
+        );
+        assert!(
+            new[regression_team][regression_rank]["probability"]
+                .as_f64()
+                .unwrap()
+                > 0.
+        );
+        assert_eq!(old[gained_team][gained_rank]["probability"], 0.);
+        assert!(
+            new[gained_team][gained_rank]["probability"]
+                .as_f64()
+                .unwrap()
+                > 0.
+        );
+        for (team, ranks) in old.as_object().unwrap() {
+            for (rank, e) in ranks.as_object().unwrap() {
+                let n = &new[team][rank];
+                let p = e["probability"].as_f64().unwrap();
+                let q = n["probability"].as_f64().unwrap();
+                if p > 0. {
+                    assert!(
+                        q > 0.,
+                        "lost {request:?} seed={seed} team={team} rank={rank}"
+                    );
+                    let uncertainty =
+                        e["std_err"].as_f64().unwrap() + n["std_err"].as_f64().unwrap();
+                    assert!(
+                        (p - q).abs() <= (5. * uncertainty).max(p * 0.2),
+                        "changed estimate {request:?} team={team} rank={rank}: {p} -> {q}"
+                    );
+                }
+                let label = e["reachability"].as_str().unwrap_or("");
+                if label.starts_with("impossible") {
+                    assert_eq!(e["reachability"], n["reachability"]);
+                } else if matches!(label, "witness" | "reachable_by_construction") {
+                    assert!(
+                        q > 0.
+                            || matches!(
+                                n["reachability"].as_str(),
+                                Some("witness" | "reachable_by_construction")
+                            )
+                    );
+                }
+            }
+        }
+        assert_eq!(before["game_importance"], after["game_importance"]);
+        let joint = logs
+            .iter()
+            .filter(|e| {
+                e["event"] == "rust_odds_joint_caps" && e["setup"]["mode"] == "target_total_mixture"
+            })
+            .collect::<Vec<_>>();
+        assert!(!joint.is_empty());
+        assert!(joint.iter().any(|e| e["accepted"] == true));
+        assert!(joint.iter().any(|e| e["ordinary_draws"] == 35000));
+        assert!(joint.iter().any(|e| e["ordinary_draws"] == 43000));
+        for e in joint {
+            assert!(matches!(e["ordinary_draws"].as_u64(), Some(35000 | 43000)));
+            assert_eq!(e["joint_draws"], 1500);
+            assert_eq!(e["check_draws"], 1500);
+        }
+        let start = logs
+            .iter()
+            .find(|e| e["event"] == "rust_odds_start")
+            .unwrap();
+        assert_eq!(start["joint_cap_broad"], true);
+    }
+}

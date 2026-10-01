@@ -147,7 +147,10 @@ pub fn calculate_logged(
         "rust_odds_start",
         json!({"teams":request.team_groups.len(),
         "games":request.games.len(),"workers":workers,"scout_samples":scout_samples,
-        "pool_samples":100000,"sort":request.phase.sort}),
+        "pool_samples":100000,"sort":request.phase.sort,
+        "joint_cap_conditioning":crate::search::enabled("RUST_ODDS_JOINT_CAP_CONDITIONING"),
+        "joint_cap_broad":crate::search::enabled("RUST_ODDS_JOINT_CAP_CONDITIONING")
+            && crate::search::enabled("RUST_ODDS_JOINT_CAP_BROAD")}),
     );
     if workers == 0 || workers > 4 || scout_samples == 0 {
         return Err("workers must be 1..4 and scout samples positive".into());
