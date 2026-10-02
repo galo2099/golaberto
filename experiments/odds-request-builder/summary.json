@@ -1,0 +1,51 @@
+{
+  "16498": {
+    "legacy": {
+      "median_ms": 819.7609998751432,
+      "median_sql_ms": 590.051,
+      "median_allocations": 378416,
+      "queries": 767,
+      "rating_queries": 760
+    },
+    "bulk": {
+      "median_ms": 85.97999997437,
+      "median_sql_ms": 26.128999999999998,
+      "median_allocations": 56875,
+      "queries": 7,
+      "rating_queries": 2
+    }
+  },
+  "16653": {
+    "legacy": {
+      "median_ms": 879.105000058189,
+      "median_sql_ms": 593.107,
+      "median_allocations": 378347,
+      "queries": 767,
+      "rating_queries": 760
+    },
+    "bulk": {
+      "median_ms": 50.05600000731647,
+      "median_sql_ms": 23.556,
+      "median_allocations": 52802,
+      "queries": 7,
+      "rating_queries": 2
+    }
+  },
+  "16982": {
+    "legacy": {
+      "median_ms": 937.4490000773221,
+      "median_sql_ms": 656.591,
+      "median_allocations": 378320,
+      "queries": 767,
+      "rating_queries": 760
+    },
+    "bulk": {
+      "median_ms": 41.26999992877245,
+      "median_sql_ms": 19.806,
+      "median_allocations": 40727,
+      "queries": 7,
+      "rating_queries": 2
+    }
+  },
+  "note": "Three paired uncached runs per group, separate fresh Group objects, repeatable-read READ ONLY transactions, no HTTP calls or development DB writes. Final source adds a fresh fixture relation safeguard; separately verified identical JSON in three final pairs."
+}

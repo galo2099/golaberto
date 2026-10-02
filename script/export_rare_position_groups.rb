@@ -9,18 +9,8 @@ FileUtils.mkdir_p(output_dir)
 
 ids.each do |raw_id|
   group = Group.includes(phase: :championship, team_groups: :team).find(Integer(raw_id))
-  game_fields = [:id, :home_id, :away_id, :home_score, :away_score, :played]
-  game_fields.insert(1, :date) if include_game_dates
-  games_json = group.games.includes(:home, :away).as_json(
-    methods: [:home_power, :away_power],
-    only: game_fields
-  )
-  request = group.as_json(
-    include: {
-      phase: { include: :championship },
-      team_groups: { only: [:team_id, :add_sub, :bias] }
-    }
-  ).merge("games" => games_json)
+  request = OddsRequestBuilder.new(group).build(include_game_dates: include_game_dates)
+  games_json = request.fetch("games")
   path = File.join(output_dir, "group-#{group.id}.json")
   File.write(path, JSON.generate(request))
   puts "#{group.id}\t#{group.team_groups.size}\t#{games_json.count { |game| !game['played'] }}\t#{path}"

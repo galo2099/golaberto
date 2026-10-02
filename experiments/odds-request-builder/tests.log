@@ -1,0 +1,11 @@
+W, [2026-10-02T00:19:39.344393 #85487]  WARN -- OpenID: OpenIdAuthentication.store is nil. Using in-memory store.
+Run options: --seed 2398
+
+# Running:
+
+......................................................S.........................................................................
+
+Finished in 1.415825s, 90.4067 runs/s, 298.0594 assertions/s.
+128 runs, 422 assertions, 0 failures, 0 errors, 1 skips
+
+You have skipped tests. Run with --verbose for details.

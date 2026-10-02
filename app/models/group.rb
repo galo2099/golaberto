@@ -16,17 +16,13 @@ class Group < ApplicationRecord
 
   NUM_ITER = 10000
 
+  def odds_request(games_json: nil)
+    OddsRequestBuilder.new(self).build(games_json: games_json)
+  end
+
   def odds(games_json: nil, snapshot_time: Time.zone.now, persist_game_importance: true, persist_team_odds: true, persist_group_progress: true)
     req = Net::HTTP::Post.new("/odds", {'Content-Type' =>'application/json'})
-    games_json ||= games.includes(:home, :away).as_json(
-      methods: [:home_power, :away_power],
-      only: [ :id, :home_id, :away_id, :home_score, :away_score, :played ]
-    )
-    req.body = as_json(
-      include: {
-        phase: { include: :championship },
-        team_groups: { only: [ :team_id, :add_sub, :bias ] }
-      }).merge(games: games_json).to_json
+    req.body = odds_request(games_json: games_json).to_json
     response = Net::HTTP.new("localhost", 6577).start {|http| http.request(req) }
     calculated_odds = ActiveSupport::JSON.decode(response.body)
     ActiveRecord::Base.transaction do
