@@ -31,7 +31,7 @@ class Group < ApplicationRecord
     calculated_odds = ActiveSupport::JSON.decode(response.body)
     ActiveRecord::Base.transaction do
       team_groups.each do |t|
-        t.odds = calculated_odds["team_odds"][t.team_id.to_s]['Pos']
+        t.assign_calculated_odds!(calculated_odds)
         t.save if persist_team_odds
         t.record_odds_snapshot!(snapshot_time)
       end

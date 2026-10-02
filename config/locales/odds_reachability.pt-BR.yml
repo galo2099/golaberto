@@ -1,0 +1,4 @@
+pt-BR:
+  odds_reachability:
+    reachable: "Possível; estimativa de probabilidade não encontrada."
+    undecided: "Possibilidade ainda não determinada."

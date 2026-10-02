@@ -178,7 +178,7 @@ fn propagated_default_preserves_old_work_and_rejects_unconfirmed_estimates() {
         }
         assert_eq!(before["game_importance"], after["game_importance"]);
         let cell = &after["rare_position_estimates"]["5"]["19"];
-        assert_eq!(cell["reachability"], "witness");
+        assert_eq!(cell["reachability"], "reachable");
         let joint = logs
             .iter()
             .find(|e| {
@@ -283,12 +283,12 @@ fn normal_binary_enables_joint_caps_and_preserves_existing_estimates_and_proofs(
                 );
             }
             match before["reachability"].as_str().unwrap_or("") {
-                "witness" | "reachable_by_construction" => {
+                "reachable" => {
                     assert!(
                         after["probability"].as_f64().unwrap() > 0.
                             || matches!(
                                 after["reachability"].as_str(),
-                                Some("witness" | "reachable_by_construction")
+                                Some("reachable")
                             ),
                         "lost reachable team={team} rank={rank}"
                     );
@@ -441,12 +441,12 @@ fn broad_replacement_preserves_estimates_that_short_ordinary_batches_lost() {
                 let label = e["reachability"].as_str().unwrap_or("");
                 if label.starts_with("impossible") {
                     assert_eq!(e["reachability"], n["reachability"]);
-                } else if matches!(label, "witness" | "reachable_by_construction") {
+                } else if matches!(label, "reachable") {
                     assert!(
                         q > 0.
                             || matches!(
                                 n["reachability"].as_str(),
-                                Some("witness" | "reachable_by_construction")
+                                Some("reachable")
                             )
                     );
                 }

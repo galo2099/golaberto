@@ -125,6 +125,33 @@ module OddsFormattingHelper
     odds_title(percentage)
   end
 
+  def position_odds_html(percentage, status, compact: true)
+    return compact ? formatted_compact_team_odds(percentage) : formatted_odds(percentage) unless percentage && percentage.to_f.zero?
+
+    marker = status == "impossible" ? nil : (status == "reachable" ? "*" : "?")
+    superscript = marker ? content_tag(:sup, marker, class: "odds-zero-marker", 'aria-hidden': true) : "".html_safe
+    content_tag(:span, class: compact ? "odds-zero odds-compact-number" : "odds-zero", 'aria-label': position_odds_title(percentage, status)) do
+      if compact
+        content_tag(:span, "0", class: "odds-compact-integer") +
+          content_tag(:span, ".", class: "odds-compact-dot") +
+          content_tag(:span, class: "odds-compact-fraction") do
+            content_tag(:span, "0", class: "odds-compact-slot") +
+              content_tag(:span, superscript, class: "odds-compact-slot")
+          end
+      else
+        "0.0".html_safe + superscript
+      end
+    end
+  end
+
+  def position_odds_title(percentage, status)
+    return odds_title(percentage) unless percentage && percentage.to_f.zero?
+
+    return "0.0" if status == "impossible"
+
+    "0.0 — #{I18n.t("odds_reachability.#{status == 'reachable' ? 'reachable' : 'undecided'}")}"
+  end
+
   def compact_odds_count(count)
     "[#{count.to_s.rjust(2, '0')}]"
   end

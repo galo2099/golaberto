@@ -80,7 +80,8 @@
       return colorStrength(value, maximum) >= 65 ? "white" : "inherit";
     },
 
-    zoneValue: function(odds, positions) {
+    zoneValue: function(odds, positions, statuses) {
+      if (!odds.length || !positions.length) return null;
       var value = positions.reduce(function(sum, pos) {
         var probability = odds[Number(pos) - 1];
         return sum + (probability == null ? 0 : Number(probability));
@@ -89,12 +90,41 @@
         return positions.indexOf(pos) === index;
       });
       var noOutsideOdds = odds.every(function(probability, index) {
-        return positions.indexOf(index + 1) !== -1 || validNumber(probability) === 0;
+        return positions.indexOf(index + 1) !== -1 || (validNumber(probability) === 0 && statuses && statuses[index] === "impossible");
       });
       var allOddsKnown = odds.every(function(probability) { return validNumber(probability) !== null; });
       if (uniquePositions.length === positions.length && noOutsideOdds && allOddsKnown &&
           Math.abs(value - 100) <= 0.0001) return 100;
       return value;
+    },
+
+    reachability: function(odds, statuses, positions) {
+      if (!positions || !positions.length) return "undecided";
+      if (positions.some(function(p) { return validNumber(odds[p - 1]) > 0; })) return "reachable";
+      var selected = positions.map(function(p) { return statuses && statuses[p - 1]; });
+      if (selected.every(function(s) { return s === "impossible"; })) return "impossible";
+      return selected.indexOf("reachable") !== -1 ? "reachable" : "undecided";
+    },
+
+    positionTitle: function(value, status, locale, labels) {
+      if (validNumber(value) !== 0) return this.title(value, locale);
+      if (status === "impossible") return "0.0";
+      status = status === "reachable" ? status : "undecided";
+      return "0.0 — " + ((labels || {})[status] || { reachable: "Reachable; no probability estimate found.", undecided: "Reachability not resolved." }[status]);
+    },
+
+    positionHtml: function(value, status, locale, compact, labels) {
+      if (validNumber(value) !== 0) return compact ? this.compactHtml(value) : this.html(value, locale);
+      var marker = status === "impossible" ? "" : status === "reachable" ? "*" : "?";
+      var title = this.positionTitle(value, status, locale, labels).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      var superscript = marker ? '<sup class="odds-zero-marker" aria-hidden="true">' + marker + '</sup>' : '';
+      if (compact) {
+        return '<span class="odds-zero odds-compact-number" aria-label="' + title + '">' +
+          '<span class="odds-compact-integer">0</span><span class="odds-compact-dot">.</span>' +
+          '<span class="odds-compact-fraction"><span class="odds-compact-slot">0</span>' +
+          '<span class="odds-compact-slot">' + superscript + '</span></span></span>';
+      }
+      return '<span class="odds-zero" aria-label="' + title + '">0.0' + superscript + '</span>';
     },
 
     format: function(value, locale) {

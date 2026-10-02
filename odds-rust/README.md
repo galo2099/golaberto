@@ -667,3 +667,5 @@ patches, all seven snapshots, coverage regressions and reproducible local
 commands. Optional profile-guided builds must generate their profiles on the
 intended architecture; a normal `cargo build --release --locked` needs no PGO
 tools or runtime optimization flags.
+
+The `/odds` response always includes `rare_position_estimates[team_id][zero_based_rank].reachability` as `impossible`, `reachable`, or `undecided`. A reachable cell can still have zero probability when no acceptable estimate was found. Detailed proof labels remain internal and in diagnostic logs.

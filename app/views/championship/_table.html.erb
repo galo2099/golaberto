@@ -3,7 +3,7 @@
 <% omit_comments = false if omit_comments.nil? %>
 <% omit_popup = false if omit_popup.nil? %>
 <% show_country = false if show_country.nil? %>
-<% cache [ "v21",
+<% cache [ "v25",
            I18n.locale,
            digest_cache_key(group.teams),
            group,
@@ -144,21 +144,25 @@
                   cell.data("oddsArray", oddsArray);
                 }
 
+                var statuses = cell.data("oddsReachability") || [];
+                var labels = cell.data("oddsStatusLabels") || {};
+                var positions = [];
                 var value = null;
                 var rank = ui.item.element.attr("data-rank");
                 var zonePositions = ui.item.element.attr("data-positions");
                 if (rank) {
-                  value = GolabertoOdds.zoneValue(oddsArray, [Number(rank)]);
+                  positions = [Number(rank)];
+                  value = GolabertoOdds.zoneValue(oddsArray, positions, statuses);
                 } else if (zonePositions) {
                   try {
-                    var positions = JSON.parse(zonePositions);
-                    value = GolabertoOdds.zoneValue(oddsArray, positions);
+                    positions = JSON.parse(zonePositions);
+                    value = GolabertoOdds.zoneValue(oddsArray, positions, statuses);
                   } catch (e) {
                     value = null;
                   }
                 }
 
-                selectedOdds.push({ cell: cell, value: value });
+                selectedOdds.push({ cell: cell, value: value, status: GolabertoOdds.reachability(oddsArray, statuses, positions), labels: labels });
               });
 
               var highestOdds = GolabertoOdds.maximum(selectedOdds.map(function(item) { return item.value; }));
@@ -167,8 +171,8 @@
                   item.cell.text("");
                   item.cell.removeAttr("title");
                 } else {
-                  item.cell.html(GolabertoOdds.compactHtml(item.value));
-                  item.cell.attr("title", GolabertoOdds.compactTitle(item.value));
+                  item.cell.html(GolabertoOdds.positionHtml(item.value, item.status, "<%= I18n.locale %>", true, item.labels));
+                  item.cell.attr("title", GolabertoOdds.positionTitle(item.value, item.status, "<%= I18n.locale %>", item.labels));
                 }
                 item.cell.css("background-color", GolabertoOdds.backgroundColor(item.value, highestOdds));
                 item.cell.css("color", GolabertoOdds.textColor(item.value, highestOdds));
@@ -295,20 +299,20 @@
          <% if not omit_columns[:odds] then %>
            <%= content_tag :td, "", class: "odds_spacing" %>
            <% first_odds = initial_odds[pos - 1] %>
+           <% odds_status = t[0].odds_reachability_for(first_zone ? first_zone["position"] : [1]) %>
            <%= content_tag :td,
-                           formatted_compact_team_odds(first_odds),
+                           position_odds_html(first_odds, odds_status),
                            "data-group-id": group.id,
                            "data-odds-array": (t[0].odds || []).to_json,
-                           title: compact_team_odds_title(first_odds),
+                           "data-odds-reachability": (t[0].odds_reachability || []).to_json,
+                           "data-odds-status-labels": I18n.t("odds_reachability").to_json,
+                           title: position_odds_title(first_odds, odds_status),
                            class: "odds odds-value",
                            style: "background-color: #{odds_background_color(first_odds, highest_initial_odds)}; color: #{odds_text_color(first_odds, highest_initial_odds)}" %>
          <% end %>
        </tr>
      <% end %>
    </table>
-   <% unless omit_columns[:odds] %>
-     <div class="odds-compact-legend"><%= _("The number above the extra dots counts omitted zeros or nines. Values are rounded; 0.0 and 100.0 denote exact endpoints.") %></div>
-   <% end %>
    <% count = 0 %>
    <% notes.each do |n| %>
      <% count += 1 %>

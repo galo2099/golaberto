@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_04_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_01_120000) do
   create_table "categories", id: :integer, charset: "utf8mb3", collation: "utf8mb3_unicode_ci", force: :cascade do |t|
     t.string "name"
   end
@@ -283,6 +283,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_04_000000) do
     t.datetime "created_at", precision: nil, null: false
     t.integer "group_id", default: 0, null: false
     t.text "odds"
+    t.text "odds_reachability"
     t.integer "team_id", default: 0, null: false
     t.datetime "updated_at", precision: nil, null: false
     t.index ["group_id", "team_id"], name: "group", unique: true

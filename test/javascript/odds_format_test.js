@@ -39,7 +39,7 @@ assert.equal(odds.title(0.009999, "en-US"), "9.999e-3%");
 assert.equal(odds.format(99.9999, "en-US"), "99.[03]9%");
 assert.equal(odds.format(99.99996, "en-US"), "99.[04]6%");
 assert.equal(odds.zoneValue([77.75802002807019, 17.064525344641567, 5.177454627288232], [1, 2, 3]), 100);
-assert.equal(odds.zoneValue([99.9999999999, 0, 0], [1, 2]), 100);
+assert.equal(odds.zoneValue([99.9999999999, 0, 0], [1, 2], ["reachable", "impossible", "impossible"]), 100);
 assert.equal(odds.zoneValue([99.9999999, 0, 0.0000001], [1, 2]), 99.9999999);
 assert.equal(odds.zoneValue([99.9999999999, null], [1]), 99.9999999999);
 assert.equal(odds.zoneValue([99.9999999999, null, 0], [1, 2]), 99.9999999999);
@@ -119,9 +119,37 @@ assert.equal(odds.compactTitle(99.99997891234, "en-US"), "99.99997891%");
 assert.equal(odds.title(99.999912345, "pt-BR"), "99,99991235%");
 
 // A numbered rank uses the same endpoint normalization as a zone.
-assert.equal(odds.zoneValue([99.99999999999062, 0, 0], [1]), 100);
-assert.equal(odds.compactText(odds.zoneValue([99.99999999999062, 0, 0], [1])), "100.0");
+assert.equal(odds.zoneValue([99.99999999999062, 0, 0], [1], ["reachable", "impossible", "impossible"]), 100);
+assert.equal(odds.compactText(odds.zoneValue([99.99999999999062, 0, 0], [1], ["reachable", "impossible", "impossible"])), "100.0");
 assert.equal(odds.zoneValue([99.99999999999062, 9.38e-12, 0], [1]), 99.99999999999062);
 
 assert.equal(odds.html(99.999, "en-US"), odds.compactHtml(99.999) + "%");
 assert.ok(odds.html(99.999, "en-US").includes('class="odds-compact-count-dots"'));
+
+assert.equal(odds.reachability([0, 0], ["impossible", "impossible"], [1, 2]), "impossible");
+assert.equal(odds.reachability([0, 0], ["reachable", "undecided"], [1, 2]), "reachable");
+assert.equal(odds.reachability([0, 0], ["impossible", "undecided"], [1, 2]), "undecided");
+assert.equal(odds.reachability([0, 0], [], [1]), "undecided");
+assert.equal(odds.reachability([1, 0], [], [1]), "reachable");
+assert.equal(odds.positionHtml(0, "impossible", "en-US", false), '<span class="odds-zero" aria-label="0.0">0.0</span>');
+assert.match(odds.positionHtml(0, "reachable", "en-US", true), /<sup[^>]*>\*<\/sup>/);
+assert.match(odds.positionHtml(0, "undecided", "en-US", true), /<sup[^>]*>\?<\/sup>/);
+assert.equal(odds.positionHtml(0.0000004, "reachable", "en-US", true), odds.compactHtml(0.0000004));
+assert.equal(odds.positionTitle(0, "reachable", "pt-BR", {reachable: "Possível"}), "0.0 — Possível");
+assert.equal(odds.zoneValue([99.99999999999062, 0, 0], [1]), 99.99999999999062);
+assert.equal(odds.zoneValue([99.99999999999062, 0, 0], [1], ["reachable", "reachable", "impossible"]), 99.99999999999062);
+
+assert.equal(odds.zoneValue([], [1]), null);
+assert.equal(odds.zoneValue([0], []), null);
+
+assert.equal(odds.positionTitle(0, "impossible", "en-US"), "0.0");
+assert.equal(odds.positionTitle(0, "undecided", "en-US"), "0.0 — Reachability not resolved.");
+assert.match(odds.positionHtml(0, "reachable", "en-US", true), /class="odds-compact-dot">\.<\/span>/);
+["impossible", "reachable", "undecided"].forEach(function(status) {
+  var markup = odds.positionHtml(0, status, "en-US", true);
+  assert.match(markup, /class="odds-zero odds-compact-number"/);
+  assert.match(markup, /class="odds-compact-integer">0<\/span>/);
+  assert.match(markup, /class="odds-compact-fraction"/);
+  assert.equal(markup.replace(/<[^>]*>/g, ""), "0.0" + (status === "impossible" ? "" : status === "reachable" ? "*" : "?"));
+});
+assert.match(odds.positionHtml(0, "undecided", "en-US", false), />0\.0<sup/);

@@ -699,3 +699,19 @@ img.user-logo {
 {
   flex: 0 0 auto;
 }
+
+.odds-zero { white-space: nowrap; }
+.odds-zero-marker { font-size: 0.75em; vertical-align: super; line-height: 0; }
+
+/* Keep the superscript inside its row, anchored to the unused digit slot. */
+.odds-zero.odds-compact-number .odds-compact-slot:last-child {
+  position: relative;
+}
+.odds-zero.odds-compact-number .odds-zero-marker {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  line-height: 1;
+  vertical-align: baseline;
+}

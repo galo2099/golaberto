@@ -214,7 +214,16 @@ pub fn calculate_logged(
                 pos: row.iter().map(|e| 100. * e.probability).collect(),
             },
         );
-        rare_position_estimates.insert(model.ids[t], row.into_iter().enumerate().collect());
+        rare_position_estimates.insert(
+            model.ids[t],
+            row.into_iter()
+                .enumerate()
+                .map(|(rank, mut estimate)| {
+                    estimate.reachability = public_reachability(&estimate).into();
+                    (rank, estimate)
+                })
+                .collect(),
+        );
     }
     let total_ms = start.elapsed().as_secs_f64() * 1000.;
     log.stage("response", phase, json!({}));
@@ -238,4 +247,47 @@ pub fn calculate_logged(
         },
         timings,
     ))
+}
+
+// Normalize only response copies; search and diagnostic labels stay detailed.
+fn public_reachability(estimate: &Estimate) -> &'static str {
+    if estimate.reachability.starts_with("impossible") {
+        "impossible"
+    } else if estimate.probability > 0.
+        || matches!(
+            estimate.reachability.as_str(),
+            "witness" | "reachable_by_construction"
+        )
+    {
+        "reachable"
+    } else {
+        "undecided"
+    }
+}
+
+#[cfg(test)]
+mod response_tests {
+    use super::*;
+
+    #[test]
+    fn public_status_has_three_values_including_unobserved_and_plain_mc_cells() {
+        for (label, probability, expected) in [
+            ("impossible_by_points", 0., "impossible"),
+            ("impossible_by_joint_points", 0., "impossible"),
+            ("impossible_by_joint_rank", 0., "impossible"),
+            ("reachable_by_construction", 0., "reachable"),
+            ("witness", 0., "reachable"),
+            ("undecided", 0., "undecided"),
+            ("", 0., "undecided"),
+            ("", 0.25, "reachable"),
+        ] {
+            let estimate = Estimate {
+                reachability: label.into(),
+                probability,
+                ..Estimate::default()
+            };
+            assert_eq!(public_reachability(&estimate), expected);
+            assert_eq!(estimate.reachability, label);
+        }
+    }
 }

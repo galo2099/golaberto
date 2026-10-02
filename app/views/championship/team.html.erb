@@ -17,7 +17,8 @@
   <%= link_to add_wbr_to_string(@team.name), :controller => :team, :action => :show, :id => @team %>
 </h2>
 
-<% if @groups[0].team_groups.select{|t|t.team_id == @team.id}.first.odds and @groups[0].phase.games.where(played: false).size > 0 then %>
+<% odds_team_group = @groups[0].team_groups.find{|t|t.team_id == @team.id} %>
+<% if odds_team_group.odds and @groups[0].phase.games.where(played: false).size > 0 then %>
 <div id="odds" style="width: 550px;
           height: 200px;
           font-size: 14px;
@@ -47,6 +48,8 @@ $(function() {
     zIndex: 0,
   })
 
+  var oddsStatuses = <%= raw((odds_team_group.odds_reachability || []).to_json) %>;
+  var oddsStatusLabels = <%= raw(json_escape(I18n.t("odds_reachability").to_json)) %>;
   var graphDiv = $("#odds");
   var options = {
     selection: {
@@ -144,11 +147,12 @@ $(function() {
         pos.y > 0 && pos.y < 100) {
       var names = <%== (1..@groups[0].team_groups.size).map{|i|i.ordinalize}.to_json %>;
       var value = plot.getData()[0].data[x-1][1];
-      $("#odds_tooltip").html($("<span>").text(names[x-1]).html() + ": " + GolabertoOdds.html(value, "<%= I18n.locale %>"))
-        .attr("title", GolabertoOdds.title(value, "<%= I18n.locale %>"))
+      var status = GolabertoOdds.reachability(plot.getData()[0].data.map(point => point[1]), oddsStatuses, [x]);
+      $("#odds_tooltip").html($("<span>").text(names[x-1]).html() + ": " + GolabertoOdds.positionHtml(value, status, "<%= I18n.locale %>", false, oddsStatusLabels))
+        .attr("title", GolabertoOdds.positionTitle(value, status, "<%= I18n.locale %>", oddsStatusLabels))
         .css({top: pos.pageY+5, left: pos.pageX+5})
         .fadeIn(200);
-      graphDiv.attr("title", GolabertoOdds.title(value, "<%= I18n.locale %>"));
+      graphDiv.attr("title", GolabertoOdds.positionTitle(value, status, "<%= I18n.locale %>", oddsStatusLabels));
     } else {
       $("#odds_tooltip").hide();
       graphDiv.removeAttr("title");
@@ -189,12 +193,13 @@ $(function() {
     var toIndex = Math.round(ranges.xaxis.to) - 1;
     var positionOdds = plot.getData()[0].data.map(point => point[1]);
     var selectedPositions = plot.getData()[0].data.slice(fromIndex, toIndex).map(point => point[0]);
-    var value = GolabertoOdds.zoneValue(positionOdds, selectedPositions);
+    var value = GolabertoOdds.zoneValue(positionOdds, selectedPositions, oddsStatuses);
+    var status = GolabertoOdds.reachability(positionOdds, oddsStatuses, selectedPositions);
     var posFrom = plot.pointOffset({x: ranges.xaxis.from, y: ranges.yaxis.to});
     var posTo = plot.pointOffset({x: ranges.xaxis.to, y: ranges.yaxis.to});
     var odds_selection = $("#odds_selection")
-      .html("<%= j(ERB::Util.html_escape(_("Selected:"))).html_safe %> " + GolabertoOdds.html(value, "<%= I18n.locale %>"))
-      .attr("title", GolabertoOdds.title(value, "<%= I18n.locale %>"));
+      .html("<%= j(ERB::Util.html_escape(_("Selected:"))).html_safe %> " + GolabertoOdds.positionHtml(value, status, "<%= I18n.locale %>", false, oddsStatusLabels))
+      .attr("title", GolabertoOdds.positionTitle(value, status, "<%= I18n.locale %>", oddsStatusLabels));
     odds_selection.css({top: posFrom.top+5, left: (posFrom.left+posTo.left)/2 - odds_selection.width()/2})
       .fadeIn(200);
   });
@@ -214,8 +219,9 @@ $(function() {
   <% @groups[0].zones.each do |z| %>
     <tr class="odds-graph-legend-item" data-zone-name="<%= ERB::Util.html_escape(z['name']) %>" data-group-id="<%= @groups[0].id %>">
       <td><span style="color: <%= z["color"]%>">▣</span> <%= z["name"] %>:</td>
-      <% zone_odds = @groups[0].team_groups.select{|t|t.team_id == @team.id}.first.calculate_odds(z["position"]) %>
-      <%= content_tag :td, formatted_odds(zone_odds), title: odds_title(zone_odds) %>
+      <% zone_odds = odds_team_group.calculate_odds(z["position"]) %>
+      <% status = odds_team_group.odds_reachability_for(z["position"]) %>
+      <%= content_tag :td, position_odds_html(zone_odds, status, compact: false), title: position_odds_title(zone_odds, status) %>
     </tr>
   <% end %>
 </table>
@@ -559,6 +565,7 @@ $(document).ready(function() {
       var xValueMap = {};
       var xAxisTicks = [];
       var timestampMetaMap = {};
+      var oddsHistoryStatusLabels = <%= raw(json_escape(I18n.t("odds_reachability").to_json)) %>;
       var oddsHistoryLocale = "<%= I18n.locale %>".toString().replace(/_/g, "-");
       var fullDateFormatter = null;
 
@@ -754,12 +761,12 @@ $(document).ready(function() {
         var series = oddsHistoryPlot.getData()[item.seriesIndex];
         var pointMeta = (series.point_meta || [])[item.dataIndex] || {};
         var seriesPoint = (series.data || [])[item.dataIndex] || [null, 0];
-        var oddValue = GolabertoOdds.html(seriesPoint[1], oddsHistoryLocale);
+        var oddValue = GolabertoOdds.positionHtml(seriesPoint[1], "undecided", oddsHistoryLocale, false, oddsHistoryStatusLabels);
 
         var zoneOddsLines = (pointMeta.zone_odds || []).map(function(zoneOdd) {
           var zoneColor = zoneOdd.color || "#999999";
-          var zoneValue = GolabertoOdds.html(zoneOdd.value || 0, oddsHistoryLocale);
-          var exactZoneValue = GolabertoOdds.title(zoneOdd.value || 0, oddsHistoryLocale);
+          var zoneValue = GolabertoOdds.positionHtml(zoneOdd.value || 0, "undecided", oddsHistoryLocale, false, oddsHistoryStatusLabels);
+          var exactZoneValue = GolabertoOdds.positionTitle(zoneOdd.value || 0, "undecided", oddsHistoryLocale, oddsHistoryStatusLabels);
           return "<span style=\"color:" + zoneColor + "\">▣</span> " + (zoneOdd.name || "") + ": <span title=\"" + exactZoneValue + "\">" + zoneValue + "</span>";
         });
 
@@ -769,9 +776,9 @@ $(document).ready(function() {
           oddValue + "<br>" +
           (pointMeta.game_label || "-") +
           (zoneOddsLines.length > 0 ? "<br>" + zoneOddsLines.join("<br>") : "")
-        ).attr("title", GolabertoOdds.title(seriesPoint[1], oddsHistoryLocale))
+        ).attr("title", GolabertoOdds.positionTitle(seriesPoint[1], "undecided", oddsHistoryLocale, oddsHistoryStatusLabels))
           .css({ top: pos.pageY + 5, left: pos.pageX + 5 }).fadeIn(200);
-        oddsHistoryPlaceholder.attr("title", GolabertoOdds.title(seriesPoint[1], oddsHistoryLocale));
+        oddsHistoryPlaceholder.attr("title", GolabertoOdds.positionTitle(seriesPoint[1], "undecided", oddsHistoryLocale, oddsHistoryStatusLabels));
       });
     } else {
       $("#odds-history-wrapper-<%=idx%>").hide();

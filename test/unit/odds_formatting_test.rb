@@ -1,6 +1,7 @@
 require 'minitest/autorun'
 require 'action_view'
 require_relative '../../app/helpers/odds_formatting_helper'
+I18n.load_path += Dir[File.expand_path('../../config/locales/odds_reachability.*.yml', __dir__)]
 
 class OddsFormattingTest < Minitest::Test
   def setup
@@ -125,4 +126,25 @@ class OddsFormattingTest < Minitest::Test
     assert_equal 'white', @view.odds_text_color(11, 25)
     assert_equal 'white', @view.odds_text_color(25, 25)
   end
+  def test_position_zeros_distinguish_proofs_and_missing_estimates
+    assert_equal '0.0', Nokogiri::HTML.fragment(@view.position_odds_html(0, 'impossible')).text
+    { 'reachable' => '*', 'undecided' => '?', nil => '?' }.each do |status, marker|
+      fragment = Nokogiri::HTML.fragment(@view.position_odds_html(0, status))
+      assert_equal "0.0#{marker}", fragment.text
+      assert_equal '.', fragment.at_css('.odds-compact-dot').text
+      assert_equal '0', fragment.at_css('.odds-compact-integer').text
+      assert_equal 2, fragment.css('.odds-compact-slot').size
+      assert_equal marker, fragment.at_css('sup.odds-zero-marker').text
+      assert_equal 'true', fragment.at_css('sup')['aria-hidden']
+      refute_empty fragment.at_css('.odds-zero')['aria-label']
+    end
+    assert_equal @view.formatted_compact_team_odds(1e-12), @view.position_odds_html(1e-12, 'reachable')
+    assert_equal '', @view.position_odds_html(nil, 'undecided')
+    assert_equal '0.0 — Reachable; no probability estimate found.', @view.position_odds_title(0, 'reachable')
+    I18n.with_locale('pt-BR') do
+      assert_equal '0.0', @view.position_odds_title(0, 'impossible')
+      assert_equal '0.0 — Possível; estimativa de probabilidade não encontrada.', @view.position_odds_title(0, 'reachable')
+    end
+  end
+
 end

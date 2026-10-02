@@ -1,0 +1,4 @@
+en:
+  odds_reachability:
+    reachable: "Reachable; no probability estimate found."
+    undecided: "Reachability not resolved."
