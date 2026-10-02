@@ -222,8 +222,11 @@ curl -H 'Content-Type: application/json' --data-binary @REQUEST.json \
 `rare_position_estimates`. `team_odds[*].Pos` contains percentages; estimate
 probabilities contain fractions and rank keys remain zero-based. Rails null
 score/bias fields are accepted. `GET /health` is available. HTTP requests run
-serially with up to four estimator workers. Without a configured seed, HTTP
-uses the current time and logs the seed.
+serially with up to four estimator workers. HTTP defaults to fixed seed `808`,
+matching the CLI. `RARE_POSITION_RANDOM_SEED` overrides it; unset, empty, or
+invalid values use `808`. The effective seed is logged. Timing-based search
+allocation can still vary between requests, so a fixed seed alone does not
+guarantee identical complete responses.
 
 Running the executable without arguments also starts the service at
 `127.0.0.1:6577`. For a deployment trial, use an explicit unused port, then

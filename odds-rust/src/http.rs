@@ -5,7 +5,7 @@ use serde_json::json;
 use std::{
     io::Read,
     sync::{mpsc, Arc, Mutex},
-    time::{Instant, SystemTime, UNIX_EPOCH},
+    time::Instant,
 };
 use tiny_http::{Header, Method, Request, Response, Server, StatusCode};
 
@@ -17,6 +17,30 @@ pub const ENDPOINTS: [&str; 5] = [
     "/historic_ratings",
     "/player_ratings",
 ];
+
+// Match the reproducible CLI default; experiments can override it explicitly.
+fn odds_seed(configured: Option<&str>) -> i64 {
+    configured.and_then(|s| s.parse().ok()).unwrap_or(808)
+}
+
+#[cfg(test)]
+mod seed_tests {
+    use super::odds_seed;
+
+    #[test]
+    fn default_and_invalid_seed_configuration_are_reproducible() {
+        for configured in [None, Some(""), Some("invalid"), Some("9223372036854775808")] {
+            assert_eq!(odds_seed(configured), 808);
+        }
+    }
+
+    #[test]
+    fn explicit_seed_overrides_preserve_zero_and_negative_seeds() {
+        for seed in [0_i64, 808, 2293, -1, i64::MIN, i64::MAX] {
+            assert_eq!(odds_seed(Some(&seed.to_string())), seed);
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct EndpointError {
@@ -44,15 +68,7 @@ pub fn execute(path: &str, body: &[u8], log: &RequestLog) -> Result<Vec<u8>, End
     let response = match path {
         "/odds" => {
             let request: crate::model::Request = serde_json::from_slice(body).map_err(bad)?;
-            let seed = std::env::var("RARE_POSITION_RANDOM_SEED")
-                .ok()
-                .and_then(|s| s.parse().ok())
-                .unwrap_or_else(|| {
-                    SystemTime::now()
-                        .duration_since(UNIX_EPOCH)
-                        .unwrap_or_default()
-                        .as_nanos() as i64
-                });
+            let seed = odds_seed(std::env::var("RARE_POSITION_RANDOM_SEED").ok().as_deref());
             let log = log.context(request.id, seed);
             log.stage("http.decode", decode, json!({"valid":true}));
             let (response, _) =

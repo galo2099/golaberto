@@ -24,7 +24,7 @@ impl Service {
         let child = Command::new(env!("CARGO_BIN_EXE_golaberto-odds"))
             .args(["serve", &address])
             .env("RUST_ODDS_LOG", "0")
-            .env("RARE_POSITION_RANDOM_SEED", "808")
+            .env_remove("RARE_POSITION_RANDOM_SEED")
             .env(
                 "DATABASE_URL",
                 "mysql://root@127.0.0.1:1/unavailable?tcp_connect_timeout_ms=100",
