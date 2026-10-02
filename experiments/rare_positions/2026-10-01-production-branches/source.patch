@@ -1,0 +1,1944 @@
+--- a/odds-rust/src/api.rs
++++ b/odds-rust/src/api.rs
+@@ -154,6 +154,9 @@
+         "rare_tail_quality":crate::rare_tail::value("RUST_ODDS_RARE_TAIL_QUALITY"),
+         "rare_tail_extension":crate::rare_tail::value("RUST_ODDS_RARE_TAIL_EXTENSION"),
+         "rare_tail_confirm_more":crate::rare_tail::value("RUST_ODDS_RARE_TAIL_CONFIRM_MORE"),
++        "rare_tail_branches":crate::rare_tail::value("RUST_ODDS_RARE_TAIL_BRANCHES")=="1",
++        "rare_tail_branch_budget_fraction":crate::rare_tail::value("RUST_ODDS_RARE_TAIL_BRANCH_BUDGET_FRACTION"),
++        "rare_tail_branch_bound_floor":crate::rare_tail::value("RUST_ODDS_RARE_TAIL_BRANCH_BOUND_FLOOR")=="1",
+         "rare_tail_shared_guides":crate::rare_tail::value("RUST_ODDS_RARE_TAIL_SHARE")=="1",
+         "shared_constraints":crate::rare_tail::value("RUST_ODDS_SHARED_CONSTRAINTS"),
+         "shared_constraints_blockers":crate::rare_tail::value("RUST_ODDS_SHARED_CONSTRAINTS_BLOCKERS"),
+--- a/odds-rust/src/rare_tail.rs
++++ b/odds-rust/src/rare_tail.rs
+@@ -17,6 +17,8 @@
+ use serde_json::json;
+ use std::sync::atomic::{AtomicU8, Ordering};
+ use std::time::Instant;
++
++mod branches;
+ 
+ // Coverage is the default profile, with explicit environment overrides. Reading it does
+ // not mutate the process environment or interfere with concurrent requests.
+@@ -728,6 +730,112 @@
+             }),
+         );
+     }
++    // Experimental escalation follows frozen production results. It includes
++    // zero-hit pilots; the exact necessary-event screen is never an estimate.
++    if value("RUST_ODDS_RARE_TAIL_RESIDUAL_LOOP") == "1" {
++        let before: Vec<_> = estimates
++            .iter()
++            .enumerate()
++            .filter(|(_, e)| e.probability > 0.)
++            .map(|(i, e)| (i, serde_json::to_value(e).unwrap()))
++            .collect();
++        let clock = Instant::now();
++        let allowance = native_ms * 1.5;
++        let deadline = clock + std::time::Duration::from_secs_f64(allowance / 1000.);
++        let jobs: Vec<_> = cells
++            .iter()
++            .copied()
++            .filter(|c| {
++                let e = &estimates[c.index(m.n)];
++                e.probability == 0. && !e.reachability.starts_with("impossible")
++            })
++            .take(8)
++            .collect();
++        let results = parallel(jobs.len(), workers, |i| {
++            if Instant::now() >= deadline {
++                return None;
++            }
++            let cell = jobs[i];
++            let start = Instant::now();
++            let seeds: Vec<_> = witnesses
++                .iter()
++                .filter(|(_, r)| r[cell.team] == cell.rank)
++                .map(|(o, _)| o.clone())
++                .collect();
++            let stream = derive(
++                seed,
++                &format!("rare-tail-residual-{}-{}", m.ids[cell.team], cell.rank),
++            );
++            let mut plan = LazyJoint::new_shared(m, cell, stream, &seeds, 32, shared.clone())?;
++            let setup_ms = start.elapsed().as_secs_f64() * 1000.;
++            let training_clock = Instant::now();
++            let (pilot, trace, training_work) = plan.train_residual_loop(m, stream, deadline);
++            let training_ms = training_clock.elapsed().as_secs_f64() * 1000.;
++            let mut main = Result::default();
++            let mut check = Result::default();
++            let maximum = value("RUST_ODDS_RARE_TAIL_RESIDUAL_MAX_SAMPLES")
++                .parse::<usize>()
++                .unwrap_or(30000)
++                .clamp(2000, 100000);
++            if let Some(n) = confirmation_batches_limit(&pilot, maximum) {
++                if Instant::now() < deadline {
++                    main = plan.sample(m, n, derive(stream, "residual-main"));
++                    if publishable(&main, rough) {
++                        check = plan.sample(m, n, derive(stream, "residual-check"));
++                    }
++                }
++            }
++            let ok = accepted(&main, &check, rough);
++            emit(
++                log,
++                "rust_odds_rare_tail_residual_loop",
++                json!({
++                    "group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,
++                    "trace":trace,"pilot_hits":pilot.hits,"pilot_ess":pilot.ess,
++                    "main_draws":main.samples,"main_hits":main.hits,"main_ess":main.ess,
++                    "main_max_share":main.max_share,"main_batch_gap":main.batch_gap,
++                    "main_relative_se":if main.probability>0.{Some(main.std_err/main.probability)}else{None},
++                    "setup_ms":setup_ms,"training_ms":training_ms,"probability":main.probability,
++                    "check_draws":check.samples,"check_hits":check.hits,"check_ess":check.ess,
++                    "check_probability":check.probability,"accepted":ok,
++                    "elapsed_ms":start.elapsed().as_secs_f64()*1000.,"plan":plan.describe(m)
++                }),
++            );
++            Some((cell, main, check.work + training_work, ok))
++        });
++        let mut added = 0;
++        let mut extra_work = 0;
++        for (cell, r, other_work, ok) in results.into_iter().flatten() {
++            extra_work += r.work + other_work;
++            if ok && commit_estimate(&mut estimates[cell.index(m.n)], &r, true) {
++                estimates[cell.index(m.n)].design = "matched_point_pool_residual_loop".into();
++                added += 1;
++            }
++        }
++        found += added;
++        work += extra_work;
++        let preserved = before
++            .iter()
++            .all(|(i, e)| *e == serde_json::to_value(&estimates[*i]).unwrap());
++        emit(
++            log,
++            "rust_odds_rare_tail_residual_loop_summary",
++            json!({
++                "group":m.request.id,"eligible":jobs.len(),"accepted":added,"work":extra_work,
++                "preserved_existing_estimates":preserved,
++                "allowance_ms":allowance,"elapsed_ms":clock.elapsed().as_secs_f64()*1000.
++            }),
++        );
++    }
++    if value("RUST_ODDS_RARE_TAIL_BRANCHES") == "1" {
++        let elapsed = log.map_or(
++            unlogged_search_ms + start.elapsed().as_secs_f64() * 1000.,
++            |l| l.calculation_elapsed_ms(),
++        );
++        let (added, spent) = branches::run(m, seed, workers, estimates, log, elapsed);
++        found += added;
++        work += spent;
++    }
+     if extension {
+         emit(
+             log,
+@@ -768,6 +876,9 @@
+ }
+ 
+ fn confirmation_batches(pilot: &Result) -> Option<usize> {
++    confirmation_batches_limit(pilot, 30000)
++}
++fn confirmation_batches_limit(pilot: &Result, maximum: usize) -> Option<usize> {
+     if pilot.samples == 0 || pilot.hits == 0 || !pilot.ess.is_finite() || pilot.ess <= 0. {
+         return None;
+     }
+@@ -776,7 +887,7 @@
+     let n = (120. * pilot.samples as f64 / pilot.hits as f64)
+         .max(32. * pilot.samples as f64 / pilot.ess)
+         .ceil() as usize;
+-    Some(n.clamp(2000, 30000))
++    Some(n.clamp(2000, maximum.clamp(2000, 100000)))
+ }
+ 
+ fn reserve_extension(
+@@ -797,7 +908,7 @@
+     (extra <= spare_ms).then_some((desired, desired_check, extra))
+ }
+ 
+-pub(crate) fn accepted(main: &Result, check: &Result, rough: bool) -> bool {
++pub fn accepted(main: &Result, check: &Result, rough: bool) -> bool {
+     if !rough {
+         return confirmed(main, check);
+     }
+@@ -875,6 +986,9 @@
+         pilot.hits = 8;
+         pilot.ess = 1.18;
+         assert_eq!(confirmation_batches(&pilot), Some(27119));
++        pilot.ess = 0.5;
++        let larger = confirmation_batches_limit(&pilot, 100000).unwrap();
++        assert!(larger > 30000 && larger <= 100000);
+         pilot.ess = f64::NAN;
+         assert_eq!(confirmation_batches(&pilot), None);
+         for invalid in ["", "0", "-1", "NaN", "inf", "2.1"] {
+@@ -990,6 +1104,10 @@
+             "RUST_ODDS_LAZY_CARDINALITY_CASES",
+             "RUST_ODDS_POINT_TILT_FINAL",
+             "RUST_ODDS_LAZY_PROPAGATE",
++            "RUST_ODDS_RARE_TAIL_RESIDUAL_LOOP",
++            "RUST_ODDS_RARE_TAIL_RESIDUAL_BOUND_GUIDE",
++            "RUST_ODDS_RARE_TAIL_RESIDUAL_MAX_SAMPLES",
++            "RUST_ODDS_RARE_TAIL_RESIDUAL_RIVALS",
+         ] {
+             assert_eq!(profile_default(flag), "");
+         }
+--- /dev/null
++++ b/odds-rust/src/rare_tail/branches.rs
+@@ -0,0 +1,276 @@
++//! Opt-in complete branch refinement after native results are frozen.
++//! Every branch retains positive final sampling allocation; bounds only order
++//! work or reduce a tiny branch's draw floor, never truncate event support.
++use super::*;
++use crate::joint_caps::propagated::lazy::{combine_branches, BranchSample, BranchStrata};
++
++const TOTAL: usize = 30000;
++const PILOT: usize = 500;
++const FLOOR: usize = 200;
++
++fn fraction(value: &str) -> f64 {
++    value
++        .parse::<f64>()
++        .ok()
++        .filter(|v| v.is_finite() && (0. ..=0.5).contains(v))
++        .unwrap_or(0.15)
++}
++
++fn allocation(scores: &[f64], small: &[bool], total: usize) -> Option<Vec<usize>> {
++    if scores.len() != small.len()
++        || scores.is_empty()
++        || scores.iter().any(|s| !s.is_finite() || *s < 0.)
++    {
++        return None;
++    }
++    let mut ns: Vec<_> = small.iter().map(|&s| if s { 2 } else { FLOOR }).collect();
++    let assigned: usize = ns.iter().sum();
++    if assigned > total {
++        return None;
++    }
++    let mut active: Vec<_> = (0..ns.len()).filter(|&i| !small[i]).collect();
++    if active.is_empty() {
++        active.extend(0..ns.len());
++    }
++    let sum: f64 = active.iter().map(|&i| scores[i]).sum();
++    let left = total - assigned;
++    for &i in &active {
++        let share = if sum > 0. {
++            0.1 / active.len() as f64 + 0.9 * scores[i] / sum
++        } else {
++            1. / active.len() as f64
++        };
++        ns[i] += (left as f64 * share).floor() as usize;
++    }
++    let remainder = total - ns.iter().sum::<usize>();
++    for i in 0..remainder {
++        ns[active[i % active.len()]] += 1;
++    }
++    Some(ns)
++}
++
++fn sample(
++    p: &BranchStrata,
++    m: &Model,
++    ns: &[usize],
++    guides: &[bool],
++    order: &[usize],
++    seed: i64,
++    phase: &str,
++    workers: usize,
++) -> Vec<BranchSample> {
++    let mut rows = parallel(order.len(), workers, |slot| {
++        let i = order[slot];
++        (
++            i,
++            p.sample(
++                m,
++                i,
++                ns[i],
++                derive(seed, &format!("branch-{phase}-{i}")),
++                guides[i],
++                true,
++            ),
++        )
++    });
++    rows.sort_by_key(|r| r.0);
++    rows.into_iter().map(|r| r.1).collect()
++}
++
++pub(super) fn run(
++    m: &Model,
++    seed: i64,
++    workers: usize,
++    estimates: &mut [Estimate],
++    log: Option<&crate::logging::RequestLog>,
++    preceding_ms: f64,
++) -> (usize, u64) {
++    let start = Instant::now();
++    let allowance = preceding_ms * fraction(&value("RUST_ODDS_RARE_TAIL_BRANCH_BUDGET_FRACTION"));
++    let cells: Vec<_> = estimates
++        .iter()
++        .enumerate()
++        .filter_map(|(i, e)| {
++            (e.probability == 0. && !e.reachability.starts_with("impossible")).then_some(Cell {
++                team: i / m.n,
++                rank: i % m.n,
++            })
++        })
++        .collect();
++    let before: Vec<_> = estimates
++        .iter()
++        .enumerate()
++        .filter(|(_, e)| e.probability > 0.)
++        .map(|(i, e)| (i, serde_json::to_value(e).unwrap()))
++        .collect();
++    let reduce_floor = value("RUST_ODDS_RARE_TAIL_BRANCH_BOUND_FLOOR") == "1";
++    let (mut found, mut work, mut attempted, mut skipped, mut setups_ms) = (0, 0, 0, 0, 0.);
++    for cell in cells.iter().take(8).copied() {
++        if start.elapsed().as_secs_f64() * 1000. >= allowance {
++            break;
++        }
++        attempted += 1;
++        let setup = Instant::now();
++        // Deterministic complete enumeration; no cached target path is omitted.
++        let proposal = BranchStrata::with_secondary(m, cell, seed, 4, true);
++        let setup_ms = setup.elapsed().as_secs_f64() * 1000.;
++        setups_ms += setup_ms;
++        let p = match proposal {
++            Ok(p) if p.len() * FLOOR <= TOTAL => p,
++            result => {
++                skipped += 1;
++                let reason = match result {
++                    Err(reason) => reason,
++                    Ok(_) => "branch allocation floor exceeds draw budget".into(),
++                };
++                emit(
++                    log,
++                    "rust_odds_rare_tail_branches_skip",
++                    json!({"group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,"setup_ms":setup_ms,"reason":reason}),
++                );
++                continue;
++            }
++        };
++        if start.elapsed().as_secs_f64() * 1000. >= allowance {
++            break;
++        }
++        let bound_clock = Instant::now();
++        let bounds = p.bounds(m, false);
++        let bounds_ms = bound_clock.elapsed().as_secs_f64() * 1000.;
++        let mut order: Vec<_> = (0..p.len()).collect();
++        order.sort_by(|&a, &b| {
++            bounds[b]
++                .upper_bound
++                .total_cmp(&bounds[a].upper_bound)
++                .then(a.cmp(&b))
++        });
++        let pilot_clock = Instant::now();
++        let pilots = parallel(p.len(), workers, |i| {
++            let rank = p.sample(
++                m,
++                i,
++                PILOT,
++                derive(seed, &format!("branch-pilot-{i}")),
++                false,
++                true,
++            );
++            let interval = p.sample(
++                m,
++                i,
++                PILOT,
++                derive(seed, &format!("branch-bound-pilot-{i}")),
++                true,
++                true,
++            );
++            let use_interval = interval.result.ess > rank.result.ess;
++            let work = rank.result.work + interval.result.work;
++            (
++                if use_interval { interval } else { rank },
++                use_interval,
++                work,
++            )
++        });
++        let pilot_ms = pilot_clock.elapsed().as_secs_f64() * 1000.;
++        work += pilots.iter().map(|r| r.2).sum::<u64>();
++        let pilot_probability: f64 = pilots.iter().map(|r| r.0.result.probability).sum();
++        let small: Vec<_> = bounds
++            .iter()
++            .map(|b| {
++                reduce_floor
++                    && pilot_probability > 0.
++                    && b.upper_bound <= pilot_probability * 0.001 / p.len() as f64
++            })
++            .collect();
++        let scores: Vec<_> = pilots
++            .iter()
++            .map(|r| r.0.result.std_err * (r.0.result.samples as f64).sqrt())
++            .collect();
++        let Some(ns) = allocation(&scores, &small, TOTAL) else {
++            continue;
++        };
++        let guides: Vec<_> = pilots.iter().map(|r| r.1).collect();
++        // Soft admission deadline; the entire fixed main/check pair runs after
++        // admission. Never stop a reported batch based on its own results.
++        let forecast = 1.3 * pilot_ms * (2 * TOTAL) as f64 / (2 * p.len() * PILOT) as f64;
++        if start.elapsed().as_secs_f64() * 1000. + forecast > allowance {
++            emit(
++                log,
++                "rust_odds_rare_tail_branches_skip",
++                json!({"group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,"setup_ms":setup_ms,"pilot_ms":pilot_ms,"forecast_ms":forecast,"reason":"final pair exceeds remaining admission allowance"}),
++            );
++            skipped += 1;
++            continue;
++        }
++        let main_clock = Instant::now();
++        let mains = sample(&p, m, &ns, &guides, &order, seed, "main", workers);
++        let main_ms = main_clock.elapsed().as_secs_f64() * 1000.;
++        let main = combine_branches(&mains);
++        let check_clock = Instant::now();
++        let check = if publishable(&main, true) {
++            combine_branches(&sample(&p, m, &ns, &guides, &order, seed, "check", workers))
++        } else {
++            Result::default()
++        };
++        let check_ms = check_clock.elapsed().as_secs_f64() * 1000.;
++        work += main.work + check.work;
++        let ok = accepted(&main, &check, true);
++        if ok && commit_estimate(&mut estimates[cell.index(m.n)], &main, true) {
++            estimates[cell.index(m.n)].design = "matched_point_pool_complete_branches".into();
++            estimates[cell.index(m.n)].work_spent +=
++                pilots.iter().map(|r| r.2).sum::<u64>() + main.work + check.work;
++            found += 1;
++        }
++        emit(
++            log,
++            "rust_odds_rare_tail_branches",
++            json!({"group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,"branches":p.len(),"setup_ms":setup_ms,"bounds_ms":bounds_ms,"pilot_ms":pilot_ms,"main_ms":main_ms,"check_ms":check_ms,"pilot_probability":pilot_probability,"small_branch_floors":small.iter().filter(|&&s|s).count(),"main_draws":main.samples,"main_hits":main.hits,"main_ess":main.ess,"main_max_share":main.max_share,"main_batch_gap":main.batch_gap,"probability":main.probability,"check_probability":check.probability,"check_ess":check.ess,"accepted":ok,"full_support":true,"omitted_probability":0,"forecast_ms":forecast}),
++        );
++    }
++    emit(
++        log,
++        "rust_odds_rare_tail_branches_summary",
++        json!({"group":m.request.id,"eligible":cells.len(),"attempted":attempted,"skipped":skipped,"accepted":found,"elapsed_ms":start.elapsed().as_secs_f64()*1000.,"setup_ms":setups_ms,"allowance_ms":allowance,"work":work,"bound_floor":reduce_floor,"preserved_existing_estimates":before.iter().all(|(i, e)| *e == serde_json::to_value(&estimates[*i]).unwrap())}),
++    );
++    (found, work)
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    #[test]
++    fn allocation_preserves_every_branch_and_fixed_budget() {
++        let ns = allocation(&[1., 2., 3.], &[false, false, false], 1000).unwrap();
++        assert_eq!(ns.iter().sum::<usize>(), 1000);
++        assert!(ns.iter().all(|&n| n >= FLOOR));
++        let ns = allocation(&[1., 2., 3.], &[true, false, false], 1000).unwrap();
++        assert_eq!(ns[0], 2);
++        assert_eq!(ns.iter().sum::<usize>(), 1000);
++        assert!(allocation(&[1., 2.], &[false, false], 399).is_none());
++        assert!(allocation(&[], &[], 1000).is_none());
++        assert!(allocation(&[1.], &[false, true], 1000).is_none());
++        let ns = allocation(&[1., 2.], &[true, true], 1000).unwrap();
++        assert_eq!(ns.iter().sum::<usize>(), 1000);
++        assert!(ns.iter().all(|&n| n >= 2));
++        assert!(allocation(&[f64::NAN], &[false], 1000).is_none());
++        assert!(allocation(&[-1.], &[false], 1000).is_none());
++    }
++    #[test]
++    fn bounded_fraction_has_explicit_zero_rollback() {
++        assert_eq!(fraction("0"), 0.);
++        assert_eq!(fraction("0.25"), 0.25);
++        for value in ["", "NaN", "inf", "-1", "0.6"] {
++            assert_eq!(fraction(value), 0.15);
++        }
++    }
++    #[test]
++    fn production_branch_stage_requires_explicit_opt_in() {
++        assert_eq!(
++            resolve_value("RUST_ODDS_RARE_TAIL_BRANCHES", None, true),
++            ""
++        );
++        assert_eq!(
++            resolve_value("RUST_ODDS_RARE_TAIL_BRANCHES", Some("1".into()), true),
++            "1"
++        );
++    }
++}
+--- a/odds-rust/src/joint_caps/propagated.rs
++++ b/odds-rust/src/joint_caps/propagated.rs
+@@ -409,6 +409,25 @@
+         };
+         (if below { low } else { high }) + tie.max(0.) * 0.5
+     }
++    fn bounds(&self, step: usize, t: usize, lo: i32, hi: i32) -> f64 {
++        if lo > hi || hi < self.min[step][t] || lo > self.max[step][t] {
++            return 0.;
++        }
++        if lo <= self.min[step][t] {
++            return self.cdf.cdf(step, t, hi);
++        }
++        let origin = self.origin[step][t];
++        if hi >= self.max[step][t] {
++            return self.reverse.cdf(step, t, origin - lo);
++        }
++        let low = self.cdf.cdf(step, t, hi);
++        let high = self.reverse.cdf(step, t, origin - lo);
++        if low <= high {
++            (low - self.cdf.cdf(step, t, lo - 1)).max(0.)
++        } else {
++            (high - self.reverse.cdf(step, t, origin - hi - 1)).max(0.)
++        }
++    }
+     fn factor(&self, step: usize, team: usize, cap: i32, below: f64, above: f64) -> f64 {
+         let origin = self.origin[step][team];
+         // When guidance weights one side and ties equally, the whole factor
+@@ -468,6 +487,7 @@
+     mass: f64,
+     tilt: f64,
+     cumulative: f64,
++    bound_guidance: bool,
+ }
+ impl Pattern {
+     fn draw(
+@@ -481,6 +501,7 @@
+         replay: bool,
+         dynamic: usize,
+     ) -> f64 {
++        let cardinality = cardinality && !self.bound_guidance;
+         for &(i, o) in &self.fixed {
+             if replay && out[i] != o {
+                 return 0.;
+@@ -520,7 +541,7 @@
+         let Some(mut counts) = self.counts(0, points, cell) else {
+             return 0.;
+         };
+-        let (above, below) = if guided && !cardinality {
++        let (above, below) = if guided && !cardinality && !self.bound_guidance {
+             let mut ea = 0.;
+             let mut eb = 0.;
+             for t in 0..points.len() {
+@@ -628,7 +649,19 @@
+                 }
+                 support += g.prob[o];
+                 q[o] = g.prob[o]
+-                    * if cardinality {
++                    * if self.bound_guidance {
++                        self.guide.bounds(
++                            step + 1,
++                            g.home,
++                            self.lower[g.home] - points[g.home] - g.hg[o],
++                            self.upper[g.home] - points[g.home] - g.hg[o],
++                        ) * self.guide.bounds(
++                            step + 1,
++                            g.away,
++                            self.lower[g.away] - points[g.away] - g.ag[o],
++                            self.upper[g.away] - points[g.away] - g.ag[o],
++                        )
++                    } else if cardinality {
+                         let ph = chance(step + 1, g.home, points[g.home] + g.hg[o]).clamp(0., 1.);
+                         let pa = chance(step + 1, g.away, points[g.away] + g.ag[o]).clamp(0., 1.);
+                         endpoint_chances[o] = [ph, pa];
+@@ -1072,6 +1105,7 @@
+                 mass: weight,
+                 tilt: 1.,
+                 cumulative: mass,
++                bound_guidance: false,
+             });
+         }
+         if mass <= 0.
+--- a/odds-rust/src/joint_caps/propagated/lazy.rs
++++ b/odds-rust/src/joint_caps/propagated/lazy.rs
+@@ -55,10 +55,16 @@
+     }
+ }
+ 
++mod residual;
++mod strata;
++pub use strata::{combine as combine_branches, BranchBound, BranchSample, BranchStrata};
++
+ const DEFENSIVE: f64 = 0.1;
+ type JointKey = (Vec<(usize, [u64; 3])>, Vec<(i32, i32)>);
++#[derive(Clone)]
+ struct Cases {
+     above: bool,
++    selected: u32,
+     patterns: Vec<(u32, Pattern, f64)>,
+     mass: f64,
+     complete: bool,
+@@ -85,6 +91,7 @@
+     root_allocation: HashMap<Vec<u8>, f64>,
+     nodes: usize,
+     node_limit: usize,
++    rival_limit: usize,
+     joint_cache: HashMap<JointKey, (Arc<NecessaryJoint>, Vec<RankGame>)>,
+     fallback: Option<(Arc<NecessaryJoint>, Arc<Guide>)>,
+     guide_values: usize,
+@@ -317,6 +324,10 @@
+             root_allocation: HashMap::new(),
+             nodes: 0,
+             node_limit: 60000,
++            rival_limit: crate::rare_tail::value("RUST_ODDS_LAZY_RIVALS")
++                .parse::<usize>()
++                .unwrap_or(6)
++                .clamp(1, 6),
+             joint_cache: HashMap::new(),
+             fallback: None,
+             guide_values: 0,
+@@ -456,7 +467,7 @@
+         key: &[u8],
+         teams: usize,
+         anchor: Option<&[u8]>,
+-        case: Option<(bool, u32)>,
++        case: Option<(bool, u32, u32)>,
+     ) -> std::result::Result<Option<Pattern>, ()> {
+         let mut points = self.base.clone();
+         let mut fixed = Vec::new();
+@@ -482,10 +493,10 @@
+         if !d.feasible {
+             return Ok(None);
+         }
+-        if let Some((above, mask)) = case {
++        if let Some((above, mask, selected)) = case {
+             let target = points[self.cell.team];
+             for t in 0..teams {
+-                if t == self.cell.team {
++                if t == self.cell.team || selected & (1 << t) == 0 {
+                     continue;
+                 }
+                 let strict = mask & (1 << t) != 0;
+@@ -516,7 +527,7 @@
+                 .map(|o| g.prob[o])
+                 .sum();
+             if total <= 0. {
+-                return Ok(None);
++                return if case.is_some() { Err(()) } else { Ok(None) };
+             }
+             weight *= total;
+             if mask.count_ones() == 1 {
+@@ -658,10 +669,7 @@
+                 &base,
+                 &d.lower,
+                 &d.upper,
+-                Some(crate::rare_tail::value("RUST_ODDS_LAZY_RIVALS"))
+-                    .and_then(|s| s.parse::<usize>().ok())
+-                    .unwrap_or(6)
+-                    .clamp(1, 6),
++                self.rival_limit,
+                 &mut budget,
+             );
+             self.nodes = self.node_limit - budget;
+@@ -671,7 +679,11 @@
+             pair
+         };
+         if joint.mass <= 0. {
+-            return if self.subset { Err(()) } else { Ok(None) };
++            return if self.subset || case.is_some() {
++                Err(())
++            } else {
++                Ok(None)
++            };
+         }
+         let order = std::env::var("RUST_ODDS_LAZY_ORDER").unwrap_or_default();
+         if order == "rare" || order == "uncertain" {
+@@ -777,6 +789,7 @@
+             mass: weight,
+             tilt: 1.,
+             cumulative: 0.,
++            bound_guidance: false,
+         }))
+     }
+     pub fn add_alternates(&mut self, m: &Model, witnesses: &[Vec<u8>]) {
+@@ -918,6 +931,7 @@
+             }
+             let mut cases = Cases {
+                 above,
++                selected: u32::MAX,
+                 patterns: Vec::new(),
+                 mass: 0.,
+                 complete,
+@@ -927,7 +941,7 @@
+                     cases.complete = false;
+                     break;
+                 }
+-                match self.build(&key, m.n, None, Some((above, mask))) {
++                match self.build(&key, m.n, None, Some((above, mask, u32::MAX))) {
+                     Ok(Some(p)) => {
+                         let score = p.mass * p.joint.residual_hint.max(1e-80);
+                         cases.mass += score;
+@@ -1188,6 +1202,7 @@
+                             let mask = (0..m.n)
+                                 .filter(|&t| {
+                                     t != self.cell.team
++                                        && cases.selected & (1 << t) != 0
+                                         && if cases.above {
+                                             points[t] > points[self.cell.team]
+                                         } else {
+@@ -1296,6 +1311,7 @@
+                             mass: 1.,
+                             tilt: 1.,
+                             cumulative: 1.,
++                            bound_guidance: false,
+                         };
+                         p.draw(
+                             self.cell,
+@@ -1449,6 +1465,9 @@
+                 (32, false, 1),
+                 (32, false, 2),
+                 (32, false, 3),
++                (32, false, 4),
++                (32, false, 5),
++                (32, false, 6),
+             ] {
+                 let mut p = LazyJoint::with_mode(
+                     &m,
+@@ -1475,6 +1494,35 @@
+                             c.patterns.truncate(1);
+                             c.mass = c.patterns[0].2;
+                             c.complete = false;
++                        }
++                    }
++                }
++                if cases >= 4 {
++                    // Partition only one rival. Unselected rivals remain free;
++                    // replay must use the partial mask, including for native draws.
++                    let keys: Vec<_> = p.mixture.iter().map(|(k, _)| k.clone()).collect();
++                    for key in keys {
++                        let mut c = Cases {
++                            above: true,
++                            selected: 1 << 1,
++                            patterns: Vec::new(),
++                            mass: 0.,
++                            complete: cases != 5,
++                        };
++                        for mask in [0, 1 << 1] {
++                            if cases == 5 && mask != 0 {
++                                continue;
++                            }
++                            if let Ok(Some(mut pattern)) =
++                                p.build(&key, m.n, None, Some((true, mask, c.selected)))
++                            {
++                                pattern.bound_guidance = cases == 6;
++                                c.mass += pattern.mass;
++                                c.patterns.push((mask, pattern, c.mass));
++                            }
++                        }
++                        if !c.patterns.is_empty() {
++                            p.cases.insert(key, c);
+                         }
+                     }
+                 }
+--- /dev/null
++++ b/odds-rust/src/joint_caps/propagated/lazy/residual.rs
+@@ -0,0 +1,409 @@
++//! Training-only escalation of a necessary rank event. Small selected subsets
++//! share internal fixtures; their marginal probabilities are never multiplied
++//! as if those shared fixtures were independent.
++use super::*;
++
++fn table(
++    games: Vec<RankGame>,
++    t: usize,
++    base: i32,
++    target: i32,
++    above: bool,
++    padding: i32,
++) -> TerminalTable {
++    let span: i32 = padding
++        + games
++            .iter()
++            .map(|g| {
++                *if g.home == t { &g.hg } else { &g.ag }
++                    .iter()
++                    .max()
++                    .unwrap()
++            })
++            .sum::<i32>();
++    TerminalTable::new(
++        games,
++        t,
++        (0..=span)
++            .map(|a| {
++                if if above {
++                    base + a <= target
++                } else {
++                    base + a >= target
++                } {
++                    1.
++                } else {
++                    0.
++                }
++            })
++            .collect(),
++    )
++}
++
++/// Exact probability of at most `allowed` strict exceptions in `selected`,
++/// conditional on a fixed target path. Ties are retained in the necessary event.
++fn screen(
++    games: &[RankGame],
++    points: &[i32],
++    target: i32,
++    selected: &[usize],
++    above: bool,
++    allowed: usize,
++) -> Option<(f64, usize)> {
++    let internal: Vec<_> = games
++        .iter()
++        .copied()
++        .filter(|g| selected.contains(&g.home) && selected.contains(&g.away))
++        .collect();
++    let states = 3usize.checked_pow(internal.len() as u32)?;
++    if states > 12000 {
++        return None;
++    }
++    let tables: Vec<_> = selected
++        .iter()
++        .map(|&t| {
++            table(
++                games
++                    .iter()
++                    .copied()
++                    .filter(|g| {
++                        (g.home == t || g.away == t) && !internal.iter().any(|v| v.index == g.index)
++                    })
++                    .collect(),
++                t,
++                points[t],
++                target,
++                above,
++                internal
++                    .iter()
++                    .filter(|g| g.home == t || g.away == t)
++                    .map(|g| {
++                        *if g.home == t { &g.hg } else { &g.ag }
++                            .iter()
++                            .max()
++                            .unwrap()
++                    })
++                    .sum(),
++            )
++        })
++        .collect();
++    let mut mass = 0.;
++    for mut code in 0..states {
++        let mut added = vec![0; selected.len()];
++        let mut weight = 1.;
++        for g in &internal {
++            let o = code % 3;
++            code /= 3;
++            weight *= g.prob[o];
++            added[selected.iter().position(|&t| t == g.home).unwrap()] += g.hg[o];
++            added[selected.iter().position(|&t| t == g.away).unwrap()] += g.ag[o];
++        }
++        let mut dp = vec![0.; allowed + 1];
++        dp[0] = 1.;
++        for (tab, gain) in tables.iter().zip(added) {
++            let safe = tab.mass(gain as usize).clamp(0., 1.);
++            for k in (0..=allowed).rev() {
++                dp[k] = dp[k] * safe + if k > 0 { dp[k - 1] * (1. - safe) } else { 0. };
++            }
++        }
++        mass += weight * dp.iter().sum::<f64>();
++    }
++    Some((mass, states))
++}
++
++impl LazyJoint {
++    fn residual_cases(&mut self, m: &Model, width: usize) -> serde_json::Value {
++        self.cases.clear();
++        self.node_limit = self.nodes + 20000;
++        let old = self.subset;
++        self.subset = false;
++        let keys: Vec<_> = self
++            .mixture
++            .iter()
++            .map(|(k, _)| k.clone())
++            .take(2)
++            .collect();
++        let mut diagnostics = Vec::new();
++        for key in keys {
++            let mut points = self.base.clone();
++            for (g, &o) in self.target.games.iter().zip(&key) {
++                points[g.home] += g.hg[o as usize];
++                points[g.away] += g.ag[o as usize];
++            }
++            let target = points[self.cell.team];
++            let rivals: Vec<_> = (0..m.n).filter(|&t| t != self.cell.team).collect();
++            let d = Domains::propagate(&self.remaining, &points, &rivals, self.cell.rank, target);
++            if !d.feasible {
++                continue;
++            }
++            let fixed_above = rivals
++                .iter()
++                .filter(|&&t| points[t] + d.min[0][t] > target)
++                .count();
++            let fixed_below = rivals
++                .iter()
++                .filter(|&&t| points[t] + d.max[0][t] < target)
++                .count();
++            let above = self.cell.rank.saturating_sub(fixed_above)
++                <= (m.n - 1 - self.cell.rank).saturating_sub(fixed_below);
++            let allowed = if above {
++                self.cell.rank - fixed_above
++            } else {
++                m.n - 1 - self.cell.rank - fixed_below
++            };
++            let mut candidates: Vec<_> = rivals
++                .iter()
++                .copied()
++                .filter(|&t| points[t] + d.min[0][t] <= target && points[t] + d.max[0][t] >= target)
++                .map(|t| {
++                    let p = table(
++                        self.remaining
++                            .iter()
++                            .copied()
++                            .filter(|g| g.home == t || g.away == t)
++                            .collect(),
++                        t,
++                        points[t],
++                        target,
++                        above,
++                        0,
++                    )
++                    .mass(0);
++                    (t, p)
++                })
++                .collect();
++            candidates.sort_by(|a, b| a.1.total_cmp(&b.1).then(a.0.cmp(&b.0)));
++            let selected: Vec<_> = candidates.iter().take(width).map(|&(t, _)| t).collect();
++            if selected.len() <= allowed || selected.len() > 31 {
++                continue;
++            }
++            let mut screened: Vec<_> = selected.iter().copied().take(6).collect();
++            let measured = loop {
++                if screened.len() <= allowed {
++                    break None;
++                }
++                if let Some(v) = screen(&self.remaining, &points, target, &screened, above, allowed)
++                {
++                    break Some(v);
++                }
++                screened.pop();
++            };
++            let Some((bound, states)) = measured else {
++                continue;
++            };
++            // This is a P-event screen, not a bound on the guided proposal's
++            // hit rate. Escalation also requires independently weak pilot ESS.
++            if bound * 30000. >= 1. {
++                continue;
++            }
++            let selected_mask = selected.iter().fold(0u32, |s, &t| s | (1 << t));
++            let mut cases = Cases {
++                above,
++                selected: selected_mask,
++                patterns: Vec::new(),
++                mass: 0.,
++                complete: true,
++            };
++            fn enumerate(ts: &[usize], i: usize, left: usize, mask: u32, out: &mut Vec<u32>) {
++                if out.len() >= 33 {
++                    return;
++                }
++                if i == ts.len() {
++                    out.push(mask);
++                    return;
++                }
++                enumerate(ts, i + 1, left, mask, out);
++                if left > 0 {
++                    enumerate(ts, i + 1, left - 1, mask | (1 << ts[i]), out);
++                }
++            }
++            let mut masks = Vec::new();
++            enumerate(&selected, 0, allowed, 0, &mut masks);
++            if masks.len() > 32 {
++                cases.complete = false;
++                masks.truncate(32);
++            }
++            masks.sort_unstable();
++            for mask in masks {
++                match self.build(&key, m.n, None, Some((above, mask, selected_mask))) {
++                    Ok(Some(mut p)) => {
++                        p.bound_guidance =
++                            crate::rare_tail::value("RUST_ODDS_RARE_TAIL_RESIDUAL_BOUND_GUIDE")
++                                == "1";
++                        let score = p.mass * p.joint.residual_hint.max(1e-80);
++                        cases.mass += score;
++                        cases.patterns.push((mask, p, cases.mass));
++                    }
++                    Ok(None) => {}
++                    Err(()) => cases.complete = false,
++                }
++            }
++            diagnostics.push(json!({"teams":selected.iter().map(|&t|m.ids[t]).collect::<Vec<_>>(),"strict_direction":if above{"above"}else{"below"},"allowed_exceptions":allowed,"conditional_necessary_bound":bound,"screen_states":states,"screened_teams":screened.iter().map(|&t|m.ids[t]).collect::<Vec<_>>(),"cases":cases.patterns.len(),"complete":cases.complete}));
++            if !cases.patterns.is_empty() && cases.mass > 0. {
++                self.cases.insert(key, cases);
++            }
++        }
++        self.subset = old;
++        json!(diagnostics)
++    }
++
++    /// Keep the best independently trained depth; final estimation must use
++    /// new streams. The defensive native proposal retains full event support.
++    pub(crate) fn train_residual_loop(
++        &mut self,
++        m: &Model,
++        seed: i64,
++        deadline: std::time::Instant,
++    ) -> (Result, serde_json::Value, u64) {
++        // Cache entries depend on how many teams are conditioned. Existing
++        // patterns keep their Arcs and densities; new cases use the wider block.
++        let limit = crate::rare_tail::value("RUST_ODDS_RARE_TAIL_RESIDUAL_RIVALS")
++            .parse::<usize>()
++            .unwrap_or(4)
++            .clamp(1, 6);
++        if self.rival_limit != limit {
++            self.rival_limit = limit;
++            self.joint_cache.clear();
++        }
++        let mut best = Result::default();
++        let mut best_cases = HashMap::new();
++        let mut trace = Vec::new();
++        let mut work = 0;
++        for width in [3, 4, 5, 6, 8, 12, 20] {
++            if std::time::Instant::now() >= deadline {
++                break;
++            }
++            let start = std::time::Instant::now();
++            let screen = self.residual_cases(m, width);
++            if self.cases.is_empty() {
++                trace.push(json!({"width":width,"screen":screen,"sampling_skipped":true}));
++                continue;
++            }
++            let adaptive =
++                crate::rare_tail::value("RUST_ODDS_RARE_TAIL_RESIDUAL_BOUND_GUIDE") == "adaptive";
++            let setup_ms = start.elapsed().as_secs_f64() * 1000.;
++            let pilot_clock = std::time::Instant::now();
++            let mut pilot = self.sample(m, 2000, derive(seed, &format!("residual-pilot-{width}")));
++            work += pilot.work;
++            let rank_ess = pilot.ess;
++            let mut bound_ess = None;
++            let mut use_bounds = false;
++            if adaptive && std::time::Instant::now() < deadline {
++                for c in self.cases.values_mut() {
++                    for (_, p, _) in &mut c.patterns {
++                        p.bound_guidance = true;
++                    }
++                }
++                let bound = self.sample(
++                    m,
++                    2000,
++                    derive(seed, &format!("residual-bound-pilot-{width}")),
++                );
++                work += bound.work;
++                bound_ess = Some(bound.ess);
++                use_bounds = bound.ess > pilot.ess;
++                if use_bounds {
++                    pilot = bound;
++                } else {
++                    for c in self.cases.values_mut() {
++                        for (_, p, _) in &mut c.patterns {
++                            p.bound_guidance = false;
++                        }
++                    }
++                }
++            }
++            trace.push(json!({"width":width,"screen":screen,"hits":pilot.hits,"ess":pilot.ess,"rank_ess":rank_ess,"bound_ess":bound_ess,"selected_bound_guidance":use_bounds,"probability":pilot.probability,"setup_ms":setup_ms,"pilot_ms":pilot_clock.elapsed().as_secs_f64()*1000.,"elapsed_ms":start.elapsed().as_secs_f64()*1000.}));
++            let useful = pilot.ess >= 12. && pilot.hits >= 30;
++            if pilot.ess > best.ess {
++                best = pilot;
++                best_cases = self.cases.clone();
++            }
++            if useful {
++                break;
++            }
++        }
++        self.cases = best_cases;
++        (best, json!(trace), work)
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    #[test]
++    fn bounds_guidance_matches_exhaustive_single_team_intervals() {
++        let games = vec![
++            RankGame {
++                index: 0,
++                home: 0,
++                away: 1,
++                prob: [0.25, 0.3, 0.45],
++                hg: [0, 1, 3],
++                ag: [3, 1, 0],
++            },
++            RankGame {
++                index: 1,
++                home: 0,
++                away: 2,
++                prob: [0.2, 0.4, 0.4],
++                hg: [0, 1, 3],
++                ag: [3, 1, 0],
++            },
++        ];
++        let guide = Guide::new(games.clone(), 3);
++        for lo in -1..=7 {
++            for hi in lo..=7 {
++                let mut exact = 0.;
++                for a in 0..3 {
++                    for b in 0..3 {
++                        let total = games[0].hg[a] + games[1].hg[b];
++                        if total >= lo && total <= hi {
++                            exact += games[0].prob[a] * games[1].prob[b];
++                        }
++                    }
++                }
++                assert!((guide.bounds(0, 0, lo, hi) - exact).abs() < 1e-12);
++            }
++        }
++    }
++    #[test]
++    fn cardinality_screen_respects_shared_fixture_dependence() {
++        let games = vec![
++            RankGame {
++                index: 0,
++                home: 0,
++                away: 1,
++                prob: [0.25, 0.3, 0.45],
++                hg: [0, 1, 3],
++                ag: [3, 1, 0],
++            },
++            RankGame {
++                index: 1,
++                home: 0,
++                away: 2,
++                prob: [0.2, 0.4, 0.4],
++                hg: [0, 1, 3],
++                ag: [3, 1, 0],
++            },
++        ];
++        for above in [true, false] {
++            for allowed in 0..=2 {
++                let mut exact = 0.;
++                for a in 0..3 {
++                    for b in 0..3 {
++                        let totals = [games[0].hg[a] + games[1].hg[b], games[0].ag[a]];
++                        let count = totals
++                            .iter()
++                            .filter(|&&p| if above { p > 2 } else { p < 2 })
++                            .count();
++                        if count <= allowed {
++                            exact += games[0].prob[a] * games[1].prob[b];
++                        }
++                    }
++                }
++                let (bound, _) = screen(&games, &[0, 0, 0], 2, &[0, 1], above, allowed).unwrap();
++                assert!((bound - exact).abs() < 1e-12, "{bound} vs {exact}");
++            }
++        }
++    }
++}
+--- /dev/null
++++ b/odds-rust/src/joint_caps/propagated/lazy/strata.rs
+@@ -0,0 +1,802 @@
++//! Offline complete case stratification. Each requested branch is a disjoint
++//! target path and strict exception mask; budgets never truncate the sum.
++use super::*;
++
++struct Stratum {
++    root: Vec<u8>,
++    exceptions: Vec<usize>,
++    above: bool,
++    secondary: Option<usize>,
++    pattern: Pattern,
++}
++pub struct BranchStrata {
++    cell: Cell,
++    strata: Vec<Stratum>,
++    goals: Option<crate::goal_tilt::GoalTilt>,
++}
++pub struct BranchSample {
++    pub result: Result,
++    pub left: f64,
++    pub right: f64,
++}
++#[derive(Clone, Copy)]
++pub struct BranchBound {
++    pub fixed_prior: f64,
++    pub domain_prior: f64,
++    pub normalizer_upper: f64,
++    pub six_rival_upper: Option<f64>,
++    pub read_two_upper: f64,
++    pub upper_bound: f64,
++}
++// Probability factors are nonnegative and at most one. Flooring products is
++// conservative and prevents numerical underflow from becoming a zero proof.
++fn bound_product(a: f64, b: f64) -> f64 {
++    (a * b).max(f64::MIN_POSITIVE)
++}
++/// Refine a complete exception branch by every legal outcome path of one
++/// tightly capped/floored rival. Fix the path before rerunning all-team
++/// propagation. Raw fixture masses enter the stratum normalizer exactly once.
++fn secondary(
++    builder: &mut LazyJoint,
++    key: &[u8],
++    points: &[i32],
++    rivals: &[usize],
++    initial: &Domains,
++    above: bool,
++    mask: u32,
++    selected: u32,
++) -> std::result::Result<Option<(usize, Vec<Pattern>)>, String> {
++    let target = points[builder.cell.team];
++    let (mut lower, mut upper) = (initial.lower.clone(), initial.upper.clone());
++    for &t in rivals {
++        if selected & (1 << t) == 0 {
++            continue;
++        }
++        let strict = mask & (1 << t) != 0;
++        if above == strict {
++            lower[t] = lower[t].max(target + i32::from(strict));
++        } else {
++            upper[t] = upper[t].min(target - i32::from(strict));
++        }
++    }
++    let d = Domains::condition(
++        &builder.remaining,
++        points,
++        rivals,
++        builder.cell.rank,
++        target,
++        &lower,
++        &upper,
++        &initial.domains,
++    );
++    if !d.feasible {
++        return Err("parent branch propagation disagrees".into());
++    }
++    type Paths = Vec<(Vec<(usize, u8)>, f64)>;
++    fn paths(
++        gs: &[(RankGame, u8)],
++        t: usize,
++        i: usize,
++        value: i32,
++        lo: i32,
++        hi: i32,
++        suffix: &[(i32, i32)],
++        key: &mut Vec<(usize, u8)>,
++        mass: f64,
++        out: &mut Paths,
++    ) -> bool {
++        if value + suffix[i].0 > hi || value + suffix[i].1 < lo {
++            return true;
++        }
++        if i == gs.len() {
++            out.push((key.clone(), mass));
++            return out.len() <= 16;
++        }
++        let (g, mask) = gs[i];
++        let gains = if g.home == t { g.hg } else { g.ag };
++        for o in 0..3 {
++            if mask & (1 << o) == 0 || g.prob[o] <= 0. {
++                continue;
++            }
++            key.push((g.index, o as u8));
++            if !paths(
++                gs,
++                t,
++                i + 1,
++                value + gains[o],
++                lo,
++                hi,
++                suffix,
++                key,
++                mass * g.prob[o],
++                out,
++            ) {
++                return false;
++            }
++            key.pop();
++        }
++        true
++    }
++    let mut chosen: Option<(usize, Paths, f64)> = None;
++    for &t in rivals {
++        let gs: Vec<_> = builder
++            .remaining
++            .iter()
++            .zip(&d.domains)
++            .filter(|(g, _)| g.home == t || g.away == t)
++            .map(|(&g, &mask)| (g, mask))
++            .collect();
++        if gs.is_empty() || gs.iter().all(|(_, mask)| mask.count_ones() == 1) {
++            continue;
++        }
++        let mut suffix = vec![(0, 0); gs.len() + 1];
++        let mut domain_mass = 1.;
++        for i in (0..gs.len()).rev() {
++            let (g, mask) = gs[i];
++            let gains = if g.home == t { g.hg } else { g.ag };
++            let options: Vec<_> = (0..3)
++                .filter(|&o| mask & (1 << o) != 0 && g.prob[o] > 0.)
++                .collect();
++            if options.is_empty() {
++                return Err("zero numerical fixture domain".into());
++            }
++            suffix[i] = (
++                suffix[i + 1].0 + options.iter().map(|&o| gains[o]).min().unwrap(),
++                suffix[i + 1].1 + options.iter().map(|&o| gains[o]).max().unwrap(),
++            );
++            domain_mass *= options.iter().map(|&o| g.prob[o]).sum::<f64>();
++        }
++        let mut out = Vec::new();
++        if !paths(
++            &gs,
++            t,
++            0,
++            points[t],
++            d.lower[t],
++            d.upper[t],
++            &suffix,
++            &mut Vec::new(),
++            1.,
++            &mut out,
++        ) || out.len() < 2
++        {
++            continue;
++        }
++        let conditional = out.iter().map(|(_, p)| p).sum::<f64>() / domain_mass;
++        if !conditional.is_finite() || conditional >= 0.9 {
++            continue;
++        }
++        if chosen.as_ref().is_none_or(|(_, v, p)| {
++            out.len() < v.len() || (out.len() == v.len() && conditional < *p)
++        }) {
++            chosen = Some((t, out, conditional));
++        }
++    }
++    let Some((team, paths, _)) = chosen else {
++        return Ok(None);
++    };
++    let original_base = builder.base.clone();
++    let original_games = builder.remaining.clone();
++    let mut patterns = Vec::new();
++    let mut failed = false;
++    for (fixed, mass) in paths {
++        builder.base = original_base.clone();
++        builder.remaining = original_games
++            .iter()
++            .copied()
++            .filter(|g| !fixed.iter().any(|(i, _)| *i == g.index))
++            .collect();
++        for &(index, o) in &fixed {
++            let g = original_games.iter().find(|g| g.index == index).unwrap();
++            builder.base[g.home] += g.hg[o as usize];
++            builder.base[g.away] += g.ag[o as usize];
++        }
++        match builder.build(key, builder.base.len(), None, Some((above, mask, selected))) {
++            Ok(Some(mut p)) => {
++                p.mass *= mass;
++                if p.mass <= 0. || !p.mass.is_finite() {
++                    failed = true;
++                    break;
++                }
++                p.fixed.extend(fixed);
++                patterns.push(p);
++            }
++            Ok(None) => {}
++            Err(()) => {
++                failed = true;
++                break;
++            }
++        }
++    }
++    builder.base = original_base;
++    builder.remaining = original_games;
++    if failed || patterns.is_empty() {
++        return Err("secondary setup incomplete; union skipped".into());
++    }
++    Ok(Some((team, patterns)))
++}
++impl BranchStrata {
++    pub fn new(
++        m: &Model,
++        cell: Cell,
++        seed: i64,
++        rivals: usize,
++    ) -> std::result::Result<Self, String> {
++        Self::with_secondary(m, cell, seed, rivals, false)
++    }
++    pub fn with_secondary(
++        m: &Model,
++        cell: Cell,
++        seed: i64,
++        rivals: usize,
++        refine: bool,
++    ) -> std::result::Result<Self, String> {
++        let mut builder = LazyJoint::with_mode(m, cell, seed, &[], 0, false, false, None)
++            .ok_or("unsupported model")?;
++        builder.rival_limit = rivals.clamp(1, 6);
++        builder.node_limit = 100000;
++        // Enumerate every positive target-table path. Cached or witness paths
++        // alone are insufficient to assert that strata cover the whole cell.
++        fn roots(
++            tab: &TerminalTable,
++            t: usize,
++            i: usize,
++            added: usize,
++            key: &mut Vec<u8>,
++            out: &mut Vec<Vec<u8>>,
++        ) -> std::result::Result<(), String> {
++            if i == tab.games.len() {
++                out.push(key.clone());
++                return Ok(());
++            }
++            let g = tab.games[i];
++            let gains = if g.home == t { g.hg } else { g.ag };
++            for o in 0..3 {
++                let next = added + gains[o] as usize;
++                if g.prob[o] > 0. && tab.rows[i + 1].get(next).is_some_and(|&p| p > 0.) {
++                    if out.len() >= 64 {
++                        return Err("target path budget exhausted".into());
++                    }
++                    key.push(o as u8);
++                    roots(tab, t, i + 1, next, key, out)?;
++                    key.pop();
++                }
++            }
++            Ok(())
++        }
++        let mut keys = Vec::new();
++        roots(&builder.target, cell.team, 0, 0, &mut Vec::new(), &mut keys)?;
++        let mut strata = Vec::new();
++        let mut attempted = 0;
++        for key in keys {
++            let mut points = builder.base.clone();
++            for (g, &o) in builder.target.games.iter().zip(&key) {
++                points[g.home] += g.hg[o as usize];
++                points[g.away] += g.ag[o as usize];
++            }
++            let target = points[cell.team];
++            let ts: Vec<_> = (0..m.n).filter(|&t| t != cell.team).collect();
++            let d = Domains::propagate(&builder.remaining, &points, &ts, cell.rank, target);
++            if !d.feasible {
++                continue;
++            }
++            let fixed_above = ts
++                .iter()
++                .filter(|&&t| points[t] + d.min[0][t] > target)
++                .count();
++            let fixed_below = ts
++                .iter()
++                .filter(|&&t| points[t] + d.max[0][t] < target)
++                .count();
++            let above = cell.rank - fixed_above <= m.n - 1 - cell.rank - fixed_below;
++            let left = if above {
++                cell.rank - fixed_above
++            } else {
++                m.n - 1 - cell.rank - fixed_below
++            };
++            let ambiguous: Vec<_> = ts
++                .iter()
++                .copied()
++                .filter(|&t| points[t] + d.min[0][t] <= target && points[t] + d.max[0][t] >= target)
++                .collect();
++            fn masks(
++                ts: &[usize],
++                i: usize,
++                left: usize,
++                mask: u32,
++                out: &mut Vec<u32>,
++            ) -> std::result::Result<(), String> {
++                if out.len() >= 256 {
++                    return Err("case enumeration budget exhausted".into());
++                }
++                if i == ts.len() {
++                    out.push(mask);
++                    return Ok(());
++                }
++                masks(ts, i + 1, left, mask, out)?;
++                if left > 0 {
++                    masks(ts, i + 1, left - 1, mask | (1 << ts[i]), out)?;
++                }
++                Ok(())
++            }
++            let mut cases = Vec::new();
++            masks(&ambiguous, 0, left, 0, &mut cases)?;
++            let selected = ambiguous.iter().fold(0u32, |s, &t| s | (1 << t));
++            for mask in cases {
++                attempted += 1;
++                if attempted > 256 {
++                    return Err("total case budget exhausted".into());
++                }
++                match builder.build(&key, m.n, None, Some((above, mask, selected))) {
++                    Ok(Some(pattern)) => {
++                        let exceptions: Vec<_> = ambiguous
++                            .iter()
++                            .copied()
++                            .filter(|&t| mask & (1 << t) != 0)
++                            .collect();
++                        let pieces = if refine {
++                            secondary(&mut builder, &key, &points, &ts, &d, above, mask, selected)?
++                        } else {
++                            None
++                        };
++                        if let Some((team, patterns)) = pieces {
++                            for pattern in patterns {
++                                strata.push(Stratum {
++                                    root: key.clone(),
++                                    exceptions: exceptions.clone(),
++                                    above,
++                                    secondary: Some(team),
++                                    pattern,
++                                });
++                            }
++                        } else {
++                            strata.push(Stratum {
++                                root: key.clone(),
++                                exceptions,
++                                above,
++                                secondary: None,
++                                pattern,
++                            });
++                        }
++                    }
++                    Ok(None) => {}
++                    Err(()) => {
++                        return Err(
++                            "case setup/numerical budget exhausted; incomplete union skipped"
++                                .into(),
++                        )
++                    }
++                }
++            }
++        }
++        if strata.is_empty() {
++            return Err("no usable strata; not an impossibility proof".into());
++        }
++        Ok(Self {
++            cell,
++            strata,
++            goals: builder.goals,
++        })
++    }
++    pub fn len(&self) -> usize {
++        self.strata.len()
++    }
++    pub fn is_empty(&self) -> bool {
++        self.strata.is_empty()
++    }
++    /// Bounds under independent original fixture outcomes, not proposal Q.
++    /// Six-rival setup is offline only. Failed setup leaves the existing bound.
++    pub fn bounds(&self, m: &Model, strengthen: bool) -> Vec<BranchBound> {
++        self.strata
++            .iter()
++            .map(|s| {
++                let p = &s.pattern;
++                let fixed_prior: f64 = p
++                    .fixed
++                    .iter()
++                    .map(|&(i, o)| m.fixtures[i].prob[o as usize])
++                    .fold(1., bound_product);
++                let games: Vec<_> = p
++                    .joint
++                    .games
++                    .iter()
++                    .chain(&p.guide.games)
++                    .chain(&p.omitted)
++                    .copied()
++                    .collect();
++                let domain_prior = games.iter().fold(fixed_prior, |mass, g| {
++                    bound_product(
++                        mass,
++                        (0..3)
++                            .filter(|&o| g.prob[o] > 0.)
++                            .map(|o| m.fixtures[g.index].prob[o])
++                            .sum::<f64>(),
++                    )
++                });
++                let six_rival_upper = if strengthen {
++                    NecessaryJoint::new(&games, &p.base, &p.lower, &p.upper, 6, 20000)
++                        .filter(|(j, _)| j.mass > 0. && j.mass.is_finite())
++                        .map(|(j, _)| bound_product(domain_prior, j.mass))
++                } else {
++                    None
++                };
++                // The joint-selected interval event and each remaining team's
++                // interval form a read-2 family: a fixture affects at most two
++                // events. Generalized Holder bounds the intersection by the
++                // square root of the product of these event probabilities.
++                // The plain residual_hint product is NOT an upper bound.
++                let mut log_mass = p.joint.mass.ln();
++                if strengthen {
++                    for t in 0..m.n {
++                        if p.joint.selected.contains(&t) {
++                            continue;
++                        }
++                        let gs: Vec<_> = games
++                            .iter()
++                            .copied()
++                            .filter(|g| g.home == t || g.away == t)
++                            .collect();
++                        let span: i32 = gs
++                            .iter()
++                            .map(|g| {
++                                *if g.home == t { &g.hg } else { &g.ag }
++                                    .iter()
++                                    .max()
++                                    .unwrap()
++                            })
++                            .sum();
++                        let tab = TerminalTable::new(
++                            gs,
++                            t,
++                            (0..=span)
++                                .map(|gain| {
++                                    if p.base[t] + gain >= p.lower[t]
++                                        && p.base[t] + gain <= p.upper[t]
++                                    {
++                                        1.
++                                    } else {
++                                        0.
++                                    }
++                                })
++                                .collect(),
++                        );
++                        let mass = tab.mass(0);
++                        // A numerical zero must not become a proof; retain a
++                        // looser bound on this event instead.
++                        if mass > 0. && mass.is_finite() {
++                            log_mass += mass.min(1.).ln();
++                        }
++                    }
++                }
++                let read_two_upper = if strengthen {
++                    bound_product(domain_prior, (0.5 * log_mass).exp())
++                } else {
++                    1.
++                };
++                let raw = fixed_prior
++                    .min(p.mass)
++                    .min(six_rival_upper.unwrap_or(1.))
++                    .min(read_two_upper);
++                // Ordinary f64 DP arithmetic, not interval-certified arithmetic.
++                // Retain headroom and never turn underflow into a zero proof.
++                let upper_bound = if raw > 0. && raw.is_finite() {
++                    (raw * (1. + 1e-9)).min(1.)
++                } else {
++                    fixed_prior
++                };
++                BranchBound {
++                    fixed_prior,
++                    domain_prior,
++                    normalizer_upper: p.mass,
++                    six_rival_upper,
++                    read_two_upper,
++                    upper_bound,
++                }
++            })
++            .collect()
++    }
++    pub fn describe(&self, m: &Model) -> serde_json::Value {
++        json!({"team":m.ids[self.cell.team],"rank":self.cell.rank+1,"strata":self.strata.iter().map(|s|json!({
++            "target_outcomes":s.root,"direction":if s.above{"above"}else{"below"},
++            "secondary_team":s.secondary.map(|t|m.ids[t]),
++            "exceptions":s.exceptions.iter().map(|&t|m.ids[t]).collect::<Vec<_>>(),
++            "forced":s.pattern.fixed.iter().map(|&(i,o)|json!({"game":m.request.games[m.fixtures[i].request_index].id,"home":m.ids[m.fixtures[i].home],"away":m.ids[m.fixtures[i].away],"outcome":o})).collect::<Vec<_>>(),
++            "forced_count":s.pattern.fixed.len(),"guided_fixtures":s.pattern.guide.games.len(),"joint_fixtures":s.pattern.joint.games.len(),
++            "joint_teams":s.pattern.joint.selected.iter().map(|&t|m.ids[t]).collect::<Vec<_>>(),
++            "proposal_normalizer":s.pattern.mass,"allocation_hint":s.pattern.mass*s.pattern.joint.residual_hint.max(1e-80)
++        })).collect::<Vec<_>>()})
++    }
++    pub fn sample(
++        &self,
++        m: &Model,
++        index: usize,
++        n: usize,
++        seed: i64,
++        bounds: bool,
++        goals: bool,
++    ) -> BranchSample {
++        assert!(n >= 2);
++        let mut pattern = self.strata[index].pattern.clone();
++        pattern.bound_guidance = bounds;
++        let mut rng = Rng::new(seed);
++        let mut out = vec![0; m.fixtures.len()];
++        let mut points = vec![0; m.n];
++        let mut scores = ScoreContext::new(m);
++        let mut goal_context = crate::goal_tilt::Context::new(m);
++        let mut r = Result {
++            mass: pattern.mass,
++            samples: n,
++            ..Result::default()
++        };
++        let (mut sum, mut sum2, mut max, mut batches) = (0., 0., 0_f64, [0.; 2]);
++        for draw in 0..n {
++            let mut weight = pattern.draw(
++                self.cell,
++                &mut rng,
++                &mut out,
++                &mut points,
++                true,
++                true,
++                false,
++                0,
++            );
++            if weight > 0. {
++                let (rank, ratio) = if let Some(g) = self.goals.as_ref().filter(|_| goals) {
++                    g.rank(m, &out, &mut rng, &mut goal_context)
++                } else {
++                    (scores.rank(self.cell.team, &out, &mut rng, None), 1.)
++                };
++                if rank != self.cell.rank {
++                    weight = 0.;
++                } else {
++                    weight *= ratio;
++                }
++            }
++            if weight > 0. {
++                r.hits += 1;
++                if r.witness.is_none() {
++                    r.witness = Some(out.clone());
++                }
++                sum += weight;
++                sum2 += weight * weight;
++                max = max.max(weight);
++                batches[usize::from(draw >= n / 2)] += weight;
++            }
++        }
++        r.work = n as u64 * crate::pool::work_per_sample(m);
++        r.summarize(sum, sum2, max, batches);
++        BranchSample {
++            left: pattern.mass * batches[0] / (n / 2) as f64,
++            right: pattern.mass * batches[1] / (n - n / 2) as f64,
++            result: r,
++        }
++    }
++}
++/// Independent disjoint stratum means sum, and their estimated variances sum.
++/// ESS and max share use contributions scaled by each stratum's sample count.
++pub fn combine(samples: &[BranchSample]) -> Result {
++    let probability: f64 = samples.iter().map(|s| s.result.probability).sum();
++    let std_err = samples.iter().fold(0_f64, |v, s| v.hypot(s.result.std_err));
++    let squared: f64 = if probability > 0. {
++        samples
++            .iter()
++            .filter(|s| s.result.ess > 0.)
++            .map(|s| (s.result.probability / probability).powi(2) / s.result.ess)
++            .sum()
++    } else {
++        0.
++    };
++    let max_share = if probability > 0. {
++        samples
++            .iter()
++            .map(|s| s.result.max_share * (s.result.probability / probability))
++            .fold(0., f64::max)
++    } else {
++        0.
++    };
++    Result {
++        mass: 1.,
++        samples: samples.iter().map(|s| s.result.samples).sum(),
++        hits: samples.iter().map(|s| s.result.hits).sum(),
++        work: samples.iter().map(|s| s.result.work).sum(),
++        weighted: probability > 0.,
++        probability,
++        std_err,
++        ess: if squared > 0. { 1. / squared } else { 0. },
++        max_share,
++        batch_gap: if probability > 0. {
++            (samples.iter().map(|s| s.left).sum::<f64>()
++                - samples.iter().map(|s| s.right).sum::<f64>())
++            .abs()
++                / probability
++        } else {
++            0.
++        },
++        witness: samples.iter().find_map(|s| s.result.witness.clone()),
++        ..Result::default()
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use crate::{conditioned::canonical_ranks, model::Request};
++    #[test]
++    fn tiny_bound_products_remain_positive() {
++        assert_eq!(bound_product(1e-200, 1e-200), f64::MIN_POSITIVE);
++        assert_eq!(bound_product(f64::MIN_POSITIVE, 1e-200), f64::MIN_POSITIVE);
++        assert_eq!(bound_product(0.5, 0.25), 0.125);
++    }
++    #[test]
++    fn incomplete_target_enumeration_is_an_error_and_not_a_partial_estimate() {
++        let request:Request=serde_json::from_value(json!({"id":1,
++            "phase":{"sort":"pt,bias","championship":{"point_win":3,"point_draw":1,"point_loss":0}},
++            "team_groups":(0..8).map(|t|json!({"team_id":t,"add_sub":if t==0{0}else{100}})).collect::<Vec<_>>(),
++            "games":(1..8).map(|a|json!({"id":a,"home_id":0,"away_id":a,"home_power":1.1,"away_power":0.9})).collect::<Vec<_>>() })).unwrap();
++        let m = Model::new(request).unwrap();
++        assert!(
++            matches!(BranchStrata::new(&m,Cell{team:0,rank:7},801,4),Err(e) if e.contains("target path budget"))
++        );
++    }
++    #[test]
++    fn combining_tiny_strata_avoids_squaring_unconditional_probabilities() {
++        let samples: Vec<_> = [1e-240, 2e-240]
++            .iter()
++            .map(|&p| BranchSample {
++                result: Result {
++                    probability: p,
++                    std_err: p * 0.1,
++                    ess: 100.,
++                    max_share: 0.01,
++                    samples: 100,
++                    hits: 100,
++                    ..Result::default()
++                },
++                left: p,
++                right: p,
++            })
++            .collect();
++        let r = combine(&samples);
++        assert!((r.probability / 3e-240 - 1.).abs() < 1e-12);
++        assert!((r.std_err / 2.23606797749979e-241 - 1.).abs() < 1e-12);
++        assert!((r.ess - 180.).abs() < 1e-10);
++        assert_eq!(r.batch_gap, 0.);
++    }
++    #[test]
++    fn secondary_paths_preserve_the_complete_union_and_raw_fixture_mass() {
++        let request:Request=serde_json::from_value(json!({"id":1,
++            "phase":{"sort":"pt,w,bias","championship":{"point_win":3,"point_draw":1,"point_loss":0}},
++            "team_groups":(0..5).map(|t|json!({"team_id":t,"add_sub":if t==1{2}else{0},"bias":if t==0{100}else{0}})).collect::<Vec<_>>(),
++            "games":([(0,4),(1,2),(1,3),(2,3)]).iter().enumerate().map(|(i,(h,a))|json!({"id":i,"home_id":h,"away_id":a,"home_power":1.1,"away_power":0.9})).collect::<Vec<_>>() })).unwrap();
++        let m = Model::new(request).unwrap();
++        let cell = Cell { team: 0, rank: 1 };
++        let mut exact = 0.;
++        for mut code in 0..81 {
++            let mut out = vec![0; 4];
++            let mut mass = 1.;
++            for (i, g) in m.fixtures.iter().enumerate() {
++                let o = code % 3;
++                code /= 3;
++                out[i] = o as u8;
++                mass *= g.prob[o];
++            }
++            if canonical_ranks(&m, &out)[0] == cell.rank {
++                exact += mass;
++            }
++        }
++        let p = BranchStrata::with_secondary(&m, cell, 801, 4, true).unwrap();
++        assert!(p.strata.iter().any(|s| s.secondary.is_some()));
++        let bounds = p.bounds(&m, true);
++        let mut covered = 0.;
++        for (s, bound) in p.strata.iter().zip(&bounds) {
++            let pattern = &s.pattern;
++            let games: Vec<_> = pattern
++                .joint
++                .games
++                .iter()
++                .chain(&pattern.guide.games)
++                .collect();
++            let mut seen = std::collections::HashSet::new();
++            assert!(pattern.fixed.iter().all(|&(i, _)| seen.insert(i)));
++            let mut branch_mass = 0.;
++            for mut code in 0..81 {
++                let mut out = vec![0; 4];
++                let mut mass = 1.;
++                for (i, g) in m.fixtures.iter().enumerate() {
++                    let o = code % 3;
++                    code /= 3;
++                    out[i] = o as u8;
++                    mass *= g.prob[o];
++                }
++                if pattern.fixed.iter().any(|&(i, o)| out[i] != o)
++                    || games.iter().any(|g| g.prob[out[g.index] as usize] <= 0.)
++                    || canonical_ranks(&m, &out)[0] != cell.rank
++                {
++                    continue;
++                }
++                let mut totals = pattern.base.clone();
++                for g in &games {
++                    totals[g.home] += g.hg[out[g.index] as usize];
++                    totals[g.away] += g.ag[out[g.index] as usize];
++                }
++                if (0..m.n).all(|t| totals[t] >= pattern.lower[t] && totals[t] <= pattern.upper[t])
++                {
++                    branch_mass += mass;
++                }
++            }
++            assert!(branch_mass <= bound.upper_bound + 1e-12);
++            assert!(bound.normalizer_upper <= bound.domain_prior * (1. + 1e-10));
++            assert!(bound.domain_prior <= bound.fixed_prior * (1. + 1e-10));
++            covered += branch_mass;
++        }
++        assert!((covered - exact).abs() < 1e-12);
++        for bounds in [false, true] {
++            let samples: Vec<_> = (0..p.len())
++                .map(|i| {
++                    p.sample(
++                        &m,
++                        i,
++                        10000 + i * 127,
++                        derive(808, &format!("secondary-test-{i}")),
++                        bounds,
++                        false,
++                    )
++                })
++                .collect();
++            let r = combine(&samples);
++            assert!(
++                (r.probability - exact).abs() < 6. * r.std_err + 1e-4,
++                "{} vs {exact}",
++                r.probability
++            );
++        }
++    }
++    #[test]
++    fn complete_case_stratification_matches_exhaustive_rank_probabilities() {
++        let request:Request=serde_json::from_value(json!({"id":1,"phase":{"sort":"pt,w,bias","championship":{"point_win":3,"point_draw":1,"point_loss":0}},
++            "team_groups":(0..3).map(|t|json!({"team_id":t,"add_sub":t,"bias":t})).collect::<Vec<_>>(),
++            "games":(0..3).flat_map(|h|(h+1..3).map(move|a|json!({"id":h*3+a,"home_id":h,"away_id":a,"home_power":1.1,"away_power":0.9}))).collect::<Vec<_>>() })).unwrap();
++        let m = Model::new(request).unwrap();
++        for rank in 0..m.n {
++            let mut exact = 0.;
++            for mut code in 0..27 {
++                let mut out = vec![0; m.fixtures.len()];
++                let mut mass = 1.;
++                for (i, g) in m.fixtures.iter().enumerate() {
++                    let o = code % 3;
++                    code /= 3;
++                    out[i] = o as u8;
++                    mass *= g.prob[o];
++                }
++                if canonical_ranks(&m, &out)[0] == rank {
++                    exact += mass;
++                }
++            }
++            let p = BranchStrata::new(&m, Cell { team: 0, rank }, 801, 4).unwrap();
++            for bounds in [false, true] {
++                let samples: Vec<_> = (0..p.len())
++                    .map(|i| {
++                        p.sample(
++                            &m,
++                            i,
++                            10000 + i * 127,
++                            derive(808, &format!("test-{i}")),
++                            bounds,
++                            false,
++                        )
++                    })
++                    .collect();
++                let r = combine(&samples);
++                assert!(
++                    (r.probability - exact).abs() < 6. * r.std_err + 1e-4,
++                    "{rank}: {} vs {exact}",
++                    r.probability
++                );
++                assert_eq!(
++                    r.samples,
++                    samples.iter().map(|s| s.result.samples).sum::<usize>()
++                );
++            }
++        }
++    }
++}

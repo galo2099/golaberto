@@ -55,10 +55,15 @@ impl SharedGuides {
     }
 }
 
+mod strata;
+pub use strata::{combine as combine_branches, BranchBound, BranchSample, BranchStrata};
+
 const DEFENSIVE: f64 = 0.1;
 type JointKey = (Vec<(usize, [u64; 3])>, Vec<(i32, i32)>);
+#[derive(Clone)]
 struct Cases {
     above: bool,
+    selected: u32,
     patterns: Vec<(u32, Pattern, f64)>,
     mass: f64,
     complete: bool,
@@ -85,6 +90,7 @@ pub struct LazyJoint {
     root_allocation: HashMap<Vec<u8>, f64>,
     nodes: usize,
     node_limit: usize,
+    rival_limit: usize,
     joint_cache: HashMap<JointKey, (Arc<NecessaryJoint>, Vec<RankGame>)>,
     fallback: Option<(Arc<NecessaryJoint>, Arc<Guide>)>,
     guide_values: usize,
@@ -317,6 +323,10 @@ impl LazyJoint {
             root_allocation: HashMap::new(),
             nodes: 0,
             node_limit: 60000,
+            rival_limit: crate::rare_tail::value("RUST_ODDS_LAZY_RIVALS")
+                .parse::<usize>()
+                .unwrap_or(6)
+                .clamp(1, 6),
             joint_cache: HashMap::new(),
             fallback: None,
             guide_values: 0,
@@ -456,7 +466,7 @@ impl LazyJoint {
         key: &[u8],
         teams: usize,
         anchor: Option<&[u8]>,
-        case: Option<(bool, u32)>,
+        case: Option<(bool, u32, u32)>,
     ) -> std::result::Result<Option<Pattern>, ()> {
         let mut points = self.base.clone();
         let mut fixed = Vec::new();
@@ -482,10 +492,10 @@ impl LazyJoint {
         if !d.feasible {
             return Ok(None);
         }
-        if let Some((above, mask)) = case {
+        if let Some((above, mask, selected)) = case {
             let target = points[self.cell.team];
             for t in 0..teams {
-                if t == self.cell.team {
+                if t == self.cell.team || selected & (1 << t) == 0 {
                     continue;
                 }
                 let strict = mask & (1 << t) != 0;
@@ -516,7 +526,7 @@ impl LazyJoint {
                 .map(|o| g.prob[o])
                 .sum();
             if total <= 0. {
-                return Ok(None);
+                return if case.is_some() { Err(()) } else { Ok(None) };
             }
             weight *= total;
             if mask.count_ones() == 1 {
@@ -658,10 +668,7 @@ impl LazyJoint {
                 &base,
                 &d.lower,
                 &d.upper,
-                Some(crate::rare_tail::value("RUST_ODDS_LAZY_RIVALS"))
-                    .and_then(|s| s.parse::<usize>().ok())
-                    .unwrap_or(6)
-                    .clamp(1, 6),
+                self.rival_limit,
                 &mut budget,
             );
             self.nodes = self.node_limit - budget;
@@ -671,7 +678,11 @@ impl LazyJoint {
             pair
         };
         if joint.mass <= 0. {
-            return if self.subset { Err(()) } else { Ok(None) };
+            return if self.subset || case.is_some() {
+                Err(())
+            } else {
+                Ok(None)
+            };
         }
         let order = std::env::var("RUST_ODDS_LAZY_ORDER").unwrap_or_default();
         if order == "rare" || order == "uncertain" {
@@ -777,6 +788,7 @@ impl LazyJoint {
             mass: weight,
             tilt: 1.,
             cumulative: 0.,
+            bound_guidance: false,
         }))
     }
     pub fn add_alternates(&mut self, m: &Model, witnesses: &[Vec<u8>]) {
@@ -918,6 +930,7 @@ impl LazyJoint {
             }
             let mut cases = Cases {
                 above,
+                selected: u32::MAX,
                 patterns: Vec::new(),
                 mass: 0.,
                 complete,
@@ -927,7 +940,7 @@ impl LazyJoint {
                     cases.complete = false;
                     break;
                 }
-                match self.build(&key, m.n, None, Some((above, mask))) {
+                match self.build(&key, m.n, None, Some((above, mask, u32::MAX))) {
                     Ok(Some(p)) => {
                         let score = p.mass * p.joint.residual_hint.max(1e-80);
                         cases.mass += score;
@@ -988,6 +1001,9 @@ impl LazyJoint {
     }
     pub fn clear_alternates(&mut self) {
         self.alternates.clear();
+    }
+    pub(crate) fn setup_work(&self) -> usize {
+        crate::rare_tail::budget::setup_cost(self.nodes, self.guide_values)
     }
     pub fn describe(&self, m: &Model) -> serde_json::Value {
         json!({"mode":"sampled_target_paths","team":m.ids[self.cell.team],"rank":self.cell.rank+1,"roots":self.roots.len(),"alternate_roots":self.alternates.len(),"biased_roots":self.biased.len(),"omitted_fixtures":self.roots.values().filter_map(|p|p.as_ref()).map(|p|p.omitted.len()).sum::<usize>(),"cardinality_roots":self.cases.len(),"cardinality_cases":self.cases.values().map(|c|c.patterns.len()).sum::<usize>(),"feasible_roots":self.mixture.len(),"conditioning_mass":self.target.mass(0),"cache_mass":self.mixture_mass,"setup_nodes":self.nodes,"guide_values":self.guide_values,"joint_profiles":self.joint_cache.len(),"guided_fallback":self.fallback.is_some(),"root_allocation_fitted":!self.root_allocation.is_empty()})
@@ -1092,6 +1108,8 @@ impl LazyJoint {
         let mut points = vec![0; m.n];
         let (mut sum, mut sum2, mut max, mut batches) = (0., 0., 0_f64, [0.; 2]);
         for draw in 0..samples {
+            result.operations.guidance += (8 * self.target.games.len()) as u64;
+
             let mut fresh_key = smallvec::SmallVec::<[u8; 16]>::new();
             let key: &[u8] = if rng.float() < alpha {
                 self.target.sample(0, &mut rng, &mut out);
@@ -1150,6 +1168,7 @@ impl LazyJoint {
                             cardinality,
                             false,
                             dynamic,
+                            &mut result.operations,
                         );
                         if ratio <= 0. {
                             continue;
@@ -1167,6 +1186,7 @@ impl LazyJoint {
                                     cardinality,
                                     true,
                                     dynamic,
+                                    &mut result.operations,
                                 )
                             };
                             if ratio > 0. {
@@ -1188,6 +1208,7 @@ impl LazyJoint {
                             let mask = (0..m.n)
                                 .filter(|&t| {
                                     t != self.cell.team
+                                        && cases.selected & (1 << t) != 0
                                         && if cases.above {
                                             points[t] > points[self.cell.team]
                                         } else {
@@ -1212,6 +1233,7 @@ impl LazyJoint {
                                     cardinality,
                                     true,
                                     dynamic,
+                                    &mut result.operations,
                                 )
                             };
                             if ratio > 0. {
@@ -1237,6 +1259,7 @@ impl LazyJoint {
                             cardinality,
                             false,
                             dynamic,
+                            &mut result.operations,
                         );
                         if ratio <= 0. {
                             continue;
@@ -1251,6 +1274,7 @@ impl LazyJoint {
                             cardinality,
                             true,
                             dynamic,
+                            &mut result.operations,
                         );
                         let other_density = if other_ratio > 0. {
                             root_prob / (other.mass * other_ratio)
@@ -1269,6 +1293,7 @@ impl LazyJoint {
                                 cardinality,
                                 false,
                                 dynamic,
+                                &mut result.operations,
                             )
                     }
                 }
@@ -1296,6 +1321,7 @@ impl LazyJoint {
                             mass: 1.,
                             tilt: 1.,
                             cumulative: 1.,
+                            bound_guidance: false,
                         };
                         p.draw(
                             self.cell,
@@ -1306,8 +1332,11 @@ impl LazyJoint {
                             cardinality,
                             false,
                             dynamic,
+                            &mut result.operations,
                         ) / alpha
                     } else {
+                        result.operations.fixtures += self.remaining.len() as u64;
+
                         for g in &self.remaining {
                             out[g.index] = choose(g.prob, g.prob.iter().sum(), &mut rng) as u8;
                         }
@@ -1316,6 +1345,8 @@ impl LazyJoint {
                 }
             };
             if weight > 0. {
+                result.operations.rank(m);
+
                 let (rank, ratio) = if let Some(goals) = &self.goals {
                     goals.rank(m, &out, &mut rng, goal_context.as_mut().unwrap())
                 } else {
@@ -1449,6 +1480,9 @@ mod tests {
                 (32, false, 1),
                 (32, false, 2),
                 (32, false, 3),
+                (32, false, 4),
+                (32, false, 5),
+                (32, false, 6),
             ] {
                 let mut p = LazyJoint::with_mode(
                     &m,
@@ -1475,6 +1509,35 @@ mod tests {
                             c.patterns.truncate(1);
                             c.mass = c.patterns[0].2;
                             c.complete = false;
+                        }
+                    }
+                }
+                if cases >= 4 {
+                    // Partition only one rival. Unselected rivals remain free;
+                    // replay must use the partial mask, including for native draws.
+                    let keys: Vec<_> = p.mixture.iter().map(|(k, _)| k.clone()).collect();
+                    for key in keys {
+                        let mut c = Cases {
+                            above: true,
+                            selected: 1 << 1,
+                            patterns: Vec::new(),
+                            mass: 0.,
+                            complete: cases != 5,
+                        };
+                        for mask in [0, 1 << 1] {
+                            if cases == 5 && mask != 0 {
+                                continue;
+                            }
+                            if let Ok(Some(mut pattern)) =
+                                p.build(&key, m.n, None, Some((true, mask, c.selected)))
+                            {
+                                pattern.bound_guidance = cases == 6;
+                                c.mass += pattern.mass;
+                                c.patterns.push((mask, pattern, c.mass));
+                            }
+                        }
+                        if !c.patterns.is_empty() {
+                            p.cases.insert(key, c);
                         }
                     }
                 }

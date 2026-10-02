@@ -1461,3 +1461,83 @@ and startup logging of the selected confirmation fraction. Existing tail0.45,
 four-core cap and acceptance gates are retained.
 Final no-flag release check across all7 snapshots,seed808:4 gained cell-runs,
 0 losses or proof regressions; Londrina/4 accepted. Archived as `default-check`.
+
+
+## R36 — Production-path complete-branch refinement
+
+Status: adopted at the user's request. The ordinary arm is now enabled by
+default in the coverage profile; `RUST_ODDS_RARE_TAIL_BRANCHES=0` opts out.
+Adoption verification: 113 current-workspace Rust tests passed, two DB-write
+tests ignored, including default-stage activation and estimate preservation.
+`RUST_ODDS_RARE_TAIL_BRANCHES=1` appends generic
+complete-branch refinement after native estimates are frozen. Four workers,
+cheap bound ordering, independent500-draw rank/interval pilots, trained30k
+main/check budgets. All branches retain positive allocation; no omitted mass.
+Optional `RUST_ODDS_RARE_TAIL_BRANCH_BOUND_FLOOR=1` gives negligible branches a
+two-draw floor and reallocates draws while retaining full support. Admission
+allowance defaults to15% of preceding full calculation wall; deadline is soft
+and overruns will be measured. The experimental two-draw floor remains off.
+
+Compared against current Rust2290fe04 on all7 saved snapshots at7 fixed seeds,
+using full `/odds` HTTP requests and four cores total.49 main-arm pairs:5 gained
+cell-runs, one distinct new cell(Londrina95/3rd),0 losses or proof regressions.
+Londrina baseline0/7→5/7; reachable-zero cell-runs41→36. Aggregate CPU+0.52%,
+full HTTP wall+2.16%; current16653 mean1068.96→1115.15ms(+4.32%). This adds work;
+it does not reallocate native work. Remaining16498 zeros exceed64 supported
+target paths and skip complete enumeration after~1ms setup per cell.
+
+- Initial5 seeds reproduce the offline arm. Two previously unused seeds2281/2293
+  add1 gain in14 held-out full-request pairs, no losses. Seed2281 rejects on
+  maximum weight share;1993 rejects on ESS/share. Gates unchanged.
+- Alternative two-draw bound floor:35 pairs, same4 branch-stage gains on the
+  initial5 seeds;2 extra native-stage gains are timing-allocation variation.
+  No extra branch coverage, CPU+3.45%, wall+3.48%. Retain the ordinary200 floor.
+- No-flag7-pair control:0 gains/losses, CPU+1.73%, wall+1.98%; small timing changes
+  are noisy/build-sensitive.91 total pairs across all cohorts(182 calculations).
+- All110 focused Rust tests passed,2 DB-write tests ignored. A concurrent
+  response-format edit was preserved in the workspace and excluded from the
+  isolated comparison/test patch. No commit/push, deployment or DB writes.
+
+Report:`2026-10-01-rust-production-branches.md`;
+artifacts:`2026-10-01-production-branches/`. Next: support wider target-path
+families through a weighted complete-support proposal, without enumerating every
+target season. Do not truncate their union. Any broader integration must retain
+the measured full-request latency accounting and zero-only publication.
+
+
+## R37 — deterministic proposal work budgets
+
+Status: enabled by default; user accepts the measured 2.3% aggregate latency
+increase and authorized integration into master on 2026-10-02. Server deployment
+still requires a release build and restart.
+
+Replace elapsed-time admission in the additional Rust coverage portfolio with
+`setup + draws × estimated draw cost`. Independent pilots count active fixtures,
+guidance/cardinality operations, density replays and ranking allowances. Setup
+charges nodes/guide values; failed constructors retain deterministic node/cell
+limits. Cheap proposals can fund additional independent draws within the same
+modeled quota. Four cores, stable admission/aggregation and deterministic barriers.
+
+- Draw-only prototype: 77 pairs, 8 gains / 0 losses, CPU +1.94%, HTTP +3.12%.
+- Operation v1: 16 pairs, 0 gains / 2 losses; fixed larger-first branch design and
+  weak-pilot priority. Preserve original 30k branch pairs before fresh retries.
+- ESS/work priority plus pilot-hit reliability removed development regressions.
+  Fresh seeds exposed skipped-check waste; two deterministic waves reuse it.
+- Selected allocator: **98 full-request pairs**, all 7 snapshots / 14 fixed seeds,
+  **7 gained cell-runs / 4 distinct cells, 0 losses or proof regressions**.
+  Reachable-zero runs 72→65; undecided zeros remain 0. CPU **+1.62%**, HTTP
+  **+2.27%**. Group 16498 latency +6.36%; this is explicitly an aggregate allowance.
+- Reject all-mains-first (5 losses), 20% confirmation quota cut (2 losses),
+  pilot-only counter specialization (same responses, slower), and 10% quota cut
+  (worse wall time). Union setup cap128: 6 gains /0 losses, CPU +0.22%, HTTP +0.90%;
+  keep256 for the seventh gain under the accepted allowance.
+- Full Rust tests pass; response repeat and worker/logging checks are archived.
+  No probability weights, sorter rules, quality gates or team/rank special cases
+  were added. Setup and pilot cost proxies are not hard wall-time guarantees.
+
+Default operation model needs no extra flags. `RUST_ODDS_DETERMINISTIC_WORK=0`
+restores legacy time admission for diagnostics. Fixed HTTP seed808 remains in
+force independently. `RUST_ODDS_WORK_MODEL=draws` is a diagnostic alternative.
+
+Report: `experiments/rare_positions/2026-10-01-rust-deterministic-work.md`.
+Artifacts: `experiments/rare_positions/2026-10-01-deterministic-work/`.

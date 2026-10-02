@@ -470,6 +470,7 @@ pub struct Result {
     pub hits: usize,
     pub blockers: usize,
     pub work: u64,
+    pub operations: crate::rare_tail::budget::Operations,
     pub weighted: bool,
     pub probability: f64,
     pub std_err: f64,

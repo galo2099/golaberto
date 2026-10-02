@@ -10,8 +10,9 @@ domains, reduced fixtures, and final matrix reconciliation.
 The executable does not call Go and does not read the golden probabilities.
 Go is used only by the offline comparison harness. The default coverage profile
 adds a bounded portfolio for remaining zero cells, targeting order-of-magnitude
-estimates. Earlier sampling budgets and acceptance gates are preserved; the
-additional portfolio uses the documented rough-estimate gates below.
+estimates. Earlier sampling stages and acceptance gates are preserved; the
+additional portfolio uses deterministic work limits and the documented
+rough-estimate gates below.
 `RUST_ODDS_RARE_TAIL=0` disables the additional portfolio.
 
 The native service also replaces the active Go `/spi`, `/eval`, and
@@ -224,9 +225,10 @@ probabilities contain fractions and rank keys remain zero-based. Rails null
 score/bias fields are accepted. `GET /health` is available. HTTP requests run
 serially with up to four estimator workers. HTTP defaults to fixed seed `808`,
 matching the CLI. `RARE_POSITION_RANDOM_SEED` overrides it; unset, empty, or
-invalid values use `808`. The effective seed is logged. Timing-based search
-allocation can still vary between requests, so a fixed seed alone does not
-guarantee identical complete responses.
+invalid values use `808`. The effective seed is logged. Deterministic work budgets are enabled by default, so measured wall time
+does not control search admission. The default profile is verified reproducible for the same input, seed, settings,
+and binary, including one versus four workers; this does not eliminate sampling
+error.
 
 Running the executable without arguments also starts the service at
 `127.0.0.1:6577`. For a deployment trial, use an explicit unused port, then
@@ -559,10 +561,11 @@ records the initial gains/losses. The
 [regression follow-up](../experiments/rare_positions/2026-10-01-rust-tail-regressions.md)
 records the decision to restore the previous default configuration.
 
-The portfolio receives 45% of elapsed native calculation time, excluding
-upload/queue wait. Training stops starting jobs after 65% of that allowance;
-final allocation uses measured pilot cost. This is a work controller, not a hard real-time
-latency guarantee. See the [campaign report](../experiments/rare_positions/2026-10-01-rust-rare50.md)
+The portfolio uses deterministic operation and setup limits by default (see the
+budget table below). Elapsed time is diagnostic only. Set
+`RUST_ODDS_DETERMINISTIC_WORK=0` to restore the legacy controller: 45% of elapsed
+native calculation time, a 65% training cutoff, and measured pilot costs. Neither
+controller is a hard latency guarantee. See the [campaign report](../experiments/rare_positions/2026-10-01-rust-rare50.md)
 and [progress ledger](../FUTURE_EXPERIMENTS.md) for paired latency, CPU, memory,
 regressions, seeds and independent-reference comparisons.
 
@@ -577,8 +580,9 @@ and four workers, and receives only the unused part of the existing allowance.
 It can increase actual request latency; unused allowance is not free wall time.
 
 `overlap` is a separate experiment using smaller batches on idle workers within
-the predicted ordinary final span. It skips retries whose ordinary result is
-still in flight. Sequential `after` is enabled by default; `overlap` remains
+the predicted ordinary final span. With legacy wall budgets it skips retries whose ordinary result is
+still in flight. Deterministic budgets always insert a barrier before retry
+admission, including with `overlap`, to avoid dependence on worker scheduling. Sequential `after` is enabled by default; `overlap` remains
 experimental. Both select the restored ordinary settings (`256` patterns, existing witness/alternate retries, ordinary
 allocation), even if the three R26 experimental settings above are also set.
 Other explicit profile settings still apply. Use the normal coverage profile.
@@ -605,8 +609,12 @@ The default coverage profile uses `RUST_ODDS_RARE_TAIL_CONFIRM_MORE=1.5` for
 fresh confirmation of already-built proposals, including weak positive-hit
 pilots. No additional flag is required after rebuilding and restarting.
 Use `0.25` for a smaller allowance or `0` to disable this stage.
-The value is a fraction of measured pre-tail calculation time,
-**not** a full-request latency increase.
+With deterministic budgets the value scales `200000 × reference_draw_cost ×
+value / 1.5` work units across main/check pairs. The reference cost depends on
+remaining fixtures and team count; actual proposal draw costs come from pilots.
+With legacy wall budgets it is
+a fraction of measured pre-tail time. Neither specifies a request latency
+increase.
 Only remaining zeros are eligible. Batch sizes derive from pilot hits/ESS and
 are fixed before fresh main/check sampling; training observations never enter
 the estimate. Existing quality gates and the four-worker limit are retained.
@@ -626,9 +634,12 @@ record evidence, acceptance, work and additional time.
 The default coverage profile enables the strongest tested
 multi-cell sampler automatically: cardinality guidance, two blockers constrained
 against each recipient's actual final points/wins, concurrent independent
-main/check batches, and 50% of the existing tail allowance. Four-worker usage,
-the acceptance gates are unchanged. The relative tail allowance is 45% after
-native CPU optimization: faster earlier stages otherwise shrink search funding.
+main/check batches, and a separate operation allowance scaled by 50% of the
+ordinary tail reference allowance (default: 22,500 reference draws, including
+setup and pilots; these are work units, not a fixed actual draw count).
+Four-worker usage and acceptance gates are unchanged. The legacy wall controller
+uses a relative tail allowance of 45% after native CPU optimization: faster
+earlier stages otherwise shrink search funding.
 This reallocates part of their measured savings; total request CPU and latency
 must be compared with the previous 35% profile. No extra shared-sampler flags
 are needed.
@@ -672,3 +683,99 @@ intended architecture; a normal `cargo build --release --locked` needs no PGO
 tools or runtime optimization flags.
 
 The `/odds` response always includes `rare_position_estimates[team_id][zero_based_rank].reachability` as `impossible`, `reachable`, or `undecided`. A reachable cell can still have zero probability when no acceptable estimate was found. Detailed proof labels remain internal and in diagnostic logs.
+
+### Complete-branch refinement
+
+The default coverage profile includes a generic complete-branch stage after
+existing coverage estimates are frozen. It can fill remaining zero cells with
+few attainable target paths and few complete exception cases. All branches
+retain positive sampling allocation; cheap original-model bounds order the
+work, independent pilots choose guidance/allocation, and fresh main/check
+batches use the existing rough-estimate acceptance gates. There is no omitted
+probability or team/position hardcoding. The stage uses the same four workers.
+
+Set `RUST_ODDS_RARE_TAIL_BRANCHES=0` to disable this stage explicitly. Other
+profiles can enable it with `RUST_ODDS_RARE_TAIL_BRANCHES=1`.
+Its default operation quota uses 90,000 reference draws: a 600,000-draw reference multiplied by
+`RUST_ODDS_RARE_TAIL_BRANCH_BUDGET_FRACTION` (default 0.15, range 0–0.5). Zero
+disables its work. Both pilots and full final pairs are reserved before sampling.
+With legacy wall budgets, this parameter remains a fraction of preceding
+calculation wall time and admitted fixed batches finish even if the forecast
+overruns the allowance.
+Construction remains bounded by64 target paths,256 attempted exception cases,
+100k joint setup nodes and the existing four-million guide-value cap. At most
+eight remaining zero cells are considered. Incomplete enumeration skips the
+proposal and does not prove impossibility.
+
+`RUST_ODDS_RARE_TAIL_BRANCH_BOUND_FLOOR=1` experimentally reduces negligible
+branches to two final draws and reallocates the freed draws while retaining
+full support. It is not required for the measured main configuration. Logs
+`rust_odds_rare_tail_branches`, `_skip` and `_summary` record stage timings,
+evidence, setup failures, budget and preservation of earlier estimates.
+See [the production-path experiment](../experiments/rare_positions/2026-10-01-rust-production-branches.md)
+for paired full-request coverage, latency, CPU and limitations.
+
+### Deterministic work budgets
+
+Enabled by default. `RUST_ODDS_DETERMINISTIC_WORK=0` restores elapsed-time
+admission for comparison. The fixed seed default is independent of this flag.
+`RUST_ODDS_WORK_MODEL=draws` is an experimental draw-count diagnostic; use the
+archived prototype binary to reproduce its measured trial.
+
+The production coverage allocator models:
+
+```
+estimated work = setup units + draws × pilot cost per draw
+reference_draw_cost = 64 × remaining fixtures + 32 × teams + 1
+pilot cost per draw = ceil((8 × fixture operations + guidance units
+                           + ranking allowance) / pilot draws)
+setup units = 16 × enumerated nodes + 2 × guide values
+```
+
+Fixture counters follow active guided, joint, and omitted fixture sampling.
+Guidance counts domain checks, optimized cardinality DP support, and additional
+mixture-density replays, including early exits. Ranking has an allowance for
+conditional score sampling, campaign updates, sorting, and the actual phase's
+number of sort keys. These are portable scheduling proxies, not measured CPU
+cycles. No duration enters admission in the default mode.
+
+| Stage | Default reference allocation | Scaling |
+| --- | ---: | --- |
+| Shared setup, pilots and finals | 22,500 | `100000 × tail_fraction × shared_fraction` |
+| Individual training prefix | 28 cells | `floor(64 × tail_fraction)`, maximum 128 |
+| Individual setup, pilots, finals and retries | 90,000 | `200000 × tail_fraction` |
+| Additional confirmations, reusing trained proposals | 200,000 | `200000 × confirm_more / 1.5` |
+| Complete branches, including setup and pilots | 90,000 | `600000 × branch_fraction` |
+
+Reference allocations multiply by `reference_draw_cost` to obtain work units.
+Fractions retain defaults 0.45, 0.5, 1.5, and 0.15. Individual setup and pilots
+are charged once; confirmation reuses them without charging setup again.
+Constructor cell/node/guide limits additionally bound setup attempts, including
+unsuccessful construction. The model estimates proposal costs; it does not
+establish an exact instruction count or hard wall deadline.
+
+Ordinary main/check pairs are reserved together in stable order. Ordinary finals
+finish before retries are admitted, irrespective of worker count. Their skipped
+checks are not refunded. Additional confirmation uses two fixed waves: reserve
+normal pairs first, use spare units for pending mains, then reclaim checks that
+were skipped after every first-wave job finishes. Only then reserve fresh checks
+for publishable pending mains or complete pairs for unstarted candidates. A main
+without an independent check never publishes. Neither wave changes main lengths
+or proposal costs based on its own observations. The total modeled quota stays
+fixed; second-wave savings are not recycled into another wave.
+
+Confirmation priority uses forecast ESS per work unit, smoothed by pilot hit
+reliability `hits / (hits + 30)`. The 30-hit acceptance requirement itself is
+unchanged. Running expensive admitted jobs first reduces scheduling tails;
+results are returned in stable admission order.
+
+Complete branches retain the original 30,000-draw allocation and streams first.
+On failure, spare modeled work may fund a fresh, independent retry of up to
+90,000 draws for a cheap proposal. Every supported branch retains a positive
+allocation. Earlier positive estimates are preserved. The unmerged residual-loop experiment remains separate from this release.
+
+Summary logs include `budget_mode`, `work_limit`, `reserved_work`, setup/pilot
+work, and proposal draw costs. Historical `work` retains its nominal season
+work meaning. Timing logs remain diagnostic. See the
+[paired experiment](../experiments/rare_positions/2026-10-01-rust-deterministic-work.md)
+for coverage, latency, reproducibility checks, and practical limits.

@@ -1,0 +1,14 @@
+{
+  "baseline_commit": "2290fe044a86fed57c20a5c586ca1ffe87e74e23",
+  "workers": 4,
+  "full_http_pairs": 91,
+  "tests_passed": 110,
+  "ignored_db_write_tests": 2,
+  "main_flags": {
+    "RUST_ODDS_RARE_TAIL_BRANCHES": "1"
+  },
+  "default_enabled": false,
+  "deployment": false,
+  "final_release_sha256": "d720730c2ea4989485cb4a888867ca7c369d2dd7650c1fb024a7b312f62affbb",
+  "isolated_source": "Baseline plus focused source.patch; unrelated late-gap and concurrent response-status edits excluded"
+}

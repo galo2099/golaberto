@@ -59,6 +59,13 @@ fn default_coverage_runs_shared_sampling_and_zero_disables_the_portfolio() {
     assert_eq!(start["rare_tail_profile"], "coverage");
     assert_eq!(start["rare_tail_extension"], "after");
     assert_eq!(start["rare_tail_confirm_more"], "1.5");
+    assert_eq!(start["rare_tail_branches"], true);
+    assert_eq!(start["rare_tail_branch_bound_floor"], false);
+    let branches = logs
+        .iter()
+        .find(|e| e["event"] == "rust_odds_rare_tail_branches_summary")
+        .unwrap();
+    assert_eq!(branches["preserved_existing_estimates"], true);
     let confirmation = logs
         .iter()
         .find(|e| e["event"] == "rust_odds_rare_tail_confirm_more_summary")
@@ -87,6 +94,10 @@ fn default_coverage_runs_shared_sampling_and_zero_disables_the_portfolio() {
         .find(|e| e["event"] == "rust_odds_start")
         .unwrap();
     assert_eq!(start["rare_tail_profile"], "0");
+    assert_eq!(start["rare_tail_branches"], false);
+    assert!(!logs
+        .iter()
+        .any(|e| e["event"] == "rust_odds_rare_tail_branches_summary"));
     assert_eq!(start["rare_tail_extension"], "");
     assert_eq!(start["rare_tail_confirm_more"], "");
     assert!(!logs.iter().any(|e| e["event"].as_str().is_some_and(|s| {
@@ -286,10 +297,7 @@ fn normal_binary_enables_joint_caps_and_preserves_existing_estimates_and_proofs(
                 "reachable" => {
                     assert!(
                         after["probability"].as_f64().unwrap() > 0.
-                            || matches!(
-                                after["reachability"].as_str(),
-                                Some("reachable")
-                            ),
+                            || matches!(after["reachability"].as_str(), Some("reachable")),
                         "lost reachable team={team} rank={rank}"
                     );
                 }
@@ -442,13 +450,7 @@ fn broad_replacement_preserves_estimates_that_short_ordinary_batches_lost() {
                 if label.starts_with("impossible") {
                     assert_eq!(e["reachability"], n["reachability"]);
                 } else if matches!(label, "reachable") {
-                    assert!(
-                        q > 0.
-                            || matches!(
-                                n["reachability"].as_str(),
-                                Some("reachable")
-                            )
-                    );
+                    assert!(q > 0. || matches!(n["reachability"].as_str(), Some("reachable")));
                 }
             }
         }

@@ -409,6 +409,25 @@ impl Guide {
         };
         (if below { low } else { high }) + tie.max(0.) * 0.5
     }
+    fn bounds(&self, step: usize, t: usize, lo: i32, hi: i32) -> f64 {
+        if lo > hi || hi < self.min[step][t] || lo > self.max[step][t] {
+            return 0.;
+        }
+        if lo <= self.min[step][t] {
+            return self.cdf.cdf(step, t, hi);
+        }
+        let origin = self.origin[step][t];
+        if hi >= self.max[step][t] {
+            return self.reverse.cdf(step, t, origin - lo);
+        }
+        let low = self.cdf.cdf(step, t, hi);
+        let high = self.reverse.cdf(step, t, origin - lo);
+        if low <= high {
+            (low - self.cdf.cdf(step, t, lo - 1)).max(0.)
+        } else {
+            (high - self.reverse.cdf(step, t, origin - hi - 1)).max(0.)
+        }
+    }
     fn factor(&self, step: usize, team: usize, cap: i32, below: f64, above: f64) -> f64 {
         let origin = self.origin[step][team];
         // When guidance weights one side and ties equally, the whole factor
@@ -468,6 +487,7 @@ struct Pattern {
     mass: f64,
     tilt: f64,
     cumulative: f64,
+    bound_guidance: bool,
 }
 impl Pattern {
     fn draw(
@@ -480,7 +500,14 @@ impl Pattern {
         cardinality: bool,
         replay: bool,
         dynamic: usize,
+        operations: &mut crate::rare_tail::budget::Operations,
     ) -> f64 {
+        let cardinality = cardinality && !self.bound_guidance;
+        operations.guidance +=
+            (self.fixed.len() + 4 * points.len() + 3 * self.joint.selected.len()) as u64;
+
+        operations.fixtures += (self.omitted.len() + self.joint.games.len()) as u64;
+
         for &(i, o) in &self.fixed {
             if replay && out[i] != o {
                 return 0.;
@@ -520,11 +547,13 @@ impl Pattern {
         let Some(mut counts) = self.counts(0, points, cell) else {
             return 0.;
         };
-        let (above, below) = if guided && !cardinality {
+        let (above, below) = if guided && !cardinality && !self.bound_guidance {
             let mut ea = 0.;
             let mut eb = 0.;
             for t in 0..points.len() {
                 if t != cell.team {
+                    operations.guidance += 8;
+
                     ea += self.guide.factor(0, t, target - points[t], 0., 1.);
                     eb += self.guide.factor(0, t, target - points[t], 1., 0.);
                 }
@@ -581,6 +610,10 @@ impl Pattern {
             }
         ];
         for (step, g) in self.guide.games.iter().enumerate() {
+            operations.fixtures += 1;
+
+            operations.guidance += 36;
+            // three endpoint-domain checks
             if dynamic > 0 && step % dynamic == 0 {
                 let games: Vec<_> = self.guide.games[step..]
                     .iter()
@@ -595,6 +628,9 @@ impl Pattern {
                         g
                     })
                     .collect();
+
+                operations.guidance += (games.len() * rivals.len() * 6) as u64;
+
                 let d = Domains::propagate(&games, points, &rivals, cell.rank, target);
                 if !d.feasible {
                     return 0.;
@@ -611,6 +647,13 @@ impl Pattern {
                     if t == cell.team || t == g.home || t == g.away {
                         continue;
                     }
+
+                    operations.guidance += 1;
+
+                    if p > 0. && support.0 < other.len() {
+                        operations.guidance +=
+                            ((support.1 + 1).min(other.len() - 1) - support.0 + 1) as u64;
+                    }
                     update_cardinality(&mut other, p, &mut support);
                 }
             }
@@ -626,9 +669,24 @@ impl Pattern {
                 if !allowed[o] {
                     continue;
                 }
+
+                operations.guidance += if guided || self.bound_guidance { 18 } else { 2 };
+
                 support += g.prob[o];
                 q[o] = g.prob[o]
-                    * if cardinality {
+                    * if self.bound_guidance {
+                        self.guide.bounds(
+                            step + 1,
+                            g.home,
+                            self.lower[g.home] - points[g.home] - g.hg[o],
+                            self.upper[g.home] - points[g.home] - g.hg[o],
+                        ) * self.guide.bounds(
+                            step + 1,
+                            g.away,
+                            self.lower[g.away] - points[g.away] - g.ag[o],
+                            self.upper[g.away] - points[g.away] - g.ag[o],
+                        )
+                    } else if cardinality {
                         let ph = chance(step + 1, g.home, points[g.home] + g.hg[o]).clamp(0., 1.);
                         let pa = chance(step + 1, g.away, points[g.away] + g.ag[o]).clamp(0., 1.);
                         endpoint_chances[o] = [ph, pa];
@@ -1072,6 +1130,7 @@ impl PropagatedJoint {
                 mass: weight,
                 tilt: 1.,
                 cumulative: mass,
+                bound_guidance: false,
             });
         }
         if mass <= 0.
@@ -1105,6 +1164,27 @@ impl PropagatedJoint {
             mass,
             target_patterns,
         })
+    }
+    pub(crate) fn setup_work(&self) -> usize {
+        let mut seen = std::collections::HashSet::new();
+        let values: usize = self
+            .patterns
+            .iter()
+            .filter(|p| seen.insert(Arc::as_ptr(&p.guide)))
+            .map(|p| {
+                p.guide
+                    .cdf
+                    .values
+                    .iter()
+                    .chain(&p.guide.reverse.values)
+                    .map(|v| v.len())
+                    .sum::<usize>()
+            })
+            .sum();
+        crate::rare_tail::budget::setup_cost(
+            self.patterns.iter().map(|p| p.joint.states).sum(),
+            values,
+        )
     }
     pub fn describe(&self, m: &Model) -> serde_json::Value {
         json!({"mode":"propagated_target_union","team":m.ids[self.cell.team],"rank":self.cell.rank+1,
@@ -1141,8 +1221,12 @@ impl PropagatedJoint {
                     false,
                     false,
                     0,
+                    &mut result.operations,
                 );
             result.samples += 1;
+            if weight > 0. {
+                result.operations.rank(m);
+            }
             if weight <= 0. || scores.rank(self.cell.team, &out, &mut rng, None) != self.cell.rank {
                 continue;
             }

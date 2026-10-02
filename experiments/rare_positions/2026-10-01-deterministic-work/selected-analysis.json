@@ -1,0 +1,296 @@
+{
+  "aggregate": {
+    "pairs": 98,
+    "baseline_cpu_ms": 125987.04699999999,
+    "candidate_cpu_ms": 128032.02399999996,
+    "cpu_change_percent": 1.6231644829328928,
+    "baseline_http_ms": 53301.761631999914,
+    "candidate_http_ms": 54510.35778999999,
+    "http_change_percent": 2.267460063223292,
+    "baseline_tail_ms": 18456.929000000004,
+    "candidate_tail_ms": 19908.26699999999,
+    "gains": [
+      [
+        "group-16498-44eabb47.json",
+        1861,
+        {
+          "team": 16,
+          "position": 15,
+          "probability": 4.013102055604302e-32
+        }
+      ],
+      [
+        "group-16498-44eabb47.json",
+        1861,
+        {
+          "team": 318,
+          "position": 4,
+          "probability": 2.6741882907975878e-19
+        }
+      ],
+      [
+        "group-16498-44eabb47.json",
+        2459,
+        {
+          "team": 16,
+          "position": 13,
+          "probability": 6.195826275280494e-20
+        }
+      ],
+      [
+        "group-16498-44eabb47.json",
+        9749,
+        {
+          "team": 16,
+          "position": 13,
+          "probability": 6.39372785451943e-20
+        }
+      ],
+      [
+        "group-16653-71d4fea8.json",
+        1993,
+        {
+          "team": 95,
+          "position": 3,
+          "probability": 3.6857685059959992e-34
+        }
+      ],
+      [
+        "group-16653-71d4fea8.json",
+        2039,
+        {
+          "team": 95,
+          "position": 3,
+          "probability": 4.501524475874348e-34
+        }
+      ],
+      [
+        "group-16653-71d4fea8.json",
+        7919,
+        {
+          "team": 95,
+          "position": 3,
+          "probability": 5.782255173193678e-34
+        }
+      ]
+    ],
+    "losses": [],
+    "distinct_gained_cells": [
+      [
+        "group-16498-44eabb47.json",
+        16,
+        13
+      ],
+      [
+        "group-16498-44eabb47.json",
+        16,
+        15
+      ],
+      [
+        "group-16498-44eabb47.json",
+        318,
+        4
+      ],
+      [
+        "group-16653-71d4fea8.json",
+        95,
+        3
+      ]
+    ],
+    "proof_regressions": 0
+  },
+  "groups": {
+    "group-15902-31d66705.json": {
+      "pairs": 14,
+      "baseline_cpu_ms": 4835.887999999999,
+      "candidate_cpu_ms": 4767.467000000001,
+      "cpu_change_percent": -1.4148590703506492,
+      "baseline_http_ms": 2366.2792489999993,
+      "candidate_http_ms": 2303.1210410000003,
+      "http_change_percent": -2.669093600287875,
+      "baseline_tail_ms": 0.0,
+      "candidate_tail_ms": 0.0,
+      "gains": [],
+      "losses": [],
+      "distinct_gained_cells": [],
+      "proof_regressions": 0
+    },
+    "group-16413-a2eef0a8.json": {
+      "pairs": 14,
+      "baseline_cpu_ms": 4455.345999999997,
+      "candidate_cpu_ms": 4480.544000000004,
+      "cpu_change_percent": 0.5655677471515741,
+      "baseline_http_ms": 2100.0287520000024,
+      "candidate_http_ms": 2102.235458000001,
+      "http_change_percent": 0.10507979940259649,
+      "baseline_tail_ms": 0.0,
+      "candidate_tail_ms": 0.0,
+      "gains": [],
+      "losses": [],
+      "distinct_gained_cells": [],
+      "proof_regressions": 0
+    },
+    "group-16498-44eabb47.json": {
+      "pairs": 14,
+      "baseline_cpu_ms": 46008.078,
+      "candidate_cpu_ms": 47648.911,
+      "cpu_change_percent": 3.5664019696715066,
+      "baseline_http_ms": 16817.236669999995,
+      "candidate_http_ms": 17886.72379200001,
+      "http_change_percent": 6.3594700067928445,
+      "baseline_tail_ms": 9221.974000000002,
+      "candidate_tail_ms": 10287.684000000001,
+      "gains": [
+        [
+          "group-16498-44eabb47.json",
+          1861,
+          {
+            "team": 16,
+            "position": 15,
+            "probability": 4.013102055604302e-32
+          }
+        ],
+        [
+          "group-16498-44eabb47.json",
+          1861,
+          {
+            "team": 318,
+            "position": 4,
+            "probability": 2.6741882907975878e-19
+          }
+        ],
+        [
+          "group-16498-44eabb47.json",
+          2459,
+          {
+            "team": 16,
+            "position": 13,
+            "probability": 6.195826275280494e-20
+          }
+        ],
+        [
+          "group-16498-44eabb47.json",
+          9749,
+          {
+            "team": 16,
+            "position": 13,
+            "probability": 6.39372785451943e-20
+          }
+        ]
+      ],
+      "losses": [],
+      "distinct_gained_cells": [
+        [
+          "group-16498-44eabb47.json",
+          16,
+          13
+        ],
+        [
+          "group-16498-44eabb47.json",
+          16,
+          15
+        ],
+        [
+          "group-16498-44eabb47.json",
+          318,
+          4
+        ]
+      ],
+      "proof_regressions": 0
+    },
+    "group-16653-2d1c1d6f.json": {
+      "pairs": 14,
+      "baseline_cpu_ms": 22721.492000000002,
+      "candidate_cpu_ms": 22974.68900000006,
+      "cpu_change_percent": 1.1143502372117808,
+      "baseline_http_ms": 9702.59212599997,
+      "candidate_http_ms": 9796.155038999997,
+      "http_change_percent": 0.9643084217598519,
+      "baseline_tail_ms": 1855.097,
+      "candidate_tail_ms": 1845.606,
+      "gains": [],
+      "losses": [],
+      "distinct_gained_cells": [],
+      "proof_regressions": 0
+    },
+    "group-16653-71d4fea8.json": {
+      "pairs": 14,
+      "baseline_cpu_ms": 32834.95999999998,
+      "candidate_cpu_ms": 33162.871,
+      "cpu_change_percent": 0.9986642286149428,
+      "baseline_http_ms": 15155.83991799999,
+      "candidate_http_ms": 15336.843917000002,
+      "http_change_percent": 1.1942855030095734,
+      "baseline_tail_ms": 7379.857999999999,
+      "candidate_tail_ms": 7774.977000000001,
+      "gains": [
+        [
+          "group-16653-71d4fea8.json",
+          1993,
+          {
+            "team": 95,
+            "position": 3,
+            "probability": 3.6857685059959992e-34
+          }
+        ],
+        [
+          "group-16653-71d4fea8.json",
+          2039,
+          {
+            "team": 95,
+            "position": 3,
+            "probability": 4.501524475874348e-34
+          }
+        ],
+        [
+          "group-16653-71d4fea8.json",
+          7919,
+          {
+            "team": 95,
+            "position": 3,
+            "probability": 5.782255173193678e-34
+          }
+        ]
+      ],
+      "losses": [],
+      "distinct_gained_cells": [
+        [
+          "group-16653-71d4fea8.json",
+          95,
+          3
+        ]
+      ],
+      "proof_regressions": 0
+    },
+    "group-16982-9327edcd.json": {
+      "pairs": 14,
+      "baseline_cpu_ms": 7602.805000000021,
+      "candidate_cpu_ms": 7507.028999999889,
+      "cpu_change_percent": -1.2597455807446423,
+      "baseline_http_ms": 3588.456040999986,
+      "candidate_http_ms": 3556.748875999987,
+      "http_change_percent": -0.8835879452814277,
+      "baseline_tail_ms": 0.0,
+      "candidate_tail_ms": 0.0,
+      "gains": [],
+      "losses": [],
+      "distinct_gained_cells": [],
+      "proof_regressions": 0
+    },
+    "group-16983-43969b02.json": {
+      "pairs": 14,
+      "baseline_cpu_ms": 7528.47799999998,
+      "candidate_cpu_ms": 7490.513000000026,
+      "cpu_change_percent": -0.5042851954930816,
+      "baseline_http_ms": 3571.3288759999814,
+      "candidate_http_ms": 3528.529666999987,
+      "http_change_percent": -1.198411305315883,
+      "baseline_tail_ms": 0.0,
+      "candidate_tail_ms": 0.0,
+      "gains": [],
+      "losses": [],
+      "distinct_gained_cells": [],
+      "proof_regressions": 0
+    }
+  }
+}

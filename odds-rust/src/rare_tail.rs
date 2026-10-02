@@ -18,6 +18,11 @@ use serde_json::json;
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::time::Instant;
 
+mod branches;
+pub(crate) mod budget;
+mod confirmations;
+use budget::{scaled, WorkBudget, REFERENCE_DRAWS};
+
 // Coverage is the default profile, with explicit environment overrides. Reading it does
 // not mutate the process environment or interfere with concurrent requests.
 pub fn profile() -> String {
@@ -41,7 +46,10 @@ fn resolve_value(name: &str, explicit: Option<String>, coverage: bool) -> String
 fn profile_default(name: &str) -> &'static str {
     match name {
         "RUST_ODDS_LAZY_GUIDE" => "cardinality",
-        "RUST_ODDS_LAZY_GOALS" | "RUST_ODDS_LAZY_OMIT" | "RUST_ODDS_RARE_TAIL_SHARE" => "1",
+        "RUST_ODDS_LAZY_GOALS"
+        | "RUST_ODDS_LAZY_OMIT"
+        | "RUST_ODDS_RARE_TAIL_SHARE"
+        | "RUST_ODDS_RARE_TAIL_BRANCHES" => "1",
         "RUST_ODDS_LAZY_SUBSET" => "adaptive",
         "RUST_ODDS_RARE_TAIL_FINALISTS" => "16",
         "RUST_ODDS_LAZY_RIVALS" => "4",
@@ -71,6 +79,12 @@ impl Plan {
         match self {
             Self::Union(p) => p.sample(m, n, seed, true),
             Self::Lazy(p) => p.sample(m, n, seed),
+        }
+    }
+    fn setup_work(&self) -> usize {
+        match self {
+            Self::Union(p) => p.setup_work(),
+            Self::Lazy(p) => p.setup_work(),
         }
     }
     fn describe(&self, m: &Model) -> serde_json::Value {
@@ -112,6 +126,7 @@ pub fn run(
         .collect();
     let rough = value("RUST_ODDS_RARE_TAIL_QUALITY") == "order";
     let start = Instant::now();
+    let deterministic = budget::deterministic();
     let fraction = value("RUST_ODDS_RARE_TAIL_BUDGET_FRACTION")
         .parse::<f64>()
         .ok()
@@ -134,14 +149,23 @@ pub fn run(
         log,
         allowance_ms * shared_fraction,
         rough,
+        deterministic.then_some(budget::capacity(
+            m,
+            scaled(REFERENCE_DRAWS, fraction * shared_fraction),
+        )),
     );
     cells.retain(|c| estimates[c.index(m.n)].probability == 0.);
     let shared = (value("RUST_ODDS_RARE_TAIL_SHARE") == "1")
         .then(|| std::sync::Arc::new(SharedGuides::default()));
-    let plans = parallel(cells.len(), workers, |i| {
+    let training_limit = if deterministic {
+        scaled(64, fraction).min(128)
+    } else {
+        cells.len()
+    };
+    let plans = parallel(cells.len().min(training_limit), workers, |i| {
         let cell = cells[i];
-        if start.elapsed().as_secs_f64() * 1000. >= allowance_ms * 0.65 {
-            return None;
+        if !deterministic && start.elapsed().as_secs_f64() * 1000. >= allowance_ms * 0.65 {
+            return (None, 0);
         }
         let start = Instant::now();
         let stream = derive(
@@ -159,15 +183,11 @@ pub fn run(
                         .ok()
                         .filter(|&v| v >= 1 && v <= 6)
                         .unwrap_or(6),
-                    target_patterns: if extension {
-                        256
-                    } else {
-                        value("RUST_ODDS_RARE_TAIL_UNION_PATTERNS")
-                            .parse::<usize>()
-                            .ok()
-                            .filter(|&v| v >= 1 && v <= 256)
-                            .unwrap_or(256)
-                    },
+                    target_patterns: value("RUST_ODDS_RARE_TAIL_UNION_PATTERNS")
+                        .parse::<usize>()
+                        .ok()
+                        .filter(|&v| (1..=256).contains(&v))
+                        .unwrap_or(256),
                     feasible_cases: 128,
                 },
             )
@@ -180,6 +200,9 @@ pub fn run(
             let r = p.sample(m, if mode == "union" { 1500 } else { 1000 }, stream, true);
             (Plan::Union(p), r, clock.elapsed().as_secs_f64() * 1000.)
         });
+        let mut training_work = candidate
+            .as_ref()
+            .map_or(0, |p| p.0.setup_work() + p.1.operations.units());
         let mut pilot_work = candidate.as_ref().map_or(0, |p| p.1.work);
         if mode != "union" && candidate.as_ref().is_none_or(|p| p.1.ess < 25.) {
             let seeds: Vec<_> = witnesses
@@ -207,6 +230,7 @@ pub fn run(
                     (p.sample(m, 1000, derive(stream, "lazy")), None)
                 };
                 let mut pilot_ms = clock.elapsed().as_secs_f64() * 1000.;
+                training_work += r.operations.units();
                 pilot_work += r.work;
                 if value("RUST_ODDS_LAZY_SUBSET") == "adaptive" && r.ess < 12. {
                     // Sparse pilot hits contain too little branch information.
@@ -219,6 +243,7 @@ pub fn run(
                     let clock = Instant::now();
                     let alt = p.sample(m, 1000, derive(stream, "multimode"));
                     let alt_ms = clock.elapsed().as_secs_f64() * 1000.;
+                    training_work += alt.operations.units();
                     pilot_work += alt.work;
                     if alt.ess > r.ess {
                         r = alt;
@@ -237,6 +262,7 @@ pub fn run(
                     let clock = Instant::now();
                     let biased = p.sample(m, 1000, derive(stream, "fixture-bias"));
                     let biased_ms = clock.elapsed().as_secs_f64() * 1000.;
+                    training_work += biased.operations.units();
                     pilot_work += biased.work;
                     if biased.ess > r.ess {
                         r = biased;
@@ -254,6 +280,7 @@ pub fn run(
                     let clock = Instant::now();
                     let case = p.sample(m, 1000, derive(stream, "cardinality-cases"));
                     let case_ms = clock.elapsed().as_secs_f64() * 1000.;
+                    training_work += case.operations.units();
                     pilot_work += case.work;
                     if case.ess > r.ess {
                         r = case;
@@ -262,6 +289,7 @@ pub fn run(
                         p.clear_cases();
                     }
                 }
+                training_work += p.setup_work();
                 if candidate.as_ref().is_none_or(|v| r.ess > v.1.ess) {
                     candidate = Some((Plan::Lazy(p), r, pilot_ms));
                 }
@@ -271,15 +299,15 @@ pub fn run(
         emit(
             log,
             "rust_odds_rare_tail_training",
-            json!({"group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,"training_ms":setup_ms,"pilot_work":pilot_work,"pilot":candidate.as_ref().map(|(p,r,ms)|json!({"hits":r.hits,"ess":r.ess,"sampling_ms":ms,"plan":p.describe(m)}))}),
+            json!({"group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,"training_ms":setup_ms,"pilot_work":pilot_work,"training_work_units":training_work,"pilot":candidate.as_ref().map(|(p,r,ms)|json!({"hits":r.hits,"ess":r.ess,"sampling_ms":ms,"setup_work":p.setup_work(),"cost_per_draw":budget::per_draw(r),"operations":json!({"fixtures":r.operations.fixtures,"guidance":r.operations.guidance,"ranking":r.operations.ranking}),"plan":p.describe(m)}))}),
         );
-        if let Some((plan, r, pilot_ms)) = candidate {
-            Some((cell, plan, r, setup_ms, pilot_work, pilot_ms))
-        } else {
-            None
-        }
+        (
+            candidate.map(|(plan, r, pilot_ms)| (cell, plan, r, setup_ms, pilot_work, pilot_ms)),
+            training_work,
+        )
     });
-    let mut plans: Vec<_> = plans.into_iter().flatten().collect();
+    let mut training_work_units: usize = plans.iter().map(|p| p.1).sum();
+    let mut plans: Vec<_> = plans.into_iter().filter_map(|p| p.0).collect();
     if std::env::var("RUST_ODDS_RARE_TAIL_REUSE").as_deref() == Ok("1") {
         let seasons: Vec<_> = plans
             .iter()
@@ -300,7 +328,7 @@ pub fn run(
             .take(4)
             .collect();
         let rescued = parallel(jobs.len(), workers, |j| {
-            if start.elapsed().as_secs_f64() * 1000. >= allowance_ms * 0.65 {
+            if !deterministic && start.elapsed().as_secs_f64() * 1000. >= allowance_ms * 0.65 {
                 return None;
             }
             let (i, seeds) = &jobs[j];
@@ -336,6 +364,7 @@ pub fn run(
         });
         for (i, p, r, ms, elapsed) in rescued.into_iter().flatten() {
             let old = &mut plans[i];
+            training_work_units += p.setup_work() + r.operations.units();
             old.4 += r.work;
             old.3 += elapsed;
             if r.ess > old.2.ess {
@@ -374,8 +403,27 @@ pub fn run(
         plans.retain(|p| p.2.hits >= 3 && p.2.ess >= if rough { 1.5 } else { 2. });
         plans.truncate(finalists);
     }
-    let remaining_ms = (allowance_ms - start.elapsed().as_secs_f64() * 1000.).max(0.);
-    let mut bins = vec![0_f64; workers.clamp(1, 4)];
+    // Setup and pilots are charged once. Finals use independent pilot operation
+    // counts; one global bin removes worker scheduling from admission.
+    let remaining_capacity = if deterministic {
+        budget::capacity(m, scaled(2 * REFERENCE_DRAWS, fraction)).saturating_sub(
+            if budget::modeled() {
+                training_work_units
+            } else {
+                0
+            },
+        ) as f64
+    } else {
+        (allowance_ms - start.elapsed().as_secs_f64() * 1000.).max(0.)
+    };
+    let mut bins = vec![
+        0_f64;
+        if deterministic {
+            1
+        } else {
+            workers.clamp(1, 4)
+        }
+    ];
     let mut funded = Vec::new();
     let mut pending = Vec::new();
     let mut funded_bins = Vec::new();
@@ -414,11 +462,15 @@ pub fn run(
         } else {
             (n / 2).max(1000)
         };
-        let cost = 1.2 * p.5 / p.2.samples.max(1) as f64 * (n + check) as f64;
+        let cost = if deterministic {
+            ((n + check) * budget::draw_cost(&p.2)) as f64
+        } else {
+            1.2 * p.5 / p.2.samples.max(1) as f64 * (n + check) as f64
+        };
         let bin = (0..bins.len())
             .min_by(|&a, &b| bins[a].total_cmp(&bins[b]))
             .unwrap();
-        if mode == "union" || bins[bin] + cost <= remaining_ms {
+        if (!deterministic && mode == "union") || bins[bin] + cost <= remaining_capacity {
             bins[bin] += cost;
             funded.push((p, n, check));
             funded_bins.push(bin);
@@ -439,8 +491,12 @@ pub fn run(
                 *check,
                 p.2.samples,
                 p.2.ess,
-                1.2 * p.5 / p.2.samples.max(1) as f64,
-                remaining_ms - loads[bin],
+                if deterministic {
+                    budget::draw_cost(&p.2) as f64
+                } else {
+                    1.2 * p.5 / p.2.samples.max(1) as f64
+                },
+                remaining_capacity - loads[bin],
             ) {
                 loads[bin] += extra;
                 *n = desired;
@@ -449,14 +505,21 @@ pub fn run(
         }
     }
     let plans = funded;
+    let mut reserved_final_work: usize = plans
+        .iter()
+        .map(|(p, n, check)| (n + check) * budget::draw_cost(&p.2))
+        .sum();
     // Original jobs and sampling streams are fixed before any extension work.
     // Status 0 is in flight, 1 accepted, 2 rejected; only rejected jobs may retry.
     let status: Vec<_> = (0..plans.len()).map(|_| AtomicU8::new(0)).collect();
     let final_start = Instant::now();
-    let extension_deadline_ms = if extension_mode == "overlap" {
-        bins.iter().copied().fold(0., f64::max).min(remaining_ms)
+    let extension_capacity = if extension_mode == "overlap" {
+        bins.iter()
+            .copied()
+            .fold(0., f64::max)
+            .min(remaining_capacity)
     } else {
-        remaining_ms
+        remaining_capacity
     };
     let mut extension_jobs: Vec<_> = if extension {
         plans
@@ -484,7 +547,11 @@ pub fn run(
                     if rough { 6000 } else { 8000 },
                 );
                 let check = (n / 2).max(1000);
-                let cost = 1.2 * p.5 / p.2.samples.max(1) as f64 * (n + check) as f64;
+                let cost = if deterministic {
+                    ((n + check) * budget::draw_cost(&p.2)) as f64
+                } else {
+                    1.2 * p.5 / p.2.samples.max(1) as f64 * (n + check) as f64
+                };
                 (source, p, n, check, cost)
             })
             .collect()
@@ -527,10 +594,12 @@ pub fn run(
         );
         (*cell, main, check.work, accepted, false)
     };
-    let extra = |i: usize| {
+    let extra = |i: usize, admitted: bool| {
         let (source, p, n, check_n, cost) = &extension_jobs[i];
-        if source.is_some_and(|j| status[j].load(Ordering::Acquire) != 2)
-            || final_start.elapsed().as_secs_f64() * 1000. + cost > extension_deadline_ms
+        if !admitted
+            || source.is_some_and(|j| status[j].load(Ordering::Acquire) != 2)
+            || (!deterministic
+                && final_start.elapsed().as_secs_f64() * 1000. + cost > extension_capacity)
         {
             return None;
         }
@@ -568,24 +637,53 @@ pub fn run(
         emit(
             log,
             "rust_odds_rare_tail_extension",
-            json!({"group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,"mode":extension_mode,"source":if source.is_some(){"rejected_final"}else{"unfunded_pilot"},"main_draws":main.samples,"main_hits":main.hits,"main_ess":main.ess,"main_max_share":main.max_share,"main_relative_se":if main.probability>0.{Some(main.std_err/main.probability)}else{None},"main_batch_gap":main.batch_gap,"probability":main.probability,"check_probability":check.probability,"check_hits":check.hits,"check_ess":check.ess,"check_relative_se":if check.probability>0.{Some(check.std_err/check.probability)}else{None},"accepted":ok,"forecast_ms":cost,"sampling_ms":clock.elapsed().as_secs_f64()*1000.}),
+            json!({"group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,"mode":extension_mode,"source":if source.is_some(){"rejected_final"}else{"unfunded_pilot"},"main_draws":main.samples,"main_hits":main.hits,"main_ess":main.ess,"main_max_share":main.max_share,"main_relative_se":if main.probability>0.{Some(main.std_err/main.probability)}else{None},"main_batch_gap":main.batch_gap,"probability":main.probability,"check_probability":check.probability,"check_hits":check.hits,"check_ess":check.ess,"check_relative_se":if check.probability>0.{Some(check.std_err/check.probability)}else{None},"accepted":ok,"forecast_ms":if deterministic {None}else{Some(cost)},"reserved_work":if deterministic {Some(*cost as usize)}else{None},"cost_per_draw":budget::draw_cost(&p.2),"sampling_ms":clock.elapsed().as_secs_f64()*1000.}),
         );
         Some((cell, main, check.work, ok, true))
     };
-    let results = if extension_mode == "overlap" && extension {
+    let results = if !deterministic && extension_mode == "overlap" && extension {
         // All ordinary jobs are dispatched ahead of extension jobs, on the same
         // worker queue. No extra worker or serial time allowance is introduced.
         parallel(plans.len() + extension_jobs.len(), workers, |i| {
             if i < plans.len() {
                 Some(ordinary(i))
             } else {
-                extra(i - plans.len())
+                extra(i - plans.len(), true)
             }
         })
     } else {
-        let mut r = parallel(plans.len(), workers, |i| Some(ordinary(i)));
+        let costs: Vec<_> = plans
+            .iter()
+            .map(|(p, n, check)| (n + check) * budget::draw_cost(&p.2))
+            .collect();
+        let mut r = budget::parallel(&costs, workers, |i| Some(ordinary(i)));
         if extension {
-            r.extend(parallel(extension_jobs.len(), workers, extra));
+            // All ordinary results finish before admission of any retry.
+            // Reserve complete pairs in stable job order; unused check draws
+            // are not recycled based on a final batch's observations.
+            let mut draw_budget = WorkBudget::new(remaining_capacity as usize);
+            if deterministic {
+                for (p, n, check) in &plans {
+                    assert!(draw_budget.reserve((n + check) * budget::draw_cost(&p.2)));
+                }
+            }
+            let admitted: Vec<_> = extension_jobs
+                .iter()
+                .map(|(source, p, n, check, _)| {
+                    !deterministic
+                        || (source.is_none_or(|j| status[j].load(Ordering::Acquire) == 2)
+                            && draw_budget.reserve((n + check) * budget::draw_cost(&p.2)))
+                })
+                .collect();
+            if deterministic {
+                reserved_final_work = draw_budget.reserved;
+            }
+            let costs: Vec<_> = extension_jobs
+                .iter()
+                .enumerate()
+                .map(|(i, j)| if admitted[i] { j.4 as usize } else { 0 })
+                .collect();
+            r.extend(budget::parallel(&costs, workers, |i| extra(i, admitted[i])));
         }
         r
     };
@@ -606,7 +704,30 @@ pub fn run(
     let ordinary_final_phase_ms = final_start.elapsed().as_secs_f64() * 1000.;
     // The additional allowance confirms already-built proposals only.
     // Ordinary results are frozen first; new independent streams can only fill zeros.
-    if more_fraction > 0. {
+    if more_fraction > 0. && budget::modeled() {
+        let proposals: Vec<_> = plans
+            .iter()
+            .map(|p| &p.0)
+            .chain(pending.iter())
+            .chain(weak.iter())
+            .filter(|p| {
+                let e = &estimates[p.0.index(m.n)];
+                e.probability == 0. && !e.reachability.starts_with("impossible")
+            })
+            .collect();
+        let (added, extra_work) = confirmations::run(
+            m,
+            seed,
+            workers,
+            estimates,
+            &proposals,
+            rough,
+            more_fraction,
+            log,
+        );
+        found += added;
+        work += extra_work;
+    } else if more_fraction > 0. {
         let before: Vec<_> = estimates
             .iter()
             .enumerate()
@@ -614,7 +735,11 @@ pub fn run(
             .map(|(i, e)| (i, serde_json::to_value(e).unwrap()))
             .collect();
         let extra_start = Instant::now();
-        let extra_allowance = native_ms * more_fraction;
+        let confirmation_capacity = if deterministic {
+            budget::capacity(m, budget::confirmation_limit(more_fraction)) as f64
+        } else {
+            native_ms * more_fraction
+        };
         let mut jobs: Vec<_> = plans
             .iter()
             .map(|(p, _, _)| p)
@@ -628,22 +753,45 @@ pub fn run(
             })
             .filter_map(|p| {
                 confirmation_batches(&p.2).map(|n| {
-                    let cost = 1.2 * p.5 / p.2.samples as f64 * (2 * n) as f64;
+                    let cost = if deterministic {
+                        (2 * n * budget::draw_cost(&p.2)) as f64
+                    } else {
+                        1.2 * p.5 / p.2.samples as f64 * (2 * n) as f64
+                    };
                     (p, n, cost)
                 })
             })
             .collect();
         jobs.sort_by(|a, b| {
-            a.2.total_cmp(&b.2)
+            // Pilot ESS gained per logical operation favors proposals likely to
+            // meet publication gates, rather than cheap but futile max batches.
+            let ap = if budget::modeled() {
+                confirmation_priority(&a.0 .2, a.1, a.2)
+            } else {
+                a.2
+            };
+            let bp = if budget::modeled() {
+                confirmation_priority(&b.0 .2, b.1, b.2)
+            } else {
+                b.2
+            };
+            ap.total_cmp(&bp)
                 .then(a.0 .0.index(m.n).cmp(&b.0 .0.index(m.n)))
         });
         let eligible = jobs.len();
-        let mut loads = vec![0_f64; workers.clamp(1, 4)];
+        let mut loads = vec![
+            0_f64;
+            if deterministic {
+                1
+            } else {
+                workers.clamp(1, 4)
+            }
+        ];
         jobs.retain(|(_, _, cost)| {
             let bin = (0..loads.len())
                 .min_by(|&a, &b| loads[a].total_cmp(&loads[b]))
                 .unwrap();
-            if cost.is_finite() && *cost >= 0. && loads[bin] + cost <= extra_allowance {
+            if cost.is_finite() && *cost >= 0. && loads[bin] + cost <= confirmation_capacity {
                 loads[bin] += cost;
                 true
             } else {
@@ -651,9 +799,12 @@ pub fn run(
             }
         });
         let funded = jobs.len();
-        let extra_results = parallel(jobs.len(), workers, |i| {
+        let costs: Vec<_> = jobs.iter().map(|p| p.2 as usize).collect();
+        let extra_results = budget::parallel(&costs, workers, |i| {
             let (p, n, cost) = jobs[i];
-            if extra_start.elapsed().as_secs_f64() * 1000. + cost > extra_allowance {
+            if !deterministic
+                && extra_start.elapsed().as_secs_f64() * 1000. + cost > confirmation_capacity
+            {
                 return None;
             }
             let clock = Instant::now();
@@ -695,7 +846,7 @@ pub fn run(
                     "main_hits":main.hits,"main_ess":main.ess,"main_max_share":main.max_share,
                     "probability":main.probability,"check_draws":check.samples,"check_hits":check.hits,
                     "check_ess":check.ess,"check_probability":check.probability,"accepted":ok,
-                    "forecast_ms":cost,"sampling_ms":clock.elapsed().as_secs_f64()*1000.
+                    "forecast_ms":if deterministic {None}else{Some(cost)},"reserved_work":if deterministic {Some(cost as usize)}else{None},"cost_per_draw":budget::draw_cost(&p.2),"sampling_ms":clock.elapsed().as_secs_f64()*1000.
                 }),
             );
             Some((cell, main, check.work, ok))
@@ -721,24 +872,36 @@ pub fn run(
             log,
             "rust_odds_rare_tail_confirm_more_summary",
             json!({
-                "group":m.request.id,"fraction":more_fraction,"allowance_ms":extra_allowance,
+                "group":m.request.id,"fraction":more_fraction,"allowance_ms":if deterministic {None}else{Some(confirmation_capacity)},
+                "budget_mode":budget::mode(),
+                "work_limit":if deterministic {Some(confirmation_capacity as usize)}else{None},
+                "reserved_work":if deterministic {Some(loads[0] as usize)}else{None},
                 "eligible":eligible,"funded":funded,"completed":completed,"accepted":added,
                 "work":extra_work,"preserved_existing_estimates":preserved,
                 "elapsed_ms":extra_start.elapsed().as_secs_f64()*1000.
             }),
         );
     }
+    if value("RUST_ODDS_RARE_TAIL_BRANCHES") == "1" {
+        let elapsed = log.map_or(
+            unlogged_search_ms + start.elapsed().as_secs_f64() * 1000.,
+            |l| l.calculation_elapsed_ms(),
+        );
+        let (added, spent) = branches::run(m, seed, workers, estimates, log, elapsed);
+        found += added;
+        work += spent;
+    }
     if extension {
         emit(
             log,
             "rust_odds_rare_tail_extension_summary",
-            json!({"group":m.request.id,"mode":extension_mode,"ordinary_finalists":plans.len(),"unfunded_pilots":pending.len(),"accepted":extra_found,"main_draws":extra_draws,"final_phase_ms":ordinary_final_phase_ms,"deadline_ms":extension_deadline_ms}),
+            json!({"group":m.request.id,"mode":extension_mode,"ordinary_finalists":plans.len(),"unfunded_pilots":pending.len(),"accepted":extra_found,"main_draws":extra_draws,"final_phase_ms":ordinary_final_phase_ms,"deadline_ms":if deterministic {None}else{Some(extension_capacity)},"budget_mode":budget::mode()}),
         );
     }
     emit(
         log,
         "rust_odds_rare_tail_summary",
-        json!({"group":m.request.id,"cells":cells.len(),"finalists":plans.len(),"accepted":found,"elapsed_ms":start.elapsed().as_secs_f64()*1000.,"allowance_ms":allowance_ms,"remaining_after_training_ms":remaining_ms,"work":work,"batch_allocation":value("RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION"),"root_retry":value("RUST_ODDS_RARE_TAIL_RETRY"),"union_patterns":value("RUST_ODDS_RARE_TAIL_UNION_PATTERNS"),"extension":extension_mode,"effective_union_patterns":if extension{"256".into()}else{value("RUST_ODDS_RARE_TAIL_UNION_PATTERNS")},"effective_root_retry":if extension{"0".into()}else{value("RUST_ODDS_RARE_TAIL_RETRY")},"effective_batch_allocation":if extension{"0".into()}else{value("RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION")},"shared_guides":shared.as_ref().map(|s|s.describe())}),
+        json!({"group":m.request.id,"cells":cells.len(),"finalists":plans.len(),"accepted":found,"elapsed_ms":start.elapsed().as_secs_f64()*1000.,"allowance_ms":if deterministic {None}else{Some(allowance_ms)},"remaining_after_training_ms":if deterministic {None}else{Some(remaining_capacity)},"budget_mode":budget::mode(),"training_cell_limit":training_limit,"work_limit":if deterministic {Some(budget::capacity(m, scaled(2 * REFERENCE_DRAWS, fraction)))}else{None},"reserved_work":if deterministic {Some(reserved_final_work + if budget::modeled() {training_work_units} else {0})}else{None},"setup_pilot_work":training_work_units,"reference_draw_cost":budget::reference_cost(m),"work":work,"batch_allocation":value("RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION"),"root_retry":value("RUST_ODDS_RARE_TAIL_RETRY"),"union_patterns":value("RUST_ODDS_RARE_TAIL_UNION_PATTERNS"),"extension":extension_mode,"effective_union_patterns":value("RUST_ODDS_RARE_TAIL_UNION_PATTERNS"),"effective_root_retry":if extension{"0".into()}else{value("RUST_ODDS_RARE_TAIL_RETRY")},"effective_batch_allocation":if extension{"0".into()}else{value("RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION")},"shared_guides":shared.as_ref().map(|s|s.describe())}),
     );
     (found, work)
 }
@@ -767,7 +930,18 @@ fn confirmation_fraction(value: &str) -> f64 {
         .unwrap_or(0.)
 }
 
+fn confirmation_priority(pilot: &Result, draws: usize, work: f64) -> f64 {
+    // Sparse second-moment estimates are noisy. Smooth pilot hit reliability
+    // using the existing 30-hit publication requirement, without changing it.
+    let reliability = pilot.hits as f64 / (pilot.hits as f64 + 30.);
+    let expected_ess = draws as f64 / pilot.samples.max(1) as f64 * pilot.ess;
+    work / (expected_ess * reliability).max(0.1)
+}
+
 fn confirmation_batches(pilot: &Result) -> Option<usize> {
+    confirmation_batches_limit(pilot, 30000)
+}
+fn confirmation_batches_limit(pilot: &Result, maximum: usize) -> Option<usize> {
     if pilot.samples == 0 || pilot.hits == 0 || !pilot.ess.is_finite() || pilot.ess <= 0. {
         return None;
     }
@@ -776,7 +950,7 @@ fn confirmation_batches(pilot: &Result) -> Option<usize> {
     let n = (120. * pilot.samples as f64 / pilot.hits as f64)
         .max(32. * pilot.samples as f64 / pilot.ess)
         .ceil() as usize;
-    Some(n.clamp(2000, 30000))
+    Some(n.clamp(2000, maximum.clamp(2000, 100000)))
 }
 
 fn reserve_extension(
@@ -797,7 +971,7 @@ fn reserve_extension(
     (extra <= spare_ms).then_some((desired, desired_check, extra))
 }
 
-pub(crate) fn accepted(main: &Result, check: &Result, rough: bool) -> bool {
+pub fn accepted(main: &Result, check: &Result, rough: bool) -> bool {
     if !rough {
         return confirmed(main, check);
     }
@@ -823,6 +997,25 @@ fn publishable(r: &Result, rough: bool) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn confirmation_priority_accounts_for_sparse_pilot_uncertainty() {
+        let sparse = Result {
+            samples: 1000,
+            hits: 3,
+            ess: 1.96,
+            ..Default::default()
+        };
+        let supported = Result {
+            samples: 1000,
+            hits: 32,
+            ess: 1.32,
+            ..Default::default()
+        };
+        assert!(
+            confirmation_priority(&supported, 24000, 2. * 24000. * 8700.)
+                < confirmation_priority(&sparse, 30000, 2. * 30000. * 7000.)
+        );
+    }
     #[test]
     fn extension_preserves_existing_estimate_and_its_metadata() {
         let r = Result {
@@ -875,6 +1068,9 @@ mod tests {
         pilot.hits = 8;
         pilot.ess = 1.18;
         assert_eq!(confirmation_batches(&pilot), Some(27119));
+        pilot.ess = 0.5;
+        let larger = confirmation_batches_limit(&pilot, 100000).unwrap();
+        assert!(larger > 30000 && larger <= 100000);
         pilot.ess = f64::NAN;
         assert_eq!(confirmation_batches(&pilot), None);
         for invalid in ["", "0", "-1", "NaN", "inf", "2.1"] {
@@ -990,6 +1186,10 @@ mod tests {
             "RUST_ODDS_LAZY_CARDINALITY_CASES",
             "RUST_ODDS_POINT_TILT_FINAL",
             "RUST_ODDS_LAZY_PROPAGATE",
+            "RUST_ODDS_RARE_TAIL_RESIDUAL_LOOP",
+            "RUST_ODDS_RARE_TAIL_RESIDUAL_BOUND_GUIDE",
+            "RUST_ODDS_RARE_TAIL_RESIDUAL_MAX_SAMPLES",
+            "RUST_ODDS_RARE_TAIL_RESIDUAL_RIVALS",
         ] {
             assert_eq!(profile_default(flag), "");
         }

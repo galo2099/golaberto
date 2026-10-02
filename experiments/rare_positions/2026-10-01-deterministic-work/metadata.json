@@ -1,0 +1,17 @@
+{
+  "head": "7b36a823dce997a72a893960cac20b521f27f0c7",
+  "baseline_sha256": "61abf11d493efb61fb17cfe6c90ae9945bf31e7cc8e38d14c53694e0225eccd4",
+  "measured_candidate_sha256": "cfee52292a55c7f94f1afe5ce9fac4969c0b45464b34bc47839a23f5551696b2",
+  "final_candidate_sha256": "e130cfe57b94268793b86f2f849502f0d4b1901497bb0b8a5cad0451a67242c5",
+  "workers": 4,
+  "selected_flags": {},
+  "user_accepts_aggregate_latency_increase_percent": 2.3,
+  "tests_passed": 123,
+  "database_write_tests_ignored": 3,
+  "http_repeat_pairs": 14,
+  "http_repeat_byte_differences": 0,
+  "final_vs_measured_candidate_byte_differences_in_repeat_cases": 0,
+  "committed": false,
+  "pushed": false,
+  "notes": "Source patch is scoped code against HEAD, including pending R33-R36 Rust prerequisites; excludes unrelated Rails/DB/player ratings changes. Failed constructor work remains separately bounded, not fully metered."
+}

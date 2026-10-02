@@ -1,0 +1,12 @@
+{
+  "date": "2026-10-02",
+  "release_base": "7b36a823dce997a72a893960cac20b521f27f0c7",
+  "tests_passed": 119,
+  "database_write_tests_ignored": 2,
+  "release_binary_sha256": "d443420b555a524a453023b985f6bb3516d77adade93010ff565aa186b37f39e",
+  "fluminense_local_db_seed": 1790924698729174282,
+  "fluminense_probability_fraction": 5.252665895092511e-26,
+  "fluminense_independent_confirmation_passed": true,
+  "response_equals_previous_working_build": true,
+  "excluded": "Rails request builder, player-rating changes, residual-loop and late-gap stages"
+}

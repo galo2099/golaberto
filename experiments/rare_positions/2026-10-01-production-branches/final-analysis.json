@@ -1,0 +1,28 @@
+{
+  "pairs": 49,
+  "workers": 4,
+  "gained_cell_runs": 5,
+  "lost_cell_runs": 0,
+  "proof_regressions": 0,
+  "distinct_gained_cells": [
+    [
+      "group-16653-71d4fea8.json",
+      95,
+      3
+    ]
+  ],
+  "cpu_ms": {
+    "totals": {
+      "baseline": 62641.75099999998,
+      "candidate": 62965.552999999985
+    },
+    "change_percent": 0.5169108379489584
+  },
+  "http_ms": {
+    "totals": {
+      "baseline": 26376.664087,
+      "candidate": 26946.92841400001
+    },
+    "change_percent": 2.162003220418862
+  }
+}

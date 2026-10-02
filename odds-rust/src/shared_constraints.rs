@@ -530,11 +530,15 @@ impl Group {
         out: &mut [u8],
         rng: &mut Rng,
         replay: bool,
+        operations: &mut crate::rare_tail::budget::Operations,
     ) -> f64 {
         let Some(guides) = &self.guides else {
             return 1.;
         };
         let guide = &guides[member];
+
+        operations.guidance += (8 * self.events[member].games.len() + 4 * m.n) as u64;
+
         let cell = self.cells[member];
         let mut points = layout.base.clone();
         for g in &self.events[member].games {
@@ -556,6 +560,10 @@ impl Group {
         let mut other = vec![0.; needed + 1];
         let mut ratio = 1.;
         for (step, g) in guide.games.iter().enumerate() {
+            operations.fixtures += 1;
+
+            operations.guidance += (18 + (m.n.saturating_sub(3)) * (needed + 1)) as u64;
+
             other.fill(0.);
             other[0] = 1.;
             for (t, &p) in chances.iter().enumerate() {
@@ -668,6 +676,7 @@ impl Group {
             .collect();
         let mut prefix_hits = vec![0_usize; self.cells.len()];
         let mut sorted_seasons = 0;
+        let mut operations = crate::rare_tail::budget::Operations::default();
         let defense = if mixture { 0.1 } else { 1. };
         for draw in 0..n {
             let component = if rng.float() < defense {
@@ -675,9 +684,24 @@ impl Group {
             } else {
                 1 + (rng.float() * self.events.len() as f64) as usize
             };
+
+            operations.fixtures += m.fixtures.len() as u64;
+
+            operations.ranking += (2 * self.cells.len() * m.n) as u64;
+
+            operations.guidance += (8 * samplers[component].event.games.len()) as u64;
+
             samplers[component].sample(&mut rng, &mut out);
             if component > 0 && self.guides.is_some() {
-                self.guided_ratio(m, &layout, component - 1, &mut out, &mut rng, false);
+                self.guided_ratio(
+                    m,
+                    &layout,
+                    component - 1,
+                    &mut out,
+                    &mut rng,
+                    false,
+                    &mut operations,
+                );
             }
             points.copy_from_slice(&layout.base);
             for (i, f) in m.fixtures.iter().enumerate() {
@@ -713,6 +737,9 @@ impl Group {
             }
             if score_needed {
                 sorted_seasons += 1;
+
+                operations.rank(m);
+
                 campaign.copy_from_slice(&m.base);
                 for (i, f) in m.fixtures.iter().enumerate() {
                     let s = f.scores.sample(out[i] as usize, &mut rng);
@@ -729,7 +756,15 @@ impl Group {
                 if e.contains(&points) {
                     density += (1. - defense) / self.events.len() as f64 * self.common.mass
                         / e.mass
-                        * self.guided_ratio(m, &layout, member, &mut out, &mut rng, true);
+                        * self.guided_ratio(
+                            m,
+                            &layout,
+                            member,
+                            &mut out,
+                            &mut rng,
+                            true,
+                            &mut operations,
+                        );
                 }
             }
             let weight = 1. / density;
@@ -745,6 +780,9 @@ impl Group {
                     stats[i].3[usize::from(draw >= n / 2)] += weight;
                 }
             }
+        }
+        for r in &mut results {
+            r.operations = operations;
         }
         for (r, (sum, sum2, max, batches)) in results.iter_mut().zip(stats) {
             r.summarize(sum, sum2, max, batches);
@@ -765,6 +803,7 @@ pub fn run(
     log: Option<&RequestLog>,
     budget_ms: f64,
     rough: bool,
+    draw_budget: Option<usize>,
 ) -> (usize, u64) {
     let mode = crate::rare_tail::value("RUST_ODDS_SHARED_CONSTRAINTS");
     if !["mixture", "blocker", "guided"].contains(&mode.as_str()) {
@@ -793,8 +832,18 @@ pub fn run(
     let mixture = mode != "blocker";
     let concurrent =
         crate::rare_tail::value("RUST_ODDS_SHARED_CONSTRAINTS_CONFIRMATION") == "parallel";
-    let pilots = parallel(setup.groups.len().min(8), workers, |i| {
-        if start.elapsed().as_secs_f64() * 1000. > budget_ms * 0.6 {
+    let setup_work = crate::rare_tail::budget::setup_cost(setup.nodes, 0);
+    let pilot_limit = if crate::rare_tail::budget::modeled() {
+        draw_budget.unwrap_or(0).saturating_sub(setup_work)
+            / (750 * crate::rare_tail::budget::reference_cost(m))
+    } else {
+        draw_budget.unwrap_or(usize::MAX) / 750
+    };
+    let pilots = parallel(setup.groups.len().min(8).min(pilot_limit), workers, |i| {
+        if draw_budget.map_or_else(
+            || start.elapsed().as_secs_f64() * 1000. > budget_ms * 0.6,
+            |limit| (i + 1) * 750 > limit,
+        ) {
             return None;
         }
         let g = &setup.groups[i];
@@ -803,13 +852,15 @@ pub fn run(
             g.sample_diagnostic(m, 750, derive(seed, &format!("shared-pilot-{i}")), mixture);
         let ms = clock.elapsed().as_secs_f64() * 1000.;
         if let Some(l) = log {
-            l.event("rust_odds_shared_constraints_pilot", json!({"group_index":i,"proposal":g.describe(m),"sampling_ms":ms,"diagnostic":diagnostic,"cells":pilot.iter().map(|p|json!({"hits":p.hits,"ess":p.ess,"probability":p.probability})).collect::<Vec<_>>()}));
+            l.event("rust_odds_shared_constraints_pilot", json!({"group_index":i,"proposal":g.describe(m),"sampling_ms":ms,"cost_per_draw":crate::rare_tail::budget::per_draw(&pilot[0]),"diagnostic":diagnostic,"cells":pilot.iter().map(|p|json!({"hits":p.hits,"ess":p.ess,"probability":p.probability})).collect::<Vec<_>>()}));
         }
         Some((i, pilot, ms))
     });
     let mut work = 0;
+    let mut pilot_units = 0;
     let mut candidates = Vec::new();
     for (i, pilot, ms) in pilots.into_iter().flatten() {
+        pilot_units += pilot[0].operations.units();
         work += pilot[0].work;
         let useful: Vec<_> = pilot
             .iter()
@@ -829,17 +880,38 @@ pub fn run(
             .unwrap()
             .clamp(1000, 5000);
         let check = (n / 2).max(1000);
-        let cost = 1.2 * ms / 750. * if concurrent { n } else { n + check } as f64;
+        let cost = if draw_budget.is_some() {
+            ((n + check) * crate::rare_tail::budget::draw_cost(&pilot[0])) as f64
+        } else {
+            1.2 * ms / 750. * if concurrent { n } else { n + check } as f64
+        };
         candidates.push((i, n, check, cost, useful.len() as f64 / cost.max(0.01)));
     }
-    candidates.sort_by(|a, b| b.4.total_cmp(&a.4));
-    let remaining = (budget_ms - start.elapsed().as_secs_f64() * 1000.).max(0.);
-    let mut bins = vec![0_f64; workers.clamp(1, 4)];
+    candidates.sort_by(|a, b| b.4.total_cmp(&a.4).then(a.0.cmp(&b.0)));
+    let pilot_draws = work / work_per_sample(m);
+    let remaining = draw_budget.map_or_else(
+        || (budget_ms - start.elapsed().as_secs_f64() * 1000.).max(0.),
+        |limit| {
+            limit.saturating_sub(if crate::rare_tail::budget::modeled() {
+                setup_work + pilot_units
+            } else {
+                pilot_draws as usize
+            }) as f64
+        },
+    );
+    let mut bins = vec![
+        0_f64;
+        if draw_budget.is_some() {
+            1
+        } else {
+            workers.clamp(1, 4)
+        }
+    ];
     candidates.retain(|p| {
         let bin = (0..bins.len())
             .min_by(|&a, &b| bins[a].total_cmp(&bins[b]))
             .unwrap();
-        if !concurrent {
+        if !concurrent || draw_budget.is_some() {
             if bins[bin] + p.3 <= remaining {
                 bins[bin] += p.3;
                 true
@@ -913,7 +985,7 @@ pub fn run(
         }
     }
     if let Some(l) = log {
-        l.event("rust_odds_shared_constraints_summary", json!({"mode":mode,"concurrent_confirmation":concurrent,"eligible":setup.eligible,"groups":setup.groups.len(),"setup_nodes":setup.nodes,"setup_ms":setup_ms,"funded":candidates.len(),"accepted":found,"budget_ms":budget_ms,"elapsed_ms":start.elapsed().as_secs_f64()*1000.,"work":work}));
+        l.event("rust_odds_shared_constraints_summary", json!({"mode":mode,"concurrent_confirmation":concurrent,"eligible":setup.eligible,"groups":setup.groups.len(),"setup_nodes":setup.nodes,"setup_ms":setup_ms,"funded":candidates.len(),"accepted":found,"budget_ms":if draw_budget.is_some() {None}else{Some(budget_ms)},"budget_mode":crate::rare_tail::budget::mode(),"work_limit":draw_budget,"reserved_work":draw_budget.map(|_|if crate::rare_tail::budget::modeled() {setup_work + pilot_units + bins[0] as usize} else {pilot_draws as usize + bins[0] as usize}),"setup_work":setup_work,"pilot_work_units":pilot_units,"elapsed_ms":start.elapsed().as_secs_f64()*1000.,"work":work}));
     }
     (found, work)
 }
@@ -1092,6 +1164,7 @@ mod tests {
                                 &mut out.to_vec(),
                                 &mut Rng::new(0),
                                 true,
+                                &mut crate::rare_tail::budget::Operations::default(),
                             );
                     }
                 }
