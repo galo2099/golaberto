@@ -9,7 +9,7 @@ publish = false
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
-mysql = { version = "26", default-features = false, features = ["minimal-rust"] }
+mysql = { version = "26", default-features = false, features = ["minimal-rust", "chrono", "buffer-pool"] }
 tiny_http = "0.12"
 smallvec = "1.10.0"
 player-ratings = { package = "golaberto-player-ratings", path = "../stats/core" }

@@ -459,6 +459,55 @@ calculation. Odds requests queue behind a player job; `/health` remains separate
 Player stage logs report `players.load`, `players.calculate`, `players.persist`.
 The Rails caller retains its 300-second read timeout.
 
+Player refreshes read independent inputs concurrently using at most four DB
+connections, decode native dates, and read each player position once. Every
+request still recalculates the complete ratings with one fresh UTC timestamp;
+all player totals are written so their date weights stay current. Appearance
+updates are omitted only when the newly computed offensive and defensive float
+bits both match the stored values. Edited match, player, or team-history data
+therefore changes the next calculation and is persisted.
+
+Writes use a connection-local MEMORY staging table holding at most 5,000 rows,
+then primary-key joins, replacing the large CASE expressions. The service DB
+account needs `CREATE TEMPORARY TABLES`; no persistent schema migration is needed.
+Both target tables still commit together. Staging cleanup uses DELETE and DROP
+TEMPORARY TABLE, which preserve the target transaction; TRUNCATE would commit
+it ([MySQL transaction rules](https://dev.mysql.com/doc/refman/8.4/en/implicit-commit.html)).
+
+The [player performance measurements](../experiments/player_ratings/2026-10-02-performance.json)
+show **92.8% lower median HTTP latency for a routine refresh**: 33.25 seconds to
+2.39 seconds, recalculating 41,111 players and 821,930 appearances. Three timed
+requests per implementation alternated order after warmups on the same
+disposable copy of application data, with normal InnoDB destination tables.
+The application database was only read. A separate fixed-clock replay where
+almost all stored appearances needed changes improved by 78.4%; the 90% result
+is for routine refreshes, not every possible full rewrite. All 823,217 raw
+appearance outputs and 41,124 player outputs matched the frozen baseline bits.
+
+Reproduce the isolated HTTP comparison with an original service binary and the
+new release build (requires local mysql CLI access as root):
+
+```sh
+python3 script/performance/benchmark_player_ratings.py \
+  --baseline /tmp/golaberto-player-before \
+  --candidate odds-rust/target/release/golaberto-odds \
+  --iterations 3 --output /tmp/player-http.json
+```
+
+The benchmark creates a uniquely named disposable schema, copies eligible
+source data, warms the ratings, alternates HTTP requests, and drops its schema.
+Use `--source-database NAME` to choose the read-only source. The fixed-clock
+stage replay below writes only connection-local temporary destinations and
+checks every stored float. `stored` copies the source's current ratings;
+`empty` forces every appearance to update; `unchanged` models already-rated
+history. Keep derived data exports and detailed logs outside the repository.
+
+```sh
+cargo run --release --locked --manifest-path odds-rust/Cargo.toml \
+  --example player_ratings_benchmark -- /tmp/player-stages.json \
+  1790812800 3 stored
+```
+
 For a read-only check on application data:
 
 ```sh

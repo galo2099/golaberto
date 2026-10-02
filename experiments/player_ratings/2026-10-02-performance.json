@@ -1,0 +1,121 @@
+{
+  "workload": "routine refresh with already-rated history, actual HTTP requests and normal InnoDB destination tables",
+  "source_database_writes": 0,
+  "copied_rows": {
+    "championships": 114,
+    "phases": 342,
+    "games": 27236,
+    "goals": 72362,
+    "players": 90806,
+    "player_games": 834390,
+    "historical_ratings": 1340491
+  },
+  "iterations": 3,
+  "initial_baseline_refresh_ms": 41972.102999999996,
+  "warmup_ms": {
+    "baseline": 35341.711625,
+    "candidate": 2530.592666000004
+  },
+  "timings_ms": {
+    "baseline": [
+      34409.535125,
+      33142.236666000004,
+      33254.04470800001
+    ],
+    "candidate": [
+      2387.317875000008,
+      2328.6297500000046,
+      4116.055125000003
+    ]
+  },
+  "median_ms": {
+    "baseline": 33254.04470800001,
+    "candidate": 2387.317875000008
+  },
+  "latency_reduction_percent": 92.8209699121933,
+  "disposable_schema_cleaned": true,
+  "date": "2026-10-02",
+  "baseline_revision": "7b36a823dce997a72a893960cac20b521f27f0c7",
+  "calculated_players": 41111,
+  "calculated_appearances": 821930,
+  "cold_refresh_temporary_table_replay": {
+    "workload": "local stored values differ in 822930 of 823217 recalculated appearances",
+    "baseline_observations": [
+      {
+        "appearances": 823217,
+        "calculate_ms": 459.117709,
+        "games": 27278,
+        "iteration": 0,
+        "load_ms": 4860.285417,
+        "persist_ms": 29435.000417000003,
+        "players": 41124,
+        "stored_float_bits_match": true,
+        "total_ms": 34754.403543,
+        "written_appearances": 823217
+      },
+      {
+        "appearances": 823217,
+        "calculate_ms": 470.062667,
+        "games": 27278,
+        "iteration": 1,
+        "load_ms": 5355.157209,
+        "persist_ms": 30866.556291999997,
+        "players": 41124,
+        "stored_float_bits_match": true,
+        "total_ms": 36691.776168,
+        "written_appearances": 823217
+      },
+      {
+        "appearances": 823217,
+        "calculate_ms": 501.11020900000005,
+        "games": 27278,
+        "iteration": 2,
+        "load_ms": 5631.614584,
+        "persist_ms": 30753.789333,
+        "players": 41124,
+        "stored_float_bits_match": true,
+        "total_ms": 36886.514126,
+        "written_appearances": 823217
+      }
+    ],
+    "candidate_observations": [
+      {
+        "appearances": 823217,
+        "calculate_ms": 489.18058399999995,
+        "games": 27278,
+        "iteration": 0,
+        "load_ms": 2411.706,
+        "persist_ms": 5026.581666,
+        "players": 41124,
+        "stored_float_bits_match": true,
+        "total_ms": 7927.46825,
+        "written_appearances": 822930
+      }
+    ],
+    "baseline_median_ms": 36691.776168,
+    "candidate_ms": 7927.46825,
+    "latency_reduction_percent": 78.3944276403992,
+    "warning": "separate fixed-clock temporary-table replay, not an HTTP cold-refresh measurement"
+  },
+  "fixed_clock_parity": {
+    "now": 1790812800,
+    "players": 41124,
+    "appearances": 823217,
+    "all_raw_float_bits_match": true,
+    "sha256": "0476d3c698065c6be5966daa428b86bab7f35a0be7ea73d33511f8b2e2479c66",
+    "source_database_writes": 0
+  },
+  "verification": {
+    "player_tests": 5,
+    "ratings_tests": 4,
+    "http_tests": 2,
+    "history_database_tests": 1,
+    "core_tests": 7,
+    "http_smoke": "passed",
+    "compile_check": "passed",
+    "changed_rust_files_format_check": "passed",
+    "full_suite": "passed: 125 tests; four database tests ignored by default and separately passed",
+    "standalone_stats_check": "passed",
+    "clock_advance": "passed: advancing 30 days changes player totals and retains all players for persistence"
+  }
+}
