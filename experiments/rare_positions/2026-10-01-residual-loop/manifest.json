@@ -1,0 +1,21 @@
+{
+  "archive": "evidence.tar.gz",
+  "archive_sha256": "98429d22ebf7aa3433da6d0b6e57c46ccdf6a856b047a56306d7cd062e65aa3b",
+  "files": {
+    "final-analysis.json": "edda5d72df1ceca2f36192fe62a43e7c5e425ef8c9ff18a6bf89222a0cac58c3",
+    "fresh-requests.tar.gz": "d6b454f312a5f315ad77493ca783d9c2f9fc68d39e924daf17c753901f70268f",
+    "fresh-summary.json.gz": "7e53bf048e1b3037e9f331c676c2a0effc4b968016d5a1959ca25f63fb80e006",
+    "manifest.json": "d1c17d8005321cb0c568a53540e1adf0c9c673c4c9814f2c905c53fcbe3cf158",
+    "source.patch": "f38c2abe355d84d65c45ed85865f70a215b30b38e2b7941e77338cbf084c62ee",
+    "v1-requests.tar.gz": "38d4d53dc88bd90b657db8d22e7990838e5b90450a458465fb9f7cc060c0c865",
+    "v1-summary.json.gz": "1914b6d0404582ad273865f3ee37f52f67fbe69e315456b1445d2915c8dbb269",
+    "v2-requests.tar.gz": "5224c5726f84212e732483adf349377fe0b038b515c2a5c77e23f2186ff8ae0b",
+    "v2-summary.json.gz": "fa26adc04be8a3cff3deaf3b8874c04ac65a2bb6478f12cf6a876cf74ef0708b",
+    "v3-requests.tar.gz": "7131c9cf7f326737bc552e31303e0c50f2a0807b65216300d0b864c8bc9409a6",
+    "v3-summary.json.gz": "ddd65b772f780a2e75da014e97fc806b23ad09b66ff77d0c81d263b30fcdafe6",
+    "v4-requests.tar.gz": "48397da05f588b64e1595da356c614eadcad762b977cb8e132116fc27b6a3bbb",
+    "v4-summary.json.gz": "a1db92aed8fc65f476f417b0dcdfb9f6b2e8898c268d17a1862599cd8831445d",
+    "v5-requests.tar.gz": "590972b6e0cae96b40088ea03891dbb5632b029a15d40fa9a6e424da102de7a0",
+    "v5-summary.json.gz": "200409667fb7a60d72d8b5daa0fc8b0b399850adf96039a22e62d20d4b5bb872"
+  }
+}

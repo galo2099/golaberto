@@ -1462,6 +1462,103 @@ four-core cap and acceptance gates are retained.
 Final no-flag release check across all7 snapshots,seed808:4 gained cell-runs,
 0 losses or proof regressions; Londrina/4 accepted. Archived as `default-check`.
 
+## R33 — Residual-difficulty conditioning loop
+
+Status: discarded from active code on 2026-10-02; historical evidence committed.
+Historical baseline Rust2290fe04, four workers. Five variants ×9 paired requests, plus14 fresh
+validation pairs across all7 snapshots:59 total pairs. Final adaptive variant's
+23 pairs gained4 cell-runs across3 distinct cells, lost0; reachable-zero
+cell-runs30→26. All rescued cells were already found by baseline in other seeds;
+Londrina/3 remained zero5/5. No new proofs or resolved undecideds.
+
+- Small necessary-event screens handle shared fixtures exactly. Londrina's
+  conditional bound falls4.39e-8→1.98e-11→1.92e-14 as3/4/5 rivals are included.
+  These bounds motivate search and are not estimates or guided hit rates.
+- Four-rival, widths3–6 loop:1 gain,0 losses,+3.73% CPU,+10.74% wall (9 pairs).
+- Six-rival block:0 gains,+5.23% CPU,+9.83% wall; selected-team constraints fail
+  to account jointly for the points their opponents receive.
+- Expanded cases:1 gain,+14.07% CPU,+18.95% wall. Interval guidance alone:0 gains,
+  +7.57% CPU,+10.50% wall. Each uses its own9-pair baseline cohort.
+- Adaptive guidance with batches up to100k: final23 pairs,+18.42% CPU,+34.81%
+  wall;16498 mean1031→1919ms, current16653993→1142ms. Added stage has a soft
+  admission deadline and can overrun it. No reallocation variant was tested.
+- Londrina had68/68 main/check hits at seed1669, but check ESS1.67 and estimate
+  ratio5.93; rejected. More matching seasons still do not imply stable weights.
+
+The residual-loop runtime flag and implementation were removed on 2026-10-02.
+The historical candidate remains reproducible from the archived source patch;
+production defaults/gates remain unchanged.102 historical Rust tests passed,
+2 DB-write tests ignored. Report:`2026-10-01-rust-residual-conditioning-loop.md`;
+artifacts:`2026-10-01-residual-loop/`. Next: instrument joint-draw recipient
+constraint failures, test guidance for selected rivals plus opponents, and learn
+case allocations from weighted training contributions. Replace existing work
+before adding another production stage.
+
+## R34 — Complete exception-branch stratification
+
+Status: committed as offline diagnostics/evidence on 2026-10-02; successful
+mechanism already integrated by R36. Confirmed Londrina/3's three
+surviving exception cases: Fortaleza, Novorizontino and Atlético-GO. Three-case
+equal sampling accepted2/11 seeds. Generic complete refinement of one tightly
+capped rival gives22 subbranches; pilot-guided allocation/adaptive guidance at30k
+draws per main/check batch accepted7/11 (4/5 development,3/6 fresh). Accepted
+fractions1.67e-34–7.92e-34. Refined misses the two plain successes:7 gains,2 losses
+relative to plain across these paired cell-runs. Do not replace accepted values.
+
+- Eleven development arms ×5 seeds, plus two arms ×6 fresh seeds. Four workers;
+  complete supported target paths/exception masks, original P/Q weighting,
+  production sorter and unchanged acceptance gates. Pilots excluded from final.
+- Refined adaptive30: stage wall~22.4ms plus7.7–12.5ms setup and~1ms model. CPU
+  49.03ms/seed development,46.27ms/seed fresh (startup/setup amortized). Fresh
+  comparison with plain:+36.9% stage wall,+21.3% CPU. Offline single-cell costs;
+  full-request and other-group effects not measured. R32/R33 previously leave
+  this cell zero5/5 development seeds; no new full-request baseline cohort here.
+- Most constrained Atlético-GO branch contributes around e-40 in observed
+  samples. Novorizontino branch usually dominates and retains wide weights.
+  Increasing all batches to100k did not reliably improve acceptance.
+- All60 library tests passed after the final guard, including four new complete
+  enumeration/weighting/numerical tests. No database writes; the original run
+made no commit/push. Offline evidence is now committed.
+
+Report:`2026-10-01-rust-branch-stratification.md`;
+artifacts:`2026-10-01-branch-stratification/`. Historical next step: opt-in full-request integration
+that preserves earlier accepted estimates and refines remaining weak zeros;
+reallocate existing tail work and test all7 snapshots with paired seeds. An
+empirical plain+refined union covers9/11 here, but that portfolio is not yet a
+measured or validated production configuration in that original cohort. R36
+subsequently measured and integrated the successful mechanism.
+
+## R35 — Fixed priors, joint upper bounds and branch ordering
+
+Status: committed as offline diagnostics/evidence on 2026-10-02. Cheap ordering
+is already integrated by R36; strong bounding and omission remain offline.
+Audited all22 Londrina/3 branches. Fixed priors permit
+skipping one negligible branch; existing joint normalizer tightens its bound to
+3.854e-43. Six-rival necessary-event bounds permit skipping all3 Atlético-GO
+subbranches, total omitted probability≤3.851e-36, below1% of a4e-34 reference.
+Relative omission is against an estimate, not a proven true-probability floor.
+Keep an explicit summed omitted-mass bound; skipped branches are not impossible.
+
+- Eleven identical seeds ×3 repeats ×4 arms,132 cold single-cell runs, four
+  workers. Same7/11 accepted seeds in every arm/repeat. Retained branch RNG and
+  draw counts preserved; no reallocation. Ordering-only estimates bit-identical.
+- Cheap bound omission: CPU61.18→59.64ms(−2.53%); complete offline cell wall
+  31.78→31.07ms(−2.23%). Bound setup~0.013ms. Saved316 draws per final batch.
+- Strong bounds: CPU67.26ms(+9.93%), complete cell wall39.09ms(+22.99%);
+  bounds setup~7.53ms. Saved948 draws per final batch. Reject extra bounding
+  as a speed optimization here. Amortizing setup across11 seeds reverses the
+  apparent benefit; production cannot assume such reuse.
+- Read-2/Holder diagnostic bounds improved0/22 over six-rival bounds. Remaining19
+  branches cannot safely be omitted merely because pilots saw no hits.
+- All61 library tests passed; exhaustive small-fixture branch bounds and underflow
+  checks included. Final release smoke preserves bounds and accepted seed808.
+
+Report:`2026-10-01-rust-branch-bounds.md`; artifacts:`2026-10-01-branch-bounds/`.
+Recommend cheap existing bounds plus pilot allocation; use stronger bounds if
+already paid for by another stage. Further integration must preserve estimates,
+freeze any training-based retained union before final draws, carry omitted mass,
+and measure full-request/all-group behavior. No production bound-omission
+enablement; offline records/tools are now committed.
 
 ## R36 — Production-path complete-branch refinement
 
@@ -1600,3 +1697,40 @@ Status: focused offline success; expanded limits rejected for production budget.
 
 Report: `experiments/rare_positions/2026-10-02-rust-flamengo-13.md`.
 Artifacts: `experiments/rare_positions/2026-10-02-flamengo-13/`.
+
+
+## R40 — Resolve all remaining local experiments
+
+Status: completed on 2026-10-02 under the user's authorization to commit or
+discard each experiment. No new production method/default was enabled.
+
+| Experiment | Final decision | Evidence |
+|---|---|---|
+| R33 residual loop, all five variants | Discard active implementation and runtime flag; commit negative record and archived patch | +34.81% full wall, +18.42% CPU, no newly discovered distinct cell across baseline seeds; Londrina3 still zero |
+| Later gap rescue, both moved/pilot variants | Discard active implementation and flag; commit negative record | No previously missing gap estimate from either rescuer; four lost cell-runs per arm |
+| High-ESS shorter point-tilt confirmations | Discard active implementation and flag | Nine-pair historical screen: no aggregate coverage improvement, worst full wall +56.2%; no validated benefit over retained policy |
+| R34 complete exception branches | Commit offline drivers/evidence; retain already shipped production implementation | 7/11 accepted seeds offline; R36 later gains Londrina3 without replacing positives |
+| R35 bounds and ordering | Commit offline bound audit/driver/evidence; retain shipped cheap ordering | Cheap omission −2.53% single-cell CPU; strong bounds +9.93% CPU. No omitted mass enabled in production |
+| Original rare50 development arms | Commit missing generator/evidence; retain selected mechanisms already shipped; discard rejected/deferred variants as active work | Historical report gives each arm's coverage/cost decision; superseded by later defaults |
+| R38/R39 unpacked raw evidence | Remove duplicates already committed in archives after byte verification | No missing evidence or code; R39 enlarged sampler stays offline |
+
+Four modified Rust source files were restored to the released 31bc8b0a contents.
+The runtime README now records the discarded residual-loop status. The unreferenced residual source was removed. The new
+`branch_bounds` executable is an offline example only, not linked into server
+execution. Earlier production coverage, weights, gates, deterministic budgets
+and four-worker limits are preserved.
+
+All remaining untracked odds experiment files are committed, archived or
+verified duplicate copies removed. Every newly packed archive was read back and
+checked byte-for-byte before deleting unpacked originals; per-file SHA256 hashes
+are recorded in its manifest. No data measurements were rewritten as new runs.
+Unrelated local schema/scratch files remain untouched.
+
+Report: `experiments/rare_positions/2026-10-02-rust-experiment-decisions.md`.
+
+R40 final validation:135 Rust tests passed (126 full-suite,9 example tests),
+4 DB-dependent tests ignored. All production Rust sources match31bc8b0a;
+229 archived members and22 removed duplicates verified. Offline bounds audit
+retains19/22 branches with omitted mass≤4e-36. Python tools parse and historical
+residual summary reproduces23 pairs/4 gains/0 losses. Logs and validation:
+`experiments/rare_positions/2026-10-02-experiment-cleanup/`.

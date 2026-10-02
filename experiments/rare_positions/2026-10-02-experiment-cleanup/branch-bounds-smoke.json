@@ -1,0 +1,343 @@
+{
+  "bounds_ms": 335.79225,
+  "branches": [
+    {
+      "domain_prior": 3.867280367688823e-14,
+      "exceptions": [
+        2064
+      ],
+      "fixed_prior": 4.900007955898842e-10,
+      "forced_count": 17,
+      "index": 6,
+      "normalizer_upper": 9.673631714651208e-21,
+      "read_two_upper": 1.160450783141641e-19,
+      "secondary_team": 22,
+      "six_rival_upper": 3.032362388239947e-24,
+      "skipped": false,
+      "upper_bound": 3.0323623912723095e-24
+    },
+    {
+      "domain_prior": 8.379130792319992e-18,
+      "exceptions": [
+        2064
+      ],
+      "fixed_prior": 2.784791927727643e-14,
+      "forced_count": 24,
+      "index": 1,
+      "normalizer_upper": 7.597840660722598e-25,
+      "read_two_upper": 3.2273646850343603e-23,
+      "secondary_team": 22,
+      "six_rival_upper": 1.039725817690269e-27,
+      "skipped": false,
+      "upper_bound": 1.039725818729995e-27
+    },
+    {
+      "domain_prior": 2.6281683228025765e-19,
+      "exceptions": [
+        22
+      ],
+      "fixed_prior": 7.950685627018229e-14,
+      "forced_count": 23,
+      "index": 12,
+      "normalizer_upper": 5.114358984960019e-25,
+      "read_two_upper": 6.400370475284363e-24,
+      "secondary_team": 2064,
+      "six_rival_upper": 6.958746241494463e-28,
+      "skipped": false,
+      "upper_bound": 6.95874624845321e-28
+    },
+    {
+      "domain_prior": 3.614137111067538e-19,
+      "exceptions": [
+        22
+      ],
+      "fixed_prior": 1.932246876969756e-13,
+      "forced_count": 23,
+      "index": 16,
+      "normalizer_upper": 1.2148837466988486e-24,
+      "read_two_upper": 1.0056974283219484e-23,
+      "secondary_team": 2064,
+      "six_rival_upper": 6.358387863861999e-28,
+      "skipped": false,
+      "upper_bound": 6.358387870220387e-28
+    },
+    {
+      "domain_prior": 4.364074646316735e-19,
+      "exceptions": [
+        2064
+      ],
+      "fixed_prior": 4.2573154952294465e-14,
+      "forced_count": 24,
+      "index": 7,
+      "normalizer_upper": 3.220311516712864e-25,
+      "read_two_upper": 3.54232249084207e-24,
+      "secondary_team": 22,
+      "six_rival_upper": 5.837394435263451e-28,
+      "skipped": false,
+      "upper_bound": 5.837394441100846e-28
+    },
+    {
+      "domain_prior": 2.6505196940440288e-20,
+      "exceptions": [
+        2064
+      ],
+      "fixed_prior": 4.165404417048948e-14,
+      "forced_count": 24,
+      "index": 9,
+      "normalizer_upper": 1.13137955411694e-26,
+      "read_two_upper": 2.618575974341889e-25,
+      "secondary_team": 22,
+      "six_rival_upper": 6.719751933027001e-29,
+      "skipped": false,
+      "upper_bound": 6.719751939746754e-29
+    },
+    {
+      "domain_prior": 3.4975632153210934e-20,
+      "exceptions": [
+        2064
+      ],
+      "fixed_prior": 5.4965693327024905e-14,
+      "forced_count": 24,
+      "index": 2,
+      "normalizer_upper": 1.4929417502302305e-26,
+      "read_two_upper": 2.0481215566062044e-25,
+      "secondary_team": 22,
+      "six_rival_upper": 5.507412745014627e-29,
+      "skipped": false,
+      "upper_bound": 5.50741275052204e-29
+    },
+    {
+      "domain_prior": 2.7402835612289216e-20,
+      "exceptions": [
+        2064
+      ],
+      "fixed_prior": 4.306472151691154e-14,
+      "forced_count": 24,
+      "index": 5,
+      "normalizer_upper": 1.1696954376999456e-26,
+      "read_two_upper": 1.6046697335966016e-25,
+      "secondary_team": 22,
+      "six_rival_upper": 4.314967787846181e-29,
+      "skipped": false,
+      "upper_bound": 4.314967792161149e-29
+    },
+    {
+      "domain_prior": 2.7322235086613655e-20,
+      "exceptions": [
+        2064
+      ],
+      "fixed_prior": 4.293805436313793e-14,
+      "forced_count": 24,
+      "index": 8,
+      "normalizer_upper": 1.166254988379561e-26,
+      "read_two_upper": 2.11820162488407e-25,
+      "secondary_team": 22,
+      "six_rival_upper": 4.3022760840789427e-29,
+      "skipped": false,
+      "upper_bound": 4.3022760883812193e-29
+    },
+    {
+      "domain_prior": 2.4282858560416678e-20,
+      "exceptions": [
+        2064
+      ],
+      "fixed_prior": 3.816154489756236e-14,
+      "forced_count": 24,
+      "index": 0,
+      "normalizer_upper": 1.0365186024651571e-26,
+      "read_two_upper": 1.4219684680965245e-25,
+      "secondary_team": 22,
+      "six_rival_upper": 3.8236828468230775e-29,
+      "skipped": false,
+      "upper_bound": 3.823682850646761e-29
+    },
+    {
+      "domain_prior": 2.2964193634581827e-20,
+      "exceptions": [
+        2064
+      ],
+      "fixed_prior": 3.608920688814375e-14,
+      "forced_count": 24,
+      "index": 4,
+      "normalizer_upper": 9.802311302696797e-27,
+      "read_two_upper": 1.344749390290809e-25,
+      "secondary_team": 22,
+      "six_rival_upper": 3.616040223320706e-29,
+      "skipped": false,
+      "upper_bound": 3.6160402269367466e-29
+    },
+    {
+      "domain_prior": 1.4059932933373805e-20,
+      "exceptions": [
+        2064
+      ],
+      "fixed_prior": 2.2095782527362096e-14,
+      "forced_count": 24,
+      "index": 3,
+      "normalizer_upper": 6.001510076993332e-27,
+      "read_two_upper": 8.233289851384927e-26,
+      "secondary_team": 22,
+      "six_rival_upper": 2.2139372204086092e-29,
+      "skipped": false,
+      "upper_bound": 2.2139372226225467e-29
+    },
+    {
+      "domain_prior": 1.2967696580837503e-22,
+      "exceptions": [
+        22
+      ],
+      "fixed_prior": 5.221440507237941e-18,
+      "forced_count": 31,
+      "index": 18,
+      "normalizer_upper": 3.232932725806414e-28,
+      "read_two_upper": 4.694675416458894e-27,
+      "secondary_team": 2064,
+      "six_rival_upper": 1.7496927867362826e-30,
+      "skipped": false,
+      "upper_bound": 1.7496927884859754e-30
+    },
+    {
+      "domain_prior": 6.1677059190950125e-21,
+      "exceptions": [
+        22
+      ],
+      "fixed_prior": 1.1031475735619641e-17,
+      "forced_count": 30,
+      "index": 13,
+      "normalizer_upper": 1.3373017670609018e-27,
+      "read_two_upper": 8.360316340560495e-26,
+      "secondary_team": 2064,
+      "six_rival_upper": 1.1989888937821116e-30,
+      "skipped": false,
+      "upper_bound": 1.1989888949811006e-30
+    },
+    {
+      "domain_prior": 2.5075331972368677e-22,
+      "exceptions": [
+        22
+      ],
+      "fixed_prior": 1.0096577543805286e-17,
+      "forced_count": 31,
+      "index": 17,
+      "normalizer_upper": 5.597495836631262e-29,
+      "read_two_upper": 2.4308845516103932e-27,
+      "secondary_team": 2064,
+      "six_rival_upper": 3.980696371583607e-31,
+      "skipped": false,
+      "upper_bound": 3.980696375564304e-31
+    },
+    {
+      "domain_prior": 9.293952951965551e-23,
+      "exceptions": [
+        22
+      ],
+      "fixed_prior": 3.742208349281294e-18,
+      "forced_count": 31,
+      "index": 15,
+      "normalizer_upper": 2.07466298000759e-29,
+      "read_two_upper": 9.009861436419788e-28,
+      "secondary_team": 2064,
+      "six_rival_upper": 1.475410368816874e-31,
+      "skipped": false,
+      "upper_bound": 1.4754103702922846e-31
+    },
+    {
+      "domain_prior": 8.522076551422727e-23,
+      "exceptions": [
+        22
+      ],
+      "fixed_prior": 3.431412466662406e-18,
+      "forced_count": 31,
+      "index": 14,
+      "normalizer_upper": 1.9023591818687115e-29,
+      "read_two_upper": 8.261579252199939e-28,
+      "secondary_team": 2064,
+      "six_rival_upper": 1.3528753774421782e-31,
+      "skipped": false,
+      "upper_bound": 1.3528753787950537e-31
+    },
+    {
+      "domain_prior": 7.26147064397165e-23,
+      "exceptions": [
+        22
+      ],
+      "fixed_prior": 2.9238297431002997e-18,
+      "forced_count": 31,
+      "index": 11,
+      "normalizer_upper": 1.6209576703606808e-29,
+      "read_two_upper": 7.0395067271109895e-28,
+      "secondary_team": 2064,
+      "six_rival_upper": 1.152754822016752e-31,
+      "skipped": false,
+      "upper_bound": 1.152754823169507e-31
+    },
+    {
+      "domain_prior": 7.252907133993037e-23,
+      "exceptions": [
+        22
+      ],
+      "fixed_prior": 2.920381647472234e-18,
+      "forced_count": 31,
+      "index": 10,
+      "normalizer_upper": 1.6190460621113838e-29,
+      "read_two_upper": 8.63469967141978e-28,
+      "secondary_team": 2064,
+      "six_rival_upper": 1.1513953691035285e-31,
+      "skipped": false,
+      "upper_bound": 1.151395370254924e-31
+    },
+    {
+      "domain_prior": 7.758352051260772e-27,
+      "exceptions": [
+        279
+      ],
+      "fixed_prior": 7.153431927379212e-22,
+      "forced_count": 37,
+      "index": 19,
+      "normalizer_upper": 1.0541693527567231e-32,
+      "read_two_upper": 1.851539280374778e-31,
+      "secondary_team": 77,
+      "six_rival_upper": 3.723311099659264e-36,
+      "skipped": true,
+      "upper_bound": 3.7233111033825755e-36
+    },
+    {
+      "domain_prior": 2.8795428881571634e-27,
+      "exceptions": [
+        279
+      ],
+      "fixed_prior": 1.1903759132553948e-21,
+      "forced_count": 37,
+      "index": 20,
+      "normalizer_upper": 9.972428253037647e-34,
+      "read_two_upper": 8.640209327113068e-32,
+      "secondary_team": 77,
+      "six_rival_upper": 1.2763751106651521e-37,
+      "skipped": true,
+      "upper_bound": 1.2763751119415274e-37
+    },
+    {
+      "domain_prior": 1.66854397985703e-41,
+      "exceptions": [
+        279
+      ],
+      "fixed_prior": 6.318365454906617e-39,
+      "forced_count": 68,
+      "index": 21,
+      "normalizer_upper": 3.85411143497975e-43,
+      "read_two_upper": 2.5043071546194104e-42,
+      "secondary_team": 77,
+      "six_rival_upper": 3.430716147002886e-43,
+      "skipped": true,
+      "upper_bound": 3.4307161504336022e-43
+    }
+  ],
+  "model_ms": 9.903125000000001,
+  "omitted_upper": 3.8509489576483436e-36,
+  "reference_probability": 4e-34,
+  "relative_tolerance": 0.01,
+  "retained": 19,
+  "setup_ms": 273.676291,
+  "skipped": 3,
+  "workers_max": 4
+}

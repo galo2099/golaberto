@@ -821,7 +821,9 @@ results are returned in stable admission order.
 Complete branches retain the original 30,000-draw allocation and streams first.
 On failure, spare modeled work may fund a fresh, independent retry of up to
 90,000 draws for a cheap proposal. Every supported branch retains a positive
-allocation. Earlier positive estimates are preserved. The unmerged residual-loop experiment remains separate from this release.
+allocation. Earlier positive estimates are preserved. The residual-loop
+experiment was discarded from active code; its results and source patch are
+retained in the experiment archives.
 
 Summary logs include `budget_mode`, `work_limit`, `reserved_work`, setup/pilot
 work, and proposal draw costs. Historical `work` retains its nominal season

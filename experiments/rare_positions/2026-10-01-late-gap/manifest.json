@@ -1,0 +1,10 @@
+{
+  "archive": "evidence.tar.gz",
+  "archive_sha256": "d2ed8be33e334e6ca0eb9acd96a04fdc5e979e4cffbc841974545c4dc2374ceb",
+  "files": {
+    "cleanup-source.json": "b72b5de3f54ce061ff94dfdb399781a8bb52dbe989bd46a6a5bcfbcc666fd5b7",
+    "cleanup-source.patch": "d3c54314e86c53cb2358848f8cdb0fc9e9e0fe9b0c99f35a159260be70c03430",
+    "move.json": "a560f18cfd423179e9b7f119c4a5a3cb26d0a31a0c4fbed438483e028a14e6d7",
+    "pilot.json": "5fb541bf8a413ec0fd40144674f8f4ed8d399c922314d379e7d3cfe8708c9e64"
+  }
+}

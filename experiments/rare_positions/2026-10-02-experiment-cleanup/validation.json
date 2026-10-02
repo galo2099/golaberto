@@ -1,0 +1,48 @@
+{
+  "baseline_commit": "31bc8b0ab91a9ae7a5e9493806b2f9943890d500",
+  "tests": {
+    "tests": {
+      "passed": 126,
+      "failed": 0,
+      "ignored": 4
+    },
+    "examples": {
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0
+    }
+  },
+  "total_passed": 135,
+  "database_dependent_ignored": 4,
+  "production_source_matches_baseline": true,
+  "production_source_files_verified": 36,
+  "new_archives_verified": 5,
+  "archived_member_files_verified": 229,
+  "existing_duplicate_files_removed": 22,
+  "branch_audit": {
+    "group": 16653,
+    "team": 95,
+    "rank": 3,
+    "branches": 22,
+    "retained": 19,
+    "skipped": 3,
+    "omitted_upper": 3.8509489576483436e-36,
+    "production_omission_enabled": false
+  },
+  "commands": [
+    "cargo test --offline --locked -j4 --manifest-path odds-rust/Cargo.toml -- --test-threads=1",
+    "cargo test --offline --locked -j4 --manifest-path odds-rust/Cargo.toml --examples -- --test-threads=1",
+    "cargo run --offline --locked -j4 --manifest-path odds-rust/Cargo.toml --example branch_bounds -- experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16653-71d4fea8.json 95 3 4e-34 0.01 strong"
+  ],
+  "notes": [
+    "Final full test run permitted loopback HTTP listeners; the initial sandbox attempt denied socket binding.",
+    "Python tools parse successfully; residual summary reproduces the historical 23 pairs, four gains, zero losses.",
+    "No new performance benchmark: production code is byte-identical to the baseline.",
+    "No database mutations."
+  ],
+  "evidence_sha256": {
+    "examples.log.gz": "ffdc6f464a4fe894f82d3ffae24e879950031bd4602a55cde209a3903b441381",
+    "tests.log.gz": "d13ad5aed62ed8787828749a6a2b1e3bb9f564f0e1fdd3db57a1a843236da40e",
+    "branch-bounds-smoke.json": "826e077406367d999bd77a42e817afb3cbbbaee9df6fc8479066003a89a32f10"
+  }
+}
