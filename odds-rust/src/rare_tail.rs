@@ -702,6 +702,31 @@ pub fn run(
         }
     }
     let ordinary_final_phase_ms = final_start.elapsed().as_secs_f64() * 1000.;
+    // Fund newly certified complete proposals by transferring modeled units
+    // from additional confirmation. Existing ordinary results are frozen.
+    let (branch_transfer, early_branches) = if more_fraction > 0.
+        && budget::modeled()
+        && value("RUST_ODDS_RARE_TAIL_BRANCHES") == "1"
+        && crate::search::enabled("RUST_ODDS_CERTIFIED_TARGET_LIMITS")
+        && crate::search::enabled("RUST_ODDS_CERTIFIED_BRANCH_TRANSFER")
+    {
+        let (added, spent, reserved, handled) = branches::run(
+            m,
+            seed,
+            workers,
+            estimates,
+            log,
+            0.,
+            true,
+            &[],
+            Some(budget::capacity(m, budget::confirmation_limit(more_fraction))),
+        );
+        found += added;
+        work += spent;
+        (reserved, handled)
+    } else {
+        (0, Vec::new())
+    };
     // The additional allowance confirms already-built proposals only.
     // Ordinary results are frozen first; new independent streams can only fill zeros.
     if more_fraction > 0. && budget::modeled() {
@@ -724,6 +749,7 @@ pub fn run(
             rough,
             more_fraction,
             log,
+            branch_transfer,
         );
         found += added;
         work += extra_work;
@@ -887,7 +913,17 @@ pub fn run(
             unlogged_search_ms + start.elapsed().as_secs_f64() * 1000.,
             |l| l.calculation_elapsed_ms(),
         );
-        let (added, spent) = branches::run(m, seed, workers, estimates, log, elapsed);
+        let (added, spent, _, _) = branches::run(
+            m,
+            seed,
+            workers,
+            estimates,
+            log,
+            elapsed,
+            false,
+            &early_branches,
+            None,
+        );
         found += added;
         work += spent;
     }

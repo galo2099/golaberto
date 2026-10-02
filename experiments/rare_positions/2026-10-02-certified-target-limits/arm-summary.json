@@ -1,0 +1,66 @@
+[
+  {
+    "arm": "first",
+    "pairs": 21,
+    "gains": 0,
+    "losses": 0,
+    "wall_delta_percent": 3.1898909519717744,
+    "cpu_delta_percent": 3.0100285146451577
+  },
+  {
+    "arm": "parent",
+    "pairs": 3,
+    "gains": 2,
+    "losses": 0,
+    "wall_delta_percent": 15.557242740486199,
+    "cpu_delta_percent": 9.361487526722033
+  },
+  {
+    "arm": "early",
+    "pairs": 21,
+    "gains": 3,
+    "losses": 1,
+    "wall_delta_percent": 6.7137650409702765,
+    "cpu_delta_percent": 6.2474174400027005
+  },
+  {
+    "arm": "transfer",
+    "pairs": 21,
+    "gains": 2,
+    "losses": 0,
+    "wall_delta_percent": 3.330459860981061,
+    "cpu_delta_percent": -1.4581872094847292
+  },
+  {
+    "arm": "small",
+    "pairs": 3,
+    "gains": 1,
+    "losses": 0,
+    "wall_delta_percent": 5.8136497856488445,
+    "cpu_delta_percent": -1.399189352649044
+  },
+  {
+    "arm": "medium",
+    "pairs": 3,
+    "gains": 2,
+    "losses": 0,
+    "wall_delta_percent": 9.124144780657728,
+    "cpu_delta_percent": -1.8524634041152233
+  },
+  {
+    "arm": "warm",
+    "pairs": 56,
+    "gains": 8,
+    "losses": 0,
+    "wall_delta_percent": -1.7440674131690481,
+    "cpu_delta_percent": -1.8255343731947038
+  },
+  {
+    "arm": "heldout",
+    "pairs": 14,
+    "gains": 1,
+    "losses": 0,
+    "wall_delta_percent": 2.3959577320600056,
+    "cpu_delta_percent": 0.11072869386627993
+  }
+]

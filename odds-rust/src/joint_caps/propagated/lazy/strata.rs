@@ -13,6 +13,9 @@ pub struct BranchStrata {
     cell: Cell,
     strata: Vec<Stratum>,
     goals: Option<crate::goal_tilt::GoalTilt>,
+    setup_nodes: usize,
+    secondary_fallbacks: usize,
+    secondary_nodes: usize,
 }
 pub struct BranchSample {
     pub result: Result,
@@ -231,6 +234,17 @@ impl BranchStrata {
         rivals: usize,
         refine: bool,
     ) -> std::result::Result<Self, String> {
+        Self::with_secondary_quota(m, cell, seed, rivals, refine, 10000, 2000)
+    }
+    fn with_secondary_quota(
+        m: &Model,
+        cell: Cell,
+        seed: i64,
+        rivals: usize,
+        refine: bool,
+        secondary_quota: usize,
+        per_parent_quota: usize,
+    ) -> std::result::Result<Self, String> {
         let mut builder = LazyJoint::with_mode(m, cell, seed, &[], 0, false, false, None)
             .ok_or("unsupported model")?;
         builder.rival_limit = rivals.clamp(1, 6);
@@ -334,30 +348,13 @@ impl BranchStrata {
                             .copied()
                             .filter(|&t| mask & (1 << t) != 0)
                             .collect();
-                        let pieces = if refine {
-                            secondary(&mut builder, &key, &points, &ts, &d, above, mask, selected)?
-                        } else {
-                            None
-                        };
-                        if let Some((team, patterns)) = pieces {
-                            for pattern in patterns {
-                                strata.push(Stratum {
-                                    root: key.clone(),
-                                    exceptions: exceptions.clone(),
-                                    above,
-                                    secondary: Some(team),
-                                    pattern,
-                                });
-                            }
-                        } else {
-                            strata.push(Stratum {
-                                root: key.clone(),
-                                exceptions,
-                                above,
-                                secondary: None,
-                                pattern,
-                            });
-                        }
+                        strata.push(Stratum {
+                            root: key.clone(),
+                            exceptions,
+                            above,
+                            secondary: None,
+                            pattern,
+                        });
                     }
                     Ok(None) => {}
                     Err(()) => {
@@ -372,10 +369,97 @@ impl BranchStrata {
         if strata.is_empty() {
             return Err("no usable strata; not an impossibility proof".into());
         }
+        // Finish the entire primary union before optional refinement can spend
+        // its setup quota. A failed split must never erase an existing parent.
+        let mut secondary_fallbacks = 0;
+        let mut secondary_nodes = 0;
+        if refine {
+            let fallback = crate::search::enabled("RUST_ODDS_COMPLETE_PARENT_FALLBACK");
+            let mut refined = Vec::new();
+            for parent in &strata {
+                if fallback && secondary_nodes >= secondary_quota {
+                    secondary_fallbacks += 1;
+                    break;
+                }
+                let mut points = builder.base.clone();
+                for (g, &o) in builder.target.games.iter().zip(&parent.root) {
+                    points[g.home] += g.hg[o as usize];
+                    points[g.away] += g.ag[o as usize];
+                }
+                let rivals: Vec<_> = (0..m.n).filter(|&t| t != cell.team).collect();
+                let d = Domains::propagate(
+                    &builder.remaining,
+                    &points,
+                    &rivals,
+                    cell.rank,
+                    points[cell.team],
+                );
+                let mask = parent.exceptions.iter().fold(0, |v, &t| v | (1 << t));
+                let target = points[cell.team];
+                let selected = rivals
+                    .iter()
+                    .filter(|&&t| {
+                        points[t] + d.min[0][t] <= target && points[t] + d.max[0][t] >= target
+                    })
+                    .fold(0, |v, &t| v | (1 << t));
+                let limit = builder.node_limit;
+                let before = builder.nodes;
+                if fallback {
+                    builder.node_limit =
+                        limit.min(before + per_parent_quota.min(secondary_quota - secondary_nodes));
+                }
+                let split = secondary(
+                    &mut builder,
+                    &parent.root,
+                    &points,
+                    &rivals,
+                    &d,
+                    parent.above,
+                    mask,
+                    selected,
+                );
+                builder.node_limit = limit;
+                secondary_nodes += builder.nodes - before;
+                match split {
+                    Ok(Some((team, patterns))) => {
+                        for pattern in patterns {
+                            refined.push(Stratum {
+                                root: parent.root.clone(),
+                                exceptions: parent.exceptions.clone(),
+                                above: parent.above,
+                                secondary: Some(team),
+                                pattern,
+                            });
+                        }
+                    }
+                    Ok(None) => refined.push(Stratum {
+                        root: parent.root.clone(),
+                        exceptions: parent.exceptions.clone(),
+                        above: parent.above,
+                        secondary: None,
+                        pattern: parent.pattern.clone(),
+                    }),
+                    Err(reason) if !fallback => return Err(reason),
+                    Err(_) => {
+                        secondary_fallbacks += 1;
+                        break;
+                    }
+                }
+            }
+            // Keep the complete primary proposal if any optional split fails.
+            // Mixing only the successful children changes allocation across
+            // parents and can make an otherwise useful proposal less reliable.
+            if secondary_fallbacks == 0 {
+                strata = refined;
+            }
+        }
         Ok(Self {
             cell,
             strata,
             goals: builder.goals,
+            setup_nodes: builder.nodes,
+            secondary_fallbacks,
+            secondary_nodes,
         })
     }
     pub fn len(&self) -> usize {
@@ -383,6 +467,10 @@ impl BranchStrata {
     }
     pub fn is_empty(&self) -> bool {
         self.strata.is_empty()
+    }
+    pub fn setup_diagnostics(&self) -> serde_json::Value {
+        json!({"nodes":self.setup_nodes,"secondary_nodes":self.secondary_nodes,
+            "complete_parent_fallback":self.secondary_fallbacks>0})
     }
     /// Bounds under independent original fixture outcomes, not proposal Q.
     /// Six-rival setup is offline only. Failed setup leaves the existing bound.
@@ -514,7 +602,7 @@ impl BranchStrata {
     }
     pub(crate) fn setup_work(&self) -> usize {
         crate::rare_tail::budget::setup_cost(
-            self.strata.iter().map(|s| s.pattern.joint.states).sum(),
+            self.setup_nodes,
             self.strata
                 .iter()
                 .map(|s| {
@@ -531,7 +619,7 @@ impl BranchStrata {
         )
     }
     pub fn describe(&self, m: &Model) -> serde_json::Value {
-        json!({"team":m.ids[self.cell.team],"rank":self.cell.rank+1,"strata":self.strata.iter().map(|s|json!({
+        json!({"team":m.ids[self.cell.team],"rank":self.cell.rank+1,"setup_nodes":self.setup_nodes,"secondary_fallbacks":self.secondary_fallbacks,"secondary_nodes":self.secondary_nodes,"strata":self.strata.iter().map(|s|json!({
             "target_outcomes":s.root,"direction":if s.above{"above"}else{"below"},
             "secondary_team":s.secondary.map(|t|m.ids[t]),
             "exceptions":s.exceptions.iter().map(|&t|m.ids[t]).collect::<Vec<_>>(),
@@ -729,71 +817,79 @@ mod tests {
                 exact += mass;
             }
         }
-        let p = BranchStrata::with_secondary(&m, cell, 801, 4, true).unwrap();
-        assert!(p.strata.iter().any(|s| s.secondary.is_some()));
-        let bounds = p.bounds(&m, true);
-        let mut covered = 0.;
-        for (s, bound) in p.strata.iter().zip(&bounds) {
-            let pattern = &s.pattern;
-            let games: Vec<_> = pattern
-                .joint
-                .games
-                .iter()
-                .chain(&pattern.guide.games)
-                .collect();
-            let mut seen = std::collections::HashSet::new();
-            assert!(pattern.fixed.iter().all(|&(i, _)| seen.insert(i)));
-            let mut branch_mass = 0.;
-            for mut code in 0..81 {
-                let mut out = vec![0; 4];
-                let mut mass = 1.;
-                for (i, g) in m.fixtures.iter().enumerate() {
-                    let o = code % 3;
-                    code /= 3;
-                    out[i] = o as u8;
-                    mass *= g.prob[o];
-                }
-                if pattern.fixed.iter().any(|&(i, o)| out[i] != o)
-                    || games.iter().any(|g| g.prob[out[g.index] as usize] <= 0.)
-                    || canonical_ranks(&m, &out)[0] != cell.rank
-                {
-                    continue;
-                }
-                let mut totals = pattern.base.clone();
-                for g in &games {
-                    totals[g.home] += g.hg[out[g.index] as usize];
-                    totals[g.away] += g.ag[out[g.index] as usize];
-                }
-                if (0..m.n).all(|t| totals[t] >= pattern.lower[t] && totals[t] <= pattern.upper[t])
-                {
-                    branch_mass += mass;
-                }
+        for (quota, parent_quota) in [(0, 0), (10000, 0), (10000, 2000)] {
+            let p = BranchStrata::with_secondary_quota(&m, cell, 801, 4, true, quota, parent_quota)
+                .unwrap();
+            if parent_quota > 0 {
+                assert!(p.strata.iter().any(|s| s.secondary.is_some()));
+            } else {
+                assert!(p.secondary_fallbacks > 0);
             }
-            assert!(branch_mass <= bound.upper_bound + 1e-12);
-            assert!(bound.normalizer_upper <= bound.domain_prior * (1. + 1e-10));
-            assert!(bound.domain_prior <= bound.fixed_prior * (1. + 1e-10));
-            covered += branch_mass;
-        }
-        assert!((covered - exact).abs() < 1e-12);
-        for bounds in [false, true] {
-            let samples: Vec<_> = (0..p.len())
-                .map(|i| {
-                    p.sample(
-                        &m,
-                        i,
-                        10000 + i * 127,
-                        derive(808, &format!("secondary-test-{i}")),
-                        bounds,
-                        false,
-                    )
-                })
-                .collect();
-            let r = combine(&samples);
-            assert!(
-                (r.probability - exact).abs() < 6. * r.std_err + 1e-4,
-                "{} vs {exact}",
-                r.probability
-            );
+            let bounds = p.bounds(&m, true);
+            let mut covered = 0.;
+            for (s, bound) in p.strata.iter().zip(&bounds) {
+                let pattern = &s.pattern;
+                let games: Vec<_> = pattern
+                    .joint
+                    .games
+                    .iter()
+                    .chain(&pattern.guide.games)
+                    .collect();
+                let mut seen = std::collections::HashSet::new();
+                assert!(pattern.fixed.iter().all(|&(i, _)| seen.insert(i)));
+                let mut branch_mass = 0.;
+                for mut code in 0..81 {
+                    let mut out = vec![0; 4];
+                    let mut mass = 1.;
+                    for (i, g) in m.fixtures.iter().enumerate() {
+                        let o = code % 3;
+                        code /= 3;
+                        out[i] = o as u8;
+                        mass *= g.prob[o];
+                    }
+                    if pattern.fixed.iter().any(|&(i, o)| out[i] != o)
+                        || games.iter().any(|g| g.prob[out[g.index] as usize] <= 0.)
+                        || canonical_ranks(&m, &out)[0] != cell.rank
+                    {
+                        continue;
+                    }
+                    let mut totals = pattern.base.clone();
+                    for g in &games {
+                        totals[g.home] += g.hg[out[g.index] as usize];
+                        totals[g.away] += g.ag[out[g.index] as usize];
+                    }
+                    if (0..m.n)
+                        .all(|t| totals[t] >= pattern.lower[t] && totals[t] <= pattern.upper[t])
+                    {
+                        branch_mass += mass;
+                    }
+                }
+                assert!(branch_mass <= bound.upper_bound + 1e-12);
+                assert!(bound.normalizer_upper <= bound.domain_prior * (1. + 1e-10));
+                assert!(bound.domain_prior <= bound.fixed_prior * (1. + 1e-10));
+                covered += branch_mass;
+            }
+            assert!((covered - exact).abs() < 1e-12);
+            for bounds in [false, true] {
+                let samples: Vec<_> = (0..p.len())
+                    .map(|i| {
+                        p.sample(
+                            &m,
+                            i,
+                            10000 + i * 127,
+                            derive(808, &format!("secondary-test-{i}")),
+                            bounds,
+                            false,
+                        )
+                    })
+                    .collect();
+                let r = combine(&samples);
+                assert!(
+                    (r.probability - exact).abs() < 6. * r.std_err + 1e-4,
+                    "{} vs {exact}",
+                    r.probability
+                );
+            }
         }
     }
     #[test]

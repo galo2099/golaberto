@@ -1541,3 +1541,62 @@ force independently. `RUST_ODDS_WORK_MODEL=draws` is a diagnostic alternative.
 
 Report: `experiments/rare_positions/2026-10-01-rust-deterministic-work.md`.
 Artifacts: `experiments/rare_positions/2026-10-01-deterministic-work/`.
+
+## R38 — certified totals before complete target paths; complete parent fallback
+
+Status: implemented and enabled by default; included in the certified-limit release.
+
+- Cache fully refuted target points/applicable-wins limits per request/cell before
+  complete branch construction; upper/lower threshold queries share 16k nodes.
+  Feasibility or quota exhaustion never removes support. Earlier pilots unchanged.
+- Finish the complete primary union before optional refinement. If any split
+  fails, retain the entire primary union. Refinement: 2k nodes/parent, 10k/cell.
+- Transfer proof/setup/pilot/final work from existing extra confirmations; newly
+  certified proposals use 25k independent main/check allocations, four cores.
+- One distinct added cell: Palmeiras / 16th, group 16498, 1.68e-40 at fixed seed808.
+  It gains in 3/5 distinct seeds; no selected-arm losses or proof regressions.
+- Final default warm run: 56 measured pairs, 8 gained cell-runs (one cell repeated),
+  0 losses. Aggregate median wall −1.03%, CPU −0.23%. Group16498 wall −4.90%.
+  Per-snapshot increases explicitly remain: historical16653 wall +2.81%, CPU
+  +3.78%; current16653 wall +0.40%. Held-out seed cohort wall +2.40%, CPU +0.11%.
+  No added allowance assumed; aggregate production-seed budget is preserved,
+  individual-input/seed latency is not guaranteed unchanged.
+- Reject broad early certification (3 gains/1 loss), hybrid partial refinement
+  (no gains), additive late-only work (+15.56%16498 wall), and20k batches (lose
+  default-seed gain). 198 measured pairs plus28 warm-up pairs across all arms.
+- 128 Rust tests pass;4 DB-dependent tests ignored. Repeat/worker/logging checks
+  pass. Default16498 remaining reachable zeros: Palmeiras14/15, Flamengo12/13;
+  no undecided zeros. No additional reachability/impossibility classifications.
+
+Report: `experiments/rare_positions/2026-10-02-rust-certified-target-limits.md`.
+Artifacts: `experiments/rare_positions/2026-10-02-certified-target-limits/`.
+Shipping checks:128 tests pass,4 DB-dependent tests ignored; all seven seed808
+responses byte-identical to the measured candidate. Seven cold pairs: wall+0.75%,
+CPU+1.48%; no additional work quota. Reduced-confirmation transfer guard tested.
+Next: improve the remaining complete unions and guidance without changing
+previously accepted positives; remeasure latency for changed snapshots/seeds.
+
+## R39 — Flamengo13: prune complete rank cases before setup
+
+Status: focused offline success; expanded limits rejected for production budget.
+
+- Group16498/team17/rank13 already has a certified cap of61 points/18 wins:
+ 11 target paths, necessary-event mass2.2773e-7. Current constructor skips its
+ 576 raw cases/path before shared-fixture checking (6,336 across11 paths).
+- Generic prefix propagation completes11 paths, leaving409 non-refuted cases,
+ 10,251 nodes,58.83 ms wall/four cores. These are not reachability witnesses.
+- A support reference safely proves two zero-mass necessary case subsets empty;
+  floating zero alone never permits removal.407 complete strata remain.
+- Larger offline caps (1,024 cases,100m guide values),25 pilots/stratum,40k main
+  and40k independent check, four-draw floor:5/5 distinct seeds accepted, one
+  distinct estimated cell. Main probabilities1.6e-34–4.7e-34; no gate relaxation.
+- Single seed808 fresh process:517 ms wall,639 ms CPU,538 MiB peak RSS. Existing
+  cell setup skip~1.2 ms. No full-request pair, other-group or regression claim.
+  No production defaults changed; no extra allowance assumed. Offline artifacts included with the release.
+- Two diagnostic prefix tests and two isolated support-reference tests pass.
+- Next: lightweight prefix feasibility; discrete support refutation; reuse team
+  suffix rows across cases or retain complete unsplit parent regions; transfer
+  saved low-yield work and run paired full requests before enabling.
+
+Report: `experiments/rare_positions/2026-10-02-rust-flamengo-13.md`.
+Artifacts: `experiments/rare_positions/2026-10-02-flamengo-13/`.

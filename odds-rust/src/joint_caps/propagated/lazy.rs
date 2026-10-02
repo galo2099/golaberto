@@ -213,23 +213,7 @@ impl LazyJoint {
             .iter()
             .copied()
             .partition(|g| g.home == cell.team || g.away == cell.team);
-        let span = (hg[2] * left[cell.team]) as usize + 1;
-        let terminal: Vec<_> = (0..span)
-            .map(|gain| {
-                let total = base[cell.team] + gain as i32;
-                let above = (0..m.n)
-                    .filter(|&t| t != cell.team && base[t] > total)
-                    .count();
-                let below = (0..m.n)
-                    .filter(|&t| t != cell.team && base[t] + hg[2] * left[t] < total)
-                    .count();
-                if above <= cell.rank && below <= m.n - 1 - cell.rank {
-                    1.
-                } else {
-                    0.
-                }
-            })
-            .collect();
+        let terminal = crate::target_limits::terminal(m, cell, &base, &left, hg[2]);
         let table = TerminalTable::new(target.clone(), cell.team, terminal.clone());
         if table.mass(0) <= 0. {
             return None;

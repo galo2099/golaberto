@@ -828,3 +828,47 @@ work, and proposal draw costs. Historical `work` retains its nominal season
 work meaning. Timing logs remain diagnostic. See the
 [paired experiment](../experiments/rare_positions/2026-10-01-rust-deterministic-work.md)
 for coverage, latency, reproducibility checks, and practical limits.
+
+### Certified totals and complete parent fallback
+
+The coverage profile now certifies target-total limits before constructing the
+complete branch proposal. This runs after ordinary portfolio results are frozen
+and before additional confirmations. Earlier pilots retain their original
+proposals. Both joint target tables consult the same per-request certificate.
+Only a fully refuted points/applicable-wins relaxation removes a total; feasibility
+or quota exhaustion supplies no restriction. There is no team or rank whitelist.
+
+The certification screen runs only when the existing terminal admits more than
+64 target paths. Its upper/lower queries share at most 16,000 fixture nodes per
+cell, and at most eight unresolved cells enter the branch stage. Points/wins are
+packed only when wins is the second phase sort key. Actual goals and remaining
+sort keys are still checked by the production sorter during probability sampling.
+
+All primary strata must finish before optional secondary refinement. Refinement
+has 2,000 extra nodes per parent and 10,000 per cell. Any failed or unfinished
+split discards the optional children and retains the entire complete primary
+proposal. Incomplete primary enumeration still skips the cell. Every supported
+stratum keeps a positive final allocation and its original prior factors.
+
+Newly certified proposals use independent pilots and 25,000-draw main/check
+allocations. Their reserved setup/pilot/final work is deducted from the existing
+additional confirmation quota; handled cells are not sampled again at the late
+branch stage. Earlier positive estimates and acceptance gates remain unchanged.
+Certificates charge setup once. Transferred work is also capped by the configured
+confirmation allowance, including reduced diagnostic overrides. Full-request
+timing is still diagnostic.
+
+Defaults require no extra flags. Diagnostic overrides:
+
+| Flag | Effect |
+| --- | --- |
+| `RUST_ODDS_CERTIFIED_TARGET_LIMITS=0` | Disable the new total certification |
+| `RUST_ODDS_COMPLETE_PARENT_FALLBACK=0` | Abort when secondary refinement fails |
+| `RUST_ODDS_CERTIFIED_BRANCH_TRANSFER=0` | Restore late branch placement; this can cost more time |
+| `RUST_ODDS_CERTIFIED_BRANCH_DRAWS` | Newly certified batch allocation, 10,000–30,000; default 25,000 |
+
+Logs expose certified packed limits, proof nodes, charged work, primary fallback,
+secondary setup nodes and confirmation work transferred to branches. See
+[the paired experiment](../experiments/rare_positions/2026-10-02-rust-certified-target-limits.md)
+for coverage, timing by seed, assumptions and remaining zeros. Local timings do
+not establish identical speed on the production Xeon.

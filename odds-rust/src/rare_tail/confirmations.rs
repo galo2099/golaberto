@@ -50,6 +50,7 @@ pub(super) fn run(
     rough: bool,
     fraction: f64,
     log: Option<&crate::logging::RequestLog>,
+    transferred_work: usize,
 ) -> (usize, u64) {
     let clock = Instant::now();
     let before: Vec<_> = estimates
@@ -77,7 +78,9 @@ pub(super) fn run(
             ))
             .then(a.p.0.index(m.n).cmp(&b.p.0.index(m.n)))
     });
-    let mut bank = WorkBudget::new(budget::capacity(m, budget::confirmation_limit(fraction)));
+    let mut bank = WorkBudget::new(
+        budget::capacity(m, budget::confirmation_limit(fraction)).saturating_sub(transferred_work),
+    );
     let mut paired = vec![false; jobs.len()];
     let mut started = vec![false; jobs.len()];
     // Reserve normal independent pairs first in stable priority order.
@@ -201,6 +204,7 @@ pub(super) fn run(
         "rust_odds_rare_tail_confirm_more_summary",
         json!({
             "group":m.request.id,"fraction":fraction,"budget_mode":budget::mode(),
+            "transferred_branch_work":transferred_work,
             "work_limit":bank.limit,"reserved_work":bank.reserved,"reclaimed_check_work":reclaimed,
             "eligible":jobs.len(),"funded":paired.iter().filter(|&&p|p).count(),
             "completed":completed,"accepted":added,"main_only":main_only,"waves":2,

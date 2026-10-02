@@ -81,6 +81,12 @@ fn sample(
     rows.into_iter().map(|r| r.1).collect()
 }
 
+// Early branch work is paid for by additional confirmations. A reduced
+// confirmation override must also reduce the transferable branch allowance.
+fn work_limit(configured: usize, available: Option<usize>) -> usize {
+    available.map_or(configured, |funded| configured.min(funded))
+}
+
 pub(super) fn run(
     m: &Model,
     seed: i64,
@@ -88,12 +94,27 @@ pub(super) fn run(
     estimates: &mut [Estimate],
     log: Option<&crate::logging::RequestLog>,
     preceding_ms: f64,
-) -> (usize, u64) {
+    tightened_only: bool,
+    excluded: &[Cell],
+    available_work: Option<usize>,
+) -> (usize, u64, usize, Vec<Cell>) {
+    let nominal_total = if tightened_only {
+        std::env::var("RUST_ODDS_CERTIFIED_BRANCH_DRAWS")
+            .ok()
+            .and_then(|s| s.parse::<usize>().ok())
+            .filter(|n| (10000..=TOTAL).contains(n))
+            .unwrap_or(25000)
+    } else {
+        TOTAL
+    };
     let start = Instant::now();
     let deterministic = budget::deterministic();
     let share = fraction(&value("RUST_ODDS_RARE_TAIL_BRANCH_BUDGET_FRACTION"));
     let allowance = preceding_ms * share;
-    let mut draw_budget = WorkBudget::new(budget::capacity(m, scaled(6 * REFERENCE_DRAWS, share)));
+    let mut draw_budget = WorkBudget::new(work_limit(
+        budget::capacity(m, scaled(6 * REFERENCE_DRAWS, share)),
+        available_work,
+    ));
     let cells: Vec<_> = estimates
         .iter()
         .enumerate()
@@ -103,6 +124,7 @@ pub(super) fn run(
                 rank: i % m.n,
             })
         })
+        .filter(|c| !excluded.contains(c))
         .collect();
     let before: Vec<_> = estimates
         .iter()
@@ -112,6 +134,7 @@ pub(super) fn run(
         .collect();
     let reduce_floor = value("RUST_ODDS_RARE_TAIL_BRANCH_BOUND_FLOOR") == "1";
     let (mut found, mut work, mut attempted, mut skipped, mut setups_ms) = (0, 0, 0, 0, 0.);
+    let mut handled = Vec::new();
     for cell in cells.iter().take(8).copied() {
         if (deterministic && draw_budget.reserved >= draw_budget.limit)
             || (!deterministic && start.elapsed().as_secs_f64() * 1000. >= allowance)
@@ -120,12 +143,40 @@ pub(super) fn run(
         }
         attempted += 1;
         let setup = Instant::now();
+        if crate::search::enabled("RUST_ODDS_CERTIFIED_TARGET_LIMITS") {
+            let cost = 8 * m.fixtures.len() + 4 * m.n;
+            let remaining = draw_budget.limit.saturating_sub(draw_budget.reserved);
+            let node_budget = if budget::modeled() {
+                remaining.saturating_sub(16 * m.fixtures.len()) / cost.max(1)
+            } else {
+                crate::target_limits::NODE_LIMIT
+            }
+            .min(crate::target_limits::NODE_LIMIT);
+            let (c, setup_work) = crate::target_limits::certify_with_work(m, cell, node_budget);
+            let charge = if budget::modeled() {
+                setup_work
+            } else {
+                setup_work.div_ceil(budget::reference_cost(m))
+            };
+            if deterministic && !draw_budget.reserve(charge) {
+                break;
+            }
+            emit(
+                log,
+                "rust_odds_certified_target_limits",
+                json!({"team":m.ids[cell.team],"rank":cell.rank+1,"lower_packed":c.lower,"upper_packed":c.upper,"nodes":c.nodes,"reserved_work":charge,"elapsed_ms":setup.elapsed().as_secs_f64()*1000.}),
+            );
+            if tightened_only && c.lower.is_none() && c.upper.is_none() {
+                continue;
+            }
+        }
+        handled.push(cell);
         // Deterministic complete enumeration; no cached target path is omitted.
         let proposal = BranchStrata::with_secondary(m, cell, seed, 4, true);
         let setup_ms = setup.elapsed().as_secs_f64() * 1000.;
         setups_ms += setup_ms;
         let p = match proposal {
-            Ok(p) if p.len() * FLOOR <= TOTAL => p,
+            Ok(p) if p.len() * FLOOR <= nominal_total => p,
             result => {
                 skipped += 1;
                 let reason = match result {
@@ -151,7 +202,7 @@ pub(super) fn run(
                     .map(|i| PILOT * (p.draw_work(m, i, false) + p.draw_work(m, i, true)))
                     .sum::<usize>()
         } else {
-            2 * p.len() * PILOT + 2 * TOTAL
+            2 * p.len() * PILOT + 2 * nominal_total
         };
         if deterministic && !draw_budget.reserve(pilot_cost) {
             skipped += 1;
@@ -161,7 +212,7 @@ pub(super) fn run(
                 json!({
                     "group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,
                     "setup_ms":setup_ms,"branches":p.len(),
-                    "requested_draws":2 * p.len() * PILOT + 2 * TOTAL,
+                    "requested_draws":2 * p.len() * PILOT + 2 * nominal_total,
                     "reason":"complete pilot pair exceeds remaining work budget"
                 }),
             );
@@ -218,7 +269,7 @@ pub(super) fn run(
             .iter()
             .map(|r| r.0.result.std_err * (r.0.result.samples as f64).sqrt())
             .collect();
-        let mut total = TOTAL;
+        let mut total = nominal_total;
         let costs: Vec<_> = pilots
             .iter()
             .map(|r| budget::draw_cost(&r.0.result))
@@ -247,7 +298,7 @@ pub(super) fn run(
         let guides: Vec<_> = pilots.iter().map(|r| r.1).collect();
         // Soft admission deadline; the entire fixed main/check pair runs after
         // admission. Never stop a reported batch based on its own results.
-        let forecast = 1.3 * pilot_ms * (2 * TOTAL) as f64 / (2 * p.len() * PILOT) as f64;
+        let forecast = 1.3 * pilot_ms * (2 * nominal_total) as f64 / (2 * p.len() * PILOT) as f64;
         if !deterministic && start.elapsed().as_secs_f64() * 1000. + forecast > allowance {
             emit(
                 log,
@@ -279,13 +330,13 @@ pub(super) fn run(
         emit(
             log,
             "rust_odds_rare_tail_branches",
-            json!({"group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,"branches":p.len(),"setup_ms":setup_ms,"bounds_ms":bounds_ms,"pilot_ms":pilot_ms,"main_ms":main_ms,"check_ms":check_ms,"pilot_probability":pilot_probability,"small_branch_floors":small.iter().filter(|&&s|s).count(),"allocated_main_draws":total,"estimated_cost_per_draw":costs,"main_draws":main.samples,"main_hits":main.hits,"main_ess":main.ess,"main_max_share":main.max_share,"main_batch_gap":main.batch_gap,"probability":main.probability,"check_probability":check.probability,"check_ess":check.ess,"accepted":ok,"full_support":true,"omitted_probability":0,"forecast_ms":if deterministic {None}else{Some(forecast)}}),
+            json!({"group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,"branches":p.len(),"setup":p.setup_diagnostics(),"setup_ms":setup_ms,"bounds_ms":bounds_ms,"pilot_ms":pilot_ms,"main_ms":main_ms,"check_ms":check_ms,"pilot_probability":pilot_probability,"small_branch_floors":small.iter().filter(|&&s|s).count(),"allocated_main_draws":total,"estimated_cost_per_draw":costs,"main_draws":main.samples,"main_hits":main.hits,"main_ess":main.ess,"main_max_share":main.max_share,"main_batch_gap":main.batch_gap,"probability":main.probability,"check_probability":check.probability,"check_ess":check.ess,"accepted":ok,"full_support":true,"omitted_probability":0,"forecast_ms":if deterministic {None}else{Some(forecast)}}),
         );
         if !ok && budget::modeled() {
             let reference = budget::reference_cost(m);
             let average = costs.iter().sum::<usize>() / costs.len().max(1);
-            let retry_total =
-                (TOTAL * reference / average.max(reference / 3).max(1)).clamp(TOTAL, 3 * TOTAL);
+            let retry_total = (nominal_total * reference / average.max(reference / 3).max(1))
+                .clamp(nominal_total, 3 * nominal_total);
             if let Some(retry_ns) = allocation(&scores, &small, retry_total) {
                 let retry_cost: usize = retry_ns.iter().zip(&costs).map(|(n, c)| 2 * n * c).sum();
                 if draw_budget.reserve(retry_cost) {
@@ -339,14 +390,21 @@ pub(super) fn run(
     emit(
         log,
         "rust_odds_rare_tail_branches_summary",
-        json!({"group":m.request.id,"eligible":cells.len(),"attempted":attempted,"skipped":skipped,"accepted":found,"elapsed_ms":start.elapsed().as_secs_f64()*1000.,"setup_ms":setups_ms,"allowance_ms":if deterministic {None}else{Some(allowance)},"budget_mode":budget::mode(),"work_limit":if deterministic {Some(draw_budget.limit)}else{None},"reserved_work":if deterministic {Some(draw_budget.reserved)}else{None},"work":work,"bound_floor":reduce_floor,"preserved_existing_estimates":before.iter().all(|(i, e)| *e == serde_json::to_value(&estimates[*i]).unwrap())}),
+        json!({"group":m.request.id,"tightened_only":tightened_only,"eligible":cells.len(),"attempted":attempted,"skipped":skipped,"accepted":found,"elapsed_ms":start.elapsed().as_secs_f64()*1000.,"setup_ms":setups_ms,"allowance_ms":if deterministic {None}else{Some(allowance)},"budget_mode":budget::mode(),"work_limit":if deterministic {Some(draw_budget.limit)}else{None},"reserved_work":if deterministic {Some(draw_budget.reserved)}else{None},"work":work,"bound_floor":reduce_floor,"preserved_existing_estimates":before.iter().all(|(i, e)| *e == serde_json::to_value(&estimates[*i]).unwrap())}),
     );
-    (found, work)
+    (found, work, draw_budget.reserved, handled)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn transferred_work_cannot_exceed_its_funding() {
+        assert_eq!(work_limit(90000, Some(30000)), 30000);
+        assert_eq!(work_limit(90000, Some(200000)), 90000);
+        assert_eq!(work_limit(90000, Some(0)), 0);
+        assert_eq!(work_limit(90000, None), 90000);
+    }
     #[test]
     fn allocation_preserves_every_branch_and_fixed_budget() {
         let ns = allocation(&[1., 2., 3.], &[false, false, false], 1000).unwrap();

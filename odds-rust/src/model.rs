@@ -4,6 +4,7 @@ use crate::{
 };
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
+use std::sync::Mutex;
 fn null_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
 where
     D: Deserializer<'de>,
@@ -130,6 +131,7 @@ pub struct Model {
     pub keys: Vec<Key>,
     pub pair_games: Vec<Vec<(usize, bool)>>,
     pub n: usize,
+    pub(crate) target_limits: Mutex<HashMap<usize, crate::target_limits::Certified>>,
 }
 impl Model {
     pub fn new(request: Request) -> Result<Self, String> {
@@ -219,6 +221,7 @@ impl Model {
             keys,
             pair_games,
             n,
+            target_limits: Mutex::new(HashMap::new()),
         })
     }
     #[inline]

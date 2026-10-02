@@ -66,6 +66,9 @@ fn rare_position_responses_are_identical_across_workers_repeats_and_logging() {
                     .find(|e| e["event"] == "rust_odds_start")
                     .unwrap();
                 assert_eq!(start["deterministic_work_budget"], true);
+                assert_eq!(start["certified_target_limits"], true);
+                assert_eq!(start["complete_parent_fallback"], true);
+                assert_eq!(start["certified_branch_transfer"], true);
                 for event in [
                     "rust_odds_shared_constraints_summary",
                     "rust_odds_rare_tail_summary",
@@ -81,4 +84,69 @@ fn rare_position_responses_are_identical_across_workers_repeats_and_logging() {
             }
         }
     }
+}
+
+#[test]
+fn early_branches_respect_a_reduced_confirmation_allowance() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let dir = OutputDir(std::env::temp_dir().join(format!(
+        "golaberto-transfer-budget-test-{}",
+        std::process::id()
+    )));
+    fs::create_dir(&dir.0).unwrap();
+    let request = root.join(
+        "../experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16498-44eabb47.json",
+    );
+    let model = golaberto_odds::model::Model::new(
+        serde_json::from_slice(&fs::read(&request).unwrap()).unwrap(),
+    )
+    .unwrap();
+    let configured = (200000_f64 * 0.25 / 1.5).floor() as u64
+        * (64 * model.fixtures.len() + 32 * model.n + 1) as u64;
+    let mut command = Command::new(env!("CARGO_BIN_EXE_golaberto-odds"));
+    for (key, _) in std::env::vars_os() {
+        if key.to_string_lossy().starts_with("RUST_ODDS_")
+            || key.to_string_lossy().starts_with("RARE_POSITION_")
+        {
+            command.env_remove(key);
+        }
+    }
+    let result = command
+        .env("RUST_ODDS_LOG", "1")
+        .env("RUST_ODDS_RARE_TAIL_CONFIRM_MORE", "0.25")
+        .arg("estimate")
+        .arg(&request)
+        .arg(dir.0.join("result.json"))
+        .arg("808")
+        .arg("4")
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let logs: Vec<Value> = String::from_utf8(result.stderr)
+        .unwrap()
+        .lines()
+        .filter_map(|line| serde_json::from_str(line).ok())
+        .collect();
+    let early = logs
+        .iter()
+        .find(|e| {
+            e["event"] == "rust_odds_rare_tail_branches_summary" && e["tightened_only"] == true
+        })
+        .unwrap();
+    let extra = logs
+        .iter()
+        .find(|e| e["event"] == "rust_odds_rare_tail_confirm_more_summary")
+        .unwrap();
+    let transferred = extra["transferred_branch_work"].as_u64().unwrap();
+    assert!(early["work_limit"].as_u64().unwrap() <= configured);
+    assert_eq!(transferred, early["reserved_work"].as_u64().unwrap());
+    assert!(transferred <= configured);
+    assert_eq!(
+        extra["work_limit"].as_u64().unwrap() + transferred,
+        configured
+    );
 }

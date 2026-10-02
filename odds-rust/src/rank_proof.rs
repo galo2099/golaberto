@@ -175,6 +175,20 @@ impl RankProof {
         budget: usize,
         options: Options,
     ) -> Report {
+        self.prove_floor(cell, required_count, budget, options, None)
+    }
+    /// Necessary relaxation for seasons whose target packed total is at least
+    /// `floor` in this proof's orientation. Extreme target results generously
+    /// improve every rival; equality is counted in the rivals' favor. A false
+    /// result, including quota exhaustion, supplies no restriction.
+    pub fn prove_floor(
+        &self,
+        cell: Cell,
+        required_count: usize,
+        budget: usize,
+        options: Options,
+        requested_floor: Option<i64>,
+    ) -> Report {
         if cell.team >= self.ranked || required_count >= self.ranked {
             return Report::default();
         }
@@ -185,6 +199,9 @@ impl RankProof {
             let minimum = *gain.iter().min().unwrap();
             initial[*i] = (0..3).fold(0, |d, o| if gain[o] == minimum { d | (1 << o) } else { d });
             floor += minimum;
+        }
+        if let Some(requested) = requested_floor {
+            floor = floor.max(requested);
         }
         let mut maximum = self.base.clone();
         for (i, g) in self.games.iter().enumerate() {
@@ -469,6 +486,55 @@ mod tests {
     fn snapshot() -> Model {
         let request:Request=serde_json::from_str(include_str!("../../experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16498-44eabb47.json")).unwrap();
         Model::new(request).unwrap()
+    }
+    #[test]
+    fn threshold_refutations_never_remove_a_legal_outcome_in_either_direction() {
+        for sort in ["pt,w,gd,gf", "pt,gd,gf,w"] {
+            let request:Request=serde_json::from_value(json!({"id":1,"phase":{"sort":sort,"championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+                "team_groups":[{"team_id":1,"add_sub":2},{"team_id":2},{"team_id":3},{"team_id":4}],
+                "games":[{"id":1,"home_id":1,"away_id":2,"played":true,"home_score":1,"away_score":0},
+                {"id":2,"home_id":1,"away_id":3},{"id":3,"home_id":2,"away_id":4},{"id":4,"home_id":2,"away_id":3},{"id":5,"home_id":3,"away_id":4}]})).unwrap();
+            let m = Model::new(request).unwrap();
+            let p = RankProof::new(&m).unwrap();
+            let neg = p.negated();
+            for proof in [&p, &neg] {
+                let seasons: Vec<_> = (0..81)
+                    .map(|mut code| {
+                        let mut totals = proof.base.clone();
+                        for g in &proof.games {
+                            let o = code % 3;
+                            code /= 3;
+                            totals[g.home] += g.gain[0][o];
+                            totals[g.away] += g.gain[1][o];
+                        }
+                        totals
+                    })
+                    .collect();
+                for team in 0..m.n {
+                    let floors: std::collections::BTreeSet<_> = seasons
+                        .iter()
+                        .flat_map(|s| [s[team], s[team] + 1])
+                        .collect();
+                    for floor in floors {
+                        let ahead = seasons
+                            .iter()
+                            .filter(|s| s[team] >= floor)
+                            .map(|s| (0..m.n).filter(|&t| t != team && s[t] >= s[team]).count())
+                            .max();
+                        for rank in 0..m.n {
+                            let r = proof.prove_floor(
+                                Cell { team, rank },
+                                rank,
+                                10000,
+                                Options::default(),
+                                Some(floor),
+                            );
+                            assert!(!r.impossible || ahead.is_none_or(|a|a<rank),"false refutation: {sort}, target {team}, floor {floor}, rank {rank}");
+                        }
+                    }
+                }
+            }
+        }
     }
     #[test]
     fn explained_search_refutes_snapshot_with_existing_cell_quota() {

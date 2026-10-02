@@ -938,22 +938,7 @@ impl PropagatedJoint {
             .into_iter()
             .partition(|g| g.home == cell.team || g.away == cell.team);
         let span = (hg[2] * left[cell.team]) as usize + 1;
-        let terminal = (0..span)
-            .map(|gain| {
-                let total = base[cell.team] + gain as i32;
-                let above = (0..m.n)
-                    .filter(|&t| t != cell.team && base[t] > total)
-                    .count();
-                let below = (0..m.n)
-                    .filter(|&t| t != cell.team && base[t] + hg[2] * left[t] < total)
-                    .count();
-                if above <= cell.rank && below <= m.n - 1 - cell.rank {
-                    1.
-                } else {
-                    0.
-                }
-            })
-            .collect::<Vec<_>>();
+        let terminal = crate::target_limits::terminal(m, cell, &base, &left, hg[2]);
         let table = TerminalTable::new(target_games, cell.team, terminal);
         // Count every supported target assignment, with saturation. The model
         // is used only if the entire union fits; no prefix is silently retained.
