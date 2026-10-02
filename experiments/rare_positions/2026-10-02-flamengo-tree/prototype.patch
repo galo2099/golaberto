@@ -1,0 +1,919 @@
+--- a/odds-rust/examples/branch_stratification.rs
++++ b/odds-rust/examples/branch_stratification.rs
+@@ -45,7 +45,25 @@
+         return Err("pilot and branch draw floors must be at least two".into());
+     }
+     let setup_clock = Instant::now();
+-    let p = BranchStrata::with_secondary(&m, cell, 808, rivals, refine)?;
++    let cert = golaberto_odds::target_limits::certify(&m, cell, 16000);
++    let leaves = std::env::var("TREE_LEAVES")
++        .ok()
++        .and_then(|s| s.parse().ok())
++        .unwrap_or(32);
++    let training = std::env::var("TREE_TRAINING")
++        .ok()
++        .and_then(|s| s.parse().ok())
++        .unwrap_or(200);
++    let values = std::env::var("TREE_GUIDE_VALUES")
++        .ok()
++        .and_then(|s| s.parse().ok())
++        .unwrap_or(4000000);
++    let p = if std::env::var("TREE_MODE").as_deref() == Ok("1") {
++        BranchStrata::with_tree(&m, cell, 808, rivals, leaves, training, values)?
++    } else {
++        BranchStrata::with_secondary(&m, cell, 808, rivals, refine)?
++    };
++    let _ = cert;
+     let setup_ms = setup_clock.elapsed().as_secs_f64() * 1000.;
+     let bound_mode = a.get(13).map_or("off", |s| s.as_str());
+     let reference = a.get(14).map_or(Ok(4e-34), |s| s.parse::<f64>())?;
+--- /dev/null
++++ b/odds-rust/src/joint_caps/propagated/lazy/strata/tree.rs
+@@ -0,0 +1,557 @@
++//! Experimental bounded complete partition: child failure retains the parent.
++use super::*;
++use crate::rng::derive;
++use std::time::Instant;
++
++struct Leaf {
++    root: Vec<u8>,
++    above: bool,
++    mask: u32,
++    selected: u32,
++    ambiguous: u32,
++    max_exceptions: usize,
++    pattern: Pattern,
++    frozen: bool,
++    score: f64,
++}
++
++fn keys(tab: &TerminalTable, team: usize) -> std::result::Result<Vec<Vec<u8>>, String> {
++    fn walk(
++        tab: &TerminalTable,
++        t: usize,
++        i: usize,
++        added: usize,
++        key: &mut Vec<u8>,
++        out: &mut Vec<Vec<u8>>,
++    ) -> std::result::Result<(), String> {
++        if i == tab.games.len() {
++            out.push(key.clone());
++            return Ok(());
++        }
++        let g = tab.games[i];
++        let gains = if g.home == t { g.hg } else { g.ag };
++        for o in 0..3 {
++            let next = added + gains[o] as usize;
++            if g.prob[o] > 0. && tab.rows[i + 1].get(next).is_some_and(|&p| p > 0.) {
++                if out.len() >= 64 {
++                    return Err("complete tree target-path budget exhausted".into());
++                }
++                key.push(o as u8);
++                walk(tab, t, i + 1, next, key, out)?;
++                key.pop();
++            }
++        }
++        Ok(())
++    }
++    let mut out = Vec::new();
++    walk(tab, team, 0, 0, &mut Vec::new(), &mut out)?;
++    Ok(out)
++}
++fn stratum(l: &Leaf) -> Stratum {
++    Stratum {
++        root: l.root.clone(),
++        exceptions: (0..32).filter(|&t| l.mask & (1 << t) != 0).collect(),
++        above: l.above,
++        secondary: None,
++        pattern: l.pattern.clone(),
++    }
++}
++fn train(
++    m: &Model,
++    cell: Cell,
++    goals: &mut Option<crate::goal_tilt::GoalTilt>,
++    l: &mut Leaf,
++    seed: i64,
++    serial: usize,
++    n: usize,
++) -> (usize, usize) {
++    if n < 2 {
++        l.score = l.pattern.mass * l.pattern.joint.residual_hint.max(1e-80);
++        return (0, 0);
++    }
++    let p = BranchStrata {
++        cell,
++        strata: vec![stratum(l)],
++        goals: goals.take(),
++        setup_nodes: 0,
++        secondary_fallbacks: 0,
++        secondary_nodes: 0,
++        tree_training_work: 0,
++        tree_diagnostics: None,
++    };
++    let a = p.sample(
++        m,
++        0,
++        n,
++        derive(seed, &format!("tree-training-rank-{serial}")),
++        false,
++        true,
++    );
++    let b = p.sample(
++        m,
++        0,
++        n,
++        derive(seed, &format!("tree-training-interval-{serial}")),
++        true,
++        true,
++    );
++    *goals = p.goals;
++    l.score = a.result.std_err.max(b.result.std_err);
++    (
++        a.result.operations.units() + b.result.operations.units(),
++        2 * n,
++    )
++}
++fn next_team(builder: &LazyJoint, l: &Leaf, teams: usize) -> (Option<usize>, f64) {
++    let mut points = builder.base.clone();
++    for (g, &o) in builder.target.games.iter().zip(&l.root) {
++        points[g.home] += g.hg[o as usize];
++        points[g.away] += g.ag[o as usize];
++    }
++    let target = points[builder.cell.team];
++    let rivals: Vec<_> = (0..teams).filter(|&t| t != builder.cell.team).collect();
++    let d = Domains::propagate(
++        &builder.remaining,
++        &points,
++        &rivals,
++        builder.cell.rank,
++        target,
++    );
++    let (mut lower, mut upper) = (d.lower.clone(), d.upper.clone());
++    for &t in &rivals {
++        if l.selected & (1 << t) == 0 {
++            continue;
++        }
++        let strict = l.mask & (1 << t) != 0;
++        if l.above == strict {
++            lower[t] = lower[t].max(target + i32::from(strict));
++        } else {
++            upper[t] = upper[t].min(target - i32::from(strict));
++        }
++    }
++    let d = Domains::condition(
++        &builder.remaining,
++        &points,
++        &rivals,
++        builder.cell.rank,
++        target,
++        &lower,
++        &upper,
++        &d.domains,
++    );
++    if !d.feasible {
++        return (None, 0.);
++    }
++    let mut dist = vec![0.; l.max_exceptions + 1];
++    dist[0] = 1.;
++    let mut best: Option<(usize, f64)> = None;
++    for &t in &rivals {
++        if l.selected & (1 << t) != 0 {
++            continue;
++        }
++        let lo = (points[t] + d.min[0][t]).max(d.lower[t]);
++        let hi = (points[t] + d.max[0][t]).min(d.upper[t]);
++        let cuts = if l.above {
++            lo <= target && hi > target
++        } else {
++            lo < target && hi >= target
++        };
++        if l.ambiguous & (1 << t) == 0 {
++            continue;
++        }
++        let games: Vec<_> = builder
++            .remaining
++            .iter()
++            .zip(&d.domains)
++            .filter(|(g, _)| g.home == t || g.away == t)
++            .map(|(&g, &mask)| {
++                let mut g = g;
++                let z = (0..3)
++                    .filter(|&o| mask & (1 << o) != 0)
++                    .map(|o| g.prob[o])
++                    .sum::<f64>();
++                g.prob = std::array::from_fn(|o| {
++                    if mask & (1 << o) != 0 {
++                        g.prob[o] / z
++                    } else {
++                        0.
++                    }
++                });
++                g
++            })
++            .collect();
++        let span: usize = games
++            .iter()
++            .map(|g| {
++                *if g.home == t { &g.hg } else { &g.ag }
++                    .iter()
++                    .max()
++                    .unwrap() as usize
++            })
++            .sum();
++        let terminal = (0..=span)
++            .map(|a| {
++                if if l.above {
++                    points[t] + a as i32 <= target
++                } else {
++                    points[t] + a as i32 >= target
++                } {
++                    1.
++                } else {
++                    0.
++                }
++            })
++            .collect();
++        let mass = TerminalTable::new(games, t, terminal).mass(0);
++        let allowed = l
++            .max_exceptions
++            .saturating_sub(l.mask.count_ones() as usize);
++        for k in (0..=allowed).rev() {
++            dist[k] = dist[k] * mass
++                + if k > 0 {
++                    dist[k - 1] * (1. - mass).max(0.)
++                } else {
++                    0.
++                };
++        }
++        // Ordering only: independent marginal rank hint is not a probability estimate or proof.
++        if !cuts {
++            continue;
++        }
++        // Ordering only: even numerical zero does not refute an outcome region.
++        if best.is_none_or(|(b, p)| mass < p || (mass == p && t < b)) {
++            best = Some((t, mass));
++        }
++    }
++    (
++        best.map(|(t, _)| t),
++        dist[..=l
++            .max_exceptions
++            .saturating_sub(l.mask.count_ones() as usize)]
++            .iter()
++            .sum(),
++    )
++}
++impl BranchStrata {
++    pub fn tree_root_count(m: &Model, cell: Cell, seed: i64) -> usize {
++        LazyJoint::with_mode(m, cell, seed, &[], 0, false, false, None)
++            .and_then(|b| keys(&b.target, cell.team).ok())
++            .map_or(usize::MAX, |v| v.len())
++    }
++    pub fn with_tree(
++        m: &Model,
++        cell: Cell,
++        seed: i64,
++        rivals: usize,
++        leaf_limit: usize,
++        pilot_n: usize,
++        guide_limit: usize,
++    ) -> std::result::Result<Self, String> {
++        Self::with_tree_quota(
++            m,
++            cell,
++            seed,
++            rivals,
++            leaf_limit,
++            pilot_n,
++            guide_limit,
++            100000,
++        )
++    }
++    fn with_tree_quota(
++        m: &Model,
++        cell: Cell,
++        seed: i64,
++        rivals: usize,
++        leaf_limit: usize,
++        pilot_n: usize,
++        guide_limit: usize,
++        split_quota: usize,
++    ) -> std::result::Result<Self, String> {
++        let clock = Instant::now();
++        let mut builder = LazyJoint::with_mode(m, cell, seed, &[], 0, false, false, None)
++            .ok_or("unsupported tree model")?;
++        builder.node_limit = 100000;
++        builder.rival_limit = rivals.clamp(1, 6);
++        builder.guide_limit = guide_limit;
++        let roots = keys(&builder.target, cell.team)?;
++        if roots.len() > leaf_limit {
++            return Err("complete roots exceed leaf budget".into());
++        }
++        let mut leaves = Vec::new();
++        let (mut training_work, mut training_draws, mut training_ms) = (0, 0, 0.);
++        let mut serial = 0;
++        for root in roots {
++            let mut points = builder.base.clone();
++            for (g, &o) in builder.target.games.iter().zip(&root) {
++                points[g.home] += g.hg[o as usize];
++                points[g.away] += g.ag[o as usize];
++            }
++            let target = points[cell.team];
++            let ts: Vec<_> = (0..m.n).filter(|&t| t != cell.team).collect();
++            let d = Domains::propagate(&builder.remaining, &points, &ts, cell.rank, target);
++            if !d.feasible {
++                continue;
++            }
++            let above_count = ts
++                .iter()
++                .filter(|&&t| points[t] + d.min[0][t] > target)
++                .count();
++            let below_count = ts
++                .iter()
++                .filter(|&&t| points[t] + d.max[0][t] < target)
++                .count();
++            let above = cell.rank - above_count <= m.n - 1 - cell.rank - below_count;
++            let max_exceptions = if above {
++                cell.rank - above_count
++            } else {
++                m.n - 1 - cell.rank - below_count
++            };
++            let ambiguous = ts
++                .iter()
++                .filter(|&&t| {
++                    points[t] + d.min[0][t] <= target && points[t] + d.max[0][t] >= target
++                })
++                .fold(0, |bits, &t| bits | (1 << t));
++            let p = builder
++                .build(&root, m.n, None, Some((above, 0, 0)))
++                .map_err(|_| "complete tree root setup exhausted")?;
++            if let Some(pattern) = p {
++                let mut l = Leaf {
++                    root,
++                    above,
++                    mask: 0,
++                    selected: 0,
++                    ambiguous,
++                    max_exceptions,
++                    pattern,
++                    frozen: false,
++                    score: 0.,
++                };
++                let timer = Instant::now();
++                let (w, n) = train(m, cell, &mut builder.goals, &mut l, seed, serial, pilot_n);
++                serial += 1;
++                training_ms += timer.elapsed().as_secs_f64() * 1000.;
++                training_work += w;
++                training_draws += n;
++                leaves.push(l);
++            }
++        }
++        builder.node_limit = 100000.min(builder.nodes.saturating_add(split_quota));
++        let rank_hint = std::env::var("TREE_PRIORITY").as_deref() == Ok("rank_hint");
++        if rank_hint {
++            for l in &mut leaves {
++                l.score = l.pattern.mass * next_team(&builder, l, m.n).1.max(1e-200);
++            }
++        }
++        let initial = leaves.len();
++        let (mut splits, mut failed, mut refuted) = (0, 0, 0);
++        let mut attempts = 0;
++        while leaves.len() < leaf_limit && attempts < 2 * leaf_limit {
++            let chosen = leaves
++                .iter()
++                .enumerate()
++                .filter(|(_, l)| !l.frozen)
++                .max_by(|(a, x), (b, y)| {
++                    x.score
++                        .total_cmp(&y.score)
++                        .then(x.pattern.mass.total_cmp(&y.pattern.mass))
++                        .then(b.cmp(a))
++                })
++                .map(|(i, _)| i);
++            let Some(index) = chosen else { break };
++            let Some(t) = next_team(&builder, &leaves[index], m.n).0 else {
++                leaves[index].frozen = true;
++                continue;
++            };
++            attempts += 1;
++            let (root, above, mask, selected) = {
++                let l = &leaves[index];
++                (l.root.clone(), l.above, l.mask, l.selected | (1 << t))
++            };
++            let mut children = Vec::new();
++            let mut failure = false;
++            let mut empty = 0;
++            for strict in [false, true] {
++                if strict && mask.count_ones() as usize >= leaves[index].max_exceptions {
++                    empty += 1;
++                    continue;
++                }
++                let child_mask = mask | if strict { 1 << t } else { 0 };
++                let selected = if child_mask.count_ones() as usize == leaves[index].max_exceptions {
++                    selected | leaves[index].ambiguous
++                } else {
++                    selected
++                };
++                match builder.build(&root, m.n, None, Some((above, child_mask, selected))) {
++                    Ok(Some(pattern)) => children.push(Leaf {
++                        root: root.clone(),
++                        above,
++                        mask: child_mask,
++                        selected,
++                        ambiguous: leaves[index].ambiguous,
++                        max_exceptions: leaves[index].max_exceptions,
++                        pattern,
++                        frozen: false,
++                        score: 0.,
++                    }),
++                    Ok(None) => empty += 1,
++                    Err(()) => {
++                        failure = true;
++                        break;
++                    }
++                }
++            }
++            if failure {
++                leaves[index].frozen = true;
++                failed += 1;
++                continue;
++            }
++            // Both children together cover the parent. Replace only after both
++            // completed or were refuted by necessary domain propagation.
++            refuted += empty;
++            splits += 1;
++            for l in &mut children {
++                let timer = Instant::now();
++                let (w, n) = train(m, cell, &mut builder.goals, l, seed, serial, pilot_n);
++                serial += 1;
++                training_ms += timer.elapsed().as_secs_f64() * 1000.;
++                training_work += w;
++                training_draws += n;
++            }
++            if rank_hint {
++                for l in &mut children {
++                    l.score = l.pattern.mass * next_team(&builder, l, m.n).1.max(1e-200);
++                }
++            }
++            leaves.remove(index);
++            leaves.splice(index..index, children);
++        }
++        if leaves.is_empty() {
++            return Err("tree has no usable leaves; not a cell impossibility claim".into());
++        }
++        let metadata = json!({"rank_hint_priority":rank_hint,"initial_leaves":initial,"leaf_limit":leaf_limit,"leaves":leaves.len(),"splits":splits,"attempts":attempts,"failed_splits":failed,"refuted_children":refuted,"joint_nodes":builder.nodes,"guide_limit":guide_limit,"guide_values":builder.guide_values,"training_draws":training_draws,"training_work":training_work,"training_ms":training_ms,"setup_ms":clock.elapsed().as_secs_f64()*1000.,"selected":leaves.iter().map(|l|json!({"root":l.root,"selected":(0..m.n).filter(|&t|l.selected&(1<<t)!=0).map(|t|m.ids[t]).collect::<Vec<_>>(),"strict":(0..m.n).filter(|&t|l.mask&(1<<t)!=0).map(|t|m.ids[t]).collect::<Vec<_>>() })).collect::<Vec<_>>()});
++        Ok(Self {
++            cell,
++            strata: leaves.iter().map(stratum).collect(),
++            goals: builder.goals,
++            setup_nodes: builder.nodes,
++            secondary_fallbacks: failed,
++            secondary_nodes: 0,
++            tree_training_work: training_work,
++            tree_diagnostics: Some(metadata),
++        })
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use crate::{conditioned::canonical_ranks, model::Request};
++    fn model() -> Model {
++        let request:Request=serde_json::from_value(json!({"id":1,"phase":{"sort":"pt,w,bias","championship":{"point_win":3,"point_draw":1,"point_loss":0}},
++        "team_groups":(0..4).map(|t|json!({"team_id":t,"add_sub":t,"bias":t})).collect::<Vec<_>>(),
++        "games": ([(0,1),(0,2),(1,3),(2,3)]).iter().enumerate().map(|(i,&(h,a))|json!({"id":i,"home_id":h,"away_id":a,"home_power":1.1,"away_power":0.9})).collect::<Vec<_>>() })).unwrap();
++        Model::new(request).unwrap()
++    }
++    fn coverage(m: &Model, p: &BranchStrata) -> f64 {
++        let mut left = vec![0; m.n];
++        for g in &m.fixtures {
++            left[g.home] += 1;
++            left[g.away] += 1;
++        }
++        let stride = m
++            .base
++            .iter()
++            .zip(&left)
++            .map(|(b, l)| b.wins + l)
++            .max()
++            .unwrap()
++            + 1;
++        let mut exact = 0.;
++        for mut code in 0..3usize.pow(m.fixtures.len() as u32) {
++            let mut out = vec![0; m.fixtures.len()];
++            let mut mass = 1.;
++            let mut totals: Vec<_> = m.base.iter().map(|b| b.points * stride + b.wins).collect();
++            for (i, g) in m.fixtures.iter().enumerate() {
++                let o = code % 3;
++                code /= 3;
++                out[i] = o as u8;
++                mass *= g.prob[o];
++                totals[g.home] += [0, stride, 3 * stride + 1][o];
++                totals[g.away] += [3 * stride + 1, stride, 0][o];
++            }
++            let count = p
++                .strata
++                .iter()
++                .filter(|s| {
++                    let p = &s.pattern;
++                    p.fixed.iter().all(|&(i, o)| out[i] == o)
++                        && p.joint
++                            .games
++                            .iter()
++                            .chain(&p.guide.games)
++                            .chain(&p.omitted)
++                            .all(|g| g.prob[out[g.index] as usize] > 0.)
++                        && (0..m.n).all(|t| totals[t] >= p.lower[t] && totals[t] <= p.upper[t])
++                })
++                .count();
++            assert!(count <= 1, "overlapping leaves at {out:?}");
++            if canonical_ranks(m, &out)[p.cell.team] == p.cell.rank {
++                assert_eq!(count, 1, "lost a rank event at {out:?}");
++                exact += mass;
++            }
++        }
++        exact
++    }
++    #[test]
++    fn tree_partition_and_weights_preserve_every_enumerated_rank() {
++        let m = model();
++        for rank in 0..m.n {
++            let cell = Cell { team: 0, rank };
++            let p = BranchStrata::with_tree(&m, cell, 808, 1, 32, 0, 4000000).unwrap();
++            let exact = coverage(&m, &p);
++            for bounds in [false, true] {
++                let samples: Vec<_> = (0..p.len())
++                    .map(|i| {
++                        p.sample(
++                            &m,
++                            i,
++                            5000 + i * 17,
++                            derive(808, &format!("tree-weight-test-{i}")),
++                            bounds,
++                            false,
++                        )
++                    })
++                    .collect();
++                let r = combine(&samples);
++                assert!(
++                    (r.probability - exact).abs() < 6. * r.std_err + 1e-4,
++                    "{} vs {exact}",
++                    r.probability
++                );
++            }
++        }
++    }
++    #[test]
++    fn exhausted_split_budget_keeps_complete_parent_regions() {
++        let m = model();
++        let cell = Cell { team: 0, rank: 1 };
++        let p = BranchStrata::with_tree_quota(&m, cell, 808, 1, 32, 0, 4000000, 0).unwrap();
++        assert!(
++            p.tree_diagnostics.as_ref().unwrap()["failed_splits"]
++                .as_u64()
++                .unwrap()
++                > 0
++        );
++        assert!(coverage(&m, &p) > 0.);
++    }
++    #[test]
++    fn insufficient_root_budget_cannot_return_a_partial_union() {
++        let m = model();
++        let cell = Cell { team: 0, rank: 1 };
++        assert!(
++            matches!(BranchStrata::with_tree(&m,cell,808,1,1,0,4000000),Err(e) if e.contains("complete roots exceed"))
++        );
++    }
++}
+--- a/odds-rust/src/joint_caps/propagated/lazy/strata.rs
++++ b/odds-rust/src/joint_caps/propagated/lazy/strata.rs
+@@ -1,6 +1,7 @@
+ //! Offline complete case stratification. Each requested branch is a disjoint
+ //! target path and strict exception mask; budgets never truncate the sum.
+ use super::*;
++mod tree;
+ 
+ struct Stratum {
+     root: Vec<u8>,
+@@ -16,6 +17,8 @@
+     setup_nodes: usize,
+     secondary_fallbacks: usize,
+     secondary_nodes: usize,
++    tree_training_work: usize,
++    tree_diagnostics: Option<serde_json::Value>,
+ }
+ pub struct BranchSample {
+     pub result: Result,
+@@ -460,6 +463,8 @@
+             setup_nodes: builder.nodes,
+             secondary_fallbacks,
+             secondary_nodes,
++            tree_training_work: 0,
++            tree_diagnostics: None,
+         })
+     }
+     pub fn len(&self) -> usize {
+@@ -469,7 +474,7 @@
+         self.strata.is_empty()
+     }
+     pub fn setup_diagnostics(&self) -> serde_json::Value {
+-        json!({"nodes":self.setup_nodes,"secondary_nodes":self.secondary_nodes,
++        json!({"nodes":self.setup_nodes,"secondary_nodes":self.secondary_nodes,"tree":self.tree_diagnostics,
+             "complete_parent_fallback":self.secondary_fallbacks>0})
+     }
+     /// Bounds under independent original fixture outcomes, not proposal Q.
+@@ -601,25 +606,33 @@
+             + m.n * (m.n.max(2).ilog2() as usize + 1) * m.keys.len().max(1)
+     }
+     pub(crate) fn setup_work(&self) -> usize {
+-        crate::rare_tail::budget::setup_cost(
+-            self.setup_nodes,
+-            self.strata
+-                .iter()
+-                .map(|s| {
+-                    s.pattern
+-                        .guide
+-                        .cdf
+-                        .values
+-                        .iter()
+-                        .chain(&s.pattern.guide.reverse.values)
+-                        .map(|v| v.len())
+-                        .sum::<usize>()
+-                })
+-                .sum(),
+-        )
++        if let Some(tree) = &self.tree_diagnostics {
++            return self.tree_training_work
++                + crate::rare_tail::budget::setup_cost(
++                    self.setup_nodes,
++                    tree["guide_values"].as_u64().unwrap() as usize,
++                );
++        }
++        self.tree_training_work
++            + crate::rare_tail::budget::setup_cost(
++                self.setup_nodes,
++                self.strata
++                    .iter()
++                    .map(|s| {
++                        s.pattern
++                            .guide
++                            .cdf
++                            .values
++                            .iter()
++                            .chain(&s.pattern.guide.reverse.values)
++                            .map(|v| v.len())
++                            .sum::<usize>()
++                    })
++                    .sum(),
++            )
+     }
+     pub fn describe(&self, m: &Model) -> serde_json::Value {
+-        json!({"team":m.ids[self.cell.team],"rank":self.cell.rank+1,"setup_nodes":self.setup_nodes,"secondary_fallbacks":self.secondary_fallbacks,"secondary_nodes":self.secondary_nodes,"strata":self.strata.iter().map(|s|json!({
++        json!({"team":m.ids[self.cell.team],"rank":self.cell.rank+1,"setup_nodes":self.setup_nodes,"tree":self.tree_diagnostics,"secondary_fallbacks":self.secondary_fallbacks,"secondary_nodes":self.secondary_nodes,"strata":self.strata.iter().map(|s|json!({
+             "target_outcomes":s.root,"direction":if s.above{"above"}else{"below"},
+             "secondary_team":s.secondary.map(|t|m.ids[t]),
+             "exceptions":s.exceptions.iter().map(|&t|m.ids[t]).collect::<Vec<_>>(),
+--- a/odds-rust/src/joint_caps/propagated/lazy.rs
++++ b/odds-rust/src/joint_caps/propagated/lazy.rs
+@@ -94,6 +94,7 @@
+     joint_cache: HashMap<JointKey, (Arc<NecessaryJoint>, Vec<RankGame>)>,
+     fallback: Option<(Arc<NecessaryJoint>, Arc<Guide>)>,
+     guide_values: usize,
++    guide_limit: usize,
+     guides: HashMap<Vec<(usize, [u64; 3])>, Arc<Guide>>,
+ }
+ impl LazyJoint {
+@@ -314,6 +315,7 @@
+             joint_cache: HashMap::new(),
+             fallback: None,
+             guide_values: 0,
++            guide_limit: 4000000,
+             guides: HashMap::new(),
+         };
+         let mut seen = std::collections::HashSet::new();
+@@ -423,7 +425,7 @@
+                     .unwrap_or(0) as usize
+                     + 1;
+                 let values = (2 * gs.len() + 1) * span * 2;
+-                if result.guide_values + values > 4000000 {
++                if result.guide_values + values > result.guide_limit {
+                     return Some(result);
+                 }
+                 result.guide_values += values;
+@@ -747,7 +749,7 @@
+         let guide = if let Some(g) = self.guides.get(&guide_key) {
+             g.clone()
+         } else {
+-            if self.guide_values + values > 4000000 {
++            if self.guide_values + values > self.guide_limit {
+                 return Err(());
+             }
+             self.guide_values += values;
+--- a/odds-rust/src/proof.rs
++++ b/odds-rust/src/proof.rs
+@@ -553,7 +553,10 @@
+         p.aggregate_cuts = true;
+     }
+     let rank_proof = (!cells.is_empty()
+-        && matches!(std::env::var("RUST_ODDS_RANK_PROOF").as_deref(), Err(_) | Ok("1")))
++        && matches!(
++            std::env::var("RUST_ODDS_RANK_PROOF").as_deref(),
++            Err(_) | Ok("1")
++        ))
+     .then(|| crate::rank_proof::RankProof::new(model))
+     .flatten();
+     let mut proofs = 0;
+--- a/odds-rust/src/rare_tail/branches.rs
++++ b/odds-rust/src/rare_tail/branches.rs
+@@ -97,6 +97,7 @@
+     tightened_only: bool,
+     excluded: &[Cell],
+     available_work: Option<usize>,
++    tree_mode: bool,
+ ) -> (usize, u64, usize, Vec<Cell>) {
+     let nominal_total = if tightened_only {
+         std::env::var("RUST_ODDS_CERTIFIED_BRANCH_DRAWS")
+@@ -107,6 +108,15 @@
+     } else {
+         TOTAL
+     };
++    let pilot_draws = if tree_mode {
++        std::env::var("RUST_ODDS_EXPERIMENT_TREE_PILOT")
++            .ok()
++            .and_then(|s| s.parse::<usize>().ok())
++            .filter(|n| (25..=500).contains(n))
++            .unwrap_or(50)
++    } else {
++        PILOT
++    };
+     let start = Instant::now();
+     let deterministic = budget::deterministic();
+     let share = fraction(&value("RUST_ODDS_RARE_TAIL_BRANCH_BUDGET_FRACTION"));
+@@ -115,7 +125,7 @@
+         budget::capacity(m, scaled(6 * REFERENCE_DRAWS, share)),
+         available_work,
+     ));
+-    let cells: Vec<_> = estimates
++    let mut cells: Vec<_> = estimates
+         .iter()
+         .enumerate()
+         .filter_map(|(i, e)| {
+@@ -126,6 +136,14 @@
+         })
+         .filter(|c| !excluded.contains(c))
+         .collect();
++    if tree_mode {
++        let mut counted: Vec<_> = cells
++            .into_iter()
++            .map(|c| (BranchStrata::tree_root_count(m, c, seed), c))
++            .collect();
++        counted.sort_by_key(|&(n, c)| (n, c.index(m.n)));
++        cells = counted.into_iter().map(|(_, c)| c).collect();
++    }
+     let before: Vec<_> = estimates
+         .iter()
+         .enumerate()
+@@ -172,7 +190,11 @@
+         }
+         handled.push(cell);
+         // Deterministic complete enumeration; no cached target path is omitted.
+-        let proposal = BranchStrata::with_secondary(m, cell, seed, 4, true);
++        let proposal = if tree_mode {
++            BranchStrata::with_tree(m, cell, seed, 4, 64, 0, 4000000)
++        } else {
++            BranchStrata::with_secondary(m, cell, seed, 4, true)
++        };
+         let setup_ms = setup.elapsed().as_secs_f64() * 1000.;
+         setups_ms += setup_ms;
+         let p = match proposal {
+@@ -199,10 +221,10 @@
+         let pilot_cost = if budget::modeled() {
+             p.setup_work()
+                 + (0..p.len())
+-                    .map(|i| PILOT * (p.draw_work(m, i, false) + p.draw_work(m, i, true)))
++                    .map(|i| pilot_draws * (p.draw_work(m, i, false) + p.draw_work(m, i, true)))
+                     .sum::<usize>()
+         } else {
+-            2 * p.len() * PILOT + 2 * nominal_total
++            2 * p.len() * pilot_draws + 2 * nominal_total
+         };
+         if deterministic && !draw_budget.reserve(pilot_cost) {
+             skipped += 1;
+@@ -212,7 +234,7 @@
+                 json!({
+                     "group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,
+                     "setup_ms":setup_ms,"branches":p.len(),
+-                    "requested_draws":2 * p.len() * PILOT + 2 * nominal_total,
++                    "requested_draws":2 * p.len() * pilot_draws + 2 * nominal_total,
+                     "reason":"complete pilot pair exceeds remaining work budget"
+                 }),
+             );
+@@ -233,7 +255,7 @@
+             let rank = p.sample(
+                 m,
+                 i,
+-                PILOT,
++                pilot_draws,
+                 derive(seed, &format!("branch-pilot-{i}")),
+                 false,
+                 true,
+@@ -241,7 +263,7 @@
+             let interval = p.sample(
+                 m,
+                 i,
+-                PILOT,
++                pilot_draws,
+                 derive(seed, &format!("branch-bound-pilot-{i}")),
+                 true,
+                 true,
+@@ -298,7 +320,8 @@
+         let guides: Vec<_> = pilots.iter().map(|r| r.1).collect();
+         // Soft admission deadline; the entire fixed main/check pair runs after
+         // admission. Never stop a reported batch based on its own results.
+-        let forecast = 1.3 * pilot_ms * (2 * nominal_total) as f64 / (2 * p.len() * PILOT) as f64;
++        let forecast =
++            1.3 * pilot_ms * (2 * nominal_total) as f64 / (2 * p.len() * pilot_draws) as f64;
+         if !deterministic && start.elapsed().as_secs_f64() * 1000. + forecast > allowance {
+             emit(
+                 log,
+@@ -390,7 +413,7 @@
+     emit(
+         log,
+         "rust_odds_rare_tail_branches_summary",
+-        json!({"group":m.request.id,"tightened_only":tightened_only,"eligible":cells.len(),"attempted":attempted,"skipped":skipped,"accepted":found,"elapsed_ms":start.elapsed().as_secs_f64()*1000.,"setup_ms":setups_ms,"allowance_ms":if deterministic {None}else{Some(allowance)},"budget_mode":budget::mode(),"work_limit":if deterministic {Some(draw_budget.limit)}else{None},"reserved_work":if deterministic {Some(draw_budget.reserved)}else{None},"work":work,"bound_floor":reduce_floor,"preserved_existing_estimates":before.iter().all(|(i, e)| *e == serde_json::to_value(&estimates[*i]).unwrap())}),
++        json!({"group":m.request.id,"tree_mode":tree_mode,"pilot_draws_per_branch":pilot_draws,"tightened_only":tightened_only,"eligible":cells.len(),"attempted":attempted,"skipped":skipped,"accepted":found,"elapsed_ms":start.elapsed().as_secs_f64()*1000.,"setup_ms":setups_ms,"allowance_ms":if deterministic {None}else{Some(allowance)},"budget_mode":budget::mode(),"work_limit":if deterministic {Some(draw_budget.limit)}else{None},"reserved_work":if deterministic {Some(draw_budget.reserved)}else{None},"work":work,"bound_floor":reduce_floor,"preserved_existing_estimates":before.iter().all(|(i, e)| *e == serde_json::to_value(&estimates[*i]).unwrap())}),
+     );
+     (found, work, draw_budget.reserved, handled)
+ }
+--- a/odds-rust/src/rare_tail.rs
++++ b/odds-rust/src/rare_tail.rs
+@@ -719,11 +719,45 @@
+             0.,
+             true,
+             &[],
+-            Some(budget::capacity(m, budget::confirmation_limit(more_fraction))),
++            Some(budget::capacity(
++                m,
++                budget::confirmation_limit(more_fraction),
++            )),
++            false,
+         );
+         found += added;
+         work += spent;
+-        (reserved, handled)
++        if std::env::var("RUST_ODDS_EXPERIMENT_TREE").as_deref() == Ok("1") {
++            let remaining_confirmation =
++                budget::capacity(m, budget::confirmation_limit(more_fraction))
++                    .saturating_sub(reserved);
++            let fraction = std::env::var("RUST_ODDS_RARE_TAIL_BRANCH_BUDGET_FRACTION")
++                .ok()
++                .and_then(|s| s.parse::<f64>().ok())
++                .unwrap_or(0.15)
++                .clamp(0., 0.5);
++            let remaining_branch =
++                budget::capacity(m, scaled(6 * REFERENCE_DRAWS, fraction)).saturating_sub(reserved);
++            let (added, spent, tree_reserved, tree_handled) = branches::run(
++                m,
++                seed,
++                workers,
++                estimates,
++                log,
++                0.,
++                true,
++                &[],
++                Some(remaining_confirmation.min(remaining_branch)),
++                true,
++            );
++            found += added;
++            work += spent;
++            let mut handled = handled;
++            handled.extend(tree_handled);
++            (reserved + tree_reserved, handled)
++        } else {
++            (reserved, handled)
++        }
+     } else {
+         (0, Vec::new())
+     };
+@@ -923,6 +957,7 @@
+             false,
+             &early_branches,
+             None,
++            false,
+         );
+         found += added;
+         work += spent;
+--- a/odds-rust/src/search.rs
++++ b/odds-rust/src/search.rs
+@@ -943,8 +943,7 @@
+     let tail_seasons: Vec<_> = if matches!(
+         crate::rare_tail::profile().as_str(),
+         "lazy" | "portfolio" | "coverage"
+-    )
+-    {
++    ) {
+         assignments
+             .iter()
+             .chain(&construction.deferred)

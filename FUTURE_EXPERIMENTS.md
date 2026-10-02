@@ -1734,3 +1734,129 @@ R40 final validation:135 Rust tests passed (126 full-suite,9 example tests),
 retains19/22 branches with omitted mass≤4e-36. Python tools parse and historical
 residual summary reproduces23 pairs/4 gains/0 losses. Logs and validation:
 `experiments/rare_positions/2026-10-02-experiment-cleanup/`.
+
+## R41 — Bounded complete constraint tree for Flamengo13
+
+Status: complete; retain offline, reject both full-request allocation arms.
+Production defaults/source unchanged. Master f0a332b8 is the Rust baseline,
+four cores, saved identical requests; no new latency allowance.
+
+Replace full rank-mask enumeration with a bounded partition of complete parent
+regions. Split an unresolved rival into strict-exception and non-exception
+regions; shared-fixture propagation refutes only incompatible regions. At the
+rank-cardinality limit, remaining ambiguous rivals must be non-exceptions.
+Retain the whole parent if either child cannot finish construction. Freeze tree
+selection and allocation before fresh main/check draws; every retained leaf
+has positive allocation, with the production score sorter and original P/Q.
+
+The32-leaf trees were too coarse. A64-leaf cap under the existing4-million
+guide-value/100k joint-node limits retains54 complete leaves. At25k main/check
+draws it accepts3/5 seeds, main4.45e-34–6.18e-34 probability. Marginal rank-hint
+priority and30k/50k final batches still accept3/5; extra tree-training adds
+about90 ms without improving the initial32-leaf tree. Smaller50-draw pilots
+also accept3/5 offline, with different failures. Heavy weights remain:1,452
+hits can have ESS4.29 and a43% largest contribution. Almost all observed
+variance comes from one already fully classified leaf, so the next target is
+its joint probability proposal, rather than more rank-side splits.
+
+Full-request500-pilot arm, five group16498 pairs: gain1/loss1, no Flamengo13
+estimate, median HTTP+4.22%, CPU+1.17%, worst HTTP+34.83%. The54-leaf Flamengo
+pilot pair exceeds the remaining transferred bank in all five seeds.
+
+Full-request50-pilot arm,35 pairs/seven snapshots: gain1/loss3, no Flamengo13
+estimate, no coverage change in the other six snapshots. Group16498 median
+HTTP−8.52%, CPU−1.95% by reducing confirmations; worst paired HTTP increase
+across the cohort+11.99%, aggregate CPU+0.57%. Gain: Palmeiras16 seed1669,
+6.08e-41. Losses: Flamengo12 seeds1993/2281 and Palmeiras14 seed2293,
+about1e-25–9e-25. All reachability/impossibility proofs are retained. The
+operation-bank limit is preserved, but failed setup still incurs wall time.
+
+Fresh repeated single-cell processes: median227.69 ms wall, approximately450 ms
+CPU,59.56 MiB RSS; setup54.47 ms and sampling155.69 ms. This is an offline cell,
+not the cost of the full endpoint. Historical407-stratum/R39 timing is not a
+paired current comparison. Tests:129 Rust passed/four DB tests ignored, two
+Python tests passed, three flag-off HTTP controls identical. The comparison
+helper now recognizes normalized HTTP `reachable`; estimates lost by allocation
+are not mislabeled as lost reachability proofs. All212 archived members verify.
+
+Next: lower weight variance inside the dominant complete leaf, reuse setup
+metadata, and fund a minimum final pair before spending transferred pilots.
+Keep complete support, independent final streams and current quality gates.
+Neither allocation policy is enabled or committed/pushed by this experiment.
+
+Report: `experiments/rare_positions/2026-10-02-rust-flamengo-tree.md`.
+Artifacts: `2026-10-02-flamengo-tree/` (prototype patch, compact summary,
+verified raw archive/manifest and reproducible commands).
+
+## R42 — Improve complete-branch importance proposals
+
+Status: experiment complete; user authorized adopting the measured policy on
+2026-10-02 despite CPU +2.48% and median HTTP latency +4.58%. Production
+integration and validation follow below.
+Current Rust baseline/four workers. User allows a
+proportional increase in work measured against recovered rare cells: final
+positive cells with zero initial100k-MC observations. Report net gains/losses,
+CPU and full-request wall time; use the existing Rust request as denominator.
+Baseline group16498 recovers82–88 rare cells across five fixed seeds, so one
+additional cell alone supports only about1.2% more work. Start with R41's complete frozen tree and identify whether heavy weights
+come from score tilting, rank guidance, or joint-selected fixtures which ignore
+the remaining rivals' constraints. Screen alternatives with identical requests
+and seeds, then measure any useful proposal by reallocating existing work.
+Preserve complete event support, actual sorter checks, fresh final batches and
+the existing acceptance gates. Prototype code remains isolated.
+
+R42 results:
+
+- Three-pass fixture/team interval messages with10% defensive original outcome
+  probabilities reduce heavy weights inside the complete tree. Rebuild the
+  exact joint normalizer underQ and correct every joint/guided fixture byP/Q.
+  Messages are proposal heuristics, never proofs or estimates by themselves.
+- A complete54-leaf tree,25 pilots/leaf and3k fresh main/check draws estimates
+  Flamengo13 in10/10 seeds (five development/five holdout),4.50e-34–1.17e-33
+  probability. No team/rank-specific constructor or relaxed gate was added.
+-70 paired full requests/seven snapshots:10 gains/0 losses, **one distinct
+  cell**, no reachability/impossibility regressions. All existing probabilities,
+  standard errors and game importance are unchanged. Other snapshots gain0.
+- Count against final positive cells with zero initial100k-MC observations.
+  Group16498 rare cell-runs846→856 supports **1.182%** extra work. Across the
+  full cohort4,319→4,329; work credit stays local to each affected request.
+- Transfer/refund-only policies lost existing cell-runs. Actual pilot accounting,
+  priority-prefix confirmations and conditional conservative credit preserve
+  coverage. Configured credit≤0.763% fits the proportional allowance, but
+  measured CPU/wall do not reliably fit it.
+- Exact memoized initial-mass evaluation retains every backward-DP floating bit
+  and cuts tree setup51.40→26.47 ms. All70 candidate exports match the slower
+  prototype exactly. Full tables remain in use for actual conditional draws.
+- Warm repeated servers: CPU31.01→31.78 seconds (+2.48%); median full HTTP
+  1,249.80→1,307.07 ms (+4.58%). Four workers retained, peak RSS395.91→409.77MiB.
+  Fresh-process measurements were noisy; do not treat the holdout timing drop
+  as a demonstrated speedup. No additional blanket latency allowance assumed.
+- Discard stronger interval powers, smaller trees, stronger/more message
+  passes, the marginal cache (CPU+6.63%), and the strong point-tilt short-batch
+  rule (no eligible cells). Preparation pipelines did not establish a cost win.
+  Naive message reuse on Palmeiras16 with5k final batches accepted0/5.
+-141 Rust tests passed/four DB tests ignored; five Python tests passed. Four
+  flag-off HTTP controls exactly match baseline exports. Patch reconstructs
+  the ten changed source files; raw evidence is archived with verified hashes.
+
+Adoption: `RUST_ODDS_RARE_TAIL_TREE=1` is now the coverage default. The adopted
+policy uses64 leaves,25 pilots/leaf,3k main/check allocations, three message
+passes on one pilot-selected leaf,10% defensive original probabilities,
+priority-prefix confirmations, unused-check refunds and conditional credit
+capped at16m units. `RUST_ODDS_RARE_TAIL_TREE=0` restores the prior allocation.
+Rejected preparation pipelines and prototype-only runtime tuning switches were
+removed. Historical patch/raw evidence remains unchanged. Do not claim this
+fits the original proportional CPU budget solely because configured credit does.
+Production adoption checks:143 Rust tests pass/four DB tests ignored; five
+Python tests pass.70 paired HTTP exports/seven snapshots match the validated
+prototype byte-for-byte. Four flag-off controls reproduce prior production;
+worker/logging/repeat invariance and reduced-budget checks pass. New warm checks
+against prior production measure CPU+5.17–6.81%, HTTP+6.66–8.05%; the direct
+prototype comparison measures CPU−3.39%, HTTP+0.97%. These observations exceed
+the earlier+2.48%/+4.58% timing and the original proportional allowance; no
+additional sampler budget was added. Report and verified adoption archive record
+all measurements and commands. User authorized commit and push on2026-10-02.
+
+Report: `experiments/rare_positions/2026-10-02-rust-flamengo-messages.md`.
+Artifacts: `2026-10-02-flamengo-messages/` (patch, commands, compact summary and
+verified raw log/export archive).

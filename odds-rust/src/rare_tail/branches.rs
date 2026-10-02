@@ -16,14 +16,23 @@ fn fraction(value: &str) -> f64 {
         .unwrap_or(0.15)
 }
 
+#[cfg(test)]
 fn allocation(scores: &[f64], small: &[bool], total: usize) -> Option<Vec<usize>> {
+    allocation_floor(scores, small, total, FLOOR)
+}
+fn allocation_floor(
+    scores: &[f64],
+    small: &[bool],
+    total: usize,
+    floor: usize,
+) -> Option<Vec<usize>> {
     if scores.len() != small.len()
         || scores.is_empty()
         || scores.iter().any(|s| !s.is_finite() || *s < 0.)
     {
         return None;
     }
-    let mut ns: Vec<_> = small.iter().map(|&s| if s { 2 } else { FLOOR }).collect();
+    let mut ns: Vec<_> = small.iter().map(|&s| if s { 2 } else { floor }).collect();
     let assigned: usize = ns.iter().sum();
     if assigned > total {
         return None;
@@ -97,8 +106,12 @@ pub(super) fn run(
     tightened_only: bool,
     excluded: &[Cell],
     available_work: Option<usize>,
-) -> (usize, u64, usize, Vec<Cell>) {
-    let nominal_total = if tightened_only {
+    tree_mode: bool,
+) -> (usize, u64, usize, Vec<Cell>, Vec<Cell>) {
+    let floor = if tree_mode { 10 } else { FLOOR };
+    let nominal_total = if tree_mode {
+        3000
+    } else if tightened_only {
         std::env::var("RUST_ODDS_CERTIFIED_BRANCH_DRAWS")
             .ok()
             .and_then(|s| s.parse::<usize>().ok())
@@ -107,6 +120,7 @@ pub(super) fn run(
     } else {
         TOTAL
     };
+    let pilot_draws = if tree_mode { 25 } else { PILOT };
     let start = Instant::now();
     let deterministic = budget::deterministic();
     let share = fraction(&value("RUST_ODDS_RARE_TAIL_BRANCH_BUDGET_FRACTION"));
@@ -115,7 +129,7 @@ pub(super) fn run(
         budget::capacity(m, scaled(6 * REFERENCE_DRAWS, share)),
         available_work,
     ));
-    let cells: Vec<_> = estimates
+    let mut cells: Vec<_> = estimates
         .iter()
         .enumerate()
         .filter_map(|(i, e)| {
@@ -126,6 +140,14 @@ pub(super) fn run(
         })
         .filter(|c| !excluded.contains(c))
         .collect();
+    if tree_mode {
+        let mut counted: Vec<_> = cells
+            .into_iter()
+            .map(|c| (BranchStrata::tree_root_count(m, c, seed), c))
+            .collect();
+        counted.sort_by_key(|&(n, c)| (n, c.index(m.n)));
+        cells = counted.into_iter().map(|(_, c)| c).collect();
+    }
     let before: Vec<_> = estimates
         .iter()
         .enumerate()
@@ -134,7 +156,10 @@ pub(super) fn run(
         .collect();
     let reduce_floor = value("RUST_ODDS_RARE_TAIL_BRANCH_BOUND_FLOOR") == "1";
     let (mut found, mut work, mut attempted, mut skipped, mut setups_ms) = (0, 0, 0, 0, 0.);
+    let refund_checks = tree_mode || tree_enabled();
+    let mut reclaimed_check_work = 0;
     let mut handled = Vec::new();
+    let mut tree_eligible = Vec::new();
     for cell in cells.iter().take(8).copied() {
         if (deterministic && draw_budget.reserved >= draw_budget.limit)
             || (!deterministic && start.elapsed().as_secs_f64() * 1000. >= allowance)
@@ -172,15 +197,24 @@ pub(super) fn run(
         }
         handled.push(cell);
         // Deterministic complete enumeration; no cached target path is omitted.
-        let proposal = BranchStrata::with_secondary(m, cell, seed, 4, true);
+        let proposal = if tree_mode {
+            BranchStrata::with_tree(m, cell, seed, 4, 64, 0, 4_000_000)
+        } else {
+            BranchStrata::with_secondary(m, cell, seed, 4, true)
+        };
         let setup_ms = setup.elapsed().as_secs_f64() * 1000.;
         setups_ms += setup_ms;
-        let p = match proposal {
-            Ok(p) if p.len() * FLOOR <= nominal_total => p,
+        let mut p = match proposal {
+            Ok(p) if p.len() * floor <= nominal_total => p,
             result => {
                 skipped += 1;
                 let reason = match result {
-                    Err(reason) => reason,
+                    Err(reason) => {
+                        if reason == "case enumeration budget exhausted" {
+                            tree_eligible.push(cell);
+                        }
+                        reason
+                    }
                     Ok(_) => "branch allocation floor exceeds draw budget".into(),
                 };
                 emit(
@@ -199,10 +233,17 @@ pub(super) fn run(
         let pilot_cost = if budget::modeled() {
             p.setup_work()
                 + (0..p.len())
-                    .map(|i| PILOT * (p.draw_work(m, i, false) + p.draw_work(m, i, true)))
+                    .map(|i| {
+                        pilot_draws
+                            * (if tree_mode {
+                                p.draw_work(m, i, true)
+                            } else {
+                                p.draw_work(m, i, false) + p.draw_work(m, i, true)
+                            })
+                    })
                     .sum::<usize>()
         } else {
-            2 * p.len() * PILOT + 2 * nominal_total
+            2 * p.len() * pilot_draws + 2 * nominal_total
         };
         if deterministic && !draw_budget.reserve(pilot_cost) {
             skipped += 1;
@@ -212,7 +253,7 @@ pub(super) fn run(
                 json!({
                     "group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,
                     "setup_ms":setup_ms,"branches":p.len(),
-                    "requested_draws":2 * p.len() * PILOT + 2 * nominal_total,
+                    "requested_draws":2 * p.len() * pilot_draws + 2 * nominal_total,
                     "reason":"complete pilot pair exceeds remaining work budget"
                 }),
             );
@@ -229,11 +270,23 @@ pub(super) fn run(
                 .then(a.cmp(&b))
         });
         let pilot_clock = Instant::now();
-        let pilots = parallel(p.len(), workers, |i| {
+        let mut pilots = parallel(p.len(), workers, |i| {
+            if tree_mode {
+                let interval = p.sample(
+                    m,
+                    i,
+                    pilot_draws,
+                    derive(seed, &format!("branch-bound-pilot-{i}")),
+                    true,
+                    true,
+                );
+                let work = interval.result.work;
+                return (interval, true, work);
+            }
             let rank = p.sample(
                 m,
                 i,
-                PILOT,
+                pilot_draws,
                 derive(seed, &format!("branch-pilot-{i}")),
                 false,
                 true,
@@ -241,7 +294,7 @@ pub(super) fn run(
             let interval = p.sample(
                 m,
                 i,
-                PILOT,
+                pilot_draws,
                 derive(seed, &format!("branch-bound-pilot-{i}")),
                 true,
                 true,
@@ -254,8 +307,67 @@ pub(super) fn run(
                 work,
             )
         });
-        let pilot_ms = pilot_clock.elapsed().as_secs_f64() * 1000.;
         work += pilots.iter().map(|r| r.2).sum::<u64>();
+        if tree_mode && budget::modeled() {
+            let actual = p.setup_work()
+                + pilots
+                    .iter()
+                    .map(|r| r.0.result.operations.units())
+                    .sum::<usize>();
+            if actual < pilot_cost {
+                assert!(draw_budget.release(pilot_cost - actual));
+            }
+        }
+        if tree_mode && pilots.iter().all(|r| r.0.result.probability <= 0.) {
+            skipped += 1;
+            emit(
+                log,
+                "rust_odds_rare_tail_branches_skip",
+                json!({"team":m.ids[cell.team],"rank":cell.rank+1,"reason":"no event evidence in complete tree pilots","pilot_draws":pilot_draws*p.len()}),
+            );
+            continue;
+        }
+        let mut message_info = serde_json::Value::Null;
+        if tree_mode {
+            let rs = pilots
+                .iter()
+                .map(|r| r.0.result.clone())
+                .collect::<Vec<_>>();
+            message_info = p.prepare_messages(m, &rs, 1);
+            let message_work = message_info["work"].as_u64().unwrap() as usize;
+            let selected: Vec<_> = message_info["selected"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_u64().unwrap() as usize)
+                .collect();
+            let re_pilot_work = selected
+                .iter()
+                .map(|&i| pilot_draws * p.draw_work(m, i, true))
+                .sum::<usize>();
+            if !draw_budget.reserve(message_work + re_pilot_work) {
+                skipped += 1;
+                continue;
+            }
+            let revised = parallel(selected.len(), workers, |slot| {
+                let i = selected[slot];
+                let r = p.sample(
+                    m,
+                    i,
+                    pilot_draws,
+                    derive(seed, &format!("message-pilot-{i}")),
+                    true,
+                    true,
+                );
+                let work = r.result.work;
+                (i, (r, true, work))
+            });
+            for (i, row) in revised {
+                work += row.2;
+                pilots[i] = row;
+            }
+        }
+        let pilot_ms = pilot_clock.elapsed().as_secs_f64() * 1000.;
         let pilot_probability: f64 = pilots.iter().map(|r| r.0.result.probability).sum();
         let small: Vec<_> = bounds
             .iter()
@@ -277,8 +389,8 @@ pub(super) fn run(
         if budget::modeled() {
             // Preserve the ordinary allocation and streams before spending
             // remaining units on a larger independent retry for cheap failures.
-            while total >= p.len() * FLOOR {
-                let Some(ns) = allocation(&scores, &small, total) else {
+            while total >= p.len() * floor {
+                let Some(ns) = allocation_floor(&scores, &small, total, floor) else {
                     break;
                 };
                 let cost: usize = ns.iter().zip(&costs).map(|(n, c)| 2 * n * c).sum();
@@ -287,18 +399,19 @@ pub(super) fn run(
                 }
                 total = total.saturating_sub(1000);
             }
-            if total < p.len() * FLOOR {
+            if total < p.len() * floor {
                 skipped += 1;
                 continue;
             }
         }
-        let Some(ns) = allocation(&scores, &small, total) else {
+        let Some(ns) = allocation_floor(&scores, &small, total, floor) else {
             continue;
         };
         let guides: Vec<_> = pilots.iter().map(|r| r.1).collect();
         // Soft admission deadline; the entire fixed main/check pair runs after
         // admission. Never stop a reported batch based on its own results.
-        let forecast = 1.3 * pilot_ms * (2 * nominal_total) as f64 / (2 * p.len() * PILOT) as f64;
+        let forecast =
+            1.3 * pilot_ms * (2 * nominal_total) as f64 / (2 * p.len() * pilot_draws) as f64;
         if !deterministic && start.elapsed().as_secs_f64() * 1000. + forecast > allowance {
             emit(
                 log,
@@ -308,17 +421,58 @@ pub(super) fn run(
             skipped += 1;
             continue;
         }
-        let main_clock = Instant::now();
-        let mains = sample(&p, m, &ns, &guides, &order, seed, "main", workers);
-        let main_ms = main_clock.elapsed().as_secs_f64() * 1000.;
-        let main = combine_branches(&mains);
-        let check_clock = Instant::now();
-        let check = if publishable(&main, true) {
-            combine_branches(&sample(&p, m, &ns, &guides, &order, seed, "check", workers))
+        let (main, check, main_ms, check_ms) = if tree_mode {
+            let clock = Instant::now();
+            let costs: Vec<_> = (0..2 * p.len())
+                .map(|slot| {
+                    let i = order[slot % p.len()];
+                    ns[i] * p.draw_work(m, i, guides[i])
+                })
+                .collect();
+            let mut rows = budget::parallel(&costs, workers, |slot| {
+                let phase = if slot < p.len() { "main" } else { "check" };
+                let i = order[slot % p.len()];
+                (
+                    slot / p.len(),
+                    i,
+                    p.sample(
+                        m,
+                        i,
+                        ns[i],
+                        derive(seed, &format!("branch-{phase}-{i}")),
+                        guides[i],
+                        true,
+                    ),
+                )
+            });
+            rows.sort_by_key(|r| (r.0, r.1));
+            let mut rows: Vec<_> = rows.into_iter().map(|r| r.2).collect();
+            let checks = rows.split_off(p.len());
+            (
+                combine_branches(&rows),
+                combine_branches(&checks),
+                clock.elapsed().as_secs_f64() * 1000.,
+                0.,
+            )
         } else {
-            Result::default()
+            let main_clock = Instant::now();
+            let mains = sample(&p, m, &ns, &guides, &order, seed, "main", workers);
+            let main_ms = main_clock.elapsed().as_secs_f64() * 1000.;
+            let main = combine_branches(&mains);
+            let check_clock = Instant::now();
+            let check = if publishable(&main, true) {
+                combine_branches(&sample(&p, m, &ns, &guides, &order, seed, "check", workers))
+            } else {
+                Result::default()
+            };
+            let check_ms = check_clock.elapsed().as_secs_f64() * 1000.;
+            if refund_checks && check.samples == 0 {
+                let unused = ns.iter().zip(&costs).map(|(n, c)| n * c).sum();
+                assert!(draw_budget.release(unused));
+                reclaimed_check_work += unused;
+            }
+            (main, check, main_ms, check_ms)
         };
-        let check_ms = check_clock.elapsed().as_secs_f64() * 1000.;
         work += main.work + check.work;
         let ok = accepted(&main, &check, true);
         if ok && commit_estimate(&mut estimates[cell.index(m.n)], &main, true) {
@@ -330,14 +484,14 @@ pub(super) fn run(
         emit(
             log,
             "rust_odds_rare_tail_branches",
-            json!({"group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,"branches":p.len(),"setup":p.setup_diagnostics(),"setup_ms":setup_ms,"bounds_ms":bounds_ms,"pilot_ms":pilot_ms,"main_ms":main_ms,"check_ms":check_ms,"pilot_probability":pilot_probability,"small_branch_floors":small.iter().filter(|&&s|s).count(),"allocated_main_draws":total,"estimated_cost_per_draw":costs,"main_draws":main.samples,"main_hits":main.hits,"main_ess":main.ess,"main_max_share":main.max_share,"main_batch_gap":main.batch_gap,"probability":main.probability,"check_probability":check.probability,"check_ess":check.ess,"accepted":ok,"full_support":true,"omitted_probability":0,"forecast_ms":if deterministic {None}else{Some(forecast)}}),
+            json!({"group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,"branches":p.len(),"setup":p.setup_diagnostics(),"parallel_pair":tree_mode,"setup_ms":setup_ms,"bounds_ms":bounds_ms,"messages":message_info,"pilot_ms":pilot_ms,"main_ms":main_ms,"check_ms":check_ms,"pilot_probability":pilot_probability,"small_branch_floors":small.iter().filter(|&&s|s).count(),"allocated_main_draws":total,"estimated_cost_per_draw":costs,"main_draws":main.samples,"main_hits":main.hits,"main_ess":main.ess,"main_max_share":main.max_share,"main_batch_gap":main.batch_gap,"probability":main.probability,"check_probability":check.probability,"check_ess":check.ess,"accepted":ok,"full_support":true,"omitted_probability":0,"forecast_ms":if deterministic {None}else{Some(forecast)}}),
         );
         if !ok && budget::modeled() {
             let reference = budget::reference_cost(m);
             let average = costs.iter().sum::<usize>() / costs.len().max(1);
             let retry_total = (nominal_total * reference / average.max(reference / 3).max(1))
                 .clamp(nominal_total, 3 * nominal_total);
-            if let Some(retry_ns) = allocation(&scores, &small, retry_total) {
+            if let Some(retry_ns) = allocation_floor(&scores, &small, retry_total, floor) {
                 let retry_cost: usize = retry_ns.iter().zip(&costs).map(|(n, c)| 2 * n * c).sum();
                 if draw_budget.reserve(retry_cost) {
                     let clock = Instant::now();
@@ -365,6 +519,10 @@ pub(super) fn run(
                     } else {
                         Result::default()
                     };
+                    if refund_checks && check.samples == 0 {
+                        assert!(draw_budget.release(retry_cost / 2));
+                        reclaimed_check_work += retry_cost / 2;
+                    }
                     work += retry.work + check.work;
                     let accepted = accepted(&retry, &check, true);
                     if accepted && commit_estimate(&mut estimates[cell.index(m.n)], &retry, true) {
@@ -390,9 +548,9 @@ pub(super) fn run(
     emit(
         log,
         "rust_odds_rare_tail_branches_summary",
-        json!({"group":m.request.id,"tightened_only":tightened_only,"eligible":cells.len(),"attempted":attempted,"skipped":skipped,"accepted":found,"elapsed_ms":start.elapsed().as_secs_f64()*1000.,"setup_ms":setups_ms,"allowance_ms":if deterministic {None}else{Some(allowance)},"budget_mode":budget::mode(),"work_limit":if deterministic {Some(draw_budget.limit)}else{None},"reserved_work":if deterministic {Some(draw_budget.reserved)}else{None},"work":work,"bound_floor":reduce_floor,"preserved_existing_estimates":before.iter().all(|(i, e)| *e == serde_json::to_value(&estimates[*i]).unwrap())}),
+        json!({"group":m.request.id,"tree_mode":tree_mode,"pilot_draws_per_branch":pilot_draws,"tightened_only":tightened_only,"eligible":cells.len(),"attempted":attempted,"skipped":skipped,"accepted":found,"elapsed_ms":start.elapsed().as_secs_f64()*1000.,"setup_ms":setups_ms,"allowance_ms":if deterministic {None}else{Some(allowance)},"budget_mode":budget::mode(),"work_limit":if deterministic {Some(draw_budget.limit)}else{None},"reclaimed_check_work":reclaimed_check_work,"reserved_work":if deterministic {Some(draw_budget.reserved)}else{None},"work":work,"bound_floor":reduce_floor,"preserved_existing_estimates":before.iter().all(|(i, e)| *e == serde_json::to_value(&estimates[*i]).unwrap())}),
     );
-    (found, work, draw_budget.reserved, handled)
+    (found, work, draw_budget.reserved, handled, tree_eligible)
 }
 
 #[cfg(test)]

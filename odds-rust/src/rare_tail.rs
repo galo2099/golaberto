@@ -49,7 +49,8 @@ fn profile_default(name: &str) -> &'static str {
         "RUST_ODDS_LAZY_GOALS"
         | "RUST_ODDS_LAZY_OMIT"
         | "RUST_ODDS_RARE_TAIL_SHARE"
-        | "RUST_ODDS_RARE_TAIL_BRANCHES" => "1",
+        | "RUST_ODDS_RARE_TAIL_BRANCHES"
+        | "RUST_ODDS_RARE_TAIL_TREE" => "1",
         "RUST_ODDS_LAZY_SUBSET" => "adaptive",
         "RUST_ODDS_RARE_TAIL_FINALISTS" => "16",
         "RUST_ODDS_LAZY_RIVALS" => "4",
@@ -68,6 +69,25 @@ fn profile_default(name: &str) -> &'static str {
         "RUST_ODDS_SHARED_CONSTRAINTS_FRACTION" => "0.5",
         _ => "",
     }
+}
+
+/// Complete-tree fallback and its measured allocation policy, enabled by the
+/// coverage profile. An explicit zero restores the previous allocation policy.
+pub fn tree_enabled() -> bool {
+    value("RUST_ODDS_RARE_TAIL_TREE") == "1"
+}
+
+// Only a fresh accepted main/check pair earns extra work. The denominator
+// includes every initial-MC zero, so credit is conservative even when not all
+// of those cells have estimates. Reclaim at most the tree's reserved work.
+fn tree_credit(
+    configured: usize,
+    added: usize,
+    rare_upper: usize,
+    reserved: usize,
+) -> (usize, usize) {
+    let cap = configured.saturating_mul(added) / rare_upper.max(1);
+    (16_000_000.min(reserved).min(cap), cap)
 }
 
 enum Plan {
@@ -710,7 +730,7 @@ pub fn run(
         && crate::search::enabled("RUST_ODDS_CERTIFIED_TARGET_LIMITS")
         && crate::search::enabled("RUST_ODDS_CERTIFIED_BRANCH_TRANSFER")
     {
-        let (added, spent, reserved, handled) = branches::run(
+        let (added, spent, reserved, handled, tree_eligible) = branches::run(
             m,
             seed,
             workers,
@@ -719,11 +739,67 @@ pub fn run(
             0.,
             true,
             &[],
-            Some(budget::capacity(m, budget::confirmation_limit(more_fraction))),
+            Some(budget::capacity(
+                m,
+                budget::confirmation_limit(more_fraction),
+            )),
+            false,
         );
         found += added;
         work += spent;
-        (reserved, handled)
+        if tree_enabled() {
+            let remaining_confirmation =
+                budget::capacity(m, budget::confirmation_limit(more_fraction))
+                    .saturating_sub(reserved);
+            let fraction = std::env::var("RUST_ODDS_RARE_TAIL_BRANCH_BUDGET_FRACTION")
+                .ok()
+                .and_then(|s| s.parse::<f64>().ok())
+                .unwrap_or(0.15)
+                .clamp(0., 0.5);
+            let remaining_branch =
+                budget::capacity(m, scaled(6 * REFERENCE_DRAWS, fraction)).saturating_sub(reserved);
+            let excluded: Vec<_> = estimates
+                .iter()
+                .enumerate()
+                .filter_map(|(i, _)| {
+                    let c = Cell {
+                        team: i / m.n,
+                        rank: i % m.n,
+                    };
+                    (!tree_eligible.contains(&c)).then_some(c)
+                })
+                .collect();
+            let (added, spent, tree_reserved, tree_handled, _) = branches::run(
+                m,
+                seed,
+                workers,
+                estimates,
+                log,
+                0.,
+                true,
+                &excluded,
+                Some(remaining_confirmation.min(remaining_branch)),
+                true,
+            );
+            found += added;
+            work += spent;
+            let mut handled = handled;
+            handled.extend(tree_handled);
+            // An accepted additional cell earns limited work credit, allowing
+            // existing confirmations to keep their fixed independent batches.
+            let rare_max = estimates.iter().filter(|e| e.hits == 0).count().max(1);
+            let configured = budget::capacity(m, scaled(2 * REFERENCE_DRAWS, fraction))
+                + budget::capacity(m, budget::confirmation_limit(more_fraction));
+            let (bonus, proportional_cap) = tree_credit(configured, added, rare_max, tree_reserved);
+            emit(
+                log,
+                "rust_odds_rare_tail_tree_credit",
+                json!({"additional":added,"credit_units":bonus,"tree_reserved":tree_reserved,"rare_denominator_upper":rare_max,"configured_work":configured,"proportional_credit_cap":proportional_cap}),
+            );
+            (reserved + tree_reserved - bonus, handled)
+        } else {
+            (reserved, handled)
+        }
     } else {
         (0, Vec::new())
     };
@@ -913,7 +989,7 @@ pub fn run(
             unlogged_search_ms + start.elapsed().as_secs_f64() * 1000.,
             |l| l.calculation_elapsed_ms(),
         );
-        let (added, spent, _, _) = branches::run(
+        let (added, spent, _, _, _) = branches::run(
             m,
             seed,
             workers,
@@ -923,6 +999,7 @@ pub fn run(
             false,
             &early_branches,
             None,
+            false,
         );
         found += added;
         work += spent;
@@ -1229,6 +1306,26 @@ mod tests {
         ] {
             assert_eq!(profile_default(flag), "");
         }
+    }
+    #[test]
+    fn complete_tree_defaults_to_coverage_and_respects_explicit_disable() {
+        assert_eq!(resolve_value("RUST_ODDS_RARE_TAIL_TREE", None, true), "1");
+        assert_eq!(
+            resolve_value("RUST_ODDS_RARE_TAIL_TREE", Some("0".into()), true),
+            "0"
+        );
+        assert_eq!(resolve_value("RUST_ODDS_RARE_TAIL_TREE", None, false), "");
+    }
+    #[test]
+    fn complete_tree_credit_requires_a_gain_and_is_bounded_by_reserved_work() {
+        assert_eq!(tree_credit(1_000_000, 0, 100, 100_000), (0, 0));
+        assert_eq!(tree_credit(1_000_000, 1, 100, 100_000), (10_000, 10_000));
+        assert_eq!(tree_credit(1_000_000, 1, 100, 5_000), (5_000, 10_000));
+        assert_eq!(
+            tree_credit(1_000_000_000, 1, 10, 200_000_000),
+            (16_000_000, 100_000_000)
+        );
+        assert_eq!(tree_credit(0, 1, 10, 100_000), (0, 0));
     }
     #[test]
     fn rough_gate_still_rejects_single_dominant_weight_and_missing_evidence() {

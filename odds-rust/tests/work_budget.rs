@@ -47,6 +47,16 @@ fn rare_position_responses_are_identical_across_workers_repeats_and_logging() {
                 String::from_utf8_lossy(&result.stderr)
             );
             let bytes = fs::read(&output).unwrap();
+            if fixture.starts_with("group-16498-") {
+                let response: Value = serde_json::from_slice(&bytes).unwrap();
+                assert!(
+                    response["rare_position_estimates"]["17"]["12"]["probability"]
+                        .as_f64()
+                        .unwrap()
+                        > 0.,
+                    "default must estimate Flamengo/13th"
+                );
+            }
             if let Some(expected) = &expected {
                 assert_eq!(
                     &bytes, expected,
@@ -69,16 +79,33 @@ fn rare_position_responses_are_identical_across_workers_repeats_and_logging() {
                 assert_eq!(start["certified_target_limits"], true);
                 assert_eq!(start["complete_parent_fallback"], true);
                 assert_eq!(start["certified_branch_transfer"], true);
+                assert_eq!(start["rare_tail_tree"], true);
+                assert_eq!(start["rare_tail_tree_pilot_draws"], 25);
                 for event in [
                     "rust_odds_shared_constraints_summary",
                     "rust_odds_rare_tail_summary",
                     "rust_odds_rare_tail_confirm_more_summary",
                     "rust_odds_rare_tail_branches_summary",
                 ] {
-                    let budget = logs.iter().find(|e| e["event"] == event).unwrap();
-                    assert_eq!(budget["budget_mode"], "operations");
-                    if let Some(reserved) = budget["reserved_work"].as_u64() {
-                        assert!(reserved <= budget["work_limit"].as_u64().unwrap());
+                    let budgets: Vec<_> = logs.iter().filter(|e| e["event"] == event).collect();
+                    assert!(!budgets.is_empty());
+                    for budget in budgets {
+                        assert_eq!(budget["budget_mode"], "operations");
+                        if let Some(reserved) = budget["reserved_work"].as_u64() {
+                            assert!(reserved <= budget["work_limit"].as_u64().unwrap());
+                        }
+                    }
+                }
+                for credit in logs
+                    .iter()
+                    .filter(|e| e["event"] == "rust_odds_rare_tail_tree_credit")
+                {
+                    let units = credit["credit_units"].as_u64().unwrap();
+                    assert!(units <= 16_000_000);
+                    assert!(units <= credit["tree_reserved"].as_u64().unwrap());
+                    assert!(units <= credit["proportional_credit_cap"].as_u64().unwrap());
+                    if credit["additional"] == 0 {
+                        assert_eq!(units, 0);
                     }
                 }
             }
@@ -143,7 +170,15 @@ fn early_branches_respect_a_reduced_confirmation_allowance() {
         .unwrap();
     let transferred = extra["transferred_branch_work"].as_u64().unwrap();
     assert!(early["work_limit"].as_u64().unwrap() <= configured);
-    assert_eq!(transferred, early["reserved_work"].as_u64().unwrap());
+    let tree = logs
+        .iter()
+        .find(|e| e["event"] == "rust_odds_rare_tail_tree_credit")
+        .unwrap();
+    assert_eq!(
+        transferred,
+        early["reserved_work"].as_u64().unwrap() + tree["tree_reserved"].as_u64().unwrap()
+            - tree["credit_units"].as_u64().unwrap()
+    );
     assert!(transferred <= configured);
     assert_eq!(
         extra["work_limit"].as_u64().unwrap() + transferred,

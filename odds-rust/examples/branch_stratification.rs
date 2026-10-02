@@ -45,7 +45,25 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         return Err("pilot and branch draw floors must be at least two".into());
     }
     let setup_clock = Instant::now();
-    let p = BranchStrata::with_secondary(&m, cell, 808, rivals, refine)?;
+    let cert = golaberto_odds::target_limits::certify(&m, cell, 16000);
+    let leaves = std::env::var("TREE_LEAVES")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(32);
+    let training = std::env::var("TREE_TRAINING")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(200);
+    let values = std::env::var("TREE_GUIDE_VALUES")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(4000000);
+    let mut p = if std::env::var("TREE_MODE").as_deref() == Ok("1") {
+        BranchStrata::with_tree(&m, cell, 808, rivals, leaves, training, values)?
+    } else {
+        BranchStrata::with_secondary(&m, cell, 808, rivals, refine)?
+    };
+    let _ = cert;
     let setup_ms = setup_clock.elapsed().as_secs_f64() * 1000.;
     let bound_mode = a.get(13).map_or("off", |s| s.as_str());
     let reference = a.get(14).map_or(Ok(4e-34), |s| s.parse::<f64>())?;
@@ -94,6 +112,7 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         return Err("total draws must cover every stratum at the allocation floor".into());
     }
     for seed in seeds {
+        p.clear_messages();
         let clock = Instant::now();
         let pilots = parallel(p.len(), 4, |i| {
             let start = Instant::now();
@@ -129,6 +148,33 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
             };
             (result, use_bounds, start.elapsed().as_secs_f64() * 1000.)
         });
+        let mut pilots = pilots;
+        let message_clock = Instant::now();
+        let messages = std::env::var("TREE_MESSAGES")
+            .ok()
+            .and_then(|s| s.parse::<usize>().ok())
+            .unwrap_or(0);
+        let message_info = if messages > 0 {
+            let rs: Vec<_> = pilots.iter().map(|s| s.0.clone()).collect();
+            let info = p.prepare_messages(&m, &rs, messages);
+            // Training chooses the proposal; all main/check draws stay fresh.
+            pilots = parallel(p.len(), 4, |i| {
+                let bounds = guide != "rank";
+                let r = p.sample(
+                    &m,
+                    i,
+                    pilot_n,
+                    derive(seed, &format!("message-pilot-{i}")),
+                    bounds,
+                    goals,
+                );
+                (r.result, bounds, 0.)
+            });
+            info
+        } else {
+            serde_json::Value::Null
+        };
+        let message_ms = message_clock.elapsed().as_secs_f64() * 1000.;
         let pilot_ms = clock.elapsed().as_secs_f64() * 1000.;
         let scores: Vec<_> = pilots
             .iter()
@@ -207,7 +253,7 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
             "{}",
             json!({"event":"strata_result","seed":seed,"allocation":allocation,"guide":guide,"goal_tilt":goals,"rivals":rivals,"refined":refine,"pilot_draws":pilot_n,"allocation_floor":floor,
             "bound_mode":bound_mode,"omitted_upper":omitted_upper,"skipped":skipped.iter().filter(|&&s|s).count(),
-            "pilot_ms":pilot_ms,"main_ms":main_ms,"check_ms":check_ms,"elapsed_ms":clock.elapsed().as_secs_f64()*1000.,
+            "message_ms":message_ms,"messages":message_info,"pilot_ms":pilot_ms,"main_ms":main_ms,"check_ms":check_ms,"elapsed_ms":clock.elapsed().as_secs_f64()*1000.,
             "main":info(&main),"check":info(&check),"accepted":golaberto_odds::rare_tail::accepted(&main,&check,true),
             "branches":(0..p.len()).map(|i|json!({"index":i,"draws":if skipped[i]{0}else{ns[i]},"planned_draws":ns[i],"skipped":skipped[i],"bounds":pilots[i].1,"pilot":info(&pilots[i].0),"pilot_ms":pilots[i].2,"main":info(&mains[i].result),"check":info(&checks[i].result)})).collect::<Vec<_>>() })
         );

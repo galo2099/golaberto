@@ -100,7 +100,7 @@ impl NecessaryJoint {
                 if lower[t] <= i32::MIN / 8 && upper[t] >= i32::MAX / 8 {
                     return None;
                 }
-                let table = TerminalTable::new(
+                let mass = TerminalTable::initial_mass(
                     games
                         .iter()
                         .copied()
@@ -109,7 +109,6 @@ impl NecessaryJoint {
                     t,
                     terminal(t),
                 );
-                let mass = table.mass(0);
                 (mass < 1. - 1e-12).then_some((t, mass))
             })
             .collect::<Vec<_>>();

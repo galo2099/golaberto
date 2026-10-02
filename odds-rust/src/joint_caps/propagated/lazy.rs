@@ -94,6 +94,7 @@ pub struct LazyJoint {
     joint_cache: HashMap<JointKey, (Arc<NecessaryJoint>, Vec<RankGame>)>,
     fallback: Option<(Arc<NecessaryJoint>, Arc<Guide>)>,
     guide_values: usize,
+    guide_limit: usize,
     guides: HashMap<Vec<(usize, [u64; 3])>, Arc<Guide>>,
 }
 impl LazyJoint {
@@ -314,6 +315,7 @@ impl LazyJoint {
             joint_cache: HashMap::new(),
             fallback: None,
             guide_values: 0,
+            guide_limit: 4000000,
             guides: HashMap::new(),
         };
         let mut seen = std::collections::HashSet::new();
@@ -423,7 +425,7 @@ impl LazyJoint {
                     .unwrap_or(0) as usize
                     + 1;
                 let values = (2 * gs.len() + 1) * span * 2;
-                if result.guide_values + values > 4000000 {
+                if result.guide_values + values > result.guide_limit {
                     return Some(result);
                 }
                 result.guide_values += values;
@@ -584,7 +586,7 @@ impl LazyJoint {
                                 .unwrap()
                         })
                         .sum();
-                    let table = TerminalTable::new(
+                    let mass = TerminalTable::initial_mass(
                         gs,
                         t,
                         (0..=span)
@@ -601,7 +603,6 @@ impl LazyJoint {
                             })
                             .collect(),
                     );
-                    let mass = table.mass(0);
                     if mass > 0. && mass < 0.9 {
                         sides.push((t, ahead, mass));
                     }
@@ -688,7 +689,7 @@ impl LazyJoint {
                                 .unwrap()
                         })
                         .sum();
-                    TerminalTable::new(
+                    TerminalTable::initial_mass(
                         gs,
                         t,
                         (0..=span)
@@ -705,7 +706,6 @@ impl LazyJoint {
                             })
                             .collect(),
                     )
-                    .mass(0)
                 })
                 .collect();
             let score = |g: &RankGame| {
@@ -747,7 +747,7 @@ impl LazyJoint {
         let guide = if let Some(g) = self.guides.get(&guide_key) {
             g.clone()
         } else {
-            if self.guide_values + values > 4000000 {
+            if self.guide_values + values > self.guide_limit {
                 return Err(());
             }
             self.guide_values += values;

@@ -33,6 +33,43 @@ pub(super) struct TerminalTable {
     pub(super) rows: Vec<Vec<f64>>,
 }
 impl TerminalTable {
+    /// Evaluate only the backward-DP states needed from initial gain zero.
+    /// Keep the same outcome summation order as `new`; no probability or
+    /// support approximation is involved. Full rows remain needed to sample.
+    pub(super) fn initial_mass(games: Vec<RankGame>, team: usize, terminal: Vec<f64>) -> f64 {
+        fn visit(
+            games: &[RankGame],
+            team: usize,
+            terminal: &[f64],
+            i: usize,
+            added: usize,
+            memo: &mut [f64],
+        ) -> f64 {
+            if added >= terminal.len() {
+                return 0.;
+            }
+            if i == games.len() {
+                return terminal[added];
+            }
+            let slot = i * terminal.len() + added;
+            if !memo[slot].is_nan() {
+                return memo[slot];
+            }
+            let g = &games[i];
+            let gain = if g.home == team { g.hg } else { g.ag };
+            let mut mass = 0.;
+            for o in 0..3 {
+                let next = added + gain[o] as usize;
+                if next < terminal.len() {
+                    mass += g.prob[o] * visit(games, team, terminal, i + 1, next, memo);
+                }
+            }
+            memo[slot] = mass;
+            mass
+        }
+        let mut memo = vec![f64::NAN; games.len() * terminal.len()];
+        visit(&games, team, &terminal, 0, 0, &mut memo)
+    }
     pub(super) fn new(games: Vec<RankGame>, team: usize, terminal: Vec<f64>) -> Self {
         let span = terminal.len();
         let mut rows = vec![vec![0.; span]; games.len() + 1];
@@ -769,5 +806,52 @@ mod tests {
         m.keys = vec![Key::Pt, Key::W];
         m.base[0].points = i32::MAX;
         assert!(BroadJoint::new(&m, Cell { team: 0, rank: 1 }).is_none());
+    }
+}
+
+#[cfg(test)]
+mod initial_mass_tests {
+    use super::*;
+    #[test]
+    fn lazy_initial_mass_preserves_every_backward_dp_bit() {
+        for stride in [1, 7, 29, 61] {
+            for count in 0..=9 {
+                for team in [0, 1] {
+                    let gains = [0, stride, 3 * stride + i32::from(stride > 1)];
+                    let games: Vec<_> = (0..count)
+                        .map(|i| RankGame {
+                            index: i,
+                            home: 0,
+                            away: 1,
+                            prob: match i % 3 {
+                                0 => [0., 0.3, 0.7],
+                                1 => [0.23, 0.31, 0.46],
+                                _ => [1e-170, 1e-150, 1. - 1e-150],
+                            },
+                            hg: gains,
+                            ag: [gains[2], gains[1], gains[0]],
+                        })
+                        .collect();
+                    let span = count * gains[2] as usize;
+                    for mode in 0..4 {
+                        let terminal: Vec<_> = (0..=span)
+                            .map(|a| match mode {
+                                0 => f64::from(u8::from(a <= span / 3)),
+                                1 => f64::from(u8::from(a >= span * 2 / 3)),
+                                2 => f64::from(u8::from(a % 7 == 0)),
+                                _ => (a % 11) as f64 / 11.,
+                            })
+                            .collect();
+                        let old = TerminalTable::new(games.clone(), team, terminal.clone()).mass(0);
+                        let new = TerminalTable::initial_mass(games.clone(), team, terminal);
+                        assert_eq!(
+                            old.to_bits(),
+                            new.to_bits(),
+                            "stride {stride}, count {count}, team {team}, mode {mode}"
+                        );
+                    }
+                }
+            }
+        }
     }
 }

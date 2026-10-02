@@ -76,7 +76,7 @@ VARIANTS["discrete"] = {"RUST_ODDS_DISCRETE_CUTS": "1"}
 def states(export):
     return {(int(t), int(r) + 1): ("positive" if e["probability"] > 0 else
             "impossible" if e.get("reachability", "").startswith("impossible") else
-            "reachable_zero" if e.get("reachability") in ("witness", "reachable_by_construction") else
+            "reachable_zero" if e.get("reachability") in ("reachable", "witness", "reachable_by_construction") else
             "undecided") for t, ranks in export["rare_position_estimates"].items() for r, e in ranks.items()}
 
 

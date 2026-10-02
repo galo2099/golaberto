@@ -83,16 +83,31 @@ pub(super) fn run(
     );
     let mut paired = vec![false; jobs.len()];
     let mut started = vec![false; jobs.len()];
-    // Reserve normal independent pairs first in stable priority order.
-    for (i, j) in jobs.iter().enumerate() {
-        paired[i] = bank.reserve(2 * j.n * j.draw_cost);
-        started[i] = paired[i];
-    }
-    // Spare units can start a pending main while other workers run pairs.
-    // Its check is not promised, and it cannot be published on its own.
-    for (i, j) in jobs.iter().enumerate() {
-        if !started[i] {
-            started[i] = bank.reserve(j.n * j.draw_cost);
+    let prefix = tree_enabled();
+    if prefix {
+        // A lower-priority full pair must not steal a higher-priority main.
+        // Complete the first priority prefix, then fund one speculative main.
+        for (i, j) in jobs.iter().enumerate() {
+            if bank.reserve(2 * j.n * j.draw_cost) {
+                paired[i] = true;
+                started[i] = true;
+            } else {
+                started[i] = bank.reserve(j.n * j.draw_cost);
+                break;
+            }
+        }
+    } else {
+        // Reserve normal independent pairs first in stable priority order.
+        for (i, j) in jobs.iter().enumerate() {
+            paired[i] = bank.reserve(2 * j.n * j.draw_cost);
+            started[i] = paired[i];
+        }
+        // Spare units can start a pending main while other workers run pairs.
+        // Its check is not promised, and it cannot be published on its own.
+        for (i, j) in jobs.iter().enumerate() {
+            if !started[i] {
+                started[i] = bank.reserve(j.n * j.draw_cost);
+            }
         }
     }
     let first: Vec<_> = (0..jobs.len()).filter(|&i| started[i]).collect();

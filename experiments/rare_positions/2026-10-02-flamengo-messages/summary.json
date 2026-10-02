@@ -1,0 +1,4627 @@
+{
+  "definition": "Recovered rare cell: final probability > 0 and initial Monte Carlo hits == 0",
+  "baseline_commit": "f0a332b847bd7bea24b00fd63e724850da4fa065",
+  "workers": 4,
+  "source_sha256": {
+    "odds-rust/src/joint_caps/broad.rs": "9a9cd70f427d234ccb39b9a152cc57f9dc8af2ff50801b86b8c36e1a59e6064f",
+    "odds-rust/src/joint_caps/propagated/lazy/strata/messages.rs": "4a357b9c4aa5cddc4235db628f715249c676445b8a9730b6890ee65fc21433af",
+    "odds-rust/src/joint_caps/propagated/lazy/strata/tree.rs": "b0583eb63552504fee70c176cc5188ac99b4f641e760693518381aad9d31568f",
+    "odds-rust/src/joint_caps/propagated/lazy/strata.rs": "a74d61ba5a25d311b2bf3e5c16ce1aba56f8fae1c76b9a917d7e784366e562dc",
+    "odds-rust/src/joint_caps/propagated/lazy.rs": "90a27ee1347d8642fe0ae78ede7e4fbe426b40f1de8198ac590f22eb0c6ae279",
+    "odds-rust/src/joint_caps/propagated.rs": "76d380f936ccae056aa76bcc33e3fe1399f21a22f276339c087ed200eab98f46",
+    "odds-rust/src/rare_tail/branches.rs": "166dccf8e43700a6535cd70ec7229c03b1591d7a49bc69c3ffffb35bca1a95e9",
+    "odds-rust/src/rare_tail/confirmations.rs": "c9623bfbf0a75cc6c81aa14b93d03bb2529265d8e3066eee3efb1edc3395d477",
+    "odds-rust/src/rare_tail.rs": "78e42a264e96314091f3922d7db326668fdae27a0083387e99eba314f8a4e006",
+    "odds-rust/examples/branch_stratification.rs": "8b1f31d4b9e54ec9b7fbb35aff04ae5c83261fa0438df58e42364d289869a329"
+  },
+  "cohorts": {
+    "final-development": {
+      "baseline_sha256": "f8db89014089e9db7f06a1f9ba15f4d48e4fc1a68c28127c42b6c64a4c75c1cb",
+      "candidate_sha256": "df50069b36beb7fca6ee4e23b714e0764301d5ddda47c88ed672f78f2aba8ad3",
+      "flags": {
+        "RUST_ODDS_EXPERIMENT_TREE": "1",
+        "RUST_ODDS_EXPERIMENT_TREE_PILOT": "25",
+        "RUST_ODDS_EXPERIMENT_CONFIRM_PREFIX": "1",
+        "RUST_ODDS_EXPERIMENT_RARE_BONUS_UNITS": "16000000"
+      },
+      "inputs": {
+        "experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-15902-31d66705.json": "3caab564a5518d6a1385cec917b1b3d404d31539f9e07ed98f528785236a6443",
+        "experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16413-a2eef0a8.json": "daf825535a62d100121d14233b69814a3d87d4f16cdfb4f8f0171a9d22836dd4",
+        "experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16498-44eabb47.json": "2e08f162592ded09393f0438686a60690dda6e85cd54da5dc0d20224c81aa625",
+        "experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16653-71d4fea8.json": "b56f2ac8bdb017ab98814a8f653b511b54340f4437c8e890894e827ce3ee9962",
+        "experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16982-9327edcd.json": "96c2eeeeec5b4e00015919009c9da30b6a4269b4017a651edbd3cfbd90fd635c",
+        "experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16983-43969b02.json": "03dc3178d40d5c534f217b25c58e56d861906e6f1c2225b83be302065f5a293b",
+        "odds-rust/tests/fixtures/group-16653-2d1c1d6f.json": "a2ea66a82ec8c34ec58c1b8a0cc004b19f04b203f4733a88fa0cf9172eeb9596"
+      },
+      "groups": {
+        "group-15902-31d66705.json": {
+          "pairs": [
+            {
+              "seed": 808,
+              "baseline_rare": 51,
+              "candidate_rare": 51,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1669,
+              "baseline_rare": 58,
+              "candidate_rare": 58,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1993,
+              "baseline_rare": 55,
+              "candidate_rare": 55,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 2281,
+              "baseline_rare": 56,
+              "candidate_rare": 56,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 2293,
+              "baseline_rare": 54,
+              "candidate_rare": 54,
+              "gains": [],
+              "losses": []
+            }
+          ],
+          "baseline_rare_cell_runs": 274,
+          "candidate_rare_cell_runs": 274,
+          "gain_cell_runs": 0,
+          "loss_cell_runs": 0,
+          "distinct_gained_cells": [],
+          "distinct_lost_cells": [],
+          "permitted_work_increase_pct": 0.0,
+          "cpu_ms": {
+            "baseline": 1771.0300000000002,
+            "candidate": 1695.29
+          },
+          "http_ms": {
+            "baseline": 829.1910420000002,
+            "candidate": 812.9171670000001
+          },
+          "median_http_ms": {
+            "baseline": 166.49645800000002,
+            "candidate": 162.61187500000008
+          },
+          "cpu_change_pct": -4.276607397954879,
+          "total_http_change_pct": -1.9626206960398074,
+          "median_http_change_pct": -2.3331325162484484,
+          "worst_paired_http_change_pct": 0.7068323017722422
+        },
+        "group-16413-a2eef0a8.json": {
+          "pairs": [
+            {
+              "seed": 808,
+              "baseline_rare": 49,
+              "candidate_rare": 49,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1669,
+              "baseline_rare": 49,
+              "candidate_rare": 49,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1993,
+              "baseline_rare": 46,
+              "candidate_rare": 46,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 2281,
+              "baseline_rare": 47,
+              "candidate_rare": 47,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 2293,
+              "baseline_rare": 45,
+              "candidate_rare": 45,
+              "gains": [],
+              "losses": []
+            }
+          ],
+          "baseline_rare_cell_runs": 236,
+          "candidate_rare_cell_runs": 236,
+          "gain_cell_runs": 0,
+          "loss_cell_runs": 0,
+          "distinct_gained_cells": [],
+          "distinct_lost_cells": [],
+          "permitted_work_increase_pct": 0.0,
+          "cpu_ms": {
+            "baseline": 1605.6910000000003,
+            "candidate": 1613.5189999999993
+          },
+          "http_ms": {
+            "baseline": 771.5181249999997,
+            "candidate": 768.5410010000004
+          },
+          "median_http_ms": {
+            "baseline": 154.29395800000023,
+            "candidate": 153.93920800000015
+          },
+          "cpu_change_pct": 0.4875159666460682,
+          "total_http_change_pct": -0.38587868561082983,
+          "median_http_change_pct": -0.22991827068178372,
+          "worst_paired_http_change_pct": 1.3749187322143142
+        },
+        "group-16498-44eabb47.json": {
+          "pairs": [
+            {
+              "seed": 808,
+              "baseline_rare": 85,
+              "candidate_rare": 86,
+              "gains": [
+                [
+                  17,
+                  13
+                ]
+              ],
+              "losses": []
+            },
+            {
+              "seed": 1669,
+              "baseline_rare": 86,
+              "candidate_rare": 87,
+              "gains": [
+                [
+                  17,
+                  13
+                ]
+              ],
+              "losses": []
+            },
+            {
+              "seed": 1993,
+              "baseline_rare": 88,
+              "candidate_rare": 89,
+              "gains": [
+                [
+                  17,
+                  13
+                ]
+              ],
+              "losses": []
+            },
+            {
+              "seed": 2281,
+              "baseline_rare": 82,
+              "candidate_rare": 83,
+              "gains": [
+                [
+                  17,
+                  13
+                ]
+              ],
+              "losses": []
+            },
+            {
+              "seed": 2293,
+              "baseline_rare": 86,
+              "candidate_rare": 87,
+              "gains": [
+                [
+                  17,
+                  13
+                ]
+              ],
+              "losses": []
+            }
+          ],
+          "baseline_rare_cell_runs": 427,
+          "candidate_rare_cell_runs": 432,
+          "gain_cell_runs": 5,
+          "loss_cell_runs": 0,
+          "distinct_gained_cells": [
+            [
+              17,
+              13
+            ]
+          ],
+          "distinct_lost_cells": [],
+          "permitted_work_increase_pct": 1.1709601873536302,
+          "cpu_ms": {
+            "baseline": 16394.804,
+            "candidate": 16821.60700000001
+          },
+          "http_ms": {
+            "baseline": 6773.416584,
+            "candidate": 7056.815249999998
+          },
+          "median_http_ms": {
+            "baseline": 1400.991458,
+            "candidate": 1446.7250840000006
+          },
+          "cpu_change_pct": 2.6032821130402617,
+          "total_http_change_pct": 4.183983998111618,
+          "median_http_change_pct": 3.264375791790197,
+          "worst_paired_http_change_pct": 9.051460039449521
+        },
+        "group-16653-71d4fea8.json": {
+          "pairs": [
+            {
+              "seed": 808,
+              "baseline_rare": 64,
+              "candidate_rare": 64,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1669,
+              "baseline_rare": 67,
+              "candidate_rare": 67,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1993,
+              "baseline_rare": 61,
+              "candidate_rare": 61,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 2281,
+              "baseline_rare": 66,
+              "candidate_rare": 66,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 2293,
+              "baseline_rare": 64,
+              "candidate_rare": 64,
+              "gains": [],
+              "losses": []
+            }
+          ],
+          "baseline_rare_cell_runs": 322,
+          "candidate_rare_cell_runs": 322,
+          "gain_cell_runs": 0,
+          "loss_cell_runs": 0,
+          "distinct_gained_cells": [],
+          "distinct_lost_cells": [],
+          "permitted_work_increase_pct": 0.0,
+          "cpu_ms": {
+            "baseline": 12497.638999999997,
+            "candidate": 12880.744000000008
+          },
+          "http_ms": {
+            "baseline": 5781.326041999996,
+            "candidate": 6017.6234999999915
+          },
+          "median_http_ms": {
+            "baseline": 1125.443041999997,
+            "candidate": 1133.1750829999976
+          },
+          "cpu_change_pct": 3.065418996340119,
+          "total_http_change_pct": 4.087253621113041,
+          "median_http_change_pct": 0.6870219736984762,
+          "worst_paired_http_change_pct": 14.4965866614559
+        },
+        "group-16982-9327edcd.json": {
+          "pairs": [
+            {
+              "seed": 808,
+              "baseline_rare": 28,
+              "candidate_rare": 28,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1669,
+              "baseline_rare": 32,
+              "candidate_rare": 32,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1993,
+              "baseline_rare": 32,
+              "candidate_rare": 32,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 2281,
+              "baseline_rare": 33,
+              "candidate_rare": 33,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 2293,
+              "baseline_rare": 33,
+              "candidate_rare": 33,
+              "gains": [],
+              "losses": []
+            }
+          ],
+          "baseline_rare_cell_runs": 158,
+          "candidate_rare_cell_runs": 158,
+          "gain_cell_runs": 0,
+          "loss_cell_runs": 0,
+          "distinct_gained_cells": [],
+          "distinct_lost_cells": [],
+          "permitted_work_increase_pct": 0.0,
+          "cpu_ms": {
+            "baseline": 2804.3979999999992,
+            "candidate": 2677.8179999999934
+          },
+          "http_ms": {
+            "baseline": 1312.4105009999985,
+            "candidate": 1289.3432910000015
+          },
+          "median_http_ms": {
+            "baseline": 262.8804169999981,
+            "candidate": 258.6084580000012
+          },
+          "cpu_change_pct": -4.513624670963456,
+          "total_http_change_pct": -1.757621565997891,
+          "median_http_change_pct": -1.6250579060809067,
+          "worst_paired_http_change_pct": -0.26308824410834486
+        },
+        "group-16983-43969b02.json": {
+          "pairs": [
+            {
+              "seed": 808,
+              "baseline_rare": 86,
+              "candidate_rare": 86,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1669,
+              "baseline_rare": 86,
+              "candidate_rare": 86,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1993,
+              "baseline_rare": 86,
+              "candidate_rare": 86,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 2281,
+              "baseline_rare": 81,
+              "candidate_rare": 81,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 2293,
+              "baseline_rare": 89,
+              "candidate_rare": 89,
+              "gains": [],
+              "losses": []
+            }
+          ],
+          "baseline_rare_cell_runs": 428,
+          "candidate_rare_cell_runs": 428,
+          "gain_cell_runs": 0,
+          "loss_cell_runs": 0,
+          "distinct_gained_cells": [],
+          "distinct_lost_cells": [],
+          "permitted_work_increase_pct": 0.0,
+          "cpu_ms": {
+            "baseline": 2677.4050000000093,
+            "candidate": 2647.1769999999924
+          },
+          "http_ms": {
+            "baseline": 1261.224583999997,
+            "candidate": 1264.5997079999986
+          },
+          "median_http_ms": {
+            "baseline": 252.77320900000433,
+            "candidate": 252.55966599999624
+          },
+          "cpu_change_pct": -1.1290036434538964,
+          "total_http_change_pct": 0.2676068991057212,
+          "median_http_change_pct": -0.08448007637078536,
+          "worst_paired_http_change_pct": 1.162377310070295
+        },
+        "group-16653-2d1c1d6f.json": {
+          "pairs": [
+            {
+              "seed": 808,
+              "baseline_rare": 61,
+              "candidate_rare": 61,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1669,
+              "baseline_rare": 63,
+              "candidate_rare": 63,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1993,
+              "baseline_rare": 64,
+              "candidate_rare": 64,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 2281,
+              "baseline_rare": 65,
+              "candidate_rare": 65,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 2293,
+              "baseline_rare": 63,
+              "candidate_rare": 63,
+              "gains": [],
+              "losses": []
+            }
+          ],
+          "baseline_rare_cell_runs": 316,
+          "candidate_rare_cell_runs": 316,
+          "gain_cell_runs": 0,
+          "loss_cell_runs": 0,
+          "distinct_gained_cells": [],
+          "distinct_lost_cells": [],
+          "permitted_work_increase_pct": 0.0,
+          "cpu_ms": {
+            "baseline": 8042.681000000007,
+            "candidate": 7841.41
+          },
+          "http_ms": {
+            "baseline": 3417.380417000011,
+            "candidate": 3388.180500000004
+          },
+          "median_http_ms": {
+            "baseline": 665.9761250000003,
+            "candidate": 668.5734579999973
+          },
+          "cpu_change_pct": -2.5025361567866056,
+          "total_http_change_pct": -0.8544532196284038,
+          "median_http_change_pct": 0.39000392093591074,
+          "worst_paired_http_change_pct": 1.4290835800584878
+        }
+      }
+    },
+    "final-holdout": {
+      "baseline_sha256": "f8db89014089e9db7f06a1f9ba15f4d48e4fc1a68c28127c42b6c64a4c75c1cb",
+      "candidate_sha256": "df50069b36beb7fca6ee4e23b714e0764301d5ddda47c88ed672f78f2aba8ad3",
+      "flags": {
+        "RUST_ODDS_EXPERIMENT_TREE": "1",
+        "RUST_ODDS_EXPERIMENT_TREE_PILOT": "25",
+        "RUST_ODDS_EXPERIMENT_CONFIRM_PREFIX": "1",
+        "RUST_ODDS_EXPERIMENT_RARE_BONUS_UNITS": "16000000"
+      },
+      "inputs": {
+        "experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-15902-31d66705.json": "3caab564a5518d6a1385cec917b1b3d404d31539f9e07ed98f528785236a6443",
+        "experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16413-a2eef0a8.json": "daf825535a62d100121d14233b69814a3d87d4f16cdfb4f8f0171a9d22836dd4",
+        "experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16498-44eabb47.json": "2e08f162592ded09393f0438686a60690dda6e85cd54da5dc0d20224c81aa625",
+        "experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16653-71d4fea8.json": "b56f2ac8bdb017ab98814a8f653b511b54340f4437c8e890894e827ce3ee9962",
+        "experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16982-9327edcd.json": "96c2eeeeec5b4e00015919009c9da30b6a4269b4017a651edbd3cfbd90fd635c",
+        "experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16983-43969b02.json": "03dc3178d40d5c534f217b25c58e56d861906e6f1c2225b83be302065f5a293b",
+        "odds-rust/tests/fixtures/group-16653-2d1c1d6f.json": "a2ea66a82ec8c34ec58c1b8a0cc004b19f04b203f4733a88fa0cf9172eeb9596"
+      },
+      "groups": {
+        "group-15902-31d66705.json": {
+          "pairs": [
+            {
+              "seed": 801,
+              "baseline_rare": 60,
+              "candidate_rare": 60,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 804,
+              "baseline_rare": 56,
+              "candidate_rare": 56,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 817,
+              "baseline_rare": 53,
+              "candidate_rare": 53,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 911,
+              "baseline_rare": 59,
+              "candidate_rare": 59,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1861,
+              "baseline_rare": 57,
+              "candidate_rare": 57,
+              "gains": [],
+              "losses": []
+            }
+          ],
+          "baseline_rare_cell_runs": 285,
+          "candidate_rare_cell_runs": 285,
+          "gain_cell_runs": 0,
+          "loss_cell_runs": 0,
+          "distinct_gained_cells": [],
+          "distinct_lost_cells": [],
+          "permitted_work_increase_pct": 0.0,
+          "cpu_ms": {
+            "baseline": 1778.7819999999992,
+            "candidate": 1695.9440000000004
+          },
+          "http_ms": {
+            "baseline": 825.5811659999998,
+            "candidate": 811.9092909999998
+          },
+          "median_http_ms": {
+            "baseline": 164.88566699999984,
+            "candidate": 162.04270799999998
+          },
+          "cpu_change_pct": -4.657006873242409,
+          "total_http_change_pct": -1.656030389627372,
+          "median_http_change_pct": -1.7242001998875156,
+          "worst_paired_http_change_pct": 1.4252734580780135
+        },
+        "group-16413-a2eef0a8.json": {
+          "pairs": [
+            {
+              "seed": 801,
+              "baseline_rare": 49,
+              "candidate_rare": 49,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 804,
+              "baseline_rare": 50,
+              "candidate_rare": 50,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 817,
+              "baseline_rare": 49,
+              "candidate_rare": 49,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 911,
+              "baseline_rare": 45,
+              "candidate_rare": 45,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1861,
+              "baseline_rare": 50,
+              "candidate_rare": 50,
+              "gains": [],
+              "losses": []
+            }
+          ],
+          "baseline_rare_cell_runs": 243,
+          "candidate_rare_cell_runs": 243,
+          "gain_cell_runs": 0,
+          "loss_cell_runs": 0,
+          "distinct_gained_cells": [],
+          "distinct_lost_cells": [],
+          "permitted_work_increase_pct": 0.0,
+          "cpu_ms": {
+            "baseline": 1632.127000000001,
+            "candidate": 1621.2519999999995
+          },
+          "http_ms": {
+            "baseline": 770.8429999999997,
+            "candidate": 769.5802069999997
+          },
+          "median_http_ms": {
+            "baseline": 153.57633300000018,
+            "candidate": 154.63033300000006
+          },
+          "cpu_change_pct": -0.6663084429092581,
+          "total_http_change_pct": -0.16381974020649448,
+          "median_http_change_pct": 0.6863036637291486,
+          "worst_paired_http_change_pct": 1.764252788237819
+        },
+        "group-16498-44eabb47.json": {
+          "pairs": [
+            {
+              "seed": 801,
+              "baseline_rare": 84,
+              "candidate_rare": 85,
+              "gains": [
+                [
+                  17,
+                  13
+                ]
+              ],
+              "losses": []
+            },
+            {
+              "seed": 804,
+              "baseline_rare": 82,
+              "candidate_rare": 83,
+              "gains": [
+                [
+                  17,
+                  13
+                ]
+              ],
+              "losses": []
+            },
+            {
+              "seed": 817,
+              "baseline_rare": 88,
+              "candidate_rare": 89,
+              "gains": [
+                [
+                  17,
+                  13
+                ]
+              ],
+              "losses": []
+            },
+            {
+              "seed": 911,
+              "baseline_rare": 81,
+              "candidate_rare": 82,
+              "gains": [
+                [
+                  17,
+                  13
+                ]
+              ],
+              "losses": []
+            },
+            {
+              "seed": 1861,
+              "baseline_rare": 84,
+              "candidate_rare": 85,
+              "gains": [
+                [
+                  17,
+                  13
+                ]
+              ],
+              "losses": []
+            }
+          ],
+          "baseline_rare_cell_runs": 419,
+          "candidate_rare_cell_runs": 424,
+          "gain_cell_runs": 5,
+          "loss_cell_runs": 0,
+          "distinct_gained_cells": [
+            [
+              17,
+              13
+            ]
+          ],
+          "distinct_lost_cells": [],
+          "permitted_work_increase_pct": 1.1933174224343674,
+          "cpu_ms": {
+            "baseline": 18043.656000000006,
+            "candidate": 18151.292999999998
+          },
+          "http_ms": {
+            "baseline": 7153.004542000001,
+            "candidate": 7740.153208
+          },
+          "median_http_ms": {
+            "baseline": 1430.4256670000016,
+            "candidate": 1535.0226659999996
+          },
+          "cpu_change_pct": 0.5965365333942874,
+          "total_http_change_pct": 8.208420147819883,
+          "median_http_change_pct": 7.312298808183915,
+          "worst_paired_http_change_pct": 19.510477833668528
+        },
+        "group-16653-71d4fea8.json": {
+          "pairs": [
+            {
+              "seed": 801,
+              "baseline_rare": 63,
+              "candidate_rare": 63,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 804,
+              "baseline_rare": 64,
+              "candidate_rare": 64,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 817,
+              "baseline_rare": 60,
+              "candidate_rare": 60,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 911,
+              "baseline_rare": 65,
+              "candidate_rare": 65,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1861,
+              "baseline_rare": 63,
+              "candidate_rare": 63,
+              "gains": [],
+              "losses": []
+            }
+          ],
+          "baseline_rare_cell_runs": 315,
+          "candidate_rare_cell_runs": 315,
+          "gain_cell_runs": 0,
+          "loss_cell_runs": 0,
+          "distinct_gained_cells": [],
+          "distinct_lost_cells": [],
+          "permitted_work_increase_pct": 0.0,
+          "cpu_ms": {
+            "baseline": 11492.291,
+            "candidate": 11516.148999999994
+          },
+          "http_ms": {
+            "baseline": 5447.186041999996,
+            "candidate": 5466.929415999993
+          },
+          "median_http_ms": {
+            "baseline": 1153.4409589999975,
+            "candidate": 1160.743374999999
+          },
+          "cpu_change_pct": 0.2076000337965178,
+          "total_http_change_pct": 0.3624508846910679,
+          "median_http_change_pct": 0.6330983777732779,
+          "worst_paired_http_change_pct": 3.0652033349248375
+        },
+        "group-16982-9327edcd.json": {
+          "pairs": [
+            {
+              "seed": 801,
+              "baseline_rare": 35,
+              "candidate_rare": 35,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 804,
+              "baseline_rare": 31,
+              "candidate_rare": 31,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 817,
+              "baseline_rare": 31,
+              "candidate_rare": 31,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 911,
+              "baseline_rare": 33,
+              "candidate_rare": 33,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1861,
+              "baseline_rare": 34,
+              "candidate_rare": 34,
+              "gains": [],
+              "losses": []
+            }
+          ],
+          "baseline_rare_cell_runs": 164,
+          "candidate_rare_cell_runs": 164,
+          "gain_cell_runs": 0,
+          "loss_cell_runs": 0,
+          "distinct_gained_cells": [],
+          "distinct_lost_cells": [],
+          "permitted_work_increase_pct": 0.0,
+          "cpu_ms": {
+            "baseline": 2788.7489999999784,
+            "candidate": 2691.7039999999924
+          },
+          "http_ms": {
+            "baseline": 1317.3620840000026,
+            "candidate": 1299.106792
+          },
+          "median_http_ms": {
+            "baseline": 261.2007090000006,
+            "candidate": 259.85812500000094
+          },
+          "cpu_change_pct": -3.4798757435676952,
+          "total_http_change_pct": -1.3857459708095377,
+          "median_http_change_pct": -0.5140047303622164,
+          "worst_paired_http_change_pct": -0.23180021316623334
+        },
+        "group-16983-43969b02.json": {
+          "pairs": [
+            {
+              "seed": 801,
+              "baseline_rare": 83,
+              "candidate_rare": 83,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 804,
+              "baseline_rare": 86,
+              "candidate_rare": 86,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 817,
+              "baseline_rare": 81,
+              "candidate_rare": 81,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 911,
+              "baseline_rare": 84,
+              "candidate_rare": 84,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1861,
+              "baseline_rare": 85,
+              "candidate_rare": 85,
+              "gains": [],
+              "losses": []
+            }
+          ],
+          "baseline_rare_cell_runs": 419,
+          "candidate_rare_cell_runs": 419,
+          "gain_cell_runs": 0,
+          "loss_cell_runs": 0,
+          "distinct_gained_cells": [],
+          "distinct_lost_cells": [],
+          "permitted_work_increase_pct": 0.0,
+          "cpu_ms": {
+            "baseline": 2687.102000000024,
+            "candidate": 2676.0489999999872
+          },
+          "http_ms": {
+            "baseline": 1274.1589170000082,
+            "candidate": 1272.5496669999927
+          },
+          "median_http_ms": {
+            "baseline": 257.65425000000164,
+            "candidate": 256.75937500000146
+          },
+          "cpu_change_pct": -0.4113353344992743,
+          "total_http_change_pct": -0.12629900231003743,
+          "median_http_change_pct": -0.3473162193133539,
+          "worst_paired_http_change_pct": 2.417782345503139
+        },
+        "group-16653-2d1c1d6f.json": {
+          "pairs": [
+            {
+              "seed": 801,
+              "baseline_rare": 60,
+              "candidate_rare": 60,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 804,
+              "baseline_rare": 66,
+              "candidate_rare": 66,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 817,
+              "baseline_rare": 64,
+              "candidate_rare": 64,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 911,
+              "baseline_rare": 62,
+              "candidate_rare": 62,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1861,
+              "baseline_rare": 61,
+              "candidate_rare": 61,
+              "gains": [],
+              "losses": []
+            }
+          ],
+          "baseline_rare_cell_runs": 313,
+          "candidate_rare_cell_runs": 313,
+          "gain_cell_runs": 0,
+          "loss_cell_runs": 0,
+          "distinct_gained_cells": [],
+          "distinct_lost_cells": [],
+          "permitted_work_increase_pct": 0.0,
+          "cpu_ms": {
+            "baseline": 8002.003000000013,
+            "candidate": 8318.409999999985
+          },
+          "http_ms": {
+            "baseline": 3505.0294160000067,
+            "candidate": 3579.0594580000034
+          },
+          "median_http_ms": {
+            "baseline": 684.7111249999998,
+            "candidate": 718.2227499999954
+          },
+          "cpu_change_pct": 3.954097492839881,
+          "total_http_change_pct": 2.112109007190033,
+          "median_http_change_pct": 4.894272018728407,
+          "worst_paired_http_change_pct": 4.894272018728407
+        }
+      }
+    },
+    "memo-development": {
+      "baseline_sha256": "f8db89014089e9db7f06a1f9ba15f4d48e4fc1a68c28127c42b6c64a4c75c1cb",
+      "candidate_sha256": "62008cc3978337090bd3e34a15703d5555c1da99e21ee8889586df2024edb8bb",
+      "flags": {
+        "RUST_ODDS_EXPERIMENT_TREE": "1",
+        "RUST_ODDS_EXPERIMENT_TREE_PILOT": "25",
+        "RUST_ODDS_EXPERIMENT_CONFIRM_PREFIX": "1",
+        "RUST_ODDS_EXPERIMENT_RARE_BONUS_UNITS": "16000000"
+      },
+      "inputs": {
+        "experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-15902-31d66705.json": "3caab564a5518d6a1385cec917b1b3d404d31539f9e07ed98f528785236a6443",
+        "experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16413-a2eef0a8.json": "daf825535a62d100121d14233b69814a3d87d4f16cdfb4f8f0171a9d22836dd4",
+        "experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16498-44eabb47.json": "2e08f162592ded09393f0438686a60690dda6e85cd54da5dc0d20224c81aa625",
+        "experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16653-71d4fea8.json": "b56f2ac8bdb017ab98814a8f653b511b54340f4437c8e890894e827ce3ee9962",
+        "experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16982-9327edcd.json": "96c2eeeeec5b4e00015919009c9da30b6a4269b4017a651edbd3cfbd90fd635c",
+        "experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16983-43969b02.json": "03dc3178d40d5c534f217b25c58e56d861906e6f1c2225b83be302065f5a293b",
+        "odds-rust/tests/fixtures/group-16653-2d1c1d6f.json": "a2ea66a82ec8c34ec58c1b8a0cc004b19f04b203f4733a88fa0cf9172eeb9596"
+      },
+      "groups": {
+        "group-15902-31d66705.json": {
+          "pairs": [
+            {
+              "seed": 808,
+              "baseline_rare": 51,
+              "candidate_rare": 51,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1669,
+              "baseline_rare": 58,
+              "candidate_rare": 58,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1993,
+              "baseline_rare": 55,
+              "candidate_rare": 55,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 2281,
+              "baseline_rare": 56,
+              "candidate_rare": 56,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 2293,
+              "baseline_rare": 54,
+              "candidate_rare": 54,
+              "gains": [],
+              "losses": []
+            }
+          ],
+          "baseline_rare_cell_runs": 274,
+          "candidate_rare_cell_runs": 274,
+          "gain_cell_runs": 0,
+          "loss_cell_runs": 0,
+          "distinct_gained_cells": [],
+          "distinct_lost_cells": [],
+          "permitted_work_increase_pct": 0.0,
+          "cpu_ms": {
+            "baseline": 1700.529000000001,
+            "candidate": 1676.5039999999995
+          },
+          "http_ms": {
+            "baseline": 792.3703339999997,
+            "candidate": 805.351041
+          },
+          "median_http_ms": {
+            "baseline": 158.249125,
+            "candidate": 160.071125
+          },
+          "cpu_change_pct": -1.4127956653489315,
+          "total_http_change_pct": 1.6382121393252902,
+          "median_http_change_pct": 1.151349178076022,
+          "worst_paired_http_change_pct": 10.872530592883134
+        },
+        "group-16413-a2eef0a8.json": {
+          "pairs": [
+            {
+              "seed": 808,
+              "baseline_rare": 49,
+              "candidate_rare": 49,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1669,
+              "baseline_rare": 49,
+              "candidate_rare": 49,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1993,
+              "baseline_rare": 46,
+              "candidate_rare": 46,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 2281,
+              "baseline_rare": 47,
+              "candidate_rare": 47,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 2293,
+              "baseline_rare": 45,
+              "candidate_rare": 45,
+              "gains": [],
+              "losses": []
+            }
+          ],
+          "baseline_rare_cell_runs": 236,
+          "candidate_rare_cell_runs": 236,
+          "gain_cell_runs": 0,
+          "loss_cell_runs": 0,
+          "distinct_gained_cells": [],
+          "distinct_lost_cells": [],
+          "permitted_work_increase_pct": 0.0,
+          "cpu_ms": {
+            "baseline": 1606.3820000000012,
+            "candidate": 1610.9419999999996
+          },
+          "http_ms": {
+            "baseline": 750.8063750000002,
+            "candidate": 747.0988749999993
+          },
+          "median_http_ms": {
+            "baseline": 148.0321250000003,
+            "candidate": 147.57804099999962
+          },
+          "cpu_change_pct": 0.28386772262130044,
+          "total_http_change_pct": -0.4938024134386043,
+          "median_http_change_pct": -0.3067469307764581,
+          "worst_paired_http_change_pct": 2.0417720784023485
+        },
+        "group-16498-44eabb47.json": {
+          "pairs": [
+            {
+              "seed": 808,
+              "baseline_rare": 85,
+              "candidate_rare": 86,
+              "gains": [
+                [
+                  17,
+                  13
+                ]
+              ],
+              "losses": []
+            },
+            {
+              "seed": 1669,
+              "baseline_rare": 86,
+              "candidate_rare": 87,
+              "gains": [
+                [
+                  17,
+                  13
+                ]
+              ],
+              "losses": []
+            },
+            {
+              "seed": 1993,
+              "baseline_rare": 88,
+              "candidate_rare": 89,
+              "gains": [
+                [
+                  17,
+                  13
+                ]
+              ],
+              "losses": []
+            },
+            {
+              "seed": 2281,
+              "baseline_rare": 82,
+              "candidate_rare": 83,
+              "gains": [
+                [
+                  17,
+                  13
+                ]
+              ],
+              "losses": []
+            },
+            {
+              "seed": 2293,
+              "baseline_rare": 86,
+              "candidate_rare": 87,
+              "gains": [
+                [
+                  17,
+                  13
+                ]
+              ],
+              "losses": []
+            }
+          ],
+          "baseline_rare_cell_runs": 427,
+          "candidate_rare_cell_runs": 432,
+          "gain_cell_runs": 5,
+          "loss_cell_runs": 0,
+          "distinct_gained_cells": [
+            [
+              17,
+              13
+            ]
+          ],
+          "distinct_lost_cells": [],
+          "permitted_work_increase_pct": 1.1709601873536302,
+          "cpu_ms": {
+            "baseline": 16249.694999999996,
+            "candidate": 16635.747000000003
+          },
+          "http_ms": {
+            "baseline": 6738.642875000003,
+            "candidate": 6937.999291999997
+          },
+          "median_http_ms": {
+            "baseline": 1390.6067920000016,
+            "candidate": 1337.3430420000004
+          },
+          "cpu_change_pct": 2.3757492063697594,
+          "total_http_change_pct": 2.9584060277121127,
+          "median_http_change_pct": -3.8302523981920245,
+          "worst_paired_http_change_pct": 7.9753373590596865
+        },
+        "group-16653-71d4fea8.json": {
+          "pairs": [
+            {
+              "seed": 808,
+              "baseline_rare": 64,
+              "candidate_rare": 64,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1669,
+              "baseline_rare": 67,
+              "candidate_rare": 67,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1993,
+              "baseline_rare": 61,
+              "candidate_rare": 61,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 2281,
+              "baseline_rare": 66,
+              "candidate_rare": 66,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 2293,
+              "baseline_rare": 64,
+              "candidate_rare": 64,
+              "gains": [],
+              "losses": []
+            }
+          ],
+          "baseline_rare_cell_runs": 322,
+          "candidate_rare_cell_runs": 322,
+          "gain_cell_runs": 0,
+          "loss_cell_runs": 0,
+          "distinct_gained_cells": [],
+          "distinct_lost_cells": [],
+          "permitted_work_increase_pct": 0.0,
+          "cpu_ms": {
+            "baseline": 13101.381,
+            "candidate": 12890.16900000001
+          },
+          "http_ms": {
+            "baseline": 6188.606249999999,
+            "candidate": 6169.229874000002
+          },
+          "median_http_ms": {
+            "baseline": 1246.668624999998,
+            "candidate": 1268.469417000002
+          },
+          "cpu_change_pct": -1.6121353924444248,
+          "total_http_change_pct": -0.31309757346408285,
+          "median_http_change_pct": 1.7487238840236508,
+          "worst_paired_http_change_pct": 29.377544109260946
+        },
+        "group-16982-9327edcd.json": {
+          "pairs": [
+            {
+              "seed": 808,
+              "baseline_rare": 28,
+              "candidate_rare": 28,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1669,
+              "baseline_rare": 32,
+              "candidate_rare": 32,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1993,
+              "baseline_rare": 32,
+              "candidate_rare": 32,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 2281,
+              "baseline_rare": 33,
+              "candidate_rare": 33,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 2293,
+              "baseline_rare": 33,
+              "candidate_rare": 33,
+              "gains": [],
+              "losses": []
+            }
+          ],
+          "baseline_rare_cell_runs": 158,
+          "candidate_rare_cell_runs": 158,
+          "gain_cell_runs": 0,
+          "loss_cell_runs": 0,
+          "distinct_gained_cells": [],
+          "distinct_lost_cells": [],
+          "permitted_work_increase_pct": 0.0,
+          "cpu_ms": {
+            "baseline": 2785.1749999999906,
+            "candidate": 2783.0049999999974
+          },
+          "http_ms": {
+            "baseline": 1316.5190410000068,
+            "candidate": 1333.7890829999992
+          },
+          "median_http_ms": {
+            "baseline": 261.99749999999966,
+            "candidate": 262.5886659999992
+          },
+          "cpu_change_pct": -0.07791251896176465,
+          "total_http_change_pct": 1.311795839038865,
+          "median_http_change_pct": 0.22563803089705736,
+          "worst_paired_http_change_pct": 16.38704793761081
+        },
+        "group-16983-43969b02.json": {
+          "pairs": [
+            {
+              "seed": 808,
+              "baseline_rare": 86,
+              "candidate_rare": 86,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1669,
+              "baseline_rare": 86,
+              "candidate_rare": 86,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1993,
+              "baseline_rare": 86,
+              "candidate_rare": 86,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 2281,
+              "baseline_rare": 81,
+              "candidate_rare": 81,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 2293,
+              "baseline_rare": 89,
+              "candidate_rare": 89,
+              "gains": [],
+              "losses": []
+            }
+          ],
+          "baseline_rare_cell_runs": 428,
+          "candidate_rare_cell_runs": 428,
+          "gain_cell_runs": 0,
+          "loss_cell_runs": 0,
+          "distinct_gained_cells": [],
+          "distinct_lost_cells": [],
+          "permitted_work_increase_pct": 0.0,
+          "cpu_ms": {
+            "baseline": 2730.7780000000193,
+            "candidate": 2696.1209999999946
+          },
+          "http_ms": {
+            "baseline": 1292.9872490000066,
+            "candidate": 1280.9533750000028
+          },
+          "median_http_ms": {
+            "baseline": 256.1949999999982,
+            "candidate": 252.3186250000009
+          },
+          "cpu_change_pct": -1.2691255019640746,
+          "total_http_change_pct": -0.930703223044993,
+          "median_http_change_pct": -1.5130564608978658,
+          "worst_paired_http_change_pct": 4.65761446293147
+        },
+        "group-16653-2d1c1d6f.json": {
+          "pairs": [
+            {
+              "seed": 808,
+              "baseline_rare": 61,
+              "candidate_rare": 61,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1669,
+              "baseline_rare": 63,
+              "candidate_rare": 63,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1993,
+              "baseline_rare": 64,
+              "candidate_rare": 64,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 2281,
+              "baseline_rare": 65,
+              "candidate_rare": 65,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 2293,
+              "baseline_rare": 63,
+              "candidate_rare": 63,
+              "gains": [],
+              "losses": []
+            }
+          ],
+          "baseline_rare_cell_runs": 316,
+          "candidate_rare_cell_runs": 316,
+          "gain_cell_runs": 0,
+          "loss_cell_runs": 0,
+          "distinct_gained_cells": [],
+          "distinct_lost_cells": [],
+          "permitted_work_increase_pct": 0.0,
+          "cpu_ms": {
+            "baseline": 7831.148000000014,
+            "candidate": 7958.138999999984
+          },
+          "http_ms": {
+            "baseline": 3304.803499999998,
+            "candidate": 3393.3832489999954
+          },
+          "median_http_ms": {
+            "baseline": 651.755125000001,
+            "candidate": 670.9980829999936
+          },
+          "cpu_change_pct": 1.6216140979581795,
+          "total_http_change_pct": 2.680333308773042,
+          "median_http_change_pct": 2.9524828055617514,
+          "worst_paired_http_change_pct": 8.556741306791427
+        }
+      }
+    },
+    "memo-holdout": {
+      "baseline_sha256": "f8db89014089e9db7f06a1f9ba15f4d48e4fc1a68c28127c42b6c64a4c75c1cb",
+      "candidate_sha256": "62008cc3978337090bd3e34a15703d5555c1da99e21ee8889586df2024edb8bb",
+      "flags": {
+        "RUST_ODDS_EXPERIMENT_TREE": "1",
+        "RUST_ODDS_EXPERIMENT_TREE_PILOT": "25",
+        "RUST_ODDS_EXPERIMENT_CONFIRM_PREFIX": "1",
+        "RUST_ODDS_EXPERIMENT_RARE_BONUS_UNITS": "16000000"
+      },
+      "inputs": {
+        "experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-15902-31d66705.json": "3caab564a5518d6a1385cec917b1b3d404d31539f9e07ed98f528785236a6443",
+        "experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16413-a2eef0a8.json": "daf825535a62d100121d14233b69814a3d87d4f16cdfb4f8f0171a9d22836dd4",
+        "experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16498-44eabb47.json": "2e08f162592ded09393f0438686a60690dda6e85cd54da5dc0d20224c81aa625",
+        "experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16653-71d4fea8.json": "b56f2ac8bdb017ab98814a8f653b511b54340f4437c8e890894e827ce3ee9962",
+        "experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16982-9327edcd.json": "96c2eeeeec5b4e00015919009c9da30b6a4269b4017a651edbd3cfbd90fd635c",
+        "experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16983-43969b02.json": "03dc3178d40d5c534f217b25c58e56d861906e6f1c2225b83be302065f5a293b",
+        "odds-rust/tests/fixtures/group-16653-2d1c1d6f.json": "a2ea66a82ec8c34ec58c1b8a0cc004b19f04b203f4733a88fa0cf9172eeb9596"
+      },
+      "groups": {
+        "group-15902-31d66705.json": {
+          "pairs": [
+            {
+              "seed": 801,
+              "baseline_rare": 60,
+              "candidate_rare": 60,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 804,
+              "baseline_rare": 56,
+              "candidate_rare": 56,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 817,
+              "baseline_rare": 53,
+              "candidate_rare": 53,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 911,
+              "baseline_rare": 59,
+              "candidate_rare": 59,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1861,
+              "baseline_rare": 57,
+              "candidate_rare": 57,
+              "gains": [],
+              "losses": []
+            }
+          ],
+          "baseline_rare_cell_runs": 285,
+          "candidate_rare_cell_runs": 285,
+          "gain_cell_runs": 0,
+          "loss_cell_runs": 0,
+          "distinct_gained_cells": [],
+          "distinct_lost_cells": [],
+          "permitted_work_increase_pct": 0.0,
+          "cpu_ms": {
+            "baseline": 1713.3480000000006,
+            "candidate": 1754.5649999999996
+          },
+          "http_ms": {
+            "baseline": 818.8388319999999,
+            "candidate": 865.1509169999999
+          },
+          "median_http_ms": {
+            "baseline": 163.131916,
+            "candidate": 162.75287500000002
+          },
+          "cpu_change_pct": 2.405640885564342,
+          "total_http_change_pct": 5.6558242220735355,
+          "median_http_change_pct": -0.23235244781896203,
+          "worst_paired_http_change_pct": 36.484247220997965
+        },
+        "group-16413-a2eef0a8.json": {
+          "pairs": [
+            {
+              "seed": 801,
+              "baseline_rare": 49,
+              "candidate_rare": 49,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 804,
+              "baseline_rare": 50,
+              "candidate_rare": 50,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 817,
+              "baseline_rare": 49,
+              "candidate_rare": 49,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 911,
+              "baseline_rare": 45,
+              "candidate_rare": 45,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1861,
+              "baseline_rare": 50,
+              "candidate_rare": 50,
+              "gains": [],
+              "losses": []
+            }
+          ],
+          "baseline_rare_cell_runs": 243,
+          "candidate_rare_cell_runs": 243,
+          "gain_cell_runs": 0,
+          "loss_cell_runs": 0,
+          "distinct_gained_cells": [],
+          "distinct_lost_cells": [],
+          "permitted_work_increase_pct": 0.0,
+          "cpu_ms": {
+            "baseline": 1706.0919999999999,
+            "candidate": 1809.7129999999988
+          },
+          "http_ms": {
+            "baseline": 807.1905830000002,
+            "candidate": 993.3047079999997
+          },
+          "median_http_ms": {
+            "baseline": 157.88212499999997,
+            "candidate": 168.408833
+          },
+          "cpu_change_pct": 6.073588059729418,
+          "total_http_change_pct": 23.057023820606126,
+          "median_http_change_pct": 6.667447629046053,
+          "worst_paired_http_change_pct": 69.49919640390432
+        },
+        "group-16498-44eabb47.json": {
+          "pairs": [
+            {
+              "seed": 801,
+              "baseline_rare": 84,
+              "candidate_rare": 85,
+              "gains": [
+                [
+                  17,
+                  13
+                ]
+              ],
+              "losses": []
+            },
+            {
+              "seed": 804,
+              "baseline_rare": 82,
+              "candidate_rare": 83,
+              "gains": [
+                [
+                  17,
+                  13
+                ]
+              ],
+              "losses": []
+            },
+            {
+              "seed": 817,
+              "baseline_rare": 88,
+              "candidate_rare": 89,
+              "gains": [
+                [
+                  17,
+                  13
+                ]
+              ],
+              "losses": []
+            },
+            {
+              "seed": 911,
+              "baseline_rare": 81,
+              "candidate_rare": 82,
+              "gains": [
+                [
+                  17,
+                  13
+                ]
+              ],
+              "losses": []
+            },
+            {
+              "seed": 1861,
+              "baseline_rare": 84,
+              "candidate_rare": 85,
+              "gains": [
+                [
+                  17,
+                  13
+                ]
+              ],
+              "losses": []
+            }
+          ],
+          "baseline_rare_cell_runs": 419,
+          "candidate_rare_cell_runs": 424,
+          "gain_cell_runs": 5,
+          "loss_cell_runs": 0,
+          "distinct_gained_cells": [
+            [
+              17,
+              13
+            ]
+          ],
+          "distinct_lost_cells": [],
+          "permitted_work_increase_pct": 1.1933174224343674,
+          "cpu_ms": {
+            "baseline": 20747.931000000004,
+            "candidate": 18602.257
+          },
+          "http_ms": {
+            "baseline": 9892.957457999999,
+            "candidate": 7939.953625000001
+          },
+          "median_http_ms": {
+            "baseline": 1932.8380410000002,
+            "candidate": 1620.8825000000004
+          },
+          "cpu_change_pct": -10.341628762887256,
+          "total_http_change_pct": -19.74135481014011,
+          "median_http_change_pct": -16.13976620817138,
+          "worst_paired_http_change_pct": 14.57537135987974
+        },
+        "group-16653-71d4fea8.json": {
+          "pairs": [
+            {
+              "seed": 801,
+              "baseline_rare": 63,
+              "candidate_rare": 63,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 804,
+              "baseline_rare": 64,
+              "candidate_rare": 64,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 817,
+              "baseline_rare": 60,
+              "candidate_rare": 60,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 911,
+              "baseline_rare": 65,
+              "candidate_rare": 65,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1861,
+              "baseline_rare": 63,
+              "candidate_rare": 63,
+              "gains": [],
+              "losses": []
+            }
+          ],
+          "baseline_rare_cell_runs": 315,
+          "candidate_rare_cell_runs": 315,
+          "gain_cell_runs": 0,
+          "loss_cell_runs": 0,
+          "distinct_gained_cells": [],
+          "distinct_lost_cells": [],
+          "permitted_work_increase_pct": 0.0,
+          "cpu_ms": {
+            "baseline": 12901.663000000011,
+            "candidate": 14132.951999999997
+          },
+          "http_ms": {
+            "baseline": 7311.555832999999,
+            "candidate": 8373.811959000002
+          },
+          "median_http_ms": {
+            "baseline": 1426.4113750000006,
+            "candidate": 1263.4304589999986
+          },
+          "cpu_change_pct": 9.543645652502208,
+          "total_http_change_pct": 14.528455369315685,
+          "median_http_change_pct": -11.425940570615678,
+          "worst_paired_http_change_pct": 58.62073218534163
+        },
+        "group-16982-9327edcd.json": {
+          "pairs": [
+            {
+              "seed": 801,
+              "baseline_rare": 35,
+              "candidate_rare": 35,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 804,
+              "baseline_rare": 31,
+              "candidate_rare": 31,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 817,
+              "baseline_rare": 31,
+              "candidate_rare": 31,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 911,
+              "baseline_rare": 33,
+              "candidate_rare": 33,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1861,
+              "baseline_rare": 34,
+              "candidate_rare": 34,
+              "gains": [],
+              "losses": []
+            }
+          ],
+          "baseline_rare_cell_runs": 164,
+          "candidate_rare_cell_runs": 164,
+          "gain_cell_runs": 0,
+          "loss_cell_runs": 0,
+          "distinct_gained_cells": [],
+          "distinct_lost_cells": [],
+          "permitted_work_increase_pct": 0.0,
+          "cpu_ms": {
+            "baseline": 2781.5780000000213,
+            "candidate": 2827.532999999991
+          },
+          "http_ms": {
+            "baseline": 1306.9323750000024,
+            "candidate": 1343.859957999996
+          },
+          "median_http_ms": {
+            "baseline": 261.2645000000029,
+            "candidate": 266.536667000004
+          },
+          "cpu_change_pct": 1.6521197679866928,
+          "total_http_change_pct": 2.825515972086423,
+          "median_http_change_pct": 2.0179423534391505,
+          "worst_paired_http_change_pct": 13.609406278770297
+        },
+        "group-16983-43969b02.json": {
+          "pairs": [
+            {
+              "seed": 801,
+              "baseline_rare": 83,
+              "candidate_rare": 83,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 804,
+              "baseline_rare": 86,
+              "candidate_rare": 86,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 817,
+              "baseline_rare": 81,
+              "candidate_rare": 81,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 911,
+              "baseline_rare": 84,
+              "candidate_rare": 84,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1861,
+              "baseline_rare": 85,
+              "candidate_rare": 85,
+              "gains": [],
+              "losses": []
+            }
+          ],
+          "baseline_rare_cell_runs": 419,
+          "candidate_rare_cell_runs": 419,
+          "gain_cell_runs": 0,
+          "loss_cell_runs": 0,
+          "distinct_gained_cells": [],
+          "distinct_lost_cells": [],
+          "permitted_work_increase_pct": 0.0,
+          "cpu_ms": {
+            "baseline": 2658.4820000000086,
+            "candidate": 2705.4609999999784
+          },
+          "http_ms": {
+            "baseline": 1270.1528349999976,
+            "candidate": 1260.7869179999939
+          },
+          "median_http_ms": {
+            "baseline": 253.16058399999974,
+            "candidate": 249.96637499999963
+          },
+          "cpu_change_pct": 1.7671362830355752,
+          "total_http_change_pct": -0.7373850407540683,
+          "median_http_change_pct": -1.2617323556182503,
+          "worst_paired_http_change_pct": 3.409559803651785
+        },
+        "group-16653-2d1c1d6f.json": {
+          "pairs": [
+            {
+              "seed": 801,
+              "baseline_rare": 60,
+              "candidate_rare": 60,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 804,
+              "baseline_rare": 66,
+              "candidate_rare": 66,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 817,
+              "baseline_rare": 64,
+              "candidate_rare": 64,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 911,
+              "baseline_rare": 62,
+              "candidate_rare": 62,
+              "gains": [],
+              "losses": []
+            },
+            {
+              "seed": 1861,
+              "baseline_rare": 61,
+              "candidate_rare": 61,
+              "gains": [],
+              "losses": []
+            }
+          ],
+          "baseline_rare_cell_runs": 313,
+          "candidate_rare_cell_runs": 313,
+          "gain_cell_runs": 0,
+          "loss_cell_runs": 0,
+          "distinct_gained_cells": [],
+          "distinct_lost_cells": [],
+          "permitted_work_increase_pct": 0.0,
+          "cpu_ms": {
+            "baseline": 8313.562999999998,
+            "candidate": 7963.241000000018
+          },
+          "http_ms": {
+            "baseline": 3560.6306260000047,
+            "candidate": 3584.9442940000035
+          },
+          "median_http_ms": {
+            "baseline": 702.4710419999991,
+            "candidate": 718.5923340000002
+          },
+          "cpu_change_pct": -4.213861132705443,
+          "total_http_change_pct": 0.6828472412290898,
+          "median_http_change_pct": 2.2949404368473703,
+          "worst_paired_http_change_pct": 10.278713762748005
+        }
+      }
+    }
+  },
+  "diagnostic_full_arms": {
+    "full-cache": {
+      "baseline_rare_cell_runs": 427,
+      "candidate_rare_cell_runs": 432,
+      "gain_cell_runs": 5,
+      "loss_cell_runs": 0,
+      "permitted_work_increase_pct": 1.1709601873536302,
+      "cpu_change_pct": 6.627792217796036,
+      "median_http_change_pct": 5.35101001467424,
+      "total_http_change_pct": 3.906249118873184,
+      "worst_paired_http_change_pct": 7.566386743144937
+    },
+    "full-efficient": {
+      "baseline_rare_cell_runs": 427,
+      "candidate_rare_cell_runs": 432,
+      "gain_cell_runs": 5,
+      "loss_cell_runs": 0,
+      "permitted_work_increase_pct": 1.1709601873536302,
+      "cpu_change_pct": 0.34147906126045235,
+      "median_http_change_pct": 4.272368335004084,
+      "total_http_change_pct": 3.4711856905498495,
+      "worst_paired_http_change_pct": 6.20257836649194
+    },
+    "full-pipeline": {
+      "baseline_rare_cell_runs": 427,
+      "candidate_rare_cell_runs": 432,
+      "gain_cell_runs": 5,
+      "loss_cell_runs": 0,
+      "permitted_work_increase_pct": 1.1709601873536302,
+      "cpu_change_pct": 2.045339885743913,
+      "median_http_change_pct": 4.141280344642739,
+      "total_http_change_pct": 1.6610639561825957,
+      "worst_paired_http_change_pct": 5.196418217757914
+    },
+    "full-refined": {
+      "baseline_rare_cell_runs": 427,
+      "candidate_rare_cell_runs": 429,
+      "gain_cell_runs": 5,
+      "loss_cell_runs": 3,
+      "permitted_work_increase_pct": 0.468384074941452,
+      "cpu_change_pct": -3.1042287415255276,
+      "median_http_change_pct": -5.793798808241557,
+      "total_http_change_pct": -4.162243414494449,
+      "worst_paired_http_change_pct": 5.695828019437443
+    },
+    "full-refund": {
+      "baseline_rare_cell_runs": 427,
+      "candidate_rare_cell_runs": 430,
+      "gain_cell_runs": 5,
+      "loss_cell_runs": 2,
+      "permitted_work_increase_pct": 0.702576112412178,
+      "cpu_change_pct": -1.2812371753088692,
+      "median_http_change_pct": -2.175122474507285,
+      "total_http_change_pct": 1.0934425533587033,
+      "worst_paired_http_change_pct": 8.6547965792392
+    },
+    "full-small": {
+      "baseline_rare_cell_runs": 427,
+      "candidate_rare_cell_runs": 429,
+      "gain_cell_runs": 5,
+      "loss_cell_runs": 3,
+      "permitted_work_increase_pct": 0.468384074941452,
+      "cpu_change_pct": -5.444495067079003,
+      "median_http_change_pct": -10.032880597955518,
+      "total_http_change_pct": -4.359168938998426,
+      "worst_paired_http_change_pct": 17.439648138123154
+    },
+    "full-strong": {
+      "baseline_rare_cell_runs": 427,
+      "candidate_rare_cell_runs": 432,
+      "gain_cell_runs": 5,
+      "loss_cell_runs": 0,
+      "permitted_work_increase_pct": 1.1709601873536302,
+      "cpu_change_pct": 9.147698030079576,
+      "median_http_change_pct": 5.411215275770687,
+      "total_http_change_pct": 4.258867470109795,
+      "worst_paired_http_change_pct": 7.401607326258541
+    },
+    "full-transfer": {
+      "baseline_rare_cell_runs": 427,
+      "candidate_rare_cell_runs": 430,
+      "gain_cell_runs": 5,
+      "loss_cell_runs": 2,
+      "permitted_work_increase_pct": 0.702576112412178,
+      "cpu_change_pct": -2.8387174382446756,
+      "median_http_change_pct": -3.959811760912335,
+      "total_http_change_pct": -1.1191702234203404,
+      "worst_paired_http_change_pct": 13.010754713841788
+    },
+    "full-warm": {
+      "baseline_rare_cell_runs": 427,
+      "candidate_rare_cell_runs": 432,
+      "gain_cell_runs": 5,
+      "loss_cell_runs": 0,
+      "permitted_work_increase_pct": 1.1709601873536302,
+      "cpu_change_pct": 2.791220436467956,
+      "median_http_change_pct": 2.8063083008818213,
+      "total_http_change_pct": 0.5147552596237448,
+      "worst_paired_http_change_pct": 6.334004016506367
+    }
+  },
+  "persistent": {
+    "request": "group-16498-44eabb47.json",
+    "seed": 808,
+    "repetitions": 10,
+    "warmups": 2,
+    "median_http_ms": {
+      "baseline": 1249.8001875,
+      "candidate": 1307.0744169999998
+    },
+    "latency_ms": {
+      "baseline": [
+        1236.2177919999997,
+        1275.2452919999992,
+        1245.0050419999989,
+        2347.800125000001,
+        1276.075959,
+        1248.5026250000005,
+        1236.0978329999987,
+        1251.0977499999995
+      ],
+      "candidate": [
+        1478.0833329999998,
+        1416.7047499999992,
+        1315.8593750000005,
+        1332.226083,
+        1291.7101250000017,
+        1268.2810000000018,
+        1292.7971659999998,
+        1298.2894589999994
+      ]
+    },
+    "cpu_seconds": {
+      "baseline": 31.01,
+      "candidate": 31.78
+    },
+    "peak_rss_mib": {
+      "baseline": 395.90625,
+      "candidate": 409.765625
+    },
+    "comparison": {
+      "gains": [
+        {
+          "team": 17,
+          "position": 13,
+          "probability": 1.1729847660954641e-33
+        }
+      ],
+      "lost": [],
+      "lost_reachability": [],
+      "max_existing_standard_error_difference": 0.0,
+      "impossible_regressions": [],
+      "max_existing_probability_difference": 0.0,
+      "game_importance_identical": true
+    },
+    "cpu_change_pct": 2.483069977426644,
+    "median_http_change_pct": 4.582670899943331
+  },
+  "flamengo13": [
+    {
+      "seed": 808,
+      "probability": 1.1729847660954641e-33,
+      "main_ess": 16.776491371737983,
+      "main_max_share": 0.11154596952073734,
+      "check_probability": 4.499105529928183e-34,
+      "check_ess": 10.658583919616257,
+      "setup_ms": 27.92175,
+      "pilot_ms": 3.680167,
+      "pair_ms": 14.467667,
+      "main_draws": 3000,
+      "accepted": true
+    },
+    {
+      "seed": 1669,
+      "probability": 8.15475170945866e-34,
+      "main_ess": 7.484803753682706,
+      "main_max_share": 0.30452667609374784,
+      "check_probability": 3.497298333148138e-34,
+      "check_ess": 21.841168376634577,
+      "setup_ms": 26.468625,
+      "pilot_ms": 3.581875,
+      "pair_ms": 15.07175,
+      "main_draws": 3000,
+      "accepted": true
+    },
+    {
+      "seed": 1993,
+      "probability": 7.423614304156107e-34,
+      "main_ess": 17.510051561398377,
+      "main_max_share": 0.11293299037840601,
+      "check_probability": 5.045432149903504e-34,
+      "check_ess": 15.606636456235817,
+      "setup_ms": 27.585958,
+      "pilot_ms": 3.837959,
+      "pair_ms": 15.544791,
+      "main_draws": 3000,
+      "accepted": true
+    },
+    {
+      "seed": 2281,
+      "probability": 1.01840634219671e-33,
+      "main_ess": 7.636703445719582,
+      "main_max_share": 0.2957774140735751,
+      "check_probability": 7.742304206658086e-34,
+      "check_ess": 12.518000416683652,
+      "setup_ms": 25.374541,
+      "pilot_ms": 3.700167,
+      "pair_ms": 13.782041999999999,
+      "main_draws": 3000,
+      "accepted": true
+    },
+    {
+      "seed": 2293,
+      "probability": 5.791948351180591e-34,
+      "main_ess": 13.483136262731545,
+      "main_max_share": 0.19166939528385432,
+      "check_probability": 9.357425381900115e-34,
+      "check_ess": 13.523245911785843,
+      "setup_ms": 25.613,
+      "pilot_ms": 3.685875,
+      "pair_ms": 14.306417,
+      "main_draws": 3000,
+      "accepted": true
+    },
+    {
+      "seed": 801,
+      "probability": 6.591900874071757e-34,
+      "main_ess": 9.008874196707799,
+      "main_max_share": 0.2512083631212418,
+      "check_probability": 3.638179952015738e-34,
+      "check_ess": 22.519764370963237,
+      "setup_ms": 28.277166,
+      "pilot_ms": 3.71125,
+      "pair_ms": 14.495542,
+      "main_draws": 3000,
+      "accepted": true
+    },
+    {
+      "seed": 804,
+      "probability": 5.834745207745747e-34,
+      "main_ess": 15.412802218457427,
+      "main_max_share": 0.14577642739318955,
+      "check_probability": 3.5540201455557667e-34,
+      "check_ess": 20.893423472329037,
+      "setup_ms": 27.502,
+      "pilot_ms": 3.605417,
+      "pair_ms": 14.451291999999999,
+      "main_draws": 3000,
+      "accepted": true
+    },
+    {
+      "seed": 817,
+      "probability": 6.768738440874255e-34,
+      "main_ess": 11.109920616785587,
+      "main_max_share": 0.17791867583004445,
+      "check_probability": 1.0932717135966962e-33,
+      "check_ess": 8.99939615872128,
+      "setup_ms": 27.332958,
+      "pilot_ms": 3.870625,
+      "pair_ms": 14.698792000000001,
+      "main_draws": 3000,
+      "accepted": true
+    },
+    {
+      "seed": 911,
+      "probability": 8.336997783069695e-34,
+      "main_ess": 6.4827269411486395,
+      "main_max_share": 0.33571844325209227,
+      "check_probability": 3.584201499356456e-34,
+      "check_ess": 13.218721987373508,
+      "setup_ms": 28.432,
+      "pilot_ms": 3.57775,
+      "pair_ms": 14.475833,
+      "main_draws": 3000,
+      "accepted": true
+    },
+    {
+      "seed": 1861,
+      "probability": 4.5014011060929345e-34,
+      "main_ess": 20.38915726585275,
+      "main_max_share": 0.11045544531709456,
+      "check_probability": 6.624978679386235e-34,
+      "check_ess": 6.6595065673862495,
+      "setup_ms": 29.5575,
+      "pilot_ms": 3.902,
+      "pair_ms": 15.098875,
+      "main_draws": 3000,
+      "accepted": true
+    }
+  ],
+  "work_accounting": {
+    "808": {
+      "baseline": [
+        {
+          "accepted": 1,
+          "allowance_ms": null,
+          "attempted": 7,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 161.029208,
+          "eligible": 7,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "preserved_existing_estimates": true,
+          "request_elapsed_ms": 880.193,
+          "request_id": 3,
+          "reserved_work": 392454832,
+          "seed": 808,
+          "setup_ms": 53.874793,
+          "skipped": 5,
+          "tightened_only": true,
+          "timestamp_unix_ms": 1790967064229,
+          "work": 8364000,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 2,
+          "budget_mode": "operations",
+          "completed": 4,
+          "elapsed_ms": 321.8395,
+          "eligible": 6,
+          "event": "rust_odds_rare_tail_confirm_more_summary",
+          "fraction": 1.5,
+          "funded": 4,
+          "group": 16498,
+          "main_only": 0,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 300837171,
+          "request_elapsed_ms": 1202.674,
+          "request_id": 3,
+          "reserved_work": 678524975,
+          "seed": 808,
+          "timestamp_unix_ms": 1790967064552,
+          "transferred_branch_work": 392454832,
+          "waves": 2,
+          "work": 7991679,
+          "work_limit": 1054145168
+        },
+        {
+          "accepted": 0,
+          "allowance_ms": null,
+          "attempted": 0,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 0.206459,
+          "eligible": 0,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "preserved_existing_estimates": true,
+          "request_elapsed_ms": 1203.497,
+          "request_id": 3,
+          "reserved_work": 0,
+          "seed": 808,
+          "setup_ms": 0.0,
+          "skipped": 0,
+          "tightened_only": false,
+          "timestamp_unix_ms": 1790967064553,
+          "work": 0,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 13,
+          "allowance_ms": null,
+          "batch_allocation": "0",
+          "budget_mode": "operations",
+          "cells": 15,
+          "effective_batch_allocation": "0",
+          "effective_root_retry": "0",
+          "effective_union_patterns": "256",
+          "elapsed_ms": 704.8888330000001,
+          "event": "rust_odds_rare_tail_summary",
+          "extension": "after",
+          "finalists": 10,
+          "group": 16498,
+          "reference_draw_cost": 7233,
+          "remaining_after_training_ms": null,
+          "request_elapsed_ms": 1203.877,
+          "request_id": 3,
+          "reserved_work": 620595083,
+          "root_retry": "0",
+          "seed": 808,
+          "setup_pilot_work": 351240655,
+          "shared_guides": {
+            "hits": 18,
+            "profiles": 70
+          },
+          "timestamp_unix_ms": 1790967064553,
+          "training_cell_limit": 28,
+          "union_patterns": "256",
+          "work": 22384401,
+          "work_limit": 650970000
+        }
+      ],
+      "candidate": [
+        {
+          "accepted": 1,
+          "allowance_ms": null,
+          "attempted": 7,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 157.89624999999998,
+          "eligible": 7,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "pilot_draws_per_branch": 500,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 0,
+          "request_elapsed_ms": 883.524,
+          "request_id": 3,
+          "reserved_work": 392454832,
+          "seed": 808,
+          "setup_ms": 48.380459,
+          "skipped": 5,
+          "tightened_only": true,
+          "timestamp_unix_ms": 1790967065473,
+          "tree_mode": false,
+          "work": 8364000,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 1,
+          "allowance_ms": null,
+          "attempted": 1,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 55.970541999999995,
+          "eligible": 1,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "pilot_draws_per_branch": 25,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 0,
+          "request_elapsed_ms": 940.151,
+          "request_id": 3,
+          "reserved_work": 50619696,
+          "seed": 808,
+          "setup_ms": 27.92175,
+          "skipped": 0,
+          "tightened_only": true,
+          "timestamp_unix_ms": 1790967065530,
+          "tree_mode": true,
+          "work": 907125,
+          "work_limit": 258515168
+        },
+        {
+          "accepted": 2,
+          "budget_mode": "operations",
+          "completed": 4,
+          "elapsed_ms": 348.98,
+          "eligible": 5,
+          "event": "rust_odds_rare_tail_confirm_more_summary",
+          "fraction": 1.5,
+          "funded": 4,
+          "group": 16498,
+          "main_only": 0,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 300837171,
+          "request_elapsed_ms": 1289.926,
+          "request_id": 3,
+          "reserved_work": 678524975,
+          "seed": 808,
+          "timestamp_unix_ms": 1790967065880,
+          "transferred_branch_work": 427380283,
+          "waves": 2,
+          "work": 7991679,
+          "work_limit": 1019219717
+        },
+        {
+          "accepted": 0,
+          "allowance_ms": null,
+          "attempted": 0,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 0.21562499999999998,
+          "eligible": 0,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "pilot_draws_per_branch": 500,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 0,
+          "request_elapsed_ms": 1290.758,
+          "request_id": 3,
+          "reserved_work": 0,
+          "seed": 808,
+          "setup_ms": 0.0,
+          "skipped": 0,
+          "tightened_only": false,
+          "timestamp_unix_ms": 1790967065881,
+          "tree_mode": false,
+          "work": 0,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 14,
+          "allowance_ms": null,
+          "batch_allocation": "0",
+          "budget_mode": "operations",
+          "cells": 15,
+          "effective_batch_allocation": "0",
+          "effective_root_retry": "0",
+          "effective_union_patterns": "256",
+          "elapsed_ms": 794.507167,
+          "event": "rust_odds_rare_tail_summary",
+          "extension": "after",
+          "finalists": 10,
+          "group": 16498,
+          "reference_draw_cost": 7233,
+          "remaining_after_training_ms": null,
+          "request_elapsed_ms": 1291.183,
+          "request_id": 3,
+          "reserved_work": 620595083,
+          "root_retry": "0",
+          "seed": 808,
+          "setup_pilot_work": 351240655,
+          "shared_guides": {
+            "hits": 18,
+            "profiles": 70
+          },
+          "timestamp_unix_ms": 1790967065881,
+          "training_cell_limit": 28,
+          "union_patterns": "256",
+          "work": 23291526,
+          "work_limit": 650970000
+        }
+      ]
+    },
+    "1669": {
+      "baseline": [
+        {
+          "accepted": 0,
+          "allowance_ms": null,
+          "attempted": 8,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 93.96104199999999,
+          "eligible": 8,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "preserved_existing_estimates": true,
+          "request_elapsed_ms": 804.931,
+          "request_id": 3,
+          "reserved_work": 377454398,
+          "seed": 1669,
+          "setup_ms": 54.416123999999996,
+          "skipped": 6,
+          "tightened_only": true,
+          "timestamp_unix_ms": 1790967067987,
+          "work": 5289000,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 3,
+          "budget_mode": "operations",
+          "completed": 5,
+          "elapsed_ms": 392.78695899999997,
+          "eligible": 7,
+          "event": "rust_odds_rare_tail_confirm_more_summary",
+          "fraction": 1.5,
+          "funded": 5,
+          "group": 16498,
+          "main_only": 0,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 136689933,
+          "request_elapsed_ms": 1198.377,
+          "request_id": 3,
+          "reserved_work": 953002737,
+          "seed": 1669,
+          "timestamp_unix_ms": 1790967068380,
+          "transferred_branch_work": 377454398,
+          "waves": 2,
+          "work": 10465947,
+          "work_limit": 1069145602
+        },
+        {
+          "accepted": 0,
+          "allowance_ms": null,
+          "attempted": 0,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 0.207875,
+          "eligible": 0,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "preserved_existing_estimates": true,
+          "request_elapsed_ms": 1199.18,
+          "request_id": 3,
+          "reserved_work": 0,
+          "seed": 1669,
+          "setup_ms": 0.0,
+          "skipped": 0,
+          "tightened_only": false,
+          "timestamp_unix_ms": 1790967068381,
+          "work": 0,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 14,
+          "allowance_ms": null,
+          "batch_allocation": "0",
+          "budget_mode": "operations",
+          "cells": 18,
+          "effective_batch_allocation": "0",
+          "effective_root_retry": "0",
+          "effective_union_patterns": "256",
+          "elapsed_ms": 731.174542,
+          "event": "rust_odds_rare_tail_summary",
+          "extension": "after",
+          "finalists": 10,
+          "group": 16498,
+          "reference_draw_cost": 7233,
+          "remaining_after_training_ms": null,
+          "request_elapsed_ms": 1199.577,
+          "request_id": 3,
+          "reserved_work": 637952541,
+          "root_retry": "0",
+          "seed": 1669,
+          "setup_pilot_work": 403730541,
+          "shared_guides": {
+            "hits": 22,
+            "profiles": 89
+          },
+          "timestamp_unix_ms": 1790967068382,
+          "training_cell_limit": 28,
+          "union_patterns": "256",
+          "work": 22255866,
+          "work_limit": 650970000
+        }
+      ],
+      "candidate": [
+        {
+          "accepted": 0,
+          "allowance_ms": null,
+          "attempted": 8,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 87.50845799999999,
+          "eligible": 8,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "pilot_draws_per_branch": 500,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 62170191,
+          "request_elapsed_ms": 821.813,
+          "request_id": 3,
+          "reserved_work": 315284207,
+          "seed": 1669,
+          "setup_ms": 48.395374000000004,
+          "skipped": 6,
+          "tightened_only": true,
+          "timestamp_unix_ms": 1790967066738,
+          "tree_mode": false,
+          "work": 5289000,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 1,
+          "allowance_ms": null,
+          "attempted": 1,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 50.850833,
+          "eligible": 1,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "pilot_draws_per_branch": 25,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 0,
+          "request_elapsed_ms": 873.32,
+          "request_id": 3,
+          "reserved_work": 50398822,
+          "seed": 1669,
+          "setup_ms": 26.468625,
+          "skipped": 0,
+          "tightened_only": true,
+          "timestamp_unix_ms": 1790967066790,
+          "tree_mode": true,
+          "work": 907125,
+          "work_limit": 335685793
+        },
+        {
+          "accepted": 3,
+          "budget_mode": "operations",
+          "completed": 5,
+          "elapsed_ms": 353.261958,
+          "eligible": 6,
+          "event": "rust_odds_rare_tail_confirm_more_summary",
+          "fraction": 1.5,
+          "funded": 5,
+          "group": 16498,
+          "main_only": 0,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 136689933,
+          "request_elapsed_ms": 1227.389,
+          "request_id": 3,
+          "reserved_work": 953002737,
+          "seed": 1669,
+          "timestamp_unix_ms": 1790967067144,
+          "transferred_branch_work": 350279418,
+          "waves": 2,
+          "work": 10465947,
+          "work_limit": 1096320582
+        },
+        {
+          "accepted": 0,
+          "allowance_ms": null,
+          "attempted": 0,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 0.228875,
+          "eligible": 0,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "pilot_draws_per_branch": 500,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 0,
+          "request_elapsed_ms": 1228.25,
+          "request_id": 3,
+          "reserved_work": 0,
+          "seed": 1669,
+          "setup_ms": 0.0,
+          "skipped": 0,
+          "tightened_only": false,
+          "timestamp_unix_ms": 1790967067145,
+          "tree_mode": false,
+          "work": 0,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 15,
+          "allowance_ms": null,
+          "batch_allocation": "0",
+          "budget_mode": "operations",
+          "cells": 18,
+          "effective_batch_allocation": "0",
+          "effective_root_retry": "0",
+          "effective_union_patterns": "256",
+          "elapsed_ms": 733.769459,
+          "event": "rust_odds_rare_tail_summary",
+          "extension": "after",
+          "finalists": 10,
+          "group": 16498,
+          "reference_draw_cost": 7233,
+          "remaining_after_training_ms": null,
+          "request_elapsed_ms": 1228.674,
+          "request_id": 3,
+          "reserved_work": 637952541,
+          "root_retry": "0",
+          "seed": 1669,
+          "setup_pilot_work": 403730541,
+          "shared_guides": {
+            "hits": 22,
+            "profiles": 89
+          },
+          "timestamp_unix_ms": 1790967067145,
+          "training_cell_limit": 28,
+          "union_patterns": "256",
+          "work": 23162991,
+          "work_limit": 650970000
+        }
+      ]
+    },
+    "1993": {
+      "baseline": [
+        {
+          "accepted": 1,
+          "allowance_ms": null,
+          "attempted": 7,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 168.599083,
+          "eligible": 7,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "preserved_existing_estimates": true,
+          "request_elapsed_ms": 901.185,
+          "request_id": 3,
+          "reserved_work": 400569052,
+          "seed": 1993,
+          "setup_ms": 55.744665,
+          "skipped": 6,
+          "tightened_only": true,
+          "timestamp_unix_ms": 1790967069318,
+          "work": 8364000,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 3,
+          "budget_mode": "operations",
+          "completed": 4,
+          "elapsed_ms": 475.338584,
+          "eligible": 6,
+          "event": "rust_odds_rare_tail_confirm_more_summary",
+          "fraction": 1.5,
+          "funded": 4,
+          "group": 16498,
+          "main_only": 0,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 213021250,
+          "request_elapsed_ms": 1377.163,
+          "request_id": 3,
+          "reserved_work": 999724320,
+          "seed": 1993,
+          "timestamp_unix_ms": 1790967069794,
+          "transferred_branch_work": 400569052,
+          "waves": 2,
+          "work": 11374302,
+          "work_limit": 1046030948
+        },
+        {
+          "accepted": 0,
+          "allowance_ms": null,
+          "attempted": 0,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 0.21208300000000002,
+          "eligible": 0,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "preserved_existing_estimates": true,
+          "request_elapsed_ms": 1377.998,
+          "request_id": 3,
+          "reserved_work": 0,
+          "seed": 1993,
+          "setup_ms": 0.0,
+          "skipped": 0,
+          "tightened_only": false,
+          "timestamp_unix_ms": 1790967069795,
+          "work": 0,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 10,
+          "allowance_ms": null,
+          "batch_allocation": "0",
+          "budget_mode": "operations",
+          "cells": 13,
+          "effective_batch_allocation": "0",
+          "effective_root_retry": "0",
+          "effective_union_patterns": "256",
+          "elapsed_ms": 865.0667920000001,
+          "event": "rust_odds_rare_tail_summary",
+          "extension": "after",
+          "finalists": 8,
+          "group": 16498,
+          "reference_draw_cost": 7233,
+          "remaining_after_training_ms": null,
+          "request_elapsed_ms": 1378.38,
+          "request_id": 3,
+          "reserved_work": 634193580,
+          "root_retry": "0",
+          "seed": 1993,
+          "setup_pilot_work": 325315214,
+          "shared_guides": {
+            "hits": 13,
+            "profiles": 57
+          },
+          "timestamp_unix_ms": 1790967069795,
+          "training_cell_limit": 28,
+          "union_patterns": "256",
+          "work": 25586952,
+          "work_limit": 650970000
+        }
+      ],
+      "candidate": [
+        {
+          "accepted": 1,
+          "allowance_ms": null,
+          "attempted": 7,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 162.31320799999997,
+          "eligible": 7,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "pilot_draws_per_branch": 500,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 0,
+          "request_elapsed_ms": 914.984,
+          "request_id": 3,
+          "reserved_work": 400569052,
+          "seed": 1993,
+          "setup_ms": 48.464084,
+          "skipped": 6,
+          "tightened_only": true,
+          "timestamp_unix_ms": 1790967070740,
+          "tree_mode": false,
+          "work": 8364000,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 1,
+          "allowance_ms": null,
+          "attempted": 1,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 52.877667,
+          "eligible": 1,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "pilot_draws_per_branch": 25,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 0,
+          "request_elapsed_ms": 968.572,
+          "request_id": 3,
+          "reserved_work": 50448136,
+          "seed": 1993,
+          "setup_ms": 27.585958,
+          "skipped": 0,
+          "tightened_only": true,
+          "timestamp_unix_ms": 1790967070794,
+          "tree_mode": true,
+          "work": 907125,
+          "work_limit": 250400948
+        },
+        {
+          "accepted": 3,
+          "budget_mode": "operations",
+          "completed": 4,
+          "elapsed_ms": 516.370833,
+          "eligible": 5,
+          "event": "rust_odds_rare_tail_confirm_more_summary",
+          "fraction": 1.5,
+          "funded": 4,
+          "group": 16498,
+          "main_only": 0,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 213021250,
+          "request_elapsed_ms": 1485.708,
+          "request_id": 3,
+          "reserved_work": 999724320,
+          "seed": 1993,
+          "timestamp_unix_ms": 1790967071311,
+          "transferred_branch_work": 435613577,
+          "waves": 2,
+          "work": 11374302,
+          "work_limit": 1010986423
+        },
+        {
+          "accepted": 0,
+          "allowance_ms": null,
+          "attempted": 0,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 0.212917,
+          "eligible": 0,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "pilot_draws_per_branch": 500,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 0,
+          "request_elapsed_ms": 1486.547,
+          "request_id": 3,
+          "reserved_work": 0,
+          "seed": 1993,
+          "setup_ms": 0.0,
+          "skipped": 0,
+          "tightened_only": false,
+          "timestamp_unix_ms": 1790967071312,
+          "tree_mode": false,
+          "work": 0,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 11,
+          "allowance_ms": null,
+          "batch_allocation": "0",
+          "budget_mode": "operations",
+          "cells": 13,
+          "effective_batch_allocation": "0",
+          "effective_root_retry": "0",
+          "effective_union_patterns": "256",
+          "elapsed_ms": 961.39925,
+          "event": "rust_odds_rare_tail_summary",
+          "extension": "after",
+          "finalists": 8,
+          "group": 16498,
+          "reference_draw_cost": 7233,
+          "remaining_after_training_ms": null,
+          "request_elapsed_ms": 1486.969,
+          "request_id": 3,
+          "reserved_work": 634193580,
+          "root_retry": "0",
+          "seed": 1993,
+          "setup_pilot_work": 325315214,
+          "shared_guides": {
+            "hits": 13,
+            "profiles": 57
+          },
+          "timestamp_unix_ms": 1790967071312,
+          "training_cell_limit": 28,
+          "union_patterns": "256",
+          "work": 26494077,
+          "work_limit": 650970000
+        }
+      ]
+    },
+    "2281": {
+      "baseline": [
+        {
+          "accepted": 0,
+          "allowance_ms": null,
+          "attempted": 7,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 168.535291,
+          "eligible": 7,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "preserved_existing_estimates": true,
+          "request_elapsed_ms": 1023.698,
+          "request_id": 3,
+          "reserved_work": 546255922,
+          "seed": 2281,
+          "setup_ms": 55.513960000000004,
+          "skipped": 6,
+          "tightened_only": true,
+          "timestamp_unix_ms": 1790967073730,
+          "work": 14514000,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 3,
+          "budget_mode": "operations",
+          "completed": 4,
+          "elapsed_ms": 433.803459,
+          "eligible": 6,
+          "event": "rust_odds_rare_tail_confirm_more_summary",
+          "fraction": 1.5,
+          "funded": 4,
+          "group": 16498,
+          "main_only": 0,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 102711150,
+          "request_elapsed_ms": 1458.134,
+          "request_id": 3,
+          "reserved_work": 873380486,
+          "seed": 2281,
+          "timestamp_unix_ms": 1790967074165,
+          "transferred_branch_work": 546255922,
+          "waves": 2,
+          "work": 9853038,
+          "work_limit": 900344078
+        },
+        {
+          "accepted": 0,
+          "allowance_ms": null,
+          "attempted": 0,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 0.211375,
+          "eligible": 0,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "preserved_existing_estimates": true,
+          "request_elapsed_ms": 1458.94,
+          "request_id": 3,
+          "reserved_work": 0,
+          "seed": 2281,
+          "setup_ms": 0.0,
+          "skipped": 0,
+          "tightened_only": false,
+          "timestamp_unix_ms": 1790967074166,
+          "work": 0,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 11,
+          "allowance_ms": null,
+          "batch_allocation": "0",
+          "budget_mode": "operations",
+          "cells": 15,
+          "effective_batch_allocation": "0",
+          "effective_root_retry": "0",
+          "effective_union_patterns": "256",
+          "elapsed_ms": 809.588459,
+          "event": "rust_odds_rare_tail_summary",
+          "extension": "after",
+          "finalists": 10,
+          "group": 16498,
+          "reference_draw_cost": 7233,
+          "remaining_after_training_ms": null,
+          "request_elapsed_ms": 1459.324,
+          "request_id": 3,
+          "reserved_work": 650643860,
+          "root_retry": "0",
+          "seed": 2281,
+          "setup_pilot_work": 364179691,
+          "shared_guides": {
+            "hits": 22,
+            "profiles": 63
+          },
+          "timestamp_unix_ms": 1790967074166,
+          "training_cell_limit": 28,
+          "union_patterns": "256",
+          "work": 30000684,
+          "work_limit": 650970000
+        }
+      ],
+      "candidate": [
+        {
+          "accepted": 0,
+          "allowance_ms": null,
+          "attempted": 7,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 160.816917,
+          "eligible": 7,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "pilot_draws_per_branch": 500,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 146611553,
+          "request_elapsed_ms": 870.919,
+          "request_id": 3,
+          "reserved_work": 399644369,
+          "seed": 2281,
+          "setup_ms": 47.807083000000006,
+          "skipped": 6,
+          "tightened_only": true,
+          "timestamp_unix_ms": 1790967072217,
+          "tree_mode": false,
+          "work": 14514000,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 1,
+          "allowance_ms": null,
+          "attempted": 1,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 48.395542,
+          "eligible": 1,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "pilot_draws_per_branch": 25,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 0,
+          "request_elapsed_ms": 919.945,
+          "request_id": 3,
+          "reserved_work": 50734838,
+          "seed": 2281,
+          "setup_ms": 25.374541,
+          "skipped": 0,
+          "tightened_only": true,
+          "timestamp_unix_ms": 1790967072266,
+          "tree_mode": true,
+          "work": 907125,
+          "work_limit": 251325631
+        },
+        {
+          "accepted": 3,
+          "budget_mode": "operations",
+          "completed": 4,
+          "elapsed_ms": 403.193375,
+          "eligible": 5,
+          "event": "rust_odds_rare_tail_confirm_more_summary",
+          "fraction": 1.5,
+          "funded": 4,
+          "group": 16498,
+          "main_only": 0,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 102711150,
+          "request_elapsed_ms": 1327.435,
+          "request_id": 3,
+          "reserved_work": 873380486,
+          "seed": 2281,
+          "timestamp_unix_ms": 1790967072673,
+          "transferred_branch_work": 434379207,
+          "waves": 2,
+          "work": 9853038,
+          "work_limit": 1012220793
+        },
+        {
+          "accepted": 0,
+          "allowance_ms": null,
+          "attempted": 0,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 0.220666,
+          "eligible": 0,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "pilot_draws_per_branch": 500,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 0,
+          "request_elapsed_ms": 1328.242,
+          "request_id": 3,
+          "reserved_work": 0,
+          "seed": 2281,
+          "setup_ms": 0.0,
+          "skipped": 0,
+          "tightened_only": false,
+          "timestamp_unix_ms": 1790967072674,
+          "tree_mode": false,
+          "work": 0,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 12,
+          "allowance_ms": null,
+          "batch_allocation": "0",
+          "budget_mode": "operations",
+          "cells": 15,
+          "effective_batch_allocation": "0",
+          "effective_root_retry": "0",
+          "effective_union_patterns": "256",
+          "elapsed_ms": 809.7523749999999,
+          "event": "rust_odds_rare_tail_summary",
+          "extension": "after",
+          "finalists": 10,
+          "group": 16498,
+          "reference_draw_cost": 7233,
+          "remaining_after_training_ms": null,
+          "request_elapsed_ms": 1328.662,
+          "request_id": 3,
+          "reserved_work": 650643860,
+          "root_retry": "0",
+          "seed": 2281,
+          "setup_pilot_work": 364179691,
+          "shared_guides": {
+            "hits": 22,
+            "profiles": 63
+          },
+          "timestamp_unix_ms": 1790967072674,
+          "training_cell_limit": 28,
+          "union_patterns": "256",
+          "work": 30907809,
+          "work_limit": 650970000
+        }
+      ]
+    },
+    "2293": {
+      "baseline": [
+        {
+          "accepted": 1,
+          "allowance_ms": null,
+          "attempted": 8,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 125.43279199999999,
+          "eligible": 8,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "preserved_existing_estimates": true,
+          "request_elapsed_ms": 992.148,
+          "request_id": 3,
+          "reserved_work": 396710322,
+          "seed": 2293,
+          "setup_ms": 56.933460000000004,
+          "skipped": 6,
+          "tightened_only": true,
+          "timestamp_unix_ms": 1790967075191,
+          "work": 8364000,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 3,
+          "budget_mode": "operations",
+          "completed": 6,
+          "elapsed_ms": 436.81425,
+          "eligible": 7,
+          "event": "rust_odds_rare_tail_confirm_more_summary",
+          "fraction": 1.5,
+          "funded": 6,
+          "group": 16498,
+          "main_only": 0,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 280769672,
+          "request_elapsed_ms": 1429.585,
+          "request_id": 3,
+          "reserved_work": 882979984,
+          "seed": 2293,
+          "timestamp_unix_ms": 1790967075628,
+          "transferred_branch_work": 396710322,
+          "waves": 2,
+          "work": 9508269,
+          "work_limit": 1049889678
+        },
+        {
+          "accepted": 0,
+          "allowance_ms": null,
+          "attempted": 0,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 0.20875000000000002,
+          "eligible": 0,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "preserved_existing_estimates": true,
+          "request_elapsed_ms": 1430.393,
+          "request_id": 3,
+          "reserved_work": 0,
+          "seed": 2293,
+          "setup_ms": 0.0,
+          "skipped": 0,
+          "tightened_only": false,
+          "timestamp_unix_ms": 1790967075629,
+          "work": 0,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 13,
+          "allowance_ms": null,
+          "batch_allocation": "0",
+          "budget_mode": "operations",
+          "cells": 15,
+          "effective_batch_allocation": "0",
+          "effective_root_retry": "0",
+          "effective_union_patterns": "256",
+          "elapsed_ms": 791.430208,
+          "event": "rust_odds_rare_tail_summary",
+          "extension": "after",
+          "finalists": 10,
+          "group": 16498,
+          "reference_draw_cost": 7233,
+          "remaining_after_training_ms": null,
+          "request_elapsed_ms": 1430.769,
+          "request_id": 3,
+          "reserved_work": 644474626,
+          "root_retry": "0",
+          "seed": 2293,
+          "setup_pilot_work": 383691594,
+          "shared_guides": {
+            "hits": 18,
+            "profiles": 72
+          },
+          "timestamp_unix_ms": 1790967075629,
+          "training_cell_limit": 28,
+          "union_patterns": "256",
+          "work": 23847855,
+          "work_limit": 650970000
+        }
+      ],
+      "candidate": [
+        {
+          "accepted": 1,
+          "allowance_ms": null,
+          "attempted": 8,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 118.543083,
+          "eligible": 8,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "pilot_draws_per_branch": 500,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 0,
+          "request_elapsed_ms": 1024.433,
+          "request_id": 3,
+          "reserved_work": 396710322,
+          "seed": 2293,
+          "setup_ms": 49.800166,
+          "skipped": 6,
+          "tightened_only": true,
+          "timestamp_unix_ms": 1790967076694,
+          "tree_mode": false,
+          "work": 8364000,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 1,
+          "allowance_ms": null,
+          "attempted": 1,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 52.979958,
+          "eligible": 1,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "pilot_draws_per_branch": 25,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 0,
+          "request_elapsed_ms": 1078.039,
+          "request_id": 3,
+          "reserved_work": 50384498,
+          "seed": 2293,
+          "setup_ms": 25.613,
+          "skipped": 0,
+          "tightened_only": true,
+          "timestamp_unix_ms": 1790967076747,
+          "tree_mode": true,
+          "work": 907125,
+          "work_limit": 254259678
+        },
+        {
+          "accepted": 3,
+          "budget_mode": "operations",
+          "completed": 6,
+          "elapsed_ms": 460.198667,
+          "eligible": 6,
+          "event": "rust_odds_rare_tail_confirm_more_summary",
+          "fraction": 1.5,
+          "funded": 6,
+          "group": 16498,
+          "main_only": 0,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 280769672,
+          "request_elapsed_ms": 1538.99,
+          "request_id": 3,
+          "reserved_work": 882979984,
+          "seed": 2293,
+          "timestamp_unix_ms": 1790967077208,
+          "transferred_branch_work": 431547250,
+          "waves": 2,
+          "work": 9508269,
+          "work_limit": 1015052750
+        },
+        {
+          "accepted": 0,
+          "allowance_ms": null,
+          "attempted": 0,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 0.21545799999999998,
+          "eligible": 0,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "pilot_draws_per_branch": 500,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 0,
+          "request_elapsed_ms": 1539.82,
+          "request_id": 3,
+          "reserved_work": 0,
+          "seed": 2293,
+          "setup_ms": 0.0,
+          "skipped": 0,
+          "tightened_only": false,
+          "timestamp_unix_ms": 1790967077209,
+          "tree_mode": false,
+          "work": 0,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 14,
+          "allowance_ms": null,
+          "batch_allocation": "0",
+          "budget_mode": "operations",
+          "cells": 15,
+          "effective_batch_allocation": "0",
+          "effective_root_retry": "0",
+          "effective_union_patterns": "256",
+          "elapsed_ms": 902.460167,
+          "event": "rust_odds_rare_tail_summary",
+          "extension": "after",
+          "finalists": 10,
+          "group": 16498,
+          "reference_draw_cost": 7233,
+          "remaining_after_training_ms": null,
+          "request_elapsed_ms": 1540.236,
+          "request_id": 3,
+          "reserved_work": 644474626,
+          "root_retry": "0",
+          "seed": 2293,
+          "setup_pilot_work": 383691594,
+          "shared_guides": {
+            "hits": 18,
+            "profiles": 72
+          },
+          "timestamp_unix_ms": 1790967077210,
+          "training_cell_limit": 28,
+          "union_patterns": "256",
+          "work": 24754980,
+          "work_limit": 650970000
+        }
+      ]
+    },
+    "801": {
+      "baseline": [
+        {
+          "accepted": 0,
+          "allowance_ms": null,
+          "attempted": 8,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 12.310540999999999,
+          "eligible": 10,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "preserved_existing_estimates": true,
+          "request_elapsed_ms": 1156.58,
+          "request_id": 3,
+          "reserved_work": 818808,
+          "seed": 801,
+          "setup_ms": 10.394124999999999,
+          "skipped": 6,
+          "tightened_only": true,
+          "timestamp_unix_ms": 1790967247413,
+          "work": 0,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 5,
+          "budget_mode": "operations",
+          "completed": 6,
+          "elapsed_ms": 546.7224170000001,
+          "eligible": 9,
+          "event": "rust_odds_rare_tail_confirm_more_summary",
+          "fraction": 1.5,
+          "funded": 6,
+          "group": 16498,
+          "main_only": 1,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 0,
+          "request_elapsed_ms": 1703.955,
+          "request_id": 3,
+          "reserved_work": 1367733498,
+          "seed": 801,
+          "timestamp_unix_ms": 1790967247960,
+          "transferred_branch_work": 818808,
+          "waves": 2,
+          "work": 15857160,
+          "work_limit": 1445781192
+        },
+        {
+          "accepted": 1,
+          "allowance_ms": null,
+          "attempted": 2,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 192.462291,
+          "eligible": 2,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "preserved_existing_estimates": true,
+          "request_elapsed_ms": 1897.073,
+          "request_id": 3,
+          "reserved_work": 425081018,
+          "seed": 801,
+          "setup_ms": 50.934083,
+          "skipped": 1,
+          "tightened_only": false,
+          "timestamp_unix_ms": 1790967248153,
+          "work": 9594000,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 16,
+          "allowance_ms": null,
+          "batch_allocation": "0",
+          "budget_mode": "operations",
+          "cells": 18,
+          "effective_batch_allocation": "0",
+          "effective_root_retry": "0",
+          "effective_union_patterns": "256",
+          "elapsed_ms": 1237.455125,
+          "event": "rust_odds_rare_tail_summary",
+          "extension": "after",
+          "finalists": 8,
+          "group": 16498,
+          "reference_draw_cost": 7233,
+          "remaining_after_training_ms": null,
+          "request_elapsed_ms": 1897.505,
+          "request_id": 3,
+          "reserved_work": 629777659,
+          "root_retry": "0",
+          "seed": 801,
+          "setup_pilot_work": 427749659,
+          "shared_guides": {
+            "hits": 21,
+            "profiles": 88
+          },
+          "timestamp_unix_ms": 1790967248154,
+          "training_cell_limit": 28,
+          "union_patterns": "256",
+          "work": 31555035,
+          "work_limit": 650970000
+        }
+      ],
+      "candidate": [
+        {
+          "accepted": 0,
+          "allowance_ms": null,
+          "attempted": 8,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 8.907,
+          "eligible": 10,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "pilot_draws_per_branch": 500,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 0,
+          "request_elapsed_ms": 754.156,
+          "request_id": 3,
+          "reserved_work": 818808,
+          "seed": 801,
+          "setup_ms": 7.440125999999999,
+          "skipped": 6,
+          "tightened_only": true,
+          "timestamp_unix_ms": 1790967248968,
+          "tree_mode": false,
+          "work": 0,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 1,
+          "allowance_ms": null,
+          "attempted": 1,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 53.37575,
+          "eligible": 1,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "pilot_draws_per_branch": 25,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 0,
+          "request_elapsed_ms": 808.194,
+          "request_id": 3,
+          "reserved_work": 50494770,
+          "seed": 801,
+          "setup_ms": 28.277166,
+          "skipped": 0,
+          "tightened_only": true,
+          "timestamp_unix_ms": 1790967249022,
+          "tree_mode": true,
+          "work": 907125,
+          "work_limit": 650151192
+        },
+        {
+          "accepted": 5,
+          "budget_mode": "operations",
+          "completed": 6,
+          "elapsed_ms": 419.234208,
+          "eligible": 8,
+          "event": "rust_odds_rare_tail_confirm_more_summary",
+          "fraction": 1.5,
+          "funded": 6,
+          "group": 16498,
+          "main_only": 0,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 0,
+          "request_elapsed_ms": 1232.253,
+          "request_id": 3,
+          "reserved_work": 1201149498,
+          "seed": 801,
+          "timestamp_unix_ms": 1790967249446,
+          "transferred_branch_work": 35469864,
+          "waves": 2,
+          "work": 12905160,
+          "work_limit": 1411130136
+        },
+        {
+          "accepted": 1,
+          "allowance_ms": null,
+          "attempted": 2,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 178.413792,
+          "eligible": 2,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "pilot_draws_per_branch": 500,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 0,
+          "request_elapsed_ms": 1411.331,
+          "request_id": 3,
+          "reserved_work": 425081018,
+          "seed": 801,
+          "setup_ms": 45.190292,
+          "skipped": 1,
+          "tightened_only": false,
+          "timestamp_unix_ms": 1790967249625,
+          "tree_mode": false,
+          "work": 9594000,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 17,
+          "allowance_ms": null,
+          "batch_allocation": "0",
+          "budget_mode": "operations",
+          "cells": 18,
+          "effective_batch_allocation": "0",
+          "effective_root_retry": "0",
+          "effective_union_patterns": "256",
+          "elapsed_ms": 914.857916,
+          "event": "rust_odds_rare_tail_summary",
+          "extension": "after",
+          "finalists": 8,
+          "group": 16498,
+          "reference_draw_cost": 7233,
+          "remaining_after_training_ms": null,
+          "request_elapsed_ms": 1411.766,
+          "request_id": 3,
+          "reserved_work": 629777659,
+          "root_retry": "0",
+          "seed": 801,
+          "setup_pilot_work": 427749659,
+          "shared_guides": {
+            "hits": 21,
+            "profiles": 88
+          },
+          "timestamp_unix_ms": 1790967249625,
+          "training_cell_limit": 28,
+          "union_patterns": "256",
+          "work": 29510160,
+          "work_limit": 650970000
+        }
+      ]
+    },
+    "804": {
+      "baseline": [
+        {
+          "accepted": 0,
+          "allowance_ms": null,
+          "attempted": 7,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 217.14025,
+          "eligible": 7,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "preserved_existing_estimates": true,
+          "request_elapsed_ms": 1242.431,
+          "request_id": 3,
+          "reserved_work": 378517852,
+          "seed": 804,
+          "setup_ms": 88.00670699999999,
+          "skipped": 5,
+          "tightened_only": true,
+          "timestamp_unix_ms": 1790967252567,
+          "work": 8364000,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 2,
+          "budget_mode": "operations",
+          "completed": 4,
+          "elapsed_ms": 1050.610584,
+          "eligible": 6,
+          "event": "rust_odds_rare_tail_confirm_more_summary",
+          "fraction": 1.5,
+          "funded": 4,
+          "group": 16498,
+          "main_only": 0,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 247535552,
+          "request_elapsed_ms": 2293.804,
+          "request_id": 3,
+          "reserved_work": 939128018,
+          "seed": 804,
+          "timestamp_unix_ms": 1790967253619,
+          "transferred_branch_work": 378517852,
+          "waves": 2,
+          "work": 8394750,
+          "work_limit": 1068082148
+        },
+        {
+          "accepted": 0,
+          "allowance_ms": null,
+          "attempted": 0,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 0.228959,
+          "eligible": 0,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "preserved_existing_estimates": true,
+          "request_elapsed_ms": 2294.711,
+          "request_id": 3,
+          "reserved_work": 0,
+          "seed": 804,
+          "setup_ms": 0.0,
+          "skipped": 0,
+          "tightened_only": false,
+          "timestamp_unix_ms": 1790967253620,
+          "work": 0,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 10,
+          "allowance_ms": null,
+          "batch_allocation": "0",
+          "budget_mode": "operations",
+          "cells": 15,
+          "effective_batch_allocation": "0",
+          "effective_root_retry": "0",
+          "effective_union_patterns": "256",
+          "elapsed_ms": 1638.3167919999999,
+          "event": "rust_odds_rare_tail_summary",
+          "extension": "after",
+          "finalists": 10,
+          "group": 16498,
+          "reference_draw_cost": 7233,
+          "remaining_after_training_ms": null,
+          "request_elapsed_ms": 2295.175,
+          "request_id": 3,
+          "reserved_work": 638070711,
+          "root_retry": "0",
+          "seed": 804,
+          "setup_pilot_work": 342617395,
+          "shared_guides": {
+            "hits": 21,
+            "profiles": 54
+          },
+          "timestamp_unix_ms": 1790967253620,
+          "training_cell_limit": 28,
+          "union_patterns": "256",
+          "work": 22541349,
+          "work_limit": 650970000
+        }
+      ],
+      "candidate": [
+        {
+          "accepted": 0,
+          "allowance_ms": null,
+          "attempted": 7,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 140.613167,
+          "eligible": 7,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "pilot_draws_per_branch": 500,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 0,
+          "request_elapsed_ms": 1015.154,
+          "request_id": 3,
+          "reserved_work": 378517852,
+          "seed": 804,
+          "setup_ms": 48.309416999999996,
+          "skipped": 5,
+          "tightened_only": true,
+          "timestamp_unix_ms": 1790967250694,
+          "tree_mode": false,
+          "work": 8364000,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 1,
+          "allowance_ms": null,
+          "attempted": 1,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 56.118584,
+          "eligible": 1,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "pilot_draws_per_branch": 25,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 0,
+          "request_elapsed_ms": 1071.927,
+          "request_id": 3,
+          "reserved_work": 50765450,
+          "seed": 804,
+          "setup_ms": 27.502,
+          "skipped": 0,
+          "tightened_only": true,
+          "timestamp_unix_ms": 1790967250751,
+          "tree_mode": true,
+          "work": 907125,
+          "work_limit": 272452148
+        },
+        {
+          "accepted": 2,
+          "budget_mode": "operations",
+          "completed": 4,
+          "elapsed_ms": 534.080542,
+          "eligible": 5,
+          "event": "rust_odds_rare_tail_confirm_more_summary",
+          "fraction": 1.5,
+          "funded": 4,
+          "group": 16498,
+          "main_only": 0,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 247535552,
+          "request_elapsed_ms": 1606.781,
+          "request_id": 3,
+          "reserved_work": 939128018,
+          "seed": 804,
+          "timestamp_unix_ms": 1790967251286,
+          "transferred_branch_work": 413287245,
+          "waves": 2,
+          "work": 8394750,
+          "work_limit": 1033312755
+        },
+        {
+          "accepted": 0,
+          "allowance_ms": null,
+          "attempted": 0,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 0.22,
+          "eligible": 0,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "pilot_draws_per_branch": 500,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 0,
+          "request_elapsed_ms": 1607.623,
+          "request_id": 3,
+          "reserved_work": 0,
+          "seed": 804,
+          "setup_ms": 0.0,
+          "skipped": 0,
+          "tightened_only": false,
+          "timestamp_unix_ms": 1790967251287,
+          "tree_mode": false,
+          "work": 0,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 11,
+          "allowance_ms": null,
+          "batch_allocation": "0",
+          "budget_mode": "operations",
+          "cells": 15,
+          "effective_batch_allocation": "0",
+          "effective_root_retry": "0",
+          "effective_union_patterns": "256",
+          "elapsed_ms": 935.752167,
+          "event": "rust_odds_rare_tail_summary",
+          "extension": "after",
+          "finalists": 10,
+          "group": 16498,
+          "reference_draw_cost": 7233,
+          "remaining_after_training_ms": null,
+          "request_elapsed_ms": 1608.042,
+          "request_id": 3,
+          "reserved_work": 638070711,
+          "root_retry": "0",
+          "seed": 804,
+          "setup_pilot_work": 342617395,
+          "shared_guides": {
+            "hits": 21,
+            "profiles": 54
+          },
+          "timestamp_unix_ms": 1790967251287,
+          "training_cell_limit": 28,
+          "union_patterns": "256",
+          "work": 23448474,
+          "work_limit": 650970000
+        }
+      ]
+    },
+    "817": {
+      "baseline": [
+        {
+          "accepted": 0,
+          "allowance_ms": null,
+          "attempted": 6,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 117.690459,
+          "eligible": 6,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "preserved_existing_estimates": true,
+          "request_elapsed_ms": 1965.882,
+          "request_id": 3,
+          "reserved_work": 370099812,
+          "seed": 817,
+          "setup_ms": 62.084874,
+          "skipped": 5,
+          "tightened_only": true,
+          "timestamp_unix_ms": 1790967255926,
+          "work": 8364000,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 2,
+          "budget_mode": "operations",
+          "completed": 3,
+          "elapsed_ms": 387.985625,
+          "eligible": 5,
+          "event": "rust_odds_rare_tail_confirm_more_summary",
+          "fraction": 1.5,
+          "funded": 3,
+          "group": 16498,
+          "main_only": 0,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 176115000,
+          "request_elapsed_ms": 2354.593,
+          "request_id": 3,
+          "reserved_work": 692053136,
+          "seed": 817,
+          "timestamp_unix_ms": 1790967256315,
+          "transferred_branch_work": 370099812,
+          "waves": 2,
+          "work": 7556382,
+          "work_limit": 1076500188
+        },
+        {
+          "accepted": 0,
+          "allowance_ms": null,
+          "attempted": 0,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 0.222958,
+          "eligible": 0,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "preserved_existing_estimates": true,
+          "request_elapsed_ms": 2355.5,
+          "request_id": 3,
+          "reserved_work": 0,
+          "seed": 817,
+          "setup_ms": 0.0,
+          "skipped": 0,
+          "tightened_only": false,
+          "timestamp_unix_ms": 1790967256316,
+          "work": 0,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 11,
+          "allowance_ms": null,
+          "batch_allocation": "0",
+          "budget_mode": "operations",
+          "cells": 15,
+          "effective_batch_allocation": "0",
+          "effective_root_retry": "0",
+          "effective_union_patterns": "256",
+          "elapsed_ms": 883.462416,
+          "event": "rust_odds_rare_tail_summary",
+          "extension": "after",
+          "finalists": 9,
+          "group": 16498,
+          "reference_draw_cost": 7233,
+          "remaining_after_training_ms": null,
+          "request_elapsed_ms": 2355.991,
+          "request_id": 3,
+          "reserved_work": 626249628,
+          "root_retry": "0",
+          "seed": 817,
+          "setup_pilot_work": 377506507,
+          "shared_guides": {
+            "hits": 20,
+            "profiles": 68
+          },
+          "timestamp_unix_ms": 1790967256316,
+          "training_cell_limit": 28,
+          "union_patterns": "256",
+          "work": 21486255,
+          "work_limit": 650970000
+        }
+      ],
+      "candidate": [
+        {
+          "accepted": 0,
+          "allowance_ms": null,
+          "attempted": 6,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 102.14129199999999,
+          "eligible": 6,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "pilot_draws_per_branch": 500,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 0,
+          "request_elapsed_ms": 1158.598,
+          "request_id": 3,
+          "reserved_work": 370099812,
+          "seed": 817,
+          "setup_ms": 52.626833000000005,
+          "skipped": 5,
+          "tightened_only": true,
+          "timestamp_unix_ms": 1790967257588,
+          "tree_mode": false,
+          "work": 8364000,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 1,
+          "allowance_ms": null,
+          "attempted": 1,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 52.693958,
+          "eligible": 1,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "pilot_draws_per_branch": 25,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 0,
+          "request_elapsed_ms": 1211.961,
+          "request_id": 3,
+          "reserved_work": 50414762,
+          "seed": 817,
+          "setup_ms": 27.332958,
+          "skipped": 0,
+          "tightened_only": true,
+          "timestamp_unix_ms": 1790967257641,
+          "tree_mode": true,
+          "work": 907125,
+          "work_limit": 280870188
+        },
+        {
+          "accepted": 2,
+          "budget_mode": "operations",
+          "completed": 3,
+          "elapsed_ms": 382.552375,
+          "eligible": 4,
+          "event": "rust_odds_rare_tail_confirm_more_summary",
+          "fraction": 1.5,
+          "funded": 3,
+          "group": 16498,
+          "main_only": 0,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 176115000,
+          "request_elapsed_ms": 1602.318,
+          "request_id": 3,
+          "reserved_work": 692053136,
+          "seed": 817,
+          "timestamp_unix_ms": 1790967258031,
+          "transferred_branch_work": 405252281,
+          "waves": 2,
+          "work": 7556382,
+          "work_limit": 1041347719
+        },
+        {
+          "accepted": 0,
+          "allowance_ms": null,
+          "attempted": 0,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 0.225541,
+          "eligible": 0,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "pilot_draws_per_branch": 500,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 0,
+          "request_elapsed_ms": 1603.2,
+          "request_id": 3,
+          "reserved_work": 0,
+          "seed": 817,
+          "setup_ms": 0.0,
+          "skipped": 0,
+          "tightened_only": false,
+          "timestamp_unix_ms": 1790967258032,
+          "tree_mode": false,
+          "work": 0,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 12,
+          "allowance_ms": null,
+          "batch_allocation": "0",
+          "budget_mode": "operations",
+          "cells": 15,
+          "effective_batch_allocation": "0",
+          "effective_root_retry": "0",
+          "effective_union_patterns": "256",
+          "elapsed_ms": 816.2855420000001,
+          "event": "rust_odds_rare_tail_summary",
+          "extension": "after",
+          "finalists": 9,
+          "group": 16498,
+          "reference_draw_cost": 7233,
+          "remaining_after_training_ms": null,
+          "request_elapsed_ms": 1603.652,
+          "request_id": 3,
+          "reserved_work": 626249628,
+          "root_retry": "0",
+          "seed": 817,
+          "setup_pilot_work": 377506507,
+          "shared_guides": {
+            "hits": 20,
+            "profiles": 68
+          },
+          "timestamp_unix_ms": 1790967258033,
+          "training_cell_limit": 28,
+          "union_patterns": "256",
+          "work": 22393380,
+          "work_limit": 650970000
+        }
+      ]
+    },
+    "911": {
+      "baseline": [
+        {
+          "accepted": 1,
+          "allowance_ms": null,
+          "attempted": 6,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 190.565208,
+          "eligible": 6,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "preserved_existing_estimates": true,
+          "request_elapsed_ms": 1022.331,
+          "request_id": 3,
+          "reserved_work": 427068566,
+          "seed": 911,
+          "setup_ms": 56.092251000000005,
+          "skipped": 5,
+          "tightened_only": true,
+          "timestamp_unix_ms": 1790967260579,
+          "work": 8364000,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 1,
+          "budget_mode": "operations",
+          "completed": 3,
+          "elapsed_ms": 323.772583,
+          "eligible": 5,
+          "event": "rust_odds_rare_tail_confirm_more_summary",
+          "fraction": 1.5,
+          "funded": 3,
+          "group": 16498,
+          "main_only": 1,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 129205845,
+          "request_elapsed_ms": 1346.776,
+          "request_id": 3,
+          "reserved_work": 764599569,
+          "seed": 911,
+          "timestamp_unix_ms": 1790967260904,
+          "transferred_branch_work": 427068566,
+          "waves": 2,
+          "work": 8841609,
+          "work_limit": 1019531434
+        },
+        {
+          "accepted": 0,
+          "allowance_ms": null,
+          "attempted": 0,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 0.223709,
+          "eligible": 0,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "preserved_existing_estimates": true,
+          "request_elapsed_ms": 1347.711,
+          "request_id": 3,
+          "reserved_work": 0,
+          "seed": 911,
+          "setup_ms": 0.0,
+          "skipped": 0,
+          "tightened_only": false,
+          "timestamp_unix_ms": 1790967260905,
+          "work": 0,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 13,
+          "allowance_ms": null,
+          "batch_allocation": "0",
+          "budget_mode": "operations",
+          "cells": 15,
+          "effective_batch_allocation": "0",
+          "effective_root_retry": "0",
+          "effective_union_patterns": "256",
+          "elapsed_ms": 760.985542,
+          "event": "rust_odds_rare_tail_summary",
+          "extension": "after",
+          "finalists": 10,
+          "group": 16498,
+          "reference_draw_cost": 7233,
+          "remaining_after_training_ms": null,
+          "request_elapsed_ms": 1348.167,
+          "request_id": 3,
+          "reserved_work": 617221540,
+          "root_retry": "0",
+          "seed": 911,
+          "setup_pilot_work": 356021870,
+          "shared_guides": {
+            "hits": 17,
+            "profiles": 64
+          },
+          "timestamp_unix_ms": 1790967260905,
+          "training_cell_limit": 28,
+          "union_patterns": "256",
+          "work": 23522766,
+          "work_limit": 650970000
+        }
+      ],
+      "candidate": [
+        {
+          "accepted": 1,
+          "allowance_ms": null,
+          "attempted": 6,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 179.75125,
+          "eligible": 6,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "pilot_draws_per_branch": 500,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 0,
+          "request_elapsed_ms": 1054.908,
+          "request_id": 3,
+          "reserved_work": 427068566,
+          "seed": 911,
+          "setup_ms": 47.660417,
+          "skipped": 5,
+          "tightened_only": true,
+          "timestamp_unix_ms": 1790967259142,
+          "tree_mode": false,
+          "work": 8364000,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 1,
+          "allowance_ms": null,
+          "attempted": 1,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 52.607042,
+          "eligible": 1,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "pilot_draws_per_branch": 25,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 0,
+          "request_elapsed_ms": 1112.96,
+          "request_id": 3,
+          "reserved_work": 50429854,
+          "seed": 911,
+          "setup_ms": 28.432,
+          "skipped": 0,
+          "tightened_only": true,
+          "timestamp_unix_ms": 1790967259200,
+          "tree_mode": true,
+          "work": 907125,
+          "work_limit": 223901434
+        },
+        {
+          "accepted": 1,
+          "budget_mode": "operations",
+          "completed": 3,
+          "elapsed_ms": 317.435542,
+          "eligible": 4,
+          "event": "rust_odds_rare_tail_confirm_more_summary",
+          "fraction": 1.5,
+          "funded": 3,
+          "group": 16498,
+          "main_only": 1,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 129205845,
+          "request_elapsed_ms": 1431.184,
+          "request_id": 3,
+          "reserved_work": 764599569,
+          "seed": 911,
+          "timestamp_unix_ms": 1790967259518,
+          "transferred_branch_work": 461498420,
+          "waves": 2,
+          "work": 8841609,
+          "work_limit": 985101580
+        },
+        {
+          "accepted": 0,
+          "allowance_ms": null,
+          "attempted": 0,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 0.223666,
+          "eligible": 0,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "pilot_draws_per_branch": 500,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 0,
+          "request_elapsed_ms": 1432.064,
+          "request_id": 3,
+          "reserved_work": 0,
+          "seed": 911,
+          "setup_ms": 0.0,
+          "skipped": 0,
+          "tightened_only": false,
+          "timestamp_unix_ms": 1790967259519,
+          "tree_mode": false,
+          "work": 0,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 14,
+          "allowance_ms": null,
+          "batch_allocation": "0",
+          "budget_mode": "operations",
+          "cells": 15,
+          "effective_batch_allocation": "0",
+          "effective_root_retry": "0",
+          "effective_union_patterns": "256",
+          "elapsed_ms": 786.296,
+          "event": "rust_odds_rare_tail_summary",
+          "extension": "after",
+          "finalists": 10,
+          "group": 16498,
+          "reference_draw_cost": 7233,
+          "remaining_after_training_ms": null,
+          "request_elapsed_ms": 1432.563,
+          "request_id": 3,
+          "reserved_work": 617221540,
+          "root_retry": "0",
+          "seed": 911,
+          "setup_pilot_work": 356021870,
+          "shared_guides": {
+            "hits": 17,
+            "profiles": 64
+          },
+          "timestamp_unix_ms": 1790967259520,
+          "training_cell_limit": 28,
+          "union_patterns": "256",
+          "work": 24429891,
+          "work_limit": 650970000
+        }
+      ]
+    },
+    "1861": {
+      "baseline": [
+        {
+          "accepted": 0,
+          "allowance_ms": null,
+          "attempted": 8,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 11.03,
+          "eligible": 9,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "preserved_existing_estimates": true,
+          "request_elapsed_ms": 779.139,
+          "request_id": 3,
+          "reserved_work": 884640,
+          "seed": 1861,
+          "setup_ms": 9.604624,
+          "skipped": 7,
+          "tightened_only": true,
+          "timestamp_unix_ms": 1790967261725,
+          "work": 0,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 5,
+          "budget_mode": "operations",
+          "completed": 7,
+          "elapsed_ms": 584.6667920000001,
+          "eligible": 8,
+          "event": "rust_odds_rare_tail_confirm_more_summary",
+          "fraction": 1.5,
+          "funded": 7,
+          "group": 16498,
+          "main_only": 0,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 280032000,
+          "request_elapsed_ms": 1364.474,
+          "request_id": 3,
+          "reserved_work": 1395446110,
+          "seed": 1861,
+          "timestamp_unix_ms": 1790967262310,
+          "transferred_branch_work": 884640,
+          "waves": 2,
+          "work": 16935132,
+          "work_limit": 1445715360
+        },
+        {
+          "accepted": 1,
+          "allowance_ms": null,
+          "attempted": 2,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 153.90200000000002,
+          "eligible": 2,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "preserved_existing_estimates": true,
+          "request_elapsed_ms": 1519.053,
+          "request_id": 3,
+          "reserved_work": 394724238,
+          "seed": 1861,
+          "setup_ms": 59.828832999999996,
+          "skipped": 1,
+          "tightened_only": false,
+          "timestamp_unix_ms": 1790967262465,
+          "work": 9594000,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 16,
+          "allowance_ms": null,
+          "batch_allocation": "0",
+          "budget_mode": "operations",
+          "cells": 17,
+          "effective_batch_allocation": "0",
+          "effective_root_retry": "0",
+          "effective_union_patterns": "256",
+          "elapsed_ms": 1026.730125,
+          "event": "rust_odds_rare_tail_summary",
+          "extension": "after",
+          "finalists": 10,
+          "group": 16498,
+          "reference_draw_cost": 7233,
+          "remaining_after_training_ms": null,
+          "request_elapsed_ms": 1519.49,
+          "request_id": 3,
+          "reserved_work": 637518391,
+          "root_retry": "0",
+          "seed": 1861,
+          "setup_pilot_work": 394400391,
+          "shared_guides": {
+            "hits": 17,
+            "profiles": 80
+          },
+          "timestamp_unix_ms": 1790967262465,
+          "training_cell_limit": 28,
+          "union_patterns": "256",
+          "work": 32806683,
+          "work_limit": 650970000
+        }
+      ],
+      "candidate": [
+        {
+          "accepted": 0,
+          "allowance_ms": null,
+          "attempted": 8,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 10.385416999999999,
+          "eligible": 9,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "pilot_draws_per_branch": 500,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 0,
+          "request_elapsed_ms": 735.809,
+          "request_id": 3,
+          "reserved_work": 884640,
+          "seed": 1861,
+          "setup_ms": 9.073083,
+          "skipped": 7,
+          "tightened_only": true,
+          "timestamp_unix_ms": 1790967263281,
+          "tree_mode": false,
+          "work": 0,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 1,
+          "allowance_ms": null,
+          "attempted": 1,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 56.784915999999996,
+          "eligible": 1,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "pilot_draws_per_branch": 25,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 0,
+          "request_elapsed_ms": 793.301,
+          "request_id": 3,
+          "reserved_work": 50331886,
+          "seed": 1861,
+          "setup_ms": 29.5575,
+          "skipped": 0,
+          "tightened_only": true,
+          "timestamp_unix_ms": 1790967263338,
+          "tree_mode": true,
+          "work": 907125,
+          "work_limit": 650085360
+        },
+        {
+          "accepted": 5,
+          "budget_mode": "operations",
+          "completed": 7,
+          "elapsed_ms": 811.828792,
+          "eligible": 7,
+          "event": "rust_odds_rare_tail_confirm_more_summary",
+          "fraction": 1.5,
+          "funded": 7,
+          "group": 16498,
+          "main_only": 0,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 280032000,
+          "request_elapsed_ms": 1605.948,
+          "request_id": 3,
+          "reserved_work": 1395446110,
+          "seed": 1861,
+          "timestamp_unix_ms": 1790967264151,
+          "transferred_branch_work": 35220469,
+          "waves": 2,
+          "work": 16935132,
+          "work_limit": 1411379531
+        },
+        {
+          "accepted": 1,
+          "allowance_ms": null,
+          "attempted": 2,
+          "bound_floor": false,
+          "budget_mode": "operations",
+          "elapsed_ms": 149.94295899999997,
+          "eligible": 2,
+          "event": "rust_odds_rare_tail_branches_summary",
+          "group": 16498,
+          "pilot_draws_per_branch": 500,
+          "preserved_existing_estimates": true,
+          "reclaimed_check_work": 0,
+          "request_elapsed_ms": 1756.55,
+          "request_id": 3,
+          "reserved_work": 394724238,
+          "seed": 1861,
+          "setup_ms": 43.797166,
+          "skipped": 1,
+          "tightened_only": false,
+          "timestamp_unix_ms": 1790967264302,
+          "tree_mode": false,
+          "work": 9594000,
+          "work_limit": 650970000
+        },
+        {
+          "accepted": 17,
+          "allowance_ms": null,
+          "batch_allocation": "0",
+          "budget_mode": "operations",
+          "cells": 17,
+          "effective_batch_allocation": "0",
+          "effective_root_retry": "0",
+          "effective_union_patterns": "256",
+          "elapsed_ms": 1302.922083,
+          "event": "rust_odds_rare_tail_summary",
+          "extension": "after",
+          "finalists": 10,
+          "group": 16498,
+          "reference_draw_cost": 7233,
+          "remaining_after_training_ms": null,
+          "request_elapsed_ms": 1765.663,
+          "request_id": 3,
+          "reserved_work": 637518391,
+          "root_retry": "0",
+          "seed": 1861,
+          "setup_pilot_work": 394400391,
+          "shared_guides": {
+            "hits": 17,
+            "profiles": 80
+          },
+          "timestamp_unix_ms": 1790967264311,
+          "training_cell_limit": 28,
+          "union_patterns": "256",
+          "work": 33713808,
+          "work_limit": 650970000
+        }
+      ]
+    }
+  },
+  "combined_16498": {
+    "baseline_rare_cell_runs": 846,
+    "candidate_rare_cell_runs": 856,
+    "gain_cell_runs": 10,
+    "distinct_gained_cells": [
+      [
+        17,
+        13
+      ]
+    ],
+    "permitted_work_increase_pct": 1.1820330969267139,
+    "probability_range": [
+      4.5014011060929345e-34,
+      1.1729847660954641e-33
+    ]
+  },
+  "validation": {
+    "rust_passed": 141,
+    "rust_failed": 0,
+    "rust_db_ignored": 4,
+    "python_passed": 5,
+    "default_http_controls_identical": 4,
+    "pre_and_post_setup_optimization_exports_identical": 70,
+    "patch_changed_files_match_sha256": 10
+  },
+  "recommendation": "Keep offline: reliable additional estimate, but warm CPU +2.48% and median HTTP +4.58% exceed 1.18% recovered-rare-cell allowance."
+}

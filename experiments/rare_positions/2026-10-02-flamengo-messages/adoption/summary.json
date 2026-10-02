@@ -1,0 +1,129 @@
+{
+  "baseline_git_head": "f0a332b847bd7bea24b00fd63e724850da4fa065",
+  "production_switch": "RUST_ODDS_RARE_TAIL_TREE",
+  "coverage_default": "1",
+  "workers": 4,
+  "production_binary_sha256": "010a91e9d5f9432f4ddfdd165d13df3bfefed6de502732aa0e3f99d9cc6fbd46",
+  "sources": {
+    "odds-rust/src/api.rs": "7e4b255ba8f6e0919018ca602cd75f4078ceec8521bb6f494a418a3bcbed0ea7",
+    "odds-rust/src/conditioned.rs": "5219c398a277575dc01f1906eed461e60ffb1d0364fb0e331b702258660f8cb5",
+    "odds-rust/src/database.rs": "20b33b892264a11d8f5b2f51baf6420b32a04204b2efe7a3c841a6b01a5f097b",
+    "odds-rust/src/domains.rs": "5074c82e3d6ad474d3a05cc0e2c324d45f2c0a668cdb4cdb91354225afdc93f4",
+    "odds-rust/src/goal_completion.rs": "c5002313ad0cb1ec99204ae3c758f113b13fa2c56efef2a280fc9915f715dadb",
+    "odds-rust/src/goal_tilt.rs": "8dcc747fd27baaf5bd3e7b0b6a069fdec1a96f61ecc5eac3e7b362fb960363d2",
+    "odds-rust/src/http.rs": "d5846cfc1c236ee6c2d618e6d82613b47f7d8429862aff862256055c985dbaea",
+    "odds-rust/src/joint_caps/broad.rs": "9a9cd70f427d234ccb39b9a152cc57f9dc8af2ff50801b86b8c36e1a59e6064f",
+    "odds-rust/src/joint_caps/propagated/lazy/strata/messages.rs": "759e92051d510ea852138d95de4ad49511495032680ef03162289efe477f347d",
+    "odds-rust/src/joint_caps/propagated/lazy/strata/tree.rs": "07919c536dfb0f0184f6fc5fdd5e045e887de5bce2b1eb897efe5b5cd3d4f272",
+    "odds-rust/src/joint_caps/propagated/lazy/strata.rs": "a74d61ba5a25d311b2bf3e5c16ce1aba56f8fae1c76b9a917d7e784366e562dc",
+    "odds-rust/src/joint_caps/propagated/lazy.rs": "90a27ee1347d8642fe0ae78ede7e4fbe426b40f1de8198ac590f22eb0c6ae279",
+    "odds-rust/src/joint_caps/propagated.rs": "76d380f936ccae056aa76bcc33e3fe1399f21a22f276339c087ed200eab98f46",
+    "odds-rust/src/joint_caps.rs": "94168316ea1324a63ee97506ce61656d4883cfe5511e0fcc19cc0752e50af375",
+    "odds-rust/src/lib.rs": "fdd98428e4a19a9a4e612423f8212808c7568ae8ac1c1142a961e7a7e8d97bb0",
+    "odds-rust/src/logging.rs": "9537064cb30f8e39e9bcddec434b3b65d86fd3f978e184647fd7400334ce7191",
+    "odds-rust/src/lookahead.rs": "bf7382272c904617388e5ac7a67d4bb5e51bc532a88f8d2497c4ce39aec21874",
+    "odds-rust/src/main.rs": "1a0398884a015044201c2009ce9c200b4e044f0bbf6935d7a605b1b0178cc6ed",
+    "odds-rust/src/model.rs": "5fdd1c68420dd6274c9962e2241410d743e8fb6dab15ff0501c97f33fd50a449",
+    "odds-rust/src/neighbors.rs": "fdaa33b87dceb708c80089ed6cc8dd0183ae455a371795cf5e2248160be38007",
+    "odds-rust/src/player_ratings.rs": "98279ea170da986b6ac1240e1aae110f0127023af36d4da93772047b03affca8",
+    "odds-rust/src/pool.rs": "a919b9c359f4c0af42555e0606385795fec5c388a89a6b354aa195cd11b9c5be",
+    "odds-rust/src/proof.rs": "915fdb516505401c3f76decabf165c1887f8683a162e07cd371686e2b96ed5ca",
+    "odds-rust/src/rank_proof.rs": "16e1c8657652fbf89bac1b0363539366353af6eb249a6570b415f1b76f86accb",
+    "odds-rust/src/rare_tail/branches.rs": "b2d495c9c0ed0a63988d7a8530909efb59045b384f6df891be11cfb814e3eb53",
+    "odds-rust/src/rare_tail/budget.rs": "bb83e47637d82abd63b7bef0029cb3d4a4774a4c95c8ddfdf752474087f318a5",
+    "odds-rust/src/rare_tail/confirmations.rs": "04ce403ff8d01596da7a00764438f1e21782bf471ea66bb866e1ac1ed84e32ab",
+    "odds-rust/src/rare_tail.rs": "3fc20f5261f9c42902d96305219ac409ebe48086c16b2991b7285c3e4921fd1c",
+    "odds-rust/src/ratings.rs": "f74b5dc5ed0661280a592815069c72c4834a4b5b2e96361ab7dc1047d04d8488",
+    "odds-rust/src/reachability.rs": "807c2a415c1ce4a01bfb48cbe755e01dec547162b2e0f5d494b24f2da4caacbf",
+    "odds-rust/src/rescue.rs": "c9c8492415eddfc72694c4b642502dcb42c7aa0f2de138c9b81c13a85fb05928",
+    "odds-rust/src/rng.rs": "262e61b6b54219fa76d6b2ee17cabf9d25c5870d69326fd9cae72dbb95bee536",
+    "odds-rust/src/sampling.rs": "6a2895ffa35a61b5ac59797b99c1098a3f2933622950e0a954de93d9505a359e",
+    "odds-rust/src/search.rs": "d50c545c7116f9165417d65f4cd543b77c8ec03c60926d8310589e60289ec052",
+    "odds-rust/src/shared_constraints.rs": "75c5d222762ecd03a90923b71247683d1d26bbeb1a3d1ef44a6be6f237643e0e",
+    "odds-rust/src/sort.rs": "e5100c209978b62ac2c0b6e5656ce781c9cb15e9122913670af9c28a25794a7c",
+    "odds-rust/src/target_limits.rs": "204fd166716f5488534aad5f4a7e82aa591c9d3646986f346e5296b697190399",
+    "odds-rust/src/tilt.rs": "e2f41c2beca048ffcf3f3214af1e8aa38d2052fa15a2b535df18cf7560402303"
+  },
+  "equivalence": {
+    "pairs": 70,
+    "snapshots": 7,
+    "byte_identical_exports": 70,
+    "flamengo13_accepted": 10,
+    "probability_range": [
+      4.5014011060929345e-34,
+      1.1729847660954641e-33
+    ]
+  },
+  "disable_controls": {
+    "pairs": 4,
+    "byte_identical_exports": 4
+  },
+  "rust_tests": {
+    "passed": 143,
+    "failed": 0,
+    "ignored_database_tests": 4
+  },
+  "python_tests": {
+    "passed": 5,
+    "failed": 0
+  },
+  "warm_timing": {
+    "warm": {
+      "baseline": "previous production",
+      "seed": 808,
+      "requests_per_binary": 10,
+      "warmups_per_binary": 2,
+      "timed_requests_per_binary": 8,
+      "median_http_ms": {
+        "baseline": 1293.4141460000014,
+        "candidate": 1397.5538545
+      },
+      "cpu_seconds": {
+        "baseline": 31.58,
+        "candidate": 33.73
+      },
+      "cpu_change_pct": 6.808106396453439,
+      "median_http_change_pct": 8.05153622465471
+    },
+    "warm-repeat": {
+      "baseline": "previous production",
+      "seed": 808,
+      "requests_per_binary": 10,
+      "warmups_per_binary": 2,
+      "timed_requests_per_binary": 8,
+      "median_http_ms": {
+        "baseline": 1244.2926459999999,
+        "candidate": 1327.1435419999998
+      },
+      "cpu_seconds": {
+        "baseline": 30.54,
+        "candidate": 32.120000000000005
+      },
+      "cpu_change_pct": 5.173542894564531,
+      "median_http_change_pct": 6.658473492255923
+    },
+    "warm-equivalence": {
+      "baseline": "validated prototype",
+      "seed": 808,
+      "requests_per_binary": 10,
+      "warmups_per_binary": 2,
+      "timed_requests_per_binary": 8,
+      "median_http_ms": {
+        "baseline": 1267.1934380000014,
+        "candidate": 1279.4232295000006
+      },
+      "cpu_seconds": {
+        "baseline": 33.35,
+        "candidate": 32.22
+      },
+      "cpu_change_pct": -3.388305847076467,
+      "median_http_change_pct": 0.9651084935620613
+    }
+  },
+  "raw_evidence": {
+    "archive": "raw-evidence.tar.gz",
+    "sha256": "b05cb6dde431f11d16d2e013fb373f1c53bbde755eba18c985feca31c0c3925a",
+    "bytes": 6098529,
+    "verified_members": 320
+  }
+}

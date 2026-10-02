@@ -1,6 +1,8 @@
 //! Offline complete case stratification. Each requested branch is a disjoint
 //! target path and strict exception mask; budgets never truncate the sum.
 use super::*;
+mod messages;
+mod tree;
 
 struct Stratum {
     root: Vec<u8>,
@@ -11,11 +13,15 @@ struct Stratum {
 }
 pub struct BranchStrata {
     cell: Cell,
+    retuned: HashMap<usize, messages::TiltedPattern>,
+    message_work: usize,
     strata: Vec<Stratum>,
     goals: Option<crate::goal_tilt::GoalTilt>,
     setup_nodes: usize,
     secondary_fallbacks: usize,
     secondary_nodes: usize,
+    tree_training_work: usize,
+    tree_diagnostics: Option<serde_json::Value>,
 }
 pub struct BranchSample {
     pub result: Result,
@@ -454,12 +460,16 @@ impl BranchStrata {
             }
         }
         Ok(Self {
+            retuned: HashMap::new(),
+            message_work: 0,
             cell,
             strata,
             goals: builder.goals,
             setup_nodes: builder.nodes,
             secondary_fallbacks,
             secondary_nodes,
+            tree_training_work: 0,
+            tree_diagnostics: None,
         })
     }
     pub fn len(&self) -> usize {
@@ -469,7 +479,7 @@ impl BranchStrata {
         self.strata.is_empty()
     }
     pub fn setup_diagnostics(&self) -> serde_json::Value {
-        json!({"nodes":self.setup_nodes,"secondary_nodes":self.secondary_nodes,
+        json!({"nodes":self.setup_nodes,"secondary_nodes":self.secondary_nodes,"tree":self.tree_diagnostics,
             "complete_parent_fallback":self.secondary_fallbacks>0})
     }
     /// Bounds under independent original fixture outcomes, not proposal Q.
@@ -584,9 +594,15 @@ impl BranchStrata {
             .collect()
     }
     pub(crate) fn draw_work(&self, m: &Model, index: usize, bounds: bool) -> usize {
-        let p = &self.strata[index].pattern;
+        let p = self
+            .retuned
+            .get(&index)
+            .map(|q| &q.pattern)
+            .unwrap_or(&self.strata[index].pattern);
         let needed = self.cell.rank.min(m.n - 1 - self.cell.rank);
-        8 * (p.omitted.len() + p.joint.games.len())
+        3 * usize::from(self.retuned.contains_key(&index))
+            * (p.joint.games.len() + p.guide.games.len())
+            + 8 * (p.omitted.len() + p.joint.games.len())
             + p.fixed.len()
             + 8 * m.n
             + p.guide.games.len()
@@ -601,25 +617,33 @@ impl BranchStrata {
             + m.n * (m.n.max(2).ilog2() as usize + 1) * m.keys.len().max(1)
     }
     pub(crate) fn setup_work(&self) -> usize {
-        crate::rare_tail::budget::setup_cost(
-            self.setup_nodes,
-            self.strata
-                .iter()
-                .map(|s| {
-                    s.pattern
-                        .guide
-                        .cdf
-                        .values
-                        .iter()
-                        .chain(&s.pattern.guide.reverse.values)
-                        .map(|v| v.len())
-                        .sum::<usize>()
-                })
-                .sum(),
-        )
+        if let Some(tree) = &self.tree_diagnostics {
+            return self.tree_training_work
+                + crate::rare_tail::budget::setup_cost(
+                    self.setup_nodes,
+                    tree["guide_values"].as_u64().unwrap() as usize,
+                );
+        }
+        self.tree_training_work
+            + crate::rare_tail::budget::setup_cost(
+                self.setup_nodes,
+                self.strata
+                    .iter()
+                    .map(|s| {
+                        s.pattern
+                            .guide
+                            .cdf
+                            .values
+                            .iter()
+                            .chain(&s.pattern.guide.reverse.values)
+                            .map(|v| v.len())
+                            .sum::<usize>()
+                    })
+                    .sum(),
+            )
     }
     pub fn describe(&self, m: &Model) -> serde_json::Value {
-        json!({"team":m.ids[self.cell.team],"rank":self.cell.rank+1,"setup_nodes":self.setup_nodes,"secondary_fallbacks":self.secondary_fallbacks,"secondary_nodes":self.secondary_nodes,"strata":self.strata.iter().map(|s|json!({
+        json!({"team":m.ids[self.cell.team],"rank":self.cell.rank+1,"setup_nodes":self.setup_nodes,"tree":self.tree_diagnostics,"secondary_fallbacks":self.secondary_fallbacks,"secondary_nodes":self.secondary_nodes,"strata":self.strata.iter().map(|s|json!({
             "target_outcomes":s.root,"direction":if s.above{"above"}else{"below"},
             "secondary_team":s.secondary.map(|t|m.ids[t]),
             "exceptions":s.exceptions.iter().map(|&t|m.ids[t]).collect::<Vec<_>>(),
@@ -639,8 +663,14 @@ impl BranchStrata {
         goals: bool,
     ) -> BranchSample {
         assert!(n >= 2);
-        let mut pattern = self.strata[index].pattern.clone();
+        let mut pattern = self
+            .retuned
+            .get(&index)
+            .map(|q| &q.pattern)
+            .unwrap_or(&self.strata[index].pattern)
+            .clone();
         pattern.bound_guidance = bounds;
+
         let mut rng = Rng::new(seed);
         let mut out = vec![0; m.fixtures.len()];
         let mut points = vec![0; m.n];
@@ -665,6 +695,9 @@ impl BranchStrata {
                 &mut r.operations,
             );
             if weight > 0. {
+                if let Some(q) = self.retuned.get(&index) {
+                    weight *= q.correction(&out, &mut r.operations);
+                }
                 r.operations.rank(m);
 
                 let (rank, ratio) = if let Some(g) = self.goals.as_ref().filter(|_| goals) {

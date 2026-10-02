@@ -874,3 +874,50 @@ secondary setup nodes and confirmation work transferred to branches. See
 [the paired experiment](../experiments/rare_positions/2026-10-02-rust-certified-target-limits.md)
 for coverage, timing by seed, assumptions and remaining zeros. Local timings do
 not establish identical speed on the production Xeon.
+
+### Complete-tree fallback and constraint messages
+
+The coverage profile enables `RUST_ODDS_RARE_TAIL_TREE=1` by default. After
+ordinary results are frozen, a certified cell whose complete exception-mask
+enumeration exhausts its budget can use a bounded partition tree instead.
+It keeps every supported target path and retains the entire parent whenever a
+split cannot finish. No team or rank is singled out.
+
+Production settings are 64 leaves, 100,000 joint construction nodes and
+4,000,000 cumulative guide values, including failed refinements. Each leaf gets
+25 pilot draws. The variance-leading positive pilot leaf receives three passes
+of fixture/team interval messages, mixed with 10% original outcome probabilities.
+The joint normalizer is rebuilt under the proposal, and every sampled joint or
+guided fixture receives the original/proposal probability correction. Messages
+guide sampling; they do not prove reachability or impossibility.
+
+Fresh independent main/check allocations use up to 3,000 draws each, with a
+positive floor for every leaf. Pilots are excluded from reported estimates and
+the existing acceptance gates still apply. Setup, pilots and final draws debit
+the existing confirmation allowance. Unused native checks are refunded and
+confirmations fund a stable priority prefix. An accepted additional cell can
+return at most 16,000,000 operation units to confirmations, further capped by
+the tree's reservation and a conservative proportion of initial-MC zero cells.
+A request with no accepted additional cell earns zero credit. Admission remains
+deterministic.
+
+Across seven reference snapshots and ten seeds, the experiment gained one
+distinct cell (Flamengo/13th, 10/10 runs), with no lost estimates or changed
+proof classifications. Repeated warm group16498 requests measured **CPU +2.48%** and
+**median HTTP latency +4.58%** on the local machine, using four workers. The
+user approved this tradeoff; it exceeds the 1.18% recovered rare-cell gain.
+Production adoption checks reproduce all 70 prototype exports byte-for-byte.
+Two subsequent warm checks against prior production observed higher costs:
+**CPU +5.17–6.81%**, **median HTTP +6.66–8.05%**. A direct prototype comparison
+measured CPU −3.39% and median HTTP +0.97%. These are local observations with
+timing variability, not a guarantee for the production Xeon.
+
+No additional flags are needed. Set `RUST_ODDS_RARE_TAIL_TREE=0` to disable the
+fallback, refunds, priority-prefix allocation and conditional credit together.
+The exact memoized setup calculation remains enabled. Rebuild and restart the
+Rust server to use the changed defaults.
+
+`rust_odds_start` reports the tree switch and settings. Branch logs include tree
+construction, message work, independent batch diagnostics and accepted results;
+`rust_odds_rare_tail_tree_credit` records bounded additional work credit.
+See [the experiment and adoption results](../experiments/rare_positions/2026-10-02-rust-flamengo-messages.md).
