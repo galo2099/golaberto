@@ -2,6 +2,71 @@
 
 Guidance for coding agents working in this repository.
 
+## Model Roles and Subagent Coordination
+
+Use **GPT-6.1 Sol (`gpt-6.1-sol`) for reasoning and coordination** and
+**GPT-6 Luna (`gpt-6-luna`) for all code generation** in this repository.
+This section explicitly authorizes delegation to multiple subagents for work
+within the user's requested scope.
+
+### Role Boundaries
+
+- Run the main coordinating agent with `gpt-6.1-sol`. Sol owns investigation,
+  architecture, task decomposition, debugging decisions, test strategy, code
+  review, integration decisions, and communication with the user. Any additional
+  agents assigned these responsibilities must also use `gpt-6.1-sol`.
+- Delegate every source-code edit to a `gpt-6-luna` implementation subagent,
+  including tests, migrations, scripts, configuration, refactors, and fixes
+  requested during review. Sol should describe the required behavior and
+  constraints rather than authoring a patch for Luna to copy. Sol may edit prose
+  documentation and run read-only inspection or validation commands directly.
+- Luna implements Sol's bounded specification and runs assigned checks. If a
+  task requires an unresolved design choice, changes an agreed interface, or
+  exposes an unexpected failure, Luna reports the evidence to Sol for a decision
+  before continuing the affected work. Luna must not spawn further agents.
+- This is a division of responsibilities; it cannot prevent Luna from doing
+  internal reasoning while implementing code.
+
+### Delegation Workflow
+
+1. Sol inspects the working tree and relevant call sites, defines acceptance
+   criteria, and divides implementation into bounded tasks. Even a small code
+   change goes to one Luna worker. Use multiple workers when independent tasks
+   can proceed safely in parallel; keep dependent changes sequential.
+2. Select the model explicitly on every spawn: `gpt-6.1-sol` for investigation or
+   review, `gpt-6-luna` for implementation. Use the session's subagent tools,
+   rather than creating separate user-facing chats. If the spawn tool has a
+   `fork_turns` option, use `"none"` with a self-contained brief or a supported
+   bounded history fork when overriding the model; full-history forks may
+   inherit the parent's model and reject overrides.
+3. Give each worker the objective, relevant files and findings, permitted edit
+   paths, interface contracts, acceptance criteria, required checks, and expected
+   report. Include applicable repository instructions when context is not
+   inherited. Require a report of changed files, checks and results, and remaining
+   uncertainties.
+4. Assign one writer per file at a time. Agents share the working tree: preserve
+   existing user changes, avoid overlapping edits, and do not revert another
+   worker's changes. For coupled Rails/Go JSON or Go/Rust rating changes, Sol
+   establishes the common contract before workers begin. Reserve shared files
+   such as routes, schema, and fixtures for a single designated worker.
+5. Track task ownership, dependencies, and status. Respect the runtime's
+   concurrency limit, reuse workers for follow-up fixes, and use messages and
+   completion waits to coordinate. When a contract changes, inform affected
+   workers before allowing dependent work to continue.
+6. Sol reviews the combined diff and test evidence, sends all required code
+   corrections back to Luna, and runs the relevant integration checks after
+   workers finish. For larger or riskier changes, use a separate Sol reviewer
+   and the full test suite. Finish with the outcome, validation, and any limits.
+
+### Runtime Requirements
+
+`AGENTS.md` supplies instructions, not model configuration: select GPT-6.1 Sol
+for the main chat in the client or launcher. Explicit subagent model selection
+must also be available in the running session. If either requested model or the
+delegation tools are unavailable, report the limitation and continue only work
+that can honor these roles; do not silently substitute models or generate code
+with Sol. Higher-priority runtime instructions still apply.
+
 ## Project Snapshot
 
 - Application: `Golaberto` (Ruby on Rails).
