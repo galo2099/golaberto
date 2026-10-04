@@ -27,6 +27,7 @@ const SPAN_LIMIT: usize = 4096;
 
 /// Backward DP for an arbitrary terminal mask, indexed by points/wins already
 /// accumulated. It supports unions of totals, upper caps and lower floors.
+#[derive(Clone)]
 pub(super) struct TerminalTable {
     pub(super) games: Vec<RankGame>,
     team: usize,

@@ -15,18 +15,35 @@ use crate::{
     search::{apply, parallel, Cell},
 };
 use serde_json::json;
-use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
 use std::time::Instant;
 
 mod branches;
 pub(crate) mod budget;
 mod confirmations;
+mod family_config;
 use budget::{scaled, WorkBudget, REFERENCE_DRAWS};
+
+fn add_atomic_units(counter: &AtomicUsize, amount: usize) -> bool {
+    counter
+        .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
+            current.checked_add(amount)
+        })
+        .is_ok()
+}
 
 // Coverage is the default profile, with explicit environment overrides. Reading it does
 // not mutate the process environment or interfere with concurrent requests.
 pub fn profile() -> String {
     resolve_profile(std::env::var("RUST_ODDS_RARE_TAIL").ok())
+}
+/// Whether production family fallback work is enabled for this request.
+pub fn family_fallback_enabled() -> bool {
+    family_config::enabled()
+}
+/// Effective fixed family fallback policy for API and startup diagnostics.
+pub fn family_fallback_settings() -> serde_json::Value {
+    family_config::settings()
 }
 fn resolve_profile(explicit: Option<String>) -> String {
     explicit.unwrap_or_else(|| "coverage".into())
@@ -99,6 +116,65 @@ impl Plan {
         match self {
             Self::Union(p) => p.sample(m, n, seed, true),
             Self::Lazy(p) => p.sample(m, n, seed),
+        }
+    }
+    fn sample_family_training(
+        &self,
+        m: &Model,
+        n: usize,
+        seed: i64,
+    ) -> Option<(Result, crate::joint_caps::propagated::lazy::FamilyMoments)> {
+        match self {
+            Self::Lazy(p) => Some(p.sample_family_training(m, n, seed)),
+            Self::Union(_) => None,
+        }
+    }
+    fn sample_family_native_training(
+        &self,
+        m: &Model,
+        n: usize,
+        seed: i64,
+        observed_draw_cap: usize,
+        positive_observation_cap: usize,
+    ) -> Option<(Result, crate::joint_caps::propagated::lazy::FamilyMoments)> {
+        match self {
+            Self::Lazy(p) => Some(p.sample_family_native_training(
+                m,
+                n,
+                seed,
+                observed_draw_cap,
+                positive_observation_cap,
+            )),
+            Self::Union(_) => None,
+        }
+    }
+    fn native_family_recording_bound(
+        &self,
+        m: &Model,
+        total_samples: usize,
+        observed_draw_cap: usize,
+        positive_observation_cap: usize,
+    ) -> Option<usize> {
+        match self {
+            Self::Lazy(_) => LazyJoint::native_family_recording_bound(
+                m,
+                total_samples,
+                observed_draw_cap,
+                positive_observation_cap,
+            ),
+            Self::Union(_) => None,
+        }
+    }
+    fn clone_lazy(&self) -> Option<LazyJoint> {
+        match self {
+            Self::Lazy(p) => Some(p.clone()),
+            Self::Union(_) => None,
+        }
+    }
+    fn clone_work(&self) -> Option<usize> {
+        match self {
+            Self::Lazy(p) => Some(p.clone_work()),
+            Self::Union(_) => None,
         }
     }
     fn setup_work(&self) -> usize {
@@ -182,6 +258,10 @@ pub fn run(
     } else {
         cells.len()
     };
+    let native_training_audit_enabled = family_fallback_enabled() && budget::modeled();
+    let setup_audit_extra_work = AtomicUsize::new(0);
+    let setup_audit_complete = AtomicU8::new(1);
+    let unmetered_constructor_failures = AtomicUsize::new(0);
     let plans = parallel(cells.len().min(training_limit), workers, |i| {
         let cell = cells[i];
         if !deterministic && start.elapsed().as_secs_f64() * 1000. >= allowance_ms * 0.65 {
@@ -193,25 +273,37 @@ pub fn run(
             &format!("rare-tail-pilot-{}-{}", m.ids[cell.team], cell.rank),
         );
         let union = if mode != "lazy" {
-            PropagatedJoint::configured(
-                m,
-                cell,
-                Limits {
-                    minimum_forced: 0,
-                    rivals: value("RUST_ODDS_RARE_TAIL_UNION_RIVALS")
-                        .parse::<usize>()
-                        .ok()
-                        .filter(|&v| v >= 1 && v <= 6)
-                        .unwrap_or(6),
-                    target_patterns: value("RUST_ODDS_RARE_TAIL_UNION_PATTERNS")
-                        .parse::<usize>()
-                        .ok()
-                        .filter(|&v| (1..=256).contains(&v))
-                        .unwrap_or(256),
-                    feasible_cases: 128,
-                },
-            )
-            .ok()
+            let limits = Limits {
+                minimum_forced: 0,
+                rivals: value("RUST_ODDS_RARE_TAIL_UNION_RIVALS")
+                    .parse::<usize>()
+                    .ok()
+                    .filter(|&v| v >= 1 && v <= 6)
+                    .unwrap_or(6),
+                target_patterns: value("RUST_ODDS_RARE_TAIL_UNION_PATTERNS")
+                    .parse::<usize>()
+                    .ok()
+                    .filter(|&v| (1..=256).contains(&v))
+                    .unwrap_or(256),
+                feasible_cases: 128,
+            };
+            if native_training_audit_enabled {
+                let (result, setup_work) =
+                    PropagatedJoint::configured_with_setup_work(m, cell, limits);
+                if let Some(setup_work) = setup_work {
+                    let charged = result.as_ref().map_or(setup_work, |plan| {
+                        setup_work.saturating_sub(plan.setup_work())
+                    });
+                    if !add_atomic_units(&setup_audit_extra_work, charged) {
+                        setup_audit_complete.store(0, Ordering::Relaxed);
+                    }
+                } else {
+                    setup_audit_complete.store(0, Ordering::Relaxed);
+                }
+                result.ok()
+            } else {
+                PropagatedJoint::configured(m, cell, limits).ok()
+            }
         } else {
             None
         };
@@ -313,6 +405,8 @@ pub fn run(
                 if candidate.as_ref().is_none_or(|v| r.ess > v.1.ess) {
                     candidate = Some((Plan::Lazy(p), r, pilot_ms));
                 }
+            } else if native_training_audit_enabled {
+                unmetered_constructor_failures.fetch_add(1, Ordering::Relaxed);
             }
         }
         let setup_ms = start.elapsed().as_secs_f64() * 1000.;
@@ -363,7 +457,13 @@ pub fn run(
                 ),
                 seeds,
                 8,
-            )?;
+            );
+            let Some(p) = p else {
+                if native_training_audit_enabled {
+                    unmetered_constructor_failures.fetch_add(1, Ordering::Relaxed);
+                }
+                return None;
+            };
             let sample = Instant::now();
             let r = p.sample(
                 m,
@@ -606,13 +706,14 @@ pub fn run(
             Result::default()
         };
         let accepted = accepted(&main, &check, rough);
+        let operations = main.operations.units() + check.operations.units();
         status[i].store(if accepted { 1 } else { 2 }, Ordering::Release);
         emit(
             log,
             "rust_odds_rare_tail",
             json!({"group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,"setup_ms":setup_ms,"pilot_ess":pilot.ess,"pilot_hits":pilot.hits,"main_draws":main.samples,"main_hits":main.hits,"main_ess":main.ess,"main_max_share":main.max_share,"main_batch_gap":main.batch_gap,"check_relative_se":if check.probability>0.{Some(check.std_err/check.probability)}else{None},"quality":if rough{"order"}else{"current"},"probability":main.probability,"relative_se":if main.probability>0.{Some(main.std_err/main.probability)}else{None},"check_probability":check.probability,"check_ess":check.ess,"accepted":accepted,"sampling_ms":start.elapsed().as_secs_f64()*1000.,"plan":plan.describe(m)}),
         );
-        (*cell, main, check.work, accepted, false)
+        (*cell, main, check.work, accepted, false, operations)
     };
     let extra = |i: usize, admitted: bool| {
         let (source, p, n, check_n, cost) = &extension_jobs[i];
@@ -654,12 +755,13 @@ pub fn run(
             Result::default()
         };
         let ok = accepted(&main, &check, rough);
+        let operations = main.operations.units() + check.operations.units();
         emit(
             log,
             "rust_odds_rare_tail_extension",
             json!({"group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,"mode":extension_mode,"source":if source.is_some(){"rejected_final"}else{"unfunded_pilot"},"main_draws":main.samples,"main_hits":main.hits,"main_ess":main.ess,"main_max_share":main.max_share,"main_relative_se":if main.probability>0.{Some(main.std_err/main.probability)}else{None},"main_batch_gap":main.batch_gap,"probability":main.probability,"check_probability":check.probability,"check_hits":check.hits,"check_ess":check.ess,"check_relative_se":if check.probability>0.{Some(check.std_err/check.probability)}else{None},"accepted":ok,"forecast_ms":if deterministic {None}else{Some(cost)},"reserved_work":if deterministic {Some(*cost as usize)}else{None},"cost_per_draw":budget::draw_cost(&p.2),"sampling_ms":clock.elapsed().as_secs_f64()*1000.}),
         );
-        Some((cell, main, check.work, ok, true))
+        Some((cell, main, check.work, ok, true, operations))
     };
     let results = if !deterministic && extension_mode == "overlap" && extension {
         // All ordinary jobs are dispatched ahead of extension jobs, on the same
@@ -710,8 +812,10 @@ pub fn run(
     let mut found = shared_found;
     let mut extra_found = 0;
     let mut extra_draws = 0;
-    for (cell, r, check_work, accepted, extra) in results.into_iter().flatten() {
+    let mut actual_final_operations = 0usize;
+    for (cell, r, check_work, accepted, extra, operations) in results.into_iter().flatten() {
         work += r.work + check_work;
+        actual_final_operations = actual_final_operations.saturating_add(operations);
         if extra {
             extra_draws += r.samples;
         }
@@ -803,8 +907,27 @@ pub fn run(
     } else {
         (0, Vec::new())
     };
+    let native_training_stage_capacity = budget::capacity(m, scaled(2 * REFERENCE_DRAWS, fraction));
+    let native_training_setup_audit_extra = setup_audit_extra_work.load(Ordering::Relaxed);
+    let native_training_setup_audit_complete = setup_audit_complete.load(Ordering::Relaxed) == 1;
+    let native_training_unmetered_constructor_failures =
+        unmetered_constructor_failures.load(Ordering::Relaxed);
+    let audited_training_work =
+        training_work_units.saturating_add(native_training_setup_audit_extra);
+    let native_training_stage_credit = confirmations::native_training_stage_credit(
+        native_training_stage_capacity,
+        audited_training_work,
+        actual_final_operations,
+        reserved_final_work,
+        budget::modeled(),
+        native_training_setup_audit_complete,
+        native_training_unmetered_constructor_failures,
+    );
+    let native_training_stage_spare = native_training_stage_credit.map(|credit| credit.2);
+    let native_training_stage_audit_valid = native_training_stage_credit.is_some();
     // The additional allowance confirms already-built proposals only.
     // Ordinary results are frozen first; new independent streams can only fill zeros.
+    let mut late_fallback_state = None;
     if more_fraction > 0. && budget::modeled() {
         let proposals: Vec<_> = plans
             .iter()
@@ -816,7 +939,7 @@ pub fn run(
                 e.probability == 0. && !e.reachability.starts_with("impossible")
             })
             .collect();
-        let (added, extra_work) = confirmations::run(
+        let outcome = confirmations::run(
             m,
             seed,
             workers,
@@ -826,9 +949,12 @@ pub fn run(
             more_fraction,
             log,
             branch_transfer,
+            native_training_stage_spare,
+            native_training_stage_audit_valid,
         );
+        let (added, fallback_state) = outcome.account_work(&mut work);
+        late_fallback_state = fallback_state;
         found += added;
-        work += extra_work;
     } else if more_fraction > 0. {
         let before: Vec<_> = estimates
             .iter()
@@ -1004,6 +1130,11 @@ pub fn run(
         found += added;
         work += spent;
     }
+    if let Some(state) = late_fallback_state.take() {
+        let (added, fallback_work) = confirmations::finish_fallback(state, m, estimates, log);
+        found += added;
+        work = work.saturating_add(fallback_work);
+    }
     if extension {
         emit(
             log,
@@ -1011,11 +1142,26 @@ pub fn run(
             json!({"group":m.request.id,"mode":extension_mode,"ordinary_finalists":plans.len(),"unfunded_pilots":pending.len(),"accepted":extra_found,"main_draws":extra_draws,"final_phase_ms":ordinary_final_phase_ms,"deadline_ms":if deterministic {None}else{Some(extension_capacity)},"budget_mode":budget::mode()}),
         );
     }
-    emit(
-        log,
-        "rust_odds_rare_tail_summary",
-        json!({"group":m.request.id,"cells":cells.len(),"finalists":plans.len(),"accepted":found,"elapsed_ms":start.elapsed().as_secs_f64()*1000.,"allowance_ms":if deterministic {None}else{Some(allowance_ms)},"remaining_after_training_ms":if deterministic {None}else{Some(remaining_capacity)},"budget_mode":budget::mode(),"training_cell_limit":training_limit,"work_limit":if deterministic {Some(budget::capacity(m, scaled(2 * REFERENCE_DRAWS, fraction)))}else{None},"reserved_work":if deterministic {Some(reserved_final_work + if budget::modeled() {training_work_units} else {0})}else{None},"setup_pilot_work":training_work_units,"reference_draw_cost":budget::reference_cost(m),"work":work,"batch_allocation":value("RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION"),"root_retry":value("RUST_ODDS_RARE_TAIL_RETRY"),"union_patterns":value("RUST_ODDS_RARE_TAIL_UNION_PATTERNS"),"extension":extension_mode,"effective_union_patterns":value("RUST_ODDS_RARE_TAIL_UNION_PATTERNS"),"effective_root_retry":if extension{"0".into()}else{value("RUST_ODDS_RARE_TAIL_RETRY")},"effective_batch_allocation":if extension{"0".into()}else{value("RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION")},"shared_guides":shared.as_ref().map(|s|s.describe())}),
+    let mut summary = json!({"group":m.request.id,"cells":cells.len(),"finalists":plans.len(),"accepted":found,"elapsed_ms":start.elapsed().as_secs_f64()*1000.,"allowance_ms":if deterministic {None}else{Some(allowance_ms)},"remaining_after_training_ms":if deterministic {None}else{Some(remaining_capacity)},"budget_mode":budget::mode(),"training_cell_limit":training_limit,"work_limit":if deterministic {Some(budget::capacity(m, scaled(2 * REFERENCE_DRAWS, fraction)))}else{None},"reserved_work":if deterministic {Some(reserved_final_work + if budget::modeled() {training_work_units} else {0})}else{None},"setup_pilot_work":training_work_units,"reference_draw_cost":budget::reference_cost(m),"work":work,"batch_allocation":value("RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION"),"root_retry":value("RUST_ODDS_RARE_TAIL_RETRY"),"union_patterns":value("RUST_ODDS_RARE_TAIL_UNION_PATTERNS"),"extension":extension_mode,"effective_union_patterns":value("RUST_ODDS_RARE_TAIL_UNION_PATTERNS"),"effective_root_retry":if extension{"0".into()}else{value("RUST_ODDS_RARE_TAIL_RETRY")},"effective_batch_allocation":if extension{"0".into()}else{value("RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION")},"shared_guides":shared.as_ref().map(|s|s.describe())});
+    summary.as_object_mut().unwrap().insert(
+        "native_family_recording_stage".into(),
+        json!({
+            "enabled":native_training_audit_enabled,
+            "capacity":native_training_stage_capacity,
+            "audited_training_work":audited_training_work,
+            "setup_audit_extra_work":native_training_setup_audit_extra,
+            "setup_audit_complete":native_training_setup_audit_complete,
+            "unknown_constructor_failures":native_training_unmetered_constructor_failures,
+            "actual_final_operations":actual_final_operations,
+            "reserved_final_work":reserved_final_work,
+            "settled_used":native_training_stage_credit.map(|credit|credit.0),
+            "conservative_used":native_training_stage_credit.map(|credit|credit.1),
+            "settled_spare":native_training_stage_credit.map(|credit|credit.2),
+            "conservative_spare":native_training_stage_credit.map(|credit|credit.3),
+            "admission_valid":native_training_stage_audit_valid
+        }),
     );
+    emit(log, "rust_odds_rare_tail_summary", summary);
     (found, work)
 }
 // Ordinary results are committed first; extension results can only fill zeros.

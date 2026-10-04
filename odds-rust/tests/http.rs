@@ -18,13 +18,27 @@ impl Drop for Service {
 }
 impl Service {
     fn start() -> Self {
+        Self::start_with_family_fallback(None)
+    }
+
+    fn start_with_family_fallback(family_fallback: Option<&str>) -> Self {
         let socket = TcpListener::bind("127.0.0.1:0").unwrap();
         let address = socket.local_addr().unwrap().to_string();
         drop(socket);
-        let child = Command::new(env!("CARGO_BIN_EXE_golaberto-odds"))
+        let mut command = Command::new(env!("CARGO_BIN_EXE_golaberto-odds"));
+        command
             .args(["serve", &address])
-            .env("RUST_ODDS_LOG", "0")
-            .env_remove("RARE_POSITION_RANDOM_SEED")
+            .env_remove("RARE_POSITION_RANDOM_SEED");
+        for (key, _) in std::env::vars() {
+            if key.starts_with("RUST_ODDS_") || key.starts_with("RARE_POSITION_") {
+                command.env_remove(key);
+            }
+        }
+        command.env("RUST_ODDS_LOG", "0");
+        if let Some(value) = family_fallback {
+            command.env("RUST_ODDS_FAMILY_FALLBACK", value);
+        }
+        let child = command
             .env(
                 "DATABASE_URL",
                 "mysql://root@127.0.0.1:1/unavailable?tcp_connect_timeout_ms=100",
@@ -71,9 +85,134 @@ impl Service {
         let split = bytes.windows(4).position(|w| w == b"\r\n\r\n").unwrap();
         let header = String::from_utf8_lossy(&bytes[..split]);
         let status = header.split_whitespace().nth(1).unwrap().parse().unwrap();
-        (status, bytes[split + 4..].to_vec())
+        let body = &bytes[split + 4..];
+        let is_chunked = header.lines().any(|line| {
+            let (name, value) = line.split_once(':').unwrap_or(("", ""));
+            name.eq_ignore_ascii_case("transfer-encoding")
+                && value
+                    .split(',')
+                    .any(|encoding| encoding.trim().eq_ignore_ascii_case("chunked"))
+        });
+        let body = if is_chunked {
+            decode_chunked_body(body)
+        } else {
+            body.to_vec()
+        };
+        (status, body)
     }
 }
+
+fn decode_chunked_body(body: &[u8]) -> Vec<u8> {
+    let mut decoded = Vec::new();
+    let mut cursor = 0;
+    loop {
+        let line_end = body[cursor..]
+            .windows(2)
+            .position(|window| window == b"\r\n")
+            .map(|offset| cursor + offset)
+            .expect("chunk size line should end with CRLF");
+        let line = std::str::from_utf8(&body[cursor..line_end]).unwrap();
+        let size = usize::from_str_radix(line.split(';').next().unwrap().trim(), 16).unwrap();
+        cursor = line_end + 2;
+        if size == 0 {
+            if body[cursor..].starts_with(b"\r\n") {
+                assert_eq!(&body[cursor..], b"\r\n");
+            } else {
+                let trailer_end = body[cursor..]
+                    .windows(4)
+                    .position(|window| window == b"\r\n\r\n")
+                    .map(|offset| cursor + offset + 4)
+                    .expect("chunk trailers should end with CRLFCRLF");
+                assert_eq!(trailer_end, body.len());
+            }
+            return decoded;
+        }
+        let chunk_end = cursor.checked_add(size).expect("chunk size overflow");
+        assert!(chunk_end + 2 <= body.len(), "chunk should fit in response");
+        decoded.extend_from_slice(&body[cursor..chunk_end]);
+        assert_eq!(&body[chunk_end..chunk_end + 2], b"\r\n");
+        cursor = chunk_end + 2;
+    }
+}
+#[test]
+fn odds_http_uses_default_family_fallback_and_honors_explicit_opt_out() {
+    const REQUEST: &[u8] = include_bytes!(
+        "../../experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16498-44eabb47.json"
+    );
+
+    let default_service = Service::start();
+    let (status, default_body) = default_service.request("POST", "/odds", REQUEST, false);
+    assert_eq!(status, 200);
+    let default_payload: Value = serde_json::from_slice(&default_body).unwrap();
+
+    let (repeat_status, repeat_body) = default_service.request("POST", "/odds", REQUEST, false);
+    assert_eq!(repeat_status, 200);
+    assert_eq!(
+        default_payload,
+        serde_json::from_slice::<Value>(&repeat_body).unwrap()
+    );
+    drop(default_service);
+
+    let opt_out_service = Service::start_with_family_fallback(Some("0"));
+    let (status, opt_out_body) = opt_out_service.request("POST", "/odds", REQUEST, false);
+    assert_eq!(status, 200);
+    let opt_out_payload: Value = serde_json::from_slice(&opt_out_body).unwrap();
+
+    assert_eq!(
+        default_payload["game_importance"],
+        opt_out_payload["game_importance"]
+    );
+    let default_estimates = default_payload["rare_position_estimates"]
+        .as_object()
+        .unwrap();
+    let opt_out_estimates = opt_out_payload["rare_position_estimates"]
+        .as_object()
+        .unwrap();
+    for (team_id, opt_out_rows) in opt_out_estimates {
+        for (rank, opt_out_estimate) in opt_out_rows.as_object().unwrap() {
+            if opt_out_estimate["probability"].as_f64().unwrap() > 0.0 {
+                let mut default_native = default_estimates[team_id][rank].clone();
+                let mut opt_out_native = opt_out_estimate.clone();
+                default_native.as_object_mut().unwrap().remove("work_spent");
+                opt_out_native.as_object_mut().unwrap().remove("work_spent");
+                assert_eq!(
+                    default_native, opt_out_native,
+                    "native estimate changed for team {team_id} rank {rank}"
+                );
+            }
+        }
+    }
+
+    for (team_id, rank) in [("17", 11_usize), ("16", 14_usize)] {
+        let default_estimate =
+            &default_payload["rare_position_estimates"][team_id][rank.to_string()];
+        let opt_out_estimate =
+            &opt_out_payload["rare_position_estimates"][team_id][rank.to_string()];
+        assert!(
+            default_estimate["probability"].as_f64().unwrap() > 0.0,
+            "team {team_id} rank {rank} should gain a positive estimate"
+        );
+        assert!(
+            default_estimate["samples"].as_u64().unwrap() > 0,
+            "family estimate for team {team_id} rank {rank} should have samples"
+        );
+        assert!(
+            default_estimate["design"]
+                .as_str()
+                .unwrap()
+                .to_lowercase()
+                .contains("family"),
+            "team {team_id} rank {rank} should use the family estimator"
+        );
+        assert_eq!(opt_out_estimate["probability"], 0.0);
+        assert_eq!(
+            default_payload["team_odds"][team_id]["Pos"][rank],
+            default_estimate["probability"].as_f64().unwrap() * 100.0
+        );
+        assert_eq!(opt_out_payload["team_odds"][team_id]["Pos"][rank], 0.0);
+    }
+}
+
 #[test]
 fn incomplete_upload_does_not_block_health_or_ready_calculations() {
     let service = Service::start();

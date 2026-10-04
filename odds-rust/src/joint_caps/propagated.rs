@@ -865,215 +865,203 @@ impl PropagatedJoint {
         cell: Cell,
         limits: Limits,
     ) -> std::result::Result<Self, &'static str> {
-        let minimum_forced = limits.minimum_forced;
-        let rival_limit = limits.rivals;
-        let pattern_limit = limits.target_patterns;
-        let rules = &m.request.phase.championship;
-        if m.keys.first() != Some(&Key::Pt)
-            || m.request.phase.bonus_points != 0
-            || (rules.point_win, rules.point_draw, rules.point_loss) != (3, 1, 0)
-            || m.ids.len() != m.n
-            || cell.team >= m.n
-            || cell.rank >= m.n
-            || m.fixtures.iter().any(|g| g.home == g.away)
-        {
-            return Err("unsupported_rules");
-        }
-        let mut left = vec![0; m.n];
-        for g in &m.fixtures {
-            left[g.home] += 1;
-            left[g.away] += 1;
-        }
-        let wins = m.keys.get(1) == Some(&Key::W);
-        let stride64 = if wins {
-            m.base
+        Self::configured_internal(m, cell, limits, false).0
+    }
+
+    /// Diagnostic constructor that reports modeled setup work even if the
+    /// proposal is declined. `None` means checked accounting overflowed, so
+    /// callers must treat the amount as unavailable rather than zero.
+    pub fn configured_with_setup_work(
+        m: &Model,
+        cell: Cell,
+        limits: Limits,
+    ) -> (std::result::Result<Self, &'static str>, Option<usize>) {
+        Self::configured_internal(m, cell, limits, true)
+    }
+
+    fn configured_internal(
+        m: &Model,
+        cell: Cell,
+        limits: Limits,
+        collect_setup_work: bool,
+    ) -> (std::result::Result<Self, &'static str>, Option<usize>) {
+        let mut diagnostic_work = collect_setup_work.then_some(0usize);
+        let result = (|| {
+            let minimum_forced = limits.minimum_forced;
+            let rival_limit = limits.rivals;
+            let pattern_limit = limits.target_patterns;
+            let rules = &m.request.phase.championship;
+            if m.keys.first() != Some(&Key::Pt)
+                || m.request.phase.bonus_points != 0
+                || (rules.point_win, rules.point_draw, rules.point_loss) != (3, 1, 0)
+                || m.ids.len() != m.n
+                || cell.team >= m.n
+                || cell.rank >= m.n
+                || m.fixtures.iter().any(|g| g.home == g.away)
+            {
+                return Err("unsupported_rules");
+            }
+            let mut left = vec![0; m.n];
+            for g in &m.fixtures {
+                left[g.home] += 1;
+                left[g.away] += 1;
+            }
+            let wins = m.keys.get(1) == Some(&Key::W);
+            let stride64 = if wins {
+                m.base
+                    .iter()
+                    .zip(&left)
+                    .map(|(c, n)| i64::from(c.wins) + i64::from(*n))
+                    .max()
+                    .ok_or("empty_model")?
+                    + 1
+            } else {
+                1
+            };
+            if !(1..=4096).contains(&stride64) {
+                return Err("packed_stride_limit");
+            }
+            let stride = stride64 as i32;
+            if m.fixtures.len() > 256
+                || left[cell.team] == 0
+                || left[cell.team] > 32
+                || left
+                    .iter()
+                    .any(|&n| (3 * stride64 + i64::from(wins)) * i64::from(n) > 4096)
+                || m.base.iter().any(|c| {
+                    (i64::from(c.points).abs() + 3 * m.fixtures.len() as i64 + 1) * stride64
+                        + i64::from(c.wins)
+                        >= i64::from(i32::MAX / 4)
+                })
+            {
+                return Err("fixture_or_gain_limit");
+            }
+            let base = m
+                .base
                 .iter()
-                .zip(&left)
-                .map(|(c, n)| i64::from(c.wins) + i64::from(*n))
-                .max()
-                .ok_or("empty_model")?
-                + 1
-        } else {
-            1
-        };
-        if !(1..=4096).contains(&stride64) {
-            return Err("packed_stride_limit");
-        }
-        let stride = stride64 as i32;
-        if m.fixtures.len() > 256
-            || left[cell.team] == 0
-            || left[cell.team] > 32
-            || left
+                .map(|c| c.points * stride + if wins { c.wins } else { 0 })
+                .collect::<Vec<_>>();
+            let hg = [0, stride, 3 * stride + i32::from(wins)];
+            let all = m
+                .fixtures
                 .iter()
-                .any(|&n| (3 * stride64 + i64::from(wins)) * i64::from(n) > 4096)
-            || m.base.iter().any(|c| {
-                (i64::from(c.points).abs() + 3 * m.fixtures.len() as i64 + 1) * stride64
-                    + i64::from(c.wins)
-                    >= i64::from(i32::MAX / 4)
-            })
-        {
-            return Err("fixture_or_gain_limit");
-        }
-        let base = m
-            .base
-            .iter()
-            .map(|c| c.points * stride + if wins { c.wins } else { 0 })
-            .collect::<Vec<_>>();
-        let hg = [0, stride, 3 * stride + i32::from(wins)];
-        let all = m
-            .fixtures
-            .iter()
-            .enumerate()
-            .map(|(index, g)| RankGame {
-                index,
-                home: g.home,
-                away: g.away,
-                prob: g.prob,
-                hg,
-                ag: [hg[2], hg[1], hg[0]],
-            })
-            .collect::<Vec<_>>();
-        let (target_games, remaining): (Vec<_>, Vec<_>) = all
-            .into_iter()
-            .partition(|g| g.home == cell.team || g.away == cell.team);
-        let span = (hg[2] * left[cell.team]) as usize + 1;
-        let terminal = crate::target_limits::terminal(m, cell, &base, &left, hg[2]);
-        let table = TerminalTable::new(target_games, cell.team, terminal);
-        // Count every supported target assignment, with saturation. The model
-        // is used only if the entire union fits; no prefix is silently retained.
-        let mut counts = vec![vec![0usize; span]; table.games.len() + 1];
-        for (i, &p) in table
-            .rows
-            .last()
-            .ok_or("empty_target_table")?
-            .iter()
-            .enumerate()
-        {
-            counts[table.games.len()][i] = usize::from(p > 0.);
-        }
-        for i in (0..table.games.len()).rev() {
-            let g = &table.games[i];
-            let gains = if g.home == cell.team { g.hg } else { g.ag };
-            for added in 0..span {
-                for o in 0..3 {
-                    if g.prob[o] > 0. {
-                        counts[i][added] = (counts[i][added]
-                            + counts[i + 1]
-                                .get(added + gains[o] as usize)
-                                .copied()
-                                .unwrap_or(0))
-                        .min(pattern_limit + 1);
-                    }
-                }
-            }
-        }
-        let target_patterns = counts[0][0];
-        if target_patterns == 0 {
-            return Err("empty_target_support");
-        }
-        if target_patterns > pattern_limit {
-            return Err("target_pattern_limit");
-        }
-        let mut assignments = vec![(0usize, Vec::new(), 1., base.clone())];
-        for (step, g) in table.games.iter().enumerate() {
-            let mut next = Vec::new();
-            let gain = if g.home == cell.team { g.hg } else { g.ag };
-            for (added, fixed, mass, points) in assignments {
-                for o in 0..3 {
-                    let to = added + gain[o] as usize;
-                    if g.prob[o] <= 0. || counts[step + 1].get(to).copied().unwrap_or(0) == 0 {
-                        continue;
-                    }
-                    let mut fixed = fixed.clone();
-                    fixed.push((g.index, o as u8));
-                    let mut points = points.clone();
-                    points[g.home] += g.hg[o];
-                    points[g.away] += g.ag[o];
-                    next.push((to, fixed, mass * g.prob[o], points));
-                }
-            }
-            assignments = next;
-        }
-        let rivals = (0..m.n).filter(|&t| t != cell.team).collect::<Vec<_>>();
-        let mut patterns = Vec::new();
-        let mut cache: HashMap<(Vec<u8>, Vec<(i32, i32)>), (Arc<NecessaryJoint>, Arc<Guide>)> =
-            HashMap::new();
-        let mut setup_nodes = 0usize;
-        let mut guide_values = 0usize;
-        let mut mass = 0.;
-        for (_, mut fixed, mut weight, points) in assignments {
-            let d = Domains::propagate(&remaining, &points, &rivals, cell.rank, points[cell.team]);
-            if !d.feasible {
-                continue;
-            }
-            let mut variables = Vec::new();
-            for (g, &mask) in remaining.iter().zip(&d.domains) {
-                if mask.count_ones() == 1 {
-                    let o = mask.trailing_zeros() as usize;
-                    fixed.push((g.index, o as u8));
-                    weight *= g.prob[o];
-                } else {
-                    let total: f64 = (0..3)
-                        .filter(|o| mask & (1 << o) != 0)
-                        .map(|o| g.prob[o])
-                        .sum();
-                    if total <= 0. {
-                        return Err("zero_mask_mass");
-                    }
-                    weight *= total;
-                    let mut g = *g;
-                    g.prob = std::array::from_fn(|o| {
-                        if mask & (1 << o) != 0 {
-                            g.prob[o] / total
-                        } else {
-                            0.
-                        }
-                    });
-                    variables.push(g);
-                }
-            }
-            if fixed.len() < table.games.len() + minimum_forced {
-                return Err("minimum_forced_fixtures");
-            }
-            let propagated_base = if d.base.is_empty() { points } else { d.base };
-            let constraint_key = (0..m.n)
-                .map(|t| {
-                    let span: i32 = variables
-                        .iter()
-                        .filter(|g| g.home == t || g.away == t)
-                        .map(|g| {
-                            *if g.home == t { &g.hg } else { &g.ag }
-                                .iter()
-                                .max()
-                                .unwrap()
-                        })
-                        .sum();
-                    (
-                        (d.lower[t] - propagated_base[t]).clamp(0, span + 1),
-                        (d.upper[t] - propagated_base[t]).clamp(-1, span),
-                    )
+                .enumerate()
+                .map(|(index, g)| RankGame {
+                    index,
+                    home: g.home,
+                    away: g.away,
+                    prob: g.prob,
+                    hg,
+                    ag: [hg[2], hg[1], hg[0]],
                 })
                 .collect::<Vec<_>>();
-            if patterns.len() >= limits.feasible_cases {
-                return Err("feasible_case_limit");
+            let (target_games, remaining): (Vec<_>, Vec<_>) = all
+                .into_iter()
+                .partition(|g| g.home == cell.team || g.away == cell.team);
+            let span = (hg[2] * left[cell.team]) as usize + 1;
+            let terminal = crate::target_limits::terminal(m, cell, &base, &left, hg[2]);
+            let table = TerminalTable::new(target_games, cell.team, terminal);
+            // Count every supported target assignment, with saturation. The model
+            // is used only if the entire union fits; no prefix is silently retained.
+            let mut counts = vec![vec![0usize; span]; table.games.len() + 1];
+            for (i, &p) in table
+                .rows
+                .last()
+                .ok_or("empty_target_table")?
+                .iter()
+                .enumerate()
+            {
+                counts[table.games.len()][i] = usize::from(p > 0.);
             }
-            let key = (d.domains.clone(), constraint_key);
-            let (joint, guide) = if let Some(pair) = cache.get(&key) {
-                pair.clone()
-            } else {
-                let (joint, variables) = NecessaryJoint::new(
-                    &variables,
-                    &propagated_base,
-                    &d.lower,
-                    &d.upper,
-                    rival_limit,
-                    60000 - setup_nodes,
-                )
-                .ok_or("joint_node_limit")?;
-                setup_nodes += joint.states;
-                let span = (0..m.n)
+            for i in (0..table.games.len()).rev() {
+                let g = &table.games[i];
+                let gains = if g.home == cell.team { g.hg } else { g.ag };
+                for added in 0..span {
+                    for o in 0..3 {
+                        if g.prob[o] > 0. {
+                            counts[i][added] = (counts[i][added]
+                                + counts[i + 1]
+                                    .get(added + gains[o] as usize)
+                                    .copied()
+                                    .unwrap_or(0))
+                            .min(pattern_limit + 1);
+                        }
+                    }
+                }
+            }
+            let target_patterns = counts[0][0];
+            if target_patterns == 0 {
+                return Err("empty_target_support");
+            }
+            if target_patterns > pattern_limit {
+                return Err("target_pattern_limit");
+            }
+            let mut assignments = vec![(0usize, Vec::new(), 1., base.clone())];
+            for (step, g) in table.games.iter().enumerate() {
+                let mut next = Vec::new();
+                let gain = if g.home == cell.team { g.hg } else { g.ag };
+                for (added, fixed, mass, points) in assignments {
+                    for o in 0..3 {
+                        let to = added + gain[o] as usize;
+                        if g.prob[o] <= 0. || counts[step + 1].get(to).copied().unwrap_or(0) == 0 {
+                            continue;
+                        }
+                        let mut fixed = fixed.clone();
+                        fixed.push((g.index, o as u8));
+                        let mut points = points.clone();
+                        points[g.home] += g.hg[o];
+                        points[g.away] += g.ag[o];
+                        next.push((to, fixed, mass * g.prob[o], points));
+                    }
+                }
+                assignments = next;
+            }
+            let rivals = (0..m.n).filter(|&t| t != cell.team).collect::<Vec<_>>();
+            let mut patterns = Vec::new();
+            let mut cache: HashMap<(Vec<u8>, Vec<(i32, i32)>), (Arc<NecessaryJoint>, Arc<Guide>)> =
+                HashMap::new();
+            let mut setup_nodes = 0usize;
+            let mut guide_values = 0usize;
+            let mut mass = 0.;
+            for (_, mut fixed, mut weight, points) in assignments {
+                let d =
+                    Domains::propagate(&remaining, &points, &rivals, cell.rank, points[cell.team]);
+                if !d.feasible {
+                    continue;
+                }
+                let mut variables = Vec::new();
+                for (g, &mask) in remaining.iter().zip(&d.domains) {
+                    if mask.count_ones() == 1 {
+                        let o = mask.trailing_zeros() as usize;
+                        fixed.push((g.index, o as u8));
+                        weight *= g.prob[o];
+                    } else {
+                        let total: f64 = (0..3)
+                            .filter(|o| mask & (1 << o) != 0)
+                            .map(|o| g.prob[o])
+                            .sum();
+                        if total <= 0. {
+                            return Err("zero_mask_mass");
+                        }
+                        weight *= total;
+                        let mut g = *g;
+                        g.prob = std::array::from_fn(|o| {
+                            if mask & (1 << o) != 0 {
+                                g.prob[o] / total
+                            } else {
+                                0.
+                            }
+                        });
+                        variables.push(g);
+                    }
+                }
+                if fixed.len() < table.games.len() + minimum_forced {
+                    return Err("minimum_forced_fixtures");
+                }
+                let propagated_base = if d.base.is_empty() { points } else { d.base };
+                let constraint_key = (0..m.n)
                     .map(|t| {
-                        variables
+                        let span: i32 = variables
                             .iter()
                             .filter(|g| g.home == t || g.away == t)
                             .map(|g| {
@@ -1082,72 +1070,134 @@ impl PropagatedJoint {
                                     .max()
                                     .unwrap()
                             })
-                            .sum::<i32>()
+                            .sum();
+                        (
+                            (d.lower[t] - propagated_base[t]).clamp(0, span + 1),
+                            (d.upper[t] - propagated_base[t]).clamp(-1, span),
+                        )
                     })
-                    .max()
-                    .unwrap_or(0) as usize
-                    + 1;
-                // Suffix rows share unchanged teams through Arc. Two
-                // endpoint rows per fixture, in both gain directions.
-                guide_values += (2 * variables.len() + 1) * span * 2;
-                if guide_values > 4000000 {
-                    return Err("guide_memory_limit");
+                    .collect::<Vec<_>>();
+                if patterns.len() >= limits.feasible_cases {
+                    return Err("feasible_case_limit");
                 }
-                let pair = (Arc::new(joint), Arc::new(Guide::new(variables, m.n)));
-                cache.insert(key, pair.clone());
-                pair
-            };
-            if joint.mass <= 0. {
-                continue;
+                let key = (d.domains.clone(), constraint_key);
+                let (joint, guide) = if let Some(pair) = cache.get(&key) {
+                    pair.clone()
+                } else {
+                    let budget = 60000 - setup_nodes;
+                    let (joint, variables) = if collect_setup_work {
+                        let mut remaining_budget = budget;
+                        let built = NecessaryJoint::metered(
+                            &variables,
+                            &propagated_base,
+                            &d.lower,
+                            &d.upper,
+                            rival_limit,
+                            &mut remaining_budget,
+                        );
+                        let spent_nodes = budget - remaining_budget;
+                        add_setup_work(&mut diagnostic_work, spent_nodes, 0);
+                        built.ok_or("joint_node_limit")?
+                    } else {
+                        NecessaryJoint::new(
+                            &variables,
+                            &propagated_base,
+                            &d.lower,
+                            &d.upper,
+                            rival_limit,
+                            budget,
+                        )
+                        .ok_or("joint_node_limit")?
+                    };
+                    setup_nodes += joint.states;
+                    let span = (0..m.n)
+                        .map(|t| {
+                            variables
+                                .iter()
+                                .filter(|g| g.home == t || g.away == t)
+                                .map(|g| {
+                                    *if g.home == t { &g.hg } else { &g.ag }
+                                        .iter()
+                                        .max()
+                                        .unwrap()
+                                })
+                                .sum::<i32>()
+                        })
+                        .max()
+                        .unwrap_or(0) as usize
+                        + 1;
+                    // Suffix rows share unchanged teams through Arc. Two
+                    // endpoint rows per fixture, in both gain directions.
+                    let guide_values_this = (2 * variables.len() + 1) * span * 2;
+                    guide_values += guide_values_this;
+                    if guide_values > 4000000 {
+                        return Err("guide_memory_limit");
+                    }
+                    let guide = Guide::new(variables, m.n);
+                    if collect_setup_work {
+                        if let Some(values) = constructed_guide_values(&guide) {
+                            add_setup_work(&mut diagnostic_work, 0, values);
+                        } else {
+                            diagnostic_work = None;
+                        }
+                    }
+                    let pair = (Arc::new(joint), Arc::new(guide));
+                    cache.insert(key, pair.clone());
+                    pair
+                };
+                if joint.mass <= 0. {
+                    continue;
+                }
+                weight *= joint.mass;
+                mass += weight;
+                patterns.push(Pattern {
+                    bias: None,
+                    omitted: Vec::new(),
+                    fixed,
+                    base: propagated_base,
+                    lower: d.lower,
+                    upper: d.upper,
+                    guide,
+                    joint,
+                    mass: weight,
+                    tilt: 1.,
+                    cumulative: mass,
+                    bound_guidance: false,
+                });
             }
-            weight *= joint.mass;
-            mass += weight;
-            patterns.push(Pattern {
-                bias: None,
-                omitted: Vec::new(),
-                fixed,
-                base: propagated_base,
-                lower: d.lower,
-                upper: d.upper,
-                guide,
-                joint,
-                mass: weight,
-                tilt: 1.,
-                cumulative: mass,
-                bound_guidance: false,
-            });
-        }
-        if mass <= 0.
-            || !mass.is_finite()
-            || patterns.is_empty()
-            || patterns
+            if mass <= 0.
+                || !mass.is_finite()
+                || patterns.is_empty()
+                || patterns
+                    .iter()
+                    .any(|p| p.fixed.len() < table.games.len() + minimum_forced)
+            {
+                return Err("empty_conditioning_mass");
+            }
+            let max_hint = patterns
                 .iter()
-                .any(|p| p.fixed.len() < table.games.len() + minimum_forced)
-        {
-            return Err("empty_conditioning_mass");
-        }
-        let max_hint = patterns
-            .iter()
-            .map(|p| p.joint.residual_hint)
-            .fold(0., f64::max);
-        let mut tilted_mass = 0.;
-        for p in &mut patterns {
-            p.tilt = if max_hint > 0. {
-                (p.joint.residual_hint / max_hint).max(1e-6)
-            } else {
-                1.
-            };
-            tilted_mass += p.mass * p.tilt;
-            p.cumulative = tilted_mass;
-        }
-        Ok(Self {
-            tilted_mass,
-            guides: cache.len(),
-            cell,
-            patterns,
-            mass,
-            target_patterns,
-        })
+                .map(|p| p.joint.residual_hint)
+                .fold(0., f64::max);
+            let mut tilted_mass = 0.;
+            for p in &mut patterns {
+                p.tilt = if max_hint > 0. {
+                    (p.joint.residual_hint / max_hint).max(1e-6)
+                } else {
+                    1.
+                };
+                tilted_mass += p.mass * p.tilt;
+                p.cumulative = tilted_mass;
+            }
+            Ok(Self {
+                tilted_mass,
+                guides: cache.len(),
+                cell,
+                patterns,
+                mass,
+                target_patterns,
+            })
+        })();
+        (result, diagnostic_work)
     }
     pub(crate) fn setup_work(&self) -> usize {
         let mut seen = std::collections::HashSet::new();
@@ -1229,10 +1279,44 @@ impl PropagatedJoint {
     }
 }
 
+fn add_setup_work(total: &mut Option<usize>, nodes: usize, guide_values: usize) {
+    *total = total.and_then(|work| {
+        work.checked_add(nodes.checked_mul(16)?)
+            .and_then(|work| work.checked_add(guide_values.checked_mul(2)?))
+    });
+}
+
+fn constructed_guide_values(guide: &Guide) -> Option<usize> {
+    guide
+        .cdf
+        .values
+        .iter()
+        .chain(&guide.reverse.values)
+        .try_fold(0usize, |total, row| total.checked_add(row.len()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{conditioned::canonical_ranks, model::Request};
+    fn assert_same_result(left: &Result, right: &Result) {
+        assert_eq!(left.mass.to_bits(), right.mass.to_bits());
+        assert_eq!(left.samples, right.samples);
+        assert_eq!(left.hits, right.hits);
+        assert_eq!(left.blockers, right.blockers);
+        assert_eq!(left.work, right.work);
+        assert_eq!(left.operations.fixtures, right.operations.fixtures);
+        assert_eq!(left.operations.guidance, right.operations.guidance);
+        assert_eq!(left.operations.ranking, right.operations.ranking);
+        assert_eq!(left.weighted, right.weighted);
+        assert_eq!(left.probability.to_bits(), right.probability.to_bits());
+        assert_eq!(left.std_err.to_bits(), right.std_err.to_bits());
+        assert_eq!(left.ess.to_bits(), right.ess.to_bits());
+        assert_eq!(left.max_share.to_bits(), right.max_share.to_bits());
+        assert_eq!(left.batch_gap.to_bits(), right.batch_gap.to_bits());
+        assert_eq!(left.witness, right.witness);
+        assert_eq!(left.omitted_draws, right.omitted_draws);
+    }
     fn league(sort: &str) -> Model {
         let games = (0..4)
             .flat_map(|h| {
@@ -1246,6 +1330,15 @@ mod tests {
             "phase":{"sort":sort,"championship":{"point_win":3,"point_draw":1,"point_loss":0}},
             "team_groups":(0..4).map(|t|json!({"team_id":t,"add_sub":t,"bias":t})).collect::<Vec<_>>(),
             "games":games})).unwrap();
+        Model::new(request).unwrap()
+    }
+    fn twenty_team_one_fixture() -> Model {
+        let request: Request = serde_json::from_value(json!({
+            "id":2,
+            "phase":{"sort":"pt,bias","championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+            "team_groups":(0..20).map(|team|json!({"team_id":team,"add_sub":0,"bias":if team == 0 {100} else {0}})).collect::<Vec<_>>(),
+            "games":[{"id":1,"home_id":0,"away_id":1,"home_power":1.1,"away_power":0.9}]
+        })).unwrap();
         Model::new(request).unwrap()
     }
     fn exact(m: &Model, p: &PropagatedJoint) -> (f64, f64) {
@@ -1327,6 +1420,71 @@ mod tests {
             }
         }
         (event, rank)
+    }
+    #[test]
+    fn configured_work_diagnostic_preserves_successful_native_proposal() {
+        let m = league("pt,w,bias");
+        let cell = Cell { team: 0, rank: 1 };
+        let limits = Limits {
+            minimum_forced: 0,
+            rivals: 1,
+            target_patterns: 64,
+            feasible_cases: 16,
+        };
+        let ordinary = PropagatedJoint::configured(&m, cell, limits).unwrap();
+        let (diagnostic, setup_work) =
+            PropagatedJoint::configured_with_setup_work(&m, cell, limits);
+        let diagnostic = diagnostic.unwrap();
+        assert_eq!(ordinary.describe(&m), diagnostic.describe(&m));
+        assert!(setup_work.is_some_and(|work| work > 0));
+        assert_same_result(
+            &ordinary.sample(&m, 2_000, 441, true),
+            &diagnostic.sample(&m, 2_000, 441, true),
+        );
+    }
+
+    #[test]
+    fn configured_work_diagnostic_keeps_actual_guide_cost_on_late_failure() {
+        let m = twenty_team_one_fixture();
+        let limits = Limits {
+            minimum_forced: 0,
+            rivals: 1,
+            target_patterns: 64,
+            feasible_cases: 1,
+        };
+        let (result, setup_work) =
+            PropagatedJoint::configured_with_setup_work(&m, Cell { team: 0, rank: 0 }, limits);
+        assert_eq!(result.err().unwrap(), "feasible_case_limit");
+        let setup_work = setup_work.expect("completed modeled setup accounting");
+        let empty_guide = Guide::new(Vec::new(), 20);
+        let actual_guide_values = constructed_guide_values(&empty_guide).unwrap();
+        assert_eq!(actual_guide_values, 40);
+        assert!(setup_work >= 2 * actual_guide_values);
+
+        let unsupported = league("gd,pt");
+        let (early, early_work) = PropagatedJoint::configured_with_setup_work(
+            &unsupported,
+            Cell { team: 0, rank: 1 },
+            Limits::default(),
+        );
+        assert_eq!(early.err().unwrap(), "unsupported_rules");
+        assert_eq!(early_work, Some(0));
+    }
+
+    #[test]
+    fn configured_work_diagnostic_marks_counter_overflow_incomplete() {
+        let mut work = Some(usize::MAX - 1);
+        add_setup_work(&mut work, 0, 1);
+        assert_eq!(work, None);
+
+        let mut work = Some(0);
+        add_setup_work(&mut work, usize::MAX, 0);
+        assert_eq!(work, None);
+
+        let guide = Guide::new(Vec::new(), 20);
+        assert_eq!(constructed_guide_values(&guide), Some(40));
+        let memory_estimate = (2 * guide.games.len() + 1) * guide.cdf.span * 2;
+        assert_eq!(memory_estimate, 2);
     }
     #[test]
     fn complete_propagated_union_matches_exhaustive_mass_and_preserves_every_rank_hit() {

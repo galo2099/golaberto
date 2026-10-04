@@ -1,0 +1,311 @@
+{
+  "source_summary": "/Users/robsonaraujo/work/golaberto/experiments/rare_positions/2026-10-04-family-production/logs/adoption-v1/summary.json",
+  "source_summary_sha256": "43f5335f5c584d8c5a58c1d3e882d98547da004968cd2718f76d7a8372692cca",
+  "validated_run_records": 70,
+  "screen_pairs": 12,
+  "core_pairs": 9,
+  "breadth_pairs": 3,
+  "source_failures_reviewed": {
+    "count": 22,
+    "only_known_summary_aliases": true,
+    "by_check": {
+      "late_fallback_signature_exact_to_frozen_r60": 7,
+      "production_fallback_ledger_consistent": 7,
+      "handoff_fee_matches_native_summary_once": 7,
+      "team95_rank3_skip_preserved_without_fit_replay_validation_or_final_draws": 1
+    }
+  },
+  "record_artifacts_rehashed": true,
+  "reference_r60_artifacts_rehashed": true,
+  "binary_provenance": {
+    "old-production": {
+      "path": "/private/tmp/golaberto-family-production-baseline/odds-rust/target/release/golaberto-odds",
+      "sha256": "2466d4045ce8c71e48835cdb295143942fa6118f1688d71d6c4ff59aad50321f"
+    },
+    "production": {
+      "path": "/Users/robsonaraujo/work/golaberto/odds-rust/target/release/golaberto-odds",
+      "sha256": "87991033bdb81854cec91f3d29c32c66f5b089f51d2530590e48b2a0efc40085"
+    },
+    "frozen-r60": {
+      "path": "/Users/robsonaraujo/work/golaberto/experiments/rare_positions/2026-10-04-family-late-fallback/data/golaberto-odds-r60-v2-late-fallback",
+      "sha256": "627726438d3d7c995397f45b77b9c487558aaa29a55f87e665106fe206b736e6"
+    }
+  },
+  "core_default_equals_frozen_r60_bytes_all_seeds": true,
+  "explicit_zero_optouts_byte_equal_old_baseline": true,
+  "legacy_flag_precedence_optout_byte_equal_old_baseline": true,
+  "old_positive_estimates_preserved_except_work_spent": true,
+  "gain_coverage": {
+    "gained_cell_runs": 4,
+    "distinct_group_cell_identities": 3,
+    "cells_with_exact_estimates": [
+      {
+        "group": 16498,
+        "team_id": "16",
+        "rank_index": "12",
+        "runs": [
+          {
+            "seed": 2293,
+            "estimate": {
+              "probability": 7.594228821382229e-21,
+              "std_err": 1.035040281580572e-21,
+              "samples": 100000,
+              "hits": 0,
+              "ess": 52.324528552003244,
+              "mean_weight": 1.0,
+              "work_spent": 230790758,
+              "available": true,
+              "meets_precision_goal": true,
+              "relative_se": 0.136293006956325,
+              "max_event_weight_share": 0.06475416287663179,
+              "zero_hit_upper_95": 0.0,
+              "design": "matched_point_pool_rare_tail_family_fallback",
+              "reachability": "reachable",
+              "conditional_mass": 0.0008332769215450434,
+              "conditional_samples": 1832,
+              "conditional_hits": 842
+            }
+          }
+        ]
+      },
+      {
+        "group": 16498,
+        "team_id": "16",
+        "rank_index": "14",
+        "runs": [
+          {
+            "seed": 808,
+            "estimate": {
+              "probability": 9.999711245204903e-34,
+              "std_err": 3.8174292768083726e-34,
+              "samples": 100000,
+              "hits": 0,
+              "ess": 6.8567445463944425,
+              "mean_weight": 1.0,
+              "work_spent": 380351808,
+              "available": true,
+              "meets_precision_goal": false,
+              "relative_se": 0.3817539510092274,
+              "max_event_weight_share": 0.27810681438331164,
+              "zero_hit_upper_95": 0.0,
+              "design": "matched_point_pool_rare_tail_family_fallback",
+              "reachability": "reachable",
+              "conditional_mass": 0.00011168892537677119,
+              "conditional_samples": 8080,
+              "conditional_hits": 1098
+            }
+          }
+        ]
+      },
+      {
+        "group": 16498,
+        "team_id": "17",
+        "rank_index": "11",
+        "runs": [
+          {
+            "seed": 808,
+            "estimate": {
+              "probability": 3.451022521859592e-26,
+              "std_err": 7.467220385446948e-27,
+              "samples": 100000,
+              "hits": 0,
+              "ess": 21.213473560841354,
+              "mean_weight": 1.0,
+              "work_spent": 380351808,
+              "available": true,
+              "meets_precision_goal": true,
+              "relative_se": 0.21637704008443323,
+              "max_event_weight_share": 0.1348520453377503,
+              "zero_hit_upper_95": 0.0,
+              "design": "matched_point_pool_rare_tail_family_fallback",
+              "reachability": "reachable",
+              "conditional_mass": 9.176666989777301e-05,
+              "conditional_samples": 2971,
+              "conditional_hits": 326
+            }
+          },
+          {
+            "seed": 2293,
+            "estimate": {
+              "probability": 5.657356956304207e-26,
+              "std_err": 1.0257905223131827e-26,
+              "samples": 100000,
+              "hits": 0,
+              "ess": 30.09862281644184,
+              "mean_weight": 1.0,
+              "work_spent": 230790758,
+              "available": true,
+              "meets_precision_goal": true,
+              "relative_se": 0.18131974528672892,
+              "max_event_weight_share": 0.08970405745894276,
+              "zero_hit_upper_95": 0.0,
+              "design": "matched_point_pool_rare_tail_family_fallback",
+              "reachability": "reachable",
+              "conditional_mass": 9.176666989777301e-05,
+              "conditional_samples": 2785,
+              "conditional_hits": 386
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "baseline_positive_losses": 0,
+  "per_pair_counts": [
+    {
+      "group": 16498,
+      "seed": 808,
+      "matrix_cells": 400,
+      "gain_count": 2,
+      "loss_count": 0,
+      "work_spent_changed_cell_count": 400,
+      "core_native_cells": 4,
+      "core_fallback_attempts": 2
+    },
+    {
+      "group": 16498,
+      "seed": 1669,
+      "matrix_cells": 400,
+      "gain_count": 0,
+      "loss_count": 0,
+      "work_spent_changed_cell_count": 400,
+      "core_native_cells": 5,
+      "core_fallback_attempts": 1
+    },
+    {
+      "group": 16498,
+      "seed": 1993,
+      "matrix_cells": 400,
+      "gain_count": 0,
+      "loss_count": 0,
+      "work_spent_changed_cell_count": 400,
+      "core_native_cells": 4,
+      "core_fallback_attempts": 1
+    },
+    {
+      "group": 16498,
+      "seed": 2281,
+      "matrix_cells": 400,
+      "gain_count": 0,
+      "loss_count": 0,
+      "work_spent_changed_cell_count": 400,
+      "core_native_cells": 4,
+      "core_fallback_attempts": 1
+    },
+    {
+      "group": 16498,
+      "seed": 2293,
+      "matrix_cells": 400,
+      "gain_count": 2,
+      "loss_count": 0,
+      "work_spent_changed_cell_count": 400,
+      "core_native_cells": 6,
+      "core_fallback_attempts": 3
+    },
+    {
+      "group": 16653,
+      "seed": 808,
+      "matrix_cells": 400,
+      "gain_count": 0,
+      "loss_count": 0,
+      "work_spent_changed_cell_count": 400,
+      "core_native_cells": 1,
+      "core_fallback_attempts": 0
+    },
+    {
+      "group": 16653,
+      "seed": 2293,
+      "matrix_cells": 400,
+      "gain_count": 0,
+      "loss_count": 0,
+      "work_spent_changed_cell_count": 400,
+      "core_native_cells": 3,
+      "core_fallback_attempts": 0
+    },
+    {
+      "group": 16982,
+      "seed": 808,
+      "matrix_cells": 400,
+      "gain_count": 0,
+      "loss_count": 0,
+      "work_spent_changed_cell_count": 0,
+      "core_native_cells": 0,
+      "core_fallback_attempts": null
+    },
+    {
+      "group": 16982,
+      "seed": 2293,
+      "matrix_cells": 400,
+      "gain_count": 0,
+      "loss_count": 0,
+      "work_spent_changed_cell_count": 0,
+      "core_native_cells": 0,
+      "core_fallback_attempts": null
+    },
+    {
+      "group": 15902,
+      "seed": 808,
+      "matrix_cells": 400,
+      "gain_count": 0,
+      "loss_count": 0,
+      "work_spent_changed_cell_count": 0,
+      "core_native_cells": null,
+      "core_fallback_attempts": null
+    },
+    {
+      "group": 16413,
+      "seed": 808,
+      "matrix_cells": 324,
+      "gain_count": 0,
+      "loss_count": 0,
+      "work_spent_changed_cell_count": 0,
+      "core_native_cells": null,
+      "core_fallback_attempts": null
+    },
+    {
+      "group": 16983,
+      "seed": 808,
+      "matrix_cells": 400,
+      "gain_count": 0,
+      "loss_count": 0,
+      "work_spent_changed_cell_count": 0,
+      "core_native_cells": null,
+      "core_fallback_attempts": null
+    }
+  ],
+  "timing_means": {
+    "808": {
+      "old_baseline_wall_seconds_mean": 1.3626554443333323,
+      "candidate_default_wall_seconds_mean": 1.5851389303333339,
+      "old_baseline_child_cpu_seconds_mean": 3.268108666666668,
+      "candidate_default_child_cpu_seconds_mean": 3.381362999999998,
+      "paired_wall_delta_seconds_mean": 0.22248348600000156,
+      "paired_cpu_delta_seconds_mean": 0.11325433333333024
+    },
+    "1669": {
+      "old_baseline_wall_seconds_mean": 1.227573444666665,
+      "candidate_default_wall_seconds_mean": 1.3266915693333345,
+      "old_baseline_child_cpu_seconds_mean": 3.358266333333338,
+      "candidate_default_child_cpu_seconds_mean": 3.384814999999996,
+      "paired_wall_delta_seconds_mean": 0.0991181246666694,
+      "paired_cpu_delta_seconds_mean": 0.026548666666657894
+    },
+    "2293": {
+      "old_baseline_wall_seconds_mean": 1.6021586943333357,
+      "candidate_default_wall_seconds_mean": 1.673375846999998,
+      "old_baseline_child_cpu_seconds_mean": 3.786154666666665,
+      "candidate_default_child_cpu_seconds_mean": 3.651156666666669,
+      "paired_wall_delta_seconds_mean": 0.07121715266666229,
+      "paired_cpu_delta_seconds_mean": -0.13499799999999595
+    }
+  },
+  "timing_interpretation": "Descriptive 3-seed, 3-repeat measurements; no speed claim.",
+  "rust_suite": {
+    "passed": 151,
+    "mysql_gated_ignored": 4,
+    "source": "root-reported final locked offline Rust suite"
+  },
+  "post_alias_failures": [],
+  "passed": true,
+  "validation_is_read_only_no_estimator_runs": true
+}

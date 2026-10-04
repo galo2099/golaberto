@@ -8,6 +8,7 @@ use crate::{
     search::Cell,
 };
 const BETAS: [f64; 9] = [-3., -2., -1., -0.5, 0., 0.5, 1., 2., 3.];
+#[derive(Clone)]
 struct Table {
     values: [Vec<([i32; 2], f64)>; 3],
     log_z: [f64; 3],
@@ -29,11 +30,19 @@ impl Context {
         }
     }
 }
+#[derive(Clone)]
 pub struct GoalTilt {
     cell: Cell,
     tables: Vec<Vec<Table>>,
 }
 impl GoalTilt {
+    pub(crate) fn clone_work(&self) -> usize {
+        self.tables
+            .iter()
+            .flatten()
+            .map(|table| table.values.iter().map(Vec::len).sum::<usize>() + 6)
+            .sum()
+    }
     pub fn new(m: &Model, cell: Cell) -> Option<Self> {
         let gd = if m.keys.get(1) == Some(&Key::W) { 2 } else { 1 };
         if m.keys.first() != Some(&Key::Pt) || m.keys.get(gd) != Some(&Key::Gd) {

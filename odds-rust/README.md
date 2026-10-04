@@ -15,6 +15,13 @@ additional portfolio uses deterministic work limits and the documented
 rough-estimate gates below.
 `RUST_ODDS_RARE_TAIL=0` disables the additional portfolio.
 
+The coverage profile also enables the bounded **family fallback** by default.
+It learns rival points/wins patterns from failed native confirmation batches,
+then fits proposals only for cells still at zero after all native searches.
+Successful native estimates are preserved. No enabling flags are needed;
+`RUST_ODDS_FAMILY_FALLBACK=0` disables this fallback. Rebuild and restart the
+Rust service to apply the change.
+
 The native service also replaces the active Go `/spi`, `/eval`, and
 `/historic_ratings` endpoints and integrates the active `stats` `/player_ratings`
 command. It does not run or proxy Go or the stats executable. The player formulas
@@ -124,6 +131,42 @@ The CLI's compact timing summary remains available. `RUST_ODDS_PROFILE=1`
 also enables logs, including when the quiet toggle is set.
 
 ## HTTP service and Go replacement
+
+### Late family fallback
+
+The family fallback runs after the existing native searches, including complete
+branch sampling. It can use at most four learned families per proposal, with a
+20% native component preserving support. Training records a prefix of at most
+3,000 native MAIN draws, at most 256 positive observations and 128 distinct
+family keys. Recording preserves the native random stream and results. When
+this prefix supplies no useful family, a separately funded replay can train
+the fallback. Fresh validation and independent MAIN/CHECK streams are required
+before publication; training hits alone do not become estimates.
+
+Observer work uses audited unused work from the existing rare-tail stage.
+Late fitting and sampling use the remaining original confirmation reservation,
+without an additional work allowance. Admission and draw counts depend on
+deterministic operation costs. A later native estimate or impossibility proof
+skips the fallback before fitting, replay or sampling. Every rank uses the same
+policy, and the JSON response contract is unchanged.
+
+Startup and `rust_odds_start` logs include the effective `family_fallback`
+settings. Detailed confirmation/fallback records report training, admissions,
+modeled work, fitting, sample diagnostics and elapsed time. This improves
+coverage of tiny events, with the same order-of-magnitude publication gates;
+it does not certify their precision. The adopted build measured about 9.4%
+more wall time and approximately unchanged CPU time on group 16498 in a short
+paired check. Earlier frozen builds measured 8.5–9.8% more CPU and 13–16% more
+wall time; these local checks do not establish the same overhead on production.
+The user authorized adoption after reviewing that cost. The
+[production adoption report](../experiments/rare_positions/2026-10-04-rust-family-production.md)
+records the final paired validation and local timing.
+
+`RUST_ODDS_FAMILY_FALLBACK=0` explicitly disables this work, even if the legacy
+`RUST_ODDS_EXPERIMENT_FAMILY_FALLBACK=1` is present. The legacy master flag is
+accepted only when the production flag is unset. Other family experiment
+tuning flags do not change the fixed production policy. The fallback requires
+the deterministic operation work model; legacy draw or wall budgets skip it.
 
 ### Joint rival conditioning
 

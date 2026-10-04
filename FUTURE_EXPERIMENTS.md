@@ -1860,3 +1860,28 @@ all measurements and commands. User authorized commit and push on2026-10-02.
 Report: `experiments/rare_positions/2026-10-02-rust-flamengo-messages.md`.
 Artifacts: `2026-10-02-flamengo-messages/` (patch, commands, compact summary and
 verified raw log/export archive).
+
+### R60 production adoption
+
+2026-10-04: the user authorized adopting the measured late family fallback.
+Enabled by default for coverage; `RUST_ODDS_FAMILY_FALLBACK=0` opts out and
+overrides the legacy experiment master flag. Fixed all-cell, 1x, stage-funded
+policy; bounded native recording and independent final checks. No additional
+work allowance or cores. Native stages finish before fallback considers zeros.
+
+Twelve paired requests across all six snapshots: all nine core defaults match
+frozen R60 byte for byte, all 12 opt-outs match the old production baseline,
+and existing positives/game importance are preserved. Four gained cell-runs
+across three distinct cells; zero losses. Team95/3 in group16653/2293 skips
+fallback after native publication. Rehashed 70 execution records and verified
+native/observer/fallback ledgers after normalizing renamed log fields.
+
+151 Rust tests pass/four MySQL-gated tests ignored; four Python helpers pass.
+Warning-free release build, edited-file formatting and separate Sol review pass.
+Three-seed/three-repeat local means: wall1.397→1.528s (+9.4%); CPU3.471→3.472s
+(approximately unchanged in this sample). Historical frozen-R60 CPU overhead
+was larger; no production Xeon measurement or speed guarantee. Rebuild/restart
+the Rust service; no Rails/JavaScript build. This adoption supersedes the earlier
+experimental-only recommendation. Report and compact evidence:
+`experiments/rare_positions/2026-10-04-rust-family-production.md` and
+`experiments/rare_positions/2026-10-04-family-production/`.

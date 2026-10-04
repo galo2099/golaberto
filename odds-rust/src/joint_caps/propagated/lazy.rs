@@ -55,10 +55,13 @@ impl SharedGuides {
     }
 }
 
+#[cfg(test)]
+mod family_tests;
 mod strata;
 pub use strata::{combine as combine_branches, BranchBound, BranchSample, BranchStrata};
 
 const DEFENSIVE: f64 = 0.1;
+const MAX_NATIVE_FAMILY_SAMPLES: usize = 50_000;
 type JointKey = (Vec<(usize, [u64; 3])>, Vec<(i32, i32)>);
 #[derive(Clone)]
 struct Cases {
@@ -72,6 +75,24 @@ struct Cases {
 pub(crate) struct RootMoments {
     squared: HashMap<Vec<u8>, f64>,
 }
+#[derive(Default, Clone)]
+pub(crate) struct FamilyMoments {
+    pub contributions: std::collections::BTreeMap<Vec<i8>, f64>,
+    pub root_contributions: std::collections::BTreeMap<(Vec<u8>, Vec<i8>), f64>,
+    pub collection_work: usize,
+    pub skipped_key_observations: usize,
+    /// Draws visited by the independent native-recorder prefix.
+    pub observed_prefix_draws: usize,
+    /// Positive corrected rank hits examined, up to the positive cap.
+    pub positive_observations_considered: usize,
+    /// Positive observations retained after the distinct-key limit.
+    pub recorded_positive_observations: usize,
+    /// ESS of retained corrected weights only.
+    pub recorded_observation_ess: f64,
+    recorded_observation_sum: f64,
+    recorded_observation_sum2: f64,
+}
+#[derive(Clone)]
 pub struct LazyJoint {
     cell: Cell,
     subset: bool,
@@ -88,6 +109,8 @@ pub struct LazyJoint {
     mixture: Vec<(Vec<u8>, f64)>,
     mixture_mass: f64,
     root_allocation: HashMap<Vec<u8>, f64>,
+    families: HashMap<Vec<u8>, Vec<(Vec<i8>, Pattern, f64)>>,
+    family_fit_report: Vec<serde_json::Value>,
     nodes: usize,
     node_limit: usize,
     rival_limit: usize,
@@ -306,6 +329,8 @@ impl LazyJoint {
             mixture: Vec::new(),
             mixture_mass: 0.,
             root_allocation: HashMap::new(),
+            families: HashMap::new(),
+            family_fit_report: Vec::new(),
             nodes: 0,
             node_limit: 60000,
             rival_limit: crate::rare_tail::value("RUST_ODDS_LAZY_RIVALS")
@@ -454,6 +479,20 @@ impl LazyJoint {
         anchor: Option<&[u8]>,
         case: Option<(bool, u32, u32)>,
     ) -> std::result::Result<Option<Pattern>, ()> {
+        self.build_bounded(key, teams, anchor, case, None, false)
+    }
+    /// Build a pattern with optional explicit final packed-score intervals.
+    /// This is used by learned ternary families; the base target-rank path
+    /// remains responsible for proving support before the extra restriction.
+    fn build_bounded(
+        &mut self,
+        key: &[u8],
+        teams: usize,
+        anchor: Option<&[u8]>,
+        case: Option<(bool, u32, u32)>,
+        explicit_bounds: Option<(&[i32], &[i32])>,
+        bound_guidance: bool,
+    ) -> std::result::Result<Option<Pattern>, ()> {
         let mut points = self.base.clone();
         let mut fixed = Vec::new();
         let mut weight = 1.;
@@ -477,6 +516,28 @@ impl LazyJoint {
         );
         if !d.feasible {
             return Ok(None);
+        }
+        if let Some((lower, upper)) = explicit_bounds {
+            if lower.len() != teams || upper.len() != teams {
+                return Ok(None);
+            }
+            for t in 0..teams {
+                d.lower[t] = d.lower[t].max(lower[t]);
+                d.upper[t] = d.upper[t].min(upper[t]);
+            }
+            d = Domains::condition(
+                &self.remaining,
+                &points,
+                &rivals,
+                self.cell.rank,
+                points[self.cell.team],
+                &d.lower,
+                &d.upper,
+                &d.domains,
+            );
+            if !d.feasible {
+                return Ok(None);
+            }
         }
         if let Some((above, mask, selected)) = case {
             let target = points[self.cell.team];
@@ -772,8 +833,53 @@ impl LazyJoint {
             mass: weight,
             tilt: 1.,
             cumulative: 0.,
-            bound_guidance: false,
+            bound_guidance,
         }))
+    }
+    fn build_family_pattern(
+        &mut self,
+        key: &[u8],
+        state: &[i8],
+    ) -> std::result::Result<Option<Pattern>, ()> {
+        if state.len() + 1 != self.base.len() || state.iter().any(|&side| !(-1..=1).contains(&side))
+        {
+            return Ok(None);
+        }
+        let mut target_points = self.base.clone();
+        for (g, &o) in self.target.games.iter().zip(key) {
+            if o > 2 {
+                return Ok(None);
+            }
+            target_points[g.home] += g.hg[o as usize];
+            target_points[g.away] += g.ag[o as usize];
+        }
+        let target = target_points[self.cell.team];
+        let mut lower = vec![i32::MIN / 4; self.base.len()];
+        let mut upper = vec![i32::MAX / 4; self.base.len()];
+        let mut j = 0;
+        for t in 0..self.base.len() {
+            if t == self.cell.team {
+                continue;
+            }
+            match state[j] {
+                -1 => upper[t] = target - 1,
+                0 => lower[t] = target,
+                1 => lower[t] = target + 1,
+                _ => unreachable!(),
+            }
+            if state[j] == 0 {
+                upper[t] = target;
+            }
+            j += 1;
+        }
+        self.build_bounded(
+            key,
+            self.base.len(),
+            None,
+            None,
+            Some((&lower, &upper)),
+            true,
+        )
     }
     pub fn add_alternates(&mut self, m: &Model, witnesses: &[Vec<u8>]) {
         self.subset = true;
@@ -957,7 +1063,7 @@ impl LazyJoint {
                 .enumerate()
                 .map(|(i, g)| {
                     let counts: [f64; 3] = std::array::from_fn(|o| {
-                        seasons.iter().filter(|s| s[i] == o as u8).count() as f64
+                        seasons.iter().filter(|season| season[i] == o as u8).count() as f64
                     });
                     std::array::from_fn(|o| {
                         if g.prob[o] > 0. {
@@ -988,6 +1094,50 @@ impl LazyJoint {
     }
     pub(crate) fn setup_work(&self) -> usize {
         crate::rare_tail::budget::setup_cost(self.nodes, self.guide_values)
+    }
+    pub(crate) fn clone_work(&self) -> usize {
+        fn pattern(p: &Pattern) -> usize {
+            p.fixed.len()
+                + p.omitted.len()
+                + p.base.len()
+                + p.lower.len()
+                + p.upper.len()
+                + p.joint.games.len()
+                + p.guide.games.len()
+        }
+        let mut work = self.base.len()
+            + self.remaining.len()
+            + self.target.games.len()
+            + self.target.rows.iter().map(Vec::len).sum::<usize>()
+            + self
+                .goals
+                .as_ref()
+                .map_or(0, crate::goal_tilt::GoalTilt::clone_work)
+            + self.roots.keys().map(Vec::len).sum::<usize>()
+            + self.alternates.keys().map(Vec::len).sum::<usize>()
+            + self
+                .roots
+                .values()
+                .filter_map(Option::as_ref)
+                .map(pattern)
+                .sum::<usize>()
+            + self.alternates.values().map(pattern).sum::<usize>()
+            + self.biased.values().map(pattern).sum::<usize>();
+        work += self
+            .joint_cache
+            .values()
+            .map(|(_, games)| games.len())
+            .sum::<usize>();
+        work += self.guides.keys().map(|key| key.len()).sum::<usize>();
+        for cases in self.cases.values() {
+            work += cases.patterns.len() * 4
+                + cases
+                    .patterns
+                    .iter()
+                    .map(|(_, p, _)| pattern(p))
+                    .sum::<usize>();
+        }
+        work
     }
     pub fn describe(&self, m: &Model) -> serde_json::Value {
         json!({"mode":"sampled_target_paths","team":m.ids[self.cell.team],"rank":self.cell.rank+1,"roots":self.roots.len(),"alternate_roots":self.alternates.len(),"biased_roots":self.biased.len(),"omitted_fixtures":self.roots.values().filter_map(|p|p.as_ref()).map(|p|p.omitted.len()).sum::<usize>(),"cardinality_roots":self.cases.len(),"cardinality_cases":self.cases.values().map(|c|c.patterns.len()).sum::<usize>(),"feasible_roots":self.mixture.len(),"conditioning_mass":self.target.mass(0),"cache_mass":self.mixture_mass,"setup_nodes":self.nodes,"guide_values":self.guide_values,"joint_profiles":self.joint_cache.len(),"guided_fallback":self.fallback.is_some(),"root_allocation_fitted":!self.root_allocation.is_empty()})
@@ -1032,6 +1182,131 @@ impl LazyJoint {
         self.root_allocation.clear();
         self.rebuild_root_cdf();
     }
+    /// Fit at most four deterministic, globally ranked full ternary families.
+    /// A failed family build is omitted as a proposal only; it never changes
+    /// the native root's support or impossibility status.
+    #[cfg(test)]
+    pub(crate) fn fit_families(&mut self, moments: &FamilyMoments) -> (usize, usize, usize) {
+        self.fit_families_capped(moments, 10_000, 4_000_000)
+    }
+
+    /// Fit families under an explicit additional setup budget. The existing
+    /// API retains its historical limits; isolated experiments can tighten
+    /// admission to the work they can afford.
+    pub(crate) fn fit_families_capped(
+        &mut self,
+        moments: &FamilyMoments,
+        max_nodes: usize,
+        max_guide_values: usize,
+    ) -> (usize, usize, usize) {
+        self.families.clear();
+        self.family_fit_report.clear();
+        let mut ranked: Vec<_> = moments
+            .root_contributions
+            .iter()
+            .map(|((root, state), &weight)| (root.clone(), state.clone(), weight))
+            .collect();
+        ranked.sort_by(|(ra, sa, wa), (rb, sb, wb)| {
+            wb.total_cmp(wa).then(ra.cmp(rb)).then(sa.cmp(sb))
+        });
+        ranked.truncate(4);
+        let selected: Vec<_> = ranked
+            .into_iter()
+            .filter(|(_, _, w)| *w > 0. && w.is_finite())
+            .collect();
+        let total: f64 = selected.iter().map(|(_, _, w)| *w).sum();
+        if total <= 0. || !total.is_finite() {
+            self.family_fit_report.push(
+                json!({"status":"declined","reason":"no positive corrected hit contribution"}),
+            );
+            return (0, 0, selected.len());
+        }
+        let node_start = self.nodes;
+        let guide_start = self.guide_values;
+        let node_limit = self.node_limit;
+        let guide_limit = self.guide_limit;
+        self.node_limit = node_start.saturating_add(max_nodes);
+        self.guide_limit = guide_start.saturating_add(max_guide_values);
+        let mut exhausted = false;
+        let mut skipped = 0;
+        for (root, state, contribution) in &selected {
+            if self.roots.get(root).is_none_or(Option::is_none) {
+                skipped += 1;
+                self.family_fit_report.push(json!({"root_outcomes":root,"rival_status":state,"corrected_contribution":contribution,"status":"declined","reason":"root has no cached primary pattern"}));
+                continue;
+            }
+            if self.nodes >= self.node_limit || self.guide_values >= self.guide_limit {
+                exhausted = true;
+                self.family_fit_report.push(json!({"root_outcomes":root,"rival_status":state,"corrected_contribution":contribution,"status":"declined","reason":"family setup cap exhausted before attempt"}));
+                break;
+            }
+            match self.build_family_pattern(root, state) {
+                Ok(Some(pattern)) => {
+                    self.families.entry(root.clone()).or_default().push((
+                        state.clone(),
+                        pattern,
+                        contribution / total,
+                    ));
+                    self.family_fit_report.push(json!({"root_outcomes":root,"rival_status":state,"corrected_contribution":contribution,"status":"built","reason":null}));
+                }
+                Ok(None) => {
+                    skipped += 1;
+                    self.family_fit_report.push(json!({"root_outcomes":root,"rival_status":state,"corrected_contribution":contribution,"status":"declined","reason":"zero family normalizer or inconsistent necessary bounds"}));
+                }
+                Err(()) => {
+                    // Setup cap exhaustion declines the component. Work spent
+                    // up to the cap remains visible in the returned deltas.
+                    exhausted = true;
+                    skipped += 1;
+                    self.family_fit_report.push(json!({"root_outcomes":root,"rival_status":state,"corrected_contribution":contribution,"status":"declined","reason":"node or guide setup budget exhausted"}));
+                    break;
+                }
+            }
+        }
+        self.node_limit = node_limit;
+        self.guide_limit = guide_limit;
+        for proposals in self.families.values_mut() {
+            let z: f64 = proposals.iter().map(|(_, _, weight)| *weight).sum();
+            if z > 0. && z.is_finite() {
+                for (_, _, weight) in proposals {
+                    *weight /= z;
+                }
+            }
+        }
+        for report in &mut self.family_fit_report {
+            if report["status"] == "built" {
+                let root: Vec<u8> =
+                    serde_json::from_value(report["root_outcomes"].clone()).unwrap_or_default();
+                let state: Vec<i8> =
+                    serde_json::from_value(report["rival_status"].clone()).unwrap_or_default();
+                report["beta"] = self
+                    .families
+                    .get(&root)
+                    .and_then(|items| items.iter().find(|(s, _, _)| *s == state))
+                    .map_or(json!(0.), |(_, _, beta)| json!(beta));
+            }
+        }
+        for (root, state, contribution) in &selected {
+            if self
+                .family_fit_report
+                .iter()
+                .all(|v| v["root_outcomes"] != json!(root) || v["rival_status"] != json!(state))
+            {
+                self.family_fit_report.push(json!({"root_outcomes":root,"rival_status":state,"corrected_contribution":contribution,"status":"declined","reason":if exhausted {"not attempted after setup exhaustion"} else {"not attempted after family cap"}}));
+            }
+        }
+        (
+            self.nodes - node_start,
+            self.guide_values - guide_start,
+            skipped,
+        )
+    }
+    pub(crate) fn family_fit_summary(&self) -> serde_json::Value {
+        json!(self.family_fit_report)
+    }
+    pub(crate) fn family_pattern_count(&self) -> usize {
+        self.families.values().map(Vec::len).sum()
+    }
     fn rebuild_root_cdf(&mut self) {
         let mut sum = 0.;
         for (key, cumulative) in &mut self.mixture {
@@ -1054,18 +1329,96 @@ impl LazyJoint {
         seed: i64,
     ) -> (Result, RootMoments) {
         let mut moments = RootMoments::default();
-        let result = self.sample_internal(m, samples, seed, Some(&mut moments));
+        let result = self.sample_internal(m, samples, seed, Some(&mut moments), None, None);
         (result, moments)
     }
-    pub fn sample(&self, m: &Model, samples: usize, seed: i64) -> Result {
-        self.sample_internal(m, samples, seed, None)
+    pub(crate) fn sample_family_training(
+        &self,
+        m: &Model,
+        samples: usize,
+        seed: i64,
+    ) -> (Result, FamilyMoments) {
+        let mut families = FamilyMoments::default();
+        let result = self.sample_internal(m, samples, seed, None, Some(&mut families), None);
+        (result, families)
     }
+    /// Sample the full native stream while recording a bounded prefix of
+    /// corrected family observations. Recording never consumes RNG or changes
+    /// the proposal weights or result accounting.
+    pub(crate) fn sample_family_native_training(
+        &self,
+        m: &Model,
+        total_samples: usize,
+        seed: i64,
+        observed_draw_cap: usize,
+        positive_observation_cap: usize,
+    ) -> (Result, FamilyMoments) {
+        let mut families = FamilyMoments::default();
+        if total_samples > MAX_NATIVE_FAMILY_SAMPLES
+            || observed_draw_cap == 0
+            || positive_observation_cap == 0
+        {
+            return (
+                self.sample_internal(m, total_samples, seed, None, None, None),
+                families,
+            );
+        }
+        let draw_cap = observed_draw_cap.min(total_samples);
+        let result = self.sample_internal(
+            m,
+            total_samples,
+            seed,
+            None,
+            None,
+            Some((&mut families, draw_cap, positive_observation_cap)),
+        );
+        if families.recorded_observation_sum2 > 0. {
+            families.recorded_observation_ess = families.recorded_observation_sum
+                * families.recorded_observation_sum
+                / families.recorded_observation_sum2;
+        }
+        (result, families)
+    }
+
+    /// Conservative recorder work bound in modeled logical work units. It
+    /// charges four units per native draw for the recorder guard/prefix check,
+    /// then a bounded per-hit allowance for reconstruction, tree-map searches,
+    /// and possible map-node allocation. This is a scheduling estimate, not a
+    /// count of primitive operations or elapsed time.
+    pub(crate) fn native_family_recording_bound(
+        m: &Model,
+        total_samples: usize,
+        observed_draw_cap: usize,
+        positive_observation_cap: usize,
+    ) -> Option<usize> {
+        if total_samples > MAX_NATIVE_FAMILY_SAMPLES {
+            return None;
+        }
+        if observed_draw_cap == 0 || positive_observation_cap == 0 {
+            return Some(0);
+        }
+        let dimensions = m.fixtures.len().checked_add(m.n)?;
+        let per_observation = 32usize.checked_add(64usize.checked_mul(dimensions)?)?;
+        total_samples.checked_mul(4)?.checked_add(
+            total_samples
+                .min(observed_draw_cap)
+                .min(positive_observation_cap)
+                .checked_mul(per_observation)?,
+        )
+    }
+    pub fn sample(&self, m: &Model, samples: usize, seed: i64) -> Result {
+        self.sample_internal(m, samples, seed, None, None, None)
+    }
+    /// Experiment-only collection of corrected target-event contributions.
+    /// Collection is observational: it does not consume RNG or change weights.
     fn sample_internal(
         &self,
         m: &Model,
         samples: usize,
         seed: i64,
         mut moments: Option<&mut RootMoments>,
+        mut families: Option<&mut FamilyMoments>,
+        mut native_families: Option<(&mut FamilyMoments, usize, usize)>,
     ) -> Result {
         let mass = self.target.mass(0);
         let alpha = if self.mixture_mass > 0. {
@@ -1092,6 +1445,12 @@ impl LazyJoint {
         let mut points = vec![0; m.n];
         let (mut sum, mut sum2, mut max, mut batches) = (0., 0., 0_f64, [0.; 2]);
         for draw in 0..samples {
+            if let Some((families, draw_cap, _)) = native_families.as_mut() {
+                families.collection_work += 4;
+                if draw < *draw_cap {
+                    families.observed_prefix_draws += 1;
+                }
+            }
             result.operations.guidance += (8 * self.target.games.len()) as u64;
 
             let mut fresh_key = smallvec::SmallVec::<[u8; 16]>::new();
@@ -1126,7 +1485,112 @@ impl LazyJoint {
                             + (1. - alpha) * p.mass * p.joint.residual_hint.max(1e-80) * p.tilt
                                 / self.mixture_mass
                     };
-                    if let Some(cases) = self.cases.get(key) {
+                    if let Some(families) = self.families.get(key) {
+                        const NATIVE_SHARE: f64 = 0.2;
+                        let use_native = rng.float() < NATIVE_SHARE;
+                        let chosen_family = if use_native {
+                            None
+                        } else {
+                            let u = rng.float();
+                            let mut acc = 0.;
+                            families
+                                .iter()
+                                .find(|(_, _, beta)| {
+                                    acc += *beta;
+                                    u < acc
+                                })
+                                .or_else(|| families.last())
+                        };
+                        let chosen = chosen_family.map_or(p, |(_, pattern, _)| pattern);
+                        let ratio = chosen.draw(
+                            self.cell,
+                            &mut rng,
+                            &mut out,
+                            &mut points,
+                            true,
+                            cardinality,
+                            false,
+                            dynamic,
+                            &mut result.operations,
+                        );
+                        if ratio <= 0. {
+                            continue;
+                        }
+                        // The ternary partition is over the complete packed
+                        // outcome totals, reconstructed independently of the
+                        // mutable scratch vector used by Pattern::draw.
+                        let mut totals = self.base.clone();
+                        for g in self.target.games.iter().chain(&self.remaining) {
+                            let o = out[g.index] as usize;
+                            totals[g.home] += g.hg[o];
+                            totals[g.away] += g.ag[o];
+                        }
+                        result.operations.guidance += (8 * (m.fixtures.len() + m.n)) as u64;
+                        let target = totals[self.cell.team];
+                        let state: Vec<i8> = (0..m.n)
+                            .filter(|&t| t != self.cell.team)
+                            .map(|t| match totals[t].cmp(&target) {
+                                std::cmp::Ordering::Less => -1,
+                                std::cmp::Ordering::Equal => 0,
+                                std::cmp::Ordering::Greater => 1,
+                            })
+                            .collect();
+                        let native_ratio = if use_native {
+                            ratio
+                        } else {
+                            p.draw(
+                                self.cell,
+                                &mut rng,
+                                &mut out,
+                                &mut points,
+                                true,
+                                cardinality,
+                                true,
+                                dynamic,
+                                &mut result.operations,
+                            )
+                        };
+                        let family_ratio = if let Some((_, _, beta)) =
+                            families.iter().find(|(s, _, _)| *s == state)
+                        {
+                            let pat = &families.iter().find(|(s, _, _)| *s == state).unwrap().1;
+                            let value = if chosen_family.is_some_and(|(s, _, _)| *s == state) {
+                                ratio
+                            } else {
+                                pat.draw(
+                                    self.cell,
+                                    &mut rng,
+                                    &mut out,
+                                    &mut points,
+                                    true,
+                                    cardinality,
+                                    true,
+                                    dynamic,
+                                    &mut result.operations,
+                                )
+                            };
+                            if value > 0. {
+                                (*beta, value, pat.mass)
+                            } else {
+                                (0., 0., 1.)
+                            }
+                        } else {
+                            (0., 0., 1.)
+                        };
+                        let native_density = if native_ratio > 0. {
+                            root_prob / (p.mass * native_ratio)
+                        } else {
+                            0.
+                        };
+                        let family_density = if family_ratio.1 > 0. {
+                            family_ratio.0 * root_prob / (family_ratio.2 * family_ratio.1)
+                        } else {
+                            0.
+                        };
+                        root_prob
+                            / (mass * q)
+                            / (NATIVE_SHARE * native_density + (1. - NATIVE_SHARE) * family_density)
+                    } else if let Some(cases) = self.cases.get(key) {
                         // Retain the primary guided mode even for an enumerated union.
                         // Numerical zero mass is not an unrestricted infeasibility proof.
                         let alpha = if cases.complete { 0.1 } else { 0.5 };
@@ -1344,6 +1808,74 @@ impl LazyJoint {
             }
             if weight > 0. {
                 result.hits += 1;
+                if let Some((families, draw_cap, observation_cap)) = native_families.as_mut() {
+                    if draw < *draw_cap
+                        && families.positive_observations_considered < *observation_cap
+                    {
+                        families.positive_observations_considered += 1;
+                        families.collection_work += 32 + 24 * (m.fixtures.len() + m.n);
+                        // Reconstruct from the full outcome vector, independently of
+                        // mutable scratch state used by any pattern replay.
+                        let mut totals = self.base.clone();
+                        for g in self.target.games.iter().chain(&self.remaining) {
+                            let o = out[g.index] as usize;
+                            totals[g.home] += g.hg[o];
+                            totals[g.away] += g.ag[o];
+                        }
+                        let target = totals[self.cell.team];
+                        let state: Vec<i8> = (0..m.n)
+                            .filter(|&t| t != self.cell.team)
+                            .map(|t| match totals[t].cmp(&target) {
+                                std::cmp::Ordering::Less => -1,
+                                std::cmp::Ordering::Equal => 0,
+                                std::cmp::Ordering::Greater => 1,
+                            })
+                            .collect();
+                        let root = self.target.games.iter().map(|g| out[g.index]).collect();
+                        let pair = (root, state.clone());
+                        if families.root_contributions.contains_key(&pair)
+                            || families.root_contributions.len() < 128
+                        {
+                            *families.root_contributions.entry(pair).or_default() += weight;
+                            *families.contributions.entry(state).or_default() += weight;
+                            families.recorded_positive_observations += 1;
+                            families.recorded_observation_sum += weight;
+                            families.recorded_observation_sum2 += weight * weight;
+                        } else {
+                            families.skipped_key_observations += 1;
+                        }
+                    }
+                }
+                if let Some(families) = families.as_deref_mut() {
+                    // Rebuild from the full outcome vector. Pattern replay can
+                    // leave scratch points mutated or omit irrelevant games.
+                    let mut totals = self.base.clone();
+                    for g in self.target.games.iter().chain(&self.remaining) {
+                        let o = out[g.index] as usize;
+                        totals[g.home] += g.hg[o];
+                        totals[g.away] += g.ag[o];
+                    }
+                    let target = totals[self.cell.team];
+                    let state: Vec<i8> = (0..m.n)
+                        .filter(|&t| t != self.cell.team)
+                        .map(|t| match totals[t].cmp(&target) {
+                            std::cmp::Ordering::Less => -1,
+                            std::cmp::Ordering::Equal => 0,
+                            std::cmp::Ordering::Greater => 1,
+                        })
+                        .collect();
+                    let root = self.target.games.iter().map(|g| out[g.index]).collect();
+                    let pair = (root, state.clone());
+                    if families.root_contributions.contains_key(&pair)
+                        || families.root_contributions.len() < 128
+                    {
+                        *families.root_contributions.entry(pair).or_default() += weight;
+                        *families.contributions.entry(state).or_default() += weight;
+                    } else {
+                        families.skipped_key_observations += 1;
+                    }
+                    families.collection_work += 8 * (m.fixtures.len() + m.n);
+                }
                 if let Some(moments) = moments.as_deref_mut() {
                     if let Some(sum) = moments.squared.get_mut(key) {
                         *sum += weight * weight;
@@ -1370,6 +1902,91 @@ impl LazyJoint {
 mod tests {
     use super::*;
     use crate::{conditioned::canonical_ranks, model::Request};
+    #[test]
+    fn family_training_preserves_rng_and_family_mixture_estimates_tiny_exact_rank_mass() {
+        let request: Request = serde_json::from_value(json!({"id":1,
+            "phase":{"sort":"pt,w,bias","championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+            "team_groups":(0..3).map(|t|json!({"team_id":t,"add_sub":t,"bias":t})).collect::<Vec<_>>(),
+            "games":(0..3).flat_map(|h|(h+1..3).map(move|a|json!({"id":h*3+a,"home_id":h,"away_id":a,"home_power":1.1,"away_power":0.9}))).collect::<Vec<_>>() })).unwrap();
+        let m = Model::new(request).unwrap();
+        let cell = Cell { team: 0, rank: 1 };
+        let mut plain = LazyJoint::with_mode(&m, cell, 817, &[], 24, false, false, None).unwrap();
+        let baseline = plain.sample(&m, 5000, 921);
+        let (training, moments) = plain.sample_family_training(&m, 5000, 921);
+        assert_eq!(baseline.samples, training.samples);
+        assert_eq!(baseline.hits, training.hits);
+        assert_eq!(baseline.blockers, training.blockers);
+        assert_eq!(baseline.work, training.work);
+        assert_eq!(baseline.operations.fixtures, training.operations.fixtures);
+        assert_eq!(baseline.operations.guidance, training.operations.guidance);
+        assert_eq!(baseline.operations.ranking, training.operations.ranking);
+        assert_eq!(baseline.weighted, training.weighted);
+        assert_eq!(
+            baseline.probability.to_bits(),
+            training.probability.to_bits()
+        );
+        assert_eq!(baseline.std_err.to_bits(), training.std_err.to_bits());
+        assert_eq!(baseline.ess.to_bits(), training.ess.to_bits());
+        assert_eq!(baseline.max_share.to_bits(), training.max_share.to_bits());
+        assert_eq!(baseline.batch_gap.to_bits(), training.batch_gap.to_bits());
+        assert_eq!(baseline.witness, training.witness);
+        assert_eq!(baseline.omitted_draws, training.omitted_draws);
+        assert_eq!(
+            baseline.probability.to_bits(),
+            training.probability.to_bits()
+        );
+        assert_eq!(baseline.ess.to_bits(), training.ess.to_bits());
+        assert_eq!(baseline.hits, training.hits);
+        assert!(!moments.contributions.is_empty());
+        assert!(moments.collection_work > 0);
+
+        let (nodes_a, guides_a, skipped_a) = plain.fit_families(&moments);
+        let count_a = plain.family_pattern_count();
+        assert!(count_a > 0);
+        let mut repeated =
+            LazyJoint::with_mode(&m, cell, 817, &[], 24, false, false, None).unwrap();
+        let (_, repeat_moments) = repeated.sample_family_training(&m, 5000, 921);
+        let (nodes_b, guides_b, skipped_b) = repeated.fit_families(&repeat_moments);
+        assert_eq!(
+            (nodes_a, guides_a, skipped_a, count_a),
+            (
+                nodes_b,
+                guides_b,
+                skipped_b,
+                repeated.family_pattern_count()
+            )
+        );
+
+        let mut exact = 0.;
+        for mut code in 0..3usize.pow(m.fixtures.len() as u32) {
+            let mut out = vec![0; m.fixtures.len()];
+            let mut mass = 1.;
+            for (i, g) in m.fixtures.iter().enumerate() {
+                let o = code % 3;
+                code /= 3;
+                out[i] = o as u8;
+                mass *= g.prob[o];
+            }
+            if canonical_ranks(&m, &out)[cell.team] == cell.rank {
+                exact += mass;
+            }
+        }
+        let estimate = plain.sample(&m, 40000, 1291);
+        assert!(
+            estimate.operations.units()
+                <= crate::rare_tail::budget::family_validation_upper_cost(&m) * estimate.samples
+        );
+        assert!(
+            (estimate.probability - exact).abs() < 7. * estimate.std_err + 1e-4,
+            "estimate={} exact={exact} se={}",
+            estimate.probability,
+            estimate.std_err
+        );
+
+        let empty = FamilyMoments::default();
+        assert_eq!(plain.fit_families(&empty), (0, 0, 0));
+        assert_eq!(plain.family_pattern_count(), 0);
+    }
     #[test]
     fn pilot_root_fit_preserves_weighted_ranks_defensive_support_and_rollback() {
         let request: Request = serde_json::from_value(json!({"id":1,

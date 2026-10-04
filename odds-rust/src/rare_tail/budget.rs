@@ -51,6 +51,28 @@ pub(crate) fn draw_cost(r: &crate::conditioned::Result) -> usize {
 pub(crate) fn reference_cost(m: &crate::model::Model) -> usize {
     64 * m.fixtures.len() + 32 * m.n + 1
 }
+/// Conservative modeled operation bound for one learned-family validation
+/// draw, including the two Pattern evaluations, status reconstruction, root
+/// setup and one final rank calculation.
+pub(crate) fn family_validation_upper_cost(m: &crate::model::Model) -> usize {
+    let g = m.fixtures.len();
+    let n = m.n;
+    let target = g; // upper bound on target-root fixtures
+    let dynamic = std::env::var("RUST_ODDS_LAZY_PROPAGATE")
+        .ok()
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(0);
+    let dynamic_cost = if dynamic > 0 {
+        6 * g * n * g.div_ceil(dynamic)
+    } else {
+        0
+    };
+    let per_pattern = 8 * g + g + 7 * n + 8 * n + 90 * g + g * n * (n + 1) + dynamic_cost;
+    2 * per_pattern
+        + 8 * target
+        + 8 * (g + n)
+        + (8 * g + n * (n.max(2).ilog2() as usize + 1) * m.keys.len().max(1))
+}
 pub(crate) fn per_draw(r: &crate::conditioned::Result) -> usize {
     // Round upward. Counters include early exits and density replays; final
     // observations never feed back into admission or batch sizes.

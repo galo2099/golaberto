@@ -244,7 +244,8 @@ pub fn serve(address: &str) -> Result<(), Box<dyn std::error::Error>> {
     let server = Server::http(address).map_err(|e| -> Box<dyn std::error::Error> { e })?;
     RequestLog::new().event("rust_odds_server_start", json!({"listen":address,"workers":4,
         "body_readers":4,"calculation_workers":1,
-        "endpoints":ENDPOINTS,"scout_samples":20000,"pool_samples":100000,"pipeline":"matched_point_pool"}));
+        "endpoints":ENDPOINTS,"scout_samples":20000,"pool_samples":100000,"pipeline":"matched_point_pool",
+        "family_fallback":crate::rare_tail::family_fallback_settings()}));
     let (sender, receiver) = mpsc::sync_channel::<(Request, RequestLog)>(16);
     let receiver = Arc::new(Mutex::new(receiver));
     // A rendezvous channel keeps prepared bodies bounded by the reader count.
