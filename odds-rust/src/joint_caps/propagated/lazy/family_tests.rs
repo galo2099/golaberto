@@ -260,6 +260,51 @@ fn empty_family_training_leaves_native_root_support_unchanged() {
 }
 
 #[test]
+fn full_family_fit_keeps_the_legacy_top_four_ranked_candidates() {
+    let m = four_team_one_residual_model();
+    let cell = Cell { team: 0, rank: 1 };
+    let mut plan = LazyJoint::with_mode(&m, cell, 1821, &[], 16, false, false, None).unwrap();
+    let root = plan.roots.keys().next().unwrap().clone();
+    let mut moments = FamilyMoments::default();
+    let mut ranked = Vec::new();
+    for a in -1..=1 {
+        for b in -1..=1 {
+            for c in -1..=1 {
+                let state = vec![a, b, c];
+                let weight = (ranked.len() + 1) as f64;
+                moments
+                    .root_contributions
+                    .insert((root.clone(), state.clone()), weight);
+                ranked.push((root.clone(), state, weight));
+            }
+        }
+    }
+    ranked.sort_by(|(ra, sa, wa), (rb, sb, wb)| wb.total_cmp(wa).then(ra.cmp(rb)).then(sa.cmp(sb)));
+    ranked.truncate(4);
+
+    plan.fit_families_capped(&moments, 10_000, 4_000_000);
+
+    assert!(plan.family_pattern_count() <= 4);
+    let attempted: Vec<_> = plan
+        .family_fit_summary()
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|entry| {
+            (
+                serde_json::from_value::<Vec<u8>>(entry["root_outcomes"].clone()).unwrap(),
+                serde_json::from_value::<Vec<i8>>(entry["rival_status"].clone()).unwrap(),
+            )
+        })
+        .collect();
+    let expected: Vec<_> = ranked
+        .into_iter()
+        .map(|(root, state, _)| (root, state))
+        .collect();
+    assert_eq!(attempted, expected);
+}
+
+#[test]
 fn impossible_family_bounds_decline_without_changing_native_root_support() {
     let m = four_team_one_residual_model();
     let cell = Cell { team: 0, rank: 1 };

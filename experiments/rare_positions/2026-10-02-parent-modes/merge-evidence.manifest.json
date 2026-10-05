@@ -1,0 +1,149 @@
+{
+  "archive": "merge-evidence.tar.gz",
+  "archive_sha256": "f9a5c65e7b08e24b9806f6712bf8fb915d1bf032c9e9dd46f78e38df6f336847",
+  "archive_size": 1853381,
+  "experiment": "2026-10-02-parent-modes",
+  "members": [
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "diagnostic-screen.analysis.json",
+      "sha256": "3823fbfb98b0035501fa31d8316f05efb67301fee3b7e0360be7a82122f398bc",
+      "size": 4797
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "diagnostic-screen.summary.json",
+      "sha256": "ed092c8b9ddd9d3a3b2465003bd70fa764ea3a77aadbbf9521432311c5a18a74",
+      "size": 1245971
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "flagoff.analysis.json",
+      "sha256": "e3f091a2ba17c9b751a8d0637acee9ce7c6ac54bda22a1d15334bb9dc0e6b379",
+      "size": 5985
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "flagoff.summary.json",
+      "sha256": "f59ba38159e7a3913e1ea4df8090475e827caae4a0dda149bf4029ff7ea49413",
+      "size": 480575
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "gated-pairs.analysis.json",
+      "sha256": "c82ec8e80f8a721cf29a71ce6cf110b04af7f797d99bfe7aac915807a27c5f4b",
+      "size": 13528
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "gated-pairs.summary.json",
+      "sha256": "6772dab0f19f1a838a12e08bf90effa60a8ffb3db6a32b4c8b7578f7814b6945",
+      "size": 2640777
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "gated-warm.summary.json",
+      "sha256": "34a5dcd91c325c4b8d0736d834442100e5860c68414c95ead0a9824002edd192",
+      "size": 5230700
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "gated.invariants.json",
+      "sha256": "fc635916b38bf133aa9be70b15663a7840dbe1a7b938d3fde6432e2578c40b97",
+      "size": 7121
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "gated.patch",
+      "sha256": "501f867e5cfbcb6945d09f070aebe703dd7599be33418960d0314403fc1e71d4",
+      "size": 66923
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "library-tests.log",
+      "sha256": "6d10e51dad9b30266d8a19d0527c7d2cee1e0effb293e8a4164aeb463611e3d5",
+      "size": 9354
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "open-pairs.analysis.json",
+      "sha256": "7df8b28de87a4d80f23ca0187d5e7f16d54791faabbfb6994b76c170dca792c9",
+      "size": 14767
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "open-pairs.summary.json",
+      "sha256": "de596410e403b95ea81e27bf411a8221707139d7aa73d859d05e2d00bcdd1c88",
+      "size": 2654316
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "open-screen.analysis.json",
+      "sha256": "a6e42c58660f5719beac20b3f8f4fa6807e3edcf1a0d9fe890aa898707b4a48f",
+      "size": 6108
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "open-screen.summary.json",
+      "sha256": "37c07ce902e46d41361ef348a38fae22941815408cc127b8cfcf311e4640a8d6",
+      "size": 1307109
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "open-warm.summary.json",
+      "sha256": "7e36ef9b9caf45031873f556c35a90e0ae132c50a0670f22eb8b02471b52638e",
+      "size": 5287317
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "open.invariants.json",
+      "sha256": "e592cc4620dbcc84adfaa482925c0294149c6fa0bcfd1664dc8ee8babc656860",
+      "size": 7510
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "open.patch",
+      "sha256": "318738b106b02e53b8841b48e5dbf7c1d16a4a611ee8edc98627f45c2ec69c09",
+      "size": 69265
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "patterns-screen.analysis.json",
+      "sha256": "88d4f23587818c7ed91045e4051fef40d48784501f2e61d91e8b1ef943a5de8d",
+      "size": 4892
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "patterns-screen.summary.json",
+      "sha256": "a744e06afe0628c35f2328725207a228b75e3d785d464011c065fe7df4e18e1d",
+      "size": 1298099
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "source-patches.json",
+      "sha256": "d198d46630569e96907fce25f9cc8c5e49c7df682831cc976997bd01c1771697",
+      "size": 17107
+    }
+  ],
+  "schema_version": 1
+}

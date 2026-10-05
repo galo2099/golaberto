@@ -52,8 +52,9 @@ pub(crate) fn reference_cost(m: &crate::model::Model) -> usize {
     64 * m.fixtures.len() + 32 * m.n + 1
 }
 /// Conservative modeled operation bound for one learned-family validation
-/// draw, including the two Pattern evaluations, status reconstruction, root
-/// setup and one final rank calculation.
+/// draw. A partial family may overlap four fitted components, so include the
+/// native proposal plus all four family density evaluations, status
+/// reconstruction, root setup and one final rank calculation.
 pub(crate) fn family_validation_upper_cost(m: &crate::model::Model) -> usize {
     let g = m.fixtures.len();
     let n = m.n;
@@ -68,10 +69,19 @@ pub(crate) fn family_validation_upper_cost(m: &crate::model::Model) -> usize {
         0
     };
     let per_pattern = 8 * g + g + 7 * n + 8 * n + 90 * g + g * n * (n + 1) + dynamic_cost;
-    2 * per_pattern
+    family_validation_evaluations(crate::rare_tail::family_structure()) * per_pattern
         + 8 * target
         + 8 * (g + n)
         + (8 * g + n * (n.max(2).ilog2() as usize + 1) * m.keys.len().max(1))
+}
+
+fn family_validation_evaluations(structure: super::family_config::FamilyStructure) -> usize {
+    match structure {
+        super::family_config::FamilyStructure::Full => 2,
+        super::family_config::FamilyStructure::Ties
+        | super::family_config::FamilyStructure::Skeleton
+        | super::family_config::FamilyStructure::Relax => 5,
+    }
 }
 pub(crate) fn per_draw(r: &crate::conditioned::Result) -> usize {
     // Round upward. Counters include early exits and density replays; final
@@ -150,6 +160,19 @@ impl WorkBudget {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn family_validation_bound_preserves_full_mode_and_covers_four_partial_families() {
+        use crate::rare_tail::family_config::FamilyStructure;
+        assert_eq!(family_validation_evaluations(FamilyStructure::Full), 2);
+        for structure in [
+            FamilyStructure::Ties,
+            FamilyStructure::Skeleton,
+            FamilyStructure::Relax,
+        ] {
+            assert_eq!(family_validation_evaluations(structure), 5);
+        }
+    }
 
     #[test]
     fn reservations_are_bounded_and_do_not_depend_on_completion_order() {

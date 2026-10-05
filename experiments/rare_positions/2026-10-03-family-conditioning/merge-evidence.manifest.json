@@ -1,0 +1,1528 @@
+{
+  "archive": "merge-evidence.tar.gz",
+  "archive_sha256": "167c1db1acf5ae35715e8d2c364c4460f55f05dd67b8c5e78ff730fc7d6a6c83",
+  "archive_size": 2240585,
+  "experiment": "2026-10-03-family-conditioning",
+  "members": [
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "data/group-16498-44eabb47.json",
+      "sha256": "2e08f162592ded09393f0438686a60690dda6e85cd54da5dc0d20224c81aa625",
+      "size": 86420
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "data/provenance.json",
+      "sha256": "38da5b2ead15a8cb5d8ba5a06fd2f0c609c12549e08223b17818d25534cf00c7",
+      "size": 3461
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "data/r57-reallocated-source-hashes.txt",
+      "sha256": "6e79c8d0aa9d81e8b72e7729daef63f3772343a4305045def4a67bfab56853f1",
+      "size": 4022
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "data/r57-reallocated-source.tar.gz",
+      "sha256": "1579803ea8ebacbc6e912a238b8deaebbe7a4000f26aa2600fc20f107dd9e15d",
+      "size": 257833
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "data/r57-source-hashes.txt",
+      "sha256": "1dd89a24837781664903e7e34587ea398e0965ee550fe8c3acd17e9dca7bf245",
+      "size": 3385
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "data/r57-v1-source.tar.gz",
+      "sha256": "8922f2c1bd89da47ffa1a6ce8682969ca59781815debb5e7df36b25449f422a5",
+      "size": 257345
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "data/reallocation-provenance.json",
+      "sha256": "71531dffe4480c6fc887699ba3f0edda5480d7b9e42b3e8e837b0c32bf755583",
+      "size": 17384
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "data/source-archive-manifest.json",
+      "sha256": "c15039e9565933a15b7c1ff3a3fc08a35cf4db6080c6a5d22529e4c91bc13e19",
+      "size": 50617
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "data/source-hashes-current.txt",
+      "sha256": "02bb76685a18b9856f2deec61f34592a0fac06e14617b682ef6d4018a0ef17b7",
+      "size": 15653
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "data/v4-native10-byte-comparison.json",
+      "sha256": "92adb280986974583a5010d9fcd33b32e91ffbaeb435a89f51d1fe6875983bab",
+      "size": 308
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/archive/seed808-diagnostic-final/current-source-baseline.command.json",
+      "sha256": "eac1e3e892a44c5657a796c502777bbf0a5b615894be666b666b9667be1629e9",
+      "size": 2259
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/archive/seed808-diagnostic-final/current-source-baseline.json",
+      "sha256": "28a6d61d3466cfb706b358e09df77047bd1e8c82ed7ffc929af741eb439c1604",
+      "size": 154959
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/archive/seed808-diagnostic-final/current-source-baseline.stderr.log",
+      "sha256": "0ec31a6b609f0a9ced13730f8a68328a11526886166b8e841490e1bec8ca523c",
+      "size": 53685
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/archive/seed808-diagnostic-final/current-source-baseline.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/archive/seed808-diagnostic-final/flag-off-parity.json",
+      "sha256": "031e8c9c05e4189da36521a1d7b4d7b08a62e9021af9d55ab8c4c5e69bf881ca",
+      "size": 212
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/archive/seed808-diagnostic-final/r57-family-10x.command.json",
+      "sha256": "5d526f697e36cc6510163e00f315486e14af1b6b54f2f7b5f706001ff24169bc",
+      "size": 2449
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/archive/seed808-diagnostic-final/r57-family-10x.json",
+      "sha256": "1095ae56e8854a2c1f0d1ffd97dd3747959090c3fd3ddf83069e4f73369ece2f",
+      "size": 155091
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/archive/seed808-diagnostic-final/r57-family-10x.stderr.log",
+      "sha256": "0c509ed47421477f69507f00db71b2995b366150061b2d3c82cbb52bb178c7a7",
+      "size": 58758
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/archive/seed808-diagnostic-final/r57-family-10x.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/archive/seed808-diagnostic-final/r57-family-1x.command.json",
+      "sha256": "50e806106608682bf4eb37259363be958e90b7f0f90b999a1bb88ba773989b67",
+      "size": 2423
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/archive/seed808-diagnostic-final/r57-family-1x.json",
+      "sha256": "2b8f7eb9272a9a1f4542f31734de384451715c2757f36f65e31cf365e88d701d",
+      "size": 154959
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/archive/seed808-diagnostic-final/r57-family-1x.stderr.log",
+      "sha256": "8b6499f48da0d81669b3d916f6a061fc11fe885d1a032865b2096c86e78a1e87",
+      "size": 58550
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/archive/seed808-diagnostic-final/r57-family-1x.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/archive/seed808-diagnostic-final/r57-flag-off.command.json",
+      "sha256": "47520e232376f4ba4203f1b59fa8011a501077997445efa54e461803a43b1f72",
+      "size": 2212
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/archive/seed808-diagnostic-final/r57-flag-off.json",
+      "sha256": "28a6d61d3466cfb706b358e09df77047bd1e8c82ed7ffc929af741eb439c1604",
+      "size": 154959
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/archive/seed808-diagnostic-final/r57-flag-off.stderr.log",
+      "sha256": "33fba122d461a7c97a56c317a558bda4215b07a0d33248f363895ec77a482076",
+      "size": 56006
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/archive/seed808-diagnostic-final/r57-flag-off.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/archive/seed808-diagnostic-final/r57-native-10x.command.json",
+      "sha256": "fd274b763a117405815db766c899cd2895c7aa051b77b4a9af5306197e7ebfff",
+      "size": 2396
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/archive/seed808-diagnostic-final/r57-native-10x.json",
+      "sha256": "9d80ba431fb2a2226f6e62a7a3c2da6c88f522ee21d6336249e991d9a35fe6c5",
+      "size": 155089
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/archive/seed808-diagnostic-final/r57-native-10x.stderr.log",
+      "sha256": "68f4972618aa0feb4ba159a1594c4d5473f2706727299f43d4bb30139144263c",
+      "size": 56824
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/archive/seed808-diagnostic-final/r57-native-10x.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/archive/seed808-diagnostic-final/r57-native-1x.command.json",
+      "sha256": "af545b17c873d1ea41dc2970e0844a790156f9e88ab83b92abac35c6fd8edfa0",
+      "size": 2400
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/archive/seed808-diagnostic-final/r57-native-1x.json",
+      "sha256": "a71c429017fd77d56a4c1ddcf290940b85f4e0a5b7d1703e0d6c33e238912a0e",
+      "size": 154959
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/archive/seed808-diagnostic-final/r57-native-1x.stderr.log",
+      "sha256": "436a377f4c790dbecd4e50770605f5d4f22e66d0024b80fb052df49b7ec781e4",
+      "size": 56709
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/archive/seed808-diagnostic-final/r57-native-1x.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/archive/seed808-diagnostic-final/summary.json",
+      "sha256": "ea57614ffe2aee9f57e5b5cc7618b12b30e90dfab2950d8a10edeaffde76e18d",
+      "size": 15843
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/checks/cargo-check.log",
+      "sha256": "f0788aa36d1c86b6ccdfb7f4042a5574102d82061c046422a2d42e008a1e4710",
+      "size": 72
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/checks/cargo-family-tests.log",
+      "sha256": "8b38165242de37837295997d4dde10d46d2c223b699d8dc1b56d63e888b004f5",
+      "size": 1101
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/checks/cargo-fmt-check.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/checks/cargo-full-tests.log",
+      "sha256": "6ad3fef8005a577e720249903f7aebc1058237e0f410cb7dff70bd30253718a8",
+      "size": 10124
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/checks/cargo-release-build.log",
+      "sha256": "4366ebd115916e8c5b9cd0320c369cbb3c35ea18f2bb6429f26eb34b468e2fd6",
+      "size": 74
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/metrics.json",
+      "sha256": "90b6e06304cafdd2bb64ece88b6a343a51de5b1d0853bcffda5c27b0346cf8e8",
+      "size": 26452
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1669/current-source-baseline.command.json",
+      "sha256": "4f8dcfb49c82bf4b5a81ee077809621bcd8035185996287f3001e8ab9e33e870",
+      "size": 2293
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1669/current-source-baseline.json",
+      "sha256": "ee91619c5987ebab9ebde537524041f43eb23978084fd4541b90bd5684827d13",
+      "size": 154628
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1669/current-source-baseline.stderr.log",
+      "sha256": "03fb23c0a152c51055278d94f9e16c40eadc69ea3601da121ebab18ec46d45a4",
+      "size": 57432
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1669/current-source-baseline.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1669/r57-family-10x.command.json",
+      "sha256": "97d913b140a63159732265d3b8369ee091e9a44f25829912ff9f24e38ee89b3e",
+      "size": 2470
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1669/r57-family-10x.json",
+      "sha256": "c3b1a18b39d102ae8513b78820c15b8ed20678cbc1d1df86db6d88c7f3c7bd27",
+      "size": 155030
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1669/r57-family-10x.stderr.log",
+      "sha256": "a4f2e446e8408f0a2d9a3d0bb9726680041b6dfdd8f69857235de2bb67521059",
+      "size": 63060
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1669/r57-family-10x.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1669/r57-family-1x.command.json",
+      "sha256": "9e373156ce85a3b2e7c1f36faad85ff96ca9d54328176fb5f077b159f319cd2d",
+      "size": 2466
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1669/r57-family-1x.json",
+      "sha256": "0b7fc65a64a6b62e2589a236ca03167c6c55419fba9e0e97fa1c44ac66eca0c1",
+      "size": 154498
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1669/r57-family-1x.stderr.log",
+      "sha256": "8e7547586c56a0117aba3ca01c3bfc919a6f47f800f8995f12bc63164c08eb50",
+      "size": 62924
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1669/r57-family-1x.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1669/r57-native-10x.command.json",
+      "sha256": "532443065d91573f2844a36a8213c80c119c66a4797b3207e7ac0d84a71288ad",
+      "size": 2408
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1669/r57-native-10x.json",
+      "sha256": "f9088d5f89dfe7da808b4f354a9e9068306c6d08c3823eb591c4ca2a48a9e391",
+      "size": 155029
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1669/r57-native-10x.stderr.log",
+      "sha256": "6a45025996e6206024105d0efb859275e4ae7888c6d60aa19aaacd09d8ced6ac",
+      "size": 61094
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1669/r57-native-10x.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1669/r57-native-1x.command.json",
+      "sha256": "ec2fbdc4a4777b63fbe2ec7a158aaa78ab0bd7155cc5f443f6fe7f1c6059bdce",
+      "size": 2407
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1669/r57-native-1x.json",
+      "sha256": "11c3ba26f873f084908a36480dc37e5aea7d55e59d4d775b1c764e63202b807b",
+      "size": 154627
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1669/r57-native-1x.stderr.log",
+      "sha256": "158b6f31fb4b10801493e439a0de8502e090cb793f95176630d52685f72c1f95",
+      "size": 61029
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1669/r57-native-1x.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1669/summary.json",
+      "sha256": "7b5662870d4eea6d594ff4978382d5e29d2471b3a96c6eed08585bcac49c2640",
+      "size": 13524
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1993/current-source-baseline.command.json",
+      "sha256": "384cfecf95a7feab437c7e76386f10ff4504b67674f08d580ea240e3ff71543f",
+      "size": 2324
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1993/current-source-baseline.json",
+      "sha256": "0becb938d54258ce9b6f3889b4cc953ba1f7b3bb82cfa90ed890f0ac8d7e8678",
+      "size": 154548
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1993/current-source-baseline.stderr.log",
+      "sha256": "6dfb717806a120f954185d205e9531984a9c99a34f016f8ff03d669b1c69435d",
+      "size": 49790
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1993/current-source-baseline.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1993/r57-family-10x.command.json",
+      "sha256": "d1c097e47e66325b7acfa5ecb9f51d791ea94c248f87087e4b4c26535beb9300",
+      "size": 2460
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1993/r57-family-10x.json",
+      "sha256": "0becb938d54258ce9b6f3889b4cc953ba1f7b3bb82cfa90ed890f0ac8d7e8678",
+      "size": 154548
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1993/r57-family-10x.stderr.log",
+      "sha256": "baa4d47257244f284575faee1a6c1189cf2687758a75be298b391012c5d1c3b7",
+      "size": 52423
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1993/r57-family-10x.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1993/r57-family-1x.command.json",
+      "sha256": "481152ac1c229941ea750c2459cba8c0bff33d7827c4ad67061a2826c59ee15f",
+      "size": 2461
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1993/r57-family-1x.json",
+      "sha256": "0becb938d54258ce9b6f3889b4cc953ba1f7b3bb82cfa90ed890f0ac8d7e8678",
+      "size": 154548
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1993/r57-family-1x.stderr.log",
+      "sha256": "554a6cae7ce1335d362282b27a1a3145719916b7b2a3dd836a604034e50296d9",
+      "size": 52397
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1993/r57-family-1x.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1993/r57-native-10x.command.json",
+      "sha256": "332d5c39b4b031cbd1fb6f3b37353ccffdf95b35e97910b83058cbd32f4bd859",
+      "size": 2432
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1993/r57-native-10x.json",
+      "sha256": "0becb938d54258ce9b6f3889b4cc953ba1f7b3bb82cfa90ed890f0ac8d7e8678",
+      "size": 154548
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1993/r57-native-10x.stderr.log",
+      "sha256": "697bc1a628d53c120cfd1087183e9457dad3f63b2b6b653e0525437af37d92e6",
+      "size": 52427
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1993/r57-native-10x.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1993/r57-native-1x.command.json",
+      "sha256": "4397ac563eccc62a2b1b54607f8fd7ffeaeb805dc7bba76aa5ff25a7ac2c04cb",
+      "size": 2415
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1993/r57-native-1x.json",
+      "sha256": "0becb938d54258ce9b6f3889b4cc953ba1f7b3bb82cfa90ed890f0ac8d7e8678",
+      "size": 154548
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1993/r57-native-1x.stderr.log",
+      "sha256": "4060c7146952e73a8f43879e936e35e5bc6322a3abe3680474cc64be7253723e",
+      "size": 52411
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1993/r57-native-1x.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed1993/summary.json",
+      "sha256": "d81f23a92991ee50a32edabc0a11fa2c700671011a683fd12e86b8138e4e0b20",
+      "size": 13572
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2281/current-source-baseline.command.json",
+      "sha256": "007f6203aafe41da2dacc4ccc3de4ea1b76c6e171d7eb706024e1eacafe01ffa",
+      "size": 2328
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2281/current-source-baseline.json",
+      "sha256": "c60236682db5bf5f96f1bc6b4ea38d7ed0fb9c0b61747d2ee48a0579ec293994",
+      "size": 154769
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2281/current-source-baseline.stderr.log",
+      "sha256": "efd8f44a6fc54ff0b276efd90990ffb89e2ed4de1bc738c4877ecd2907a96927",
+      "size": 52379
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2281/current-source-baseline.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2281/r57-family-10x.command.json",
+      "sha256": "fd1e055f779f7d2f0a5491ad32fd6ea582c2f6505784197eb941863131f5b094",
+      "size": 2467
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2281/r57-family-10x.json",
+      "sha256": "582190bf8e82592d4ab55d117e15b68e00f85c190f27d880c164ad494084ac5c",
+      "size": 154774
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2281/r57-family-10x.stderr.log",
+      "sha256": "5fb505e8b1f9d8588bd8d66aea7b77329497a6bf5e9a36db9d6a2202ca749770",
+      "size": 57390
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2281/r57-family-10x.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2281/r57-family-1x.command.json",
+      "sha256": "e0f3822189cf320913da1cd1addae28415951bb61d1d46dd1a355418aae3cdfe",
+      "size": 2463
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2281/r57-family-1x.json",
+      "sha256": "85a13f8872d76976b7f81a2c94b9107f76ad638e184715d77cb5aeedf9484e62",
+      "size": 154640
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2281/r57-family-1x.stderr.log",
+      "sha256": "827ce86dfece8585bd284d7a4db5531b757c6a049803cb94693521add3245cb6",
+      "size": 57225
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2281/r57-family-1x.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2281/r57-native-10x.command.json",
+      "sha256": "2ab4363adb2bbbda9e7e6ee0e05edd80bc2e156c031ecfd8731be8b4f4acda15",
+      "size": 2428
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2281/r57-native-10x.json",
+      "sha256": "faf01900e327b4f8084c1128510e530139903865c7bc8151c9ccf6add0055daa",
+      "size": 154771
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2281/r57-native-10x.stderr.log",
+      "sha256": "ec5f3babd74e4c0a6380652b9423b16e2b234a87786e32dea666bf2857f2d302",
+      "size": 55474
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2281/r57-native-10x.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2281/r57-native-1x.command.json",
+      "sha256": "38c7e9201fa9aec081d1b99447bcd1f638efdefa6d91844faae968aedbba9608",
+      "size": 2428
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2281/r57-native-1x.json",
+      "sha256": "bc8ee8d0dee4e2b3931bfc5939b92523d38cff47048b5a2a090003aea37252fb",
+      "size": 154770
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2281/r57-native-1x.stderr.log",
+      "sha256": "375d15e5ca7722a75877e66983051dc8a44f4df7d94f62b72eda2ffeef225ed9",
+      "size": 55433
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2281/r57-native-1x.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2281/summary.json",
+      "sha256": "72d2d73a9d6ab5289e0ed26687ce4e3c1754519d8c43817965dc121c87771818",
+      "size": 13594
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2293/current-source-baseline.command.json",
+      "sha256": "003605c65d34ff6691d52ce57d01f37bfb67fa73b907e5c29c6427ca19b1e76a",
+      "size": 2328
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2293/current-source-baseline.json",
+      "sha256": "bad375d5068ff805d20a704b86e09c366c880bbb368f0e30bb70253962d59d6d",
+      "size": 154829
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2293/current-source-baseline.stderr.log",
+      "sha256": "4a64252b718531d40b091642ebd56cc75694fd98d451bdc6b33b302311b128e1",
+      "size": 55322
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2293/current-source-baseline.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2293/r57-family-10x.command.json",
+      "sha256": "99086b99f79a76aaea7cfb79f53deaae9dc7ef6eabc340c5f6c2537b6c856699",
+      "size": 2471
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2293/r57-family-10x.json",
+      "sha256": "b449133e42f771ba57be0ea0b06a614cbc17a83d2f75c8987a036c5fb88a18ce",
+      "size": 154829
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2293/r57-family-10x.stderr.log",
+      "sha256": "779968687c20b9c3ea6de2c3659bf49c0d1f12ec67298e97d3fba9beeb1f5ec5",
+      "size": 61382
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2293/r57-family-10x.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2293/r57-family-1x.command.json",
+      "sha256": "84c57d4d132797d928e65e5e1eec37a518bd75db40b853337150d1f24b0f80e6",
+      "size": 2466
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2293/r57-family-1x.json",
+      "sha256": "02adcd4c706009ad1eb3436086ba7c7e21c4f3bcd17cb8989ab5ccf542923d6d",
+      "size": 154829
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2293/r57-family-1x.stderr.log",
+      "sha256": "db276fd359a2c87e53fc72c3809a01da85138e83d0d639e412e95a3f9d50364e",
+      "size": 61262
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2293/r57-family-1x.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2293/r57-native-10x.command.json",
+      "sha256": "f838d5b51f0c6db6287be8e02e7a2e5b01f77996f760a8112d3e955df3004b69",
+      "size": 2435
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2293/r57-native-10x.json",
+      "sha256": "cf032a3526b07086de74af70505b3c43a7688a2a696c08fa6d27fc1ec6b16431",
+      "size": 154959
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2293/r57-native-10x.stderr.log",
+      "sha256": "2d41f4e7e33351a900c8310b22932e22ccbdb4f040f62c40451f40f3e95d10b7",
+      "size": 59517
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2293/r57-native-10x.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2293/r57-native-1x.command.json",
+      "sha256": "da513923c656caea74fbfd58eb36fd62829626641a3992569793136ce0fd72eb",
+      "size": 2424
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2293/r57-native-1x.json",
+      "sha256": "14a259d428eb8e9a9a26679e4481447d0e8bfdf5da4cea5beeb021a19de1e2ae",
+      "size": 154829
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2293/r57-native-1x.stderr.log",
+      "sha256": "d6f11c5ca06c8913f1f752be0f6d13d32a0a8a88478a0246edc929990aa7ca2e",
+      "size": 59288
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2293/r57-native-1x.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/cohort/seed2293/summary.json",
+      "sha256": "99daadc823f4b8ce04d9520d08db1c5cadcb39d696e17f86115cd79b86c68697",
+      "size": 13604
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/checks/cargo-check.log",
+      "sha256": "2b34696728dc82b03cbf6311d7e3a6a41658bbde097834c3010a78bc82842c1a",
+      "size": 72
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/checks/cargo-family-tests.log",
+      "sha256": "d088535f0571aea513059184ad30c2c2714fbd88e9f31787e21fa9c69b0567b6",
+      "size": 1213
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/checks/cargo-fmt-check.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/checks/cargo-release-build.log",
+      "sha256": "6903e81247cf2cc3de52bceda85055cad8d1597a1255e8549dda2ba095aedf18",
+      "size": 74
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed1669/family-5000-h08.command.json",
+      "sha256": "2e818bb2da9c465287f8efdc87daf9d0c807c3bdf9eea0979b7b2d0f55c95417",
+      "size": 2649
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed1669/family-5000-h08.json",
+      "sha256": "4a8f874c2659a0bce1c6f5331317ab50a3cf959e68cd3b13c3fd9118560e4304",
+      "size": 154898
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed1669/family-5000-h08.stderr.log",
+      "sha256": "b4bc1e9b6ddc764eaf972c74c922d6af49737b323dedfb8fa1cc219e4cd55c73",
+      "size": 62902
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed1669/family-5000-h08.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed1669/native-5000-v1headroom.command.json",
+      "sha256": "1eafc3cc1c4e5339f69220297bddf4b8c851f71b1bbe8f21cb2c55a6182840a6",
+      "size": 2588
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed1669/native-5000-v1headroom.json",
+      "sha256": "56082429abbde64a4d8810540180e9d51ee7467d8ba2cdefc5f134bdf3cab685",
+      "size": 155027
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed1669/native-5000-v1headroom.stderr.log",
+      "sha256": "5edc78533c7dd3b4e0cd1e313b0fcaccaa54232aee8fcf107dc9f714114709b4",
+      "size": 60922
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed1669/native-5000-v1headroom.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed1669/summary.json",
+      "sha256": "958d4817f4007ad6c6358e93df6903db60b256cc6ed4c4ab29753e8db0910ff4",
+      "size": 5893
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed1993/family-5000-h08.command.json",
+      "sha256": "f95e731a86762c48152f5b95272be9280e4bb1be8d399b627a53acac76c3e14b",
+      "size": 2654
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed1993/family-5000-h08.json",
+      "sha256": "0becb938d54258ce9b6f3889b4cc953ba1f7b3bb82cfa90ed890f0ac8d7e8678",
+      "size": 154548
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed1993/family-5000-h08.stderr.log",
+      "sha256": "ba308f9d692546eb072f14ebf84d133077436ccbab963e013999856b41caee41",
+      "size": 52495
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed1993/family-5000-h08.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed1993/native-5000-v1headroom.command.json",
+      "sha256": "f8175f0a965c8d75e63aef365a804bb1bba5c7b8b1885de0f6b64909b3199003",
+      "size": 2589
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed1993/native-5000-v1headroom.json",
+      "sha256": "0becb938d54258ce9b6f3889b4cc953ba1f7b3bb82cfa90ed890f0ac8d7e8678",
+      "size": 154548
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed1993/native-5000-v1headroom.stderr.log",
+      "sha256": "206fd5b06790ea93db34ad739641dcba5f561e15abe84b449d40c694e28fe330",
+      "size": 52451
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed1993/native-5000-v1headroom.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed1993/summary.json",
+      "sha256": "b5988ec77522d34ece244ff75867b5537cf025ad2c797006892434eecf3cc8ad",
+      "size": 5899
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed2281/family-5000-h08.command.json",
+      "sha256": "4be58cbde651a42dd26bd4bb51c0c31ef6a17f789255d1ab334f0629737f53ec",
+      "size": 2652
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed2281/family-5000-h08.json",
+      "sha256": "12ead48d475e2dc95c9d7c86cab9f07fb8c6b4ece8fbc8445c58de5fbf5b6d8b",
+      "size": 154769
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed2281/family-5000-h08.stderr.log",
+      "sha256": "c3c3817503c3d000aa7e856d9a505eaa2031e21a6510608b11d3191fda5af675",
+      "size": 57432
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed2281/family-5000-h08.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed2281/native-5000-v1headroom.command.json",
+      "sha256": "db36ebfb1e13b0da68a20b23e65e901ce07657937ce37409359c2461cac12a38",
+      "size": 2580
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed2281/native-5000-v1headroom.json",
+      "sha256": "f44349431a405e729f2b13d6e539ad49be654a79e4fbd251264164455c7d3cf9",
+      "size": 154770
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed2281/native-5000-v1headroom.stderr.log",
+      "sha256": "a8cd72fce60ac558848be0e7fc8df6bbe2934192e56c031d39461d02bd71fc5d",
+      "size": 55388
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed2281/native-5000-v1headroom.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed2281/summary.json",
+      "sha256": "8acea5b63ceb25cb733713ac3c9d69953c47d15b136426f7327a4c9bce6e540e",
+      "size": 5888
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed2293/family-5000-h08.command.json",
+      "sha256": "cf956e83d4fc73c1fccaa7edd751632154c1c9107e17db56dfc13fc169f49d40",
+      "size": 2657
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed2293/family-5000-h08.json",
+      "sha256": "e7ab7deb840be5d3fee998a200803c34d3d9b9ab0f57d1bb6274c78dd0b0416b",
+      "size": 154956
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed2293/family-5000-h08.stderr.log",
+      "sha256": "01a59f28648f4c62541eede9fecd30cd64571ead55007bbd379188441d6c8c76",
+      "size": 61405
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed2293/family-5000-h08.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed2293/native-5000-v1headroom.command.json",
+      "sha256": "cd2598e9a1e68c6f9bcfbf82c370503c54a4d786a8b315115a77ff19c03f641f",
+      "size": 2585
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed2293/native-5000-v1headroom.json",
+      "sha256": "6948f0e9d00c25d9ee0aaa478e92052865c716fd5af6488624de4a34309e26db",
+      "size": 154829
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed2293/native-5000-v1headroom.stderr.log",
+      "sha256": "57eebdc743ab3a28e2e3ab200d2f8f38abcf3c0f5cfba027dd4fa50f08988823",
+      "size": 59441
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed2293/native-5000-v1headroom.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed2293/summary.json",
+      "sha256": "fbde6b8ababe01d7fe02bca46b79586388c2ade5ddd6556cbcb2409dd1abc762",
+      "size": 5898
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed808/family-5000-h08.command.json",
+      "sha256": "8851b1c19fc124dd4b5e5031e4709f76ffc6bc93f602857bba378bfa4bd54600",
+      "size": 2629
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed808/family-5000-h08.json",
+      "sha256": "7f9dd03b20e44107e66fd0f1a060bef304a9aa0dc2fe03cfbaf189435287e26c",
+      "size": 155089
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed808/family-5000-h08.stderr.log",
+      "sha256": "f86f2ce2f16fb972d7d6129f2d5e79b04f4233cab8225c95c79e5d330f019185",
+      "size": 58751
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed808/family-5000-h08.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed808/native-5000-v1headroom.command.json",
+      "sha256": "56516819a800e525744c71e6065d7fca9d5266bad67ddbb60751c737c8c0cccc",
+      "size": 2557
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed808/native-5000-v1headroom.json",
+      "sha256": "70b6140890f88a57ed5e1761a99aa8983428489585bce8756f80c3af852071b8",
+      "size": 154959
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed808/native-5000-v1headroom.stderr.log",
+      "sha256": "6458e8bd8ede29261160f87b0b59fea293825a2ed9249f29d993b9578b0cc623",
+      "size": 56796
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed808/native-5000-v1headroom.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/cohort/seed808/summary.json",
+      "sha256": "8800957e4347c6419a405b28a29be7875a336440d543808d745833ac966f75cc",
+      "size": 5841
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/flagoff-parity/comparison.json",
+      "sha256": "8f3f6e662135a331a25f0ee82ba50b0083740cbf28e8e55419d1451774586b58",
+      "size": 944
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/flagoff-parity/reallocated-flagoff-seed808.json",
+      "sha256": "28a6d61d3466cfb706b358e09df77047bd1e8c82ed7ffc929af741eb439c1604",
+      "size": 154959
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/flagoff-parity/stderr.log",
+      "sha256": "923c2724489110670d690f569267539718074f4211cf45170c323e5a1731ccdc",
+      "size": 55992
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/flagoff-parity/stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/metrics.json",
+      "sha256": "371016328dae4b86e7b3de52b49b376179e3857604c51b1bead8b8f8f4e0d111",
+      "size": 145871
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/seed808/family-5000-h08.command.json",
+      "sha256": "98dd025d783fb5c642b35936aa4cbba98698e094d552824b8c7b30c508135426",
+      "size": 2645
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/seed808/family-5000-h08.json",
+      "sha256": "7f9dd03b20e44107e66fd0f1a060bef304a9aa0dc2fe03cfbaf189435287e26c",
+      "size": 155089
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/seed808/family-5000-h08.stderr.log",
+      "sha256": "c2f40b27893560de089622c9e13daff2d160a05cda223bf98573c3b39b0a8441",
+      "size": 58715
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/seed808/family-5000-h08.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/seed808/native-5000-v1headroom.command.json",
+      "sha256": "02ee4c5de5a29046b0fa794cb389bf941550421dcb08652ce8c5e72479d691ac",
+      "size": 2555
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/seed808/native-5000-v1headroom.json",
+      "sha256": "70b6140890f88a57ed5e1761a99aa8983428489585bce8756f80c3af852071b8",
+      "size": 154959
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/seed808/native-5000-v1headroom.stderr.log",
+      "sha256": "9f45dee0c2d384746129f80ad35eb1c133c1ad40df10475e71fbecb5a93c1cca",
+      "size": 56715
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/seed808/native-5000-v1headroom.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/reallocation/seed808/summary.json",
+      "sha256": "aa847e180c29ee06707e49997532c77dae29c2c5cd3f79722d303fbc2c0f11d9",
+      "size": 5855
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/seed808/current-source-baseline.command.json",
+      "sha256": "eac1e3e892a44c5657a796c502777bbf0a5b615894be666b666b9667be1629e9",
+      "size": 2259
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/seed808/current-source-baseline.json",
+      "sha256": "28a6d61d3466cfb706b358e09df77047bd1e8c82ed7ffc929af741eb439c1604",
+      "size": 154959
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/seed808/current-source-baseline.stderr.log",
+      "sha256": "0ec31a6b609f0a9ced13730f8a68328a11526886166b8e841490e1bec8ca523c",
+      "size": 53685
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/seed808/current-source-baseline.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/seed808/flag-off-parity.json",
+      "sha256": "031e8c9c05e4189da36521a1d7b4d7b08a62e9021af9d55ab8c4c5e69bf881ca",
+      "size": 212
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/seed808/r57-family-10x.command.json",
+      "sha256": "5d526f697e36cc6510163e00f315486e14af1b6b54f2f7b5f706001ff24169bc",
+      "size": 2449
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/seed808/r57-family-10x.json",
+      "sha256": "1095ae56e8854a2c1f0d1ffd97dd3747959090c3fd3ddf83069e4f73369ece2f",
+      "size": 155091
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/seed808/r57-family-10x.stderr.log",
+      "sha256": "0c509ed47421477f69507f00db71b2995b366150061b2d3c82cbb52bb178c7a7",
+      "size": 58758
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/seed808/r57-family-10x.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/seed808/r57-family-1x.command.json",
+      "sha256": "50e806106608682bf4eb37259363be958e90b7f0f90b999a1bb88ba773989b67",
+      "size": 2423
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/seed808/r57-family-1x.json",
+      "sha256": "2b8f7eb9272a9a1f4542f31734de384451715c2757f36f65e31cf365e88d701d",
+      "size": 154959
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/seed808/r57-family-1x.stderr.log",
+      "sha256": "8b6499f48da0d81669b3d916f6a061fc11fe885d1a032865b2096c86e78a1e87",
+      "size": 58550
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/seed808/r57-family-1x.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/seed808/r57-flag-off.command.json",
+      "sha256": "47520e232376f4ba4203f1b59fa8011a501077997445efa54e461803a43b1f72",
+      "size": 2212
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/seed808/r57-flag-off.json",
+      "sha256": "28a6d61d3466cfb706b358e09df77047bd1e8c82ed7ffc929af741eb439c1604",
+      "size": 154959
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/seed808/r57-flag-off.stderr.log",
+      "sha256": "33fba122d461a7c97a56c317a558bda4215b07a0d33248f363895ec77a482076",
+      "size": 56006
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/seed808/r57-flag-off.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/seed808/r57-native-10x.command.json",
+      "sha256": "fd274b763a117405815db766c899cd2895c7aa051b77b4a9af5306197e7ebfff",
+      "size": 2396
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/seed808/r57-native-10x.json",
+      "sha256": "9d80ba431fb2a2226f6e62a7a3c2da6c88f522ee21d6336249e991d9a35fe6c5",
+      "size": 155089
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/seed808/r57-native-10x.stderr.log",
+      "sha256": "68f4972618aa0feb4ba159a1594c4d5473f2706727299f43d4bb30139144263c",
+      "size": 56824
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/seed808/r57-native-10x.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/seed808/r57-native-1x.command.json",
+      "sha256": "af545b17c873d1ea41dc2970e0844a790156f9e88ab83b92abac35c6fd8edfa0",
+      "size": 2400
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/seed808/r57-native-1x.json",
+      "sha256": "a71c429017fd77d56a4c1ddcf290940b85f4e0a5b7d1703e0d6c33e238912a0e",
+      "size": 154959
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/seed808/r57-native-1x.stderr.log",
+      "sha256": "436a377f4c790dbecd4e50770605f5d4f22e66d0024b80fb052df49b7ec781e4",
+      "size": 56709
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/seed808/r57-native-1x.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "logs/seed808/summary.json",
+      "sha256": "ea57614ffe2aee9f57e5b5cc7618b12b30e90dfab2950d8a10edeaffde76e18d",
+      "size": 15843
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "patch/r57-family-conditioning.patch",
+      "sha256": "8145a0ccd343d78a59019d93c928ee4be6899e088a4e081f2eb341b23bd482ed",
+      "size": 56751
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "patch/r57-reallocation.patch",
+      "sha256": "19952f47f0d22067eb5925af84d3ff2860ce0c43558e413436a518006dc79a04",
+      "size": 5028
+    }
+  ],
+  "schema_version": 1
+}

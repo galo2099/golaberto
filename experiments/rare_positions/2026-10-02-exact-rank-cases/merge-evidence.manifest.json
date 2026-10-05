@@ -1,0 +1,37 @@
+{
+  "archive": "merge-evidence.tar.gz",
+  "archive_sha256": "01b803154faec338aff26cecbfded29894f66768f47fa77c6b66b01b08364ec9",
+  "archive_size": 2894025,
+  "experiment": "2026-10-02-exact-rank-cases",
+  "members": [
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "PROVENANCE.json",
+      "sha256": "24108e52b56e8ca8c77d23a859b47d76e8db441432e4a2bf2f07283c737ada36",
+      "size": 1284
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "commands-metadata.txt",
+      "sha256": "99d44b428cd1ecbd8fd020c0ff6d1f96cbcad4d0cba1939c4f0e54cb474e3733",
+      "size": 1118
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "raw-evidence.tar.gz",
+      "sha256": "4fb82b2ffe22963fc1a1177f63dcddaf88fb4c0fd32e3589578b8758b7d9047a",
+      "size": 3041083
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "v4candidate.patch",
+      "sha256": "aa5d086ee8325b44af9b7162ee08b8ba2b59c6844c50c95d44d9e531ab6830bd",
+      "size": 76487
+    }
+  ],
+  "schema_version": 1
+}

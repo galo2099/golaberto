@@ -1,0 +1,590 @@
+{
+  "archive": "merge-evidence.tar.gz",
+  "archive_sha256": "dc673c6a97c32367dce092de0c5c276fc6f6e9d14a0ad3c382fb875643922163",
+  "archive_size": 1264458,
+  "experiment": "2026-10-05-generic-followups",
+  "members": [
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "analysis-followups.json",
+      "sha256": "4844566a5cb25b96374d986df869e94d5828e399df242dcaccb79b22e6ebb59f",
+      "size": 9401558
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "analysis-screen.json",
+      "sha256": "7f25cd6c5d376cac3a6547fc89b14249535ca63475bb90c5d37ce67b6cb64001",
+      "size": 2562527
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "data/v1.sha256",
+      "sha256": "29494f66acf9a31ac2d292d8172d5a0d5992f68699ff31b8bc4e38e25ca3ec44",
+      "size": 1126
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-after-pal15-messages4/record.json",
+      "sha256": "a12662a404a40214bd65ed227fe07601e91dc63f32491ef7f173d0caa2a6924c",
+      "size": 2711
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-after-pal15-messages4/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-after-pal15-messages4/stdout.jsonl",
+      "sha256": "06183dcee740f28c62ae86e6edc4890ab28e43f059dbd9e12948f84f4d8c61a9",
+      "size": 1188174
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-after-pal15-messages4/summary.json",
+      "sha256": "e313237e86cdbc70915ab5d6bb7d9e90cfac20eca148b3ab14453d8dff6af6b8",
+      "size": 525
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-after-pal15-pilot500/record.json",
+      "sha256": "e30da982c8c5fc67c98a7516853c045529fd913b4ee0435da6a5175581c60fe7",
+      "size": 2722
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-after-pal15-pilot500/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-after-pal15-pilot500/stdout.jsonl",
+      "sha256": "8e3f5962515cb23099909ca45008458db6578ccbb44297dcb859d339a6d2b299",
+      "size": 1187908
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-after-pal15-pilot500/summary.json",
+      "sha256": "d9b3d946f07679580ea32d832a5f8164be026bfa38f5f74e6b3db43a04ceea31",
+      "size": 525
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-after-pal15-pilot5000/record.json",
+      "sha256": "7c5a3f6934217b660196cc56fd29ee3489bd05db2b4a3ef08e8ba0f4a3a2d327",
+      "size": 2714
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-after-pal15-pilot5000/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-after-pal15-pilot5000/stdout.jsonl",
+      "sha256": "269fe0c216486a4e2857857d644bd92ba307fb3b818b9339fd872dbaf3535bd3",
+      "size": 1190085
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-after-pal15-pilot5000/summary.json",
+      "sha256": "a1ca4b8780bc974898dd74d147c57565916f212a46e00ae3ea8850669d2221b9",
+      "size": 523
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-after-pal16-baseline/record.json",
+      "sha256": "fb17d8c2578a82c3cc41b0acd308b879bf9140f475562b85d6880a8986117809",
+      "size": 2508
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-after-pal16-baseline/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-after-pal16-baseline/stdout.jsonl",
+      "sha256": "2d728e462c694704734fb4434d2b4d16b41485f998e5513f5096e264a57a2d2c",
+      "size": 497251
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-after-pal16-baseline/summary.json",
+      "sha256": "00ed1bb2b3167b5ed23a3d86aea8ad80ac9bf6ede5890fdb62b828c34ccb6f06",
+      "size": 529
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-after-pal16-bounds/record.json",
+      "sha256": "df00744e1fbe16eaeaf783483c1974277b4a40c8ed1a54f3ce6d5313b8faf4ea",
+      "size": 2506
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-after-pal16-bounds/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-after-pal16-bounds/stdout.jsonl",
+      "sha256": "fb2761fa57419acb7a0d44d8ad411c498a3d6c8323e15365a0485295acb4f61c",
+      "size": 481076
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-after-pal16-bounds/summary.json",
+      "sha256": "ffa6c16b45f29bbbbe95ef2ec6ab749b0b4d3b5072920bc816c4d4d79024dd1b",
+      "size": 526
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-before-pal15-messages4/record.json",
+      "sha256": "0176c561a92554ae74aa0b2932b1958608aba79367c35aaa19076ffd92ed05ea",
+      "size": 2726
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-before-pal15-messages4/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-before-pal15-messages4/stdout.jsonl",
+      "sha256": "9863b7a96e2e71df3d8be8b44d44111a5746f38b601a4fcbae98492d8c7c2ad2",
+      "size": 1277209
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-before-pal15-messages4/summary.json",
+      "sha256": "e20dc86409e0901072f4301a81cc0b4ee433ce83f9b34f96e68635d18811a462",
+      "size": 526
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-before-pal15-pilot500/record.json",
+      "sha256": "142586c6b8a0b2e13662fc6e7e254315a3aa3f66ce8abcdf881853c343dfa77b",
+      "size": 2718
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-before-pal15-pilot500/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-before-pal15-pilot500/stdout.jsonl",
+      "sha256": "897d17259f2132a32ac69f69654c6d7d2d5062d056081e3c7b977d93e7d04c9d",
+      "size": 1276953
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-before-pal15-pilot500/summary.json",
+      "sha256": "901b1cff7848e30f0b9f569f1aef128cd4e90c26294cee1be158587f7cb08267",
+      "size": 525
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-before-pal15-pilot5000/record.json",
+      "sha256": "f6dc99a42e5884d9060406a857e83758be6eb9ed2c1c9251b9cfbd2a50fbc655",
+      "size": 2717
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-before-pal15-pilot5000/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-before-pal15-pilot5000/stdout.jsonl",
+      "sha256": "daefbb67f53ae3bffe61da803c89e8f34019677f0976799262c41317885f3dae",
+      "size": 1278612
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-before-pal15-pilot5000/summary.json",
+      "sha256": "48ef54183a65c4092e3e3e7175b1c55f87b0ad76c96338a5ce901e9acc04161a",
+      "size": 523
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-before-pal16-baseline/record.json",
+      "sha256": "1a9049f393999b44fd5ea80a96c559c2c80881d2ed75364dd3eaf917ec294472",
+      "size": 2513
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-before-pal16-baseline/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-before-pal16-baseline/stdout.jsonl",
+      "sha256": "fc53af29f53fc21695dc2ed2ecef3566a98fa84133ffe0bbcf1b84d407c8c30a",
+      "size": 658459
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-before-pal16-baseline/summary.json",
+      "sha256": "63dc7bc18356caea48550982d1cc0cbc73f875b6e99cdcb99db8eb47fefe32c0",
+      "size": 529
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-before-pal16-bounds/record.json",
+      "sha256": "00460e138312e5ddfcaae79b23407ca487124d2bb915c9c1baaa2cb2b8d4b85c",
+      "size": 2508
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-before-pal16-bounds/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-before-pal16-bounds/stdout.jsonl",
+      "sha256": "9cd851240c2e0be2765e35d04ca50b61702b8b952999e4ad75583578260f5322",
+      "size": 658442
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "holdout-before-pal16-bounds/summary.json",
+      "sha256": "eb2f7fa5d58a8538ba8572733fc539ab679cdbecceb269a0b57692a789faf7bf",
+      "size": 530
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-after-pal15-pilot5000/record.json",
+      "sha256": "c223bb6eefa3752d5a5e368f132a06c5b784b39306cac64c9c1a37bc9836e75d",
+      "size": 2702
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-after-pal15-pilot5000/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-after-pal15-pilot5000/stdout.jsonl",
+      "sha256": "bddb13923dea1c6336f90a4d0275c05e084a15ef7be71746db0ae0238fb108a7",
+      "size": 1182383
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-after-pal15-pilot5000/summary.json",
+      "sha256": "9e531c4f3cab208e0ebc390e9e18afa4fcd7657a5b8656f2e8177adc56acf294",
+      "size": 526
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-after-pal16-bounds/record.json",
+      "sha256": "b2aa886e4a504b11f689a21a1ce2db3432b4273cc79d016c9986d7018e786acd",
+      "size": 2510
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-after-pal16-bounds/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-after-pal16-bounds/stdout.jsonl",
+      "sha256": "86fbcadae6f3c3886d6c4c38542961a964fd6a07ed72dacd0145a55d2b218808",
+      "size": 489084
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-after-pal16-bounds/summary.json",
+      "sha256": "2a0b50223fa5b7f743efbc57b0a4b6617b5dad7092f1f63173ea88ed4fee9b7e",
+      "size": 528
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-after-pal16-equal/record.json",
+      "sha256": "350780744785313f8cb762c4ec5df7e305f762accffc8709ac4aaa96d59e21cc",
+      "size": 2495
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-after-pal16-equal/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-after-pal16-equal/stdout.jsonl",
+      "sha256": "1d29094daea1652c8d4090e1508d96fbfa5a3afd2bf2564bd692119e529d81dd",
+      "size": 546114
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-after-pal16-equal/summary.json",
+      "sha256": "f2e84594b32b97ff212a93e08d8ab5ce602e12d8769617f6a76a4cbbd5c4ec36",
+      "size": 524
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-after-pal16-native/record.json",
+      "sha256": "47a0df5f79422ab173797c72efc0a6b3a151343e8fcc04db694b42afc8541a1f",
+      "size": 2507
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-after-pal16-native/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-after-pal16-native/stdout.jsonl",
+      "sha256": "d25d6d40499cb1cc8bb12e81c09f665f876afa1e0382a751f3db19ebce5f2fa5",
+      "size": 206359
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-after-pal16-native/summary.json",
+      "sha256": "fe86bf6ba181d23d52ca60970760d9d5da2f88a224b48613def3e4b6fd183713",
+      "size": 529
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-after-pal16-pilot50000/record.json",
+      "sha256": "2fc32c1d3ac28c1f366b69571fd1637aa0d86106a9133f9d1ffd1dc474c8a730",
+      "size": 2514
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-after-pal16-pilot50000/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-after-pal16-pilot50000/stdout.jsonl",
+      "sha256": "9a16d73e84a89959799f51409faaea30f6fbc277f1fd8bb066fd1f4df32856d2",
+      "size": 522092
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-after-pal16-pilot50000/summary.json",
+      "sha256": "eecbee43180f0224b288249e768b9d025e81009f99246ce384dbd35052a414ce",
+      "size": 525
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-before-pal15-pilot5000/record.json",
+      "sha256": "8026f7ef76a783ff9886167c240f524fa72c5770e3abc1e131891afb66c6d043",
+      "size": 2714
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-before-pal15-pilot5000/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-before-pal15-pilot5000/stdout.jsonl",
+      "sha256": "767a1b5129279e4d76aa600e62a03b8ccd55aacd6316482a6506cb60659d5a5a",
+      "size": 1278725
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-before-pal15-pilot5000/summary.json",
+      "sha256": "8a4bf2a931c1c501442b6de49bb64ac43ca972796059ee62fa561daade43606b",
+      "size": 525
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-before-pal16-bounds/record.json",
+      "sha256": "27e3e38e49e0b39e32a994773c39cc1bd9ea754176b440e63348b9fbb22cc19a",
+      "size": 2503
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-before-pal16-bounds/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-before-pal16-bounds/stdout.jsonl",
+      "sha256": "38e576b47d0c1ce9f19ef2246cf5f541f5acf197304be01dd703360fbe6257af",
+      "size": 658476
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-before-pal16-bounds/summary.json",
+      "sha256": "033cd82e4e92f2392541724b148e0ae165bf750b768fa128f2f4b6da014e6b01",
+      "size": 526
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-before-pal16-equal/record.json",
+      "sha256": "e9773443053a5612b2a108bb96150b8bf10f246c66d1f00cdd36e454d97fb935",
+      "size": 2507
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-before-pal16-equal/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-before-pal16-equal/stdout.jsonl",
+      "sha256": "52162059eb64086e66742458b4add1f6d19a58e8e69cc2495ba6dff566585e73",
+      "size": 659136
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-before-pal16-equal/summary.json",
+      "sha256": "2a90cce5922ad94f285d420c01aecd11de0e7802237751c52e88f30ac53967e9",
+      "size": 526
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-before-pal16-native/record.json",
+      "sha256": "eb8f0b5ee58397292bffdf7045a6600f0be7ff0e411bbe6c494b32c5e01317d8",
+      "size": 2512
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-before-pal16-native/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-before-pal16-native/stdout.jsonl",
+      "sha256": "35e5f179fde2dd6aaf3b161e1e15703bc3efec9193460bd47719577f2c6e711a",
+      "size": 522562
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-before-pal16-native/summary.json",
+      "sha256": "5a2898bb501bfc00ecd3f9e4e8ebd52e566b4733589507e7b379e273f18d3d33",
+      "size": 529
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-before-pal16-pilot50000/record.json",
+      "sha256": "65570830fa91a4e07d85e294095b9a8d5fb7ecc736748c5265a2f7989388493c",
+      "size": 2522
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-before-pal16-pilot50000/stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-before-pal16-pilot50000/stdout.jsonl",
+      "sha256": "bec860e50d491c6d4f73207b16a1f348d873b0155f136b12b7c00ecc8b3a40d7",
+      "size": 659018
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "screen-before-pal16-pilot50000/summary.json",
+      "sha256": "c166a3831ff3fa284cfca90d6d82098c012b12660d339a61c170b40d62deb80e",
+      "size": 529
+    }
+  ],
+  "schema_version": 1
+}

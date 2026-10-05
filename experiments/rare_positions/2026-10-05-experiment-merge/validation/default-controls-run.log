@@ -1,0 +1,4 @@
+{"completed": 1, "fixture": "original-16498", "seed": 808, "repeat": 0, "arm": "control", "wall_seconds": 1.9398189169999998}
+{"completed": 2, "fixture": "updated-16498", "seed": 808, "repeat": 0, "arm": "control", "wall_seconds": 1.6310647079999998}
+{"done": true, "records": 2, "summary": "/Users/robsonaraujo/work/golaberto/experiments/rare_positions/2026-10-05-experiment-merge/validation/default-controls/summary.json"}
+exit_code=0

@@ -1,0 +1,16 @@
+{
+  "archive": "merge-evidence.tar.gz",
+  "archive_sha256": "57841f38e7940345497ca0c0ab480e19578204f452e279e10d76fbfbc76a6efe",
+  "archive_size": 2829,
+  "experiment": "2026-10-03-flamengo-three-points",
+  "members": [
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "one-win-10x.json",
+      "sha256": "7f35fcd48a09a3f94acec98b930c10be72f4e1c2f53ac444bca7f3a5b6c96ae9",
+      "size": 31886
+    }
+  ],
+  "schema_version": 1
+}

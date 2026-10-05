@@ -9,6 +9,77 @@ type SharedGuideKey = (
     usize,
     Vec<(usize, usize, usize, [i32; 3], [i32; 3], [u64; 3])>,
 );
+
+fn partial_family_side(state: &[i8]) -> Option<i8> {
+    let above = state.contains(&1);
+    let below = state.contains(&-1);
+    match (above, below) {
+        (true, false) => Some(1),
+        (false, true) => Some(-1),
+        _ => None,
+    }
+}
+
+fn charge_family_selection(work: &mut usize, limit: usize, amount: usize) -> bool {
+    let Some(next) = work.checked_add(amount) else {
+        return false;
+    };
+    if next > limit {
+        return false;
+    }
+    *work = next;
+    true
+}
+
+fn select_family_candidates(
+    values: &[(Vec<u8>, Vec<i8>, f64)],
+    limit: usize,
+    reserve_sides: bool,
+    preferred: &[(Vec<u8>, Vec<i8>)],
+) -> Vec<(Vec<u8>, Vec<i8>, f64)> {
+    let mut selected = Vec::with_capacity(limit.min(values.len()));
+    fn add_candidate(
+        selected: &mut Vec<(Vec<u8>, Vec<i8>, f64)>,
+        values: &[(Vec<u8>, Vec<i8>, f64)],
+        index: usize,
+        limit: usize,
+    ) {
+        let candidate = &values[index];
+        if !selected
+            .iter()
+            .any(|(root, state, _)| root == &candidate.0 && state == &candidate.1)
+            && selected.len() < limit
+        {
+            selected.push(candidate.clone());
+        }
+    }
+    if reserve_sides {
+        for side in [1, -1] {
+            if let Some(index) = values
+                .iter()
+                .position(|(_, state, _)| partial_family_side(state) == Some(side))
+            {
+                add_candidate(&mut selected, values, index, limit);
+            }
+        }
+    }
+    for key in preferred {
+        if let Some(index) = values
+            .iter()
+            .position(|(root, state, _)| root == &key.0 && state == &key.1)
+        {
+            add_candidate(&mut selected, values, index, limit);
+        }
+    }
+    for index in 0..values.len() {
+        add_candidate(&mut selected, values, index, limit);
+        if selected.len() == limit {
+            break;
+        }
+    }
+    selected
+}
+
 #[derive(Default)]
 pub struct SharedGuides {
     entries: std::sync::Mutex<HashMap<SharedGuideKey, std::sync::Weak<Guide>>>,
@@ -113,6 +184,7 @@ pub struct LazyJoint {
     root_allocation: HashMap<Vec<u8>, f64>,
     families: HashMap<Vec<u8>, Vec<(Vec<i8>, Pattern, f64)>>,
     family_fit_report: Vec<serde_json::Value>,
+    family_selection_work: usize,
     nodes: usize,
     node_limit: usize,
     rival_limit: usize,
@@ -355,6 +427,7 @@ impl LazyJoint {
             root_allocation: HashMap::new(),
             families: HashMap::new(),
             family_fit_report: Vec::new(),
+            family_selection_work: 0,
             nodes: 0,
             node_limit: 60000,
             rival_limit: crate::rare_tail::value("RUST_ODDS_LAZY_RIVALS")
@@ -869,7 +942,7 @@ impl LazyJoint {
         key: &[u8],
         state: &[i8],
     ) -> std::result::Result<Option<Pattern>, ()> {
-        if state.len() + 1 != self.base.len() || state.iter().any(|&side| !(-1..=1).contains(&side))
+        if state.len() + 1 != self.base.len() || state.iter().any(|&side| !(-1..=2).contains(&side))
         {
             return Ok(None);
         }
@@ -893,6 +966,7 @@ impl LazyJoint {
                 -1 => upper[t] = target - 1,
                 0 => lower[t] = target,
                 1 => lower[t] = target + 1,
+                2 => {}
                 _ => unreachable!(),
             }
             if state[j] == 0 {
@@ -1233,15 +1307,278 @@ impl LazyJoint {
     ) -> (usize, usize, usize) {
         self.families.clear();
         self.family_fit_report.clear();
-        let mut ranked: Vec<_> = moments
-            .root_contributions
-            .iter()
-            .map(|((root, state), &weight)| (root.clone(), state.clone(), weight))
-            .collect();
-        ranked.sort_by(|(ra, sa, wa), (rb, sb, wb)| {
-            wb.total_cmp(wa).then(ra.cmp(rb)).then(sa.cmp(sb))
-        });
-        ranked.truncate(4);
+        self.family_selection_work = 0;
+        let structure = crate::rare_tail::family_structure();
+        let selection_limit = max_nodes
+            .saturating_mul(16)
+            .min(max_guide_values.saturating_mul(2));
+        let mut selection_exhausted = false;
+        let mut ranked: Vec<_> = if structure
+            == crate::rare_tail::family_config::FamilyStructure::Full
+            || charge_family_selection(
+                &mut self.family_selection_work,
+                selection_limit,
+                moments.root_contributions.len().saturating_mul(8),
+            ) {
+            moments
+                .root_contributions
+                .iter()
+                .map(|((root, state), &weight)| (root.clone(), state.clone(), weight))
+                .collect()
+        } else {
+            selection_exhausted = true;
+            Vec::new()
+        };
+        if structure == crate::rare_tail::family_config::FamilyStructure::Full
+            || !selection_exhausted
+        {
+            ranked.sort_by(|(ra, sa, wa), (rb, sb, wb)| {
+                wb.total_cmp(wa).then(ra.cmp(rb)).then(sa.cmp(sb))
+            });
+        }
+        if structure == crate::rare_tail::family_config::FamilyStructure::Full {
+            // Preserve the historical full-family admission cap after the
+            // same deterministic contribution/root/state ranking.
+            ranked.truncate(4);
+        }
+        if structure != crate::rare_tail::family_config::FamilyStructure::Full {
+            // Candidate selection is bounded by the recorder's 128 distinct
+            // root/state keys. Charge every inspected key and every generated
+            // constraint before fitting starts.
+            const CANDIDATE_LIMIT: usize = 128;
+            ranked.truncate(CANDIDATE_LIMIT);
+            let mut candidates: std::collections::BTreeMap<(Vec<u8>, Vec<i8>), f64> =
+                std::collections::BTreeMap::new();
+            let mut relaxed_keys = std::collections::BTreeSet::new();
+            let mut relaxed_probability = HashMap::<(Vec<u8>, usize), f64>::new();
+            let mut relaxed_candidate_probability = HashMap::<(Vec<u8>, Vec<i8>), f64>::new();
+            let mut generated = 0usize;
+            let examined = ranked.len();
+            selection_exhausted |= !charge_family_selection(
+                &mut self.family_selection_work,
+                selection_limit,
+                examined.saturating_mul(8),
+            );
+            for (root, state, contribution) in &ranked {
+                if selection_exhausted || candidates.len() >= CANDIDATE_LIMIT {
+                    break;
+                }
+                if !contribution.is_finite()
+                    || *contribution <= 0.
+                    || self.roots.get(root).is_none_or(Option::is_none)
+                {
+                    continue;
+                }
+                generated += 1;
+                let target = self.root_target_points(root);
+                let Some(target) = target else { continue };
+                let primary = self.roots[root].as_ref().unwrap();
+                let make_partial = |retained: i8| {
+                    state
+                        .iter()
+                        .enumerate()
+                        .map(|(i, &observed)| {
+                            let team = if i < self.cell.team { i } else { i + 1 };
+                            let forced = if primary.lower[team] > target {
+                                Some(1)
+                            } else if primary.upper[team] < target {
+                                Some(-1)
+                            } else if primary.lower[team] == target && primary.upper[team] == target
+                            {
+                                Some(0)
+                            } else {
+                                None
+                            };
+                            if observed == retained
+                                && forced != Some(-retained)
+                                && forced != Some(0)
+                            {
+                                retained
+                            } else {
+                                2
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                };
+                let partial_sides: Vec<i8> = match structure {
+                    crate::rare_tail::family_config::FamilyStructure::Skeleton
+                    | crate::rare_tail::family_config::FamilyStructure::Relax => vec![1, -1],
+                    _ => vec![
+                        if self.cell.rank <= (self.base.len() - 2 - self.cell.rank) {
+                            1
+                        } else {
+                            -1
+                        },
+                    ],
+                };
+                if !charge_family_selection(
+                    &mut self.family_selection_work,
+                    selection_limit,
+                    partial_sides.len().saturating_mul(16),
+                ) {
+                    selection_exhausted = true;
+                    break;
+                }
+                let skeleton = match structure {
+                    crate::rare_tail::family_config::FamilyStructure::Ties => state
+                        .iter()
+                        .enumerate()
+                        .map(|(i, &side)| {
+                            let team = if i < self.cell.team { i } else { i + 1 };
+                            let forced = if primary.lower[team] > target {
+                                Some(1)
+                            } else if primary.upper[team] < target {
+                                Some(-1)
+                            } else if primary.lower[team] == target && primary.upper[team] == target
+                            {
+                                Some(0)
+                            } else {
+                                None
+                            };
+                            if side == 0 && forced != Some(0) {
+                                2
+                            } else {
+                                side
+                            }
+                        })
+                        .collect::<Vec<_>>(),
+                    _ => Vec::new(),
+                };
+                let mut skeleton_keys = Vec::new();
+                let variants: Vec<Vec<i8>> = if matches!(
+                    structure,
+                    crate::rare_tail::family_config::FamilyStructure::Skeleton
+                        | crate::rare_tail::family_config::FamilyStructure::Relax
+                ) {
+                    partial_sides
+                        .iter()
+                        .map(|&side| make_partial(side))
+                        .collect()
+                } else {
+                    vec![skeleton]
+                };
+                for partial in variants {
+                    let key = (root.clone(), partial.clone());
+                    *candidates.entry(key.clone()).or_default() += contribution;
+                    skeleton_keys.push((key, partial));
+                }
+                if structure == crate::rare_tail::family_config::FamilyStructure::Relax {
+                    for (skeleton_key, partial) in skeleton_keys {
+                        if selection_exhausted {
+                            break;
+                        }
+                        let retained = partial.iter().copied().find(|&side| side != 2).unwrap_or(0);
+                        if retained == 0 {
+                            continue;
+                        }
+                        for i in 0..partial.len() {
+                            if partial[i] != retained || generated >= CANDIDATE_LIMIT {
+                                continue;
+                            }
+                            let team = if i < self.cell.team { i } else { i + 1 };
+                            if !charge_family_selection(
+                                &mut self.family_selection_work,
+                                selection_limit,
+                                16,
+                            ) {
+                                selection_exhausted = true;
+                                break;
+                            }
+                            let mut relaxed = partial.clone();
+                            relaxed[i] = 2;
+                            let key = (root.clone(), relaxed);
+                            relaxed_keys.insert(key.clone());
+                            *candidates.entry(key.clone()).or_default() += contribution;
+                            let probability_key = (root.clone(), team);
+                            if !relaxed_probability.contains_key(&probability_key) {
+                                let available =
+                                    selection_limit.saturating_sub(self.family_selection_work);
+                                let (probability, work) = self.nominal_status_probability(
+                                    root, target, team, retained, available,
+                                );
+                                let charged = charge_family_selection(
+                                    &mut self.family_selection_work,
+                                    selection_limit,
+                                    work,
+                                );
+                                if !charged || probability.is_none() {
+                                    selection_exhausted = true;
+                                    break;
+                                }
+                                let probability = probability.unwrap();
+                                relaxed_probability.insert(probability_key.clone(), probability);
+                            }
+                            relaxed_candidate_probability
+                                .insert(key, relaxed_probability[&probability_key]);
+                            generated += 1;
+                            if candidates.len() >= CANDIDATE_LIMIT {
+                                break;
+                            }
+                        }
+                        let _ = skeleton_key;
+                    }
+                }
+            }
+            // Keep selection deterministic; relaxed alternatives receive one
+            // reserved slot before contribution-ranked detail candidates.
+            let ranking_work = candidates.len().saturating_mul(4);
+            if !charge_family_selection(
+                &mut self.family_selection_work,
+                selection_limit,
+                ranking_work,
+            ) {
+                selection_exhausted = true;
+                candidates.clear();
+            }
+            let mut values: Vec<_> = candidates
+                .into_iter()
+                .map(|((root, state), weight)| (root, state, weight))
+                .collect();
+            values.sort_by(|(ra, sa, wa), (rb, sb, wb)| {
+                wb.total_cmp(wa).then(ra.cmp(rb)).then(sa.cmp(sb))
+            });
+            let mut preferred = Vec::new();
+            if structure == crate::rare_tail::family_config::FamilyStructure::Relax {
+                let relaxed = values
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, (root, state, _))| {
+                        relaxed_keys.contains(&(root.clone(), state.clone()))
+                    })
+                    .min_by(|(_, (ra, sa, wa)), (_, (rb, sb, wb))| {
+                        let pa = relaxed_candidate_probability
+                            .get(&(ra.clone(), sa.clone()))
+                            .copied()
+                            .unwrap_or(1.);
+                        let pb = relaxed_candidate_probability
+                            .get(&(rb.clone(), sb.clone()))
+                            .copied()
+                            .unwrap_or(1.);
+                        pa.total_cmp(&pb)
+                            .then_with(|| wb.total_cmp(wa))
+                            .then(ra.cmp(rb))
+                            .then(sa.cmp(sb))
+                    })
+                    .map(|(ix, _)| ix);
+                if let Some(ix) = relaxed {
+                    preferred.push((values[ix].0.clone(), values[ix].1.clone()));
+                }
+            }
+            let reserve_sides = matches!(
+                structure,
+                crate::rare_tail::family_config::FamilyStructure::Skeleton
+                    | crate::rare_tail::family_config::FamilyStructure::Relax
+            );
+            ranked = select_family_candidates(&values, 4, reserve_sides, &preferred);
+            if selection_exhausted {
+                self.family_fit_report.push(json!({
+                    "status":"selection_limited",
+                    "reason":"family candidate selection reached its admitted setup allowance",
+                    "selection_work":self.family_selection_work,
+                    "selection_allowance":selection_limit
+                }));
+            }
+        }
         let selected: Vec<_> = ranked
             .into_iter()
             .filter(|(_, _, w)| *w > 0. && w.is_finite())
@@ -1257,8 +1594,11 @@ impl LazyJoint {
         let guide_start = self.guide_values;
         let node_limit = self.node_limit;
         let guide_limit = self.guide_limit;
-        self.node_limit = node_start.saturating_add(max_nodes);
-        self.guide_limit = guide_start.saturating_add(max_guide_values);
+        let node_reserve = self.family_selection_work.div_ceil(16);
+        let guide_reserve = self.family_selection_work.div_ceil(2);
+        self.node_limit = node_start.saturating_add(max_nodes.saturating_sub(node_reserve));
+        self.guide_limit =
+            guide_start.saturating_add(max_guide_values.saturating_sub(guide_reserve));
         let mut exhausted = false;
         let mut skipped = 0;
         for (root, state, contribution) in &selected {
@@ -1338,6 +1678,104 @@ impl LazyJoint {
     }
     pub(crate) fn family_pattern_count(&self) -> usize {
         self.families.values().map(Vec::len).sum()
+    }
+    pub(crate) fn family_selection_work(&self) -> usize {
+        self.family_selection_work
+    }
+    fn root_target_points(&self, key: &[u8]) -> Option<i32> {
+        if key.len() != self.target.games.len() {
+            return None;
+        }
+        let mut points = self.base.clone();
+        for (g, &o) in self.target.games.iter().zip(key) {
+            if o > 2 {
+                return None;
+            }
+            points[g.home] += g.hg[o as usize];
+            points[g.away] += g.ag[o as usize];
+        }
+        Some(points[self.cell.team])
+    }
+    fn nominal_status_probability(
+        &self,
+        root: &[u8],
+        target: i32,
+        team: usize,
+        status: i8,
+        work_limit: usize,
+    ) -> (Option<f64>, usize) {
+        let mut start = self.base[team];
+        for (g, &o) in self.target.games.iter().zip(root) {
+            let outcome = o as usize;
+            if g.home == team {
+                start += g.hg[outcome];
+            }
+            if g.away == team {
+                start += g.ag[outcome];
+            }
+        }
+        let max = start
+            .saturating_add(3 * self.remaining.len() as i32)
+            .max(start) as usize;
+        let min = start.max(0) as usize;
+        let initial_len = max.saturating_add(1);
+        if initial_len > work_limit {
+            return (None, 0);
+        }
+        let mut dp = vec![0.0; initial_len];
+        let mut work = initial_len;
+        if min < dp.len() {
+            dp[min] = 1.0;
+        }
+        for g in &self.remaining {
+            let delta = if g.home == team {
+                &g.hg
+            } else if g.away == team {
+                &g.ag
+            } else {
+                continue;
+            };
+            let mut next = vec![0.0; dp.len()];
+            for points in 0..dp.len() {
+                if dp[points] == 0.0 {
+                    continue;
+                }
+                for outcome in 0..3 {
+                    if work >= work_limit {
+                        return (None, work);
+                    }
+                    let value = points.saturating_add(delta[outcome].max(0) as usize);
+                    if value < next.len() {
+                        next[value] += dp[points] * g.prob[outcome];
+                    }
+                    work += 1;
+                }
+            }
+            dp = next;
+        }
+        if work
+            .checked_add(dp.len())
+            .is_none_or(|total| total > work_limit)
+        {
+            return (None, work);
+        }
+        work += dp.len();
+        let probability = dp
+            .iter()
+            .enumerate()
+            .map(|(points, p)| {
+                let cmp = (points as i32).cmp(&target);
+                if (status == -1 && cmp == std::cmp::Ordering::Less)
+                    || (status == 0 && cmp == std::cmp::Ordering::Equal)
+                    || (status == 1 && cmp == std::cmp::Ordering::Greater)
+                {
+                    *p
+                } else {
+                    0.
+                }
+            })
+            .sum();
+        (Some(probability), work)
     }
     fn rebuild_root_cdf(&mut self) {
         let mut sum = 0.;
@@ -1520,19 +1958,22 @@ impl LazyJoint {
                     if let Some(families) = self.families.get(key) {
                         const NATIVE_SHARE: f64 = 0.2;
                         let use_native = rng.float() < NATIVE_SHARE;
-                        let chosen_family = if use_native {
+                        let chosen_family_index = if use_native {
                             None
                         } else {
                             let u = rng.float();
                             let mut acc = 0.;
                             families
                                 .iter()
-                                .find(|(_, _, beta)| {
+                                .enumerate()
+                                .find(|(_, (_, _, beta))| {
                                     acc += *beta;
                                     u < acc
                                 })
-                                .or_else(|| families.last())
+                                .map(|(index, _)| index)
+                                .or_else(|| families.len().checked_sub(1))
                         };
+                        let chosen_family = chosen_family_index.map(|index| &families[index]);
                         let chosen = chosen_family.map_or(p, |(_, pattern, _)| pattern);
                         let ratio = chosen.draw(
                             self.cell,
@@ -1582,42 +2023,81 @@ impl LazyJoint {
                                 &mut result.operations,
                             )
                         };
-                        let family_ratio = if let Some((_, _, beta)) =
-                            families.iter().find(|(s, _, _)| *s == state)
-                        {
-                            let pat = &families.iter().find(|(s, _, _)| *s == state).unwrap().1;
-                            let value = if chosen_family.is_some_and(|(s, _, _)| *s == state) {
-                                ratio
-                            } else {
-                                pat.draw(
-                                    self.cell,
-                                    &mut rng,
-                                    &mut out,
-                                    &mut points,
-                                    true,
-                                    cardinality,
-                                    true,
-                                    dynamic,
-                                    &mut result.operations,
-                                )
-                            };
-                            if value > 0. {
-                                (*beta, value, pat.mass)
-                            } else {
-                                (0., 0., 1.)
-                            }
-                        } else {
-                            (0., 0., 1.)
-                        };
                         let native_density = if native_ratio > 0. {
                             root_prob / (p.mass * native_ratio)
                         } else {
                             0.
                         };
-                        let family_density = if family_ratio.1 > 0. {
-                            family_ratio.0 * root_prob / (family_ratio.2 * family_ratio.1)
+                        let partial = families.iter().any(|(s, _, _)| s.contains(&2));
+                        let family_density = if !partial {
+                            // Keep the historical exact-state shortcut and its
+                            // operation/RNG order for legacy full-state fitting.
+                            let family_ratio = if let Some((_, _, beta)) =
+                                families.iter().find(|(s, _, _)| *s == state)
+                            {
+                                let pat = &families.iter().find(|(s, _, _)| *s == state).unwrap().1;
+                                let value = if chosen_family.is_some_and(|(s, _, _)| *s == state) {
+                                    ratio
+                                } else {
+                                    pat.draw(
+                                        self.cell,
+                                        &mut rng,
+                                        &mut out,
+                                        &mut points,
+                                        true,
+                                        cardinality,
+                                        true,
+                                        dynamic,
+                                        &mut result.operations,
+                                    )
+                                };
+                                if value > 0. {
+                                    (*beta, value, pat.mass)
+                                } else {
+                                    (0., 0., 1.)
+                                }
+                            } else {
+                                (0., 0., 1.)
+                            };
+                            if family_ratio.1 > 0. {
+                                family_ratio.0 * root_prob / (family_ratio.2 * family_ratio.1)
+                            } else {
+                                0.
+                            }
                         } else {
-                            0.
+                            let sampled = out.clone();
+                            let mut density = 0.0;
+                            result.operations.guidance += (families.len() * state.len()) as u64;
+                            for (index, (constraint, pattern, beta)) in families.iter().enumerate()
+                            {
+                                if !constraint
+                                    .iter()
+                                    .zip(&state)
+                                    .all(|(&expected, &actual)| expected == 2 || expected == actual)
+                                {
+                                    continue;
+                                }
+                                let value = if chosen_family_index == Some(index) {
+                                    ratio
+                                } else {
+                                    let mut replay = sampled.clone();
+                                    pattern.draw(
+                                        self.cell,
+                                        &mut rng,
+                                        &mut replay,
+                                        &mut points,
+                                        true,
+                                        cardinality,
+                                        true,
+                                        dynamic,
+                                        &mut result.operations,
+                                    )
+                                };
+                                if value > 0. {
+                                    density += *beta * root_prob / (pattern.mass * value);
+                                }
+                            }
+                            density
                         };
                         root_prob
                             / (mass * q)
@@ -1934,6 +2414,41 @@ impl LazyJoint {
 mod tests {
     use super::*;
     use crate::{conditioned::canonical_ranks, model::Request};
+
+    #[test]
+    fn partial_family_selection_reserves_both_sides_before_contribution_fill() {
+        let candidates = vec![
+            (vec![0], vec![1, 2], 100.0),
+            (vec![1], vec![1, 2], 90.0),
+            (vec![2], vec![1, 2], 80.0),
+            (vec![3], vec![-1, 2], 10.0),
+            (vec![4], vec![2, 2], 5.0),
+        ];
+        let selected = select_family_candidates(&candidates, 4, true, &[]);
+        assert_eq!(selected.len(), 4);
+        assert_eq!(selected[0].0, vec![0]);
+        assert_eq!(selected[1].0, vec![3]);
+        assert_eq!(selected[2].0, vec![1]);
+        assert_eq!(selected[3].0, vec![2]);
+        assert!(selected
+            .iter()
+            .any(|(_, state, _)| partial_family_side(state) == Some(1)));
+        assert!(selected
+            .iter()
+            .any(|(_, state, _)| partial_family_side(state) == Some(-1)));
+        assert_eq!(partial_family_side(&[2, 2]), None);
+    }
+
+    #[test]
+    fn family_candidate_work_never_exceeds_admitted_allowance() {
+        let mut spent = 0;
+        assert!(!charge_family_selection(&mut spent, 0, 16));
+        assert_eq!(spent, 0);
+        assert!(charge_family_selection(&mut spent, 24, 16));
+        assert_eq!(spent, 16);
+        assert!(!charge_family_selection(&mut spent, 24, 9));
+        assert_eq!(spent, 16);
+    }
 
     #[test]
     fn zero_requested_roots_skip_root_training_bootstrap() {

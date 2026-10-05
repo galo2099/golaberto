@@ -22,7 +22,7 @@ mod branches;
 pub(crate) mod budget;
 mod confirmations;
 mod early_roots;
-mod family_config;
+pub(crate) mod family_config;
 mod overflow_trees;
 use budget::{scaled, WorkBudget, REFERENCE_DRAWS};
 
@@ -46,6 +46,9 @@ pub fn family_fallback_enabled() -> bool {
 /// Effective fixed family fallback policy for API and startup diagnostics.
 pub fn family_fallback_settings() -> serde_json::Value {
     family_config::settings()
+}
+pub(crate) fn family_structure() -> family_config::FamilyStructure {
+    family_config::structure()
 }
 /// Whether the bounded target overflow tree is enabled.
 pub fn target_overflow_tree_enabled() -> bool {

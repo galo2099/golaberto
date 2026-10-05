@@ -1,0 +1,257 @@
+{
+  "argv": [
+    "/Users/robsonaraujo/work/golaberto/odds-rust/target/release/golaberto-odds",
+    "estimate",
+    "/Users/robsonaraujo/work/golaberto/experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16498-44eabb47.json",
+    "/Users/robsonaraujo/work/golaberto/experiments/rare_positions/2026-10-05-experiment-merge/validation/default-controls/runs/original-16498/seed-808/repeat-0/control/export.json",
+    "808",
+    "4"
+  ],
+  "arm": "control",
+  "binary": "/Users/robsonaraujo/work/golaberto/odds-rust/target/release/golaberto-odds",
+  "binary_sha256": "0e7d57adb68ac5d199d77e8e4e2d9c9be7ba7d014059439f0ca67d30b13ca34e",
+  "child_cpu_seconds": 3.575865,
+  "cleared_inherited_environment_keys": [],
+  "config_hash": "abd44c3c9cab815143b7718ef701b780791a2fd1a087c0cb2c1c5474f821062b",
+  "effective_environment_sha256": "24a1c3618d5ee31253539e2c265dec8e8e06a9f3fb6ebb0d699d486dcdbaf2bb",
+  "effective_experiment_environment": {
+    "RUST_ODDS_LOG": "1"
+  },
+  "exit_code": 0,
+  "export": "/Users/robsonaraujo/work/golaberto/experiments/rare_positions/2026-10-05-experiment-merge/validation/default-controls/runs/original-16498/seed-808/repeat-0/control/export.json",
+  "export_sha256": "d916a38398554b138e4f042fa6bfd3c9dae300c98743b057a65f475bcd907be5",
+  "fixture": "original-16498",
+  "flags": {},
+  "job_id": "5b7660dee0034b64dfaaab42e20fe1d7a9c272f6e8a9b1312a1616d814eb08bc",
+  "repeat": 0,
+  "request": "/Users/robsonaraujo/work/golaberto/experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16498-44eabb47.json",
+  "request_sha256": "2e08f162592ded09393f0438686a60690dda6e85cd54da5dc0d20224c81aa625",
+  "seed": 808,
+  "stderr": "/Users/robsonaraujo/work/golaberto/experiments/rare_positions/2026-10-05-experiment-merge/validation/default-controls/runs/original-16498/seed-808/repeat-0/control/stderr.log",
+  "stderr_sha256": "0da9c9c2605cbc0bceddab579111ee3b1057a88c698d24c6c05ba5a63d680599",
+  "stdout": "/Users/robsonaraujo/work/golaberto/experiments/rare_positions/2026-10-05-experiment-merge/validation/default-controls/runs/original-16498/seed-808/repeat-0/control/stdout.log",
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "summary_events": [
+    {
+      "accepted": 2,
+      "event": "rust_odds_shared_constraints_summary",
+      "group": 16498,
+      "mode": "guided",
+      "reserved_work": 18600863,
+      "work": 438987,
+      "work_limit": 162742500
+    },
+    {
+      "event": "rust_odds_rare_tail_branches_skip",
+      "group": 16498,
+      "rank": 12,
+      "reason": "target path budget exhausted",
+      "team": 17
+    },
+    {
+      "event": "rust_odds_rare_tail_branches_skip",
+      "group": 16498,
+      "rank": 13,
+      "reason": "case enumeration budget exhausted",
+      "team": 17
+    },
+    {
+      "event": "rust_odds_rare_tail_branches_skip",
+      "group": 16498,
+      "rank": 13,
+      "reason": "target path budget exhausted",
+      "team": 16
+    },
+    {
+      "event": "rust_odds_rare_tail_branches_skip",
+      "group": 16498,
+      "rank": 14,
+      "reason": "target path budget exhausted",
+      "team": 16
+    },
+    {
+      "event": "rust_odds_rare_tail_branches_skip",
+      "group": 16498,
+      "rank": 15,
+      "reason": "case setup/numerical budget exhausted; incomplete union skipped",
+      "team": 16
+    },
+    {
+      "accepted": true,
+      "check_ess": 10.102579811341705,
+      "check_probability": 1.2550449397114876e-40,
+      "event": "rust_odds_rare_tail_branches",
+      "group": 16498,
+      "probability": 1.6827037225660812e-40,
+      "rank": 16,
+      "setup": {},
+      "team": 16
+    },
+    {
+      "accepted": 1,
+      "event": "rust_odds_rare_tail_branches_summary",
+      "group": 16498,
+      "reserved_work": 392454832,
+      "work": 8364000,
+      "work_limit": 650970000
+    },
+    {
+      "accepted": true,
+      "check_ess": 10.658583919616257,
+      "check_probability": 4.499105529928183e-34,
+      "event": "rust_odds_rare_tail_branches",
+      "group": 16498,
+      "messages": {
+        "work": 5236979
+      },
+      "probability": 1.1729847262726781e-33,
+      "rank": 13,
+      "setup": {},
+      "team": 17
+    },
+    {
+      "accepted": 1,
+      "event": "rust_odds_rare_tail_branches_summary",
+      "group": 16498,
+      "reserved_work": 50619696,
+      "work": 907125,
+      "work_limit": 258515168
+    },
+    {
+      "accepted": 2,
+      "event": "rust_odds_rare_tail_confirm_more_summary",
+      "group": 16498,
+      "reserved_work": 678525295,
+      "work": 7991999,
+      "work_limit": 1019219717
+    },
+    {
+      "accepted": 0,
+      "event": "rust_odds_rare_tail_branches_summary",
+      "group": 16498,
+      "reserved_work": 0,
+      "work": 0,
+      "work_limit": 650970000
+    },
+    {
+      "event": "rust_odds_family_fallback",
+      "fallback": {
+        "charged_work": 67962924,
+        "final": {
+          "accepted": true,
+          "check_ess": 10.966948844612793,
+          "check_hits": 285,
+          "check_probability": 6.841169832376629e-26,
+          "main_probability": 3.4510224049804527e-26
+        },
+        "reason": "family fallback published after independent validation and pair",
+        "settlement_within_grant": true,
+        "status": "published"
+      },
+      "group": 16498,
+      "rank": 12,
+      "team_id": 17
+    },
+    {
+      "event": "rust_odds_family_fallback",
+      "fallback": {
+        "charged_work": 206883838,
+        "final": {
+          "accepted": true,
+          "check_ess": 16.66726839856778,
+          "check_hits": 1124,
+          "check_probability": 5.301699232053663e-34,
+          "main_probability": 9.999710906644764e-34
+        },
+        "reason": "family fallback published after independent validation and pair",
+        "settlement_within_grant": true,
+        "status": "published"
+      },
+      "group": 16498,
+      "rank": 15,
+      "team_id": 16
+    },
+    {
+      "event": "rust_odds_family_fallback_late_summary",
+      "group": 16498,
+      "mode": "family"
+    },
+    {
+      "event": "rust_odds_target_overflow_tree_summary",
+      "group": 16498,
+      "mode": "late_complete_target_tree",
+      "sampling_stages": [
+        {
+          "actual": 4731795,
+          "grant": 50374910,
+          "hits": 27,
+          "probability": 4.9343483333897323e-26,
+          "rank": 14,
+          "stage": "bound_pilot",
+          "team": 16,
+          "within_grant": true
+        },
+        {
+          "actual": 14480171,
+          "grant": 45643115,
+          "message_work": 14370764,
+          "rank": 14,
+          "stage": "message_repilot",
+          "team": 16,
+          "within_grant": true
+        },
+        {
+          "accepted": true,
+          "actual": 30107174,
+          "check_ess": 6.269732783330703,
+          "check_hits": 751,
+          "check_probability": 6.149052934441037e-25,
+          "main_probability": 7.541558829774547e-25,
+          "rank": 14,
+          "stage": "final_pair",
+          "status": "accepted",
+          "team": 16,
+          "within_grant": true
+        }
+      ],
+      "setup_stages": [
+        {
+          "actual": 2791031,
+          "grant": 65847660,
+          "rank": 14,
+          "stage": "root_count",
+          "team": 16,
+          "within_grant": true
+        },
+        {
+          "actual": 12681719,
+          "grant": 63056629,
+          "rank": 14,
+          "stage": "tree_setup",
+          "team": 16,
+          "within_grant": true
+        }
+      ]
+    },
+    {
+      "accepted": 0,
+      "event": "rust_odds_rare_tail_extension_summary",
+      "group": 16498,
+      "mode": "after"
+    },
+    {
+      "accepted": 17,
+      "event": "rust_odds_rare_tail_summary",
+      "group": 16498,
+      "reserved_work": 620595083,
+      "shared_guides": {
+        "hits": 18
+      },
+      "work": 362930498,
+      "work_limit": 650970000
+    }
+  ],
+  "wall_seconds": 1.9398189169999998,
+  "warmup": false,
+  "workers": 4
+}

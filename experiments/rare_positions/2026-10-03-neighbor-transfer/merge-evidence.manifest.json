@@ -1,0 +1,177 @@
+{
+  "archive": "merge-evidence.tar.gz",
+  "archive_sha256": "aee8b020e879fae0e11a859bd9abdeea01d27b97f10c7dd52d370b146f302411",
+  "archive_size": 2934082,
+  "experiment": "2026-10-03-neighbor-transfer",
+  "members": [
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "candidate-highbudget-v2-behavior.patch",
+      "sha256": "b159816b1ad570d3c2acd1ffa5091af9d38c49628b1b2c04b92ab72c31276486",
+      "size": 22975
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "candidate-highbudget-v2.source-hashes.txt",
+      "sha256": "1523d3812300077e5ca9b08341633be40ade4d782aabcc98109a80001e18b168",
+      "size": 579
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "candidate-highbudget-v3.patch",
+      "sha256": "c0067e665a8aa7be81fc361f053338e8bd1a5f3217b6be26bf8b9c3acc57b05e",
+      "size": 56781
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "candidate-highbudget-v3.source-hashes.txt",
+      "sha256": "82fdfa03e84854d5e534b2a0ca92c7b37dfa352a9b4b480c50b4937539e52fb4",
+      "size": 579
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "candidate-highbudget-v4-capture-phase.patch",
+      "sha256": "014aa1db4163e6abeee1ec4a0a97a9575f3be982f0292b1f3d8914e9d35e8b0e",
+      "size": 58125
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "candidate-highbudget-v4.source-hashes.txt",
+      "sha256": "95f49527fd677f421843b0604abc5042574115eb8a06f37925c8721c91a61225",
+      "size": 579
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "candidate-soft-v1.patch",
+      "sha256": "2f0c203aa4d08aa2d8cacf429e9c59ad5eece50e9ad7276cf4e3c44dad687d07",
+      "size": 48136
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "candidate.patch",
+      "sha256": "2f0c203aa4d08aa2d8cacf429e9c59ad5eece50e9ad7276cf4e3c44dad687d07",
+      "size": 48136
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "current-budget/provenance.json",
+      "sha256": "d335b74d848e9b3a869a1e74556a8e0291656c01c7035e2a9ca7f15acfde646b",
+      "size": 1900
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "current-budget/raw-evidence.manifest.json",
+      "sha256": "234bd5da8b9da456d1dac4bf6fdce150ea01d2d9f4b5c296eaa523319543a507",
+      "size": 28049
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "current-budget/raw-evidence.tar.gz",
+      "sha256": "719f317bb5c0a4449651f57dfa6051d7fce21dde40e55b7bfe031c282ec13836",
+      "size": 1240329
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "high-budget-v3/analysis-summary.json",
+      "sha256": "7f558c99327e3cd2864895632664e0e120298cbb826d67b53f310f4ce8e8353e",
+      "size": 10520
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "high-budget-v3/provenance.json",
+      "sha256": "bdb583723a0e24940ec7449ad3bdc4a0a665dfe2db79117e006e4fc285990f71",
+      "size": 3348
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "high-budget-v3/raw-evidence.manifest.json",
+      "sha256": "703ccd53d3318c68c24708f0a33ed00aa69023a31c93c2b8ced395548013a51a",
+      "size": 29937
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "high-budget-v3/raw-evidence.tar.gz",
+      "sha256": "1aa8ffb89a85dce6a34294e122ff5ca3ae2bc0f1b910ff353cf589e358db4429",
+      "size": 1284063
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "highbudget-10x-plan.json",
+      "sha256": "7cba388f3fd34da84dede72b69129451faa344c96507d83241b455658936e925",
+      "size": 4239
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "highbudget-native10.env.json",
+      "sha256": "077fa4ac8243d2b1d61bfc2a01364937d85dd2f4d8bb074639d05565d3bf86b8",
+      "size": 165
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "highbudget-provenance.json",
+      "sha256": "5f60f535766ea03955ed6ec40bcc208f6e7bc98e8c35a3e5ddffbfb0c6d6009f",
+      "size": 3720
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "highbudget-transfer10.env.json",
+      "sha256": "a6c4943854f411e40a48337d299db7619220c22b266a9d6e787ee7cb373a60bf",
+      "size": 62
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "highbudget-v4-provenance.json",
+      "sha256": "8546f4cb090670ad7e25c8174a3bd18f7038483c76288ce2927dc27d29211dbc",
+      "size": 1054
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "source-corrected-v4/provenance.json",
+      "sha256": "850fc30a912e63e400685ed62bb09c6a10ac06a53476fce4930a2dff19be7e3a",
+      "size": 2358
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "source-corrected-v4/raw-evidence.manifest.json",
+      "sha256": "154887e4a2418089c814867292417ce16b5f5df4384a0a2e069cb4845c5b2420",
+      "size": 6696
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "source-corrected-v4/raw-evidence.tar.gz",
+      "sha256": "2b693f587889201d566c7cdd20e8773864f8ddae957487dcea9afc16837aacf6",
+      "size": 338084
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "source-corrected-v4/status.json",
+      "sha256": "91ea52cf65628527845cce630ef6a114b734f4c4d46b2e49db1b5461b38d9faf",
+      "size": 852
+    }
+  ],
+  "schema_version": 1
+}

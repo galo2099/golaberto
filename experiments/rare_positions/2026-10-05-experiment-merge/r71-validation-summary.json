@@ -1,0 +1,2957 @@
+{
+  "matrices": [
+    {
+      "candidate_sha256": "c5b299ee903ebdec0697aa6fe09fcdc4dc04c3dc502ff98b6c77ee84ac8c12c2",
+      "config_hash": "7c83cfb56d1e53cf5dedeb3c250d220e40a53068aaca0c7133e62bcbbdb8f1ad",
+      "coverage_changes_vs_control": {
+        "coarse-rank": {
+          "changed_existing_positive_estimates": 3,
+          "matched_requests": 6,
+          "positive_gains_from_zero": 1,
+          "positive_losses_to_zero": 4,
+          "reachability_changes": 0
+        },
+        "tight-interval": {
+          "changed_existing_positive_estimates": 4,
+          "matched_requests": 6,
+          "positive_gains_from_zero": 1,
+          "positive_losses_to_zero": 3,
+          "reachability_changes": 0
+        },
+        "tight-rank": {
+          "changed_existing_positive_estimates": 4,
+          "matched_requests": 6,
+          "positive_gains_from_zero": 1,
+          "positive_losses_to_zero": 3,
+          "reachability_changes": 0
+        },
+        "tight-strict": {
+          "changed_existing_positive_estimates": 4,
+          "matched_requests": 6,
+          "positive_gains_from_zero": 1,
+          "positive_losses_to_zero": 3,
+          "reachability_changes": 0
+        }
+      },
+      "default_parity": {
+        "equal_requests": 6,
+        "matched_requests": 6
+      },
+      "frozen_sha256": "6317b78f47e355f2b6310cd05ffcf9eb62d3c3ef37c32db2988c6af6ad3b89be",
+      "group_16498_diagnostics": [
+        {
+          "arm": "coarse-rank",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 8.15475170945866e-34,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 2.5121451290051276e-34,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 7.56e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 4.86e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "original-16498",
+          "repeat": 0,
+          "seed": 1669
+        },
+        {
+          "arm": "tight-rank",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 8.15475170945866e-34,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 2.5121451290051276e-34,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 7.56e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 4.86e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "original-16498",
+          "repeat": 0,
+          "seed": 1669
+        },
+        {
+          "arm": "tight-interval",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 8.15475170945866e-34,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 2.5121451290051276e-34,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 7.56e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 4.86e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "original-16498",
+          "repeat": 0,
+          "seed": 1669
+        },
+        {
+          "arm": "tight-strict",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 8.15475170945866e-34,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 2.5121451290051276e-34,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 7.56e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 4.86e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "original-16498",
+          "repeat": 0,
+          "seed": 1669
+        },
+        {
+          "arm": "coarse-rank",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 7.423614304156107e-34,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 7.56e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 4.86e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 2.68681112156345e-40,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 2.68681112156345e-40,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "original-16498",
+          "repeat": 0,
+          "seed": 1993
+        },
+        {
+          "arm": "tight-rank",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 7.423614304156107e-34,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 7.56e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 4.86e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 2.68681112156345e-40,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 2.68681112156345e-40,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "original-16498",
+          "repeat": 0,
+          "seed": 1993
+        },
+        {
+          "arm": "tight-interval",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 7.423614304156107e-34,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 7.56e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 4.86e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 2.68681112156345e-40,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 2.68681112156345e-40,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "original-16498",
+          "repeat": 0,
+          "seed": 1993
+        },
+        {
+          "arm": "tight-strict",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 7.423614304156107e-34,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 7.56e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 4.86e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 2.68681112156345e-40,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 2.68681112156345e-40,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "original-16498",
+          "repeat": 0,
+          "seed": 1993
+        },
+        {
+          "arm": "coarse-rank",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 1.1729847660954641e-33,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 3.8430793576568767e-34,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 7.56e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 9.999711245204903e-34,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 9.999711245204903e-34,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 4.86e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 1.6827037795907451e-40,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 1.6827037795907451e-40,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "original-16498",
+          "repeat": 0,
+          "seed": 808
+        },
+        {
+          "arm": "tight-rank",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 1.1729847660954641e-33,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 3.8350088405650636e-34,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 7.56e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 9.999711245204903e-34,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 9.999711245204903e-34,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 4.86e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 1.6827037795907451e-40,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 1.6827037795907451e-40,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "original-16498",
+          "repeat": 0,
+          "seed": 808
+        },
+        {
+          "arm": "tight-interval",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 1.1729847660954641e-33,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 3.8350088405650636e-34,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 7.56e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 9.999711245204903e-34,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 9.999711245204903e-34,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 4.86e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 1.6827037795907451e-40,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 1.6827037795907451e-40,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "original-16498",
+          "repeat": 0,
+          "seed": 808
+        },
+        {
+          "arm": "tight-strict",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 1.1729847660954641e-33,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 3.8350088405650636e-34,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 7.56e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 9.999711245204903e-34,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 9.999711245204903e-34,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 4.86e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 1.6827037795907451e-40,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 1.6827037795907451e-40,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "original-16498",
+          "repeat": 0,
+          "seed": 808
+        },
+        {
+          "arm": "coarse-rank",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 8.82e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 5.43e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 1.471741364255061e-40,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 1.471741364255061e-40,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "updated-16498",
+          "repeat": 0,
+          "seed": 1669
+        },
+        {
+          "arm": "tight-rank",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 8.82e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 5.43e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 1.471741364255061e-40,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 1.471741364255061e-40,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "updated-16498",
+          "repeat": 0,
+          "seed": 1669
+        },
+        {
+          "arm": "tight-interval",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 8.82e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 5.43e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 1.471741364255061e-40,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 1.471741364255061e-40,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "updated-16498",
+          "repeat": 0,
+          "seed": 1669
+        },
+        {
+          "arm": "tight-strict",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 8.82e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 5.43e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 1.471741364255061e-40,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 1.471741364255061e-40,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "updated-16498",
+          "repeat": 0,
+          "seed": 1669
+        },
+        {
+          "arm": "coarse-rank",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 8.342879165724824e-34,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 8.82e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 5.43e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 6.186015800649632e-41,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 6.186015800649632e-41,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "updated-16498",
+          "repeat": 0,
+          "seed": 1993
+        },
+        {
+          "arm": "tight-rank",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 8.342879165724824e-34,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 8.82e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 5.43e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 6.186015800649632e-41,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 6.186015800649632e-41,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "updated-16498",
+          "repeat": 0,
+          "seed": 1993
+        },
+        {
+          "arm": "tight-interval",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 8.342879165724824e-34,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 8.82e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 5.43e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 6.186015800649632e-41,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 6.186015800649632e-41,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "updated-16498",
+          "repeat": 0,
+          "seed": 1993
+        },
+        {
+          "arm": "tight-strict",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 8.342879165724824e-34,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 8.82e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 5.43e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 6.186015800649632e-41,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 6.186015800649632e-41,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "updated-16498",
+          "repeat": 0,
+          "seed": 1993
+        },
+        {
+          "arm": "coarse-rank",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 8.82e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 5.43e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "updated-16498",
+          "repeat": 0,
+          "seed": 808
+        },
+        {
+          "arm": "tight-rank",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 8.82e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 5.43e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "updated-16498",
+          "repeat": 0,
+          "seed": 808
+        },
+        {
+          "arm": "tight-interval",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 8.82e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 5.43e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "updated-16498",
+          "repeat": 0,
+          "seed": 808
+        },
+        {
+          "arm": "tight-strict",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 8.82e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 5.43e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "updated-16498",
+          "repeat": 0,
+          "seed": 808
+        }
+      ],
+      "incomplete_status": {
+        "complete": true,
+        "expected_run_count": 36,
+        "invalid_record_count": 0,
+        "missing_or_invalid_keys": [],
+        "valid_run_count": 36
+      },
+      "paired_timing_delta_totals_vs_control": {
+        "coarse-rank": {
+          "cpu_delta_seconds": 0.4782929999999874,
+          "pairs": 6,
+          "wall_delta_seconds": 0.3922016240000097
+        },
+        "frozen": {
+          "cpu_delta_seconds": 0.4803869999999808,
+          "pairs": 6,
+          "wall_delta_seconds": -0.06665824999997949
+        },
+        "tight-interval": {
+          "cpu_delta_seconds": 0.7103659999999943,
+          "pairs": 6,
+          "wall_delta_seconds": 0.5138023300000085
+        },
+        "tight-rank": {
+          "cpu_delta_seconds": 0.25929699999999434,
+          "pairs": 6,
+          "wall_delta_seconds": 0.15914299800002474
+        },
+        "tight-strict": {
+          "cpu_delta_seconds": 0.5242349999999965,
+          "pairs": 6,
+          "wall_delta_seconds": 0.19630762300001492
+        }
+      },
+      "protocol": {
+        "arms": [
+          {
+            "binary_sha256": "c5b299ee903ebdec0697aa6fe09fcdc4dc04c3dc502ff98b6c77ee84ac8c12c2",
+            "flags": {},
+            "name": "control"
+          },
+          {
+            "binary_sha256": "6317b78f47e355f2b6310cd05ffcf9eb62d3c3ef37c32db2988c6af6ad3b89be",
+            "flags": {},
+            "name": "frozen"
+          },
+          {
+            "binary_sha256": "c5b299ee903ebdec0697aa6fe09fcdc4dc04c3dc502ff98b6c77ee84ac8c12c2",
+            "flags": {
+              "RUST_ODDS_EXPERIMENT_TREE_DISCOVERY": "rank"
+            },
+            "name": "coarse-rank"
+          },
+          {
+            "binary_sha256": "c5b299ee903ebdec0697aa6fe09fcdc4dc04c3dc502ff98b6c77ee84ac8c12c2",
+            "flags": {
+              "RUST_ODDS_EXPERIMENT_TIGHT_GUIDE_BOUND": "1",
+              "RUST_ODDS_EXPERIMENT_TREE_DISCOVERY": "rank"
+            },
+            "name": "tight-rank"
+          },
+          {
+            "binary_sha256": "c5b299ee903ebdec0697aa6fe09fcdc4dc04c3dc502ff98b6c77ee84ac8c12c2",
+            "flags": {
+              "RUST_ODDS_EXPERIMENT_TIGHT_GUIDE_BOUND": "1",
+              "RUST_ODDS_EXPERIMENT_TREE_DISCOVERY": "interval"
+            },
+            "name": "tight-interval"
+          },
+          {
+            "binary_sha256": "c5b299ee903ebdec0697aa6fe09fcdc4dc04c3dc502ff98b6c77ee84ac8c12c2",
+            "flags": {
+              "RUST_ODDS_EXPERIMENT_TIGHT_GUIDE_BOUND": "1",
+              "RUST_ODDS_EXPERIMENT_TREE_DISCOVERY": "strict"
+            },
+            "name": "tight-strict"
+          }
+        ],
+        "fixtures": {
+          "original-16498": "2e08f162592ded09393f0438686a60690dda6e85cd54da5dc0d20224c81aa625",
+          "updated-16498": "cc1e7144a7e50aa3abc54a4c9b64a641bde7f5db0328143bef7e7bf8009071ee"
+        },
+        "repeats": 1,
+        "seeds": [
+          808,
+          1669,
+          1993
+        ],
+        "serialized": true,
+        "warmups": 0,
+        "workers": 4
+      },
+      "records": {
+        "complete": true,
+        "count": 36,
+        "expected": 36,
+        "valid": 36
+      },
+      "run_dir": "screen-v1",
+      "timing_by_arm": {
+        "coarse-rank": {
+          "cpu_mean_seconds": 3.480003999999999,
+          "cpu_median_seconds": 3.4770134999999964,
+          "runs": 6,
+          "wall_mean_seconds": 1.6596666668333329,
+          "wall_median_seconds": 1.6765035000000008
+        },
+        "control": {
+          "cpu_mean_seconds": 3.400288500000001,
+          "cpu_median_seconds": 3.4272815000000003,
+          "runs": 6,
+          "wall_mean_seconds": 1.594299729499998,
+          "wall_median_seconds": 1.6233424169999964
+        },
+        "frozen": {
+          "cpu_mean_seconds": 3.4803529999999983,
+          "cpu_median_seconds": 3.481107999999997,
+          "runs": 6,
+          "wall_mean_seconds": 1.583190021166668,
+          "wall_median_seconds": 1.642935354500004
+        },
+        "tight-interval": {
+          "cpu_mean_seconds": 3.5186828333333335,
+          "cpu_median_seconds": 3.549872999999999,
+          "runs": 6,
+          "wall_mean_seconds": 1.6799334511666661,
+          "wall_median_seconds": 1.7027515625
+        },
+        "tight-rank": {
+          "cpu_mean_seconds": 3.443504666666667,
+          "cpu_median_seconds": 3.458566499999999,
+          "runs": 6,
+          "wall_mean_seconds": 1.620823562500002,
+          "wall_median_seconds": 1.6512488125000022
+        },
+        "tight-strict": {
+          "cpu_mean_seconds": 3.4876610000000006,
+          "cpu_median_seconds": 3.495463000000002,
+          "runs": 6,
+          "wall_mean_seconds": 1.6270176666666671,
+          "wall_median_seconds": 1.6553076255000008
+        }
+      },
+      "valid": false,
+      "validation_failures": [
+        {
+          "affected_requests": [
+            {
+              "fixture": "original-16498",
+              "repeat": null,
+              "seed": 1669
+            },
+            {
+              "fixture": "original-16498",
+              "repeat": null,
+              "seed": 1993
+            },
+            {
+              "fixture": "original-16498",
+              "repeat": null,
+              "seed": 808
+            },
+            {
+              "fixture": "updated-16498",
+              "repeat": null,
+              "seed": 1993
+            }
+          ],
+          "kind": "modeled_work_overrun_or_settlement_failure",
+          "message": "modeled work<path> failure in 18 run(s)",
+          "request_count": 4
+        }
+      ],
+      "work_failures": [
+        {
+          "arm": "coarse-rank",
+          "field": "branch_draw_audit_valid",
+          "kind": "modeled_work_overrun_or_settlement_failure",
+          "request_count": 3
+        },
+        {
+          "arm": "control",
+          "field": "branch_draw_audit_valid",
+          "kind": "modeled_work_overrun_or_settlement_failure",
+          "request_count": 3
+        },
+        {
+          "arm": "frozen",
+          "field": "branch_draw_audit_valid",
+          "kind": "modeled_work_overrun_or_settlement_failure",
+          "request_count": 3
+        },
+        {
+          "arm": "tight-interval",
+          "field": "branch_draw_audit_valid",
+          "kind": "modeled_work_overrun_or_settlement_failure",
+          "request_count": 3
+        },
+        {
+          "arm": "tight-rank",
+          "field": "branch_draw_audit_valid",
+          "kind": "modeled_work_overrun_or_settlement_failure",
+          "request_count": 3
+        },
+        {
+          "arm": "tight-strict",
+          "field": "branch_draw_audit_valid",
+          "kind": "modeled_work_overrun_or_settlement_failure",
+          "request_count": 3
+        }
+      ]
+    },
+    {
+      "candidate_sha256": "c5b299ee903ebdec0697aa6fe09fcdc4dc04c3dc502ff98b6c77ee84ac8c12c2",
+      "config_hash": "48a545a8712145341031fa6983e5f846a7914cc3de07f42cefc4b1a101ed8075",
+      "coverage_changes_vs_control": {
+        "coarse-rank": {
+          "changed_existing_positive_estimates": 4,
+          "matched_requests": 6,
+          "positive_gains_from_zero": 0,
+          "positive_losses_to_zero": 2,
+          "reachability_changes": 0
+        },
+        "tight-interval": {
+          "changed_existing_positive_estimates": 3,
+          "matched_requests": 6,
+          "positive_gains_from_zero": 1,
+          "positive_losses_to_zero": 2,
+          "reachability_changes": 0
+        },
+        "tight-rank": {
+          "changed_existing_positive_estimates": 3,
+          "matched_requests": 6,
+          "positive_gains_from_zero": 1,
+          "positive_losses_to_zero": 2,
+          "reachability_changes": 0
+        },
+        "tight-strict": {
+          "changed_existing_positive_estimates": 3,
+          "matched_requests": 6,
+          "positive_gains_from_zero": 1,
+          "positive_losses_to_zero": 2,
+          "reachability_changes": 0
+        }
+      },
+      "default_parity": {
+        "equal_requests": 6,
+        "matched_requests": 6
+      },
+      "frozen_sha256": "6317b78f47e355f2b6310cd05ffcf9eb62d3c3ef37c32db2988c6af6ad3b89be",
+      "group_16498_diagnostics": [
+        {
+          "arm": "coarse-rank",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 6.561122284156284e-34,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 3.355030366681033e-34,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 7.56e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 4.86e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "original-16498",
+          "repeat": 0,
+          "seed": 60211
+        },
+        {
+          "arm": "tight-rank",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 6.561122284156284e-34,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 3.3493133346222446e-34,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 7.56e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 4.86e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "original-16498",
+          "repeat": 0,
+          "seed": 60211
+        },
+        {
+          "arm": "tight-interval",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 6.561122284156284e-34,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 3.3493133346222446e-34,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 7.56e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 4.86e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "original-16498",
+          "repeat": 0,
+          "seed": 60211
+        },
+        {
+          "arm": "tight-strict",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 6.561122284156284e-34,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 3.3493133346222446e-34,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 7.56e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 4.86e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "original-16498",
+          "repeat": 0,
+          "seed": 60211
+        },
+        {
+          "arm": "coarse-rank",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 1.2943292575161222e-33,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 9.128808547886964e-35,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 7.56e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 1.6835409941335436e-33,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 4.86e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 3.190689655263609e-40,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 3.190689655263609e-40,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "original-16498",
+          "repeat": 0,
+          "seed": 60217
+        },
+        {
+          "arm": "tight-rank",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 1.2943292575161222e-33,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 9.128808547886964e-35,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 7.56e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 1.6835409941335436e-33,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 4.86e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 3.190689655263609e-40,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 3.190689655263609e-40,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "original-16498",
+          "repeat": 0,
+          "seed": 60217
+        },
+        {
+          "arm": "tight-interval",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 1.2943292575161222e-33,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 9.128808547886964e-35,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 7.56e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 1.6835409941335436e-33,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 4.86e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 3.190689655263609e-40,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 3.190689655263609e-40,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "original-16498",
+          "repeat": 0,
+          "seed": 60217
+        },
+        {
+          "arm": "tight-strict",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 1.2943292575161222e-33,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 9.128808547886964e-35,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 7.56e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 1.6835409941335436e-33,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 4.86e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 3.190689655263609e-40,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 3.190689655263609e-40,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "original-16498",
+          "repeat": 0,
+          "seed": 60217
+        },
+        {
+          "arm": "coarse-rank",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 6.46815280504257e-34,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 4.4425094172191505e-34,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 7.56e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 4.86e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "original-16498",
+          "repeat": 0,
+          "seed": 60223
+        },
+        {
+          "arm": "tight-rank",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 6.46815280504257e-34,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 4.4425094172191505e-34,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 7.56e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 4.86e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "original-16498",
+          "repeat": 0,
+          "seed": 60223
+        },
+        {
+          "arm": "tight-interval",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 6.46815280504257e-34,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 4.4425094172191505e-34,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 7.56e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 4.86e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "original-16498",
+          "repeat": 0,
+          "seed": 60223
+        },
+        {
+          "arm": "tight-strict",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 6.46815280504257e-34,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 4.4425094172191505e-34,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 7.56e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 4.86e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "original-16498",
+          "repeat": 0,
+          "seed": 60223
+        },
+        {
+          "arm": "coarse-rank",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 8.82e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 8.788948492466568e-35,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 8.47148011710478e-35,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 5.43e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 2.3346749237212477e-40,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 2.3346749237212477e-40,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "updated-16498",
+          "repeat": 0,
+          "seed": 60211
+        },
+        {
+          "arm": "tight-rank",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 8.82e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 8.788948492466568e-35,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 8.788948492466568e-35,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 5.43e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 2.3346749237212477e-40,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 2.3346749237212477e-40,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "updated-16498",
+          "repeat": 0,
+          "seed": 60211
+        },
+        {
+          "arm": "tight-interval",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 8.82e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 8.788948492466568e-35,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 8.788948492466568e-35,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 5.43e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 2.3346749237212477e-40,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 2.3346749237212477e-40,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "updated-16498",
+          "repeat": 0,
+          "seed": 60211
+        },
+        {
+          "arm": "tight-strict",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 8.82e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 8.788948492466568e-35,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 8.788948492466568e-35,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 5.43e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 2.3346749237212477e-40,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 2.3346749237212477e-40,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "updated-16498",
+          "repeat": 0,
+          "seed": 60211
+        },
+        {
+          "arm": "coarse-rank",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 8.82e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 5.43e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 1.7028277819889692e-40,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 1.7028277819889692e-40,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "updated-16498",
+          "repeat": 0,
+          "seed": 60217
+        },
+        {
+          "arm": "tight-rank",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 8.82e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 5.43e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 1.7028277819889692e-40,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 1.7028277819889692e-40,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "updated-16498",
+          "repeat": 0,
+          "seed": 60217
+        },
+        {
+          "arm": "tight-interval",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 8.82e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 5.43e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 1.7028277819889692e-40,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 1.7028277819889692e-40,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "updated-16498",
+          "repeat": 0,
+          "seed": 60217
+        },
+        {
+          "arm": "tight-strict",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 8.82e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 5.43e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 1.7028277819889692e-40,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 1.7028277819889692e-40,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "updated-16498",
+          "repeat": 0,
+          "seed": 60217
+        },
+        {
+          "arm": "coarse-rank",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 8.82e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 3.9360587127284097e-32,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 3.9360587127284097e-32,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 5.43e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 7.409241352304238e-41,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 7.409241352304238e-41,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "updated-16498",
+          "repeat": 0,
+          "seed": 60223
+        },
+        {
+          "arm": "tight-rank",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 8.82e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 3.9360587127284097e-32,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 3.9360587127284097e-32,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 5.43e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 7.409241352304238e-41,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 7.409241352304238e-41,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "updated-16498",
+          "repeat": 0,
+          "seed": 60223
+        },
+        {
+          "arm": "tight-interval",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 8.82e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 3.9360587127284097e-32,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 3.9360587127284097e-32,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 5.43e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 7.409241352304238e-41,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 7.409241352304238e-41,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "updated-16498",
+          "repeat": 0,
+          "seed": 60223
+        },
+        {
+          "arm": "tight-strict",
+          "cells": [
+            {
+              "baseline": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 0.0,
+                "reachability": "reachable"
+              },
+              "cell": "Flamengo / 13th",
+              "provisional_reference_probability": 8.82e-34
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 3.9360587127284097e-32,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 3.9360587127284097e-32,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 15th",
+              "provisional_reference_probability": 5.43e-31
+            },
+            {
+              "baseline": {
+                "available": true,
+                "probability": 7.409241352304238e-41,
+                "reachability": "reachable"
+              },
+              "candidate": {
+                "available": true,
+                "probability": 7.409241352304238e-41,
+                "reachability": "reachable"
+              },
+              "cell": "Palmeiras / 16th",
+              "provisional_reference_probability": 3.01e-40
+            }
+          ],
+          "fixture": "updated-16498",
+          "repeat": 0,
+          "seed": 60223
+        }
+      ],
+      "incomplete_status": {
+        "complete": true,
+        "expected_run_count": 36,
+        "invalid_record_count": 0,
+        "missing_or_invalid_keys": [],
+        "valid_run_count": 36
+      },
+      "paired_timing_delta_totals_vs_control": {
+        "coarse-rank": {
+          "cpu_delta_seconds": 0.07810599999998802,
+          "pairs": 6,
+          "wall_delta_seconds": 0.21625603699999063
+        },
+        "frozen": {
+          "cpu_delta_seconds": 0.2931539999999999,
+          "pairs": 6,
+          "wall_delta_seconds": 0.04210549799999996
+        },
+        "tight-interval": {
+          "cpu_delta_seconds": 0.4484299999999908,
+          "pairs": 6,
+          "wall_delta_seconds": 0.21294549899998483
+        },
+        "tight-rank": {
+          "cpu_delta_seconds": 0.6495089999999775,
+          "pairs": 6,
+          "wall_delta_seconds": 0.30986687199998286
+        },
+        "tight-strict": {
+          "cpu_delta_seconds": 0.48733299999997515,
+          "pairs": 6,
+          "wall_delta_seconds": 0.3459087059999977
+        }
+      },
+      "protocol": {
+        "arms": [
+          {
+            "binary_sha256": "c5b299ee903ebdec0697aa6fe09fcdc4dc04c3dc502ff98b6c77ee84ac8c12c2",
+            "flags": {},
+            "name": "control"
+          },
+          {
+            "binary_sha256": "6317b78f47e355f2b6310cd05ffcf9eb62d3c3ef37c32db2988c6af6ad3b89be",
+            "flags": {},
+            "name": "frozen"
+          },
+          {
+            "binary_sha256": "c5b299ee903ebdec0697aa6fe09fcdc4dc04c3dc502ff98b6c77ee84ac8c12c2",
+            "flags": {
+              "RUST_ODDS_EXPERIMENT_TREE_DISCOVERY": "rank"
+            },
+            "name": "coarse-rank"
+          },
+          {
+            "binary_sha256": "c5b299ee903ebdec0697aa6fe09fcdc4dc04c3dc502ff98b6c77ee84ac8c12c2",
+            "flags": {
+              "RUST_ODDS_EXPERIMENT_TIGHT_GUIDE_BOUND": "1",
+              "RUST_ODDS_EXPERIMENT_TREE_DISCOVERY": "rank"
+            },
+            "name": "tight-rank"
+          },
+          {
+            "binary_sha256": "c5b299ee903ebdec0697aa6fe09fcdc4dc04c3dc502ff98b6c77ee84ac8c12c2",
+            "flags": {
+              "RUST_ODDS_EXPERIMENT_TIGHT_GUIDE_BOUND": "1",
+              "RUST_ODDS_EXPERIMENT_TREE_DISCOVERY": "interval"
+            },
+            "name": "tight-interval"
+          },
+          {
+            "binary_sha256": "c5b299ee903ebdec0697aa6fe09fcdc4dc04c3dc502ff98b6c77ee84ac8c12c2",
+            "flags": {
+              "RUST_ODDS_EXPERIMENT_TIGHT_GUIDE_BOUND": "1",
+              "RUST_ODDS_EXPERIMENT_TREE_DISCOVERY": "strict"
+            },
+            "name": "tight-strict"
+          }
+        ],
+        "fixtures": {
+          "original-16498": "2e08f162592ded09393f0438686a60690dda6e85cd54da5dc0d20224c81aa625",
+          "updated-16498": "cc1e7144a7e50aa3abc54a4c9b64a641bde7f5db0328143bef7e7bf8009071ee"
+        },
+        "repeats": 1,
+        "seeds": [
+          60211,
+          60217,
+          60223
+        ],
+        "serialized": true,
+        "warmups": 0,
+        "workers": 4
+      },
+      "records": {
+        "complete": true,
+        "count": 36,
+        "expected": 36,
+        "valid": 36
+      },
+      "run_dir": "fresh-validation",
+      "timing_by_arm": {
+        "coarse-rank": {
+          "cpu_mean_seconds": 3.634791166666667,
+          "cpu_median_seconds": 3.589267500000002,
+          "runs": 6,
+          "wall_mean_seconds": 1.631590221833333,
+          "wall_median_seconds": 1.6055472285
+        },
+        "control": {
+          "cpu_mean_seconds": 3.6217735000000024,
+          "cpu_median_seconds": 3.545211000000002,
+          "runs": 6,
+          "wall_mean_seconds": 1.595547549000001,
+          "wall_median_seconds": 1.6054646669999997
+        },
+        "frozen": {
+          "cpu_mean_seconds": 3.670632500000002,
+          "cpu_median_seconds": 3.595284999999998,
+          "runs": 6,
+          "wall_mean_seconds": 1.6025651320000012,
+          "wall_median_seconds": 1.5918362920000009
+        },
+        "tight-interval": {
+          "cpu_mean_seconds": 3.696511833333334,
+          "cpu_median_seconds": 3.6917934999999984,
+          "runs": 6,
+          "wall_mean_seconds": 1.6310384654999985,
+          "wall_median_seconds": 1.6637481459999979
+        },
+        "tight-rank": {
+          "cpu_mean_seconds": 3.7300249999999986,
+          "cpu_median_seconds": 3.6791320000000014,
+          "runs": 6,
+          "wall_mean_seconds": 1.647192027666665,
+          "wall_median_seconds": 1.6465536664999991
+        },
+        "tight-strict": {
+          "cpu_mean_seconds": 3.7029956666666646,
+          "cpu_median_seconds": 3.7240604999999976,
+          "runs": 6,
+          "wall_mean_seconds": 1.6531990000000008,
+          "wall_median_seconds": 1.6438318330000001
+        }
+      },
+      "valid": false,
+      "validation_failures": [
+        {
+          "affected_requests": [
+            {
+              "fixture": "original-16498",
+              "repeat": null,
+              "seed": 60217
+            },
+            {
+              "fixture": "original-16498",
+              "repeat": null,
+              "seed": 60223
+            },
+            {
+              "fixture": "updated-16498",
+              "repeat": null,
+              "seed": 60211
+            },
+            {
+              "fixture": "updated-16498",
+              "repeat": null,
+              "seed": 60217
+            }
+          ],
+          "kind": "modeled_work_overrun_or_settlement_failure",
+          "message": "modeled work<path> failure in 13 run(s)",
+          "request_count": 4
+        }
+      ],
+      "work_failures": [
+        {
+          "arm": "coarse-rank",
+          "field": "branch_draw_actual_units",
+          "kind": "modeled_work_overrun_or_settlement_failure",
+          "request_count": 1
+        },
+        {
+          "arm": "coarse-rank",
+          "field": "branch_draw_audit_valid",
+          "kind": "modeled_work_overrun_or_settlement_failure",
+          "request_count": 2
+        },
+        {
+          "arm": "coarse-rank",
+          "field": "rust_odds_target_overflow_tree_summary",
+          "kind": "modeled_work_overrun_or_settlement_failure",
+          "request_count": 1
+        },
+        {
+          "arm": "coarse-rank",
+          "field": "within_grant",
+          "kind": "modeled_work_overrun_or_settlement_failure",
+          "request_count": 1
+        },
+        {
+          "arm": "control",
+          "field": "branch_draw_actual_units",
+          "kind": "modeled_work_overrun_or_settlement_failure",
+          "request_count": 2
+        },
+        {
+          "arm": "control",
+          "field": "branch_draw_audit_valid",
+          "kind": "modeled_work_overrun_or_settlement_failure",
+          "request_count": 2
+        },
+        {
+          "arm": "frozen",
+          "field": "branch_draw_actual_units",
+          "kind": "modeled_work_overrun_or_settlement_failure",
+          "request_count": 2
+        },
+        {
+          "arm": "frozen",
+          "field": "branch_draw_audit_valid",
+          "kind": "modeled_work_overrun_or_settlement_failure",
+          "request_count": 2
+        },
+        {
+          "arm": "tight-interval",
+          "field": "branch_draw_actual_units",
+          "kind": "modeled_work_overrun_or_settlement_failure",
+          "request_count": 1
+        },
+        {
+          "arm": "tight-interval",
+          "field": "branch_draw_audit_valid",
+          "kind": "modeled_work_overrun_or_settlement_failure",
+          "request_count": 2
+        },
+        {
+          "arm": "tight-rank",
+          "field": "branch_draw_actual_units",
+          "kind": "modeled_work_overrun_or_settlement_failure",
+          "request_count": 1
+        },
+        {
+          "arm": "tight-rank",
+          "field": "branch_draw_audit_valid",
+          "kind": "modeled_work_overrun_or_settlement_failure",
+          "request_count": 2
+        },
+        {
+          "arm": "tight-strict",
+          "field": "branch_draw_actual_units",
+          "kind": "modeled_work_overrun_or_settlement_failure",
+          "request_count": 1
+        },
+        {
+          "arm": "tight-strict",
+          "field": "branch_draw_audit_valid",
+          "kind": "modeled_work_overrun_or_settlement_failure",
+          "request_count": 2
+        }
+      ]
+    }
+  ],
+  "schema_version": 1
+}

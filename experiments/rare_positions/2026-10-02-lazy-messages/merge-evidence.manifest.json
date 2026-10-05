@@ -1,0 +1,65 @@
+{
+  "archive": "merge-evidence.tar.gz",
+  "archive_sha256": "1d51821a875c5fe0ff26292f4b2a7b355088c4961143a89c77e5cb76c61f9a82",
+  "archive_size": 8779110,
+  "experiment": "2026-10-02-lazy-messages",
+  "members": [
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "diagnostic.patch",
+      "sha256": "f74032a944acb3dd06abd1928fbf6b0ee9ee437f6bd6651212191b00fbb2bdaa",
+      "size": 3680
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "manifest.json",
+      "sha256": "19fc9a55e58e7801687c007bc59d5d52845a68126e68c8d0b574c1112d4161ec",
+      "size": 82237
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "prototype.patch",
+      "sha256": "a6b163ea04010496e8d17e7b095d9be9c4f212250245e56eeb322c45ff8d207c",
+      "size": 30057
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "raw-evidence.tar.gz",
+      "sha256": "55b9be0eb6ebad1df03015ac2587a110f9f3c0430970568fbee4c861f3fe8657",
+      "size": 8827784
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "rebuild-primary.patch",
+      "sha256": "422bf708515d03f6045fd098270b4c981a4b69a2b05def872c4707b591483180",
+      "size": 10845
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "source-hashes.json",
+      "sha256": "f8678e0f83447894e764626f731e8652636c9ad5667eddb54eb7e2678676a3eb",
+      "size": 950
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "summary.json",
+      "sha256": "37518963bd36faf3b7021e3105750caa711925c0340580fce91066739fb322c2",
+      "size": 61400
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "ten-percent-native.patch",
+      "sha256": "a8fb299f91c5d1f489478f489ecadb70f006d8ae97b5b20b9df042ea92db3979",
+      "size": 408
+    }
+  ],
+  "schema_version": 1
+}

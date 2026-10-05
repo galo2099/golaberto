@@ -1,0 +1,122 @@
+{
+  "archive_count": 23,
+  "archives": [
+    {
+      "archive_sha256": "01b803154faec338aff26cecbfded29894f66768f47fa77c6b66b01b08364ec9",
+      "experiment": "2026-10-02-exact-rank-cases",
+      "member_count": 4
+    },
+    {
+      "archive_sha256": "1d51821a875c5fe0ff26292f4b2a7b355088c4961143a89c77e5cb76c61f9a82",
+      "experiment": "2026-10-02-lazy-messages",
+      "member_count": 8
+    },
+    {
+      "archive_sha256": "1f7fbf08d08fd84e5815ebb44704fdc6fe57dcd84b5500ee547e50122273648e",
+      "experiment": "2026-10-02-lazy-partitions",
+      "member_count": 7
+    },
+    {
+      "archive_sha256": "1fb352df4c27ee450de591c6b364488df96b54e818e0ef7dd0c96dfd33aa4905",
+      "experiment": "2026-10-02-lazy-three",
+      "member_count": 93
+    },
+    {
+      "archive_sha256": "f9a5c65e7b08e24b9806f6712bf8fb915d1bf032c9e9dd46f78e38df6f336847",
+      "experiment": "2026-10-02-parent-modes",
+      "member_count": 20
+    },
+    {
+      "archive_sha256": "78c89d2f9d486746ad107b3e2e59c89bccd23e44d176bbf50d6d8893c29419bf",
+      "experiment": "2026-10-02-root-reallocation",
+      "member_count": 27
+    },
+    {
+      "archive_sha256": "f4d159d81527fcdf1cd360105dd073553ae2b81c4ec4654fb0f93d97794b072d",
+      "experiment": "2026-10-02-state-late-splitting",
+      "member_count": 29
+    },
+    {
+      "archive_sha256": "ce723bb57db295a71bf1c9b5bbd4c3970da82d09b4ef12a604747469bad2acfb",
+      "experiment": "2026-10-03-best-first-cases",
+      "member_count": 4
+    },
+    {
+      "archive_sha256": "167c1db1acf5ae35715e8d2c364c4460f55f05dd67b8c5e78ff730fc7d6a6c83",
+      "experiment": "2026-10-03-family-conditioning",
+      "member_count": 217
+    },
+    {
+      "archive_sha256": "2724c24bf66cde2ec3a185dcf7276f9c15fba6ad5d30c3de3e1fe5159f5b73cb",
+      "experiment": "2026-10-03-family-fallback",
+      "member_count": 773
+    },
+    {
+      "archive_sha256": "45cec6eb524eb3447e8eb5ba5edf8bdcd07f26e676a37857925a79dad7d3f313",
+      "experiment": "2026-10-03-family-native-training",
+      "member_count": 1199
+    },
+    {
+      "archive_sha256": "57841f38e7940345497ca0c0ab480e19578204f452e279e10d76fbfbc76a6efe",
+      "experiment": "2026-10-03-flamengo-three-points",
+      "member_count": 1
+    },
+    {
+      "archive_sha256": "482930f49e5f77fcd163837d2be580030f735725d408414ea0359fffce77be77",
+      "experiment": "2026-10-03-hit-patterns",
+      "member_count": 65
+    },
+    {
+      "archive_sha256": "aee8b020e879fae0e11a859bd9abdeea01d27b97f10c7dd52d370b146f302411",
+      "experiment": "2026-10-03-neighbor-transfer",
+      "member_count": 24
+    },
+    {
+      "archive_sha256": "371617d8c4d681ead27ccacf66c8fede10da2db1893cf8a58bc71376e07db1b2",
+      "experiment": "2026-10-04-early-rank",
+      "member_count": 645
+    },
+    {
+      "archive_sha256": "e893f1db59145f73ffc67d5e912d570bc0dc8e5c4722bcafa66068a9ee0bcb3f",
+      "experiment": "2026-10-04-family-cpu-attribution",
+      "member_count": 366
+    },
+    {
+      "archive_sha256": "1a9b852f656aed80737cc141c288d0fb2ffa5a3a2d4948fb156a11701fd8f803",
+      "experiment": "2026-10-04-family-late-fallback",
+      "member_count": 819
+    },
+    {
+      "archive_sha256": "ce715bef3eeb37e98907439325c5311f58123273f847d9ba45ace5398e4914a1",
+      "experiment": "2026-10-04-family-production",
+      "member_count": 282
+    },
+    {
+      "archive_sha256": "6f6be40d17403768fe9766b616f107f5f133e271058b2b98087f91b7b72a76f4",
+      "experiment": "2026-10-04-target-overflow",
+      "member_count": 410
+    },
+    {
+      "archive_sha256": "430057eb235a3eb946b61f5e7176deed6592a1202af722fbf27fae03ddda5c8a",
+      "experiment": "2026-10-05-100x-backward",
+      "member_count": 90
+    },
+    {
+      "archive_sha256": "dc673c6a97c32367dce092de0c5c276fc6f6e9d14a0ad3c382fb875643922163",
+      "experiment": "2026-10-05-generic-followups",
+      "member_count": 83
+    },
+    {
+      "archive_sha256": "57abf6bbfe7daeb5950a5ae5a704a6612dee3054dc09cc534bf6a3447ed876e2",
+      "experiment": "2026-10-05-structural-discovery",
+      "member_count": 1256
+    },
+    {
+      "archive_sha256": "4613884d2aeb94d00a37397601e2c705f3df85e7033b2924aa25119b6f5fe6e6",
+      "experiment": "2026-10-05-tight-guide-bound",
+      "member_count": 306
+    }
+  ],
+  "member_count": 6728,
+  "status": "all archives, manifests, member sets and original hashes verified before prune"
+}

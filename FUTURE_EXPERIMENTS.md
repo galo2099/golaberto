@@ -3096,3 +3096,435 @@ under local memory pressure; no claim of unchanged production latency or extra
 budget allowance. Details and raw evidence are recorded in the R63 report and
 `2026-10-04-early-rank/production-*-v2/`. The user subsequently authorized commit
 and push after validation. Frozen executables and raw logs remain local artifacts.
+
+### R64: two-result snapshot and remaining-zero diagnosis — complete
+
+The user requested a derived group-16498 snapshot with game 364007 played at
+1–2 and game 363999 played at 1–0. Preserve the frozen request's other fields,
+ratings and game order. Production baseline is commit e3ce9653, binary SHA256
+ae0e68a5d5986436656ca34aa6b6b6a9f54befeaaf96049dfbc0df96ab6bbdf1,
+seed 808, four workers and unchanged deterministic work limits.
+
+Initial result: 382 positive cells, 17 impossible zeros, one reachable zero
+(Palmeiras/15th). The two score changes alone do not reproduce the attached
+production log's three reachable zeros. Debug the derived snapshot separately;
+do not infer equality of the entire production request from fixture count.
+
+Preselected diagnostics: compare tree enabled/disabled on the identical new
+request; test complete small-root partitioning offline at 6,000 draws per stream
+and a tenfold diagnostic batch; then test admitting small-root residual trees
+into the existing original confirmation bank, leaving production defaults and
+publication gates unchanged. Record setup, pilots, messages, MAIN/CHECK,
+full-request wall/CPU, remaining zeros and prior-positive preservation. No
+database writes, commit or push are authorized for this experiment.
+
+Results: the original minimum-one ordering fills Palmeiras/15th at seed 808 but
+loses existing tree estimates at seeds 1669/1993; reject it. Revised ordering
+preserves the original 65–256-root candidates first, then spends only leftover
+work on small-root candidates. Across the five derived-fixture seeds and six
+original references, it loses no estimates or non-work metadata. At seed 808 it
+adds Palmeiras/15th at 2.135e-31 probability, leaving only the 17 proven
+impossible zeros; holdout coverage is unchanged. Three warmed repetitions
+produce identical exports. Same bank and four workers: observed mean wall
+2.557→2.833 s (+10.8%), CPU 5.540→5.622 s (+1.5%). Treat local timing as noisy;
+no latency preservation claim or additional allowance.
+
+The tenfold offline batch reveals pilot underallocation: a zero-hit leaf gets
+45/60,000 draws despite a material final contribution. It does not fix seed 808;
+seed 1669 passes around 3.6e-31. Higher global pilots regress coverage in the
+initial ordering. Recommend only the revised small-root rule as an opt-in
+follow-up, not automatic production adoption. Default minimum stays 65;
+`RUST_ODDS_EXPERIMENT_TARGET_TREE_MIN_ROOTS=1` enables the experiment. Full Rust
+suite: 192 passed, four database tests ignored. Nine Python harness tests,
+formatting, diff check and independent Sol review passed. Report:
+`2026-10-04-rust-two-results.md`.
+
+### R64 rating refresh — complete
+
+The user updated team ratings and requested replacing the fixture's remaining
+game powers. Captured the existing Rails request builder output read-only from
+`GolAberto_development`, checked IDs/participants for all 101 remaining games,
+and refreshed 200 means across 100 games (one game's means already match).
+Preserved both requested scores, all other fields and fixture order. Current
+fixture SHA256: cc1e7144a7e50aa3abc54a4c9b64a641bde7f5db0328143bef7e7bf8009071ee.
+The previous fixture and raw DB builder output are archived locally; original
+R64 results apply to its previous hash, not this refreshed revision.
+
+Seed808/four workers: production defaults now give 380 positive cells, 17
+impossible zeros and three reachable zeros (Flamengo/13th, Palmeiras/15th and
+Palmeiras/16th), with no undecideds. The minimum-one experiment produces an
+identical export: all three extra setup grants fall below the admission floor
+after the existing search. The earlier coverage gain does not transfer to these
+ratings. Production defaults remain unchanged. Targeted fixture test, formatting
+and exact DB-power/diff checks pass. No DB writes, commit or push. Updated
+diagnosis and reproduction commands are in the R64 report.
+
+### R64 original-fixture comparison — complete
+
+Compare the old 103-game fixture, the 101-game old-rating version, the updated
+101-game fixture and a counterfactual 103-game updated-rating fixture with the
+same frozen production binary, seed808 and four workers. All three current
+reachable zeros were previously positive. Either results or ratings alone
+loses Palmeiras/15th; Flamengo/13th and Palmeiras/16th are lost only in their
+combination at this seed. Certified limits and the 17 impossible zeros agree.
+Current Flamengo/13th lacks complete-tree pilot hits, Palmeiras/16th has many
+hits but a dominant observation/low ESS, and Palmeiras/15th fails independent
+confirmation. Its native MAIN passes, which excludes it from late family
+fallback under the current eligibility rule. No further algorithm changes
+made. The four-way probabilities, diagnostics and counterfactual hash are
+recorded in the R64 report; future work should test confirmation-failure
+eligibility and pilot allocation while preserving existing publication gates.
+
+### R65: failed-confirmation families and robust pilot allocation — complete
+
+The user requested retaining the original group-16498 fixture with no reachable
+zeros at seed808 and the updated two-result/current-rating fixture as the
+regression pair. Intermediate result/rating combinations remain historical local
+diagnostic artifacts, not additional tracked fixtures. Use original SHA256
+2e08f162592ded09393f0438686a60690dda6e85cd54da5dc0d20224c81aa625 and updated
+SHA256 cc1e7144a7e50aa3abc54a4c9b64a641bde7f5db0328143bef7e7bf8009071ee.
+Frozen production baseline is e3ce9653, binary ae0e68a5d5986436656ca34aa6b6b6a9f54befeaaf96049dfbc0df96ab6bbdf1.
+
+First test default-off family eligibility for failed independent confirmations,
+including MAIN that passes but CHECK that fails. Preserve successful pairs,
+published estimates, weighting, fresh final streams and publication gates.
+Run old family candidates before extra candidates. Initially retain existing
+cell/request grant limits to measure actual funding; expanding eligibility does
+not create work. Any subsequent reallocation must stay inside the original
+request bank and report displaced work, coverage regressions and full-request
+wall/CPU explicitly. Current updated request spends approximately 108m units
+on a declined family for Palmeiras/14th before its successful 120m-unit tree;
+the residual bank is only 11.6m units. This is an allocation opportunity, not
+evidence that those failed calculations can be identified in advance.
+
+Then test more defensive final stratum allocation and uncertainty-aware pilot
+scores. Zero pilot hits must not be equated to zero variance or impossibility.
+All strata retain positive allocation and final MAIN/CHECK remain independent
+of fitting/pilots. Candidate allocation heuristics are not confidence bounds.
+Research context: Carpentier, Munos and Antos (2015),
+[Adaptive Strategy for Stratified Monte Carlo Sampling](https://jmlr.csail.mit.edu/papers/v16/carpentier15a.html),
+uses optimistic standard-deviation estimates for allocation; its sub-Gaussian
+assumptions are not established for the current importance weights. Carpentier
+and Munos (2013),
+[Toward Optimal Stratification for Stratified Monte-Carlo Integration](https://proceedings.mlr.press/v28/carpentier13.html),
+describes the tension between finer partitions and reliable allocation.
+
+Compare identical requests/fixed seeds on four cores, serialize heavy runs,
+test both regression fixtures plus the existing reference groups, and record
+new estimates, lost estimates, retained reachable/impossible/undecided zeros,
+actual operation accounting and timings. Adopt no tradeoff that loses prior
+coverage merely to fill the updated request. No commit, push or production
+default change is authorized for these experiments. Report:
+`experiments/rare_positions/2026-10-04-rust-confirmation-pilots.md`.
+
+Results: eligibility alone leaves Palmeiras/15th unfunded (2.895m residual
+units). Explicit transfers and capped legacy work start family sampling, but
+the measured small grants fail unchanged ESS/contribution gates. Audited unused
+branch credit funds a 7,330-draw family pair, accepted at 1.741e-32 with CHECK
+8.600e-33. Combining it with the pilot prior finds two updated/808 cells but
+loses original/808 Palmeiras/14th; reject this configuration. A smaller complete
+tree configuration preserves coverage over 15 distinct request/seed pairs and
+adds four cell-runs, including two at updated/808, but costs +12.7% wall and
++14.6% CPU on that fixture. Reject automatic adoption under the latency
+constraint. Shorter overflow without small-root admission still costs +27.4%
+wall in its measured batch.
+
+Recommend only pilot-prior scores plus retaining the all-zero tree-pilot skip.
+It recovers Palmeiras/16th at 1.429e-40, changes updated/808 reachable zeros
+3→2, and preserves original/808 zero-free coverage, all six reference groups,
+and four holdouts per regression fixture. Latest warmed mean wall is −3.9%,
+CPU +3.9%, with four workers; timing varies across batches, so no speed claim.
+Blanket 25% uniform allocation loses two original-fixture cells; reject it.
+All experiments stay default-off, with no commit/push. 74 focused tests,
+formatting, whitespace and independent Sol review pass. Full Rust suite:
+210 passed, four database tests requiring MYSQL_TEST_URL ignored, zero failed.
+HTTP listener tests passed after retrying with localhost socket permission.
+Final release binary SHA256 is
+eab52f6ff920b5bcaf7e010e056eaf0cf3892f01d84d58347b5b1fd39b3612ea.
+Final paired checks reproduce both frozen production exports with experiments
+off and the measured recommended-profile exports with its two flags on.
+
+### R66: reduce failed-pair family cost — proposed
+
+The funded family only uses 26 hits from a replayed 3,000-draw MAIN prefix,
+although the rejected native MAIN contains 174 hits over 20,549 draws.
+Experiment with bounded observational collection of the full native MAIN,
+paid from an explicit existing-bank reservation. Preserve the native stream,
+weighting and original legacy-family training behavior; use the extra records
+only for eligible failed-CHECK recipients. Compare fitting quality and fresh
+draw requirements against the current prefix replay. Reusing data as training
+still requires independent new validation and final MAIN/CHECK; the native
+rejection cannot become a published estimate by itself.
+
+Separately measure a pre-reserved parallel final pair for failed-CHECK families
+on at most two of the four workers. This may reduce the sequential tail but
+speculates CHECK work when family MAIN fails. Charge that work and measure its
+effect on other recipients. Neither idea is implemented. Their target is
+the additional Palmeiras/15th coverage with current latency, not a new global
+work or time allowance. Flamengo/13th still needs a more effective proposal;
+zero-hit tree finals and retries have supplied no event evidence.
+
+### R67: extended-work allocation and proposal diagnosis — complete
+
+The user asks whether the three lost group-16498 cells reflect random sampling
+noise or overfitting to the earlier fixture, and requests extended-work runs to
+discover the important outcome families. Keep only the original and updated
+two-result/current-rating fixtures as this regression pair. Current endpoint
+defaults and its production latency allowance remain unchanged; additional
+work is explicitly an offline diagnostic.
+
+Existing production seed controls already show instability: original
+Palmeiras/15th is positive only at 808 among five measured seeds, and original
+Palmeiras/16th fails at two holdouts. Updated Palmeiras/16th succeeds at all four
+holdouts despite failing at 808. Updated Flamengo/13th succeeds at 1993, while
+the original succeeds at every measured seed. These observations do not
+separate final sampling variance from unstable pilot training and allocation.
+
+Use complete, disjoint branch proposals with the existing production sampler,
+score weighting, sorter and publication gates, four workers, no omitted
+leaves, and separate pilot/final streams. Compare:
+
+- Frozen setup and pilot seed, varying only independent final seeds.
+- Tenfold final draws with unchanged pilot work.
+- Tenfold pilot draws at the same final work, preserving final seeds.
+- Equal stratum allocation versus empirical pilot allocation at the same
+  final draw total. This is a diagnostic of missed variability, not a proposed
+  blanket production policy.
+- A preselected hundredfold final batch when tenfold work remains inadequate.
+
+Record per-stratum corrected contribution, ESS, weight concentration, final
+draw allocation, target outcomes, forced fixtures and rival points/wins. An
+outcome-only vector does not constitute a complete goal-score witness. Use
+independent high-work evidence to identify consequential families; do not
+publish training results or treat accepted rough estimates as golden truth.
+Report timing and actual work explicitly. Source changes are confined to an
+offline example and its runner; no commit, push or default activation.
+
+Results: 46 three-seed panels / 138 final MAIN/CHECK pairs, four workers with
+heavy runs serialized. Extended high-work configurations recover all three
+known-reachable cells on both fixtures: 36/36 pairs pass, including 18 fresh
+validation pairs at 4093, 4099 and 4111. Mean MAIN / CHECK probabilities:
+original Flamengo/13th 7.56e-34 / 7.49e-34, Palmeiras/15th 4.86e-31 / 5.18e-31,
+Palmeiras/16th 3.01e-40 / 2.92e-40; updated 8.82e-34 / 8.48e-34,
+5.43e-31 / 5.42e-31, and 3.01e-40 / 3.43e-40. Units are fractions. These are
+provisional rough references, not certified probabilities or bounds.
+
+The failures are not explained by benign final noise alone. Changing only
+Flamengo's sparse pilot seed from 808 to 1993 recovers all three unchanged final
+seeds/budgets. A 250-draw pilot trains on the one-draw branch and accepts ~1e-39;
+a 2,500-draw pilot discovers the dominant all-loss branch and estimates ~9e-34.
+Final-only multiplication does not reliably repair the bad training. Both final
+streams can miss the same component and pass the observed diagnostics.
+
+Original Palmeiras/15th's four learned families all require Corinthians below
+the target's packed points/wins total. Complete-tree branches with Vasco or
+Vitória below instead require Corinthians at or above the target; they cannot
+overlap those family components. These branches contribute about 78% of measured
+MAIN in original/808. Defensive native support remains, but discovery is poor.
+The old published ~1e-33 is about 500 times below the larger-work evidence on
+the same input. Zero-free coverage alone hid this quality problem.
+
+Palmeiras/16th mainly needs improved allocation or additional final samples:
+10× finals with its original frozen pilot recovers all three updated streams.
+Blanket equal allocation is not uniformly reliable. Recommending focused
+structural discovery and rival-set diversity, not automatic 100× endpoint work.
+Offline panels cost 422.30 s wall / 465.40 CPU seconds in total; these exceed
+the production allowance and do not establish production latency or a global
+matrix regression guarantee. No production/default change, commit or push.
+Four new targeted example tests, release build, formatting, runner checks,
+independent Sol review and numeric legacy-example parity pass. Report:
+`experiments/rare_positions/2026-10-04-rust-extended-allocation.md`.
+
+### R68: structural discovery before family exploitation — current variants rejected
+
+R67 shows systematic overconcentration in learned proposals: accepted nonzero
+cells can still miss dominant branches, and independent confirmations can share
+the same blind spot. The 36 high-work pairs are provisional rough references,
+not certified probabilities or gold truth. Default-off implementation and
+paired R68 full-request evaluation are complete. The feature reserves
+existing work for zero-hit branches prioritized by certified constraints and
+bound/rank hints, before granting message refinement solely from observed hits.
+Use partial rival-status families to preserve alternative above/below sets
+before filling all slots with detailed ties from one set. Maintain positive
+support, corrected weights and independent validation/final streams. Neither
+rank hints nor upper bounds become probability estimates.
+
+Compare training/retuning and final work at the current production request
+capacity. Score both nonzero coverage and agreement with R67's rough references,
+including old Palmeiras/15th and the spurious ~1e-39 Flamengo result. Test all
+reference groups and both retained regression fixtures with fixed seeds and
+four workers. Measure full-request wall/CPU and actual modeled operations;
+accept no implicit extra time allowance.
+
+Implementation/experiment plan: default-off tree discovery priorities using
+nominal rival interval masses, independent necessary-rank cardinality, and a
+strict-side cardinality heuristic. They can select zero-hit branches for the
+existing bounded message refinement before the empty-pilot skip. Scores guide
+proposal work only; no constraints, probability weights or impossibility
+classification follow from them. Retain the existing message count, pilot
+counts, final allocation floors, request capacity and four-worker ceiling.
+
+Separate family controls compare wildcard ties (negative control), skeletons
+retaining either the above or below strict-rank side, and bounded release of one flexible
+strict constraint. Non-retained statuses become unrestricted so alternative
+rival sets are actually covered. Overlapping partial-family densities must sum
+every matching component, with replay work and candidate generation charged.
+The conservative admission bound must include native plus up to four family
+evaluations; defaults keep the old disjoint full-family path and streams.
+
+The corrected v5 evaluation completed 240 requests across both retained
+fixtures, three reserved seeds and every other reference fixture, with all
+eight arms, matched control and frozen production. All 24 default comparisons
+match excluding `work_spent`; no corrected run violates a work grant or changes
+reachability. The 171 Rust library tests pass. Every arm loses previously
+positive cells on screening and independent seeds; none recovers the three
+diagnostic cells. Current variants are rejected for adoption.
+
+Tree discovery retries spend nearly 20 million units without a successful
+retune on inspected retained cases: conservative guide-span bounds refuse
+construction. Partial-family confirmation reserves cannot fit the current
+grants on the affected failed cells. These results do not evaluate the scores'
+effectiveness after successful refinement. A tighter, auditable
+proposal-specific guide/density cost bound is the next prerequisite before
+comparing discovery and diversity again at unchanged capacity. No commit,
+push or default activation. Full results, observed timing increases, failed v4
+budget cases and reproducible commands:
+`experiments/rare_positions/2026-10-05-rust-structural-discovery.md`.
+
+
+### R69: fresh 100× backward analysis of group 16498 — complete
+
+Reproduced R67's three per-cell configurations on both retained snapshots,
+with final seeds 60013/60017/60029 and pilots 808/60031, serialized with four
+workers. Twelve panels retain all 36 MAIN/CHECK pairs: 33 pass. Every before
+pair passes; updated Palmeiras15 fails one fresh-pilot pair, and updated
+Palmeiras16 fails seed 60017 under both pilots (shared final streams). The
+larger probability scales persist, but 100× does not guarantee precision.
+
+Backward analysis confirms Flamengo13's dominant all-loss path, Palmeiras15's
+alternative Corinthians/Vasco/Vitória below sets, and Palmeiras16's persistent
+large-weight concentration. In updated Palmeiras15, the fresh pilot's three
+refinement slots select a small team-584 component instead of the important
+Corinthians component. A controlled fourth slot on both fixtures retains all
+four alternatives and passes all six extra pairs. Updated MAIN minimum ESS
+rises 5.67→121.06 and maximum weight share falls 40.88%→5.44%; before changes
+little and branch-level heavy tails remain. This is exploratory evidence for
+rival-set diversity, not a blanket four-slot recommendation or a proof that
+extra refinement fits the production bank.
+
+Six fresh unchanged full-request controls show zeros and substantial nonzero
+underestimates on both fixtures. Target points/wins and ten remaining target
+fixtures are unchanged; the after snapshot includes two results plus 200
+refreshed power fields, preventing separate causal attribution. Probabilities
+remain provisional. Next generic implementation needs tighter auditable guide
+and mixture-density cost admission, reserved discovery of promising unseen
+structural families, rival-set diversity, and separate responses to missing
+families versus concentrated weights. Evaluate successful bounded refinement
+before full-request adoption; validate already-positive cells as well as zeros.
+
+Measured child-run totals: 265.76 seconds wall / 363.44 CPU seconds for twelve
+primary panels, two extra-slot panels and six production controls. Four Rust
+example tests and five analyzer tests pass. Production defaults unchanged; no
+DB write, commit or push. Full raw commands, hashes, analysis and limitations:
+`experiments/rare_positions/2026-10-05-rust-100x-backward.md`.
+
+
+### R70: generic training, allocation, guidance and score controls — complete
+
+User authorized running experiment ideas. Five policies were screened on both
+16498 snapshots: P15 pilot 500→5,000 with three slots; P16 equal allocation,
+pilot 5,000→50,000, always-bounds guidance, and native goal scores. Screening
+uses pilot 60031, finals 60013/60017/60029 and frozen R69 example, all samples
+and four-worker limits unchanged. Ten further holdout panels use fresh
+pilot 60109 and finals 60101/60103/60107: three P15 training policies and selected
+P16 bounds versus the adaptive baseline on both fixtures. Twenty new panels,
+60 MAIN/CHECK pairs, 53 pass; all failed pairs retained.
+
+The larger P15 pilot preserves the important Corinthians/Vasco/Vitória
+refinements and passes all six screening pairs. Fresh holdout retains those
+families in every policy but develops an extreme weight in the already-refined
+Vasco family. Four slots fail one updated holdout, while the baseline and larger
+pilot accept high concentrated estimates. The earlier fourth-slot improvement
+is insufficient for adoption. The extreme rows share a final seed and are
+correlated, not independent recurrences.
+
+P16 always-bounds wins the fixed screening rule (6/6 pairs, minimum ESS 29.22,
+worst share 15.05%). It then fails one original holdout with ESS 4.69/share 45.59%,
+while the adaptive baseline passes all six holdouts. Equal allocation moves
+failure from updated to original; more pilot work retains concentration; native
+goals pass only 2/6 and worsen tails. None earns a general production switch.
+
+Distinct families address the documented structural blind spot, but heavy
+weights within covered/refined families persist. Training and final seeds
+change together in holdout, so effects cannot be causally separated. Work
+admission and uncertainty remain material: P15 larger-pilot after seed 60101 total
+modeled charge rises 6.257B→9.325B; P16 setup/total charges remain unavailable.
+No production capacity or exact-probability claim follows from fixed finals.
+
+New runs cost 331.31 seconds wall / 551.89 CPU seconds, excluding reused controls,
+analysis and idle time. Python syntax checks, twenty-panel hash/settings/draw/
+probability conservation validation, and independent Sol raw-data review pass.
+No new tests, Rust/default edits, DB write, commit or push. Full protocol,
+selection made before holdout, raw commands/results, scripts and report:
+`experiments/rare_positions/2026-10-05-rust-generic-followups.md`.
+
+### R71: exact guide-shape admission — screen complete, no adoption
+
+Continue the uncommitted experiments with Sol planning/review and Luna code.
+Add default-off `RUST_ODDS_EXPERIMENT_TIGHT_GUIDE_BOUND=1` only to already
+bounded experimental retuning. Predict both forward and reverse guide table
+charges before construction, using supported forward maxima and unconditional
+reverse origins, checked arithmetic and a charged estimator traversal. Keep
+the legacy/default path, work grant, pilots, finals, scores and gates unchanged.
+
+All 36 fixed screening requests complete: two retained snapshots, seeds
+808/1669/1993, default control, frozen R68 v5, coarse rank, and tight
+rank/interval/strict. Six default comparisons match excluding `work_spent`.
+All 18 tight requests successfully refine one unseen Flamengo/13th branch
+within its message grant. Tight rank spends 8.911M / 8.177M units on
+original/updated instead of nearly 20M failed coarse attempts. The admission
+barrier is removed, but no diagnostic zero recovers. Each tight arm gains one
+cell-run and loses three against defaults; all tight exports match excluding
+`work_spent`. Original/808 Palmeiras15 remains about 486 times below R67's
+provisional rough mean. Updated Flamengo re-pilots or finals still lack useful
+evidence or concentrate extreme weights. Construction alone is insufficient.
+
+The stricter analyzer uncovers `branch_draw_audit_valid=false` in 30 archived
+R68 screen records and 18 new screen records, including default controls.
+Aggregate reserved-minus-already-released totals and explicit stage settlement
+checks do not fail; individual draw-bound validity is still unproven. The older
+analyzer omitted this field. No new tight guide-grant failure is observed.
+The new analyzer deliberately returns status 2 with a complete preserved
+report. Follow the prewritten stop rule: do not launch fresh-seed or reference
+validation, increase capacity or adopt the control. Next expose and safely
+bound the reservation that invalidates the draw audit, and improve discovery
+of useful families before claiming request affordability.
+
+New child runs total 58.590 s wall / 124.863 CPU seconds. Mean tight-rank wall
+is +1.66% and CPU +1.27% against candidate defaults in this single screening
+batch, not a latency guarantee. Thirteen focused message tests, seven Python
+tests, check/format/whitespace verification pass. Optimized full Rust suite:
+240 passed, four MySQL-dependent tests ignored, zero failures; all HTTP tests
+pass with localhost access and optimized serial execution. Debug HTTP attempts
+hit sandbox binding restrictions, then two existing 10-second read timeouts.
+No production/default change, DB write, commit or push. Frozen source/binary,
+protocol, raw records, failed audits and full report:
+`experiments/rare_positions/2026-10-05-rust-tight-guide-bound.md`.
+
+### October 5 results integration
+
+The experiment results and reproducibility tools are integrated on `master`
+against production baseline `e3ce9653`. Experimental controls remain opt-in;
+no new policy, request capacity, acceptance gate or production default is
+adopted. R65's narrow pilot-prior candidate needs renewed validation after the
+later draw-audit findings. R67–R70 larger-work estimates remain provisional
+diagnostics, and R68/R71 discovery variants are rejected for adoption.
+
+A later R71 batch already present in the working tree adds 36 fresh-seed
+requests. Each tight arm gains one and loses two cell-runs; 13 records have
+audit or settlement failures, including aggregate draw-reservation overruns.
+It does not override the original screen's continuation stop. Twelve default
+comparisons across both batches match frozen R68 defaults excluding
+`work_spent`. The next prerequisite remains safe per-draw admission and useful
+family discovery. See `experiments/rare_positions/2026-10-05-rust-experiment-merge.md`
+for integration scope, evidence handling and validation.

@@ -30,6 +30,14 @@ the remaining original confirmation budget, after native and family searches.
 No enabling flags are needed; `RUST_ODDS_TARGET_OVERFLOW_TREE=0` disables it.
 Rebuild and restart the Rust service to apply the default.
 
+`RUST_ODDS_EXPERIMENT_TARGET_TREE_MIN_ROOTS=1` additionally admits remaining
+small-root cells after the original overflow candidates have finished. Its
+default is 65; values clamp to 1–65. The experiment retains the same confirmation
+bank, four-cell limit and publication gates, and uses only leftover work for
+these extra candidates. More eligibility can increase CPU and latency. See the
+[two-result fixture and paired measurements](../experiments/rare_positions/2026-10-04-rust-two-results.md).
+This experiment is not enabled by default.
+
 The native service also replaces the active Go `/spi`, `/eval`, and
 `/historic_ratings` endpoints and integrates the active `stats` `/player_ratings`
 command. It does not run or proxy Go or the stats executable. The player formulas
@@ -209,9 +217,58 @@ records the final paired validation and local timing.
 
 `RUST_ODDS_FAMILY_FALLBACK=0` explicitly disables this work, even if the legacy
 `RUST_ODDS_EXPERIMENT_FAMILY_FALLBACK=1` is present. The legacy master flag is
-accepted only when the production flag is unset. Other family experiment
-tuning flags do not change the fixed production policy. The fallback requires
+accepted only when the production flag is unset. Legacy prototype tuning flags
+are ignored by the fixed production policy. The fallback requires
 the deterministic operation work model; legacy draw or wall budgets skip it.
+
+### Failed-confirmation and pilot allocation experiments
+
+These controls are default-off. R65's narrow candidate was:
+
+```bash
+RUST_ODDS_EXPERIMENT_BRANCH_PILOT_PRIOR=1 \
+RUST_ODDS_EXPERIMENT_BRANCH_SKIP_EMPTY_PILOT_FINAL=1 \
+./target/release/golaberto-odds
+```
+
+The pilot prior gives uncertain strata a positive allocation score using their
+existing bounds, while every stratum keeps its draw floor. The second flag
+retains the skip for a completely empty tree pilot. Final MAIN/CHECK streams,
+weighting and acceptance gates are preserved. This finds Palmeiras/16th on the
+updated group-16498 fixture at seed 808, keeps original-fixture coverage, and
+passes reference/holdout coverage checks. Latest local paired means show 3.9%
+less wall time and 3.9% more CPU, using four workers; these small timing samples
+do not establish a reliable speed improvement.
+
+`RUST_ODDS_EXPERIMENT_FAMILY_FAILED_CONFIRMATION=1` also admits failed native
+CHECK pairs whose MAIN passes publication checks. Their family training uses
+MAIN observations and fresh validation/final streams. Eligibility alone does
+not supply work. Optional transfer percentage (0–50), legacy grant percentage
+(0–100), and advance reservation controls explicitly reallocate the existing
+bank. Advance promises use at most half the free bank and are released on skip
+or abort. The wider profiles can recover another cell, but measured latency
+increases or coverage regressions prevent their recommendation under the current
+budget. The 25% defensive uniform-allocation experiment also regresses coverage.
+
+See [the experiment report](../experiments/rare_positions/2026-10-04-rust-confirmation-pilots.md)
+for exact flags, reproducible paired commands, operation accounting, timing,
+and remaining reachable zeros. Later R67–R71 experiments expose substantial
+underestimates and invalid draw-budget audits, including default controls.
+The narrow candidate remains experimental pending a safe draw-cost bound and
+fresh validation. Production defaults remain unchanged.
+
+The structural discovery controls
+`RUST_ODDS_EXPERIMENT_TREE_DISCOVERY=interval|rank|strict` and partial-family
+control `RUST_ODDS_EXPERIMENT_FAMILY_STRUCTURE=ties|skeleton|relax` are also
+default-off. Their measured variants lose previously positive estimates.
+`RUST_ODDS_EXPERIMENT_TIGHT_GUIDE_BOUND=1` affects only the bounded experimental
+retuner: it predicts the logical forward/reverse guide charge and charges
+the precheck to the same grant. It enables construction but does not resolve
+the coverage or draw-budget failures. It does not enable discovery by itself.
+See the [merged experiment decisions](../experiments/rare_positions/2026-10-05-rust-experiment-merge.md)
+and [R71 report](../experiments/rare_positions/2026-10-05-rust-tight-guide-bound.md)
+before reproducing these controls. No experimental policy is adopted by this
+results integration.
 
 ### Lean target-overflow tree fallback
 

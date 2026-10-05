@@ -1,0 +1,10 @@
+{
+  "missing_retained_count": 0,
+  "remaining_untracked_count": 297,
+  "removed_count": 6728,
+  "status": "prune_complete",
+  "unexpected_untracked_count": 0,
+  "unexpected_untracked_paths": [],
+  "verified_archive_count": 23,
+  "verified_member_count": 6728
+}

@@ -55,15 +55,27 @@ fn fraction(value: &str) -> f64 {
 fn allocation(scores: &[f64], small: &[bool], total: usize) -> Option<Vec<usize>> {
     allocation_floor(scores, small, total, FLOOR)
 }
+#[cfg(test)]
 fn allocation_floor(
     scores: &[f64],
     small: &[bool],
     total: usize,
     floor: usize,
 ) -> Option<Vec<usize>> {
+    allocation_with_defensive_percent(scores, small, total, floor, 10)
+}
+
+fn allocation_with_defensive_percent(
+    scores: &[f64],
+    small: &[bool],
+    total: usize,
+    floor: usize,
+    defensive_percent: usize,
+) -> Option<Vec<usize>> {
     if scores.len() != small.len()
         || scores.is_empty()
         || scores.iter().any(|s| !s.is_finite() || *s < 0.)
+        || !(10..=50).contains(&defensive_percent)
     {
         return None;
     }
@@ -78,9 +90,10 @@ fn allocation_floor(
     }
     let sum: f64 = active.iter().map(|&i| scores[i]).sum();
     let left = total - assigned;
+    let uniform_share = defensive_percent as f64 / 100.0;
     for &i in &active {
         let share = if sum > 0. {
-            0.1 / active.len() as f64 + 0.9 * scores[i] / sum
+            uniform_share / active.len() as f64 + (1.0 - uniform_share) * scores[i] / sum
         } else {
             1. / active.len() as f64
         };
@@ -91,6 +104,87 @@ fn allocation_floor(
         ns[active[i % active.len()]] += 1;
     }
     Some(ns)
+}
+
+fn defensive_percent(raw: Option<&str>) -> usize {
+    raw.and_then(|value| value.parse::<usize>().ok())
+        .unwrap_or(10)
+        .clamp(10, 50)
+}
+
+fn pilot_prior_enabled(raw: Option<&str>) -> bool {
+    raw == Some("1")
+}
+
+fn skip_empty_pilot_final_enabled(raw: Option<&str>) -> bool {
+    raw == Some("1")
+}
+
+fn structural_discovery_enabled() -> bool {
+    matches!(
+        std::env::var("RUST_ODDS_EXPERIMENT_TREE_DISCOVERY").as_deref(),
+        Ok("interval" | "rank" | "strict")
+    )
+}
+
+fn tree_pilot_no_evidence_skip(
+    all_zero: bool,
+    prior_enabled: bool,
+    skip_empty_pilot_final: bool,
+    maximum_finite_bound: f64,
+) -> bool {
+    all_zero
+        && !(prior_enabled
+            && !skip_empty_pilot_final
+            && maximum_finite_bound.is_finite()
+            && maximum_finite_bound > 0.0)
+}
+
+fn pilot_prior_scores(
+    empirical_sd: &[f64],
+    samples: &[usize],
+    upper_bounds: &[f64],
+) -> Option<(Vec<f64>, f64)> {
+    if empirical_sd.is_empty()
+        || empirical_sd.len() != samples.len()
+        || empirical_sd.len() != upper_bounds.len()
+        || empirical_sd
+            .iter()
+            .any(|value| !value.is_finite() || *value < 0.0)
+        || upper_bounds.iter().any(|value| !value.is_finite())
+    {
+        return None;
+    }
+    let maximum_bound = upper_bounds
+        .iter()
+        .map(|value| value.max(0.0))
+        .fold(0.0, f64::max);
+    let maximum_sd = empirical_sd.iter().copied().fold(0.0, f64::max);
+    let scores = if maximum_sd > 0.0 && maximum_bound > 0.0 {
+        empirical_sd
+            .iter()
+            .zip(samples)
+            .zip(upper_bounds)
+            .map(|((&sd, &n), &bound)| {
+                let n = n.max(1) as f64;
+                let bound_ratio = bound.max(0.0) / maximum_bound;
+                let empirical = sd * (n / (n + 20.0)).sqrt();
+                let prior = maximum_sd * bound_ratio * (20.0 / (n + 20.0)).sqrt();
+                empirical.hypot(prior)
+            })
+            .collect::<Vec<_>>()
+    } else if maximum_sd == 0.0 && maximum_bound > 0.0 {
+        upper_bounds
+            .iter()
+            .map(|bound| bound.max(0.0) / maximum_bound)
+            .collect()
+    } else {
+        empirical_sd.to_vec()
+    };
+    scores
+        .iter()
+        .all(|score| score.is_finite() && *score >= 0.0)
+        .then_some((scores, maximum_bound))
 }
 
 fn sample(
@@ -158,6 +252,17 @@ pub(super) fn run(
     let pilot_draws = if tree_mode { 25 } else { PILOT };
     let start = Instant::now();
     let deterministic = budget::deterministic();
+    let defensive_percent_raw = std::env::var("RUST_ODDS_EXPERIMENT_BRANCH_DEFENSIVE_PERCENT").ok();
+    let defensive_percent = defensive_percent(defensive_percent_raw.as_deref());
+    let prior_raw = std::env::var("RUST_ODDS_EXPERIMENT_BRANCH_PILOT_PRIOR").ok();
+    let prior_enabled = pilot_prior_enabled(prior_raw.as_deref());
+    let skip_empty_pilot_final = skip_empty_pilot_final_enabled(
+        std::env::var("RUST_ODDS_EXPERIMENT_BRANCH_SKIP_EMPTY_PILOT_FINAL")
+            .ok()
+            .as_deref(),
+    );
+    let experiment_controls_logged =
+        defensive_percent_raw.is_some() || prior_enabled || skip_empty_pilot_final;
     let share = fraction(&value("RUST_ODDS_RARE_TAIL_BRANCH_BUDGET_FRACTION"));
     let allowance = preceding_ms * share;
     let mut draw_budget = WorkBudget::new(work_limit(
@@ -374,7 +479,22 @@ pub(super) fn run(
                 pilot_release,
             );
         }
-        if tree_mode && pilots.iter().all(|r| r.0.result.probability <= 0.) {
+        let maximum_finite_bound = bounds
+            .iter()
+            .map(|bound| bound.upper_bound)
+            .filter(|bound| bound.is_finite())
+            .map(|bound| bound.max(0.0))
+            .fold(0.0, f64::max);
+        let defer_empty_skip = tree_mode && structural_discovery_enabled();
+        if tree_mode
+            && !defer_empty_skip
+            && tree_pilot_no_evidence_skip(
+                pilots.iter().all(|r| r.0.result.probability <= 0.),
+                prior_enabled,
+                skip_empty_pilot_final,
+                maximum_finite_bound,
+            )
+        {
             skipped += 1;
             emit(
                 log,
@@ -385,12 +505,39 @@ pub(super) fn run(
         }
         let mut message_info = serde_json::Value::Null;
         if tree_mode {
+            let bounded_messages = structural_discovery_enabled()
+                || crate::rare_tail::family_structure()
+                    != crate::rare_tail::family_config::FamilyStructure::Full;
+            let re_pilot_guard = if bounded_messages {
+                pilot_draws.saturating_mul(
+                    (0..p.len())
+                        .map(|i| p.draw_work(m, i, true))
+                        .max()
+                        .unwrap_or(0),
+                )
+            } else {
+                0
+            };
+            let free_before_messages = draw_budget.limit.saturating_sub(draw_budget.reserved);
+            let message_allowance = if bounded_messages {
+                20_000_000usize.min(free_before_messages.saturating_sub(re_pilot_guard))
+            } else {
+                20_000_000
+            };
+            if bounded_messages && !draw_budget.reserve(message_allowance) {
+                skipped += 1;
+                continue;
+            }
             let rs = pilots
                 .iter()
                 .map(|r| r.0.result.clone())
                 .collect::<Vec<_>>();
-            message_info = p.prepare_messages(m, &rs, 1);
+            message_info = p.prepare_messages(m, &rs, 1, message_allowance);
             let message_work = message_info["work"].as_u64().unwrap() as usize;
+            if bounded_messages {
+                assert!(message_work <= message_allowance);
+                assert!(draw_budget.release(message_allowance - message_work));
+            }
             let selected: Vec<_> = message_info["selected"]
                 .as_array()
                 .unwrap()
@@ -401,7 +548,12 @@ pub(super) fn run(
                 .iter()
                 .map(|&i| pilot_draws * p.draw_work(m, i, true))
                 .sum::<usize>();
-            if !draw_budget.reserve(message_work + re_pilot_work) {
+            let reserve_after_discovery = if bounded_messages {
+                draw_budget.reserve(re_pilot_work)
+            } else {
+                draw_budget.reserve(message_work + re_pilot_work)
+            };
+            if !reserve_after_discovery {
                 skipped += 1;
                 continue;
             }
@@ -429,6 +581,15 @@ pub(super) fn run(
                 work += row.2;
                 pilots[i] = row;
             }
+            if defer_empty_skip && pilots.iter().all(|r| r.0.result.probability <= 0.) {
+                skipped += 1;
+                emit(
+                    log,
+                    "rust_odds_rare_tail_branches_skip",
+                    json!({"team":m.ids[cell.team],"rank":cell.rank+1,"reason":"no event evidence after structural discovery re-pilot","pilot_draws":pilot_draws*p.len(),"messages":message_info}),
+                );
+                continue;
+            }
         }
         let pilot_ms = pilot_clock.elapsed().as_secs_f64() * 1000.;
         let pilot_probability: f64 = pilots.iter().map(|r| r.0.result.probability).sum();
@@ -440,10 +601,22 @@ pub(super) fn run(
                     && b.upper_bound <= pilot_probability * 0.001 / p.len() as f64
             })
             .collect();
-        let scores: Vec<_> = pilots
+        let empirical_sd: Vec<_> = pilots
             .iter()
             .map(|r| r.0.result.std_err * (r.0.result.samples as f64).sqrt())
             .collect();
+        let pilot_counts: Vec<_> = pilots.iter().map(|r| r.0.result.samples).collect();
+        let pilot_hits: Vec<_> = pilots.iter().map(|r| r.0.result.hits).collect();
+        let (scores, prior_scores_used) = if prior_enabled {
+            let samples: Vec<_> = pilots.iter().map(|r| r.0.result.samples).collect();
+            let upper_bounds: Vec<_> = bounds.iter().map(|bound| bound.upper_bound).collect();
+            match pilot_prior_scores(&empirical_sd, &samples, &upper_bounds) {
+                Some((scores, max_bound)) if max_bound > 0.0 => (scores, true),
+                _ => (empirical_sd.clone(), false),
+            }
+        } else {
+            (empirical_sd.clone(), false)
+        };
         let mut total = nominal_total;
         let costs: Vec<_> = pilots
             .iter()
@@ -453,7 +626,13 @@ pub(super) fn run(
             // Preserve the ordinary allocation and streams before spending
             // remaining units on a larger independent retry for cheap failures.
             while total >= p.len() * floor {
-                let Some(ns) = allocation_floor(&scores, &small, total, floor) else {
+                let Some(ns) = allocation_with_defensive_percent(
+                    &scores,
+                    &small,
+                    total,
+                    floor,
+                    defensive_percent,
+                ) else {
                     break;
                 };
                 let cost: usize = ns.iter().zip(&costs).map(|(n, c)| 2 * n * c).sum();
@@ -467,7 +646,9 @@ pub(super) fn run(
                 continue;
             }
         }
-        let Some(ns) = allocation_floor(&scores, &small, total, floor) else {
+        let Some(ns) =
+            allocation_with_defensive_percent(&scores, &small, total, floor, defensive_percent)
+        else {
             continue;
         };
         let guides: Vec<_> = pilots.iter().map(|r| r.1).collect();
@@ -575,17 +756,38 @@ pub(super) fn run(
                 pilots.iter().map(|r| r.2).sum::<u64>() + main.work + check.work;
             found += 1;
         }
-        emit(
-            log,
-            "rust_odds_rare_tail_branches",
-            json!({"group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,"branches":p.len(),"setup":p.setup_diagnostics(),"parallel_pair":tree_mode,"setup_ms":setup_ms,"bounds_ms":bounds_ms,"messages":message_info,"pilot_ms":pilot_ms,"main_ms":main_ms,"check_ms":check_ms,"pilot_probability":pilot_probability,"small_branch_floors":small.iter().filter(|&&s|s).count(),"allocated_main_draws":total,"estimated_cost_per_draw":costs,"main_draws":main.samples,"main_hits":main.hits,"main_ess":main.ess,"main_max_share":main.max_share,"main_batch_gap":main.batch_gap,"probability":main.probability,"check_probability":check.probability,"check_ess":check.ess,"accepted":ok,"full_support":true,"omitted_probability":0,"forecast_ms":if deterministic {None}else{Some(forecast)}}),
-        );
+        let mut branch_log = json!({"group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,"branches":p.len(),"setup":p.setup_diagnostics(),"parallel_pair":tree_mode,"setup_ms":setup_ms,"bounds_ms":bounds_ms,"messages":message_info,"pilot_ms":pilot_ms,"main_ms":main_ms,"check_ms":check_ms,"pilot_probability":pilot_probability,"small_branch_floors":small.iter().filter(|&&s|s).count(),"allocated_main_draws":total,"estimated_cost_per_draw":costs,"main_draws":main.samples,"main_hits":main.hits,"main_ess":main.ess,"main_max_share":main.max_share,"main_batch_gap":main.batch_gap,"probability":main.probability,"check_probability":check.probability,"check_ess":check.ess,"accepted":ok,"full_support":true,"omitted_probability":0,"forecast_ms":if deterministic {None}else{Some(forecast)}});
+        if experiment_controls_logged {
+            let actual_check_draws = if tree_mode || check.samples > 0 {
+                ns.clone()
+            } else {
+                vec![0; p.len()]
+            };
+            branch_log["allocation_experiment"] = json!({
+                "defensive_percent":defensive_percent,
+                "pilot_prior_enabled":prior_enabled,
+                "skip_empty_pilot_final":skip_empty_pilot_final,
+                "pilot_prior_scores_used":prior_scores_used,
+                "pilot_draws_per_branch":pilot_counts,
+                "pilot_hits_per_branch":pilot_hits,
+                "pilot_scores":scores,
+                "actual_main_draws_per_branch":ns,
+                "actual_check_draws_per_branch":actual_check_draws
+            });
+        }
+        emit(log, "rust_odds_rare_tail_branches", branch_log);
         if !ok && budget::modeled() {
             let reference = budget::reference_cost(m);
             let average = costs.iter().sum::<usize>() / costs.len().max(1);
             let retry_total = (nominal_total * reference / average.max(reference / 3).max(1))
                 .clamp(nominal_total, 3 * nominal_total);
-            if let Some(retry_ns) = allocation_floor(&scores, &small, retry_total, floor) {
+            if let Some(retry_ns) = allocation_with_defensive_percent(
+                &scores,
+                &small,
+                retry_total,
+                floor,
+                defensive_percent,
+            ) {
                 let retry_cost: usize = retry_ns.iter().zip(&costs).map(|(n, c)| 2 * n * c).sum();
                 if draw_budget.reserve(retry_cost) {
                     let clock = Instant::now();
@@ -639,26 +841,44 @@ pub(super) fn run(
                             "matched_point_pool_complete_branches_retry".into();
                         found += 1;
                     }
-                    emit(
-                        log,
-                        "rust_odds_rare_tail_branches_retry",
-                        json!({
-                            "group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,
-                            "allocated_main_draws":retry_total,"main_draws":retry.samples,
-                            "check_draws":check.samples,"probability":retry.probability,
-                            "check_probability":check.probability,"accepted":accepted,
-                            "reserved_work":retry_cost,"elapsed_ms":clock.elapsed().as_secs_f64()*1000.
-                        }),
-                    );
+                    let mut retry_log = json!({
+                        "group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,
+                        "allocated_main_draws":retry_total,"main_draws":retry.samples,
+                        "check_draws":check.samples,"probability":retry.probability,
+                        "check_probability":check.probability,"accepted":accepted,
+                        "reserved_work":retry_cost,"elapsed_ms":clock.elapsed().as_secs_f64()*1000.
+                    });
+                    if experiment_controls_logged {
+                        let actual_retry_check_draws = if check.samples > 0 {
+                            retry_ns.clone()
+                        } else {
+                            vec![0; p.len()]
+                        };
+                        retry_log["allocation_experiment"] = json!({
+                            "defensive_percent":defensive_percent,
+                            "pilot_prior_enabled":prior_enabled,
+                            "pilot_prior_scores_used":prior_scores_used,
+                            "pilot_draws_per_branch":pilot_counts,
+                            "pilot_hits_per_branch":pilot_hits,
+                            "pilot_scores":scores,
+                            "actual_main_draws_per_branch":retry_ns,
+                            "actual_check_draws_per_branch":actual_retry_check_draws
+                        });
+                    }
+                    emit(log, "rust_odds_rare_tail_branches_retry", retry_log);
                 }
             }
         }
     }
-    emit(
-        log,
-        "rust_odds_rare_tail_branches_summary",
-        json!({"group":m.request.id,"tree_mode":tree_mode,"pilot_draws_per_branch":pilot_draws,"tightened_only":tightened_only,"eligible":cells.len(),"attempted":attempted,"skipped":skipped,"accepted":found,"elapsed_ms":start.elapsed().as_secs_f64()*1000.,"setup_ms":setups_ms,"allowance_ms":if deterministic {None}else{Some(allowance)},"budget_mode":budget::mode(),"work_limit":if deterministic {Some(draw_budget.limit)}else{None},"reclaimed_check_work":reclaimed_check_work,"reserved_work":if deterministic {Some(draw_budget.reserved)}else{None},"work":work,"bound_floor":reduce_floor,"preserved_existing_estimates":before.iter().all(|(i, e)| *e == serde_json::to_value(&estimates[*i]).unwrap())}),
-    );
+    let mut summary = json!({"group":m.request.id,"tree_mode":tree_mode,"pilot_draws_per_branch":pilot_draws,"tightened_only":tightened_only,"eligible":cells.len(),"attempted":attempted,"skipped":skipped,"accepted":found,"elapsed_ms":start.elapsed().as_secs_f64()*1000.,"setup_ms":setups_ms,"allowance_ms":if deterministic {None}else{Some(allowance)},"budget_mode":budget::mode(),"work_limit":if deterministic {Some(draw_budget.limit)}else{None},"reclaimed_check_work":reclaimed_check_work,"reserved_work":if deterministic {Some(draw_budget.reserved)}else{None},"work":work,"bound_floor":reduce_floor,"preserved_existing_estimates":before.iter().all(|(i, e)| *e == serde_json::to_value(&estimates[*i]).unwrap())});
+    if experiment_controls_logged {
+        summary["allocation_experiment"] = json!({
+            "defensive_percent":defensive_percent,
+            "pilot_prior_enabled":prior_enabled,
+            "skip_empty_pilot_final":skip_empty_pilot_final
+        });
+    }
+    emit(log, "rust_odds_rare_tail_branches_summary", summary);
     if audit_enabled {
         audit.finish();
     }
@@ -772,6 +992,98 @@ mod tests {
         assert!(ns.iter().all(|&n| n >= 2));
         assert!(allocation(&[f64::NAN], &[false], 1000).is_none());
         assert!(allocation(&[-1.], &[false], 1000).is_none());
+    }
+
+    #[test]
+    fn defensive_percent_defaults_and_clamps_without_changing_legacy_default() {
+        assert_eq!(defensive_percent(None), 10);
+        assert_eq!(defensive_percent(Some("bad")), 10);
+        assert_eq!(defensive_percent(Some("10")), 10);
+        assert_eq!(defensive_percent(Some("35")), 35);
+        assert_eq!(defensive_percent(Some("5")), 10);
+        assert_eq!(defensive_percent(Some("80")), 50);
+        assert_eq!(pilot_prior_enabled(None), false);
+        assert_eq!(pilot_prior_enabled(Some("0")), false);
+        assert_eq!(pilot_prior_enabled(Some("1")), true);
+        assert_eq!(skip_empty_pilot_final_enabled(None), false);
+        assert_eq!(skip_empty_pilot_final_enabled(Some("0")), false);
+        assert_eq!(skip_empty_pilot_final_enabled(Some("1")), true);
+    }
+
+    #[test]
+    fn ten_percent_allocation_is_bit_exact_legacy_behavior() {
+        assert_eq!(
+            allocation_floor(&[1.0, 2.0, 3.0], &[false; 3], 1000, FLOOR),
+            Some(vec![274, 333, 393])
+        );
+        assert_eq!(
+            allocation_floor(&[0.1, 0.0, 2.0], &[false; 3], 999, FLOOR),
+            Some(vec![231, 213, 555])
+        );
+        assert_eq!(
+            allocation_floor(&[1.0, 2.0, 3.0], &[true, false, false], 1000, FLOOR),
+            Some(vec![2, 446, 552])
+        );
+        assert_eq!(
+            allocation_with_defensive_percent(&[1.0, 2.0, 3.0], &[false; 3], 1000, FLOOR, 10),
+            Some(vec![274, 333, 393])
+        );
+    }
+
+    #[test]
+    fn defensive_allocation_conserves_draws_and_keeps_every_floor() {
+        let scores = [1.0, 0.0, 3.0, 2.0];
+        let small = [false, false, true, false];
+        for percent in [10, 25, 50] {
+            let ns =
+                allocation_with_defensive_percent(&scores, &small, 5000, FLOOR, percent).unwrap();
+            assert_eq!(ns.iter().sum::<usize>(), 5000);
+            assert!(ns
+                .iter()
+                .zip(small)
+                .all(|(&n, is_small)| n >= if is_small { 2 } else { FLOOR }));
+        }
+    }
+
+    #[test]
+    fn pilot_prior_allocates_to_zero_hit_strata_with_positive_bounds() {
+        let (scores, maximum_bound) =
+            pilot_prior_scores(&[0.0, 1.0], &[500, 500], &[0.1, 0.4]).unwrap();
+        assert_eq!(maximum_bound, 0.4);
+        assert!(scores[0] > 0.0);
+        assert!(scores[1] > scores[0]);
+        let ns =
+            allocation_with_defensive_percent(&scores, &[false, false], 3000, FLOOR, 10).unwrap();
+        assert!(ns[0] > FLOOR);
+        assert_eq!(ns.iter().sum::<usize>(), 3000);
+    }
+
+    #[test]
+    fn pilot_prior_uses_stable_hypot_for_tiny_probability_scales() {
+        let (scores, _) =
+            pilot_prior_scores(&[1.0e-200, 2.0e-200], &[1, 1], &[1.0e-200, 2.0e-200]).unwrap();
+        assert!(scores.iter().all(|score| score.is_finite() && *score > 0.0));
+        assert!(scores[1] > scores[0]);
+    }
+
+    #[test]
+    fn missing_bounds_keep_empirical_scores_and_do_not_admit_empty_tree_pilots() {
+        let (scores, maximum_bound) =
+            pilot_prior_scores(&[0.0, 0.25], &[100, 100], &[0.0, -1.0]).unwrap();
+        assert_eq!(scores, vec![0.0, 0.25]);
+        assert_eq!(maximum_bound, 0.0);
+        assert!(tree_pilot_no_evidence_skip(
+            true,
+            true,
+            false,
+            maximum_bound
+        ));
+        assert!(!tree_pilot_no_evidence_skip(true, true, false, 0.2));
+        assert!(tree_pilot_no_evidence_skip(true, true, true, 0.2));
+        assert!(tree_pilot_no_evidence_skip(true, false, false, 0.2));
+        assert!(!tree_pilot_no_evidence_skip(false, true, false, 0.0));
+        assert!(pilot_prior_scores(&[f64::NAN], &[100], &[0.5]).is_none());
+        assert!(pilot_prior_scores(&[0.0], &[100], &[f64::INFINITY]).is_none());
     }
     #[test]
     fn bounded_fraction_has_explicit_zero_rollback() {

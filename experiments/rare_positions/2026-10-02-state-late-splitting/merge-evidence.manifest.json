@@ -1,0 +1,212 @@
+{
+  "archive": "merge-evidence.tar.gz",
+  "archive_sha256": "f4d159d81527fcdf1cd360105dd073553ae2b81c4ec4654fb0f93d97794b072d",
+  "archive_size": 1589485,
+  "experiment": "2026-10-02-state-late-splitting",
+  "members": [
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "experiment.json",
+      "sha256": "2649a13b8c991adea6895a3a69904ec5cedbb609942696e2203c2c550bb4885e",
+      "size": 1332
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "later-off.analysis.json",
+      "sha256": "772b577e5808974ffb6132bd64749be172d59f56b3251453a9733bf91c39eb8f",
+      "size": 5956
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "later-off.summary.json",
+      "sha256": "6d9217bf29b60ba744b70a6e8d816562fdab12a47ebb4a14e6bf8d23c381fe46",
+      "size": 480552
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "later-warm.summary.json",
+      "sha256": "a96af06806dd441397bf75628f553cbec1e39d469d4f5d65055a88d8e5f8bba8",
+      "size": 28999
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "later.analysis.json",
+      "sha256": "7117589107bf0c5a0c293b7825d509bbd17032d654c8abe96537d029de050bd1",
+      "size": 13661
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "later.invariants.json",
+      "sha256": "1cd2ace795ba59517062cadbe5b353f55d99e54393e03b027da7ff8eedaae377",
+      "size": 7051
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "later.patch",
+      "sha256": "1e969ca18a1a6af2f405f38e924b0e157c1d3c3a73b6ca1372bd3f69641e3e20",
+      "size": 52712
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "later.summary.json",
+      "sha256": "91103664f7bf4c7be6994acf9d0b9d62ce12e0436f2b9817b8c0460390f667f4",
+      "size": 2449518
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "source-patches.json",
+      "sha256": "0b5a146f1c191131ec3832d0f7b85e355aa96a89f72c8526ac9fb5794786d7a1",
+      "size": 31854
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "splitting-default-seeds.analysis.json",
+      "sha256": "6a90bc0ca59813d0dd40afcaf2cc13aa2d5bc5589383753bb8b37b9465c64760",
+      "size": 15838
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "splitting-default-seeds.summary.json",
+      "sha256": "dcd2865b0f268b0f30b0fd8743c4481ec032a01505020e66164a3c03bc44a617",
+      "size": 3046563
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "splitting-initial.analysis.json",
+      "sha256": "bbf03edf3d64701d27da82e90111c3952494c36015c129a6f617e8df3517e22f",
+      "size": 16188
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "splitting-initial.patch",
+      "sha256": "d504176b79a0362579db395fde06eaefc3634935841f04a590797c5fa930ba6e",
+      "size": 44402
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "splitting-initial.summary.json",
+      "sha256": "5e95ed2434fe97d70c8b760ce42e1c096c0a1a424023b6e2768257d04c4d565a",
+      "size": 2514194
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "splitting-off.analysis.json",
+      "sha256": "ec3942e2115f6f5b67e74efb3d94b310c336a6f0e05f3b48a505f02bf2d17895",
+      "size": 5977
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "splitting-off.summary.json",
+      "sha256": "017f4969e7a47173faee138c62dea9a3331637b0c3a341da46c4db8131482428",
+      "size": 480519
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "splitting-warm.summary.json",
+      "sha256": "7ad9bb93c4474ed729346c9944a97fbaf330feae4cdc4c3f9b017b90ec968f1a",
+      "size": 30182
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "splitting.analysis.json",
+      "sha256": "80c596fd1fe8fcc087edddb571d83ea742aadf16e62da479724f37b0ebd33991",
+      "size": 16220
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "splitting.invariants.json",
+      "sha256": "7d76ccf1d7fd45ac1fe20b29b5539e405f615fc5b88cd5cd554d9692090fa2f8",
+      "size": 7159
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "splitting.patch",
+      "sha256": "bffb58a87cdc2d93c853e040ad3c3237d99a2b3146100d429ea1e4a105173589",
+      "size": 45379
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "splitting.summary.json",
+      "sha256": "e4f0c88a0bec56a1e70c30749b67fae9d9d452e6cd144a1efad7ac3229d391a6",
+      "size": 2513648
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "state-initial.patch",
+      "sha256": "61dbc454def0d93589db3bcd411be21efa740643faa87c2207e7641891c78264",
+      "size": 34527
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "state-off.analysis.json",
+      "sha256": "45ae05dd9053847c3dfafc8bc0ba6acdbbd449a80a7f808d44149ca96d966d06",
+      "size": 5966
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "state-off.summary.json",
+      "sha256": "fa4b0490370dc8e7a3426a1d049a6ef28f36b086dd715b88bc1afa5a7944b627",
+      "size": 480586
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "state-warm.summary.json",
+      "sha256": "4e0a96fc2339aee7faa30f2f740d3e749fe6ae75553c0d55e8530839f40d13e4",
+      "size": 30174
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "state.analysis.json",
+      "sha256": "d052ddbfc47bee09b9109ee599cd774b00af3800d09fa8a56da030b2e227ceea",
+      "size": 15505
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "state.invariants.json",
+      "sha256": "0f1b4d1300904a8c8c8c046dde8f9aa47f91767f762cc92a59970f0c586768ed",
+      "size": 7121
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "state.patch",
+      "sha256": "2e3baea1e2f9c614e8e5049fbc51516c37f50d47340a18b968ea4af1a62ece86",
+      "size": 38896
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "state.summary.json",
+      "sha256": "b711207e54357eb4f97ed3a1f51fedbf2de6020a5f4ab21998c9d8856da634a5",
+      "size": 2554841
+    }
+  ],
+  "schema_version": 1
+}

@@ -1,0 +1,58 @@
+{
+  "archive": "merge-evidence.tar.gz",
+  "archive_sha256": "1f7fbf08d08fd84e5815ebb44704fdc6fe57dcd84b5500ee547e50122273648e",
+  "archive_size": 6866944,
+  "experiment": "2026-10-02-lazy-partitions",
+  "members": [
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "manifest.json",
+      "sha256": "9a3d526119d26f12ac6d1781d03b0b0d079a507b49f16a1f200f53e6296a4f2a",
+      "size": 65612
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "prototype.patch",
+      "sha256": "7e772ba9955eac1aee824d86bb6dbbfe3e68f2143d4f3cbb1a248b0dacca42e3",
+      "size": 37998
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "raw-evidence.tar.gz",
+      "sha256": "04df7242ed0822953bcb30075ba19e35b1c99ef52e3cb81127549f4e70ab3732",
+      "size": 6741827
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "source-hashes.json",
+      "sha256": "4634f9699738b69478b8e047479f866452f64401cfea6554db011f7c69d7b0e7",
+      "size": 812
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "summary.json",
+      "sha256": "96873cfbe41d2816ae9e3ad334944f97d0585e4d2945f57800e09cf14e01eb55",
+      "size": 2228622
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "v1-overlay.patch",
+      "sha256": "b38956633fc07e04d1c8861cfca3cb850192bbca0b49e247c953ef1a5b2e61ec",
+      "size": 24597
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "v2-overlay.patch",
+      "sha256": "67bb48b8b00112d66616aa5157c291daf65eb3318a2443fc686c3cb8ea71db72",
+      "size": 19849
+    }
+  ],
+  "schema_version": 1
+}

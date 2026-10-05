@@ -1,0 +1,279 @@
+   Compiling golaberto-odds v0.1.0 (/Users/robsonaraujo/work/golaberto/odds-rust)
+    Finished `release` profile [optimized + debuginfo] target(s) in 1m 41s
+     Running unittests src/lib.rs (target/release/deps/golaberto_odds-5f75b6c155eb6df4)
+
+running 175 tests
+test api::response_tests::public_status_has_three_values_including_unobserved_and_plain_mc_cells ... ok
+test conditioned::forward_layer_tests::collisions_find_every_mass_and_terminate_on_missing_keys ... ok
+test conditioned::forward_layer_tests::dense_layers_preserve_zero_masses_and_absent_point_totals ... ok
+test conditioned::forward_layer_tests::frozen_layers_preserve_iteration_bits_and_packed_key_lookups ... ok
+test conditioned::transition_accumulation_tests::direct_accumulation_preserves_hash_order_and_every_mass_bit ... ok
+test database::tests::invalid_url_error_does_not_repeat_connection_configuration ... ok
+test database::tests::rails_and_native_urls_share_connection_configuration ... ok
+test goal_tilt::tests::tilted_goal_mixture_matches_exact_conditional_rare_goal_difference_probability ... ok
+test http::seed_tests::default_and_invalid_seed_configuration_are_reproducible ... ok
+test http::seed_tests::explicit_seed_overrides_preserve_zero_and_negative_seeds ... ok
+test joint_caps::broad::initial_mass_tests::lazy_initial_mass_preserves_every_backward_dp_bit ... ok
+test joint_caps::broad::tests::broader_draws_and_residual_weights_match_exhaustive_rank_probability ... ok
+test joint_caps::broad::tests::mixture_is_normalized_and_covers_rank_hits_outside_joint_constraints ... ok
+test joint_caps::broad::tests::score_tiebreakers_match_independent_sampling ... ok
+test joint_caps::broad::tests::unsupported_scoring_and_oversized_arithmetic_skip_without_proof ... ok
+test joint_caps::propagated::cardinality_fast_tests::deterministic_rank_terms_preserve_every_dp_bit ... ok
+test joint_caps::propagated::chance_table_tests::prepared_chances_preserve_bits_in_both_directions_and_outside_the_table ... ok
+test joint_caps::propagated::lazy::early_rank::tests::same_target_gain_can_have_different_opponent_rank_hints ... ok
+test joint_caps::propagated::lazy::early_rank::tests::scored_root_order_keeps_defensive_support_and_corrects_to_exact_rank_mass ... ok
+test joint_caps::propagated::lazy::early_rank::tests::wins_tiebreak_packed_totals_match_reported_points_and_wins ... ok
+test joint_caps::propagated::lazy::family_tests::empty_family_training_leaves_native_root_support_unchanged ... ok
+test joint_caps::propagated::lazy::family_tests::family_mixture_matches_closed_form_for_two_learned_and_one_omitted_state ... ok
+test joint_caps::propagated::lazy::family_tests::full_family_fit_keeps_the_legacy_top_four_ranked_candidates ... ok
+test joint_caps::propagated::lazy::family_tests::goal_tilt_family_recorder_preserves_results_and_collects_corrected_weights ... ok
+test joint_caps::propagated::lazy::family_tests::goal_tilt_uses_production_rank_and_has_nontrivial_score_likelihood_ratio ... ok
+test joint_caps::propagated::lazy::family_tests::impossible_family_bounds_decline_without_changing_native_root_support ... ok
+test joint_caps::propagated::lazy::family_tests::native_family_observer_is_bounded_deterministic_and_rng_neutral ... ok
+test joint_caps::propagated::lazy::family_tests::native_family_observer_zero_caps_are_plain_sampling_and_overflow_is_declined ... ok
+test joint_caps::propagated::lazy::strata::messages::tests::bounded_candidate_retry_fills_success_count_without_overspending ... ok
+test joint_caps::propagated::lazy::strata::messages::tests::bounded_retuner_selection_preserves_full_default_and_enables_partial_or_tree_modes ... ok
+test joint_caps::propagated::lazy::strata::messages::tests::coarse_guide_preflight_covers_both_tables_before_construction ... ok
+test joint_caps::propagated::lazy::strata::messages::tests::counted_slice_sum_declines_when_the_scan_exceeds_its_allowance ... ok
+test joint_caps::propagated::lazy::strata::messages::tests::failed_metered_setup_still_charges_consumed_nodes ... ok
+test joint_caps::propagated::lazy::strata::messages::tests::legacy_retuner_matches_the_grant_bounded_retuner_with_ample_budget ... ok
+test joint_caps::propagated::lazy::strata::messages::tests::message_work_exhaustion_retains_original_pattern ... ok
+test joint_caps::propagated::lazy::strata::messages::tests::prepared_messages_spend_only_reserved_work_and_report_partial_attempts ... ok
+test joint_caps::propagated::lazy::strata::messages::tests::retune_stays_within_grant_when_node_setup_exhausts ... ok
+test joint_caps::propagated::lazy::strata::messages::tests::tight_guide_bound_admits_when_coarse_preflight_refuses ... ok
+test joint_caps::propagated::lazy::strata::messages::tests::tight_guide_estimate_handles_empty_and_rejects_invalid_inputs ... ok
+test joint_caps::propagated::lazy::strata::messages::tests::tight_guide_estimate_matches_forward_and_reverse_table_rows ... ok
+test joint_caps::propagated::lazy::strata::messages::tests::tilted_joint_and_guide_exactly_restore_original_rank_mass ... ok
+test joint_caps::propagated::lazy::strata::messages::tests::work_allowance_refuses_overshoot_without_charging_unperformed_work ... ok
+test joint_caps::propagated::lazy::strata::tests::combining_tiny_strata_avoids_squaring_unconditional_probabilities ... ok
+test joint_caps::propagated::lazy::strata::tests::complete_case_stratification_matches_exhaustive_rank_probabilities ... ok
+test joint_caps::propagated::lazy::strata::tests::incomplete_target_enumeration_is_an_error_and_not_a_partial_estimate ... ok
+test joint_caps::propagated::lazy::strata::tests::secondary_paths_preserve_the_complete_union_and_raw_fixture_mass ... ok
+test joint_caps::propagated::lazy::strata::tests::tiny_bound_products_remain_positive ... ok
+test joint_caps::propagated::lazy::strata::tree::tests::default_path_cap_keeps_the_original_64_root_behavior ... ok
+test joint_caps::propagated::lazy::strata::tree::tests::exhausted_split_budget_keeps_complete_parent_regions ... ok
+test joint_caps::propagated::lazy::strata::tree::tests::insufficient_root_budget_cannot_return_a_partial_union ... ok
+test joint_caps::propagated::lazy::strata::tree::tests::keys_accept_exact_complete_limit_and_reject_partial_union ... ok
+test joint_caps::propagated::lazy::strata::tree::tests::marginal_cache_preserves_mass_and_reduces_repeated_work ... ok
+test joint_caps::propagated::lazy::strata::tree::tests::overflow_setup_admission_floor_includes_setup_quota_and_saturates ... ok
+test joint_caps::propagated::lazy::strata::tree::tests::overflow_tree_helpers_charge_complete_and_failed_work_without_environment_changes ... ok
+test joint_caps::propagated::lazy::strata::tree::tests::rank_hint_priority_can_outweigh_a_larger_prior_score ... ok
+test joint_caps::propagated::lazy::strata::tree::tests::rank_hint_work_is_charged_only_when_priority_is_enabled ... ok
+test joint_caps::propagated::lazy::strata::tree::tests::target_path_limit_defaults_to_64_and_is_bounded ... ok
+test joint_caps::propagated::lazy::strata::tree::tests::tree_partition_and_weights_preserve_every_enumerated_rank ... ok
+test joint_caps::propagated::lazy::tests::cached_and_uncached_roots_match_exhaustive_shared_fixture_rank_probabilities ... ok
+test joint_caps::propagated::lazy::tests::family_candidate_work_never_exceeds_admitted_allowance ... ok
+test joint_caps::propagated::lazy::tests::family_training_preserves_rng_and_family_mixture_estimates_tiny_exact_rank_mass ... ok
+test joint_caps::propagated::lazy::tests::omitting_strict_slack_rivals_preserves_full_rank_probabilities_and_mixture ... ok
+test joint_caps::propagated::lazy::tests::partial_family_selection_reserves_both_sides_before_contribution_fill ... ok
+test joint_caps::propagated::lazy::tests::pilot_root_fit_preserves_weighted_ranks_defensive_support_and_rollback ... ok
+test joint_caps::propagated::lazy::tests::sharing_checks_exact_fixture_probabilities_and_preserves_guide_bits ... ok
+test joint_caps::propagated::lazy::tests::zero_requested_roots_skip_root_training_bootstrap ... ok
+test joint_caps::propagated::tests::complete_propagated_union_matches_exhaustive_mass_and_preserves_every_rank_hit ... ok
+test joint_caps::propagated::tests::configured_work_diagnostic_keeps_actual_guide_cost_on_late_failure ... ok
+test joint_caps::propagated::tests::configured_work_diagnostic_marks_counter_overflow_incomplete ... ok
+test joint_caps::propagated::tests::configured_work_diagnostic_preserves_successful_native_proposal ... ok
+test joint_caps::propagated::tests::exceeding_complete_pattern_budget_skips_instead_of_truncating ... ok
+test joint_caps::propagated::tests::propagated_joint_weights_match_exact_ranks_with_and_without_guidance ... ok
+test joint_caps::propagated::tests::reversed_guidance_retains_tiny_upper_tail_and_real_goal_tiebreakers ... ok
+test joint_caps::tests::conditional_draws_and_importance_weights_match_exact_probability ... ok
+test joint_caps::tests::confirmation_rejects_missing_or_inconsistent_independent_evidence ... ok
+test joint_caps::tests::exact_joint_mass_matches_all_shared_fixture_assignments ... ok
+test joint_caps::tests::four_rival_internal_graph_matches_exhaustive_joint_mass ... ok
+test joint_caps::tests::unsupported_cells_are_skipped_without_probability_or_proof ... ok
+test logging::tests::calculation_budget_excludes_queue_time_without_losing_request_context ... ok
+test logging::tests::request_context_survives_each_stage_and_fields_are_structured ... ok
+test logging::tests::zero_summary_distinguishes_proofs_from_estimates ... ok
+test lookahead::suffix_tail_tests::constant_tails_match_the_full_cdf_in_every_bit ... ok
+test proof::discrete_tests::coalition_branching_preserves_full_budget_proof_answers ... ok
+test proof::discrete_tests::complete_early_floor_proof_resolves_seventeenth_with_existing_budget ... ok
+test proof::discrete_tests::graph_cut_matches_exhaustive_coalition_certificates ... ok
+test rank_proof::tests::explained_search_refutes_snapshot_with_existing_cell_quota ... ok
+test rank_proof::tests::learned_conflicts_and_both_directions_match_exhaustive_relaxation ... ok
+test rank_proof::tests::rejects_unsupported_scoring_and_bonus_points ... ok
+test rank_proof::tests::threshold_refutations_never_remove_a_legal_outcome_in_either_direction ... ok
+test rare_tail::branches::tests::allocation_preserves_every_branch_and_fixed_budget ... ok
+test rare_tail::branches::tests::bounded_fraction_has_explicit_zero_rollback ... ok
+test rare_tail::branches::tests::defensive_allocation_conserves_draws_and_keeps_every_floor ... ok
+test rare_tail::branches::tests::defensive_percent_defaults_and_clamps_without_changing_legacy_default ... ok
+test rare_tail::branches::tests::draw_audit_credits_discarded_pilot_surplus ... ok
+test rare_tail::branches::tests::draw_audit_overrun_invalidates_all_credit ... ok
+test rare_tail::branches::tests::draw_audit_subtracts_skipped_check_release_once ... ok
+test rare_tail::branches::tests::failed_setup_without_measured_phase_has_no_credit ... ok
+test rare_tail::branches::tests::missing_bounds_keep_empirical_scores_and_do_not_admit_empty_tree_pilots ... ok
+test rare_tail::branches::tests::pilot_prior_allocates_to_zero_hit_strata_with_positive_bounds ... ok
+test rare_tail::branches::tests::pilot_prior_uses_stable_hypot_for_tiny_probability_scales ... ok
+test rare_tail::branches::tests::production_branch_stage_defaults_to_coverage_with_explicit_overrides ... ok
+test rare_tail::branches::tests::released_reservation_cannot_mask_phase_overrun ... ok
+test rare_tail::branches::tests::settled_tree_pilot_has_no_surplus_credit ... ok
+test rare_tail::branches::tests::ten_percent_allocation_is_bit_exact_legacy_behavior ... ok
+test rare_tail::branches::tests::transferred_work_cannot_exceed_its_funding ... ok
+test rare_tail::branches::tests::tree_pilot_release_subtracts_setup_and_actual_draw_work ... ok
+test rare_tail::budget::tests::default_stage_limits_and_zero_rollback_are_explicit ... ok
+test rare_tail::budget::tests::execution_priority_preserves_admission_order_of_results ... ok
+test rare_tail::budget::tests::family_validation_bound_preserves_full_mode_and_covers_four_partial_families ... ok
+test rare_tail::budget::tests::identical_work_funds_more_draws_for_a_constrained_proposal ... ok
+test rare_tail::budget::tests::pilot_cost_counts_fixtures_guidance_and_ranking_separately ... ok
+test rare_tail::budget::tests::reservations_are_bounded_and_do_not_depend_on_completion_order ... ok
+test rare_tail::budget::tests::skipped_check_capacity_is_reused_without_exceeding_the_original_limit ... ok
+test rare_tail::confirmations::tests::experimental_fallback_order_keeps_legacy_jobs_first_and_stable ... ok
+test rare_tail::confirmations::tests::failed_confirmation_accepts_only_failed_supported_zero_pairs ... ok
+test rare_tail::confirmations::tests::failed_confirmation_experiment_is_opt_in ... ok
+test rare_tail::confirmations::tests::failed_confirmation_transfer_is_fractional_bank_limited_and_nonduplicating ... ok
+test rare_tail::confirmations::tests::fallback_grant_is_limited_by_cell_and_request_bank_remainders ... ok
+test rare_tail::confirmations::tests::family_pair_floor_uses_conservative_bound_only_for_partial_structures ... ok
+test rare_tail::confirmations::tests::held_promises_release_on_supersede_or_stop_without_charging_work ... ok
+test rare_tail::confirmations::tests::late_eligibility_needs_failed_paired_main_and_current_zero ... ok
+test rare_tail::confirmations::tests::legacy_grant_cap_preserves_full_grant_and_cuts_requested_shares ... ok
+test rare_tail::confirmations::tests::publishable_main_with_low_ess_or_disagreeing_check_is_a_candidate ... ok
+test rare_tail::confirmations::tests::reserved_failed_confirmation_promises_share_half_the_entry_bank ... ok
+test rare_tail::confirmations::tests::rough_mode_main_with_low_check_ess_or_disagreement_is_a_candidate ... ok
+test rare_tail::confirmations::tests::shared_bank_grant_controls_default_and_clamp ... ok
+test rare_tail::confirmations::tests::stage_credit_requires_complete_audited_modeled_work ... ok
+test rare_tail::confirmations::tests::transfer_percentage_math_saturates_safely_at_usize_max ... ok
+test rare_tail::confirmations::tests::transfer_settlement_allows_only_explicit_transfer_and_audited_observer_bound ... ok
+test rare_tail::early_roots::tests::candidates_are_stable_bounded_and_exclude_nonzero_or_impossible ... ok
+test rare_tail::early_roots::tests::constructor_failure_still_settles_returned_setup_work ... ok
+test rare_tail::early_roots::tests::early_pair_uses_normal_acceptance_and_cannot_replace_positive_estimate ... ok
+test rare_tail::early_roots::tests::final_batch_respects_headroom_and_caps ... ok
+test rare_tail::early_roots::tests::setup_and_pair_settlement_preserve_only_unused_bank ... ok
+test rare_tail::family_config::tests::partial_family_structure_is_explicit_and_defaults_to_full ... ok
+test rare_tail::family_config::tests::production_setting_takes_precedence_over_legacy_setting ... ok
+test rare_tail::family_config::tests::setting_resolution_respects_explicit_values_and_profile ... ok
+test rare_tail::overflow_trees::tests::draw_credit_requires_valid_audit_transfer_and_original_capacity ... ok
+test rare_tail::overflow_trees::tests::late_candidate_filter_excludes_positive_and_certified_impossible_cells ... ok
+test rare_tail::overflow_trees::tests::lowered_minimum_keeps_legacy_roots_ahead_and_preserves_legacy_order ... ok
+test rare_tail::overflow_trees::tests::overflow_allocation_configurable_floor_conserves_total_and_keeps_each_leaf_positive ... ok
+test rare_tail::overflow_trees::tests::overflow_allocation_preserves_explicit_ten_draw_floor_and_ninety_ten_split ... ok
+test rare_tail::overflow_trees::tests::overflow_diagnostic_settings_are_bounded_and_reclaim_defaults_off ... ok
+test rare_tail::overflow_trees::tests::overflow_draw_floor_setting_defaults_to_two_and_is_bounded_to_ten ... ok
+test rare_tail::overflow_trees::tests::overflow_pair_requires_zero_cell_and_normal_independent_gate ... ok
+test rare_tail::overflow_trees::tests::overflow_stream_namespace_is_per_cell_and_phase_independent ... ok
+test rare_tail::overflow_trees::tests::setup_grant_admission_includes_boundary_and_rejects_shortfall ... ok
+test rare_tail::overflow_trees::tests::stage_settlement_releases_unused_but_never_hides_overrun ... ok
+test rare_tail::overflow_trees::tests::target_tree_min_roots_parser_defaults_clamps_and_rejects_invalid_values ... ok
+test rare_tail::overflow_trees::tests::target_tree_root_candidate_eligibility_uses_configured_lower_bound ... ok
+test rare_tail::tests::absent_profile_selects_coverage_and_preserves_explicit_modes ... ok
+test rare_tail::tests::complete_tree_credit_requires_a_gain_and_is_bounded_by_reserved_work ... ok
+test rare_tail::tests::complete_tree_defaults_to_coverage_and_respects_explicit_disable ... ok
+test rare_tail::tests::confirmation_priority_accounts_for_sparse_pilot_uncertainty ... ok
+test rare_tail::tests::coverage_defaults_to_sequential_retries_and_allows_rollback ... ok
+test rare_tail::tests::coverage_enables_larger_confirmation_with_explicit_overrides ... ok
+test rare_tail::tests::coverage_enables_the_tested_shared_profile_with_explicit_rollback ... ok
+test rare_tail::tests::coverage_retains_previous_tail_defaults_and_allows_experiment_opt_in ... ok
+test rare_tail::tests::early_rank_flags_are_opt_in_and_root_count_is_bounded ... ok
+test rare_tail::tests::extension_preserves_existing_estimate_and_its_metadata ... ok
+test rare_tail::tests::extra_confirmation_rejects_empty_pilots_and_sizes_fresh_fixed_batches ... ok
+test rare_tail::tests::profile_defaults_leave_rejected_experiments_disabled ... ok
+test rare_tail::tests::retry_requires_independent_consistent_confirmation ... ok
+test rare_tail::tests::rough_gate_still_rejects_single_dominant_weight_and_missing_evidence ... ok
+test rare_tail::tests::spare_capacity_only_extends_fixed_main_and_confirmation_batches ... ok
+test rare_tail::tests::target_overflow_tree_setting_respects_profile_and_production_precedence ... ok
+test rng::cursor_tests::bounded_cursor_matches_legacy_across_wraps_and_seeds ... ok
+test sampling::tests::indexed_scores_match_binary_search_at_boundaries_and_fixed_rng ... ok
+test shared_constraints::tests::exact_joint_normalizers_mixture_and_sampler_match_enumeration ... ok
+test shared_constraints::tests::exhausted_setup_and_unsupported_rules_do_not_claim_proofs ... ok
+test shared_constraints::tests::nine_remaining_games_two_point_cap_has_exactly_46_weighted_paths ... ok
+test shared_constraints::tests::requirements_are_necessary_for_every_rank_in_both_directions ... ok
+test shared_constraints::tests::shared_sampler_uses_real_goal_tiebreakers_after_equal_final_points ... ok
+test target_limits::tests::certified_zero_point_path_is_cached_and_filters_both_builders ... ok
+test target_limits::tests::quota_exhaustion_does_not_remove_an_unproved_total ... ok
+
+test result: ok. 175 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.16s
+
+     Running unittests src/main.rs (target/release/deps/golaberto_odds-f1b10c7ce13a934c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/database.rs (target/release/deps/database-710bb9a8e1f65b6f)
+
+running 1 test
+test historical_upserts_round_and_roll_back_atomically ... ignored, set MYSQL_TEST_URL; all writes use a connection-local temporary table
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/estimator.rs (target/release/deps/estimator-343b373645ce7403)
+
+running 35 tests
+test adjacent_cdf_factor_preserves_the_original_weight_bits_at_boundaries ... ok
+test aggregate_cut_detects_a_shared_fixture_contradiction_marginals_miss ... ok
+test aggregate_fixture_cut_preserves_all_feasible_caps_and_floors ... ok
+test cap_and_floor_proofs_never_exclude_a_feasible_relaxation ... ok
+test conditional_event_contains_every_rank_hit_and_has_exact_mass ... ok
+test constructive_reuse_marks_only_ranks_in_verified_seasons ... ok
+test decisive_path_completion_changes_endpoint_gd_and_preserves_intermediate_gd ... ok
+test discrete_cut_is_disabled_for_other_scoring_and_bonus_rules ... ok
+test discrete_floor_proves_palmeiras_seventeenth_and_preserves_reachable_ranks ... ok
+test discrete_floor_retains_feasible_restricted_domains_with_point_adjustments ... ok
+test equal_goals_on_a_draw_break_a_goals_scored_tie_without_changing_gd ... ok
+test every_goal_completion_in_the_enumerated_league_is_a_real_sorted_season ... ok
+test extreme_rank_screen_never_rejects_a_matching_complete_season ... ok
+test fixture_mask_matches_individual_prefix_checks ... ok
+test go_rng_and_scout_are_identical ... ok
+test goal_certificates_are_deferred_without_changing_probabilities_or_early_labels ... ok
+test goal_completion_resolves_palmeiras_ties_with_verified_compact_certificates ... ok
+test joint_rank_propagation_preserves_every_enumerated_witness ... ok
+test joint_score_failure_and_budget_exhaustion_remain_undecided ... ok
+test joint_verified_seasons_are_reused_and_never_become_estimates ... ok
+test matrix_balances_with_structural_zeros ... ok
+test minimum_witness_uses_final_bounds_and_defers_new_proofs ... ok
+test non_points_standings_keep_plain_mc_uncertainty_and_skip_rare_search ... ok
+test numeric_zero_outcome_mass_cannot_prove_unrestricted_impossibility ... ok
+test packed_point_overflow_skips_conditioning_instead_of_losing_support ... ok
+test production_acceptance_gate_is_unchanged ... ok
+test proof_guided_sampler_agrees_with_exhaustive_probability ... ok
+test proof_probes_preserve_every_enumerated_rank_hit_with_wins_and_negative_points ... ok
+test propagated_domains_preserve_all_rank_hits ... ok
+test rails_nulls_and_extra_fields_are_accepted ... ok
+test reference_joint_domains_match_the_measured_positive_outcome_masks ... ok
+test reordered_neighbors_return_only_production_sorted_witnesses ... ok
+test reverse_decisive_path_can_lower_target_gd_without_lowering_middle_team_gd ... ok
+test shared_equal_goal_adjustments_do_not_independently_order_tied_endpoints ... ok
+test weighted_sampler_agrees_with_exhaustive_probability ... ok
+
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.09s
+
+     Running tests/http.rs (target/release/deps/http-99ff844c16d4372e)
+
+running 4 tests
+test active_routes_chunked_json_errors_and_health_work_over_http ... FAILED
+test incomplete_upload_does_not_block_health_or_ready_calculations ... FAILED
+test odds_http_enables_default_target_overflow_tree_and_honors_production_opt_out ... FAILED
+test odds_http_uses_default_family_fallback_and_honors_explicit_opt_out ... FAILED
+
+failures:
+
+---- active_routes_chunked_json_errors_and_health_work_over_http stdout ----
+
+thread 'active_routes_chunked_json_errors_and_health_work_over_http' (1525277) panicked at tests/http.rs:33:55:
+called `Result::unwrap()` on an `Err` value: Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- incomplete_upload_does_not_block_health_or_ready_calculations stdout ----
+
+thread 'incomplete_upload_does_not_block_health_or_ready_calculations' (1525278) panicked at tests/http.rs:33:55:
+called `Result::unwrap()` on an `Err` value: Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }
+
+---- odds_http_enables_default_target_overflow_tree_and_honors_production_opt_out stdout ----
+
+thread 'odds_http_enables_default_target_overflow_tree_and_honors_production_opt_out' (1525279) panicked at tests/http.rs:33:55:
+called `Result::unwrap()` on an `Err` value: Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }
+
+---- odds_http_uses_default_family_fallback_and_honors_explicit_opt_out stdout ----
+
+thread 'odds_http_uses_default_family_fallback_and_honors_explicit_opt_out' (1525280) panicked at tests/http.rs:33:55:
+called `Result::unwrap()` on an `Err` value: Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }
+
+
+failures:
+    active_routes_chunked_json_errors_and_health_work_over_http
+    incomplete_upload_does_not_block_health_or_ready_calculations
+    odds_http_enables_default_target_overflow_tree_and_honors_production_opt_out
+    odds_http_uses_default_family_fallback_and_honors_explicit_opt_out
+
+test result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--test http`
+exit_code=101

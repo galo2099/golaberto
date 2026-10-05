@@ -9,7 +9,7 @@ use crate::joint_caps::propagated::lazy::{combine_branches, BranchSample, Branch
 use std::collections::HashMap;
 
 const ROOT_LIMIT: usize = 256;
-const MIN_ROOTS: usize = 65;
+const DEFAULT_MIN_ROOTS: usize = 65;
 const MAX_CELLS: usize = 4;
 const DEFAULT_FLOOR: usize = 2;
 const MAX_FLOOR: usize = 10;
@@ -32,6 +32,13 @@ fn message_count() -> usize {
     bounded_setting("RUST_ODDS_EXPERIMENT_TARGET_TREE_MESSAGES", 3, 0, 3)
 }
 
+fn structural_discovery_enabled() -> bool {
+    matches!(
+        std::env::var("RUST_ODDS_EXPERIMENT_TREE_DISCOVERY").as_deref(),
+        Ok("interval" | "rank" | "strict")
+    )
+}
+
 fn final_draws() -> usize {
     bounded_setting(
         "RUST_ODDS_EXPERIMENT_TARGET_TREE_FINAL_DRAWS",
@@ -47,6 +54,32 @@ fn final_draw_floor() -> usize {
         DEFAULT_FLOOR,
         2,
         MAX_FLOOR,
+    )
+}
+
+fn min_roots_value(raw: Option<&str>) -> usize {
+    bounded_setting_value(raw, DEFAULT_MIN_ROOTS, 1, DEFAULT_MIN_ROOTS)
+}
+
+fn min_roots() -> usize {
+    min_roots_value(
+        std::env::var("RUST_ODDS_EXPERIMENT_TARGET_TREE_MIN_ROOTS")
+            .ok()
+            .as_deref(),
+    )
+}
+
+fn accepted_root_count(roots: usize, minimum: usize) -> bool {
+    (minimum..=ROOT_LIMIT).contains(&roots)
+}
+
+fn candidate_sort_key(candidate: Candidate, minimum: usize, n: usize) -> (usize, usize, usize) {
+    let new_candidate_bucket =
+        usize::from(minimum < DEFAULT_MIN_ROOTS && candidate.roots < DEFAULT_MIN_ROOTS);
+    (
+        new_candidate_bucket,
+        candidate.roots,
+        candidate.cell.index(n),
     )
 }
 
@@ -92,7 +125,7 @@ pub(super) fn settings() -> serde_json::Value {
         "final_cap": final_draws(),
         "reclaim": reclaim_enabled(),
         "max_roots": ROOT_LIMIT,
-        "min_roots": MIN_ROOTS,
+        "min_roots": min_roots(),
         "max_cells": MAX_CELLS,
         "funding": "confirmation_bank",
         "late": true,
@@ -254,6 +287,7 @@ pub(super) fn run(
     bank_limit_after_credit: usize,
 ) -> (usize, u64) {
     let started = Instant::now();
+    let min_roots = min_roots();
     let pilot_draws = pilot_draws();
     let messages = message_count();
     let nominal_final_draws = final_draws();
@@ -349,13 +383,13 @@ pub(super) fn run(
         }
         if let Ok(roots) = result {
             roots_counted += 1;
-            if (MIN_ROOTS..=ROOT_LIMIT).contains(&roots) {
+            if accepted_root_count(roots, min_roots) {
                 root_count_work.insert(cell.index(m.n), count_work);
                 candidates.push(Candidate { cell, roots });
             }
         }
     }
-    candidates.sort_by_key(|candidate| (candidate.roots, candidate.cell.index(m.n)));
+    candidates.sort_by_key(|&candidate| candidate_sort_key(candidate, min_roots, m.n));
     candidates.truncate(MAX_CELLS);
 
     for candidate in candidates.iter().copied() {
@@ -457,7 +491,8 @@ pub(super) fn run(
             stop_reason = Some("pilot work exceeded residual-bank grant");
             break;
         }
-        if pilots.iter().all(|sample| sample.result.probability <= 0.0) {
+        let defer_empty_skip = structural_discovery_enabled();
+        if pilots.iter().all(|sample| sample.result.probability <= 0.0) && !defer_empty_skip {
             continue;
         }
 
@@ -470,7 +505,7 @@ pub(super) fn run(
         };
         let pilot_results: Vec<_> = pilots.iter().map(|sample| sample.result.clone()).collect();
         let message_started = Instant::now();
-        let message_info = p.prepare_messages(m, &pilot_results, messages);
+        let message_info = p.prepare_messages(m, &pilot_results, messages, message_grant);
         let selected: Vec<usize> = message_info["selected"]
             .as_array()
             .into_iter()
@@ -520,6 +555,10 @@ pub(super) fn run(
             // Retuning was paid for, but its repilot did not fit. Clear the
             // speculative patterns and continue with the complete original
             // pilot if the residual bank still funds a final pair.
+        }
+        if defer_empty_skip && pilots.iter().all(|sample| sample.result.probability <= 0.0) {
+            stage_rows.push(json!({"stage":"structural_discovery_empty_skip","team":m.ids[cell.team],"rank":cell.rank+1,"reason":"no event evidence after structural discovery re-pilot","messages":message_info}));
+            continue;
         }
 
         let scores: Vec<_> = pilots
@@ -618,7 +657,7 @@ pub(super) fn run(
         "rust_odds_target_overflow_tree_summary",
         json!({
             "enabled":true,"mode":"late_complete_target_tree","training_excluded":true,
-            "target_path_limit":ROOT_LIMIT,"accepted_root_range":[MIN_ROOTS,ROOT_LIMIT],"max_cells":MAX_CELLS,
+            "target_path_limit":ROOT_LIMIT,"accepted_root_range":[min_roots,ROOT_LIMIT],"max_cells":MAX_CELLS,
             "pilot_draws_per_branch":pilot_draws,"message_count":messages,"final_draw_floor":draw_floor,
             "nominal_final_draws":nominal_final_draws,"final_headroom_percent":FINAL_HEADROOM_PERCENT,
             "reclaim_enabled":reclaim_enabled(),
@@ -739,6 +778,75 @@ mod tests {
         assert!(!reclaim_value(None));
         assert!(!reclaim_value(Some("0")));
         assert!(reclaim_value(Some("1")));
+    }
+
+    #[test]
+    fn target_tree_min_roots_parser_defaults_clamps_and_rejects_invalid_values() {
+        assert_eq!(min_roots_value(None), 65);
+        assert_eq!(min_roots_value(Some("1")), 1);
+        assert_eq!(min_roots_value(Some("56")), 56);
+        assert_eq!(min_roots_value(Some("0")), 1);
+        assert_eq!(min_roots_value(Some("65")), 65);
+        assert_eq!(min_roots_value(Some("100")), 65);
+        assert_eq!(min_roots_value(Some("invalid")), 65);
+        assert_eq!(min_roots_value(Some("-1")), 65);
+    }
+
+    #[test]
+    fn target_tree_root_candidate_eligibility_uses_configured_lower_bound() {
+        assert!(!accepted_root_count(56, DEFAULT_MIN_ROOTS));
+        assert!(accepted_root_count(56, 1));
+        assert!(!accepted_root_count(0, 1));
+        assert!(accepted_root_count(1, 1));
+        assert!(accepted_root_count(ROOT_LIMIT, 1));
+        assert!(!accepted_root_count(ROOT_LIMIT + 1, 1));
+    }
+
+    #[test]
+    fn lowered_minimum_keeps_legacy_roots_ahead_and_preserves_legacy_order() {
+        let mut candidates = vec![
+            Candidate {
+                cell: Cell { team: 0, rank: 4 },
+                roots: 186,
+            },
+            Candidate {
+                cell: Cell { team: 0, rank: 1 },
+                roots: 11,
+            },
+            Candidate {
+                cell: Cell { team: 0, rank: 3 },
+                roots: 100,
+            },
+            Candidate {
+                cell: Cell { team: 0, rank: 2 },
+                roots: 186,
+            },
+            Candidate {
+                cell: Cell { team: 0, rank: 0 },
+                roots: 56,
+            },
+        ];
+
+        candidates.sort_by_key(|&candidate| candidate_sort_key(candidate, 1, 5));
+        let ordered: Vec<_> = candidates
+            .iter()
+            .map(|candidate| (candidate.roots, candidate.cell.index(5)))
+            .collect();
+        assert_eq!(
+            ordered,
+            vec![(100, 3), (186, 2), (186, 4), (11, 1), (56, 0)]
+        );
+
+        let mut default_candidates = candidates.clone();
+        default_candidates.sort_by_key(|&candidate| candidate_sort_key(candidate, 65, 5));
+        let default_order: Vec<_> = default_candidates
+            .iter()
+            .map(|candidate| (candidate.roots, candidate.cell.index(5)))
+            .collect();
+        assert_eq!(
+            default_order,
+            vec![(11, 1), (56, 0), (100, 3), (186, 2), (186, 4)]
+        );
     }
 
     #[test]

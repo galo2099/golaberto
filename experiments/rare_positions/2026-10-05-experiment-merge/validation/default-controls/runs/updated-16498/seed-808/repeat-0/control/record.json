@@ -1,0 +1,262 @@
+{
+  "argv": [
+    "/Users/robsonaraujo/work/golaberto/odds-rust/target/release/golaberto-odds",
+    "estimate",
+    "/Users/robsonaraujo/work/golaberto/experiments/rare_positions/reference/2026-10-04-two-results/inputs/group-16498-two-results.json",
+    "/Users/robsonaraujo/work/golaberto/experiments/rare_positions/2026-10-05-experiment-merge/validation/default-controls/runs/updated-16498/seed-808/repeat-0/control/export.json",
+    "808",
+    "4"
+  ],
+  "arm": "control",
+  "binary": "/Users/robsonaraujo/work/golaberto/odds-rust/target/release/golaberto-odds",
+  "binary_sha256": "0e7d57adb68ac5d199d77e8e4e2d9c9be7ba7d014059439f0ca67d30b13ca34e",
+  "child_cpu_seconds": 3.5104020000000005,
+  "cleared_inherited_environment_keys": [],
+  "config_hash": "abd44c3c9cab815143b7718ef701b780791a2fd1a087c0cb2c1c5474f821062b",
+  "effective_environment_sha256": "24a1c3618d5ee31253539e2c265dec8e8e06a9f3fb6ebb0d699d486dcdbaf2bb",
+  "effective_experiment_environment": {
+    "RUST_ODDS_LOG": "1"
+  },
+  "exit_code": 0,
+  "export": "/Users/robsonaraujo/work/golaberto/experiments/rare_positions/2026-10-05-experiment-merge/validation/default-controls/runs/updated-16498/seed-808/repeat-0/control/export.json",
+  "export_sha256": "69649ae089d0d50d8e1a09611468f789bf4893b26ce44760d4124b080d3779eb",
+  "fixture": "updated-16498",
+  "flags": {},
+  "job_id": "0479aa29e52ac6acbc969ef0dcbd039a9d444a463dec392ada3921a9cf3fc395",
+  "repeat": 0,
+  "request": "/Users/robsonaraujo/work/golaberto/experiments/rare_positions/reference/2026-10-04-two-results/inputs/group-16498-two-results.json",
+  "request_sha256": "cc1e7144a7e50aa3abc54a4c9b64a641bde7f5db0328143bef7e7bf8009071ee",
+  "seed": 808,
+  "stderr": "/Users/robsonaraujo/work/golaberto/experiments/rare_positions/2026-10-05-experiment-merge/validation/default-controls/runs/updated-16498/seed-808/repeat-0/control/stderr.log",
+  "stderr_sha256": "2ab5bf75763ea28bf27a670eda5e95ecf3d076a0f7919e0bd8ff4a959ca761ed",
+  "stdout": "/Users/robsonaraujo/work/golaberto/experiments/rare_positions/2026-10-05-experiment-merge/validation/default-controls/runs/updated-16498/seed-808/repeat-0/control/stdout.log",
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "summary_events": [
+    {
+      "accepted": 0,
+      "event": "rust_odds_shared_constraints_summary",
+      "group": 16498,
+      "mode": "guided",
+      "reserved_work": 3222089,
+      "work": 90750,
+      "work_limit": 159862500
+    },
+    {
+      "event": "rust_odds_rare_tail_branches_skip",
+      "group": 16498,
+      "rank": 19,
+      "reason": "target path budget exhausted",
+      "team": 5
+    },
+    {
+      "event": "rust_odds_rare_tail_branches_skip",
+      "group": 16498,
+      "rank": 12,
+      "reason": "target path budget exhausted",
+      "team": 17
+    },
+    {
+      "event": "rust_odds_rare_tail_branches_skip",
+      "group": 16498,
+      "rank": 13,
+      "reason": "case enumeration budget exhausted",
+      "team": 17
+    },
+    {
+      "event": "rust_odds_rare_tail_branches_skip",
+      "group": 16498,
+      "rank": 13,
+      "reason": "target path budget exhausted",
+      "team": 16
+    },
+    {
+      "event": "rust_odds_rare_tail_branches_skip",
+      "group": 16498,
+      "rank": 14,
+      "reason": "target path budget exhausted",
+      "team": 16
+    },
+    {
+      "event": "rust_odds_rare_tail_branches_skip",
+      "group": 16498,
+      "rank": 15,
+      "reason": "case setup/numerical budget exhausted; incomplete union skipped",
+      "team": 16
+    },
+    {
+      "accepted": false,
+      "check_ess": 0.0,
+      "check_probability": 0.0,
+      "event": "rust_odds_rare_tail_branches",
+      "group": 16498,
+      "probability": 3.242235945955068e-40,
+      "rank": 16,
+      "setup": {},
+      "team": 16
+    },
+    {
+      "accepted": 0,
+      "event": "rust_odds_rare_tail_branches_summary",
+      "group": 16498,
+      "reserved_work": 287988284,
+      "work": 5082000,
+      "work_limit": 639450000
+    },
+    {
+      "event": "rust_odds_rare_tail_branches_skip",
+      "group": 16498,
+      "rank": 13,
+      "reason": "no event evidence in complete tree pilots",
+      "team": 17
+    },
+    {
+      "accepted": 0,
+      "event": "rust_odds_rare_tail_branches_summary",
+      "group": 16498,
+      "reserved_work": 9690884,
+      "work": 157300,
+      "work_limit": 351461716
+    },
+    {
+      "accepted": 4,
+      "event": "rust_odds_rare_tail_confirm_more_summary",
+      "group": 16498,
+      "reserved_work": 883716020,
+      "work": 10505504,
+      "work_limit": 1123320832
+    },
+    {
+      "accepted": 0,
+      "event": "rust_odds_rare_tail_branches_summary",
+      "group": 16498,
+      "reserved_work": 0,
+      "work": 0,
+      "work_limit": 639450000
+    },
+    {
+      "event": "rust_odds_family_fallback",
+      "fallback": {
+        "charged_work": 107978996,
+        "final": {
+          "accepted": false,
+          "check_ess": 0.0,
+          "check_hits": 0,
+          "check_probability": 0.0,
+          "main_probability": 4.5935741379602834e-26
+        },
+        "reason": "family training, fit, validation or fresh pair did not pass gates",
+        "settlement_within_grant": true,
+        "status": "declined"
+      },
+      "group": 16498,
+      "rank": 14,
+      "team_id": 16
+    },
+    {
+      "event": "rust_odds_family_fallback_late_summary",
+      "group": 16498,
+      "mode": "family"
+    },
+    {
+      "event": "rust_odds_target_overflow_tree_summary",
+      "group": 16498,
+      "mode": "late_complete_target_tree",
+      "sampling_stages": [
+        {
+          "actual": 3878676,
+          "grant": 107780401,
+          "hits": 7,
+          "probability": 1.6524678169457663e-25,
+          "rank": 14,
+          "stage": "bound_pilot",
+          "team": 16,
+          "within_grant": true
+        },
+        {
+          "actual": 14075811,
+          "grant": 103901725,
+          "message_work": 13966866,
+          "rank": 14,
+          "stage": "message_repilot",
+          "team": 16,
+          "within_grant": true
+        },
+        {
+          "accepted": true,
+          "actual": 78202220,
+          "check_ess": 25.312459446436492,
+          "check_hits": 1809,
+          "check_probability": 5.651890773392788e-25,
+          "main_probability": 3.6955975653953706e-25,
+          "rank": 14,
+          "stage": "final_pair",
+          "status": "accepted",
+          "team": 16,
+          "within_grant": true
+        }
+      ],
+      "setup_stages": [
+        {
+          "actual": 2789308,
+          "grant": 131625816,
+          "rank": 13,
+          "stage": "root_count",
+          "team": 17,
+          "within_grant": true
+        },
+        {
+          "actual": 2790983,
+          "grant": 128836508,
+          "rank": 14,
+          "stage": "root_count",
+          "team": 16,
+          "within_grant": true
+        },
+        {
+          "actual": 2789833,
+          "grant": 126045525,
+          "rank": 15,
+          "stage": "root_count",
+          "team": 16,
+          "within_grant": true
+        },
+        {
+          "actual": 2789118,
+          "grant": 123255692,
+          "rank": 16,
+          "stage": "root_count",
+          "team": 16,
+          "within_grant": true
+        },
+        {
+          "actual": 12686173,
+          "grant": 120466574,
+          "rank": 14,
+          "stage": "tree_setup",
+          "team": 16,
+          "within_grant": true
+        }
+      ]
+    },
+    {
+      "accepted": 0,
+      "event": "rust_odds_rare_tail_extension_summary",
+      "group": 16498,
+      "mode": "after"
+    },
+    {
+      "accepted": 14,
+      "event": "rust_odds_rare_tail_summary",
+      "group": 16498,
+      "reserved_work": 627174133,
+      "shared_guides": {
+        "hits": 22
+      },
+      "work": 249869818,
+      "work_limit": 639450000
+    }
+  ],
+  "wall_seconds": 1.6310647079999998,
+  "warmup": false,
+  "workers": 4
+}

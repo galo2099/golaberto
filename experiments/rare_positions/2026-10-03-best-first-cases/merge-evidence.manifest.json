@@ -1,0 +1,37 @@
+{
+  "archive": "merge-evidence.tar.gz",
+  "archive_sha256": "ce723bb57db295a71bf1c9b5bbd4c3970da82d09b4ef12a604747469bad2acfb",
+  "archive_size": 2293333,
+  "experiment": "2026-10-03-best-first-cases",
+  "members": [
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "PROVENANCE.json",
+      "sha256": "2ef082bf69069b46d102782a7a56efa98f6949304f1f8cdaae317a6137a7b565",
+      "size": 2146
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "commands-metadata.json",
+      "sha256": "286057780a6cab30430f71dc409f9b8ee4dc92159bd1fdba9a48ad4fb4d13d06",
+      "size": 7659
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "raw-evidence.tar.gz",
+      "sha256": "5becd5c13e08c54baae45f23b3b248c5d00b301f35438f3d8b3ea2c85e304687",
+      "size": 2436969
+    },
+    {
+      "executable": false,
+      "mode": 420,
+      "path": "v2candidate.patch",
+      "sha256": "199c5e731269f3d7e9246b3fcba6af94ebf4b72e7802fa3179b01d1696248635",
+      "size": 110765
+    }
+  ],
+  "schema_version": 1
+}

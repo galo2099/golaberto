@@ -1,0 +1,46 @@
+{
+  "arm_order_rotated": true,
+  "config": {
+    "arms": [
+      {
+        "binary": "/Users/robsonaraujo/work/golaberto/odds-rust/target/release/golaberto-odds",
+        "binary_sha256": "0e7d57adb68ac5d199d77e8e4e2d9c9be7ba7d014059439f0ca67d30b13ca34e",
+        "flags": {},
+        "name": "control"
+      }
+    ],
+    "candidate_binary": "/Users/robsonaraujo/work/golaberto/odds-rust/target/release/golaberto-odds",
+    "candidate_sha256": "0e7d57adb68ac5d199d77e8e4e2d9c9be7ba7d014059439f0ca67d30b13ca34e",
+    "cleared_prefixes": [
+      "TREE_",
+      "RUST_ODDS_",
+      "RARE_POSITION_"
+    ],
+    "fixtures": {
+      "original-16498": {
+        "path": "/Users/robsonaraujo/work/golaberto/experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16498-44eabb47.json",
+        "sha256": "2e08f162592ded09393f0438686a60690dda6e85cd54da5dc0d20224c81aa625"
+      },
+      "updated-16498": {
+        "path": "/Users/robsonaraujo/work/golaberto/experiments/rare_positions/reference/2026-10-04-two-results/inputs/group-16498-two-results.json",
+        "sha256": "cc1e7144a7e50aa3abc54a4c9b64a641bde7f5db0328143bef7e7bf8009071ee"
+      }
+    },
+    "frozen_production_binary": null,
+    "frozen_sha256": null,
+    "repeats": 1,
+    "seeds": [
+      808
+    ],
+    "serialized": true,
+    "warmups": 0,
+    "workers": 4
+  },
+  "config_hash": "abd44c3c9cab815143b7718ef701b780791a2fd1a087c0cb2c1c5474f821062b",
+  "heavy_runs_serialized": true,
+  "record_count_including_warmups": 2,
+  "records": [
+    "/Users/robsonaraujo/work/golaberto/experiments/rare_positions/2026-10-05-experiment-merge/validation/default-controls/runs/original-16498/seed-808/repeat-0/control/record.json",
+    "/Users/robsonaraujo/work/golaberto/experiments/rare_positions/2026-10-05-experiment-merge/validation/default-controls/runs/updated-16498/seed-808/repeat-0/control/record.json"
+  ]
+}
