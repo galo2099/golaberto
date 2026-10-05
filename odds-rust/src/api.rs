@@ -149,7 +149,7 @@ pub fn calculate_logged(
         "rust_odds_start",
         json!({"teams":request.team_groups.len(),
         "games":request.games.len(),"workers":workers,"scout_samples":scout_samples,
-        "pool_samples":100000,"sort":request.phase.sort,
+        "general_pool_samples":100000,"sort":request.phase.sort,
         "rare_tail_profile":crate::rare_tail::profile(),
         "family_fallback":crate::rare_tail::family_fallback_settings(),
         "target_overflow_tree":crate::rare_tail::target_overflow_tree_settings(),
@@ -203,9 +203,15 @@ pub fn calculate_logged(
         json!({"samples":scout_samples,"stream_seed":derive(seed,"pipeline-scout")}),
     );
     let phase = Instant::now();
-    let mut estimates = pool::production_logged(&model, seed, workers, Some(log));
+    let small_group = crate::small_group::estimate(&model, seed);
+    let mut estimates = if let Some((estimates, diagnostic)) = small_group {
+        log.stage("small_group.paths", phase, diagnostic);
+        estimates
+    } else {
+        pool::production_logged(&model, seed, workers, Some(log))
+    };
     let pool_ms = phase.elapsed().as_secs_f64() * 1000.;
-    log.stage("pool", phase, json!({"cells":cell_counts(&estimates)}));
+    log.stage("pool", phase, json!({"cells":cell_counts(&estimates), "design": estimates.first().map(|e|e.design.as_str()).unwrap_or("empty")}));
     let phase = Instant::now();
     let work = crate::search::run_logged(&model, seed, workers, &mut estimates, Some(log));
     for e in &mut estimates {

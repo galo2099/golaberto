@@ -3,6 +3,7 @@ use crate::{
     sampling::{Poisson, Scores},
 };
 use serde::{Deserialize, Deserializer, Serialize};
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::sync::Mutex;
 fn null_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
@@ -275,6 +276,36 @@ impl Model {
     ) -> bool {
         self.compare_from(a, b, pair, scores, rng, 0)
     }
+    /// Compare the aggregate head-to-head campaigns for a pair, using the
+    /// same leading-key comparator as the standings sorter.
+    pub fn head_order(
+        &self,
+        home: usize,
+        away: usize,
+        scores: &[[i32; 2]],
+        rng: &mut Rng,
+    ) -> Ordering {
+        let mut h = Campaign::default();
+        let mut a = Campaign::default();
+        for &(g, home_first) in &self.pair_games[home * self.n + away] {
+            let [hs, as_] = scores[g];
+            if home_first {
+                h.add(hs, as_, true, &self.request.phase.championship);
+                a.add(as_, hs, false, &self.request.phase.championship);
+            } else {
+                h.add(as_, hs, false, &self.request.phase.championship);
+                a.add(hs, as_, true, &self.request.phase.championship);
+            }
+        }
+        // No pair means Random keys are skipped, exactly as in Key::Head.
+        if self.compare(&a, &h, None, scores, rng) {
+            Ordering::Less
+        } else if self.compare(&h, &a, None, scores, rng) {
+            Ordering::Greater
+        } else {
+            Ordering::Equal
+        }
+    }
     fn compare_from(
         &self,
         a: &Campaign,
@@ -306,23 +337,10 @@ impl Model {
                 }
                 Key::Head => {
                     if let Some((i, j)) = pair {
-                        let mut h = Campaign::default();
-                        let mut v = Campaign::default();
-                        for &(g, home) in &self.pair_games[i * self.n + j] {
-                            let [hs, as_] = scores[g];
-                            if home {
-                                h.add(hs, as_, true, &self.request.phase.championship);
-                                v.add(as_, hs, false, &self.request.phase.championship);
-                            } else {
-                                h.add(as_, hs, false, &self.request.phase.championship);
-                                v.add(hs, as_, true, &self.request.phase.championship);
-                            }
-                        }
-                        if self.compare(&v, &h, None, scores, rng) {
-                            return false;
-                        }
-                        if self.compare(&h, &v, None, scores, rng) {
-                            return true;
+                        match self.head_order(i, j, scores, rng) {
+                            Ordering::Greater => return true,
+                            Ordering::Less => return false,
+                            Ordering::Equal => {}
                         }
                     }
                     continue;

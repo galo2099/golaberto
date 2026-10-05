@@ -1,0 +1,196 @@
+{
+  "id": 17058,
+  "phase_id": 4551,
+  "name": "Group C1",
+  "odds_progress": null,
+  "created_at": "2026-09-29T06:46:56.000Z",
+  "updated_at": "2026-10-05T20:34:53.000Z",
+  "zones": [
+    {
+      "name": "Promotion",
+      "color": "#90ee90",
+      "position": [
+        1
+      ]
+    },
+    {
+      "name": "Playoffs",
+      "color": "#add8e6",
+      "position": [
+        2
+      ]
+    }
+  ],
+  "phase": {
+    "id": 4551,
+    "championship_id": 1544,
+    "name": "League C",
+    "order_by": 2,
+    "sort": "pt,head,gd,gf,g_away,w,name",
+    "bonus_points": 0,
+    "bonus_points_threshold": 0,
+    "created_at": "2026-09-29T06:45:55.000Z",
+    "updated_at": "2026-10-05T20:34:54.000Z",
+    "scrape_url": "https://www.sofascore.com/api/v1/unique-tournament/10783/season/89945/events/round/",
+    "sofascore_tournament_ids": "64381,64382,64383,64384",
+    "championship": {
+      "id": 1544,
+      "name": "UEFA Nations League",
+      "begin": "2026-09-24",
+      "end": "2027-06-13",
+      "point_win": 3,
+      "point_draw": 1,
+      "point_loss": 0,
+      "category_id": 1,
+      "show_country": true,
+      "created_at": "2026-09-29T05:37:27.000Z",
+      "updated_at": "2026-10-05T20:34:54.000Z",
+      "region": "continental",
+      "region_name": "Europe"
+    }
+  },
+  "team_groups": [
+    {
+      "team_id": 2687,
+      "add_sub": 0,
+      "bias": 0
+    },
+    {
+      "team_id": 2701,
+      "add_sub": 0,
+      "bias": 0
+    },
+    {
+      "team_id": 2699,
+      "add_sub": 0,
+      "bias": 0
+    },
+    {
+      "team_id": 2698,
+      "add_sub": 0,
+      "bias": 0
+    }
+  ],
+  "games": [
+    {
+      "id": 370661,
+      "home_id": 2698,
+      "away_id": 2699,
+      "home_score": 0,
+      "away_score": 7,
+      "played": true,
+      "home_power": 0.8321878526124464,
+      "away_power": 2.7237746029933456
+    },
+    {
+      "id": 370665,
+      "home_id": 2687,
+      "away_id": 2701,
+      "home_score": 2,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.2451379340940725,
+      "away_power": 0.7042468343870398
+    },
+    {
+      "id": 370669,
+      "home_id": 2699,
+      "away_id": 2701,
+      "home_score": 0,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.536754808992502,
+      "away_power": 0.9813947562594278
+    },
+    {
+      "id": 370671,
+      "home_id": 2698,
+      "away_id": 2687,
+      "home_score": 0,
+      "away_score": 3,
+      "played": true,
+      "home_power": 0.28036463610332407,
+      "away_power": 2.7578343167537795
+    },
+    {
+      "id": 370679,
+      "home_id": 2699,
+      "away_id": 2687,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.1403496247089655,
+      "away_power": 0.9124277242463377
+    },
+    {
+      "id": 370680,
+      "home_id": 2701,
+      "away_id": 2698,
+      "home_score": 4,
+      "away_score": 0,
+      "played": true,
+      "home_power": 3.189501769454572,
+      "away_power": 0.3796049058676485
+    },
+    {
+      "id": 370686,
+      "home_id": 2687,
+      "away_id": 2698,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 3.07859043329164,
+      "away_power": 0.10267718128574566
+    },
+    {
+      "id": 370687,
+      "home_id": 2701,
+      "away_id": 2699,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.2591388796740954,
+      "away_power": 1.2894512493747898
+    },
+    {
+      "id": 370692,
+      "home_id": 2687,
+      "away_id": 2699,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.1835046074944147,
+      "away_power": 0.8483442577824689
+    },
+    {
+      "id": 370693,
+      "home_id": 2698,
+      "away_id": 2701,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 0.581542362184476,
+      "away_power": 2.94762046355284
+    },
+    {
+      "id": 370701,
+      "home_id": 2701,
+      "away_id": 2687,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 0.8999479031313635,
+      "away_power": 0.9637728218854382
+    },
+    {
+      "id": 370702,
+      "home_id": 2699,
+      "away_id": 2698,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 3.7095355230389973,
+      "away_power": 0.3626058349157353
+    }
+  ]
+}

@@ -1,7 +1,8 @@
 # Rust odds and ratings service
 
 Native Rust implementation of the current Go **matched point pool** estimator.
-It includes the initial game-importance scout, 100,000-season pool, exact point
+It includes the initial game-importance scout, bounded small-group path analysis,
+a general 100,000-season pool, exact point
 PMFs, uncertainty estimates, cap/floor proofs, conditional sampling, rank-directed
 importance sampling, neighborhood and constructive witnesses, point-tilt/gap
 rescues, cross-team witness reuse, directional/constraint peer rescues, propagated
@@ -35,6 +36,42 @@ command. It does not run or proxy Go or the stats executable. The player formula
 are shared with the standalone stats service through `stats/core`; one release
 binary now serves all five application endpoints on port 6577.
 
+## Small head-to-head groups
+
+Before the general matched-point pool, the odds API tries a bounded path
+estimator for groups with at most six teams and eight remaining games, a
+`pt,head` sort prefix, no bonus points, and at most one remaining game per
+team pair. All participating teams must belong to the group. It enumerates
+win/draw/loss paths and calculates their prior probabilities from the existing
+Poisson score distributions.
+
+For teams tied on final points, future scores are grouped by their complete
+head-to-head comparison against the played results. This integrates rare
+goal-difference reversals with their own probability mass. A bucket retains
+its conditional score distribution, including equal-margin cases decided by
+away goals. Paths with fixed comparisons contribute their full mass directly;
+remaining score-dependent ties receive 128 conditional score samples per
+stratum. Every draw uses the existing standings sorter. Weighted permutations
+preserve team and position totals without matrix balancing.
+
+The plan allows at most 50,000 strata and 100,000 conditional draws; exceeding
+either limit uses the general estimator. This cap excludes scouting and any
+subsequent rare-event rescue. Eligible group 17058 uses 729 outcome
+paths, 1,063 strata, and 25,728 conditional score draws. The separate
+20,000-season game-importance scout remains unchanged. RNG streams depend on
+the seed and stratum, so the odds are identical with one or four workers.
+
+The response design is `outcome_path_stratified`. `samples` and `hits` describe
+conditional score draws, excluding analytic contributions. Standard errors
+combine the independent stratum variances; ESS and maximum event weight share
+describe the sampled contribution. `mean_weight` is the average probability
+contribution per conditional draw. Precision flags and zero-hit bounds are
+conservative when unresolved strata remain, within the retained score support.
+These calculations use the same finite Poisson score support as the existing
+score sampler; a missed score
+tail is never a proof of mathematical impossibility. Existing rare-event
+search still handles any cells left undecided.
+
 ## Build and run
 
 Use a recent stable Rust toolchain. The locked ICU dependencies require Rust
@@ -66,7 +103,8 @@ odds-rust/target/release/golaberto-odds estimate \
 
 Arguments are request path, output path, seed, and worker count (1–4).
 The default seed is 808 for reproducible CLI experiments. Every full request
-includes the 20,000-season game-importance scout and 100,000-season matched pool.
+includes the 20,000-season game-importance scout. Eligible small groups use the
+path estimator; other requests use the 100,000-season matched pool.
 Timings go to stderr; the response goes to the output file.
 
 ```sh

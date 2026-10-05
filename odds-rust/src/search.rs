@@ -943,8 +943,7 @@ pub fn run_logged(
     let tail_seasons: Vec<_> = if matches!(
         crate::rare_tail::profile().as_str(),
         "lazy" | "portfolio" | "coverage"
-    )
-    {
+    ) {
         assignments
             .iter()
             .chain(&construction.deferred)
@@ -985,7 +984,9 @@ pub fn run_logged(
             return work;
         }
         for (e, p) in estimates.iter_mut().zip(matrix) {
-            if e.reachability == "witness" && e.probability > 0. {
+            if (e.reachability == "witness" || e.design == "outcome_path_stratified")
+                && e.probability > 0.
+            {
                 e.std_err *= p / e.probability;
                 e.relative_se = Some(e.std_err / p);
             }
