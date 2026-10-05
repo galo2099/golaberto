@@ -22,6 +22,13 @@ Successful native estimates are preserved. No enabling flags are needed;
 `RUST_ODDS_FAMILY_FALLBACK=0` disables this fallback. Rebuild and restart the
 Rust service to apply the change.
 
+The coverage profile enables the **lean target-overflow tree fallback** by
+default. It handles remaining zeros whose target-result enumeration exceeds
+the earlier 64-path limit. Its five-draw pilots and two-draw leaf minimum use
+the remaining original confirmation budget, after native and family searches.
+No enabling flags are needed; `RUST_ODDS_TARGET_OVERFLOW_TREE=0` disables it.
+Rebuild and restart the Rust service to apply the default.
+
 The native service also replaces the active Go `/spi`, `/eval`, and
 `/historic_ratings` endpoints and integrates the active `stats` `/player_ratings`
 command. It does not run or proxy Go or the stats executable. The player formulas
@@ -167,6 +174,41 @@ records the final paired validation and local timing.
 accepted only when the production flag is unset. Other family experiment
 tuning flags do not change the fixed production policy. The fallback requires
 the deterministic operation work model; legacy draw or wall budgets skip it.
+
+### Lean target-overflow tree fallback
+
+The final tree fallback is enabled by default in the coverage profile. It
+considers at most four remaining non-impossible zeros with 65–256 target paths.
+It retains the complete outcome partition, failed-refinement parents and actual
+score tiebreakers. It starts with five pilot draws per leaf, refines three message
+proposals, and sizes independent MAIN/CHECK batches to the residual confirmation
+bank, with a nominal maximum of 6,000 draws and a minimum of two per leaf.
+Successful earlier estimates and the existing publication gates are preserved.
+
+The default uses no reclaimed early draw credit and does not increase the
+original confirmation capacity. Startup and request logs expose the effective
+`target_overflow_tree` settings; the stage summary reports setup, draw work,
+acceptance, budget settlement and timing.
+
+Tree construction requires a residual grant covering its measured root-count
+work plus the configured node and guide quotas. Smaller grants skip construction.
+This is an admission floor, not a strict setup upper bound: rank-hint work is
+measured afterward, and an overrun stops the stage and declines publication.
+
+`RUST_ODDS_TARGET_OVERFLOW_TREE=0` opts out and takes precedence over the legacy
+`RUST_ODDS_EXPERIMENT_TARGET_OVERFLOW_TREE` toggle. Existing experimental tuning
+knobs remain available for diagnostics; remove them to use the measured defaults.
+The rejected early-rank experiment remains disabled by default.
+
+In group 16498/seed 808, this recovered Palmeiras/14th at `7.54e-25` probability
+with an independent check of `6.15e-25`, using 46.3% less modeled work than the
+earlier complete tree. Six snapshots and four holdout seeds preserved existing
+positive estimates; only the default seed gained this cell. Median tree-stage
+wall time decreased from 98 to 72 ms in the original experiment. Full-request
+measurements remain noisy: the original comparison added 7.1% mean wall/0.4%
+CPU; the adoption comparison under local memory pressure added 12.7%/3.1%.
+The user authorized default enablement. No extra bank capacity is assumed.
+See the [allocation and adoption report](../experiments/rare_positions/2026-10-04-rust-tree-allocation.md).
 
 ### Joint rival conditioning
 

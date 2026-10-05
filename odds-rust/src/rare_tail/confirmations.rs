@@ -93,6 +93,11 @@ pub(super) struct FallbackState<'a> {
     observer_work: usize,
     observer_bounds: Vec<Option<usize>>,
     before: Vec<(usize, serde_json::Value)>,
+    family_enabled: bool,
+    workers: usize,
+    branch_draw_audit: super::branches::DrawAudit,
+    original_confirmation_capacity: usize,
+    branch_transfer: usize,
 }
 
 fn observer_plan(
@@ -208,6 +213,8 @@ pub(super) fn run<'a>(
     transferred_work: usize,
     stage_spare: Option<usize>,
     stage_audit_valid: bool,
+    branch_draw_audit: super::branches::DrawAudit,
+    original_confirmation_capacity: usize,
 ) -> RunOutcome<'a> {
     let clock = Instant::now();
     let before: Vec<_> = estimates
@@ -450,7 +457,12 @@ pub(super) fn run<'a>(
                 *e==serde_json::to_value(&estimates[*i]).unwrap())
         }),
     );
-    let fallback = if family_enabled && handoff_funded && observer_within_bound {
+    let overflow_enabled = super::target_overflow_tree_enabled();
+    let family_fallback_available = family_enabled && handoff_funded && observer_within_bound;
+    let early_rank_available = super::experimental_early_rank_mode().is_some() && budget::modeled();
+    let fallback = if family_fallback_available
+        || ((overflow_enabled || early_rank_available) && budget::modeled())
+    {
         Some(FallbackState {
             jobs,
             results,
@@ -464,6 +476,11 @@ pub(super) fn run<'a>(
             observer_work: observer_actual,
             observer_bounds,
             before,
+            family_enabled: family_fallback_available,
+            workers,
+            branch_draw_audit,
+            original_confirmation_capacity,
+            branch_transfer: transferred_work,
         })
     } else {
         None
@@ -492,12 +509,14 @@ pub(super) fn finish_fallback<'a>(
     let mut attempts = 0usize;
     let mut skips = 0usize;
     let mut stopped_after_overrun = false;
-
     for i in 0..state.jobs.len() {
         if stopped_after_overrun {
             break;
         }
         let job = &state.jobs[i];
+        if !state.family_enabled {
+            continue;
+        }
         let Some((native_main, native_check, _)) = state.results[i].as_ref() else {
             continue;
         };
@@ -829,7 +848,7 @@ pub(super) fn finish_fallback<'a>(
         log,
         "rust_odds_family_fallback_late_summary",
         json!({
-            "group":m.request.id,"enabled":true,"mode":"family","scope":"all","multiplier":1,
+            "group":m.request.id,"enabled":state.family_enabled,"mode":"family","scope":"all","multiplier":1,
             "training_cap":FAMILY_TRAINING_CAP,"native_prefix_cap":NATIVE_PREFIX_CAP,"native_observation_cap":NATIVE_OBSERVATION_CAP,
             "handoff_fee":state.handoff_fee,"observer_funded":state.observer_funded,"observer_work":state.observer_work,
             "bank_limit":state.bank.limit,"bank_reserved_before_late_work":bank_reserved_before,
@@ -840,7 +859,67 @@ pub(super) fn finish_fallback<'a>(
             "preserved_existing_estimates":preserved_existing_estimates,"elapsed_ms":started.elapsed().as_secs_f64()*1000.
         }),
     );
-    (added, charged_total as u64)
+    let overflow_enabled = super::target_overflow_tree_enabled();
+    let early_rank_enabled = super::experimental_early_rank_mode().is_some();
+    let mut late_stage_added = 0usize;
+    let mut late_stage_work = 0u64;
+    if (overflow_enabled || early_rank_enabled) && !stopped_after_overrun && budget::modeled() {
+        let bank_limit_before_credit = state.bank.limit;
+        let requested_credit = if overflow_enabled {
+            let requested_credit = super::overflow_trees::requested_branch_credit(
+                state.branch_draw_audit,
+                state.branch_transfer,
+            );
+            let applied_credit = super::overflow_trees::applied_branch_credit(
+                state.branch_draw_audit,
+                state.branch_transfer,
+                state.bank.limit,
+                state.original_confirmation_capacity,
+                super::overflow_trees::reclaim_enabled(),
+            );
+            state.bank.limit = state
+                .bank
+                .limit
+                .checked_add(applied_credit)
+                .unwrap_or(state.original_confirmation_capacity)
+                .min(state.original_confirmation_capacity);
+            requested_credit
+        } else {
+            0
+        };
+        let bank_limit_after_credit = state.bank.limit;
+        if early_rank_enabled {
+            (late_stage_added, late_stage_work) = super::early_roots::run(
+                m,
+                state.seed,
+                estimates,
+                &mut state.bank,
+                log,
+                state.rough,
+                state.branch_draw_audit,
+                requested_credit,
+                bank_limit_before_credit,
+                bank_limit_after_credit,
+            );
+        } else if overflow_enabled {
+            (late_stage_added, late_stage_work) = super::overflow_trees::run(
+                m,
+                state.seed,
+                state.workers,
+                estimates,
+                &mut state.bank,
+                log,
+                state.branch_draw_audit,
+                requested_credit,
+                bank_limit_before_credit,
+                bank_limit_after_credit,
+            );
+        }
+    }
+    (
+        added.saturating_add(late_stage_added),
+        (charged_total as u64).saturating_add(late_stage_work),
+    )
 }
 
 fn training_draw_accounting(total: usize, native_samples: usize) -> (usize, usize) {

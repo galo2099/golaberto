@@ -3,6 +3,8 @@
 use super::*;
 use crate::rng::derive;
 
+mod early_rank;
+
 type SharedGuideKey = (
     usize,
     Vec<(usize, usize, usize, [i32; 3], [i32; 3], [u64; 3])>,
@@ -119,8 +121,24 @@ pub struct LazyJoint {
     guide_values: usize,
     guide_limit: usize,
     guides: HashMap<Vec<(usize, [u64; 3])>, Arc<Guide>>,
+    early_rank_diagnostics: Option<serde_json::Value>,
 }
 impl LazyJoint {
+    pub fn with_early_rank(
+        m: &Model,
+        cell: Cell,
+        seed: i64,
+        roots: usize,
+        bias: bool,
+        work_limit: usize,
+    ) -> (std::result::Result<Self, String>, usize) {
+        early_rank::with_early_rank(m, cell, seed, roots, bias, work_limit)
+    }
+    pub fn early_rank_diagnostics(&self) -> serde_json::Value {
+        self.early_rank_diagnostics
+            .clone()
+            .unwrap_or(serde_json::Value::Null)
+    }
     pub fn new(
         m: &Model,
         cell: Cell,
@@ -242,73 +260,79 @@ impl LazyJoint {
         if table.mass(0) <= 0. {
             return None;
         }
-        // Independent rival marginals guide training only. They are not
-        // probabilities of the true shared-fixture rank event.
-        let pmfs: Vec<_> = (0..m.n)
-            .map(|t| {
-                let mut p = vec![1.];
-                for g in all.iter().filter(|g| g.home == t || g.away == t) {
-                    let gain = if g.home == t { g.hg } else { g.ag };
-                    let mut next = vec![0.; p.len() + hg[2] as usize];
-                    for (a, &v) in p.iter().enumerate() {
-                        for o in 0..3 {
-                            next[a + gain[o] as usize] += v * g.prob[o];
+        // Independent rival marginals guide root training only. They are not
+        // probabilities of the true shared-fixture rank event. A zero-root
+        // constructor never samples or weights roots, so avoid this setup.
+        let (hint, max, tilted) = if roots > 0 {
+            let pmfs: Vec<_> = (0..m.n)
+                .map(|t| {
+                    let mut p = vec![1.];
+                    for g in all.iter().filter(|g| g.home == t || g.away == t) {
+                        let gain = if g.home == t { g.hg } else { g.ag };
+                        let mut next = vec![0.; p.len() + hg[2] as usize];
+                        for (a, &v) in p.iter().enumerate() {
+                            for o in 0..3 {
+                                next[a + gain[o] as usize] += v * g.prob[o];
+                            }
                         }
+                        p = next;
                     }
-                    p = next;
-                }
-                p
-            })
-            .collect();
-        let hint: Vec<_> = terminal
-            .iter()
-            .enumerate()
-            .map(|(gain, &allowed)| {
-                if allowed == 0. || pmfs[cell.team].get(gain).copied().unwrap_or(0.) == 0. {
-                    return 0.;
-                }
-                let total = base[cell.team] + gain as i32;
-                let mut dp = vec![vec![0.; m.n]; m.n];
-                dp[0][0] = 1.;
-                let mut count = 0;
-                for t in 0..m.n {
-                    if t == cell.team {
-                        continue;
+                    p
+                })
+                .collect();
+            let hint: Vec<_> = terminal
+                .iter()
+                .enumerate()
+                .map(|(gain, &allowed)| {
+                    if allowed == 0. || pmfs[cell.team].get(gain).copied().unwrap_or(0.) == 0. {
+                        return 0.;
                     }
-                    let (mut lo, mut eq, mut hi) = (0., 0., 0.);
-                    for (a, &p) in pmfs[t].iter().enumerate() {
-                        match (base[t] + a as i32).cmp(&total) {
-                            std::cmp::Ordering::Less => lo += p,
-                            std::cmp::Ordering::Equal => eq += p,
-                            std::cmp::Ordering::Greater => hi += p,
+                    let total = base[cell.team] + gain as i32;
+                    let mut dp = vec![vec![0.; m.n]; m.n];
+                    dp[0][0] = 1.;
+                    let mut count = 0;
+                    for t in 0..m.n {
+                        if t == cell.team {
+                            continue;
                         }
-                    }
-                    let mut next = vec![vec![0.; m.n]; m.n];
-                    for a in 0..=count {
-                        for tie in 0..=count - a {
-                            let p = dp[a][tie];
-                            next[a][tie] += p * lo;
-                            next[a + 1][tie] += p * hi;
-                            next[a][tie + 1] += p * eq;
+                        let (mut lo, mut eq, mut hi) = (0., 0., 0.);
+                        for (a, &p) in pmfs[t].iter().enumerate() {
+                            match (base[t] + a as i32).cmp(&total) {
+                                std::cmp::Ordering::Less => lo += p,
+                                std::cmp::Ordering::Equal => eq += p,
+                                std::cmp::Ordering::Greater => hi += p,
+                            }
                         }
+                        let mut next = vec![vec![0.; m.n]; m.n];
+                        for a in 0..=count {
+                            for tie in 0..=count - a {
+                                let p = dp[a][tie];
+                                next[a][tie] += p * lo;
+                                next[a + 1][tie] += p * hi;
+                                next[a][tie + 1] += p * eq;
+                            }
+                        }
+                        dp = next;
+                        count += 1;
                     }
-                    dp = next;
-                    count += 1;
-                }
-                (0..=cell.rank)
-                    .map(|a| (cell.rank - a..m.n - a).map(|tie| dp[a][tie]).sum::<f64>())
-                    .sum::<f64>()
-            })
-            .collect();
-        let max = hint.iter().copied().fold(0., f64::max);
-        let tilted = TerminalTable::new(
-            target.clone(),
-            cell.team,
-            hint.iter()
-                .zip(&terminal)
-                .map(|(&h, &a)| a * if max > 0. { (h / max).max(1e-6) } else { 1. })
-                .collect(),
-        );
+                    (0..=cell.rank)
+                        .map(|a| (cell.rank - a..m.n - a).map(|tie| dp[a][tie]).sum::<f64>())
+                        .sum::<f64>()
+                })
+                .collect();
+            let max = hint.iter().copied().fold(0., f64::max);
+            let tilted = TerminalTable::new(
+                target.clone(),
+                cell.team,
+                hint.iter()
+                    .zip(&terminal)
+                    .map(|(&h, &a)| a * if max > 0. { (h / max).max(1e-6) } else { 1. })
+                    .collect(),
+            );
+            (hint, max, Some(tilted))
+        } else {
+            (Vec::new(), 0., None)
+        };
         let mut result = Self {
             cell,
             subset,
@@ -342,6 +366,7 @@ impl LazyJoint {
             guide_values: 0,
             guide_limit: 4000000,
             guides: HashMap::new(),
+            early_rank_diagnostics: None,
         };
         let mut seen = std::collections::HashSet::new();
         let mut keys = Vec::new();
@@ -374,7 +399,10 @@ impl LazyJoint {
             if i % 8 == 0 {
                 result.target.sample(0, &mut rng, &mut out);
             } else {
-                tilted.sample(0, &mut rng, &mut out);
+                tilted
+                    .as_ref()
+                    .expect("tilted target table exists when roots are requested")
+                    .sample(0, &mut rng, &mut out);
             }
             let key: Vec<_> = target.iter().map(|g| out[g.index]).collect();
             if seen.insert(key.clone()) {
@@ -784,23 +812,6 @@ impl LazyJoint {
             };
             variables.sort_by(|a, b| score(a).total_cmp(&score(b)).then(a.index.cmp(&b.index)));
         }
-        let span = (0..teams)
-            .map(|t| {
-                variables
-                    .iter()
-                    .filter(|g| g.home == t || g.away == t)
-                    .map(|g| {
-                        *if g.home == t { &g.hg } else { &g.ag }
-                            .iter()
-                            .max()
-                            .unwrap()
-                    })
-                    .sum::<i32>()
-            })
-            .max()
-            .unwrap_or(0) as usize
-            + 1;
-        let values = (2 * variables.len() + 1) * span * 2;
         let guide_key: Vec<_> = variables
             .iter()
             .map(|g| (g.index, g.prob.map(f64::to_bits)))
@@ -808,6 +819,23 @@ impl LazyJoint {
         let guide = if let Some(g) = self.guides.get(&guide_key) {
             g.clone()
         } else {
+            let span = (0..teams)
+                .map(|t| {
+                    variables
+                        .iter()
+                        .filter(|g| g.home == t || g.away == t)
+                        .map(|g| {
+                            *if g.home == t { &g.hg } else { &g.ag }
+                                .iter()
+                                .max()
+                                .unwrap()
+                        })
+                        .sum::<i32>()
+                })
+                .max()
+                .unwrap_or(0) as usize
+                + 1;
+            let values = (2 * variables.len() + 1) * span * 2;
             if self.guide_values + values > self.guide_limit {
                 return Err(());
             }
@@ -1140,7 +1168,11 @@ impl LazyJoint {
         work
     }
     pub fn describe(&self, m: &Model) -> serde_json::Value {
-        json!({"mode":"sampled_target_paths","team":m.ids[self.cell.team],"rank":self.cell.rank+1,"roots":self.roots.len(),"alternate_roots":self.alternates.len(),"biased_roots":self.biased.len(),"omitted_fixtures":self.roots.values().filter_map(|p|p.as_ref()).map(|p|p.omitted.len()).sum::<usize>(),"cardinality_roots":self.cases.len(),"cardinality_cases":self.cases.values().map(|c|c.patterns.len()).sum::<usize>(),"feasible_roots":self.mixture.len(),"conditioning_mass":self.target.mass(0),"cache_mass":self.mixture_mass,"setup_nodes":self.nodes,"guide_values":self.guide_values,"joint_profiles":self.joint_cache.len(),"guided_fallback":self.fallback.is_some(),"root_allocation_fitted":!self.root_allocation.is_empty()})
+        let mut description = json!({"mode":"sampled_target_paths","team":m.ids[self.cell.team],"rank":self.cell.rank+1,"roots":self.roots.len(),"alternate_roots":self.alternates.len(),"biased_roots":self.biased.len(),"omitted_fixtures":self.roots.values().filter_map(|p|p.as_ref()).map(|p|p.omitted.len()).sum::<usize>(),"cardinality_roots":self.cases.len(),"cardinality_cases":self.cases.values().map(|c|c.patterns.len()).sum::<usize>(),"feasible_roots":self.mixture.len(),"conditioning_mass":self.target.mass(0),"cache_mass":self.mixture_mass,"setup_nodes":self.nodes,"guide_values":self.guide_values,"joint_profiles":self.joint_cache.len(),"guided_fallback":self.fallback.is_some(),"root_allocation_fitted":!self.root_allocation.is_empty()});
+        if let Some(diagnostics) = &self.early_rank_diagnostics {
+            description["early_rank"] = diagnostics.clone();
+        }
+        description
     }
     /// Learn branch frequencies from training only. Cached branches are disjoint
     /// by target outcomes. The 10% full-support component remains unchanged.
@@ -1902,6 +1934,26 @@ impl LazyJoint {
 mod tests {
     use super::*;
     use crate::{conditioned::canonical_ranks, model::Request};
+
+    #[test]
+    fn zero_requested_roots_skip_root_training_bootstrap() {
+        let request: Request = serde_json::from_value(json!({"id":1,
+            "phase":{"sort":"pt,w,bias","championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+            "team_groups":(0..3).map(|t|json!({"team_id":t,"add_sub":t,"bias":t})).collect::<Vec<_>>(),
+            "games":(0..3).flat_map(|h|(h+1..3).map(move|a|json!({"id":h*3+a,"home_id":h,"away_id":a,"home_power":1.1,"away_power":0.9}))).collect::<Vec<_>>() })).unwrap();
+        let m = Model::new(request).unwrap();
+        let cell = Cell { team: 0, rank: 1 };
+        let p = LazyJoint::with_mode(&m, cell, 817, &[], 0, false, false, None).unwrap();
+
+        assert!(p.roots.is_empty());
+        assert!(p.mixture.is_empty());
+        assert!(p.guides.is_empty());
+        if p.fallback.is_none() {
+            assert_eq!(p.guide_values, 0);
+        }
+        assert!(p.target.mass(0) > 0.);
+    }
+
     #[test]
     fn family_training_preserves_rng_and_family_mixture_estimates_tiny_exact_rank_mass() {
         let request: Request = serde_json::from_value(json!({"id":1,

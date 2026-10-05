@@ -8,6 +8,41 @@ const TOTAL: usize = 30000;
 const PILOT: usize = 500;
 const FLOOR: usize = 200;
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct DrawAudit {
+    pub credit: usize,
+    pub valid: bool,
+    pub reserved_draw_units: usize,
+    pub actual_draw_units: usize,
+    pub already_released_draw_units: usize,
+}
+
+impl DrawAudit {
+    fn record(&mut self, reserved: usize, actual: usize, released: usize) {
+        if released > reserved || actual > reserved.saturating_sub(released) {
+            self.valid = false;
+        }
+        self.reserved_draw_units = self.reserved_draw_units.saturating_add(reserved);
+        self.actual_draw_units = self.actual_draw_units.saturating_add(actual);
+        self.already_released_draw_units =
+            self.already_released_draw_units.saturating_add(released);
+    }
+
+    fn finish(&mut self) {
+        self.credit = if self.valid {
+            self.reserved_draw_units
+                .saturating_sub(self.already_released_draw_units)
+                .saturating_sub(self.actual_draw_units)
+        } else {
+            0
+        };
+    }
+}
+
+fn tree_pilot_release(pilot_cost: usize, setup_work: usize, actual_draw_units: usize) -> usize {
+    pilot_cost.saturating_sub(setup_work.saturating_add(actual_draw_units))
+}
+
 fn fraction(value: &str) -> f64 {
     value
         .parse::<f64>()
@@ -107,7 +142,7 @@ pub(super) fn run(
     excluded: &[Cell],
     available_work: Option<usize>,
     tree_mode: bool,
-) -> (usize, u64, usize, Vec<Cell>, Vec<Cell>) {
+) -> (usize, u64, usize, Vec<Cell>, Vec<Cell>, DrawAudit) {
     let floor = if tree_mode { 10 } else { FLOOR };
     let nominal_total = if tree_mode {
         3000
@@ -129,6 +164,11 @@ pub(super) fn run(
         budget::capacity(m, scaled(6 * REFERENCE_DRAWS, share)),
         available_work,
     ));
+    let audit_enabled = super::target_overflow_tree_enabled() && budget::modeled();
+    let mut audit = DrawAudit {
+        valid: audit_enabled,
+        ..DrawAudit::default()
+    };
     let mut cells: Vec<_> = estimates
         .iter()
         .enumerate()
@@ -281,7 +321,8 @@ pub(super) fn run(
                     true,
                 );
                 let work = interval.result.work;
-                return (interval, true, work);
+                let draw_units = interval.result.operations.units();
+                return (interval, true, work, draw_units);
             }
             let rank = p.sample(
                 m,
@@ -301,22 +342,37 @@ pub(super) fn run(
             );
             let use_interval = interval.result.ess > rank.result.ess;
             let work = rank.result.work + interval.result.work;
+            let draw_units = rank
+                .result
+                .operations
+                .units()
+                .saturating_add(interval.result.operations.units());
             (
                 if use_interval { interval } else { rank },
                 use_interval,
                 work,
+                draw_units,
             )
         });
         work += pilots.iter().map(|r| r.2).sum::<u64>();
+        let pilot_actual = pilots.iter().fold(0usize, |sum, r| sum.saturating_add(r.3));
+        let pilot_release = if tree_mode && budget::modeled() {
+            tree_pilot_release(pilot_cost, p.setup_work(), pilot_actual)
+        } else {
+            0
+        };
         if tree_mode && budget::modeled() {
-            let actual = p.setup_work()
-                + pilots
-                    .iter()
-                    .map(|r| r.0.result.operations.units())
-                    .sum::<usize>();
+            let actual = p.setup_work().saturating_add(pilot_actual);
             if actual < pilot_cost {
                 assert!(draw_budget.release(pilot_cost - actual));
             }
+        }
+        if audit_enabled {
+            audit.record(
+                pilot_cost.saturating_sub(p.setup_work()),
+                pilot_actual,
+                pilot_release,
+            );
         }
         if tree_mode && pilots.iter().all(|r| r.0.result.probability <= 0.) {
             skipped += 1;
@@ -360,8 +416,15 @@ pub(super) fn run(
                     true,
                 );
                 let work = r.result.work;
-                (i, (r, true, work))
+                let draw_units = r.result.operations.units();
+                (i, (r, true, work, draw_units))
             });
+            let revised_actual = revised
+                .iter()
+                .fold(0usize, |sum, row| sum.saturating_add(row.1 .3));
+            if audit_enabled {
+                audit.record(re_pilot_work, revised_actual, 0);
+            }
             for (i, row) in revised {
                 work += row.2;
                 pilots[i] = row;
@@ -471,8 +534,39 @@ pub(super) fn run(
                 assert!(draw_budget.release(unused));
                 reclaimed_check_work += unused;
             }
+            if audit_enabled {
+                let reserved = ns.iter().zip(&costs).fold(0usize, |sum, (n, c)| {
+                    sum.saturating_add(2usize.saturating_mul(*n).saturating_mul(*c))
+                });
+                let released = if refund_checks && check.samples == 0 {
+                    ns.iter().zip(&costs).fold(0usize, |sum, (n, c)| {
+                        sum.saturating_add(n.saturating_mul(*c))
+                    })
+                } else {
+                    0
+                };
+                audit.record(
+                    reserved,
+                    main.operations
+                        .units()
+                        .saturating_add(check.operations.units()),
+                    released,
+                );
+            }
             (main, check, main_ms, check_ms)
         };
+        if tree_mode && audit_enabled {
+            let reserved = ns.iter().zip(&costs).fold(0usize, |sum, (n, c)| {
+                sum.saturating_add(2usize.saturating_mul(*n).saturating_mul(*c))
+            });
+            audit.record(
+                reserved,
+                main.operations
+                    .units()
+                    .saturating_add(check.operations.units()),
+                0,
+            );
+        }
         work += main.work + check.work;
         let ok = accepted(&main, &check, true);
         if ok && commit_estimate(&mut estimates[cell.index(m.n)], &main, true) {
@@ -519,9 +613,24 @@ pub(super) fn run(
                     } else {
                         Result::default()
                     };
+                    let released = if refund_checks && check.samples == 0 {
+                        retry_cost / 2
+                    } else {
+                        0
+                    };
                     if refund_checks && check.samples == 0 {
-                        assert!(draw_budget.release(retry_cost / 2));
+                        assert!(draw_budget.release(released));
                         reclaimed_check_work += retry_cost / 2;
+                    }
+                    if audit_enabled {
+                        audit.record(
+                            retry_cost,
+                            retry
+                                .operations
+                                .units()
+                                .saturating_add(check.operations.units()),
+                            released,
+                        );
                     }
                     work += retry.work + check.work;
                     let accepted = accepted(&retry, &check, true);
@@ -550,12 +659,96 @@ pub(super) fn run(
         "rust_odds_rare_tail_branches_summary",
         json!({"group":m.request.id,"tree_mode":tree_mode,"pilot_draws_per_branch":pilot_draws,"tightened_only":tightened_only,"eligible":cells.len(),"attempted":attempted,"skipped":skipped,"accepted":found,"elapsed_ms":start.elapsed().as_secs_f64()*1000.,"setup_ms":setups_ms,"allowance_ms":if deterministic {None}else{Some(allowance)},"budget_mode":budget::mode(),"work_limit":if deterministic {Some(draw_budget.limit)}else{None},"reclaimed_check_work":reclaimed_check_work,"reserved_work":if deterministic {Some(draw_budget.reserved)}else{None},"work":work,"bound_floor":reduce_floor,"preserved_existing_estimates":before.iter().all(|(i, e)| *e == serde_json::to_value(&estimates[*i]).unwrap())}),
     );
-    (found, work, draw_budget.reserved, handled, tree_eligible)
+    if audit_enabled {
+        audit.finish();
+    }
+    (
+        found,
+        work,
+        draw_budget.reserved,
+        handled,
+        tree_eligible,
+        audit,
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn draw_audit_credits_discarded_pilot_surplus() {
+        let mut audit = DrawAudit {
+            valid: true,
+            ..DrawAudit::default()
+        };
+        audit.record(100, 70, 0);
+        audit.finish();
+        assert_eq!(audit.credit, 30);
+        assert!(audit.valid);
+    }
+    #[test]
+    fn tree_pilot_release_subtracts_setup_and_actual_draw_work() {
+        assert_eq!(tree_pilot_release(150, 20, 100), 30);
+        assert_eq!(tree_pilot_release(150, 20, 140), 0);
+    }
+    #[test]
+    fn draw_audit_subtracts_skipped_check_release_once() {
+        let mut audit = DrawAudit {
+            valid: true,
+            ..DrawAudit::default()
+        };
+        audit.record(200, 100, 100);
+        audit.finish();
+        assert_eq!(audit.credit, 0);
+        assert_eq!(audit.already_released_draw_units, 100);
+    }
+    #[test]
+    fn settled_tree_pilot_has_no_surplus_credit() {
+        let mut audit = DrawAudit {
+            valid: true,
+            ..DrawAudit::default()
+        };
+        // The tree runner has already released its pilot surplus before this
+        // phase is audited, so the effective reservation equals actual work.
+        audit.record(80, 80, 0);
+        audit.finish();
+        assert_eq!(audit.credit, 0);
+    }
+    #[test]
+    fn draw_audit_overrun_invalidates_all_credit() {
+        let mut audit = DrawAudit {
+            valid: true,
+            ..DrawAudit::default()
+        };
+        audit.record(50, 60, 0);
+        audit.record(100, 50, 0);
+        audit.finish();
+        assert!(!audit.valid);
+        assert_eq!(audit.credit, 0);
+    }
+    #[test]
+    fn released_reservation_cannot_mask_phase_overrun() {
+        let mut audit = DrawAudit {
+            valid: true,
+            ..DrawAudit::default()
+        };
+        audit.record(100, 60, 50);
+        audit.record(200, 100, 0);
+        audit.finish();
+        assert!(!audit.valid);
+        assert_eq!(audit.credit, 0);
+    }
+    #[test]
+    fn failed_setup_without_measured_phase_has_no_credit() {
+        let mut audit = DrawAudit {
+            valid: true,
+            ..DrawAudit::default()
+        };
+        audit.finish();
+        assert_eq!(audit.credit, 0);
+        assert_eq!(audit.reserved_draw_units, 0);
+    }
+
     #[test]
     fn transferred_work_cannot_exceed_its_funding() {
         assert_eq!(work_limit(90000, Some(30000)), 30000);

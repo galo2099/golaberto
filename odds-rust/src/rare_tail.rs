@@ -21,7 +21,9 @@ use std::time::Instant;
 mod branches;
 pub(crate) mod budget;
 mod confirmations;
+mod early_roots;
 mod family_config;
+mod overflow_trees;
 use budget::{scaled, WorkBudget, REFERENCE_DRAWS};
 
 fn add_atomic_units(counter: &AtomicUsize, amount: usize) -> bool {
@@ -44,6 +46,58 @@ pub fn family_fallback_enabled() -> bool {
 /// Effective fixed family fallback policy for API and startup diagnostics.
 pub fn family_fallback_settings() -> serde_json::Value {
     family_config::settings()
+}
+/// Whether the bounded target overflow tree is enabled.
+pub fn target_overflow_tree_enabled() -> bool {
+    let production = std::env::var("RUST_ODDS_TARGET_OVERFLOW_TREE").ok();
+    let legacy = std::env::var("RUST_ODDS_EXPERIMENT_TARGET_OVERFLOW_TREE").ok();
+    resolve_target_overflow_tree(
+        production.as_deref(),
+        legacy.as_deref(),
+        profile() == "coverage",
+    )
+}
+fn resolve_target_overflow_tree(
+    production: Option<&str>,
+    legacy: Option<&str>,
+    coverage: bool,
+) -> bool {
+    match production.or(legacy) {
+        Some("1") => true,
+        Some(_) => false,
+        None => coverage,
+    }
+}
+/// Effective target overflow tree settings for API and startup diagnostics.
+pub fn target_overflow_tree_settings() -> serde_json::Value {
+    overflow_trees::settings()
+}
+fn experimental_early_rank_mode() -> Option<bool> {
+    resolve_early_rank_mode(
+        std::env::var("RUST_ODDS_EXPERIMENT_EARLY_RANK")
+            .ok()
+            .as_deref(),
+    )
+}
+fn resolve_early_rank_mode(value: Option<&str>) -> Option<bool> {
+    match value {
+        Some("order") => Some(false),
+        Some("bias") => Some(true),
+        _ => None,
+    }
+}
+fn experimental_early_rank_roots() -> usize {
+    resolve_early_rank_roots(
+        std::env::var("RUST_ODDS_EXPERIMENT_EARLY_RANK_ROOTS")
+            .ok()
+            .as_deref(),
+    )
+}
+fn resolve_early_rank_roots(value: Option<&str>) -> usize {
+    value
+        .and_then(|value| value.parse::<usize>().ok())
+        .unwrap_or(32)
+        .clamp(1, 32)
 }
 fn resolve_profile(explicit: Option<String>) -> String {
     explicit.unwrap_or_else(|| "coverage".into())
@@ -828,13 +882,18 @@ pub fn run(
     let ordinary_final_phase_ms = final_start.elapsed().as_secs_f64() * 1000.;
     // Fund newly certified complete proposals by transferring modeled units
     // from additional confirmation. Existing ordinary results are frozen.
+    let overflow_audit_enabled = target_overflow_tree_enabled() && budget::modeled();
+    let mut branch_draw_audit = branches::DrawAudit {
+        valid: overflow_audit_enabled,
+        ..branches::DrawAudit::default()
+    };
     let (branch_transfer, early_branches) = if more_fraction > 0.
         && budget::modeled()
         && value("RUST_ODDS_RARE_TAIL_BRANCHES") == "1"
         && crate::search::enabled("RUST_ODDS_CERTIFIED_TARGET_LIMITS")
         && crate::search::enabled("RUST_ODDS_CERTIFIED_BRANCH_TRANSFER")
     {
-        let (added, spent, reserved, handled, tree_eligible) = branches::run(
+        let (added, spent, reserved, handled, tree_eligible, audit) = branches::run(
             m,
             seed,
             workers,
@@ -849,6 +908,19 @@ pub fn run(
             )),
             false,
         );
+        if overflow_audit_enabled {
+            branch_draw_audit.valid &= audit.valid;
+            branch_draw_audit.credit = branch_draw_audit.credit.saturating_add(audit.credit);
+            branch_draw_audit.reserved_draw_units = branch_draw_audit
+                .reserved_draw_units
+                .saturating_add(audit.reserved_draw_units);
+            branch_draw_audit.actual_draw_units = branch_draw_audit
+                .actual_draw_units
+                .saturating_add(audit.actual_draw_units);
+            branch_draw_audit.already_released_draw_units = branch_draw_audit
+                .already_released_draw_units
+                .saturating_add(audit.already_released_draw_units);
+        }
         found += added;
         work += spent;
         if tree_enabled() {
@@ -873,7 +945,7 @@ pub fn run(
                     (!tree_eligible.contains(&c)).then_some(c)
                 })
                 .collect();
-            let (added, spent, tree_reserved, tree_handled, _) = branches::run(
+            let (added, spent, tree_reserved, tree_handled, _, audit) = branches::run(
                 m,
                 seed,
                 workers,
@@ -885,6 +957,19 @@ pub fn run(
                 Some(remaining_confirmation.min(remaining_branch)),
                 true,
             );
+            if overflow_audit_enabled {
+                branch_draw_audit.valid &= audit.valid;
+                branch_draw_audit.credit = branch_draw_audit.credit.saturating_add(audit.credit);
+                branch_draw_audit.reserved_draw_units = branch_draw_audit
+                    .reserved_draw_units
+                    .saturating_add(audit.reserved_draw_units);
+                branch_draw_audit.actual_draw_units = branch_draw_audit
+                    .actual_draw_units
+                    .saturating_add(audit.actual_draw_units);
+                branch_draw_audit.already_released_draw_units = branch_draw_audit
+                    .already_released_draw_units
+                    .saturating_add(audit.already_released_draw_units);
+            }
             found += added;
             work += spent;
             let mut handled = handled;
@@ -951,6 +1036,8 @@ pub fn run(
             branch_transfer,
             native_training_stage_spare,
             native_training_stage_audit_valid,
+            branch_draw_audit,
+            budget::capacity(m, budget::confirmation_limit(more_fraction)),
         );
         let (added, fallback_state) = outcome.account_work(&mut work);
         late_fallback_state = fallback_state;
@@ -1115,7 +1202,7 @@ pub fn run(
             unlogged_search_ms + start.elapsed().as_secs_f64() * 1000.,
             |l| l.calculation_elapsed_ms(),
         );
-        let (added, spent, _, _, _) = branches::run(
+        let (added, spent, _, _, _, _) = branches::run(
             m,
             seed,
             workers,
@@ -1256,6 +1343,19 @@ fn publishable(r: &Result, rough: bool) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn early_rank_flags_are_opt_in_and_root_count_is_bounded() {
+        assert_eq!(resolve_early_rank_mode(None), None);
+        assert_eq!(resolve_early_rank_mode(Some("off")), None);
+        assert_eq!(resolve_early_rank_mode(Some("order")), Some(false));
+        assert_eq!(resolve_early_rank_mode(Some("bias")), Some(true));
+        assert_eq!(resolve_early_rank_roots(None), 32);
+        assert_eq!(resolve_early_rank_roots(Some("0")), 1);
+        assert_eq!(resolve_early_rank_roots(Some("12")), 12);
+        assert_eq!(resolve_early_rank_roots(Some("99")), 32);
+        assert_eq!(resolve_early_rank_roots(Some("bad")), 32);
+    }
+
     #[test]
     fn confirmation_priority_accounts_for_sparse_pilot_uncertainty() {
         let sparse = Result {
@@ -1461,6 +1561,20 @@ mod tests {
             "0"
         );
         assert_eq!(resolve_value("RUST_ODDS_RARE_TAIL_TREE", None, false), "");
+    }
+    #[test]
+    fn target_overflow_tree_setting_respects_profile_and_production_precedence() {
+        assert!(resolve_target_overflow_tree(None, None, true));
+        assert!(!resolve_target_overflow_tree(None, None, false));
+        assert!(!resolve_target_overflow_tree(Some("0"), Some("1"), true));
+        assert!(!resolve_target_overflow_tree(
+            Some("invalid"),
+            Some("1"),
+            true
+        ));
+        assert!(resolve_target_overflow_tree(None, Some("1"), false));
+        assert!(!resolve_target_overflow_tree(None, Some("invalid"), true));
+        assert!(resolve_target_overflow_tree(Some("1"), Some("0"), false));
     }
     #[test]
     fn complete_tree_credit_requires_a_gain_and_is_bounded_by_reserved_work() {
