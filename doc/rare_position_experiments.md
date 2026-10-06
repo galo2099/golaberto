@@ -1,5 +1,13 @@
 # Rare finishing-position experiments
 
+This document records the retired Go estimator's experiments. The Go service
+and its benchmark tests have been removed; Go commands below require an
+earlier checkout containing that service. The retained experiment runner checks
+both supplied checkouts for those sources before starting. The synthetic data
+in `go/testdata/rare_position_benchmarks` remains as historical reference data.
+For current Rust build, run and verification commands, use
+[`odds-rust/README.md`](../odds-rust/README.md).
+
 The matched-work benchmark defaults to a 35,000,000 nominal-work limit.
 Set `RARE_POSITION_BENCHMARK_WORK_LIMIT` to a smaller positive value to test
 both arms at a production-sized budget. The offline reference is separate

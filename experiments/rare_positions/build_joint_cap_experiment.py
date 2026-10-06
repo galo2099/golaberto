@@ -47,8 +47,7 @@ HOOK=r'''
 def main():
  p=argparse.ArgumentParser(description=__doc__);p.add_argument('--allocation',choices=['early','deferred'],default='deferred');p.add_argument('--directory',type=Path,required=True);p.add_argument('--target',type=Path,required=True);a=p.parse_args()
  root=Path(__file__).resolve().parents[2];d=a.directory.resolve();d.mkdir(parents=True,exist_ok=True)
- for sub in ['odds-rust','stats/core']:
-  shutil.copytree(root/sub,d/sub,ignore=shutil.ignore_patterns('target'),dirs_exist_ok=True)
+ shutil.copytree(root/'odds-rust',d/'odds-rust',ignore=shutil.ignore_patterns('target'),dirs_exist_ok=True)
  shutil.copytree(root/'experiments/rare_positions/reference',d/'experiments/rare_positions/reference',dirs_exist_ok=True)
  # Reconstruct the recorded pre-integration source, so this historical
  # experiment remains reproducible after production starts exporting the module.

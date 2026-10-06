@@ -361,13 +361,13 @@ fn staging_preserves_small_large_and_fractional_float_bits() {
     }
 }
 
-#[path = "../../stats/core/tests/support/mod.rs"]
+#[path = "../player-ratings/tests/support/mod.rs"]
 mod calculation_fixture;
 
 #[test]
 fn advancing_the_clock_recomputes_player_totals_before_skipping_identical_appearances() {
     let fixture = calculation_fixture::read(
-        &serde_json::from_str(include_str!("../../stats/core/tests/fixtures/input.json")).unwrap(),
+        &serde_json::from_str(include_str!("../player-ratings/tests/fixtures/input.json")).unwrap(),
     );
     let before = ::player_ratings::calculate(
         &fixture.games,

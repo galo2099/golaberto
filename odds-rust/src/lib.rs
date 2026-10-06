@@ -23,7 +23,7 @@ pub mod rng;
 pub mod sampling;
 pub mod search;
 pub mod shared_constraints;
-pub mod small_group;
+pub mod outcome_stratification;
 pub mod sort;
 pub mod target_limits;
 pub mod tilt;

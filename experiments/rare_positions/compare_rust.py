@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Paired full-request Go/Rust comparison. Build both release binaries first.
+"""Archived paired full-request comparison using a historical Go oracle.
+
+Build the Go test binary from a historical checkout and build the Rust release
+binary first.
 
 Each pair runs sequentially; this avoids competing for the four-core budget.
 Raw matrices and logs are kept in the user-selected output directory.

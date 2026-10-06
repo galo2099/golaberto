@@ -44,8 +44,7 @@ impl GoalTilt {
             .sum()
     }
     pub fn new(m: &Model, cell: Cell) -> Option<Self> {
-        let gd = if m.keys.get(1) == Some(&Key::W) { 2 } else { 1 };
-        if m.keys.first() != Some(&Key::Pt) || m.keys.get(gd) != Some(&Key::Gd) {
+        if m.keys.first() != Some(&Key::Pt) || !m.keys.contains(&Key::Gd) {
             return None;
         }
         if m.fixtures
@@ -251,13 +250,102 @@ mod tests {
         let p = GoalTilt::new(&m, Cell { team: 0, rank: 0 }).unwrap();
         let mut rng = Rng::new(808);
         let mut context = Context::new(&m);
-        let (mut sum, mut sum2) = (0., 0.);
+        let (mut sum, mut sum2, mut weight_sum, mut weight_sum2) = (0., 0., 0., 0.);
         let n = 40000;
         for _ in 0..n {
             let (rank, w) = p.rank(&m, &[2, 2], &mut rng, &mut context);
+            weight_sum += w;
+            weight_sum2 += w * w;
             if rank == 0 {
                 sum += w;
                 sum2 += w * w;
+            }
+        }
+        let mean = sum / n as f64;
+        let se = ((sum2 / n as f64 - mean * mean) / (n - 1) as f64).sqrt();
+        let weight_mean = weight_sum / n as f64;
+        let weight_se =
+            ((weight_sum2 / n as f64 - weight_mean * weight_mean) / (n - 1) as f64).sqrt();
+        assert!(
+            (weight_mean - 1.).abs() < 6. * weight_se,
+            "conditional likelihood weights average to {weight_mean}, se={weight_se}"
+        );
+        assert!(
+            (mean - expected).abs() < 6. * se,
+            "{mean} vs {expected}, se={se}"
+        );
+    }
+
+    fn exact_conditional_rank(m: &Model, outcomes: &[u8], target: usize, rank: usize) -> f64 {
+        let options: Vec<Vec<([i32; 2], f64)>> = m
+            .fixtures
+            .iter()
+            .zip(outcomes)
+            .map(|(fixture, &outcome)| {
+                let home = masses(fixture.home_sampler.mean);
+                let away = masses(fixture.away_sampler.mean);
+                let mut scores = Vec::new();
+                let mut total = 0.;
+                for (h, &hp) in home.iter().enumerate() {
+                    for (a, &ap) in away.iter().enumerate() {
+                        let observed = if h < a {
+                            0
+                        } else if h == a {
+                            1
+                        } else {
+                            2
+                        };
+                        if observed == outcome {
+                            let probability = hp * ap;
+                            total += probability;
+                            scores.push(([h as i32, a as i32], probability));
+                        }
+                    }
+                }
+                for (_, probability) in &mut scores {
+                    *probability /= total;
+                }
+                scores
+            })
+            .collect();
+        let mut favorable = 0.;
+        for &(first, first_p) in &options[0] {
+            for &(second, second_p) in &options[1] {
+                let mut campaign = m.base.clone();
+                let mut scores = m.empty_scores();
+                for (i, score) in [first, second].into_iter().enumerate() {
+                    let fixture = &m.fixtures[i];
+                    scores[fixture.request_index] = score;
+                    m.add(&mut campaign, i, score);
+                }
+                let mut order = vec![0; m.n];
+                m.standings(&mut order, &campaign, &scores, &mut Rng::new(808));
+                if order[rank] == target {
+                    favorable += first_p * second_p;
+                }
+            }
+        }
+        favorable
+    }
+
+    #[test]
+    fn tilted_goal_mixture_matches_head_to_head_sorter_reference() {
+        let request: Request = serde_json::from_value(json!({"id":1,"phase":{"sort":"pt,head,gd,bias","championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+            "team_groups":(0..4).map(|t|json!({"team_id":t,"add_sub":if t==1{3}else{0},"bias":10-t})).collect::<Vec<_>>(),
+            "games":[{"id":1,"home_id":0,"away_id":1,"home_power":1.2,"away_power":0.8},{"id":2,"home_id":2,"away_id":3,"home_power":1.2,"away_power":0.8}]})).unwrap();
+        let m = Model::new(request).unwrap();
+        let outcomes = [2, 2];
+        let expected = exact_conditional_rank(&m, &outcomes, 0, 0);
+        let proposal = GoalTilt::new(&m, Cell { team: 0, rank: 0 }).unwrap();
+        let mut rng = Rng::new(809);
+        let mut context = Context::new(&m);
+        let (mut sum, mut sum2) = (0., 0.);
+        let n = 40000;
+        for _ in 0..n {
+            let (rank, weight) = proposal.rank(&m, &outcomes, &mut rng, &mut context);
+            if rank == 0 {
+                sum += weight;
+                sum2 += weight * weight;
             }
         }
         let mean = sum / n as f64;
@@ -266,5 +354,22 @@ mod tests {
             (mean - expected).abs() < 6. * se,
             "{mean} vs {expected}, se={se}"
         );
+    }
+
+    #[test]
+    fn goal_tilt_accepts_goal_difference_after_head_to_head_and_requires_points_first() {
+        let request = |sort: &str| {
+            serde_json::from_value::<Request>(json!({"id":1,"phase":{"sort":sort,"championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+                "team_groups":(0..4).map(|t|json!({"team_id":t,"add_sub":0,"bias":0})).collect::<Vec<_>>(),
+                "games":[{"id":1,"home_id":0,"away_id":1,"home_power":1.2,"away_power":0.8},{"id":2,"home_id":2,"away_id":3,"home_power":1.2,"away_power":0.8}]})).unwrap()
+        };
+        let head_before_gd = Model::new(request("pt,head,w,gd")).unwrap();
+        assert!(GoalTilt::new(&head_before_gd, Cell { team: 0, rank: 0 }).is_some());
+        let gd_before_head = Model::new(request("pt,gd,head")).unwrap();
+        assert!(GoalTilt::new(&gd_before_head, Cell { team: 0, rank: 0 }).is_some());
+        let no_points_first = Model::new(request("head,pt,gd")).unwrap();
+        assert!(GoalTilt::new(&no_points_first, Cell { team: 0, rank: 0 }).is_none());
+        let no_goal_difference = Model::new(request("pt,head,w")).unwrap();
+        assert!(GoalTilt::new(&no_goal_difference, Cell { team: 0, rank: 0 }).is_none());
     }
 }

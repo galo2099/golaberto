@@ -203,9 +203,9 @@ pub fn calculate_logged(
         json!({"samples":scout_samples,"stream_seed":derive(seed,"pipeline-scout")}),
     );
     let phase = Instant::now();
-    let small_group = crate::small_group::estimate(&model, seed);
-    let mut estimates = if let Some((estimates, diagnostic)) = small_group {
-        log.stage("small_group.paths", phase, diagnostic);
+    let stratified = crate::outcome_stratification::estimate(&model, seed);
+    let mut estimates = if let Some((estimates, diagnostic)) = stratified {
+        log.stage("outcome_stratification.paths", phase, diagnostic);
         estimates
     } else {
         pool::production_logged(&model, seed, workers, Some(log))

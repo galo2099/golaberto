@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Differential service checks; historical Go writes use temporary tables only."""
+"""Archived differential checks using a historical Go ratings oracle binary.
+
+The historical Go source is no longer in this checkout; build the oracle from
+a historical checkout. Go writes use temporary tables only.
+"""
 import argparse
 import http.client
 import json

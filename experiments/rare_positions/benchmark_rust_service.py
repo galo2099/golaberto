@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Paired HTTP latency and macOS process peak RSS, with disposable MySQL writes."""
+"""Archived paired service benchmark using a historical Go service binary.
+
+Build the Go benchmark host from a historical checkout. The benchmark uses
+disposable MySQL writes and measures HTTP latency and macOS peak RSS.
+"""
 import argparse
 import http.client
 import json

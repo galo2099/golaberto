@@ -70,8 +70,9 @@ with Sol. Higher-priority runtime instructions still apply.
 ## Project Snapshot
 
 - Application: `Golaberto` (Ruby on Rails).
-- Auxiliary service: Go HTTP service in `go/poisson.go` for odds and ratings.
-- Auxiliary batch pipeline: Rust code in `stats/` computes and persists player ratings.
+- Auxiliary service: Rust HTTP service in `odds-rust/` for odds and ratings.
+- Scraping helper: Go SofaScore API fetcher in `go/sofascore_fetch/`.
+- Player-rating formulas: local Rust crate in `odds-rust/player-ratings/`.
 - Rails config: `config/application.rb` (app defaults are legacy-compatible).
 - Database: MySQL (`mysql2` adapter in `config/database.yml`).
 - Tests: Minitest with fixtures under `test/`.
@@ -81,8 +82,9 @@ with Sol. Higher-priority runtime instructions still apply.
 - `app/models`: domain models (teams, players, games, championships, etc.).
 - `app/controllers`: controller layer (legacy naming includes singular controllers like `team_controller.rb`).
 - `config/routes.rb`: mixed modern + legacy routes with a catch-all route at the end.
-- `go/poisson.go`: standalone service used for championship odds and team/player rating calculations.
-- `stats/`: Rust + Diesel batch code for player rating computation and DB updates.
+- `odds-rust/`: unified HTTP service for championship odds and team/player ratings.
+- `go/sofascore_fetch/`: standalone SofaScore API fetcher used by Rails scraping.
+- `odds-rust/player-ratings/`: player-rating formulas and regression fixtures used by the unified service.
 - `lib/`: important Ruby modules, helpers, and rake tasks used across the app.
 - `db/`: schema and migrations.
 - `test/`: `unit`, `functional`, `system`, fixtures, and test helpers.
@@ -103,13 +105,15 @@ bin/rails db:prepare
 bin/rails server
 ```
 
-Rust player-ratings pipeline (from `stats/`):
+Run the unified Rust service for odds and player ratings:
 
 ```bash
-cd stats && cargo run --release
+cargo build --release --locked --manifest-path odds-rust/Cargo.toml
+odds-rust/target/release/golaberto-odds serve
 ```
 
-It requires `DATABASE_URL` (MySQL) in the environment.
+Player-rating updates use `POST /player_ratings` on port 6577 and require
+`DATABASE_URL` (MySQL) in the service environment.
 
 ## Test Commands
 
@@ -142,30 +146,33 @@ bin/rake test
 - Add or update tests when behavior changes.
 - Do not commit secrets, credentials, or environment-specific files.
 
-## Go Odds/Rating Service Notes
+## Rust Odds/Rating Service Notes
 
-- Service entrypoint: `go/poisson.go`.
+- Service entrypoint: `odds-rust/src/main.rs`.
+- Build with `cargo build --release --locked --manifest-path odds-rust/Cargo.toml`.
+- Run `odds-rust/target/release/golaberto-odds serve`.
 - The service listens on `localhost:6577`.
 - Key endpoints used by Rails:
   - `POST /odds` (championship odds simulation)
   - `POST /spi` (team power/rating calculations)
   - Also exposed: `/eval`, `/historic_ratings`, `/player_ratings`
 - Rails has direct call sites to this service (for example in `app/models/group.rb` and controllers like `team_controller.rb` and `championship_controller.rb`).
-- If you change request/response JSON shapes in the Go service, update all Ruby call sites in the same change.
+- If you change request/response JSON shapes in the Rust service, update all Ruby call sites in the same change.
+- Run `cargo test --release --locked --manifest-path odds-rust/Cargo.toml` for service changes.
+- The former Go odds/ratings service has been removed. Saved Go oracle fixtures remain for regression tests; historical comparison tools require an earlier checkout or a frozen Go test binary.
+- The separate Go SofaScore fetcher remains in `go/sofascore_fetch/`, with its own module. `bin/setup` and deployment build it into `bin/sofascore_fetch`; retain its browser TLS profile when changing transport behavior.
 
-## Rust Player Ratings (`stats/`) Notes
+## Rust Player Ratings Notes
 
-- Main entrypoint: `stats/src/main.rs`.
-- Data models/schema: `stats/src/models.rs` and `stats/src/schema.rs`.
-- Runtime/deps: Rust 2021 + Diesel (MySQL), configured by `stats/Cargo.toml`.
+- Formulas: `odds-rust/player-ratings/src/lib.rs`.
+- Database adapter and persistence: `odds-rust/src/player_ratings.rs`.
+- The standalone Diesel `stats` service has been removed; the unified service uses its native MySQL driver.
 - Reads match/player/goal/historical rating data and upserts computed ratings into:
   - `players` (`off_rating`, `def_rating`, `rating`)
   - `player_games` (`off_rating`, `def_rating`)
-- Uses `DATABASE_URL`; local env files under `stats/` are gitignored.
-- If changing rating formulas, keep behavior aligned with other rating implementations (especially `go/poisson.go` `/player_ratings`) unless divergence is intentional and documented.
-- For changes in `stats/`, run at least:
-  - `cargo check`
-  - `cargo fmt` (when formatting is needed)
+- Uses `DATABASE_URL`; do not commit local database credentials.
+- Preserve the player formulas' legacy float arithmetic and verify the frozen output fixture when changing formulas.
+- Run `cargo test --release --locked --manifest-path odds-rust/player-ratings/Cargo.toml` for formula changes, plus the unified service tests for integration changes.
 
 ## Important Ruby Files in `lib/`
 

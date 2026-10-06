@@ -24,9 +24,14 @@ def main():
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
     work = Path(tempfile.mkdtemp(prefix='sources-', dir=output))
-    archive = subprocess.check_output(['git', 'archive', args.baseline_revision,
-        'odds-rust', 'stats/core',
-        'experiments/rare_positions/reference/2026-09-30-hundredfold/inputs'], cwd=ROOT)
+    pathspecs = ['odds-rust',
+                 'experiments/rare_positions/reference/2026-09-30-hundredfold/inputs']
+    has_legacy_core = subprocess.run(
+        ['git', 'cat-file', '-e', f'{args.baseline_revision}:stats/core/Cargo.toml'],
+        cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
+    if has_legacy_core:
+        pathspecs.append('stats/core')
+    archive = subprocess.check_output(['git', 'archive', args.baseline_revision, *pathspecs], cwd=ROOT)
     patch = (gzip.open(args.candidate_patch, 'rb').read()
              if args.candidate_patch.suffix == '.gz' else args.candidate_patch.read_bytes())
     env = {k: v for k, v in os.environ.items() if k not in

@@ -663,12 +663,12 @@ pub fn run_logged(
     estimates: &mut [Estimate],
     log: Option<&crate::logging::RequestLog>,
 ) -> u64 {
-    if !enabled("RARE_POSITION_CONDITIONED_ZERO")
-        || estimates.iter().all(|e| e.design == "plain_mc")
-    {
+    if !enabled("RARE_POSITION_CONDITIONED_ZERO") {
         if let Some(log) = log {
-            log.event("rust_odds_search_skipped", serde_json::json!({"reason":
-                if !enabled("RARE_POSITION_CONDITIONED_ZERO") {"disabled"} else {"plain_mc_fallback"}}));
+            log.event(
+                "rust_odds_search_skipped",
+                serde_json::json!({"reason":"disabled"}),
+            );
         }
         return 0;
     }
@@ -678,6 +678,19 @@ pub fn run_logged(
     };
     let bounds = Bounds::new(model);
     let baseline = estimates.to_vec();
+    let donors: Vec<_> = baseline
+        .iter()
+        .enumerate()
+        .filter(|(_, e)| {
+            e.design == "matched_point_pool"
+                && e.probability > 0.
+                && e.hits == 0
+                && e.conditional_mass == 0.
+                && e.conditional_samples == 0
+                && e.conditional_hits == 0
+        })
+        .map(|(i, e)| (i, e.clone()))
+        .collect();
     let profile = std::env::var("RUST_ODDS_PROFILE").as_deref() == Ok("1");
     let mut phase = std::time::Instant::now();
     let mut report = |label: &str, fields: serde_json::Value| {
@@ -719,7 +732,23 @@ pub fn run_logged(
         serde_json::json!({"proofs":proofs,"candidate_cells":cells.len()}),
     );
     if cells.is_empty() {
-        return 0;
+        if donors.is_empty() {
+            return 0;
+        }
+        let (found, spent) = run_tail_with_donors(
+            model,
+            seed,
+            workers,
+            estimates,
+            &donors,
+            log,
+            &[],
+            search_start.elapsed().as_secs_f64() * 1000.,
+        );
+        if found > 0 {
+            reconcile(model, estimates, &baseline);
+        }
+        return spent;
     }
     let mut results = parallel(cells.len(), workers, |i| {
         initial(model, &bounds, &pmfs, cells[i], seed)
@@ -958,11 +987,12 @@ pub fn run_logged(
     } else {
         Vec::new()
     };
-    let (found, spent) = crate::rare_tail::run(
+    let (found, spent) = run_tail_with_donors(
         model,
         seed,
         workers,
         estimates,
+        &donors,
         log,
         &tail_seasons,
         search_start.elapsed().as_secs_f64() * 1000.,
@@ -974,23 +1004,12 @@ pub fn run_logged(
         serde_json::json!({"accepted":found,"work":spent,"cells":crate::logging::cell_counts(estimates)}),
     );
     if witnesses > 0 {
-        let mut matrix: Vec<_> = estimates.iter().map(|e| e.probability).collect();
-        if !crate::pool::balance(&mut matrix, model.n) {
-            estimates.clone_from_slice(&baseline);
+        if !reconcile(model, estimates, &baseline) {
             report(
                 "reconcile",
                 serde_json::json!({"rolled_back":true,"cells":crate::logging::cell_counts(estimates)}),
             );
             return work;
-        }
-        for (e, p) in estimates.iter_mut().zip(matrix) {
-            if (e.reachability == "witness" || e.design == "outcome_path_stratified")
-                && e.probability > 0.
-            {
-                e.std_err *= p / e.probability;
-                e.relative_se = Some(e.std_err / p);
-            }
-            e.probability = p;
         }
     }
     report(
@@ -998,4 +1017,94 @@ pub fn run_logged(
         serde_json::json!({"rolled_back":false,"cells":crate::logging::cell_counts(estimates)}),
     );
     work
+}
+
+fn reset_donor_for_tail(est: &mut Estimate) {
+    est.probability = 0.;
+    est.std_err = 0.;
+    est.ess = 0.;
+    est.meets_precision_goal = false;
+    est.relative_se = None;
+    est.max_event_weight_share = 0.;
+    est.zero_hit_upper_95 = 0.;
+    est.design.clear();
+    est.reachability = "undecided".into();
+    est.conditional_mass = 0.;
+    est.conditional_samples = 0;
+    est.conditional_hits = 0;
+}
+
+fn run_tail_with_donors(
+    model: &Model,
+    seed: i64,
+    workers: usize,
+    estimates: &mut [Estimate],
+    donors: &[(usize, Estimate)],
+    log: Option<&crate::logging::RequestLog>,
+    seasons: &[(Vec<u8>, Vec<usize>)],
+    elapsed_ms: f64,
+) -> (usize, u64) {
+    let true_zero_candidates = estimates
+        .iter()
+        .filter(|e| e.probability == 0. && !e.reachability.starts_with("impossible"))
+        .count();
+    if !donors.is_empty() && true_zero_candidates > 0 {
+        if let Some(log) = log {
+            log.event(
+                "rust_odds_search_donors",
+                serde_json::json!({
+                    "donor_candidates": donors.len(),
+                    "admitted": 0,
+                    "deferred": donors.len(),
+                    "true_zero_candidates": true_zero_candidates,
+                    "reason": "zero_recovery_budget_reserved"
+                }),
+            );
+        }
+        return crate::rare_tail::run(model, seed, workers, estimates, log, seasons, elapsed_ms);
+    }
+    if !donors.is_empty() {
+        if let Some(log) = log {
+            log.event(
+                "rust_odds_search_donors",
+                serde_json::json!({
+                    "donor_candidates": donors.len(),
+                    "admitted": donors.len(),
+                    "deferred": 0,
+                    "true_zero_candidates": 0,
+                    "reason": "no_true_zero_candidates"
+                }),
+            );
+        }
+    }
+    for (index, donor) in donors {
+        estimates[*index] = donor.clone();
+        reset_donor_for_tail(&mut estimates[*index]);
+    }
+    let (found, spent) =
+        crate::rare_tail::run(model, seed, workers, estimates, log, seasons, elapsed_ms);
+    for (index, donor) in donors {
+        if estimates[*index].probability <= 0. {
+            estimates[*index] = donor.clone();
+        }
+    }
+    (found, spent)
+}
+
+fn reconcile(model: &Model, estimates: &mut [Estimate], baseline: &[Estimate]) -> bool {
+    let mut matrix: Vec<_> = estimates.iter().map(|e| e.probability).collect();
+    if !crate::pool::balance(&mut matrix, model.n) {
+        estimates.clone_from_slice(baseline);
+        return false;
+    }
+    for (e, p) in estimates.iter_mut().zip(matrix) {
+        if (e.reachability == "witness" || e.design == "outcome_path_stratified")
+            && e.probability > 0.
+        {
+            e.std_err *= p / e.probability;
+            e.relative_se = Some(e.std_err / p);
+        }
+        e.probability = p;
+    }
+    true
 }

@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Run one reproducible rare-position hypothesis against a fixed baseline."""
+"""Run one reproducible rare-position hypothesis against historical Go checkouts.
+
+This archived experiment requires baseline and candidate directories containing
+the removed Go oracle source (go/poisson.go and go.mod).
+"""
 
 import argparse
 import json
@@ -23,9 +27,11 @@ def commit_label(path):
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--baseline", type=Path, required=True)
-    parser.add_argument("--candidate", type=Path, required=True)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--baseline", type=Path, required=True,
+                        help="historical Go checkout containing go/poisson.go and go.mod")
+    parser.add_argument("--candidate", type=Path, required=True,
+                        help="historical Go checkout containing go/poisson.go and go.mod")
     parser.add_argument("--fixtures", required=True, help="comma-separated GroupType JSON paths")
     parser.add_argument("--reference-dir", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
@@ -36,6 +42,15 @@ def main():
     args = parser.parse_args()
     if args.seeds < 5:
         parser.error("use at least five matched seeds")
+    for label, source in (("baseline", args.baseline), ("candidate", args.candidate)):
+        missing = [str(source / relative) for relative in ("go/poisson.go", "go.mod")
+                   if not (source / relative).is_file()]
+        if missing:
+            parser.error(
+                f"{label} source {source} is not a historical Go checkout; missing "
+                f"{', '.join(missing)}. This archived experiment requires the removed Go "
+                "oracle source; provide a historical checkout."
+            )
     args.output.mkdir(parents=True, exist_ok=True)
     for name in ("baseline", "candidate"):
         path = args.output / name

@@ -1,7 +1,7 @@
 # Rust odds and ratings service
 
-Native Rust implementation of the current Go **matched point pool** estimator.
-It includes the initial game-importance scout, bounded small-group path analysis,
+Native Rust odds and ratings service using the **matched point pool** estimator.
+It includes the initial game-importance scout, cost-selected outcome stratification,
 a general 100,000-season pool, exact point
 PMFs, uncertainty estimates, cap/floor proofs, conditional sampling, rank-directed
 importance sampling, neighborhood and constructive witnesses, point-tilt/gap
@@ -9,7 +9,11 @@ rescues, cross-team witness reuse, directional/constraint peer rescues, propagat
 domains, reduced fixtures, and final matrix reconciliation.
 
 The executable does not call Go and does not read the golden probabilities.
-Go is used only by the offline comparison harness. The default coverage profile
+The former Go odds/ratings service has been removed. Saved Go oracle fixtures
+remain for regression tests; historical comparison tools require a frozen Go
+test binary or an earlier checkout. The separate SofaScore fetcher remains in
+`go/sofascore_fetch/` and is built by Rails setup and deployment.
+The default coverage profile
 adds a bounded portfolio for remaining zero cells, targeting order-of-magnitude
 estimates. Earlier sampling stages and acceptance gates are preserved; the
 additional portfolio uses deterministic work limits and the documented
@@ -38,34 +42,54 @@ these extra candidates. More eligibility can increase CPU and latency. See the
 [two-result fixture and paired measurements](../experiments/rare_positions/2026-10-04-rust-two-results.md).
 This experiment is not enabled by default.
 
-The native service also replaces the active Go `/spi`, `/eval`, and
-`/historic_ratings` endpoints and integrates the active `stats` `/player_ratings`
-command. It does not run or proxy Go or the stats executable. The player formulas
-are shared with the standalone stats service through `stats/core`; one release
-binary now serves all five application endpoints on port 6577.
+The native service serves `/spi`, `/eval`, `/historic_ratings`, and
+`/player_ratings` alongside `/odds`. It does not run or proxy another service.
+The standalone Diesel `stats` service has been removed; its active player
+formulas and regression fixtures now live in the local `player-ratings` crate.
+One release binary serves all five application endpoints on port 6577.
 
-## Small head-to-head groups
+## Outcome stratification and general search
 
-Before the general matched-point pool, the odds API tries a bounded path
-estimator for groups with at most six teams and eight remaining games, a
-`pt,head` sort prefix, no bonus points, and at most one remaining game per
-team pair. All participating teams must belong to the group. It enumerates
-win/draw/loss paths and calculates their prior probabilities from the existing
-Poisson score distributions.
+The Rust standings sorter follows Ruby's numeric head-to-head rules.
+It builds comparison mini-tables from the teams tied on points and recursively
+resolves narrower ties. When the whole current table is tied, or it contains
+only two teams, it skips head-to-head and continues with the next ranking key.
+Point adjustments and bias are retained in mini-tables. Games are applied as
+played history followed by simulated fixtures; the latest result in each
+home/away direction is used for head-to-head comparisons.
 
-For teams tied on final points, future scores are grouped by their complete
+Before the general matched-point pool, the odds API compares the estimated work
+of outcome stratification with a 100,000-season simulation of the same model.
+The checked plan accounts for outcome paths, score support, campaign copies,
+ranking comparisons, and conditional draws. These are logical work estimates,
+rather than a wall-clock deadline. Team count and a `pt,head` sort
+prefix do not select the strategy. Cheap plans can use other ranking orders,
+repeated pairings, and opponents outside the group. Bonus-point rules and
+Poisson means above 32 still use the general estimator.
+
+The strategy enumerates win/draw/loss paths and calculates their prior
+probabilities from the existing Poisson score distributions. Score-independent
+ranking comparisons contribute their full path mass directly; unresolved
+comparisons use conditional scores and the production standings sorter.
+
+For compatible `pt,head` schedules with unique internal pairings, an optional
+refinement groups future scores for teams tied on final points by their complete
 head-to-head comparison against the played results. This integrates rare
 goal-difference reversals with their own probability mass. A bucket retains
 its conditional score distribution, including equal-margin cases decided by
-away goals. Paths with fixed comparisons contribute their full mass directly;
-remaining score-dependent ties receive 128 conditional score samples per
-stratum. Every draw uses the existing standings sorter. Weighted permutations
+away goals. Paths with certified fixed comparisons contribute their full mass
+directly. Tied cohorts of three or more teams and ties in a two-team group
+remain score-dependent; their pair buckets cannot certify the full ranking.
+Score-dependent ties receive at least 128 conditional score samples per stratum,
+with additional draws allocated from the remaining work allowance before sampling.
+Every draw uses the standings sorter. Weighted permutations
 preserve team and position totals without matrix balancing.
 
 The plan allows at most 50,000 strata and 100,000 conditional draws; exceeding
-either limit uses the general estimator. This cap excludes scouting and any
-subsequent rare-event rescue. Eligible group 17058 uses 729 outcome
-paths, 1,063 strata, and 25,728 conditional score draws. The separate
+the cost allowance or either cap uses the general estimator. These caps exclude scouting and any
+subsequent rare-event rescue. The regression fixtures for groups 17058 and
+17064 cover 729 and 81 outcome paths respectively. Group 17064 verifies all
+16 team/position estimates, including the all-eight-points tie. The separate
 20,000-season game-importance scout remains unchanged. RNG streams depend on
 the seed and stratum, so the odds are identical with one or four workers.
 
@@ -79,6 +103,19 @@ These calculations use the same finite Poisson score support as the existing
 score sampler; a missed score
 tail is never a proof of mathematical impossibility. Existing rare-event
 search still handles any cells left undecided.
+
+General search is gated by support for point-total conditioning, so a supported
+request can still receive rescue work after the pool falls back to plain Monte
+Carlo. A positive matched-pool estimate with no direct hits and no conditional
+evidence can also enter the rare-event confirmation stage when no unresolved
+zero cells are waiting. The existing confirmation budget stays reserved for
+zero-cell recovery while any remain, so borrowed-cell retries cannot displace
+that work. Failed confirmations
+restore the original estimate and its metadata before the existing matrix
+reconciliation; only independent confirmation can replace its evidence.
+Goal-score tilting supports goal difference later in a points-first
+ranking order, including after head-to-head; sampled finishes always use the
+production sorter.
 
 ## Build and run
 
@@ -111,8 +148,8 @@ odds-rust/target/release/golaberto-odds estimate \
 
 Arguments are request path, output path, seed, and worker count (1–4).
 The default seed is 808 for reproducible CLI experiments. Every full request
-includes the 20,000-season game-importance scout. Eligible small groups use the
-path estimator; other requests use the 100,000-season matched pool.
+includes the 20,000-season game-importance scout. Affordable stratification plans
+use the path estimator; other requests use the 100,000-season matched pool.
 Timings go to stderr; the response goes to the output file.
 
 ```sh
@@ -411,12 +448,10 @@ and binary, including one versus four workers; this does not eliminate sampling
 error.
 
 Running the executable without arguments also starts the service at
-`127.0.0.1:6577`. For a deployment trial, use an explicit unused port, then
-replace the Go process on port 6577 after validation. Do not run both processes
-on the same address. The Rails odds, SPI and evaluation call sites already use
-6577 and require no request/response changes. The updated Rails player-rating
-caller also uses 6577. Deploy the Rails change with the unified service; after
-that deployment the separate `stats` process on 6578 can be stopped.
+`127.0.0.1:6577`. The Rails odds, SPI, evaluation, historical-rating and
+player-rating call sites all use this unified service on port 6577.
+For a deployment trial, use an explicit unused port before restarting the
+service on its application address.
 
 | Endpoint | Request | Response and side effects |
 |---|---|---|
@@ -585,8 +620,14 @@ cargo fmt --manifest-path odds-rust/Cargo.toml -- --check
 MYSQL_TEST_URL=mysql://root@127.0.0.1:3306/GolAberto_development \
   cargo test --release --locked --manifest-path odds-rust/Cargo.toml \
   --test database -- --ignored
+```
 
-(cd go && GOMAXPROCS=4 go test -c -o /tmp/golaberto-go-baseline.test .)
+Rust tests consume saved Go scout and rating outputs without building Go.
+To reproduce a historical cross-language comparison, first build the Go test
+binary from an earlier checkout containing the retired service, then pass that
+frozen binary to the retained comparison tool:
+
+```sh
 python3 experiments/rare_positions/compare_rust.py \
   --go /tmp/golaberto-go-baseline.test \
   --rust odds-rust/target/release/golaberto-odds \
@@ -598,15 +639,17 @@ The comparison runs Go and Rust sequentially, alternates their order, clears
 inherited rare-estimator flags, and scores both against the same partial golden
 set. Raw matrices and logs remain in the requested output directory.
 
-The `oracle` CLI mode and `TestRustEstimatorOracle` Go test compare intermediate
-RNG, MC, point-PMF, pool, and conditional-kernel results. See the experiment
+The `oracle` CLI mode exports intermediate RNG, MC, point-PMF, pool, and
+conditional-kernel results. The historical `TestRustEstimatorOracle` Go test
+produced the saved comparison data. See the experiment
 report under `experiments/rare_positions/2026-09-30-rust.md` for measured results
 and the limits of the quality comparison.
 
-The active endpoint replacement has a Go differential oracle and paired
-comparison harness. See `experiments/rare_positions/2026-09-30-rust-service.md`
-for results and commands. The oracle's historical writes also use a temporary
-table; neither comparison modifies application rating data.
+The retained Go differential and paired service comparison tools require a
+frozen historical Go test binary. See
+`experiments/rare_positions/2026-09-30-rust-service.md` for historical results
+and commands. The oracle's historical writes use a temporary table; neither
+comparison modifies application rating data.
 
 The service branch was merged with the enabled reachability improvements;
 [merge verification](../experiments/rare_positions/2026-09-30-rust-service-merge.md)
@@ -615,8 +658,8 @@ against that current Rust baseline.
 
 ## Unified player ratings
 
-Build from the complete repository checkout: `odds-rust` depends on the shared
-library in `stats/core`. The unified binary uses its existing native MySQL driver
+The player-rating formula library lives in `odds-rust/player-ratings`, inside
+the service tree. The unified binary uses its existing native MySQL driver
 and does not need Diesel or a system MySQL client library. Its `DATABASE_URL`
 must point to the same database as Rails and permit player/appearance updates.
 
@@ -700,10 +743,10 @@ This example writes an output file with IDs and raw float bits; it performs no
 DB updates. An optional fixed timestamp and input-export filename allow offline
 formula comparisons. Keep database-derived exports outside the repository.
 
-Tests of the shared library run separately:
+Tests of the formula library run separately:
 
 ```sh
-cargo test --release --locked --manifest-path stats/core/Cargo.toml
+cargo test --release --locked --manifest-path odds-rust/player-ratings/Cargo.toml
 MYSQL_TEST_URL=mysql://root@127.0.0.1:3306/GolAberto_development \
   cargo test --release --locked --manifest-path odds-rust/Cargo.toml \
   --test player_ratings -- --ignored

@@ -12,7 +12,7 @@ chrono = { version = "0.4", default-features = false, features = ["clock", "std"
 mysql = { version = "26", default-features = false, features = ["minimal-rust", "chrono", "buffer-pool"] }
 tiny_http = "0.12"
 smallvec = "1.10.0"
-player-ratings = { package = "golaberto-player-ratings", path = "../stats/core" }
+player-ratings = { package = "golaberto-player-ratings", path = "player-ratings" }
 
 [profile.release]
 lto = "thin"
