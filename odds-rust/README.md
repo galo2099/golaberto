@@ -640,6 +640,24 @@ MYSQL_TEST_URL=mysql://root@127.0.0.1:3306/GolAberto_development \
 ```
 
 Rust tests consume saved Go scout and rating outputs without building Go.
+The five synthetic 20-team scenarios in
+`tests/fixtures/rare_position_benchmarks` also run fixed-seed sampling and ranking
+regressions against their frozen 5M-season Go references. The default checks
+validate fixture hashes and matrix conservation, then compare probabilities
+with conservative allowances for sampling error. The same target checks the
+100,000-season production pool's matrix and its agreement with reference cells
+having at least 25 hits:
+
+```sh
+cargo test --release --locked --manifest-path odds-rust/Cargo.toml \
+  --test rare_position_benchmarks
+```
+
+The production comparison is an empirical regression gate for these fixed
+cases: its jackknife errors do not quantify pooling bias. The references are
+test expectations only. Sampling zeros do not certify an impossible finish,
+and these checks do not validate the rare-event fallback's extreme-tail accuracy.
+
 To reproduce a historical cross-language comparison, first build the Go test
 binary from an earlier checkout containing the retired service, then pass that
 frozen binary to the retained comparison tool:

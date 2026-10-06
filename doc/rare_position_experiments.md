@@ -4,7 +4,9 @@ This document records the retired Go estimator's experiments. The Go service
 and its benchmark tests have been removed; Go commands below require an
 earlier checkout containing that service. The retained experiment runner checks
 both supplied checkouts for those sources before starting. The synthetic data
-in `go/testdata/rare_position_benchmarks` remains as historical reference data.
+now lives in `odds-rust/tests/fixtures/rare_position_benchmarks` and is used by
+Rust sampling and ranking regression tests. The frozen reference results still
+come from the retired Go estimator.
 For current Rust build, run and verification commands, use
 [`odds-rust/README.md`](../odds-rust/README.md).
 
@@ -37,8 +39,16 @@ python3 script/generate_rare_position_benchmarks.py --output /tmp/rare-fixtures
 The generator creates five 20-team groups (`tight`, `wide`, `dominant`, `weak`,
 and `blockers`), each with 330 unplayed games and 50 deterministic played
 games. A checked-in copy and its 5M-simulation reference matrices live in
-`go/testdata/rare_position_benchmarks`. These are controlled scenarios, not a
-substitute for real-group validation.
+`odds-rust/tests/fixtures/rare_position_benchmarks`. The Rust regression target
+checks the reference/input association and compares fixed-seed samples with
+the frozen probabilities using conservative sampling-error allowances:
+
+```sh
+cargo test --release --locked --manifest-path odds-rust/Cargo.toml \
+  --test rare_position_benchmarks
+```
+
+These are controlled scenarios, not a substitute for real-group validation.
 
 ## Build references
 

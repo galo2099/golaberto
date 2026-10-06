@@ -16,6 +16,10 @@ service commands are documented in `odds-rust/README.md`. The separate
 Rust SofaScore fetcher in `sofascore-fetch-rust/` is used by Rails scraping;
 active setup and deployment no longer require Go.
 
+The five synthetic benchmark inputs and frozen 5M-simulation Go references now
+live in `odds-rust/tests/fixtures/rare_position_benchmarks`. Rust regression
+tests exercise these fixtures; their README describes the statistical checks.
+
 The standalone `stats` service has also been removed. Its active formula
 library moved from `stats/core` to `odds-rust/player-ratings`. References to
 `stats/core` in dated reports and commands describe the historical source

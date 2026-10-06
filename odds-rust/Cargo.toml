@@ -14,6 +14,9 @@ tiny_http = "0.12"
 smallvec = "1.10.0"
 player-ratings = { package = "golaberto-player-ratings", path = "player-ratings" }
 
+[dev-dependencies]
+sha2 = "0.10"
+
 [profile.release]
 lto = "thin"
 codegen-units = 1
