@@ -3,6 +3,7 @@ use crate::{
     sampling::{Poisson, Scores},
 };
 use serde::{Deserialize, Deserializer, Serialize};
+use smallvec::SmallVec;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -124,6 +125,12 @@ pub struct Fixture {
     pub prob: [f64; 3],
     pub scores: Scores,
 }
+#[derive(Clone, Copy)]
+struct DirectedGame {
+    home: usize,
+    away: usize,
+    request_index: usize,
+}
 pub struct Model {
     pub request: Request,
     pub ids: Vec<i32>,
@@ -132,6 +139,8 @@ pub struct Model {
     pub fixtures: Vec<Fixture>,
     pub keys: Vec<Key>,
     pub pair_games: Vec<Vec<(usize, bool)>>,
+    // Latest game for each directed in-group pair, indexed by (home, away).
+    latest_directed: Vec<Option<DirectedGame>>,
     pub n: usize,
     pub(crate) target_limits: Mutex<HashMap<usize, crate::target_limits::Certified>>,
 }
@@ -187,7 +196,7 @@ impl Model {
                 });
             }
         }
-        let keys = request
+        let keys: Vec<Key> = request
             .phase
             .sort
             .split(',')
@@ -207,12 +216,26 @@ impl Model {
             })
             .collect();
         let mut pair_games = vec![Vec::new(); n * n];
+        let mut latest_directed = vec![None; n * n];
         for (i, g) in request.games.iter().enumerate() {
             let h = indices[&g.home_id];
             let a = indices[&g.away_id];
             if h < n && a < n {
                 pair_games[h * n + a].push((i, true));
                 pair_games[a * n + h].push((i, false));
+                let slot = &mut latest_directed[h * n + a];
+                let replace = slot.is_none_or(|previous: DirectedGame| {
+                    let prev = &request.games[previous.request_index];
+                    let current = &request.games[i];
+                    (!current.played, i) > (!prev.played, previous.request_index)
+                });
+                if replace {
+                    *slot = Some(DirectedGame {
+                        home: h,
+                        away: a,
+                        request_index: i,
+                    });
+                }
             }
         }
         Ok(Self {
@@ -223,6 +246,7 @@ impl Model {
             fixtures,
             keys,
             pair_games,
+            latest_directed,
             n,
             target_limits: Mutex::new(HashMap::new()),
         })
@@ -296,9 +320,17 @@ impl Model {
                 Key::Away => (c[a].away as f64, c[b].away as f64),
                 Key::Bias => (c[a].bias as f64, c[b].bias as f64),
                 Key::Aet | Key::Gp => (0., 0.),
-                Key::Random | Key::Name => return rng.float() < 0.5,
+                Key::Random | Key::Name => {
+                    if cohort.is_some() {
+                        continue;
+                    }
+                    return rng.float() < 0.5;
+                }
                 Key::Head => {
                     let cohort_len = cohort.map_or(self.n, |teams| teams.len());
+                    if cohort_len <= 2 {
+                        continue;
+                    }
                     let includes_pair =
                         cohort.map_or(true, |teams| teams.contains(&a) && teams.contains(&b));
                     let all_equal = if let Some(teams) = cohort {
@@ -308,7 +340,7 @@ impl Model {
                     } else {
                         (0..self.n).all(|t| c[t].points == c[0].points)
                     };
-                    if cohort_len > 2 && includes_pair && !all_equal {
+                    if includes_pair && !all_equal {
                         match self.context_head_order(a, b, cohort, c, scores, rng, game_scope) {
                             Ordering::Less => return true,
                             Ordering::Greater => return false,
@@ -338,7 +370,7 @@ impl Model {
         game_scope: Option<&[usize]>,
     ) -> Ordering {
         let cohort_len = cohort.map_or(self.n, |teams| teams.len());
-        let tied: Vec<_> = (0..cohort_len)
+        let tied: SmallVec<[usize; 32]> = (0..cohort_len)
             .filter_map(|index| {
                 let team = cohort.map_or(index, |teams| teams[index]);
                 (c[team].points == c[a].points).then_some(team)
@@ -347,57 +379,50 @@ impl Model {
         if tied.len() == cohort_len || tied.len() <= 1 || !tied.contains(&b) {
             return Ordering::Equal;
         }
-        let mut mini = vec![Campaign::default(); c.len()];
+        let mut mini: SmallVec<[Campaign; 32]> = std::iter::repeat(Campaign::default())
+            .take(c.len())
+            .collect();
         for &t in &tied {
             let team = &self.request.team_groups[t];
             mini[t].points = team.add_sub;
             mini[t].bias = team.bias;
         }
-        let in_tied: std::collections::HashSet<_> = tied.iter().copied().collect();
-        let mut selected = Vec::new();
-        let mut last_by_pair = HashMap::new();
-        let scope_len = game_scope.map_or(self.request.games.len(), |games| games.len());
         // Model::new applies played games first and future games afterward,
         // matching the Go service's campaign construction even when the
         // request interleaves those categories.
-        for played in [true, false] {
-            for index in 0..scope_len {
-                let gi = game_scope.map_or(index, |games| games[index]);
-                let game = &self.request.games[gi];
-                if game.played != played {
+        let mut selected_edges: SmallVec<[DirectedGame; 128]> = SmallVec::new();
+        for &team in &tied {
+            for edge in [
+                self.latest_directed[a * self.n + team],
+                self.latest_directed[team * self.n + a],
+                self.latest_directed[b * self.n + team],
+                self.latest_directed[team * self.n + b],
+            ]
+            .into_iter()
+            .flatten()
+            {
+                let gi = edge.request_index;
+                if game_scope.is_some_and(|scope| scope.binary_search(&gi).is_err()) {
                     continue;
                 }
-                let Some(&h) = self.indices.get(&game.home_id) else {
-                    continue;
-                };
-                let Some(&v) = self.indices.get(&game.away_id) else {
-                    continue;
-                };
-                if in_tied.contains(&h)
-                    && in_tied.contains(&v)
-                    && (h == a || h == b || v == a || v == b)
-                {
-                    last_by_pair.insert((h, v), gi);
-                }
+                selected_edges.push(edge);
             }
         }
-        selected.extend(last_by_pair.into_values());
-        selected.sort_unstable();
-        for &gi in &selected {
-            let game = &self.request.games[gi];
-            let h = self.indices[&game.home_id];
-            let v = self.indices[&game.away_id];
-            let [hs, as_] = scores[gi];
-            mini[h].add(hs, as_, true, &self.request.phase.championship);
-            mini[v].add(as_, hs, false, &self.request.phase.championship);
-        }
-        // Ruby removes the name key before comparing the mini table.
-        let keys: Vec<_> = self
-            .keys
+        selected_edges.sort_unstable_by_key(|edge| edge.request_index);
+        selected_edges.dedup_by_key(|edge| edge.request_index);
+        let selected: SmallVec<[usize; 64]> = selected_edges
             .iter()
-            .copied()
-            .filter(|key| *key != Key::Name && *key != Key::Random)
+            .map(|edge| edge.request_index)
             .collect();
+        for edge in selected_edges {
+            let gi = edge.request_index;
+            let [hs, as_] = scores[gi];
+            mini[edge.home].add(hs, as_, true, &self.request.phase.championship);
+            mini[edge.away].add(as_, hs, false, &self.request.phase.championship);
+        }
+        // Ruby removes name/random keys from mini-table comparisons. The
+        // comparator applies that rule whenever it has a contextual cohort.
+        let keys = &self.keys;
         let ordering = if self.compare_standing(
             a,
             b,
@@ -407,7 +432,7 @@ impl Model {
             0,
             Some(&tied),
             Some(&selected),
-            &keys,
+            keys,
         ) {
             Ordering::Less
         } else if self.compare_standing(
@@ -419,7 +444,7 @@ impl Model {
             0,
             Some(&tied),
             Some(&selected),
-            &keys,
+            keys,
         ) {
             Ordering::Greater
         } else {
@@ -616,6 +641,322 @@ mod contextual_head_tests {
                 ..Default::default()
             })
             .collect()
+    }
+
+    // Deliberately retain the old whole-scope algorithm as a test oracle.
+    fn slow_head(
+        m: &Model,
+        a: usize,
+        b: usize,
+        cohort: Option<&[usize]>,
+        c: &[Campaign],
+        scores: &[[i32; 2]],
+        rng: &mut Rng,
+        scope: Option<&[usize]>,
+    ) -> Ordering {
+        let len = cohort.map_or(m.n, |teams| teams.len());
+        let tied: Vec<_> = (0..len)
+            .filter_map(|i| {
+                let t = cohort.map_or(i, |teams| teams[i]);
+                (c[t].points == c[a].points).then_some(t)
+            })
+            .collect();
+        if tied.len() == len || tied.len() <= 1 || !tied.contains(&b) {
+            return Ordering::Equal;
+        }
+        let mut mini = vec![Campaign::default(); c.len()];
+        for &t in &tied {
+            mini[t].points = m.request.team_groups[t].add_sub;
+            mini[t].bias = m.request.team_groups[t].bias;
+        }
+        let count = scope.map_or(m.request.games.len(), |s| s.len());
+        let mut latest = HashMap::new();
+        for played in [true, false] {
+            for i in 0..count {
+                let gi = scope.map_or(i, |s| s[i]);
+                let g = &m.request.games[gi];
+                if g.played != played {
+                    continue;
+                }
+                let (Some(&h), Some(&v)) = (m.indices.get(&g.home_id), m.indices.get(&g.away_id))
+                else {
+                    continue;
+                };
+                if tied.contains(&h) && tied.contains(&v) && (h == a || h == b || v == a || v == b)
+                {
+                    latest.insert((h, v), gi);
+                }
+            }
+        }
+        let mut selected: Vec<_> = latest.into_values().collect();
+        selected.sort_unstable();
+        for &gi in &selected {
+            let g = &m.request.games[gi];
+            let (h, v) = (m.indices[&g.home_id], m.indices[&g.away_id]);
+            let [hs, as_] = scores[gi];
+            mini[h].add(hs, as_, true, &m.request.phase.championship);
+            mini[v].add(as_, hs, false, &m.request.phase.championship);
+        }
+        let keys: Vec<_> = m
+            .keys
+            .iter()
+            .copied()
+            .filter(|k| *k != Key::Name && *k != Key::Random)
+            .collect();
+        if slow_compare(m, a, b, &tied, &selected, &mini, scores, rng, &keys) {
+            Ordering::Less
+        } else if slow_compare(m, b, a, &tied, &selected, &mini, scores, rng, &keys) {
+            Ordering::Greater
+        } else {
+            Ordering::Equal
+        }
+    }
+
+    fn slow_compare(
+        m: &Model,
+        a: usize,
+        b: usize,
+        cohort: &[usize],
+        scope: &[usize],
+        c: &[Campaign],
+        scores: &[[i32; 2]],
+        rng: &mut Rng,
+        keys: &[Key],
+    ) -> bool {
+        for key in keys {
+            let (x, y) = match key {
+                Key::Pt => (c[a].points as f64, c[b].points as f64),
+                Key::W => (c[a].wins as f64, c[b].wins as f64),
+                Key::Gd => ((c[a].gf - c[a].ga) as f64, (c[b].gf - c[b].ga) as f64),
+                Key::Gf => (c[a].gf as f64, c[b].gf as f64),
+                Key::Average => (
+                    c[a].gf as f64 / (c[a].ga as f64 + 1e-13),
+                    c[b].gf as f64 / (c[b].ga as f64 + 1e-13),
+                ),
+                Key::Away => (c[a].away as f64, c[b].away as f64),
+                Key::Bias => (c[a].bias as f64, c[b].bias as f64),
+                Key::Aet | Key::Gp => (0., 0.),
+                Key::Name | Key::Random => return rng.float() < 0.5,
+                Key::Head => {
+                    let all_equal = cohort.iter().all(|&t| c[t].points == c[cohort[0]].points);
+                    if cohort.len() > 2 && cohort.contains(&a) && cohort.contains(&b) && !all_equal
+                    {
+                        match slow_head(m, a, b, Some(cohort), c, scores, rng, Some(scope)) {
+                            Ordering::Less => return true,
+                            Ordering::Greater => return false,
+                            Ordering::Equal => {}
+                        }
+                    }
+                    continue;
+                }
+            };
+            if x > y {
+                return true;
+            }
+            if x < y {
+                return false;
+            }
+        }
+        false
+    }
+
+    fn slow_standing(
+        m: &Model,
+        a: usize,
+        b: usize,
+        c: &[Campaign],
+        scores: &[[i32; 2]],
+        rng: &mut Rng,
+        cohort: Option<&[usize]>,
+        scope: Option<&[usize]>,
+        keys: &[Key],
+        start: usize,
+    ) -> bool {
+        for key in &keys[start..] {
+            let (x, y) = match key {
+                Key::Pt => (c[a].points as f64, c[b].points as f64),
+                Key::W => (c[a].wins as f64, c[b].wins as f64),
+                Key::Gd => ((c[a].gf - c[a].ga) as f64, (c[b].gf - c[b].ga) as f64),
+                Key::Gf => (c[a].gf as f64, c[b].gf as f64),
+                Key::Average => (
+                    c[a].gf as f64 / (c[a].ga as f64 + 1e-13),
+                    c[b].gf as f64 / (c[b].ga as f64 + 1e-13),
+                ),
+                Key::Away => (c[a].away as f64, c[b].away as f64),
+                Key::Bias => (c[a].bias as f64, c[b].bias as f64),
+                Key::Aet | Key::Gp => (0., 0.),
+                Key::Random | Key::Name => {
+                    if cohort.is_some() {
+                        continue;
+                    }
+                    return rng.float() < 0.5;
+                }
+                Key::Head => {
+                    let len = cohort.map_or(m.n, |teams| teams.len());
+                    let all_equal = if let Some(teams) = cohort {
+                        teams.first().map_or(true, |&first| {
+                            teams.iter().all(|&t| c[t].points == c[first].points)
+                        })
+                    } else {
+                        (0..m.n).all(|t| c[t].points == c[0].points)
+                    };
+                    if len > 2
+                        && cohort.map_or(true, |teams| teams.contains(&a) && teams.contains(&b))
+                        && !all_equal
+                    {
+                        match slow_head(m, a, b, cohort, c, scores, rng, scope) {
+                            Ordering::Less => return true,
+                            Ordering::Greater => return false,
+                            Ordering::Equal => {}
+                        }
+                    }
+                    continue;
+                }
+            };
+            if x > y {
+                return true;
+            }
+            if x < y {
+                return false;
+            }
+        }
+        false
+    }
+
+    fn slow_less(
+        m: &Model,
+        a: usize,
+        b: usize,
+        c: &[Campaign],
+        scores: &[[i32; 2]],
+        rng: &mut Rng,
+    ) -> bool {
+        let mut start = 0;
+        if m.keys.first() == Some(&Key::Pt) {
+            if c[a].points != c[b].points {
+                return c[a].points > c[b].points;
+            }
+            start = 1;
+            if m.keys.get(1) == Some(&Key::W) {
+                if c[a].wins != c[b].wins {
+                    return c[a].wins > c[b].wins;
+                }
+                start = 2;
+            }
+        }
+        slow_standing(m, a, b, c, scores, rng, None, None, &m.keys, start)
+    }
+
+    fn slow_standings(m: &Model, c: &[Campaign], scores: &[[i32; 2]], rng: &mut Rng) -> Vec<usize> {
+        let mut order: Vec<_> = (0..m.n).collect();
+        crate::sort::sort(&mut order, &mut |a, b| slow_less(m, a, b, c, scores, rng));
+        order
+    }
+
+    #[test]
+    fn indexed_context_matches_slow_reference_and_rng_for_random_histories() {
+        for seed in 1..40i64 {
+            let n = 5;
+            let mut games = Vec::new();
+            for i in 0..24 {
+                let h = (seed as usize * 7 + i * 3) % n;
+                let mut a = (h + 1 + (i % 3)) % n;
+                if a == h {
+                    a = (a + 1) % n;
+                }
+                games.push((
+                    h,
+                    a,
+                    (i % 4) as i32,
+                    ((i + seed as usize) % 3) as i32,
+                    i % 3 != 0,
+                ));
+            }
+            // external opponents and interleaved played/future duplicates
+            games.push((1, 8, 2, 0, true));
+            games.push((2, 1, 0, 1, false));
+            games.push((3, 3, 0, 0, true));
+            let mut m = Model::new(Request {
+                id: 1,
+                zones: vec![],
+                phase: Phase {
+                    sort: "pt,head,gd,gf,g_away,w,bias,name".into(),
+                    championship: Championship {
+                        point_win: 3,
+                        point_draw: 1,
+                        point_loss: 0,
+                    },
+                    bonus_points: 0,
+                    bonus_points_threshold: 0,
+                },
+                games: games
+                    .iter()
+                    .enumerate()
+                    .map(|(i, &(h, a, hs, as_, played))| Game {
+                        id: i as i32,
+                        home_id: h as i32 + 1,
+                        away_id: a as i32 + 1,
+                        home_score: hs,
+                        away_score: as_,
+                        home_power: 0.,
+                        away_power: 0.,
+                        played,
+                    })
+                    .collect(),
+                team_groups: (0..n)
+                    .map(|i| Team {
+                        team_id: i as i32 + 1,
+                        add_sub: (i as i32 % 3) - 1,
+                        bias: i as i32,
+                    })
+                    .collect(),
+            })
+            .unwrap();
+            let scores = m.empty_scores();
+            let c = table(&[9, 9, 9, 6, 6], [0; 5].as_slice());
+            for &(a, b) in &[(0, 1), (1, 2), (3, 4)] {
+                let mut fast = Rng::new(seed);
+                let mut slow = fast.clone();
+                let actual = m.context_head_order(a, b, None, &c, &scores, &mut fast, None);
+                let expected = slow_head(&m, a, b, None, &c, &scores, &mut slow, None);
+                assert_eq!(actual, expected, "seed={seed} pair={a},{b}");
+                assert_eq!(fast.float(), slow.float(), "rng seed={seed} pair={a},{b}");
+            }
+            for keys in [
+                vec![Key::Pt, Key::Head, Key::Gd, Key::Name],
+                vec![Key::Pt, Key::Bias, Key::Head, Key::Gf, Key::Random],
+                vec![Key::Pt, Key::Head, Key::Gf, Key::Away, Key::W],
+            ] {
+                m.keys = keys;
+                let mut fast_rng = Rng::new(seed);
+                let mut slow_rng = fast_rng.clone();
+                let mut order = vec![0; n];
+                m.standings(&mut order, &c, &scores, &mut fast_rng);
+                let expected = slow_standings(&m, &c, &scores, &mut slow_rng);
+                assert_eq!(order, expected, "standings seed={seed} keys={:?}", m.keys);
+                assert_eq!(
+                    fast_rng.float(),
+                    slow_rng.float(),
+                    "standings rng seed={seed} keys={:?}",
+                    m.keys
+                );
+                let mut next_c = c.clone();
+                for (team, campaign) in next_c.iter_mut().enumerate() {
+                    campaign.points += (team % 3) as i32;
+                }
+                let mut fast_rng = Rng::new(seed + 100);
+                let mut slow_rng = fast_rng.clone();
+                let mut next_order = vec![0; n];
+                m.standings(&mut next_order, &next_c, &scores, &mut fast_rng);
+                let next_expected = slow_standings(&m, &next_c, &scores, &mut slow_rng);
+                assert_eq!(next_order, next_expected, "changed-season seed={seed}");
+                assert_eq!(
+                    fast_rng.float(),
+                    slow_rng.float(),
+                    "changed-season rng seed={seed}"
+                );
+            }
+        }
     }
 
     #[test]

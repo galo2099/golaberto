@@ -673,24 +673,19 @@ pub fn run_logged(
         return 0;
     }
     let search_start = std::time::Instant::now();
+    let baseline = estimates.to_vec();
+    let donors = borrowed_donors(&baseline);
+    if !donors.is_empty() && estimates.iter().all(|e| e.probability > 0.) {
+        let selection = select_donors(model, &donors);
+        if selection.admitted.is_empty() {
+            report_donor_selection(log, &selection, 0, false);
+            return 0;
+        }
+    }
     let Some(pmfs) = crate::pool::point_pmfs(model) else {
         return 0;
     };
     let bounds = Bounds::new(model);
-    let baseline = estimates.to_vec();
-    let donors: Vec<_> = baseline
-        .iter()
-        .enumerate()
-        .filter(|(_, e)| {
-            e.design == "matched_point_pool"
-                && e.probability > 0.
-                && e.hits == 0
-                && e.conditional_mass == 0.
-                && e.conditional_samples == 0
-                && e.conditional_hits == 0
-        })
-        .map(|(i, e)| (i, e.clone()))
-        .collect();
     let profile = std::env::var("RUST_ODDS_PROFILE").as_deref() == Ok("1");
     let mut phase = std::time::Instant::now();
     let mut report = |label: &str, fields: serde_json::Value| {
@@ -1034,6 +1029,121 @@ fn reset_donor_for_tail(est: &mut Estimate) {
     est.conditional_hits = 0;
 }
 
+struct DonorSelection {
+    admitted: Vec<(usize, Estimate)>,
+    deferred: Vec<(usize, Estimate)>,
+    candidate_count: usize,
+    forecast_per_donor: usize,
+    forecasted_total: usize,
+    forecast_cap: usize,
+}
+
+const BORROWED_RETRY_BUDGET_REFERENCE_DRAWS: usize = 20_000;
+
+fn donor_draw_floors_for_profile(profile: &str) -> (usize, usize, usize) {
+    if profile == "union" {
+        (1500, 8000, 4000)
+    } else {
+        // Default lazy/portfolio work uses a 1,000-draw pilot and a fresh
+        // 2,000/1,000 main/check pair. Keep this tied to the current minima.
+        (1000, 2000, 1000)
+    }
+}
+
+fn select_donors(model: &Model, donors: &[(usize, Estimate)]) -> DonorSelection {
+    select_donors_for_profile(model, donors, &crate::rare_tail::profile())
+}
+
+fn select_donors_for_profile(
+    model: &Model,
+    donors: &[(usize, Estimate)],
+    profile: &str,
+) -> DonorSelection {
+    let reference = crate::rare_tail::budget::reference_cost(model).max(1);
+    let family = crate::rare_tail::budget::family_validation_upper_cost(model).max(reference);
+    let (pilot, main, check) = donor_draw_floors_for_profile(profile);
+    let draws = pilot.saturating_add(main).saturating_add(check);
+    let forecast_per_donor = family.saturating_mul(draws);
+    // This is a deterministic admission forecast, not a reservation in the
+    // rare-tail bank: it caps borrowed retries at 20% of 100,000 reference draws.
+    let forecast_cap = reference.saturating_mul(BORROWED_RETRY_BUDGET_REFERENCE_DRAWS);
+    let mut prioritized = donors.to_vec();
+    prioritized.sort_by(|a, b| {
+        a.1.probability
+            .total_cmp(&b.1.probability)
+            .then(a.0.cmp(&b.0))
+    });
+    let mut admitted = Vec::new();
+    let mut deferred = Vec::new();
+    let mut forecasted_total = 0usize;
+    for donor in prioritized {
+        if forecasted_total.saturating_add(forecast_per_donor) <= forecast_cap {
+            forecasted_total += forecast_per_donor;
+            admitted.push(donor);
+        } else {
+            deferred.push(donor);
+        }
+    }
+    DonorSelection {
+        candidate_count: donors.len(),
+        admitted,
+        deferred,
+        forecast_per_donor,
+        forecasted_total,
+        forecast_cap,
+    }
+}
+
+fn borrowed_donors(estimates: &[Estimate]) -> Vec<(usize, Estimate)> {
+    estimates
+        .iter()
+        .enumerate()
+        .filter(|(_, e)| {
+            e.design == "matched_point_pool"
+                && e.probability > 0.
+                && e.hits == 0
+                && e.conditional_mass == 0.
+                && e.conditional_samples == 0
+                && e.conditional_hits == 0
+        })
+        .map(|(i, e)| (i, e.clone()))
+        .collect()
+}
+
+fn report_donor_selection(
+    log: Option<&crate::logging::RequestLog>,
+    selection: &DonorSelection,
+    true_zero_candidates: usize,
+    reserve_true_zeros: bool,
+) {
+    if selection.candidate_count == 0 {
+        return;
+    }
+    let reserved = reserve_true_zeros && true_zero_candidates > 0;
+    let admitted = if reserved {
+        0
+    } else {
+        selection.admitted.len()
+    };
+    let deferred = selection.candidate_count - admitted;
+    if let Some(log) = log {
+        log.event(
+            "rust_odds_search_donors",
+            serde_json::json!({
+                "donor_candidates": selection.candidate_count,
+                "candidate_count": selection.candidate_count,
+                "admitted": admitted,
+                "deferred": deferred,
+                "true_zero_candidates": true_zero_candidates,
+                "reason": if reserved {"zero_recovery_budget_reserved"} else if deferred > 0 {"forecast_cap"} else {"within_forecast_cap"},
+                "forecast_per_donor": selection.forecast_per_donor,
+                "forecast_cap": selection.forecast_cap,
+                "forecasted_total": if reserved {0} else {selection.forecasted_total}
+            }),
+        );
+    }
+}
+
 fn run_tail_with_donors(
     model: &Model,
     seed: i64,
@@ -1044,46 +1154,29 @@ fn run_tail_with_donors(
     seasons: &[(Vec<u8>, Vec<usize>)],
     elapsed_ms: f64,
 ) -> (usize, u64) {
+    let selection = select_donors(model, donors);
     let true_zero_candidates = estimates
         .iter()
         .filter(|e| e.probability == 0. && !e.reachability.starts_with("impossible"))
         .count();
     if !donors.is_empty() && true_zero_candidates > 0 {
-        if let Some(log) = log {
-            log.event(
-                "rust_odds_search_donors",
-                serde_json::json!({
-                    "donor_candidates": donors.len(),
-                    "admitted": 0,
-                    "deferred": donors.len(),
-                    "true_zero_candidates": true_zero_candidates,
-                    "reason": "zero_recovery_budget_reserved"
-                }),
-            );
+        for (index, donor) in donors {
+            estimates[*index] = donor.clone();
         }
+        report_donor_selection(log, &selection, true_zero_candidates, true);
         return crate::rare_tail::run(model, seed, workers, estimates, log, seasons, elapsed_ms);
     }
-    if !donors.is_empty() {
-        if let Some(log) = log {
-            log.event(
-                "rust_odds_search_donors",
-                serde_json::json!({
-                    "donor_candidates": donors.len(),
-                    "admitted": donors.len(),
-                    "deferred": 0,
-                    "true_zero_candidates": 0,
-                    "reason": "no_true_zero_candidates"
-                }),
-            );
-        }
+    for (index, donor) in &selection.deferred {
+        estimates[*index] = donor.clone();
     }
-    for (index, donor) in donors {
+    report_donor_selection(log, &selection, 0, false);
+    for (index, donor) in &selection.admitted {
         estimates[*index] = donor.clone();
         reset_donor_for_tail(&mut estimates[*index]);
     }
     let (found, spent) =
         crate::rare_tail::run(model, seed, workers, estimates, log, seasons, elapsed_ms);
-    for (index, donor) in donors {
+    for (index, donor) in &selection.admitted {
         if estimates[*index].probability <= 0. {
             estimates[*index] = donor.clone();
         }
@@ -1107,4 +1200,123 @@ fn reconcile(model: &Model, estimates: &mut [Estimate], baseline: &[Estimate]) -
         e.probability = p;
     }
     true
+}
+
+#[cfg(test)]
+mod donor_preflight_tests {
+    use super::select_donors_for_profile;
+    use crate::{
+        model::{Model, Request},
+        pool::Estimate,
+    };
+
+    fn model(source: &str) -> Model {
+        Model::new(serde_json::from_str::<Request>(source).unwrap()).unwrap()
+    }
+
+    fn donors(count: usize) -> Vec<(usize, Estimate)> {
+        (0..count)
+            .map(|index| {
+                (
+                    index,
+                    Estimate {
+                        probability: 0.001,
+                        ..Estimate::default()
+                    },
+                )
+            })
+            .collect()
+    }
+
+    fn assert_large_group_is_deferred(source: &str) {
+        let model = model(source);
+        let selection = select_donors_for_profile(&model, &donors(50), "coverage");
+        assert_eq!(selection.candidate_count, 50);
+        assert!(selection.admitted.is_empty());
+        assert_eq!(selection.deferred.len(), 50);
+        assert!(selection.forecast_per_donor > selection.forecast_cap);
+    }
+
+    #[test]
+    fn expensive_reference_groups_defer_borrowed_retries() {
+        assert_large_group_is_deferred(include_str!(
+            "../../experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16413-a2eef0a8.json"
+        ));
+        assert_large_group_is_deferred(include_str!(
+            "../../experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16983-43969b02.json"
+        ));
+    }
+
+    #[test]
+    fn expensive_donor_only_request_short_circuits_without_mutating_estimates() {
+        let model = model(include_str!(
+            "../../experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16413-a2eef0a8.json"
+        ));
+        let n = model.n;
+        let mut estimates = vec![Estimate::default(); n * n];
+        for estimate in &mut estimates {
+            estimate.probability = 1. / n as f64;
+            estimate.std_err = 0.003;
+            estimate.samples = 100_000;
+            estimate.hits = 0;
+            estimate.ess = 0.;
+            estimate.mean_weight = 1.;
+            estimate.available = true;
+            estimate.meets_precision_goal = false;
+            estimate.relative_se = Some(0.012);
+            estimate.max_event_weight_share = 0.01;
+            estimate.design = "matched_point_pool".into();
+            estimate.reachability = "pool_positive".into();
+        }
+        let before = serde_json::to_value(&estimates).unwrap();
+        assert_eq!(super::run(&model, 809, 1, &mut estimates), 0);
+        assert_eq!(serde_json::to_value(&estimates).unwrap(), before);
+    }
+
+    #[test]
+    fn b3_rare_low_probability_candidate_is_admitted_first() {
+        let model = model(include_str!("../tests/fixtures/group-17064.json"));
+        let target = model.ids[..model.n]
+            .iter()
+            .position(|&team| team == 2689)
+            .unwrap()
+            * model.n;
+        let candidates = vec![
+            (
+                target,
+                Estimate {
+                    probability: 5.2576e-5,
+                    ..Estimate::default()
+                },
+            ),
+            (
+                target + 1,
+                Estimate {
+                    probability: 0.01,
+                    ..Estimate::default()
+                },
+            ),
+        ];
+        let selection = select_donors_for_profile(&model, &candidates, "coverage");
+        assert_eq!(selection.admitted.len(), 1);
+        assert_eq!(selection.admitted[0].0, target);
+        assert_eq!(selection.deferred.len(), 1);
+        assert!(selection.forecasted_total <= selection.forecast_cap);
+    }
+
+    #[test]
+    fn many_teams_with_one_fixture_fit_the_forecast_cap() {
+        let request = serde_json::json!({
+            "id": 2,
+            "phase": {"sort":"pt,head,gd,bias", "championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+            "team_groups": (0..20).map(|team| serde_json::json!({"team_id":team,"add_sub":0,"bias":0})).collect::<Vec<_>>(),
+            "games": [{"id":1,"home_id":0,"away_id":1,"home_power":1.0,"away_power":1.0}]
+        });
+        let model = Model::new(serde_json::from_value::<Request>(request).unwrap()).unwrap();
+        let selection = select_donors_for_profile(&model, &donors(4), "coverage");
+        assert_eq!(selection.admitted.len(), 1);
+        assert_eq!(selection.deferred.len(), 3);
+        assert!(selection.forecast_per_donor <= selection.forecast_cap);
+        assert!(selection.forecasted_total <= selection.forecast_cap);
+    }
 }

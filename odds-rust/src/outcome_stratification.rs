@@ -122,6 +122,64 @@ fn leaf_work_unit(m: &Model, head: bool) -> Option<u64> {
     Some(cost.max(1))
 }
 
+/// Allocate draws from prior leaf mass alone. Give every unresolved leaf a
+/// minimum sample, then spend the remaining budget in proportion to its
+/// requested allocation above that floor. Largest remainders make the result
+/// deterministic while conserving the integer budget.
+fn allocate_draws(masses: &[f64], budget: usize, floor: usize) -> Option<Vec<usize>> {
+    if masses.is_empty() {
+        return Some(Vec::new());
+    }
+    let targets: Vec<usize> = masses
+        .iter()
+        .map(|mass| ((ORDINARY_SEASONS as f64 * mass).ceil() as usize).max(floor))
+        .collect();
+    let floors = masses.len().checked_mul(floor)?;
+    if floors > budget || floors > MAX_DRAWS {
+        return None;
+    }
+    let target_total = targets.iter().try_fold(0usize, |a, b| a.checked_add(*b))?;
+    if target_total <= budget {
+        return Some(targets);
+    }
+    let extra_budget = budget - floors;
+    let excesses: Vec<usize> = targets.iter().map(|n| n - floor).collect();
+    let excess_total: usize = excesses.iter().sum();
+    if excess_total == 0 {
+        return Some(vec![floor; masses.len()]);
+    }
+    let mut allocated = Vec::with_capacity(masses.len());
+    let mut remainders = Vec::with_capacity(masses.len());
+    let mut used = 0usize;
+    for excess in &excesses {
+        let exact = extra_budget as f64 * *excess as f64 / excess_total as f64;
+        let whole = exact.floor() as usize;
+        used += whole;
+        allocated.push(floor + whole);
+        remainders.push(exact - whole as f64);
+    }
+    let mut order: Vec<usize> = (0..masses.len()).collect();
+    order.sort_by(|&a, &b| {
+        remainders[b]
+            .total_cmp(&remainders[a])
+            .then_with(|| a.cmp(&b))
+    });
+    for &i in order.iter().take(extra_budget - used) {
+        allocated[i] += 1;
+    }
+    Some(allocated)
+}
+
+fn conditional_floor_for(remaining_draws: usize, unresolved: usize) -> usize {
+    if unresolved == 0 {
+        0
+    } else {
+        // Spend at most one quarter of remaining work on the quality increase
+        // above 128 draws per stratum; the baseline floor still needs to fit.
+        DRAWS_PER_STRATUM.max((remaining_draws / 4 / unresolved).min(1_024))
+    }
+}
+
 fn path_scores(m: &Model, outcomes: &[usize]) -> (Vec<crate::model::Campaign>, Vec<[i32; 2]>) {
     let mut c = m.base.clone();
     let mut scores = m.empty_scores();
@@ -383,14 +441,13 @@ pub fn estimate(m: &Model, seed: i64) -> Option<(Vec<Estimate>, serde_json::Valu
     let remaining_draws = ((budget - total_plan_work) / (ordinary_work as u64))
         .min(draw_budget as u64)
         .min(MAX_DRAWS as u64) as usize;
-    let per = if unresolved == 0 {
-        0
-    } else {
-        (remaining_draws / unresolved).min(MAX_DRAWS / unresolved)
-    };
-    if unresolved > MAX_STRATA || (unresolved > 0 && per < DRAWS_PER_STRATUM) {
+    let unresolved_masses: Vec<f64> = leaves.iter().filter(|l| !l.exact).map(|l| l.mass).collect();
+    if unresolved > MAX_STRATA {
         return None;
     }
+    let conditional_floor = conditional_floor_for(remaining_draws, unresolved);
+    let floor_draw_budget = conditional_floor.checked_mul(unresolved)?;
+    let allocations = allocate_draws(&unresolved_masses, remaining_draws, conditional_floor)?;
     let mut p = vec![0.; m.n * m.n];
     let mut variance = vec![0.; m.n * m.n];
     let mut hits = vec![0usize; m.n * m.n];
@@ -398,6 +455,7 @@ pub fn estimate(m: &Model, seed: i64) -> Option<(Vec<Estimate>, serde_json::Valu
     let mut event_weight = vec![0.; m.n * m.n];
     let mut event_weight_sq = vec![0.; m.n * m.n];
     let mut max_event: Vec<f64> = vec![0.; m.n * m.n];
+    let mut allocation_index = 0usize;
     for (li, leaf) in leaves.iter().enumerate() {
         if leaf.exact {
             let mut scores = path_scores(m, &leaf.outcomes).1;
@@ -418,11 +476,15 @@ pub fn estimate(m: &Model, seed: i64) -> Option<(Vec<Estimate>, serde_json::Valu
             for (rank, t) in order.into_iter().enumerate() {
                 p[t * m.n + rank] += leaf.mass;
             }
-        } else if per > 0 {
+        } else {
+            let per = allocations[allocation_index];
+            allocation_index += 1;
             let mut counts = vec![0usize; m.n * m.n];
             let mut rng = Rng::new(derive(seed, &format!("small-group-{li}")));
+            let mut scores = path_scores(m, &leaf.outcomes).1;
+            let mut order = vec![0; m.n];
+            let mut c = m.base.clone();
             for _ in 0..per {
-                let mut scores = path_scores(m, &leaf.outcomes).1;
                 for (i, f) in m.fixtures.iter().enumerate() {
                     let s = if let (Some(b), Some(buckets)) = (leaf.bucket_ids[i], bucket_ref) {
                         buckets[i].head[leaf.outcomes[i]][b].1.sample(&mut rng)
@@ -431,13 +493,12 @@ pub fn estimate(m: &Model, seed: i64) -> Option<(Vec<Estimate>, serde_json::Valu
                     };
                     scores[f.request_index] = s;
                 }
-                let mut c = m.base.clone();
+                c.clone_from_slice(&m.base);
                 for (i, f) in m.fixtures.iter().enumerate() {
                     m.add(&mut c, i, scores[f.request_index]);
                 }
-                let mut order = vec![0; m.n];
                 m.standings(&mut order, &c, &scores, &mut rng);
-                for (rank, t) in order.into_iter().enumerate() {
+                for (rank, &t) in order.iter().enumerate() {
                     counts[t * m.n + rank] += 1;
                 }
             }
@@ -508,9 +569,49 @@ pub fn estimate(m: &Model, seed: i64) -> Option<(Vec<Estimate>, serde_json::Valu
     Some((
         result,
         serde_json::json!({"paths":path_count,"strata":leaves.len(),"exact_strata":leaves.len()-unresolved,
-        "sampled_strata":unresolved,"conditional_draws":draws,"draws_per_unresolved_stratum":per,
+        "sampled_strata":unresolved,"conditional_draws":draws,"draws_per_unresolved_stratum":null,
+        "conditional_floor":conditional_floor,"floor_draw_budget":floor_draw_budget,
+        "draws_per_stratum":allocations,
         "cost_budget_ordinary_seasons":ORDINARY_SEASONS,"ordinary_season_work":ordinary_work,
         "certification_and_preparation_work":total_plan_work,"total_work_budget":budget,"conditional_draw_work_budget":remaining_draws as u64 * ordinary_work as u64,
+        "actual_conditional_draw_work":draws as u64 * ordinary_work as u64,
         "strategy":"positive-probability WDL paths; optional safe two-team H2H score buckets"}),
     ))
+}
+
+#[cfg(test)]
+mod allocation_tests {
+    use super::*;
+
+    #[test]
+    fn prior_targets_spend_only_their_requested_draws() {
+        assert_eq!(
+            allocate_draws(&[0.001, 0.2], MAX_DRAWS, DRAWS_PER_STRATUM),
+            Some(vec![128, 20_000])
+        );
+        assert_eq!(
+            allocate_draws(&[1.0], MAX_DRAWS, DRAWS_PER_STRATUM),
+            Some(vec![MAX_DRAWS])
+        );
+        assert_eq!(
+            allocate_draws(&[0.0001, 0.0002], 5_000, 1_024),
+            Some(vec![1_024, 1_024])
+        );
+        assert_eq!(conditional_floor_for(100_000, 18), 1_024);
+        assert_eq!(conditional_floor_for(100_000, 236), 128);
+        assert_eq!(conditional_floor_for(100_000, 0), 0);
+    }
+
+    #[test]
+    fn over_budget_targets_scale_above_floors_and_conserve_budget() {
+        let allocation = allocate_draws(&[0.8, 0.2], 1_000, DRAWS_PER_STRATUM).unwrap();
+        assert_eq!(allocation.iter().sum::<usize>(), 1_000);
+        assert!(allocation.iter().all(|&n| n >= DRAWS_PER_STRATUM));
+        assert_eq!(allocation, vec![724, 276]);
+        assert!(allocate_draws(&[0.5; 8], 1_000, DRAWS_PER_STRATUM).is_none());
+        let raised = allocate_draws(&[0.8, 0.2], 1_000, 256).unwrap();
+        assert_eq!(raised, vec![647, 353]);
+        assert_eq!(raised.iter().sum::<usize>(), 1_000);
+        assert!(allocate_draws(&[0.5; 8], 8_000, 1_024).is_none());
+    }
 }

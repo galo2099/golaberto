@@ -57,6 +57,9 @@ only two teams, it skips head-to-head and continues with the next ranking key.
 Point adjustments and bias are retained in mini-tables. Games are applied as
 played history followed by simulated fixtures; the latest result in each
 home/away direction is used for head-to-head comparisons.
+The model indexes those directed results once. Each comparison visits only
+games touching the compared teams, retaining the same recursive mini-table
+rules without rescanning the match history.
 
 Before the general matched-point pool, the odds API compares the estimated work
 of outcome stratification with a 100,000-season simulation of the same model.
@@ -80,8 +83,15 @@ its conditional score distribution, including equal-margin cases decided by
 away goals. Paths with certified fixed comparisons contribute their full mass
 directly. Tied cohorts of three or more teams and ties in a two-team group
 remain score-dependent; their pair buckets cannot certify the full ranking.
-Score-dependent ties receive at least 128 conditional score samples per stratum,
-with additional draws allocated from the remaining work allowance before sampling.
+Score-dependent ties receive at least 128 conditional score samples per stratum.
+When affordable, that minimum rises toward 1,024 to improve coverage of rare
+conditional scores. The increase uses at most one quarter of the conditional
+work allowance; plans with many strata retain the 128-draw minimum.
+Each unresolved stratum requests 100,000 times its prior probability mass,
+subject to that minimum. If the requests exceed the remaining work allowance,
+the allocation above the minimum is scaled down deterministically before
+sampling. The allowance is a ceiling; analytically resolved mass does not
+consume conditional draws.
 Every draw uses the standings sorter. Weighted permutations
 preserve team and position totals without matrix balancing.
 
@@ -108,7 +118,13 @@ General search is gated by support for point-total conditioning, so a supported
 request can still receive rescue work after the pool falls back to plain Monte
 Carlo. A positive matched-pool estimate with no direct hits and no conditional
 evidence can also enter the rare-event confirmation stage when no unresolved
-zero cells are waiting. The existing confirmation budget stays reserved for
+zero cells are waiting. A deterministic cost forecast admits borrowed-cell
+retries against an allowance of 20,000 ordinary reference draws. It charges
+the mandatory pilot and independent main/check pair using a conservative
+proposal cost, and prioritizes the smallest positive probabilities. Expensive
+retries retain their pool estimates. This is a preflight allowance; admitted
+jobs still use the existing rare-event work budget and confirmation rules.
+The existing confirmation budget stays reserved for
 zero-cell recovery while any remain, so borrowed-cell retries cannot displace
 that work. Failed confirmations
 restore the original estimate and its metadata before the existing matrix

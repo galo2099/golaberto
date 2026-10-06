@@ -183,7 +183,27 @@ fn random_fallback_is_sampled_and_seeded() {
         serde_json::to_value(&same).unwrap()
     );
     assert_eq!(diag["paths"], 1);
-    assert!(a.iter().all(|e| e.samples >= 90_000 && e.std_err > 0.));
+    let draws = diag["conditional_draws"].as_u64().unwrap();
+    assert!((90_000..=100_000).contains(&draws));
+    assert_eq!(
+        diag["draws_per_stratum"].as_array().unwrap()[0]
+            .as_u64()
+            .unwrap(),
+        draws
+    );
+    assert_eq!(
+        diag["actual_conditional_draw_work"].as_u64().unwrap(),
+        draws * diag["ordinary_season_work"].as_u64().unwrap()
+    );
+    assert_eq!(diag["conditional_floor"], 1_024);
+    assert_eq!(diag["floor_draw_budget"], 1_024);
+    assert!(
+        diag["actual_conditional_draw_work"].as_u64().unwrap()
+            <= diag["conditional_draw_work_budget"].as_u64().unwrap()
+    );
+    assert!(a
+        .iter()
+        .all(|e| e.samples as u64 == draws && e.std_err > 0.));
     assert!((a[0].probability - 0.5).abs() <= 6. * a[0].std_err + 1e-12);
 }
 

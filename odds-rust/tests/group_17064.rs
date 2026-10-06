@@ -115,6 +115,18 @@ fn estimates_reachable_positions_for_ruby_standings() {
     }
     assert_eq!(positive_cells, 16);
     assert_eq!(zero_cells.len(), 0);
+    let rare_808 = &response.rare_position_estimates[&2689][&0];
+    assert!(
+        rare_808.relative_se.unwrap() <= 0.5,
+        "seed 808: samples={}, relative_se={:?}, std_err={}",
+        rare_808.samples,
+        rare_808.relative_se,
+        rare_808.std_err
+    );
+    println!(
+        "B3 seed=808 cells={positive_cells} rare_2689_first samples={} std_err={} relative_se={:?}",
+        rare_808.samples, rare_808.std_err, rare_808.relative_se
+    );
 
     // Exhaust canonical outcomes as an independent reachability witness.
     let future_ids: Vec<_> = fixture_request()
@@ -186,4 +198,22 @@ fn estimates_reachable_positions_for_ruby_standings() {
             .values()
             .all(|estimate| estimate.probability > 0. && estimate.reachability == "reachable")
     }));
+    let positive_809 = other_seed
+        .rare_position_estimates
+        .values()
+        .map(|places| places.len())
+        .sum::<usize>();
+    assert_eq!(positive_809, 16);
+    let rare_809 = &other_seed.rare_position_estimates[&2689][&0];
+    assert!(
+        rare_809.relative_se.unwrap() <= 0.5,
+        "seed 809: samples={}, relative_se={:?}, std_err={}",
+        rare_809.samples,
+        rare_809.relative_se,
+        rare_809.std_err
+    );
+    println!(
+        "B3 seed=809 cells={positive_809} rare_2689_first samples={} std_err={} relative_se={:?}",
+        rare_809.samples, rare_809.std_err, rare_809.relative_se
+    );
 }
