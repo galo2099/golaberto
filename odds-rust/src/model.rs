@@ -144,6 +144,37 @@ pub struct Model {
     pub n: usize,
     pub(crate) target_limits: Mutex<HashMap<usize, crate::target_limits::Certified>>,
 }
+
+#[derive(Clone, Debug)]
+pub struct DiscreteReachability {
+    /// Row-major team/rank mask, with zero-based ranks.
+    pub possible: Vec<bool>,
+    pub completed: bool,
+    pub replays: usize,
+}
+
+#[derive(Default)]
+struct SortTrace {
+    decisions: Vec<bool>,
+    cursor: usize,
+    missing: bool,
+}
+
+impl SortTrace {
+    fn unknown(&mut self) -> bool {
+        if self.missing {
+            return false;
+        }
+        if let Some(&decision) = self.decisions.get(self.cursor) {
+            self.cursor += 1;
+            decision
+        } else {
+            self.missing = true;
+            false
+        }
+    }
+}
+
 impl Model {
     pub fn new(request: Request) -> Result<Self, String> {
         let n = request.team_groups.len();
@@ -274,6 +305,18 @@ impl Model {
         scores: &[[i32; 2]],
         rng: &mut Rng,
     ) -> bool {
+        self.less_with_trace(a, b, c, scores, rng, &mut None)
+    }
+    #[inline]
+    fn less_with_trace(
+        &self,
+        a: usize,
+        b: usize,
+        c: &[Campaign],
+        scores: &[[i32; 2]],
+        rng: &mut Rng,
+        trace: &mut Option<&mut SortTrace>,
+    ) -> bool {
         // Resolve the common leading integer keys before entering the generic
         // (possibly recursive head-to-head) comparator. i32 values convert
         // exactly to f64, so ordering and tie RNG consumption are unchanged.
@@ -291,10 +334,19 @@ impl Model {
             }
         }
         if !self.keys[start..].contains(&Key::Head) {
-            return self.compare_from(&c[a], &c[b], Some((a, b)), scores, rng, start);
+            return self.compare_from_with_trace(
+                &c[a],
+                &c[b],
+                Some((a, b)),
+                scores,
+                rng,
+                start,
+                trace,
+            );
         }
-        self.compare_standing(a, b, c, scores, rng, start, None, None, &self.keys)
+        self.compare_standing_with_trace(a, b, c, scores, rng, start, None, None, &self.keys, trace)
     }
+    #[allow(dead_code)]
     fn compare_standing(
         &self,
         a: usize,
@@ -307,7 +359,30 @@ impl Model {
         game_scope: Option<&[usize]>,
         keys: &[Key],
     ) -> bool {
+        self.compare_standing_with_trace(
+            a, b, c, scores, rng, start, cohort, game_scope, keys, &mut None,
+        )
+    }
+    #[allow(clippy::too_many_arguments)]
+    fn compare_standing_with_trace(
+        &self,
+        a: usize,
+        b: usize,
+        c: &[Campaign],
+        scores: &[[i32; 2]],
+        rng: &mut Rng,
+        start: usize,
+        cohort: Option<&[usize]>,
+        game_scope: Option<&[usize]>,
+        keys: &[Key],
+        trace: &mut Option<&mut SortTrace>,
+    ) -> bool {
         for key in &keys[start..] {
+            if matches!(key, Key::Gd | Key::Gf | Key::Average | Key::Away) {
+                if let Some(t) = trace.as_deref_mut() {
+                    return t.unknown();
+                }
+            }
             let (x, y) = match key {
                 Key::Pt => (c[a].points as f64, c[b].points as f64),
                 Key::W => (c[a].wins as f64, c[b].wins as f64),
@@ -323,6 +398,9 @@ impl Model {
                 Key::Random | Key::Name => {
                     if cohort.is_some() {
                         continue;
+                    }
+                    if let Some(t) = trace.as_deref_mut() {
+                        return t.unknown();
                     }
                     return rng.float() < 0.5;
                 }
@@ -341,7 +419,9 @@ impl Model {
                         (0..self.n).all(|t| c[t].points == c[0].points)
                     };
                     if includes_pair && !all_equal {
-                        match self.context_head_order(a, b, cohort, c, scores, rng, game_scope) {
+                        match self.context_head_order_with_trace(
+                            a, b, cohort, c, scores, rng, game_scope, trace,
+                        ) {
                             Ordering::Less => return true,
                             Ordering::Greater => return false,
                             Ordering::Equal => {}
@@ -359,6 +439,7 @@ impl Model {
         }
         false
     }
+    #[allow(dead_code)]
     fn context_head_order(
         &self,
         a: usize,
@@ -368,6 +449,20 @@ impl Model {
         scores: &[[i32; 2]],
         rng: &mut Rng,
         game_scope: Option<&[usize]>,
+    ) -> Ordering {
+        self.context_head_order_with_trace(a, b, cohort, c, scores, rng, game_scope, &mut None)
+    }
+    #[allow(clippy::too_many_arguments)]
+    fn context_head_order_with_trace(
+        &self,
+        a: usize,
+        b: usize,
+        cohort: Option<&[usize]>,
+        c: &[Campaign],
+        scores: &[[i32; 2]],
+        rng: &mut Rng,
+        game_scope: Option<&[usize]>,
+        trace: &mut Option<&mut SortTrace>,
     ) -> Ordering {
         let cohort_len = cohort.map_or(self.n, |teams| teams.len());
         let tied: SmallVec<[usize; 32]> = (0..cohort_len)
@@ -423,7 +518,7 @@ impl Model {
         // Ruby removes name/random keys from mini-table comparisons. The
         // comparator applies that rule whenever it has a contextual cohort.
         let keys = &self.keys;
-        let ordering = if self.compare_standing(
+        let ordering = if self.compare_standing_with_trace(
             a,
             b,
             &mini,
@@ -433,9 +528,10 @@ impl Model {
             Some(&tied),
             Some(&selected),
             keys,
+            trace,
         ) {
             Ordering::Less
-        } else if self.compare_standing(
+        } else if self.compare_standing_with_trace(
             b,
             a,
             &mini,
@@ -445,6 +541,7 @@ impl Model {
             Some(&tied),
             Some(&selected),
             keys,
+            trace,
         ) {
             Ordering::Greater
         } else {
@@ -452,6 +549,7 @@ impl Model {
         };
         ordering
     }
+    #[allow(dead_code)]
     fn compare(
         &self,
         a: &Campaign,
@@ -471,6 +569,16 @@ impl Model {
         away: usize,
         scores: &[[i32; 2]],
         rng: &mut Rng,
+    ) -> Ordering {
+        self.head_order_with_trace(home, away, scores, rng, &mut None)
+    }
+    fn head_order_with_trace(
+        &self,
+        home: usize,
+        away: usize,
+        scores: &[[i32; 2]],
+        rng: &mut Rng,
+        trace: &mut Option<&mut SortTrace>,
     ) -> Ordering {
         let mut h = Campaign {
             points: self.request.team_groups[home].add_sub,
@@ -512,14 +620,15 @@ impl Model {
             }
         }
         // No pair means Random keys are skipped, exactly as in Key::Head.
-        if self.compare(&a, &h, None, scores, rng) {
+        if self.compare_from_with_trace(&a, &h, None, scores, rng, 0, trace) {
             Ordering::Less
-        } else if self.compare(&h, &a, None, scores, rng) {
+        } else if self.compare_from_with_trace(&h, &a, None, scores, rng, 0, trace) {
             Ordering::Greater
         } else {
             Ordering::Equal
         }
     }
+    #[allow(dead_code)]
     fn compare_from(
         &self,
         a: &Campaign,
@@ -529,7 +638,24 @@ impl Model {
         rng: &mut Rng,
         start: usize,
     ) -> bool {
+        self.compare_from_with_trace(a, b, pair, scores, rng, start, &mut None)
+    }
+    fn compare_from_with_trace(
+        &self,
+        a: &Campaign,
+        b: &Campaign,
+        pair: Option<(usize, usize)>,
+        scores: &[[i32; 2]],
+        rng: &mut Rng,
+        start: usize,
+        trace: &mut Option<&mut SortTrace>,
+    ) -> bool {
         for key in &self.keys[start..] {
+            if matches!(key, Key::Gd | Key::Gf | Key::Average | Key::Away) {
+                if let Some(t) = trace.as_deref_mut() {
+                    return t.unknown();
+                }
+            }
             let (x, y) = match key {
                 Key::Pt => (a.points as f64, b.points as f64),
                 Key::W => (a.wins as f64, b.wins as f64),
@@ -544,6 +670,9 @@ impl Model {
                 Key::Aet | Key::Gp => (0., 0.),
                 Key::Random | Key::Name => {
                     if pair.is_some() {
+                        if let Some(t) = trace.as_deref_mut() {
+                            return t.unknown();
+                        }
                         return rng.float() < 0.5;
                     } else {
                         continue;
@@ -551,7 +680,7 @@ impl Model {
                 }
                 Key::Head => {
                     if let Some((i, j)) = pair {
-                        match self.head_order(i, j, scores, rng) {
+                        match self.head_order_with_trace(i, j, scores, rng, trace) {
                             Ordering::Greater => return true,
                             Ordering::Less => return false,
                             Ordering::Equal => {}
@@ -580,6 +709,82 @@ impl Model {
             *t = i;
         }
         crate::sort::sort(order, &mut |a, b| self.less(a, b, c, scores, rng));
+    }
+
+    /// Over-approximate ranks for one fixed W/D/L path while leaving every
+    /// score-dependent or random comparator decision unconstrained. The helper
+    /// uses the production sorter and comparator; each replay fixes a prefix of
+    /// unknown comparison results, then branches at the next unknown result.
+    /// If the replay quota is exhausted, it returns the all-possible mask.
+    pub fn discrete_reachability(
+        &self,
+        outcomes: &[usize],
+        replay_limit: usize,
+    ) -> DiscreteReachability {
+        let all = || DiscreteReachability {
+            possible: vec![true; self.n * self.n],
+            completed: false,
+            replays: 0,
+        };
+        if outcomes.len() != self.fixtures.len()
+            || self.request.phase.bonus_points != 0
+            || replay_limit == 0
+        {
+            return all();
+        }
+        let mut scores = self.empty_scores();
+        let mut campaigns = self.base.clone();
+        for (i, (&outcome, fixture)) in outcomes.iter().zip(&self.fixtures).enumerate() {
+            let score = match outcome {
+                0 => [0, 1],
+                1 => [0, 0],
+                2 => [1, 0],
+                _ => return all(),
+            };
+            scores[fixture.request_index] = score;
+            self.add(&mut campaigns, i, score);
+        }
+
+        let mut possible = vec![false; self.n * self.n];
+        let mut pending = vec![Vec::<bool>::new()];
+        let mut replays = 0;
+        while let Some(decisions) = pending.pop() {
+            if replays == replay_limit {
+                return DiscreteReachability {
+                    possible: vec![true; self.n * self.n],
+                    completed: false,
+                    replays,
+                };
+            }
+            replays += 1;
+            let mut trace = SortTrace {
+                decisions: decisions.clone(),
+                ..SortTrace::default()
+            };
+            let mut active = Some(&mut trace);
+            let mut rng = Rng::new(0);
+            let mut order: Vec<_> = (0..self.n).collect();
+            crate::sort::sort(&mut order, &mut |a, b| {
+                self.less_with_trace(a, b, &campaigns, &scores, &mut rng, &mut active)
+            });
+            if trace.missing {
+                let mut yes = decisions.clone();
+                yes.push(true);
+                let mut no = decisions;
+                no.push(false);
+                pending.push(yes);
+                pending.push(no);
+            } else {
+                for (rank, team) in order.into_iter().enumerate() {
+                    possible[team * self.n + rank] = true;
+                }
+            }
+        }
+        DiscreteReachability {
+            possible,
+            completed: true,
+            replays,
+        }
     }
 }
 

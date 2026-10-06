@@ -706,6 +706,9 @@ pub fn run_logged(
             if est.probability != 0. {
                 continue;
             }
+            if est.reachability.starts_with("impossible") {
+                continue;
+            }
             if bounds.hard_bound(t, r, &pmfs[t]).0 <= 0. {
                 est.reachability = "impossible_by_points".into();
             } else {

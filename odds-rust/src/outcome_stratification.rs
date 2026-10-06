@@ -405,36 +405,100 @@ pub fn estimate(m: &Model, seed: i64) -> Option<(Vec<Estimate>, serde_json::Valu
     };
     let mut leaves = Vec::new();
     let mut outcomes = vec![0; m.fixtures.len()];
+    let unrestricted = m
+        .fixtures
+        .iter()
+        .all(|fixture| fixture.prob.iter().all(|probability| *probability > 0.));
+    // Reserve at most one percent of the deterministic season budget for
+    // conservative replay certificates. Quota exhaustion broadens a path to
+    // every rank, so it can reduce proof coverage but cannot create a proof.
+    let mut certificate_replay_budget = if unrestricted {
+        ((budget / 100) / ordinary_work as u64) as usize
+    } else {
+        0
+    };
+    let certificate_coverage_enabled = unrestricted && path_count <= certificate_replay_budget;
+    if !certificate_coverage_enabled {
+        certificate_replay_budget = 0;
+    }
+    let certificate_replay_budget_initial = certificate_replay_budget;
+    let mut possible = vec![false; m.n * m.n];
+    let mut certificate_work = 0u64;
     fn paths(
         m: &Model,
         buckets: Option<&[FixtureBuckets]>,
         leaf_limit: usize,
+        certificate_coverage_enabled: bool,
+        certificate_replay_budget: &mut usize,
+        ordinary_work: u64,
+        possible: &mut [bool],
+        certificate_work: &mut u64,
         outcomes: &mut [usize],
         i: usize,
         prior: f64,
         leaves: &mut Vec<Leaf>,
     ) -> bool {
         if i == outcomes.len() {
+            if certificate_coverage_enabled && !possible.iter().all(|reachable| *reachable) {
+                let replay_limit = (*certificate_replay_budget).min(64);
+                let certificate = m.discrete_reachability(outcomes, replay_limit);
+                for (cell, reachable) in possible.iter_mut().zip(certificate.possible) {
+                    *cell |= reachable;
+                }
+                *certificate_replay_budget =
+                    certificate_replay_budget.saturating_sub(certificate.replays);
+                *certificate_work = certificate_work
+                    .saturating_add((certificate.replays as u64).saturating_mul(ordinary_work));
+            }
             return combinations(m, outcomes, prior, buckets, leaf_limit, leaves);
         }
         for o in 0..3 {
             let p = m.fixtures[i].prob[o];
             if p > 0. {
                 outcomes[i] = o;
-                if !paths(m, buckets, leaf_limit, outcomes, i + 1, prior * p, leaves) {
+                if !paths(
+                    m,
+                    buckets,
+                    leaf_limit,
+                    certificate_coverage_enabled,
+                    certificate_replay_budget,
+                    ordinary_work,
+                    possible,
+                    certificate_work,
+                    outcomes,
+                    i + 1,
+                    prior * p,
+                    leaves,
+                ) {
                     return false;
                 }
             }
         }
         true
     }
-    if !paths(m, bucket_ref, leaf_limit, &mut outcomes, 0, 1., &mut leaves) {
+    if !paths(
+        m,
+        bucket_ref,
+        leaf_limit,
+        certificate_coverage_enabled,
+        &mut certificate_replay_budget,
+        ordinary_work as u64,
+        &mut possible,
+        &mut certificate_work,
+        &mut outcomes,
+        0,
+        1.,
+        &mut leaves,
+    ) {
         return None;
     }
     let unresolved = leaves.iter().filter(|l| !l.exact).count();
     let leaf_cert = (leaves.len() as u64).checked_mul(leaf_unit)?;
     let exact_rank = ((leaves.len() - unresolved) as u64).checked_mul(ordinary_work as u64)?;
-    let total_plan_work = path_work.checked_add(leaf_cert)?.checked_add(exact_rank)?;
+    let total_plan_work = path_work
+        .checked_add(leaf_cert)?
+        .checked_add(exact_rank)?
+        .checked_add(certificate_work)?;
     if total_plan_work >= budget {
         return None;
     }
@@ -527,6 +591,7 @@ pub fn estimate(m: &Model, seed: i64) -> Option<(Vec<Estimate>, serde_json::Valu
         .map(|j| {
             let se = variance[j].sqrt();
             let rel = if p[j] > 0. { Some(se / p[j]) } else { None };
+            let certified_impossible = certificate_coverage_enabled && !possible[j];
             Estimate {
                 probability: p[j],
                 std_err: se,
@@ -551,13 +616,17 @@ pub fn estimate(m: &Model, seed: i64) -> Option<(Vec<Estimate>, serde_json::Valu
                     && unresolved_mass <= 0.5 * p[j],
                 relative_se: rel,
                 max_event_weight_share: if p[j] > 0. { max_event[j] / p[j] } else { 0. },
-                zero_hit_upper_95: if p[j] == 0. {
+                zero_hit_upper_95: if certified_impossible {
+                    0.
+                } else if p[j] == 0. {
                     (unresolved_mass + 1e-15).min(1.)
                 } else {
                     0.
                 },
                 design: "outcome_path_stratified".into(),
-                reachability: if p[j] > 0. {
+                reachability: if certified_impossible {
+                    "impossible_by_discrete_standings".into()
+                } else if p[j] > 0. {
                     "reachable_by_construction".into()
                 } else {
                     "undecided".into()
@@ -573,7 +642,10 @@ pub fn estimate(m: &Model, seed: i64) -> Option<(Vec<Estimate>, serde_json::Valu
         "conditional_floor":conditional_floor,"floor_draw_budget":floor_draw_budget,
         "draws_per_stratum":allocations,
         "cost_budget_ordinary_seasons":ORDINARY_SEASONS,"ordinary_season_work":ordinary_work,
-        "certification_and_preparation_work":total_plan_work,"total_work_budget":budget,"conditional_draw_work_budget":remaining_draws as u64 * ordinary_work as u64,
+        "certification_and_preparation_work":total_plan_work,"discrete_reachability_replays":certificate_work / ordinary_work as u64,
+        "discrete_reachability_replay_budget":certificate_replay_budget_initial,"unrestricted_wdl_support":unrestricted,
+        "discrete_reachability_coverage_enabled":certificate_coverage_enabled,
+        "total_work_budget":budget,"conditional_draw_work_budget":remaining_draws as u64 * ordinary_work as u64,
         "actual_conditional_draw_work":draws as u64 * ordinary_work as u64,
         "strategy":"positive-probability WDL paths; optional safe two-team H2H score buckets"}),
     ))
@@ -582,6 +654,168 @@ pub fn estimate(m: &Model, seed: i64) -> Option<(Vec<Estimate>, serde_json::Valu
 #[cfg(test)]
 mod allocation_tests {
     use super::*;
+
+    fn c2_model() -> Model {
+        Model::new(
+            serde_json::from_str(include_str!("../tests/fixtures/group-17059.json"))
+                .expect("valid Group C2 fixture"),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn discrete_replay_quota_exhaustion_returns_all_possible_ranks() {
+        let model = c2_model();
+        let result = model.discrete_reachability(&[0, 2, 2, 2], 1);
+        assert!(!result.completed);
+        assert_eq!(result.replays, 1);
+        assert!(result.possible.iter().all(|possible| *possible));
+    }
+
+    #[test]
+    fn discrete_replay_mask_contains_extreme_scoreline_standings() {
+        let mut request: crate::model::Request =
+            serde_json::from_str(include_str!("../tests/fixtures/group-17064.json")).unwrap();
+        let scores = [(0, 1), (0, 1), (0, 1), (10, 0)];
+        let mut outcomes = Vec::new();
+        for (id, (home, away)) in [370741, 370744, 370751, 370752].into_iter().zip(scores) {
+            let game = request.games.iter_mut().find(|game| game.id == id).unwrap();
+            (game.home_score, game.away_score, game.played) = (home, away, true);
+            outcomes.push(if home > away {
+                2
+            } else if home == away {
+                1
+            } else {
+                0
+            });
+        }
+        let original: crate::model::Request =
+            serde_json::from_str(include_str!("../tests/fixtures/group-17064.json")).unwrap();
+        let model = Model::new(original).unwrap();
+        let certificate = model.discrete_reachability(&outcomes, 64);
+        assert!(certificate.completed);
+        let completed = Model::new(request).unwrap();
+        let mut order = vec![0; completed.n];
+        completed.standings(
+            &mut order,
+            &completed.base,
+            &completed.empty_scores(),
+            &mut Rng::new(808),
+        );
+        let winner = completed.ids.iter().position(|id| *id == 2689).unwrap();
+        assert_eq!(order[0], winner);
+        assert!(certificate.possible[winner * completed.n]);
+    }
+
+    #[test]
+    fn random_and_name_tiebreaks_are_explored_as_unknown_comparisons() {
+        for key in ["random", "name"] {
+            let mut request: crate::model::Request =
+                serde_json::from_str(include_str!("../tests/fixtures/group-17059.json")).unwrap();
+            request.phase.sort = format!("pt,{key}");
+            let model = Model::new(request.clone()).unwrap();
+            let outcomes = [2, 0, 2, 0];
+            let certificate = model.discrete_reachability(&outcomes, 64);
+            assert!(
+                certificate.completed,
+                "{key} replay quota should cover this small tie"
+            );
+            assert!(certificate.replays > 1);
+            let mut scores = model.empty_scores();
+            for (outcome, fixture) in outcomes.iter().zip(&model.fixtures) {
+                scores[fixture.request_index] = match outcome {
+                    0 => [0, 1],
+                    1 => [0, 0],
+                    _ => [1, 0],
+                };
+            }
+            let mut observed = std::collections::HashSet::new();
+            for seed in 0..32 {
+                let mut completed_request = request.clone();
+                for (outcome, fixture) in outcomes.iter().zip(&model.fixtures) {
+                    let game = &mut completed_request.games[fixture.request_index];
+                    (game.home_score, game.away_score) = match outcome {
+                        0 => (0, 1),
+                        1 => (0, 0),
+                        _ => (1, 0),
+                    };
+                    game.played = true;
+                }
+                let completed = Model::new(completed_request).unwrap();
+                let mut order = vec![0; completed.n];
+                completed.standings(&mut order, &completed.base, &scores, &mut Rng::new(seed));
+                observed.insert(order.clone());
+                for (rank, team) in order.into_iter().enumerate() {
+                    assert!(certificate.possible[team * completed.n + rank]);
+                }
+            }
+            assert!(
+                observed.len() > 1,
+                "{key} samples should exercise multiple orders"
+            );
+        }
+    }
+
+    #[test]
+    fn recursive_head_unknowns_cover_high_margin_scoreline_orders() {
+        let base: crate::model::Request =
+            serde_json::from_str(include_str!("../tests/fixtures/group-17059.json")).unwrap();
+        let model = Model::new(base.clone()).unwrap();
+        let outcomes = [0, 2, 2, 2];
+        let certificate = model.discrete_reachability(&outcomes, 64);
+        assert!(certificate.completed);
+        assert!(certificate.replays > 1);
+
+        let score_options = [
+            [(0, 1), (0, 10)],
+            [(1, 0), (10, 0)],
+            [(1, 0), (10, 0)],
+            [(1, 0), (10, 0)],
+        ];
+        let mut observed = std::collections::HashSet::new();
+        for mask in 0..(1 << model.fixtures.len()) {
+            let mut request = base.clone();
+            for (i, fixture) in model.fixtures.iter().enumerate() {
+                let (home, away) = score_options[i][(mask >> i) & 1];
+                let game = &mut request.games[fixture.request_index];
+                (game.home_score, game.away_score, game.played) = (home, away, true);
+            }
+            let completed = Model::new(request).unwrap();
+            let mut order = vec![0; completed.n];
+            completed.standings(
+                &mut order,
+                &completed.base,
+                &completed.empty_scores(),
+                &mut Rng::new(808),
+            );
+            observed.insert(order.clone());
+            for (rank, team) in order.into_iter().enumerate() {
+                assert!(certificate.possible[team * completed.n + rank]);
+            }
+        }
+        assert!(
+            observed.len() > 1,
+            "score margins should change recursive H2H order"
+        );
+    }
+
+    #[test]
+    fn incomplete_wdl_support_never_emits_a_discrete_impossibility() {
+        let mut request: crate::model::Request =
+            serde_json::from_str(include_str!("../tests/fixtures/group-17059.json")).unwrap();
+        let future = request.games.iter_mut().find(|game| !game.played).unwrap();
+        future.home_power = 1e-20;
+        future.away_power = 1e-20;
+        let model = Model::new(request).unwrap();
+        assert!(model.fixtures[0]
+            .prob
+            .iter()
+            .any(|probability| *probability == 0.));
+        let (estimates, _) = estimate(&model, 808).unwrap();
+        assert!(estimates.iter().all(|estimate| !estimate
+            .reachability
+            .starts_with("impossible_by_discrete_standings")));
+    }
 
     #[test]
     fn prior_targets_spend_only_their_requested_draws() {
