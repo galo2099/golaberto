@@ -11,8 +11,9 @@ domains, reduced fixtures, and final matrix reconciliation.
 The executable does not call Go and does not read the golden probabilities.
 The former Go odds/ratings service has been removed. Saved Go oracle fixtures
 remain for regression tests; historical comparison tools require a frozen Go
-test binary or an earlier checkout. The separate SofaScore fetcher remains in
-`go/sofascore_fetch/` and is built by Rails setup and deployment.
+test binary or an earlier checkout. The separate Rust SofaScore fetcher lives in
+`sofascore-fetch-rust/` and is built by Rails setup and deployment. See its
+README for browser emulation and native build prerequisites.
 The default coverage profile
 adds a bounded portfolio for remaining zero cells, targeting order-of-magnitude
 estimates. Earlier sampling stages and acceptance gates are preserved; the

@@ -20,7 +20,7 @@ end
 class SofaScoreFetch
   def self.get(url)
     binary = ENV["SOFASCORE_FETCH_BIN"] || File.expand_path("../bin/sofascore_fetch", __dir__)
-    raise "SofaScore fetcher is missing; build it with go -C go/sofascore_fetch build -o ../../bin/sofascore_fetch ." unless File.executable?(binary)
+    raise "SofaScore fetcher is missing; build it with cargo build --release --locked --manifest-path sofascore-fetch-rust/Cargo.toml --target-dir sofascore-fetch-rust/target, then copy sofascore-fetch-rust/target/release/sofascore_fetch to bin/sofascore_fetch" unless File.executable?(binary)
 
     body, error, status = Open3.capture3(binary, url)
     raise "SofaScore request failed for #{url}: #{error.strip}" unless status.success?

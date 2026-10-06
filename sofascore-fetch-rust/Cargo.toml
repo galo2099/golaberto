@@ -1,0 +1,19 @@
+[package]
+name = "sofascore-fetch-rust"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+
+[[bin]]
+name = "sofascore_fetch"
+path = "src/main.rs"
+
+[dependencies]
+wreq = { version = "=6.0.0-rc.31", default-features = false, features = ["tokio-rt", "stream", "webpki-roots"] }
+wreq-util = { version = "=3.0.0-rc.14", features = ["emulation"] }
+tokio = { version = "1", features = ["rt", "time"] }
+futures-util = "0.3"
+url = "2.5"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt", "time", "macros"] }

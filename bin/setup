@@ -18,7 +18,10 @@ FileUtils.chdir APP_ROOT do
   system("bundle check") || system!("bundle install")
 
   puts "\n== Building SofaScore API fetcher =="
-  system! "go", "-C", "go/sofascore_fetch", "build", "-o", "../../bin/sofascore_fetch", "."
+  system! "cargo", "build", "--release", "--locked", "--manifest-path", "sofascore-fetch-rust/Cargo.toml", "--target-dir", "sofascore-fetch-rust/target"
+  FileUtils.mkdir_p "bin"
+  FileUtils.cp "sofascore-fetch-rust/target/release/sofascore_fetch", "bin/sofascore_fetch"
+  FileUtils.chmod 0755, "bin/sofascore_fetch"
 
   # puts "\n== Copying sample files =="
   # unless File.exist?("config/database.yml")

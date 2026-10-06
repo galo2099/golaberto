@@ -11,8 +11,9 @@ namespace :deploy do
   desc 'Build the SofaScore API fetcher'
   task :build_sofascore_fetch do
     on roles(:app) do
-      within release_path.join('go/sofascore_fetch') do
-        execute :go, :build, '-o', release_path.join('bin/sofascore_fetch'), '.'
+      within release_path do
+        execute :cargo, :build, '--release', '--locked', '--manifest-path', 'sofascore-fetch-rust/Cargo.toml', '--target-dir', 'sofascore-fetch-rust/target'
+        execute :install, '-m', '755', 'sofascore-fetch-rust/target/release/sofascore_fetch', 'bin/sofascore_fetch'
       end
     end
   end

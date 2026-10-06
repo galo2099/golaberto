@@ -13,7 +13,8 @@ tools in this archive require a frozen Go test binary; the Go experiment runner
 requires earlier source checkouts containing the retired service. Saved oracle
 fixtures and experiment evidence remain available without Go. Current Rust
 service commands are documented in `odds-rust/README.md`. The separate
-SofaScore fetcher in `go/sofascore_fetch/` is still used by Rails scraping.
+Rust SofaScore fetcher in `sofascore-fetch-rust/` is used by Rails scraping;
+active setup and deployment no longer require Go.
 
 The standalone `stats` service has also been removed. Its active formula
 library moved from `stats/core` to `odds-rust/player-ratings`. References to

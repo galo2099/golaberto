@@ -71,7 +71,7 @@ with Sol. Higher-priority runtime instructions still apply.
 
 - Application: `Golaberto` (Ruby on Rails).
 - Auxiliary service: Rust HTTP service in `odds-rust/` for odds and ratings.
-- Scraping helper: Go SofaScore API fetcher in `go/sofascore_fetch/`.
+- Scraping helper: Rust SofaScore API fetcher in `sofascore-fetch-rust/`.
 - Player-rating formulas: local Rust crate in `odds-rust/player-ratings/`.
 - Rails config: `config/application.rb` (app defaults are legacy-compatible).
 - Database: MySQL (`mysql2` adapter in `config/database.yml`).
@@ -83,7 +83,7 @@ with Sol. Higher-priority runtime instructions still apply.
 - `app/controllers`: controller layer (legacy naming includes singular controllers like `team_controller.rb`).
 - `config/routes.rb`: mixed modern + legacy routes with a catch-all route at the end.
 - `odds-rust/`: unified HTTP service for championship odds and team/player ratings.
-- `go/sofascore_fetch/`: standalone SofaScore API fetcher used by Rails scraping.
+- `sofascore-fetch-rust/`: standalone SofaScore API fetcher used by Rails scraping.
 - `odds-rust/player-ratings/`: player-rating formulas and regression fixtures used by the unified service.
 - `lib/`: important Ruby modules, helpers, and rake tasks used across the app.
 - `db/`: schema and migrations.
@@ -160,7 +160,7 @@ bin/rake test
 - If you change request/response JSON shapes in the Rust service, update all Ruby call sites in the same change.
 - Run `cargo test --release --locked --manifest-path odds-rust/Cargo.toml` for service changes.
 - The former Go odds/ratings service has been removed. Saved Go oracle fixtures remain for regression tests; historical comparison tools require an earlier checkout or a frozen Go test binary.
-- The separate Go SofaScore fetcher remains in `go/sofascore_fetch/`, with its own module. `bin/setup` and deployment build it into `bin/sofascore_fetch`; retain its browser TLS profile when changing transport behavior.
+- The standalone Rust SofaScore fetcher lives in `sofascore-fetch-rust/`. `bin/setup` and deployment build it into `bin/sofascore_fetch`; retain its browser TLS and HTTP/2 emulation when changing transport behavior. It currently uses the pinned Chrome 149 profile. Build prerequisites and checks are documented in `sofascore-fetch-rust/README.md`.
 
 ## Rust Player Ratings Notes
 

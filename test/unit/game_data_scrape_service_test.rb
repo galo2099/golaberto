@@ -3,7 +3,7 @@ require "scrape"
 require "tmpdir"
 
 class GameDataScrapeServiceTest < ActiveSupport::TestCase
-  test "SofaScore requests use HTTPS and the Go fetcher" do
+  test "SofaScore requests use HTTPS and the Rust fetcher" do
     requested_url = nil
 
     SofaScoreFetch.stub(:get, ->(url) {
@@ -14,6 +14,19 @@ class GameDataScrapeServiceTest < ActiveSupport::TestCase
     end
 
     assert_equal "https://www.sofascore.com/api/v1/event/42/lineups", requested_url
+  end
+
+  test "SofaScore fetcher explains how to build the missing binary" do
+    previous_fetcher = ENV["SOFASCORE_FETCH_BIN"]
+    ENV["SOFASCORE_FETCH_BIN"] = "/missing/sofascore_fetch"
+
+    error = assert_raises(RuntimeError) do
+      SofaScoreFetch.get("https://www.sofascore.com/api/v1/event/42")
+    end
+    assert_includes error.message, "cargo build --release --locked --manifest-path sofascore-fetch-rust/Cargo.toml --target-dir sofascore-fetch-rust/target"
+    assert_includes error.message, "bin/sofascore_fetch"
+  ensure
+    ENV["SOFASCORE_FETCH_BIN"] = previous_fetcher
   end
 
   test "SofaScore fetcher returns data and reports transport errors" do
