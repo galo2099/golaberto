@@ -1905,7 +1905,7 @@ impl LazyJoint {
         let mut goal_context = self
             .goals
             .as_ref()
-            .map(|_| crate::goal_tilt::Context::new(m));
+            .map(|_| crate::goal_tilt::Context::with_sample_budget(m, samples));
         let mut out = vec![0; m.fixtures.len()];
         let cardinality = crate::rare_tail::value("RUST_ODDS_LAZY_GUIDE") == "cardinality";
         let dynamic = std::env::var("RUST_ODDS_LAZY_PROPAGATE")
@@ -2308,7 +2308,13 @@ impl LazyJoint {
                 result.operations.rank(m);
 
                 let (rank, ratio) = if let Some(goals) = &self.goals {
-                    goals.rank(m, &out, &mut rng, goal_context.as_mut().unwrap())
+                    goals.rank_with_operations(
+                        m,
+                        &out,
+                        &mut rng,
+                        goal_context.as_mut().unwrap(),
+                        &mut result.operations,
+                    )
                 } else {
                     (scores.rank(self.cell.team, &out, &mut rng, None), 1.)
                 };
@@ -2414,6 +2420,30 @@ impl LazyJoint {
 mod tests {
     use super::*;
     use crate::{conditioned::canonical_ranks, model::Request};
+
+    #[test]
+    fn cold_goal_guidance_work_fits_family_admission_bound_at_two_batch_sizes() {
+        let request: Request = serde_json::from_str(include_str!(
+            "../../../tests/fixtures/group-17059-head-gd.json"
+        ))
+        .unwrap();
+        let m = Model::new(request).unwrap();
+        let cell = Cell {
+            team: m.indices[&2694],
+            rank: 1,
+        };
+        for (samples, seed) in [(64, 810), (1_000, 811)] {
+            let plan = LazyJoint::with_mode(&m, cell, seed, &[], 0, false, false, None).unwrap();
+            assert!(plan.goals.is_some(), "goal guidance default was disabled");
+            let estimate = plan.sample(&m, samples, seed + 100);
+            let upper = crate::rare_tail::budget::family_validation_upper_cost(&m);
+            assert!(
+                estimate.operations.units() <= upper * estimate.samples,
+                "samples={samples} actual={} upper={upper}",
+                estimate.operations.units()
+            );
+        }
+    }
 
     #[test]
     fn partial_family_selection_reserves_both_sides_before_contribution_fill() {

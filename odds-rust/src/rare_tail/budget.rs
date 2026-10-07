@@ -69,10 +69,35 @@ pub(crate) fn family_validation_upper_cost(m: &crate::model::Model) -> usize {
         0
     };
     let per_pattern = 8 * g + g + 7 * n + 8 * n + 90 * g + g * n * (n + 1) + dynamic_cost;
+    let goal_guidance = if crate::rare_tail::value("RUST_ODDS_LAZY_GOALS") == "1"
+        && crate::goal_tilt::GoalTilt::joint_guidance_may_fit_for_any_target(m)
+    {
+        crate::goal_tilt::JOINT_PREPARATION_ALLOWANCE_PER_DRAW
+            + g * crate::goal_tilt::JOINT_DENSITY_WORK_PER_FIXTURE
+    } else {
+        0
+    };
     family_validation_evaluations(crate::rare_tail::family_structure()) * per_pattern
         + 8 * target
         + 8 * (g + n)
         + (8 * g + n * (n.max(2).ilog2() as usize + 1) * m.keys.len().max(1))
+        + goal_guidance
+}
+
+/// Conservative donor-feasibility screening forecast. It retains all existing
+/// family work and per-draw joint-guidance density work, but excludes bounded
+/// batch joint-proposal preparation. This is not an execution reservation;
+/// actual preparation is charged in pilots and work counters, while family
+/// validation retains the full `family_validation_upper_cost` bound.
+pub(crate) fn family_validation_screen_cost(m: &crate::model::Model) -> usize {
+    let optional_preparation = if crate::rare_tail::value("RUST_ODDS_LAZY_GOALS") == "1"
+        && crate::goal_tilt::GoalTilt::joint_guidance_may_fit_for_any_target(m)
+    {
+        crate::goal_tilt::JOINT_PREPARATION_ALLOWANCE_PER_DRAW
+    } else {
+        0
+    };
+    family_validation_upper_cost(m).saturating_sub(optional_preparation)
 }
 
 fn family_validation_evaluations(structure: super::family_config::FamilyStructure) -> usize {

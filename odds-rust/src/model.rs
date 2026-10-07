@@ -1,12 +1,12 @@
 use crate::{
     rng::Rng,
-    sampling::{Poisson, Scores},
+    sampling::{masses, Poisson, Scores},
 };
 use serde::{Deserialize, Deserializer, Serialize};
 use smallvec::SmallVec;
 use std::cmp::Ordering;
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 fn null_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
 where
     D: Deserializer<'de>,
@@ -143,6 +143,13 @@ pub struct Model {
     latest_directed: Vec<Option<DirectedGame>>,
     pub n: usize,
     pub(crate) target_limits: Mutex<HashMap<usize, crate::target_limits::Certified>>,
+    joint_score_support_costs: OnceLock<JointScoreSupportCosts>,
+}
+
+pub(crate) struct JointScoreSupportCosts {
+    pub incident: Vec<usize>,
+    pub away: Vec<usize>,
+    pub shared: HashMap<(usize, usize), usize>,
 }
 
 #[derive(Clone, Debug)]
@@ -158,6 +165,16 @@ struct SortTrace {
     decisions: Vec<bool>,
     cursor: usize,
     missing: bool,
+    capture_score_guidance: bool,
+    score_guidance: Option<ScoreGuidance>,
+    unsupported_score_guidance: bool,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct ScoreGuidance {
+    /// Constant plus a sparse linear combination of future home/away goals.
+    pub offset: f64,
+    pub terms: Vec<(usize, [f64; 2])>,
 }
 
 impl SortTrace {
@@ -176,6 +193,83 @@ impl SortTrace {
 }
 
 impl Model {
+    pub(crate) fn joint_score_support_costs(&self) -> &JointScoreSupportCosts {
+        self.joint_score_support_costs.get_or_init(|| {
+            let mut incident = vec![0usize; self.n];
+            let mut away = vec![0usize; self.n];
+            let mut shared = HashMap::<(usize, usize), usize>::new();
+            for fixture in &self.fixtures {
+                let home = masses(fixture.home_sampler.mean).len();
+                let away_scores = masses(fixture.away_sampler.mean).len();
+                let cost = home
+                    .saturating_mul(away_scores)
+                    .saturating_add(home)
+                    .saturating_add(away_scores);
+                if fixture.home < self.n {
+                    incident[fixture.home] = incident[fixture.home].saturating_add(cost);
+                }
+                if fixture.away < self.n {
+                    incident[fixture.away] = incident[fixture.away].saturating_add(cost);
+                    away[fixture.away] = away[fixture.away].saturating_add(cost);
+                }
+                if fixture.home < self.n && fixture.away < self.n && fixture.home != fixture.away {
+                    let pair = if fixture.home < fixture.away {
+                        (fixture.home, fixture.away)
+                    } else {
+                        (fixture.away, fixture.home)
+                    };
+                    let entry = shared.entry(pair).or_default();
+                    *entry = entry.saturating_add(cost);
+                }
+            }
+            JointScoreSupportCosts {
+                incident,
+                away,
+                shared,
+            }
+        })
+    }
+
+    /// Trace the production comparator for a tied pair and capture its first
+    /// score-dependent key that can vary under the fixed WDL path.
+    pub(crate) fn score_guidance(
+        &self,
+        outcomes: &[u8],
+        a: usize,
+        b: usize,
+    ) -> Option<ScoreGuidance> {
+        if outcomes.len() != self.fixtures.len() || a >= self.n || b >= self.n || a == b {
+            return None;
+        }
+        let mut campaigns = self.base.clone();
+        let mut scores = self.empty_scores();
+        for (i, (&outcome, fixture)) in outcomes.iter().zip(&self.fixtures).enumerate() {
+            let score = match outcome {
+                0 => [0, 1],
+                1 => [0, 0],
+                2 => [1, 0],
+                _ => return None,
+            };
+            scores[fixture.request_index] = score;
+            self.add(&mut campaigns, i, score);
+        }
+        if campaigns[a].points != campaigns[b].points {
+            return None;
+        }
+        let mut trace = SortTrace {
+            capture_score_guidance: true,
+            ..SortTrace::default()
+        };
+        let mut active = Some(&mut trace);
+        let mut rng = Rng::new(0);
+        let _ = self.less_with_trace(a, b, &campaigns, &scores, &mut rng, &mut active);
+        if trace.unsupported_score_guidance {
+            None
+        } else {
+            trace.score_guidance
+        }
+    }
+
     pub fn new(request: Request) -> Result<Self, String> {
         let n = request.team_groups.len();
         if n == 0 {
@@ -280,6 +374,7 @@ impl Model {
             latest_directed,
             n,
             target_limits: Mutex::new(HashMap::new()),
+            joint_score_support_costs: OnceLock::new(),
         })
     }
     #[inline]
@@ -295,6 +390,110 @@ impl Model {
             .iter()
             .map(|g| [g.home_score, g.away_score])
             .collect()
+    }
+    fn capture_score_key(
+        &self,
+        trace: &mut SortTrace,
+        key: Key,
+        a: usize,
+        b: usize,
+        ca: &Campaign,
+        cb: &Campaign,
+        scores: &[[i32; 2]],
+        game_scope: Option<&[usize]>,
+    ) {
+        if !trace.capture_score_guidance || trace.score_guidance.is_some() {
+            return;
+        }
+        if key == Key::Average {
+            trace.unsupported_score_guidance = true;
+            return;
+        }
+        let mut terms = Vec::new();
+        let mut offset = match key {
+            Key::Gd => ((ca.gf - ca.ga) - (cb.gf - cb.ga)) as f64,
+            Key::Gf => (ca.gf - cb.gf) as f64,
+            Key::Away => (ca.away - cb.away) as f64,
+            _ => return,
+        };
+        for (fixture_index, fixture) in self.fixtures.iter().enumerate() {
+            if game_scope.is_some_and(|scope| scope.binary_search(&fixture.request_index).is_err())
+            {
+                continue;
+            }
+            let mut coefficient = [0.; 2];
+            match key {
+                Key::Gd => {
+                    if fixture.home == a {
+                        coefficient[0] += 1.;
+                        coefficient[1] -= 1.;
+                    }
+                    if fixture.away == a {
+                        coefficient[0] -= 1.;
+                        coefficient[1] += 1.;
+                    }
+                    if fixture.home == b {
+                        coefficient[0] -= 1.;
+                        coefficient[1] += 1.;
+                    }
+                    if fixture.away == b {
+                        coefficient[0] += 1.;
+                        coefficient[1] -= 1.;
+                    }
+                }
+                Key::Gf => {
+                    if fixture.home == a {
+                        coefficient[0] += 1.;
+                    }
+                    if fixture.away == a {
+                        coefficient[1] += 1.;
+                    }
+                    if fixture.home == b {
+                        coefficient[0] -= 1.;
+                    }
+                    if fixture.away == b {
+                        coefficient[1] -= 1.;
+                    }
+                }
+                Key::Away => {
+                    if fixture.away == a {
+                        coefficient[1] += 1.;
+                    }
+                    if fixture.away == b {
+                        coefficient[1] -= 1.;
+                    }
+                }
+                _ => unreachable!(),
+            }
+            if coefficient != [0., 0.] {
+                let score = scores[fixture.request_index];
+                offset -= coefficient[0] * score[0] as f64 + coefficient[1] * score[1] as f64;
+                terms.push((fixture_index, coefficient));
+            }
+        }
+        // A constant score key is already settled for this WDL path. Keep
+        // following the real comparator so later keys can guide the draw.
+        let variable = terms
+            .iter()
+            .any(|(i, coefficient)| match self.outcome_at(i, scores) {
+                0 | 2 => coefficient != &[0., 0.],
+                1 => (coefficient[0] + coefficient[1]).abs() > f64::EPSILON,
+                _ => false,
+            });
+        if variable {
+            trace.score_guidance = Some(ScoreGuidance { offset, terms });
+        }
+    }
+    fn outcome_at(&self, fixture_index: &usize, scores: &[[i32; 2]]) -> u8 {
+        let fixture = &self.fixtures[*fixture_index];
+        let [home, away] = scores[fixture.request_index];
+        if home < away {
+            0
+        } else if home == away {
+            1
+        } else {
+            2
+        }
     }
     #[inline]
     pub fn less(
@@ -380,7 +579,11 @@ impl Model {
         for key in &keys[start..] {
             if matches!(key, Key::Gd | Key::Gf | Key::Average | Key::Away) {
                 if let Some(t) = trace.as_deref_mut() {
-                    return t.unknown();
+                    if t.capture_score_guidance {
+                        self.capture_score_key(t, *key, a, b, &c[a], &c[b], scores, game_scope);
+                    } else {
+                        return t.unknown();
+                    }
                 }
             }
             let (x, y) = match key {
@@ -400,9 +603,18 @@ impl Model {
                         continue;
                     }
                     if let Some(t) = trace.as_deref_mut() {
-                        return t.unknown();
+                        if t.capture_score_guidance {
+                            if t.score_guidance.is_none() {
+                                t.unsupported_score_guidance = true;
+                            }
+                        } else {
+                            return t.unknown();
+                        }
                     }
-                    return rng.float() < 0.5;
+                    if rng.float() < 0.5 {
+                        return true;
+                    }
+                    return false;
                 }
                 Key::Head => {
                     let cohort_len = cohort.map_or(self.n, |teams| teams.len());
@@ -653,7 +865,18 @@ impl Model {
         for key in &self.keys[start..] {
             if matches!(key, Key::Gd | Key::Gf | Key::Average | Key::Away) {
                 if let Some(t) = trace.as_deref_mut() {
-                    return t.unknown();
+                    if t.capture_score_guidance {
+                        // Raw pair comparisons are already expressed by the
+                        // two campaigns; pair-game scopes are supplied by the
+                        // contextual standings path above.
+                        if let Some((team_a, team_b)) = pair {
+                            self.capture_score_key(t, *key, team_a, team_b, a, b, scores, None);
+                        } else if t.score_guidance.is_none() {
+                            t.unsupported_score_guidance = true;
+                        }
+                    } else {
+                        return t.unknown();
+                    }
                 }
             }
             let (x, y) = match key {
@@ -671,7 +894,13 @@ impl Model {
                 Key::Random | Key::Name => {
                     if pair.is_some() {
                         if let Some(t) = trace.as_deref_mut() {
-                            return t.unknown();
+                            if t.capture_score_guidance {
+                                if t.score_guidance.is_none() {
+                                    t.unsupported_score_guidance = true;
+                                }
+                            } else {
+                                return t.unknown();
+                            }
                         }
                         return rng.float() < 0.5;
                     } else {

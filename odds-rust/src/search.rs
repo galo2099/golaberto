@@ -1063,12 +1063,14 @@ fn select_donors_for_profile(
     profile: &str,
 ) -> DonorSelection {
     let reference = crate::rare_tail::budget::reference_cost(model).max(1);
-    let family = crate::rare_tail::budget::family_validation_upper_cost(model).max(reference);
+    let family = crate::rare_tail::budget::family_validation_screen_cost(model).max(reference);
     let (pilot, main, check) = donor_draw_floors_for_profile(profile);
     let draws = pilot.saturating_add(main).saturating_add(check);
     let forecast_per_donor = family.saturating_mul(draws);
-    // This is a deterministic admission forecast, not a reservation in the
-    // rare-tail bank: it caps borrowed retries at 20% of 100,000 reference draws.
+    // This is a deterministic feasibility screen, not an execution reservation:
+    // it excludes bounded batch joint-proposal preparation and caps borrowed
+    // retries at 20% of 100,000 reference draws. Actual preparation is charged
+    // in pilots and work counters; family validation retains its full bound.
     let forecast_cap = reference.saturating_mul(BORROWED_RETRY_BUDGET_REFERENCE_DRAWS);
     let mut prioritized = donors.to_vec();
     prioritized.sort_by(|a, b| {
@@ -1301,6 +1303,17 @@ mod donor_preflight_tests {
             ),
         ];
         let selection = select_donors_for_profile(&model, &candidates, "coverage");
+        let reference = crate::rare_tail::budget::reference_cost(&model).max(1);
+        let validation_draws = 1_000 + 2_000 + 1_000;
+        let full_forecast = crate::rare_tail::budget::family_validation_upper_cost(&model)
+            .max(reference)
+            .saturating_mul(validation_draws);
+        let screened_forecast = crate::rare_tail::budget::family_validation_screen_cost(&model)
+            .max(reference)
+            .saturating_mul(validation_draws);
+        assert!(screened_forecast <= selection.forecast_cap);
+        assert!(full_forecast > selection.forecast_cap);
+        assert_eq!(selection.forecast_per_donor, screened_forecast);
         assert_eq!(selection.admitted.len(), 1);
         assert_eq!(selection.admitted[0].0, target);
         assert_eq!(selection.deferred.len(), 1);
