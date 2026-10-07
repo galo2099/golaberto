@@ -603,10 +603,10 @@ pub fn early_report(model: &Model, cells: &[Cell], estimates: &mut [Estimate]) -
             let allowance = 500.min(10000 - nodes);
             let (mut impossible, mut spent) = problem.impossible(cell.team, rank, cap, allowance);
             let mut rank_impossible = false;
-            // Spend fixture-search work only where the existing cohort proof
-            // already encountered a conflict. A one-node consistent relaxation
-            // is a weak priority signal, and retains its existing undecided state.
-            if !impossible && spent > 1 && spent < allowance {
+            // A points-only tie can still hide a conflict across shared
+            // fixtures. Allow the points-and-wins proof to run when the bounded
+            // relaxation returns after one node; root pressure keeps it focused.
+            if !impossible && spent > 0 && spent < allowance {
                 if let Some(packed) = packed {
                     let timer = std::time::Instant::now();
                     let result = packed.prove(

@@ -1,0 +1,3977 @@
+{
+  "id": 16653,
+  "phase_id": 4489,
+  "name": "Grupo Único",
+  "odds_progress": null,
+  "created_at": "2026-03-12T23:28:59.000Z",
+  "updated_at": "2026-10-07T04:02:42.000Z",
+  "zones": [
+    {
+      "name": "Campeão",
+      "color": "#4fe34f",
+      "position": [
+        1
+      ]
+    },
+    {
+      "name": "Promoção",
+      "color": "#90ee90",
+      "position": [
+        1,
+        2
+      ]
+    },
+    {
+      "name": "Playoffs",
+      "color": "#add8e6",
+      "position": [
+        3,
+        4,
+        5,
+        6
+      ]
+    },
+    {
+      "name": "Rebaixamento",
+      "color": "#ffb6c2",
+      "position": [
+        17,
+        18,
+        19,
+        20
+      ]
+    }
+  ],
+  "phase": {
+    "id": 4489,
+    "championship_id": 1527,
+    "name": "Turno e Returno",
+    "order_by": 1,
+    "sort": "pt,w,gd,gf,head,name",
+    "bonus_points": 0,
+    "bonus_points_threshold": 0,
+    "created_at": "2026-03-12T23:28:29.000Z",
+    "updated_at": "2026-10-07T04:02:43.000Z",
+    "scrape_url": "http://www.sofascore.com/api/v1/unique-tournament/390/season/89840/events/round/",
+    "sofascore_tournament_ids": null,
+    "championship": {
+      "id": 1527,
+      "name": "Campeonato Brasileiro - Série B",
+      "begin": "2026-03-21",
+      "end": "2026-11-28",
+      "point_win": 3,
+      "point_draw": 1,
+      "point_loss": 0,
+      "category_id": 1,
+      "show_country": false,
+      "created_at": "2026-03-12T23:28:20.000Z",
+      "updated_at": "2026-10-07T04:02:43.000Z",
+      "region": "national",
+      "region_name": "Brazil"
+    }
+  },
+  "team_groups": [
+    {
+      "team_id": 125,
+      "add_sub": 0,
+      "bias": 0
+    },
+    {
+      "team_id": 550,
+      "add_sub": 0,
+      "bias": 0
+    },
+    {
+      "team_id": 279,
+      "add_sub": 0,
+      "bias": 0
+    },
+    {
+      "team_id": 68,
+      "add_sub": 0,
+      "bias": 0
+    },
+    {
+      "team_id": 457,
+      "add_sub": 0,
+      "bias": 0
+    },
+    {
+      "team_id": 69,
+      "add_sub": 0,
+      "bias": 0
+    },
+    {
+      "team_id": 80,
+      "add_sub": 0,
+      "bias": 0
+    },
+    {
+      "team_id": 73,
+      "add_sub": 0,
+      "bias": 0
+    },
+    {
+      "team_id": 96,
+      "add_sub": 0,
+      "bias": 0
+    },
+    {
+      "team_id": 22,
+      "add_sub": 0,
+      "bias": 0
+    },
+    {
+      "team_id": 11,
+      "add_sub": 0,
+      "bias": 0
+    },
+    {
+      "team_id": 12,
+      "add_sub": 0,
+      "bias": 0
+    },
+    {
+      "team_id": 95,
+      "add_sub": 0,
+      "bias": 0
+    },
+    {
+      "team_id": 87,
+      "add_sub": 0,
+      "bias": 0
+    },
+    {
+      "team_id": 2064,
+      "add_sub": 0,
+      "bias": 0
+    },
+    {
+      "team_id": 588,
+      "add_sub": 0,
+      "bias": 0
+    },
+    {
+      "team_id": 9,
+      "add_sub": 0,
+      "bias": 0
+    },
+    {
+      "team_id": 429,
+      "add_sub": 0,
+      "bias": 0
+    },
+    {
+      "team_id": 77,
+      "add_sub": 0,
+      "bias": 0
+    },
+    {
+      "team_id": 70,
+      "add_sub": 0,
+      "bias": 0
+    }
+  ],
+  "games": [
+    {
+      "id": 364403,
+      "home_id": 70,
+      "away_id": 80,
+      "home_score": 2,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.2243547883424126,
+      "away_power": 1.1142620342944878
+    },
+    {
+      "id": 364402,
+      "home_id": 69,
+      "away_id": 429,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.2196229681334563,
+      "away_power": 0.562047472744804
+    },
+    {
+      "id": 364404,
+      "home_id": 588,
+      "away_id": 279,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.1149031398808675,
+      "away_power": 0.8167047744813405
+    },
+    {
+      "id": 364405,
+      "home_id": 457,
+      "away_id": 22,
+      "home_score": 4,
+      "away_score": 0,
+      "played": true,
+      "home_power": 0.9674011350408174,
+      "away_power": 1.4977057807054825
+    },
+    {
+      "id": 364406,
+      "home_id": 96,
+      "away_id": 77,
+      "home_score": 0,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.4625135584348161,
+      "away_power": 0.9489907933409129
+    },
+    {
+      "id": 364407,
+      "home_id": 68,
+      "away_id": 12,
+      "home_score": 2,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.5036828226269903,
+      "away_power": 0.9946701094002368
+    },
+    {
+      "id": 364408,
+      "home_id": 87,
+      "away_id": 73,
+      "home_score": 0,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.2060989103353725,
+      "away_power": 0.9874283550730252
+    },
+    {
+      "id": 364409,
+      "home_id": 550,
+      "away_id": 9,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.5171363229407615,
+      "away_power": 0.9574118620287292
+    },
+    {
+      "id": 364410,
+      "home_id": 11,
+      "away_id": 125,
+      "home_score": 3,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.4840999731630355,
+      "away_power": 0.8796764546177233
+    },
+    {
+      "id": 364411,
+      "home_id": 2064,
+      "away_id": 95,
+      "home_score": 1,
+      "away_score": 3,
+      "played": true,
+      "home_power": 1.4332576439246025,
+      "away_power": 0.6112697925522593
+    },
+    {
+      "id": 364413,
+      "home_id": 12,
+      "away_id": 2064,
+      "home_score": 0,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.1478266268961335,
+      "away_power": 1.1112065666855793
+    },
+    {
+      "id": 364412,
+      "home_id": 22,
+      "away_id": 96,
+      "home_score": 0,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.4385424906678703,
+      "away_power": 0.9022814920848421
+    },
+    {
+      "id": 364421,
+      "home_id": 125,
+      "away_id": 457,
+      "home_score": 1,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.5558460274276493,
+      "away_power": 0.9372768843557617
+    },
+    {
+      "id": 364414,
+      "home_id": 279,
+      "away_id": 87,
+      "home_score": 1,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.1500307698825243,
+      "away_power": 0.945603693592946
+    },
+    {
+      "id": 364415,
+      "home_id": 95,
+      "away_id": 11,
+      "home_score": 2,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.070061838961952,
+      "away_power": 1.202947561803203
+    },
+    {
+      "id": 364416,
+      "home_id": 77,
+      "away_id": 70,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.4540980287701448,
+      "away_power": 1.1716577008016091
+    },
+    {
+      "id": 364417,
+      "home_id": 9,
+      "away_id": 69,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 0.8663828009205314,
+      "away_power": 0.9919286586074934
+    },
+    {
+      "id": 364418,
+      "home_id": 80,
+      "away_id": 68,
+      "home_score": 0,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.1603086372708429,
+      "away_power": 0.9588195213174495
+    },
+    {
+      "id": 364419,
+      "home_id": 73,
+      "away_id": 550,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.5793182244910666,
+      "away_power": 1.052756878556326
+    },
+    {
+      "id": 364420,
+      "home_id": 429,
+      "away_id": 588,
+      "home_score": 1,
+      "away_score": 2,
+      "played": true,
+      "home_power": 0.9481901838387878,
+      "away_power": 0.7605863959789088
+    },
+    {
+      "id": 364422,
+      "home_id": 22,
+      "away_id": 12,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.729604196580206,
+      "away_power": 1.0448559613107034
+    },
+    {
+      "id": 364423,
+      "home_id": 96,
+      "away_id": 69,
+      "home_score": 0,
+      "away_score": 2,
+      "played": true,
+      "home_power": 0.985483605473777,
+      "away_power": 0.8597527301378136
+    },
+    {
+      "id": 364424,
+      "home_id": 87,
+      "away_id": 9,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.3215610332583494,
+      "away_power": 0.7155038513807223
+    },
+    {
+      "id": 364425,
+      "home_id": 70,
+      "away_id": 279,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.2052272167433258,
+      "away_power": 1.042081410043542
+    },
+    {
+      "id": 364426,
+      "home_id": 95,
+      "away_id": 77,
+      "home_score": 1,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.4805075566761383,
+      "away_power": 1.1486520393264559
+    },
+    {
+      "id": 364427,
+      "home_id": 68,
+      "away_id": 588,
+      "home_score": 0,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.172615902599386,
+      "away_power": 0.7352527014540464
+    },
+    {
+      "id": 364428,
+      "home_id": 2064,
+      "away_id": 80,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.2291780963458998,
+      "away_power": 0.7180628811622465
+    },
+    {
+      "id": 364429,
+      "home_id": 550,
+      "away_id": 125,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.6153106517437772,
+      "away_power": 1.2652823050515412
+    },
+    {
+      "id": 364430,
+      "home_id": 457,
+      "away_id": 429,
+      "home_score": 1,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.0579498178742914,
+      "away_power": 0.9305344303100123
+    },
+    {
+      "id": 364431,
+      "home_id": 11,
+      "away_id": 73,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.2871443812796988,
+      "away_power": 0.8991797507640317
+    },
+    {
+      "id": 364432,
+      "home_id": 73,
+      "away_id": 457,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.5449899278391785,
+      "away_power": 0.7463931134212374
+    },
+    {
+      "id": 364436,
+      "home_id": 12,
+      "away_id": 11,
+      "home_score": 2,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.279156294044559,
+      "away_power": 1.1847235723795384
+    },
+    {
+      "id": 364433,
+      "home_id": 77,
+      "away_id": 68,
+      "home_score": 2,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.1979714459497757,
+      "away_power": 1.1867033525997936
+    },
+    {
+      "id": 364434,
+      "home_id": 9,
+      "away_id": 70,
+      "home_score": 0,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.155028674163821,
+      "away_power": 0.9442839475133258
+    },
+    {
+      "id": 364435,
+      "home_id": 69,
+      "away_id": 87,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.219267353581344,
+      "away_power": 0.7976665181789364
+    },
+    {
+      "id": 364437,
+      "home_id": 429,
+      "away_id": 22,
+      "home_score": 0,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.0479086093317256,
+      "away_power": 1.1447261072919166
+    },
+    {
+      "id": 364438,
+      "home_id": 125,
+      "away_id": 2064,
+      "home_score": 0,
+      "away_score": 3,
+      "played": true,
+      "home_power": 1.0769832351061492,
+      "away_power": 1.111974959119123
+    },
+    {
+      "id": 364439,
+      "home_id": 588,
+      "away_id": 96,
+      "home_score": 0,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.0548599896463893,
+      "away_power": 0.7630696922930971
+    },
+    {
+      "id": 364440,
+      "home_id": 80,
+      "away_id": 550,
+      "home_score": 2,
+      "away_score": 3,
+      "played": true,
+      "home_power": 1.4762654279586855,
+      "away_power": 1.1297943808540731
+    },
+    {
+      "id": 364441,
+      "home_id": 279,
+      "away_id": 95,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.364689393366814,
+      "away_power": 0.9509896852194828
+    },
+    {
+      "id": 364442,
+      "home_id": 125,
+      "away_id": 77,
+      "home_score": 0,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.5083394599819129,
+      "away_power": 1.1175131926220891
+    },
+    {
+      "id": 364443,
+      "home_id": 87,
+      "away_id": 429,
+      "home_score": 0,
+      "away_score": 3,
+      "played": true,
+      "home_power": 1.2176023747421818,
+      "away_power": 0.6770702523017299
+    },
+    {
+      "id": 364445,
+      "home_id": 70,
+      "away_id": 588,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.1271767282522542,
+      "away_power": 0.9506555397550516
+    },
+    {
+      "id": 364444,
+      "home_id": 68,
+      "away_id": 9,
+      "home_score": 1,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.2808328377037514,
+      "away_power": 0.6395113489671476
+    },
+    {
+      "id": 364446,
+      "home_id": 80,
+      "away_id": 12,
+      "home_score": 0,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.4125210850046432,
+      "away_power": 1.1024471439278918
+    },
+    {
+      "id": 364447,
+      "home_id": 95,
+      "away_id": 69,
+      "home_score": 0,
+      "away_score": 0,
+      "played": true,
+      "home_power": 0.988730673708972,
+      "away_power": 1.1307193337564596
+    },
+    {
+      "id": 364451,
+      "home_id": 457,
+      "away_id": 279,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.1142690617983915,
+      "away_power": 1.1049544876704573
+    },
+    {
+      "id": 364448,
+      "home_id": 11,
+      "away_id": 96,
+      "home_score": 0,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.2395167076389746,
+      "away_power": 0.7151717685619795
+    },
+    {
+      "id": 364449,
+      "home_id": 22,
+      "away_id": 73,
+      "home_score": 3,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.4206705535642157,
+      "away_power": 0.9697671355165861
+    },
+    {
+      "id": 364450,
+      "home_id": 2064,
+      "away_id": 550,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.5230222186617262,
+      "away_power": 0.917648785923224
+    },
+    {
+      "id": 364456,
+      "home_id": 96,
+      "away_id": 457,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.3415417720491074,
+      "away_power": 0.6930081969308788
+    },
+    {
+      "id": 364459,
+      "home_id": 9,
+      "away_id": 125,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.1215697987563662,
+      "away_power": 0.9840376992969959
+    },
+    {
+      "id": 364460,
+      "home_id": 77,
+      "away_id": 2064,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.0695162220807721,
+      "away_power": 1.1922500069380788
+    },
+    {
+      "id": 364457,
+      "home_id": 12,
+      "away_id": 95,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.5688162003012718,
+      "away_power": 1.0099441633106299
+    },
+    {
+      "id": 364461,
+      "home_id": 429,
+      "away_id": 11,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.0021593286552308,
+      "away_power": 0.9056594409762818
+    },
+    {
+      "id": 364454,
+      "home_id": 69,
+      "away_id": 70,
+      "home_score": 3,
+      "away_score": 3,
+      "played": true,
+      "home_power": 1.4054133527253623,
+      "away_power": 0.7343831494921115
+    },
+    {
+      "id": 364458,
+      "home_id": 588,
+      "away_id": 22,
+      "home_score": 0,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.0801099876208964,
+      "away_power": 1.1296150099813582
+    },
+    {
+      "id": 364453,
+      "home_id": 279,
+      "away_id": 68,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.12443730135635,
+      "away_power": 0.9608089930101453
+    },
+    {
+      "id": 364455,
+      "home_id": 73,
+      "away_id": 80,
+      "home_score": 3,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.3573705813592345,
+      "away_power": 0.8610578430504019
+    },
+    {
+      "id": 364452,
+      "home_id": 550,
+      "away_id": 87,
+      "home_score": 0,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.4881420247252426,
+      "away_power": 1.1977778578080431
+    },
+    {
+      "id": 364465,
+      "home_id": 457,
+      "away_id": 87,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.066021384069022,
+      "away_power": 1.096417099895979
+    },
+    {
+      "id": 364466,
+      "home_id": 96,
+      "away_id": 73,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.077162540732355,
+      "away_power": 0.9239830359802299
+    },
+    {
+      "id": 364467,
+      "home_id": 22,
+      "away_id": 11,
+      "home_score": 4,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.4693044998718692,
+      "away_power": 0.9731715595689747
+    },
+    {
+      "id": 364468,
+      "home_id": 588,
+      "away_id": 95,
+      "home_score": 3,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.3346843772464339,
+      "away_power": 0.7031674880005587
+    },
+    {
+      "id": 364470,
+      "home_id": 429,
+      "away_id": 9,
+      "home_score": 3,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.1883816726473049,
+      "away_power": 0.5903600399759208
+    },
+    {
+      "id": 364469,
+      "home_id": 77,
+      "away_id": 69,
+      "home_score": 2,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.1686482072626254,
+      "away_power": 1.139383691238726
+    },
+    {
+      "id": 364463,
+      "home_id": 279,
+      "away_id": 12,
+      "home_score": 0,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.2827281274873634,
+      "away_power": 1.0409404186211295
+    },
+    {
+      "id": 364462,
+      "home_id": 125,
+      "away_id": 80,
+      "home_score": 1,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.3111270036513942,
+      "away_power": 1.0477291550747274
+    },
+    {
+      "id": 364464,
+      "home_id": 68,
+      "away_id": 2064,
+      "home_score": 3,
+      "away_score": 3,
+      "played": true,
+      "home_power": 1.0395000735668993,
+      "away_power": 0.9087318592997069
+    },
+    {
+      "id": 364471,
+      "home_id": 70,
+      "away_id": 550,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.5561043983527987,
+      "away_power": 1.306422914331021
+    },
+    {
+      "id": 364476,
+      "home_id": 11,
+      "away_id": 70,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.4697982721700213,
+      "away_power": 0.8878806583273777
+    },
+    {
+      "id": 364472,
+      "home_id": 550,
+      "away_id": 96,
+      "home_score": 0,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.2676625610810421,
+      "away_power": 1.0479088966933094
+    },
+    {
+      "id": 364481,
+      "home_id": 9,
+      "away_id": 77,
+      "home_score": 1,
+      "away_score": 3,
+      "played": true,
+      "home_power": 1.1320674943786886,
+      "away_power": 1.1188323686542432
+    },
+    {
+      "id": 364475,
+      "home_id": 69,
+      "away_id": 279,
+      "home_score": 0,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.208894987264829,
+      "away_power": 0.7191519831528891
+    },
+    {
+      "id": 364474,
+      "home_id": 80,
+      "away_id": 588,
+      "home_score": 3,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.0893107771275417,
+      "away_power": 0.8843484261729146
+    },
+    {
+      "id": 364478,
+      "home_id": 12,
+      "away_id": 73,
+      "home_score": 0,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.2342230467251727,
+      "away_power": 1.0656901660317843
+    },
+    {
+      "id": 364480,
+      "home_id": 87,
+      "away_id": 125,
+      "home_score": 4,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.4744728567097438,
+      "away_power": 0.8538953161251573
+    },
+    {
+      "id": 364473,
+      "home_id": 68,
+      "away_id": 22,
+      "home_score": 0,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.247059620713918,
+      "away_power": 1.221759175318987
+    },
+    {
+      "id": 364477,
+      "home_id": 2064,
+      "away_id": 457,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.4866792975142313,
+      "away_power": 0.6440315679438742
+    },
+    {
+      "id": 364479,
+      "home_id": 95,
+      "away_id": 429,
+      "home_score": 1,
+      "away_score": 3,
+      "played": true,
+      "home_power": 1.0210369575153873,
+      "away_power": 1.0738607594021201
+    },
+    {
+      "id": 364487,
+      "home_id": 588,
+      "away_id": 87,
+      "home_score": 2,
+      "away_score": 6,
+      "played": true,
+      "home_power": 1.1054081519100005,
+      "away_power": 1.0788873166676327
+    },
+    {
+      "id": 364490,
+      "home_id": 429,
+      "away_id": 125,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.360613599393489,
+      "away_power": 0.8024584385562475
+    },
+    {
+      "id": 364486,
+      "home_id": 11,
+      "away_id": 457,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.4793017314710741,
+      "away_power": 0.702950111130352
+    },
+    {
+      "id": 364485,
+      "home_id": 96,
+      "away_id": 2064,
+      "home_score": 0,
+      "away_score": 0,
+      "played": true,
+      "home_power": 0.9309902563652921,
+      "away_power": 0.8273084032217576
+    },
+    {
+      "id": 364482,
+      "home_id": 550,
+      "away_id": 12,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.4677205672487739,
+      "away_power": 1.291498204455778
+    },
+    {
+      "id": 364491,
+      "home_id": 70,
+      "away_id": 68,
+      "home_score": 2,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.2796452587958016,
+      "away_power": 1.097031022540048
+    },
+    {
+      "id": 364483,
+      "home_id": 69,
+      "away_id": 22,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.2563173134346766,
+      "away_power": 1.020037957944783
+    },
+    {
+      "id": 364484,
+      "home_id": 73,
+      "away_id": 279,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.2666889472615641,
+      "away_power": 0.7824961084290492
+    },
+    {
+      "id": 364489,
+      "home_id": 77,
+      "away_id": 80,
+      "home_score": 1,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.3715251820097534,
+      "away_power": 1.1224703467970603
+    },
+    {
+      "id": 364488,
+      "home_id": 9,
+      "away_id": 95,
+      "home_score": 1,
+      "away_score": 4,
+      "played": true,
+      "home_power": 1.2188490151853268,
+      "away_power": 0.9120715936151962
+    },
+    {
+      "id": 364500,
+      "home_id": 87,
+      "away_id": 96,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.2602041228403822,
+      "away_power": 0.7782376716874251
+    },
+    {
+      "id": 364498,
+      "home_id": 2064,
+      "away_id": 69,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.1220177242485063,
+      "away_power": 0.7704375284180847
+    },
+    {
+      "id": 364497,
+      "home_id": 22,
+      "away_id": 95,
+      "home_score": 3,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.9203393629732228,
+      "away_power": 0.829460213960562
+    },
+    {
+      "id": 364499,
+      "home_id": 12,
+      "away_id": 77,
+      "home_score": 0,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.5445655855410703,
+      "away_power": 1.0619328607398277
+    },
+    {
+      "id": 364493,
+      "home_id": 279,
+      "away_id": 429,
+      "home_score": 0,
+      "away_score": 1,
+      "played": true,
+      "home_power": 0.988839482516831,
+      "away_power": 0.7966250907776677
+    },
+    {
+      "id": 364496,
+      "home_id": 80,
+      "away_id": 9,
+      "home_score": 4,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.5142158572507909,
+      "away_power": 0.7658333827588869
+    },
+    {
+      "id": 364492,
+      "home_id": 125,
+      "away_id": 70,
+      "home_score": 1,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.3381082635455022,
+      "away_power": 1.172244719094781
+    },
+    {
+      "id": 364494,
+      "home_id": 68,
+      "away_id": 11,
+      "home_score": 0,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.1882815392123731,
+      "away_power": 0.9633991709787896
+    },
+    {
+      "id": 364501,
+      "home_id": 588,
+      "away_id": 73,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.0515356224154413,
+      "away_power": 1.0047460723427133
+    },
+    {
+      "id": 364495,
+      "home_id": 457,
+      "away_id": 550,
+      "home_score": 1,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.2860057011798087,
+      "away_power": 1.299744703015084
+    },
+    {
+      "id": 364507,
+      "home_id": 12,
+      "away_id": 125,
+      "home_score": 3,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.5356579432901627,
+      "away_power": 0.9389039609129635
+    },
+    {
+      "id": 364503,
+      "home_id": 279,
+      "away_id": 11,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.0528189169531745,
+      "away_power": 0.8902940915332733
+    },
+    {
+      "id": 364504,
+      "home_id": 68,
+      "away_id": 73,
+      "home_score": 1,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.1813453088335581,
+      "away_power": 1.0488798666919565
+    },
+    {
+      "id": 364502,
+      "home_id": 550,
+      "away_id": 22,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.3578037166133237,
+      "away_power": 1.444315763657179
+    },
+    {
+      "id": 364510,
+      "home_id": 77,
+      "away_id": 87,
+      "home_score": 2,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.2736986524779121,
+      "away_power": 1.2567460085711983
+    },
+    {
+      "id": 364508,
+      "home_id": 95,
+      "away_id": 70,
+      "home_score": 0,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.2563164155258892,
+      "away_power": 1.251434175177646
+    },
+    {
+      "id": 364511,
+      "home_id": 429,
+      "away_id": 2064,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 0.9730527564032421,
+      "away_power": 0.80592944853825
+    },
+    {
+      "id": 364505,
+      "home_id": 69,
+      "away_id": 588,
+      "home_score": 1,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.287924478362367,
+      "away_power": 0.7267671753404137
+    },
+    {
+      "id": 364506,
+      "home_id": 96,
+      "away_id": 80,
+      "home_score": 2,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.11533052232792,
+      "away_power": 0.8453437554691458
+    },
+    {
+      "id": 364509,
+      "home_id": 9,
+      "away_id": 457,
+      "home_score": 0,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.1897334214699873,
+      "away_power": 0.9559233850012863
+    },
+    {
+      "id": 364518,
+      "home_id": 588,
+      "away_id": 12,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.1583643661694631,
+      "away_power": 1.0257875574912558
+    },
+    {
+      "id": 364515,
+      "home_id": 73,
+      "away_id": 95,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.63288543388965,
+      "away_power": 0.7448827278487128
+    },
+    {
+      "id": 365704,
+      "home_id": 80,
+      "away_id": 429,
+      "home_score": 2,
+      "away_score": 3,
+      "played": true,
+      "home_power": 1.1927234765661325,
+      "away_power": 0.9766073389649426
+    },
+    {
+      "id": 364512,
+      "home_id": 125,
+      "away_id": 279,
+      "home_score": 1,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.1124860959102767,
+      "away_power": 1.0655722633843583
+    },
+    {
+      "id": 364521,
+      "home_id": 70,
+      "away_id": 457,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.44923390132511,
+      "away_power": 0.850359015571056
+    },
+    {
+      "id": 364517,
+      "home_id": 87,
+      "away_id": 22,
+      "home_score": 0,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.3105597334198718,
+      "away_power": 1.165123021734505
+    },
+    {
+      "id": 365724,
+      "home_id": 9,
+      "away_id": 96,
+      "home_score": 1,
+      "away_score": 2,
+      "played": true,
+      "home_power": 0.8681552921176614,
+      "away_power": 1.0014759690245232
+    },
+    {
+      "id": 364514,
+      "home_id": 69,
+      "away_id": 68,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.3245111349936547,
+      "away_power": 0.8160471554885333
+    },
+    {
+      "id": 364516,
+      "home_id": 11,
+      "away_id": 2064,
+      "home_score": 0,
+      "away_score": 4,
+      "played": true,
+      "home_power": 1.0747808799659166,
+      "away_power": 0.866709521278236
+    },
+    {
+      "id": 364520,
+      "home_id": 77,
+      "away_id": 550,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.5739290684173892,
+      "away_power": 1.2380351672748249
+    },
+    {
+      "id": 365705,
+      "home_id": 279,
+      "away_id": 80,
+      "home_score": 3,
+      "away_score": 3,
+      "played": true,
+      "home_power": 1.2062858413564754,
+      "away_power": 0.9117968461856827
+    },
+    {
+      "id": 364531,
+      "home_id": 429,
+      "away_id": 77,
+      "home_score": 0,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.2767058229863981,
+      "away_power": 0.8659437124875435
+    },
+    {
+      "id": 365725,
+      "home_id": 12,
+      "away_id": 9,
+      "home_score": 3,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.7111015974035162,
+      "away_power": 0.778215219802332
+    },
+    {
+      "id": 364522,
+      "home_id": 550,
+      "away_id": 11,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.3597570246379993,
+      "away_power": 1.1489345474280228
+    },
+    {
+      "id": 364526,
+      "home_id": 96,
+      "away_id": 70,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.193209377930819,
+      "away_power": 0.7533020508856427
+    },
+    {
+      "id": 364524,
+      "home_id": 457,
+      "away_id": 588,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 0.99943492861739,
+      "away_power": 1.0433033434579109
+    },
+    {
+      "id": 364528,
+      "home_id": 2064,
+      "away_id": 87,
+      "home_score": 2,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.2683566575488294,
+      "away_power": 0.7885685891534915
+    },
+    {
+      "id": 364525,
+      "home_id": 73,
+      "away_id": 69,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.1977581650907068,
+      "away_power": 0.9041497411908098
+    },
+    {
+      "id": 365717,
+      "home_id": 95,
+      "away_id": 68,
+      "home_score": 3,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.148184119042569,
+      "away_power": 1.2233994695976291
+    },
+    {
+      "id": 364527,
+      "home_id": 22,
+      "away_id": 125,
+      "home_score": 0,
+      "away_score": 3,
+      "played": true,
+      "home_power": 1.8164616819291013,
+      "away_power": 0.8094346493224597
+    },
+    {
+      "id": 364539,
+      "home_id": 77,
+      "away_id": 279,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.2767792499997799,
+      "away_power": 0.9790940901122085
+    },
+    {
+      "id": 364537,
+      "home_id": 95,
+      "away_id": 550,
+      "home_score": 2,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.4048279399276429,
+      "away_power": 1.3177128717998665
+    },
+    {
+      "id": 364535,
+      "home_id": 69,
+      "away_id": 457,
+      "home_score": 0,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.4864446540251643,
+      "away_power": 0.6368134833039049
+    },
+    {
+      "id": 365719,
+      "home_id": 70,
+      "away_id": 87,
+      "home_score": 4,
+      "away_score": 3,
+      "played": true,
+      "home_power": 1.213563952515774,
+      "away_power": 1.1258502275084779
+    },
+    {
+      "id": 364533,
+      "home_id": 68,
+      "away_id": 96,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.0882608405809495,
+      "away_power": 0.8558824436077684
+    },
+    {
+      "id": 365706,
+      "home_id": 80,
+      "away_id": 22,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.253166153408346,
+      "away_power": 1.231209675163749
+    },
+    {
+      "id": 364540,
+      "home_id": 429,
+      "away_id": 12,
+      "home_score": 0,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.1425264362696206,
+      "away_power": 0.8984302307297466
+    },
+    {
+      "id": 365720,
+      "home_id": 11,
+      "away_id": 588,
+      "home_score": 0,
+      "away_score": 3,
+      "played": true,
+      "home_power": 1.2665904301734572,
+      "away_power": 0.8232564976229365
+    },
+    {
+      "id": 365726,
+      "home_id": 9,
+      "away_id": 2064,
+      "home_score": 0,
+      "away_score": 2,
+      "played": true,
+      "home_power": 0.8634042376942659,
+      "away_power": 1.3165179311175308
+    },
+    {
+      "id": 364532,
+      "home_id": 125,
+      "away_id": 73,
+      "home_score": 0,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.1233546593634713,
+      "away_power": 1.2415197954146289
+    },
+    {
+      "id": 364546,
+      "home_id": 96,
+      "away_id": 95,
+      "home_score": 2,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.3306075651967886,
+      "away_power": 0.716452861451207
+    },
+    {
+      "id": 364548,
+      "home_id": 2064,
+      "away_id": 70,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.4595970026366067,
+      "away_power": 0.7619714357444161
+    },
+    {
+      "id": 364551,
+      "home_id": 588,
+      "away_id": 125,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.4037527904236158,
+      "away_power": 0.8892716409761013
+    },
+    {
+      "id": 364545,
+      "home_id": 73,
+      "away_id": 429,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.1698811347106512,
+      "away_power": 0.7366915702236592
+    },
+    {
+      "id": 364542,
+      "home_id": 550,
+      "away_id": 68,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.4393602096404057,
+      "away_power": 1.1677895274235184
+    },
+    {
+      "id": 364549,
+      "home_id": 12,
+      "away_id": 69,
+      "home_score": 2,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.2434586724098364,
+      "away_power": 0.976749091871974
+    },
+    {
+      "id": 365727,
+      "home_id": 279,
+      "away_id": 9,
+      "home_score": 2,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.4532194772323188,
+      "away_power": 0.7226943195359732
+    },
+    {
+      "id": 364547,
+      "home_id": 22,
+      "away_id": 77,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.6142799377882568,
+      "away_power": 0.9579122969689077
+    },
+    {
+      "id": 364550,
+      "home_id": 87,
+      "away_id": 11,
+      "home_score": 0,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.3900885405428207,
+      "away_power": 0.9993137532362822
+    },
+    {
+      "id": 365708,
+      "home_id": 457,
+      "away_id": 80,
+      "home_score": 0,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.0968338788363419,
+      "away_power": 1.133075325016943
+    },
+    {
+      "id": 364555,
+      "home_id": 96,
+      "away_id": 125,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.3071647196778935,
+      "away_power": 0.7256368643220298
+    },
+    {
+      "id": 365728,
+      "home_id": 22,
+      "away_id": 9,
+      "home_score": 2,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.8407879678030359,
+      "away_power": 0.6990695872878546
+    },
+    {
+      "id": 364554,
+      "home_id": 73,
+      "away_id": 77,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.439906636489618,
+      "away_power": 0.8184328094269115
+    },
+    {
+      "id": 364558,
+      "home_id": 2064,
+      "away_id": 279,
+      "home_score": 3,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.3731982282175115,
+      "away_power": 0.6478694322063172
+    },
+    {
+      "id": 365709,
+      "home_id": 95,
+      "away_id": 80,
+      "home_score": 5,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.5128822648667095,
+      "away_power": 1.2750479282781113
+    },
+    {
+      "id": 364557,
+      "home_id": 11,
+      "away_id": 69,
+      "home_score": 2,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.1308857548155662,
+      "away_power": 0.9273807106499437
+    },
+    {
+      "id": 364560,
+      "home_id": 87,
+      "away_id": 12,
+      "home_score": 0,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.3579507854093191,
+      "away_power": 1.140502722493005
+    },
+    {
+      "id": 364553,
+      "home_id": 457,
+      "away_id": 68,
+      "home_score": 3,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.0733362457331093,
+      "away_power": 1.072646742032847
+    },
+    {
+      "id": 364561,
+      "home_id": 70,
+      "away_id": 429,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.1242938544228211,
+      "away_power": 0.9699361171731073
+    },
+    {
+      "id": 364552,
+      "home_id": 550,
+      "away_id": 588,
+      "home_score": 0,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.3408817839995735,
+      "away_power": 1.0714592951390078
+    },
+    {
+      "id": 365729,
+      "home_id": 9,
+      "away_id": 73,
+      "home_score": 1,
+      "away_score": 2,
+      "played": true,
+      "home_power": 0.7812773617634161,
+      "away_power": 1.2716427661114662
+    },
+    {
+      "id": 364567,
+      "home_id": 12,
+      "away_id": 70,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.5080556596237218,
+      "away_power": 0.9620184109322255
+    },
+    {
+      "id": 364570,
+      "home_id": 77,
+      "away_id": 457,
+      "home_score": 3,
+      "away_score": 3,
+      "played": true,
+      "home_power": 1.424358735622711,
+      "away_power": 0.8864454059668232
+    },
+    {
+      "id": 364568,
+      "home_id": 588,
+      "away_id": 2064,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.010228356553541,
+      "away_power": 1.0101924740478019
+    },
+    {
+      "id": 364564,
+      "home_id": 68,
+      "away_id": 87,
+      "home_score": 2,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.297551075795046,
+      "away_power": 1.0785834033469957
+    },
+    {
+      "id": 364571,
+      "home_id": 429,
+      "away_id": 96,
+      "home_score": 2,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.026031152099596,
+      "away_power": 0.7258644964812534
+    },
+    {
+      "id": 364563,
+      "home_id": 279,
+      "away_id": 22,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.112458189745766,
+      "away_power": 1.1101097466281022
+    },
+    {
+      "id": 365710,
+      "home_id": 80,
+      "away_id": 11,
+      "home_score": 2,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.2606278685231749,
+      "away_power": 1.124442347677086
+    },
+    {
+      "id": 364562,
+      "home_id": 125,
+      "away_id": 95,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.39702965768239,
+      "away_power": 1.2198704101226927
+    },
+    {
+      "id": 364566,
+      "home_id": 69,
+      "away_id": 550,
+      "home_score": 0,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.4121582097105305,
+      "away_power": 0.9344478333531158
+    },
+    {
+      "id": 365730,
+      "home_id": 80,
+      "away_id": 87,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.3926453467955777,
+      "away_power": 1.1902374039796477
+    },
+    {
+      "id": 364572,
+      "home_id": 125,
+      "away_id": 69,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.042518200339067,
+      "away_power": 1.1137936714132526
+    },
+    {
+      "id": 364577,
+      "home_id": 12,
+      "away_id": 96,
+      "home_score": 2,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.2139769894707173,
+      "away_power": 0.7718379999215952
+    },
+    {
+      "id": 364581,
+      "home_id": 429,
+      "away_id": 68,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.250653053003287,
+      "away_power": 0.83288382582418
+    },
+    {
+      "id": 364576,
+      "home_id": 22,
+      "away_id": 2064,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.2732923368530509,
+      "away_power": 1.0058894624925505
+    },
+    {
+      "id": 364578,
+      "home_id": 95,
+      "away_id": 457,
+      "home_score": 0,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.4908882517581534,
+      "away_power": 1.0499833131925904
+    },
+    {
+      "id": 364575,
+      "home_id": 73,
+      "away_id": 70,
+      "home_score": 2,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.490786301478286,
+      "away_power": 0.8016529734752409
+    },
+    {
+      "id": 364580,
+      "home_id": 77,
+      "away_id": 588,
+      "home_score": 2,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.3147827238907306,
+      "away_power": 1.08714071307148
+    },
+    {
+      "id": 365731,
+      "home_id": 9,
+      "away_id": 11,
+      "home_score": 1,
+      "away_score": 2,
+      "played": true,
+      "home_power": 0.9079206102155492,
+      "away_power": 1.2483675711004136
+    },
+    {
+      "id": 364573,
+      "home_id": 279,
+      "away_id": 550,
+      "home_score": 0,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.2718438154081706,
+      "away_power": 0.9086222586348425
+    },
+    {
+      "id": 364583,
+      "home_id": 68,
+      "away_id": 125,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.4418352200270717,
+      "away_power": 0.94226649142096
+    },
+    {
+      "id": 364588,
+      "home_id": 2064,
+      "away_id": 73,
+      "home_score": 0,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.1976199613068106,
+      "away_power": 0.8118501277014202
+    },
+    {
+      "id": 364591,
+      "home_id": 70,
+      "away_id": 22,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.2354293389359048,
+      "away_power": 1.3069993183214603
+    },
+    {
+      "id": 364585,
+      "home_id": 69,
+      "away_id": 80,
+      "home_score": 0,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.3992875373364648,
+      "away_power": 0.9286588910682189
+    },
+    {
+      "id": 365732,
+      "home_id": 588,
+      "away_id": 9,
+      "home_score": 3,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.5110666089634524,
+      "away_power": 0.6339241580843855
+    },
+    {
+      "id": 364587,
+      "home_id": 11,
+      "away_id": 77,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.4386182710679847,
+      "away_power": 1.0004216816503702
+    },
+    {
+      "id": 364589,
+      "home_id": 87,
+      "away_id": 95,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.5683235676190077,
+      "away_power": 1.0329481081579772
+    },
+    {
+      "id": 364582,
+      "home_id": 550,
+      "away_id": 429,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.1773865747723997,
+      "away_power": 0.9921185139437844
+    },
+    {
+      "id": 364586,
+      "home_id": 96,
+      "away_id": 279,
+      "home_score": 0,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.0390677261384043,
+      "away_power": 0.7321261928624994
+    },
+    {
+      "id": 364584,
+      "home_id": 457,
+      "away_id": 12,
+      "home_score": 4,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.116913139079095,
+      "away_power": 1.2429247528485736
+    },
+    {
+      "id": 364595,
+      "home_id": 73,
+      "away_id": 87,
+      "home_score": 0,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.3497110403706112,
+      "away_power": 0.774783388085035
+    },
+    {
+      "id": 364601,
+      "home_id": 429,
+      "away_id": 69,
+      "home_score": 3,
+      "away_score": 4,
+      "played": true,
+      "home_power": 1.1594659326418388,
+      "away_power": 0.9181588870753093
+    },
+    {
+      "id": 364592,
+      "home_id": 125,
+      "away_id": 11,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.1120513217152679,
+      "away_power": 1.1685929408356004
+    },
+    {
+      "id": 364598,
+      "home_id": 95,
+      "away_id": 2064,
+      "home_score": 1,
+      "away_score": 4,
+      "played": true,
+      "home_power": 1.059070719680502,
+      "away_power": 1.2776520828241151
+    },
+    {
+      "id": 364593,
+      "home_id": 279,
+      "away_id": 588,
+      "home_score": 3,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.136206301620872,
+      "away_power": 0.8629191056352219
+    },
+    {
+      "id": 364594,
+      "home_id": 80,
+      "away_id": 70,
+      "home_score": 2,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.4807185687937547,
+      "away_power": 1.1472099985186879
+    },
+    {
+      "id": 364600,
+      "home_id": 77,
+      "away_id": 96,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.1963341137331658,
+      "away_power": 0.9485387186288657
+    },
+    {
+      "id": 364597,
+      "home_id": 12,
+      "away_id": 68,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.4802825283860448,
+      "away_power": 0.931724117860998
+    },
+    {
+      "id": 365733,
+      "home_id": 9,
+      "away_id": 550,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.0539807299715187,
+      "away_power": 1.3203026333504062
+    },
+    {
+      "id": 364596,
+      "home_id": 22,
+      "away_id": 457,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.6560449983819316,
+      "away_power": 0.7529381830086039
+    },
+    {
+      "id": 364610,
+      "home_id": 588,
+      "away_id": 429,
+      "home_score": 1,
+      "away_score": 3,
+      "played": true,
+      "home_power": 1.2430877995604925,
+      "away_power": 0.9531785609301213
+    },
+    {
+      "id": 365734,
+      "home_id": 69,
+      "away_id": 9,
+      "home_score": 2,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.5563809008625327,
+      "away_power": 0.6234915236835722
+    },
+    {
+      "id": 364611,
+      "home_id": 70,
+      "away_id": 77,
+      "home_score": 0,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.3779281549531888,
+      "away_power": 1.1579457315218085
+    },
+    {
+      "id": 364604,
+      "home_id": 457,
+      "away_id": 125,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.297847222943358,
+      "away_power": 0.9962478948356888
+    },
+    {
+      "id": 364602,
+      "home_id": 550,
+      "away_id": 73,
+      "home_score": 2,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.144274235202917,
+      "away_power": 1.0825927132537223
+    },
+    {
+      "id": 364608,
+      "home_id": 2064,
+      "away_id": 12,
+      "home_score": 0,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.275527816064315,
+      "away_power": 0.8231576184986502
+    },
+    {
+      "id": 364609,
+      "home_id": 87,
+      "away_id": 279,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.2006151999983241,
+      "away_power": 0.9061568223061298
+    },
+    {
+      "id": 364606,
+      "home_id": 96,
+      "away_id": 22,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.037952585680066,
+      "away_power": 1.0394060220808723
+    },
+    {
+      "id": 364607,
+      "home_id": 11,
+      "away_id": 95,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.5276076640605902,
+      "away_power": 0.9417601699983076
+    },
+    {
+      "id": 364603,
+      "home_id": 68,
+      "away_id": 80,
+      "home_score": 0,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.3799907841013803,
+      "away_power": 1.124930493134006
+    },
+    {
+      "id": 364621,
+      "home_id": 429,
+      "away_id": 457,
+      "home_score": 0,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.4145722118764472,
+      "away_power": 0.8298191415028586
+    },
+    {
+      "id": 365735,
+      "home_id": 9,
+      "away_id": 87,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 0.9533195876948655,
+      "away_power": 1.3037406807423442
+    },
+    {
+      "id": 364620,
+      "home_id": 77,
+      "away_id": 95,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.622989407251033,
+      "away_power": 1.0806975590415835
+    },
+    {
+      "id": 364613,
+      "home_id": 279,
+      "away_id": 70,
+      "home_score": 0,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.2862423696736043,
+      "away_power": 0.8872355902899636
+    },
+    {
+      "id": 364615,
+      "home_id": 69,
+      "away_id": 96,
+      "home_score": 1,
+      "away_score": 3,
+      "played": true,
+      "home_power": 1.1363978467054066,
+      "away_power": 0.7920499068890259
+    },
+    {
+      "id": 364616,
+      "home_id": 73,
+      "away_id": 11,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.2521644406273666,
+      "away_power": 0.7272165409350403
+    },
+    {
+      "id": 364617,
+      "home_id": 12,
+      "away_id": 22,
+      "home_score": 0,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.3037229593682758,
+      "away_power": 1.094890273485694
+    },
+    {
+      "id": 364618,
+      "home_id": 588,
+      "away_id": 68,
+      "home_score": 1,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.3368968895010012,
+      "away_power": 0.9991687179947707
+    },
+    {
+      "id": 364612,
+      "home_id": 125,
+      "away_id": 550,
+      "home_score": 1,
+      "away_score": 3,
+      "played": true,
+      "home_power": 1.2358123563773398,
+      "away_power": 1.2341200336969775
+    },
+    {
+      "id": 364614,
+      "home_id": 80,
+      "away_id": 2064,
+      "home_score": 0,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.1395794439134908,
+      "away_power": 1.1735819343033251
+    },
+    {
+      "id": 364629,
+      "home_id": 95,
+      "away_id": 279,
+      "home_score": 0,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.1767763803296274,
+      "away_power": 1.1657850856329535
+    },
+    {
+      "id": 364630,
+      "home_id": 87,
+      "away_id": 69,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.22462490511588,
+      "away_power": 0.9435283966161141
+    },
+    {
+      "id": 364627,
+      "home_id": 11,
+      "away_id": 12,
+      "home_score": 0,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.0883922044131986,
+      "away_power": 0.9660850095151583
+    },
+    {
+      "id": 364623,
+      "home_id": 68,
+      "away_id": 77,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.3606373716285467,
+      "away_power": 1.1045807428116192
+    },
+    {
+      "id": 364626,
+      "home_id": 22,
+      "away_id": 429,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.4874086532081012,
+      "away_power": 0.8664597584793599
+    },
+    {
+      "id": 364625,
+      "home_id": 96,
+      "away_id": 588,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.2004220489143764,
+      "away_power": 0.834618199075596
+    },
+    {
+      "id": 365736,
+      "home_id": 70,
+      "away_id": 9,
+      "home_score": 6,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.5902147670665268,
+      "away_power": 0.7766666682027832
+    },
+    {
+      "id": 364624,
+      "home_id": 457,
+      "away_id": 73,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 0.9660404684933258,
+      "away_power": 1.1027796296111168
+    },
+    {
+      "id": 364622,
+      "home_id": 550,
+      "away_id": 80,
+      "home_score": 0,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.4606708723809834,
+      "away_power": 1.1230141832954352
+    },
+    {
+      "id": 364628,
+      "home_id": 2064,
+      "away_id": 125,
+      "home_score": 3,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.5858955579797254,
+      "away_power": 0.63833902242948
+    },
+    {
+      "id": 364634,
+      "home_id": 69,
+      "away_id": 95,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.5465333190397772,
+      "away_power": 0.8683708831549384
+    },
+    {
+      "id": 364636,
+      "home_id": 96,
+      "away_id": 11,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.0829158282333058,
+      "away_power": 0.7599971448690853
+    },
+    {
+      "id": 364641,
+      "home_id": 429,
+      "away_id": 87,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.2408857896867718,
+      "away_power": 0.926727095587973
+    },
+    {
+      "id": 365737,
+      "home_id": 9,
+      "away_id": 68,
+      "home_score": 0,
+      "away_score": 2,
+      "played": true,
+      "home_power": 0.948547561967994,
+      "away_power": 1.3825015378783618
+    },
+    {
+      "id": 364638,
+      "home_id": 588,
+      "away_id": 70,
+      "home_score": 0,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.3094395263481742,
+      "away_power": 1.0590381616591018
+    },
+    {
+      "id": 364635,
+      "home_id": 73,
+      "away_id": 22,
+      "home_score": 0,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.2253431138298951,
+      "away_power": 0.9620831300686191
+    },
+    {
+      "id": 364632,
+      "home_id": 550,
+      "away_id": 2064,
+      "home_score": 1,
+      "away_score": 4,
+      "played": true,
+      "home_power": 1.0896239551000764,
+      "away_power": 1.1673739142925288
+    },
+    {
+      "id": 364640,
+      "home_id": 77,
+      "away_id": 125,
+      "home_score": 3,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.6155510353200435,
+      "away_power": 0.9790017748530524
+    },
+    {
+      "id": 364633,
+      "home_id": 279,
+      "away_id": 457,
+      "home_score": 3,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.2593948855048385,
+      "away_power": 0.7646161331530119
+    },
+    {
+      "id": 364637,
+      "home_id": 12,
+      "away_id": 80,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.4181230920735364,
+      "away_power": 0.9062689802840905
+    },
+    {
+      "id": 364647,
+      "home_id": 11,
+      "away_id": 429,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.1763140585650083,
+      "away_power": 0.8792005215634036
+    },
+    {
+      "id": 364648,
+      "home_id": 2064,
+      "away_id": 77,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.5444225912498293,
+      "away_power": 0.8020158583497294
+    },
+    {
+      "id": 364650,
+      "home_id": 87,
+      "away_id": 550,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.4110645457226743,
+      "away_power": 1.0271972276767938
+    },
+    {
+      "id": 364644,
+      "home_id": 457,
+      "away_id": 96,
+      "home_score": 1,
+      "away_score": 2,
+      "played": true,
+      "home_power": 0.9847089006051992,
+      "away_power": 0.9912576983198578
+    },
+    {
+      "id": 364643,
+      "home_id": 68,
+      "away_id": 279,
+      "home_score": 0,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.112870361566856,
+      "away_power": 0.9214956564457575
+    },
+    {
+      "id": 365738,
+      "home_id": 125,
+      "away_id": 9,
+      "home_score": 2,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.5370742454433028,
+      "away_power": 0.8483028991459574
+    },
+    {
+      "id": 364645,
+      "home_id": 80,
+      "away_id": 73,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.2024121003180237,
+      "away_power": 1.0526902957323727
+    },
+    {
+      "id": 364651,
+      "home_id": 70,
+      "away_id": 69,
+      "home_score": 2,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.2687927472521585,
+      "away_power": 1.0284556378335632
+    },
+    {
+      "id": 364646,
+      "home_id": 22,
+      "away_id": 588,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.5631754592665226,
+      "away_power": 0.8365574721001066
+    },
+    {
+      "id": 364649,
+      "home_id": 95,
+      "away_id": 12,
+      "home_score": 0,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.0929332726895336,
+      "away_power": 1.3366341341231152
+    },
+    {
+      "id": 364660,
+      "home_id": 87,
+      "away_id": 457,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.4509418085764827,
+      "away_power": 0.8384546182957915
+    },
+    {
+      "id": 364655,
+      "home_id": 73,
+      "away_id": 96,
+      "home_score": 2,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.1270464063357946,
+      "away_power": 0.7023219691444857
+    },
+    {
+      "id": 364652,
+      "home_id": 550,
+      "away_id": 70,
+      "home_score": 5,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.3920094660702103,
+      "away_power": 1.1963751504155167
+    },
+    {
+      "id": 364653,
+      "home_id": 80,
+      "away_id": 125,
+      "home_score": 3,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.7046033293439264,
+      "away_power": 0.9030329756140263
+    },
+    {
+      "id": 364656,
+      "home_id": 11,
+      "away_id": 22,
+      "home_score": 0,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.0993886459702764,
+      "away_power": 1.0992502001487037
+    },
+    {
+      "id": 364657,
+      "home_id": 2064,
+      "away_id": 68,
+      "home_score": 3,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.5408133944206033,
+      "away_power": 0.6955022942582031
+    },
+    {
+      "id": 364658,
+      "home_id": 12,
+      "away_id": 279,
+      "home_score": 2,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.2340850993776915,
+      "away_power": 0.7686322321705827
+    },
+    {
+      "id": 364654,
+      "home_id": 69,
+      "away_id": 77,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.4001704991437751,
+      "away_power": 1.0004471543636844
+    },
+    {
+      "id": 364659,
+      "home_id": 95,
+      "away_id": 588,
+      "home_score": 1,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.2402963277449452,
+      "away_power": 1.19170216385076
+    },
+    {
+      "id": 365739,
+      "home_id": 9,
+      "away_id": 429,
+      "home_score": 0,
+      "away_score": 2,
+      "played": true,
+      "home_power": 0.8531546946923877,
+      "away_power": 1.3805805841686696
+    },
+    {
+      "id": 364666,
+      "home_id": 96,
+      "away_id": 550,
+      "home_score": 3,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.25614815656019,
+      "away_power": 0.9509158799547189
+    },
+    {
+      "id": 364665,
+      "home_id": 73,
+      "away_id": 12,
+      "home_score": 0,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.1614789043923262,
+      "away_power": 0.8465733775575247
+    },
+    {
+      "id": 364664,
+      "home_id": 457,
+      "away_id": 2064,
+      "home_score": 1,
+      "away_score": 3,
+      "played": true,
+      "home_power": 0.883008791574942,
+      "away_power": 1.299757202759547
+    },
+    {
+      "id": 364667,
+      "home_id": 22,
+      "away_id": 68,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.5879406243605538,
+      "away_power": 0.8281261053918199
+    },
+    {
+      "id": 364662,
+      "home_id": 125,
+      "away_id": 87,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.078358210570712,
+      "away_power": 1.2659896718723442
+    },
+    {
+      "id": 364668,
+      "home_id": 588,
+      "away_id": 80,
+      "home_score": 3,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.3152310812018702,
+      "away_power": 1.1111716927732838
+    },
+    {
+      "id": 364663,
+      "home_id": 279,
+      "away_id": 69,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.1929655206577223,
+      "away_power": 0.8276966668174565
+    },
+    {
+      "id": 364671,
+      "home_id": 70,
+      "away_id": 11,
+      "home_score": 2,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.244801850046623,
+      "away_power": 1.0156477508562494
+    },
+    {
+      "id": 364670,
+      "home_id": 429,
+      "away_id": 95,
+      "home_score": 1,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.5002690053172723,
+      "away_power": 0.8804943283298515
+    },
+    {
+      "id": 365740,
+      "home_id": 77,
+      "away_id": 9,
+      "home_score": 2,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.8447398543896059,
+      "away_power": 0.697524235939031
+    },
+    {
+      "id": 364673,
+      "home_id": 279,
+      "away_id": 73,
+      "home_score": 4,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.1633474608755752,
+      "away_power": 0.8132459099500411
+    },
+    {
+      "id": 364679,
+      "home_id": 12,
+      "away_id": 550,
+      "home_score": 0,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.4965806730749263,
+      "away_power": 0.9292476085717666
+    },
+    {
+      "id": 364677,
+      "home_id": 22,
+      "away_id": 69,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.4707884926685322,
+      "away_power": 0.8171685179975859
+    },
+    {
+      "id": 364678,
+      "home_id": 2064,
+      "away_id": 96,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.327446974651194,
+      "away_power": 0.6422113762507103
+    },
+    {
+      "id": 364672,
+      "home_id": 125,
+      "away_id": 429,
+      "home_score": 0,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.131658274785311,
+      "away_power": 1.2134351366819682
+    },
+    {
+      "id": 364675,
+      "home_id": 457,
+      "away_id": 11,
+      "home_score": 1,
+      "away_score": 3,
+      "played": true,
+      "home_power": 1.0713367816755903,
+      "away_power": 1.0467904159100474
+    },
+    {
+      "id": 364674,
+      "home_id": 68,
+      "away_id": 70,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.3042329530368026,
+      "away_power": 1.068628611932001
+    },
+    {
+      "id": 364681,
+      "home_id": 87,
+      "away_id": 588,
+      "home_score": 3,
+      "away_score": 3,
+      "played": true,
+      "home_power": 1.2823579147613382,
+      "away_power": 0.9559427054404857
+    },
+    {
+      "id": 365741,
+      "home_id": 95,
+      "away_id": 9,
+      "home_score": 6,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.6634527651276914,
+      "away_power": 0.8062207886233329
+    },
+    {
+      "id": 364676,
+      "home_id": 80,
+      "away_id": 77,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.505017020128273,
+      "away_power": 1.1652716749691787
+    },
+    {
+      "id": 364691,
+      "home_id": 70,
+      "away_id": 125,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.6184820070695005,
+      "away_power": 0.9098242532540228
+    },
+    {
+      "id": 364683,
+      "home_id": 69,
+      "away_id": 2064,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.0080544386010213,
+      "away_power": 1.1180304236899523
+    },
+    {
+      "id": 364690,
+      "home_id": 429,
+      "away_id": 279,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.102931871263009,
+      "away_power": 0.9307904348605709
+    },
+    {
+      "id": 364689,
+      "home_id": 77,
+      "away_id": 12,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.2491730010599627,
+      "away_power": 1.1527931247925745
+    },
+    {
+      "id": 364682,
+      "home_id": 550,
+      "away_id": 457,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.5919642288550182,
+      "away_power": 0.9626997145080496
+    },
+    {
+      "id": 365742,
+      "home_id": 9,
+      "away_id": 80,
+      "home_score": 1,
+      "away_score": 0,
+      "played": true,
+      "home_power": 0.9237153711392445,
+      "away_power": 1.5631591246545888
+    },
+    {
+      "id": 364686,
+      "home_id": 11,
+      "away_id": 68,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.2909539613699612,
+      "away_power": 0.8589852568452196
+    },
+    {
+      "id": 364687,
+      "home_id": 95,
+      "away_id": 22,
+      "home_score": 1,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.1770216232345803,
+      "away_power": 1.4216203973076103
+    },
+    {
+      "id": 364685,
+      "home_id": 96,
+      "away_id": 87,
+      "home_score": 3,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.2793872838358928,
+      "away_power": 0.8120345792975188
+    },
+    {
+      "id": 364684,
+      "home_id": 73,
+      "away_id": 588,
+      "home_score": 0,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.2987863965902005,
+      "away_power": 0.8699252425934656
+    },
+    {
+      "id": 364698,
+      "home_id": 2064,
+      "away_id": 429,
+      "home_score": 0,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.4139719636463224,
+      "away_power": 0.7261754837490139
+    },
+    {
+      "id": 364701,
+      "home_id": 70,
+      "away_id": 95,
+      "home_score": 2,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.5560686132277433,
+      "away_power": 1.0699541310889944
+    },
+    {
+      "id": 364699,
+      "home_id": 87,
+      "away_id": 77,
+      "home_score": 3,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.4231372215120917,
+      "away_power": 1.1426830208067775
+    },
+    {
+      "id": 364700,
+      "home_id": 588,
+      "away_id": 69,
+      "home_score": 2,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.2706726012453002,
+      "away_power": 0.9955769485892267
+    },
+    {
+      "id": 364697,
+      "home_id": 11,
+      "away_id": 279,
+      "home_score": 0,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.0850665137346296,
+      "away_power": 0.8948968087440872
+    },
+    {
+      "id": 364695,
+      "home_id": 73,
+      "away_id": 68,
+      "home_score": 3,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.3759792651445621,
+      "away_power": 0.7770655253127413
+    },
+    {
+      "id": 364694,
+      "home_id": 80,
+      "away_id": 96,
+      "home_score": 3,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.2576833974363748,
+      "away_power": 0.9706247948853155
+    },
+    {
+      "id": 364696,
+      "home_id": 22,
+      "away_id": 550,
+      "home_score": 2,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.6508255585948783,
+      "away_power": 0.9308693167961725
+    },
+    {
+      "id": 364692,
+      "home_id": 125,
+      "away_id": 12,
+      "home_score": 0,
+      "away_score": 1,
+      "played": true,
+      "home_power": 0.9722042842471432,
+      "away_power": 1.308652313886705
+    },
+    {
+      "id": 365743,
+      "home_id": 457,
+      "away_id": 9,
+      "home_score": 2,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.5965711663785986,
+      "away_power": 0.7353225044836975
+    },
+    {
+      "id": 364702,
+      "home_id": 550,
+      "away_id": 77,
+      "home_score": 1,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.5735124758310295,
+      "away_power": 1.2114044386105123
+    },
+    {
+      "id": 364708,
+      "home_id": 2064,
+      "away_id": 11,
+      "home_score": 3,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.3972087234632098,
+      "away_power": 0.6763191347425452
+    },
+    {
+      "id": 364711,
+      "home_id": 429,
+      "away_id": 80,
+      "home_score": 3,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.3072038307474778,
+      "away_power": 0.9882997290372874
+    },
+    {
+      "id": 364710,
+      "home_id": 95,
+      "away_id": 73,
+      "home_score": 0,
+      "away_score": 2,
+      "played": true,
+      "home_power": 1.164116762780276,
+      "away_power": 1.2114813743835762
+    },
+    {
+      "id": 364709,
+      "home_id": 12,
+      "away_id": 588,
+      "home_score": 3,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.3637640887030889,
+      "away_power": 0.8724285031185656
+    },
+    {
+      "id": 364707,
+      "home_id": 22,
+      "away_id": 87,
+      "home_score": 1,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.578008641525478,
+      "away_power": 0.8893521209575669
+    },
+    {
+      "id": 364704,
+      "home_id": 68,
+      "away_id": 69,
+      "home_score": 0,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.1363062259622876,
+      "away_power": 1.0741522823253227
+    },
+    {
+      "id": 364703,
+      "home_id": 279,
+      "away_id": 125,
+      "home_score": 2,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.53964561115079,
+      "away_power": 0.6195569572209818
+    },
+    {
+      "id": 365744,
+      "home_id": 96,
+      "away_id": 9,
+      "home_score": 2,
+      "away_score": 0,
+      "played": true,
+      "home_power": 1.7125025297185736,
+      "away_power": 0.4260630368631281
+    },
+    {
+      "id": 364705,
+      "home_id": 457,
+      "away_id": 70,
+      "home_score": 0,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.1734223838465763,
+      "away_power": 1.1901963085164615
+    },
+    {
+      "id": 364720,
+      "home_id": 77,
+      "away_id": 429,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.2897921686739489,
+      "away_power": 1.1164392022238872
+    },
+    {
+      "id": 364716,
+      "home_id": 11,
+      "away_id": 550,
+      "home_score": 2,
+      "away_score": 1,
+      "played": true,
+      "home_power": 1.3454465448680537,
+      "away_power": 1.0554382000725724
+    },
+    {
+      "id": 365745,
+      "home_id": 9,
+      "away_id": 12,
+      "home_score": 0,
+      "away_score": 2,
+      "played": true,
+      "home_power": 0.6492113374703395,
+      "away_power": 1.60623505303591
+    },
+    {
+      "id": 364713,
+      "home_id": 68,
+      "away_id": 95,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.421124204221156,
+      "away_power": 1.0552587869750336
+    },
+    {
+      "id": 364718,
+      "home_id": 588,
+      "away_id": 457,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.4766445457908615,
+      "away_power": 0.8898729127402796
+    },
+    {
+      "id": 364712,
+      "home_id": 125,
+      "away_id": 22,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 0.9424142218826526,
+      "away_power": 1.484265171499419
+    },
+    {
+      "id": 364714,
+      "home_id": 80,
+      "away_id": 279,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.2145578550965397,
+      "away_power": 1.0775993429567545
+    },
+    {
+      "id": 364721,
+      "home_id": 70,
+      "away_id": 96,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.1670606586244054,
+      "away_power": 0.9254447486914665
+    },
+    {
+      "id": 364715,
+      "home_id": 69,
+      "away_id": 73,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.1482070113144085,
+      "away_power": 0.9343003996211143
+    },
+    {
+      "id": 364717,
+      "home_id": 87,
+      "away_id": 2064,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.072426665178157,
+      "away_power": 1.228355044519101
+    },
+    {
+      "id": 364729,
+      "home_id": 12,
+      "away_id": 429,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.2943953224343596,
+      "away_power": 0.7839327633306038
+    },
+    {
+      "id": 364723,
+      "home_id": 279,
+      "away_id": 77,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.4073795823200337,
+      "away_power": 0.8984978963096955
+    },
+    {
+      "id": 364730,
+      "home_id": 87,
+      "away_id": 70,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.361168063881246,
+      "away_power": 1.0730916714587342
+    },
+    {
+      "id": 364726,
+      "home_id": 96,
+      "away_id": 68,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.2870504517490549,
+      "away_power": 0.7352574299663779
+    },
+    {
+      "id": 364731,
+      "home_id": 588,
+      "away_id": 11,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.2827245567679353,
+      "away_power": 0.9760950033065017
+    },
+    {
+      "id": 364727,
+      "home_id": 22,
+      "away_id": 80,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.6446299791634003,
+      "away_power": 0.9420321917993263
+    },
+    {
+      "id": 365746,
+      "home_id": 2064,
+      "away_id": 9,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 2.078527769760958,
+      "away_power": 0.3359925852941618
+    },
+    {
+      "id": 364725,
+      "home_id": 73,
+      "away_id": 125,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.561824412911161,
+      "away_power": 0.6554668624747395
+    },
+    {
+      "id": 364724,
+      "home_id": 457,
+      "away_id": 69,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.0764283156206107,
+      "away_power": 1.1387824877277362
+    },
+    {
+      "id": 364722,
+      "home_id": 550,
+      "away_id": 95,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.665409776342652,
+      "away_power": 1.1330043894733368
+    },
+    {
+      "id": 365747,
+      "home_id": 9,
+      "away_id": 279,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 0.6470060182443688,
+      "away_power": 1.492558717800511
+    },
+    {
+      "id": 364739,
+      "home_id": 77,
+      "away_id": 22,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.267721276411453,
+      "away_power": 1.3387288910850552
+    },
+    {
+      "id": 364737,
+      "home_id": 95,
+      "away_id": 96,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.1111329322800019,
+      "away_power": 1.1438851848978162
+    },
+    {
+      "id": 364735,
+      "home_id": 69,
+      "away_id": 12,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.1122067710363557,
+      "away_power": 1.0073795557438951
+    },
+    {
+      "id": 364732,
+      "home_id": 125,
+      "away_id": 588,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.1224505404996246,
+      "away_power": 1.288678002019197
+    },
+    {
+      "id": 364733,
+      "home_id": 68,
+      "away_id": 550,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.3443957592892228,
+      "away_power": 1.1794426114250989
+    },
+    {
+      "id": 364734,
+      "home_id": 80,
+      "away_id": 457,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.5656472754029014,
+      "away_power": 0.9409744819203392
+    },
+    {
+      "id": 364740,
+      "home_id": 429,
+      "away_id": 73,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.1235309363999952,
+      "away_power": 0.9056895157981336
+    },
+    {
+      "id": 364741,
+      "home_id": 70,
+      "away_id": 2064,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.0645826833891132,
+      "away_power": 1.1940619221658544
+    },
+    {
+      "id": 364736,
+      "home_id": 11,
+      "away_id": 87,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.268395206918402,
+      "away_power": 0.986588844784486
+    },
+    {
+      "id": 364742,
+      "home_id": 125,
+      "away_id": 96,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 0.9213801553170851,
+      "away_power": 1.1683449355352276
+    },
+    {
+      "id": 364743,
+      "home_id": 279,
+      "away_id": 2064,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.0093030581743814,
+      "away_power": 0.9718149231596783
+    },
+    {
+      "id": 364744,
+      "home_id": 68,
+      "away_id": 457,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.3293799087669778,
+      "away_power": 0.9183060994159915
+    },
+    {
+      "id": 364745,
+      "home_id": 80,
+      "away_id": 95,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.6656591398628207,
+      "away_power": 1.0793314365231614
+    },
+    {
+      "id": 364746,
+      "home_id": 69,
+      "away_id": 11,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.2540855926872918,
+      "away_power": 0.8720791769620652
+    },
+    {
+      "id": 364747,
+      "home_id": 12,
+      "away_id": 87,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.4284684736932294,
+      "away_power": 0.8422031345099471
+    },
+    {
+      "id": 364748,
+      "home_id": 588,
+      "away_id": 550,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.4925038154007955,
+      "away_power": 1.1476508752963595
+    },
+    {
+      "id": 364750,
+      "home_id": 77,
+      "away_id": 73,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.2601571312485096,
+      "away_power": 1.1217814799711052
+    },
+    {
+      "id": 364751,
+      "home_id": 429,
+      "away_id": 70,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.2887313447921604,
+      "away_power": 0.9411827329206007
+    },
+    {
+      "id": 365748,
+      "home_id": 9,
+      "away_id": 22,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 0.6841199271692403,
+      "away_power": 1.7663310056273007
+    },
+    {
+      "id": 364752,
+      "home_id": 550,
+      "away_id": 69,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.3562423430557027,
+      "away_power": 1.154465383836177
+    },
+    {
+      "id": 364753,
+      "home_id": 457,
+      "away_id": 77,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.251744093633271,
+      "away_power": 1.2503003161446384
+    },
+    {
+      "id": 364755,
+      "home_id": 96,
+      "away_id": 429,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.1266950422814344,
+      "away_power": 0.803922229408506
+    },
+    {
+      "id": 364756,
+      "home_id": 22,
+      "away_id": 279,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.320543106324329,
+      "away_power": 0.8280468488289473
+    },
+    {
+      "id": 364757,
+      "home_id": 11,
+      "away_id": 80,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.3271574544866214,
+      "away_power": 1.044994053651697
+    },
+    {
+      "id": 364758,
+      "home_id": 2064,
+      "away_id": 588,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.5665378302723005,
+      "away_power": 0.7469809750676011
+    },
+    {
+      "id": 364759,
+      "home_id": 95,
+      "away_id": 125,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.5419597829115241,
+      "away_power": 1.0146880587655092
+    },
+    {
+      "id": 364760,
+      "home_id": 87,
+      "away_id": 68,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.4303732611192805,
+      "away_power": 0.9405590949950343
+    },
+    {
+      "id": 364761,
+      "home_id": 70,
+      "away_id": 12,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.1465783838126158,
+      "away_power": 1.0791939467299136
+    },
+    {
+      "id": 365749,
+      "home_id": 73,
+      "away_id": 9,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.8206332245449375,
+      "away_power": 0.4303364491427497
+    },
+    {
+      "id": 364762,
+      "home_id": 550,
+      "away_id": 279,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.2143465186035631,
+      "away_power": 1.1312330990129291
+    },
+    {
+      "id": 364763,
+      "home_id": 68,
+      "away_id": 429,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.1100464416726317,
+      "away_power": 1.0520855160985445
+    },
+    {
+      "id": 364764,
+      "home_id": 457,
+      "away_id": 95,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.3529346161605156,
+      "away_power": 1.1174590421162387
+    },
+    {
+      "id": 364765,
+      "home_id": 69,
+      "away_id": 125,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.567039307142499,
+      "away_power": 0.7442339248871324
+    },
+    {
+      "id": 364766,
+      "home_id": 96,
+      "away_id": 12,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.0258834368786298,
+      "away_power": 0.8908479524471838
+    },
+    {
+      "id": 364768,
+      "home_id": 2064,
+      "away_id": 22,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.3533938346502346,
+      "away_power": 0.9015206366511829
+    },
+    {
+      "id": 364769,
+      "home_id": 87,
+      "away_id": 80,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.4550880194948004,
+      "away_power": 1.1417877391380324
+    },
+    {
+      "id": 364770,
+      "home_id": 588,
+      "away_id": 77,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.4639128627241487,
+      "away_power": 1.1528124189459152
+    },
+    {
+      "id": 364771,
+      "home_id": 70,
+      "away_id": 73,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.1830932026688836,
+      "away_power": 1.0038328264419043
+    },
+    {
+      "id": 365750,
+      "home_id": 11,
+      "away_id": 9,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.7336455790459762,
+      "away_power": 0.515829068334907
+    },
+    {
+      "id": 364772,
+      "home_id": 125,
+      "away_id": 68,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.1502613819190306,
+      "away_power": 1.151409699931486
+    },
+    {
+      "id": 364773,
+      "home_id": 279,
+      "away_id": 96,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.1093776143558927,
+      "away_power": 0.7272070022463997
+    },
+    {
+      "id": 364774,
+      "home_id": 80,
+      "away_id": 69,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.3564656421199643,
+      "away_power": 1.1003175204520583
+    },
+    {
+      "id": 364775,
+      "home_id": 73,
+      "away_id": 2064,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.0271285997281567,
+      "away_power": 1.0136784528470544
+    },
+    {
+      "id": 364776,
+      "home_id": 22,
+      "away_id": 70,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.5442308578475301,
+      "away_power": 0.8789733732778179
+    },
+    {
+      "id": 364777,
+      "home_id": 12,
+      "away_id": 457,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.5305587131195282,
+      "away_power": 0.6654541494282332
+    },
+    {
+      "id": 364778,
+      "home_id": 95,
+      "away_id": 87,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.3236740528201343,
+      "away_power": 1.2792534208456954
+    },
+    {
+      "id": 364780,
+      "home_id": 77,
+      "away_id": 11,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.3708922353049664,
+      "away_power": 1.054321552866206
+    },
+    {
+      "id": 364781,
+      "home_id": 429,
+      "away_id": 550,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 1.4336879442298431,
+      "away_power": 1.0058543689827042
+    },
+    {
+      "id": 365751,
+      "home_id": 9,
+      "away_id": 588,
+      "home_score": 0,
+      "away_score": 0,
+      "played": false,
+      "home_power": 0.8433485857077884,
+      "away_power": 1.5508756111164452
+    }
+  ]
+}
