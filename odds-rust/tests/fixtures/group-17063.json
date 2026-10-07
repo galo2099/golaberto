@@ -1,0 +1,61 @@
+{
+  "id": 17063,
+  "phase_id": 4552,
+  "name": "Group B2",
+  "odds_progress": null,
+  "created_at": "2026-09-29T06:55:47.000Z",
+  "updated_at": "2026-10-06T23:37:38.000Z",
+  "zones": [
+    {"name": "Promotion", "color": "#90ee90", "position": [1]},
+    {"name": "Playoffs", "color": "#add8e6", "position": [2]},
+    {"name": "Relegation Playoffs", "color": "#ffb6c2", "position": [4]}
+  ],
+  "phase": {
+    "id": 4552,
+    "championship_id": 1544,
+    "name": "League B",
+    "order_by": 3,
+    "sort": "pt,head,gd,gf,g_away,w,name",
+    "bonus_points": 0,
+    "bonus_points_threshold": 0,
+    "created_at": "2026-09-29T06:54:54.000Z",
+    "updated_at": "2026-10-06T23:37:39.000Z",
+    "scrape_url": "https://www.sofascore.com/api/v1/unique-tournament/10783/season/89945/events/round/",
+    "sofascore_tournament_ids": "64390,64391,64392,64393",
+    "championship": {
+      "id": 1544,
+      "name": "UEFA Nations League",
+      "begin": "2026-09-24",
+      "end": "2027-06-13",
+      "point_win": 3,
+      "point_draw": 1,
+      "point_loss": 0,
+      "category_id": 1,
+      "show_country": true,
+      "created_at": "2026-09-29T05:37:27.000Z",
+      "updated_at": "2026-10-06T23:38:30.000Z",
+      "region": "continental",
+      "region_name": "Europe"
+    }
+  },
+  "team_groups": [
+    {"team_id": 2700, "add_sub": 0, "bias": 0},
+    {"team_id": 1013, "add_sub": 0, "bias": 0},
+    {"team_id": 2691, "add_sub": 0, "bias": 0},
+    {"team_id": 257, "add_sub": 0, "bias": 0}
+  ],
+  "games": [
+    {"id": 370709, "home_id": 2700, "away_id": 2691, "home_score": 0, "away_score": 1, "played": true, "home_power": 1.5487097210866914, "away_power": 1.050670358221626},
+    {"id": 370710, "home_id": 1013, "away_id": 257, "home_score": 0, "away_score": 1, "played": true, "home_power": 1.7200118733769152, "away_power": 1.129012092111751},
+    {"id": 370717, "home_id": 2700, "away_id": 257, "home_score": 0, "away_score": 0, "played": true, "home_power": 1.7966413316447203, "away_power": 1.2811824171841948},
+    {"id": 370718, "home_id": 2691, "away_id": 1013, "home_score": 0, "away_score": 0, "played": true, "home_power": 1.1964195060531608, "away_power": 1.1663682393678878},
+    {"id": 370725, "home_id": 1013, "away_id": 2700, "home_score": 1, "away_score": 0, "played": true, "home_power": 1.355822143584382, "away_power": 0.7815808941190286},
+    {"id": 370726, "home_id": 257, "away_id": 2691, "home_score": 0, "away_score": 3, "played": true, "home_power": 1.0716044585295024, "away_power": 1.0633768175914204},
+    {"id": 370733, "home_id": 2691, "away_id": 2700, "home_score": 0, "away_score": 0, "played": true, "home_power": 1.1450257960531608, "away_power": 0.6017895603113027},
+    {"id": 370734, "home_id": 257, "away_id": 1013, "home_score": 1, "away_score": 2, "played": true, "home_power": 1.1755148047010362, "away_power": 1.2297634709669873},
+    {"id": 370742, "home_id": 2700, "away_id": 1013, "home_score": 0, "away_score": 0, "played": false, "home_power": 1.0221728728207675, "away_power": 1.0315623361339814},
+    {"id": 370743, "home_id": 2691, "away_id": 257, "home_score": 0, "away_score": 0, "played": false, "home_power": 1.3350760220719038, "away_power": 0.7241024519598214},
+    {"id": 370749, "home_id": 1013, "away_id": 2691, "home_score": 0, "away_score": 0, "played": false, "home_power": 1.070948176510595, "away_power": 0.727214355092599},
+    {"id": 370750, "home_id": 257, "away_id": 2700, "home_score": 0, "away_score": 0, "played": false, "home_power": 1.3064639168083274, "away_power": 1.0480004797520304}
+  ]
+}

@@ -409,12 +409,33 @@ impl Model {
             trace.unsupported_score_guidance = true;
             return;
         }
+        let (offset, terms) = self.score_key_support(key, a, b, ca, cb, scores, game_scope);
+        // A constant score key is already settled for this WDL path. Keep
+        // following the real comparator so later keys can guide the draw.
+        let variable = self.score_key_varies(&terms, scores);
+        if variable {
+            trace.score_guidance = Some(ScoreGuidance { offset, terms });
+        }
+    }
+
+    /// Return the exact sparse linear form for a goal key. The same form is
+    /// used by score guidance and by certificate support analysis.
+    fn score_key_support(
+        &self,
+        key: Key,
+        a: usize,
+        b: usize,
+        ca: &Campaign,
+        cb: &Campaign,
+        scores: &[[i32; 2]],
+        game_scope: Option<&[usize]>,
+    ) -> (f64, Vec<(usize, [f64; 2])>) {
         let mut terms = Vec::new();
         let mut offset = match key {
             Key::Gd => ((ca.gf - ca.ga) - (cb.gf - cb.ga)) as f64,
             Key::Gf => (ca.gf - cb.gf) as f64,
             Key::Away => (ca.away - cb.away) as f64,
-            _ => return,
+            _ => return (0., Vec::new()),
         };
         for (fixture_index, fixture) in self.fixtures.iter().enumerate() {
             if game_scope.is_some_and(|scope| scope.binary_search(&fixture.request_index).is_err())
@@ -471,19 +492,44 @@ impl Model {
                 terms.push((fixture_index, coefficient));
             }
         }
-        // A constant score key is already settled for this WDL path. Keep
-        // following the real comparator so later keys can guide the draw.
-        let variable = terms
+        (offset, terms)
+    }
+
+    fn score_key_varies(&self, terms: &[(usize, [f64; 2])], scores: &[[i32; 2]]) -> bool {
+        terms
             .iter()
             .any(|(i, coefficient)| match self.outcome_at(i, scores) {
                 0 | 2 => coefficient != &[0., 0.],
                 1 => (coefficient[0] + coefficient[1]).abs() > f64::EPSILON,
                 _ => false,
-            });
-        if variable {
-            trace.score_guidance = Some(ScoreGuidance { offset, terms });
-        }
+            })
     }
+
+    fn average_key_varies(&self, a: usize, b: usize, game_scope: Option<&[usize]>) -> bool {
+        self.fixtures.iter().any(|fixture| {
+            (fixture.home == a || fixture.away == a || fixture.home == b || fixture.away == b)
+                && game_scope
+                    .is_none_or(|scope| scope.binary_search(&fixture.request_index).is_ok())
+        })
+    }
+
+    fn score_key_is_variable(
+        &self,
+        key: Key,
+        a: usize,
+        b: usize,
+        ca: &Campaign,
+        cb: &Campaign,
+        scores: &[[i32; 2]],
+        game_scope: Option<&[usize]>,
+    ) -> bool {
+        if key == Key::Average {
+            return self.average_key_varies(a, b, game_scope);
+        }
+        let (_, terms) = self.score_key_support(key, a, b, ca, cb, scores, game_scope);
+        self.score_key_varies(&terms, scores)
+    }
+
     fn outcome_at(&self, fixture_index: &usize, scores: &[[i32; 2]]) -> u8 {
         let fixture = &self.fixtures[*fixture_index];
         let [home, away] = scores[fixture.request_index];
@@ -581,7 +627,9 @@ impl Model {
                 if let Some(t) = trace.as_deref_mut() {
                     if t.capture_score_guidance {
                         self.capture_score_key(t, *key, a, b, &c[a], &c[b], scores, game_scope);
-                    } else {
+                    } else if self
+                        .score_key_is_variable(*key, a, b, &c[a], &c[b], scores, game_scope)
+                    {
                         return t.unknown();
                     }
                 }
@@ -873,6 +921,10 @@ impl Model {
                             self.capture_score_key(t, *key, team_a, team_b, a, b, scores, None);
                         } else if t.score_guidance.is_none() {
                             t.unsupported_score_guidance = true;
+                        }
+                    } else if let Some((team_a, team_b)) = pair {
+                        if self.score_key_is_variable(*key, team_a, team_b, a, b, scores, None) {
+                            return t.unknown();
                         }
                     } else {
                         return t.unknown();
@@ -1541,5 +1593,171 @@ mod contextual_head_tests {
         let m = model(2, "pt,head,gd", &[(0, 0); 2], &[(0, 1, 1, 0)]);
         let c = table(&[5, 5], &[0, 10]);
         assert!(m.less(1, 0, &c, &m.empty_scores(), &mut Rng::new(5)));
+    }
+
+    fn support_model(sort: &str, future_game: bool) -> Model {
+        Model::new(Request {
+            id: 1,
+            zones: vec![],
+            phase: Phase {
+                sort: sort.into(),
+                championship: Championship {
+                    point_win: 3,
+                    point_draw: 1,
+                    point_loss: 0,
+                },
+                bonus_points: 0,
+                bonus_points_threshold: 0,
+            },
+            games: future_game
+                .then_some(Game {
+                    id: 1,
+                    home_id: 1,
+                    away_id: 3,
+                    home_score: 0,
+                    away_score: 0,
+                    home_power: 1.,
+                    away_power: 1.,
+                    played: false,
+                })
+                .into_iter()
+                .collect(),
+            team_groups: (1..=4)
+                .map(|team_id| Team {
+                    team_id,
+                    add_sub: 0,
+                    bias: 0,
+                })
+                .collect(),
+        })
+        .unwrap()
+    }
+
+    #[test]
+    fn certificate_advances_through_invariant_goal_keys_and_scopes_head_games() {
+        let model = support_model("gd,gf,g_away", true);
+        let campaigns = model.base.clone();
+        let mut scores = model.empty_scores();
+        scores[0] = [0, 0];
+
+        // A draw in a game involving only team 1 cancels from its GD, while
+        // its GF can still change. The comparator therefore advances to GF.
+        assert!(!model.score_key_is_variable(
+            Key::Gd,
+            0,
+            1,
+            &campaigns[0],
+            &campaigns[1],
+            &scores,
+            None
+        ));
+        assert!(model.score_key_is_variable(
+            Key::Gf,
+            0,
+            1,
+            &campaigns[0],
+            &campaigns[1],
+            &scores,
+            None
+        ));
+        assert!(!model.score_key_is_variable(
+            Key::Away,
+            0,
+            1,
+            &campaigns[0],
+            &campaigns[1],
+            &scores,
+            None
+        ));
+
+        let mut trace = SortTrace::default();
+        let mut active = Some(&mut trace);
+        let _ = model.compare_from_with_trace(
+            &campaigns[0],
+            &campaigns[1],
+            Some((0, 1)),
+            &scores,
+            &mut Rng::new(0),
+            0,
+            &mut active,
+        );
+        assert!(trace.missing, "GF must be the first variable key");
+
+        let scoped = support_model("pt,head,gd,gf,g_away", true);
+        let mut campaigns = scoped.base.clone();
+        campaigns[0].points = 5;
+        campaigns[1].points = 4;
+        campaigns[2].points = 5;
+        campaigns[3].points = 0;
+        let mut outside_scope = SortTrace::default();
+        let mut active = Some(&mut outside_scope);
+        let _ = scoped.compare_standing_with_trace(
+            0,
+            2,
+            &campaigns,
+            &scores,
+            &mut Rng::new(0),
+            0,
+            None,
+            Some(&[]),
+            &scoped.keys,
+            &mut active,
+        );
+        assert!(!outside_scope.missing);
+
+        let mut inside_scope = SortTrace::default();
+        let mut active = Some(&mut inside_scope);
+        let _ = scoped.compare_standing_with_trace(
+            0,
+            2,
+            &campaigns,
+            &scores,
+            &mut Rng::new(0),
+            0,
+            None,
+            Some(&[0]),
+            &scoped.keys,
+            &mut active,
+        );
+        assert!(inside_scope.missing);
+    }
+
+    #[test]
+    fn certificate_keeps_average_unknown_only_when_future_games_can_affect_it() {
+        let future = support_model("g_average", true);
+        let scores = future.empty_scores();
+        assert!(future.score_key_is_variable(
+            Key::Average,
+            0,
+            1,
+            &future.base[0],
+            &future.base[1],
+            &scores,
+            None,
+        ));
+
+        let completed = support_model("g_average", false);
+        let scores = completed.empty_scores();
+        assert!(!completed.score_key_is_variable(
+            Key::Average,
+            0,
+            1,
+            &completed.base[0],
+            &completed.base[1],
+            &scores,
+            None,
+        ));
+        let mut trace = SortTrace::default();
+        let mut active = Some(&mut trace);
+        let _ = completed.compare_from_with_trace(
+            &completed.base[0],
+            &completed.base[1],
+            Some((0, 1)),
+            &scores,
+            &mut Rng::new(0),
+            0,
+            &mut active,
+        );
+        assert!(!trace.missing);
     }
 }
