@@ -29,19 +29,20 @@ Successful native estimates are preserved. No enabling flags are needed;
 Rust service to apply the change.
 
 The coverage profile enables the **lean target-overflow tree fallback** by
-default. It handles remaining zeros whose target-result enumeration exceeds
-the earlier 64-path limit. Its five-draw pilots and two-draw leaf minimum use
-the remaining original confirmation budget, after native and family searches.
+default. It handles remaining zeros with 1–256 target-result paths, processing
+65–256-path candidates before smaller trees. Its five-draw pilots and two-draw
+leaf minimum use the remaining original confirmation budget, after native and
+family searches.
 No enabling flags are needed; `RUST_ODDS_TARGET_OVERFLOW_TREE=0` disables it.
 Rebuild and restart the Rust service to apply the default.
 
-`RUST_ODDS_EXPERIMENT_TARGET_TREE_MIN_ROOTS=1` additionally admits remaining
-small-root cells after the original overflow candidates have finished. Its
-default is 65; values clamp to 1–65. The experiment retains the same confirmation
-bank, four-cell limit and publication gates, and uses only leftover work for
-these extra candidates. More eligibility can increase CPU and latency. See the
-[two-result fixture and paired measurements](../experiments/rare_positions/2026-10-04-rust-two-results.md).
-This experiment is not enabled by default.
+The target-overflow fallback admits remaining cells with 1–256 target paths by
+default. Candidates with 65–256 paths retain priority and ordering ahead of
+1–64-path candidates. `RUST_ODDS_EXPERIMENT_TARGET_TREE_MIN_ROOTS=65` restores
+the former eligibility boundary; values clamp to 1–65. The fallback retains the
+same confirmation bank, four-cell limit and publication gates, and uses only
+leftover work for these candidates. Broader eligibility can increase CPU and
+latency. See the [separate and combined measurements](../experiments/rare_positions/2026-10-07-isolated-recovery-changes/README.md).
 
 The native service serves `/spi`, `/eval`, `/historic_ratings`, and
 `/player_ratings` alongside `/odds`. It does not run or proxy another service.
@@ -237,6 +238,35 @@ Use `RUST_ODDS_LOG=0` to disable these request/stage logs for benchmarks.
 The CLI's compact timing summary remains available. `RUST_ODDS_PROFILE=1`
 also enables logs, including when the quiet toggle is set.
 
+For paired CPU and latency measurements, save the baseline release executable
+before rebuilding and run the comparison harness from the repository root:
+
+```sh
+python3 script/benchmark_rust_odds.py \
+  --baseline /tmp/odds-baseline --candidate odds-rust/target/release/golaberto-odds \
+  --request experiments/rare_positions/reference/2026-10-04-two-results/inputs/group-16498-two-results.json \
+  --seeds 808,1669,2293 --workers 4 --repeats 3 --out /tmp/odds-comparison
+```
+
+The harness runs requests serially, alternates executable order, excludes warmups
+from timing summaries, and defaults to complete response byte equality across
+executables and repeats. For algorithm changes, use `--comparison coverage` to
+check response shape, preserve every baseline positive cell, reject positive
+estimates contradicting baseline impossibility proofs, and report
+probability changes. It also rejects large disagreements with baseline estimates
+that report high precision, accounting for both reported standard errors. Coverage alone
+does not establish statistical accuracy.
+Each executable must still produce identical responses across repeats and worker
+counts. Add `--include-one-worker` to check worker-count parity and repeat
+`--request` for other snapshots. Use `--candidate-env NAME=VALUE` for a candidate
+experiment flag. It clears inherited odds experiment flags and enables stage logs.
+Raw exports, logs, input/executable hashes, process
+CPU time and wall time are saved under the new output directory. CLI wall time
+includes process startup; measure HTTP latency separately on a warm server.
+Summary medians pool all requested snapshots, seeds and worker counts; use the
+individual run records when comparing a specific request on four workers.
+Avoid running builds, tests or other benchmarks alongside timed requests.
+
 ## HTTP service and Go replacement
 
 ### Late family fallback
@@ -327,7 +357,8 @@ results integration.
 ### Lean target-overflow tree fallback
 
 The final tree fallback is enabled by default in the coverage profile. It
-considers at most four remaining non-impossible zeros with 65–256 target paths.
+considers at most four remaining non-impossible zeros with 1–256 target paths,
+processing 65–256-path candidates before 1–64-path candidates.
 It retains the complete outcome partition, failed-refinement parents and actual
 score tiebreakers. It starts with five pilot draws per leaf, refines three message
 proposals, and sizes independent MAIN/CHECK batches to the residual confirmation
@@ -935,6 +966,43 @@ establish a production deadline. See the
 for per-group costs, seeds, and limitations. Logs
 `rust_odds_rare_tail_confirm_more` and `rust_odds_rare_tail_confirm_more_summary`
 record evidence, acceptance, work and additional time.
+
+### Expected-points rival cohorts
+
+The coverage profile enables expected-points cohorts when deterministic
+operation budgets are active. After the existing estimators finish, a separate
+pass can fill up to four remaining zero cells without replacing positive
+estimates. Set `RUST_ODDS_EXPECTED_COHORTS=0` to disable this stage, or `1` to
+enable it explicitly in another supported tail profile.
+
+For each cached target outcome path, the proposal fixes both endpoints of the
+target's games and computes rivals' expected final points from the remaining
+fixtures. The strongest rivals form the initial cohort above the target;
+nearby boundary swaps provide alternatives. Shared games remain joint random
+variables. Inclusive bounds preserve points ties for the full ranking rules,
+and the native component retains support outside the proposed cohorts.
+Overlapping cohorts contribute their full mixture density to each weight.
+
+Independent pilots compare four- and six-rival conditioning by ESS per modeled
+operation, with at most 1,024 draws per arm. The additional forecast allowance
+is `200000 × reference_draw_cost × 0.45`, divided across eligible cells. Setup,
+cloning, failed attempts, and both pilots are charged within a hard training
+grant of at most one third of each cell's allowance. The remaining allowance
+funds equal, fixed main/check batches from a pilot cost forecast with a 25%
+margin. The pair runs concurrently within the existing worker limit. Actual
+final work is settled afterward; exceeding the total allowance
+stops admission of further cells. This forecast is not a hard execution limit.
+
+Published estimates require fresh main/check samples and the existing quality
+gates. Finite budgets can still leave reachable zeros. Logs prefixed
+`rust_odds_expected_cohorts_` record admission, pilot evidence, selected widths,
+final confirmation, and total work.
+
+The [12-fixture ablation](../experiments/rare_positions/2026-10-07-isolated-recovery-changes/README.md)
+measured 9.5% more CPU for cohorts alone and 1.1% for smaller-tree eligibility
+alone. Together they recovered 24 additional fixture/seed/team/position
+estimates with 9.6% more CPU and no lost positive estimates. These measurements
+establish coverage and cost, rather than exact accuracy in the extreme tail.
 
 ### Shared blocker conditioning in the coverage profile
 

@@ -1,0 +1,173 @@
+{
+  "objective": "Separate cohort recovery and small-tree recovery effects against an actual clean-HEAD baseline.",
+  "source_commit": "4200a3e8150cffec8003f579be7c7f1e206e64b3",
+  "source_binary_sha256": "ff48a783754ea49a95c36b6aeb05db950fe0bc50541b676c970cb7aee227e594",
+  "working_tree_binary_sha256": "794677a295bb7a784f7625d9cd33dc3f86b6368ebd0621c8abf721af6b7661ab",
+  "working_tree_source_diff_sha256": "d97eac378717f3d85fca374b35a704895bec0e3a4d633716f02b6b9e4a415366",
+  "design": {
+    "cases": 12,
+    "seeds": [
+      808,
+      13001,
+      13003,
+      13007,
+      13009
+    ],
+    "workers": 4,
+    "timing_repeats": 2,
+    "warmups": 4,
+    "measured_runs": 480,
+    "arm_order": "serial rotated by case/seed; reverse order on repeat 2",
+    "arms": {
+      "clean-head-baseline": {
+        "binary": "clean_head",
+        "env": {}
+      },
+      "cohorts-only": {
+        "binary": "working_tree",
+        "env": {}
+      },
+      "small-trees-only": {
+        "binary": "clean_head",
+        "env": {
+          "RUST_ODDS_EXPERIMENT_TARGET_TREE_MIN_ROOTS": "1"
+        }
+      },
+      "both-changes": {
+        "binary": "working_tree",
+        "env": {
+          "RUST_ODDS_EXPERIMENT_TARGET_TREE_MIN_ROOTS": "1"
+        }
+      }
+    },
+    "environment": "RUST_ODDS_* and RARE_POSITION_* inherited variables cleared; RUST_ODDS_LOG=1"
+  },
+  "headline_percent_vs_clean_head": {
+    "holdout11": {
+      "clean-head-baseline": {
+        "cpu_total_mean_of_per_seed_summed_case_medians": 13.9410019,
+        "wall_total_mean_of_per_seed_summed_case_medians": 6.248579736899969,
+        "cpu_percent_vs_clean_head": 0.0,
+        "wall_percent_vs_clean_head": 0.0
+      },
+      "cohorts-only": {
+        "cpu_total_mean_of_per_seed_summed_case_medians": 15.11421220000001,
+        "wall_total_mean_of_per_seed_summed_case_medians": 7.037854484000005,
+        "cpu_percent_vs_clean_head": 8.415537910514237,
+        "wall_percent_vs_clean_head": 12.63126630903184
+      },
+      "small-trees-only": {
+        "cpu_total_mean_of_per_seed_summed_case_medians": 14.034541599999997,
+        "wall_total_mean_of_per_seed_summed_case_medians": 6.324475508800007,
+        "cpu_percent_vs_clean_head": 0.6709682752428003,
+        "wall_percent_vs_clean_head": 1.2146083605502955
+      },
+      "both-changes": {
+        "cpu_total_mean_of_per_seed_summed_case_medians": 15.214467099999995,
+        "wall_total_mean_of_per_seed_summed_case_medians": 7.093409120199997,
+        "cpu_percent_vs_clean_head": 9.134674890188442,
+        "wall_percent_vs_clean_head": 13.520342523774254
+      }
+    },
+    "latest95": {
+      "clean-head-baseline": {
+        "cpu_total_mean_of_per_seed_summed_case_medians": 3.7378745999999916,
+        "wall_total_mean_of_per_seed_summed_case_medians": 1.6258753165999906,
+        "cpu_percent_vs_clean_head": 0.0,
+        "wall_percent_vs_clean_head": 0.0
+      },
+      "cohorts-only": {
+        "cpu_total_mean_of_per_seed_summed_case_medians": 4.235921300000006,
+        "wall_total_mean_of_per_seed_summed_case_medians": 1.9860701166000012,
+        "cpu_percent_vs_clean_head": 13.324328750890047,
+        "wall_percent_vs_clean_head": 22.153900506543465
+      },
+      "small-trees-only": {
+        "cpu_total_mean_of_per_seed_summed_case_medians": 3.8314274000000004,
+        "wall_total_mean_of_per_seed_summed_case_medians": 1.7214180000000057,
+        "cpu_percent_vs_clean_head": 2.502834097216877,
+        "wall_percent_vs_clean_head": 5.876384395810419
+      },
+      "both-changes": {
+        "cpu_total_mean_of_per_seed_summed_case_medians": 4.152800099999995,
+        "wall_total_mean_of_per_seed_summed_case_medians": 1.9535905084000036,
+        "cpu_percent_vs_clean_head": 11.10057303688048,
+        "wall_percent_vs_clean_head": 20.156231443707927
+      }
+    },
+    "all12": {
+      "clean-head-baseline": {
+        "cpu_total_mean_of_per_seed_summed_case_medians": 17.67887649999999,
+        "wall_total_mean_of_per_seed_summed_case_medians": 7.874455053499959,
+        "cpu_percent_vs_clean_head": 0.0,
+        "wall_percent_vs_clean_head": 0.0
+      },
+      "cohorts-only": {
+        "cpu_total_mean_of_per_seed_summed_case_medians": 19.350133500000016,
+        "wall_total_mean_of_per_seed_summed_case_medians": 9.023924600600006,
+        "cpu_percent_vs_clean_head": 9.45341181607342,
+        "wall_percent_vs_clean_head": 14.597448830305314
+      },
+      "small-trees-only": {
+        "cpu_total_mean_of_per_seed_summed_case_medians": 17.865969,
+        "wall_total_mean_of_per_seed_summed_case_medians": 8.045893508800013,
+        "cpu_percent_vs_clean_head": 1.058282747775352,
+        "wall_percent_vs_clean_head": 2.1771469153774037
+      },
+      "both-changes": {
+        "cpu_total_mean_of_per_seed_summed_case_medians": 19.36726719999999,
+        "wall_total_mean_of_per_seed_summed_case_medians": 9.0469996286,
+        "cpu_percent_vs_clean_head": 9.550328042621947,
+        "wall_percent_vs_clean_head": 14.890485336872672
+      }
+    }
+  },
+  "positive_coverage_changes_vs_clean_head": {
+    "cohorts-only": {
+      "added_positive_seed_cells": 22,
+      "lost_positive_seed_cells": 0,
+      "invalid_candidate_fields": 0,
+      "candidate_undecided_zero_seed_cell_observations": 1,
+      "candidate_reachable_zero_seed_cell_observations": 24
+    },
+    "small-trees-only": {
+      "added_positive_seed_cells": 7,
+      "lost_positive_seed_cells": 0,
+      "invalid_candidate_fields": 0,
+      "candidate_undecided_zero_seed_cell_observations": 1,
+      "candidate_reachable_zero_seed_cell_observations": 39
+    },
+    "both-changes": {
+      "added_positive_seed_cells": 24,
+      "lost_positive_seed_cells": 0,
+      "invalid_candidate_fields": 0,
+      "candidate_undecided_zero_seed_cell_observations": 0,
+      "candidate_reachable_zero_seed_cell_observations": 23
+    },
+    "clean-head-baseline": {
+      "added_positive_seed_cells": 0,
+      "lost_positive_seed_cells": 0,
+      "candidate_undecided_zero_seed_cell_observations": 5,
+      "candidate_reachable_zero_seed_cell_observations": 42
+    }
+  },
+  "run_status": {
+    "success": true,
+    "execution_failures": 0,
+    "configuration_assertion_failures": 0,
+    "repeated_export_hash_mismatches": 0
+  },
+  "known_resource_events": {
+    "root_count_grant_overruns": 8,
+    "note": "A root-count overrun is recorded as actual work exceeding its grant; inspect full event rows. It does not invalidate run completion."
+  },
+  "limits": [
+    "latest95 is exploratory and is separated from the 11-case set.",
+    "Seed variation is not evidence of probability accuracy.",
+    "Headline percent effects compare aggregate mean totals; per-case and per-seed evidence is in analysis.json."
+  ],
+  "validation": {
+    "cross_experiment_export_hash_parity": "All 480 measured exports match the corresponding old experiment arm SHA256 exactly (verified independently by the coordinating agent).",
+    "analysis_aggregation": "12-case and holdout11/latest95 totals sum per-case repeat medians per seed, then average across five seeds. Coverage cell gains/losses are deduplicated by request and seed."
+  }
+}

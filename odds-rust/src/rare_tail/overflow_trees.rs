@@ -9,7 +9,8 @@ use crate::joint_caps::propagated::lazy::{combine_branches, BranchSample, Branch
 use std::collections::HashMap;
 
 const ROOT_LIMIT: usize = 256;
-const DEFAULT_MIN_ROOTS: usize = 65;
+const LEGACY_MIN_ROOTS: usize = 65;
+const DEFAULT_MIN_ROOTS: usize = 1;
 const MAX_CELLS: usize = 4;
 const DEFAULT_FLOOR: usize = 2;
 const MAX_FLOOR: usize = 10;
@@ -58,7 +59,7 @@ fn final_draw_floor() -> usize {
 }
 
 fn min_roots_value(raw: Option<&str>) -> usize {
-    bounded_setting_value(raw, DEFAULT_MIN_ROOTS, 1, DEFAULT_MIN_ROOTS)
+    bounded_setting_value(raw, DEFAULT_MIN_ROOTS, 1, LEGACY_MIN_ROOTS)
 }
 
 fn min_roots() -> usize {
@@ -75,7 +76,7 @@ fn accepted_root_count(roots: usize, minimum: usize) -> bool {
 
 fn candidate_sort_key(candidate: Candidate, minimum: usize, n: usize) -> (usize, usize, usize) {
     let new_candidate_bucket =
-        usize::from(minimum < DEFAULT_MIN_ROOTS && candidate.roots < DEFAULT_MIN_ROOTS);
+        usize::from(minimum < LEGACY_MIN_ROOTS && candidate.roots < LEGACY_MIN_ROOTS);
     (
         new_candidate_bucket,
         candidate.roots,
@@ -782,19 +783,19 @@ mod tests {
 
     #[test]
     fn target_tree_min_roots_parser_defaults_clamps_and_rejects_invalid_values() {
-        assert_eq!(min_roots_value(None), 65);
+        assert_eq!(min_roots_value(None), 1);
         assert_eq!(min_roots_value(Some("1")), 1);
         assert_eq!(min_roots_value(Some("56")), 56);
         assert_eq!(min_roots_value(Some("0")), 1);
         assert_eq!(min_roots_value(Some("65")), 65);
         assert_eq!(min_roots_value(Some("100")), 65);
-        assert_eq!(min_roots_value(Some("invalid")), 65);
-        assert_eq!(min_roots_value(Some("-1")), 65);
+        assert_eq!(min_roots_value(Some("invalid")), 1);
+        assert_eq!(min_roots_value(Some("-1")), 1);
     }
 
     #[test]
     fn target_tree_root_candidate_eligibility_uses_configured_lower_bound() {
-        assert!(!accepted_root_count(56, DEFAULT_MIN_ROOTS));
+        assert!(!accepted_root_count(56, 65));
         assert!(accepted_root_count(56, 1));
         assert!(!accepted_root_count(0, 1));
         assert!(accepted_root_count(1, 1));
@@ -838,13 +839,25 @@ mod tests {
         );
 
         let mut default_candidates = candidates.clone();
-        default_candidates.sort_by_key(|&candidate| candidate_sort_key(candidate, 65, 5));
+        default_candidates
+            .sort_by_key(|&candidate| candidate_sort_key(candidate, DEFAULT_MIN_ROOTS, 5));
         let default_order: Vec<_> = default_candidates
             .iter()
             .map(|candidate| (candidate.roots, candidate.cell.index(5)))
             .collect();
         assert_eq!(
             default_order,
+            vec![(100, 3), (186, 2), (186, 4), (11, 1), (56, 0)]
+        );
+
+        let mut legacy_candidates = candidates.clone();
+        legacy_candidates.sort_by_key(|&candidate| candidate_sort_key(candidate, 65, 5));
+        let legacy_order: Vec<_> = legacy_candidates
+            .iter()
+            .map(|candidate| (candidate.roots, candidate.cell.index(5)))
+            .collect();
+        assert_eq!(
+            legacy_order,
             vec![(11, 1), (56, 0), (100, 3), (186, 2), (186, 4)]
         );
     }

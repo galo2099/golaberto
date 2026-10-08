@@ -23,6 +23,7 @@ pub(crate) mod budget;
 mod confirmations;
 mod early_roots;
 pub(crate) mod family_config;
+pub(crate) mod order_cohorts;
 mod overflow_trees;
 use budget::{scaled, WorkBudget, REFERENCE_DRAWS};
 
@@ -263,6 +264,7 @@ pub fn run(
         mode
     };
     if !["union", "lazy", "portfolio"].contains(&mode.as_str()) {
+        order_cohorts::log_status(log, m.request.id, order_cohorts::enabled(), budget::mode());
         return (0, 0);
     }
     let extension_mode = value("RUST_ODDS_RARE_TAIL_EXTENSION");
@@ -1224,6 +1226,13 @@ pub fn run(
         let (added, fallback_work) = confirmations::finish_fallback(state, m, estimates, log);
         found += added;
         work = work.saturating_add(fallback_work);
+    }
+    if order_cohorts::enabled() && budget::modeled() {
+        let outcome = order_cohorts::run(m, seed, workers, estimates, log);
+        found += outcome.accepted;
+        work = work.saturating_add(outcome.legacy_sample_work);
+    } else {
+        order_cohorts::log_status(log, m.request.id, order_cohorts::enabled(), budget::mode());
     }
     if extension {
         emit(

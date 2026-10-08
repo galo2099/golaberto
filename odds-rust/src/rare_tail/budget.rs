@@ -56,9 +56,18 @@ pub(crate) fn reference_cost(m: &crate::model::Model) -> usize {
 /// native proposal plus all four family density evaluations, status
 /// reconstruction, root setup and one final rank calculation.
 pub(crate) fn family_validation_upper_cost(m: &crate::model::Model) -> usize {
+    family_validation_cost(
+        m,
+        family_validation_evaluations(crate::rare_tail::family_structure()),
+        true,
+    )
+}
+
+/// Conservative work for one family density evaluation. Kept shared so new
+/// proposal forecasts cannot silently drift from the validation bound.
+fn family_validation_pattern_cost(m: &crate::model::Model) -> usize {
     let g = m.fixtures.len();
     let n = m.n;
-    let target = g; // upper bound on target-root fixtures
     let dynamic = std::env::var("RUST_ODDS_LAZY_PROPAGATE")
         .ok()
         .and_then(|s| s.parse::<usize>().ok())
@@ -68,20 +77,39 @@ pub(crate) fn family_validation_upper_cost(m: &crate::model::Model) -> usize {
     } else {
         0
     };
-    let per_pattern = 8 * g + g + 7 * n + 8 * n + 90 * g + g * n * (n + 1) + dynamic_cost;
+    8 * g + g + 7 * n + 8 * n + 90 * g + g * n * (n + 1) + dynamic_cost
+}
+
+fn family_validation_cost(
+    m: &crate::model::Model,
+    evaluations: usize,
+    include_batch_preparation: bool,
+) -> usize {
+    let g = m.fixtures.len();
+    let n = m.n;
     let goal_guidance = if crate::rare_tail::value("RUST_ODDS_LAZY_GOALS") == "1"
         && crate::goal_tilt::GoalTilt::joint_guidance_may_fit_for_any_target(m)
     {
-        crate::goal_tilt::JOINT_PREPARATION_ALLOWANCE_PER_DRAW
-            + g * crate::goal_tilt::JOINT_DENSITY_WORK_PER_FIXTURE
+        (if include_batch_preparation {
+            crate::goal_tilt::JOINT_PREPARATION_ALLOWANCE_PER_DRAW
+        } else {
+            0
+        }) + g * crate::goal_tilt::JOINT_DENSITY_WORK_PER_FIXTURE
     } else {
         0
     };
-    family_validation_evaluations(crate::rare_tail::family_structure()) * per_pattern
-        + 8 * target
+    evaluations * family_validation_pattern_cost(m)
+        + 8 * g
         + 8 * (g + n)
         + (8 * g + n * (n.max(2).ilog2() as usize + 1) * m.keys.len().max(1))
         + goal_guidance
+}
+
+/// Conservative per-draw bound for ordered-cohort pilots, which can evaluate
+/// the native proposal and up to four overlapping cohort components. This
+/// remains five evaluations for every configured family structure.
+pub(crate) fn ordered_draw_upper_cost(m: &crate::model::Model) -> usize {
+    family_validation_cost(m, 5, false)
 }
 
 /// Conservative donor-feasibility screening forecast. It retains all existing
@@ -197,6 +225,35 @@ mod tests {
         ] {
             assert_eq!(family_validation_evaluations(structure), 5);
         }
+    }
+
+    #[test]
+    fn ordered_pilot_upper_bound_keeps_five_components_in_full_family_mode() {
+        let request: crate::model::Request = serde_json::from_value(serde_json::json!({
+            "id": 1,
+            "phase": {"sort":"pt,w,gd,gf", "championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+            "team_groups": [{"team_id":0},{"team_id":1},{"team_id":2}],
+            "games": [
+                {"id":1,"home_id":0,"away_id":1,"home_power":1.2,"away_power":0.9},
+                {"id":2,"home_id":0,"away_id":2,"home_power":1.1,"away_power":1.3},
+                {"id":3,"home_id":1,"away_id":2,"home_power":0.8,"away_power":1.4}
+            ]
+        })).unwrap();
+        let model = crate::model::Model::new(request).unwrap();
+        let full = family_validation_cost(
+            &model,
+            family_validation_evaluations(super::super::family_config::FamilyStructure::Full),
+            true,
+        );
+        assert_eq!(
+            family_validation_evaluations(super::super::family_config::FamilyStructure::Full),
+            2
+        );
+        assert!(ordered_draw_upper_cost(&model) >= full);
+        assert_eq!(
+            ordered_draw_upper_cost(&model),
+            family_validation_cost(&model, 5, false)
+        );
     }
 
     #[test]

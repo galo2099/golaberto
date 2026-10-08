@@ -4,6 +4,7 @@ use super::*;
 use crate::rng::derive;
 
 mod early_rank;
+mod order_cohorts;
 
 type SharedGuideKey = (
     usize,
@@ -267,6 +268,19 @@ impl LazyJoint {
         omit: bool,
         shared: Option<Arc<SharedGuides>>,
     ) -> Option<Self> {
+        Self::configured(m, cell, seed, witnesses, roots, subset, omit, shared, None)
+    }
+    fn configured(
+        m: &Model,
+        cell: Cell,
+        seed: i64,
+        witnesses: &[Vec<u8>],
+        roots: usize,
+        subset: bool,
+        omit: bool,
+        shared: Option<Arc<SharedGuides>>,
+        rival_limit: Option<usize>,
+    ) -> Option<Self> {
         let rules = &m.request.phase.championship;
         if m.keys.first() != Some(&Key::Pt)
             || m.request.phase.bonus_points != 0
@@ -430,10 +444,12 @@ impl LazyJoint {
             family_selection_work: 0,
             nodes: 0,
             node_limit: 60000,
-            rival_limit: crate::rare_tail::value("RUST_ODDS_LAZY_RIVALS")
-                .parse::<usize>()
-                .unwrap_or(6)
-                .clamp(1, 6),
+            rival_limit: rival_limit.unwrap_or_else(|| {
+                crate::rare_tail::value("RUST_ODDS_LAZY_RIVALS")
+                    .parse::<usize>()
+                    .unwrap_or(6)
+                    .clamp(1, 6)
+            }),
             joint_cache: HashMap::new(),
             fallback: None,
             guide_values: 0,
@@ -1879,6 +1895,17 @@ impl LazyJoint {
     pub fn sample(&self, m: &Model, samples: usize, seed: i64) -> Result {
         self.sample_internal(m, samples, seed, None, None, None)
     }
+    /// Capped sample path reserved for independent setup pilots. Ordinary
+    /// main and check streams continue through the uncapped path above.
+    pub(crate) fn sample_order_pilot(
+        &self,
+        m: &Model,
+        samples: usize,
+        seed: i64,
+        work_limit: usize,
+    ) -> Result {
+        self.sample_internal_limited(m, samples, seed, None, None, None, Some(work_limit))
+    }
     /// Experiment-only collection of corrected target-event contributions.
     /// Collection is observational: it does not consume RNG or change weights.
     fn sample_internal(
@@ -1886,9 +1913,21 @@ impl LazyJoint {
         m: &Model,
         samples: usize,
         seed: i64,
+        moments: Option<&mut RootMoments>,
+        families: Option<&mut FamilyMoments>,
+        native_families: Option<(&mut FamilyMoments, usize, usize)>,
+    ) -> Result {
+        self.sample_internal_limited(m, samples, seed, moments, families, native_families, None)
+    }
+    fn sample_internal_limited(
+        &self,
+        m: &Model,
+        samples: usize,
+        seed: i64,
         mut moments: Option<&mut RootMoments>,
         mut families: Option<&mut FamilyMoments>,
         mut native_families: Option<(&mut FamilyMoments, usize, usize)>,
+        work_limit: Option<usize>,
     ) -> Result {
         let mass = self.target.mass(0);
         let alpha = if self.mixture_mass > 0. {
@@ -1900,6 +1939,17 @@ impl LazyJoint {
             mass,
             ..Default::default()
         };
+        let goal_preparation_reserve = if work_limit.is_some() && self.goals.is_some() {
+            samples.saturating_mul(crate::goal_tilt::JOINT_PREPARATION_ALLOWANCE_PER_DRAW)
+        } else {
+            0
+        };
+        if let Some(limit) = work_limit {
+            if goal_preparation_reserve > limit {
+                result.work = 0;
+                return result;
+            }
+        }
         let mut rng = Rng::new(seed);
         let mut scores = ScoreContext::new(m);
         let mut goal_context = self
@@ -1915,6 +1965,18 @@ impl LazyJoint {
         let mut points = vec![0; m.n];
         let (mut sum, mut sum2, mut max, mut batches) = (0., 0., 0_f64, [0.; 2]);
         for draw in 0..samples {
+            if let Some(limit) = work_limit {
+                let reserve = crate::rare_tail::budget::ordered_draw_upper_cost(m);
+                if result
+                    .operations
+                    .units()
+                    .saturating_add(reserve)
+                    .saturating_add(goal_preparation_reserve)
+                    > limit
+                {
+                    break;
+                }
+            }
             if let Some((families, draw_cap, _)) = native_families.as_mut() {
                 families.collection_work += 4;
                 if draw < *draw_cap {
