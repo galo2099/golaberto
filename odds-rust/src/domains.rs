@@ -28,6 +28,46 @@ pub struct Domains {
     pub omitted_scores: Vec<bool>,
     pub omitted_count: usize,
 }
+/// Deterministic work allowance for bounded order-cohort discovery. A charge
+/// reserves a conservative upper bound before the corresponding operation.
+#[derive(Clone, Copy, Debug)]
+pub struct DomainWork {
+    pub used: usize,
+    pub limit: usize,
+}
+/// Final attainable score bounds without suffix tables for sampling. The
+/// membership enumerator uses these only to choose the next rival branch.
+pub struct DomainBounds {
+    pub domains: Vec<u8>,
+    pub min: Vec<i32>,
+    pub max: Vec<i32>,
+    pub feasible: bool,
+}
+impl From<Domains> for DomainBounds {
+    fn from(mut domains: Domains) -> Self {
+        Self {
+            domains: domains.domains,
+            min: domains.min.pop().unwrap_or_default(),
+            max: domains.max.pop().unwrap_or_default(),
+            feasible: domains.feasible,
+        }
+    }
+}
+impl DomainWork {
+    pub fn new(limit: usize) -> Self {
+        Self { used: 0, limit }
+    }
+    fn reserve(&mut self, amount: usize) -> bool {
+        let Some(next) = self.used.checked_add(amount) else {
+            return false;
+        };
+        if next > self.limit {
+            return false;
+        }
+        self.used = next;
+        true
+    }
+}
 impl Domains {
     fn new(games: &[RankGame], teams: usize, restricted: bool) -> Self {
         Self {
@@ -61,6 +101,54 @@ impl Domains {
     ) -> Self {
         Self::seeded(games, points, rivals, rank, target, None, None)
     }
+    /// Bounded counterpart used only by the opt-in feasible-membership scout.
+    /// `None` means its deterministic allowance was exhausted; it says
+    /// nothing about whether the rank event is feasible.
+    pub fn propagate_bounded(
+        games: &[RankGame],
+        points: &[i32],
+        rivals: &[usize],
+        rank: usize,
+        target: i32,
+        work: &mut DomainWork,
+    ) -> Option<Self> {
+        Self::seeded_counted(
+            games,
+            points,
+            rivals,
+            rank,
+            target,
+            None,
+            None,
+            Some(work),
+            true,
+        )
+        .ok()
+    }
+    /// Bounded fixed-point propagation for membership search. It returns only
+    /// final team score bounds and omits the O(g*n) sampler suffix tables.
+    pub fn propagate_bounds_only_bounded(
+        games: &[RankGame],
+        points: &[i32],
+        rivals: &[usize],
+        rank: usize,
+        target: i32,
+        work: &mut DomainWork,
+    ) -> Option<DomainBounds> {
+        let d = Self::seeded_counted(
+            games,
+            points,
+            rivals,
+            rank,
+            target,
+            None,
+            None,
+            Some(work),
+            false,
+        )
+        .ok()?;
+        Some(DomainBounds::from(d))
+    }
     /// Proposal-only intervals can tighten a branch without proving the whole
     /// rank event impossible. Callers must retain other branches or a fallback.
     pub fn condition(
@@ -83,6 +171,57 @@ impl Domains {
             Some((lower, upper)),
         )
     }
+    /// Bounded conditioned counterpart. A work-cap decline is distinct from
+    /// a completed propagation result with `feasible == false`.
+    pub fn condition_bounded(
+        games: &[RankGame],
+        points: &[i32],
+        rivals: &[usize],
+        rank: usize,
+        target: i32,
+        lower: &[i32],
+        upper: &[i32],
+        masks: &[u8],
+        work: &mut DomainWork,
+    ) -> Option<Self> {
+        Self::seeded_counted(
+            games,
+            points,
+            rivals,
+            rank,
+            target,
+            Some(masks),
+            Some((lower, upper)),
+            Some(work),
+            true,
+        )
+        .ok()
+    }
+    pub fn condition_bounds_only_bounded(
+        games: &[RankGame],
+        points: &[i32],
+        rivals: &[usize],
+        rank: usize,
+        target: i32,
+        lower: &[i32],
+        upper: &[i32],
+        masks: &[u8],
+        work: &mut DomainWork,
+    ) -> Option<DomainBounds> {
+        let d = Self::seeded_counted(
+            games,
+            points,
+            rivals,
+            rank,
+            target,
+            Some(masks),
+            Some((lower, upper)),
+            Some(work),
+            false,
+        )
+        .ok()?;
+        Some(DomainBounds::from(d))
+    }
     fn seeded(
         games: &[RankGame],
         points: &[i32],
@@ -92,6 +231,33 @@ impl Domains {
         seed: Option<&[u8]>,
         bounds: Option<(&[i32], &[i32])>,
     ) -> Self {
+        Self::seeded_counted(
+            games, points, rivals, rank, target, seed, bounds, None, true,
+        )
+        .expect("unbounded domain propagation cannot exhaust its allowance")
+    }
+    fn seeded_counted(
+        games: &[RankGame],
+        points: &[i32],
+        rivals: &[usize],
+        rank: usize,
+        target: i32,
+        seed: Option<&[u8]>,
+        bounds: Option<(&[i32], &[i32])>,
+        mut work: Option<&mut DomainWork>,
+        compile: bool,
+    ) -> Result<Self, ()> {
+        let g = games.len();
+        let n = points.len();
+        let allocation = 8usize
+            .saturating_mul(g)
+            .saturating_add(8usize.saturating_mul(n))
+            .saturating_add(1);
+        if let Some(work) = work.as_deref_mut() {
+            if !work.reserve(allocation) {
+                return Err(());
+            }
+        }
         let mut result = Self::new(games, points.len(), true);
         if let Some((lower, upper)) = bounds {
             result.lower.copy_from_slice(lower);
@@ -109,13 +275,24 @@ impl Domains {
         let mut am = hm.clone();
         let mut ax = hm.clone();
         loop {
+            // One full pass is charged before any pass work. At most three
+            // outcome bits per game can be removed, so this bounds passes.
+            let pass = 12usize
+                .saturating_mul(g)
+                .saturating_add(8usize.saturating_mul(n))
+                .saturating_add(1);
+            if let Some(work) = work.as_deref_mut() {
+                if !work.reserve(pass) {
+                    return Err(());
+                }
+            }
             min.copy_from_slice(points);
             max.copy_from_slice(points);
             for (i, g) in games.iter().enumerate() {
                 let d = result.domains[i];
                 if d == 0 {
                     result.feasible = false;
-                    return result;
+                    return Ok(result);
                 }
                 hm[i] = min_gain(d, g.hg);
                 hx[i] = max_gain(d, g.hg);
@@ -130,7 +307,7 @@ impl Domains {
             let below = rivals.iter().filter(|t| max[**t] < target).count();
             if above > rank || below > rivals.len() - rank {
                 result.feasible = false;
-                return result;
+                return Ok(result);
             }
             for &t in rivals {
                 if above == rank && min[t] <= target {
@@ -141,7 +318,7 @@ impl Domains {
                 }
                 if min[t] > result.upper[t] || max[t] < result.lower[t] {
                     result.feasible = false;
-                    return result;
+                    return Ok(result);
                 }
             }
             let mut changed = false;
@@ -166,8 +343,22 @@ impl Domains {
                 break;
             }
         }
-        result.compile(games, points);
-        result
+        if compile {
+            let compile_charge = 10usize
+                .saturating_mul(g.saturating_mul(n))
+                .saturating_add(12usize.saturating_mul(g))
+                .saturating_add(8usize.saturating_mul(n));
+            if let Some(work) = work.as_deref_mut() {
+                if !work.reserve(compile_charge) {
+                    return Err(());
+                }
+            }
+            result.compile(games, points);
+        } else {
+            result.min.push(min);
+            result.max.push(max);
+        }
+        Ok(result)
     }
     fn compile(&mut self, games: &[RankGame], points: &[i32]) {
         self.min = vec![vec![0; points.len()]; games.len() + 1];

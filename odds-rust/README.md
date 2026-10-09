@@ -1015,6 +1015,39 @@ alone. Together they recovered 24 additional fixture/seed/team/position
 estimates with 9.6% more CPU and no lost positive estimates. These measurements
 establish coverage and cost, rather than exact accuracy in the extreme tail.
 
+### Joint rival discovery
+
+The default coverage profile also enables bounded joint rival discovery. When
+the expected-points cohort pilots admit no proposal, the stage searches rival
+memberships jointly under the remaining training allowance. Point-bound
+propagation rejects incompatible memberships before building sampling tables.
+Selected rivals may tie the target on points; complete ranking rules, including
+goal difference and goals scored, determine the sampled final position. Shared
+games remain joint variables, overlapping families receive the full mixture
+density correction, and the native proposal preserves support outside the
+discovered families.
+
+Discovery examines at most 32 cached target roots, 256 membership nodes per
+root, and four successful memberships per root. Construction and failed
+attempts are charged within the existing stage budget. Fresh independent
+main/check streams use the existing publication gates. Exhausting a discovery
+budget does not prove a position impossible. Set
+`RUST_ODDS_FEASIBLE_COHORTS=0` to disable discovery, or `1` to enable it explicitly
+within an enabled expected-cohort stage in another supported profile.
+
+On the latest95 fixture, five seeds with three timing repetitions each
+recovered Palmeiras 16th in four of five seeds versus zero for committed
+production. Mean complete-calculation CPU rose from 4.029s to 4.303s (+6.8%);
+elapsed time rose from 1.913s to 2.035s (+6.4%). Accepted estimates ranged from
+1.27e-42 to 1.78e-42. The remaining seed failed the existing precision gates.
+Eleven secondary fixtures had no positive-cell gains or losses. A separate
+GD/GF-ranked shortlist reduced recovery to one of five seeds and was discarded.
+These measurements describe this fixture and host, rather than guaranteed
+coverage or exact tail probabilities. After cleanup, all 32 default-on and
+explicit-off calculations matched the corresponding frozen discovery and
+baseline exports, including metadata. Full locked release tests and the normal
+production release build passed.
+
 ### Shared blocker conditioning in the coverage profile
 
 The default coverage profile enables the strongest tested

@@ -610,6 +610,26 @@ impl LazyJoint {
         explicit_bounds: Option<(&[i32], &[i32])>,
         bound_guidance: bool,
     ) -> std::result::Result<Option<Pattern>, ()> {
+        self.build_bounded_counted(
+            key,
+            teams,
+            anchor,
+            case,
+            explicit_bounds,
+            bound_guidance,
+            None,
+        )
+    }
+    fn build_bounded_counted(
+        &mut self,
+        key: &[u8],
+        teams: usize,
+        anchor: Option<&[u8]>,
+        case: Option<(bool, u32, u32)>,
+        explicit_bounds: Option<(&[i32], &[i32])>,
+        bound_guidance: bool,
+        mut domain_work: Option<&mut crate::domains::DomainWork>,
+    ) -> std::result::Result<Option<Pattern>, ()> {
         let mut points = self.base.clone();
         let mut fixed = Vec::new();
         let mut weight = 1.;
@@ -624,13 +644,27 @@ impl LazyJoint {
             points[g.away] += g.ag[o];
         }
         let rivals: Vec<_> = (0..teams).filter(|&t| t != self.cell.team).collect();
-        let mut d = Domains::propagate(
-            &self.remaining,
-            &points,
-            &rivals,
-            self.cell.rank,
-            points[self.cell.team],
-        );
+        let mut d = if let Some(work) = domain_work.as_deref_mut() {
+            let Some(d) = Domains::propagate_bounded(
+                &self.remaining,
+                &points,
+                &rivals,
+                self.cell.rank,
+                points[self.cell.team],
+                work,
+            ) else {
+                return Err(());
+            };
+            d
+        } else {
+            Domains::propagate(
+                &self.remaining,
+                &points,
+                &rivals,
+                self.cell.rank,
+                points[self.cell.team],
+            )
+        };
         if !d.feasible {
             return Ok(None);
         }
@@ -642,16 +676,33 @@ impl LazyJoint {
                 d.lower[t] = d.lower[t].max(lower[t]);
                 d.upper[t] = d.upper[t].min(upper[t]);
             }
-            d = Domains::condition(
-                &self.remaining,
-                &points,
-                &rivals,
-                self.cell.rank,
-                points[self.cell.team],
-                &d.lower,
-                &d.upper,
-                &d.domains,
-            );
+            d = if let Some(work) = domain_work.as_deref_mut() {
+                let Some(d) = Domains::condition_bounded(
+                    &self.remaining,
+                    &points,
+                    &rivals,
+                    self.cell.rank,
+                    points[self.cell.team],
+                    &d.lower,
+                    &d.upper,
+                    &d.domains,
+                    work,
+                ) else {
+                    return Err(());
+                };
+                d
+            } else {
+                Domains::condition(
+                    &self.remaining,
+                    &points,
+                    &rivals,
+                    self.cell.rank,
+                    points[self.cell.team],
+                    &d.lower,
+                    &d.upper,
+                    &d.domains,
+                )
+            };
             if !d.feasible {
                 return Ok(None);
             }
@@ -1689,6 +1740,7 @@ impl LazyJoint {
             skipped,
         )
     }
+
     pub(crate) fn family_fit_summary(&self) -> serde_json::Value {
         json!(self.family_fit_report)
     }

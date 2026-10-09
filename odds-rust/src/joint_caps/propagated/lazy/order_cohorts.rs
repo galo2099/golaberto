@@ -3,6 +3,9 @@ use super::*;
 #[cfg(test)]
 mod tests;
 
+const MAX_FEASIBLE_ROOTS: usize = 32;
+const MAX_FEASIBLE_MEMBERSHIPS_PER_ROOT: usize = 4;
+
 fn expected_raw_points(
     m: &Model,
     target: &[RankGame],
@@ -114,6 +117,335 @@ impl LazyJoint {
             "requested_allowance": admission
         });
         (plan, charged, diagnostics)
+    }
+
+    /// Bounded weak-membership discovery used only by the production opt-in
+    /// feasible-cohort arm. A cap or constructor decline is never a proof that
+    /// the order event is impossible.
+    pub(crate) fn add_feasible_cohorts_bounded(
+        &mut self,
+        m: &Model,
+        max_roots: usize,
+        max_nodes_per_root: usize,
+        max_successes_per_root: usize,
+        max_nodes: usize,
+        max_guides: usize,
+        max_selection_work: usize,
+    ) -> serde_json::Value {
+        let (node_start, guide_start, selection_start) =
+            (self.nodes, self.guide_values, self.family_selection_work);
+        let (old_node_limit, old_guide_limit, old_rival_limit) =
+            (self.node_limit, self.guide_limit, self.rival_limit);
+        let n = m.n;
+        let team = self.cell.team;
+        let rank = self.cell.rank;
+        let root_scan_cost = self.roots.len().saturating_mul(
+            8usize
+                .saturating_mul(self.remaining.len().saturating_add(n))
+                .saturating_add(self.target.games.len())
+                .saturating_add(
+                    12usize.saturating_mul(self.roots.len().max(2).ilog2() as usize + 1),
+                ),
+        );
+        if root_scan_cost > max_selection_work {
+            self.family_selection_work = self
+                .family_selection_work
+                .saturating_add(max_selection_work);
+            return json!({"status":"declined","reason":"selection_budget",
+                "roots_available":self.roots.len(),"selection_work":max_selection_work,"setup_work":0});
+        }
+        let mut roots: Vec<(Vec<u8>, f64)> = self
+            .roots
+            .iter()
+            .filter_map(|(root, pattern)| {
+                let pattern = pattern.as_ref()?;
+                Some((
+                    root.clone(),
+                    self.root_allocation.get(root).copied().unwrap_or_else(|| {
+                        pattern.mass * pattern.joint.residual_hint.max(1e-80) * pattern.tilt
+                    }),
+                ))
+            })
+            .collect();
+        roots.sort_by(|a, b| b.1.total_cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        roots.truncate(max_roots.min(MAX_FEASIBLE_ROOTS));
+        if self.omit
+            || self.subset
+            || !self.families.is_empty()
+            || roots.is_empty()
+            || max_nodes_per_root == 0
+            || max_nodes == 0
+            || max_guides == 0
+            || max_selection_work == 0
+        {
+            self.family_selection_work = selection_start.saturating_add(root_scan_cost);
+            return json!({"status":"declined","reason":"unsupported_mode_or_zero_budget",
+                "roots_available":roots.len(),"selection_work":root_scan_cost,"setup_work":0});
+        }
+        let games_len = self.remaining.len();
+        let rivals: Vec<usize> = (0..n).filter(|&t| t != team).collect();
+        let mut charged = root_scan_cost;
+        let mut visited = 0usize;
+        let mut additions = 0usize;
+        let mut capped_roots = 0usize;
+        let mut work_exhausted = false;
+        let mut construction_exhausted = false;
+        self.node_limit = node_start.saturating_add(max_nodes);
+        self.guide_limit = guide_start.saturating_add(max_guides);
+        self.rival_limit = rivals.len();
+        self.joint_cache.clear();
+        for (root, _) in roots.iter() {
+            // Bound root reconstruction, expected ordering and output vectors
+            // before doing them. Domains adds its own pass/compile charges.
+            let root_work = 12usize
+                .saturating_mul(n)
+                .saturating_add(self.target.games.len().saturating_mul(3))
+                .saturating_add(games_len.saturating_add(n));
+            if charged.saturating_add(root_work) > max_selection_work {
+                work_exhausted = true;
+                break;
+            }
+            charged += root_work;
+            if root.len() != self.target.games.len() {
+                continue;
+            }
+            let mut points = self.base.clone();
+            let mut valid = true;
+            for (game, &outcome) in self.target.games.iter().zip(root) {
+                let outcome = outcome as usize;
+                if outcome >= 3 || game.prob[outcome] <= 0.0 {
+                    valid = false;
+                    break;
+                }
+                points[game.home] += game.hg[outcome];
+                points[game.away] += game.ag[outcome];
+            }
+            if !valid {
+                continue;
+            }
+            let anchor = points[team];
+            let expected_points = expected_raw_points(m, &self.target.games, &self.remaining, root);
+            let initial_work = max_selection_work.saturating_sub(charged);
+            let mut domain_work = crate::domains::DomainWork::new(initial_work);
+            let Some(initial) = crate::domains::Domains::propagate_bounds_only_bounded(
+                &self.remaining,
+                &points,
+                &rivals,
+                rank,
+                anchor,
+                &mut domain_work,
+            ) else {
+                charged = charged.saturating_add(domain_work.used);
+                work_exhausted = true;
+                break;
+            };
+            charged = charged.saturating_add(domain_work.used);
+            if !initial.feasible {
+                continue;
+            }
+
+            struct Node {
+                fixed: Vec<Option<bool>>,
+                selected: usize,
+            }
+            let mut stack = vec![Node {
+                fixed: vec![None; n],
+                selected: 0,
+            }];
+            let mut root_nodes = 0usize;
+            let mut successes = 0usize;
+            let mut root_capped = false;
+            while let Some(node) = stack.pop() {
+                if root_nodes >= max_nodes_per_root || visited >= max_nodes {
+                    root_capped = true;
+                    break;
+                }
+                let node_cost = 8usize.saturating_mul(n).saturating_add(1);
+                if charged.saturating_add(node_cost) > max_selection_work {
+                    root_capped = true;
+                    work_exhausted = true;
+                    break;
+                }
+                charged += node_cost;
+                root_nodes += 1;
+                visited += 1;
+                let chosen_count = node.selected;
+                let mut undecided = Vec::new();
+                let mut lower = vec![i32::MIN / 4; n];
+                let mut upper = vec![i32::MAX / 4; n];
+                for &rival in &rivals {
+                    match node.fixed[rival] {
+                        Some(true) => lower[rival] = anchor,
+                        Some(false) => upper[rival] = anchor,
+                        None => undecided.push(rival),
+                    }
+                }
+                if chosen_count > rank || chosen_count + undecided.len() < rank {
+                    continue;
+                }
+                let condition_work = max_selection_work.saturating_sub(charged);
+                let mut domain_work = crate::domains::DomainWork::new(condition_work);
+                let Some(domains) = crate::domains::Domains::condition_bounds_only_bounded(
+                    &self.remaining,
+                    &points,
+                    &rivals,
+                    rank,
+                    anchor,
+                    &lower,
+                    &upper,
+                    &initial.domains,
+                    &mut domain_work,
+                ) else {
+                    charged = charged.saturating_add(domain_work.used);
+                    root_capped = true;
+                    work_exhausted = true;
+                    break;
+                };
+                charged = charged.saturating_add(domain_work.used);
+                if !domains.feasible {
+                    continue;
+                }
+                let mut options = Vec::new();
+                for rival in undecided {
+                    let min_total = domains.min[rival];
+                    let max_total = domains.max[rival];
+                    let can_above = max_total >= anchor;
+                    let can_below = min_total <= anchor;
+                    let allowed = usize::from(can_above) + usize::from(can_below);
+                    if allowed == 0 {
+                        options.clear();
+                        break;
+                    }
+                    options.push((allowed, max_total - min_total, rival, can_above, can_below));
+                }
+                if options.is_empty() {
+                    if chosen_count != rank
+                        || successes
+                            >= max_successes_per_root.min(MAX_FEASIBLE_MEMBERSHIPS_PER_ROOT)
+                    {
+                        continue;
+                    }
+                    let build_charge = 8usize
+                        .saturating_mul(games_len.saturating_mul(n.saturating_add(1)))
+                        .saturating_add(16usize.saturating_mul(n));
+                    if charged.saturating_add(build_charge) > max_selection_work {
+                        root_capped = true;
+                        work_exhausted = true;
+                        break;
+                    }
+                    charged += build_charge;
+                    let mut domain_work =
+                        crate::domains::DomainWork::new(max_selection_work.saturating_sub(charged));
+                    let built = self.build_bounded_counted(
+                        root,
+                        n,
+                        None,
+                        None,
+                        Some((&lower, &upper)),
+                        true,
+                        Some(&mut domain_work),
+                    );
+                    charged = charged.saturating_add(domain_work.used);
+                    match built {
+                        Ok(Some(pattern)) => {
+                            self.families.entry(root.clone()).or_default().push((
+                                vec![2; n.saturating_sub(1)],
+                                pattern,
+                                1.0,
+                            ));
+                            successes += 1;
+                            additions += 1;
+                        }
+                        Ok(None) => {}
+                        Err(()) => {
+                            root_capped = true;
+                            construction_exhausted = true;
+                            break;
+                        }
+                    }
+                    continue;
+                }
+                let option_count = options.len();
+                let option_cost = option_count
+                    .saturating_mul(option_count.max(2).ilog2() as usize + 1)
+                    .saturating_mul(8)
+                    .saturating_add(4usize.saturating_mul(n))
+                    .saturating_add(2usize.saturating_mul(n));
+                if charged.saturating_add(option_cost) > max_selection_work {
+                    root_capped = true;
+                    work_exhausted = true;
+                    break;
+                }
+                charged += option_cost;
+                options.sort_by(|a, b| {
+                    a.0.cmp(&b.0)
+                        .then_with(|| a.1.cmp(&b.1))
+                        .then_with(|| m.ids[a.2].cmp(&m.ids[b.2]))
+                });
+                let (_, _, next, can_above, can_below) = options[0];
+                let prefer_above = expected_points[next] >= expected_points[team];
+                let mut sides = Vec::with_capacity(2);
+                if prefer_above {
+                    if can_above {
+                        sides.push(true);
+                    }
+                    if can_below {
+                        sides.push(false);
+                    }
+                } else {
+                    if can_below {
+                        sides.push(false);
+                    }
+                    if can_above {
+                        sides.push(true);
+                    }
+                }
+                for side in sides.into_iter().rev() {
+                    let selected = chosen_count + usize::from(side);
+                    if selected > rank || selected + options.len().saturating_sub(1) < rank {
+                        continue;
+                    }
+                    let mut fixed = node.fixed.clone();
+                    fixed[next] = Some(side);
+                    stack.push(Node { fixed, selected });
+                }
+            }
+            if root_capped {
+                capped_roots += 1;
+            }
+            if work_exhausted || construction_exhausted {
+                break;
+            }
+        }
+        for proposals in self.families.values_mut() {
+            let total: f64 = proposals.iter().map(|(_, _, weight)| *weight).sum();
+            if total.is_finite() && total > 0.0 {
+                for (_, _, weight) in proposals {
+                    *weight /= total;
+                }
+            }
+        }
+        self.node_limit = old_node_limit;
+        self.guide_limit = old_guide_limit;
+        self.rival_limit = old_rival_limit;
+        self.joint_cache.clear();
+        self.family_selection_work = selection_start.saturating_add(charged);
+        let setup = crate::rare_tail::budget::setup_cost(
+            self.nodes.saturating_sub(node_start),
+            self.guide_values.saturating_sub(guide_start),
+        );
+        let status = if work_exhausted || construction_exhausted || capped_roots > 0 {
+            "partial"
+        } else if additions > 0 {
+            "added"
+        } else {
+            "no_feasible_cohorts"
+        };
+        json!({"status":status,"roots_available":roots.len(),"roots_with_patterns":roots.len(),
+            "cohorts_added":additions,"membership_nodes":visited,"roots_capped":capped_roots,
+            "work_exhausted":work_exhausted,"construction_exhausted":construction_exhausted,
+            "selection_work":charged,"selection_budget":max_selection_work,"setup_work":setup,
+            "nodes_before":node_start,"nodes_after":self.nodes,"guides_before":guide_start,"guides_after":self.guide_values})
     }
     fn order_constructor_allowance(m: &Model, cell: Cell) -> usize {
         let n = m.n;

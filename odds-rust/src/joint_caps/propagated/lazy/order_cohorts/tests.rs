@@ -1,5 +1,10 @@
 use super::*;
-use crate::{conditioned::canonical_ranks, model::Request, rng::Rng};
+use crate::{
+    conditioned::canonical_ranks,
+    domains::{DomainWork, Domains},
+    model::Request,
+    rng::Rng,
+};
 use serde_json::json;
 
 fn four_team_one_residual_model() -> Model {
@@ -229,6 +234,119 @@ fn expected_order_uses_away_points_and_setup_caps_charge_a_decline() {
         primary_above,
         vec![1],
         "home team 1 has greater expected points than away team 2"
+    );
+}
+
+#[test]
+fn bounded_domain_budget_decline_is_distinct_from_completed_infeasibility() {
+    let m = four_team_one_residual_model();
+    let cell = Cell { team: 0, rank: 1 };
+    let plan = LazyJoint::with_mode(&m, cell, 609031, &[], 32, false, false, None).unwrap();
+    let points = vec![0; m.n];
+    let rivals = (0..m.n)
+        .filter(|&team| team != cell.team)
+        .collect::<Vec<_>>();
+
+    let mut no_budget = DomainWork::new(0);
+    assert!(
+        Domains::propagate_bounded(&plan.remaining, &points, &rivals, 0, 0, &mut no_budget,)
+            .is_none()
+    );
+    assert_eq!(no_budget.used, 0);
+
+    let mut enough = DomainWork::new(usize::MAX);
+    let impossible =
+        Domains::propagate_bounded(&plan.remaining, &points, &rivals, 0, -10_000, &mut enough)
+            .expect("the bounded scan has sufficient work");
+    assert!(!impossible.feasible);
+    assert!(enough.used > 0);
+    assert!(enough.used <= enough.limit);
+    assert!(!Domains::propagate(&plan.remaining, &points, &rivals, 0, -10_000).feasible);
+    let mut enough_bounds = DomainWork::new(usize::MAX);
+    assert!(
+        !Domains::propagate_bounds_only_bounded(
+            &plan.remaining,
+            &points,
+            &rivals,
+            0,
+            -10_000,
+            &mut enough_bounds,
+        )
+        .expect("completed infeasibility has enough work")
+        .feasible
+    );
+
+    let feasible_target = points[cell.team];
+    let compiled = Domains::propagate(
+        &plan.remaining,
+        &points,
+        &rivals,
+        cell.rank,
+        feasible_target,
+    );
+    let mut bounds_work = DomainWork::new(usize::MAX);
+    let bounds = Domains::propagate_bounds_only_bounded(
+        &plan.remaining,
+        &points,
+        &rivals,
+        cell.rank,
+        feasible_target,
+        &mut bounds_work,
+    )
+    .expect("bounds-only propagation has enough work");
+    assert_eq!(bounds.domains, compiled.domains);
+    assert_eq!(bounds.min, compiled.min[0]);
+    assert_eq!(bounds.max, compiled.max[0]);
+    assert!(bounds_work.used < usize::MAX);
+}
+
+#[test]
+fn bounded_feasible_wildcards_match_exact_rank_and_keep_native_support() {
+    let request: Request = serde_json::from_value(json!({
+        "id": 59,
+        "phase": {"sort":"pt", "championship":{
+            "point_win":3,"point_draw":1,"point_loss":0}},
+        "team_groups":[
+            {"team_id":0,"add_sub":0},
+            {"team_id":1,"add_sub":2},
+            {"team_id":2,"add_sub":2},
+            {"team_id":3,"add_sub":0}],
+        "games":[
+            {"id":20,"home_id":0,"away_id":3,"home_power":1.1,"away_power":0.9},
+            {"id":21,"home_id":1,"away_id":2,"home_power":1.1,"away_power":0.9}]
+    }))
+    .unwrap();
+    let m = Model::new(request).unwrap();
+    let cell = Cell { team: 0, rank: 1 };
+    let constructor = LazyJoint::order_base_constructor_and_clone_allowance(&m, cell);
+    let (Some(mut plan), _, _) = LazyJoint::new_order_base(&m, cell, 609031, constructor) else {
+        panic!("small supported native base should build");
+    };
+    let discovery = plan.add_feasible_cohorts_bounded(&m, 32, 256, 4, 60_000, 4_000_000, 2_000_000);
+    assert!(discovery["selection_work"].as_u64().unwrap() <= 2_000_000);
+    assert!(discovery["setup_work"].as_u64().unwrap() <= 9_000_000);
+    assert!(
+        discovery["cohorts_added"].as_u64().unwrap() > 0,
+        "{discovery}"
+    );
+    assert!(
+        !plan.subset,
+        "feasible cohorts must retain the native full-support proposal"
+    );
+    assert!(plan
+        .families
+        .values()
+        .flatten()
+        .all(|(state, _, _)| state.iter().all(|&side| side == 2)));
+
+    let exact = exact_rank_probability(&m, cell);
+    let estimate = plan.sample(&m, 100_000, 981_257);
+    assert!(
+        (estimate.probability - exact).abs() <= 8.0 * estimate.std_err + exact * 0.005,
+        "estimate={} exact={} se={}",
+        estimate.probability,
+        exact,
+        estimate.std_err
     );
 }
 

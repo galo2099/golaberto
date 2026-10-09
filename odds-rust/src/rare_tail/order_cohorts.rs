@@ -19,6 +19,9 @@ const MAX_NODES: usize = 60_000;
 const MAX_GUIDES: usize = 4_000_000;
 const MAX_SELECTION_WORK: usize = 2_000_000;
 const MAX_ARM_NODE_GUIDE_WORK: usize = 9_000_000;
+const MAX_FEASIBLE_NODES_PER_ROOT: usize = 256;
+const MAX_FEASIBLE_ROOTS: usize = 32;
+const MAX_FEASIBLE_MEMBERSHIPS_PER_ROOT: usize = 4;
 
 pub(crate) fn enabled() -> bool {
     resolve_enabled(
@@ -34,6 +37,13 @@ fn resolve_enabled(setting: Option<&str>, coverage: bool) -> bool {
         Some(_) => false,
         None => coverage,
     }
+}
+
+fn feasible_cohorts_enabled() -> bool {
+    resolve_enabled(
+        std::env::var("RUST_ODDS_FEASIBLE_COHORTS").ok().as_deref(),
+        crate::rare_tail::profile() == "coverage",
+    )
 }
 
 pub(super) struct Outcome {
@@ -257,6 +267,107 @@ pub(super) fn run(
                 arms.push((width, proposal, pilot, pilot_ms, score));
             }
         }
+        if arms.is_empty() && feasible_cohorts_enabled() && !candidate_overrun {
+            let fallback_grant = training_cap.saturating_sub(training_used);
+            let clone_work = base.clone_work();
+            let pilot_reserve = MIN_PILOT_DRAWS
+                .saturating_mul(draw_upper)
+                .saturating_add(goal_preparation);
+            let fallback_minimum = clone_work.saturating_add(pilot_reserve);
+            let mut fallback_report = json!({"status":"declined","reason":"remaining_training_preflight",
+                "remaining_training":fallback_grant,"minimum":fallback_minimum});
+            if fallback_grant >= fallback_minimum {
+                let mut proposal = base.clone();
+                let setup_before = proposal.order_cohort_setup_work();
+                let native_before = proposal.setup_work();
+                let available_discovery = fallback_grant
+                    .saturating_sub(clone_work)
+                    .saturating_sub(pilot_reserve)
+                    / 2;
+                let selection_limit = MAX_SELECTION_WORK.min(available_discovery / 4);
+                let node_guide_limit = available_discovery.saturating_sub(selection_limit);
+                let max_nodes = MAX_NODES.min(node_guide_limit / 32);
+                let max_guides = MAX_GUIDES.min(node_guide_limit / 4);
+                let feasible = proposal.add_feasible_cohorts_bounded(
+                    m,
+                    MAX_FEASIBLE_ROOTS,
+                    MAX_FEASIBLE_NODES_PER_ROOT,
+                    MAX_FEASIBLE_MEMBERSHIPS_PER_ROOT,
+                    max_nodes,
+                    max_guides,
+                    selection_limit,
+                );
+                let setup_delta = proposal
+                    .order_cohort_setup_work()
+                    .saturating_sub(setup_before);
+                let node_guide_delta = proposal.setup_work().saturating_sub(native_before);
+                let fallback_setup = clone_work.saturating_add(setup_delta);
+                let feasible_added = feasible["cohorts_added"].as_u64().unwrap_or(0) as usize;
+                fallback_report = json!({"status":if feasible_added>0 {"added"} else {"no_families"},
+                    "method":"feasible_cohorts","feasible":feasible,
+                    "clone_work":clone_work,"setup_work":fallback_setup,
+                    "node_guide_work":node_guide_delta,
+                    "remaining_training":fallback_grant,"pilot_reserve":pilot_reserve});
+                if feasible_added > 0
+                    && node_guide_delta <= MAX_ARM_NODE_GUIDE_WORK
+                    && fallback_setup.saturating_add(pilot_reserve) <= fallback_grant
+                {
+                    training_used = training_used.saturating_add(fallback_setup);
+                    setup_pilot_work = setup_pilot_work.saturating_add(fallback_setup);
+                    actual_total = actual_total.saturating_add(fallback_setup);
+                    let pilot_seed = derive(
+                        request_seed,
+                        &format!(
+                            "rare-tail-feasible_cohorts-pilot-{}-{}",
+                            m.ids[cell.team], cell.rank
+                        ),
+                    );
+                    let pilot_allowance = fallback_grant.saturating_sub(fallback_setup);
+                    let pilot =
+                        proposal.sample_order_pilot(m, PILOT_DRAWS, pilot_seed, pilot_allowance);
+                    let pilot_work = pilot.operations.units();
+                    training_used = training_used.saturating_add(pilot_work);
+                    setup_pilot_work = setup_pilot_work.saturating_add(pilot_work);
+                    actual_total = actual_total.saturating_add(pilot_work);
+                    candidate_legacy_work = candidate_legacy_work.saturating_add(pilot.work);
+                    let score = normalized_efficiency(&pilot);
+                    emit(
+                        log,
+                        "rust_odds_order_fallback_arm",
+                        json!({"team":m.ids[cell.team],"rank":cell.rank+1,
+                        "method":"feasible_cohorts","setup_work":fallback_setup,
+                        "pilot_work":pilot_work,"pilot_draws":pilot.samples,
+                        "pilot_hits":pilot.hits,"pilot_ess":pilot.ess,
+                        "efficiency_score":score,"feasible":feasible,
+                        "fallback":fallback_report,"arm_grant":fallback_grant,
+                        "training_cap":training_cap}),
+                    );
+                    if pilot.samples >= MIN_PILOT_DRAWS && pilot.hits >= 3 && pilot.ess > 0.0 {
+                        arms.push((0, proposal, pilot, 0.0, score));
+                    }
+                } else {
+                    emit(
+                        log,
+                        "rust_odds_order_fallback_declined",
+                        json!({"team":m.ids[cell.team],"rank":cell.rank+1,
+                        "fallback":fallback_report}),
+                    );
+                    training_used = training_used.saturating_add(fallback_setup);
+                    setup_pilot_work = setup_pilot_work.saturating_add(fallback_setup);
+                    actual_total = actual_total.saturating_add(fallback_setup);
+                }
+            } else {
+                emit(
+                    log,
+                    "rust_odds_order_fallback_declined",
+                    json!({"team":m.ids[cell.team],"rank":cell.rank+1,
+                    "fallback":fallback_report}),
+                );
+            }
+        }
+        if training_used > training_cap {
+            candidate_overrun = true;
+        }
         legacy_sample_work = legacy_sample_work.saturating_add(candidate_legacy_work);
         if candidate_overrun {
             overrun = true;
@@ -267,6 +378,11 @@ pub(super) fn run(
         }
         arms.sort_by(|a, b| arm_order(a.4, a.0, b.4, b.0));
         let (winner_width, proposal, pilot, pilot_ms, score) = arms.remove(0);
+        let winner_method = if winner_width == 0 {
+            "feasible_cohorts"
+        } else {
+            "expected_cohorts"
+        };
         let final_per_draw = final_forecast_per_draw(budget::per_draw(&pilot));
         let final_remaining = grant.saturating_sub(training_used);
         let Some((draws, pair_forecast)) = fixed_pair_allocation(final_remaining, final_per_draw)
@@ -281,10 +397,16 @@ pub(super) fn run(
         // Main and check use distinct, fixed streams. Both always complete even
         // when MAIN fails the publication gate.
         let pair = crate::search::parallel(2, workers, |index| {
-            let stream = if index == 0 {
-                "rare-tail-expected-cohort-main"
+            let stream = if winner_width >= 2 {
+                if index == 0 {
+                    "rare-tail-expected-cohort-main"
+                } else {
+                    "rare-tail-expected-cohort-check"
+                }
+            } else if index == 0 {
+                "rare-tail-feasible-cohort-main"
             } else {
-                "rare-tail-expected-cohort-check"
+                "rare-tail-feasible-cohort-check"
             };
             proposal.sample(
                 m,
@@ -308,7 +430,11 @@ pub(super) fn run(
         let committed =
             if estimate.probability == 0. && !estimate.reachability.starts_with("impossible") && ok
             {
-                apply(estimate, &main, "matched_point_pool_expected_cohorts");
+                let design = match winner_method {
+                    "feasible_cohorts" => "matched_point_pool_feasible_cohorts",
+                    _ => "matched_point_pool_expected_cohorts",
+                };
+                apply(estimate, &main, design);
                 accepted_count += 1;
                 true
             } else {
@@ -324,7 +450,7 @@ pub(super) fn run(
         emit(
             log,
             "rust_odds_expected_cohorts_pair",
-            json!({"team":m.ids[cell.team],"rank":cell.rank+1,"width":winner_width,"pilot_hits":pilot.hits,"pilot_ess":pilot.ess,"efficiency_score":score,"main_draws":main.samples,"main_hits":main.hits,"main_ess":main.ess,"check_draws":check.samples,"check_hits":check.hits,"check_ess":check.ess,"probability":main.probability,"check_probability":check.probability,"accepted":committed,"publication_gate":ok,"forecast_pair_work":pair_forecast,"actual_pair_work":actual_pair,"overrun":pair_overrun,"setup_ms":stage_ms,"pilot_ms":pilot_ms}),
+            json!({"team":m.ids[cell.team],"rank":cell.rank+1,"method":winner_method,"width":winner_width,"pilot_hits":pilot.hits,"pilot_ess":pilot.ess,"efficiency_score":score,"main_draws":main.samples,"main_hits":main.hits,"main_ess":main.ess,"check_draws":check.samples,"check_hits":check.hits,"check_ess":check.ess,"probability":main.probability,"check_probability":check.probability,"accepted":committed,"publication_gate":ok,"forecast_pair_work":pair_forecast,"actual_pair_work":actual_pair,"overrun":pair_overrun,"setup_ms":stage_ms,"pilot_ms":pilot_ms}),
         );
         if actual_total > initial_capacity {
             break;
