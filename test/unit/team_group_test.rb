@@ -43,7 +43,7 @@ class TeamGroupTest < Test::Unit::TestCase
     team_group.record_odds_snapshot!(captured_at)
 
     snapshot = team_group.odds_histories.find_by!(recorded_on: captured_at.to_date)
-    assert_equal [[100.0], [0.0, "impossible"], [0.0, "reachable"], [0.0, "undecided"], [0.0, "undecided"]], snapshot.reload.odds
+    assert_equal [100.0, [0.0, "impossible"], [0.0, "reachable"], [0.0, "undecided"], [0.0, "undecided"]], snapshot.reload.odds
     assert_equal team_group.odds, snapshot.numeric_odds
     assert_equal %w[reachable impossible reachable undecided undecided], snapshot.odds_reachability
 
@@ -51,7 +51,7 @@ class TeamGroupTest < Test::Unit::TestCase
     team_group.record_odds_snapshot!(captured_at + 1.hour)
 
     snapshot.reload
-    assert_equal [[100.0], [0.0, "undecided"], [0.0, "undecided"], [0.0, "undecided"], [0.0, "undecided"]], snapshot.odds
+    assert_equal [100.0, [0.0, "undecided"], [0.0, "undecided"], [0.0, "undecided"], [0.0, "undecided"]], snapshot.odds
     assert_equal %w[reachable undecided undecided undecided undecided], snapshot.odds_reachability
   end
 
@@ -60,5 +60,9 @@ class TeamGroupTest < Test::Unit::TestCase
 
     assert_equal [75.0, 0.0], snapshot.numeric_odds
     assert_equal %w[reachable undecided], snapshot.odds_reachability
+
+    singleton_positive_legacy_snapshot = TeamGroupOddsHistory.new(odds: [[75.0], [0.0]])
+    assert_equal [75.0, 0.0], singleton_positive_legacy_snapshot.numeric_odds
+    assert_equal %w[reachable undecided], singleton_positive_legacy_snapshot.odds_reachability
   end
 end

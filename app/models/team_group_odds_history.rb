@@ -15,7 +15,7 @@ class TeamGroupOddsHistory < ApplicationRecord
         status = "undecided" unless %w[impossible reachable undecided].include?(status)
         [value, status]
       else
-        [value]
+        value
       end
     end
   end

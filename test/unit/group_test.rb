@@ -122,7 +122,7 @@ class GroupTest < ActiveSupport::TestCase
     end
 
     snapshot = tg_home.odds_histories.find_by!(recorded_on: Date.new(2024, 6, 1))
-    assert_equal [[0.65], [0.35]], snapshot.reload.odds
+    assert_equal [0.65, 0.35], snapshot.reload.odds
 
     assert_nil tg_home.reload.odds
     assert_nil tg_away.reload.odds
