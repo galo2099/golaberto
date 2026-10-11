@@ -61,4 +61,41 @@ class ChampionshipControllerTest < Test::Unit::TestCase
     assert_equal 2, footer[16]
     assert_equal 1, footer[17]
   end
+
+  def test_odds_history_json_includes_snapshot_reachability_for_points_and_zones
+    snapshot_type = Struct.new(:recorded_on, :captured_at, :odds, :odds_reachability)
+    snapshot = snapshot_type.new(
+      Date.new(2026, 10, 11), Time.zone.parse("2026-10-11 10:00"), [100.0, 0.0, 0.0, 0.0], %w[reachable impossible reachable undecided]
+    )
+    legacy_snapshot = snapshot_type.new(Date.new(2026, 10, 10), Time.zone.parse("2026-10-10 10:00"), [100.0, 0.0, 0.0, 0.0], nil)
+    histories = [legacy_snapshot, snapshot]
+    histories.define_singleton_method(:order) { |*| self }
+    team_group = Struct.new(:odds_histories).new(histories)
+    team_groups = Object.new
+    team_groups.define_singleton_method(:size) { 4 }
+    team_groups.define_singleton_method(:find_by) { |team_id:| team_group }
+    games = Object.new
+    games.define_singleton_method(:where) { |*| self }
+    games.define_singleton_method(:includes) { |*| self }
+    games.define_singleton_method(:order) { |*| self }
+    games.define_singleton_method(:to_a) { [] }
+    group = Struct.new(:zones, :team_groups, :games).new(
+      [
+        { "name" => "Impossible", "color" => "red", "position" => [2] },
+        { "name" => "Reachable", "color" => "green", "position" => [2, 3] },
+        { "name" => "Undecided", "color" => "yellow", "position" => [2, 4] },
+      ], team_groups, games
+    )
+    json = JSON.parse(@controller.send(:generate_odds_history_json, group, Struct.new(:id).new(7)))
+
+    series_by_label = json.fetch("series").index_by { |series| series.fetch("label") }
+    assert_equal "reachable", series_by_label.fetch("1st").fetch("point_meta").last.fetch("reachability")
+    assert_equal "impossible", series_by_label.fetch("2nd").fetch("point_meta").last.fetch("reachability")
+    assert_equal "reachable", series_by_label.fetch("3rd").fetch("point_meta").last.fetch("reachability")
+    assert_equal "undecided", series_by_label.fetch("4th").fetch("point_meta").last.fetch("reachability")
+    assert_equal "undecided", series_by_label.fetch("2nd").fetch("point_meta").first.fetch("reachability")
+
+    zone_odds = series_by_label.fetch("1st").fetch("point_meta").last.fetch("zone_odds")
+    assert_equal %w[impossible reachable undecided], zone_odds.map { |zone| zone.fetch("reachability") }
+  end
 end

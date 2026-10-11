@@ -1,5 +1,6 @@
 class TeamGroupOddsHistory < ApplicationRecord
   serialize :odds
+  serialize :odds_reachability
 
   belongs_to :team_group
 
