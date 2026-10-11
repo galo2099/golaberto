@@ -66,14 +66,14 @@ class ChampionshipControllerTest < Test::Unit::TestCase
     snapshot = TeamGroupOddsHistory.new(
       recorded_on: Date.new(2026, 10, 11),
       captured_at: Time.zone.parse("2026-10-11 10:00"),
-      odds: [100.0, [0.0, "impossible"], [0.0, "reachable"], [0.0, "undecided"]]
+      odds: [100.0, [0.0, "impossible"], [0.0, "reachable"], 0.0]
     )
-    legacy_snapshot = TeamGroupOddsHistory.new(
+    migrated_legacy_snapshot = TeamGroupOddsHistory.new(
       recorded_on: Date.new(2026, 10, 10),
       captured_at: Time.zone.parse("2026-10-10 10:00"),
       odds: [100.0, 0.0, 0.0, 0.0]
     )
-    histories = [legacy_snapshot, snapshot]
+    histories = [migrated_legacy_snapshot, snapshot]
     histories.define_singleton_method(:order) { |*| self }
     team_group = Struct.new(:odds_histories).new(histories)
     team_groups = Object.new

@@ -13,7 +13,7 @@ class TeamGroupOddsHistory < ApplicationRecord
       if value.is_a?(Numeric) && value.zero?
         status = statuses && statuses[index]
         status = "undecided" unless %w[impossible reachable undecided].include?(status)
-        [value, status]
+        status == "undecided" ? value : [value, status]
       else
         value
       end
