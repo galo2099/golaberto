@@ -25,6 +25,7 @@ mod early_roots;
 pub(crate) mod family_config;
 pub(crate) mod order_cohorts;
 mod overflow_trees;
+pub(crate) mod rank_rescue;
 use budget::{scaled, WorkBudget, REFERENCE_DRAWS};
 
 fn add_atomic_units(counter: &AtomicUsize, amount: usize) -> bool {

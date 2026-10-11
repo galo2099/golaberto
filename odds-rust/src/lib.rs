@@ -16,6 +16,7 @@ pub mod pool;
 pub mod proof;
 pub mod rank_proof;
 pub mod rare_tail;
+pub(crate) mod shortlist_guidance;
 pub mod ratings;
 pub mod reachability;
 pub mod rescue;

@@ -663,6 +663,71 @@ pub fn run_logged(
     estimates: &mut [Estimate],
     log: Option<&crate::logging::RequestLog>,
 ) -> u64 {
+    let rank_rescue = crate::rare_tail::rank_rescue::Settings::from_env();
+    let work = run_logged_inner(model, seed, workers, estimates, log);
+    if !rank_rescue.enabled {
+        return work;
+    }
+    let rescue_baseline = estimates.to_vec();
+    let (rescue_added, rescue_work) =
+        crate::rare_tail::rank_rescue::run(model, seed, workers, estimates, log, rank_rescue);
+    let provisional_changes = estimates
+        .iter()
+        .zip(&rescue_baseline)
+        .filter(|(after, before)| {
+            serde_json::to_value(after).ok() != serde_json::to_value(before).ok()
+        })
+        .count();
+    let mut rolled_back = false;
+    if rescue_added > 0 {
+        rolled_back = !reconcile(model, estimates, &rescue_baseline);
+        if !rolled_back
+            && rescue_baseline
+                .iter()
+                .zip(estimates.iter())
+                .any(|(before, after)| before.probability > 0. && after.probability <= 0.)
+        {
+            estimates.clone_from_slice(&rescue_baseline);
+            rolled_back = true;
+        }
+    }
+    let valid_matrix = crate::pool::valid(
+        &estimates.iter().map(|e| e.probability).collect::<Vec<_>>(),
+        model.n,
+    );
+    if !valid_matrix && rescue_added > 0 {
+        estimates.clone_from_slice(&rescue_baseline);
+        rolled_back = true;
+    }
+    let final_changes = estimates
+        .iter()
+        .zip(&rescue_baseline)
+        .filter(|(after, before)| {
+            serde_json::to_value(after).ok() != serde_json::to_value(before).ok()
+        })
+        .count();
+    if let Some(log) = log {
+        log.event(
+            "rust_odds_rare_tail_rank_rescue_reconcile",
+            serde_json::json!({
+                "rolled_back":rolled_back,
+                "provisional_changes":provisional_changes,
+                "final_changes":final_changes,
+                "preserved_positive_count":rescue_baseline.iter().zip(estimates.iter()).filter(|(before,after)|before.probability>0.&&after.probability>0.).count(),
+                "valid_matrix":crate::pool::valid(&estimates.iter().map(|e|e.probability).collect::<Vec<_>>(),model.n)
+            }),
+        );
+    }
+    work.saturating_add(rescue_work)
+}
+
+fn run_logged_inner(
+    model: &Model,
+    seed: i64,
+    workers: usize,
+    estimates: &mut [Estimate],
+    log: Option<&crate::logging::RequestLog>,
+) -> u64 {
     if !enabled("RARE_POSITION_CONDITIONED_ZERO") {
         if let Some(log) = log {
             log.event(
@@ -1395,7 +1460,10 @@ fn reconcile(model: &Model, estimates: &mut [Estimate], baseline: &[Estimate]) -
         return false;
     }
     for (e, p) in estimates.iter_mut().zip(matrix) {
-        if (e.reachability == "witness" || e.design == "outcome_path_stratified")
+        if (e.reachability == "witness"
+            || e.design == "outcome_path_stratified"
+            || e.design
+                .starts_with("matched_point_pool_rare_tail_rank_rescue"))
             && e.probability > 0.
         {
             e.std_err *= p / e.probability;

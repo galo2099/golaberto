@@ -495,6 +495,21 @@ impl Model {
         (offset, terms)
     }
 
+    /// Goal-difference support for a pair under the production sparse linear
+    /// form. Scores are zeroed so the returned offset is the played/base GD
+    /// difference and terms cover each unplayed fixture exactly once.
+    pub(crate) fn goal_difference_support(
+        &self,
+        a: usize,
+        b: usize,
+    ) -> Option<(f64, Vec<(usize, [f64; 2])>)> {
+        if a >= self.n || b >= self.n || a == b {
+            return None;
+        }
+        let scores = vec![[0, 0]; self.request.games.len()];
+        Some(self.score_key_support(Key::Gd, a, b, &self.base[a], &self.base[b], &scores, None))
+    }
+
     fn score_key_varies(&self, terms: &[(usize, [f64; 2])], scores: &[[i32; 2]]) -> bool {
         terms
             .iter()

@@ -3,6 +3,7 @@
 use super::*;
 mod messages;
 mod tree;
+pub(super) const RIVAL_PATH_ENUMERATION_WORK_LIMIT: usize = 8_000_000;
 
 struct Stratum {
     root: Vec<u8>,
@@ -10,6 +11,46 @@ struct Stratum {
     above: bool,
     secondary: Option<usize>,
     pattern: Pattern,
+}
+
+pub(crate) struct ShortlistShares {
+    pub shares: Vec<f64>,
+    pub all_loss_leaf_ids: Vec<usize>,
+    pub compatible_counts: Vec<usize>,
+    pub unmatched_weight: f64,
+    pub work_units: usize,
+}
+
+fn independent_pilot_shares_from_diagnostics(
+    pair: &serde_json::Value,
+    leaf_pilot: &serde_json::Value,
+) -> Option<Vec<f64>> {
+    let independent = pair
+        .get("independent_normalized_shares")
+        .and_then(serde_json::Value::as_array)
+        .and_then(|values| {
+            values
+                .iter()
+                .map(serde_json::Value::as_f64)
+                .collect::<Option<Vec<_>>>()
+        });
+    let shares = match independent {
+        Some(shares) => shares,
+        None if pair.get("rolled_back")?.as_bool()? => leaf_pilot
+            .get("shares")?
+            .as_array()?
+            .iter()
+            .map(|value| value.as_f64())
+            .collect::<Option<Vec<_>>>()?,
+        None => return None,
+    };
+    if shares
+        .iter()
+        .any(|share| !share.is_finite() || *share < 0.0)
+    {
+        return None;
+    }
+    Some(shares)
 }
 pub struct BranchStrata {
     cell: Cell,
@@ -28,6 +69,15 @@ pub struct BranchSample {
     pub left: f64,
     pub right: f64,
 }
+impl Default for BranchSample {
+    fn default() -> Self {
+        Self {
+            result: Result::default(),
+            left: 0.0,
+            right: 0.0,
+        }
+    }
+}
 #[derive(Clone, Copy)]
 pub struct BranchBound {
     pub fixed_prior: f64,
@@ -42,6 +92,29 @@ pub struct BranchBound {
 fn bound_product(a: f64, b: f64) -> f64 {
     (a * b).max(f64::MIN_POSITIVE)
 }
+fn read_two_upper(domain_prior: f64, event_masses: &[f64]) -> Option<f64> {
+    if !domain_prior.is_finite()
+        || domain_prior <= 0.0
+        || event_masses
+            .iter()
+            .any(|mass| !mass.is_finite() || *mass <= 0.0)
+    {
+        return None;
+    }
+    let log_mass = event_masses
+        .iter()
+        .map(|mass| mass.min(1.0).ln())
+        .sum::<f64>();
+    if !log_mass.is_finite() {
+        return None;
+    }
+    let intersection = (0.5 * log_mass).exp();
+    let raw = domain_prior * intersection;
+    if !intersection.is_finite() || intersection <= 0.0 || !raw.is_finite() || raw <= 0.0 {
+        return None;
+    }
+    Some(bound_product(domain_prior, intersection))
+}
 /// Refine a complete exception branch by every legal outcome path of one
 /// tightly capped/floored rival. Fix the path before rerunning all-team
 /// propagation. Raw fixture masses enter the stratum normalizer exactly once.
@@ -55,6 +128,79 @@ fn secondary(
     mask: u32,
     selected: u32,
 ) -> std::result::Result<Option<(usize, Vec<Pattern>)>, String> {
+    let mut work = 0;
+    secondary_with_options(
+        builder,
+        key,
+        points,
+        rivals,
+        initial,
+        above,
+        mask,
+        selected,
+        16,
+        true,
+        usize::MAX,
+        &mut work,
+    )
+}
+
+pub(super) fn rival_path_partition(
+    builder: &mut LazyJoint,
+    key: &[u8],
+    points: &[i32],
+    rivals: &[usize],
+    initial: &Domains,
+    above: bool,
+    mask: u32,
+    selected: u32,
+    work_limit: usize,
+) -> (
+    std::result::Result<Option<(usize, Vec<Pattern>)>, String>,
+    usize,
+) {
+    let mut work = 0;
+    let result = secondary_with_options(
+        builder, key, points, rivals, initial, above, mask, selected, 32, false, work_limit,
+        &mut work,
+    );
+    (result, work)
+}
+
+fn secondary_with_options(
+    builder: &mut LazyJoint,
+    key: &[u8],
+    points: &[i32],
+    rivals: &[usize],
+    initial: &Domains,
+    above: bool,
+    mask: u32,
+    selected: u32,
+    path_limit: usize,
+    require_low_conditional_mass: bool,
+    work_limit: usize,
+    work: &mut usize,
+) -> std::result::Result<Option<(usize, Vec<Pattern>)>, String> {
+    let charge = |work: &mut usize, n: usize| -> bool {
+        let Some(next) = work.checked_add(n) else {
+            return false;
+        };
+        if next > work_limit {
+            *work = work_limit;
+            return false;
+        }
+        *work = next;
+        true
+    };
+    if !charge(
+        work,
+        builder
+            .remaining
+            .len()
+            .saturating_mul(builder.base.len().saturating_add(1)),
+    ) {
+        return Err("rival-path domain work cap".into());
+    }
     let target = points[builder.cell.team];
     let (mut lower, mut upper) = (initial.lower.clone(), initial.upper.clone());
     for &t in rivals {
@@ -93,17 +239,28 @@ fn secondary(
         key: &mut Vec<(usize, u8)>,
         mass: f64,
         out: &mut Paths,
+        work: &mut usize,
+        work_limit: usize,
+        path_limit: usize,
     ) -> bool {
+        *work = work.saturating_add(1);
+        if *work > work_limit {
+            return false;
+        }
         if value + suffix[i].0 > hi || value + suffix[i].1 < lo {
             return true;
         }
         if i == gs.len() {
             out.push((key.clone(), mass));
-            return out.len() <= 16;
+            return out.len() <= path_limit;
         }
         let (g, mask) = gs[i];
         let gains = if g.home == t { g.hg } else { g.ag };
         for o in 0..3 {
+            *work = work.saturating_add(1);
+            if *work > work_limit {
+                return false;
+            }
             if mask & (1 << o) == 0 || g.prob[o] <= 0. {
                 continue;
             }
@@ -119,6 +276,9 @@ fn secondary(
                 key,
                 mass * g.prob[o],
                 out,
+                work,
+                work_limit,
+                path_limit,
             ) {
                 return false;
             }
@@ -128,6 +288,9 @@ fn secondary(
     }
     let mut chosen: Option<(usize, Paths, f64)> = None;
     for &t in rivals {
+        if !charge(work, builder.remaining.len()) {
+            return Err("rival-path scan work cap".into());
+        }
         let gs: Vec<_> = builder
             .remaining
             .iter()
@@ -141,6 +304,9 @@ fn secondary(
         let mut suffix = vec![(0, 0); gs.len() + 1];
         let mut domain_mass = 1.;
         for i in (0..gs.len()).rev() {
+            if !charge(work, 4) {
+                return Err("rival-path domain work cap".into());
+            }
             let (g, mask) = gs[i];
             let gains = if g.home == t { g.hg } else { g.ag };
             let options: Vec<_> = (0..3)
@@ -167,12 +333,21 @@ fn secondary(
             &mut Vec::new(),
             1.,
             &mut out,
+            work,
+            work_limit,
+            path_limit,
         ) || out.len() < 2
         {
+            if *work >= work_limit {
+                return Err("rival-path enumeration work cap".into());
+            }
             continue;
         }
         let conditional = out.iter().map(|(_, p)| p).sum::<f64>() / domain_mass;
-        if !conditional.is_finite() || conditional >= 0.9 {
+        if !charge(work, out.len().saturating_add(gs.len())) {
+            return Err("rival-path enumeration work cap".into());
+        }
+        if !conditional.is_finite() || (require_low_conditional_mass && conditional >= 0.9) {
             continue;
         }
         if chosen.as_ref().is_none_or(|(_, v, p)| {
@@ -184,6 +359,22 @@ fn secondary(
     let Some((team, paths, _)) = chosen else {
         return Ok(None);
     };
+    // Charge fixed-path filtering, base cloning, fixture scans, propagation
+    // and guide reconstruction before mutating the builder. This fee applies
+    // to failed builds too; node/guide counters account for builder search.
+    let games = builder.remaining.len();
+    let teams = builder.base.len();
+    let max_fixed_len = games.min(32);
+    let rebuild_fee = paths.len().saturating_mul(
+        games
+            .saturating_mul(2usize.saturating_mul(teams.saturating_add(1)))
+            .saturating_add(games.saturating_mul(max_fixed_len).saturating_mul(2))
+            .saturating_add(teams.saturating_mul(4))
+            .saturating_add(64),
+    );
+    if !charge(work, rebuild_fee) {
+        return Err("rival-path child rebuild work cap".into());
+    }
     let original_base = builder.base.clone();
     let original_games = builder.remaining.clone();
     let mut patterns = Vec::new();
@@ -225,6 +416,78 @@ fn secondary(
     Ok(Some((team, patterns)))
 }
 impl BranchStrata {
+    /// Map frozen packed shortlist regions onto existing final leaves. This only
+    /// returns allocation weights; it does not change patterns or their masses.
+    pub(crate) fn shortlist_guidance_shares(
+        &self,
+        m: &Model,
+        candidates: &[crate::shortlist_guidance::Candidate],
+    ) -> Option<ShortlistShares> {
+        use crate::model::Key;
+        let pal = *m.indices.get(&16)?;
+        let mir = *m.indices.get(&584)?;
+        if self.cell.team != pal || self.cell.rank != 13 || m.keys.get(1) != Some(&Key::W) { return None; }
+        let base = self.leaf_pilot_independent_shares().unwrap_or_else(|| vec![1.0; self.strata.len()]);
+        if base.len() != self.strata.len() { return None; }
+        let pal_fixtures = m.fixtures.iter().filter(|fixture| fixture.home == pal || fixture.away == pal).collect::<Vec<_>>();
+        let mut left = vec![0i32; m.n];
+        for fixture in &m.fixtures { left[fixture.home] += 1; left[fixture.away] += 1; }
+        let stride = m.base.iter().zip(&left).map(|(base, remaining)| base.wins + remaining).max()? + 1;
+        if stride <= 0 { return None; }
+        let packed_target = 57 * stride + 16;
+        let all_loss = |root: &[u8]| {
+            root.len() == pal_fixtures.len() && root.iter().zip(&pal_fixtures).all(|(&outcome, fixture)| {
+                if fixture.home == pal { outcome == 0 }
+                else if fixture.away == pal { outcome == 2 }
+                else { true }
+            })
+        };
+        let all_loss_indexes = self.strata.iter().enumerate()
+            .filter_map(|(i, s)| all_loss(&s.root).then_some(i)).collect::<Vec<_>>();
+        if all_loss_indexes.is_empty() { return None; }
+        let mut shares = vec![0.0; self.strata.len()];
+        let mut compatible_counts = Vec::with_capacity(candidates.len());
+        let mut unmatched_weight = 0.0;
+        let mut work_units = 0usize;
+        for candidate in candidates {
+            let mut below = candidate.below_ids.iter().filter_map(|id|m.indices.get(id).copied()).collect::<Vec<_>>();
+            below.extend([*m.indices.get(&110)?, *m.indices.get(&318)?]);
+            if candidate.mir_band == "any" && !below.contains(&mir) { return None; }
+            let compatible = all_loss_indexes.iter().copied().filter(|&i| {
+                work_units = work_units.saturating_add(m.n);
+                let pattern = &self.strata[i].pattern;
+                if pattern.lower.len() != m.n || pattern.upper.len() != m.n { return false; }
+                for team in 0..m.n {
+                    if team == pal { continue; }
+                    let lo = pattern.lower[team];
+                    let hi = pattern.upper[team];
+                    if below.contains(&team) {
+                        if lo > packed_target { return false; }
+                    } else if hi < packed_target { return false; }
+                }
+                let band_value = match candidate.mir_band.as_str() {
+                    "57" => Some(57 * stride + 16), "58" => Some(58 * stride + 16), "60" => Some(60 * stride + 17), _ => None,
+                };
+                band_value.is_none_or(|packed| pattern.lower[mir] <= packed && packed <= pattern.upper[mir])
+            }).collect::<Vec<_>>();
+            compatible_counts.push(compatible.len());
+            if compatible.is_empty() {
+                unmatched_weight += candidate.weight;
+                continue;
+            }
+            let sum = compatible.iter().map(|&i|base[i].max(0.0)).sum::<f64>();
+            if sum.is_finite() && sum > 0.0 {
+                for &i in &compatible { shares[i] += candidate.weight * base[i].max(0.0) / sum; }
+            } else {
+                for &i in &compatible { shares[i] += candidate.weight / compatible.len() as f64; }
+            }
+        }
+        let total = shares.iter().sum::<f64>();
+        if !total.is_finite() || total <= 0.0 { return None; }
+        for share in &mut shares { *share /= total; }
+        Some(ShortlistShares { shares, all_loss_leaf_ids: all_loss_indexes, compatible_counts, unmatched_weight, work_units })
+    }
+
     pub fn new(
         m: &Model,
         cell: Cell,
@@ -482,6 +745,351 @@ impl BranchStrata {
         json!({"nodes":self.setup_nodes,"secondary_nodes":self.secondary_nodes,"tree":self.tree_diagnostics,
             "complete_parent_fallback":self.secondary_fallbacks>0})
     }
+    pub(crate) fn leaf_pilot_work_units(&self) -> Option<usize> {
+        self.tree_diagnostics
+            .as_ref()?
+            .get("leaf_pilot")?
+            .get("work_units")?
+            .as_u64()
+            .and_then(|work| usize::try_from(work).ok())
+    }
+    /// Root shares and leaf indexes for the optional final-sampling allocator.
+    /// Missing or incomplete screen diagnostics make the caller use its legacy plan.
+    pub fn path_priority_sampling_groups(&self) -> Option<Vec<(Vec<u8>, f64, Vec<usize>)>> {
+        let path = self.tree_diagnostics.as_ref()?.get("path_priority")?;
+        if path.get("enabled")?.as_bool() != Some(true) || !path.get("fallback_reason")?.is_null() {
+            return None;
+        }
+        let roots = path.get("roots")?.as_array()?;
+        let mut groups = Vec::new();
+        let mut root_index = std::collections::HashMap::new();
+        for root in roots {
+            let outcomes = root
+                .get("outcomes")?
+                .as_array()?
+                .iter()
+                .map(|value| u8::try_from(value.as_u64()?).ok())
+                .collect::<Option<Vec<_>>>()?;
+            let share = root.get("operational_share")?.as_f64()?;
+            let index = groups.len();
+            if root_index.insert(outcomes.clone(), index).is_some() {
+                return None;
+            }
+            groups.push((outcomes, share, Vec::new()));
+        }
+        for (leaf, stratum) in self.strata.iter().enumerate() {
+            let index = *root_index.get(&stratum.root)?;
+            groups[index].2.push(leaf);
+        }
+        groups.retain(|(_, _, leaves)| !leaves.is_empty());
+        (!groups.is_empty()).then_some(groups)
+    }
+    /// Raw screen scores and leaf indexes for the opt-in root exploration allocator.
+    /// Scores remain the diagnostic proxy values; the operational-share accessor above
+    /// intentionally retains its existing allocation semantics.
+    pub(crate) fn path_priority_raw_sampling_groups(
+        &self,
+    ) -> Option<Vec<(Vec<u8>, f64, Vec<usize>)>> {
+        let path = self.tree_diagnostics.as_ref()?.get("path_priority")?;
+        if path.get("enabled")?.as_bool() != Some(true) || !path.get("fallback_reason")?.is_null() {
+            return None;
+        }
+        let roots = path.get("roots")?.as_array()?;
+        let mut groups = Vec::with_capacity(roots.len());
+        let mut root_index = std::collections::HashMap::new();
+        for root in roots {
+            let outcomes = root
+                .get("outcomes")?
+                .as_array()?
+                .iter()
+                .map(|value| u8::try_from(value.as_u64()?).ok())
+                .collect::<Option<Vec<_>>>()?;
+            let score = root.get("raw_score")?.as_f64()?;
+            if !score.is_finite() || score < 0.0 {
+                return None;
+            }
+            let index = groups.len();
+            if root_index.insert(outcomes.clone(), index).is_some() {
+                return None;
+            }
+            groups.push((outcomes, score, Vec::new()));
+        }
+        for (leaf, stratum) in self.strata.iter().enumerate() {
+            let index = *root_index.get(&stratum.root)?;
+            groups[index].2.push(leaf);
+        }
+        groups.retain(|(_, _, leaves)| !leaves.is_empty());
+        let mut owners = vec![false; self.strata.len()];
+        for (_, _, leaves) in &groups {
+            for &leaf in leaves {
+                if leaf >= owners.len() || std::mem::replace(&mut owners[leaf], true) {
+                    return None;
+                }
+            }
+        }
+        (groups.len() >= 2 && owners.iter().all(|owner| *owner)).then_some(groups)
+    }
+    /// Per-root structural shares aligned with the current final strata order.
+    pub(crate) fn leaf_pilot_groups(&self) -> Option<Vec<(Vec<u8>, Vec<usize>, Vec<f64>)>> {
+        let diagnostics = self.tree_diagnostics.as_ref()?.get("leaf_pilot")?;
+        if diagnostics.get("enabled")?.as_bool() != Some(true)
+            || !diagnostics.get("fallback_reason")?.is_null()
+        {
+            return None;
+        }
+        let shares = diagnostics
+            .get("shares")?
+            .as_array()?
+            .iter()
+            .map(|value| value.as_f64())
+            .collect::<Option<Vec<_>>>()?;
+        if shares.len() != self.strata.len()
+            || shares
+                .iter()
+                .any(|share| !share.is_finite() || *share < 0.0)
+        {
+            return None;
+        }
+        let mut groups: Vec<(Vec<u8>, Vec<usize>, Vec<f64>)> = Vec::new();
+        let mut indexes = std::collections::HashMap::<Vec<u8>, usize>::new();
+        for (leaf, stratum) in self.strata.iter().enumerate() {
+            let index = if let Some(index) = indexes.get(&stratum.root) {
+                *index
+            } else {
+                let index = groups.len();
+                indexes.insert(stratum.root.clone(), index);
+                groups.push((stratum.root.clone(), Vec::new(), Vec::new()));
+                index
+            };
+            groups[index].1.push(leaf);
+            groups[index].2.push(shares[leaf]);
+        }
+        if groups
+            .iter()
+            .any(|(_, _, weights)| (weights.iter().sum::<f64>() - 1.0).abs() > 1e-8)
+        {
+            return None;
+        }
+        Some(groups)
+    }
+    pub(crate) fn leaf_pilot_root_groups(&self) -> Option<Vec<(Vec<u8>, Vec<usize>)>> {
+        let diagnostics = self.tree_diagnostics.as_ref()?.get("leaf_pilot")?;
+        if diagnostics.get("enabled")?.as_bool() != Some(true) {
+            return None;
+        }
+        let mut groups: Vec<(Vec<u8>, Vec<usize>)> = Vec::new();
+        let mut indexes = std::collections::HashMap::<Vec<u8>, usize>::new();
+        for (leaf, stratum) in self.strata.iter().enumerate() {
+            let index = if let Some(index) = indexes.get(&stratum.root) {
+                *index
+            } else {
+                let index = groups.len();
+                indexes.insert(stratum.root.clone(), index);
+                groups.push((stratum.root.clone(), Vec::new()));
+                index
+            };
+            groups[index].1.push(leaf);
+        }
+        Some(groups)
+    }
+    /// Pair-corrected log scores and original independent shares aligned with
+    /// final strata order; selected IDs define the hierarchical pilot groups.
+    pub(crate) fn hierarchical_pair_pilot_data(&self) -> Option<(Vec<Option<f64>>, Vec<Vec<i32>>)> {
+        let leaf_pilot = self.tree_diagnostics.as_ref()?.get("leaf_pilot")?;
+        let pair = leaf_pilot.get("pair_pilot")?;
+        if pair.get("enabled")?.as_bool() != Some(true)
+            || pair.get("rolled_back")?.as_bool() != Some(false)
+            || pair.get("adjusted_log_scores_valid")?.as_bool() != Some(true)
+        {
+            return None;
+        }
+        let logs = pair
+            .get("adjusted_log_scores")?
+            .as_array()?
+            .iter()
+            .map(|value| match value {
+                serde_json::Value::Null => Some(None),
+                _ => value.as_f64().filter(|score| score.is_finite()).map(Some),
+            })
+            .collect::<Option<Vec<_>>>()?;
+        let leaf_rows = leaf_pilot.get("leaves")?.as_array()?;
+        let selected = leaf_rows
+            .iter()
+            .enumerate()
+            .map(|(index, row)| {
+                if row.get("index")?.as_u64()? != index as u64 {
+                    return None;
+                }
+                let mut ids = row
+                    .get("selected")?
+                    .as_array()?
+                    .iter()
+                    .map(|value| i32::try_from(value.as_i64()?).ok())
+                    .collect::<Option<Vec<_>>>()?;
+                ids.sort_unstable();
+                Some(ids)
+            })
+            .collect::<Option<Vec<_>>>()?;
+        if logs.len() != self.strata.len() || selected.len() != self.strata.len() {
+            return None;
+        }
+        Some((logs, selected))
+    }
+    /// Original base-parent IDs and proxy shares for splitting each parent's
+    /// uniform exploration mass over its refined children.
+    pub(crate) fn rival_path_parent_map(&self) -> Option<(Vec<usize>, Vec<f64>)> {
+        let diagnostics = self.tree_diagnostics.as_ref()?.get("leaf_pilot")?;
+        if diagnostics.get("pair_pilot")?.get("enabled")?.as_bool() != Some(true) {
+            return None;
+        }
+        let partition = self
+            .tree_diagnostics
+            .as_ref()?
+            .get("rival_path_partition")?;
+        if partition.get("enabled")?.as_bool() != Some(true) {
+            return None;
+        }
+        let rows = diagnostics.get("leaves")?.as_array()?;
+        if rows.len() != self.strata.len() {
+            return None;
+        }
+        let mut parents = Vec::with_capacity(rows.len());
+        let mut shares = Vec::with_capacity(rows.len());
+        let mut totals = std::collections::HashMap::<usize, f64>::new();
+        for (index, row) in rows.iter().enumerate() {
+            if row.get("index")?.as_u64()? != index as u64 {
+                return None;
+            }
+            let parent = usize::try_from(row.get("original_parent_id")?.as_u64()?).ok()?;
+            let share = row.get("local_child_share")?.as_f64()?;
+            if !share.is_finite() || share <= 0.0 {
+                return None;
+            }
+            parents.push(parent);
+            shares.push(share);
+            *totals.entry(parent).or_default() += share;
+        }
+        if totals
+            .values()
+            .any(|sum| !sum.is_finite() || (*sum - 1.0).abs() > 1e-8)
+        {
+            return None;
+        }
+        Some((parents, shares))
+    }
+    pub(crate) fn rival_path_pilot_budgets(
+        &self,
+    ) -> Option<(bool, Vec<(Vec<u8>, Vec<i32>, usize)>)> {
+        let partition = self
+            .tree_diagnostics
+            .as_ref()?
+            .get("rival_path_partition")?;
+        if partition.get("enabled")?.as_bool() != Some(true) {
+            return None;
+        }
+        let applied = partition.get("applied")?.as_bool()?;
+        let budgets = partition
+            .get("frozen_group_budgets")?
+            .as_array()?
+            .iter()
+            .map(|row| {
+                let root = row
+                    .get("root")?
+                    .as_array()?
+                    .iter()
+                    .map(|value| u8::try_from(value.as_u64()?).ok())
+                    .collect::<Option<Vec<_>>>()?;
+                let selected = row
+                    .get("selected_ids")?
+                    .as_array()?
+                    .iter()
+                    .map(|value| i32::try_from(value.as_i64()?).ok())
+                    .collect::<Option<Vec<_>>>()?;
+                let quota = usize::try_from(row.get("draws")?.as_u64()?).ok()?;
+                Some((root, selected, quota))
+            })
+            .collect::<Option<Vec<_>>>()?;
+        Some((applied, budgets))
+    }
+    pub(crate) fn rival_path_base_pilot_counts(&self) -> Option<Vec<usize>> {
+        if !self.rival_path_partition_applied() {
+            return None;
+        }
+        let values = self
+            .tree_diagnostics
+            .as_ref()?
+            .get("rival_path_partition")?
+            .get("base_leaf_pilot")?
+            .as_array()?;
+        let counts = values
+            .iter()
+            .map(|value| usize::try_from(value.as_u64()?).ok())
+            .collect::<Option<Vec<_>>>()?;
+        (counts.len() == self.strata.len() && counts.iter().all(|count| *count >= 5))
+            .then_some(counts)
+    }
+    pub(crate) fn rival_path_partition_applied(&self) -> bool {
+        self.tree_diagnostics
+            .as_ref()
+            .and_then(|diagnostics| diagnostics.get("rival_path_partition"))
+            .and_then(|event| event.get("applied"))
+            .and_then(serde_json::Value::as_bool)
+            == Some(true)
+    }
+    pub(crate) fn rival_path_sampling_keys(&self, pilot: bool) -> Option<Vec<String>> {
+        let rows = self
+            .tree_diagnostics
+            .as_ref()?
+            .get("leaf_pilot")?
+            .get("leaves")?
+            .as_array()?;
+        if rows.len() != self.strata.len()
+            || self
+                .tree_diagnostics
+                .as_ref()?
+                .get("rival_path_partition")?
+                .get("enabled")?
+                .as_bool()
+                != Some(true)
+        {
+            return None;
+        }
+        rows.iter()
+            .enumerate()
+            .map(|(index, row)| {
+                if row.get("index")?.as_u64()? != index as u64 {
+                    return None;
+                }
+                let parent = row.get("original_parent_id")?.as_u64()?;
+                let path = row.get("path_id").and_then(serde_json::Value::as_u64);
+                Some(path.map_or_else(
+                    || {
+                        if pilot {
+                            parent.to_string()
+                        } else {
+                            format!("leaf-{parent}")
+                        }
+                    },
+                    |path| format!("parent-{parent}-path-{path}"),
+                ))
+            })
+            .collect()
+    }
+    /// Independent pair-pilot shares, or the ordinary leaf guide shares when
+    /// the pair pass rolled back, aligned with final strata order.
+    pub(crate) fn leaf_pilot_independent_shares(&self) -> Option<Vec<f64>> {
+        let leaf_pilot = self.tree_diagnostics.as_ref()?.get("leaf_pilot")?;
+        let pair = leaf_pilot.get("pair_pilot")?;
+        let shares = independent_pilot_shares_from_diagnostics(pair, leaf_pilot)?;
+        if shares.len() != self.strata.len()
+            || shares
+                .iter()
+                .any(|share| !share.is_finite() || *share < 0.0)
+        {
+            return None;
+        }
+        Some(shares)
+    }
     /// Bounds under independent original fixture outcomes, not proposal Q.
     /// Six-rival setup is offline only. Failed setup leaves the existing bound.
     pub fn bounds(&self, m: &Model, strengthen: bool) -> Vec<BranchBound> {
@@ -592,6 +1200,192 @@ impl BranchStrata {
                 }
             })
             .collect()
+    }
+
+    /// Read-2-only bounds for the bounded omission experiment. Unlike
+    /// `bounds(..., true)`, this never runs the six-rival setup. Work is
+    /// charged conservatively before each terminal table is allocated.
+    pub(crate) fn bounded_omission_bounds(
+        &self,
+        m: &Model,
+        work_cap: usize,
+    ) -> (Option<Vec<BranchBound>>, usize, Vec<usize>, Option<&'static str>) {
+        let mut work;
+        let mut fallback_leaves = Vec::new();
+
+        // Charge the false-bound pass first: bounds(false) still scans each
+        // leaf's fixed outcomes and all original pattern games.
+        let preflight_work = self.strata.len();
+        let baseline_work = self.strata.iter().try_fold(preflight_work, |total, stratum| {
+            let p = &stratum.pattern;
+            let games = p
+                .joint
+                .games
+                .len()
+                .checked_add(p.guide.games.len())?
+                .checked_add(p.omitted.len())?;
+            total.checked_add(
+                p.fixed
+                    .len()
+                    .checked_add(games.checked_mul(8)?)?
+                    .checked_add(8)?,
+            )
+        });
+        let Some(baseline_work) = baseline_work else {
+            return (
+                None,
+                preflight_work,
+                fallback_leaves,
+                Some("work accounting overflow"),
+            );
+        };
+        if baseline_work > work_cap {
+            return (
+                None,
+                preflight_work,
+                fallback_leaves,
+                Some("work cap exhausted during false bounds"),
+            );
+        }
+        work = baseline_work;
+        let mut bounds = self.bounds(m, false);
+
+        for (leaf, stratum) in self.strata.iter().enumerate() {
+            let p = &stratum.pattern;
+            if !p.omitted.is_empty() {
+                fallback_leaves.push(leaf);
+                continue;
+            }
+            let scan_charge = p
+                .joint
+                .games
+                .len()
+                .checked_add(p.guide.games.len())
+                .and_then(|games| {
+                    p.fixed
+                        .len()
+                        .checked_add(games.checked_mul(m.n.saturating_add(8))?)?
+                        .checked_add(m.n.checked_mul(m.n)?)
+                });
+            let Some(scan_charge) = scan_charge else {
+                return (Some(bounds), work, fallback_leaves, Some("work accounting overflow"));
+            };
+            let Some(next_work) = work.checked_add(scan_charge) else {
+                return (Some(bounds), work, fallback_leaves, Some("work accounting overflow"));
+            };
+            if next_work > work_cap {
+                return (Some(bounds), work, fallback_leaves, Some("work cap exhausted"));
+            }
+            work = next_work;
+            let games: Vec<_> = p
+                .joint
+                .games
+                .iter()
+                .chain(&p.guide.games)
+                .copied()
+                .collect();
+            let fixed_prior = p
+                .fixed
+                .iter()
+                .map(|&(i, o)| m.fixtures[i].prob[o as usize])
+                .fold(1., bound_product);
+            let mut domain_prior = fixed_prior;
+            for game in &games {
+                domain_prior = bound_product(
+                    domain_prior,
+                    (0..3)
+                        .filter(|&o| game.prob[o] > 0.)
+                        .map(|o| m.fixtures[game.index].prob[o])
+                        .sum::<f64>(),
+                );
+            }
+            let mut event_masses = vec![p.joint.mass];
+            let mut failed = !p.joint.mass.is_finite() || p.joint.mass <= 0.0;
+            for team in 0..m.n {
+                if failed {
+                    break;
+                }
+                if p.joint.selected.contains(&team) {
+                    continue;
+                }
+                let gs: Vec<_> = games
+                    .iter()
+                    .copied()
+                    .filter(|g| g.home == team || g.away == team)
+                    .collect();
+                let span = gs
+                    .iter()
+                    .map(|g| {
+                        *if g.home == team { &g.hg } else { &g.ag }
+                            .iter()
+                            .max()
+                            .unwrap()
+                    })
+                    .try_fold(0i32, |sum, value| sum.checked_add(value));
+                let Some(span) = span
+                    .and_then(|span| usize::try_from(span).ok())
+                    .and_then(|span| span.checked_add(1))
+                else {
+                    return (Some(bounds), work, fallback_leaves, Some("work accounting overflow"));
+                };
+                let Some(table_work) = gs
+                    .len()
+                    .checked_add(1)
+                    .and_then(|rows| rows.checked_mul(span))
+                    .and_then(|states| {
+                        gs.len()
+                            .checked_mul(span)
+                            .and_then(|transitions| transitions.checked_mul(3))
+                            .and_then(|transitions| states.checked_add(transitions))
+                    })
+                    .and_then(|table| table.checked_add(span))
+                else {
+                    return (Some(bounds), work, fallback_leaves, Some("work accounting overflow"));
+                };
+                let Some(next_work) = work.checked_add(table_work) else {
+                    return (Some(bounds), work, fallback_leaves, Some("work accounting overflow"));
+                };
+                if next_work > work_cap {
+                    return (Some(bounds), work, fallback_leaves, Some("work cap exhausted"));
+                }
+                work = next_work;
+                let terminal = (0..span)
+                    .map(|gain| {
+                        if p.base[team] + gain as i32 >= p.lower[team]
+                            && p.base[team] + gain as i32 <= p.upper[team]
+                        {
+                            1.
+                        } else {
+                            0.
+                        }
+                    })
+                    .collect();
+                let mass = TerminalTable::new(gs, team, terminal).mass(0);
+                if !mass.is_finite() || mass <= 0. {
+                    failed = true;
+                    break;
+                }
+                event_masses.push(mass);
+            }
+            let read_two = if failed {
+                fallback_leaves.push(leaf);
+                continue;
+            } else {
+                let Some(read_two) = read_two_upper(domain_prior, &event_masses) else {
+                    fallback_leaves.push(leaf);
+                    continue;
+                };
+                read_two
+            };
+            let raw = bounds[leaf].upper_bound.min(read_two);
+            if !read_two.is_finite() || read_two <= 0. || !raw.is_finite() || raw <= 0. {
+                fallback_leaves.push(leaf);
+                continue;
+            }
+            bounds[leaf].read_two_upper = read_two;
+            bounds[leaf].upper_bound = (raw * (1. + 1e-9)).min(1.);
+        }
+        (Some(bounds), work, fallback_leaves, None)
     }
     pub(crate) fn draw_work(&self, m: &Model, index: usize, bounds: bool) -> usize {
         let p = self
@@ -787,11 +1581,66 @@ pub fn combine(samples: &[BranchSample]) -> Result {
 mod tests {
     use super::*;
     use crate::{conditioned::canonical_ranks, model::Request};
+
+    #[test]
+    fn hierarchy_independent_share_fallback_requires_explicit_pair_rollback() {
+        let leaf = json!({"shares":[0.7,0.3]});
+        assert_eq!(
+            independent_pilot_shares_from_diagnostics(&json!({"rolled_back":false}), &leaf),
+            None
+        );
+        assert_eq!(
+            independent_pilot_shares_from_diagnostics(&json!({"rolled_back":true}), &leaf),
+            Some(vec![0.7, 0.3])
+        );
+        assert_eq!(
+            independent_pilot_shares_from_diagnostics(
+                &json!({"independent_normalized_shares":[0.4,0.6],"rolled_back":false}),
+                &leaf
+            ),
+            Some(vec![0.4, 0.6])
+        );
+    }
+
     #[test]
     fn tiny_bound_products_remain_positive() {
         assert_eq!(bound_product(1e-200, 1e-200), f64::MIN_POSITIVE);
         assert_eq!(bound_product(f64::MIN_POSITIVE, 1e-200), f64::MIN_POSITIVE);
         assert_eq!(bound_product(0.5, 0.25), 0.125);
+    }
+    #[test]
+    fn read_two_upper_covers_every_tiny_two_fixture_event_intersection() {
+        let p = [0.25, 0.75];
+        let support = (0..4)
+            .map(|code| {
+                let first = code & 1;
+                let second = (code >> 1) & 1;
+                (code, p[first] * p[second])
+            })
+            .collect::<Vec<_>>();
+        for first_event in 0u8..=3 {
+            for second_event in 0u8..=15 {
+                let mut pa = 0.0;
+                let mut pb = 0.0;
+                let mut intersection = 0.0;
+                for &(code, mass) in &support {
+                    let first = code & 1;
+                    let a = first_event & (1 << first) != 0;
+                    let b = second_event & (1 << code) != 0;
+                    pa += if a { mass } else { 0.0 };
+                    pb += if b { mass } else { 0.0 };
+                    intersection += if a && b { mass } else { 0.0 };
+                }
+                if pa > 0.0 && pb > 0.0 {
+                    let upper = read_two_upper(1.0, &[pa, pb]).unwrap();
+                    assert!(intersection <= upper + 1e-15);
+                } else {
+                    assert_eq!(read_two_upper(1.0, &[pa, pb]), None);
+                }
+            }
+        }
+        assert_eq!(read_two_upper(1.0, &[0.0, 0.5]), None);
+        assert_eq!(read_two_upper(1.0, &[f64::NAN]), None);
     }
     #[test]
     fn incomplete_target_enumeration_is_an_error_and_not_a_partial_estimate() {
