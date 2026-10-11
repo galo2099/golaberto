@@ -143,7 +143,7 @@ fn score_witness_places_palmeiras_thirteenth_and_rank_proof_does_not_refute_it()
 }
 
 #[test]
-fn default_calculation_reports_palmeiras_thirteenth_reachable_for_one_and_four_workers() {
+fn default_calculation_recovers_palmeiras_thirteenth_for_one_and_four_workers() {
     let request = snapshot_request();
     let (one_worker, _) = api::calculate(request.clone(), 808, 1, 20_000).unwrap();
     let (four_workers, _) = api::calculate(request, 808, 4, 20_000).unwrap();
@@ -151,7 +151,13 @@ fn default_calculation_reports_palmeiras_thirteenth_reachable_for_one_and_four_w
     for response in [&one_worker, &four_workers] {
         let estimate = &response.rare_position_estimates[&16][&12];
         assert_eq!(estimate.reachability, "reachable");
-        assert_eq!(estimate.probability, 0.);
+        assert!(
+            estimate.probability.is_finite()
+                && estimate.probability > 0.
+                && estimate.probability <= 1.
+        );
+        assert!(estimate.std_err.is_finite() && estimate.std_err > 0.);
+        assert!(estimate.meets_precision_goal);
     }
     assert_eq!(
         serde_json::to_value(&one_worker).unwrap(),
