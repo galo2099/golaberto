@@ -1,5 +1,9 @@
 //! Frozen H2 top-64 / H5 shortlist scores used only to allocate rare-tail work.
 use crate::model::Model;
+#[cfg(test)]
+use crate::test_env as experiment_env;
+#[cfg(not(test))]
+use std::env as experiment_env;
 use serde_json::Value;
 use std::{collections::BTreeSet, fs};
 
@@ -26,9 +30,9 @@ fn fail(reason: &str) -> Guide {
 }
 
 pub(crate) fn load(model: &Model) -> Guide {
-    let mode = std::env::var(MODE_ENV).unwrap_or_default();
+    let mode = experiment_env::var(MODE_ENV).unwrap_or_default();
     if mode.is_empty() { return Guide { candidates: Vec::new(), fallback: None }; }
-    let Ok(path) = std::env::var(SOURCE_ENV) else { return fail("guide_source_missing"); };
+    let Ok(path) = experiment_env::var(SOURCE_ENV) else { return fail("guide_source_missing"); };
     parse_file(model, &mode, &path)
 }
 
@@ -36,7 +40,7 @@ pub(crate) fn load(model: &Model) -> Guide {
 /// consulting the independent final-allocation mode flag.
 pub(crate) fn load_tree(model: &Model) -> (Guide, usize) {
     let scan_work = 4_550usize.saturating_mul(128).saturating_add(64usize.saturating_mul(128));
-    let Ok(path) = std::env::var(SOURCE_ENV) else {
+    let Ok(path) = experiment_env::var(SOURCE_ENV) else {
         return (fail("guide_source_missing"), scan_work);
     };
     (parse_file(model, "static", &path), scan_work)
@@ -109,37 +113,27 @@ fn parse_file(model: &Model, mode: &str, path: &str) -> Guide {
 mod tests {
     use super::*;
     use crate::{joint_caps::propagated::lazy::BranchStrata, model::Request, search::Cell};
+    use sha2::{Digest, Sha256};
 
     #[test]
     fn canonical_beam_maps_to_actual_pal_all_loss_leaves() {
-        struct RestoreEnv(Vec<(&'static str, Option<std::ffi::OsString>)>);
-        impl Drop for RestoreEnv {
-            fn drop(&mut self) {
-                for (key, value) in self.0.drain(..) {
-                    match value {
-                        Some(value) => unsafe { std::env::set_var(key, value) },
-                        None => unsafe { std::env::remove_var(key) },
-                    }
-                }
-            }
-        }
         const HYBRID: &str = "RUST_ODDS_EXPERIMENT_RANK_RESCUE_HYBRID_TREE";
         const REPAIR: &str = "RUST_ODDS_EXPERIMENT_RANK_RESCUE_HYBRID_REPAIR";
         const TREE: &str = "RUST_ODDS_EXPERIMENT_RANK_RESCUE_SHORTLIST_TREE";
         const SOURCE: &str = "RUST_ODDS_EXPERIMENT_RANK_RESCUE_SHORTLIST_SOURCE";
-        let _restore = RestoreEnv([HYBRID, REPAIR, TREE, SOURCE, MODE_ENV].into_iter()
-            .map(|key| (key, std::env::var_os(key))).collect());
-        unsafe {
-            std::env::set_var(HYBRID, "mixed");
-            std::env::set_var(REPAIR, "1");
-            std::env::set_var(TREE, "mass");
-            std::env::set_var(SOURCE, "/workspace/work/p14_structure_early/beam64/candidate_scores_beam64.json");
-            std::env::remove_var(MODE_ENV);
-        }
-        let input = fs::read("/workspace/work/p14_hybrid_tree_prod/v2/inputs/group-16498-uploaded-285played.json").unwrap();
-        let request: Request = serde_json::from_slice(&input).unwrap();
+        const INPUT: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/palmeiras-shortlist/group-16498-uploaded-285played.json"));
+        const GUIDE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/palmeiras-shortlist/candidate_scores_beam64.json");
+        let _env = experiment_env::scoped(&[
+            (HYBRID, Some("mixed")),
+            (REPAIR, Some("1")),
+            (TREE, Some("mass")),
+            (SOURCE, Some(GUIDE)),
+            (MODE_ENV, None),
+        ]);
+        assert_eq!(format!("{:x}", Sha256::digest(INPUT)), REQUEST_SHA256);
+        let request: Request = serde_json::from_slice(INPUT).unwrap();
         let model = Model::new(request).unwrap();
-        let guide = parse_file(&model, "static", "/workspace/work/p14_structure_early/beam64/candidate_scores_beam64.json");
+        let guide = parse_file(&model, "static", GUIDE);
         assert!(guide.fallback.is_none(), "{:?}", guide.fallback);
         assert_eq!(guide.candidates.len(), 53);
         let (tree_guide, scan_work) = load_tree(&model);
@@ -164,7 +158,7 @@ mod tests {
         let tree_guide_diag = &diagnostics["tree"]["shortlist_tree_guidance"];
         assert_eq!(tree_guide_diag["requested_mode"], "mass");
         assert_eq!(tree_guide_diag["candidate_count"], 53);
-        assert!(std::env::var(MODE_ENV).is_err(), "tree guidance must work without final shortlist mode");
+        assert!(experiment_env::var(MODE_ENV).is_err(), "tree guidance must work without final shortlist mode");
         assert!(tree_guide_diag["frontier_passes"].as_u64().unwrap_or(0) > 0,
             "canonical tree guide did not map live frontier leaves: {tree_guide_diag}");
         assert!(tree_guide_diag["applied_selections"].as_u64().unwrap_or(0) > 0,

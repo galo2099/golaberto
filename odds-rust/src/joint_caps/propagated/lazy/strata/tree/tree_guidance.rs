@@ -1,5 +1,9 @@
 //! Opt-in allocation guidance from the frozen static rank shortlist.
 use super::Leaf;
+#[cfg(test)]
+use crate::test_env as experiment_env;
+#[cfg(not(test))]
+use std::env as experiment_env;
 use crate::{
     model::{Key, Model},
     shortlist_guidance::{self, Candidate},
@@ -52,7 +56,7 @@ pub(super) struct State {
 impl State {
     pub(super) fn new(model: &Model, active: bool, large: bool) -> Self {
         let cap = if large { LARGE_CAP } else { NORMAL_CAP };
-        let requested = std::env::var(FLAG).unwrap_or_default();
+        let requested = experiment_env::var(FLAG).unwrap_or_default();
         let mode = match requested.as_str() {
             "mass" => Some(Mode::Mass),
             "entropy" => Some(Mode::Entropy),
@@ -87,7 +91,7 @@ impl State {
             state.reason = Some("invalid_mode".into());
             return state;
         }
-        if std::env::var(REPAIR_FLAG).as_deref() != Ok("1")
+        if experiment_env::var(REPAIR_FLAG).as_deref() != Ok("1")
             || !active
             || model.keys.get(1) != Some(&Key::W)
         {

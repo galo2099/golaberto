@@ -27,4 +27,6 @@ pub mod shared_constraints;
 pub mod outcome_stratification;
 pub mod sort;
 pub mod target_limits;
+#[cfg(test)]
+pub(crate) mod test_env;
 pub mod tilt;

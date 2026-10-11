@@ -1,5 +1,9 @@
 //! Opt-in primary-tree WDL-path refinements.
 use super::*;
+#[cfg(test)]
+use crate::test_env as experiment_env;
+#[cfg(not(test))]
+use std::env as experiment_env;
 
 pub(super) const FLAG: &str = "RUST_ODDS_EXPERIMENT_RANK_RESCUE_HYBRID_TREE";
 pub(super) const WORK_ENV: &str = "RUST_ODDS_EXPERIMENT_RANK_RESCUE_HYBRID_TREE_WORK";
@@ -17,7 +21,7 @@ pub(super) enum Mode {
 }
 
 pub(super) fn mode() -> Option<Mode> {
-    match std::env::var(FLAG).ok().as_deref() {
+    match experiment_env::var(FLAG).ok().as_deref() {
         Some("paths") => Some(Mode::Paths),
         Some("mixed") => Some(Mode::Mixed),
         _ => None,
@@ -57,7 +61,7 @@ pub(super) fn charge(work: &mut usize, cap: usize, fee: usize) -> bool {
         work,
         cap,
         fee,
-        std::env::var("RUST_ODDS_EXPERIMENT_RANK_RESCUE_HYBRID_REPAIR").as_deref() == Ok("1"),
+        experiment_env::var("RUST_ODDS_EXPERIMENT_RANK_RESCUE_HYBRID_REPAIR").as_deref() == Ok("1"),
     )
 }
 

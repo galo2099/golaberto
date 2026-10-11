@@ -2,6 +2,10 @@
 use super::*;
 use crate::rng::derive;
 use std::time::Instant;
+#[cfg(test)]
+use crate::test_env as experiment_env;
+#[cfg(not(test))]
+use std::env as experiment_env;
 mod hybrid_tree;
 mod na_guidance;
 mod pair_pressure;
@@ -1314,7 +1318,7 @@ impl BranchStrata {
             && pair_pilot
             && rival_path;
         let repair_requested =
-            std::env::var("RUST_ODDS_EXPERIMENT_RANK_RESCUE_HYBRID_REPAIR").as_deref() == Ok("1");
+            experiment_env::var("RUST_ODDS_EXPERIMENT_RANK_RESCUE_HYBRID_REPAIR").as_deref() == Ok("1");
         let tree_repair_active = repair_requested && hybrid_active;
         let leaf_limit = if hybrid_active {
             hybrid_tree::leaf_limit(large_budget, leaf_limit)
@@ -1331,7 +1335,7 @@ impl BranchStrata {
         } else {
             hybrid_tree::DEFAULT_WORK
         };
-        let tree_guide_requested = std::env::var(tree_guidance::FLAG).unwrap_or_default();
+        let tree_guide_requested = experiment_env::var(tree_guidance::FLAG).unwrap_or_default();
         let tree_guide_scope =
             tree_repair_active && m.ids.get(cell.team).copied() == Some(16) && cell.rank == 13;
         let mut tree_guide = tree_guidance::State::new(m, tree_guide_scope, large_budget);
@@ -3501,24 +3505,17 @@ mod tests {
 
     #[test]
     fn hybrid_primary_paths_and_groups_preserve_full_partition() {
-        struct RestoreEnv(Option<std::ffi::OsString>);
-        impl Drop for RestoreEnv {
-            fn drop(&mut self) {
-                const KEY: &str = "RUST_ODDS_EXPERIMENT_RANK_RESCUE_HYBRID_TREE";
-                match self.0.take() {
-                    Some(value) => unsafe { std::env::set_var(KEY, value) },
-                    None => unsafe { std::env::remove_var(KEY) },
-                }
-            }
-        }
         let m = model();
         let cell = Cell { team: 0, rank: 1 };
         let key = "RUST_ODDS_EXPERIMENT_RANK_RESCUE_HYBRID_TREE";
-        let _restore = RestoreEnv(std::env::var_os(key));
         for mode in ["paths", "mixed"] {
-            unsafe {
-                std::env::set_var(key, mode);
-            }
+            let _env = experiment_env::scoped(&[
+                (key, Some(mode)),
+                ("RUST_ODDS_EXPERIMENT_RANK_RESCUE_HYBRID_REPAIR", None),
+                ("RUST_ODDS_EXPERIMENT_RANK_RESCUE_SHORTLIST_TREE", None),
+                ("RUST_ODDS_EXPERIMENT_RANK_RESCUE_SHORTLIST_SOURCE", None),
+                ("RUST_ODDS_EXPERIMENT_RANK_RESCUE_SHORTLIST_MODE", None),
+            ]);
             let (built, _) = BranchStrata::with_tree_profile_options(
                 &m,
                 cell,
@@ -3624,29 +3621,15 @@ mod tests {
 
     #[test]
     fn repaired_nested_fallback_preserves_inherited_fixed_fixtures_and_rank_mass() {
-        struct RestoreEnv(Vec<(&'static str, Option<std::ffi::OsString>)>);
-        impl Drop for RestoreEnv {
-            fn drop(&mut self) {
-                for (key, value) in self.0.drain(..) {
-                    match value {
-                        Some(value) => unsafe { std::env::set_var(key, value) },
-                        None => unsafe { std::env::remove_var(key) },
-                    }
-                }
-            }
-        }
         const HYBRID: &str = "RUST_ODDS_EXPERIMENT_RANK_RESCUE_HYBRID_TREE";
         const REPAIR: &str = "RUST_ODDS_EXPERIMENT_RANK_RESCUE_HYBRID_REPAIR";
-        let _restore = RestoreEnv(
-            [HYBRID, REPAIR]
-                .into_iter()
-                .map(|key| (key, std::env::var_os(key)))
-                .collect(),
-        );
-        unsafe {
-            std::env::set_var(HYBRID, "mixed");
-            std::env::set_var(REPAIR, "1");
-        }
+        let _env = experiment_env::scoped(&[
+            (HYBRID, Some("mixed")),
+            (REPAIR, Some("1")),
+            ("RUST_ODDS_EXPERIMENT_RANK_RESCUE_SHORTLIST_TREE", None),
+            ("RUST_ODDS_EXPERIMENT_RANK_RESCUE_SHORTLIST_SOURCE", None),
+            ("RUST_ODDS_EXPERIMENT_RANK_RESCUE_SHORTLIST_MODE", None),
+        ]);
         let m = model();
         let cell = Cell { team: 0, rank: 1 };
         let exact = exact_rank_mass_for_test(&m, cell);
