@@ -77,21 +77,16 @@ class TeamGroupTest < Test::Unit::TestCase
   end
 
   def test_legacy_plain_odds_decode_without_reachability_proofs
-    snapshot = TeamGroupOddsHistory.new(odds: [75.0, [0.0]])
+    snapshot = TeamGroupOddsHistory.new(odds: [75.0, 0.0])
 
     assert_equal [75.0, 0.0], snapshot.numeric_odds
     assert_equal %w[reachable undecided], snapshot.odds_reachability
+  end
 
-    singleton_positive_legacy_snapshot = TeamGroupOddsHistory.new(odds: [[75.0], [0.0]])
-    assert_equal [75.0, 0.0], singleton_positive_legacy_snapshot.numeric_odds
-    assert_equal %w[reachable undecided], singleton_positive_legacy_snapshot.odds_reachability
+  def test_compact_inline_zero_proofs_decode
+    snapshot = TeamGroupOddsHistory.new(odds: [[0.0, "reachable"], [0.0, "impossible"], 0.0])
 
-    prior_reachable_zero_snapshot = TeamGroupOddsHistory.new(odds: [[0.0, "reachable"]])
-    assert_equal [0.0], prior_reachable_zero_snapshot.numeric_odds
-    assert_equal ["reachable"], prior_reachable_zero_snapshot.odds_reachability
-
-    current_undecided_zero_snapshot = TeamGroupOddsHistory.new(odds: [0.0])
-    assert_equal [0.0], current_undecided_zero_snapshot.numeric_odds
-    assert_equal ["undecided"], current_undecided_zero_snapshot.odds_reachability
+    assert_equal [0.0, 0.0, 0.0], snapshot.numeric_odds
+    assert_equal %w[reachable impossible undecided], snapshot.odds_reachability
   end
 end
