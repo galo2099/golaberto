@@ -66,6 +66,11 @@ pub struct Report {
     pub impossible: bool,
     pub stats: Stats,
 }
+#[derive(Default)]
+pub struct FeasibleDomains {
+    pub domains: Option<Vec<u8>>,
+    pub stats: Stats,
+}
 impl RankProof {
     pub fn new(model: &Model) -> Option<Self> {
         let c = &model.request.phase.championship;
@@ -256,10 +261,89 @@ impl RankProof {
             options,
             stats: Stats::default(),
             cores: Vec::new(),
+            capture_feasible_domains: false,
+            feasible_domains: None,
         };
         let impossible = solver.cohorts(&eligible, 0, required_count, 0);
         Report {
             impossible,
+            stats: solver.stats,
+        }
+    }
+
+    /// Find one feasible point/win relaxation assignment for witness
+    /// construction. Feasibility is only a candidate: callers must complete
+    /// scores and verify the actual standings before publishing it.
+    pub fn feasible_domains(
+        &self,
+        cell: Cell,
+        required_count: usize,
+        budget: usize,
+        options: Options,
+    ) -> FeasibleDomains {
+        if cell.team >= self.ranked || required_count >= self.ranked || budget == 0 {
+            return FeasibleDomains::default();
+        }
+        let mut initial = vec![7_u8; self.games.len()];
+        let mut floor = self.base[cell.team];
+        for (i, end) in &self.adjacent[cell.team] {
+            let gain = self.games[*i].gain[*end];
+            let minimum = *gain.iter().min().unwrap();
+            initial[*i] = (0..3).fold(0, |d, o| if gain[o] == minimum { d | (1 << o) } else { d });
+            floor += minimum;
+        }
+        let mut maximum = self.base.clone();
+        for (i, g) in self.games.iter().enumerate() {
+            maximum[g.home] += g.maximum[0][initial[i] as usize];
+            maximum[g.away] += g.maximum[1][initial[i] as usize];
+        }
+        let eligible: Vec<_> = (0..self.ranked)
+            .filter(|t| *t != cell.team && maximum[*t] >= floor)
+            .collect();
+        if eligible.len() < required_count {
+            return FeasibleDomains::default();
+        }
+        if options.require_root_pressure
+            && !eligible.iter().any(|&t| {
+                self.adjacent[t].iter().any(|&(i, end)| {
+                    let g = &self.games[i];
+                    let minimum = (0..3)
+                        .filter(|o| initial[i] & (1 << o) != 0)
+                        .map(|o| g.gain[end][o])
+                        .min()
+                        .unwrap();
+                    maximum[t] - g.maximum[end][initial[i] as usize] + minimum < floor
+                })
+            })
+        {
+            return FeasibleDomains::default();
+        }
+        let k = required_count.min(eligible.len() - required_count);
+        let mut count = 1_usize;
+        for i in 0..k {
+            count = match count.checked_mul(eligible.len() - i) {
+                Some(v) => v / (i + 1),
+                None => return FeasibleDomains::default(),
+            };
+            if count > 512 {
+                return FeasibleDomains::default();
+            }
+        }
+        let mut solver = Solver {
+            p: self,
+            floor,
+            initial,
+            initial_maximum: maximum,
+            budget,
+            options,
+            stats: Stats::default(),
+            cores: Vec::new(),
+            capture_feasible_domains: true,
+            feasible_domains: None,
+        };
+        solver.cohorts(&eligible, 0, required_count, 0);
+        FeasibleDomains {
+            domains: solver.feasible_domains,
             stats: solver.stats,
         }
     }
@@ -273,6 +357,8 @@ struct Solver<'a> {
     options: Options,
     stats: Stats,
     cores: Vec<u64>,
+    capture_feasible_domains: bool,
+    feasible_domains: Option<Vec<u8>>,
 }
 impl Solver<'_> {
     // Only restrictions that lower this endpoint's maximum can contribute to
@@ -399,6 +485,9 @@ impl Solver<'_> {
             })
             .map(|(i, _)| i);
         let Some(i) = best else {
+            if self.capture_feasible_domains {
+                self.feasible_domains = Some(ds);
+            }
             return Answer::Feasible;
         };
         let g = &self.p.games[i];
@@ -563,6 +652,35 @@ mod tests {
         assert!(!short.impossible);
         let empty = p.prove(cell, 13, 0, Options::default());
         assert!(!empty.impossible);
+        assert_eq!(empty.stats.nodes, 0);
+    }
+    #[test]
+    fn feasible_domain_capture_finds_palmeiras_thirteenth_within_small_budget() {
+        let request: Request = serde_json::from_str(include_str!(
+            "../tests/fixtures/group-16498-2026-10-10.json"
+        ))
+        .unwrap();
+        let model = Model::new(request).unwrap();
+        let proof = RankProof::new(&model).unwrap();
+        let cell = Cell {
+            team: model.indices[&16],
+            rank: 12,
+        };
+        let found = proof.feasible_domains(cell, 12, 100, Options::default());
+        assert!(found.domains.is_some(), "nodes={}", found.stats.nodes);
+        assert!(found.stats.nodes <= 100);
+        assert!(found.stats.cohorts > 0);
+        assert!(found
+            .domains
+            .unwrap()
+            .iter()
+            .all(|domain| (1..=7).contains(domain)));
+
+        let short = proof.feasible_domains(cell, 12, 1, Options::default());
+        assert!(short.domains.is_none());
+        assert!(short.stats.nodes <= 1);
+        let empty = proof.feasible_domains(cell, 12, 0, Options::default());
+        assert!(empty.domains.is_none());
         assert_eq!(empty.stats.nodes, 0);
     }
     #[test]
