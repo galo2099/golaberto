@@ -1,4 +1,11 @@
 namespace :odds_history do
+  desc "Convert saved odds history rows to compact odds and reachability format"
+  task convert_format: :environment do
+    total = TeamGroupOddsHistory.count
+    converted = OddsHistoryFormatConversionService.run
+    puts "Converted #{converted} of #{total} odds history snapshots to compact format."
+  end
+
   desc "Backfill daily odds history for championship groups. Usage: rake odds_history:backfill CHAMPIONSHIP_ID=1 [PHASE_ID=2] [GROUP_ID=3] [FROM=2024-01-01] [TO=2024-12-31] [RESET=true]"
   task backfill: :environment do
     championship_id = ENV["CHAMPIONSHIP_ID"]
