@@ -1,5 +1,6 @@
 class TeamGroupOddsHistory < ApplicationRecord
   serialize :odds
+  include CompactOdds
 
   belongs_to :team_group
 
@@ -7,4 +8,5 @@ class TeamGroupOddsHistory < ApplicationRecord
   validates :captured_at, presence: true
   validates :odds, presence: true
   validates :team_group_id, uniqueness: { scope: :recorded_on }
+
 end

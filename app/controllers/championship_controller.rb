@@ -277,7 +277,8 @@ class ChampionshipController < ApplicationController
     snapshots = team_group.odds_histories.order(:recorded_on)
 
     history_by_day = snapshots.map do |snapshot|
-      [snapshot.recorded_on, snapshot.captured_at || snapshot.recorded_on.end_of_day, snapshot.odds]
+      odds = snapshot.numeric_odds
+      [snapshot.recorded_on, snapshot.captured_at || snapshot.recorded_on.end_of_day, odds, snapshot.odds_reachability]
     end
 
     played_team_games = group.games
@@ -290,7 +291,7 @@ class ChampionshipController < ApplicationController
     latest_game_by_timestamp = {}
     game_idx = 0
     latest_game = nil
-    history_by_day.each do |_, snapshot_time, _|
+    history_by_day.each do |_, snapshot_time, _, _|
       while game_idx < played_team_games.size && played_team_games[game_idx].date && played_team_games[game_idx].date <= snapshot_time
         latest_game = played_team_games[game_idx]
         game_idx += 1
@@ -298,14 +299,15 @@ class ChampionshipController < ApplicationController
       latest_game_by_timestamp[snapshot_time] = latest_game
     end
 
-    zone_odds_by_snapshot = history_by_day.map do |_, _, odds|
+    zone_odds_by_snapshot = history_by_day.map do |_, _, odds, statuses|
       zones.map do |zone|
         positions = zone["position"].map(&:to_i).uniq
-        value = TeamGroup.calculate_odds_for(odds, positions)
+        value = TeamGroup.calculate_odds_for(odds, positions, statuses)
         {
           name: zone["name"],
           color: zone["color"],
           value: [value, 100.0].min,
+          reachability: TeamGroup.reachability_for(odds, statuses, positions),
         }
       end
     end
@@ -326,10 +328,10 @@ class ChampionshipController < ApplicationController
       points = []
       points_meta = []
 
-      history_by_day.each_with_index do |(recorded_on, snapshot_time, odds), history_index|
+      history_by_day.each_with_index do |(recorded_on, snapshot_time, odds, statuses), history_index|
         next if odds.nil?
 
-        value = TeamGroup.calculate_odds_for(odds, [position])
+        value = TeamGroup.calculate_odds_for(odds, [position], statuses)
         points << [recorded_on.to_time.to_i * 1000, [value, 100.0].min]
 
         game = latest_game_by_timestamp[snapshot_time]
@@ -342,6 +344,7 @@ class ChampionshipController < ApplicationController
                         nil
                       end,
           zone_odds: zone_odds_by_snapshot[history_index],
+          reachability: TeamGroup.reachability_for(odds, statuses, [position]),
         }
       end
 

@@ -761,12 +761,14 @@ $(document).ready(function() {
         var series = oddsHistoryPlot.getData()[item.seriesIndex];
         var pointMeta = (series.point_meta || [])[item.dataIndex] || {};
         var seriesPoint = (series.data || [])[item.dataIndex] || [null, 0];
-        var oddValue = GolabertoOdds.positionHtml(seriesPoint[1], "undecided", oddsHistoryLocale, false, oddsHistoryStatusLabels);
+        var oddStatus = pointMeta.reachability || "undecided";
+        var oddValue = GolabertoOdds.positionHtml(seriesPoint[1], oddStatus, oddsHistoryLocale, false, oddsHistoryStatusLabels);
 
         var zoneOddsLines = (pointMeta.zone_odds || []).map(function(zoneOdd) {
           var zoneColor = zoneOdd.color || "#999999";
-          var zoneValue = GolabertoOdds.positionHtml(zoneOdd.value || 0, "undecided", oddsHistoryLocale, false, oddsHistoryStatusLabels);
-          var exactZoneValue = GolabertoOdds.positionTitle(zoneOdd.value || 0, "undecided", oddsHistoryLocale, oddsHistoryStatusLabels);
+          var zoneStatus = zoneOdd.reachability || "undecided";
+          var zoneValue = GolabertoOdds.positionHtml(zoneOdd.value || 0, zoneStatus, oddsHistoryLocale, false, oddsHistoryStatusLabels);
+          var exactZoneValue = GolabertoOdds.positionTitle(zoneOdd.value || 0, zoneStatus, oddsHistoryLocale, oddsHistoryStatusLabels);
           return "<span style=\"color:" + zoneColor + "\">▣</span> " + (zoneOdd.name || "") + ": <span title=\"" + exactZoneValue + "\">" + zoneValue + "</span>";
         });
 
@@ -776,9 +778,9 @@ $(document).ready(function() {
           oddValue + "<br>" +
           (pointMeta.game_label || "-") +
           (zoneOddsLines.length > 0 ? "<br>" + zoneOddsLines.join("<br>") : "")
-        ).attr("title", GolabertoOdds.positionTitle(seriesPoint[1], "undecided", oddsHistoryLocale, oddsHistoryStatusLabels))
+        ).attr("title", GolabertoOdds.positionTitle(seriesPoint[1], oddStatus, oddsHistoryLocale, oddsHistoryStatusLabels))
           .css({ top: pos.pageY + 5, left: pos.pageX + 5 }).fadeIn(200);
-        oddsHistoryPlaceholder.attr("title", GolabertoOdds.positionTitle(seriesPoint[1], "undecided", oddsHistoryLocale, oddsHistoryStatusLabels));
+        oddsHistoryPlaceholder.attr("title", GolabertoOdds.positionTitle(seriesPoint[1], oddStatus, oddsHistoryLocale, oddsHistoryStatusLabels));
       });
     } else {
       $("#odds-history-wrapper-<%=idx%>").hide();

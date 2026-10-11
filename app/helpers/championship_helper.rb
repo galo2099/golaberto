@@ -77,7 +77,7 @@ module ChampionshipHelper
       @name = team_group.team.name
       @points += team_group.add_sub
       @bias = team_group.bias
-      @odds = team_group.odds
+      @odds = team_group.numeric_odds
       championship = team_group.group.phase.championship
       @points_for_win = championship.point_win
       @points_for_draw = championship.point_draw
