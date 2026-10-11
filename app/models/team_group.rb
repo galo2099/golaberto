@@ -1,6 +1,6 @@
 class TeamGroup < ApplicationRecord
   serialize :odds
-  serialize :odds_reachability
+  include CompactOdds
   belongs_to :group, :touch => true
   belongs_to :team
   has_many :odds_histories, class_name: "TeamGroupOddsHistory", dependent: :delete_all
@@ -18,7 +18,7 @@ class TeamGroup < ApplicationRecord
   # Field: comment , SQL Definition:text
 
   def calculate_odds(positions)
-    self.class.calculate_odds_for(odds, positions, odds_reachability)
+    self.class.calculate_odds_for(numeric_odds, positions, odds_reachability)
   end
 
   def self.calculate_odds_for(odds, positions, statuses = nil)
@@ -37,7 +37,7 @@ class TeamGroup < ApplicationRecord
   end
 
   def odds_reachability_for(positions)
-    self.class.reachability_for(odds, odds_reachability, positions)
+    self.class.reachability_for(numeric_odds, odds_reachability, positions)
   end
 
   def self.reachability_for(odds, statuses, positions)
@@ -54,19 +54,20 @@ class TeamGroup < ApplicationRecord
   # Store only the API's three public states, aligned with the numeric odds.
   # Older services omit metadata; clear it rather than keeping stale proofs.
   def assign_calculated_odds!(response)
-    self.odds = response.fetch("team_odds").fetch(team_id.to_s).fetch("Pos")
+    probabilities = response.fetch("team_odds").fetch(team_id.to_s).fetch("Pos")
     cells = (response["rare_position_estimates"] || {})[team_id.to_s]
-    self.odds_reachability = cells && odds.each_index.map do |index|
+    statuses = cells && probabilities.each_index.map do |index|
       status = cells.fetch(index.to_s, {})["reachability"]
       %w[impossible reachable undecided].include?(status) ? status : "undecided"
     end
+    self.odds = self.class.encode_odds(probabilities, statuses)
   end
 
   def record_odds_snapshot!(captured_at = Time.zone.now)
     return if odds.nil?
 
     snapshot = odds_histories.find_or_initialize_by(recorded_on: captured_at.to_date)
-    snapshot.odds = TeamGroupOddsHistory.encode_odds(odds, odds_reachability)
+    snapshot.odds = odds
     snapshot.captured_at = captured_at
     snapshot.save!
   end

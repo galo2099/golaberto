@@ -303,7 +303,7 @@
            <%= content_tag :td,
                            position_odds_html(first_odds, odds_status),
                            "data-group-id": group.id,
-                           "data-odds-array": (t[0].odds || []).to_json,
+                           "data-odds-array": (t[0].numeric_odds || []).to_json,
                            "data-odds-reachability": (t[0].odds_reachability || []).to_json,
                            "data-odds-status-labels": I18n.t("odds_reachability").to_json,
                            title: position_odds_title(first_odds, odds_status),
