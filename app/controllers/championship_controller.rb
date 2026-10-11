@@ -277,7 +277,8 @@ class ChampionshipController < ApplicationController
     snapshots = team_group.odds_histories.order(:recorded_on)
 
     history_by_day = snapshots.map do |snapshot|
-      [snapshot.recorded_on, snapshot.captured_at || snapshot.recorded_on.end_of_day, snapshot.odds, snapshot.odds_reachability]
+      odds = snapshot.numeric_odds
+      [snapshot.recorded_on, snapshot.captured_at || snapshot.recorded_on.end_of_day, odds, snapshot.odds_reachability]
     end
 
     played_team_games = group.games

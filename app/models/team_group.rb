@@ -66,8 +66,7 @@ class TeamGroup < ApplicationRecord
     return if odds.nil?
 
     snapshot = odds_histories.find_or_initialize_by(recorded_on: captured_at.to_date)
-    snapshot.odds = odds
-    snapshot.odds_reachability = odds_reachability
+    snapshot.odds = TeamGroupOddsHistory.encode_odds(odds, odds_reachability)
     snapshot.captured_at = captured_at
     snapshot.save!
   end

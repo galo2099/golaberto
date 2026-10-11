@@ -63,11 +63,16 @@ class ChampionshipControllerTest < Test::Unit::TestCase
   end
 
   def test_odds_history_json_includes_snapshot_reachability_for_points_and_zones
-    snapshot_type = Struct.new(:recorded_on, :captured_at, :odds, :odds_reachability)
-    snapshot = snapshot_type.new(
-      Date.new(2026, 10, 11), Time.zone.parse("2026-10-11 10:00"), [100.0, 0.0, 0.0, 0.0], %w[reachable impossible reachable undecided]
+    snapshot = TeamGroupOddsHistory.new(
+      recorded_on: Date.new(2026, 10, 11),
+      captured_at: Time.zone.parse("2026-10-11 10:00"),
+      odds: [[100.0], [0.0, "impossible"], [0.0, "reachable"], [0.0, "undecided"]]
     )
-    legacy_snapshot = snapshot_type.new(Date.new(2026, 10, 10), Time.zone.parse("2026-10-10 10:00"), [100.0, 0.0, 0.0, 0.0], nil)
+    legacy_snapshot = TeamGroupOddsHistory.new(
+      recorded_on: Date.new(2026, 10, 10),
+      captured_at: Time.zone.parse("2026-10-10 10:00"),
+      odds: [100.0, 0.0, 0.0, 0.0]
+    )
     histories = [legacy_snapshot, snapshot]
     histories.define_singleton_method(:order) { |*| self }
     team_group = Struct.new(:odds_histories).new(histories)
@@ -93,6 +98,7 @@ class ChampionshipControllerTest < Test::Unit::TestCase
     assert_equal "impossible", series_by_label.fetch("2nd").fetch("point_meta").last.fetch("reachability")
     assert_equal "reachable", series_by_label.fetch("3rd").fetch("point_meta").last.fetch("reachability")
     assert_equal "undecided", series_by_label.fetch("4th").fetch("point_meta").last.fetch("reachability")
+    assert_equal "reachable", series_by_label.fetch("1st").fetch("point_meta").first.fetch("reachability")
     assert_equal "undecided", series_by_label.fetch("2nd").fetch("point_meta").first.fetch("reachability")
 
     zone_odds = series_by_label.fetch("1st").fetch("point_meta").last.fetch("zone_odds")
