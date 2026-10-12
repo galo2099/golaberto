@@ -34,6 +34,7 @@ pub struct Context {
     ties: Vec<i32>,
     joint: HashMap<Vec<u8>, Option<JointProposal>>,
     joint_work: usize,
+    joint_work_spent: usize,
     joint_score_entries: usize,
     joint_exhausted: bool,
     joint_work_limit: usize,
@@ -47,6 +48,7 @@ impl Context {
             ties: Vec::with_capacity(m.n),
             joint: HashMap::new(),
             joint_work: 0,
+            joint_work_spent: 0,
             joint_score_entries: 0,
             joint_exhausted: false,
             joint_work_limit: MAX_JOINT_TOTAL_WORK,
@@ -58,6 +60,12 @@ impl Context {
             .saturating_mul(JOINT_PREPARATION_ALLOWANCE_PER_DRAW)
             .min(MAX_JOINT_TOTAL_WORK);
         context
+    }
+
+    /// Total proposal-preparation work actually charged to Operations,
+    /// including failed and rejected joint proposal builds.
+    pub(crate) fn joint_work_spent(&self) -> usize {
+        self.joint_work_spent
     }
 }
 #[derive(Clone)]
@@ -184,6 +192,9 @@ impl GoalTilt {
             .flatten()
             .map(|table| table.values.iter().map(Vec::len).sum::<usize>() + 6)
             .sum()
+    }
+    pub(crate) fn joint_preparation_enabled(&self) -> bool {
+        self.joint_enabled
     }
     pub fn new(m: &Model, cell: Cell) -> Option<Self> {
         if !Self::guidance_eligible(m) {
@@ -620,6 +631,7 @@ impl GoalTilt {
             let remaining = context.joint_work_limit.saturating_sub(context.joint_work);
             let proposal = self.joint_proposal(m, out, operations, remaining);
             let spent = operations.units().saturating_sub(before);
+            context.joint_work_spent = context.joint_work_spent.saturating_add(spent);
             let entries = proposal.as_ref().map_or(0, JointProposal::score_entries);
             if context.joint_work.saturating_add(spent) > context.joint_work_limit
                 || context.joint_work.saturating_add(spent) > MAX_JOINT_TOTAL_WORK
@@ -819,6 +831,15 @@ mod tests {
                 .unwrap();
         let model = Model::new(request).unwrap();
         let team = |id| model.indices[&id];
+        let proposal = GoalTilt::new(
+            &model,
+            Cell {
+                team: team(2694),
+                rank: 1,
+            },
+        )
+        .unwrap();
+        assert!(proposal.joint_preparation_enabled());
         let outcomes = [2, 2];
         let cb = model
             .score_guidance(&outcomes, team(2694), team(2688))
@@ -868,6 +889,7 @@ mod tests {
         let cell = Cell { team: 0, rank: 0 };
         let proposal = GoalTilt::new(&model, cell).unwrap();
         assert!(!proposal.joint_enabled);
+        assert!(!proposal.joint_preparation_enabled());
         let outcomes = vec![2; model.fixtures.len()];
         let mut joint_rng = Rng::new(808);
         let mut marginal_rng = Rng::new(808);
@@ -1019,6 +1041,7 @@ mod tests {
             &mut operations,
         );
         let spent = context.joint_work;
+        let charged_spent = context.joint_work_spent();
         let cached = context.joint.len();
         assert!(cached <= MAX_JOINT_PATH_CACHE);
         let _ = proposal.rank_with_operations(
@@ -1029,6 +1052,8 @@ mod tests {
             &mut operations,
         );
         assert_eq!(context.joint_work, spent);
+        assert_eq!(context.joint_work_spent(), charged_spent);
+        assert!(charged_spent >= spent);
         assert_eq!(context.joint.len(), cached);
         assert!(context.joint_work <= context.joint_work_limit);
 

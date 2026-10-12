@@ -234,6 +234,45 @@ fn odds_http_uses_default_family_fallback_and_honors_explicit_opt_out() {
 }
 
 #[test]
+fn odds_http_accepts_october_11_group_16653_snapshot_for_novorizontino() {
+    const REQUEST: &[u8] = include_bytes!("fixtures/group-16653-2026-10-11.json");
+    let service = Service::start();
+    let (status, body) = service.request("POST", "/odds", REQUEST, false);
+    assert_eq!(status, 200);
+    let payload: Value = serde_json::from_slice(&body).unwrap();
+
+    let position_row = payload["team_odds"]["2064"]["Pos"]
+        .as_array()
+        .expect("team 2064 position row should be an array");
+    assert_eq!(position_row.len(), 20);
+    let estimate = &payload["rare_position_estimates"]["2064"]["14"];
+    assert!(
+        estimate.is_object(),
+        "team 2064 fifteenth-place estimate should exist"
+    );
+    assert_eq!(estimate["reachability"], "reachable");
+    assert!(estimate["probability"].as_f64().unwrap() > 0.0);
+    assert_eq!(estimate["meets_precision_goal"], true);
+    assert!(estimate["relative_se"].as_f64().unwrap() <= 0.5);
+    assert!(estimate["ess"].as_f64().unwrap() >= 10.0);
+    assert_eq!(
+        position_row[14].as_f64().unwrap(),
+        estimate["probability"].as_f64().unwrap() * 100.0
+    );
+    assert!(
+        estimate["design"]
+            .as_str()
+            .unwrap()
+            .contains("gd_refinement")
+            || estimate["design"].as_str().unwrap().contains("gd_cohort")
+    );
+    assert_eq!(
+        position_row[14].as_f64().unwrap(),
+        estimate["probability"].as_f64().unwrap() * 100.0
+    );
+}
+
+#[test]
 fn odds_http_enables_default_target_overflow_tree_and_honors_production_opt_out() {
     const REQUEST: &[u8] = include_bytes!(
         "../../experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16498-44eabb47.json"

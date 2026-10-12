@@ -23,6 +23,7 @@ pub mod rescue;
 pub mod rng;
 pub mod sampling;
 pub mod search;
+pub(crate) mod score_integral;
 pub mod shared_constraints;
 pub mod outcome_stratification;
 pub mod sort;

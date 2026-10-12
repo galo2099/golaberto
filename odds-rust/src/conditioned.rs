@@ -4,7 +4,7 @@ use crate::{
     rng::Rng,
 };
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     hash::{BuildHasherDefault, Hasher},
 };
 // Packed integer DP keys only. Request strings continue using the standard hasher.
@@ -479,6 +479,36 @@ pub struct Result {
     pub batch_gap: f64,
     pub witness: Option<Vec<u8>>,
     pub omitted_draws: u64,
+    pub score_integral: ScoreIntegralStats,
+    pub score_integral_snapshot: Option<std::sync::Arc<ScoreIntegralSnapshot>>,
+}
+#[derive(Clone, Default, Debug)]
+pub struct ScoreIntegralStats {
+    pub calls: usize,
+    pub positive: usize,
+    pub fallbacks: usize,
+    pub cache_builds: usize,
+    pub cache_hits: usize,
+    pub prep_work: usize,
+    pub transitions: usize,
+    pub endpoint_scans: usize,
+    pub backward_work: usize,
+    pub query_work: usize,
+    pub query_work_reserved: usize,
+    pub index_cells: usize,
+    pub index_build_work: usize,
+    pub cache_paths: usize,
+    pub min_integrated_fixtures: Option<usize>,
+    pub max_integrated_fixtures: usize,
+    pub cohort_size_hist: BTreeMap<String, usize>,
+    pub cohort_calls: usize,
+    pub cohort_uses: usize,
+    pub cohort_shared_sampled: usize,
+    pub cohort_private_eligible: usize,
+    pub cohort_private_integrated: usize,
+    pub cohort_cache_paths: usize,
+    pub cohort_cache_cells: usize,
+    pub cohort_private_by_team: BTreeMap<String, (usize, usize)>,
 }
 impl Result {
     pub fn strict(&self) -> bool {
@@ -521,15 +551,191 @@ pub struct ScoreContext<'a> {
     campaign: Vec<Campaign>,
     scores: Vec<[i32; 2]>,
     order: Vec<usize>,
+    score_integral_preparation_work: usize,
+    score_integral_last_query_work: usize,
+    score_integral_last_query_reserved: usize,
+    score_integral_last_index_build_work: usize,
+    score_integral_last_endpoint_scans: usize,
+    cohort_gd_cache: ScoreIntegralCache,
+    cohort_gd_cache_cells: usize,
+    cohort_gd_preparation_work: usize,
+    cohort_gd_last_size: usize,
+    cohort_gd_last_shared: usize,
+    cohort_gd_last_eligible: usize,
+    cohort_gd_last_integrated: usize,
+    cohort_gd_last_team_counts: Vec<(i32, usize, usize)>,
+    cohort_gd_last_strict_mass: f64,
+    cohort_gd_last_residual_mass: f64,
+    cohort_gd_last_residual_rank_hit: bool,
 }
+#[derive(Clone, Debug, Hash, Eq, PartialEq)]
+struct ScoreIntegralKey {
+    target: usize,
+    caps: crate::score_integral::BuildCaps,
+    eligible: Vec<(usize, u8)>,
+}
+type ScoreIntegralCache =
+    std::collections::HashMap<ScoreIntegralKey, std::sync::Arc<CachedScoreIntegral>>;
+#[derive(Clone, Debug)]
+pub struct ScoreIntegralSnapshot {
+    model_identity: std::sync::Arc<()>,
+    cohort_gd_entries: ScoreIntegralCache,
+    cohort_gd_cells: usize,
+}
+#[derive(Debug)]
+struct CachedScoreIntegral {
+    kernels: Vec<crate::score_integral::JointKernel>,
+    dp: crate::score_integral::PrefixDp,
+    index: crate::score_integral::EndpointIndex,
+    index_build_work: usize,
+    endpoint_mass_scan: usize,
+}
+
+fn relative_fixture_score(
+    fixture: &crate::model::Fixture,
+    target: usize,
+    score: [i32; 2],
+    canonical: [i32; 2],
+) -> crate::score_integral::ScorePair {
+    let team_delta = |team: usize, score: [i32; 2]| -> (i32, i32) {
+        if team == fixture.home {
+            (score[0] - score[1], score[0])
+        } else if team == fixture.away {
+            (score[1] - score[0], score[1])
+        } else {
+            (0, 0)
+        }
+    };
+    let (target_gd, target_gf) = team_delta(target, score);
+    let (canonical_target_gd, canonical_target_gf) = team_delta(target, canonical);
+    crate::score_integral::ScorePair {
+        gd: target_gd - canonical_target_gd,
+        gf: target_gf - canonical_target_gf,
+        mass: 0.0,
+    }
+}
+
 impl<'a> ScoreContext<'a> {
     pub fn new(model: &'a Model) -> Self {
+        Self::with_score_integral_snapshot(model, None)
+    }
+    pub(crate) fn with_score_integral_snapshot(
+        model: &'a Model,
+        snapshot: Option<std::sync::Arc<ScoreIntegralSnapshot>>,
+    ) -> Self {
+        Self::with_score_integral_snapshot_and_cap(
+            model,
+            snapshot,
+            crate::score_integral::MAX_TOTAL_CELLS,
+        )
+    }
+    pub(crate) fn with_score_integral_snapshot_and_cap(
+        model: &'a Model,
+        snapshot: Option<std::sync::Arc<ScoreIntegralSnapshot>>,
+        max_cache_cells: usize,
+    ) -> Self {
+        Self::with_score_integral_snapshot_and_caps(
+            model,
+            snapshot,
+            max_cache_cells,
+            crate::score_integral::MAX_COHORT_GD_PATHS,
+        )
+    }
+    pub(crate) fn with_score_integral_snapshot_and_caps(
+        model: &'a Model,
+        snapshot: Option<std::sync::Arc<ScoreIntegralSnapshot>>,
+        max_cache_cells: usize,
+        max_cache_paths: usize,
+    ) -> Self {
+        let mut cohort_gd_cache = std::collections::HashMap::new();
+        let mut cohort_gd_cache_cells = 0;
+        if let Some(snapshot) = snapshot.as_ref() {
+            let identity = model.cache_identity();
+            if std::sync::Arc::ptr_eq(&snapshot.model_identity, &identity)
+                && snapshot.cohort_gd_entries.len() <= max_cache_paths
+                && snapshot.cohort_gd_cells <= max_cache_cells
+            {
+                cohort_gd_cache.clone_from(&snapshot.cohort_gd_entries);
+                cohort_gd_cache_cells = snapshot.cohort_gd_cells;
+            }
+        }
         Self {
             model,
             campaign: model.base.clone(),
             scores: model.empty_scores(),
             order: vec![0; model.n],
+            score_integral_preparation_work: 0,
+            score_integral_last_query_work: 0,
+            score_integral_last_query_reserved: 0,
+            score_integral_last_index_build_work: 0,
+            score_integral_last_endpoint_scans: 0,
+            cohort_gd_cache,
+            cohort_gd_cache_cells,
+            cohort_gd_preparation_work: 0,
+            cohort_gd_last_size: 0,
+            cohort_gd_last_shared: 0,
+            cohort_gd_last_eligible: 0,
+            cohort_gd_last_integrated: 0,
+            cohort_gd_last_team_counts: Vec::new(),
+            cohort_gd_last_strict_mass: 0.0,
+            cohort_gd_last_residual_mass: 0.0,
+            cohort_gd_last_residual_rank_hit: false,
         }
+    }
+    pub(crate) fn score_integral_snapshot(&self) -> Option<std::sync::Arc<ScoreIntegralSnapshot>> {
+        (!self.cohort_gd_cache.is_empty()).then(|| {
+            std::sync::Arc::new(ScoreIntegralSnapshot {
+                model_identity: self.model.cache_identity(),
+                cohort_gd_entries: self.cohort_gd_cache.clone(),
+                cohort_gd_cells: self.cohort_gd_cache_cells,
+            })
+        })
+    }
+    pub(crate) fn score_integral_preparation_work(&self) -> usize {
+        self.score_integral_preparation_work
+            .saturating_add(self.cohort_gd_preparation_work)
+    }
+    pub(crate) fn score_integral_last_query_work(&self) -> usize {
+        self.score_integral_last_query_work
+    }
+    pub(crate) fn score_integral_last_query_reserved(&self) -> usize {
+        self.score_integral_last_query_reserved
+    }
+    pub(crate) fn score_integral_last_index_build_work(&self) -> usize {
+        self.score_integral_last_index_build_work
+    }
+    pub(crate) fn score_integral_last_endpoint_scans(&self) -> usize {
+        self.score_integral_last_endpoint_scans
+    }
+    pub(crate) fn score_integral_index_cells(&self) -> usize {
+        self.cohort_gd_cache
+            .values()
+            .map(|cached| cached.index.retained_cells())
+            .sum()
+    }
+    pub(crate) fn score_integral_cache_paths(&self) -> usize {
+        self.cohort_gd_cache.len()
+    }
+    pub(crate) fn score_integral_cohort_stats(&self) -> (usize, usize, usize, usize) {
+        (
+            self.cohort_gd_last_size,
+            self.cohort_gd_last_shared,
+            self.cohort_gd_last_eligible,
+            self.cohort_gd_last_integrated,
+        )
+    }
+    pub(crate) fn cohort_gd_cache_stats(&self) -> (usize, usize) {
+        (self.cohort_gd_cache.len(), self.cohort_gd_cache_cells)
+    }
+    pub(crate) fn cohort_gd_team_counts(&self) -> &[(i32, usize, usize)] {
+        &self.cohort_gd_last_team_counts
+    }
+    pub(crate) fn cohort_gd_projection_stats(&self) -> (f64, f64, bool) {
+        (
+            self.cohort_gd_last_strict_mass,
+            self.cohort_gd_last_residual_mass,
+            self.cohort_gd_last_residual_rank_hit,
+        )
     }
     pub fn rank(
         &mut self,
@@ -552,7 +758,698 @@ impl<'a> ScoreContext<'a> {
             .standings(&mut self.order, &self.campaign, &self.scores, rng);
         self.order.iter().position(|t| *t == target).unwrap()
     }
+
+    /// Integrate the complete tied points/wins cohort over private fixture GD
+    /// prefixes. Cohort-cohort fixtures stay native and are sampled once;
+    /// each cohort member's disjoint private prefix is projected independently.
+    pub(crate) fn fraction_cohort_gd(
+        &mut self,
+        target: usize,
+        rank: usize,
+        outcomes: &[u8],
+        rng: &mut Rng,
+        operations: &mut crate::rare_tail::budget::Operations,
+        remaining_work: usize,
+        caps: crate::score_integral::BuildCaps,
+    ) -> Option<(f64, usize, usize, usize, usize, usize, bool)> {
+        self.fraction_cohort_gd_inner(
+            target,
+            rank,
+            outcomes,
+            rng,
+            operations,
+            remaining_work,
+            None,
+            false,
+            caps,
+        )
+    }
+
+    /// Bounded-query form used by the sampler's shared work pool. Prefix
+    /// preparation may populate reusable caches, but the guard runs before
+    /// any score RNG is consumed and before a scoreline is drawn.
+    pub(crate) fn fraction_cohort_gd_bounded(
+        &mut self,
+        target: usize,
+        rank: usize,
+        outcomes: &[u8],
+        rng: &mut Rng,
+        operations: &mut crate::rare_tail::budget::Operations,
+        remaining_prep: usize,
+        query_allowance: usize,
+        caps: crate::score_integral::BuildCaps,
+    ) -> Option<(f64, usize, usize, usize, usize, usize, bool)> {
+        self.fraction_cohort_gd_inner(
+            target,
+            rank,
+            outcomes,
+            rng,
+            operations,
+            remaining_prep,
+            Some(query_allowance),
+            false,
+            caps,
+        )
+    }
+
+    /// Bounded-query form backed by one shared preparation/query allowance.
+    /// Preparation is admitted first, then the residual query reserve must
+    /// fit in the allowance left by that preparation.
+    pub(crate) fn fraction_cohort_gd_bounded_total(
+        &mut self,
+        target: usize,
+        rank: usize,
+        outcomes: &[u8],
+        rng: &mut Rng,
+        operations: &mut crate::rare_tail::budget::Operations,
+        remaining_prep: usize,
+        remaining_total_work: usize,
+        caps: crate::score_integral::BuildCaps,
+    ) -> Option<(f64, usize, usize, usize, usize, usize, bool)> {
+        self.fraction_cohort_gd_inner(
+            target,
+            rank,
+            outcomes,
+            rng,
+            operations,
+            remaining_prep.min(remaining_total_work),
+            Some(remaining_total_work),
+            true,
+            caps,
+        )
+    }
+
+    fn fraction_cohort_gd_inner(
+        &mut self,
+        target: usize,
+        rank: usize,
+        outcomes: &[u8],
+        rng: &mut Rng,
+        operations: &mut crate::rare_tail::budget::Operations,
+        remaining_work: usize,
+        query_allowance: Option<usize>,
+        query_allowance_includes_prep: bool,
+        caps: crate::score_integral::BuildCaps,
+    ) -> Option<(f64, usize, usize, usize, usize, usize, bool)> {
+        use crate::model::Key;
+        use crate::score_integral::{JointKernel, PrefixDp, ScorePair};
+        self.cohort_gd_last_size = 0;
+        self.cohort_gd_last_shared = 0;
+        self.cohort_gd_last_eligible = 0;
+        self.cohort_gd_last_integrated = 0;
+        self.cohort_gd_last_team_counts.clear();
+        self.cohort_gd_last_strict_mass = 0.0;
+        self.cohort_gd_last_residual_mass = 0.0;
+        self.cohort_gd_last_residual_rank_hit = false;
+        self.score_integral_last_query_work = 0;
+        self.score_integral_last_query_reserved = 0;
+        self.score_integral_last_index_build_work = 0;
+        self.score_integral_last_endpoint_scans = 0;
+        let model = self.model;
+        if outcomes.len() != model.fixtures.len()
+            || target >= model.n
+            || !crate::score_integral::supported(model)
+        {
+            return None;
+        }
+        let gd_at = model.keys.iter().position(|key| *key == Key::Gd)?;
+        if model.keys.get(gd_at + 1) != Some(&Key::Gf) {
+            return None;
+        }
+        let prefix = &model.keys[..gd_at];
+        if prefix != [Key::Pt] && prefix != [Key::Pt, Key::W] {
+            return None;
+        }
+        if model.keys[gd_at + 2..].iter().any(|key| {
+            !matches!(
+                key,
+                Key::Gp | Key::Aet | Key::Bias | Key::Name | Key::Random | Key::Head
+            )
+        }) {
+            return None;
+        }
+        if outcomes.iter().any(|outcome| *outcome > 2) {
+            return None;
+        }
+
+        // Points and wins are determined by the common WDL path. This fixes
+        // the full tied cohort before any conditional goal score is sampled.
+        let mut cohort_stats = model.base.clone();
+        for (index, &outcome) in outcomes.iter().enumerate() {
+            model.add(&mut cohort_stats, index, canonical(outcome));
+        }
+        let use_wins = prefix.contains(&Key::W);
+        let anchor = (cohort_stats[target].points, cohort_stats[target].wins);
+        let tied: Vec<bool> = cohort_stats
+            .iter()
+            .map(|campaign| campaign.points == anchor.0 && (!use_wins || campaign.wins == anchor.1))
+            .collect();
+        let cohort: Vec<usize> = (0..model.n).filter(|&team| tied[team]).collect();
+        self.cohort_gd_last_size = cohort.len();
+        let classes_above = cohort_stats
+            .iter()
+            .filter(|campaign| {
+                campaign.points > anchor.0
+                    || (use_wins && campaign.points == anchor.0 && campaign.wins > anchor.1)
+            })
+            .count();
+        // Charge construction of the canonical points/wins state and the
+        // tied-cohort/rank scans even when a singleton or out-of-range rank
+        // returns before GD endpoint work starts.
+        let cohort_classification_work = outcomes.len().saturating_add(model.n.saturating_mul(4));
+        operations.guidance = operations
+            .guidance
+            .saturating_add(cohort_classification_work as u64);
+        if cohort.len() == 1 {
+            return Some((f64::from(classes_above == rank), 0, 0, 0, 0, 0, true));
+        }
+        if rank < classes_above || rank >= classes_above + cohort.len() {
+            return Some((0.0, 0, 0, 0, 0, 0, true));
+        }
+
+        let mut private_by_team = vec![Vec::<(usize, u8)>::new(); model.n];
+        let mut shared_fixtures = 0usize;
+        for (index, fixture) in model.fixtures.iter().enumerate() {
+            let home_tied = tied[fixture.home];
+            let away_tied = tied[fixture.away];
+            match (home_tied, away_tied) {
+                (true, false) => private_by_team[fixture.home].push((index, outcomes[index])),
+                (false, true) => private_by_team[fixture.away].push((index, outcomes[index])),
+                (true, true) => shared_fixtures += 1,
+                (false, false) => {}
+            }
+        }
+        self.cohort_gd_last_shared = shared_fixtures;
+        self.cohort_gd_last_eligible = cohort.iter().map(|&team| private_by_team[team].len()).sum();
+
+        // Prepare every cohort member before consuming score RNG. When any
+        // prefix is bounded by support/work/cell caps, the remaining private
+        // fixtures remain native for that member; the shared score path is
+        // still sampled only once after all preflight work.
+        let mut prepared_by_team = vec![None::<std::sync::Arc<CachedScoreIntegral>>; model.n];
+        let mut all_cache_hits = true;
+        let mut prep_delta = 0usize;
+        let mut transition_delta = 0usize;
+        let mut query_work = model.fixtures.len();
+        for &team in &cohort {
+            let eligible = &private_by_team[team];
+            if eligible.is_empty() {
+                continue;
+            }
+            let cache_key = ScoreIntegralKey {
+                target: team,
+                caps,
+                eligible: eligible.to_vec(),
+            };
+            if let Some(cached) = self.cohort_gd_cache.get(&cache_key).cloned() {
+                prepared_by_team[team] = Some(cached);
+                continue;
+            }
+            all_cache_hits = false;
+            if self.cohort_gd_cache.len() >= crate::score_integral::MAX_COHORT_GD_PATHS {
+                continue;
+            }
+            let cells_left = caps
+                .total_cells
+                .min(crate::score_integral::MAX_TOTAL_CELLS)
+                .saturating_sub(self.cohort_gd_cache_cells);
+            if cells_left == 0 {
+                continue;
+            }
+            let mut candidate_kernels = Vec::<JointKernel>::new();
+            let mut kernel_work = 0usize;
+            let team_work_limit = remaining_work.min(caps.work).saturating_sub(prep_delta);
+            let mut remaining = team_work_limit;
+            for &(fixture_index, outcome) in eligible {
+                if candidate_kernels.len() >= crate::score_integral::MAX_KERNELS {
+                    break;
+                }
+                if kernel_work > remaining {
+                    break;
+                }
+                let fixture = &model.fixtures[fixture_index];
+                let scan_budget = remaining.saturating_sub(kernel_work);
+                if scan_budget == 0 {
+                    break;
+                }
+                // Leave room for the support scan, grouping pass, and worst-
+                // case materialization before consuming the support iterator.
+                // The exact charge below is 2*S+K, where K is the number of
+                // distinct grouped GD values; 3*S is a safe preflight bound.
+                let support_limit = scan_budget
+                    .saturating_sub(1)
+                    .checked_div(3)
+                    .unwrap_or(0)
+                    .min(crate::score_integral::MAX_KERNEL_SUPPORT);
+                let support = fixture
+                    .scores
+                    .conditional_scores(outcome as usize)
+                    .take(support_limit.saturating_add(1))
+                    .collect::<Vec<_>>();
+                let scan_work = support.len();
+                if scan_work > support_limit
+                    || support.is_empty()
+                    || support.len() > crate::score_integral::MAX_KERNEL_SUPPORT
+                {
+                    kernel_work = kernel_work.saturating_add(scan_work);
+                    break;
+                }
+                // Grouping revisits every support row, then materializes K
+                // grouped endpoints. Reserve the full 3*S upper bound first.
+                if kernel_work.saturating_add(scan_work.saturating_mul(3)) > remaining {
+                    kernel_work = kernel_work.saturating_add(scan_work);
+                    break;
+                }
+                kernel_work = kernel_work.saturating_add(scan_work.saturating_mul(2));
+                let canonical_score = canonical(outcome);
+                let mut grouped = std::collections::BTreeMap::<i32, f64>::new();
+                for (score, mass) in support {
+                    let contribution =
+                        relative_fixture_score(fixture, team, score, canonical_score);
+                    *grouped.entry(contribution.gd).or_default() += mass;
+                }
+                let values = grouped
+                    .into_iter()
+                    .map(|(gd, mass)| ScorePair { gd, gf: 0, mass })
+                    .collect::<Vec<_>>();
+                kernel_work = kernel_work.saturating_add(values.len());
+                candidate_kernels.push(JointKernel {
+                    fixture: fixture_index,
+                    values,
+                });
+            }
+            remaining = remaining.saturating_sub(kernel_work);
+            let Some(dp) = PrefixDp::build_with_caps(
+                &candidate_kernels,
+                remaining,
+                cells_left,
+                caps.layer_cells
+                    .min(crate::score_integral::MAX_LAYER_CELLS)
+                    .min(crate::score_integral::MAX_COHORT_GD_ENDPOINTS),
+                caps.convolution
+                    .min(crate::score_integral::DEFAULT_BUILD_CAPS.convolution),
+            ) else {
+                prep_delta = prep_delta.saturating_add(kernel_work);
+                continue;
+            };
+            // PrefixDp may stop at a bounded prefix. Do not retain/build cache
+            // entries for kernels that were never represented in its layers.
+            candidate_kernels.truncate(dp.integrated);
+            transition_delta = transition_delta.saturating_add(dp.work);
+            if dp.integrated == 0 {
+                prep_delta = prep_delta.saturating_add(kernel_work + dp.work);
+                continue;
+            }
+            let prefix_cells = dp.layers.iter().map(|layer| layer.len()).sum::<usize>();
+            let endpoint_layer = dp.layers.last()?;
+            let endpoint_base = endpoint_layer.len().checked_next_power_of_two()?.max(1);
+            let estimated_index_work = endpoint_layer
+                .len()
+                .saturating_add(endpoint_base.saturating_mul(2));
+            let endpoint_mass_scan = endpoint_layer.len();
+            let estimated_total = kernel_work
+                .saturating_add(dp.work)
+                .saturating_add(estimated_index_work)
+                .saturating_add(endpoint_mass_scan);
+            if estimated_total > team_work_limit {
+                prep_delta = prep_delta.saturating_add(kernel_work + dp.work);
+                continue;
+            }
+            let Some((index, index_work)) =
+                crate::score_integral::EndpointIndex::build(endpoint_layer)
+            else {
+                prep_delta = prep_delta.saturating_add(kernel_work + dp.work);
+                continue;
+            };
+            let retained_cells = prefix_cells.saturating_add(index.retained_cells());
+            if retained_cells > cells_left {
+                prep_delta = prep_delta.saturating_add(kernel_work + dp.work + index_work);
+                continue;
+            }
+            let total_work = kernel_work
+                .saturating_add(dp.work)
+                .saturating_add(index_work)
+                .saturating_add(endpoint_mass_scan);
+            let mut total_mass = 0.0;
+            for mass in endpoint_layer.values() {
+                total_mass += *mass;
+            }
+            if total_work > team_work_limit
+                || !total_mass.is_finite()
+                || (total_mass - 1.0).abs() > 1e-10
+            {
+                prep_delta = prep_delta.saturating_add(total_work);
+                continue;
+            }
+            let cached = std::sync::Arc::new(CachedScoreIntegral {
+                kernels: candidate_kernels,
+                dp,
+                index,
+                index_build_work: index_work,
+                endpoint_mass_scan,
+            });
+            self.cohort_gd_cache_cells += retained_cells;
+            self.cohort_gd_cache.insert(cache_key, cached.clone());
+            prepared_by_team[team] = Some(cached);
+            prep_delta = prep_delta.saturating_add(total_work);
+        }
+        self.cohort_gd_preparation_work =
+            self.cohort_gd_preparation_work.saturating_add(prep_delta);
+        operations.guidance = operations.guidance.saturating_add(prep_delta as u64);
+
+        let integrated_fixtures: std::collections::HashSet<usize> = cohort
+            .iter()
+            .filter_map(|&team| prepared_by_team[team].as_ref())
+            .flat_map(|prepared| prepared.kernels[..prepared.dp.integrated].iter())
+            .map(|kernel| kernel.fixture)
+            .collect();
+        self.cohort_gd_last_integrated = integrated_fixtures.len();
+        if integrated_fixtures.is_empty() {
+            return None;
+        }
+
+        if query_allowance.is_some() {
+            let target_position = cohort
+                .iter()
+                .position(|&team| team == target)
+                .expect("target belongs to its own points/wins cohort");
+            let target_prepared = prepared_by_team[cohort[target_position]].as_ref();
+            let target_support = target_prepared
+                .and_then(|prepared| prepared.dp.layers.last())
+                .map_or(1, |layer| layer.len());
+            let rival_supports = cohort
+                .iter()
+                .enumerate()
+                .filter(|(position, _)| *position != target_position)
+                .map(|(_, &team)| {
+                    prepared_by_team[team]
+                        .as_ref()
+                        .map_or(1, |prepared| prepared.index.len())
+                })
+                .collect::<Vec<_>>();
+            let integrated_kernel_costs = cohort
+                .iter()
+                .filter_map(|&team| prepared_by_team[team].as_ref())
+                .flat_map(|prepared| prepared.kernels[..prepared.dp.integrated].iter())
+                .map(|kernel| {
+                    kernel.values.len().saturating_mul(2).saturating_add(
+                        model.fixtures[kernel.fixture]
+                            .scores
+                            .conditional_support_len(outcomes[kernel.fixture] as usize)
+                            .saturating_mul(3),
+                    )
+                })
+                .collect::<Vec<_>>();
+            // This allowance also meters the per-query vector traversal used
+            // to form the bound; cap it using only the realized fixture/cohort
+            // sizes and charge it before deciding whether sampling may begin.
+            let bookkeeping_work = model
+                .fixtures
+                .len()
+                .saturating_mul(2)
+                .saturating_add(cohort.len().saturating_mul(4));
+            let reserved = crate::score_integral::cohort_gd_prepared_query_work_upper_bound(
+                target_support,
+                &rival_supports,
+                model.fixtures.len(),
+                &integrated_kernel_costs,
+                bookkeeping_work,
+            );
+            operations.guidance = operations.guidance.saturating_add(bookkeeping_work as u64);
+            let prep_charge = if query_allowance_includes_prep {
+                prep_delta
+            } else {
+                0
+            };
+            if reserved.saturating_add(prep_charge)
+                > query_allowance.expect("bounded query allowance was supplied")
+            {
+                return None;
+            }
+            self.score_integral_last_query_reserved = reserved;
+        }
+        for &team in &cohort {
+            let integrated = prepared_by_team[team]
+                .as_ref()
+                .map_or(0, |prepared| prepared.dp.integrated);
+            self.cohort_gd_last_team_counts.push((
+                model.ids[team],
+                private_by_team[team].len(),
+                integrated,
+            ));
+        }
+
+        // Draw every common/shared and nonintegrated score once. Integrated
+        // private fixtures get their canonical placeholder contribution.
+        self.campaign.clone_from(&model.base);
+        for (index, fixture) in model.fixtures.iter().enumerate() {
+            let score = if integrated_fixtures.contains(&index) {
+                canonical(outcomes[index])
+            } else {
+                operations.fixtures += 1;
+                fixture.scores.sample(outcomes[index] as usize, rng)
+            };
+            self.scores[fixture.request_index] = score;
+            model.add(&mut self.campaign, index, score);
+        }
+
+        // Reuse each prepared team's cached positive GD index. A nonintegrated
+        // team has the identity private projection, represented by one shared
+        // endpoint/index for this query. Strict and residual weights share
+        // one set of interval classifications per target endpoint.
+        let identity_layer = std::collections::BTreeMap::from([((0, 0), 1.0)]);
+        let (identity_index, identity_index_work) =
+            crate::score_integral::EndpointIndex::build(&identity_layer)
+                .expect("one-cell identity endpoint index is representable");
+        let target_position = cohort
+            .iter()
+            .position(|&team| team == target)
+            .expect("target belongs to its own points/wins cohort");
+        let target_team = cohort[target_position];
+        let target_base_gd = self.campaign[target_team].gf - self.campaign[target_team].ga;
+        let target_layer = prepared_by_team[target_team]
+            .as_ref()
+            .and_then(|prepared| prepared.dp.layers.last())
+            .unwrap_or(&identity_layer);
+        let mut rivals = Vec::with_capacity(cohort.len().saturating_sub(1));
+        for (position, &team) in cohort.iter().enumerate() {
+            if position == target_position {
+                continue;
+            }
+            let base_gd = self.campaign[team].gf - self.campaign[team].ga;
+            let index = prepared_by_team[team]
+                .as_ref()
+                .map(|prepared| &prepared.index)
+                .unwrap_or(&identity_index);
+            rivals.push((base_gd, index));
+        }
+        let strict_count = rank
+            .checked_sub(classes_above)
+            .expect("target rank is inside its points/wins cohort");
+        let projection = crate::score_integral::cohort_gd::project_indexed(
+            target_layer,
+            target_base_gd,
+            &rivals,
+            strict_count,
+        );
+        let residual_total = projection.residual;
+        self.cohort_gd_last_strict_mass = projection.strict;
+        self.cohort_gd_last_residual_mass = residual_total;
+        let residual_choices = projection.residual_choices;
+        query_work = query_work
+            .saturating_add(identity_index_work)
+            .saturating_add(projection.query_work);
+        operations.guidance = operations.guidance.saturating_add(query_work as u64);
+        self.score_integral_last_query_work = query_work;
+
+        let mut backward_work = 0usize;
+        let mut residual_indicator = 0.0;
+        if residual_total > 0.0 {
+            let mut draw = rng.float() * residual_total;
+            let (target_gd, first_equal) = residual_choices
+                .iter()
+                .find(|(_, _, weight)| {
+                    draw -= *weight;
+                    draw < 0.0
+                })
+                .map(|(gd, rival, _)| (*gd, *rival))
+                .or_else(|| residual_choices.last().map(|(gd, rival, _)| (*gd, *rival)))
+                .expect("positive residual mass has a first-equal configuration");
+            let choice_scan_work = residual_choices.len();
+            query_work = query_work.saturating_add(choice_scan_work);
+            self.score_integral_last_query_work = query_work;
+            operations.guidance = operations.guidance.saturating_add(choice_scan_work as u64);
+            let mut desired_gd = vec![0i32; cohort.len()];
+            desired_gd[target_position] = target_gd;
+            let mut residual_rng_work = 0usize;
+            for position in 0..cohort.len() {
+                if position == target_position {
+                    continue;
+                }
+                let rival_pos = if position < target_position {
+                    position
+                } else {
+                    position - 1
+                };
+                let team = cohort[position];
+                let base_gd = self.campaign[team].gf - self.campaign[team].ga;
+                let gd_layer = prepared_by_team[team]
+                    .as_ref()
+                    .and_then(|prepared| prepared.dp.layers.last())
+                    .unwrap_or(&identity_layer);
+                let condition = if rival_pos < first_equal {
+                    0 // any GD except target
+                } else if rival_pos == first_equal {
+                    1 // equal GD
+                } else {
+                    2 // unrestricted
+                };
+                let mut total = 0.0;
+                for (&(delta_gd, _), &mass) in gd_layer {
+                    let gd = base_gd + delta_gd;
+                    if (condition == 0 && gd != target_gd)
+                        || (condition == 1 && gd == target_gd)
+                        || condition == 2
+                    {
+                        total += mass;
+                    }
+                }
+                if total <= 0.0 {
+                    panic!("selected residual configuration has positive conditional mass");
+                }
+                let mut value = rng.float() * total;
+                let mut selected = None;
+                let mut selection_scan_work = 0usize;
+                for (&(delta_gd, _), &mass) in gd_layer {
+                    let gd = base_gd + delta_gd;
+                    selection_scan_work = selection_scan_work.saturating_add(1);
+                    if (condition == 0 && gd != target_gd)
+                        || (condition == 1 && gd == target_gd)
+                        || condition == 2
+                    {
+                        value -= mass;
+                        if value < 0.0 {
+                            selected = Some(gd);
+                            break;
+                        }
+                    }
+                }
+                desired_gd[position] = selected.unwrap_or_else(|| {
+                    gd_layer
+                        .iter()
+                        .rev()
+                        .find_map(|(&(delta_gd, _), _)| {
+                            let gd = base_gd + delta_gd;
+                            ((condition == 0 && gd != target_gd)
+                                || (condition == 1 && gd == target_gd)
+                                || condition == 2)
+                                .then_some(gd)
+                        })
+                        .expect("positive conditional GD mass has a support value")
+                });
+                residual_rng_work = residual_rng_work
+                    .saturating_add(gd_layer.len())
+                    .saturating_add(selection_scan_work);
+            }
+            for (position, &team) in cohort.iter().enumerate() {
+                let Some(prepared) = prepared_by_team[team].as_ref() else {
+                    continue;
+                };
+                let base_gd = self.campaign[team].gf - self.campaign[team].ga;
+                let endpoint = (desired_gd[position] - base_gd, 0);
+                if prepared.dp.integrated == 0 {
+                    continue;
+                }
+                let used = &prepared.kernels[..prepared.dp.integrated];
+                let path = prepared
+                    .dp
+                    .sample_path(used, endpoint, rng)
+                    .expect("positive cohort GD endpoint has a DP backtrack path");
+                backward_work = backward_work.saturating_add(
+                    used.iter()
+                        .map(|kernel| kernel.values.len().saturating_mul(2))
+                        .sum::<usize>(),
+                );
+                for (kernel, &(gd, _)) in used.iter().zip(path.iter()) {
+                    let fixture = &model.fixtures[kernel.fixture];
+                    let canonical_score = canonical(outcomes[kernel.fixture]);
+                    let mut support = Vec::new();
+                    let mut support_scan_work = 0usize;
+                    for (score, mass) in fixture
+                        .scores
+                        .conditional_scores(outcomes[kernel.fixture] as usize)
+                    {
+                        support_scan_work = support_scan_work.saturating_add(1);
+                        let contribution =
+                            relative_fixture_score(fixture, team, score, canonical_score);
+                        if contribution.gd == gd {
+                            support.push((score, mass));
+                        }
+                    }
+                    let total: f64 = support.iter().map(|(_, mass)| *mass).sum();
+                    if total <= 0.0 {
+                        panic!("positive cohort GD backtrack contribution has score support");
+                    }
+                    let mut value = rng.float() * total;
+                    let mut selection_scan_work = 0usize;
+                    let score = support
+                        .iter()
+                        .find(|(_, mass)| {
+                            selection_scan_work = selection_scan_work.saturating_add(1);
+                            value -= *mass;
+                            value < 0.0
+                        })
+                        .or_else(|| support.last())
+                        .map(|(score, _)| *score)
+                        .expect("positive cohort GD backtrack has a scoreline");
+                    self.scores[fixture.request_index] = score;
+                    backward_work = backward_work
+                        .saturating_add(support_scan_work)
+                        .saturating_add(support.len())
+                        .saturating_add(selection_scan_work);
+                }
+            }
+            self.campaign.clone_from(&model.base);
+            for (index, fixture) in model.fixtures.iter().enumerate() {
+                model.add(
+                    &mut self.campaign,
+                    index,
+                    self.scores[fixture.request_index],
+                );
+            }
+            operations.guidance = operations
+                .guidance
+                .saturating_add(model.fixtures.len() as u64);
+            model.standings(&mut self.order, &self.campaign, &self.scores, rng);
+            let actual_rank = self
+                .order
+                .iter()
+                .position(|&team| team == target)
+                .expect("target appears in native standings");
+            if actual_rank == rank {
+                residual_indicator = 1.0;
+                self.cohort_gd_last_residual_rank_hit = true;
+            }
+            backward_work = backward_work.saturating_add(residual_rng_work);
+            operations.guidance = operations.guidance.saturating_add(backward_work as u64);
+        }
+        self.score_integral_last_query_work = query_work;
+        let all_cache_hit = all_cache_hits
+            && cohort
+                .iter()
+                .all(|&team| private_by_team[team].is_empty() || prepared_by_team[team].is_some());
+        Some((
+            projection.strict + residual_total * residual_indicator,
+            prep_delta,
+            self.cohort_gd_last_integrated,
+            transition_delta,
+            query_work,
+            backward_work,
+            all_cache_hit,
+        ))
+    }
 }
+
 pub fn canonical(outcome: u8) -> [i32; 2] {
     match outcome {
         0 => [0, 1],
@@ -576,6 +1473,853 @@ pub fn canonical_ranks(model: &Model, outcomes: &[u8]) -> Vec<usize> {
         ranks[t] = r;
     }
     ranks
+}
+
+#[cfg(test)]
+mod analytic_score_tests {
+    use super::*;
+    use crate::model::{Championship, Game, Phase, Request, Team};
+
+    fn fixture_model(sort: &str, target_points: i32, rival_points: i32) -> Model {
+        Model::new(Request {
+            id: 42,
+            zones: vec![],
+            phase: Phase {
+                sort: sort.into(),
+                championship: Championship {
+                    point_win: 3,
+                    point_draw: 1,
+                    point_loss: 0,
+                },
+                bonus_points: 0,
+                bonus_points_threshold: 0,
+            },
+            games: vec![Game {
+                id: 1,
+                home_id: 1,
+                away_id: 3,
+                home_score: 0,
+                away_score: 0,
+                home_power: 1.2,
+                away_power: 0.9,
+                played: false,
+            }],
+            team_groups: vec![
+                Team {
+                    team_id: 1,
+                    add_sub: target_points,
+                    bias: 0,
+                },
+                Team {
+                    team_id: 2,
+                    add_sub: rival_points,
+                    bias: 0,
+                },
+                Team {
+                    team_id: 3,
+                    add_sub: 0,
+                    bias: 0,
+                },
+            ],
+        })
+        .unwrap()
+    }
+
+    fn cohort_caps() -> crate::score_integral::BuildCaps {
+        crate::score_integral::DEFAULT_BUILD_CAPS
+    }
+
+    fn cohort_snapshot_model() -> Model {
+        Model::new(Request {
+            id: 43,
+            zones: vec![],
+            phase: Phase {
+                sort: "pt,gd,gf,bias".into(),
+                championship: Championship {
+                    point_win: 3,
+                    point_draw: 1,
+                    point_loss: 0,
+                },
+                bonus_points: 0,
+                bonus_points_threshold: 0,
+            },
+            games: vec![
+                Game {
+                    id: 1,
+                    home_id: 1,
+                    away_id: 3,
+                    home_score: 0,
+                    away_score: 0,
+                    home_power: 1.2,
+                    away_power: 0.9,
+                    played: false,
+                },
+                Game {
+                    id: 2,
+                    home_id: 4,
+                    away_id: 2,
+                    home_score: 0,
+                    away_score: 0,
+                    home_power: 0.8,
+                    away_power: 1.0,
+                    played: false,
+                },
+            ],
+            team_groups: vec![
+                Team {
+                    team_id: 1,
+                    add_sub: 0,
+                    bias: 0,
+                },
+                Team {
+                    team_id: 2,
+                    add_sub: 0,
+                    bias: 0,
+                },
+                Team {
+                    team_id: 3,
+                    add_sub: 0,
+                    bias: 0,
+                },
+                Team {
+                    team_id: 4,
+                    add_sub: -100,
+                    bias: 0,
+                },
+            ],
+        })
+        .unwrap()
+    }
+
+    fn cohort_two_private_fixtures_per_team_model() -> Model {
+        Model::new(Request {
+            id: 44,
+            zones: vec![],
+            phase: Phase {
+                sort: "pt,gd,gf,bias".into(),
+                championship: Championship {
+                    point_win: 3,
+                    point_draw: 1,
+                    point_loss: 0,
+                },
+                bonus_points: 0,
+                bonus_points_threshold: 0,
+            },
+            games: vec![(1, 3), (1, 4), (2, 5), (2, 6)]
+                .into_iter()
+                .enumerate()
+                .map(|(index, (home_id, away_id))| Game {
+                    id: index as i32 + 1,
+                    home_id,
+                    away_id,
+                    home_score: 0,
+                    away_score: 0,
+                    home_power: if home_id == 1 || home_id == 2 {
+                        1.2
+                    } else {
+                        0.9
+                    },
+                    away_power: if home_id == 1 || home_id == 2 {
+                        0.9
+                    } else {
+                        1.2
+                    },
+                    played: false,
+                })
+                .collect(),
+            team_groups: (1..=6)
+                .map(|team_id| Team {
+                    team_id,
+                    add_sub: if team_id >= 3 { -100 } else { 0 },
+                    bias: 0,
+                })
+                .collect(),
+        })
+        .unwrap()
+    }
+
+    #[test]
+    fn head_is_supported_only_after_adjacent_gd_gf() {
+        let supported = fixture_model("pt,w,gd,gf,head", 0, 3);
+        assert!(crate::score_integral::supported(&supported));
+        for sort in ["pt,head,gd,gf", "pt,gd,head,gf", "pt,gf,gd,head"] {
+            let unsupported = fixture_model(sort, 0, 3);
+            assert!(
+                !crate::score_integral::supported(&unsupported),
+                "unsupported Head placement {sort}"
+            );
+        }
+    }
+
+    #[test]
+    fn head_suffix_cohort_matches_exhaustive_contextual_points_grouping() {
+        fn exact_probability(model: &Model, outcomes: &[u8]) -> f64 {
+            fn visit(
+                model: &Model,
+                outcomes: &[u8],
+                index: usize,
+                scores: &mut [[i32; 2]],
+                mass: f64,
+                total: &mut f64,
+            ) {
+                if index == model.fixtures.len() {
+                    let mut campaign = model.base.clone();
+                    for (fixture_index, fixture) in model.fixtures.iter().enumerate() {
+                        model.add(&mut campaign, fixture_index, scores[fixture.request_index]);
+                    }
+                    let mut order = vec![0; model.n];
+                    model.standings(&mut order, &campaign, scores, &mut Rng::new(17));
+                    if order[0] == 0 {
+                        *total += mass;
+                    }
+                    return;
+                }
+                let fixture = &model.fixtures[index];
+                for (score, probability) in
+                    fixture.scores.conditional_scores(outcomes[index] as usize)
+                {
+                    scores[fixture.request_index] = score;
+                    visit(
+                        model,
+                        outcomes,
+                        index + 1,
+                        scores,
+                        mass * probability,
+                        total,
+                    );
+                }
+            }
+
+            let mut scores = model.empty_scores();
+            let mut total = 0.0;
+            visit(model, outcomes, 0, &mut scores, 1.0, &mut total);
+            total
+        }
+
+        let model = Model::new(Request {
+            id: 45,
+            zones: vec![],
+            phase: Phase {
+                sort: "pt,w,gd,gf,head".into(),
+                championship: Championship {
+                    point_win: 3,
+                    point_draw: 1,
+                    point_loss: 0,
+                },
+                bonus_points: 0,
+                bonus_points_threshold: 0,
+            },
+            games: vec![
+                Game {
+                    id: 1,
+                    home_id: 1,
+                    away_id: 3,
+                    home_score: 0,
+                    away_score: 0,
+                    home_power: 0.8,
+                    away_power: 0.8,
+                    played: false,
+                },
+                Game {
+                    id: 2,
+                    home_id: 2,
+                    away_id: 3,
+                    home_score: 0,
+                    away_score: 0,
+                    home_power: 0.8,
+                    away_power: 0.8,
+                    played: false,
+                },
+                Game {
+                    id: 3,
+                    home_id: 1,
+                    away_id: 4,
+                    home_score: 0,
+                    away_score: 0,
+                    home_power: 0.8,
+                    away_power: 0.8,
+                    played: false,
+                },
+                Game {
+                    id: 4,
+                    home_id: 2,
+                    away_id: 4,
+                    home_score: 0,
+                    away_score: 0,
+                    home_power: 0.8,
+                    away_power: 0.8,
+                    played: false,
+                },
+            ],
+            team_groups: vec![
+                Team {
+                    team_id: 1,
+                    add_sub: 0,
+                    bias: 0,
+                },
+                Team {
+                    team_id: 2,
+                    add_sub: 0,
+                    bias: 0,
+                },
+                Team {
+                    team_id: 3,
+                    add_sub: 4,
+                    bias: 0,
+                },
+                Team {
+                    team_id: 4,
+                    add_sub: -10,
+                    bias: 0,
+                },
+            ],
+        })
+        .unwrap();
+        let outcomes = [2, 2, 1, 1];
+        let mut canonical_campaign = model.base.clone();
+        for (index, &outcome) in outcomes.iter().enumerate() {
+            model.add(&mut canonical_campaign, index, canonical(outcome));
+        }
+        assert_eq!(canonical_campaign[0].points, canonical_campaign[1].points);
+        assert_eq!(canonical_campaign[0].wins, canonical_campaign[1].wins);
+        assert_eq!(canonical_campaign[2].points, canonical_campaign[0].points);
+        assert_ne!(canonical_campaign[2].wins, canonical_campaign[0].wins);
+
+        // This finite scoreline makes the leading Pt/W/GD/GF keys tie A and
+        // B. The points-only Head mini-table also includes C, whose wins differ
+        // from the integrated cohort, and ranks B above A on its head GF.
+        let mut witness_scores = model.empty_scores();
+        for (fixture, score) in [[1, 0], [2, 1], [1, 1], [0, 0]].into_iter().enumerate() {
+            witness_scores[model.fixtures[fixture].request_index] = score;
+        }
+        let mut witness_campaign = model.base.clone();
+        for (fixture_index, fixture) in model.fixtures.iter().enumerate() {
+            model.add(
+                &mut witness_campaign,
+                fixture_index,
+                witness_scores[fixture.request_index],
+            );
+        }
+        assert_eq!(witness_campaign[0].points, witness_campaign[1].points);
+        assert_eq!(witness_campaign[0].wins, witness_campaign[1].wins);
+        assert_eq!(
+            witness_campaign[0].gf - witness_campaign[0].ga,
+            witness_campaign[1].gf - witness_campaign[1].ga
+        );
+        assert_eq!(witness_campaign[0].gf, witness_campaign[1].gf);
+        let mut head_order = vec![0; model.n];
+        model.standings(
+            &mut head_order,
+            &witness_campaign,
+            &witness_scores,
+            &mut Rng::new(18),
+        );
+        let mut no_head_request = model.request.clone();
+        no_head_request.phase.sort = "pt,w,gd,gf".into();
+        let no_head = Model::new(no_head_request).unwrap();
+        let mut no_head_order = vec![0; no_head.n];
+        no_head.standings(
+            &mut no_head_order,
+            &witness_campaign,
+            &witness_scores,
+            &mut Rng::new(18),
+        );
+        assert_eq!(head_order[0], 1, "contextual Head ranks B over A");
+        assert_eq!(
+            no_head_order[0], 0,
+            "without Head the stable tie keeps A first"
+        );
+
+        let exact = exact_probability(&model, &outcomes);
+        let trials = 2_000;
+        let mut estimate = 0.0;
+        let mut integrated = 0;
+        let mut context = ScoreContext::new(&model);
+        for seed in 0..trials {
+            let mut operations = crate::rare_tail::budget::Operations::default();
+            let sample = context
+                .fraction_cohort_gd_bounded(
+                    0,
+                    0,
+                    &outcomes,
+                    &mut Rng::new(seed + 80_000),
+                    &mut operations,
+                    crate::score_integral::MAX_WORK,
+                    usize::MAX,
+                    cohort_caps(),
+                )
+                .expect("Head after GD/GF is supported");
+            integrated = sample.2;
+            estimate += sample.0;
+            let classification_work = outcomes.len().saturating_add(model.n.saturating_mul(4));
+            let query_side_work = operations
+                .units()
+                .saturating_sub(sample.1)
+                .saturating_sub(classification_work);
+            assert!(
+                query_side_work <= context.score_integral_last_query_reserved(),
+                "query/backtrack/rebuild work {query_side_work} exceeds reserved {} at seed {seed}",
+                context.score_integral_last_query_reserved()
+            );
+        }
+        estimate /= trials as f64;
+        assert!(integrated > 0, "private goal scores should be integrated");
+        assert!(
+            (estimate - exact).abs() < 0.06,
+            "contextual Head estimate={estimate}, exhaustive oracle={exact}"
+        );
+    }
+
+    #[test]
+    fn cohort_snapshot_reuse_preserves_rng_and_uses_separate_path_cap() {
+        let model = cohort_snapshot_model();
+        let outcomes = [1, 1];
+        let mut pilot = ScoreContext::new(&model);
+        let mut pilot_ops = crate::rare_tail::budget::Operations::default();
+        pilot
+            .fraction_cohort_gd(
+                0,
+                0,
+                &outcomes,
+                &mut Rng::new(301),
+                &mut pilot_ops,
+                crate::score_integral::MAX_WORK,
+                cohort_caps(),
+            )
+            .expect("pilot cohort projection is supported");
+        let snapshot = pilot.score_integral_snapshot().unwrap_or_else(|| {
+            panic!(
+                "cohort cache snapshot missing; stats={:?}, team_counts={:?}, cache={:?}",
+                pilot.score_integral_cohort_stats(),
+                pilot.cohort_gd_team_counts(),
+                pilot.cohort_gd_cache_stats()
+            )
+        });
+        assert_eq!(snapshot.cohort_gd_entries.len(), 1);
+
+        let mut cold = ScoreContext::new(&model);
+        let mut cold_ops = crate::rare_tail::budget::Operations::default();
+        let mut cold_rng = Rng::new(302);
+        let cold_fraction = cold
+            .fraction_cohort_gd(
+                0,
+                0,
+                &outcomes,
+                &mut cold_rng,
+                &mut cold_ops,
+                crate::score_integral::MAX_WORK,
+                cohort_caps(),
+            )
+            .unwrap();
+        let cold_next = cold_rng.float();
+
+        let mut hot = ScoreContext::with_score_integral_snapshot_and_caps(
+            &model,
+            Some(snapshot.clone()),
+            crate::score_integral::MAX_TOTAL_CELLS,
+            crate::score_integral::MAX_COHORT_GD_PATHS,
+        );
+        let mut hot_ops = crate::rare_tail::budget::Operations::default();
+        let mut hot_rng = Rng::new(302);
+        let hot_fraction = hot
+            .fraction_cohort_gd(
+                0,
+                0,
+                &outcomes,
+                &mut hot_rng,
+                &mut hot_ops,
+                crate::score_integral::MAX_WORK,
+                cohort_caps(),
+            )
+            .unwrap();
+        assert!(hot_fraction.6, "imported cohort projections should hit");
+        assert_eq!(hot_fraction.0.to_bits(), cold_fraction.0.to_bits());
+        assert_eq!(hot_rng.float().to_bits(), cold_next.to_bits());
+
+        let (key, entry) = snapshot.cohort_gd_entries.iter().next().unwrap();
+        let mut too_many_paths = (*snapshot).clone();
+        for added in 0..=crate::score_integral::MAX_COHORT_GD_PATHS {
+            too_many_paths.cohort_gd_entries.insert(
+                ScoreIntegralKey {
+                    target: key.target + 10_000 + added,
+                    caps: key.caps,
+                    eligible: key.eligible.clone(),
+                },
+                entry.clone(),
+            );
+        }
+        let rejected = ScoreContext::with_score_integral_snapshot_and_caps(
+            &model,
+            Some(std::sync::Arc::new(too_many_paths)),
+            crate::score_integral::MAX_TOTAL_CELLS,
+            crate::score_integral::MAX_COHORT_GD_PATHS,
+        );
+        assert!(rejected.cohort_gd_cache.is_empty());
+    }
+
+    #[test]
+    fn model_replacement_rejects_snapshot_even_at_same_storage_address() {
+        let mut model = cohort_snapshot_model();
+        let outcomes = [1, 1];
+        let mut source = ScoreContext::new(&model);
+        let mut source_ops = crate::rare_tail::budget::Operations::default();
+        source
+            .fraction_cohort_gd(
+                0,
+                0,
+                &outcomes,
+                &mut Rng::new(303),
+                &mut source_ops,
+                crate::score_integral::MAX_WORK,
+                cohort_caps(),
+            )
+            .expect("source model admits cohort integration");
+        let snapshot = source.score_integral_snapshot().unwrap();
+
+        let mut request = model.request.clone();
+        request.games[0].home_power += 0.25;
+        model = Model::new(request).unwrap();
+        let cold = ScoreContext::with_score_integral_snapshot_and_caps(
+            &model,
+            Some(snapshot),
+            crate::score_integral::MAX_TOTAL_CELLS,
+            crate::score_integral::MAX_COHORT_GD_PATHS,
+        );
+        assert!(cold.cohort_gd_cache.is_empty());
+    }
+
+    #[test]
+    fn zero_integrated_private_prefix_returns_before_consuming_score_rng() {
+        let model = cohort_two_private_fixtures_per_team_model();
+        let outcomes = [2, 0, 0, 2];
+        let mut caps = cohort_caps();
+        caps.work = 0;
+        let mut context = ScoreContext::new(&model);
+        let mut operations = crate::rare_tail::budget::Operations::default();
+        let mut rng = Rng::new(304);
+        let mut untouched = Rng::new(304);
+        assert!(context
+            .fraction_cohort_gd(0, 0, &outcomes, &mut rng, &mut operations, 0, caps)
+            .is_none());
+        assert_eq!(rng.float().to_bits(), untouched.float().to_bits());
+    }
+
+    #[test]
+    fn cohort_zero_setup_budget_returns_to_native_fallback_without_rng_use() {
+        let model = fixture_model("pt,gd,gf,bias", 0, 1);
+        let outcomes = [1];
+        let mut context = ScoreContext::new(&model);
+        let mut operations = crate::rare_tail::budget::Operations::default();
+        let mut rng = Rng::new(991);
+        let mut untouched = Rng::new(991);
+        assert!(context
+            .fraction_cohort_gd(0, 0, &outcomes, &mut rng, &mut operations, 0, cohort_caps())
+            .is_none());
+        assert_eq!(rng.float().to_bits(), untouched.float().to_bits());
+        assert_eq!(operations.fixtures, 0);
+    }
+
+    #[test]
+    fn cohort_small_setup_budget_returns_to_native_fallback_without_rng_use() {
+        let model = cohort_snapshot_model();
+        let outcomes = [1, 1];
+        let mut context = ScoreContext::new(&model);
+        let mut operations = crate::rare_tail::budget::Operations::default();
+        let mut rng = Rng::new(992);
+        let mut untouched = Rng::new(992);
+        assert!(context
+            .fraction_cohort_gd(0, 0, &outcomes, &mut rng, &mut operations, 5, cohort_caps())
+            .is_none());
+        assert_eq!(rng.float().to_bits(), untouched.float().to_bits());
+        assert_eq!(operations.fixtures, 0);
+        assert!(context.score_integral_preparation_work() <= 5);
+    }
+
+    #[test]
+    fn bounded_cohort_query_rejects_before_rng_and_bounds_partial_cache_backtracking() {
+        let model = cohort_two_private_fixtures_per_team_model();
+        let outcomes = [2, 0, 0, 2];
+        for fixture in &model.fixtures {
+            for outcome in 0..3 {
+                assert_eq!(
+                    fixture.scores.conditional_support_len(outcome),
+                    fixture.scores.conditional_scores(outcome).count()
+                );
+            }
+        }
+        let mut context = ScoreContext::new(&model);
+        let mut operations = crate::rare_tail::budget::Operations::default();
+        let mut denied_rng = Rng::new(3041);
+        let mut untouched = Rng::new(3041);
+        assert!(context
+            .fraction_cohort_gd_bounded(
+                0,
+                0,
+                &outcomes,
+                &mut denied_rng,
+                &mut operations,
+                crate::score_integral::MAX_WORK,
+                0,
+                cohort_caps(),
+            )
+            .is_none());
+        assert_eq!(denied_rng.float().to_bits(), untouched.float().to_bits());
+        assert_eq!(context.score_integral_last_query_reserved(), 0);
+        assert_eq!(context.score_integral_last_query_work(), 0);
+        assert!(context.score_integral_cache_paths() > 0);
+
+        let mut accepted_rng = Rng::new(3041);
+        let fixture_units_before = operations.fixtures;
+        let (.., backward_work, _) = context
+            .fraction_cohort_gd_bounded(
+                0,
+                0,
+                &outcomes,
+                &mut accepted_rng,
+                &mut operations,
+                crate::score_integral::MAX_WORK,
+                usize::MAX,
+                cohort_caps(),
+            )
+            .expect("cached partial prefixes fit an unbounded query allowance");
+        let reserved = context.score_integral_last_query_reserved();
+        let bookkeeping = model
+            .fixtures
+            .len()
+            .saturating_mul(2)
+            .saturating_add(context.cohort_gd_last_size.saturating_mul(4));
+        assert!(
+            context
+                .score_integral_last_query_work()
+                .saturating_add(backward_work)
+                .saturating_add(model.fixtures.len())
+                .saturating_add((operations.fixtures - fixture_units_before) as usize * 8)
+                .saturating_add(bookkeeping)
+                <= reserved,
+            "actual query/backtrack work plus bound bookkeeping must fit the reservation"
+        );
+    }
+
+    #[test]
+    fn shared_cohort_allowance_spends_prep_before_query_and_reuses_it() {
+        let model = cohort_two_private_fixtures_per_team_model();
+        let outcomes = [2, 0, 0, 2];
+        let mut pilot = ScoreContext::new(&model);
+        let mut pilot_operations = crate::rare_tail::budget::Operations::default();
+        let pilot_result = pilot
+            .fraction_cohort_gd_bounded(
+                0,
+                0,
+                &outcomes,
+                &mut Rng::new(4091),
+                &mut pilot_operations,
+                crate::score_integral::MAX_WORK,
+                usize::MAX,
+                cohort_caps(),
+            )
+            .expect("pilot measures the cold preparation and query reserve");
+        let cold_prep = pilot_result.1;
+        let query_reserve = pilot.score_integral_last_query_reserved();
+        let total_allowance = cold_prep.saturating_add(query_reserve);
+        assert!(cold_prep > 0 && query_reserve > 0);
+
+        let mut denied = ScoreContext::new(&model);
+        let mut denied_ops = crate::rare_tail::budget::Operations::default();
+        let mut denied_rng = Rng::new(4092);
+        let mut untouched = Rng::new(4092);
+        assert!(denied
+            .fraction_cohort_gd_bounded_total(
+                0,
+                0,
+                &outcomes,
+                &mut denied_rng,
+                &mut denied_ops,
+                crate::score_integral::MAX_WORK,
+                total_allowance.saturating_sub(1),
+                cohort_caps(),
+            )
+            .is_none());
+        assert_eq!(denied_rng.float().to_bits(), untouched.float().to_bits());
+        assert!(denied.score_integral_cache_paths() > 0);
+        assert_eq!(denied.score_integral_last_query_reserved(), 0);
+
+        let mut accepted = ScoreContext::new(&model);
+        let mut accepted_ops = crate::rare_tail::budget::Operations::default();
+        let accepted_result = accepted
+            .fraction_cohort_gd_bounded_total(
+                0,
+                0,
+                &outcomes,
+                &mut Rng::new(4092),
+                &mut accepted_ops,
+                crate::score_integral::MAX_WORK,
+                total_allowance,
+                cohort_caps(),
+            )
+            .expect("unused preparation allowance is available to the query");
+        assert!(
+            accepted_result
+                .1
+                .saturating_add(accepted.score_integral_last_query_reserved())
+                <= total_allowance
+        );
+    }
+
+    #[test]
+    fn cohort_grouping_charge_counts_scan_group_and_materialization_exactly() {
+        let model = cohort_snapshot_model();
+        let outcomes = [1, 1];
+        let mut context = ScoreContext::new(&model);
+        let mut operations = crate::rare_tail::budget::Operations::default();
+        let fraction = context
+            .fraction_cohort_gd(
+                0,
+                0,
+                &outcomes,
+                &mut Rng::new(994),
+                &mut operations,
+                crate::score_integral::MAX_WORK,
+                cohort_caps(),
+            )
+            .expect("full private prefix setup succeeds");
+
+        let mut expected = 0usize;
+        for (key, prepared) in &context.cohort_gd_cache {
+            for &(fixture_index, outcome) in &key.eligible {
+                let fixture = &model.fixtures[fixture_index];
+                let support = fixture
+                    .scores
+                    .conditional_scores(outcome as usize)
+                    .collect::<Vec<_>>();
+                let mut grouped = std::collections::BTreeSet::new();
+                for (score, _) in &support {
+                    grouped.insert(
+                        relative_fixture_score(fixture, key.target, *score, canonical(outcome)).gd,
+                    );
+                }
+                // One support enumeration, one grouping visit per support
+                // row, and one materialized value per distinct GD endpoint.
+                expected += 2 * support.len() + grouped.len();
+            }
+            expected += prepared.dp.work + prepared.index_build_work + prepared.endpoint_mass_scan;
+        }
+        assert_eq!(context.cohort_gd_cache.len(), 1);
+        assert_eq!(fraction.1, expected, "setup ledger must charge exact 2*S+K");
+        assert!(operations.units() >= fraction.1 + fraction.4 + fraction.5);
+    }
+
+    #[test]
+    fn cohort_partial_and_zero_prefixes_do_not_retain_unused_kernels() {
+        let model = cohort_two_private_fixtures_per_team_model();
+        let outcomes = [2, 0, 0, 2];
+        let mut full_caps = cohort_caps();
+        let kernel_sizes = (0..2)
+            .map(|team| {
+                let first_fixture = team * 2;
+                let mut sizes = [0; 2];
+                for (offset, outcome) in [
+                    if team == 0 { 2usize } else { 0usize },
+                    if team == 0 { 0usize } else { 2usize },
+                ]
+                .into_iter()
+                .enumerate()
+                {
+                    let fixture = &model.fixtures[first_fixture + offset];
+                    let mut endpoints = std::collections::BTreeSet::new();
+                    for (score, _) in fixture.scores.conditional_scores(outcome) {
+                        endpoints.insert(
+                            relative_fixture_score(fixture, team, score, canonical(outcome as u8))
+                                .gd,
+                        );
+                    }
+                    sizes[offset] = endpoints.len();
+                }
+                sizes
+            })
+            .collect::<Vec<_>>();
+        assert!(kernel_sizes
+            .iter()
+            .all(|sizes| sizes.iter().all(|size| *size > 1)));
+        full_caps.convolution = kernel_sizes.iter().map(|sizes| sizes[0]).max().unwrap();
+        assert!(kernel_sizes
+            .iter()
+            .all(|sizes| sizes[0] * sizes[1] > full_caps.convolution));
+        let mut partial_context = ScoreContext::new(&model);
+        let partial_result = partial_context
+            .fraction_cohort_gd(
+                0,
+                0,
+                &outcomes,
+                &mut Rng::new(995),
+                &mut crate::rare_tail::budget::Operations::default(),
+                crate::score_integral::MAX_WORK,
+                full_caps,
+            )
+            .expect("bounded partial prefix keeps a native conditional draw");
+        assert!(
+            partial_result.2 > 0,
+            "the first private fixture fits the prefix"
+        );
+        assert!(
+            partial_result.2 < 4,
+            "the second private fixture exceeds convolution cap"
+        );
+        assert_eq!(partial_context.score_integral_cohort_stats(), (2, 0, 4, 2));
+        assert_eq!(partial_context.cohort_gd_cache.len(), 2);
+        for prepared in partial_cache_values(&partial_context) {
+            assert_eq!(prepared.dp.integrated, 1);
+            assert_eq!(prepared.kernels.len(), 1);
+            assert_eq!(prepared.kernels.len(), prepared.dp.integrated);
+        }
+
+        let mut zero_caps = cohort_caps();
+        zero_caps.layer_cells = 1;
+        let mut zero = ScoreContext::new(&model);
+        let mut zero_rng = Rng::new(996);
+        let mut untouched_rng = Rng::new(996);
+        assert!(zero
+            .fraction_cohort_gd(
+                0,
+                0,
+                &outcomes,
+                &mut zero_rng,
+                &mut crate::rare_tail::budget::Operations::default(),
+                crate::score_integral::MAX_WORK,
+                zero_caps,
+            )
+            .is_none());
+        assert_eq!(zero_rng.float().to_bits(), untouched_rng.float().to_bits());
+        assert_eq!(zero.score_integral_cohort_stats(), (2, 0, 4, 0));
+        assert_eq!(zero.cohort_gd_cache.len(), 0);
+    }
+
+    fn partial_cache_values<'a, 'b>(context: &'a ScoreContext<'b>) -> Vec<&'a CachedScoreIntegral> {
+        context
+            .cohort_gd_cache
+            .values()
+            .map(std::sync::Arc::as_ref)
+            .collect()
+    }
+
+    #[test]
+    fn cohort_early_rank_returns_charge_canonical_cohort_scans() {
+        let model = fixture_model("pt,gd,gf,bias", 100, -100);
+        let mut context = ScoreContext::new(&model);
+        let mut operations = crate::rare_tail::budget::Operations::default();
+        let result = context
+            .fraction_cohort_gd(
+                0,
+                1,
+                &[1],
+                &mut Rng::new(993),
+                &mut operations,
+                crate::score_integral::MAX_WORK,
+                cohort_caps(),
+            )
+            .expect("singleton tied cohort has a definite rank");
+        assert_eq!(result.0, 0.0);
+        assert!(operations.guidance >= (model.fixtures.len() + model.n * 4) as u64);
+    }
 }
 pub fn stride(model: &Model, stage: &str) -> i32 {
     let mode = std::env::var("RARE_POSITION_WIN_AWARE_RANK").unwrap_or("lookahead".into());

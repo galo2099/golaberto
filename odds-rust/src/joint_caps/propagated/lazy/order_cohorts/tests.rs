@@ -383,7 +383,7 @@ fn overlapping_expected_cohorts_can_be_sampled_within_the_pilot_grant() {
     assert!(plan.families.values().any(|families| families.len() > 1));
 
     let requested = 12;
-    let grant = crate::rare_tail::budget::ordered_draw_upper_cost(&m);
+    let grant = plan.order_native_draw_upper_work(&m).saturating_mul(3);
     let pilot = plan.sample_order_pilot(&m, requested, 991, grant);
     assert!(pilot.samples > 0);
     assert!(

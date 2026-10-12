@@ -75,6 +75,7 @@ pub struct Scores {
     pub prob: [f64; 3],
     values: [Vec<([i32; 2], f64)>; 3],
     lookup: Box<[[u32; 256]; 3]>,
+    conditional_support_len: [usize; 3],
 }
 impl Scores {
     pub fn new(home: f64, away: f64) -> Self {
@@ -118,12 +119,53 @@ impl Scores {
                 i as u32
             })
         });
+        let conditional_support_len = std::array::from_fn(|outcome| {
+            values[outcome]
+                .iter()
+                .enumerate()
+                .filter(|(index, (_, cdf))| {
+                    let previous = if *index == 0 {
+                        0.0
+                    } else {
+                        values[outcome][index - 1].1
+                    };
+                    *cdf > previous
+                })
+                .count()
+        });
         Self {
             prob,
             values,
             lookup: Box::new(lookup),
+            conditional_support_len,
         }
     }
+
+    /// Number of positive-mass rows in the native conditional CDF for one WDL.
+    /// This lets bounded backtracking account for score-support scans without
+    /// enumerating the score rows during every query.
+    pub(crate) fn conditional_support_len(&self, outcome: usize) -> usize {
+        self.conditional_support_len[outcome.min(2)]
+    }
+
+    /// Enumerate the conditional masses represented by the sampler's CDF.
+    /// Adjacent differences reproduce the native conditional score choices,
+    /// including its forced terminal CDF value.
+    pub(crate) fn conditional_scores(
+        &self,
+        outcome: usize,
+    ) -> impl Iterator<Item = ([i32; 2], f64)> + '_ {
+        let values = &self.values[outcome];
+        values
+            .iter()
+            .enumerate()
+            .filter_map(move |(index, (score, cdf))| {
+                let previous = if index == 0 { 0.0 } else { values[index - 1].1 };
+                let mass = *cdf - previous;
+                (mass > 0.0).then_some((*score, mass))
+            })
+    }
+
     #[inline]
     pub fn sample(&self, outcome: usize, rng: &mut Rng) -> [i32; 2] {
         let v = &self.values[outcome];

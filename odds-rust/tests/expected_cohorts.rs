@@ -27,6 +27,17 @@ fn run(
     logging: &str,
     expected_cohorts: Option<&str>,
 ) -> (Vec<u8>, Vec<Value>) {
+    run_seed(request, output, workers, logging, expected_cohorts, 808)
+}
+
+fn run_seed(
+    request: &PathBuf,
+    output: &PathBuf,
+    workers: usize,
+    logging: &str,
+    expected_cohorts: Option<&str>,
+    seed: i64,
+) -> (Vec<u8>, Vec<Value>) {
     let mut command = clean_command();
     command.env("RUST_ODDS_LOG", logging);
     if let Some(setting) = expected_cohorts {
@@ -36,7 +47,7 @@ fn run(
         .arg("estimate")
         .arg(request)
         .arg(output)
-        .arg("808")
+        .arg(seed.to_string())
         .arg(workers.to_string())
         .output()
         .unwrap();
@@ -51,6 +62,59 @@ fn run(
         .filter_map(|line| serde_json::from_str(line).ok())
         .collect();
     (fs::read(output).unwrap(), logs)
+}
+
+#[test]
+fn native_recovery_preserves_original_rare_positive_cells_for_seed_13001() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let request = root.join("tests/fixtures/group-16498-expected-cohorts.json");
+    let dir = OutputDir(std::env::temp_dir().join(format!(
+        "golaberto-expected-cohorts-seed-13001-{}",
+        std::process::id()
+    )));
+    fs::create_dir(&dir.0).unwrap();
+
+    let (bytes, logs) = run_seed(
+        &request,
+        &dir.0.join("seed-13001.json"),
+        4,
+        "1",
+        None,
+        13001,
+    );
+    let response = validate_response(&bytes);
+    for (team, rank, baseline) in [("16", "13", 2.746e-25), ("17", "12", 1.311e-33)] {
+        let probability = response["rare_position_estimates"][team][rank]["probability"]
+            .as_f64()
+            .unwrap();
+        assert!(
+            probability > 0.0,
+            "team {team} rank {rank} lost its positive estimate"
+        );
+        assert!(
+            (baseline / 50.0..=baseline * 50.0).contains(&probability),
+            "team {team} rank {rank} estimate {probability:e} diverged from baseline {baseline:e}"
+        );
+    }
+    let summary = logs
+        .iter()
+        .find(|event| event["event"] == "rust_odds_expected_cohorts_summary")
+        .unwrap();
+    let pairs = logs
+        .iter()
+        .filter(|event| event["event"] == "rust_odds_expected_cohorts_pair")
+        .collect::<Vec<_>>();
+    assert_eq!(summary["selected"].as_u64().unwrap() as usize, pairs.len());
+    assert_eq!(summary["forecast_capacity"], summary["reserve"]);
+    assert!(
+        summary["actual_work"].as_u64().unwrap() <= summary["forecast_capacity"].as_u64().unwrap()
+    );
+    let stages = logs
+        .iter()
+        .filter(|event| event["event"] == "rust_odds_expected_cohorts_pass_summary")
+        .filter_map(|event| event["stage"].as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(stages, vec!["native_recovery", "gd_refinement"]);
 }
 
 fn validate_response(bytes: &[u8]) -> Value {

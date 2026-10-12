@@ -744,7 +744,18 @@ fn run_logged_inner(
         let selection = select_donors(model, &donors);
         if selection.admitted.is_empty() {
             report_donor_selection(log, &selection, 0, false);
-            return 0;
+            let baseline = estimates.to_vec();
+            let (found, spent) = crate::rare_tail::run_late_positive_refinement(
+                model, seed, workers, estimates, log,
+            );
+            let reconciled = found > 0 && reconcile(model, estimates, &baseline);
+            if let Some(log) = log {
+                log.event(
+                    "rust_odds_search_positive_cohort_refinement",
+                    serde_json::json!({"found":found,"reconciled":reconciled,"work":spent}),
+                );
+            }
+            return spent;
         }
     }
     let Some(pmfs) = crate::pool::point_pmfs(model) else {
@@ -796,9 +807,20 @@ fn run_logged_inner(
     );
     if cells.is_empty() {
         if donors.is_empty() {
+            let baseline = estimates.to_vec();
+            let (found, spent) = crate::rare_tail::run_late_positive_refinement(
+                model, seed, workers, estimates, log,
+            );
+            let reconciled = found > 0 && reconcile(model, estimates, &baseline);
+            if let Some(log) = log {
+                log.event(
+                    "rust_odds_search_positive_cohort_refinement",
+                    serde_json::json!({"found":found,"reconciled":reconciled,"work":spent,"path":"no_zero_cells_no_donors"}),
+                );
+            }
             let packed = packed_witness_fallback(model, estimates);
             report("packed_witness", serde_json::json!(packed));
-            return 0;
+            return spent;
         }
         let (found, spent) = run_tail_with_donors(
             model,
@@ -1296,6 +1318,37 @@ fn reset_donor_for_tail(est: &mut Estimate) {
     est.conditional_hits = 0;
 }
 
+fn donor_estimate_dominates(candidate: &Estimate, baseline: &Estimate) -> bool {
+    let candidate_rse = if candidate.probability > 0.0 {
+        candidate.std_err / candidate.probability
+    } else {
+        f64::INFINITY
+    };
+    let baseline_rse = if baseline.probability > 0.0 {
+        baseline.std_err / baseline.probability
+    } else {
+        f64::INFINITY
+    };
+    candidate.probability.is_finite()
+        && candidate.probability > 0.0
+        && candidate.ess.is_finite()
+        && candidate.ess > baseline.ess
+        && candidate_rse.is_finite()
+        && candidate_rse < baseline_rse
+}
+
+fn should_restore_tail_donor(
+    candidate: &Estimate,
+    baseline: &Estimate,
+    gd_refinement: bool,
+) -> bool {
+    if gd_refinement {
+        !donor_estimate_dominates(candidate, baseline)
+    } else {
+        candidate.probability <= 0.0
+    }
+}
+
 struct DonorSelection {
     admitted: Vec<(usize, Estimate)>,
     deferred: Vec<(usize, Estimate)>,
@@ -1443,10 +1496,21 @@ fn run_tail_with_donors(
         estimates[*index] = donor.clone();
         reset_donor_for_tail(&mut estimates[*index]);
     }
-    let (found, spent) =
-        crate::rare_tail::run(model, seed, workers, estimates, log, seasons, elapsed_ms);
+    let positive_baselines = selection.admitted.clone();
+    let (found, spent) = crate::rare_tail::run_with_positive_baselines(
+        model,
+        seed,
+        workers,
+        estimates,
+        log,
+        seasons,
+        elapsed_ms,
+        Some(&positive_baselines),
+    );
+    let gd_refinement = crate::rare_tail::positive_refinement_enabled(model);
     for (index, donor) in &selection.admitted {
-        if estimates[*index].probability <= 0. {
+        let candidate = &estimates[*index];
+        if should_restore_tail_donor(candidate, donor, gd_refinement) {
             estimates[*index] = donor.clone();
         }
     }
@@ -1476,7 +1540,7 @@ fn reconcile(model: &Model, estimates: &mut [Estimate], baseline: &[Estimate]) -
 
 #[cfg(test)]
 mod donor_preflight_tests {
-    use super::select_donors_for_profile;
+    use super::{donor_estimate_dominates, select_donors_for_profile, should_restore_tail_donor};
     use crate::{
         model::{Model, Request},
         pool::Estimate,
@@ -1498,6 +1562,44 @@ mod donor_preflight_tests {
                 )
             })
             .collect()
+    }
+
+    #[test]
+    fn donor_refinement_baseline_requires_both_ess_and_relative_error_to_improve() {
+        let baseline = Estimate {
+            probability: 1e-5,
+            std_err: 0.5e-5,
+            ess: 20.0,
+            ..Estimate::default()
+        };
+        let better = Estimate {
+            probability: 1.1e-5,
+            std_err: 0.22e-5,
+            ess: 25.0,
+            ..Estimate::default()
+        };
+        let weak_rse = Estimate {
+            std_err: 0.6e-5,
+            ess: 40.0,
+            ..better.clone()
+        };
+        let lower_ess = Estimate {
+            std_err: 0.1e-5,
+            ess: 19.0,
+            ..better.clone()
+        };
+        assert!(donor_estimate_dominates(&better, &baseline));
+        assert!(!donor_estimate_dominates(&weak_rse, &baseline));
+        assert!(!donor_estimate_dominates(&lower_ess, &baseline));
+        assert!(!donor_estimate_dominates(&Estimate::default(), &baseline));
+        assert!(should_restore_tail_donor(
+            &Estimate::default(),
+            &baseline,
+            false
+        ));
+        assert!(!should_restore_tail_donor(&weak_rse, &baseline, false));
+        assert!(should_restore_tail_donor(&weak_rse, &baseline, true));
+        assert!(!should_restore_tail_donor(&better, &baseline, true));
     }
 
     fn assert_large_group_is_deferred(source: &str) {

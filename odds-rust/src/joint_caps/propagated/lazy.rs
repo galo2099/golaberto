@@ -195,6 +195,7 @@ pub struct LazyJoint {
     guide_limit: usize,
     guides: HashMap<Vec<(usize, [u64; 3])>, Arc<Guide>>,
     early_rank_diagnostics: Option<serde_json::Value>,
+    order_score_gd_cohort: bool,
 }
 impl LazyJoint {
     pub fn with_early_rank(
@@ -456,6 +457,7 @@ impl LazyJoint {
             guide_limit: 4000000,
             guides: HashMap::new(),
             early_rank_diagnostics: None,
+            order_score_gd_cohort: false,
         };
         let mut seen = std::collections::HashSet::new();
         let mut keys = Vec::new();
@@ -1945,7 +1947,154 @@ impl LazyJoint {
         )
     }
     pub fn sample(&self, m: &Model, samples: usize, seed: i64) -> Result {
-        self.sample_internal(m, samples, seed, None, None, None)
+        self.sample_internal_limited(m, samples, seed, None, None, None, None, None, false)
+    }
+    pub(crate) fn set_order_score_mode(&mut self, mode: &str) {
+        self.order_score_gd_cohort = mode == "analytic_gd_cohort";
+    }
+    pub(crate) fn order_score_analytic_enabled(&self) -> bool {
+        self.order_score_gd_cohort
+    }
+    fn pattern_draw_upper_work(
+        pattern: &Pattern,
+        cardinality: bool,
+        dynamic: usize,
+        rank: usize,
+    ) -> usize {
+        let teams = pattern.base.len();
+        let guide_games = pattern.guide.games.len();
+        let cardinality = cardinality && !pattern.bound_guidance;
+        let needed = if rank > (teams - 1) / 2 {
+            teams - 1 - rank
+        } else {
+            rank
+        };
+        let mut guidance = pattern
+            .fixed
+            .len()
+            .saturating_add(4usize.saturating_mul(teams))
+            .saturating_add(3usize.saturating_mul(pattern.joint.selected.len()));
+        let mut fixtures = pattern
+            .omitted
+            .len()
+            .saturating_add(pattern.joint.games.len());
+        if !cardinality && !pattern.bound_guidance {
+            guidance = guidance.saturating_add(8usize.saturating_mul(teams.saturating_sub(1)));
+        }
+        for step in 0..guide_games {
+            fixtures = fixtures.saturating_add(1);
+            // 36 unconditional transition units and at most 18 for each of
+            // the three outcomes considered by the guided kernel.
+            guidance = guidance.saturating_add(90);
+            if dynamic > 0 && step % dynamic == 0 {
+                let remaining = guide_games - step;
+                guidance = guidance.saturating_add(
+                    remaining
+                        .saturating_mul(teams.saturating_sub(1))
+                        .saturating_mul(6),
+                );
+            }
+            if cardinality {
+                // Bound each rival's cardinality update by a full scan of the
+                // largest possible count support plus its outcome transition.
+                guidance = guidance.saturating_add(
+                    teams
+                        .saturating_sub(1)
+                        .saturating_mul(needed.saturating_add(2)),
+                );
+            }
+        }
+        fixtures.saturating_mul(8).saturating_add(guidance)
+    }
+
+    /// Conservative proposal-specific upper bound for one native draw. It
+    /// follows the actual sampled root/family alternatives rather than the
+    /// global five-component, all-team cardinality envelope.
+    pub(crate) fn order_native_draw_upper_work(&self, m: &Model) -> usize {
+        let cardinality = crate::rare_tail::value("RUST_ODDS_LAZY_GUIDE") == "cardinality";
+        let dynamic = std::env::var("RUST_ODDS_LAZY_PROPAGATE")
+            .ok()
+            .and_then(|value| value.parse::<usize>().ok())
+            .unwrap_or(0);
+        let reconstruct = 8usize.saturating_mul(m.fixtures.len().saturating_add(m.n));
+        let mut root_upper = 0usize;
+        for (key, pattern) in &self.roots {
+            let Some(pattern) = pattern else { continue };
+            let base = Self::pattern_draw_upper_work(pattern, cardinality, dynamic, self.cell.rank);
+            let path = if let Some(families) = self.families.get(key) {
+                let replay = families.iter().fold(0usize, |total, (_, family, _)| {
+                    total.saturating_add(Self::pattern_draw_upper_work(
+                        family,
+                        cardinality,
+                        dynamic,
+                        self.cell.rank,
+                    ))
+                });
+                base.saturating_add(replay)
+                    .saturating_add(reconstruct)
+                    .saturating_add(families.len().saturating_mul(m.n.saturating_sub(1)))
+            } else if let Some(cases) = self.cases.get(key) {
+                let case_work = cases.patterns.iter().fold(0usize, |total, (_, case, _)| {
+                    total.saturating_add(Self::pattern_draw_upper_work(
+                        case,
+                        cardinality,
+                        dynamic,
+                        self.cell.rank,
+                    ))
+                });
+                base.saturating_mul(2).saturating_add(case_work)
+            } else if let Some(other) = self.biased.get(key).or_else(|| self.alternates.get(key)) {
+                base.saturating_add(Self::pattern_draw_upper_work(
+                    other,
+                    cardinality,
+                    dynamic,
+                    self.cell.rank,
+                ))
+            } else {
+                base
+            };
+            root_upper = root_upper.max(path);
+        }
+        let fallback_upper = self.fallback.as_ref().map_or(
+            self.remaining.len().saturating_mul(8),
+            |(joint, guide)| {
+                let fallback = Pattern {
+                    bias: None,
+                    fixed: Vec::new(),
+                    omitted: Vec::new(),
+                    base: self.base.clone(),
+                    lower: vec![i32::MIN / 4; m.n],
+                    upper: vec![i32::MAX / 4; m.n],
+                    guide: guide.clone(),
+                    joint: joint.clone(),
+                    mass: 1.0,
+                    tilt: 1.0,
+                    cumulative: 1.0,
+                    bound_guidance: false,
+                };
+                self.remaining.len().saturating_mul(8).saturating_add(
+                    Self::pattern_draw_upper_work(&fallback, cardinality, dynamic, self.cell.rank),
+                )
+            },
+        );
+        let sampler = root_upper.max(fallback_upper);
+        let goal_density = if crate::rare_tail::value("RUST_ODDS_LAZY_GOALS") == "1"
+            && crate::goal_tilt::GoalTilt::joint_guidance_may_fit_for_any_target(m)
+            && self.goals.is_some()
+        {
+            m.fixtures
+                .len()
+                .saturating_mul(crate::goal_tilt::JOINT_DENSITY_WORK_PER_FIXTURE)
+        } else {
+            0
+        };
+        sampler
+            .saturating_add(8usize.saturating_mul(self.target.games.len()))
+            .saturating_add(goal_density)
+            .saturating_add(
+                8 * m.fixtures.len()
+                    + m.n * (m.n.max(2).ilog2() as usize + 1) * m.keys.len().max(1),
+            )
     }
     /// Capped sample path reserved for independent setup pilots. Ordinary
     /// main and check streams continue through the uncapped path above.
@@ -1956,7 +2105,80 @@ impl LazyJoint {
         seed: i64,
         work_limit: usize,
     ) -> Result {
-        self.sample_internal_limited(m, samples, seed, None, None, None, Some(work_limit))
+        // GD pilots use a complete, pre-admitted prefix. Native pilots keep
+        // their requested count and admit one draw at a time against actual
+        // remaining work, preserving the historical partial-pilot behavior.
+        let analytic_enabled = self.order_score_gd_cohort && crate::score_integral::supported(m);
+        if !analytic_enabled {
+            return self.sample_internal_limited(
+                m,
+                samples,
+                seed,
+                None,
+                None,
+                None,
+                Some(work_limit),
+                None,
+                true,
+            );
+        }
+        let per_draw = self
+            .order_native_draw_upper_work(m)
+            .saturating_add(if analytic_enabled {
+                m.fixtures
+                    .len()
+                    .saturating_mul(3)
+                    .saturating_add(m.n.saturating_mul(8))
+            } else {
+                0
+            })
+            .saturating_add(
+                if self
+                    .goals
+                    .as_ref()
+                    .is_some_and(crate::goal_tilt::GoalTilt::joint_preparation_enabled)
+                {
+                    crate::goal_tilt::JOINT_PREPARATION_ALLOWANCE_PER_DRAW
+                } else {
+                    0
+                },
+            );
+        let effective_samples = if per_draw == 0 {
+            samples
+        } else {
+            samples.min(work_limit / per_draw)
+        };
+        self.sample_internal_limited(
+            m,
+            effective_samples,
+            seed,
+            None,
+            None,
+            None,
+            Some(work_limit),
+            None,
+            false,
+        )
+    }
+    pub(crate) fn sample_order_limited_with_snapshot(
+        &self,
+        m: &Model,
+        samples: usize,
+        seed: i64,
+        work_limit: usize,
+        snapshot: Option<Arc<crate::conditioned::ScoreIntegralSnapshot>>,
+    ) -> Result {
+        self.sample_internal_limited(
+            m,
+            samples,
+            seed,
+            None,
+            None,
+            None,
+            Some(work_limit),
+            snapshot,
+            false,
+        )
     }
     /// Experiment-only collection of corrected target-event contributions.
     /// Collection is observational: it does not consume RNG or change weights.
@@ -1969,7 +2191,17 @@ impl LazyJoint {
         families: Option<&mut FamilyMoments>,
         native_families: Option<(&mut FamilyMoments, usize, usize)>,
     ) -> Result {
-        self.sample_internal_limited(m, samples, seed, moments, families, native_families, None)
+        self.sample_internal_limited(
+            m,
+            samples,
+            seed,
+            moments,
+            families,
+            native_families,
+            None,
+            None,
+            false,
+        )
     }
     fn sample_internal_limited(
         &self,
@@ -1980,6 +2212,8 @@ impl LazyJoint {
         mut families: Option<&mut FamilyMoments>,
         mut native_families: Option<(&mut FamilyMoments, usize, usize)>,
         work_limit: Option<usize>,
+        score_integral_snapshot: Option<Arc<crate::conditioned::ScoreIntegralSnapshot>>,
+        native_pilot_partial: bool,
     ) -> Result {
         let mass = self.target.mass(0);
         let alpha = if self.mixture_mass > 0. {
@@ -1991,11 +2225,51 @@ impl LazyJoint {
             mass,
             ..Default::default()
         };
-        let goal_preparation_reserve = if work_limit.is_some() && self.goals.is_some() {
+        let goal_preparation_reserve = if work_limit.is_some()
+            && self
+                .goals
+                .as_ref()
+                .is_some_and(crate::goal_tilt::GoalTilt::joint_preparation_enabled)
+        {
             samples.saturating_mul(crate::goal_tilt::JOINT_PREPARATION_ALLOWANCE_PER_DRAW)
         } else {
             0
         };
+        let analytic_enabled = self.order_score_gd_cohort
+            && crate::score_integral::supported(m)
+            && moments.is_none()
+            && families.is_none()
+            && native_families.is_none();
+        let gd_attempt_overhead = m
+            .fixtures
+            .len()
+            .saturating_mul(3)
+            .saturating_add(m.n.saturating_mul(8));
+        let draw_reserve =
+            self.order_native_draw_upper_work(m)
+                .saturating_add(if analytic_enabled {
+                    gd_attempt_overhead
+                } else {
+                    0
+                });
+        let (analytic_preparation_allowance, mut query_budget_remaining) = work_limit.map_or(
+            (
+                crate::score_integral::MAX_WORK,
+                crate::score_integral::MAX_WORK,
+            ),
+            |limit| {
+                let native_reserve = samples
+                    .saturating_mul(draw_reserve)
+                    .saturating_add(goal_preparation_reserve);
+                let slack = limit.saturating_sub(native_reserve);
+                let prep = if analytic_enabled {
+                    crate::score_integral::MAX_WORK.min(slack)
+                } else {
+                    0
+                };
+                (prep, slack)
+            },
+        );
         if let Some(limit) = work_limit {
             if goal_preparation_reserve > limit {
                 result.work = 0;
@@ -2003,7 +2277,16 @@ impl LazyJoint {
             }
         }
         let mut rng = Rng::new(seed);
-        let mut scores = ScoreContext::new(m);
+        let mut scores = if analytic_enabled {
+            ScoreContext::with_score_integral_snapshot_and_caps(
+                m,
+                score_integral_snapshot,
+                crate::score_integral::MAX_TOTAL_CELLS,
+                crate::score_integral::MAX_COHORT_GD_PATHS,
+            )
+        } else {
+            ScoreContext::new(m)
+        };
         let mut goal_context = self
             .goals
             .as_ref()
@@ -2018,14 +2301,19 @@ impl LazyJoint {
         let (mut sum, mut sum2, mut max, mut batches) = (0., 0., 0_f64, [0.; 2]);
         for draw in 0..samples {
             if let Some(limit) = work_limit {
-                let reserve = crate::rare_tail::budget::ordered_draw_upper_cost(m);
-                if result
-                    .operations
-                    .units()
-                    .saturating_add(reserve)
-                    .saturating_add(goal_preparation_reserve)
-                    > limit
-                {
+                let remaining_goal_preparation = goal_preparation_reserve.saturating_sub(
+                    goal_context
+                        .as_ref()
+                        .map_or(0, crate::goal_tilt::Context::joint_work_spent),
+                );
+                let remaining_draws = samples.saturating_sub(draw);
+                let draw_work_reserve = if native_pilot_partial {
+                    draw_reserve
+                } else {
+                    remaining_draws.saturating_mul(draw_reserve)
+                };
+                let reserve = draw_work_reserve.saturating_add(remaining_goal_preparation);
+                if result.operations.units().saturating_add(reserve) > limit {
                     break;
                 }
             }
@@ -2420,22 +2708,138 @@ impl LazyJoint {
             };
             if weight > 0. {
                 result.operations.rank(m);
-
-                let (rank, ratio) = if let Some(goals) = &self.goals {
-                    goals.rank_with_operations(
-                        m,
-                        &out,
-                        &mut rng,
-                        goal_context.as_mut().unwrap(),
-                        &mut result.operations,
-                    )
+                if analytic_enabled {
+                    result.score_integral.calls += 1;
+                    let before = result.operations.guidance;
+                    let remaining_prep = analytic_preparation_allowance
+                        .saturating_sub(scores.score_integral_preparation_work());
+                    let can_attempt_gd = query_budget_remaining > gd_attempt_overhead;
+                    let operations_before_gd = result.operations.units();
+                    let gd_result = if can_attempt_gd {
+                        Some(scores.fraction_cohort_gd_bounded_total(
+                            self.cell.team,
+                            self.cell.rank,
+                            &out,
+                            &mut rng,
+                            &mut result.operations,
+                            remaining_prep,
+                            query_budget_remaining.saturating_sub(gd_attempt_overhead),
+                            crate::score_integral::DEFAULT_BUILD_CAPS,
+                        ))
+                    } else {
+                        None
+                    };
+                    let query_work = if can_attempt_gd {
+                        scores.score_integral_last_query_work()
+                    } else {
+                        0
+                    };
+                    let query_reserved = if can_attempt_gd {
+                        scores.score_integral_last_query_reserved()
+                    } else {
+                        0
+                    };
+                    if can_attempt_gd {
+                        let gd_operations = result
+                            .operations
+                            .units()
+                            .saturating_sub(operations_before_gd);
+                        query_budget_remaining = query_budget_remaining
+                            .saturating_sub(gd_operations.saturating_sub(gd_attempt_overhead));
+                        result.score_integral.query_work += query_work;
+                        result.score_integral.query_work_reserved += query_reserved;
+                    }
+                    let contribution = match gd_result.flatten() {
+                        Some((
+                            fraction,
+                            prep,
+                            integrated,
+                            transitions,
+                            endpoint_scans,
+                            backward,
+                            cache_hit,
+                        )) => {
+                            result.score_integral.positive += usize::from(fraction > 0.0);
+                            let (cohort_size, shared, eligible, private_integrated) =
+                                scores.score_integral_cohort_stats();
+                            *result
+                                .score_integral
+                                .cohort_size_hist
+                                .entry(cohort_size.to_string())
+                                .or_default() += 1;
+                            result.score_integral.cohort_calls += 1;
+                            result.score_integral.cohort_shared_sampled += shared;
+                            result.score_integral.cohort_private_eligible += eligible;
+                            result.score_integral.cohort_private_integrated += private_integrated;
+                            result.score_integral.cohort_uses +=
+                                usize::from(fraction > 0.0 && private_integrated > 0);
+                            result.score_integral.cache_builds +=
+                                usize::from(prep > 0 && !cache_hit);
+                            result.score_integral.cache_hits += usize::from(cache_hit);
+                            result.score_integral.transitions += transitions;
+                            result.score_integral.endpoint_scans += endpoint_scans;
+                            result.score_integral.backward_work += backward;
+                            result.score_integral.index_build_work +=
+                                scores.score_integral_last_index_build_work();
+                            result.score_integral.min_integrated_fixtures = Some(
+                                result
+                                    .score_integral
+                                    .min_integrated_fixtures
+                                    .map_or(integrated, |current| current.min(integrated)),
+                            );
+                            result.score_integral.max_integrated_fixtures = result
+                                .score_integral
+                                .max_integrated_fixtures
+                                .max(integrated);
+                            if scores.cohort_gd_projection_stats().2 {
+                                result.witness = Some(out.clone());
+                            }
+                            fraction
+                        }
+                        None => {
+                            result.score_integral.fallbacks += 1;
+                            result.score_integral.endpoint_scans +=
+                                scores.score_integral_last_endpoint_scans();
+                            let _ = result.operations.guidance.saturating_sub(before);
+                            if let Some(goals) = &self.goals {
+                                let (rank, ratio) = goals.rank_with_operations(
+                                    m,
+                                    &out,
+                                    &mut rng,
+                                    goal_context.as_mut().unwrap(),
+                                    &mut result.operations,
+                                );
+                                if rank == self.cell.rank {
+                                    ratio
+                                } else {
+                                    0.0
+                                }
+                            } else {
+                                f64::from(
+                                    scores.rank(self.cell.team, &out, &mut rng, None)
+                                        == self.cell.rank,
+                                )
+                            }
+                        }
+                    };
+                    weight *= contribution;
                 } else {
-                    (scores.rank(self.cell.team, &out, &mut rng, None), 1.)
-                };
-                if rank != self.cell.rank {
-                    weight = 0.;
-                } else {
-                    weight *= ratio;
+                    let (rank, ratio) = if let Some(goals) = &self.goals {
+                        goals.rank_with_operations(
+                            m,
+                            &out,
+                            &mut rng,
+                            goal_context.as_mut().unwrap(),
+                            &mut result.operations,
+                        )
+                    } else {
+                        (scores.rank(self.cell.team, &out, &mut rng, None), 1.)
+                    };
+                    if rank != self.cell.rank {
+                        weight = 0.;
+                    } else {
+                        weight *= ratio;
+                    }
                 }
             }
             if weight > 0. {
@@ -2515,7 +2919,7 @@ impl LazyJoint {
                         moments.squared.insert(key.to_vec(), weight * weight);
                     }
                 }
-                if result.witness.is_none() {
+                if !analytic_enabled && result.witness.is_none() {
                     result.witness = Some(out.clone());
                 }
                 sum += weight;
@@ -2525,6 +2929,12 @@ impl LazyJoint {
             }
         }
         result.work = result.samples as u64 * work_per_sample(m);
+        if analytic_enabled {
+            result.score_integral.prep_work = scores.score_integral_preparation_work();
+            result.score_integral.index_cells = scores.score_integral_index_cells();
+            result.score_integral.cache_paths = scores.score_integral_cache_paths();
+            result.score_integral_snapshot = scores.score_integral_snapshot();
+        }
         result.summarize(sum, sum2, max, batches);
         result
     }
@@ -2534,6 +2944,144 @@ impl LazyJoint {
 mod tests {
     use super::*;
     use crate::{conditioned::canonical_ranks, model::Request};
+
+    fn compact_gd_model() -> Model {
+        let request: Request = serde_json::from_value(json!({
+            "id": 92,
+            "phase": {"sort":"pt,gd,gf", "championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+            "team_groups": (0..4).map(|team| json!({"team_id":team,"add_sub":0})).collect::<Vec<_>>(),
+            "games": (0..4).flat_map(|home| (home+1..4).map(move |away| json!({
+                "id":home*4+away,"home_id":home,"away_id":away,"home_power":1.1,"away_power":0.9
+            }))).collect::<Vec<_>>()
+        })).unwrap();
+        Model::new(request).unwrap()
+    }
+
+    #[test]
+    fn pattern_native_work_bound_covers_guidance_cardinality_and_dynamic_paths() {
+        let request: Request = serde_json::from_value(json!({
+            "id": 91,
+            "phase": {"sort":"pt", "championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+            "team_groups": (0..4).map(|team| json!({"team_id":team,"add_sub":0})).collect::<Vec<_>>(),
+            "games": (0..4).flat_map(|home| (home+1..4).map(move |away| json!({
+                "id":home*4+away,"home_id":home,"away_id":away,"home_power":1.1,"away_power":0.9
+            }))).collect::<Vec<_>>()
+        })).unwrap();
+        let model = Model::new(request).unwrap();
+        for rank in [0, 1, model.n / 2, model.n - 1] {
+            let cell = Cell { team: 0, rank };
+            let plan =
+                LazyJoint::with_mode(&model, cell, 810, &[], 32, false, false, None).unwrap();
+            let original = plan
+                .roots
+                .values()
+                .find_map(|pattern| pattern.clone())
+                .expect("the complete small league builds a native root pattern");
+            for cardinality in [false, true] {
+                for dynamic in [0, 1, 2] {
+                    for bound_guidance in [false, true] {
+                        let mut pattern = original.clone();
+                        pattern.bound_guidance = bound_guidance;
+                        let bound = LazyJoint::pattern_draw_upper_work(
+                            &pattern,
+                            cardinality,
+                            dynamic,
+                            cell.rank,
+                        );
+                        for seed in 0..16 {
+                            let mut rng = Rng::new(seed);
+                            let mut out = vec![0; model.fixtures.len()];
+                            let mut points = vec![0; model.n];
+                            let mut operations = crate::rare_tail::budget::Operations::default();
+                            let _ = pattern.draw(
+                                cell,
+                                &mut rng,
+                                &mut out,
+                                &mut points,
+                                true,
+                                cardinality,
+                                false,
+                                dynamic,
+                                &mut operations,
+                            );
+                            assert!(
+                            operations.units() <= bound,
+                            "cardinality={cardinality} dynamic={dynamic} bound_guidance={bound_guidance} actual={} bound={bound}",
+                            operations.units()
+                        );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn cold_distinct_goal_fallbacks_complete_the_fixed_batch_within_its_reserve() {
+        let model = compact_gd_model();
+        let cell = Cell { team: 0, rank: 1 };
+        let mut proposal = LazyJoint::with_mode(&model, cell, 810, &[], 32, false, false, None)
+            .expect("Head order proposal should build");
+        assert!(proposal.goals.is_some());
+        proposal.set_order_score_mode("analytic_gd_cohort");
+        let samples = 64;
+        let per_draw = proposal
+            .order_native_draw_upper_work(&model)
+            .saturating_add(model.fixtures.len().saturating_mul(3))
+            .saturating_add(model.n.saturating_mul(8))
+            .saturating_add(crate::goal_tilt::JOINT_PREPARATION_ALLOWANCE_PER_DRAW);
+        let result = proposal.sample_order_pilot(&model, samples, 811, per_draw * samples);
+        assert_eq!(result.samples, samples);
+        assert!(result.score_integral.calls > 0);
+        assert_eq!(result.score_integral.cohort_private_integrated, 0);
+        assert!(result.operations.units() <= per_draw * samples);
+    }
+
+    #[test]
+    fn gd_cache_churn_integrates_within_its_shared_preparation_query_pool() {
+        let model = compact_gd_model();
+        let cell = Cell { team: 0, rank: 1 };
+        let mut proposal = LazyJoint::with_mode(&model, cell, 812, &[], 32, false, false, None)
+            .expect("Head order proposal should build");
+        proposal.set_order_score_mode("analytic_gd_cohort");
+        let samples = 64;
+        let per_draw = proposal
+            .order_native_draw_upper_work(&model)
+            .saturating_add(model.fixtures.len().saturating_mul(3))
+            .saturating_add(model.n.saturating_mul(8))
+            .saturating_add(crate::goal_tilt::JOINT_PREPARATION_ALLOWANCE_PER_DRAW);
+        let allowance = per_draw
+            .saturating_mul(samples)
+            .saturating_add(crate::score_integral::MAX_WORK.saturating_mul(2));
+        let result = proposal.sample_order_pilot(&model, samples, 813, allowance);
+        assert_eq!(result.samples, samples);
+        assert!(result.score_integral.calls > 0);
+        assert!(result.score_integral.cohort_private_integrated > 0);
+        assert!(result.operations.units() <= allowance);
+        assert!(
+            result.score_integral.query_work <= result.score_integral.query_work_reserved
+                || result.score_integral.query_work_reserved == 0
+        );
+    }
+
+    #[test]
+    fn native_pilot_keeps_1024_request_but_reserves_full_cold_goal_context() {
+        const REQUESTED: usize = 1_024;
+        let model = compact_gd_model();
+        let cell = Cell { team: 0, rank: 1 };
+        let proposal = LazyJoint::with_mode(&model, cell, 814, &[], 32, false, false, None)
+            .expect("supported native proposal should build");
+        let goals = proposal.goals.as_ref().expect("pt/gd goals are available");
+        assert!(goals.joint_preparation_enabled());
+        let context_reserve =
+            REQUESTED.saturating_mul(crate::goal_tilt::JOINT_PREPARATION_ALLOWANCE_PER_DRAW);
+        let draw_cap = proposal.order_native_draw_upper_work(&model);
+        let grant = context_reserve.saturating_add(draw_cap.saturating_mul(2));
+
+        let result = proposal.sample_order_pilot(&model, REQUESTED, 815, grant);
+        assert!(result.samples < REQUESTED);
+        assert!(result.operations.units() <= grant);
+    }
 
     #[test]
     fn cold_goal_guidance_work_fits_family_admission_bound_at_two_batch_sizes() {

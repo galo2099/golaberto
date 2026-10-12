@@ -6,7 +6,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use smallvec::SmallVec;
 use std::cmp::Ordering;
 use std::collections::HashMap;
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 fn null_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
 where
     D: Deserializer<'de>,
@@ -144,6 +144,7 @@ pub struct Model {
     pub n: usize,
     pub(crate) target_limits: Mutex<HashMap<usize, crate::target_limits::Certified>>,
     joint_score_support_costs: OnceLock<JointScoreSupportCosts>,
+    cache_identity: Arc<()>,
 }
 
 pub(crate) struct JointScoreSupportCosts {
@@ -193,6 +194,10 @@ impl SortTrace {
 }
 
 impl Model {
+    pub(crate) fn cache_identity(&self) -> Arc<()> {
+        self.cache_identity.clone()
+    }
+
     pub(crate) fn joint_score_support_costs(&self) -> &JointScoreSupportCosts {
         self.joint_score_support_costs.get_or_init(|| {
             let mut incident = vec![0usize; self.n];
@@ -375,6 +380,7 @@ impl Model {
             n,
             target_limits: Mutex::new(HashMap::new()),
             joint_score_support_costs: OnceLock::new(),
+            cache_identity: Arc::new(()),
         })
     }
     #[inline]
