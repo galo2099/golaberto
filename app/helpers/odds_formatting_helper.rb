@@ -141,7 +141,7 @@ module OddsFormattingHelper
               content_tag(:span, superscript, class: "odds-compact-slot")
           end
       else
-        "0#{I18n.t("number.format.separator", default: ".")}0".html_safe + superscript
+        "0#{I18n.t("number.format.separator", default: ".")}0%".html_safe + superscript
       end
     end
   end
@@ -149,7 +149,7 @@ module OddsFormattingHelper
   def position_odds_title(percentage, status)
     return odds_title(percentage) unless percentage && percentage.to_f.zero?
 
-    zero = "0#{I18n.t("number.format.separator", default: ".")}0"
+    zero = "0#{I18n.t("number.format.separator", default: ".")}0%"
     return zero if status == "impossible"
 
     "#{zero} — #{I18n.t("odds_reachability.#{status == 'reachable' ? 'reachable' : 'undecided'}")}"

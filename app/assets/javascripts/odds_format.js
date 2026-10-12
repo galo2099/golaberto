@@ -119,7 +119,7 @@
 
     positionTitle: function(value, status, locale, labels) {
       if (validNumber(value) !== 0) return this.title(value, locale);
-      var zero = "0" + decimalSeparator(locale) + "0";
+      var zero = "0" + decimalSeparator(locale) + "0%";
       if (status === "impossible") return zero;
       status = status === "reachable" ? status : "undecided";
       return zero + " — " + ((labels || {})[status] || { reachable: "Reachable; no probability estimate found.", undecided: "Reachability not resolved." }[status]);
@@ -136,7 +136,7 @@
           '<span class="odds-compact-fraction"><span class="odds-compact-slot">0</span>' +
           '<span class="odds-compact-slot">' + superscript + '</span></span></span>';
       }
-      return '<span class="odds-zero" aria-label="' + title + '">0' + decimalSeparator(locale) + '0' + superscript + '</span>';
+      return '<span class="odds-zero" aria-label="' + title + '">0' + decimalSeparator(locale) + '0%' + superscript + '</span>';
     },
 
     format: function(value, locale) {
