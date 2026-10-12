@@ -3,7 +3,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
-const context = { window: {} };
+const context = { window: {}, document: { documentElement: { lang: "en-US" } } };
 const source = fs.readFileSync(path.join(__dirname, "../../app/assets/javascripts/odds_format.js"), "utf8");
 vm.runInNewContext(source, context);
 const odds = context.window.GolabertoOdds;
@@ -54,8 +54,24 @@ assert.equal(odds.format(99.99, "en-US"), "99.99%");
 assert.equal(odds.format(100, "en-US"), "100.00%");
 assert.equal(odds.format(null, "en-US"), "");
 assert.equal(odds.format(0.5, "pt-BR"), "0,50%");
-assert.equal(odds.format(0.0001, "pt-BR"), "0.[03]1%");
-assert.equal(odds.format(99.9999, "pt-BR"), "99.[03]9%");
+context.document.documentElement.lang = "pt-BR";
+assert.equal(odds.format(12.345), "12,35%");
+assert.equal(odds.format(12.345, "en-US"), "12.35%");
+assert.equal(odds.compactText(12.345), "12,35");
+assert.equal(odds.title(0.00004321), "4,321e-5%");
+assert.equal(odds.title(99.9999), "99,9999%");
+assert.equal(odds.title(12.3456), "12,35%");
+assert.equal(odds.compactHtml(0.0001), odds.compactHtml(0.0001, "pt-BR"));
+assert.match(odds.positionHtml(0, "reachable", undefined, true, {reachable: "Possível"}), /class="odds-compact-dot">,<\/span>/);
+assert.equal(odds.title(0.00004321, "en-US"), "4.321e-5%");
+assert.equal(odds.title(99.9999, "en-US"), "99.9999%");
+assert.equal(odds.fraction(98), ",9800");
+assert.equal(odds.positionTitle(0, "impossible"), "0,0");
+context.document.documentElement.lang = "en-US";
+assert.equal(odds.format(0.0001, "pt-BR"), "0,[03]1%");
+assert.equal(odds.format(99.9999, "pt-BR"), "99,[03]9%");
+assert.equal(odds.compactText(12.345, "pt-BR"), "12,35");
+assert.match(odds.compactHtml(0.0001, "pt-BR"), /class="odds-compact-dot">,<\/span>/);
 assert.equal(odds.title(0.0001, "pt-BR"), "1e-4%");
 assert.equal(odds.title(0.00004321, "pt-BR"), "4,321e-5%");
 assert.equal(odds.title(12.3456, "pt-BR"), "12,35%");
@@ -69,6 +85,9 @@ assert.equal(odds.fraction(99.99997), "1-3e-7");
 assert.equal(odds.fraction(0.01), ".0001");
 assert.equal(odds.fraction(0.00004321), "4e-7");
 assert.equal(odds.fraction(100), "1.000");
+assert.equal(odds.fraction(0, "pt-BR"), ",0000");
+assert.equal(odds.fraction(98, "pt-BR"), ",9800");
+assert.equal(odds.fraction(100, "pt-BR"), "1,000");
 
 const compactExamples = [
   [99.98, "99.98"],
@@ -135,7 +154,7 @@ assert.equal(odds.positionHtml(0, "impossible", "en-US", false), '<span class="o
 assert.match(odds.positionHtml(0, "reachable", "en-US", true), /<sup[^>]*>\*<\/sup>/);
 assert.match(odds.positionHtml(0, "undecided", "en-US", true), /<sup[^>]*>\?<\/sup>/);
 assert.equal(odds.positionHtml(0.0000004, "reachable", "en-US", true), odds.compactHtml(0.0000004));
-assert.equal(odds.positionTitle(0, "reachable", "pt-BR", {reachable: "Possível"}), "0.0 — Possível");
+assert.equal(odds.positionTitle(0, "reachable", "pt-BR", {reachable: "Possível"}), "0,0 — Possível");
 assert.equal(odds.zoneValue([99.99999999999062, 0, 0], [1]), 99.99999999999062);
 assert.equal(odds.zoneValue([99.99999999999062, 0, 0], [1], ["reachable", "reachable", "impossible"]), 99.99999999999062);
 
@@ -143,6 +162,8 @@ assert.equal(odds.zoneValue([], [1]), null);
 assert.equal(odds.zoneValue([0], []), null);
 
 assert.equal(odds.positionTitle(0, "impossible", "en-US"), "0.0");
+assert.equal(odds.positionTitle(0, "impossible", "pt-BR"), "0,0");
+assert.equal(odds.positionHtml(0, "reachable", "pt-BR", false, {reachable: "Possível"}), '<span class="odds-zero" aria-label="0,0 — Possível">0,0<sup class="odds-zero-marker" aria-hidden="true">*</sup></span>');
 assert.equal(odds.positionTitle(0, "undecided", "en-US"), "0.0 — Reachability not resolved.");
 assert.match(odds.positionHtml(0, "reachable", "en-US", true), /class="odds-compact-dot">\.<\/span>/);
 ["impossible", "reachable", "undecided"].forEach(function(status) {

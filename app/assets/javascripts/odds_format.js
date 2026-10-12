@@ -16,6 +16,17 @@
     return "[" + String(count).padStart(2, "0") + "]";
   }
 
+  function resolvedLocale(locale) {
+    return locale || (typeof document !== "undefined" && document.documentElement && document.documentElement.lang) || undefined;
+  }
+
+  function decimalSeparator(locale) {
+    locale = resolvedLocale(locale);
+    return new Intl.NumberFormat(locale).formatToParts(1.1).filter(function(part) {
+      return part.type === "decimal";
+    })[0].value;
+  }
+
   // Work from the decimal representation so halfway values round upward even
   // when multiplying their binary floating-point value would cross the tie.
   function decimalComponents(number) {
@@ -108,23 +119,24 @@
 
     positionTitle: function(value, status, locale, labels) {
       if (validNumber(value) !== 0) return this.title(value, locale);
-      if (status === "impossible") return "0.0";
+      var zero = "0" + decimalSeparator(locale) + "0";
+      if (status === "impossible") return zero;
       status = status === "reachable" ? status : "undecided";
-      return "0.0 — " + ((labels || {})[status] || { reachable: "Reachable; no probability estimate found.", undecided: "Reachability not resolved." }[status]);
+      return zero + " — " + ((labels || {})[status] || { reachable: "Reachable; no probability estimate found.", undecided: "Reachability not resolved." }[status]);
     },
 
     positionHtml: function(value, status, locale, compact, labels) {
-      if (validNumber(value) !== 0) return compact ? this.compactHtml(value) : this.html(value, locale);
+      if (validNumber(value) !== 0) return compact ? this.compactHtml(value, locale) : this.html(value, locale);
       var marker = status === "impossible" ? "" : status === "reachable" ? "*" : "?";
       var title = this.positionTitle(value, status, locale, labels).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
       var superscript = marker ? '<sup class="odds-zero-marker" aria-hidden="true">' + marker + '</sup>' : '';
       if (compact) {
         return '<span class="odds-zero odds-compact-number" aria-label="' + title + '">' +
-          '<span class="odds-compact-integer">0</span><span class="odds-compact-dot">.</span>' +
+          '<span class="odds-compact-integer">0</span><span class="odds-compact-dot">' + decimalSeparator(locale) + '</span>' +
           '<span class="odds-compact-fraction"><span class="odds-compact-slot">0</span>' +
           '<span class="odds-compact-slot">' + superscript + '</span></span></span>';
       }
-      return '<span class="odds-zero" aria-label="' + title + '">0.0' + superscript + '</span>';
+      return '<span class="odds-zero" aria-label="' + title + '">0' + decimalSeparator(locale) + '0' + superscript + '</span>';
     },
 
     format: function(value, locale) {
@@ -135,17 +147,18 @@
         maximumFractionDigits: 2
       };
       if ((number > 0 && number < 0.01) || (number > 99.99 && number < 100)) {
-        return this.compactText(number) + "%";
+        return this.compactText(number, locale) + "%";
       }
-      return number.toLocaleString(locale, options) + "%";
+      return number.toLocaleString(resolvedLocale(locale), options) + "%";
     },
 
-    // Match the server-rendered standings cells, including the decimal dot.
-    fraction: function(value) {
+    // Match the server-rendered standings cells using the active locale.
+    fraction: function(value, locale) {
       var number = validNumber(value);
       if (number === null) return "";
-      if (number === 0) return ".0000";
-      if (number === 100) return "1.000";
+      var separator = decimalSeparator(locale);
+      if (number === 0) return separator + "0000";
+      if (number === 100) return "1" + separator + "000";
 
       var probability = number / 100;
       if (probability > 0 && probability < 0.0001) {
@@ -157,7 +170,7 @@
         return "1-" + complement[0] + "e" + Number(complement[1]);
       }
 
-      return probability.toFixed(4).replace(/^0\./, ".");
+      return probability.toFixed(4).replace(/^0\./, separator).replace(".", separator);
     },
 
     compactParts: function(value) {
@@ -188,13 +201,13 @@
       return { integer: "99", first: compactCount(upperCount), second: String(10 - gap.digit), count: "first" };
     },
 
-    compactText: function(value) {
+    compactText: function(value, locale) {
       var parts = this.compactParts(value);
       if (parts === null) return "";
-      return parts.fallback || parts.integer + "." + parts.first + parts.second;
+      return parts.fallback || parts.integer + decimalSeparator(locale) + parts.first + parts.second;
     },
 
-    compactHtml: function(value) {
+    compactHtml: function(value, locale) {
       var parts = this.compactParts(value);
       if (parts === null) return "";
       if (parts.fallback) return '<span class="odds-compact-fallback">' + parts.fallback + '</span>';
@@ -211,7 +224,7 @@
         return '<span class="odds-compact-slot">' + text + '</span>';
       };
       return '<span class="odds-compact-number"><span class="odds-compact-integer">' +
-        parts.integer + '</span><span class="odds-compact-dot">.</span><span class="odds-compact-fraction">' +
+        parts.integer + '</span><span class="odds-compact-dot">' + decimalSeparator(locale) + '</span><span class="odds-compact-fraction">' +
         fraction("first") + fraction("second") + '</span></span>';
     },
 
@@ -222,7 +235,7 @@
     html: function(value, locale) {
       var number = validNumber(value);
       if (number !== null && ((number > 0 && number < 0.01) || (number > 99.99 && number < 100))) {
-        return this.compactHtml(number) + "%";
+        return this.compactHtml(number, locale) + "%";
       }
       return this.format(value, locale)
         .replace(/&/g, "&amp;")
@@ -234,9 +247,7 @@
       var number = validNumber(value);
       if (number === null) return "";
       if (number > 0 && number < 0.01) {
-        var decimal = new Intl.NumberFormat(locale).formatToParts(1.1).filter(function(part) {
-          return part.type === "decimal";
-        })[0].value;
+        var decimal = decimalSeparator(locale);
         var scientific = number.toExponential(3).split("e");
         var mantissa = scientific[0].replace(/0+$/, "").replace(/\.$/, "").replace(".", decimal);
         return mantissa + "e" + Number(scientific[1]) + "%";
@@ -252,20 +263,18 @@
             digits[i] = "0";
           }
         }
-        var separator = new Intl.NumberFormat(locale).formatToParts(1.1).filter(function(part) {
-          return part.type === "decimal";
-        })[0].value;
+        var separator = decimalSeparator(locale);
         return "99" + separator + digits.join("").replace(/0+$/, "") + "%";
       }
       if (number >= 0.01) {
-        var formatter = new Intl.NumberFormat(locale, {
+        var formatter = new Intl.NumberFormat(resolvedLocale(locale), {
           maximumSignificantDigits: 4,
           useGrouping: false
         });
         var rounded = formatter.format(number);
         return (number < 100 && rounded === formatter.format(100) ? formatter.format(99.99) : rounded) + "%";
       }
-      return number.toLocaleString(locale, {
+      return number.toLocaleString(resolvedLocale(locale), {
         maximumSignificantDigits: 17,
         useGrouping: false
       }) + "%";

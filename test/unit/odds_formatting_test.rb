@@ -2,13 +2,20 @@ require 'minitest/autorun'
 require 'action_view'
 require_relative '../../app/helpers/odds_formatting_helper'
 I18n.load_path += Dir[File.expand_path('../../config/locales/odds_reachability.*.yml', __dir__)]
+I18n.load_path += %w[en-US pt-BR].map { |locale| File.expand_path("../../config/locales/#{locale}.yml", __dir__) }
 
 class OddsFormattingTest < Minitest::Test
   def setup
+    @original_locale = I18n.locale
+    I18n.locale = 'en'
     @view = Object.new
     @view.extend(ActionView::Helpers::NumberHelper)
     @view.extend(ActionView::Helpers::TagHelper)
     @view.extend(OddsFormattingHelper)
+  end
+
+  def teardown
+    I18n.locale = @original_locale
   end
 
   def test_small_nonzero_odds_remain_visible_and_recoverable
@@ -64,6 +71,17 @@ class OddsFormattingTest < Minitest::Test
     assert_equal '.0001', @view.formatted_odds_fraction(0.01)
     assert_equal '4e-7', @view.formatted_odds_fraction(0.00004321)
     assert_equal '1.000', @view.formatted_odds_fraction(100)
+    I18n.with_locale('pt-BR') do
+      assert_equal ',0000', @view.formatted_odds_fraction(0)
+      assert_equal ',9800', @view.formatted_odds_fraction(98)
+      assert_equal '1,000', @view.formatted_odds_fraction(100)
+      assert_equal '0,50%', @view.formatted_odds(0.5)
+      assert_equal '4,321e-5%', @view.odds_title(0.00004321)
+      assert_equal '0,[03]1', @view.compact_team_odds_text(0.0001)
+      assert_equal '99,[03]9', @view.compact_team_odds_text(99.9999)
+      assert_equal '0,0', @view.compact_team_odds_text(0)
+      assert_equal '100,0', @view.compact_team_odds_text(100)
+    end
   end
 
   def test_compact_team_odds_examples_and_rounding
@@ -142,8 +160,13 @@ class OddsFormattingTest < Minitest::Test
     assert_equal '', @view.position_odds_html(nil, 'undecided')
     assert_equal '0.0 — Reachable; no probability estimate found.', @view.position_odds_title(0, 'reachable')
     I18n.with_locale('pt-BR') do
-      assert_equal '0.0', @view.position_odds_title(0, 'impossible')
-      assert_equal '0.0 — Possível; estimativa de probabilidade não encontrada.', @view.position_odds_title(0, 'reachable')
+      assert_equal '0,0', @view.position_odds_title(0, 'impossible')
+      assert_equal '0,0 — Possível; estimativa de probabilidade não encontrada.', @view.position_odds_title(0, 'reachable')
+      assert_includes @view.position_odds_html(0, 'reachable'), '<span class="odds-compact-dot">,</span>'
+      zero_html = Nokogiri::HTML.fragment(@view.position_odds_html(0, 'reachable', compact: false)).at_css('.odds-zero')
+      assert_equal '0,0*', zero_html.text
+      assert_equal '0,0 — Possível; estimativa de probabilidade não encontrada.', zero_html['aria-label']
+      assert_equal '12,35', Nokogiri::HTML.fragment(@view.formatted_compact_team_odds(12.345)).text
     end
   end
 

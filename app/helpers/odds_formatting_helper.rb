@@ -33,13 +33,14 @@ module OddsFormattingHelper
     number_to_percentage(value, precision: 2)
   end
 
-  # The standings table uses probabilities on a 0..1 scale with a decimal dot.
+  # The standings table uses probabilities on a 0..1 scale.
   def formatted_odds_fraction(percentage)
     return "" if percentage.nil?
 
     value = percentage.to_f
-    return ".0000" if value.zero?
-    return "1.000" if value == 100
+    separator = I18n.t("number.format.separator", default: ".")
+    return ".0000".tr(".", separator) if value.zero?
+    return "1.000".tr(".", separator) if value == 100
 
     probability = value / 100
     if probability > 0 && probability < 0.0001
@@ -51,7 +52,7 @@ module OddsFormattingHelper
       return "1-#{mantissa}e#{exponent.to_i}"
     end
 
-    format("%.4f", probability).sub(/\A0\./, ".")
+    format("%.4f", probability).sub(/\A0\./, ".").tr(".", separator)
   end
 
   def compact_team_odds_parts(percentage)
@@ -92,7 +93,8 @@ module OddsFormattingHelper
     parts = compact_team_odds_parts(percentage)
     return '' if parts.nil?
 
-    parts[:fallback] || "#{parts[:integer]}.#{parts[:first]}#{parts[:second]}"
+    separator = I18n.t("number.format.separator", default: ".")
+    parts[:fallback] || "#{parts[:integer]}#{separator}#{parts[:first]}#{parts[:second]}"
   end
 
   def formatted_compact_team_odds(percentage)
@@ -114,7 +116,7 @@ module OddsFormattingHelper
     end
     content_tag(:span, class: 'odds-compact-number') do
       content_tag(:span, parts[:integer], class: 'odds-compact-integer') +
-        content_tag(:span, '.', class: 'odds-compact-dot') +
+        content_tag(:span, I18n.t("number.format.separator", default: "."), class: 'odds-compact-dot') +
         content_tag(:span, fraction.join.html_safe, class: 'odds-compact-fraction')
     end
   end
@@ -133,13 +135,13 @@ module OddsFormattingHelper
     content_tag(:span, class: compact ? "odds-zero odds-compact-number" : "odds-zero", 'aria-label': position_odds_title(percentage, status)) do
       if compact
         content_tag(:span, "0", class: "odds-compact-integer") +
-          content_tag(:span, ".", class: "odds-compact-dot") +
+          content_tag(:span, I18n.t("number.format.separator", default: "."), class: "odds-compact-dot") +
           content_tag(:span, class: "odds-compact-fraction") do
             content_tag(:span, "0", class: "odds-compact-slot") +
               content_tag(:span, superscript, class: "odds-compact-slot")
           end
       else
-        "0.0".html_safe + superscript
+        "0#{I18n.t("number.format.separator", default: ".")}0".html_safe + superscript
       end
     end
   end
@@ -147,9 +149,10 @@ module OddsFormattingHelper
   def position_odds_title(percentage, status)
     return odds_title(percentage) unless percentage && percentage.to_f.zero?
 
-    return "0.0" if status == "impossible"
+    zero = "0#{I18n.t("number.format.separator", default: ".")}0"
+    return zero if status == "impossible"
 
-    "0.0 — #{I18n.t("odds_reachability.#{status == 'reachable' ? 'reachable' : 'undecided'}")}"
+    "#{zero} — #{I18n.t("odds_reachability.#{status == 'reachable' ? 'reachable' : 'undecided'}")}"
   end
 
   def compact_odds_count(count)
