@@ -102,7 +102,9 @@ the cost allowance or either cap uses the general estimator. These caps exclude 
 subsequent rare-event rescue. The regression fixtures for groups 17058 and
 17064 cover 729 and 81 outcome paths respectively. Group 17064 verifies all
 16 team/position estimates, including the all-eight-points tie. The separate
-20,000-season game-importance scout remains unchanged. RNG streams depend on
+20,000-season game-importance scout remains unchanged for requests with zones.
+Requests without zones return zero importance for each in-group fixture side
+without scouting. RNG streams depend on
 the seed and stratum, so the odds are identical with one or four workers.
 
 The response design is `outcome_path_stratified`. `samples` and `hits` describe
@@ -165,8 +167,9 @@ odds-rust/target/release/golaberto-odds estimate \
 ```
 
 Arguments are request path, output path, seed, and worker count (1–4).
-The default seed is 808 for reproducible CLI experiments. Every full request
-includes the 20,000-season game-importance scout. Affordable stratification plans
+The default seed is 808 for reproducible CLI experiments. Requests with zones
+include the 20,000-season game-importance scout; requests without zones return
+the same zero importance directly. Affordable stratification plans
 use the path estimator; other requests use the 100,000-season matched pool.
 Timings go to stderr; the response goes to the output file.
 
@@ -181,11 +184,16 @@ RUST_ODDS_PROFILE=1 odds-rust/target/release/golaberto-odds estimate \
 ## Odds memory
 
 Matrix balancing reuses a sparse workspace for matrices with at least 32 teams
-and at most 25% nonzero entries. It skips structural zeros while retaining the
+and at most 25% nonzero entries. Active values use contiguous storage, copied
+back before validation. It skips structural zeros while retaining the
 original row and column addition order, divisions, convergence tolerance,
 validation cadence, and iteration limit. This reduces repeated work in the
 matched pool, its ten jackknife matrices, and final reconciliation without
 changing the estimates or sampling budgets. Other matrices use the dense path.
+The ten jackknife calculations share the requested worker limit (1–4), with
+results restored to batch order before uncertainty is calculated. A failed
+batch retains the same successful prefix and plain-MC fallback as the serial
+calculation.
 
 Completed conditioning DP layers use compact immutable storage with their
 original iteration order. One-team layers have direct point-total lookups;

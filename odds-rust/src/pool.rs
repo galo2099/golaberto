@@ -303,6 +303,7 @@ struct SparseBalance {
     columns: Vec<usize>,
     row_offsets: Vec<usize>,
     column_sums: Vec<f64>,
+    values: Vec<f64>,
 }
 
 impl SparseBalance {
@@ -312,9 +313,15 @@ impl SparseBalance {
             return None;
         }
 
-        let mut indices = Vec::new();
-        let mut columns = Vec::new();
+        let nonzero_count = matrix.iter().filter(|&&value| value != 0.).count();
+        if nonzero_count > len / 4 {
+            return None;
+        }
+
+        let mut indices = Vec::with_capacity(nonzero_count);
+        let mut columns = Vec::with_capacity(nonzero_count);
         let mut row_offsets = Vec::with_capacity(n + 1);
+        let mut values = Vec::with_capacity(nonzero_count);
         row_offsets.push(0);
         for row in 0..n {
             for column in 0..n {
@@ -322,12 +329,10 @@ impl SparseBalance {
                 if matrix[index] != 0. {
                     indices.push(index);
                     columns.push(column);
+                    values.push(matrix[index]);
                 }
             }
             row_offsets.push(indices.len());
-        }
-        if indices.len() > len / 4 {
-            return None;
         }
 
         Some(Self {
@@ -335,33 +340,37 @@ impl SparseBalance {
             columns,
             row_offsets,
             column_sums: vec![0.; n],
+            values,
         })
     }
 
-    fn normalize(&mut self, matrix: &mut [f64], n: usize) {
+    fn normalize(&mut self, n: usize) {
         for row in 0..n {
             let start = self.row_offsets[row];
             let end = self.row_offsets[row + 1];
-            let sum: f64 = self.indices[start..end]
-                .iter()
-                .map(|&index| matrix[index])
-                .sum();
+            let sum: f64 = self.values[start..end].iter().sum();
             if sum > 0. {
-                for &index in &self.indices[start..end] {
-                    matrix[index] /= sum;
+                for value in &mut self.values[start..end] {
+                    *value /= sum;
                 }
             }
         }
 
         self.column_sums.fill(0.);
-        for (&index, &column) in self.indices.iter().zip(&self.columns) {
-            self.column_sums[column] += matrix[index];
+        for (&value, &column) in self.values.iter().zip(&self.columns) {
+            self.column_sums[column] += value;
         }
-        for (&index, &column) in self.indices.iter().zip(&self.columns) {
+        for (value, &column) in self.values.iter_mut().zip(&self.columns) {
             let sum = self.column_sums[column];
             if sum > 0. {
-                matrix[index] /= sum;
+                *value /= sum;
             }
+        }
+    }
+
+    fn copy_to_dense(&self, matrix: &mut [f64]) {
+        for (&index, &value) in self.indices.iter().zip(&self.values) {
+            matrix[index] = value;
         }
     }
 }
@@ -369,11 +378,15 @@ impl SparseBalance {
 pub fn balance(matrix: &mut [f64], n: usize) -> bool {
     if let Some(mut sparse) = SparseBalance::new(matrix, n) {
         for i in 0..20000 {
-            sparse.normalize(matrix, n);
-            if i % 100 == 0 && valid(matrix, n) {
-                return true;
+            sparse.normalize(n);
+            if i % 100 == 0 {
+                sparse.copy_to_dense(matrix);
+                if valid(matrix, n) {
+                    return true;
+                }
             }
         }
+        sparse.copy_to_dense(matrix);
         valid(matrix, n)
     } else {
         for i in 0..20000 {
@@ -457,6 +470,67 @@ pub fn matched(
     }
     raw
 }
+
+fn jackknife_matrices(
+    model: &Model,
+    scout: &Scout,
+    parts: &[Scout],
+    pmfs: &[Vec<(i32, f64)>],
+    bounds: &Bounds,
+    workers: usize,
+) -> (Vec<Vec<f64>>, bool) {
+    let workers = workers.clamp(1, 4);
+    if workers == 1 {
+        let mut matrices = Vec::with_capacity(parts.len());
+        for part in parts {
+            let mut matrix = matched(model, &scout.subtract(part), pmfs, bounds);
+            if !balance(&mut matrix, model.n) {
+                return (matrices, false);
+            }
+            matrices.push(matrix);
+        }
+        return (matrices, true);
+    }
+
+    let next = AtomicUsize::new(0);
+    let results = std::thread::scope(|scope| {
+        let mut handles = Vec::with_capacity(workers);
+        for _ in 0..workers {
+            let next = &next;
+            handles.push(scope.spawn(move || {
+                let mut local = Vec::new();
+                loop {
+                    let batch = next.fetch_add(1, Ordering::Relaxed);
+                    if batch >= parts.len() {
+                        break;
+                    }
+                    let mut matrix = matched(model, &scout.subtract(&parts[batch]), pmfs, bounds);
+                    let balanced = balance(&mut matrix, model.n);
+                    local.push((batch, matrix, balanced));
+                }
+                local
+            }));
+        }
+        handles
+            .into_iter()
+            .flat_map(|handle| handle.join().unwrap())
+            .collect::<Vec<_>>()
+    });
+    ordered_jackknife_prefix(results)
+}
+
+fn ordered_jackknife_prefix(mut results: Vec<(usize, Vec<f64>, bool)>) -> (Vec<Vec<f64>>, bool) {
+    results.sort_by_key(|(batch, _, _)| *batch);
+    let mut matrices = Vec::with_capacity(results.len());
+    for (_, matrix, balanced) in results {
+        if !balanced {
+            return (matrices, false);
+        }
+        matrices.push(matrix);
+    }
+    (matrices, true)
+}
+
 pub fn zero_upper(samples: usize) -> f64 {
     if samples == 0 {
         1.
@@ -528,15 +602,11 @@ pub fn production_logged(
     }
     let phase = Instant::now();
     let leaveout = if let (Some(pmfs), Some(_)) = (&pmfs, &matrix) {
-        let mut matrices = Vec::new();
-        for part in parts {
-            let mut m = matched(model, &scout.subtract(&part), pmfs, &bounds);
-            if !balance(&mut m, model.n) {
-                matrix = None;
-                fallback_reason = Some("invalid_jackknife_matrix");
-                break;
-            }
-            matrices.push(m);
+        let (matrices, balanced) =
+            jackknife_matrices(model, &scout, &parts, pmfs, &bounds, workers);
+        if !balanced {
+            matrix = None;
+            fallback_reason = Some("invalid_jackknife_matrix");
         }
         matrices
     } else {
@@ -598,4 +668,20 @@ pub fn production_logged(
         }
     }
     estimates
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ordered_jackknife_prefix;
+
+    #[test]
+    fn ordered_jackknife_results_keep_only_the_successful_batch_prefix() {
+        let (matrices, balanced) = ordered_jackknife_prefix(vec![
+            (2, vec![2.], true),
+            (1, vec![1.], false),
+            (0, vec![0.], true),
+        ]);
+        assert!(!balanced);
+        assert_eq!(matrices, vec![vec![0.]]);
+    }
 }

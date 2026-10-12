@@ -283,6 +283,47 @@ fn matrix_balances_with_structural_zeros() {
     assert!(pool::valid(&matrix, 3));
 }
 
+fn sparse_large_model() -> Model {
+    let request: Request = serde_json::from_value(json!({
+        "id": 1,
+        "phase": {"sort": "pt,w,bias", "championship": {"point_win": 3, "point_draw": 1, "point_loss": 0}},
+        "team_groups": (0..32).map(|team| json!({"team_id": team, "add_sub": (team / 4) * 20, "bias": team})).collect::<Vec<_>>(),
+        "games": (0..8).flat_map(|cohort| {
+            let first = cohort * 4;
+            let end = first + 4;
+            (first..end).flat_map(move |home| {
+                (home + 1..end).map(move |away| json!({"id": home * 32 + away, "home_id": home, "away_id": away, "home_score": null, "away_score": null, "home_power": 1.3, "away_power": 0.9, "played": false}))
+            })
+        }).collect::<Vec<_>>()
+    }))
+    .unwrap();
+    Model::new(request).unwrap()
+}
+
+#[test]
+fn production_worker_counts_match_serialized_estimates_for_sparse_large_matrix() {
+    let model = sparse_large_model();
+    assert!(model.n >= 32);
+    let bounds = Bounds::new(&model);
+    let pmfs = pool::point_pmfs(&model).unwrap();
+    let scout = pool::scout(&model, 1000, 808);
+    let matrix = pool::matched(&model, &scout, &pmfs, &bounds);
+    let support = matrix.iter().filter(|&&value| value != 0.).count();
+    assert!(support > 0);
+    assert!(support <= matrix.len() / 4, "support={support}");
+
+    let serial = pool::production(&model, 808, 1);
+    let parallel = pool::production(&model, 808, 4);
+    assert!(serial.iter().any(|estimate| estimate.std_err > 0.));
+    assert!(serial
+        .iter()
+        .any(|estimate| estimate.probability > 0. && estimate.probability < 1.));
+    assert_eq!(
+        serde_json::to_value(serial).unwrap(),
+        serde_json::to_value(parallel).unwrap()
+    );
+}
+
 fn reference_balance(matrix: &mut [f64], n: usize) -> bool {
     // This is the pre-optimization balance loop and serves as a bitwise oracle.
     for i in 0..20000 {

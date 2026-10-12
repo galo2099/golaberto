@@ -69,6 +69,22 @@ fn importance(counts: &[u32], n: usize, zones: &[Vec<usize>], samples: usize) ->
 }
 pub fn initial_scout(model: &Model, samples: usize, seed: i64) -> BTreeMap<i32, [Option<f64>; 2]> {
     let n = model.n;
+    if model.request.zones.is_empty() {
+        let mut result = BTreeMap::new();
+        for f in &model.fixtures {
+            let mut sides = [None; 2];
+            if f.home < n {
+                sides[0] = Some(0.);
+            }
+            if f.away < n {
+                sides[1] = Some(0.);
+            }
+            if sides != [None, None] {
+                result.insert(model.request.games[f.request_index].id, sides);
+            }
+        }
+        return result;
+    }
     let mut counts = vec![0u32; model.fixtures.len() * 2 * 100 * n];
     let mut c = model.base.clone();
     let mut scores = model.empty_scores();
@@ -197,11 +213,19 @@ pub fn calculate_logged(
     let phase = Instant::now();
     let game_importance = initial_scout(&model, scout_samples, seed);
     let scout_ms = phase.elapsed().as_secs_f64() * 1000.;
-    log.stage(
-        "scout",
-        phase,
-        json!({"samples":scout_samples,"stream_seed":derive(seed,"pipeline-scout")}),
-    );
+    if model.request.zones.is_empty() {
+        log.stage(
+            "scout",
+            phase,
+            json!({"samples":0,"requested_samples":scout_samples,"skipped_reason":"no_zones"}),
+        );
+    } else {
+        log.stage(
+            "scout",
+            phase,
+            json!({"samples":scout_samples,"stream_seed":derive(seed,"pipeline-scout")}),
+        );
+    }
     let phase = Instant::now();
     let stratified = crate::outcome_stratification::estimate(&model, seed);
     let mut estimates = if let Some((estimates, diagnostic)) = stratified {
