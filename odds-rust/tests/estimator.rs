@@ -282,6 +282,103 @@ fn matrix_balances_with_structural_zeros() {
     assert_eq!(matrix[6], 0.);
     assert!(pool::valid(&matrix, 3));
 }
+
+fn reference_balance(matrix: &mut [f64], n: usize) -> bool {
+    // This is the pre-optimization balance loop and serves as a bitwise oracle.
+    for i in 0..20000 {
+        pool::normalize(matrix, n);
+        if i % 100 == 0 && pool::valid(matrix, n) {
+            return true;
+        }
+    }
+    pool::valid(matrix, n)
+}
+
+fn assert_balance_matches_reference(mut matrix: Vec<f64>, n: usize) -> bool {
+    let mut expected = matrix.clone();
+    let expected_result = reference_balance(&mut expected, n);
+    let actual_result = pool::balance(&mut matrix, n);
+    assert_eq!(actual_result, expected_result);
+    assert_eq!(
+        matrix
+            .iter()
+            .map(|value| value.to_bits())
+            .collect::<Vec<_>>(),
+        expected
+            .iter()
+            .map(|value| value.to_bits())
+            .collect::<Vec<_>>()
+    );
+    actual_result
+}
+
+#[test]
+fn sparse_balance_matches_dense_reference_on_slowly_converging_support() {
+    let n = 40;
+    let mut matrix = vec![0.; n * n];
+    for row in 0..n {
+        // A nearly disconnected cycle makes Sinkhorn convergence slow while
+        // keeping only two supported cells per row and column.
+        matrix[row * n + row] = 1. + row as f64 * 0.125;
+        matrix[row * n + (row + 1) % n] = 1e-8 * (1. + (row % 3) as f64);
+    }
+    matrix[3] = -0.;
+    assert_balance_matches_reference(matrix, n);
+}
+
+#[test]
+fn sparse_balance_matches_reference_for_subnormal_and_empty_support() {
+    let n = 32;
+    let mut matrix = vec![0.; n * n];
+    for row in 0..n {
+        matrix[row * n + row] = f64::from_bits(1 + (row % 5) as u64);
+        matrix[row * n + (row + 1) % n] = f64::from_bits(1 + ((row + 2) % 5) as u64);
+    }
+    assert!(assert_balance_matches_reference(matrix, n));
+    assert!(!assert_balance_matches_reference(vec![0.; n * n], n));
+}
+
+#[test]
+fn sparse_balance_preserves_iteration_limit_on_triangular_support() {
+    let n = 32;
+    let mut matrix = vec![0.; n * n];
+    for row in 0..n {
+        matrix[row * n + row] = 1.;
+        if row + 1 < n {
+            matrix[row * n + row + 1] = 1.;
+        }
+    }
+    assert!(!assert_balance_matches_reference(matrix, n));
+}
+
+#[test]
+fn dense_balance_fallback_and_invalid_inputs_match_reference_bitwise() {
+    let small_dense = (0..16)
+        .map(|index| 0.25 + ((index * 7) % 13) as f64 / 17.)
+        .collect();
+    assert_balance_matches_reference(small_dense, 4);
+
+    // Density above the sparse dispatch threshold must retain the dense path.
+    let n = 32;
+    let dense = (0..n * n)
+        .map(|index| 0.5 + ((index * 11) % 29) as f64 / 31.)
+        .collect();
+    assert_balance_matches_reference(dense, n);
+
+    let mut invalid = vec![0.; n * n];
+    for row in 0..n {
+        invalid[row * n + row] = if row == 4 { f64::NAN } else { 1. };
+    }
+    assert!(!assert_balance_matches_reference(invalid, n));
+
+    let mut negative = vec![0.; n * n];
+    for row in 0..n {
+        negative[row * n + row] = if row == 4 { -1. } else { 1. };
+    }
+    assert!(!assert_balance_matches_reference(negative, n));
+    assert!(assert_balance_matches_reference(Vec::new(), 0));
+}
+
 #[test]
 fn rails_nulls_and_extra_fields_are_accepted() {
     let request:Request=serde_json::from_value(json!({"id":1,"name":"test","phase":{"sort":"pt,w","bonus_points":null,"championship":{"point_win":3,"point_draw":1,"point_loss":null}},

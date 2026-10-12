@@ -292,14 +292,98 @@ pub fn valid(matrix: &[f64], n: usize) -> bool {
     (0..n).all(|t| (matrix[t * n..(t + 1) * n].iter().sum::<f64>() - 1.).abs() <= 1e-12)
         && (0..n).all(|r| ((0..n).map(|t| matrix[t * n + r]).sum::<f64>() - 1.).abs() <= 1e-12)
 }
-pub fn balance(matrix: &mut [f64], n: usize) -> bool {
-    for i in 0..20000 {
-        normalize(matrix, n);
-        if i % 100 == 0 && valid(matrix, n) {
-            return true;
+
+// A sparse balancing workspace keeps active cells in their original row-major
+// order. That preserves the additions performed by normalize: row values are
+// still added from left to right, and each column's values are added from top
+// to bottom. Zeros can be omitted because adding either signed zero does not
+// change a sum containing nonnegative values.
+struct SparseBalance {
+    indices: Vec<usize>,
+    columns: Vec<usize>,
+    row_offsets: Vec<usize>,
+    column_sums: Vec<f64>,
+}
+
+impl SparseBalance {
+    fn new(matrix: &[f64], n: usize) -> Option<Self> {
+        let len = n.checked_mul(n)?;
+        if n < 32 || matrix.len() != len || matrix.iter().any(|p| !p.is_finite() || *p < 0.) {
+            return None;
+        }
+
+        let mut indices = Vec::new();
+        let mut columns = Vec::new();
+        let mut row_offsets = Vec::with_capacity(n + 1);
+        row_offsets.push(0);
+        for row in 0..n {
+            for column in 0..n {
+                let index = row * n + column;
+                if matrix[index] != 0. {
+                    indices.push(index);
+                    columns.push(column);
+                }
+            }
+            row_offsets.push(indices.len());
+        }
+        if indices.len() > len / 4 {
+            return None;
+        }
+
+        Some(Self {
+            indices,
+            columns,
+            row_offsets,
+            column_sums: vec![0.; n],
+        })
+    }
+
+    fn normalize(&mut self, matrix: &mut [f64], n: usize) {
+        for row in 0..n {
+            let start = self.row_offsets[row];
+            let end = self.row_offsets[row + 1];
+            let sum: f64 = self.indices[start..end]
+                .iter()
+                .map(|&index| matrix[index])
+                .sum();
+            if sum > 0. {
+                for &index in &self.indices[start..end] {
+                    matrix[index] /= sum;
+                }
+            }
+        }
+
+        self.column_sums.fill(0.);
+        for (&index, &column) in self.indices.iter().zip(&self.columns) {
+            self.column_sums[column] += matrix[index];
+        }
+        for (&index, &column) in self.indices.iter().zip(&self.columns) {
+            let sum = self.column_sums[column];
+            if sum > 0. {
+                matrix[index] /= sum;
+            }
         }
     }
-    valid(matrix, n)
+}
+
+pub fn balance(matrix: &mut [f64], n: usize) -> bool {
+    if let Some(mut sparse) = SparseBalance::new(matrix, n) {
+        for i in 0..20000 {
+            sparse.normalize(matrix, n);
+            if i % 100 == 0 && valid(matrix, n) {
+                return true;
+            }
+        }
+        valid(matrix, n)
+    } else {
+        for i in 0..20000 {
+            normalize(matrix, n);
+            if i % 100 == 0 && valid(matrix, n) {
+                return true;
+            }
+        }
+        valid(matrix, n)
+    }
 }
 pub fn matched(
     model: &Model,

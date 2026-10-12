@@ -180,6 +180,13 @@ RUST_ODDS_PROFILE=1 odds-rust/target/release/golaberto-odds estimate \
 
 ## Odds memory
 
+Matrix balancing reuses a sparse workspace for matrices with at least 32 teams
+and at most 25% nonzero entries. It skips structural zeros while retaining the
+original row and column addition order, divisions, convergence tolerance,
+validation cadence, and iteration limit. This reduces repeated work in the
+matched pool, its ten jackknife matrices, and final reconciliation without
+changing the estimates or sampling budgets. Other matrices use the dense path.
+
 Completed conditioning DP layers use compact immutable storage with their
 original iteration order. One-team layers have direct point-total lookups;
 larger layers use a compact index. Obsolete events are released before deeper
