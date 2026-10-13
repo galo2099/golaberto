@@ -398,6 +398,197 @@ pub fn balance(matrix: &mut [f64], n: usize) -> bool {
         valid(matrix, n)
     }
 }
+
+/// Conservatively repairs an approximately doubly-stochastic candidate by
+/// moving probability mass additively within bounded per-cell adjustments.
+/// Exact zeros stay locked at zero, and very small positive cells stay fixed.
+/// The factor bounds are numerical adjustment guards, not confidence bounds;
+/// upstream estimator and uncertainty semantics remain unchanged.
+pub(crate) fn balance_additive(matrix: &[f64], n: usize) -> Option<Vec<f64>> {
+    let len = n.checked_mul(n)?;
+    if n == 0 || matrix.len() != len || matrix.iter().any(|p| !p.is_finite() || *p < 0. || *p > 1.)
+    {
+        return None;
+    }
+    if valid(matrix, n) {
+        return Some(matrix.to_vec());
+    }
+    // Dense residual flow is intended for the small finalist matrices where
+    // multiplicative scaling stalls; bound both graph size and augmentation work.
+    if n > 64 {
+        return None;
+    }
+
+    #[derive(Clone)]
+    struct Edge {
+        to: usize,
+        rev: usize,
+        cap: f64,
+        cost: f64,
+    }
+    fn add_edge(graph: &mut [Vec<Edge>], from: usize, to: usize, cap: f64, cost: f64) -> usize {
+        let forward = graph[from].len();
+        let reverse = graph[to].len();
+        graph[from].push(Edge {
+            to,
+            rev: reverse,
+            cap,
+            cost,
+        });
+        graph[to].push(Edge {
+            to: from,
+            rev: forward,
+            cap: 0.,
+            cost: -cost,
+        });
+        forward
+    }
+
+    let source = 2 * n;
+    let sink = source + 1;
+    let mut graph = vec![Vec::<Edge>::new(); sink + 1];
+    let mut balances = vec![0.; 2 * n];
+    for row in 0..n {
+        let sum: f64 = matrix[row * n..(row + 1) * n].iter().sum();
+        balances[row] = 1. - sum;
+    }
+    for col in 0..n {
+        let sum: f64 = (0..n).map(|row| matrix[row * n + col]).sum();
+        balances[n + col] = sum - 1.;
+    }
+
+    let mut operations = Vec::new();
+    for row in 0..n {
+        for col in 0..n {
+            let index = row * n + col;
+            let value = matrix[index];
+            if value == 0. || value <= 1e-15 || value * 0.5 == 0. {
+                continue;
+            }
+            let lower = value * 0.5;
+            let upper = (value * 2.).min(1.);
+            let cost = 1. - value.ln();
+            let add_cap = upper - value;
+            if add_cap > 0. {
+                let edge = add_edge(&mut graph, row, n + col, add_cap, cost);
+                operations.push((index, row, edge, add_cap, 1.));
+            }
+            let remove_cap = value - lower;
+            if remove_cap > 0. {
+                let edge = add_edge(&mut graph, n + col, row, remove_cap, cost);
+                operations.push((index, n + col, edge, remove_cap, -1.));
+            }
+        }
+    }
+
+    let mut required = 0.;
+    for (node, &balance) in balances.iter().enumerate() {
+        if balance > 1e-15 {
+            add_edge(&mut graph, source, node, balance, 0.);
+            required += balance;
+        } else if balance < -1e-15 {
+            add_edge(&mut graph, node, sink, -balance, 0.);
+        }
+    }
+    if !required.is_finite() || required == 0. {
+        return None;
+    }
+
+    let mut sent = 0.;
+    let node_count = graph.len();
+    let mut augmentations = 0usize;
+    let mut edge_visits = 0usize;
+    while required - sent > 1e-15 {
+        augmentations += 1;
+        if augmentations > 20_000 {
+            return None;
+        }
+        let mut distance = vec![f64::INFINITY; node_count];
+        let mut previous = vec![None::<(usize, usize)>; node_count];
+        distance[source] = 0.;
+        for _ in 0..node_count {
+            let mut changed = false;
+            for from in 0..node_count {
+                if !distance[from].is_finite() {
+                    continue;
+                }
+                for (edge_index, edge) in graph[from].iter().enumerate() {
+                    edge_visits += 1;
+                    if edge_visits > 8_000_000 {
+                        return None;
+                    }
+                    if edge.cap <= 1e-15 {
+                        continue;
+                    }
+                    let next = distance[from] + edge.cost;
+                    if next < distance[edge.to] - 1e-14 {
+                        distance[edge.to] = next;
+                        previous[edge.to] = Some((from, edge_index));
+                        changed = true;
+                    }
+                }
+            }
+            if !changed {
+                break;
+            }
+        }
+        if previous[sink].is_none() {
+            return None;
+        }
+        let mut amount = required - sent;
+        let mut at = sink;
+        let mut hops = 0usize;
+        while at != source {
+            hops += 1;
+            if hops > node_count {
+                return None;
+            }
+            let (from, edge) = previous[at]?;
+            amount = amount.min(graph[from][edge].cap);
+            at = from;
+        }
+        if !amount.is_finite() || amount <= 1e-15 {
+            return None;
+        }
+        at = sink;
+        hops = 0;
+        while at != source {
+            hops += 1;
+            if hops > node_count {
+                return None;
+            }
+            let (from, edge_index) = previous[at]?;
+            let to = graph[from][edge_index].to;
+            let reverse = graph[from][edge_index].rev;
+            graph[from][edge_index].cap -= amount;
+            graph[to][reverse].cap += amount;
+            at = from;
+        }
+        sent += amount;
+    }
+
+    let mut result = matrix.to_vec();
+    for (index, from, edge, original_cap, sign) in operations {
+        let used = (original_cap - graph[from][edge].cap).max(0.);
+        result[index] += sign * used;
+    }
+    if valid(&result, n)
+        && result.iter().zip(matrix).all(|(after, before)| {
+            if *before == 0. || *before <= 1e-15 || *before * 0.5 == 0. {
+                after.to_bits() == before.to_bits()
+            } else {
+                let lower = *before * 0.5;
+                let upper = (*before * 2.).min(1.);
+                let slack = 4. * f64::EPSILON * before;
+                *after > 0. && *after + slack >= lower && *after <= upper + slack
+            }
+        })
+    {
+        Some(result)
+    } else {
+        None
+    }
+}
 pub fn matched(
     model: &Model,
     scout: &Scout,
@@ -672,7 +863,7 @@ pub fn production_logged(
 
 #[cfg(test)]
 mod tests {
-    use super::ordered_jackknife_prefix;
+    use super::{balance_additive, ordered_jackknife_prefix, valid};
 
     #[test]
     fn ordered_jackknife_results_keep_only_the_successful_batch_prefix() {
@@ -683,5 +874,90 @@ mod tests {
         ]);
         assert!(!balanced);
         assert_eq!(matrices, vec![vec![0.]]);
+    }
+
+    #[test]
+    fn additive_balance_repairs_small_ill_conditioned_matrix() {
+        let matrix = vec![1. - 1e-6, 1e-6, 2e-6, 1. - 2e-6];
+        let mut multiplicative = matrix.clone();
+        assert!(!super::balance(&mut multiplicative, 2));
+        let balanced = balance_additive(&matrix, 2).expect("bounded additive repair");
+        assert!(valid(&balanced, 2));
+        assert!(balanced.iter().all(|p| (0.0..=1.0).contains(p)));
+        for (&before, &after) in matrix.iter().zip(&balanced) {
+            assert!(after >= before * 0.5 && after <= (before * 2.).min(1.));
+            assert!(after > 0.);
+        }
+    }
+
+    #[test]
+    fn additive_balance_leaves_already_valid_matrix_bitwise_unchanged() {
+        let matrix = vec![0.8, 0.2, 0.2, 0.8];
+        let balanced = balance_additive(&matrix, 2).unwrap();
+        assert_eq!(
+            balanced
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>(),
+            matrix
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn additive_balance_keeps_zeros_and_fails_atomically_without_support() {
+        let matrix = vec![1., 0., 0., 0.];
+        assert_eq!(balance_additive(&matrix, 2), None);
+        assert_eq!(matrix, vec![1., 0., 0., 0.]);
+        let incompatible = vec![1. - 1e-6, 1e-6, 1e-9, 1. - 1e-9];
+        assert_eq!(balance_additive(&incompatible, 2), None);
+    }
+
+    #[test]
+    fn additive_balance_locks_tiny_cells_and_checks_bad_inputs() {
+        let tiny = vec![
+            1. - 3e-6,
+            3e-6,
+            1e-40,
+            1e-6,
+            1. - 4e-6,
+            3e-6,
+            2e-6,
+            2e-6,
+            1. - 3e-6,
+        ];
+        let balanced = balance_additive(&tiny, 3).expect("repair while retaining tiny mass");
+        assert_eq!(balanced[2].to_bits(), tiny[2].to_bits());
+        assert!(valid(&balanced, 3));
+        assert_eq!(balance_additive(&[f64::NAN, 0., 0., 1.], 2), None);
+        assert_eq!(balance_additive(&[-0.1, 0., 0., 1.], 2), None);
+        assert_eq!(balance_additive(&[0., 1.], 2), None);
+    }
+
+    #[test]
+    fn additive_balance_repairs_nontrivial_near_deterministic_matrix() {
+        let matrix = vec![
+            1. - 3e-6,
+            3e-6,
+            0.,
+            1e-6,
+            1. - 4e-6,
+            3e-6,
+            2e-6,
+            2e-6,
+            1. - 3e-6,
+        ];
+        let balanced = balance_additive(&matrix, 3).expect("bounded repair");
+        assert!(valid(&balanced, 3));
+        assert_eq!(balanced[2].to_bits(), 0f64.to_bits());
+        assert!(matrix.iter().zip(&balanced).all(|(before, after)| {
+            if *before == 0. {
+                *after == 0.
+            } else {
+                *after >= before * 0.5 && *after <= (before * 2.).min(1.)
+            }
+        }));
     }
 }

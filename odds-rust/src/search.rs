@@ -687,7 +687,7 @@ pub fn run_logged(
                 .zip(estimates.iter())
                 .any(|(before, after)| before.probability > 0. && after.probability <= 0.)
         {
-            estimates.clone_from_slice(&rescue_baseline);
+            restore_baseline_preserving_reachability(estimates, &rescue_baseline);
             rolled_back = true;
         }
     }
@@ -696,7 +696,7 @@ pub fn run_logged(
         model.n,
     );
     if !valid_matrix && rescue_added > 0 {
-        estimates.clone_from_slice(&rescue_baseline);
+        restore_baseline_preserving_reachability(estimates, &rescue_baseline);
         rolled_back = true;
     }
     let final_changes = estimates
@@ -1518,9 +1518,17 @@ fn run_tail_with_donors(
 }
 
 fn reconcile(model: &Model, estimates: &mut [Estimate], baseline: &[Estimate]) -> bool {
-    let mut matrix: Vec<_> = estimates.iter().map(|e| e.probability).collect();
+    let original: Vec<_> = estimates.iter().map(|e| e.probability).collect();
+    let mut matrix = original.clone();
     if !crate::pool::balance(&mut matrix, model.n) {
-        estimates.clone_from_slice(baseline);
+        let Some(additive) = crate::pool::balance_additive(&original, model.n) else {
+            restore_baseline_preserving_reachability(estimates, baseline);
+            return false;
+        };
+        matrix = additive;
+    }
+    if !crate::pool::valid(&matrix, model.n) {
+        restore_baseline_preserving_reachability(estimates, baseline);
         return false;
     }
     for (e, p) in estimates.iter_mut().zip(matrix) {
@@ -1536,6 +1544,30 @@ fn reconcile(model: &Model, estimates: &mut [Estimate], baseline: &[Estimate]) -
         e.probability = p;
     }
     true
+}
+
+fn restore_baseline_preserving_reachability(estimates: &mut [Estimate], baseline: &[Estimate]) {
+    let candidate = estimates.to_vec();
+    estimates.clone_from_slice(baseline);
+    for ((restored, candidate), original) in estimates.iter_mut().zip(candidate).zip(baseline) {
+        // A baseline proof takes precedence, and an impossible claim cannot
+        // override a cell that already had positive baseline mass.
+        if original.probability > 0.
+            || original.reachability.starts_with("impossible")
+            || original.reachability == "witness"
+            || original.reachability == "reachable_by_construction"
+        {
+            continue;
+        }
+        if candidate.reachability.starts_with("impossible") {
+            restored.reachability = candidate.reachability;
+            restored.zero_hit_upper_95 = 0.;
+        } else if candidate.reachability == "witness"
+            || candidate.reachability == "reachable_by_construction"
+        {
+            restored.reachability = candidate.reachability;
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1836,5 +1868,160 @@ mod packed_witness_tests {
         assert_eq!(stats.candidates, model.n * model.n);
         assert!(stats.nodes <= PACKED_WITNESS_TOTAL_NODES);
         assert!(stats.attempts > 0);
+    }
+}
+
+#[cfg(test)]
+mod rollback_reachability_tests {
+    use super::restore_baseline_preserving_reachability;
+    use crate::pool::Estimate;
+
+    #[test]
+    fn rollback_restores_numbers_and_keeps_independent_zero_mass_facts() {
+        let baseline = vec![
+            Estimate {
+                probability: 0.,
+                samples: 3,
+                reachability: "undecided".into(),
+                zero_hit_upper_95: 0.2,
+                ..Estimate::default()
+            },
+            Estimate {
+                probability: 0.,
+                reachability: "impossible_by_points".into(),
+                ..Estimate::default()
+            },
+            Estimate {
+                probability: 0.4,
+                reachability: "pool_positive".into(),
+                ..Estimate::default()
+            },
+            Estimate {
+                probability: 0.,
+                reachability: "witness".into(),
+                ..Estimate::default()
+            },
+            Estimate {
+                probability: 0.,
+                reachability: "undecided".into(),
+                zero_hit_upper_95: 0.15,
+                ..Estimate::default()
+            },
+            Estimate {
+                probability: 0.,
+                reachability: "undecided".into(),
+                ..Estimate::default()
+            },
+        ];
+        let mut candidate = vec![
+            Estimate {
+                probability: 0.1,
+                samples: 99,
+                reachability: "witness".into(),
+                zero_hit_upper_95: 0.,
+                ..Estimate::default()
+            },
+            Estimate {
+                probability: 0.2,
+                reachability: "witness".into(),
+                ..Estimate::default()
+            },
+            Estimate {
+                probability: 0.0,
+                reachability: "impossible_conflict".into(),
+                ..Estimate::default()
+            },
+            Estimate {
+                probability: 0.3,
+                reachability: "impossible_wrong".into(),
+                ..Estimate::default()
+            },
+            Estimate {
+                probability: 0.,
+                reachability: "impossible_new".into(),
+                ..Estimate::default()
+            },
+            Estimate {
+                probability: 0.3,
+                reachability: "undecided".into(),
+                ..Estimate::default()
+            },
+        ];
+        restore_baseline_preserving_reachability(&mut candidate, &baseline);
+        assert_eq!(candidate[0].probability, 0.);
+        assert_eq!(candidate[0].samples, 3);
+        assert_eq!(candidate[0].reachability, "witness");
+        assert_eq!(candidate[0].zero_hit_upper_95, 0.2);
+        assert_eq!(candidate[1].reachability, "impossible_by_points");
+        assert_eq!(candidate[2].probability, 0.4);
+        assert_eq!(candidate[2].reachability, "pool_positive");
+        assert_eq!(candidate[3].reachability, "witness");
+        assert_eq!(candidate[4].reachability, "impossible_new");
+        assert_eq!(candidate[4].zero_hit_upper_95, 0.);
+        assert_eq!(candidate[5].reachability, "undecided");
+    }
+
+    #[test]
+    fn reconciliation_failure_uses_rollback_fact_merge() {
+        let request: crate::model::Request = serde_json::from_str(include_str!(
+            "../tests/fixtures/group-16498-2026-10-10.json"
+        ))
+        .unwrap();
+        let model = crate::model::Model::new(request).unwrap();
+        let baseline = vec![Estimate::default(); model.n * model.n];
+        let mut candidate = baseline.clone();
+        candidate[0].reachability = "reachable_by_construction".into();
+        candidate[1].probability = 0.5;
+        assert!(!super::reconcile(&model, &mut candidate, &baseline));
+        assert_eq!(candidate[0].probability, 0.);
+        assert_eq!(candidate[0].reachability, "reachable_by_construction");
+        assert_eq!(candidate[1].probability, 0.);
+        assert!(candidate[1].reachability.is_empty());
+    }
+
+    #[test]
+    fn synthetic_shared_collapse_api_keeps_new_positives_proofs_and_balanced_matrix() {
+        let request: crate::model::Request = serde_json::from_str(include_str!(
+            "../../experiments/rare_positions/2026-10-01-shared-constraints/synthetic-shared-collapse.json"
+        ))
+        .unwrap();
+        let (response, _) = crate::api::calculate(request, 808, 4, 20_000).unwrap();
+        let estimates = response.rare_position_estimates;
+        let mut matrix = Vec::new();
+        for team in 0..6 {
+            for rank in 0..6 {
+                matrix.push(estimates[&(team as i32)][&rank].probability);
+            }
+        }
+        assert!(crate::pool::valid(&matrix, 6));
+        for team in 1..6 {
+            let first = &estimates[&(team as i32)][&0];
+            assert!(
+                first.probability > 0.,
+                "team={team} first_probability={}",
+                first.probability
+            );
+            assert_eq!(first.reachability, "reachable");
+        }
+        let second = &estimates[&0][&1];
+        assert!(
+            second.probability > 0.,
+            "team=0 second_probability={}",
+            second.probability
+        );
+        assert_eq!(second.reachability, "reachable");
+        for rank in 2..6 {
+            let cell = &estimates[&0][&rank];
+            assert_eq!(
+                cell.probability, 0.,
+                "rank={rank} probability={}",
+                cell.probability
+            );
+            assert_eq!(
+                cell.reachability, "impossible",
+                "rank={rank} reachability={}",
+                cell.reachability
+            );
+        }
     }
 }

@@ -195,6 +195,23 @@ results restored to batch order before uncertainty is calculated. A failed
 batch retains the same successful prefix and plain-MC fallback as the serial
 calculation.
 
+If final search reconciliation cannot converge with ordinary balancing, it
+tries a bounded additive correction of the original candidate matrix. A
+residual flow prefers adjustments to larger probabilities, locks zero cells
+and probabilities at or below `1e-15`, and limits other cells to half through
+twice their candidate value. These limits are numerical guards, not confidence
+bounds. The correction must satisfy the existing `1e-12` row and column
+conservation checks; unsupported or infeasible corrections fail without
+publishing a partial matrix. The fallback admits at most 64 teams and eight
+million residual-edge visits.
+
+If reconciliation still fails, the numerical baseline is restored while
+explicit reachability witnesses and impossibility certificates for previously
+undecided zero cells are retained. Older established facts take precedence.
+A retained witness preserves the baseline zero-hit probability upper bound;
+an impossibility certificate sets that bound to zero. The same preservation
+applies to outer rank-rescue rollbacks.
+
 Completed conditioning DP layers use compact immutable storage with their
 original iteration order. One-team layers have direct point-total lookups;
 larger layers use a compact index. Obsolete events are released before deeper
