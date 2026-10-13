@@ -7,14 +7,36 @@ use crate::{
 };
 use serde::Serialize;
 
-#[derive(Clone, Copy, Default, Debug, PartialEq)]
-struct Reason {
-    decisions: u128,
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Reason<const WORDS: usize> {
+    decisions: [u64; WORDS],
     teams: u64,
 }
-impl Reason {
+impl<const WORDS: usize> Default for Reason<WORDS> {
+    fn default() -> Self {
+        Self {
+            decisions: [0; WORDS],
+            teams: 0,
+        }
+    }
+}
+impl<const WORDS: usize> Reason<WORDS> {
+    fn insert(&mut self, bit: usize) {
+        self.decisions[bit / 64] |= 1_u64 << (bit % 64);
+    }
+    fn contains(&self, bit: usize) -> bool {
+        self.decisions[bit / 64] & (1_u64 << (bit % 64)) != 0
+    }
+    fn remove(&mut self, bit: usize) {
+        self.decisions[bit / 64] &= !(1_u64 << (bit % 64));
+    }
+    fn is_empty(&self) -> bool {
+        self.decisions.iter().all(|word| *word == 0)
+    }
     fn merge(&mut self, other: Self) {
-        self.decisions |= other.decisions;
+        for (left, right) in self.decisions.iter_mut().zip(other.decisions) {
+            *left |= right;
+        }
         self.teams |= other.teams;
     }
 }
@@ -45,6 +67,19 @@ pub struct Options {
     /// Avoid deep search unless an eligible rival has a tight fixture outcome.
     pub require_root_pressure: bool,
 }
+#[derive(Clone, Copy, Debug)]
+pub struct Limits {
+    pub max_cohorts: usize,
+    pub max_depth: usize,
+}
+impl Default for Limits {
+    fn default() -> Self {
+        Self {
+            max_cohorts: 512,
+            max_depth: 128,
+        }
+    }
+}
 impl Default for Options {
     fn default() -> Self {
         Self {
@@ -56,8 +91,8 @@ impl Default for Options {
     }
 }
 #[derive(Debug, PartialEq)]
-enum Answer {
-    Conflict(Reason),
+enum Answer<const WORDS: usize> {
+    Conflict(Reason<WORDS>),
     Feasible,
     Unknown,
 }
@@ -194,6 +229,24 @@ impl RankProof {
         options: Options,
         requested_floor: Option<i64>,
     ) -> Report {
+        self.prove_floor_with_limits(
+            cell,
+            required_count,
+            budget,
+            options,
+            requested_floor,
+            Limits::default(),
+        )
+    }
+    pub fn prove_floor_with_limits(
+        &self,
+        cell: Cell,
+        required_count: usize,
+        budget: usize,
+        options: Options,
+        requested_floor: Option<i64>,
+        limits: Limits,
+    ) -> Report {
         if cell.team >= self.ranked || required_count >= self.ranked {
             return Report::default();
         }
@@ -248,17 +301,42 @@ impl RankProof {
                 Some(v) => v / (i + 1),
                 None => return Report::default(),
             };
-            if count > 512 {
+            if count > limits.max_cohorts {
                 return Report::default();
             }
         }
-        let mut solver = Solver {
+        if count > limits.max_cohorts {
+            return Report::default();
+        }
+        let max_depth = limits.max_depth.min(512);
+        if max_depth <= 128 {
+            let mut solver: Solver<'_, 2> = Solver {
+                p: self,
+                floor,
+                initial,
+                initial_maximum: maximum,
+                budget,
+                options,
+                max_depth,
+                stats: Stats::default(),
+                cores: Vec::new(),
+                capture_feasible_domains: false,
+                feasible_domains: None,
+            };
+            let impossible = solver.cohorts(&eligible, 0, required_count, 0);
+            return Report {
+                impossible,
+                stats: solver.stats,
+            };
+        }
+        let mut solver: Solver<'_, 8> = Solver {
             p: self,
             floor,
             initial,
             initial_maximum: maximum,
             budget,
             options,
+            max_depth,
             stats: Stats::default(),
             cores: Vec::new(),
             capture_feasible_domains: false,
@@ -280,6 +358,22 @@ impl RankProof {
         required_count: usize,
         budget: usize,
         options: Options,
+    ) -> FeasibleDomains {
+        self.feasible_domains_with_limits(
+            cell,
+            required_count,
+            budget,
+            options,
+            Limits::default(),
+        )
+    }
+    pub fn feasible_domains_with_limits(
+        &self,
+        cell: Cell,
+        required_count: usize,
+        budget: usize,
+        options: Options,
+        limits: Limits,
     ) -> FeasibleDomains {
         if cell.team >= self.ranked || required_count >= self.ranked || budget == 0 {
             return FeasibleDomains::default();
@@ -325,17 +419,42 @@ impl RankProof {
                 Some(v) => v / (i + 1),
                 None => return FeasibleDomains::default(),
             };
-            if count > 512 {
+            if count > limits.max_cohorts {
                 return FeasibleDomains::default();
             }
         }
-        let mut solver = Solver {
+        if count > limits.max_cohorts {
+            return FeasibleDomains::default();
+        }
+        let max_depth = limits.max_depth.min(512);
+        if max_depth <= 128 {
+            let mut solver: Solver<'_, 2> = Solver {
+                p: self,
+                floor,
+                initial,
+                initial_maximum: maximum,
+                budget,
+                options,
+                max_depth,
+                stats: Stats::default(),
+                cores: Vec::new(),
+                capture_feasible_domains: true,
+                feasible_domains: None,
+            };
+            solver.cohorts(&eligible, 0, required_count, 0);
+            return FeasibleDomains {
+                domains: solver.feasible_domains,
+                stats: solver.stats,
+            };
+        }
+        let mut solver: Solver<'_, 8> = Solver {
             p: self,
             floor,
             initial,
             initial_maximum: maximum,
             budget,
             options,
+            max_depth,
             stats: Stats::default(),
             cores: Vec::new(),
             capture_feasible_domains: true,
@@ -348,25 +467,32 @@ impl RankProof {
         }
     }
 }
-struct Solver<'a> {
+struct Solver<'a, const WORDS: usize> {
     p: &'a RankProof,
     floor: i64,
     initial: Vec<u8>,
     initial_maximum: Vec<i64>,
     budget: usize,
     options: Options,
+    max_depth: usize,
     stats: Stats,
     cores: Vec<u64>,
     capture_feasible_domains: bool,
     feasible_domains: Option<Vec<u8>>,
 }
-impl Solver<'_> {
+impl<const WORDS: usize> Solver<'_, WORDS> {
     // Only restrictions that lower this endpoint's maximum can contribute to
     // its bound. A hypothetical outcome replaces its own fixture, so omit that
     // fixture's restriction when explaining why the outcome was removed.
-    fn explanation(&self, t: usize, ds: &[u8], reasons: &[Reason], exclude: usize) -> Reason {
-        let mut r = Reason {
-            decisions: 0,
+    fn explanation(
+        &self,
+        t: usize,
+        ds: &[u8],
+        reasons: &[Reason<WORDS>],
+        exclude: usize,
+    ) -> Reason<WORDS> {
+        let mut r = Reason::<WORDS> {
+            decisions: [0; WORDS],
             teams: 1 << t,
         };
         for &(i, end) in &self.p.adjacent[t] {
@@ -383,8 +509,8 @@ impl Solver<'_> {
         &self,
         required: u64,
         ds: &mut [u8],
-        reasons: &mut [Reason],
-    ) -> Result<Vec<i64>, Reason> {
+        reasons: &mut [Reason<WORDS>],
+    ) -> Result<Vec<i64>, Reason<WORDS>> {
         let mut maximum = self.initial_maximum.clone();
         loop {
             maximum.copy_from_slice(&self.initial_maximum);
@@ -442,10 +568,10 @@ impl Solver<'_> {
         &mut self,
         required: u64,
         mut ds: Vec<u8>,
-        mut reasons: Vec<Reason>,
+        mut reasons: Vec<Reason<WORDS>>,
         depth: usize,
-    ) -> Answer {
-        if self.stats.nodes >= self.budget || depth >= 128 {
+    ) -> Answer<WORDS> {
+        if self.stats.nodes >= self.budget || depth >= self.max_depth {
             return Answer::Unknown;
         }
         self.stats.nodes += 1;
@@ -491,7 +617,6 @@ impl Solver<'_> {
             return Answer::Feasible;
         };
         let g = &self.p.games[i];
-        let bit = 1_u128 << depth;
         let mut options: Vec<_> = (0..3).filter(|o| ds[i] & (1 << o) != 0).collect();
         options.sort_by_key(|o| {
             -(if required & (1 << g.home) != 0 {
@@ -511,10 +636,10 @@ impl Solver<'_> {
             let mut next = ds.clone();
             next[i] = 1 << o;
             let mut why = reasons.clone();
-            why[i].decisions |= bit;
+            why[i].insert(depth);
             match self.visit(required, next, why, depth + 1) {
                 Answer::Conflict(r) => {
-                    if self.options.explain && r.decisions & bit == 0 {
+                    if self.options.explain && !r.contains(depth) {
                         self.stats.backjumps += 1;
                         return Answer::Conflict(r);
                     }
@@ -523,7 +648,7 @@ impl Solver<'_> {
                 other => return other,
             }
         }
-        union.decisions &= !bit;
+        union.remove(depth);
         Answer::Conflict(union)
     }
     fn cohorts(&mut self, candidates: &[usize], start: usize, left: usize, required: u64) -> bool {
@@ -540,11 +665,11 @@ impl Solver<'_> {
             match self.visit(
                 required,
                 self.initial.clone(),
-                vec![Reason::default(); self.p.games.len()],
+                vec![Reason::<WORDS>::default(); self.p.games.len()],
                 0,
             ) {
                 Answer::Conflict(r) => {
-                    debug_assert_eq!(r.decisions, 0);
+                    debug_assert!(r.is_empty());
                     debug_assert_eq!(r.teams & required, r.teams);
                     if self.options.reuse_cohorts
                         && !self.cores.iter().any(|core| core & r.teams == *core)
@@ -572,6 +697,24 @@ mod tests {
     use super::*;
     use crate::model::Request;
     use serde_json::json;
+    #[test]
+    fn decision_reasons_merge_and_clear_across_the_full_depth_range() {
+        let mut a = Reason::<8>::default();
+        for bit in [127, 128, 255, 511] {
+            a.insert(bit);
+            assert!(a.contains(bit));
+        }
+        let mut b = Reason::<8>::default();
+        b.insert(128);
+        b.insert(300);
+        a.merge(b);
+        assert!(a.contains(127) && a.contains(128) && a.contains(255));
+        assert!(a.contains(300) && a.contains(511));
+        for bit in [127, 128, 255, 300, 511] {
+            a.remove(bit);
+        }
+        assert!(a.is_empty());
+    }
     fn snapshot() -> Model {
         let request:Request=serde_json::from_str(include_str!("../../experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16498-44eabb47.json")).unwrap();
         Model::new(request).unwrap()
@@ -619,6 +762,18 @@ mod tests {
                                 Some(floor),
                             );
                             assert!(!r.impossible || ahead.is_none_or(|a|a<rank),"false refutation: {sort}, target {team}, floor {floor}, rank {rank}");
+                            let expanded = proof.prove_floor_with_limits(
+                                Cell { team, rank },
+                                rank,
+                                10000,
+                                Options::default(),
+                                Some(floor),
+                                Limits { max_cohorts: 100_000, max_depth: 512 },
+                            );
+                            assert!(
+                                !expanded.impossible || ahead.is_none_or(|a| a < rank),
+                                "false expanded refutation: {sort}, target {team}, floor {floor}, rank {rank}"
+                            );
                         }
                     }
                 }
@@ -682,6 +837,34 @@ mod tests {
         let empty = proof.feasible_domains(cell, 12, 0, Options::default());
         assert!(empty.domains.is_none());
         assert_eq!(empty.stats.nodes, 0);
+    }
+    #[test]
+    fn expanded_depth_finds_a_feasible_domain_after_128_decisions() {
+        let request = json!({
+            "id": 99005,
+            "phase": {"sort":"pt,gd,gf,bias", "championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+            "team_groups": (0..3).map(|team| json!({"team_id":team,"add_sub":0,"bias":team})).collect::<Vec<_>>(),
+            "games": (0..160).map(|id| json!({"id":id+1,"home_id":1,"away_id":2,"home_power":1.0,"away_power":1.0})).collect::<Vec<_>>()
+        });
+        let model = Model::new(serde_json::from_value(request).unwrap()).unwrap();
+        let proof = RankProof::new(&model).unwrap();
+        let cell = Cell { team: 0, rank: 1 };
+        let default = proof.feasible_domains(cell, 1, 1000, Options::default());
+        assert!(default.domains.is_none());
+
+        let expanded = proof.feasible_domains_with_limits(
+            cell,
+            1,
+            1000,
+            Options::default(),
+            Limits {
+                max_cohorts: 100_000,
+                max_depth: 512,
+            },
+        );
+        assert!(expanded.domains.is_some());
+        assert!(expanded.stats.nodes > 128, "{:?}", expanded.stats);
+        assert!(expanded.stats.nodes <= 1000);
     }
     #[test]
     fn learned_conflicts_and_both_directions_match_exhaustive_relaxation() {

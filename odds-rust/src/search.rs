@@ -1222,7 +1222,7 @@ fn run_logged_inner(
     work
 }
 
-const PACKED_WITNESS_NODE_BUDGET: usize = 100;
+const PACKED_WITNESS_NODE_BUDGET: usize = 1000;
 const PACKED_WITNESS_TOTAL_NODES: usize = 3200;
 
 #[derive(Default, Debug, serde::Serialize)]
@@ -1303,11 +1303,15 @@ fn verified_packed_certificate(
         return None;
     }
     stats.attempts += 1;
-    let search = proof.feasible_domains(
+    let search = proof.feasible_domains_with_limits(
         cell,
         required_count,
         budget,
         crate::rank_proof::Options::default(),
+        crate::rank_proof::Limits {
+            max_cohorts: 100_000,
+            max_depth: 512,
+        },
     );
     stats.nodes += search.stats.nodes;
     stats.cohorts += search.stats.cohorts;
