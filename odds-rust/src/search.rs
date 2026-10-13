@@ -1248,7 +1248,6 @@ fn packed_witness_supported(model: &Model) -> bool {
             championship.point_loss,
         ) != (3, 1, 0)
         || model.keys.first() != Some(&Key::Pt)
-        || model.keys.get(1) != Some(&Key::W)
         || model.fixtures.iter().any(|fixture| {
             !fixture.home_sampler.mean.is_finite()
                 || !fixture.away_sampler.mean.is_finite()
@@ -1259,9 +1258,22 @@ fn packed_witness_supported(model: &Model) -> bool {
     {
         return false;
     }
-    let score_start = 2;
+    let score_start = 1 + usize::from(model.keys.get(1) == Some(&Key::W));
     matches!(model.keys.get(score_start), Some(Key::Gd | Key::Gf))
         && model.keys[score_start..]
+            .iter()
+            .enumerate()
+            .all(|(offset, key)| {
+                matches!(key, Key::Gd | Key::Gf | Key::Gp | Key::Name)
+                    || (*key == Key::Bias && score_start + offset + 1 == model.keys.len())
+            })
+}
+
+fn packed_witness_uses_legacy_rules(model: &Model) -> bool {
+    use crate::model::Key;
+    model.keys.get(1) == Some(&Key::W)
+        && matches!(model.keys.get(2), Some(Key::Gd | Key::Gf))
+        && model.keys[2..]
             .iter()
             .all(|key| matches!(key, Key::Gd | Key::Gf | Key::Gp | Key::Name))
 }
@@ -1310,7 +1322,15 @@ fn verified_packed_certificate(
     stats.cohorts += search.stats.cohorts;
     let outcomes = choose_supported_outcomes(model, search.domains.as_deref()?)?;
     let certificate = crate::goal_completion::complete_with_paths(model, &outcomes, cell, true)?;
-    crate::goal_completion::verify(model, &certificate, cell).then_some(certificate)
+    if !crate::goal_completion::verify(model, &certificate, cell) {
+        return None;
+    }
+    if !packed_witness_uses_legacy_rules(model)
+        && !crate::goal_completion::has_native_score_support(model, &certificate)
+    {
+        return None;
+    }
+    Some(certificate)
 }
 
 fn packed_witness_fallback(model: &Model, estimates: &mut [Estimate]) -> PackedWitnessStats {
@@ -1991,13 +2011,99 @@ mod packed_witness_tests {
         assert!(!packed_witness_supported(&Model::new(changed).unwrap()));
 
         let mut changed = original.request.clone();
-        changed.phase.sort = "pt,gd,gf".into();
+        changed.phase.sort = "pt,gd,gf,bias".into();
+        assert!(packed_witness_supported(&Model::new(changed).unwrap()));
+
+        let mut changed = original.request.clone();
+        changed.phase.sort = "pt,gd,bias,gf".into();
+        assert!(!packed_witness_supported(&Model::new(changed).unwrap()));
+
+        let mut changed = original.request.clone();
+        changed.phase.sort = "pt,head,gd,gf".into();
+        assert!(!packed_witness_supported(&Model::new(changed).unwrap()));
+
+        let mut changed = original.request.clone();
+        changed.phase.sort = "pt,away,gd,gf".into();
         assert!(!packed_witness_supported(&Model::new(changed).unwrap()));
 
         let mut changed = original.request.clone();
         let future = changed.games.iter_mut().find(|game| !game.played).unwrap();
         future.home_power = 0.0;
         assert!(!packed_witness_supported(&Model::new(changed).unwrap()));
+    }
+
+    #[test]
+    fn packed_witness_accepts_points_first_score_prefix_without_wins() {
+        let original = snapshot();
+        for sort in ["pt,gd,gf", "pt,gf,gd,bias", "pt,w,gd,gf,bias"] {
+            let mut changed = original.request.clone();
+            changed.phase.sort = sort.into();
+            assert!(
+                packed_witness_supported(&Model::new(changed).unwrap()),
+                "{sort}"
+            );
+        }
+    }
+
+    #[test]
+    fn points_goal_bias_fixture_builds_native_supported_full_world_without_numeric_changes() {
+        let request: Request = serde_json::from_str(include_str!(
+            "../tests/fixtures/rare_position_benchmarks/group-99003-dominant.json"
+        ))
+        .unwrap();
+        let model = Model::new(request).unwrap();
+        assert!(packed_witness_supported(&model));
+        assert!(!packed_witness_uses_legacy_rules(&model));
+        let outcomes = vec![1; model.fixtures.len()];
+        let ranks = crate::conditioned::canonical_ranks(&model, &outcomes);
+        let team = ranks.iter().position(|rank| *rank == 0).unwrap();
+        let cell = Cell { team, rank: 0 };
+        let certificate = crate::goal_completion::complete(&model, &outcomes, cell).unwrap();
+        assert!(crate::goal_completion::verify(&model, &certificate, cell));
+        assert!(crate::goal_completion::has_native_score_support(
+            &model,
+            &certificate
+        ));
+        let mut estimates = vec![Estimate::default(); model.n * model.n];
+        for estimate in &mut estimates {
+            estimate.reachability = "undecided".into();
+        }
+        let original = estimates.clone();
+        let stats = packed_witness_fallback_with_enabled(&model, &mut estimates, true);
+        assert!(stats.supported, "{stats:?}");
+        assert_eq!(numeric_values(&estimates), numeric_values(&original));
+    }
+
+    #[test]
+    fn tiny_points_goal_bias_world_gets_a_bounded_native_supported_witness() {
+        let request = serde_json::json!({
+            "id": 99004,
+            "phase": {"sort":"pt,gd,gf,bias", "championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+            "team_groups": (0..3).map(|team| serde_json::json!({"team_id":team,"add_sub":0,"bias":team})).collect::<Vec<_>>(),
+            "games": [
+                {"id":1,"home_id":0,"away_id":1,"home_power":1.0,"away_power":1.0},
+                {"id":2,"home_id":1,"away_id":0,"home_power":1.0,"away_power":1.0},
+                {"id":3,"home_id":0,"away_id":2,"home_power":1.0,"away_power":1.0},
+                {"id":4,"home_id":2,"away_id":0,"home_power":1.0,"away_power":1.0},
+                {"id":5,"home_id":1,"away_id":2,"home_power":1.0,"away_power":1.0},
+                {"id":6,"home_id":2,"away_id":1,"home_power":1.0,"away_power":1.0}
+            ]
+        });
+        let model = Model::new(serde_json::from_value(request).unwrap()).unwrap();
+        assert!(packed_witness_supported(&model));
+        assert!(!packed_witness_uses_legacy_rules(&model));
+        let mut estimates = vec![Estimate::default(); model.n * model.n];
+        for estimate in &mut estimates {
+            estimate.reachability = "undecided".into();
+        }
+        let original = estimates.clone();
+        let stats = packed_witness_fallback_with_enabled(&model, &mut estimates, true);
+        assert!(stats.certificates > 0, "{stats:?}");
+        assert!(stats.nodes <= PACKED_WITNESS_TOTAL_NODES);
+        assert_eq!(numeric_values(&estimates), numeric_values(&original));
+        assert!(estimates
+            .iter()
+            .any(|estimate| estimate.reachability == "reachable_by_construction"));
     }
 
     #[test]

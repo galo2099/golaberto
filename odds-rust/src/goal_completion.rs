@@ -416,3 +416,71 @@ pub fn verify(model: &Model, proof: &Certificate, cell: Cell) -> bool {
     s.verified(&proof.outcomes, cell)
         .is_some_and(|actual| actual.ranks == proof.ranks)
 }
+
+/// Check that every completed fixture score is in the support of the native
+/// home and away score samplers. Goal adjustments are unbounded, so the
+/// ranking certificate alone does not establish that the completed season has
+/// positive probability.
+pub(crate) fn has_native_score_support(model: &Model, proof: &Certificate) -> bool {
+    let Some(mut s) = State::new(model, &proof.outcomes) else {
+        return false;
+    };
+    for a in &proof.adjustments {
+        if s.adjust(a.fixture, a.margin, a.equal_goals).is_none() {
+            return false;
+        }
+    }
+    model.fixtures.iter().all(|fixture| {
+        let score = s.scores[fixture.request_index];
+        let Some(home) = fixture.home_sampler.native_masses() else {
+            return false;
+        };
+        let Some(away) = fixture.away_sampler.native_masses() else {
+            return false;
+        };
+        let (Ok(home_score), Ok(away_score)) =
+            (usize::try_from(score[0]), usize::try_from(score[1]))
+        else {
+            return false;
+        };
+        home.get(home_score).is_some_and(|mass| *mass > 0.)
+            && away.get(away_score).is_some_and(|mass| *mass > 0.)
+    })
+}
+
+#[cfg(test)]
+mod native_support_tests {
+    use super::*;
+    use crate::model::Request;
+
+    fn model() -> Model {
+        let request: Request = serde_json::from_str(include_str!(
+            "../tests/fixtures/group-16498-2026-10-10.json"
+        ))
+        .unwrap();
+        Model::new(request).unwrap()
+    }
+
+    #[test]
+    fn native_support_accepts_positive_masses_and_rejects_completed_scores_outside_them() {
+        let model = model();
+        let outcomes = vec![2; model.fixtures.len()];
+        let supported = Certificate {
+            outcomes: outcomes.clone(),
+            adjustments: Vec::new(),
+            ranks: Vec::new(),
+        };
+        assert!(has_native_score_support(&model, &supported));
+
+        let unsupported = Certificate {
+            outcomes,
+            adjustments: vec![Adjustment {
+                fixture: 0,
+                margin: 10_000,
+                equal_goals: 0,
+            }],
+            ranks: Vec::new(),
+        };
+        assert!(!has_native_score_support(&model, &unsupported));
+    }
+}
