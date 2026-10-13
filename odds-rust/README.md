@@ -732,6 +732,27 @@ cases: its jackknife errors do not quantify pooling bias. The references are
 test expectations only. Sampling zeros do not certify an impossible finish,
 and these checks do not validate the rare-event fallback's extreme-tail accuracy.
 
+The uploaded National Friendlies request is retained byte-for-byte in
+`tests/fixtures/group-16687-2026-10-12.json`. `tests/request_performance.rs`
+checks its hash and dimensions in the normal test suite. Its release-only
+benchmark is ignored by default and can be run manually. It runs the production
+CLI with seed 808 and four workers, validates the complete response and the
+100,000-sample estimates, warms up once, and prints seven calculation times
+and their median. There is no performance threshold or baseline comparison.
+
+```sh
+cargo test --release --locked --manifest-path odds-rust/Cargo.toml \
+  --test request_performance -- --ignored --nocapture --test-threads=1
+```
+
+Use consistent hardware and avoid concurrent builds or other heavy workloads
+when comparing measurements. `ODDS_PERFORMANCE_BINARY` optionally selects a
+different binary, including historical binaries. Each child process has a
+90-second timeout. The reported times cover calculation, excluding JSON
+encoding and network transfer; response validation uses a separate warm-up
+estimate. Inherited estimator experiment flags are cleared for the child
+processes.
+
 To reproduce a historical cross-language comparison, first build the Go test
 binary from an earlier checkout containing the retired service, then pass that
 frozen binary to the retained comparison tool:
