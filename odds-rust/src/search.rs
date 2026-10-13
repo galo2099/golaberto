@@ -1223,7 +1223,7 @@ fn run_logged_inner(
 }
 
 const PACKED_WITNESS_NODE_BUDGET: usize = 1000;
-const PACKED_WITNESS_TOTAL_NODES: usize = 3200;
+const PACKED_WITNESS_TOTAL_NODES: usize = 6000;
 
 #[derive(Default, Debug, serde::Serialize)]
 struct PackedWitnessStats {
