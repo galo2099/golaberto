@@ -403,6 +403,113 @@ pub fn complete_with_paths(
     stage(&state, outcomes, cell, key, wins, gf_next, &mut 0, paths)
 }
 
+/// Complete a W/D/L assignment with a small, native-supported set of winning
+/// margins. This is a bounded reachability witness search: failure is unknown
+/// and never means that the requested position is impossible.
+pub(crate) fn complete_with_supported_margins(
+    model: &Model,
+    outcomes: &[u8],
+    cell: Cell,
+) -> Option<Certificate> {
+    if cell.team >= model.n || cell.rank >= model.n || model.request.phase.bonus_points != 0 {
+        return None;
+    }
+    let wins = model.keys.get(1) == Some(&Key::W);
+    let offset = 1 + usize::from(wins);
+    if model.keys.first() != Some(&Key::Pt) || model.keys.get(offset) != Some(&Key::Gd) {
+        return None;
+    }
+
+    // Cache the exact native CDF masses once for every future fixture. The
+    // independent sampler supports, rather than the conditioned outcome
+    // sampler's retained support, determine whether a score can occur.
+    let masses: Vec<_> = model
+        .fixtures
+        .iter()
+        .map(|fixture| {
+            Some((
+                fixture.home_sampler.native_masses()?,
+                fixture.away_sampler.native_masses()?,
+            ))
+        })
+        .collect::<Option<_>>()?;
+    let mut minimum_winner_scores = Vec::with_capacity(outcomes.len());
+    for (i, &outcome) in outcomes.iter().enumerate() {
+        let (home_masses, away_masses) = masses.get(i)?;
+        let positive = |law: &[f64], score: usize| law.get(score).is_some_and(|mass| *mass > 0.);
+        let winner_scores = match outcome {
+            0 => {
+                if !positive(home_masses, 0) {
+                    return None;
+                }
+                away_masses
+            }
+            1 => {
+                if !positive(home_masses, 0) || !positive(away_masses, 0) {
+                    return None;
+                }
+                minimum_winner_scores.push(None);
+                continue;
+            }
+            2 => {
+                if !positive(away_masses, 0) {
+                    return None;
+                }
+                home_masses
+            }
+            _ => return None,
+        };
+        let minimum = winner_scores
+            .iter()
+            .enumerate()
+            .skip(1)
+            .find_map(|(score, mass)| (*mass > 0.).then_some(score))?;
+        minimum_winner_scores.push(Some(minimum));
+    }
+
+    for level in 1..=16usize {
+        let mut trial = State::new(model, outcomes)?;
+        for (i, &outcome) in outcomes.iter().enumerate() {
+            if outcome == 1 {
+                continue;
+            }
+            let (home_masses, away_masses) = masses.get(i)?;
+            let winner_scores = if outcome == 0 {
+                away_masses
+            } else {
+                home_masses
+            };
+            let minimum = minimum_winner_scores.get(i).copied().flatten()?;
+            let focal_fixture = {
+                let fixture = model.fixtures.get(i)?;
+                fixture.home == cell.team || fixture.away == cell.team
+            };
+            let winner_score = if focal_fixture {
+                winner_scores
+                    .iter()
+                    .enumerate()
+                    .skip(1)
+                    .filter(|(score, mass)| *score <= level && **mass > 0.)
+                    .map(|(score, _)| score)
+                    .last()
+                    .unwrap_or(minimum)
+            } else {
+                minimum
+            };
+            let margin = i32::try_from(winner_score.checked_sub(1)?).ok()?;
+            if margin > 0 {
+                trial.adjust(i, margin, 0)?;
+            }
+        }
+        if let Some(certificate) = trial.verified(outcomes, cell) {
+            if has_native_score_support(model, &certificate) {
+                return Some(certificate);
+            }
+        }
+    }
+    None
+}
+
 /// Reconstruct compact adjustments and verify their complete season on demand.
 pub fn verify(model: &Model, proof: &Certificate, cell: Cell) -> bool {
     let Some(mut s) = State::new(model, &proof.outcomes) else {
@@ -451,7 +558,7 @@ pub(crate) fn has_native_score_support(model: &Model, proof: &Certificate) -> bo
 #[cfg(test)]
 mod native_support_tests {
     use super::*;
-    use crate::model::Request;
+    use crate::model::{Championship, Game, Phase, Request, Team};
 
     fn model() -> Model {
         let request: Request = serde_json::from_str(include_str!(
@@ -459,6 +566,69 @@ mod native_support_tests {
         ))
         .unwrap();
         Model::new(request).unwrap()
+    }
+
+    fn supported_margin_model(
+        team2_points: i32,
+        team3_points: i32,
+        home_mean: f64,
+        away_mean: f64,
+    ) -> Model {
+        let mut games = vec![Game {
+            id: 1,
+            home_id: 1,
+            away_id: 2,
+            home_score: 58,
+            away_score: 1,
+            home_power: 1.,
+            away_power: 1.,
+            played: true,
+        }];
+        for id in 0..12 {
+            games.push(Game {
+                id: id + 2,
+                home_id: 2,
+                away_id: 1,
+                home_score: 0,
+                away_score: 0,
+                home_power: home_mean,
+                away_power: away_mean,
+                played: false,
+            });
+        }
+        Model::new(Request {
+            id: 1,
+            zones: Vec::new(),
+            phase: Phase {
+                sort: "pt,gd,gf,bias,name".into(),
+                championship: Championship {
+                    point_win: 3,
+                    point_draw: 1,
+                    point_loss: 0,
+                },
+                bonus_points: 0,
+                bonus_points_threshold: 0,
+            },
+            games,
+            team_groups: vec![
+                Team {
+                    team_id: 1,
+                    add_sub: 0,
+                    bias: 0,
+                },
+                Team {
+                    team_id: 2,
+                    add_sub: team2_points,
+                    bias: 0,
+                },
+                Team {
+                    team_id: 3,
+                    add_sub: team3_points,
+                    bias: 0,
+                },
+            ],
+        })
+        .unwrap()
     }
 
     #[test]
@@ -482,5 +652,45 @@ mod native_support_tests {
             ranks: Vec::new(),
         };
         assert!(!has_native_score_support(&model, &unsupported));
+    }
+
+    #[test]
+    fn supported_margins_distribute_goals_across_focal_losses() {
+        let model = supported_margin_model(-33, 3, 1., 1.);
+        let outcomes = vec![2; model.fixtures.len()];
+        let cell = Cell { team: 0, rank: 2 };
+
+        let proof = complete_with_supported_margins(&model, &outcomes, cell).unwrap();
+
+        assert_eq!(proof.outcomes, outcomes);
+        assert_eq!(proof.ranks[0], cell.rank);
+        assert!(verify(&model, &proof, cell));
+        assert!(has_native_score_support(&model, &proof));
+        assert_eq!(proof.adjustments.len(), 12);
+        assert!(proof.adjustments.iter().filter(|a| a.margin > 0).count() >= 6);
+    }
+
+    #[test]
+    fn supported_margins_decline_positions_blocked_by_points() {
+        let model = supported_margin_model(100, 50, 1., 1.);
+        let outcomes = vec![2; model.fixtures.len()];
+
+        assert!(
+            complete_with_supported_margins(&model, &outcomes, Cell { team: 0, rank: 0 },)
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn supported_margins_decline_unsupported_native_laws() {
+        let outcomes = vec![2; 12];
+        let cell = Cell { team: 0, rank: 2 };
+        let unsupported_mean = supported_margin_model(-33, 0, 33., 1.);
+        let unsupported_winner_score = supported_margin_model(-33, 0, 0., 1.);
+
+        assert!(complete_with_supported_margins(&unsupported_mean, &outcomes, cell).is_none());
+        assert!(
+            complete_with_supported_margins(&unsupported_winner_score, &outcomes, cell).is_none()
+        );
     }
 }
