@@ -480,7 +480,76 @@ struct Solver<'a, const WORDS: usize> {
     capture_feasible_domains: bool,
     feasible_domains: Option<Vec<u8>>,
 }
+fn gcd(mut a: i128, mut b: i128) -> i128 {
+    while b != 0 {
+        let remainder = a % b;
+        a = b;
+        b = remainder;
+    }
+    a
+}
 impl<const WORDS: usize> Solver<'_, WORDS> {
+    /// Project one required endpoint after removing optional draws from all
+    /// other fixtures. A fixed draw remains allowed. This score guides capture
+    /// branch order only; it never removes an outcome from a domain.
+    fn no_optional_draw_demand(
+        &self,
+        team: usize,
+        focus: Option<(usize, usize)>,
+        ds: &[u8],
+    ) -> Option<i128> {
+        let mut minimum_total = i128::from(self.p.base[team]);
+        let mut maximum_total = i128::from(self.p.base[team]);
+        let mut step = 0_i128;
+        for &(i, end) in &self.p.adjacent[team] {
+            let domain = if focus.is_some_and(|(game, _)| game == i) {
+                1 << focus.unwrap().1
+            } else if ds[i] & 0b101 != 0 {
+                ds[i] & 0b101
+            } else {
+                ds[i]
+            };
+            if domain == 0 {
+                return None;
+            }
+            let mut minimum: Option<i128> = None;
+            for outcome in 0..3 {
+                if domain & (1 << outcome) == 0 {
+                    continue;
+                }
+                let gain = i128::from(self.p.games[i].gain[end][outcome]);
+                minimum = Some(minimum.map_or(gain, |v| v.min(gain)));
+            }
+            let minimum = minimum?;
+            minimum_total = minimum_total.checked_add(minimum)?;
+            let maximum = (0..3)
+                .filter(|outcome| domain & (1 << outcome) != 0)
+                .map(|outcome| i128::from(self.p.games[i].gain[end][outcome]))
+                .max()?;
+            maximum_total = maximum_total.checked_add(maximum)?;
+            for outcome in 0..3 {
+                if domain & (1 << outcome) != 0 {
+                    step = gcd(
+                        step,
+                        i128::from(self.p.games[i].gain[end][outcome]) - minimum,
+                    );
+                }
+            }
+        }
+        let floor = i128::from(self.floor);
+        if maximum_total < floor {
+            return None;
+        }
+        if minimum_total >= floor {
+            Some(minimum_total)
+        } else if step == 0 {
+            None
+        } else {
+            let gap = floor.checked_sub(minimum_total)?;
+            let steps = gap.checked_add(step - 1)?.checked_div(step)?;
+            minimum_total.checked_add(steps.checked_mul(step)?)
+        }
+    }
     // Only restrictions that lower this endpoint's maximum can contribute to
     // its bound. A hypothetical outcome replaces its own fixture, so omit that
     // fixture's restriction when explaining why the outcome was removed.
@@ -504,6 +573,119 @@ impl<const WORDS: usize> Solver<'_, WORDS> {
             }
         }
         r
+    }
+    /// A cohort must fit all required teams' cheapest attainable packed totals
+    /// into the packed points available from their shared fixtures. The gcd
+    /// residue bound keeps each individual demand conservative when outcomes
+    /// have gaps. Restricted-domain explanations are all dependencies of this
+    /// collective bound, even when a restriction did not lower an endpoint's
+    /// individual maximum.
+    fn collective_conflict(
+        &self,
+        required: u64,
+        ds: &[u8],
+        reasons: &[Reason<WORDS>],
+    ) -> Option<Reason<WORDS>> {
+        let mut capacity = 0_i128;
+        for (team, &base) in self.p.base.iter().enumerate() {
+            if required & (1 << team) != 0 {
+                capacity = capacity.checked_add(i128::from(base))?;
+            }
+        }
+        for (i, game) in self.p.games.iter().enumerate() {
+            let home_required = required & (1 << game.home) != 0;
+            let away_required = required & (1 << game.away) != 0;
+            if !home_required && !away_required {
+                continue;
+            }
+            if ds[i] == 0 {
+                let mut conflict = Reason::<WORDS> {
+                    decisions: [0; WORDS],
+                    teams: required,
+                };
+                conflict.merge(reasons[i]);
+                return Some(conflict);
+            }
+            let mut best: Option<i128> = None;
+            for outcome in 0..3 {
+                if ds[i] & (1 << outcome) == 0 {
+                    continue;
+                }
+                let mut gain = 0_i128;
+                if home_required {
+                    gain = gain.checked_add(i128::from(game.gain[0][outcome]))?;
+                }
+                if away_required {
+                    gain = gain.checked_add(i128::from(game.gain[1][outcome]))?;
+                }
+                best = Some(best.map_or(gain, |v| v.max(gain)));
+            }
+            capacity = capacity.checked_add(best?)?;
+        }
+
+        let mut demand = 0_i128;
+        for team in 0..self.p.base.len() {
+            if required & (1 << team) == 0 {
+                continue;
+            }
+            let mut minimum_total = i128::from(self.p.base[team]);
+            let mut step = 0_i128;
+            for &(i, end) in &self.p.adjacent[team] {
+                let mut minimum: Option<i128> = None;
+                for outcome in 0..3 {
+                    if ds[i] & (1 << outcome) == 0 {
+                        continue;
+                    }
+                    let gain = i128::from(self.p.games[i].gain[end][outcome]);
+                    minimum = Some(minimum.map_or(gain, |v| v.min(gain)));
+                }
+                let minimum = minimum?;
+                minimum_total = minimum_total.checked_add(minimum)?;
+                for outcome in 0..3 {
+                    if ds[i] & (1 << outcome) != 0 {
+                        step = gcd(
+                            step,
+                            i128::from(self.p.games[i].gain[end][outcome]) - minimum,
+                        );
+                    }
+                }
+            }
+            let floor = i128::from(self.floor);
+            if step == 0 && minimum_total < floor {
+                let mut conflict = Reason::<WORDS> {
+                    decisions: [0; WORDS],
+                    teams: 1 << team,
+                };
+                for &(i, _) in &self.p.adjacent[team] {
+                    if ds[i] != self.initial[i] {
+                        conflict.merge(reasons[i]);
+                    }
+                }
+                return Some(conflict);
+            }
+            let required_total = if minimum_total >= floor {
+                minimum_total
+            } else {
+                let gap = floor.checked_sub(minimum_total)?;
+                let steps = gap.checked_add(step - 1)?.checked_div(step)?;
+                minimum_total.checked_add(steps.checked_mul(step)?)?
+            };
+            demand = demand.checked_add(required_total)?;
+        }
+        if demand <= capacity {
+            return None;
+        }
+
+        let mut conflict = Reason::<WORDS> {
+            decisions: [0; WORDS],
+            teams: required,
+        };
+        for (i, game) in self.p.games.iter().enumerate() {
+            if ds[i] != self.initial[i] && (required & ((1 << game.home) | (1 << game.away))) != 0 {
+                conflict.merge(reasons[i]);
+            }
+        }
+        Some(conflict)
     }
     fn propagate(
         &self,
@@ -560,6 +742,11 @@ impl<const WORDS: usize> Solver<'_, WORDS> {
                 }
             }
             if !changed {
+                if self.capture_feasible_domains {
+                    if let Some(conflict) = self.collective_conflict(required, ds, reasons) {
+                        return Err(conflict);
+                    }
+                }
                 return Ok(maximum);
             }
         }
@@ -579,37 +766,161 @@ impl<const WORDS: usize> Solver<'_, WORDS> {
             Ok(v) => v,
             Err(r) => return Answer::Conflict(r),
         };
-        let best = self
-            .p
-            .games
-            .iter()
-            .enumerate()
-            .filter(|(i, g)| {
-                ds[*i].count_ones() > 1 && required & ((1 << g.home) | (1 << g.away)) != 0
-            })
-            .min_by_key(|(i, g)| {
-                let h = required & (1 << g.home) != 0;
-                let a = required & (1 << g.away) != 0;
-                let sum = if h { maximum[g.home] - self.floor } else { 0 }
-                    + if a { maximum[g.away] - self.floor } else { 0 };
-                let slack = [(g.home, h), (g.away, a)]
-                    .into_iter()
-                    .filter(|(_, r)| *r)
-                    .map(|(t, _)| maximum[t] - self.floor)
-                    .min()
-                    .unwrap();
-                if self.options.internal_order {
-                    (
-                        ds[*i].count_ones(),
-                        2 - usize::from(h) - usize::from(a),
-                        sum,
-                        *i,
-                    )
-                } else {
-                    (ds[*i].count_ones(), 0, slack, *i)
+        let old_order_key = |(i, g): (usize, &Game)| {
+            let h = required & (1 << g.home) != 0;
+            let a = required & (1 << g.away) != 0;
+            let sum = if h { maximum[g.home] - self.floor } else { 0 }
+                + if a { maximum[g.away] - self.floor } else { 0 };
+            let slack = [(g.home, h), (g.away, a)]
+                .into_iter()
+                .filter(|(_, r)| *r)
+                .map(|(t, _)| maximum[t] - self.floor)
+                .min()
+                .unwrap();
+            if self.options.internal_order {
+                (
+                    ds[i].count_ones(),
+                    2 - usize::from(h) - usize::from(a),
+                    sum,
+                    i,
+                )
+            } else {
+                (ds[i].count_ones(), 0, slack, i)
+            }
+        };
+        let best = if self.capture_feasible_domains && self.options.internal_order {
+            let candidates: Vec<_> = self
+                .p
+                .games
+                .iter()
+                .enumerate()
+                .filter(|(i, g)| {
+                    ds[*i].count_ones() > 1 && required & ((1 << g.home) | (1 << g.away)) != 0
+                })
+                .collect();
+            let mut current_projected = vec![None; self.p.base.len()];
+            for team in 0..self.p.base.len() {
+                if required & (1 << team) != 0 {
+                    current_projected[team] = self.no_optional_draw_demand(team, None, &ds);
                 }
-            })
-            .map(|(i, _)| i);
+            }
+            let mut effects = Vec::with_capacity(candidates.len());
+            for &(i, game) in &candidates {
+                let endpoints = [(game.home, 0), (game.away, 1)];
+                let mut current_demand = 0_i128;
+                let mut demand_valid = true;
+                let mut current_capacity: Option<i128> = None;
+                for outcome in 0..3 {
+                    if ds[i] & (1 << outcome) == 0 {
+                        continue;
+                    }
+                    let mut gain = 0_i128;
+                    for &(team, end) in &endpoints {
+                        if required & (1 << team) != 0 {
+                            gain = match gain.checked_add(i128::from(game.gain[end][outcome])) {
+                                Some(value) => value,
+                                None => {
+                                    demand_valid = false;
+                                    gain
+                                }
+                            };
+                        }
+                    }
+                    current_capacity = Some(current_capacity.map_or(gain, |value| value.max(gain)));
+                }
+                for &(team, _) in &endpoints {
+                    if required & (1 << team) == 0 {
+                        continue;
+                    }
+                    if let Some(projected) = current_projected[team] {
+                        current_demand = match current_demand.checked_add(projected) {
+                            Some(value) => value,
+                            None => {
+                                demand_valid = false;
+                                current_demand
+                            }
+                        };
+                    } else {
+                        demand_valid = false;
+                    }
+                }
+                let mut best_effect: Option<i128> = None;
+                if demand_valid {
+                    if let Some(current_capacity) = current_capacity {
+                        for outcome in 0..3 {
+                            if ds[i] & (1 << outcome) == 0 {
+                                continue;
+                            }
+                            let mut new_demand = 0_i128;
+                            let mut chosen_gain = 0_i128;
+                            let mut valid = true;
+                            for &(team, end) in &endpoints {
+                                if required & (1 << team) == 0 {
+                                    continue;
+                                }
+                                match self.no_optional_draw_demand(team, Some((i, outcome)), &ds) {
+                                    Some(value) => match new_demand.checked_add(value) {
+                                        Some(sum) => new_demand = sum,
+                                        None => valid = false,
+                                    },
+                                    None => valid = false,
+                                }
+                                match chosen_gain.checked_add(i128::from(game.gain[end][outcome])) {
+                                    Some(sum) => chosen_gain = sum,
+                                    None => valid = false,
+                                }
+                            }
+                            if valid {
+                                let effect =
+                                    new_demand.checked_sub(current_demand).and_then(|value| {
+                                        value.checked_add(current_capacity - chosen_gain)
+                                    });
+                                if let Some(effect) = effect {
+                                    best_effect =
+                                        Some(best_effect.map_or(effect, |best| best.min(effect)));
+                                }
+                            }
+                        }
+                    }
+                }
+                effects.push((i, game, best_effect));
+            }
+            if effects.iter().any(|(_, _, effect)| effect.is_some()) {
+                effects
+                    .into_iter()
+                    .filter_map(|(i, game, effect)| effect.map(|effect| (i, game, effect)))
+                    .min_by(|(i_a, g_a, effect_a), (i_b, g_b, effect_b)| {
+                        ds[*i_a]
+                            .count_ones()
+                            .cmp(&ds[*i_b].count_ones())
+                            .then_with(|| effect_a.cmp(effect_b))
+                            .then_with(|| {
+                                old_order_key((*i_a, g_a)).cmp(&old_order_key((*i_b, g_b)))
+                            })
+                    })
+                    .map(|(i, _, _)| i)
+            } else {
+                self.p
+                    .games
+                    .iter()
+                    .enumerate()
+                    .filter(|(i, g)| {
+                        ds[*i].count_ones() > 1 && required & ((1 << g.home) | (1 << g.away)) != 0
+                    })
+                    .min_by_key(|candidate| old_order_key(*candidate))
+                    .map(|(i, _)| i)
+            }
+        } else {
+            self.p
+                .games
+                .iter()
+                .enumerate()
+                .filter(|(i, g)| {
+                    ds[*i].count_ones() > 1 && required & ((1 << g.home) | (1 << g.away)) != 0
+                })
+                .min_by_key(|candidate| old_order_key(*candidate))
+                .map(|(i, _)| i)
+        };
         let Some(i) = best else {
             if self.capture_feasible_domains {
                 self.feasible_domains = Some(ds);
@@ -618,17 +929,128 @@ impl<const WORDS: usize> Solver<'_, WORDS> {
         };
         let g = &self.p.games[i];
         let mut options: Vec<_> = (0..3).filter(|o| ds[i] & (1 << o) != 0).collect();
-        options.sort_by_key(|o| {
-            -(if required & (1 << g.home) != 0 {
-                g.gain[0][*o]
-            } else {
-                0
-            } + if required & (1 << g.away) != 0 {
-                g.gain[1][*o]
-            } else {
-                0
-            })
-        });
+        if self.capture_feasible_domains && self.options.internal_order {
+            let mut guaranteed = vec![0_i128; self.p.base.len()];
+            let mut flexible = vec![0_usize; self.p.base.len()];
+            for (team, total) in guaranteed.iter_mut().enumerate() {
+                if required & (1 << team) == 0 {
+                    continue;
+                }
+                *total = i128::from(self.p.base[team]);
+                for &(game, end) in &self.p.adjacent[team] {
+                    let minimum = (0..3)
+                        .filter(|outcome| ds[game] & (1 << outcome) != 0)
+                        .map(|outcome| self.p.games[game].gain[end][outcome])
+                        .min()
+                        .unwrap_or(0);
+                    *total += i128::from(minimum);
+                    if ds[game].count_ones() > 1 {
+                        flexible[team] += 1;
+                    }
+                }
+            }
+            let endpoint_minimum = [
+                (required & (1 << g.home) != 0).then(|| {
+                    (0..3)
+                        .filter(|outcome| ds[i] & (1 << outcome) != 0)
+                        .map(|outcome| g.gain[0][outcome])
+                        .min()
+                        .unwrap_or(0)
+                }),
+                (required & (1 << g.away) != 0).then(|| {
+                    (0..3)
+                        .filter(|outcome| ds[i] & (1 << outcome) != 0)
+                        .map(|outcome| g.gain[1][outcome])
+                        .min()
+                        .unwrap_or(0)
+                }),
+            ];
+            let endpoints = [(g.home, 0), (g.away, 1)];
+            let floor = i128::from(self.floor);
+            let score = |outcome: usize| {
+                let mut projected_demand = 0_i128;
+                let mut projected_valid = true;
+                let mut actual_gain = 0_i128;
+                for &(team, end) in &endpoints {
+                    if required & (1 << team) == 0 {
+                        continue;
+                    }
+                    match self.no_optional_draw_demand(team, Some((i, outcome)), &ds) {
+                        Some(demand) => match projected_demand.checked_add(demand) {
+                            Some(sum) => projected_demand = sum,
+                            None => projected_valid = false,
+                        },
+                        None => projected_valid = false,
+                    }
+                    match actual_gain.checked_add(i128::from(g.gain[end][outcome])) {
+                        Some(sum) => actual_gain = sum,
+                        None => projected_valid = false,
+                    }
+                }
+                let projected_score = projected_valid
+                    .then(|| projected_demand.checked_sub(actual_gain))
+                    .flatten();
+                let mut ratios = [0.0_f64; 2];
+                let mut residual_sum = 0_i128;
+                let mut count = 0;
+                for (slot, &(team, end)) in endpoints.iter().enumerate() {
+                    if required & (1 << team) == 0 {
+                        continue;
+                    }
+                    let delta = i128::from(g.gain[end][outcome])
+                        - i128::from(endpoint_minimum[slot].unwrap());
+                    let residual = (floor - guaranteed[team] - delta).max(0);
+                    residual_sum += residual;
+                    let remaining = flexible[team] - usize::from(ds[i].count_ones() > 1);
+                    ratios[count] = if residual == 0 {
+                        0.0
+                    } else if remaining == 0 {
+                        f64::INFINITY
+                    } else {
+                        residual as f64 / remaining as f64
+                    };
+                    count += 1;
+                }
+                let first = ratios[0];
+                let second = if count > 1 { ratios[1] } else { 0.0 };
+                (
+                    projected_score,
+                    first.max(second),
+                    (first - second).abs(),
+                    first + second,
+                    residual_sum,
+                    outcome,
+                )
+            };
+            options.sort_by(|a, b| {
+                let a = score(*a);
+                let b = score(*b);
+                let projected = match (a.0, b.0) {
+                    (Some(left), Some(right)) => left.cmp(&right),
+                    (Some(_), None) => std::cmp::Ordering::Less,
+                    (None, Some(_)) => std::cmp::Ordering::Greater,
+                    (None, None) => std::cmp::Ordering::Equal,
+                };
+                projected
+                    .then_with(|| a.1.total_cmp(&b.1))
+                    .then_with(|| a.2.total_cmp(&b.2))
+                    .then_with(|| a.3.total_cmp(&b.3))
+                    .then_with(|| a.4.cmp(&b.4))
+                    .then_with(|| a.5.cmp(&b.5))
+            });
+        } else {
+            options.sort_by_key(|o| {
+                -(if required & (1 << g.home) != 0 {
+                    g.gain[0][*o]
+                } else {
+                    0
+                } + if required & (1 << g.away) != 0 {
+                    g.gain[1][*o]
+                } else {
+                    0
+                })
+            });
+        }
         // The parent domain may already exclude values. Those explanations must
         // be retained when resolving child conflicts over only its allowed values.
         let mut union = reasons[i];
@@ -839,6 +1261,60 @@ mod tests {
         assert_eq!(empty.stats.nodes, 0);
     }
     #[test]
+    fn capture_collective_bound_keeps_draw_dependency_when_maxima_do_not_change() {
+        let request: Request = serde_json::from_value(json!({
+            "id": 1,
+            "phase": {"sort":"pt,gd,gf", "championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+            "team_groups": [
+                {"team_id":1,"add_sub":0},
+                {"team_id":2,"add_sub":0},
+                {"team_id":3,"add_sub":0}
+            ],
+            "games": [{"id":1,"home_id":2,"away_id":3}]
+        })).unwrap();
+        let model = Model::new(request).unwrap();
+        let mut proof = RankProof::new(&model).unwrap();
+        // With one point already banked, either decisive result leaves one
+        // required team below two points. The draw is the only shared support.
+        proof.base[1] = 1;
+        proof.base[2] = 1;
+        let solver: Solver<'_, 8> = Solver {
+            p: &proof,
+            floor: 2,
+            initial: vec![7],
+            initial_maximum: vec![0; proof.base.len()],
+            budget: 100,
+            options: Options::default(),
+            max_depth: 512,
+            stats: Stats::default(),
+            cores: Vec::new(),
+            capture_feasible_domains: true,
+            feasible_domains: None,
+        };
+        let required = (1 << 1) | (1 << 2);
+        assert!(solver
+            .collective_conflict(required, &[7], &[Reason::default()])
+            .is_none());
+
+        // Removing the draw keeps both individual maxima at three, so the
+        // old endpoint-only explanation would omit this dependency. Its gcd
+        // residue raises each demand to four while shared capacity remains five.
+        let mut reason = Reason::<8>::default();
+        reason.insert(128);
+        let conflict = solver
+            .collective_conflict(required, &[0b101], &[reason])
+            .expect("decisive-only domains cannot satisfy both teams");
+        assert!(conflict.contains(128));
+        let fixed_total_conflict = solver
+            .collective_conflict(1 << 1, &[0b001], &[reason])
+            .expect("a fixed total below the floor is impossible");
+        assert_eq!(fixed_total_conflict.teams, 1 << 1);
+        assert!(fixed_total_conflict.contains(128));
+        for team in [1, 2] {
+            assert_eq!(proof.games[0].maximum[usize::from(team == 2)][0b101], 3);
+        }
+    }
+    #[test]
     fn expanded_depth_finds_a_feasible_domain_after_128_decisions() {
         let request = json!({
             "id": 99005,
@@ -851,6 +1327,18 @@ mod tests {
         let cell = Cell { team: 0, rank: 1 };
         let default = proof.feasible_domains(cell, 1, 1000, Options::default());
         assert!(default.domains.is_none());
+        let depth_limited = proof.feasible_domains_with_limits(
+            cell,
+            1,
+            1000,
+            Options::default(),
+            Limits {
+                max_cohorts: 100_000,
+                max_depth: 1,
+            },
+        );
+        assert!(depth_limited.domains.is_none());
+        assert!(depth_limited.stats.nodes <= 1);
 
         let expanded = proof.feasible_domains_with_limits(
             cell,
@@ -897,6 +1385,128 @@ mod tests {
                     }
                     for (team, &ahead) in maximum_ahead.iter().enumerate() {
                         for rank in 0..m.n {
+                            let mut initial = vec![7_u8; proof.games.len()];
+                            let mut floor = proof.base[team];
+                            for &(i, end) in &proof.adjacent[team] {
+                                let minimum = proof.games[i].gain[end].into_iter().min().unwrap();
+                                initial[i] = (0..3).fold(0, |domain, outcome| {
+                                    if proof.games[i].gain[end][outcome] == minimum {
+                                        domain | (1 << outcome)
+                                    } else {
+                                        domain
+                                    }
+                                });
+                                floor += minimum;
+                            }
+                            let mut exact_capture_exists = false;
+                            for mut code in 0..3_usize.pow(proof.games.len() as u32) {
+                                let mut totals = proof.base.clone();
+                                let mut allowed = true;
+                                for (i, game) in proof.games.iter().enumerate() {
+                                    let outcome = code % 3;
+                                    code /= 3;
+                                    if initial[i] & (1 << outcome) == 0 {
+                                        allowed = false;
+                                        break;
+                                    }
+                                    totals[game.home] += game.gain[0][outcome];
+                                    totals[game.away] += game.gain[1][outcome];
+                                }
+                                if allowed
+                                    && (0..m.n)
+                                        .filter(|other| *other != team && totals[*other] >= floor)
+                                        .count()
+                                        >= rank
+                                {
+                                    exact_capture_exists = true;
+                                    break;
+                                }
+                            }
+                            let captured = proof.feasible_domains_with_limits(
+                                Cell { team, rank },
+                                rank,
+                                10_000,
+                                Options::default(),
+                                Limits {
+                                    max_cohorts: 100_000,
+                                    max_depth: 512,
+                                },
+                            );
+                            assert_eq!(
+                                captured.domains.is_some(),
+                                exact_capture_exists,
+                                "capture mismatch: adjustment={adjustment} sort={sort} direction={direction} team={team} required={rank}"
+                            );
+                            if let Some(domains) = captured.domains {
+                                for mut code in 0..3_usize.pow(proof.games.len() as u32) {
+                                    let mut totals = proof.base.clone();
+                                    let mut allowed = true;
+                                    for (i, game) in proof.games.iter().enumerate() {
+                                        let outcome = code % 3;
+                                        code /= 3;
+                                        if domains[i] & (1 << outcome) == 0 {
+                                            allowed = false;
+                                            break;
+                                        }
+                                        totals[game.home] += game.gain[0][outcome];
+                                        totals[game.away] += game.gain[1][outcome];
+                                    }
+                                    if allowed {
+                                        assert!(
+                                            (0..m.n)
+                                                .filter(|other| *other != team && totals[*other] >= floor)
+                                                .count()
+                                                >= rank,
+                                            "invalid captured completion: adjustment={adjustment} sort={sort} direction={direction} team={team} required={rank}"
+                                        );
+                                    }
+                                }
+                            }
+                            let capture_without_helpers = proof.feasible_domains_with_limits(
+                                Cell { team, rank },
+                                rank,
+                                10_000,
+                                Options {
+                                    explain: false,
+                                    internal_order: false,
+                                    reuse_cohorts: false,
+                                    require_root_pressure: false,
+                                },
+                                Limits {
+                                    max_cohorts: 100_000,
+                                    max_depth: 512,
+                                },
+                            );
+                            assert_eq!(
+                                capture_without_helpers.domains.is_some(),
+                                exact_capture_exists,
+                                "unoptimized capture mismatch: adjustment={adjustment} sort={sort} direction={direction} team={team} required={rank}"
+                            );
+                            if let Some(domains) = capture_without_helpers.domains {
+                                for mut code in 0..3_usize.pow(proof.games.len() as u32) {
+                                    let mut totals = proof.base.clone();
+                                    let mut allowed = true;
+                                    for (i, game) in proof.games.iter().enumerate() {
+                                        let outcome = code % 3;
+                                        code /= 3;
+                                        if domains[i] & (1 << outcome) == 0 {
+                                            allowed = false;
+                                            break;
+                                        }
+                                        totals[game.home] += game.gain[0][outcome];
+                                        totals[game.away] += game.gain[1][outcome];
+                                    }
+                                    if allowed {
+                                        assert!(
+                                            (0..m.n)
+                                                .filter(|other| *other != team && totals[*other] >= floor)
+                                                .count()
+                                                >= rank,
+                                            "invalid unoptimized captured completion: adjustment={adjustment} sort={sort} direction={direction} team={team} required={rank}"
+                                        );
+                                    }
+                                }
+                            }
                             for options in [
                                 Options {
                                     explain: false,

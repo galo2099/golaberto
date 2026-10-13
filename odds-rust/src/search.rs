@@ -1316,11 +1316,20 @@ fn verified_packed_certificate(
     stats.nodes += search.stats.nodes;
     stats.cohorts += search.stats.cohorts;
     let outcomes = choose_supported_outcomes(model, search.domains.as_deref()?)?;
-    let certificate = crate::goal_completion::complete_with_paths(model, &outcomes, cell, true)?;
-    if !crate::goal_completion::verify(model, &certificate, cell) {
-        return None;
+    if let Some(certificate) =
+        crate::goal_completion::complete_with_paths(model, &outcomes, cell, true)
+    {
+        if crate::goal_completion::verify(model, &certificate, cell)
+            && crate::goal_completion::has_native_score_support(model, &certificate)
+        {
+            return Some(certificate);
+        }
     }
-    if !crate::goal_completion::has_native_score_support(model, &certificate) {
+    let certificate =
+        crate::goal_completion::complete_with_supported_margins(model, &outcomes, cell)?;
+    if !crate::goal_completion::verify(model, &certificate, cell)
+        || !crate::goal_completion::has_native_score_support(model, &certificate)
+    {
         return None;
     }
     Some(certificate)
@@ -1935,7 +1944,7 @@ mod packed_witness_tests {
     }
 
     #[test]
-    fn packed_witness_rejects_unsupported_palmeiras_thirteenth_certificate() {
+    fn packed_witness_replaces_unsupported_palmeiras_completion_with_supported_one() {
         let model = snapshot();
         let team = model.indices[&16];
         let target_index = Cell { team, rank: 12 }.index(model.n);
@@ -1994,6 +2003,26 @@ mod packed_witness_tests {
         ));
         assert!(!crate::goal_completion::has_native_score_support(&model, &raw));
 
+        let mut supported_stats = PackedWitnessStats::default();
+        let supported = verified_packed_certificate(
+            &model,
+            &proof,
+            Cell { team, rank: 12 },
+            12,
+            PACKED_WITNESS_NODE_BUDGET,
+            &mut supported_stats,
+        )
+        .expect("supported-margin fallback should find a native-scored completion");
+        assert!(crate::goal_completion::verify(
+            &model,
+            &supported,
+            Cell { team, rank: 12 }
+        ));
+        assert!(crate::goal_completion::has_native_score_support(
+            &model,
+            &supported
+        ));
+
         let disabled = packed_witness_fallback_with_enabled(&model, &mut estimates, false);
         assert_eq!(disabled.labels, 0);
         assert_eq!(
@@ -2006,8 +2035,12 @@ mod packed_witness_tests {
         assert_eq!(stats.candidates, 1);
         assert!(stats.attempts <= 2);
         assert!(stats.nodes <= PACKED_WITNESS_NODE_BUDGET);
-        assert_eq!(stats.certificates, 0, "{stats:?}");
-        assert_eq!(estimates[target_index].reachability, "undecided");
+        assert_eq!(stats.certificates, 1, "{stats:?}");
+        assert_eq!(stats.labels, 1, "{stats:?}");
+        assert_eq!(
+            estimates[target_index].reachability,
+            "reachable_by_construction"
+        );
         assert_eq!(estimates[positive_index].reachability, "pool_positive");
         assert_eq!(
             estimates[impossible_index].reachability,
