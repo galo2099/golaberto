@@ -711,6 +711,11 @@ pub fn run_logged(
         );
     }
     if !rank_rescue.enabled {
+        let packed_phase = std::time::Instant::now();
+        let packed = packed_witness_fallback(model, estimates);
+        if let Some(log) = log {
+            log.stage("search.packed_witness", packed_phase, serde_json::json!(packed));
+        }
         return work;
     }
     let rescue_baseline = estimates.to_vec();
@@ -773,6 +778,11 @@ pub fn run_logged(
                 "valid_matrix":crate::pool::valid(&estimates.iter().map(|e|e.probability).collect::<Vec<_>>(),model.n)
             }),
         );
+    }
+    let packed_phase = std::time::Instant::now();
+    let packed = packed_witness_fallback(model, estimates);
+    if let Some(log) = log {
+        log.stage("search.packed_witness", packed_phase, serde_json::json!(packed));
     }
     work.saturating_add(rescue_work)
 }
@@ -924,8 +934,6 @@ fn run_logged_inner(
                     serde_json::json!({"found":found,"reconciled":reconciled,"work":spent,"path":"no_zero_cells_no_donors"}),
                 );
             }
-            let packed = packed_witness_fallback(model, estimates);
-            report("packed_witness", serde_json::json!(packed));
             return spent;
         }
         let (found, spent) = run_tail_with_donors(
@@ -940,13 +948,9 @@ fn run_logged_inner(
         );
         if found > 0 {
             if !reconcile(model, estimates, &baseline) {
-                let packed = packed_witness_fallback(model, estimates);
-                report("packed_witness", serde_json::json!(packed));
                 return spent;
             }
         }
-        let packed = packed_witness_fallback(model, estimates);
-        report("packed_witness", serde_json::json!(packed));
         return spent;
     }
     let mut results = parallel(cells.len(), workers, |i| {
@@ -1208,8 +1212,6 @@ fn run_logged_inner(
                 "reconcile",
                 serde_json::json!({"rolled_back":true,"cells":crate::logging::cell_counts(estimates)}),
             );
-            let packed = packed_witness_fallback(model, estimates);
-            report("packed_witness", serde_json::json!(packed));
             return work;
         }
     }
@@ -1217,8 +1219,6 @@ fn run_logged_inner(
         "reconcile",
         serde_json::json!({"rolled_back":false,"cells":crate::logging::cell_counts(estimates)}),
     );
-    let packed = packed_witness_fallback(model, estimates);
-    report("packed_witness", serde_json::json!(packed));
     work
 }
 
@@ -1269,15 +1269,6 @@ fn packed_witness_supported(model: &Model) -> bool {
             })
 }
 
-fn packed_witness_uses_legacy_rules(model: &Model) -> bool {
-    use crate::model::Key;
-    model.keys.get(1) == Some(&Key::W)
-        && matches!(model.keys.get(2), Some(Key::Gd | Key::Gf))
-        && model.keys[2..]
-            .iter()
-            .all(|key| matches!(key, Key::Gd | Key::Gf | Key::Gp | Key::Name))
-}
-
 fn choose_supported_outcomes(model: &Model, domains: &[u8]) -> Option<Vec<u8>> {
     if domains.len() != model.fixtures.len() {
         return None;
@@ -1325,12 +1316,15 @@ fn verified_packed_certificate(
     if !crate::goal_completion::verify(model, &certificate, cell) {
         return None;
     }
-    if !packed_witness_uses_legacy_rules(model)
-        && !crate::goal_completion::has_native_score_support(model, &certificate)
-    {
+    if !crate::goal_completion::has_native_score_support(model, &certificate) {
         return None;
     }
     Some(certificate)
+}
+
+fn packed_witness_candidate(estimate: &Estimate) -> bool {
+    estimate.probability == 0.
+        && (estimate.reachability.is_empty() || estimate.reachability == "undecided")
 }
 
 fn packed_witness_fallback(model: &Model, estimates: &mut [Estimate]) -> PackedWitnessStats {
@@ -1354,7 +1348,7 @@ fn packed_witness_fallback_with_enabled(
         .flat_map(|team| (0..model.n).map(move |rank| Cell { team, rank }))
         .filter(|cell| {
             let estimate = &estimates[cell.index(model.n)];
-            estimate.probability == 0. && estimate.reachability == "undecided"
+            packed_witness_candidate(estimate)
         })
         .collect();
     cells.sort_by_key(|cell| {
@@ -1377,7 +1371,7 @@ fn packed_witness_fallback_with_enabled(
             break;
         }
         let estimate = &estimates[cell.index(model.n)];
-        if estimate.probability != 0. || estimate.reachability != "undecided" {
+        if !packed_witness_candidate(estimate) {
             continue;
         }
         let cell_budget = PACKED_WITNESS_NODE_BUDGET.min(PACKED_WITNESS_TOTAL_NODES - stats.nodes);
@@ -1419,7 +1413,7 @@ fn packed_witness_fallback_with_enabled(
             stats.certificates += 1;
             for (team, &rank) in certificate.ranks.iter().enumerate() {
                 let estimate = &mut estimates[team * model.n + rank];
-                if estimate.probability == 0. && estimate.reachability == "undecided" {
+                if packed_witness_candidate(estimate) {
                     estimate.reachability = "reachable_by_construction".into();
                     stats.labels += 1;
                 }
@@ -1937,7 +1931,7 @@ mod packed_witness_tests {
     }
 
     #[test]
-    fn bounded_packed_witness_discovers_palmeiras_thirteenth_without_changing_estimates() {
+    fn packed_witness_rejects_unsupported_palmeiras_thirteenth_certificate() {
         let model = snapshot();
         let team = model.indices[&16];
         let target_index = Cell { team, rank: 12 }.index(model.n);
@@ -1974,6 +1968,28 @@ mod packed_witness_tests {
         estimates[impossible_index].reachability = "impossible_by_joint_points".into();
         let original = estimates.clone();
 
+        let proof = crate::rank_proof::RankProof::new(&model).unwrap();
+        let search = proof.feasible_domains(
+            Cell { team, rank: 12 },
+            12,
+            PACKED_WITNESS_NODE_BUDGET,
+            crate::rank_proof::Options::default(),
+        );
+        let outcomes = choose_supported_outcomes(&model, search.domains.as_deref().unwrap()).unwrap();
+        let raw = crate::goal_completion::complete_with_paths(
+            &model,
+            &outcomes,
+            Cell { team, rank: 12 },
+            true,
+        )
+        .unwrap();
+        assert!(crate::goal_completion::verify(
+            &model,
+            &raw,
+            Cell { team, rank: 12 }
+        ));
+        assert!(!crate::goal_completion::has_native_score_support(&model, &raw));
+
         let disabled = packed_witness_fallback_with_enabled(&model, &mut estimates, false);
         assert_eq!(disabled.labels, 0);
         assert_eq!(
@@ -1986,17 +2002,51 @@ mod packed_witness_tests {
         assert_eq!(stats.candidates, 1);
         assert!(stats.attempts <= 2);
         assert!(stats.nodes <= PACKED_WITNESS_NODE_BUDGET);
-        assert!(stats.certificates > 0, "{stats:?}");
-        assert_eq!(
-            estimates[target_index].reachability,
-            "reachable_by_construction"
-        );
+        assert_eq!(stats.certificates, 0, "{stats:?}");
+        assert_eq!(estimates[target_index].reachability, "undecided");
         assert_eq!(estimates[positive_index].reachability, "pool_positive");
         assert_eq!(
             estimates[impossible_index].reachability,
             "impossible_by_joint_points"
         );
         assert_eq!(numeric_values(&estimates), numeric_values(&original));
+    }
+
+    #[test]
+    fn packed_witness_accepts_empty_unresolved_label_without_changing_numbers() {
+        let model = tiny_points_goal_bias_model();
+        let target = Cell { team: 0, rank: 0 }.index(model.n);
+        let positive = Cell { team: 1, rank: 1 }.index(model.n);
+        let impossible = Cell { team: 2, rank: 2 }.index(model.n);
+        let witness = Cell { team: 1, rank: 0 }.index(model.n);
+        let mut estimates = vec![Estimate::default(); model.n * model.n];
+        for estimate in &mut estimates {
+            estimate.reachability = "impossible_by_points".into();
+        }
+        estimates[target] = Estimate::default();
+        estimates[positive] = Estimate {
+            probability: 0.01,
+            reachability: "pool_positive".into(),
+            ..Estimate::default()
+        };
+        estimates[impossible].reachability = "impossible_by_joint_points".into();
+        estimates[witness].reachability = "witness".into();
+        let before = numeric_values(&estimates);
+        let baseline = estimates.clone();
+        estimates[target].reachability = "undecided".into();
+        restore_baseline_preserving_reachability(&mut estimates, &baseline);
+        assert!(estimates[target].reachability.is_empty());
+
+        let stats = packed_witness_fallback_with_enabled(&model, &mut estimates, true);
+
+        assert!(stats.supported);
+        assert!(stats.candidates > 0);
+        assert!(stats.certificates > 0, "{stats:?}");
+        assert_eq!(estimates[target].reachability, "reachable_by_construction");
+        assert_eq!(estimates[positive].reachability, "pool_positive");
+        assert_eq!(estimates[impossible].reachability, "impossible_by_joint_points");
+        assert_eq!(estimates[witness].reachability, "witness");
+        assert_eq!(numeric_values(&estimates), before);
     }
 
     #[test]
@@ -2053,7 +2103,6 @@ mod packed_witness_tests {
         .unwrap();
         let model = Model::new(request).unwrap();
         assert!(packed_witness_supported(&model));
-        assert!(!packed_witness_uses_legacy_rules(&model));
         let outcomes = vec![1; model.fixtures.len()];
         let ranks = crate::conditioned::canonical_ranks(&model, &outcomes);
         let team = ranks.iter().position(|rank| *rank == 0).unwrap();
@@ -2074,8 +2123,7 @@ mod packed_witness_tests {
         assert_eq!(numeric_values(&estimates), numeric_values(&original));
     }
 
-    #[test]
-    fn tiny_points_goal_bias_world_gets_a_bounded_native_supported_witness() {
+    fn tiny_points_goal_bias_model() -> Model {
         let request = serde_json::json!({
             "id": 99004,
             "phase": {"sort":"pt,gd,gf,bias", "championship":{"point_win":3,"point_draw":1,"point_loss":0}},
@@ -2089,9 +2137,13 @@ mod packed_witness_tests {
                 {"id":6,"home_id":2,"away_id":1,"home_power":1.0,"away_power":1.0}
             ]
         });
-        let model = Model::new(serde_json::from_value(request).unwrap()).unwrap();
+        Model::new(serde_json::from_value(request).unwrap()).unwrap()
+    }
+
+    #[test]
+    fn tiny_points_goal_bias_world_gets_a_bounded_native_supported_witness() {
+        let model = tiny_points_goal_bias_model();
         assert!(packed_witness_supported(&model));
-        assert!(!packed_witness_uses_legacy_rules(&model));
         let mut estimates = vec![Estimate::default(); model.n * model.n];
         for estimate in &mut estimates {
             estimate.reachability = "undecided".into();
