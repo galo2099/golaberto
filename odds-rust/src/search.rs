@@ -2,7 +2,7 @@ use crate::{
     conditioned::{blockers, fast, Event, Result},
     joint_caps::JointProposal,
     lookahead::{self, Policy},
-    model::Model,
+    model::{Key, Model},
     pool::{zero_upper, Bounds, Estimate},
     rng::derive,
 };
@@ -664,7 +664,52 @@ pub fn run_logged(
     log: Option<&crate::logging::RequestLog>,
 ) -> u64 {
     let rank_rescue = crate::rare_tail::rank_rescue::Settings::from_env();
-    let work = run_logged_inner(model, seed, workers, estimates, log);
+    let mut work = run_logged_inner(model, seed, workers, estimates, log);
+    // A saturated Monte Carlo cell is not itself a proof.  For points-first
+    // requests, certify it only when every possible full-season points total
+    // lies strictly on one side of the target's interval and the resulting
+    // count fixes the rank.  Ties and all score-dependent keys remain open.
+    prove_saturated_by_points(model, estimates);
+    let complement_baseline = estimates.to_vec();
+    let complement = crate::native_complement::run(model, seed, estimates);
+    let complemented = complement.components;
+    let complement_work = complement.work;
+    work = work.saturating_add(complement_work);
+    let mut complement_rolled_back = false;
+    if complemented > 0 {
+        if !reconcile(model, estimates, &complement_baseline)
+            || !crate::pool::valid(
+                &estimates.iter().map(|e| e.probability).collect::<Vec<_>>(),
+                model.n,
+            )
+            || complement_baseline
+                .iter()
+                .zip(estimates.iter())
+                .any(|(before, after)| before.probability > 0. && after.probability <= 0.)
+            || complement.intervals.iter().any(|(index, lower, upper)| {
+                let p = estimates[*index].probability;
+                let tolerance =
+                    16. * f64::EPSILON * lower.abs().max(upper.abs()).max(f64::MIN_POSITIVE);
+                p < *lower - tolerance || p > *upper + tolerance
+            })
+        {
+            restore_baseline_preserving_reachability(estimates, &complement_baseline);
+            complement_rolled_back = true;
+        }
+    }
+    if let Some(log) = log {
+        log.event(
+            "rust_odds_native_full_world_complement",
+            serde_json::json!({
+                "components": complemented, "work": complement_work,
+                "rolled_back": complement_rolled_back,
+                "reason": complement.reason,
+                "accepted_targets": complement.accepted_targets,
+                "reserved_prep": complement.reserved_prep,
+                "epsilon_interval": complement.epsilon_interval
+            }),
+        );
+    }
     if !rank_rescue.enabled {
         return work;
     }
@@ -681,6 +726,14 @@ pub fn run_logged(
     let mut rolled_back = false;
     if rescue_added > 0 {
         rolled_back = !reconcile(model, estimates, &rescue_baseline);
+        if !rolled_back {
+            rolled_back = complement.intervals.iter().any(|(index, lower, upper)| {
+                let p = estimates[*index].probability;
+                let tolerance =
+                    16. * f64::EPSILON * lower.abs().max(upper.abs()).max(f64::MIN_POSITIVE);
+                p < *lower - tolerance || p > *upper + tolerance
+            });
+        }
         if !rolled_back
             && rescue_baseline
                 .iter()
@@ -698,6 +751,9 @@ pub fn run_logged(
     if !valid_matrix && rescue_added > 0 {
         restore_baseline_preserving_reachability(estimates, &rescue_baseline);
         rolled_back = true;
+    }
+    if rolled_back && rescue_added > 0 {
+        restore_baseline_preserving_reachability(estimates, &rescue_baseline);
     }
     let final_changes = estimates
         .iter()
@@ -719,6 +775,56 @@ pub fn run_logged(
         );
     }
     work.saturating_add(rescue_work)
+}
+
+fn prove_saturated_by_points(model: &Model, estimates: &mut [Estimate]) {
+    if model.keys.first() != Some(&Key::Pt)
+        || model.request.phase.bonus_points != 0
+        || model.n == 0
+        || [
+            model.request.phase.championship.point_win,
+            model.request.phase.championship.point_draw,
+            model.request.phase.championship.point_loss,
+        ]
+        .iter()
+        .any(|p| *p < 0)
+    {
+        return;
+    }
+    let bounds = Bounds::new(model);
+    for target in 0..model.n {
+        for rank in 0..model.n {
+            let index = target * model.n + rank;
+            let estimate = &mut estimates[index];
+            if estimate.probability != 1. {
+                continue;
+            }
+            let mut above = 0;
+            let mut below = 0;
+            let mut separated = true;
+            for rival in 0..model.n {
+                if rival == target {
+                    continue;
+                }
+                if bounds.max[target] < bounds.min[rival] {
+                    above += 1;
+                } else if bounds.min[target] > bounds.max[rival] {
+                    below += 1;
+                } else {
+                    separated = false;
+                    break;
+                }
+            }
+            if separated && above == rank && below == model.n - 1 - rank {
+                estimate.design = "certain_by_points".into();
+                estimate.reachability = "certain_by_points".into();
+                estimate.meets_precision_goal = true;
+                estimate.std_err = 0.;
+                estimate.relative_se = Some(0.);
+                estimate.zero_hit_upper_95 = 0.;
+            }
+        }
+    }
 }
 
 fn run_logged_inner(
@@ -1534,6 +1640,7 @@ fn reconcile(model: &Model, estimates: &mut [Estimate], baseline: &[Estimate]) -
     for (e, p) in estimates.iter_mut().zip(matrix) {
         if (e.reachability == "witness"
             || e.design == "outcome_path_stratified"
+            || e.design == "native_full_world_complement"
             || e.design
                 .starts_with("matched_point_pool_rare_tail_rank_rescue"))
             && e.probability > 0.
@@ -1567,6 +1674,55 @@ fn restore_baseline_preserving_reachability(estimates: &mut [Estimate], baseline
         {
             restored.reachability = candidate.reachability;
         }
+    }
+}
+
+#[cfg(test)]
+mod saturated_points_proof_tests {
+    use super::prove_saturated_by_points;
+    use crate::{
+        model::{Model, Request},
+        pool::Estimate,
+    };
+
+    fn model(sort: &str, points: [i32; 3], rules: [i32; 3]) -> Model {
+        Model::new(serde_json::from_value::<Request>(serde_json::json!({
+            "id": 71,
+            "phase": {"sort":sort,"championship":{"point_loss":rules[0],"point_draw":rules[1],"point_win":rules[2]}},
+            "team_groups":[
+                {"team_id":1,"add_sub":points[0]},
+                {"team_id":2,"add_sub":points[1]},
+                {"team_id":3,"add_sub":points[2]}
+            ], "games":[]
+        })).unwrap()).unwrap()
+    }
+
+    #[test]
+    fn proves_strictly_separated_middle_rank() {
+        let m = model("pt,gd,gf", [0, 10, 20], [0, 1, 3]);
+        let mut estimates = vec![Estimate::default(); m.n * m.n];
+        estimates[m.n + 1].probability = 1.;
+        prove_saturated_by_points(&m, &mut estimates);
+        assert_eq!(estimates[m.n + 1].design, "certain_by_points");
+        assert_eq!(estimates[m.n + 1].reachability, "certain_by_points");
+    }
+
+    #[test]
+    fn overlapping_points_intervals_do_not_certify_saturated_cell() {
+        let m = model("pt,gd,gf", [0, 0, 0], [0, 1, 3]);
+        let mut estimates = vec![Estimate::default(); m.n * m.n];
+        estimates[0].probability = 1.;
+        prove_saturated_by_points(&m, &mut estimates);
+        assert_ne!(estimates[0].design, "certain_by_points");
+    }
+
+    #[test]
+    fn negative_points_rules_skip_interval_proof() {
+        let m = model("pt,gd,gf", [0, 10, 20], [-1, -1, -1]);
+        let mut estimates = vec![Estimate::default(); m.n * m.n];
+        estimates[m.n + 1].probability = 1.;
+        prove_saturated_by_points(&m, &mut estimates);
+        assert_ne!(estimates[m.n + 1].design, "certain_by_points");
     }
 }
 

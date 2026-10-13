@@ -156,6 +156,49 @@ impl Event {
         blockers: &[usize],
         limit: usize,
     ) -> Option<Self> {
+        Self::build_impl(model, bounds, target, rank, blockers, limit, None)
+    }
+
+    /// Build the same point event using explicit fixture WDL probabilities.
+    /// These probabilities describe necessary point events; callers remain
+    /// responsible for any final standings predicate that makes events disjoint.
+    pub(crate) fn build_with_probabilities(
+        model: &Model,
+        bounds: &Bounds,
+        target: usize,
+        rank: usize,
+        blockers: &[usize],
+        limit: usize,
+        probabilities: &[[f64; 3]],
+    ) -> Option<Self> {
+        if probabilities.len() != model.fixtures.len()
+            || probabilities.iter().any(|row| {
+                row.iter().any(|p| !p.is_finite() || *p < 0.)
+                    || (row.iter().sum::<f64>() - 1.).abs() > 1e-9
+            })
+        {
+            return None;
+        }
+        Self::build_impl(
+            model,
+            bounds,
+            target,
+            rank,
+            blockers,
+            limit,
+            Some(probabilities),
+        )
+    }
+
+    fn build_impl(
+        model: &Model,
+        bounds: &Bounds,
+        target: usize,
+        rank: usize,
+        blockers: &[usize],
+        limit: usize,
+        probabilities: Option<&[[f64; 3]]>,
+    ) -> Option<Self> {
         let mut teams = vec![target];
         teams.extend_from_slice(blockers);
         if teams.len() > 6 {
@@ -202,7 +245,7 @@ impl Event {
             }
             games.push(PointGame {
                 index: i,
-                prob: f.prob,
+                prob: probabilities.map_or(f.prob, |p| p[i]),
                 delta,
             });
         }
@@ -1523,6 +1566,66 @@ mod analytic_score_tests {
             ],
         })
         .unwrap()
+    }
+
+    #[test]
+    fn explicit_wdl_probabilities_drive_event_mass_and_backward_samples() {
+        let model = fixture_model("points", 0, 0);
+        let bounds = Bounds::new(&model);
+        let native = Event::build(&model, &bounds, 0, 0, &[2], 100).unwrap();
+        let supplied = [[0., 0., 1.]];
+        let overridden =
+            Event::build_with_probabilities(&model, &bounds, 0, 0, &[2], 100, &supplied).unwrap();
+        assert_eq!(overridden.games[0].prob, supplied[0]);
+        assert_ne!(native.mass.to_bits(), overridden.mass.to_bits());
+        assert_eq!(overridden.mass, 1.);
+
+        let mut backward = Backward::new(&overridden);
+        let mut outcomes = vec![0; model.fixtures.len()];
+        backward.sample(&mut Rng::new(19), &mut outcomes);
+        assert_eq!(outcomes[0], 2);
+    }
+
+    #[test]
+    fn explicit_probabilities_validate_shape_and_probability_law() {
+        let model = fixture_model("points", 0, 0);
+        let bounds = Bounds::new(&model);
+        for invalid in [
+            vec![],
+            vec![[0., 0., 0.]],
+            vec![[1., -0.1, 0.1]],
+            vec![[f64::NAN, 0., 1.]],
+            vec![[0.2, 0.2, 0.2]],
+        ] {
+            assert!(
+                Event::build_with_probabilities(&model, &bounds, 0, 0, &[2], 100, &invalid,)
+                    .is_none()
+            );
+        }
+    }
+
+    #[test]
+    fn explicit_model_probabilities_reproduce_regular_event_build() {
+        let model = fixture_model("points", 0, 0);
+        let bounds = Bounds::new(&model);
+        let regular = Event::build(&model, &bounds, 0, 0, &[2], 100).unwrap();
+        let probabilities: Vec<_> = model.fixtures.iter().map(|f| f.prob).collect();
+        let supplied =
+            Event::build_with_probabilities(&model, &bounds, 0, 0, &[2], 100, &probabilities)
+                .unwrap();
+        assert_eq!(regular.mass.to_bits(), supplied.mass.to_bits());
+        assert_eq!(
+            regular
+                .games
+                .iter()
+                .map(|g| (g.index, g.prob, g.delta))
+                .collect::<Vec<_>>(),
+            supplied
+                .games
+                .iter()
+                .map(|g| (g.index, g.prob, g.delta))
+                .collect::<Vec<_>>(),
+        );
     }
 
     fn cohort_caps() -> crate::score_integral::BuildCaps {

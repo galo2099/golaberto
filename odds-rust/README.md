@@ -234,6 +234,47 @@ CSV trace. It adds allocation-counter overhead; benchmark the ordinary service
 binary for latency and process RSS. Measurements and reproduction are documented
 in `experiments/rare_positions/2026-09-30-rust-odds-memory.md`.
 
+## Saturated position cells
+
+An empirical probability of one is not a certainty proof. After ordinary rare
+position search, points-first requests with nonnegative scoring and no bonus
+points can certify a saturated cell when the target's possible points interval
+is strictly separated from every rival's interval and fixes its rank. The
+estimate's design then becomes `certain_by_points`. Overlapping intervals and
+point ties remain unproved; failing this proof does not by itself mean that an
+otherwise precise estimate fails its relative precision goal.
+
+For an unproved saturated first-place cell, a bounded native full-season pass
+estimates its complement. For every rival, it conditions on a necessary joint
+points event for that rival winning, completes all fixture scores, and uses the
+production standings sorter. Only seasons whose actual winner is that rival
+contribute. These winner events are disjoint even when their necessary
+conditioning events overlap. The pass estimates the focal team's other ranks
+from those same seasons, subtracts their total from first place, and supplies
+the rivals' title estimates. It does not assign the entire complement to second
+place or derive it from the existing matched-point marginals.
+
+The pass uses masses from the native Poisson sampler's finite CDF, including its
+terminal value of one, rather than normalized retained-score tables. It admits
+at most 64 teams, 20,000 conditional draws per request, 500,000 native score
+entries, 20,000 states per DP layer, one million stored-node reservations per
+event, and 24 million reserved DP transitions overall. Means above 32,
+self-fixtures and unsupported scoring are skipped. Preparation is conservatively
+reserved before event construction and charged even if the attempt fails; this
+is an additional bounded stage, not a claim that total production work is
+unchanged.
+
+Fixed conditional Bernoulli samples receive KL/Chernoff bounds with a union
+allocation giving 99% simultaneous coverage across the new pass's cells and
+components. Publishing a complete complement requires a positive lower bound
+and an upper-to-lower ratio at most two. Small positive rank bins can still fail
+that relative precision goal and are marked accordingly. Final reconciliation
+and any later rank rescue must preserve the native confidence intervals and
+existing positive cells; otherwise numeric changes roll back. Existing
+production estimates outside this pass do not acquire a new confidence
+guarantee. The `rust_odds_native_full_world_complement` log records admission,
+refusal reason, reserved work, complementary bounds and reconciliation outcome.
+
 ## Timing logs
 
 Request and stage logs are enabled by default and written as JSON lines to

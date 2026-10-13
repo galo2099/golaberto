@@ -33,6 +33,29 @@ impl Poisson {
         }
         Self { mean, cdf, lookup }
     }
+    /// Return the adjacent differences of the CDF used by the native sampler.
+    /// The final CDF entry is forced to one during construction, so this law
+    /// includes that same terminal normalization (unlike `masses(mean)`).
+    /// Means above 32 use an unbounded arrival-time sampler and are unsupported.
+    pub(crate) fn native_masses(&self) -> Option<Vec<f64>> {
+        if !self.mean.is_finite() || self.mean < 0. || self.mean > 32. {
+            return None;
+        }
+        if self.mean == 0. {
+            return Some(vec![1.]);
+        }
+        let mut previous = 0.;
+        let mut masses = Vec::with_capacity(self.cdf.len());
+        for &cdf in &self.cdf {
+            let mass = cdf - previous;
+            if !mass.is_finite() || mass < 0. {
+                return None;
+            }
+            masses.push(mass);
+            previous = cdf;
+        }
+        Some(masses)
+    }
     #[inline]
     pub fn sample(&self, rng: &mut Rng) -> i32 {
         if self.mean <= 0. {
@@ -182,6 +205,33 @@ impl Scores {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn native_poisson_masses_match_the_sampler_cdf_law() {
+        let zero = Poisson::new(0.);
+        assert_eq!(zero.native_masses().unwrap(), vec![1.]);
+        assert!(Poisson::new(32.0001).native_masses().is_none());
+
+        for mean in [0.01, 0.7, 5.3, 32.] {
+            let poisson = Poisson::new(mean);
+            let actual = poisson.native_masses().unwrap();
+            assert_eq!(actual.len(), poisson.cdf.len());
+            assert!((actual.iter().sum::<f64>() - 1.).abs() < 1e-15);
+            let mut previous = 0.;
+            for (&mass, &cdf) in actual.iter().zip(&poisson.cdf) {
+                assert_eq!(mass.to_bits(), (cdf - previous).to_bits());
+                previous = cdf;
+            }
+        }
+
+        let poisson = Poisson::new(1.);
+        let native = poisson.native_masses().unwrap();
+        let raw = masses(1.);
+        assert_eq!(native.len(), raw.len());
+        assert_ne!(
+            native.last().unwrap().to_bits(),
+            raw.last().unwrap().to_bits()
+        );
+    }
     #[test]
     fn indexed_scores_match_binary_search_at_boundaries_and_fixed_rng() {
         for (h, a) in [(0., 0.), (0., 1.2), (1.1, 0.), (1.4, 0.9), (7.3, 12.6)] {
