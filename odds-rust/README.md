@@ -717,30 +717,24 @@ and these checks do not validate the rare-event fallback's extreme-tail accuracy
 
 The uploaded National Friendlies request is retained byte-for-byte in
 `tests/fixtures/group-16687-2026-10-12.json`. `tests/request_performance.rs`
-checks its hash and dimensions, then runs the production CLI with seed 808 and
-four workers. It validates the complete response and the 100,000-sample
-estimates, warms up once, and rejects a median of seven calculation times
-that regresses by 5% or more against the approved baseline. The baseline is
-5,078.9344 ms, measured from commit `c0dd8f1e` on an idle four-CPU host; the
-default rejection threshold is 5,332.88112 ms. A boundary test also verifies
-that an exact 5% regression fails. The timing check runs automatically in
-the release suite; debug builds run only the fixture check.
+checks its hash and dimensions in the normal test suite. Its release-only
+benchmark is ignored by default and can be run manually. It runs the production
+CLI with seed 808 and four workers, validates the complete response and the
+100,000-sample estimates, warms up once, and prints seven calculation times
+and their median. There is no performance threshold or baseline comparison.
 
 ```sh
 cargo test --release --locked --manifest-path odds-rust/Cargo.toml \
-  --test request_performance -- --nocapture --test-threads=1
+  --test request_performance -- --ignored --nocapture --test-threads=1
 ```
 
-Use the same hardware as the baseline and avoid concurrent builds or other
-heavy workloads. On other hardware, measure the approved reference binary
-first and set `ODDS_PERFORMANCE_BASELINE_MS` to that positive, finite median.
-The 5% regression cutoff remains fixed. The test never calibrates its baseline
-from the candidate being checked. `ODDS_PERFORMANCE_BINARY` selects the binary
-under test, including historical binaries for a known-slowdown check. Each
-child process has a 90-second timeout. The measured budget covers calculation, excluding
-JSON encoding and network transfer; response validation uses a separate
-warm-up estimate. Inherited estimator experiment flags are cleared for the
-child processes.
+Use consistent hardware and avoid concurrent builds or other heavy workloads
+when comparing measurements. `ODDS_PERFORMANCE_BINARY` optionally selects a
+different binary, including historical binaries. Each child process has a
+90-second timeout. The reported times cover calculation, excluding JSON
+encoding and network transfer; response validation uses a separate warm-up
+estimate. Inherited estimator experiment flags are cleared for the child
+processes.
 
 To reproduce a historical cross-language comparison, first build the Go test
 binary from an earlier checkout containing the retired service, then pass that
