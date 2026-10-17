@@ -51,6 +51,7 @@ def suffix_options(args) -> dict:
         "probe_nodes": getattr(args, "suffix_probe_nodes", 25_000),
         "probe_ms": getattr(args, "suffix_probe_ms", 25),
         "budget_fraction": getattr(args, "suffix_budget_fraction", .15),
+        "canonicalize_certain": getattr(args, "suffix_canonicalize_certain", False),
     }
     for name in ("state_cap", "max_remaining", "probe_nodes", "probe_ms"):
         value = options[name]
@@ -60,6 +61,11 @@ def suffix_options(args) -> dict:
     if not isinstance(fraction, (int, float)) or isinstance(fraction, bool) or not math.isfinite(fraction) or not 0 < fraction <= 1:
         raise ValueError("suffix budget-fraction must be finite and in (0, 1]")
     options["budget_fraction"] = float(fraction)
+    canonicalize_certain = options["canonicalize_certain"]
+    if not isinstance(canonicalize_certain, bool):
+        raise ValueError("suffix canonicalize-certain must be boolean")
+    if canonicalize_certain and not options["enabled"]:
+        raise ValueError("--suffix-canonicalize-certain requires --suffix-bounds")
     return options
 
 
@@ -186,6 +192,7 @@ def run_audit(args, protocol_factory=Protocol, now=time.monotonic) -> dict:
                 "probe_nodes": suffix["probe_nodes"],
                 "probe_ms": suffix["probe_ms"],
                 "budget_fraction": suffix["budget_fraction"],
+                "canonicalize_certain": suffix["canonicalize_certain"],
             }
             output["suffix_request_sent"] = True
         certificate = engine.call(**certificate_request)
@@ -235,6 +242,8 @@ def main() -> None:
     parser.add_argument("--suffix-probe-nodes", type=int, default=25_000)
     parser.add_argument("--suffix-probe-ms", type=int, default=25)
     parser.add_argument("--suffix-budget-fraction", type=float, default=.15)
+    parser.add_argument("--suffix-canonicalize-certain", action="store_true",
+                        help="canonicalize certain suffix fixture groups")
     parser.add_argument("--output")
     args = parser.parse_args()
     if not math.isfinite(args.budget) or args.budget <= 0:

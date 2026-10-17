@@ -28,12 +28,17 @@ fn suffix_options(command: &Value) -> Result<Option<joint::SuffixOptions>, Strin
         None => defaults.probe_ms,
         Some(v) => v.as_u64().ok_or("suffix.probe_ms must be an unsigned integer")?,
     };
+    let canonicalize_certain = match object.get("canonicalize_certain") {
+        None => false,
+        Some(v) => v.as_bool().ok_or("suffix.canonicalize_certain must be a boolean")?,
+    };
     Ok(Some(joint::SuffixOptions {
         state_cap: uint("state_cap", defaults.state_cap as u64)?,
         max_remaining: uint("max_remaining", defaults.max_remaining as u64)?,
         probe_nodes: uint("probe_nodes", defaults.probe_nodes as u64)?,
         probe_ms,
         budget_fraction,
+        canonicalize_certain,
     }))
 }
 
@@ -210,6 +215,8 @@ mod tests {
         assert_eq!(options.probe_nodes, 25_000);
         assert_eq!(options.probe_ms, 25);
         assert_eq!(options.budget_fraction, 0.15);
+        assert!(!options.canonicalize_certain);
+        assert!(suffix_options(&json!({"suffix":{"canonicalize_certain":true}})).unwrap().unwrap().canonicalize_certain);
     }
 
     #[test]
@@ -217,5 +224,6 @@ mod tests {
         assert!(suffix_options(&json!({"suffix":false})).is_err());
         assert!(suffix_options(&json!({"suffix":{"probe_nodes":-1}})).is_err());
         assert!(suffix_options(&json!({"suffix":{"budget_fraction":"small"}})).is_err());
+        assert!(suffix_options(&json!({"suffix":{"canonicalize_certain":"true"}})).is_err());
     }
 }

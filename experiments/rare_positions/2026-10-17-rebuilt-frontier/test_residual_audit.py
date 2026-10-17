@@ -105,7 +105,7 @@ class ResidualAuditTests(unittest.TestCase):
         self.assertEqual(result["suffix_settings"], {
             "state_cap": 1_000_000, "max_remaining": 24,
             "probe_nodes": 25_000, "probe_ms": 25,
-            "budget_fraction": .15,
+            "budget_fraction": .15, "canonicalize_certain": False,
         })
         self.assertTrue(result["hashes_unchanged"])
 
@@ -181,6 +181,7 @@ class ResidualAuditTests(unittest.TestCase):
         self.args.suffix_probe_nodes = 4321
         self.args.suffix_probe_ms = 17
         self.args.suffix_budget_fraction = .2
+        self.args.suffix_canonicalize_certain = True
 
         def factory(*args):
             engine = FakeEngine(*args, clock=clock)
@@ -193,7 +194,7 @@ class ResidualAuditTests(unittest.TestCase):
         self.assertEqual(request["suffix"], {
             "state_cap": 123456, "max_remaining": 18,
             "probe_nodes": 4321, "probe_ms": 17,
-            "budget_fraction": .2,
+            "budget_fraction": .2, "canonicalize_certain": True,
         })
         self.assertTrue(result["suffix_bounds_enabled"])
         self.assertTrue(result["suffix_request_sent"])
@@ -210,6 +211,15 @@ class ResidualAuditTests(unittest.TestCase):
             with self.subTest(fraction=fraction), self.assertRaises(ValueError):
                 residual_audit.suffix_options(self.args)
         del self.args.suffix_budget_fraction
+
+    def test_canonicalize_certain_requires_suffix_bounds_and_boolean_value(self):
+        self.args.suffix_canonicalize_certain = True
+        with self.assertRaisesRegex(ValueError, "requires --suffix-bounds"):
+            residual_audit.suffix_options(self.args)
+        self.args.suffix_bounds = True
+        self.args.suffix_canonicalize_certain = "true"
+        with self.assertRaisesRegex(ValueError, "must be boolean"):
+            residual_audit.suffix_options(self.args)
 
 
 if __name__ == "__main__":

@@ -17,6 +17,7 @@ pub struct SuffixOptions {
     pub probe_nodes: usize,
     pub probe_ms: u64,
     pub budget_fraction: f64,
+    pub canonicalize_certain: bool,
 }
 
 impl Default for SuffixOptions {
@@ -27,6 +28,7 @@ impl Default for SuffixOptions {
             probe_nodes: 25_000,
             probe_ms: 25,
             budget_fraction: 0.15,
+            canonicalize_certain: false,
         }
     }
 }
@@ -54,6 +56,14 @@ pub struct SuffixDiagnostics {
     pub tightened_branches: usize,
     pub min_positive_g: Option<f64>,
     pub max_positive_g: Option<f64>,
+    pub canonicalization_enabled: bool,
+    pub canonicalized_components: usize,
+    pub exact_components: usize,
+    pub canonicalized_key_calls: usize,
+    pub canonicalized_cache_hits: usize,
+    pub max_active_components: usize,
+    pub max_exact_components: usize,
+    pub unsupported_plans: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -68,7 +78,7 @@ struct Key {
     plan: usize,
     pos: usize,
     node: Option<usize>,
-    totals: Vec<i32>,
+    totals: Vec<Option<i32>>,
 }
 
 #[derive(Clone)]
@@ -76,6 +86,8 @@ struct Meta {
     active: Vec<Vec<usize>>,
     min_gain: Vec<Vec<i32>>,
     max_gain: Vec<Vec<i32>>,
+    max_total_gain: Vec<Vec<Option<i64>>>,
+    certainty_supported: bool,
 }
 
 pub(super) struct Cache {
@@ -102,6 +114,7 @@ impl Cache {
         }
         let remaining = deadline.saturating_duration_since(started);
         let budget = Duration::from_secs_f64(remaining.as_secs_f64() * options.budget_fraction);
+        let canonicalization_enabled = options.canonicalize_certain;
         Ok(Self {
             rows: HashMap::new(),
             by_node: HashSet::new(),
@@ -111,6 +124,7 @@ impl Cache {
             spent: Duration::ZERO,
             diagnostics: SuffixDiagnostics {
                 enabled: true,
+                canonicalization_enabled,
                 ..Default::default()
             },
         })
@@ -151,10 +165,18 @@ impl Cache {
         node: Option<usize>,
         totals: &[i32],
     ) -> Result<Option<Key>, String> {
+        let plan_key = plan as *const Plan as usize;
+        if !self.metadata.contains_key(&plan_key) {
+            let meta = make_meta(plan, model, laws, self.options.canonicalize_certain);
+            if self.options.canonicalize_certain && !meta.certainty_supported {
+                self.diagnostics.unsupported_plans += 1;
+            }
+            self.metadata.insert(plan_key, meta);
+        }
         let meta = self
             .metadata
-            .entry(plan as *const Plan as usize)
-            .or_insert_with(|| make_meta(plan, model, laws));
+            .get(&plan_key)
+            .expect("inserted plan metadata");
         if pos > plan.order.len() {
             return Ok(None);
         }
@@ -172,7 +194,39 @@ impl Cache {
                 return Ok(None);
             }
         }
-        let active_totals = meta.active[pos].iter().map(|&t| totals[t]).collect();
+        let mut active_totals = Vec::with_capacity(meta.active[pos].len());
+        let active_count = meta.active[pos].len();
+        let mut canonicalized = 0usize;
+        for &team in &meta.active[pos] {
+            let certain = if self.options.canonicalize_certain && meta.certainty_supported {
+                let score = totals[team] as i64;
+                score >= plan.lower[team] as i64
+                    && meta.max_total_gain[pos][team].is_some_and(|gain| {
+                        score
+                            .checked_add(gain)
+                            .is_some_and(|hi| hi <= plan.upper[team] as i64)
+                    })
+            } else {
+                false
+            };
+            if certain {
+                active_totals.push(None);
+                canonicalized += 1;
+            } else {
+                active_totals.push(Some(totals[team]));
+            }
+        }
+        self.diagnostics.canonicalized_components += canonicalized;
+        self.diagnostics.exact_components += active_count - canonicalized;
+        self.diagnostics.max_active_components =
+            self.diagnostics.max_active_components.max(active_count);
+        self.diagnostics.max_exact_components = self
+            .diagnostics
+            .max_exact_components
+            .max(active_count - canonicalized);
+        if canonicalized > 0 {
+            self.diagnostics.canonicalized_key_calls += 1;
+        }
         Ok(Some(Key {
             plan: plan as *const Plan as usize,
             pos,
@@ -201,6 +255,9 @@ impl Cache {
         };
         if let Some(v) = self.rows.get(&key) {
             self.diagnostics.cache_hits += 1;
+            if key.totals.iter().any(Option::is_none) {
+                self.diagnostics.canonicalized_cache_hits += 1;
+            }
             return Ok(v.clone());
         }
         Ok(Bound::Unknown)
@@ -280,6 +337,9 @@ impl Cache {
         };
         if let Some(v) = self.rows.get(&key) {
             self.diagnostics.cache_hits += 1;
+            if key.totals.iter().any(Option::is_none) {
+                self.diagnostics.canonicalized_cache_hits += 1;
+            }
             return Ok(v.clone());
         }
         if self.rows.len() >= self.options.state_cap {
@@ -431,7 +491,7 @@ impl Cache {
     }
 }
 
-fn make_meta(plan: &Plan, model: &Model, laws: &[Law]) -> Meta {
+fn make_meta(plan: &Plan, model: &Model, laws: &[Law], enable_certain: bool) -> Meta {
     let nf = plan.order.len();
     let mut active = vec![Vec::new(); nf + 1];
     let mut min_gain = vec![vec![0i32; model.n]; nf + 1];
@@ -470,11 +530,97 @@ fn make_meta(plan: &Plan, model: &Model, laws: &[Law]) -> Meta {
             .filter_map(|(t, &v)| v.then_some(t))
             .collect();
     }
+    let mut certainty_supported = enable_certain && plan.stride > 0;
+    let mut fixture_max = vec![None::<(i64, i64)>; nf];
+    if certainty_supported {
+        for (pos, &fi) in plan.order.iter().enumerate() {
+            let f = &model.fixtures[fi];
+            if f.home == f.away {
+                certainty_supported = false;
+                break;
+            }
+            let mut hm = 0i64;
+            let mut am = 0i64;
+            for o in 0..3 {
+                let Some((hg, ag)) = checked_packed_gains(model, o, plan.stride) else {
+                    certainty_supported = false;
+                    break;
+                };
+                if hg < 0 || ag < 0 || hg > i32::MAX as i64 || ag > i32::MAX as i64 {
+                    certainty_supported = false;
+                    break;
+                }
+                hm = hm.max(hg);
+                am = am.max(ag);
+            }
+            if !certainty_supported {
+                break;
+            }
+            fixture_max[pos] = Some((hm, am));
+        }
+    }
+    let mut max_total_gain = vec![vec![None::<i64>; model.n]; nf + 1];
+    if certainty_supported {
+        max_total_gain[nf] = vec![Some(0i64); model.n];
+        for pos in (0..nf).rev() {
+            max_total_gain[pos] = max_total_gain[pos + 1].clone();
+            let fi = plan.order[pos];
+            let f = &model.fixtures[fi];
+            let Some((hm, am)) = fixture_max[pos] else {
+                certainty_supported = false;
+                break;
+            };
+            let (Some(old_home), Some(old_away)) =
+                (max_total_gain[pos][f.home], max_total_gain[pos][f.away])
+            else {
+                certainty_supported = false;
+                break;
+            };
+            let (Some(new_home), Some(new_away)) =
+                (old_home.checked_add(hm), old_away.checked_add(am))
+            else {
+                certainty_supported = false;
+                break;
+            };
+            if new_home > i32::MAX as i64 || new_away > i32::MAX as i64 {
+                certainty_supported = false;
+                break;
+            }
+            max_total_gain[pos][f.home] = Some(new_home);
+            max_total_gain[pos][f.away] = Some(new_away);
+        }
+    }
+    if !certainty_supported {
+        for row in &mut max_total_gain {
+            row.fill(None);
+        }
+    }
     Meta {
         active,
         min_gain,
         max_gain,
+        max_total_gain,
+        certainty_supported,
     }
+}
+
+pub(super) fn checked_packed_gains(
+    model: &Model,
+    outcome: usize,
+    stride: i32,
+) -> Option<(i64, i64)> {
+    let points = model.request.phase.championship.point_win as i64;
+    let draw = model.request.phase.championship.point_draw as i64;
+    let loss = model.request.phase.championship.point_loss as i64;
+    let (hp, ap, hw, aw) = match outcome {
+        0 => (loss, points, 0i64, 1i64),
+        1 => (draw, draw, 0i64, 0i64),
+        _ => (points, loss, 1i64, 0i64),
+    };
+    Some((
+        hp.checked_mul(stride as i64)?.checked_add(hw)?,
+        ap.checked_mul(stride as i64)?.checked_add(aw)?,
+    ))
 }
 
 pub(super) fn minimum(

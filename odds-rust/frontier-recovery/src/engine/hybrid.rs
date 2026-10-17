@@ -201,7 +201,8 @@ impl Engine {
             "options":suffix_options.as_ref().map(|o| json!({
                 "state_cap":o.state_cap,"max_remaining":o.max_remaining,
                 "probe_nodes":o.probe_nodes,"probe_ms":o.probe_ms,
-                "budget_fraction":o.budget_fraction
+                "budget_fraction":o.budget_fraction,
+                "canonicalize_certain":o.canonicalize_certain
             })),
             "calls":suffix_diagnostics.calls,"visits":suffix_diagnostics.visits,
             "cache_hits":suffix_diagnostics.cache_hits,"entries":suffix_diagnostics.entries,
@@ -217,6 +218,14 @@ impl Engine {
             "guide_zero_prunes":suffix_diagnostics.guide_zero_prunes,
             "guide_prunes":suffix_diagnostics.guide_prunes,
             "tightened_branches":suffix_diagnostics.tightened_branches,
+            "canonicalization_enabled":suffix_diagnostics.canonicalization_enabled,
+            "canonicalized_components":suffix_diagnostics.canonicalized_components,
+            "exact_components":suffix_diagnostics.exact_components,
+            "canonicalized_key_calls":suffix_diagnostics.canonicalized_key_calls,
+            "canonicalized_cache_hits":suffix_diagnostics.canonicalized_cache_hits,
+            "max_active_components":suffix_diagnostics.max_active_components,
+            "max_exact_components":suffix_diagnostics.max_exact_components,
+            "unsupported_plans":suffix_diagnostics.unsupported_plans,
             "min_positive_g":suffix_diagnostics.min_positive_g,
             "max_positive_g":suffix_diagnostics.max_positive_g
         });
@@ -555,10 +564,13 @@ mod tests {
             probe_nodes: 100,
             probe_ms: 5,
             budget_fraction: 0.1,
+            canonicalize_certain: true,
         };
         let enabled = engine.residual_certificate_with_options(0, 0.1, 100, 100, Some(options)).unwrap();
         assert_eq!(enabled["suffix"]["enabled"], true);
         assert_eq!(enabled["suffix"]["options"]["max_remaining"], 2);
+        assert_eq!(enabled["suffix"]["options"]["canonicalize_certain"], true);
+        assert_eq!(enabled["suffix"]["canonicalization_enabled"], true);
         assert_eq!(engine.regions[0].epoch, epoch);
         assert_eq!(engine.regions[0].plan.as_ref().unwrap().bound, bound);
     }

@@ -1307,7 +1307,10 @@ mod tests {
         assert!(exact_min.is_finite());
         let ratio_min = replay_ratios.iter().copied().fold(f64::INFINITY, f64::min);
         let ratio_max = replay_ratios.iter().copied().fold(0.0f64, f64::max);
-        assert!(ratio_max - ratio_min > 1e-6, "fixture must exercise nontrivial guidance: {replay_ratios:?}");
+        assert!(
+            ratio_max - ratio_min > 1e-6,
+            "fixture must exercise nontrivial guidance: {replay_ratios:?}"
+        );
         assert!(lower_g <= exact_min);
         assert!(
             exact_min - lower_g < 1e-10,
@@ -1395,5 +1398,342 @@ mod tests {
     fn overflowing_guide_intermediate_never_proves_zero_residual() {
         let v = clipped_guide_lower(Interval::point(1e160), 1e150, 1e-320);
         assert_eq!(v, 0.0);
+    }
+
+    #[test]
+    fn certain_totals_share_keys_without_changing_guidance_or_suffix_minimum() {
+        let (model, laws) = tiny(2);
+        let (lower, upper) = broad_bounds();
+        let plan = Plan::build(
+            &model,
+            &laws,
+            &[7; 2],
+            &lower,
+            &upper,
+            &[0],
+            4,
+            100,
+            Instant::now() + Duration::from_secs(5),
+        )
+        .unwrap();
+        let source = plan
+            .residual_source(Interval::point(0.7), Interval::point(0.4))
+            .unwrap();
+        let now = Instant::now();
+        let mut options = SuffixOptions::default();
+        options.canonicalize_certain = true;
+        let mut reduced = suffix::Cache::new(options, now, now + Duration::from_secs(2)).unwrap();
+        let first = suffix::minimum(
+            &source,
+            0,
+            source.node,
+            &source.totals,
+            &model,
+            &laws,
+            &mut reduced,
+            now + Duration::from_secs(2),
+        )
+        .unwrap();
+        assert!(matches!(&first, suffix::Bound::Feasible(_)));
+        let mut second_totals = source.totals.clone();
+        second_totals[1] += 1;
+        let fi = plan.order[0];
+        let base: Vec<f64> = (0..3).map(|o| laws[fi].outcomes[o].mid()).collect();
+        assert_eq!(
+            plan.guided_weights(&model, &laws, fi, 0, &source.totals, &base)
+                .unwrap(),
+            plan.guided_weights(&model, &laws, fi, 0, &second_totals, &base)
+                .unwrap(),
+        );
+        let first_tickets = categorical_probabilities(
+            &plan
+                .guided_weights(&model, &laws, fi, 0, &source.totals, &base)
+                .unwrap(),
+        )
+        .unwrap();
+        let second_tickets = categorical_probabilities(
+            &plan
+                .guided_weights(&model, &laws, fi, 0, &second_totals, &base)
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(first_tickets, second_tickets);
+        let second = suffix::minimum(
+            &source,
+            0,
+            source.node,
+            &second_totals,
+            &model,
+            &laws,
+            &mut reduced,
+            now + Duration::from_secs(2),
+        )
+        .unwrap();
+        assert!(
+            matches!((first, second), (suffix::Bound::Feasible(a), suffix::Bound::Feasible(b)) if a == b)
+        );
+        let diag = reduced.diagnostics();
+        assert!(diag.canonicalized_components > 0);
+        assert!(diag.canonicalized_cache_hits > 0);
+
+        let valid_completion = [2u8, 0u8];
+        let mut valid_totals = plan.base.clone();
+        for (fixture, &outcome) in valid_completion.iter().enumerate() {
+            let (hg, ag) = outcome_gain(&model, fixture, outcome as usize, plan.stride);
+            let f = &model.fixtures[fixture];
+            valid_totals[f.home] += hg;
+            valid_totals[f.away] += ag;
+        }
+        assert!(matches!(
+            suffix::minimum(
+                &source,
+                plan.order.len(),
+                None,
+                &valid_totals,
+                &model,
+                &laws,
+                &mut reduced,
+                now + Duration::from_secs(2)
+            )
+            .unwrap(),
+            suffix::Bound::Feasible(1.0)
+        ));
+        let mut invalid_totals = valid_totals;
+        invalid_totals[0] = i32::MIN;
+        assert!(matches!(
+            suffix::cached(
+                &source,
+                plan.order.len(),
+                None,
+                &invalid_totals,
+                &model,
+                &laws,
+                &mut reduced
+            )
+            .unwrap(),
+            suffix::Bound::Impossible
+        ));
+
+        let mut exact =
+            suffix::Cache::new(SuffixOptions::default(), now, now + Duration::from_secs(2))
+                .unwrap();
+        let _ = suffix::minimum(
+            &source,
+            0,
+            source.node,
+            &source.totals,
+            &model,
+            &laws,
+            &mut exact,
+            now + Duration::from_secs(2),
+        )
+        .unwrap();
+        assert!(matches!(
+            suffix::cached(
+                &source,
+                0,
+                source.node,
+                &second_totals,
+                &model,
+                &laws,
+                &mut exact
+            )
+            .unwrap(),
+            suffix::Bound::Unknown
+        ));
+    }
+
+    #[test]
+    fn certain_keys_keep_uncertain_components_exact_near_boundary() {
+        let (model, laws) = tiny(2);
+        let (lower, upper) = (vec![1, 8], vec![i32::MAX / 4; 2]);
+        let plan = Plan::build(
+            &model,
+            &laws,
+            &[7; 2],
+            &lower,
+            &upper,
+            &[0],
+            4,
+            100,
+            Instant::now() + Duration::from_secs(5),
+        )
+        .unwrap();
+        let source = plan
+            .residual_source(Interval::point(1.0), Interval::point(1.0))
+            .unwrap();
+        let now = Instant::now();
+        let mut options = SuffixOptions::default();
+        options.canonicalize_certain = true;
+        let mut cache = suffix::Cache::new(options, now, now + Duration::from_secs(2)).unwrap();
+        let _ = suffix::minimum(
+            &source,
+            0,
+            source.node,
+            &source.totals,
+            &model,
+            &laws,
+            &mut cache,
+            now + Duration::from_secs(2),
+        )
+        .unwrap();
+        let diagnostics = cache.diagnostics();
+        assert!(diagnostics.canonicalized_components > 0);
+        assert!(diagnostics.exact_components > 0);
+        let mut exact_cache =
+            suffix::Cache::new(SuffixOptions::default(), now, now + Duration::from_secs(2))
+                .unwrap();
+        let exact_min = suffix::minimum(
+            &source,
+            0,
+            source.node,
+            &source.totals,
+            &model,
+            &laws,
+            &mut exact_cache,
+            now + Duration::from_secs(2),
+        )
+        .unwrap();
+        let reduced_min = suffix::minimum(
+            &source,
+            0,
+            source.node,
+            &source.totals,
+            &model,
+            &laws,
+            &mut cache,
+            now + Duration::from_secs(2),
+        )
+        .unwrap();
+        assert!(
+            matches!((exact_min, reduced_min), (suffix::Bound::Feasible(a), suffix::Bound::Feasible(b)) if a == b)
+        );
+        let mut at_lower = source.totals.clone();
+        at_lower[1] = 8;
+        assert!(matches!(
+            suffix::cached(
+                &source,
+                0,
+                source.node,
+                &at_lower,
+                &model,
+                &laws,
+                &mut cache
+            )
+            .unwrap(),
+            suffix::Bound::Unknown | suffix::Bound::Impossible
+        ));
+        let mut marker_a = source.totals.clone();
+        marker_a[1] = 8;
+        let mut marker_b = source.totals.clone();
+        marker_b[0] = 1;
+        assert!(matches!(
+            suffix::minimum(
+                &source,
+                0,
+                source.node,
+                &marker_a,
+                &model,
+                &laws,
+                &mut cache,
+                now + Duration::from_secs(2)
+            )
+            .unwrap(),
+            suffix::Bound::Feasible(_)
+        ));
+        assert!(matches!(
+            suffix::cached(
+                &source,
+                0,
+                source.node,
+                &marker_b,
+                &model,
+                &laws,
+                &mut cache
+            )
+            .unwrap(),
+            suffix::Bound::Unknown
+        ));
+    }
+
+    #[test]
+    fn unsupported_signed_and_large_packed_gains_fall_back_to_exact_keys() {
+        let (mut model, laws) = tiny(1);
+        let (lower, upper) = broad_bounds();
+        model.request.phase.championship.point_loss = -1;
+        let plan = Plan::build(
+            &model,
+            &laws,
+            &[7],
+            &lower,
+            &upper,
+            &[0],
+            4,
+            100,
+            Instant::now() + Duration::from_secs(5),
+        )
+        .unwrap();
+        let source = plan
+            .residual_source(Interval::point(1.0), Interval::point(1.0))
+            .unwrap();
+        let now = Instant::now();
+        let mut options = SuffixOptions::default();
+        options.canonicalize_certain = true;
+        let mut cache = suffix::Cache::new(options, now, now + Duration::from_secs(2)).unwrap();
+        let _ = suffix::minimum(
+            &source,
+            0,
+            source.node,
+            &source.totals,
+            &model,
+            &laws,
+            &mut cache,
+            now + Duration::from_secs(2),
+        )
+        .unwrap();
+        let diagnostics = cache.diagnostics();
+        assert_eq!(diagnostics.unsupported_plans, 1);
+        assert_eq!(diagnostics.canonicalized_components, 0);
+        let (home, away) = suffix::checked_packed_gains(&model, 2, i32::MAX).unwrap();
+        assert!(home > i32::MAX as i64 || away > i32::MAX as i64);
+
+        let (model, laws) = tiny(2);
+        let (lower, upper) = broad_bounds();
+        let large_plan = Plan::build(
+            &model,
+            &laws,
+            &[7; 2],
+            &lower,
+            &upper,
+            &[0],
+            600_000_000,
+            100,
+            Instant::now() + Duration::from_secs(5),
+        )
+        .unwrap();
+        let large_source = large_plan
+            .residual_source(Interval::point(1.0), Interval::point(1.0))
+            .unwrap();
+        let mut large_cache = suffix::Cache::new(
+            SuffixOptions {
+                canonicalize_certain: true,
+                ..Default::default()
+            },
+            now,
+            now + Duration::from_secs(2),
+        )
+        .unwrap();
+        let _ = suffix::minimum(
+            &large_source,
+            0,
+            large_source.node,
+            &large_source.totals,
+            &model,
+            &laws,
+            &mut large_cache,
+            now + Duration::from_secs(2),
+        )
+        .unwrap();
+        assert_eq!(large_cache.diagnostics().unsupported_plans, 1);
     }
 }
