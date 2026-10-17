@@ -72,6 +72,8 @@ contract, real 156-assignment regression, and Palmeiras16th measurements.
 GD_REBUILD_RESULTS.md records the subsequent controller transition and its
 shared-budget comparison. Use `--no-regime-rebuilds` to retain initial GD setup
 while disabling after-growth rebuilds for a control run.
+UPPER_BOUND_ANALYSIS.md breaks down the retained confidence upper and the
+remaining structural envelope for cohort5.
 
 ## Build and run
 

@@ -112,3 +112,12 @@ Frozen test_driver.py SHA256:
 
 Raw receipts stay local. Source and aggregate results are backed up to the
 existing recovery branch; LOCAL_ARTIFACTS.md records artifact identities.
+
+## Upper-bound follow-up
+
+UPPER_BOUND_ANALYSIS.md decomposes this run's final upper. Cohort5 accounts
+for90.98% of the global upper;99.07% of its own upper comes from threshold
+strips with no exceedances. A deterministic cap audit shows92.17% of the
+relaxed joint/GD envelope lies in branches where team584 is already strictly
+ahead on points/wins, with9W/1L alone contributing68.76%. These are envelope
+shares, not full-event probability estimates or per-branch confidence bounds.
