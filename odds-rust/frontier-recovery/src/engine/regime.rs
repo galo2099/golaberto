@@ -1,7 +1,7 @@
 use super::Engine;
 use crate::{
     gd_bounds::GdCache,
-    joint::{residual_certificate as certify_residual, Forest, Plan as JointPlan, ResidualCertificate, ResidualSource},
+    joint::{residual_certificate_with_options as certify_residual_with_options, Forest, Plan as JointPlan, ResidualCertificate, ResidualSource, SuffixOptions},
     law::{categorical, categorical_probabilities, Interval, Law},
     pair::PairPlan,
 };
@@ -114,6 +114,19 @@ impl RegimePlan {
         node_limit: usize,
         deadline: Instant,
     ) -> Result<ResidualCertificate, String> {
+        self.residual_certificate_with_options(model, laws, cap_b, clip_h, node_limit, deadline, None)
+    }
+
+    pub(super) fn residual_certificate_with_options(
+        &self,
+        model: &Model,
+        laws: &[Law],
+        cap_b: f64,
+        clip_h: f64,
+        node_limit: usize,
+        deadline: Instant,
+        suffix_options: Option<SuffixOptions>,
+    ) -> Result<ResidualCertificate, String> {
         let tickets = categorical_probabilities(&self.weights)?;
         let mut sources: Vec<ResidualSource<'_>> = Vec::new();
         if let Some(forest) = &self.forest {
@@ -129,7 +142,7 @@ impl RegimePlan {
                 sources.push(atom.plan.residual_source(atom.q, tickets[index])?);
             }
         }
-        certify_residual(&sources, model, laws, cap_b, clip_h, node_limit, deadline)
+        certify_residual_with_options(&sources, model, laws, cap_b, clip_h, node_limit, deadline, suffix_options)
     }
 
     /// Draw through the same atom and pair mixture while retaining its
@@ -1452,6 +1465,22 @@ mod tests {
         assert_eq!(audit["source_count"], 156);
         assert_eq!(audit["epoch"], epoch);
         assert!(audit["expectation_upper"].as_f64().unwrap() <= audit["B"].as_f64().unwrap());
+        assert_eq!(engine.regions[id].epoch, epoch);
+        let suffix_audit = engine.residual_certificate_with_options(
+            id,
+            0.25,
+            500,
+            1,
+            Some(SuffixOptions {
+                state_cap: 100,
+                max_remaining: 1,
+                probe_nodes: 50,
+                probe_ms: 1,
+                budget_fraction: 0.1,
+            }),
+        ).unwrap();
+        assert_eq!(suffix_audit["suffix"]["enabled"], true);
+        assert_eq!(suffix_audit["source_count"], 156);
         assert_eq!(engine.regions[id].epoch, epoch);
     }
 }

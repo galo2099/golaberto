@@ -42,6 +42,27 @@ def canonical_request_sha256(request: dict) -> str:
     return hashlib.sha256(canonical.encode()).hexdigest()
 
 
+def suffix_options(args) -> dict:
+    """Validate and return the optional suffix-bound request configuration."""
+    options = {
+        "enabled": bool(getattr(args, "suffix_bounds", False)),
+        "state_cap": getattr(args, "suffix_state_cap", 1_000_000),
+        "max_remaining": getattr(args, "suffix_max_remaining", 24),
+        "probe_nodes": getattr(args, "suffix_probe_nodes", 25_000),
+        "probe_ms": getattr(args, "suffix_probe_ms", 25),
+        "budget_fraction": getattr(args, "suffix_budget_fraction", .15),
+    }
+    for name in ("state_cap", "max_remaining", "probe_nodes", "probe_ms"):
+        value = options[name]
+        if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+            raise ValueError(f"suffix {name.replace('_', '-')} must be a positive integer")
+    fraction = options["budget_fraction"]
+    if not isinstance(fraction, (int, float)) or isinstance(fraction, bool) or not math.isfinite(fraction) or not 0 < fraction <= 1:
+        raise ValueError("suffix budget-fraction must be finite and in (0, 1]")
+    options["budget_fraction"] = float(fraction)
+    return options
+
+
 def run_audit(args, protocol_factory=Protocol, now=time.monotonic) -> dict:
     """Run setup and one bounded certificate call under a shared wall deadline."""
     started = now()
@@ -54,6 +75,7 @@ def run_audit(args, protocol_factory=Protocol, now=time.monotonic) -> dict:
     source_hash, source_files = source_manifest(binary_path)
     binary_hash = sha(binary_path)
     played, remaining = played_game_counts(request_data)
+    suffix = suffix_options(args)
     output = {
         "provenance": "bounded residual certificate audit; no sampling or confidence claim",
         "target": {"team_id": args.team_id, "position": args.position},
@@ -77,6 +99,9 @@ def run_audit(args, protocol_factory=Protocol, now=time.monotonic) -> dict:
         "cleanup_reserve_seconds": args.cleanup_reserve,
         "node_limit": args.node_limit,
         "clip_fraction": args.clip_fraction,
+        "suffix_bounds_enabled": suffix["enabled"],
+        "suffix_settings": {key: value for key, value in suffix.items() if key != "enabled"},
+        "suffix_request_sent": False,
     }
     engine = None
     try:
@@ -151,9 +176,19 @@ def run_audit(args, protocol_factory=Protocol, now=time.monotonic) -> dict:
             output["status"] = "search_budget_exhausted"
             return output
         call_started = now()
-        certificate = engine.call(op="residual_certificate", id=args.region_id,
-                                  clip_fraction=args.clip_fraction,
-                                  node_limit=args.node_limit, time_ms=search_ms)
+        certificate_request = {"op": "residual_certificate", "id": args.region_id,
+                               "clip_fraction": args.clip_fraction,
+                               "node_limit": args.node_limit, "time_ms": search_ms}
+        if suffix["enabled"]:
+            certificate_request["suffix"] = {
+                "state_cap": suffix["state_cap"],
+                "max_remaining": suffix["max_remaining"],
+                "probe_nodes": suffix["probe_nodes"],
+                "probe_ms": suffix["probe_ms"],
+                "budget_fraction": suffix["budget_fraction"],
+            }
+            output["suffix_request_sent"] = True
+        certificate = engine.call(**certificate_request)
         output["timing_ms"]["certificate"] = (now() - call_started) * 1000.0
         output["certificate"] = certificate
         output["status"] = "complete" if certificate.get("complete") is True else "incomplete"
@@ -194,6 +229,12 @@ def main() -> None:
     parser.add_argument("--node-limit", type=int, default=250000)
     parser.add_argument("--clip-fraction", type=float, default=1 / 1024)
     parser.add_argument("--search-ms", type=int, help="optional certificate search cap for smoke runs")
+    parser.add_argument("--suffix-bounds", action="store_true", help="enable optional cached suffix bounds")
+    parser.add_argument("--suffix-state-cap", type=int, default=1_000_000)
+    parser.add_argument("--suffix-max-remaining", type=int, default=24)
+    parser.add_argument("--suffix-probe-nodes", type=int, default=25_000)
+    parser.add_argument("--suffix-probe-ms", type=int, default=25)
+    parser.add_argument("--suffix-budget-fraction", type=float, default=.15)
     parser.add_argument("--output")
     args = parser.parse_args()
     if not math.isfinite(args.budget) or args.budget <= 0:
@@ -206,6 +247,10 @@ def main() -> None:
         parser.error("--search-ms must be positive")
     if not math.isfinite(args.clip_fraction) or not 0 < args.clip_fraction <= 1:
         parser.error("--clip-fraction must be finite and in (0, 1]")
+    try:
+        suffix_options(args)
+    except ValueError as exc:
+        parser.error(str(exc))
     result = run_audit(args)
     rendered = json.dumps(result, indent=2, sort_keys=True)
     if args.output:

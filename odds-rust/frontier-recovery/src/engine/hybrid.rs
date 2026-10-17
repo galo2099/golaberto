@@ -115,6 +115,17 @@ impl Engine {
         node_limit: usize,
         time_ms: u64,
     ) -> Result<Value, String> {
+        self.residual_certificate_with_options(id, clip_fraction, node_limit, time_ms, None)
+    }
+
+    pub fn residual_certificate_with_options(
+        &self,
+        id: usize,
+        clip_fraction: f64,
+        node_limit: usize,
+        time_ms: u64,
+        suffix_options: Option<crate::joint::SuffixOptions>,
+    ) -> Result<Value, String> {
         let started = Instant::now();
         if id >= self.regions.len() {
             return Err("unknown region id".into());
@@ -125,6 +136,18 @@ impl Engine {
         if node_limit == 0 {
             return Err("node_limit must be positive".into());
         }
+        if let Some(options) = suffix_options.as_ref() {
+            if options.state_cap == 0 || options.max_remaining == 0
+                || options.probe_nodes == 0 || options.probe_ms == 0
+            {
+                return Err("suffix state_cap, max_remaining, probe_nodes and probe_ms must be positive".into());
+            }
+            if !options.budget_fraction.is_finite()
+                || options.budget_fraction <= 0.0 || options.budget_fraction > 1.0
+            {
+                return Err("suffix budget_fraction must be finite and in (0,1]".into());
+            }
+        }
         let region = &self.regions[id];
         let regime = region.regime.as_ref();
         let b = regime.map_or_else(|| region.plan.as_ref().map(|p| p.bound), |p| Some(p.bound))
@@ -134,15 +157,29 @@ impl Engine {
             return Err("clip_fraction produces an invalid residual certificate cap".into());
         }
         let deadline = started + std::time::Duration::from_millis(time_ms);
-        let certificate = if let Some(plan) = regime {
-            plan.residual_certificate(&self.model, &self.laws, b, h, node_limit, deadline)?
-        } else {
-            let source = region.plan.as_ref().unwrap().residual_source(
-                Interval::point(1.0), Interval::point(1.0),
-            )?;
-            crate::joint::residual_certificate(
-                &[source], &self.model, &self.laws, b, h, node_limit, deadline,
-            )?
+        let certificate = match (regime, suffix_options.clone()) {
+            (Some(plan), Some(options)) => plan.residual_certificate_with_options(
+                &self.model, &self.laws, b, h, node_limit, deadline, Some(options),
+            )?,
+            (Some(plan), None) => plan.residual_certificate(
+                &self.model, &self.laws, b, h, node_limit, deadline,
+            )?,
+            (None, Some(options)) => {
+                let source = region.plan.as_ref().unwrap().residual_source(
+                    Interval::point(1.0), Interval::point(1.0),
+                )?;
+                crate::joint::residual_certificate_with_options(
+                    &[source], &self.model, &self.laws, b, h, node_limit, deadline, Some(options),
+                )?
+            }
+            (None, None) => {
+                let source = region.plan.as_ref().unwrap().residual_source(
+                    Interval::point(1.0), Interval::point(1.0),
+                )?;
+                crate::joint::residual_certificate(
+                    &[source], &self.model, &self.laws, b, h, node_limit, deadline,
+                )?
+            }
         };
         let snapshots: Vec<Value> = certificate.snapshots.iter().map(|s| json!({
             "expanded":s.expanded,"frontier":s.frontier,
@@ -158,6 +195,31 @@ impl Engine {
         })).collect();
         let active_width = certificate.depth_stats.iter().map(|s| s.branches).max().unwrap_or(0);
         let largest_pending = top_pending.first().cloned();
+        let suffix_diagnostics = &certificate.suffix;
+        let suffix = json!({
+            "enabled":suffix_diagnostics.enabled,
+            "options":suffix_options.as_ref().map(|o| json!({
+                "state_cap":o.state_cap,"max_remaining":o.max_remaining,
+                "probe_nodes":o.probe_nodes,"probe_ms":o.probe_ms,
+                "budget_fraction":o.budget_fraction
+            })),
+            "calls":suffix_diagnostics.calls,"visits":suffix_diagnostics.visits,
+            "cache_hits":suffix_diagnostics.cache_hits,"entries":suffix_diagnostics.entries,
+            "completed_rows":suffix_diagnostics.completed_rows,
+            "positive_bounds":suffix_diagnostics.positive_bounds,
+            "impossible":suffix_diagnostics.impossible,"unknown":suffix_diagnostics.unknown,
+            "terminals":suffix_diagnostics.terminals,
+            "elapsed_ms":suffix_diagnostics.elapsed_ms,
+            "cache_capacity_hit":suffix_diagnostics.cache_capacity_hit,
+            "time_budget_hit":suffix_diagnostics.time_budget_hit,
+            "probe_node_limit_hit":suffix_diagnostics.probe_node_limit_hit,
+            "suffix_feasibility_prunes":suffix_diagnostics.suffix_feasibility_prunes,
+            "guide_zero_prunes":suffix_diagnostics.guide_zero_prunes,
+            "guide_prunes":suffix_diagnostics.guide_prunes,
+            "tightened_branches":suffix_diagnostics.tightened_branches,
+            "min_positive_g":suffix_diagnostics.min_positive_g,
+            "max_positive_g":suffix_diagnostics.max_positive_g
+        });
         Ok(json!({
             "operation":"residual_certificate","id":id,"epoch":region.epoch,"B":b,"H":h,
             "mode":if regime.is_some(){"regime"}else{"joint"},
@@ -179,6 +241,7 @@ impl Engine {
             "pmf_cache_limited":certificate.pmf_limited,
             "depth_stats":depth_stats,"top_pending":top_pending,
             "active_width":active_width,"largest_pending":largest_pending,
+            "suffix":suffix,
             "node_limit":node_limit,"time_ms":time_ms,
             "elapsed_ms":certificate.elapsed.as_secs_f64()*1000.0,
             "audit_elapsed_ms":started.elapsed().as_secs_f64()*1000.0,
@@ -482,6 +545,20 @@ mod tests {
         let result = engine.residual_certificate(0, 0.1, 100, 100).unwrap();
         assert!(result["expectation_upper"].as_f64().unwrap() >= 0.0);
         assert!(result["max_residual_cap"].as_f64().unwrap() <= bound);
+        assert_eq!(result["suffix"]["enabled"], false);
+        let bad_options = crate::joint::SuffixOptions { state_cap: 0, ..Default::default() };
+        assert!(engine.residual_certificate_with_options(0, 0.1, 100, 100, Some(bad_options)).is_err());
+        let epoch = engine.regions[0].epoch;
+        let options = crate::joint::SuffixOptions {
+            state_cap: 10_000,
+            max_remaining: 2,
+            probe_nodes: 100,
+            probe_ms: 5,
+            budget_fraction: 0.1,
+        };
+        let enabled = engine.residual_certificate_with_options(0, 0.1, 100, 100, Some(options)).unwrap();
+        assert_eq!(enabled["suffix"]["enabled"], true);
+        assert_eq!(enabled["suffix"]["options"]["max_remaining"], 2);
         assert_eq!(engine.regions[0].epoch, epoch);
         assert_eq!(engine.regions[0].plan.as_ref().unwrap().bound, bound);
     }

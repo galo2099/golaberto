@@ -91,6 +91,7 @@ class ResidualAuditTests(unittest.TestCase):
         self.assertLess(engine.calls[1]["time_ms"], 1000)
         self.assertLess(engine.calls[2]["time_ms"], 1000)
         self.assertEqual(engine.calls[3]["time_ms"], 200)
+        self.assertNotIn("suffix", engine.calls[3])
         self.assertAlmostEqual(engine.deadline, 51.5)
         self.assertEqual(result["game_counts"], {"played": 279, "remaining": 101})
         self.assertEqual(result["known_analytic_upper"], .25)
@@ -99,6 +100,14 @@ class ResidualAuditTests(unittest.TestCase):
         self.assertEqual(result["certificate"]["expanded"], 7)
         self.assertGreater(result["timing_ms"]["wall_elapsed"], 0)
         self.assertEqual(result["overrun_ms"], 0)
+        self.assertFalse(result["suffix_bounds_enabled"])
+        self.assertFalse(result["suffix_request_sent"])
+        self.assertEqual(result["suffix_settings"], {
+            "state_cap": 1_000_000, "max_remaining": 24,
+            "probe_nodes": 25_000, "probe_ms": 25,
+            "budget_fraction": .15,
+        })
+        self.assertTrue(result["hashes_unchanged"])
 
     def test_describe_target_mismatch_stops_before_prepare(self):
         clock = Clock()
@@ -162,6 +171,45 @@ class ResidualAuditTests(unittest.TestCase):
         self.assertEqual(result["status"], "error")
         self.assertEqual(result["known_analytic_upper"], .25)
         self.assertIsNone(result["certificate"])
+
+    def test_suffix_opt_in_is_forwarded_as_one_optional_object(self):
+        clock = Clock()
+        engines = []
+        self.args.suffix_bounds = True
+        self.args.suffix_state_cap = 123456
+        self.args.suffix_max_remaining = 18
+        self.args.suffix_probe_nodes = 4321
+        self.args.suffix_probe_ms = 17
+        self.args.suffix_budget_fraction = .2
+
+        def factory(*args):
+            engine = FakeEngine(*args, clock=clock)
+            engines.append(engine)
+            return engine
+
+        with patch.object(residual_audit, "HISTORICAL_REQUEST_SHA256", self.input_hash):
+            result = residual_audit.run_audit(self.args, factory, clock)
+        request = engines[0].calls[3]
+        self.assertEqual(request["suffix"], {
+            "state_cap": 123456, "max_remaining": 18,
+            "probe_nodes": 4321, "probe_ms": 17,
+            "budget_fraction": .2,
+        })
+        self.assertTrue(result["suffix_bounds_enabled"])
+        self.assertTrue(result["suffix_request_sent"])
+        self.assertTrue(result["hashes_unchanged"])
+
+    def test_suffix_options_reject_nonpositive_integers_and_invalid_fraction(self):
+        for name in ("suffix_state_cap", "suffix_max_remaining", "suffix_probe_nodes", "suffix_probe_ms"):
+            setattr(self.args, name, 0)
+            with self.subTest(option=name), self.assertRaises(ValueError):
+                residual_audit.suffix_options(self.args)
+            delattr(self.args, name)
+        for fraction in (0.0, -0.1, 1.1, float("nan"), float("inf")):
+            self.args.suffix_budget_fraction = fraction
+            with self.subTest(fraction=fraction), self.assertRaises(ValueError):
+                residual_audit.suffix_options(self.args)
+        del self.args.suffix_budget_fraction
 
 
 if __name__ == "__main__":

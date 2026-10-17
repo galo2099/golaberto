@@ -19,7 +19,7 @@ use std::{
 
 #[path = "joint/residual.rs"]
 mod residual;
-pub use residual::{residual_certificate, ResidualCertificate, ResidualSource};
+pub use residual::{residual_certificate, residual_certificate_with_options, ResidualCertificate, ResidualSource, SuffixDiagnostics, SuffixOptions};
 
 #[derive(Clone, Debug)]
 struct Edge {

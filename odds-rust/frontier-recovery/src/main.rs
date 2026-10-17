@@ -10,6 +10,33 @@ use serde_json::{json, Value};
 use std::io::{self, BufRead, Write};
 use std::time::Instant;
 
+fn suffix_options(command: &Value) -> Result<Option<joint::SuffixOptions>, String> {
+    let Some(value) = command.get("suffix") else { return Ok(None); };
+    let object = value.as_object().ok_or("suffix must be an object")?;
+    let defaults = joint::SuffixOptions::default();
+    let uint = |key: &str, default: u64| -> Result<usize, String> {
+        match object.get(key) {
+            None => Ok(default as usize),
+            Some(v) => v.as_u64().map(|n| n as usize).ok_or_else(|| format!("suffix.{key} must be an unsigned integer")),
+        }
+    };
+    let budget_fraction = match object.get("budget_fraction") {
+        None => defaults.budget_fraction,
+        Some(v) => v.as_f64().ok_or("suffix.budget_fraction must be a number")?,
+    };
+    let probe_ms = match object.get("probe_ms") {
+        None => defaults.probe_ms,
+        Some(v) => v.as_u64().ok_or("suffix.probe_ms must be an unsigned integer")?,
+    };
+    Ok(Some(joint::SuffixOptions {
+        state_cap: uint("state_cap", defaults.state_cap as u64)?,
+        max_remaining: uint("max_remaining", defaults.max_remaining as u64)?,
+        probe_nodes: uint("probe_nodes", defaults.probe_nodes as u64)?,
+        probe_ms,
+        budget_fraction,
+    }))
+}
+
 fn receipt(engine: &mut Engine, command: &Value) -> Result<Value, String> {
     match command.get("op").and_then(Value::as_str).unwrap_or("") {
         "describe" => Ok(engine.describe()),
@@ -62,24 +89,18 @@ fn receipt(engine: &mut Engine, command: &Value) -> Result<Value, String> {
                 .and_then(Value::as_u64)
                 .unwrap_or(1_000),
         ),
-        "residual_certificate" => engine.residual_certificate(
-            command
-                .get("id")
-                .and_then(Value::as_u64)
-                .ok_or("missing id")? as usize,
-            command
-                .get("clip_fraction")
-                .and_then(Value::as_f64)
-                .unwrap_or(1.0 / 1024.0),
-            command
-                .get("node_limit")
-                .and_then(Value::as_u64)
-                .unwrap_or(250_000) as usize,
-            command
-                .get("time_ms")
-                .and_then(Value::as_u64)
-                .unwrap_or(1_000),
-        ),
+        "residual_certificate" => {
+            let id = command.get("id").and_then(Value::as_u64).ok_or("missing id")? as usize;
+            let clip_fraction = command.get("clip_fraction").and_then(Value::as_f64).unwrap_or(1.0 / 1024.0);
+            let node_limit = command.get("node_limit").and_then(Value::as_u64).unwrap_or(250_000) as usize;
+            let time_ms = command.get("time_ms").and_then(Value::as_u64).unwrap_or(1_000);
+            match suffix_options(command)? {
+                Some(options) => engine.residual_certificate_with_options(
+                    id, clip_fraction, node_limit, time_ms, Some(options),
+                ),
+                None => engine.residual_certificate(id, clip_fraction, node_limit, time_ms),
+            }
+        }
         "sample" => engine.sample(
             command
                 .get("id")
@@ -173,5 +194,28 @@ fn main() {
         if value.get("quit").and_then(Value::as_bool) == Some(true) {
             break;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn suffix_option_parser_keeps_absent_mode_disabled_and_uses_defaults() {
+        assert!(suffix_options(&json!({})).unwrap().is_none());
+        let options = suffix_options(&json!({"suffix":{}})).unwrap().unwrap();
+        assert_eq!(options.state_cap, 1_000_000);
+        assert_eq!(options.max_remaining, 24);
+        assert_eq!(options.probe_nodes, 25_000);
+        assert_eq!(options.probe_ms, 25);
+        assert_eq!(options.budget_fraction, 0.15);
+    }
+
+    #[test]
+    fn suffix_option_parser_rejects_nonobjects_and_invalid_types() {
+        assert!(suffix_options(&json!({"suffix":false})).is_err());
+        assert!(suffix_options(&json!({"suffix":{"probe_nodes":-1}})).is_err());
+        assert!(suffix_options(&json!({"suffix":{"budget_fraction":"small"}})).is_err());
     }
 }
