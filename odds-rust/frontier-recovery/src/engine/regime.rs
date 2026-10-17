@@ -1,7 +1,7 @@
 use super::Engine;
 use crate::{
     gd_bounds::GdCache,
-    joint::{Forest, Plan as JointPlan},
+    joint::{residual_certificate as certify_residual, Forest, Plan as JointPlan, ResidualCertificate, ResidualSource},
     law::{categorical, categorical_probabilities, Interval, Law},
     pair::PairPlan,
 };
@@ -103,6 +103,33 @@ impl RegimePlan {
         };
         let weight = wdl_weight.mul(atom.q).div(pi);
         Ok((outcomes, weight, fixed_scores))
+    }
+
+    pub(super) fn residual_certificate(
+        &self,
+        model: &Model,
+        laws: &[Law],
+        cap_b: f64,
+        clip_h: f64,
+        node_limit: usize,
+        deadline: Instant,
+    ) -> Result<ResidualCertificate, String> {
+        let tickets = categorical_probabilities(&self.weights)?;
+        let mut sources: Vec<ResidualSource<'_>> = Vec::new();
+        if let Some(forest) = &self.forest {
+            for (index, atom) in self.forest_atoms.iter().enumerate() {
+                if tickets[index].hi <= 0.0 { continue; }
+                sources.push(forest.residual_source(
+                    atom.root_index, model, atom.q, tickets[index],
+                )?);
+            }
+        } else {
+            for (index, atom) in self.atoms.iter().enumerate() {
+                if tickets[index].hi <= 0.0 { continue; }
+                sources.push(atom.plan.residual_source(atom.q, tickets[index])?);
+            }
+        }
+        certify_residual(&sources, model, laws, cap_b, clip_h, node_limit, deadline)
     }
 
     /// Draw through the same atom and pair mixture while retaining its
@@ -1419,5 +1446,12 @@ mod tests {
         }
         assert_eq!(lazy["residual_guide_evaluations"].as_u64().unwrap()
             + lazy["residual_guide_skips"].as_u64().unwrap(), 8);
+
+        let epoch = engine.regions[id].epoch;
+        let audit = engine.residual_certificate(id, 0.25, 500, 1).unwrap();
+        assert_eq!(audit["source_count"], 156);
+        assert_eq!(audit["epoch"], epoch);
+        assert!(audit["expectation_upper"].as_f64().unwrap() <= audit["B"].as_f64().unwrap());
+        assert_eq!(engine.regions[id].epoch, epoch);
     }
 }

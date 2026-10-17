@@ -62,6 +62,24 @@ fn receipt(engine: &mut Engine, command: &Value) -> Result<Value, String> {
                 .and_then(Value::as_u64)
                 .unwrap_or(1_000),
         ),
+        "residual_certificate" => engine.residual_certificate(
+            command
+                .get("id")
+                .and_then(Value::as_u64)
+                .ok_or("missing id")? as usize,
+            command
+                .get("clip_fraction")
+                .and_then(Value::as_f64)
+                .unwrap_or(1.0 / 1024.0),
+            command
+                .get("node_limit")
+                .and_then(Value::as_u64)
+                .unwrap_or(250_000) as usize,
+            command
+                .get("time_ms")
+                .and_then(Value::as_u64)
+                .unwrap_or(1_000),
+        ),
         "sample" => engine.sample(
             command
                 .get("id")

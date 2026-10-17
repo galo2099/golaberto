@@ -108,6 +108,84 @@ impl Stats {
 }
 
 impl Engine {
+    pub fn residual_certificate(
+        &self,
+        id: usize,
+        clip_fraction: f64,
+        node_limit: usize,
+        time_ms: u64,
+    ) -> Result<Value, String> {
+        let started = Instant::now();
+        if id >= self.regions.len() {
+            return Err("unknown region id".into());
+        }
+        if !clip_fraction.is_finite() || clip_fraction <= 0.0 || clip_fraction > 1.0 {
+            return Err("clip_fraction must be finite and in (0,1]".into());
+        }
+        if node_limit == 0 {
+            return Err("node_limit must be positive".into());
+        }
+        let region = &self.regions[id];
+        let regime = region.regime.as_ref();
+        let b = regime.map_or_else(|| region.plan.as_ref().map(|p| p.bound), |p| Some(p.bound))
+            .ok_or("residual certificate requires an installed plan")?;
+        let h = b * clip_fraction;
+        if !b.is_finite() || b <= 0.0 || !h.is_finite() || h <= 0.0 {
+            return Err("clip_fraction produces an invalid residual certificate cap".into());
+        }
+        let deadline = started + std::time::Duration::from_millis(time_ms);
+        let certificate = if let Some(plan) = regime {
+            plan.residual_certificate(&self.model, &self.laws, b, h, node_limit, deadline)?
+        } else {
+            let source = region.plan.as_ref().unwrap().residual_source(
+                Interval::point(1.0), Interval::point(1.0),
+            )?;
+            crate::joint::residual_certificate(
+                &[source], &self.model, &self.laws, b, h, node_limit, deadline,
+            )?
+        };
+        let snapshots: Vec<Value> = certificate.snapshots.iter().map(|s| json!({
+            "expanded":s.expanded,"frontier":s.frontier,
+            "expectation_upper":s.expectation_upper,"max_residual_cap":s.max_residual_cap
+        })).collect();
+        let depth_stats: Vec<Value> = certificate.depth_stats.iter().map(|s| json!({
+            "depth":s.depth,"branches":s.branches,"expectation_upper":s.expectation_upper
+        })).collect();
+        let top_pending: Vec<Value> = certificate.top_pending.iter().map(|b| json!({
+            "source_index":b.source,"depth":b.depth,
+            "expectation_upper":b.expectation_upper,"residual_cap":b.residual_cap,
+            "remaining_touched_teams":b.remaining_touched_teams
+        })).collect();
+        let active_width = certificate.depth_stats.iter().map(|s| s.branches).max().unwrap_or(0);
+        let largest_pending = top_pending.first().cloned();
+        Ok(json!({
+            "operation":"residual_certificate","id":id,"epoch":region.epoch,"B":b,"H":h,
+            "mode":if regime.is_some(){"regime"}else{"joint"},
+            "source_count":certificate.source_count,
+            "expectation_upper":certificate.expectation_upper,
+            "max_residual_cap":certificate.max_residual_cap,
+            "initial_bounds":certificate.initial_bounds,
+            "complete":certificate.complete,
+            "expanded":certificate.expanded,"frontier":certificate.frontier,
+            "retained_unknown_nodes":certificate.frontier,
+            "frontier_min_depth":certificate.frontier_min_depth,
+            "frontier_max_depth":certificate.frontier_max_depth,
+            "prunes":certificate.prunes,"leaves":certificate.leaves,
+            "zero_pw_prunes":certificate.zero_pw_prunes,
+            "zero_residual_prunes":certificate.zero_residual_prunes,
+            "zero_residual_leaves":certificate.zero_residual_leaves,
+            "feasible_leaves":certificate.feasible_leaves,
+            "memory_limited":certificate.memory_limited,
+            "pmf_cache_limited":certificate.pmf_limited,
+            "depth_stats":depth_stats,"top_pending":top_pending,
+            "active_width":active_width,"largest_pending":largest_pending,
+            "node_limit":node_limit,"time_ms":time_ms,
+            "elapsed_ms":certificate.elapsed.as_secs_f64()*1000.0,
+            "audit_elapsed_ms":started.elapsed().as_secs_f64()*1000.0,
+            "snapshots":snapshots
+        }))
+    }
+
     pub fn sample_hybrid(
         &mut self,
         id: usize,
@@ -390,5 +468,21 @@ mod tests {
         let skips = lazy["residual_guide_skips"].as_u64().unwrap();
         assert_eq!(evaluations + skips, 32);
         assert!(evaluations > 0 && skips > 0);
+    }
+
+    #[test]
+    fn residual_certificate_is_read_only_and_validates_limits() {
+        let mut engine = tiny_engine();
+        engine.prepare(0, 1, 100, 100).unwrap();
+        let epoch = engine.regions[0].epoch;
+        let bound = engine.regions[0].plan.as_ref().unwrap().bound;
+        assert!(engine.residual_certificate(0, 0.0, 10, 10).is_err());
+        assert!(engine.residual_certificate(0, 0.1, 0, 10).is_err());
+        assert!(engine.residual_certificate(usize::MAX, 0.1, 10, 10).is_err());
+        let result = engine.residual_certificate(0, 0.1, 100, 100).unwrap();
+        assert!(result["expectation_upper"].as_f64().unwrap() >= 0.0);
+        assert!(result["max_residual_cap"].as_f64().unwrap() <= bound);
+        assert_eq!(engine.regions[0].epoch, epoch);
+        assert_eq!(engine.regions[0].plan.as_ref().unwrap().bound, bound);
     }
 }

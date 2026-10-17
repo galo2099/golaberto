@@ -17,6 +17,10 @@ use std::{
     time::Instant,
 };
 
+#[path = "joint/residual.rs"]
+mod residual;
+pub use residual::{residual_certificate, ResidualCertificate, ResidualSource};
+
 #[derive(Clone, Debug)]
 struct Edge {
     outcome: u8,
