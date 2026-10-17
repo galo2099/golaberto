@@ -10,6 +10,28 @@ from scheduler import next_plan_request, stage_deadline, stage_timeout_ms
 HERE = Path(__file__).resolve().parent
 DEFAULT_REQUEST = HERE.parents[2] / "odds-rust/tests/fixtures/group-16498-2026-10-10.json"
 
+def accept_regime_proposal(state, receipt):
+    """Install accepted regime metadata; reset only the new proposal epoch stats."""
+    if not receipt.get("accepted"):
+        return False
+    epoch=int(receipt.get("epoch",state["epoch"]))
+    selected=receipt.get("selected_rival_ids",[])
+    state["current_plan"]={"B":receipt.get("B"),"states":receipt.get("states"),
+                            "k":len(selected),"selected_rival_ids":selected,
+                            "complete":receipt.get("complete"),"epoch":epoch,
+                            "accepted":True,"mode":receipt.get("mode","regime"),
+                            "pivot_id":receipt.get("pivot_id"),"atom_count":receipt.get("atom_count")}
+    state["last_attempt_k"]=len(selected)
+    state["last_attempt_cap"]=int(receipt.get("states",state["last_attempt_cap"]))
+    state["last_attempt_accepted"]=True
+    state["last_attempt_complete"]=bool(receipt.get("complete",False))
+    if epoch != state["epoch"]:
+        state["epoch"]=epoch
+        state["look"]=0
+        state["focused_looks"]=0
+        state["stats"].reset(epoch)
+    return True
+
 class Protocol:
     def __init__(self, binary, request, team, position, deadline):
         self.proc = subprocess.Popen([str(binary), str(request), str(team), str(position)], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, bufsize=1)
@@ -40,17 +62,21 @@ def sha(path):
 def main():
     p=argparse.ArgumentParser()
     p.add_argument("--binary",required=True); p.add_argument("--request",default=str(DEFAULT_REQUEST)); p.add_argument("--team-id",type=int,default=16); p.add_argument("--position",type=int,default=12)
-    p.add_argument("--budget",type=float,default=180); p.add_argument("--seed",type=int,default=20261017); p.add_argument("--workers",type=int,default=1)
+    p.add_argument("--budget",type=float,default=180); p.add_argument("--cleanup-reserve",type=float,default=10.0,help="seconds reserved for shutdown and result output (default: 10)"); p.add_argument("--seed",type=int,default=20261017); p.add_argument("--workers",type=int,default=1)
     p.add_argument("--initial-draws",type=int,default=128); p.add_argument("--max-draws",type=int,default=100000); p.add_argument("--initial-state-cap",type=int,default=1000); p.add_argument("--state-cap",type=int,default=250000); p.add_argument("--time-ms",type=int,default=500); p.add_argument("--depth",type=int,default=6); p.add_argument("--initial-k",type=int,default=1); p.add_argument("--max-k",type=int,default=12); p.add_argument("--output")
     p.add_argument("--gd-bounds",dest="gd_bounds",action="store_true",default=True); p.add_argument("--no-gd-bounds",dest="gd_bounds",action="store_false")
-    a=p.parse_args(); started=IMPORT_STARTED; deadline=started+max(1,a.budget); req=Path(a.request).resolve(); binary=Path(a.binary).resolve()
+    p.add_argument("--regimes",dest="regimes",action="store_true",default=True); p.add_argument("--no-regimes",dest="regimes",action="store_false")
+    p.add_argument("--run-full-budget",action="store_true",help="continue focused sampling after the target ratio is reached")
+    a=p.parse_args()
+    if not 0 <= a.cleanup_reserve < a.budget: p.error("--cleanup-reserve must be at least 0 and less than --budget")
+    started=IMPORT_STARTED; deadline=started+a.budget; req=Path(a.request).resolve(); binary=Path(a.binary).resolve()
     if a.workers != 1: print("frontier-recovery uses a serial native engine; recording workers=1",file=sys.stderr)
     setup_start=time.monotonic()
     # Startup is inside the same deadline and hashes freeze the measured inputs.
     hsrc=hashlib.sha256()
     source_paths=sorted(HERE.glob("*.py"))+[binary,HERE.parents[2]/"odds-rust/frontier-recovery/Cargo.toml"]
     crate=HERE.parents[2]/"odds-rust/frontier-recovery"
-    source_paths += sorted(crate.glob("src/*.rs"))
+    source_paths += sorted(crate.rglob("*.rs"))
     if (crate/"Cargo.lock").exists(): source_paths.append(crate/"Cargo.lock")
     for path in sorted(source_paths):
         if path.exists(): hsrc.update(str(path).encode()); hsrc.update(bytes.fromhex(sha(path)))
@@ -64,7 +90,7 @@ def main():
         state_caps={int(r["id"]):int((r.get("plan") or {}).get("states",0)) for r in candidates}
         # Establish at least a bounded fallback plan and discovery sample for every cohort.
         for row in candidates:
-            if time.monotonic()>=deadline-10: break
+            if time.monotonic()>=deadline-a.cleanup_reserve: break
             rid=int(row["id"])
             try:
                 others=sum(state_caps.values())-state_caps.get(rid,0)
@@ -80,7 +106,7 @@ def main():
                 row["_prepare_setup_ms"]=prep.get("setup_ms",0)
                 if prep.get("accepted"):
                     row["_plan_states"]=int(prep.get("states",0));state_caps[rid]=row["_plan_states"]
-                    row["_current_plan"]={"B":prep.get("B"),"states":prep.get("states"),"k":len(prep.get("selected_rival_ids",[])),"selected_rival_ids":prep.get("selected_rival_ids",[]),"complete":prep.get("complete"),"epoch":prep.get("epoch"),"accepted":True}
+                    row["_current_plan"]={"B":prep.get("B"),"states":prep.get("states"),"k":len(prep.get("selected_rival_ids",[])),"selected_rival_ids":prep.get("selected_rival_ids",[]),"complete":prep.get("complete"),"epoch":prep.get("epoch"),"accepted":True,"mode":prep.get("mode","joint")}
                     if float(prep.get("B",1.0))==0.0:
                         row["upper"]=0.0;row["_exact_zero"]=True;row["_proof_status"]="exact_zero";row["_first_sample"]=None
                         continue
@@ -92,7 +118,7 @@ def main():
         # Only after every reachable cohort has had its small preparation attempt,
         # collect the cheap discovery batch for all of them before focused growth.
         for row in candidates:
-            if time.monotonic()>=deadline-10: break
+            if time.monotonic()>=deadline-a.cleanup_reserve: break
             if row.get("_exact_zero"): continue
             rid=int(row["id"])
             try:
@@ -102,7 +128,7 @@ def main():
             except (TimeoutError,RuntimeError) as exc:
                 row["_first_sample"]=None;row.setdefault("_sample_errors",[]).append(str(exc))
         state_caps.update({int(r["id"]):int(r.get("_plan_states",state_caps.get(int(r["id"]),0))) for r in candidates})
-        states={int(r["id"]):{"row":r,"epoch":int(r.get("_plan_epoch",0)),"look":0,"focused_looks":0,"n":0,"stats":EpochStats(int(r.get("_plan_epoch",0))),"lo":0.,"hi":float(r.get("upper",1.)),"samples":[],"setup_ms":r.get("_prepare_setup_ms",0),"sampling_ms":0,"last_attempt_k":int(r.get("_last_attempt_k",-1)),"last_attempt_cap":int(r.get("_last_attempt_cap",-1)),"last_attempt_accepted":bool((r.get("_prepare_attempts") or [{}])[-1].get("accepted",False)),"last_attempt_complete":(bool((r.get("_prepare_attempts") or [{}])[-1]["complete"]) if "complete" in (r.get("_prepare_attempts") or [{}])[-1] else None),"conflict":False,"sample_errors":list(r.get("_sample_errors",[])),"prepare_attempts":list(r.get("_prepare_attempts",[])),"current_plan":r.get("_current_plan",r.get("plan")),"proof_status":r.get("_proof_status","unknown"),"gd_bounds":None,"gd_bounds_status":"pending" if a.gd_bounds else "disabled","gd_bounds_attempts":[] } for r in candidates}
+        states={int(r["id"]):{"row":r,"epoch":int(r.get("_plan_epoch",0)),"look":0,"focused_looks":0,"n":0,"stats":EpochStats(int(r.get("_plan_epoch",0))),"lo":0.,"hi":float(r.get("upper",1.)),"samples":[],"setup_ms":r.get("_prepare_setup_ms",0),"sampling_ms":0,"last_attempt_k":int(r.get("_last_attempt_k",-1)),"last_attempt_cap":int(r.get("_last_attempt_cap",-1)),"last_attempt_accepted":bool((r.get("_prepare_attempts") or [{}])[-1].get("accepted",False)),"last_attempt_complete":(bool((r.get("_prepare_attempts") or [{}])[-1]["complete"]) if "complete" in (r.get("_prepare_attempts") or [{}])[-1] else None),"conflict":False,"sample_errors":list(r.get("_sample_errors",[])),"prepare_attempts":list(r.get("_prepare_attempts",[])),"current_plan":r.get("_current_plan",r.get("plan")),"proof_status":r.get("_proof_status","unknown"),"gd_bounds":None,"gd_bounds_status":"pending" if a.gd_bounds else "disabled","gd_bounds_attempts":[],"regime_attempts":[],"regime_status":"pending" if a.regimes else "disabled" } for r in candidates}
         for rid,s in states.items():
             first=s["row"].get("_first_sample")
             if first and int(first.get("n",-1))==a.initial_draws:
@@ -115,11 +141,11 @@ def main():
                     s["n"]+=a.initial_draws;s["look"]+=1;s["sampling_ms"]+=first.get("elapsed_ms",0)
                     s["lo"],s["hi"],conflict=intersect_bounds(s["lo"],s["hi"],ll,ul)
                     s["conflict"]=s.get("conflict",False) or conflict
-                    s["samples"].append({"batch_n":a.initial_draws,"epoch_n":s["stats"].n,"epoch":s["epoch"],"sum_lower":first["sum_lower"],"sum_upper":first["sum_upper"],"positive_draws":first["positive_draws"],"sum_lower_sq":first["sum_lower_sq"],"sum_upper_sq":first["sum_upper_sq"],"lower_absolute":ll,"upper_absolute":ul,"B":cap,"setup_ms":first.get("setup_ms",0),"elapsed_ms":first.get("elapsed_ms",0)})
+                    s["samples"].append({"batch_n":a.initial_draws,"epoch_n":s["stats"].n,"epoch":s["epoch"],"mode":first.get("mode",(s.get("current_plan") or {}).get("mode")),"sum_lower":first["sum_lower"],"sum_upper":first["sum_upper"],"positive_draws":first["positive_draws"],"sum_lower_sq":first["sum_lower_sq"],"sum_upper_sq":first["sum_upper_sq"],"lower_absolute":ll,"upper_absolute":ul,"B":cap,"setup_ms":first.get("setup_ms",0),"elapsed_ms":first.get("elapsed_ms",0)})
                 except ValueError as exc: s["sample_errors"].append(str(exc))
         gd_started=time.monotonic();gd_setup_ms=0.0;gd_budget_ms=0.0
         if a.gd_bounds:
-            gd_deadline=stage_deadline(deadline,gd_started,20.0,10.0)
+            gd_deadline=stage_deadline(deadline,gd_started,20.0,a.cleanup_reserve)
             for rid,s in sorted(states.items(),key=lambda kv:float(kv[1]["row"].get("upper",0.0)),reverse=True):
                 if float(s["row"].get("upper",0.0))<=0:
                     s["gd_bounds_status"]="already_zero"
@@ -149,11 +175,47 @@ def main():
                     s["gd_bounds_attempts"].append(receipt)
                     gd_setup_ms+=float(receipt.get("setup_ms",0.0))
                 gd_budget_ms+=(time.monotonic()-call_started)*1000.0
+        regime_started=time.monotonic();regime_setup_ms=0.0;regime_budget_ms=0.0
+        if a.regimes:
+            regime_deadline=stage_deadline(deadline,regime_started,20.0,a.cleanup_reserve)
+            global_width=max(0.0,math.fsum([*(s["hi"] for s in states.values()),float(desc.get("uncovered_upper",0))])-math.fsum(s["lo"] for s in states.values()))
+            min_width=global_width/1000.0
+            for rid,s in sorted(states.items(),key=lambda kv:kv[1]["hi"]-kv[1]["lo"],reverse=True):
+                width=max(0.0,s["hi"]-s["lo"])
+                if s["proof_status"]=="exact_zero" or float(s["row"].get("upper",0.0))<=0 or width<min_width:
+                    s["regime_status"]="skipped_zero" if s["proof_status"]=="exact_zero" or float(s["row"].get("upper",0.0))<=0 else "skipped_negligible"
+                    continue
+                remaining=(regime_deadline-time.monotonic())*1000.0
+                if remaining<=0: break
+                others=sum(state_caps.values())-state_caps.get(rid,0)
+                policy_cap=max(0,min(a.state_cap,250_000,4_000_000-others))
+                if policy_cap<=0:
+                    s["regime_status"]="skipped_state_budget"
+                    continue
+                request_ms=min(1000,max(0,int(remaining)))
+                call_started=time.monotonic()
+                try:
+                    receipt=engine.call(op="regime",id=rid,state_cap=policy_cap,time_ms=request_ms)
+                    s["regime_attempts"].append(receipt)
+                    s["regime_status"]="accepted" if receipt.get("accepted") else ("complete_rejected" if receipt.get("complete") else "partial_rejected")
+                    if accept_regime_proposal(s,receipt):
+                        s["setup_ms"]+=float(receipt.get("setup_ms",0.0))
+                        state_caps[rid]=int(receipt.get("states",state_caps.get(rid,0)))
+                        if float(receipt.get("B",1.0))==0.0:
+                            s["row"]["upper"]=0.0
+                            s["proof_status"]="exact_zero"
+                            s["lo"],s["hi"],conflict=intersect_bounds(s["lo"],s["hi"],0.0,0.0)
+                            s["conflict"]=s.get("conflict",False) or conflict
+                    regime_setup_ms+=float(receipt.get("setup_ms",0.0))
+                except (RuntimeError,TimeoutError,ValueError) as exc:
+                    s["regime_status"]="error"
+                    s["regime_attempts"].append({"error":str(exc),"state_cap":policy_cap,"time_ms":request_ms})
+                regime_budget_ms+=(time.monotonic()-call_started)*1000.0
         # Each focused batch is incorporated only after a complete receipt arrives.
-        while time.monotonic()<deadline-10 and states:
+        while time.monotonic()<deadline-a.cleanup_reserve and states:
             total_lo=max(0.0,math.nextafter(math.fsum(s["lo"] for s in states.values()),0.0))
             total_hi=min(1.0,math.nextafter(math.fsum([*(s["hi"] for s in states.values()),float(desc.get("uncovered_upper",0))]),math.inf))
-            if total_lo>0 and total_hi/total_lo<=10: break
+            if not a.run_full_budget and total_lo>0 and total_hi/total_lo<=10: break
             active=[]
             for item in states.items():
                 rid0,s0=item
@@ -187,7 +249,7 @@ def main():
                 else: prep={"accepted":False,"epoch":s["epoch"]}
                 if prep.get("accepted"):
                     state_caps[rid]=int(prep.get("states",state_caps.get(rid,0)))
-                    s["current_plan"]={"B":prep.get("B"),"states":prep.get("states"),"k":len(prep.get("selected_rival_ids",[])),"selected_rival_ids":prep.get("selected_rival_ids",[]),"complete":prep.get("complete"),"epoch":prep.get("epoch"),"accepted":True}
+                    s["current_plan"]={"B":prep.get("B"),"states":prep.get("states"),"k":len(prep.get("selected_rival_ids",[])),"selected_rival_ids":prep.get("selected_rival_ids",[]),"complete":prep.get("complete"),"epoch":prep.get("epoch"),"accepted":True,"mode":prep.get("mode","joint")}
                     if float(prep.get("B",1.0))==0.0:
                         s["row"]["upper"]=0.0
                         s["proof_status"]="exact_zero"
@@ -219,7 +281,7 @@ def main():
             s["lo"],s["hi"],conflict=intersect_bounds(s["lo"],s["hi"],ll,ul)
             s["conflict"]=s.get("conflict",False) or conflict
             s["n"] += batch; s["look"] += 1; s["focused_looks"] += 1; s["sampling_ms"] += rec.get("elapsed_ms",0)
-            s["samples"].append({"batch_n":batch,"epoch_n":epoch_n,"epoch":s["epoch"],"sum_lower":rec["sum_lower"],"sum_upper":rec["sum_upper"],"positive_draws":rec["positive_draws"],"sum_lower_sq":rec["sum_lower_sq"],"sum_upper_sq":rec["sum_upper_sq"],"lower_absolute":ll,"upper_absolute":ul,"B":cap,"setup_ms":rec.get("setup_ms",0),"elapsed_ms":rec.get("elapsed_ms",0)})
+            s["samples"].append({"batch_n":batch,"epoch_n":epoch_n,"epoch":s["epoch"],"mode":rec.get("mode",(s.get("current_plan") or {}).get("mode")),"sum_lower":rec["sum_lower"],"sum_upper":rec["sum_upper"],"positive_draws":rec["positive_draws"],"sum_lower_sq":rec["sum_lower_sq"],"sum_upper_sq":rec["sum_upper_sq"],"lower_absolute":ll,"upper_absolute":ul,"B":cap,"setup_ms":rec.get("setup_ms",0),"elapsed_ms":rec.get("elapsed_ms",0)})
         engine.close(); engine=None
         total_lo=max(0.0,math.nextafter(math.fsum(s["lo"] for s in states.values()),0.0))
         total_hi=min(1.0,math.nextafter(math.fsum([*(s["hi"] for s in states.values()),float(desc.get("uncovered_upper",0))]),math.inf))
@@ -233,8 +295,8 @@ def main():
                 "absolute_upper_mean":stats.cap*stats.sum_upper/stats.n,
                 "interpretation":"separate empirical means of the lower and upper score streams; not a single point estimate",
             }
-            region_results.append({"id":rid,"root_id":s["row"].get("root_id"),"target_points":s["row"].get("target_points"),"target_wins":s["row"].get("target_wins"),"opponent_ids":s["row"].get("opponent_ids",[]),"analytic_upper":s["row"].get("upper"),"lower":s["lo"],"upper":s["hi"],"draws":s["n"],"epoch":s["epoch"],"setup_ms":s["setup_ms"],"sampling_ms":s["sampling_ms"],"confidence_conflict":s.get("conflict",False),"proof_status":s.get("proof_status","unknown"),"plan":s.get("current_plan"),"prepare_attempts":s.get("prepare_attempts",[]),"sample_errors":s.get("sample_errors",[]),"gd_bounds_status":s.get("gd_bounds_status"),"gd_bounds":s.get("gd_bounds"),"gd_bounds_attempts":s.get("gd_bounds_attempts",[]),"empirical_raw_score_streams":empirical,"current_epoch":{"n":stats.n,"B":stats.cap,"sum_lower":stats.sum_lower,"sum_upper":stats.sum_upper,"sum_lower_sq":stats.sum_lower_sq,"sum_upper_sq":stats.sum_upper_sq,"positive_draws":stats.positive_draws,"lower_exceedances":stats.lower,"upper_exceedances":stats.upper},"samples":s["samples"]})
-        result={"provenance":"independently rebuilt estimator; not the lost binary","target":desc.get("target"),"fixture_signature":{"team_id":a.team_id,"position":a.position},"confidence_level":.99,"qualified":qualified,"estimate":(total_lo*total_hi)**.5 if qualified else None,"lower":total_lo,"upper":total_hi,"confidence_conflicts":conflicts,"elapsed_seconds":time.monotonic()-started,"setup_seconds":setup_seconds,"setup_ms_total":sum(s["setup_ms"] for s in states.values()),"gd_bounds_enabled":a.gd_bounds,"gd_bounds_elapsed_ms":gd_budget_ms,"gd_bounds_setup_ms":gd_setup_ms,"sampling_ms_total":sum(s["sampling_ms"] for s in states.values()),"workers":1,"source_sha256":source_hash,"binary_sha256":binary_hash,"request_sha256":input_hash,"hashes_unchanged":sha(binary)==binary_hash and sha(req)==input_hash and all(sha(Path(path))==digest for path,digest in source_file_hashes.items()),"candidate_slots":desc.get("candidate_slots"),"uncovered_upper":desc.get("uncovered_upper"),"regions":region_results}
+            region_results.append({"id":rid,"root_id":s["row"].get("root_id"),"target_points":s["row"].get("target_points"),"target_wins":s["row"].get("target_wins"),"opponent_ids":s["row"].get("opponent_ids",[]),"analytic_upper":s["row"].get("upper"),"lower":s["lo"],"upper":s["hi"],"draws":s["n"],"epoch":s["epoch"],"setup_ms":s["setup_ms"],"sampling_ms":s["sampling_ms"],"confidence_conflict":s.get("conflict",False),"proof_status":s.get("proof_status","unknown"),"plan":s.get("current_plan"),"prepare_attempts":s.get("prepare_attempts",[]),"sample_errors":s.get("sample_errors",[]),"gd_bounds_status":s.get("gd_bounds_status"),"gd_bounds":s.get("gd_bounds"),"gd_bounds_attempts":s.get("gd_bounds_attempts",[]),"regime_status":s.get("regime_status"),"regime_attempts":s.get("regime_attempts",[]),"empirical_raw_score_streams":empirical,"current_epoch":{"n":stats.n,"B":stats.cap,"sum_lower":stats.sum_lower,"sum_upper":stats.sum_upper,"sum_lower_sq":stats.sum_lower_sq,"sum_upper_sq":stats.sum_upper_sq,"positive_draws":stats.positive_draws,"lower_exceedances":stats.lower,"upper_exceedances":stats.upper},"samples":s["samples"]})
+        result={"provenance":"independently rebuilt estimator; not the lost binary","target":desc.get("target"),"fixture_signature":{"team_id":a.team_id,"position":a.position},"confidence_level":.99,"qualified":qualified,"estimate":(total_lo*total_hi)**.5 if qualified else None,"lower":total_lo,"upper":total_hi,"confidence_conflicts":conflicts,"elapsed_seconds":time.monotonic()-started,"setup_seconds":setup_seconds,"setup_ms_total":sum(s["setup_ms"] for s in states.values()),"gd_bounds_enabled":a.gd_bounds,"gd_bounds_elapsed_ms":gd_budget_ms,"gd_bounds_setup_ms":gd_setup_ms,"regimes_enabled":a.regimes,"regime_elapsed_ms":regime_budget_ms,"regime_setup_ms":regime_setup_ms,"sampling_ms_total":sum(s["sampling_ms"] for s in states.values()),"workers":1,"source_sha256":source_hash,"binary_sha256":binary_hash,"request_sha256":input_hash,"hashes_unchanged":sha(binary)==binary_hash and sha(req)==input_hash and all(sha(Path(path))==digest for path,digest in source_file_hashes.items()),"candidate_slots":desc.get("candidate_slots"),"uncovered_upper":desc.get("uncovered_upper"),"regions":region_results}
         data=json.dumps(result,indent=2,sort_keys=True)
         if a.output: Path(a.output).write_text(data+"\n")
         print(data)

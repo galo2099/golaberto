@@ -15,6 +15,9 @@ use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::time::Instant;
 
+mod regime;
+use regime::RegimePlan;
+
 /// A support-preserving recovery engine. Every region starts with its native
 /// law conditioned only on the safe unary WDL masks; joint plans refine that
 /// proposal while retaining a sticky masked-native suffix for unresolved states.
@@ -39,6 +42,7 @@ struct Region {
     lower: Vec<i32>,
     upper_bounds: Vec<i32>,
     plan: Option<JointPlan>,
+    regime: Option<RegimePlan>,
     optimized: bool,
     epoch: u64,
 }
@@ -387,6 +391,7 @@ impl Engine {
                     lower,
                     upper_bounds,
                     plan: Some(baseline),
+                    regime: None,
                     optimized: false,
                     epoch: 0,
                 });
@@ -414,9 +419,9 @@ impl Engine {
             "root_count":self.regions.iter().map(|r|r.root_id).max().unwrap_or(0)+1,
             "candidate_slots":self.regions.len(),
             "uncovered_upper":0.0,
-            "regions":self.regions.iter().enumerate().map(|(id,r)|{let b=r.plan.as_ref().map_or(1.0,|p|p.bound);json!({"id":id,"root_id":r.root_id,"target_points":r.target_points,"target_wins":r.target_wins,"opponent_ids":r.above.iter().map(|&t|self.model.ids[t]).collect::<Vec<_>>(),"impossible":r.impossible,"upper":r.upper,
-                "plan":{"prepared":r.optimized,"B":b,"states":r.plan.as_ref().map_or(0,|p|p.states),
-                    "k":r.plan.as_ref().map_or(0,|p|p.selected.iter().filter(|&&t|t!=self.target).count()),"complete":r.plan.as_ref().is_some_and(|p|p.complete),"epoch":r.epoch}})}).collect::<Vec<_>>()
+            "regions":self.regions.iter().enumerate().map(|(id,r)|{let raw_b=r.plan.as_ref().map_or(1.0,|p|p.bound);let b=r.regime.as_ref().map_or(raw_b,|p|p.bound);json!({"id":id,"root_id":r.root_id,"target_points":r.target_points,"target_wins":r.target_wins,"opponent_ids":r.above.iter().map(|&t|self.model.ids[t]).collect::<Vec<_>>(),"impossible":r.impossible,"upper":r.upper,
+                "plan":{"prepared":r.optimized || r.regime.is_some(),"B":b,"raw_B":raw_b,"mode":if r.regime.is_some(){"regime"}else{"joint"},"states":r.plan.as_ref().map_or(0,|p|p.states).saturating_add(r.regime.as_ref().map_or(0,|p|p.states)),
+                    "k":r.regime.as_ref().map_or_else(||r.plan.as_ref().map_or(0,|p|p.selected.iter().filter(|&&t|t!=self.target).count()),|p|p.selected.iter().filter(|&&t|t!=self.target).count()),"complete":r.regime.as_ref().map_or_else(||r.plan.as_ref().is_some_and(|p|p.complete),|p|p.complete),"epoch":r.epoch}})}).collect::<Vec<_>>()
         })
     }
 
@@ -903,17 +908,21 @@ impl Engine {
             self.regions[id].epoch = self.regions[id].epoch.saturating_add(1);
             self.regions[id].impossible = true;
             self.regions[id].upper = 0.0;
+            self.regions[id].regime = None;
             let receipt = json!({"accepted":true,"B":0.0,"states":candidate.states,"selected_rival_ids":candidate.selected.iter().filter(|&&t|t!=self.target).map(|&t|self.model.ids[t]).collect::<Vec<_>>(),"setup_ms":start.elapsed().as_secs_f64()*1000.0,"complete":true,"epoch":self.regions[id].epoch,"impossible":true});
             self.regions[id].plan = Some(candidate);
             self.regions[id].optimized = true;
             return Ok(receipt);
         }
-        if let Some(old) = self.regions[id].plan.as_ref() {
-            if candidate.bound >= old.bound * (1.0 - 1e-9) {
-                return Ok(
-                    json!({"accepted":false,"B":old.bound,"candidate_B":candidate.bound,"states":candidate.states,"selected_rival_ids":old.selected.iter().filter(|&&t|t!=self.target).map(|&t|self.model.ids[t]).collect::<Vec<_>>(),"setup_ms":start.elapsed().as_secs_f64()*1000.0,"complete":candidate.complete,"epoch":self.regions[id].epoch}),
-                );
-            }
+        let effective_before = self.regions[id].regime.as_ref().map_or_else(
+            || self.regions[id].plan.as_ref().map_or(1.0, |old| old.bound),
+            |old| old.bound,
+        );
+        if candidate.bound >= effective_before * (1.0 - 1e-9) {
+            let old = self.regions[id].plan.as_ref();
+            return Ok(
+                json!({"accepted":false,"B":effective_before,"candidate_B":candidate.bound,"states":candidate.states,"selected_rival_ids":old.map(|p|p.selected.iter().filter(|&&t|t!=self.target).map(|&t|self.model.ids[t]).collect::<Vec<_>>()).unwrap_or_default(),"setup_ms":start.elapsed().as_secs_f64()*1000.0,"complete":candidate.complete,"epoch":self.regions[id].epoch}),
+            );
         }
         self.regions[id].epoch = self.regions[id].epoch.saturating_add(1);
         let selected_rival_ids = candidate
@@ -926,6 +935,7 @@ impl Engine {
             "selected_rival_ids":selected_rival_ids,"setup_ms":start.elapsed().as_secs_f64()*1000.0,
             "complete":candidate.complete,"epoch":self.regions[id].epoch});
         self.regions[id].plan = Some(candidate);
+        self.regions[id].regime = None;
         self.regions[id].optimized = true;
         Ok(receipt)
     }
@@ -948,7 +958,7 @@ impl Engine {
         }
         if self.regions[id].impossible {
             return Ok(
-                json!({"id":id,"n":n,"epoch":self.regions[id].epoch,"B":0.0,"sum_lower":0.0,"sum_upper":0.0,"sum_lower_sq":0.0,"sum_upper_sq":0.0,"lower_exceedances":vec![0u64;241],"upper_exceedances":vec![0u64;241],"positive_draws":0,"elapsed_ms":start.elapsed().as_secs_f64()*1000.0,"normalized":true,"absolute_stream":false}),
+                json!({"id":id,"n":n,"epoch":self.regions[id].epoch,"B":0.0,"mode":if self.regions[id].regime.is_some(){"regime"}else{"joint"},"states":0,"sum_lower":0.0,"sum_upper":0.0,"sum_lower_sq":0.0,"sum_upper_sq":0.0,"lower_exceedances":vec![0u64;241],"upper_exceedances":vec![0u64;241],"positive_draws":0,"elapsed_ms":start.elapsed().as_secs_f64()*1000.0,"normalized":true,"absolute_stream":false}),
             );
         }
         if self.regions[id].plan.is_none() {
@@ -968,7 +978,11 @@ impl Engine {
             )?);
         }
         let plan = self.regions[id].plan.as_ref().unwrap();
-        let b = plan.bound;
+        let regime_plan = self.regions[id].regime.as_ref();
+        let b = regime_plan.map_or(plan.bound, |p| p.bound);
+        if b <= 0.0 || !b.is_finite() {
+            return Err("installed proposal has an invalid weight cap".into());
+        }
         let mut rng = Rng::new(seed);
         let mut sum_lower = 0.0;
         let mut sum_upper = 0.0;
@@ -979,7 +993,12 @@ impl Engine {
         let mut positives = 0u64;
         for _ in 0..n {
             let region = &self.regions[id];
-            let (outcomes, weight) = plan.draw(&self.laws, &mut rng)?;
+            let (outcomes, weight, fixed_scores) = if let Some(regime) = regime_plan {
+                regime.draw(&self.model, &self.laws, &mut rng)?
+            } else {
+                let (outcomes, weight) = plan.draw(&self.laws, &mut rng)?;
+                (outcomes, weight, vec![None; self.model.fixtures.len()])
+            };
             if weight.lo < 0.0 || !weight.hi.is_finite() {
                 return Err("proposal returned an invalid likelihood interval".into());
             }
@@ -999,8 +1018,10 @@ impl Engine {
             let target_campaign = &root_campaigns[self.target];
             let root_matches = target_campaign.points == region.target_points
                 && target_campaign.wins == region.target_wins;
-            let score = if root_matches {
-                score::integrate(
+            let score = if weight.hi == 0.0 || !root_matches {
+                Interval::point(0.0)
+            } else {
+                score::integrate_fixed(
                     &self.model,
                     &self.laws,
                     &outcomes,
@@ -1009,9 +1030,8 @@ impl Engine {
                     depth,
                     &mut rng,
                     &mut self.score_cache,
+                    &fixed_scores,
                 )?
-            } else {
-                Interval::point(0.0)
             };
             let normalized = weight.div(Interval::point(b));
             if weight.lo > b {
@@ -1047,6 +1067,7 @@ impl Engine {
             }
         }
         Ok(json!({"id":id,"n":n,"epoch":self.regions[id].epoch,"B":b,
+            "mode":if regime_plan.is_some(){"regime"}else{"joint"},"states":plan.states.saturating_add(regime_plan.map_or(0,|p|p.states)),
             "sum_lower":sum_lower,"sum_upper":sum_upper,"sum_lower_sq":sum_lower_sq,"sum_upper_sq":sum_upper_sq,
             "lower_exceedances":lower_counts,"upper_exceedances":upper_counts,"positive_draws":positives,
             "score_cache_states":self.score_cache.states(),"event_lower":null,"absolute_stream":false,"normalized":true,
@@ -1199,5 +1220,61 @@ mod tests {
         assert!(receipt["event_upper"].as_f64().unwrap() <= parent_upper);
         assert_eq!(engine.regions[id].plan.as_ref().unwrap().bound, plan_bound);
         assert_eq!(engine.regions[id].epoch, epoch);
+    }
+
+    #[test]
+    fn regime_candidate_preserves_support_and_commits_atomically() {
+        let request: Request = serde_json::from_str(include_str!(
+            "../../tests/fixtures/group-16498-2026-10-10.json"
+        ))
+        .unwrap();
+        let mut engine = Engine::new(request, 16, 12).unwrap();
+        let rival = *engine.model.indices.get(&18).unwrap();
+        let id = engine
+            .regions
+            .iter()
+            .position(|r| r.above.contains(&rival))
+            .unwrap();
+        let _raw_prepare = engine.prepare(id, 1, 250_000, 500).unwrap();
+        let before_plan = engine.regions[id].plan.as_ref().unwrap().bound;
+        let before_epoch = engine.regions[id].epoch;
+        let before_regime = engine.regions[id].regime.as_ref().map(|p| p.bound);
+        let receipt = engine.regime(id, 250_000, 1_500).unwrap();
+        assert_eq!(
+            receipt["accepted"], true,
+            "Pal12 regime candidate: {receipt}"
+        );
+        let b = receipt["B"].as_f64().unwrap();
+        assert!(b <= 0.75 * before_regime.unwrap_or(before_plan));
+        assert!(receipt["atom_count"].as_u64().unwrap() > 0);
+        assert_eq!(engine.regions[id].epoch, before_epoch + 1);
+        assert_eq!(engine.regions[id].plan.as_ref().unwrap().bound, before_plan);
+        let sample = engine.sample(id, 2, 81, 2).unwrap();
+        assert_eq!(sample["mode"], "regime");
+        assert_eq!(sample["n"], 2);
+        assert_eq!(
+            sample["states"].as_u64(),
+            Some(
+                engine.regions[id].plan.as_ref().unwrap().states as u64
+                    + engine.regions[id].regime.as_ref().unwrap().states as u64
+            )
+        );
+        let installed_b = engine.regions[id].regime.as_ref().unwrap().bound;
+        let installed_epoch = engine.regions[id].epoch;
+        let rejected = engine.regime(id, 250_000, 1_500).unwrap();
+        assert_eq!(rejected["accepted"], false);
+        assert_eq!(
+            engine.regions[id].regime.as_ref().unwrap().bound,
+            installed_b
+        );
+        assert_eq!(engine.regions[id].epoch, installed_epoch);
+        assert_eq!(engine.regions[id].plan.as_ref().unwrap().bound, before_plan);
+        let failed = engine.regime(id, 250_000, 0).unwrap();
+        assert_eq!(failed["accepted"], false);
+        assert_eq!(
+            engine.regions[id].regime.as_ref().unwrap().bound,
+            installed_b
+        );
+        assert_eq!(engine.regions[id].epoch, installed_epoch);
     }
 }

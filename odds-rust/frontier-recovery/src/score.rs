@@ -89,11 +89,12 @@ fn exact_standings(
     want: &[bool],
     target: usize,
     rng: &mut Rng,
+    fixed_scores: &[Option<[i32; 2]>],
 ) -> Result<Interval, String> {
     let mut campaigns = model.base.clone();
     let mut scores = model.empty_scores();
     for (i, &o) in outcomes.iter().enumerate() {
-        let score = sample_conditional(model, i, o, rng);
+        let score = fixed_scores[i].unwrap_or_else(|| sample_conditional(model, i, o, rng));
         scores[model.fixtures[i].request_index] = score;
         model.add(&mut campaigns, i, score);
     }
@@ -122,8 +123,36 @@ pub fn integrate(
     rng: &mut Rng,
     cache: &mut ScoreCache,
 ) -> Result<Interval, String> {
+    let fixed_scores = vec![None; outcomes.len()];
+    integrate_fixed(
+        model,
+        laws,
+        outcomes,
+        above,
+        target,
+        depth,
+        rng,
+        cache,
+        &fixed_scores,
+    )
+}
+
+pub fn integrate_fixed(
+    model: &Model,
+    laws: &[Law],
+    outcomes: &[u8],
+    above: &[usize],
+    target: usize,
+    depth: usize,
+    rng: &mut Rng,
+    cache: &mut ScoreCache,
+    fixed_scores: &[Option<[i32; 2]>],
+) -> Result<Interval, String> {
     if laws.len() != model.fixtures.len() || outcomes.len() != laws.len() {
         return Err("score integrator fixture length mismatch".into());
+    }
+    if fixed_scores.len() != laws.len() {
+        return Err("fixed score fixture length mismatch".into());
     }
     if target >= model.n || above.iter().any(|&x| x >= model.n || x == target) {
         return Err("score integrator team index out of range".into());
@@ -141,7 +170,31 @@ pub fn integrate(
             return Err("invalid WDL outcome".into());
         }
         if laws[i].outcomes[o as usize].hi <= 0.0 {
+            if fixed_scores[i].is_some() {
+                return Err("fixed score has unsupported WDL outcome".into());
+            }
             return Ok(Interval::point(0.));
+        }
+        if let Some(score) = fixed_scores[i] {
+            if score[0] < 0 || score[1] < 0 {
+                return Err("fixed score goals must be nonnegative".into());
+            }
+            let actual = if score[0] < score[1] {
+                0
+            } else if score[0] == score[1] {
+                1
+            } else {
+                2
+            };
+            if actual != o {
+                return Err("fixed score does not match WDL outcome".into());
+            }
+            if !laws[i].pairs[o as usize]
+                .iter()
+                .any(|pair| pair.home == score[0] && pair.away == score[1] && pair.mass.hi > 0.0)
+            {
+                return Err("fixed score is outside native score support".into());
+            }
         }
         model.add(
             &mut campaigns,
@@ -154,7 +207,7 @@ pub fn integrate(
         );
     }
     if depth == 0 {
-        return exact_standings(model, outcomes, &want, target, rng);
+        return exact_standings(model, outcomes, &want, target, rng, fixed_scores);
     }
     let mut tied = vec![target];
     for team in 0..model.n {
@@ -186,12 +239,27 @@ pub fn integrate(
     let mut selected = vec![Vec::<usize>::new(); model.n];
     let mut shared = Vec::<usize>::new();
     let mut sampled = vec![Vec::<usize>::new(); model.n];
-    // One pass samples every shared fixture once and assigns private fixtures to
-    // their tied endpoint. Deterministic request order makes depth reproducible.
+    // Fixed fixture goals have already been drawn by PairPlan. Apply each
+    // incident fixture once per tied endpoint and omit it from further sampling.
     for (i, f) in model.fixtures.iter().enumerate() {
         let ht = f.home < model.n && tied_mask[f.home];
         let at = f.away < model.n && tied_mask[f.away];
         if !ht && !at {
+            continue;
+        }
+        if let Some(score) = fixed_scores[i] {
+            if ht {
+                let shift = gd_change(f, f.home, score);
+                for (g, mass) in std::mem::take(&mut gd[f.home]) {
+                    gd[f.home].insert(g + shift, mass);
+                }
+            }
+            if at {
+                let shift = gd_change(f, f.away, score);
+                for (g, mass) in std::mem::take(&mut gd[f.away]) {
+                    gd[f.away].insert(g + shift, mass);
+                }
+            }
             continue;
         }
         if ht && at {
@@ -207,7 +275,7 @@ pub fn integrate(
         }
     }
     if !selected.iter().any(|v| !v.is_empty()) {
-        return exact_standings(model, outcomes, &want, target, rng);
+        return exact_standings(model, outcomes, &want, target, rng, fixed_scores);
     }
     for i in shared {
         let f = &model.fixtures[i];
@@ -321,6 +389,12 @@ mod tests {
         let req: Request = serde_json::from_str(r#"{"id":2,"phase":{"sort":"pt,w,gd,gf,name","championship":{"point_win":0,"point_draw":0,"point_loss":0}},"games":[{"id":1,"home_id":2,"away_id":3,"home_score":1,"away_score":0,"played":true},{"id":2,"home_id":1,"away_id":3,"home_power":1.0,"away_power":1.0,"played":false}],"team_groups":[{"team_id":1},{"team_id":2},{"team_id":3,"add_sub":10}]}"#).unwrap();
         Model::new(req).unwrap()
     }
+    fn fixed_pair_model() -> Model {
+        let req: Request = serde_json::from_str(
+            r#"{"id":3,"phase":{"sort":"pt,w,gd,name","championship":{"point_win":0,"point_draw":0,"point_loss":0}},"games":[{"id":1,"home_id":2,"away_id":3,"home_score":1,"away_score":0,"played":true},{"id":2,"home_id":1,"away_id":2,"home_power":1.0,"away_power":1.0,"played":false},{"id":3,"home_id":1,"away_id":4,"home_power":1.0,"away_power":1.0,"played":false},{"id":4,"home_id":1,"away_id":3,"home_power":2.0,"away_power":2.0,"played":false}],"team_groups":[{"team_id":1},{"team_id":2},{"team_id":3,"add_sub":20},{"team_id":4,"add_sub":10}]}"#,
+        ).unwrap();
+        Model::new(req).unwrap()
+    }
     #[test]
     fn shared_score_equality_is_bracketed_and_pw_refuted() {
         let m = tiny();
@@ -370,5 +444,125 @@ mod tests {
         let q = integrate(&m, &laws, &[2], &[2], 0, 1, &mut Rng::new(13), &mut capped).unwrap();
         assert_eq!(q, p);
         assert_eq!(capped.states(), 0);
+
+        let all_none = vec![None; laws.len()];
+        let mut legacy_cache = ScoreCache::new(10000);
+        let mut fixed_cache = ScoreCache::new(10000);
+        let legacy = integrate(
+            &m,
+            &laws,
+            &[2],
+            &[2],
+            0,
+            1,
+            &mut Rng::new(71),
+            &mut legacy_cache,
+        )
+        .unwrap();
+        let explicit_none = integrate_fixed(
+            &m,
+            &laws,
+            &[2],
+            &[2],
+            0,
+            1,
+            &mut Rng::new(71),
+            &mut fixed_cache,
+            &all_none,
+        )
+        .unwrap();
+        assert_eq!(legacy, explicit_none);
+        assert_eq!(legacy_cache.states(), fixed_cache.states());
+    }
+
+    #[test]
+    fn fixed_shared_and_private_scores_are_honored_in_integrated_and_exact_paths() {
+        let model = fixed_pair_model();
+        let laws = vec![
+            Law::new(1., 1.).unwrap(),
+            Law::new(1., 1.).unwrap(),
+            Law::new(2., 2.).unwrap(),
+        ];
+        let outcomes = [2, 1, 0];
+        let fixed = [Some([2, 0]), Some([1, 1]), None];
+        let mut cache = ScoreCache::new(10000);
+        let integrated = integrate_fixed(
+            &model,
+            &laws,
+            &outcomes,
+            &[1, 2, 3],
+            0,
+            1,
+            &mut Rng::new(5),
+            &mut cache,
+            &fixed,
+        )
+        .unwrap();
+        let last_law = &laws[2];
+        let mut exact_mass = Interval::point(0.);
+        let mut scores = [Some([2, 0]), Some([1, 1]), None];
+        let mut fixed_event = None;
+        for pair in &last_law.pairs[outcomes[2] as usize] {
+            scores[2] = Some([pair.home, pair.away]);
+            let mut campaigns = model.base.clone();
+            let mut score_rows = model.empty_scores();
+            for (i, score) in scores.iter().enumerate() {
+                let score = score.unwrap();
+                score_rows[model.fixtures[i].request_index] = score;
+                model.add(&mut campaigns, i, score);
+            }
+            let mut order = vec![0; model.n];
+            model.standings(&mut order, &campaigns, &score_rows, &mut Rng::new(91));
+            let rank = order.iter().position(|&team| team == 0).unwrap();
+            let event = order
+                .iter()
+                .enumerate()
+                .all(|(position, &team)| ([1, 2, 3].contains(&team)) == (position < rank));
+            fixed_event.get_or_insert((scores[2].unwrap(), event));
+            if event {
+                exact_mass = exact_mass.add(pair.mass.div(last_law.outcomes[0]));
+            }
+        }
+        assert!(integrated.lo <= exact_mass.hi && integrated.hi >= exact_mass.lo);
+        assert!(exact_mass.lo > 0. && exact_mass.hi < 1.);
+        let (last_score, event) = fixed_event.unwrap();
+        let all_fixed = [Some([2, 0]), Some([1, 1]), Some(last_score)];
+        let exact_interval = integrate_fixed(
+            &model,
+            &laws,
+            &outcomes,
+            &[1, 2, 3],
+            0,
+            0,
+            &mut Rng::new(5),
+            &mut ScoreCache::new(0),
+            &all_fixed,
+        )
+        .unwrap();
+        assert_eq!(exact_interval, Interval::point(if event { 1. } else { 0. }));
+        assert!(integrate_fixed(
+            &model,
+            &laws,
+            &outcomes,
+            &[1, 2, 3],
+            0,
+            1,
+            &mut Rng::new(5),
+            &mut ScoreCache::new(0),
+            &[Some([2, 0]), Some([1, 0]), None]
+        )
+        .is_err());
+        assert!(integrate_fixed(
+            &model,
+            &laws,
+            &outcomes,
+            &[1, 2, 3],
+            0,
+            1,
+            &mut Rng::new(5),
+            &mut ScoreCache::new(0),
+            &[Some([-1, 3]), Some([1, 1]), None]
+        )
+        .is_err());
     }
 }

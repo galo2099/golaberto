@@ -2,6 +2,7 @@ mod engine;
 mod gd_bounds;
 mod joint;
 mod law;
+mod pair;
 mod score;
 
 use engine::Engine;
@@ -22,6 +23,11 @@ fn receipt(engine: &mut Engine, command: &Value) -> Result<Value, String> {
             command.get("id").and_then(Value::as_u64).ok_or("missing id")? as usize,
             command.get("state_cap").and_then(Value::as_u64).unwrap_or(250_000) as usize,
             command.get("time_ms").and_then(Value::as_u64).unwrap_or(500),
+        ),
+        "regime" => engine.regime(
+            command.get("id").and_then(Value::as_u64).ok_or("missing id")? as usize,
+            command.get("state_cap").and_then(Value::as_u64).unwrap_or(250_000) as usize,
+            command.get("time_ms").and_then(Value::as_u64).unwrap_or(1_000),
         ),
         "sample" => engine.sample(
             command.get("id").and_then(Value::as_u64).ok_or("missing id")? as usize,

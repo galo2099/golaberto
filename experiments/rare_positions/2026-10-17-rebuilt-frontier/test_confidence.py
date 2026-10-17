@@ -3,6 +3,7 @@ import math
 from scipy.stats import binom
 from confidence import (cp_one_sided, telescoping_alpha, threshold_mean_bounds,
                         scaled_absolute_bounds, intersect_bounds, apply_analytic_upper, EpochStats)
+from driver import accept_regime_proposal
 
 class ConfidenceTests(unittest.TestCase):
     def test_cp_matches_direct_binomial_tails(self):
@@ -87,5 +88,30 @@ class ConfidenceTests(unittest.TestCase):
         new={"epoch":3,"look":0,"n":0,"lo":old["lo"],"hi":old["hi"]}
         self.assertEqual((new["epoch"],new["look"],new["n"]),(3,0,0))
         self.assertEqual((new["lo"],new["hi"]),(old["lo"],old["hi"]))
+
+    def test_accepted_regime_resets_epoch_stats_but_preserves_absolute_ci_and_analytic_cap(self):
+        counts=[0]*241
+        stats=EpochStats(2)
+        stats.consume({"n":3,"epoch":2,"B":2.,"lower_exceedances":counts,"upper_exceedances":counts,
+                       "sum_lower":.2,"sum_upper":.3,"positive_draws":2,"sum_lower_sq":.02,"sum_upper_sq":.04},3)
+        state={"epoch":2,"look":4,"focused_looks":3,"n":77,"lo":.012,"hi":.04,
+               "row":{"upper":.03},"stats":stats,"last_attempt_k":7,"last_attempt_cap":1000}
+        receipt={"accepted":True,"epoch":3,"B":4.0,"states":2000,"selected_rival_ids":[8,9],
+                 "complete":False,"mode":"regime","pivot_id":8,"atom_count":5}
+        self.assertTrue(accept_regime_proposal(state,receipt))
+        self.assertEqual((state["epoch"],state["look"],state["focused_looks"],state["n"]),(3,0,0,77))
+        self.assertEqual((state["lo"],state["hi"],state["row"]["upper"]),(.012,.04,.03))
+        self.assertEqual((state["stats"].epoch,state["stats"].n,state["stats"].cap),(3,0,None))
+        self.assertEqual(state["current_plan"]["mode"],"regime")
+
+    def test_rejected_regime_preserves_installed_proposal_state(self):
+        stats=EpochStats(5)
+        state={"epoch":5,"look":2,"focused_looks":1,"n":12,"lo":.01,"hi":.03,
+               "row":{"upper":.02},"stats":stats,"current_plan":{"mode":"joint"}}
+        self.assertFalse(accept_regime_proposal(state,{"accepted":False,"epoch":6,"B":9.}))
+        self.assertEqual((state["epoch"],state["look"],state["focused_looks"],state["n"]),(5,2,1,12))
+        self.assertIs(state["stats"],stats)
+        self.assertEqual((state["lo"],state["hi"],state["row"]["upper"]),(.01,.03,.02))
+        self.assertEqual(state["current_plan"],{"mode":"joint"})
 
 if __name__ == "__main__": unittest.main()
