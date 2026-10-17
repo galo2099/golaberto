@@ -73,6 +73,14 @@ def intersect_bounds(old_lower: float, old_upper: float, new_lower: float, new_u
     return lo,hi,False
 
 
+def apply_analytic_upper(old_lower: float, old_upper: float, event_upper: float):
+    """Intersect a retained absolute confidence interval with a proof upper bound."""
+    if not all(math.isfinite(x) for x in (old_lower,old_upper,event_upper)) or not 0 <= old_lower <= old_upper <= 1 or not 0 <= event_upper <= 1:
+        raise ValueError("invalid analytic or confidence bound")
+    lo,hi,conflict=intersect_bounds(old_lower,old_upper,0.0,event_upper)
+    return lo,hi,conflict
+
+
 def add_epoch_counts(old_lower, old_upper, old_n: int, batch_lower, batch_upper, batch_n: int):
     """Validate and stage a complete batch before mutating epoch statistics."""
     if batch_n <= 0 or old_n < 0 or len(old_lower) != len(old_upper):
@@ -90,6 +98,8 @@ class EpochStats:
     """Transactional cumulative threshold counts for one fixed proposal epoch."""
     def __init__(self, epoch: int):
         self.epoch=int(epoch); self.n=0; self.cap=None
+        self.sum_lower=0.0; self.sum_upper=0.0; self.positive_draws=0
+        self.sum_lower_sq=0.0; self.sum_upper_sq=0.0
         self.lower=[0]*241; self.upper=[0]*241
 
     def reset(self, epoch: int):
@@ -105,8 +115,15 @@ class EpochStats:
             raise ValueError("sample receipt has no valid weight cap")
         if self.cap is not None and cap != self.cap:
             raise ValueError("weight cap changed within one proposal epoch")
+        sl=float(receipt.get("sum_lower",float("nan"))); su=float(receipt.get("sum_upper",float("nan")))
+        ps=int(receipt.get("positive_draws",-1))
+        sls=float(receipt.get("sum_lower_sq",float("nan"))); sus=float(receipt.get("sum_upper_sq",float("nan")))
+        if not all(math.isfinite(x) for x in (sl,su,sls,sus)) or not 0 <= sl <= su <= expected_n or not 0 <= ps <= expected_n or not 0 <= sls <= sus <= expected_n:
+            raise ValueError("sample receipt has invalid raw sums")
         next_lower,next_upper,next_n=add_epoch_counts(
             self.lower,self.upper,self.n,receipt.get("lower_exceedances",[]),
             receipt.get("upper_exceedances",[]),expected_n)
         self.lower,self.upper,self.n,self.cap=next_lower,next_upper,next_n,cap
+        self.sum_lower+=sl;self.sum_upper+=su;self.positive_draws+=ps
+        self.sum_lower_sq+=sls;self.sum_upper_sq+=sus
         return self.n

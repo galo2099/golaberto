@@ -2,7 +2,7 @@ import unittest
 import math
 from scipy.stats import binom
 from confidence import (cp_one_sided, telescoping_alpha, threshold_mean_bounds,
-                        scaled_absolute_bounds, intersect_bounds, EpochStats)
+                        scaled_absolute_bounds, intersect_bounds, apply_analytic_upper, EpochStats)
 
 class ConfidenceTests(unittest.TestCase):
     def test_cp_matches_direct_binomial_tails(self):
@@ -56,17 +56,31 @@ class ConfidenceTests(unittest.TestCase):
     def test_production_epoch_stats_accumulate_and_reject_partial_or_changed_law(self):
         one=[1]+[0]*240; zeros=[0]*241
         stats=EpochStats(4)
-        stats.consume({"n":2,"epoch":4,"B":3.0,"lower_exceedances":one,"upper_exceedances":one},2)
-        stats.consume({"n":3,"epoch":4,"B":3.0,"lower_exceedances":one,"upper_exceedances":one},3)
+        base={"epoch":4,"B":3.0,"lower_exceedances":one,"upper_exceedances":one,"sum_lower":1.0,"sum_upper":1.5,"positive_draws":2,"sum_lower_sq":.5,"sum_upper_sq":1.0}
+        stats.consume({**base,"n":2},2)
+        stats.consume({**base,"n":3,"sum_lower":2.0,"sum_upper":2.5,"positive_draws":3,"sum_lower_sq":1.5,"sum_upper_sq":2.0},3)
         self.assertEqual((stats.n,stats.lower[0],stats.upper[0],stats.cap),(5,2,2,3.0))
-        before=(stats.n,list(stats.lower),list(stats.upper),stats.cap)
-        for receipt,n in [({"n":2,"epoch":4,"B":3.0,"lower_exceedances":zeros,"upper_exceedances":zeros},3),
-                          ({"n":1,"epoch":5,"B":3.0,"lower_exceedances":zeros,"upper_exceedances":zeros},1),
-                          ({"n":1,"epoch":4,"B":4.0,"lower_exceedances":zeros,"upper_exceedances":zeros},1)]:
+        self.assertEqual((stats.sum_lower,stats.sum_upper,stats.positive_draws),(3.0,4.0,5))
+        before=(stats.n,list(stats.lower),list(stats.upper),stats.cap,stats.sum_lower,stats.sum_upper,stats.positive_draws)
+        for receipt,n in [({**base,"n":2},3),
+                          ({**base,"n":1,"epoch":5},1),
+                          ({**base,"n":1,"B":4.0},1)]:
             with self.assertRaises(ValueError): stats.consume(receipt,n)
-            self.assertEqual((stats.n,stats.lower,stats.upper,stats.cap),before)
+            self.assertEqual((stats.n,stats.lower,stats.upper,stats.cap,stats.sum_lower,stats.sum_upper,stats.positive_draws),before)
         stats.reset(5)
         self.assertEqual((stats.epoch,stats.n,stats.lower[0],stats.cap),(5,0,0,None))
+
+
+    def test_gd_upper_tightening_intersects_without_resetting_epoch_statistics(self):
+        stats=EpochStats(9)
+        counts=[0]*241
+        receipt={"n":2,"epoch":9,"B":1.0,"lower_exceedances":counts,"upper_exceedances":counts,
+                 "sum_lower":.1,"sum_upper":.2,"positive_draws":2,"sum_lower_sq":.01,"sum_upper_sq":.04}
+        stats.consume(receipt,2)
+        before=(stats.epoch,stats.n,stats.cap,stats.sum_lower,stats.sum_upper,list(stats.lower))
+        self.assertEqual(apply_analytic_upper(.01,.04,.03),(.01,.03,False))
+        self.assertEqual(before,(stats.epoch,stats.n,stats.cap,stats.sum_lower,stats.sum_upper,stats.lower))
+        self.assertEqual(apply_analytic_upper(.02,.04,0.0),(0.0,.04,True))
 
     def test_epoch_reset_preserves_old_absolute_interval_but_clears_epoch_look(self):
         old={"epoch":2,"look":4,"n":100,"lo":.01,"hi":.04}

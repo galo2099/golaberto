@@ -40,7 +40,8 @@ pub struct Plan {
     upper: Vec<i32>,
     base: Vec<i32>,
     clamp_lower: Vec<bool>,
-    fallback_caps: Vec<f64>, // suffix cap indexed by order position
+    fallback_caps: Vec<f64>,       // suffix cap indexed by order position
+    fallback_potentials: Vec<f64>, // nominal native-mask suffix mass
 }
 
 fn up(x: f64) -> f64 {
@@ -154,17 +155,99 @@ impl Plan {
             .map(|&t| upper[t] > lower[t] && upper[t] >= max_final[t])
             .collect();
 
-        // Place fixtures touching more selected teams first, then stable index.
-        let mut order: Vec<usize> = (0..nf).collect();
-        order.sort_by_key(|&i| {
-            let f = &model.fixtures[i];
-            let touches = usize::from(seen[f.home]) + usize::from(seen[f.away]);
-            (std::cmp::Reverse(touches), i)
-        });
+        // Fixed single-support fixtures expose their known packed gains first.
+        // Variable fixtures are then eliminated team by team using a
+        // deterministic min-degree/min-fill order on the selected-team graph.
+        let mut fixed = Vec::new();
+        let mut variable = Vec::new();
+        for fi in 0..nf {
+            let support = (0..3)
+                .filter(|&o| masks[fi] & (1 << o) != 0 && laws[fi].outcomes[o].hi > 0.0)
+                .count();
+            if support <= 1 {
+                fixed.push(fi);
+            } else {
+                variable.push(fi);
+            }
+        }
+        fixed.sort_unstable();
+        variable.sort_unstable();
+        let mut order = fixed;
+        let mut remaining = vec![false; nf];
+        for &fi in &variable {
+            remaining[fi] = true;
+        }
+        let mut active = seen.clone();
+        while active.iter().any(|&x| x) {
+            let mut best: Option<(usize, usize, usize, i32, usize)> = None;
+            for t in 0..model.n {
+                if !active[t] {
+                    continue;
+                }
+                let mut neighbors = vec![false; model.n];
+                let mut remaining_games = 0usize;
+                for &fi in &variable {
+                    if !remaining[fi] {
+                        continue;
+                    }
+                    let f = &model.fixtures[fi];
+                    if f.home == t || f.away == t {
+                        remaining_games += 1;
+                        let other = if f.home == t { f.away } else { f.home };
+                        if active[other] && other != t {
+                            neighbors[other] = true;
+                        }
+                    }
+                }
+                let degree = neighbors.iter().filter(|&&x| x).count();
+                let mut fill = 0usize;
+                for a in 0..model.n {
+                    if !neighbors[a] {
+                        continue;
+                    }
+                    for b in a + 1..model.n {
+                        if !neighbors[b] {
+                            continue;
+                        }
+                        let adjacent = variable.iter().any(|&fi| {
+                            remaining[fi]
+                                && ((model.fixtures[fi].home == a && model.fixtures[fi].away == b)
+                                    || (model.fixtures[fi].home == b
+                                        && model.fixtures[fi].away == a))
+                        });
+                        if !adjacent {
+                            fill += 1;
+                        }
+                    }
+                }
+                let key = (degree, fill, remaining_games, model.ids[t], t);
+                if best.map_or(true, |current| key < current) {
+                    best = Some(key);
+                }
+            }
+            let team = best.ok_or("selected fixture elimination failed")?.4;
+            for &fi in &variable {
+                let f = &model.fixtures[fi];
+                if remaining[fi] && (f.home == team || f.away == team) {
+                    order.push(fi);
+                    remaining[fi] = false;
+                }
+            }
+            active[team] = false;
+        }
+        for fi in variable {
+            if remaining[fi] {
+                order.push(fi);
+            }
+        }
+        if order.len() != nf {
+            return Err("joint fixture ordering omitted a fixture".into());
+        }
 
         // The native masked suffix has a fixed proposal and therefore a fixed
         // product cap, including all fixtures after a fallback edge.
         let mut fallback_caps = vec![1.0; nf + 1];
+        let mut fallback_potentials = vec![1.0; nf + 1];
         for pos in (0..nf).rev() {
             let fi = order[pos];
             let w: Vec<f64> = (0..3)
@@ -176,6 +259,13 @@ impl Plan {
                     }
                 })
                 .collect();
+            let suffix_mass = w.iter().sum::<f64>().min(1.0);
+            let raw_potential = suffix_mass * fallback_potentials[pos + 1];
+            fallback_potentials[pos] = if raw_potential == 0.0 && suffix_mass > 0.0 {
+                f64::from_bits(1)
+            } else {
+                raw_potential
+            };
             let probs = if w.iter().any(|x| *x > 0.0) {
                 categorical_probabilities(&w)?
             } else {
@@ -207,6 +297,7 @@ impl Plan {
             base,
             clamp_lower,
             fallback_caps,
+            fallback_potentials,
         };
 
         // Empty selection intentionally means the native masked proposal.
@@ -217,7 +308,7 @@ impl Plan {
 
         let mut memo: HashMap<(usize, Vec<i32>), usize> = HashMap::new();
         let mut limit_hit = false;
-        let start_state: Vec<i32> = plan
+        let mut start_state: Vec<i32> = plan
             .selected
             .iter()
             .enumerate()
@@ -229,6 +320,24 @@ impl Plan {
                 }
             })
             .collect();
+        let mut last_touch = vec![None; plan.selected.len()];
+        for (pos, &fi) in plan.order.iter().enumerate() {
+            let f = &model.fixtures[fi];
+            for (j, &t) in plan.selected.iter().enumerate() {
+                if t == f.home || t == f.away {
+                    last_touch[j] = Some(pos);
+                }
+            }
+        }
+        for (j, &t) in plan.selected.iter().enumerate() {
+            if last_touch[j].is_none() {
+                if plan.base[t] < plan.lower[t] || plan.base[t] > plan.upper[t] {
+                    plan.bound = 0.0;
+                    return Ok(plan);
+                }
+                start_state[j] = 0;
+            }
+        }
         // Cache independent integer suffix extrema. Recomputing these for
         // every node would multiply a large DP by the fixture count twice.
         let mut suffix_min = vec![vec![0i32; plan.selected.len()]; nf + 1];
@@ -276,6 +385,7 @@ impl Plan {
             suffix_min: &[Vec<i32>],
             suffix_max: &[Vec<i32>],
             suffix_possible: &[bool],
+            last_touch: &[Option<usize>],
         ) -> Result<Option<usize>, String> {
             if let Some(&id) = memo.get(&(pos, state.clone())) {
                 return Ok(Some(id));
@@ -287,11 +397,11 @@ impl Plan {
             }
             plan.states += 1;
             if pos == plan.order.len() {
-                let accept = plan
-                    .selected
-                    .iter()
-                    .enumerate()
-                    .all(|(j, &t)| state[j] >= plan.lower[t] && state[j] <= plan.upper[t]);
+                let accept = plan.selected.iter().enumerate().all(|(j, &t)| {
+                    last_touch[j].is_none()
+                        || state[j] == 0
+                        || (state[j] >= plan.lower[t] && state[j] <= plan.upper[t])
+                });
                 let id = plan.nodes.len();
                 plan.nodes.push(Node {
                     weights: [0.0; 3],
@@ -335,8 +445,23 @@ impl Plan {
                 }
                 // Safe selected-only integer suffix range test. It may remove
                 // only states that cannot reach the requested packed interval.
-                let mut feasible = suffix_possible[pos + 1];
+                let mut feasible = true;
                 for (j, &t) in plan.selected.iter().enumerate() {
+                    if last_touch[j] == Some(pos) {
+                        if next[j] < plan.lower[t] || next[j] > plan.upper[t] {
+                            feasible = false;
+                            break;
+                        }
+                        next[j] = 0; // constraint closed; forget its packed total
+                    }
+                }
+                if !suffix_possible[pos + 1] {
+                    feasible = false;
+                }
+                for (j, &t) in plan.selected.iter().enumerate() {
+                    if !last_touch[j].is_some_and(|last| last > pos) {
+                        continue;
+                    }
                     if !feasible
                         || next[j].saturating_add(suffix_max[pos + 1][j]) < plan.lower[t]
                         || next[j].saturating_add(suffix_min[pos + 1][j]) > plan.upper[t]
@@ -361,16 +486,16 @@ impl Plan {
                     suffix_min,
                     suffix_max,
                     suffix_possible,
+                    last_touch,
                 )?;
-                let child_potential = child.map_or(1.0, |id| plan.nodes[id].potential);
-                // `None` is an unresolved edge, not an infeasible edge: its
-                // nominal potential is one and its sampler is fixed fallback.
+                let child_potential = child.map_or(plan.fallback_potentials[pos + 1], |id| {
+                    plan.nodes[id].potential
+                });
+                // `None` is an unresolved edge, not an infeasible edge. Its
+                // nominal potential is the native masked suffix mass, matching
+                // the fixed fallback sampler used after this edge.
                 let sticky_fallback = feasible && child.is_none();
-                let effective_potential = if sticky_fallback {
-                    1.0
-                } else {
-                    child_potential
-                };
+                let effective_potential = child_potential;
                 let raw_weight = p.mid() * effective_potential;
                 let w = if raw_weight == 0.0 && p.mid() > 0.0 && effective_potential > 0.0 {
                     f64::from_bits(1)
@@ -409,7 +534,7 @@ impl Plan {
                 qbound = qbound.max(mul_cap(ratio(laws[fi].outcomes[o], q[o])?, child_cap));
                 let child_potential = match edge.child {
                     Some(id) => plan.nodes[id].potential,
-                    None => 1.0,
+                    None => plan.fallback_potentials[pos + 1],
                 };
                 let term = laws[fi].outcomes[o].mid() * child_potential;
                 let term =
@@ -445,6 +570,7 @@ impl Plan {
             &suffix_min,
             &suffix_max,
             &suffix_possible,
+            &last_touch,
         )?;
         if let Some(root) = plan.root {
             plan.bound = plan.nodes[root].cap;
@@ -836,6 +962,140 @@ mod tests {
         for seed in 0..64 {
             let (outcomes, _) = exact.draw(&laws, &mut Rng::new(seed)).unwrap();
             assert_eq!(outcomes.iter().filter(|&&o| o == 2).count(), 1);
+        }
+    }
+
+    #[test]
+    fn unknown_edge_potential_includes_rare_native_mask_suffix_mass() {
+        let (model, mut laws) = tiny_model(3);
+        for law in &mut laws {
+            law.outcomes = [
+                Interval::point(1e-20),
+                Interval::point(0.5),
+                Interval::point(0.5),
+            ];
+        }
+        let masks = [1, 1, 7];
+        let lower = vec![i32::MIN / 4; 2];
+        let upper = vec![i32::MAX / 4; 2];
+        let plan = Plan::build(
+            &model,
+            &laws,
+            &masks,
+            &lower,
+            &upper,
+            &[0],
+            4,
+            1,
+            Instant::now() + std::time::Duration::from_secs(5),
+        )
+        .unwrap();
+        assert!(!plan.complete);
+        assert_eq!(plan.states, 1);
+        assert_eq!(&plan.order[..2], &[0, 1]);
+        let suffix_prior = plan.fallback_potentials[1];
+        assert!(suffix_prior > 0.0 && suffix_prior <= 1.1e-20);
+        let root = &plan.nodes[plan.root.unwrap()];
+        for o in 0..3 {
+            let expected = laws[plan.order[0]].outcomes[o].mid() * suffix_prior;
+            if o == 0 {
+                assert!(root.weights[o] > 0.0);
+                assert!((root.weights[o] / expected - 1.0).abs() < 1e-12);
+            } else {
+                assert_eq!(root.weights[o], 0.0);
+            }
+        }
+        // With both suffix fixtures fixed to a 1e-20 outcome, the unresolved
+        // proposal cap should retain that small native mass rather than
+        // treating the unknown suffix as unit potential.
+        assert!(
+            plan.bound < 1e-30,
+            "unexpectedly inflated cap {}",
+            plan.bound
+        );
+        for seed in 0..64 {
+            let (_, weight) = plan.draw(&laws, &mut Rng::new(seed)).unwrap();
+            assert!(weight.lo <= plan.bound);
+        }
+    }
+
+    #[test]
+    fn fixed_fixture_first_order_preserves_masked_event_mass_and_support() {
+        let (model, laws) = tiny_model(3);
+        let masks = [7, 4, 7]; // fixture 1 is fixed to a home win
+        let lower = [26, i32::MIN / 4];
+        let upper = [26, i32::MAX / 4];
+        let plan = Plan::build(
+            &model,
+            &laws,
+            &masks,
+            &lower,
+            &upper,
+            &[0],
+            4,
+            0,
+            Instant::now() + std::time::Duration::from_secs(5),
+        )
+        .unwrap();
+        assert_eq!(
+            plan.order[0], 1,
+            "single-support fixture must be processed first"
+        );
+        let mut estimate = Interval::point(0.0);
+        let mut native = Interval::point(0.0);
+        let mut q: Vec<[Interval; 3]> = Vec::new();
+        for fi in 0..3 {
+            let weights: Vec<f64> = (0..3)
+                .map(|o| {
+                    if masks[fi] & (1 << o) != 0 {
+                        laws[fi].outcomes[o].mid()
+                    } else {
+                        0.0
+                    }
+                })
+                .collect();
+            q.push(
+                categorical_probabilities(&weights)
+                    .unwrap()
+                    .try_into()
+                    .unwrap(),
+            );
+        }
+        for a in 0..3 {
+            for b in 0..3 {
+                for c in 0..3 {
+                    let os = [a, b, c];
+                    let mut q_path = Interval::point(1.0);
+                    let mut w_path = Interval::point(1.0);
+                    let mut p_path = Interval::point(1.0);
+                    let mut valid = true;
+                    for fi in 0..3 {
+                        let o = os[fi];
+                        if masks[fi] & (1 << o) == 0 {
+                            valid = false;
+                            break;
+                        }
+                        q_path = q_path.mul(q[fi][o]);
+                        p_path = p_path.mul(laws[fi].outcomes[o]);
+                        w_path = w_path.mul(laws[fi].outcomes[o].div(q[fi][o]));
+                    }
+                    if valid && os.iter().filter(|&&o| o == 2).count() == 2 {
+                        estimate = estimate.add(q_path.mul(w_path));
+                        native = native.add(p_path);
+                    }
+                }
+            }
+        }
+        assert!(
+            estimate.lo <= native.hi && estimate.hi >= native.lo,
+            "reordered proposal event mass {:?} does not enclose native {:?}",
+            estimate,
+            native
+        );
+        for seed in 0..128 {
+            let (outcomes, weight) = plan.draw(&laws, &mut Rng::new(seed)).unwrap();
+            assert_eq!(outcomes[1], 2);
+            assert!(weight.lo <= plan.bound);
         }
     }
 }

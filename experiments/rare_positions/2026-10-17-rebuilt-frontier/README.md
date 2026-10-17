@@ -49,10 +49,13 @@ representation; the sampler enforces each grouped root exactly.
   The beta inverses use SciPy double precision with outward adjustments;
   numerical tests are not a formal proof of the special-function implementation.
 
-The reconstruction currently uses one native worker. It does not yet restore
-the old separator-mixture and generic rival-regime proposal operations, or the
-full native GD-equality residual integrator. Consequently historical runtime
-and interval quality cannot be assumed to transfer.
+The reconstruction uses one native worker. It now also tightens analytic event
+upper bounds using mandatory GD comparisons and exhaustive, bounded pivot WDL
+partitions. These bounds preserve the existing sampling proposal and statistics.
+It does not yet restore the old score-conditioned regime-mixture proposal or
+full native GD-equality residual integrator. Variable elimination replaces the
+old explicit separator representation. Historical runtime and interval quality
+cannot be assumed to transfer.
 
 ## Build and run
 
@@ -66,8 +69,9 @@ cargo build --profile experiment --locked --offline \
 
 python3 experiments/rare_positions/2026-10-17-rebuilt-frontier/driver.py \
   --binary /tmp/frontier-recovery-target/experiment/frontier-recovery \
-  --budget 180 --initial-k 4 --max-k 11 --depth 6 \
-  --state-cap 250000 --workers 1 \
+  --budget 180 --initial-k 7 --max-k 11 --depth 9 \
+  --initial-state-cap 1000 --initial-draws 128 --max-draws 4000000 \
+  --state-cap 250000 --time-ms 1000 --workers 1 \
   --output experiments/rare_positions/2026-10-17-rebuilt-frontier/pal12.json
 ```
 
@@ -79,7 +83,7 @@ is reported as qualified only when that criterion passes without a conflict.
 
 ## Validation checkpoint
 
-At initial reconstruction freeze,13 optimized Rust tests and8 Python tests
+At the final GD-bound source freeze,20 optimized Rust tests and14 Python tests
 passed. Rust tests cover exact shared-fixture proposal mass, actual proposal
 caps, interior partial-table fallback at state caps1–3, satisfied-lower state
 clamping, accepted RNG-grid boundaries, integer conversion enclosures,
@@ -88,5 +92,11 @@ Python tests cover binomial tails including alpha1e-20/n1,000,000, layer-cake
 bounds, normalized weight scaling, transactional epoch accumulation, retained
 intervals and summable confidence allocation.
 
-No historical samples are reused. Fresh measured results will be recorded
+No historical samples are reused. Fresh measured results are recorded
 separately; the original experimental measurements cannot validate this binary.
+The first primary reconstruction run is preserved in `primary-pal12-180s.json`: 170.3 seconds,1,000,096 draws,eight exact zero cohorts and32 sampled cohorts;
+99% simultaneous interval `[4.648436909477114e-29,1.3232625740437402e-27]`,
+ratio28.47. It did not meet the target. It predates the deterministic GD caps.
+The source manifest in that run omitted scheduler.py; its separately recorded
+SHA256 was checked unchanged before and after measurement. Later manifests
+include all Python sources. See `RESULTS.md` for the fresh GD-cap measurement.

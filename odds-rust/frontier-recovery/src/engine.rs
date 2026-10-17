@@ -1,4 +1,5 @@
 use crate::{
+    gd_bounds::GdCache,
     joint::Plan as JointPlan,
     law::{Interval, Law},
     score::{self, ScoreCache},
@@ -14,10 +15,9 @@ use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::time::Instant;
 
-/// A support-preserving recovery engine. The fallback proposal is the native
-/// product law itself, so its likelihood ratio is identically one. This keeps
-/// every fixture and every score outcome in support even when no rare-event
-/// proposal has been prepared.
+/// A support-preserving recovery engine. Every region starts with its native
+/// law conditioned only on the safe unary WDL masks; joint plans refine that
+/// proposal while retaining a sticky masked-native suffix for unresolved states.
 pub struct Engine {
     model: Model,
     laws: Vec<Law>,
@@ -25,6 +25,7 @@ pub struct Engine {
     rank: usize,
     regions: Vec<Region>,
     score_cache: ScoreCache,
+    gd_cache: GdCache,
 }
 
 struct Region {
@@ -38,6 +39,7 @@ struct Region {
     lower: Vec<i32>,
     upper_bounds: Vec<i32>,
     plan: Option<JointPlan>,
+    optimized: bool,
     epoch: u64,
 }
 
@@ -363,6 +365,17 @@ impl Engine {
                 // The score-ranked above set is checked against the full native
                 // standings at draw time, including GD ties and random sorters.
                 let region_upper = root_mass.min(mask_mass_upper(&laws, &final_masks));
+                let baseline = JointPlan::build(
+                    &model,
+                    &laws,
+                    &final_masks,
+                    &lower,
+                    &upper_bounds,
+                    &[],
+                    stride,
+                    0,
+                    Instant::now(),
+                )?;
                 regions.push(Region {
                     root_id,
                     target_points,
@@ -373,7 +386,8 @@ impl Engine {
                     masks: final_masks,
                     lower,
                     upper_bounds,
-                    plan: None,
+                    plan: Some(baseline),
+                    optimized: false,
                     epoch: 0,
                 });
             }
@@ -389,6 +403,7 @@ impl Engine {
             rank,
             regions,
             score_cache: ScoreCache::new(2_000_000),
+            gd_cache: GdCache::new(100_000),
         })
     }
 
@@ -400,9 +415,368 @@ impl Engine {
             "candidate_slots":self.regions.len(),
             "uncovered_upper":0.0,
             "regions":self.regions.iter().enumerate().map(|(id,r)|{let b=r.plan.as_ref().map_or(1.0,|p|p.bound);json!({"id":id,"root_id":r.root_id,"target_points":r.target_points,"target_wins":r.target_wins,"opponent_ids":r.above.iter().map(|&t|self.model.ids[t]).collect::<Vec<_>>(),"impossible":r.impossible,"upper":r.upper,
-                "plan":{"prepared":r.plan.is_some(),"B":b,"states":r.plan.as_ref().map_or(0,|p|p.states),
+                "plan":{"prepared":r.optimized,"B":b,"states":r.plan.as_ref().map_or(0,|p|p.states),
                     "k":r.plan.as_ref().map_or(0,|p|p.selected.iter().filter(|&&t|t!=self.target).count()),"complete":r.plan.as_ref().is_some_and(|p|p.complete),"epoch":r.epoch}})}).collect::<Vec<_>>()
         })
+    }
+
+    /// Tighten a cohort's analytic event cap without changing its sampling
+    /// proposal or epoch. Pairwise GD bounds apply only when all incident WDL
+    /// outcomes are fixed; the pivot pass partitions the parent's masked
+    /// support into disjoint WDL atoms and sums certified child caps.
+    pub fn tighten(&mut self, id: usize, state_cap: usize, time_ms: u64) -> Result<Value, String> {
+        let started = Instant::now();
+        if id >= self.regions.len() {
+            return Err("unknown region id".into());
+        }
+        if state_cap == 0 {
+            return Err("state_cap must be positive".into());
+        }
+        let deadline = started + std::time::Duration::from_millis(time_ms);
+        let parent_upper = self.regions[id].upper;
+        if self.regions[id].impossible || parent_upper == 0.0 {
+            return Ok(
+                json!({"event_upper":0.0,"improved":false,"parent_upper_before":parent_upper,
+                "mandatory_pair_bounds":[],"regime_pivot_id":null,"atom_count":0,
+                "strict_upper":0.0,"tied_upper":0.0,"setup_ms":started.elapsed().as_secs_f64()*1000.0,"complete":true}),
+            );
+        }
+        let region = &self.regions[id];
+        let mut cap = parent_upper;
+        let plan_bound = region
+            .plan
+            .as_ref()
+            .ok_or("cannot tighten a region without its WDL proposal cap")?
+            .bound;
+        let mut mandatory = Vec::new();
+        for &rival in &region.above {
+            if Instant::now() >= deadline {
+                break;
+            }
+            let mut rival_packed =
+                self.model.base[rival].points * self.packed_stride() + self.model.base[rival].wins;
+            let mut rival_fixed = true;
+            for (fi, fixture) in self.model.fixtures.iter().enumerate() {
+                if fixture.home != rival && fixture.away != rival {
+                    continue;
+                }
+                let mask = region.masks[fi];
+                if mask.count_ones() != 1 {
+                    rival_fixed = false;
+                    break;
+                }
+                let outcome = mask.trailing_zeros() as usize;
+                let (points, wins) = if fixture.home == rival {
+                    let (p, w) = match outcome {
+                        0 => (0, 0),
+                        1 => (1, 0),
+                        _ => (3, 1),
+                    };
+                    (p, w)
+                } else {
+                    let (p, w) = match outcome {
+                        0 => (3, 1),
+                        1 => (1, 0),
+                        _ => (0, 0),
+                    };
+                    (p, w)
+                };
+                rival_packed += points * self.packed_stride() + wins;
+            }
+            // GD only decides the rank when points and wins are equal. A
+            // strict packed-PW lead can rank above regardless of GD.
+            if !rival_fixed || rival_packed != region.lower[self.target] {
+                continue;
+            }
+            if let Some(q) = self.gd_cache.probability(
+                &self.model,
+                &self.laws,
+                &region.masks,
+                rival,
+                self.target,
+                deadline,
+            )? {
+                let pair_cap = mul_up_positive(plan_bound, q.hi).min(1.0);
+                cap = cap.min(pair_cap);
+                mandatory.push(json!({"team_id":self.model.ids[rival],"gd_probability":{"lo":q.lo,"hi":q.hi},"event_upper":pair_cap}));
+            }
+        }
+
+        let stride = self.packed_stride();
+        let packed_base: Vec<i32> = self
+            .model
+            .base
+            .iter()
+            .map(|c| c.points * stride + c.wins)
+            .collect();
+        let games: Vec<RankGame> = self
+            .model
+            .fixtures
+            .iter()
+            .enumerate()
+            .map(|(i, f)| {
+                let mut hg = [0; 3];
+                let mut ag = [0; 3];
+                for o in 0..3 {
+                    let (hp, ap) = match o {
+                        0 => (0, 3),
+                        1 => (1, 1),
+                        _ => (3, 0),
+                    };
+                    hg[o] = hp * stride + i32::from(o == 2);
+                    ag[o] = ap * stride + i32::from(o == 0);
+                }
+                RankGame {
+                    index: i,
+                    home: f.home,
+                    away: f.away,
+                    prob: std::array::from_fn(|o| self.laws[i].outcomes[o].mid()),
+                    hg,
+                    ag,
+                }
+            })
+            .collect();
+        let rivals: Vec<usize> = (0..self.model.n).filter(|&t| t != self.target).collect();
+        let target_packed = region.lower[self.target];
+        let selected = region
+            .plan
+            .as_ref()
+            .map(|p| p.selected.clone())
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| vec![self.target]);
+        let mut pivot_id = None;
+        let mut atom_count = 0usize;
+        let mut strict_upper = 0.0;
+        let mut tied_upper = 0.0;
+        let mut regime_complete = false;
+
+        // Try each required-above team as a pivot. Each atom fixes every
+        // incident WDL result; exact propagation then conditions the entire
+        // cohort, while the joint cap retains the parent selected constraints.
+        for &pivot in &region.above {
+            if Instant::now() >= deadline {
+                break;
+            }
+            let incident: Vec<usize> = self
+                .model
+                .fixtures
+                .iter()
+                .enumerate()
+                .filter_map(|(i, f)| (f.home == pivot || f.away == pivot).then_some(i))
+                .collect();
+            let options: Vec<Vec<u8>> = incident
+                .iter()
+                .map(|&fi| {
+                    (0..3)
+                        .filter(|&o| {
+                            region.masks[fi] & (1 << o) != 0 && self.laws[fi].outcomes[o].hi > 0.0
+                        })
+                        .map(|o| o as u8)
+                        .collect()
+                })
+                .collect();
+            if options.iter().any(Vec::is_empty) {
+                continue;
+            }
+            // Prune partial WDL assignments as soon as even their maximum
+            // remaining packed PW total falls below the required rank cell.
+            // This keeps the atom cap on compatible assignments, rather than
+            // rejecting a pivot based on its unpruned Cartesian product.
+            let mut suffix_max = vec![0i32; incident.len() + 1];
+            for pos in (0..incident.len()).rev() {
+                let fi = incident[pos];
+                let f = &self.model.fixtures[fi];
+                let gain = options[pos]
+                    .iter()
+                    .map(|&o| {
+                        if f.home == pivot {
+                            games[fi].hg[o as usize]
+                        } else {
+                            games[fi].ag[o as usize]
+                        }
+                    })
+                    .max()
+                    .unwrap_or(0);
+                suffix_max[pos] = suffix_max[pos + 1] + gain;
+            }
+            fn enumerate_atoms(
+                pos: usize,
+                value: i32,
+                pivot: usize,
+                incident: &[usize],
+                options: &[Vec<u8>],
+                games: &[RankGame],
+                suffix_max: &[i32],
+                target: i32,
+                prefix: &mut Vec<u8>,
+                out: &mut Vec<(Vec<u8>, i32)>,
+                too_many: &mut bool,
+                deadline: Instant,
+            ) {
+                if *too_many || Instant::now() >= deadline {
+                    *too_many = true;
+                    return;
+                }
+                if value + suffix_max[pos] < target {
+                    return;
+                }
+                if pos == incident.len() {
+                    out.push((prefix.clone(), value));
+                    if out.len() > 64 {
+                        *too_many = true;
+                    }
+                    return;
+                }
+                let fi = incident[pos];
+                let f = &games[fi];
+                for &o in &options[pos] {
+                    prefix.push(o);
+                    let gain = if f.home == pivot {
+                        f.hg[o as usize]
+                    } else {
+                        f.ag[o as usize]
+                    };
+                    enumerate_atoms(
+                        pos + 1,
+                        value + gain,
+                        pivot,
+                        incident,
+                        options,
+                        games,
+                        suffix_max,
+                        target,
+                        prefix,
+                        out,
+                        too_many,
+                        deadline,
+                    );
+                    prefix.pop();
+                    if *too_many {
+                        return;
+                    }
+                }
+            }
+            let mut atoms = Vec::new();
+            let mut too_many = false;
+            enumerate_atoms(
+                0,
+                packed_base[pivot],
+                pivot,
+                &incident,
+                &options,
+                &games,
+                &suffix_max,
+                target_packed,
+                &mut Vec::new(),
+                &mut atoms,
+                &mut too_many,
+                deadline,
+            );
+            if too_many || atoms.is_empty() || !atoms.iter().any(|(_, pw)| *pw == target_packed) {
+                continue;
+            }
+            let mut strict = 0.0;
+            let mut tied = 0.0;
+            let mut failed = false;
+            for (atom, packed) in &atoms {
+                if Instant::now() >= deadline {
+                    failed = true;
+                    break;
+                }
+                let mut child_masks = region.masks.clone();
+                for (&fi, &o) in incident.iter().zip(atom) {
+                    child_masks[fi] = 1 << o;
+                }
+                let mut work = DomainWork::new(state_cap);
+                let Some(domains) = Domains::condition_bounded(
+                    &games,
+                    &packed_base,
+                    &rivals,
+                    self.rank,
+                    target_packed,
+                    &region.lower,
+                    &region.upper_bounds,
+                    &child_masks,
+                    &mut work,
+                ) else {
+                    failed = true;
+                    break;
+                };
+                if !domains.feasible {
+                    continue;
+                }
+                child_masks = domains.domains;
+                let child = match JointPlan::build(
+                    &self.model,
+                    &self.laws,
+                    &child_masks,
+                    &region.lower,
+                    &region.upper_bounds,
+                    &selected,
+                    stride,
+                    state_cap,
+                    deadline,
+                ) {
+                    Ok(p) => p,
+                    Err(_) => {
+                        failed = true;
+                        break;
+                    }
+                };
+                let atom_cap = if *packed == target_packed {
+                    match self.gd_cache.probability(
+                        &self.model,
+                        &self.laws,
+                        &child_masks,
+                        pivot,
+                        self.target,
+                        deadline,
+                    )? {
+                        Some(q) => mul_up_positive(child.bound, q.hi).min(1.0),
+                        None => {
+                            failed = true;
+                            break;
+                        }
+                    }
+                } else {
+                    child.bound
+                };
+                if *packed == target_packed {
+                    tied = up(tied + atom_cap);
+                } else {
+                    strict = up(strict + atom_cap);
+                }
+            }
+            if failed {
+                continue;
+            }
+            let candidate = up(strict + tied).min(parent_upper);
+            if candidate < f64::INFINITY {
+                pivot_id = Some(self.model.ids[pivot]);
+                atom_count = atoms.len();
+                strict_upper = strict;
+                tied_upper = tied;
+                regime_complete = true;
+            }
+            if candidate < cap {
+                cap = candidate;
+                break;
+            }
+            // Continue to another pivot if this one did not sharpen the cap.
+        }
+        let improved = cap < parent_upper;
+        if improved {
+            self.regions[id].upper = cap;
+            if cap == 0.0 {
+                self.regions[id].impossible = true;
+            }
+        }
+        Ok(
+            json!({"event_upper":cap,"improved":improved,"parent_upper_before":parent_upper,
+            "mandatory_pair_bounds":mandatory,"regime_pivot_id":pivot_id,"atom_count":atom_count,
+            "strict_upper":strict_upper,"tied_upper":tied_upper,
+            "setup_ms":started.elapsed().as_secs_f64()*1000.0,"complete":regime_complete || Instant::now() < deadline}),
+        )
     }
 
     /// Stage a full-support native-law proposal. Preparation is transactional:
@@ -482,8 +856,12 @@ impl Engine {
                 .map(|(_, p)| *p)
                 .sum::<f64>()
         };
-        candidates.sort_by(|&a, &b| rarity(a).total_cmp(&rarity(b)));
-        candidates.truncate(k);
+        let mut ranked: Vec<_> = candidates
+            .drain(..)
+            .map(|team| (team, rarity(team)))
+            .collect();
+        ranked.sort_by(|a, b| a.1.total_cmp(&b.1));
+        let mut candidates: Vec<_> = ranked.into_iter().take(k).map(|(team, _)| team).collect();
         // The target's exact packed root total is part of every region event;
         // include it in the joint state so its root mass is sampled and capped
         // once along with the selected rival prefix constraints.
@@ -524,6 +902,7 @@ impl Engine {
             self.regions[id].upper = 0.0;
             let receipt = json!({"accepted":true,"B":0.0,"states":candidate.states,"selected_rival_ids":candidate.selected.iter().filter(|&&t|t!=self.target).map(|&t|self.model.ids[t]).collect::<Vec<_>>(),"setup_ms":start.elapsed().as_secs_f64()*1000.0,"complete":true,"epoch":self.regions[id].epoch,"impossible":true});
             self.regions[id].plan = Some(candidate);
+            self.regions[id].optimized = true;
             return Ok(receipt);
         }
         if let Some(old) = self.regions[id].plan.as_ref() {
@@ -544,6 +923,7 @@ impl Engine {
             "selected_rival_ids":selected_rival_ids,"setup_ms":start.elapsed().as_secs_f64()*1000.0,
             "complete":candidate.complete,"epoch":self.regions[id].epoch});
         self.regions[id].plan = Some(candidate);
+        self.regions[id].optimized = true;
         Ok(receipt)
     }
 
@@ -687,6 +1067,12 @@ mod tests {
             .regions
             .iter()
             .all(|r| r.root_id == 0 && r.target_points == 60 && r.target_wins == 17));
+        assert!(engine.regions.iter().all(|r| {
+            !r.optimized
+                && r.plan
+                    .as_ref()
+                    .is_some_and(|p| p.bound.is_finite() && p.bound > 0.0)
+        }));
         let target_fixtures: Vec<_> = engine
             .model
             .fixtures
@@ -705,5 +1091,78 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn tighten_changes_only_analytic_cap_not_plan_or_epoch() {
+        let request: Request = serde_json::from_str(include_str!(
+            "../../tests/fixtures/group-16498-2026-10-10.json"
+        ))
+        .unwrap();
+        let mut engine = Engine::new(request, 16, 12).unwrap();
+        let before_plan = engine.regions[0].plan.as_ref().unwrap().bound;
+        let before_epoch = engine.regions[0].epoch;
+        let before_masks = engine.regions[0].masks.clone();
+        let before_upper = engine.regions[0].upper;
+        let receipt = engine.tighten(0, 250_000, 250).unwrap();
+        assert_eq!(engine.regions[0].plan.as_ref().unwrap().bound, before_plan);
+        assert_eq!(engine.regions[0].epoch, before_epoch);
+        assert_eq!(engine.regions[0].masks, before_masks);
+        assert!(receipt["event_upper"].as_f64().unwrap() <= before_upper);
+        assert_eq!(
+            receipt["parent_upper_before"].as_f64().unwrap(),
+            before_upper
+        );
+    }
+
+    #[test]
+    fn strict_packed_pw_leader_does_not_receive_a_gd_only_cap() {
+        let request: Request = serde_json::from_str(include_str!(
+            "../../tests/fixtures/group-16498-2026-10-10.json"
+        ))
+        .unwrap();
+        let mut engine = Engine::new(request, 16, 12).unwrap();
+        let stride = engine.packed_stride();
+        let mut totals: Vec<i32> = engine
+            .model
+            .base
+            .iter()
+            .map(|c| c.points * stride + c.wins)
+            .collect();
+        for (fi, fixture) in engine.model.fixtures.iter().enumerate() {
+            engine.regions[0].masks[fi] = 1 << 2;
+            totals[fixture.home] += 3 * stride + 1;
+        }
+        let rival = (0..engine.model.n)
+            .find(|&t| t != engine.target && totals[t] > totals[engine.target])
+            .expect("fixture has a strict-PW leader under fixed home wins");
+        engine.regions[0].above = vec![rival];
+        engine.regions[0].lower[rival] = totals[engine.target];
+        engine.regions[0].upper_bounds[rival] = i32::MAX / 4;
+        engine.regions[0].upper = 1.0;
+        let receipt = engine.tighten(0, 250_000, 100).unwrap();
+        assert!(receipt["mandatory_pair_bounds"]
+            .as_array()
+            .unwrap()
+            .is_empty());
+    }
+
+    #[test]
+    fn team18_pivot_prunes_to_ten_compatible_wdl_atoms() {
+        let request: Request = serde_json::from_str(include_str!(
+            "../../tests/fixtures/group-16498-2026-10-10.json"
+        ))
+        .unwrap();
+        let mut engine = Engine::new(request, 16, 12).unwrap();
+        let rival = *engine.model.indices.get(&18).unwrap();
+        let id = engine
+            .regions
+            .iter()
+            .position(|r| r.above.contains(&rival))
+            .unwrap();
+        engine.regions[id].above = vec![rival];
+        let receipt = engine.tighten(id, 250_000, 2_000).unwrap();
+        assert_eq!(receipt["regime_pivot_id"].as_i64(), Some(18));
+        assert_eq!(receipt["atom_count"].as_u64(), Some(10));
     }
 }

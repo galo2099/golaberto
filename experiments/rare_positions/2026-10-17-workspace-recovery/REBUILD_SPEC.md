@@ -201,3 +201,38 @@ direct binomial tails, no-hit/exact-hit extremes, telescoping budgets, epoch
 reset, incomplete-batch preservation and global residual coverage.
 Run all new crate tests and changed scope checks, plus fixture signature and
 target-limit proof. A reconstruction run must never be labeled the old binary.
+
+## Next historical layer: deterministic GD event caps
+
+`GdCache::probability(model,laws,masks,positive,negative,deadline)` encloses
+P(GD_positive >= GD_negative | every incident WDL fixed). It uses native pair
+masses, directed positive convolution, and includes shared fixtures once with
+the correct signed coefficient (two for a direct meeting). Unfixed outcomes,
+capacity exhaustion, and deadlines return no cap. Cache only completed results.
+
+`Engine::tighten(id,state_cap,time_ms)` changes only the analytic event upper
+bound, preserving proposal, normalization B, and epoch. For a required-above
+rival whose fixed final points AND wins equal the target, its GD comparison is
+necessary. Multiply the ORIGINAL WDL plan bound by this conditional GD bound;
+never multiply two marginal GD probabilities or multiply an already GD-capped
+bound again. A rival strictly above on points/wins needs no GD comparison.
+
+The generic pivot operation exhaustively enumerates compatible incident WDL
+patterns, pruning patterns that cannot reach the target's packed points/wins.
+Accept at most 64 surviving atoms, with at least one tied atom; abandon an
+incomplete partition. Each atom fixes all pivot incident outcomes, propagates
+all cohort constraints, and builds a fresh joint WDL cap retaining parent
+selected constraints. Strict atoms keep this cap; tied atoms multiply by their
+conditional pair-GD bound. Sum disjoint atom caps outward. These child caps
+already include the native root probability once. Missing any required cap
+abandons that partition, preserving prior completed bounds. Try other pivots
+when a candidate fails. No target-team or pivot IDs may be hardcoded.
+
+The harness tries these analytic caps after broad discovery, prioritizing
+large current upper bounds, with a shared allowance of at most 20 seconds
+inside the existing 180-second request budget. Retain existing samples and
+intersect absolute confidence intervals; do not substitute analytic event U
+for importance-weight normalization B. Conflicts remain visible and disable
+qualification. Record every cap receipt and include scheduler.py in the source
+hash manifest. Compare a fresh frozen run against the recorded primary run;
+no source edits during measurement.
