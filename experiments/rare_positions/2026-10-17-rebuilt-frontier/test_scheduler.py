@@ -1,5 +1,5 @@
 import unittest
-from scheduler import next_plan_request, stage_deadline, stage_timeout_ms
+from scheduler import next_plan_request, stage_deadline, stage_timeout_ms, sampling_priority
 
 class SchedulerTests(unittest.TestCase):
     def test_incomplete_plan_doubles_capacity_before_growing_k(self):
@@ -31,5 +31,26 @@ class SchedulerTests(unittest.TestCase):
         self.assertEqual(stage_deadline(180.0,20.0,20.0,10.0),40.0)
         self.assertEqual(stage_deadline(25.0,20.0,20.0,10.0),15.0)
         self.assertEqual(stage_timeout_ms(40.0,39.7,500),299)
+
+    def test_sampling_priority_favors_reducible_over_irreducible_width(self):
+        n=2_000_000
+        lower=[0]*241
+        upper=[n if 2.0**-j <= .08 else 0 for j in range(241)]
+        irreducible=sampling_priority(0,.08,n,1.,lower,upper,2000,1000)
+        other=sampling_priority(0,.08,1000,1.,[0]*241,[0]*241,1000,1000)
+        self.assertGreater(other,irreducible)
+
+    def test_sampling_priority_accounts_for_measured_batch_cost(self):
+        counts=[0]*241
+        cheap=sampling_priority(0,.08,1000,1.,counts,counts,10,1000)
+        expensive=sampling_priority(0,.08,1000,1.,counts,counts,100,1000)
+        self.assertGreater(cheap,expensive)
+
+    def test_sampling_priority_explores_no_hits_and_handles_empty_epoch(self):
+        counts=[0]*241
+        no_hits=sampling_priority(0,.03,100,1.,counts,counts,20,1000)
+        empty=sampling_priority(0,.03,0,None,counts,counts,0,1000)
+        self.assertGreater(no_hits,0)
+        self.assertGreater(empty,0)
 
 if __name__ == "__main__": unittest.main()

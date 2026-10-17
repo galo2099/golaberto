@@ -52,8 +52,11 @@ representation; the sampler enforces each grouped root exactly.
 The reconstruction uses one native worker. It now also tightens analytic event
 upper bounds using mandatory GD comparisons and exhaustive, bounded pivot WDL
 partitions. These bounds preserve the existing sampling proposal and statistics.
-It does not yet restore the old score-conditioned regime-mixture proposal or
-full native GD-equality residual integrator. Variable elimination replaces the
+The next recovery stage restores actual score-conditioned regime proposals
+with native rejection sampling, fresh joint WDL atom plans and exact integer
+mixture selection. Fixed scorelines are honored throughout remaining integration.
+The historical bridge sampler and full GD-equality residual integrator remain
+unrestored. Variable elimination replaces the
 old explicit separator representation. Historical runtime and interval quality
 cannot be assumed to transfer.
 
@@ -69,7 +72,8 @@ cargo build --profile experiment --locked --offline \
 
 python3 experiments/rare_positions/2026-10-17-rebuilt-frontier/driver.py \
   --binary /tmp/frontier-recovery-target/experiment/frontier-recovery \
-  --budget 180 --initial-k 7 --max-k 11 --depth 9 \
+  --budget 180 --cleanup-reserve 1 --run-full-budget \
+  --initial-k 7 --max-k 11 --depth 9 \
   --initial-state-cap 1000 --initial-draws 128 --max-draws 4000000 \
   --state-cap 250000 --time-ms 1000 --workers 1 \
   --output experiments/rare_positions/2026-10-17-rebuilt-frontier/pal12.json
@@ -83,7 +87,7 @@ is reported as qualified only when that criterion passes without a conflict.
 
 ## Validation checkpoint
 
-At the final GD-bound source freeze,21 optimized Rust tests and15 Python tests
+At the final GD-bound source freeze,26 optimized Rust tests and20 Python tests
 passed. Rust tests cover exact shared-fixture proposal mass, actual proposal
 caps, interior partial-table fallback at state caps1–3, satisfied-lower state
 clamping, accepted RNG-grid boundaries, integer conversion enclosures,
@@ -100,4 +104,5 @@ The first primary reconstruction run is preserved in `primary-pal12-180s.json`:
 ratio28.47. It did not meet the target. It predates the deterministic GD caps.
 The source manifest in that run omitted scheduler.py; its separately recorded
 SHA256 was checked unchanged before and after measurement. Later manifests
-include all Python sources. See `RESULTS.md` for the fresh GD-cap measurement.
+include all Python sources. See `RESULTS.md` for the GD-cap measurements, and `REGIME_RESULTS.md` for
+the subsequent conditional-proposal recovery.

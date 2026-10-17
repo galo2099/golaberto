@@ -1,4 +1,31 @@
 """Plan-growth decisions for the adaptive frontier runner."""
+import math
+
+
+def sampling_priority(lo, hi, n, cap, lower_counts, upper_counts, elapsed_ms,
+                      batch_size=1000):
+    """Estimate reducible CI width per batch cost, without changing any bound."""
+    n=int(n);batch_size=max(1,int(batch_size));cap=max(0.0,float(cap or 0.0))
+    width=max(0.0,float(hi)-float(lo))
+    if n<=0:
+        gain=width
+        cost=max(1e-9,float(batch_size))
+        return gain/cost
+    if len(lower_counts)!=241 or len(upper_counts)!=241:
+        raise ValueError("priority needs all 241 dyadic threshold counts")
+    lower=[int(x) for x in lower_counts];upper=[int(x) for x in upper_counts]
+    if any(x<0 or x>n for x in lower+upper):
+        raise ValueError("priority threshold count outside current epoch sample size")
+    tmin=2.0**-240
+    empirical_lower=math.fsum((2.0**-j-2.0**-(j+1))*lower[j]/n for j in range(240)) + tmin*lower[240]/n
+    empirical_upper=math.fsum((2.0**-(j-1)-2.0**-j)*upper[j]/n for j in range(1,241)) + tmin
+    intrinsic=max(0.0,cap*(empirical_upper-empirical_lower))
+    statistical=max(0.0,width-intrinsic)
+    gain=statistical*(1.0-math.sqrt(n/(n+batch_size)))
+    cost=max(1e-9,float(elapsed_ms)/n*batch_size)
+    if statistical==0.0:
+        gain=max(gain,width*1e-6/(n+1))
+    return gain/cost
 
 
 def next_plan_request(plan, last_k, last_cap, max_k, max_cap, focused_looks,

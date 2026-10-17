@@ -5,7 +5,7 @@ import argparse, hashlib, json, math, os, subprocess, sys, time
 from pathlib import Path
 IMPORT_STARTED=time.monotonic()
 from confidence import telescoping_alpha, threshold_mean_bounds, scaled_absolute_bounds, intersect_bounds, apply_analytic_upper, EpochStats
-from scheduler import next_plan_request, stage_deadline, stage_timeout_ms
+from scheduler import next_plan_request, stage_deadline, stage_timeout_ms, sampling_priority
 
 HERE = Path(__file__).resolve().parent
 DEFAULT_REQUEST = HERE.parents[2] / "odds-rust/tests/fixtures/group-16498-2026-10-10.json"
@@ -29,6 +29,7 @@ def accept_regime_proposal(state, receipt):
         state["epoch"]=epoch
         state["look"]=0
         state["focused_looks"]=0
+        state["epoch_sampling_ms"]=0.0
         state["stats"].reset(epoch)
     return True
 
@@ -128,7 +129,7 @@ def main():
             except (TimeoutError,RuntimeError) as exc:
                 row["_first_sample"]=None;row.setdefault("_sample_errors",[]).append(str(exc))
         state_caps.update({int(r["id"]):int(r.get("_plan_states",state_caps.get(int(r["id"]),0))) for r in candidates})
-        states={int(r["id"]):{"row":r,"epoch":int(r.get("_plan_epoch",0)),"look":0,"focused_looks":0,"n":0,"stats":EpochStats(int(r.get("_plan_epoch",0))),"lo":0.,"hi":float(r.get("upper",1.)),"samples":[],"setup_ms":r.get("_prepare_setup_ms",0),"sampling_ms":0,"last_attempt_k":int(r.get("_last_attempt_k",-1)),"last_attempt_cap":int(r.get("_last_attempt_cap",-1)),"last_attempt_accepted":bool((r.get("_prepare_attempts") or [{}])[-1].get("accepted",False)),"last_attempt_complete":(bool((r.get("_prepare_attempts") or [{}])[-1]["complete"]) if "complete" in (r.get("_prepare_attempts") or [{}])[-1] else None),"conflict":False,"sample_errors":list(r.get("_sample_errors",[])),"prepare_attempts":list(r.get("_prepare_attempts",[])),"current_plan":r.get("_current_plan",r.get("plan")),"proof_status":r.get("_proof_status","unknown"),"gd_bounds":None,"gd_bounds_status":"pending" if a.gd_bounds else "disabled","gd_bounds_attempts":[],"regime_attempts":[],"regime_status":"pending" if a.regimes else "disabled" } for r in candidates}
+        states={int(r["id"]):{"row":r,"epoch":int(r.get("_plan_epoch",0)),"look":0,"focused_looks":0,"n":0,"stats":EpochStats(int(r.get("_plan_epoch",0))),"lo":0.,"hi":float(r.get("upper",1.)),"samples":[],"setup_ms":r.get("_prepare_setup_ms",0),"sampling_ms":0,"epoch_sampling_ms":0.0,"last_attempt_k":int(r.get("_last_attempt_k",-1)),"last_attempt_cap":int(r.get("_last_attempt_cap",-1)),"last_attempt_accepted":bool((r.get("_prepare_attempts") or [{}])[-1].get("accepted",False)),"last_attempt_complete":(bool((r.get("_prepare_attempts") or [{}])[-1]["complete"]) if "complete" in (r.get("_prepare_attempts") or [{}])[-1] else None),"conflict":False,"sample_errors":list(r.get("_sample_errors",[])),"prepare_attempts":list(r.get("_prepare_attempts",[])),"current_plan":r.get("_current_plan",r.get("plan")),"proof_status":r.get("_proof_status","unknown"),"gd_bounds":None,"gd_bounds_status":"pending" if a.gd_bounds else "disabled","gd_bounds_attempts":[],"regime_attempts":[],"regime_status":"pending" if a.regimes else "disabled" } for r in candidates}
         for rid,s in states.items():
             first=s["row"].get("_first_sample")
             if first and int(first.get("n",-1))==a.initial_draws:
@@ -139,6 +140,7 @@ def main():
                     cap=s["stats"].cap
                     ll,ul=scaled_absolute_bounds(ll,ul,cap,float(s["row"].get("upper",1.)))
                     s["n"]+=a.initial_draws;s["look"]+=1;s["sampling_ms"]+=first.get("elapsed_ms",0)
+                    s["epoch_sampling_ms"]+=first.get("elapsed_ms",0)
                     s["lo"],s["hi"],conflict=intersect_bounds(s["lo"],s["hi"],ll,ul)
                     s["conflict"]=s.get("conflict",False) or conflict
                     s["samples"].append({"batch_n":a.initial_draws,"epoch_n":s["stats"].n,"epoch":s["epoch"],"mode":first.get("mode",(s.get("current_plan") or {}).get("mode")),"sum_lower":first["sum_lower"],"sum_upper":first["sum_upper"],"positive_draws":first["positive_draws"],"sum_lower_sq":first["sum_lower_sq"],"sum_upper_sq":first["sum_upper_sq"],"lower_absolute":ll,"upper_absolute":ul,"B":cap,"setup_ms":first.get("setup_ms",0),"elapsed_ms":first.get("elapsed_ms",0)})
@@ -178,12 +180,9 @@ def main():
         regime_started=time.monotonic();regime_setup_ms=0.0;regime_budget_ms=0.0
         if a.regimes:
             regime_deadline=stage_deadline(deadline,regime_started,20.0,a.cleanup_reserve)
-            global_width=max(0.0,math.fsum([*(s["hi"] for s in states.values()),float(desc.get("uncovered_upper",0))])-math.fsum(s["lo"] for s in states.values()))
-            min_width=global_width/1000.0
             for rid,s in sorted(states.items(),key=lambda kv:kv[1]["hi"]-kv[1]["lo"],reverse=True):
-                width=max(0.0,s["hi"]-s["lo"])
-                if s["proof_status"]=="exact_zero" or float(s["row"].get("upper",0.0))<=0 or width<min_width:
-                    s["regime_status"]="skipped_zero" if s["proof_status"]=="exact_zero" or float(s["row"].get("upper",0.0))<=0 else "skipped_negligible"
+                if s["proof_status"]=="exact_zero" or float(s["row"].get("upper",0.0))<=0:
+                    s["regime_status"]="skipped_zero"
                     continue
                 remaining=(regime_deadline-time.monotonic())*1000.0
                 if remaining<=0: break
@@ -223,7 +222,13 @@ def main():
                 available=min(a.state_cap,4_000_000-others)
                 if s0["proof_status"]!="exact_zero" and s0["n"]<a.max_draws and s0["hi"]>s0["lo"] and available>0 and available>=s0["last_attempt_cap"]: active.append(item)
             if not active: break
-            rid,s=max(active,key=lambda kv:(kv[1]["hi"]-kv[1]["lo"]))
+            def priority(item):
+                _,candidate=item
+                next_batch=min(1000,max(1,a.max_draws-candidate["n"]))
+                return sampling_priority(candidate["lo"],candidate["hi"],candidate["stats"].n,
+                                         candidate["stats"].cap,candidate["stats"].lower,
+                                         candidate["stats"].upper,candidate["epoch_sampling_ms"],next_batch)
+            rid,s=max(active,key=lambda kv:(priority(kv),kv[1]["hi"]-kv[1]["lo"]))
             others=sum(state_caps.values())-state_caps.get(rid,0)
             allowed=max(0,4_000_000-others)
             max_plan_cap=min(a.state_cap,allowed)
@@ -257,7 +262,7 @@ def main():
                         s["conflict"]=s.get("conflict",False) or conflict
                         continue
                 if prep.get("accepted") and int(prep.get("epoch",s["epoch"])) != s["epoch"]:
-                    s["epoch"]=int(prep["epoch"]); s["look"]=0; s["focused_looks"]=0; s["stats"].reset(s["epoch"])
+                    s["epoch"]=int(prep["epoch"]); s["look"]=0; s["focused_looks"]=0; s["epoch_sampling_ms"]=0.0; s["stats"].reset(s["epoch"])
                 phase="sample"
                 rec=engine.call(op="sample",id=rid,n=batch,seed=a.seed+rid+1000003*s["epoch"]+s["look"],depth=a.depth)
             except TimeoutError as exc:
@@ -280,7 +285,7 @@ def main():
             # Intersect valid same-event intervals; preserve their hull on conflict.
             s["lo"],s["hi"],conflict=intersect_bounds(s["lo"],s["hi"],ll,ul)
             s["conflict"]=s.get("conflict",False) or conflict
-            s["n"] += batch; s["look"] += 1; s["focused_looks"] += 1; s["sampling_ms"] += rec.get("elapsed_ms",0)
+            s["n"] += batch; s["look"] += 1; s["focused_looks"] += 1; s["sampling_ms"] += rec.get("elapsed_ms",0); s["epoch_sampling_ms"] += rec.get("elapsed_ms",0)
             s["samples"].append({"batch_n":batch,"epoch_n":epoch_n,"epoch":s["epoch"],"mode":rec.get("mode",(s.get("current_plan") or {}).get("mode")),"sum_lower":rec["sum_lower"],"sum_upper":rec["sum_upper"],"positive_draws":rec["positive_draws"],"sum_lower_sq":rec["sum_lower_sq"],"sum_upper_sq":rec["sum_upper_sq"],"lower_absolute":ll,"upper_absolute":ul,"B":cap,"setup_ms":rec.get("setup_ms",0),"elapsed_ms":rec.get("elapsed_ms",0)})
         engine.close(); engine=None
         total_lo=max(0.0,math.nextafter(math.fsum(s["lo"] for s in states.values()),0.0))

@@ -55,9 +55,24 @@ successful replacement. Report actual mode, selected rivals, atoms and cap.
 
 Discover every live cohort before focused setup. A separate optional regime
 stage uses at most20 seconds inside the same shared180-second allowance,
-prioritizes absolute interval width, and gives each candidate at most1000 ms.
+prioritizes absolute interval width during setup, and gives each candidate
+at most1000 ms. Every nonzero cohort may attempt setup within that shared cap;
+a temporary early small width must not permanently exclude its proposal.
 Retain uncovered and unsampled caps. All nested source files enter the frozen
 hash manifest. Run full new tests and independent source review before a fresh
 measured run. Preserve the previous reconstruction as the real runnable control;
 historical numbers remain retained references. Never promise a ratio before
 measuring it.
+
+## Restored sampling allocation
+
+Largest absolute interval width alone can spend almost the entire request on a
+cohort whose empirical score/dyadic bracket gap dominates that width. The
+restored scheduler estimates the plug-in dyadic lower/upper means from the
+current epoch threshold counts. Their difference times B is a heuristic floor.
+Subtract it from the retained CI width, clamp at zero, forecast reduction over
+the next batch by 1-sqrt(n/(n+batch)), and divide by measured current-epoch cost.
+Empty epochs and a tiny positive exploration fallback retain sampling access.
+Only action priority changes: empirical values are never certificates or
+grounds for dropping mass. Proposal changes reset epoch timing as well as
+counts. Unsampled and analytic upper bounds remain in every aggregate.
