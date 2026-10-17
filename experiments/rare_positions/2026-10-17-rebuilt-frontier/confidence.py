@@ -4,6 +4,45 @@ import math
 from scipy.special import betaincinv, betainccinv
 
 
+QUALIFICATION_POLICY = {
+    "name": "absolute-and-log10-precision",
+    "version": 1,
+    "max_absolute_width": 0.01,
+    "max_log10_half_width_fraction": 0.05,
+    "log10_scale_floor": 1.0,
+}
+
+
+def qualification_diagnostics(lower: float, upper: float, *, conflicts: bool = False):
+    """Evaluate the current interval precision policy and return auditable diagnostics."""
+    result = {"policy": dict(QUALIFICATION_POLICY), "lower": lower, "upper": upper,
+              "confidence_conflicts": bool(conflicts), "valid": False,
+              "absolute_width": None, "log10_lower": None, "log10_upper": None,
+              "log10_midpoint_scale": None, "log10_half_width": None,
+              "allowed_log10_half_width": None, "qualifies": False}
+    if (not isinstance(lower, (int, float)) or not isinstance(upper, (int, float))
+            or not math.isfinite(lower) or not math.isfinite(upper)
+            or lower < 0 or upper < lower or upper > 1):
+        return result
+    width = upper - lower
+    result["absolute_width"] = width
+    result["valid"] = True
+    if lower == 0:
+        return result
+    log_lower, log_upper = math.log10(lower), math.log10(upper)
+    scale = -(log_lower + log_upper) / 2.0
+    half_width = (log_upper - log_lower) / 2.0
+    allowed = QUALIFICATION_POLICY["max_log10_half_width_fraction"] * max(
+        QUALIFICATION_POLICY["log10_scale_floor"], scale)
+    result.update({"log10_lower": log_lower, "log10_upper": log_upper,
+                   "log10_midpoint_scale": scale, "log10_half_width": half_width,
+                   "allowed_log10_half_width": allowed})
+    result["qualifies"] = bool(not conflicts
+        and upper <= lower + QUALIFICATION_POLICY["max_absolute_width"]
+        and half_width <= allowed)
+    return result
+
+
 def cp_one_sided(successes: int, trials: int, alpha: float, *, lower: bool) -> float:
     """Exact one-sided Clopper-Pearson endpoint with stable extreme cases."""
     if trials < 0 or not 0 <= successes <= trials or not 0.0 < alpha < 1.0:

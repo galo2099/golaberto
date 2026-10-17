@@ -171,6 +171,8 @@ class RebuildFlowTests(unittest.TestCase):
         self.assertEqual(engine.sample_epochs,[1,3])
         self.assertEqual(engine.sample_seeds[1],20261017+1+1000003*3)
         result=json.loads(output.getvalue())
+        self.assertEqual(result["qualified"],result["qualification"]["qualifies"])
+        self.assertEqual(result["qualification"]["policy"]["version"],1)
         region=result["regions"][0]
         self.assertEqual(region["epoch"],3)
         self.assertEqual(region["current_epoch"]["B"],.6)
@@ -179,6 +181,52 @@ class RebuildFlowTests(unittest.TestCase):
         rebuild=region["regime_attempts"][-1]
         self.assertEqual((rebuild["trigger"],rebuild["parent_epoch"],rebuild["k"]),
                          ("after_joint_growth",2,2))
+
+    def test_main_early_stop_and_final_result_share_precision_decision(self):
+        engines=[]
+        def factory(*args):
+            e=MainFlowEngine(*args);engines.append(e);return e
+        with tempfile.TemporaryDirectory() as tmp:
+            binary=Path(tmp)/"fake-engine";binary.write_text("x")
+            request=Path(tmp)/"request.json";request.write_text("{}")
+            argv=["driver.py","--binary",str(binary),"--request",str(request),
+                  "--budget","30","--cleanup-reserve","1","--initial-draws","1",
+                  "--max-draws","2","--no-gd-bounds","--no-regimes"]
+            output=io.StringIO()
+            with patch.object(sys,"argv",argv),patch.object(driver,"Protocol",factory),\
+                 patch.object(driver,"scaled_absolute_bounds",return_value=(1e-252,1e-248)),\
+                 patch.object(driver.time,"monotonic",return_value=10.),contextlib.redirect_stdout(output):
+                driver.main()
+        result=json.loads(output.getvalue())
+        self.assertEqual([c["op"] for c in engines[0].calls],
+                         ["describe","prepare","sample","quit"])
+        self.assertTrue(result["qualified"])
+        self.assertEqual(result["qualification"]["policy"]["version"],1)
+        self.assertGreater(result["estimate"],0.0)
+        self.assertAlmostEqual(result["estimate"]/1e-250,1.0,places=12)
+        self.assertGreater(result["upper"]/result["lower"],10)
+
+    def test_main_run_full_budget_continues_after_adaptive_qualification(self):
+        engines=[]
+        def factory(*args):
+            e=MainFlowEngine(*args);engines.append(e);return e
+        with tempfile.TemporaryDirectory() as tmp:
+            binary=Path(tmp)/"fake-engine";binary.write_text("x")
+            request=Path(tmp)/"request.json";request.write_text("{}")
+            argv=["driver.py","--binary",str(binary),"--request",str(request),
+                  "--budget","30","--cleanup-reserve","1","--initial-draws","1",
+                  "--max-draws","2","--no-gd-bounds","--run-full-budget"]
+            output=io.StringIO()
+            with patch.object(sys,"argv",argv),patch.object(driver,"Protocol",factory),\
+                 patch.object(driver,"scaled_absolute_bounds",return_value=(1e-252,1e-248)),\
+                 patch.object(driver.time,"monotonic",return_value=10.),contextlib.redirect_stdout(output):
+                driver.main()
+        result=json.loads(output.getvalue())
+        self.assertEqual([c["op"] for c in engines[0].calls],
+                         ["describe","prepare","sample","regime","prepare","regime","sample","quit"])
+        self.assertEqual(result["regions"][0]["draws"],2)
+        self.assertTrue(result["qualified"])
+        self.assertAlmostEqual(result["estimate"]/1e-250,1.0,places=12)
 
     def test_main_all_trusted_highs_pruned_keeps_slots_and_exact_zero_total(self):
         engines=[]

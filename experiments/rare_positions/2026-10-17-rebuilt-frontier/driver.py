@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse, hashlib, json, math, os, subprocess, sys, time
 from pathlib import Path
 IMPORT_STARTED=time.monotonic()
-from confidence import telescoping_alpha, threshold_mean_bounds, scaled_absolute_bounds, intersect_bounds, apply_analytic_upper, EpochStats
+from confidence import telescoping_alpha, threshold_mean_bounds, scaled_absolute_bounds, intersect_bounds, apply_analytic_upper, EpochStats, qualification_diagnostics
 from trusted_highs import prescreen as trusted_highs_prescreen
 from scheduler import next_plan_request, stage_deadline, stage_timeout_ms, sampling_priority, rebuild_request
 
@@ -131,7 +131,7 @@ def main():
     p.add_argument("--highs-budget",type=float,default=10.0,help="shared HiGHS setup and solve budget in seconds")
     p.add_argument("--highs-time-limit",type=float,default=.25,help="per-cohort HiGHS time limit in seconds")
     p.add_argument("--highs-node-limit",type=int,help="optional HiGHS node limit")
-    p.add_argument("--run-full-budget",action="store_true",help="continue focused sampling after the target ratio is reached")
+    p.add_argument("--run-full-budget",action="store_true",help="continue focused sampling after the target precision is reached")
     a=p.parse_args()
     if not 0 <= a.cleanup_reserve < a.budget: p.error("--cleanup-reserve must be at least 0 and less than --budget")
     if not math.isfinite(a.highs_budget) or a.highs_budget < 0: p.error("--highs-budget must be finite and nonnegative")
@@ -312,7 +312,7 @@ def main():
             total_lo=max(0.0,math.nextafter(math.fsum(s["lo"] for s in states.values()),0.0))
             raw_hi=math.fsum([*(s["hi"] for s in states.values()),float(desc.get("uncovered_upper",0))])
             total_hi=min(1.0,0.0 if raw_hi==0.0 else math.nextafter(raw_hi,math.inf))
-            if not a.run_full_budget and total_lo>0 and total_hi/total_lo<=10: break
+            if not a.run_full_budget and qualification_diagnostics(total_lo,total_hi,conflicts=any(s.get("conflict",False) for s in states.values()))["qualifies"]: break
             active=[]
             for item in states.items():
                 rid0,s0=item
@@ -399,7 +399,8 @@ def main():
         raw_hi=math.fsum([*(s["hi"] for s in states.values()),float(desc.get("uncovered_upper",0))])
         total_hi=min(1.0,0.0 if raw_hi==0.0 else math.nextafter(raw_hi,math.inf))
         conflicts=any(s.get("conflict",False) for s in states.values())
-        qualified=bool(not conflicts and total_lo>0 and total_hi/total_lo<=10)
+        precision=qualification_diagnostics(total_lo,total_hi,conflicts=conflicts)
+        qualified=precision["qualifies"]
         region_results=[]
         for rid,s in states.items():
             stats=s["stats"]
@@ -410,7 +411,7 @@ def main():
             }
             region_results.append({"id":rid,"root_id":s["row"].get("root_id"),"target_points":s["row"].get("target_points"),"target_wins":s["row"].get("target_wins"),"opponent_ids":s["row"].get("opponent_ids",[]),"analytic_upper":s["row"].get("upper"),"lower":s["lo"],"upper":s["hi"],"draws":s["n"],"epoch":s["epoch"],"setup_ms":s["setup_ms"],"sampling_ms":s["sampling_ms"],"confidence_conflict":s.get("conflict",False),"proof_status":s.get("proof_status","unknown"),"trusted_highs":s["row"].get("_trusted_highs_log"),"plan":s.get("current_plan"),"prepare_attempts":s.get("prepare_attempts",[]),"sample_errors":s.get("sample_errors",[]),"gd_bounds_status":s.get("gd_bounds_status"),"gd_bounds":s.get("gd_bounds"),"gd_bounds_attempts":s.get("gd_bounds_attempts",[]),"regime_status":s.get("regime_status"),"regime_attempts":s.get("regime_attempts",[]),"empirical_raw_score_streams":empirical,"current_epoch":{"n":stats.n,"B":stats.cap,"sum_lower":stats.sum_lower,"sum_upper":stats.sum_upper,"sum_lower_sq":stats.sum_lower_sq,"sum_upper_sq":stats.sum_upper_sq,"positive_draws":stats.positive_draws,"lower_exceedances":stats.lower,"upper_exceedances":stats.upper},"samples":s["samples"]})
         relied=bool(highs_pruned)
-        result={"provenance":"independently rebuilt estimator; not the lost binary","target":desc.get("target"),"fixture_signature":{"team_id":a.team_id,"position":a.position},"confidence_level":.99,"qualified":qualified,"estimate":(total_lo*total_hi)**.5 if qualified else None,"lower":total_lo,"upper":total_hi,"confidence_conflicts":conflicts,"elapsed_seconds":time.monotonic()-started,"setup_seconds":setup_seconds,"setup_ms_total":sum(s["setup_ms"] for s in states.values()),"gd_bounds_enabled":a.gd_bounds,"gd_bounds_elapsed_ms":gd_budget_ms,"gd_bounds_setup_ms":gd_setup_ms,"regimes_enabled":a.regimes,"regime_rebuilds_enabled":bool(a.regimes and a.regime_rebuilds),"regime_elapsed_ms":regime_budget_ms+rebuild_totals["budget_ms"],"regime_setup_ms":regime_setup_ms+rebuild_totals["setup_ms"],"sampling_ms_total":sum(s["sampling_ms"] for s in states.values()),"trusted_highs_enabled":a.trusted_highs,"conditional_on_highs_correct":relied,"trusted_highs_budget_seconds":a.highs_budget,"trusted_highs_elapsed_seconds":highs_elapsed,"trusted_highs_solver_runtime_seconds":sum(float(x.get("runtime_seconds",0)) for x in highs_logs),"trusted_highs_calls":highs_logs,"workers":1,"source_sha256":source_hash,"binary_sha256":binary_hash,"request_sha256":input_hash,"hashes_unchanged":sha(binary)==binary_hash and sha(req)==input_hash and all(sha(Path(path))==digest for path,digest in source_file_hashes.items()),"candidate_slots":desc.get("candidate_slots"),"uncovered_upper":desc.get("uncovered_upper"),"regions":region_results}
+        result={"provenance":"independently rebuilt estimator; not the lost binary","target":desc.get("target"),"fixture_signature":{"team_id":a.team_id,"position":a.position},"confidence_level":.99,"qualified":qualified,"qualification":precision,"estimate":10.0**((math.log10(total_lo)+math.log10(total_hi))/2.0) if qualified else None,"lower":total_lo,"upper":total_hi,"confidence_conflicts":conflicts,"elapsed_seconds":time.monotonic()-started,"setup_seconds":setup_seconds,"setup_ms_total":sum(s["setup_ms"] for s in states.values()),"gd_bounds_enabled":a.gd_bounds,"gd_bounds_elapsed_ms":gd_budget_ms,"gd_bounds_setup_ms":gd_setup_ms,"regimes_enabled":a.regimes,"regime_rebuilds_enabled":bool(a.regimes and a.regime_rebuilds),"regime_elapsed_ms":regime_budget_ms+rebuild_totals["budget_ms"],"regime_setup_ms":regime_setup_ms+rebuild_totals["setup_ms"],"sampling_ms_total":sum(s["sampling_ms"] for s in states.values()),"trusted_highs_enabled":a.trusted_highs,"conditional_on_highs_correct":relied,"trusted_highs_budget_seconds":a.highs_budget,"trusted_highs_elapsed_seconds":highs_elapsed,"trusted_highs_solver_runtime_seconds":sum(float(x.get("runtime_seconds",0)) for x in highs_logs),"trusted_highs_calls":highs_logs,"workers":1,"source_sha256":source_hash,"binary_sha256":binary_hash,"request_sha256":input_hash,"hashes_unchanged":sha(binary)==binary_hash and sha(req)==input_hash and all(sha(Path(path))==digest for path,digest in source_file_hashes.items()),"candidate_slots":desc.get("candidate_slots"),"uncovered_upper":desc.get("uncovered_upper"),"regions":region_results}
         data=json.dumps(result,indent=2,sort_keys=True)
         if a.output: Path(a.output).write_text(data+"\n")
         print(data)

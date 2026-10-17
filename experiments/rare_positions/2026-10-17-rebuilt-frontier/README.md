@@ -99,9 +99,15 @@ python3 experiments/rare_positions/2026-10-17-rebuilt-frontier/driver.py \
 
 The shared wall budget includes Python startup, native initialization, setup,
 sampling and cleanup, best effort. Builds finish before measurement. Hashes
-freeze request, native source, driver and binary. The target is simultaneous99%
-confidence with an order-of-magnitude interval (`upper/lower <=10`); a midpoint
-is reported as qualified only when that criterion passes without a conflict.
+freeze request, native source, driver and binary. Confidence remains simultaneous
+99% across the allocated cells and sampling stages. Qualification now uses the
+adaptive precision rule in [ADAPTIVE_QUALIFICATION.md](ADAPTIVE_QUALIFICATION.md):
+the interval must have width at most0.01, and its decimal-exponent halfwidth must
+be at most `0.05 * max(1, -log10(geometric_midpoint))`. Positive qualification
+requires a positive lower bound and no confidence conflict. Exact zeros remain
+separate proof outcomes. A geometric midpoint is reported only for qualified
+positive intervals. Historical reports below used the previous `upper/lower <=10`
+criterion unless explicitly stated otherwise.
 
 ## Validation checkpoint
 

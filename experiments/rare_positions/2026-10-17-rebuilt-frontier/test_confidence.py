@@ -2,10 +2,26 @@ import unittest
 import math
 from scipy.stats import binom
 from confidence import (cp_one_sided, telescoping_alpha, threshold_mean_bounds,
-                        scaled_absolute_bounds, intersect_bounds, apply_analytic_upper, EpochStats)
+                        scaled_absolute_bounds, intersect_bounds, apply_analytic_upper, EpochStats,
+                        qualification_diagnostics)
 from driver import accept_regime_proposal
 
 class ConfidenceTests(unittest.TestCase):
+    def test_adaptive_precision_policy_common_rare_and_logarithmic_boundaries(self):
+        self.assertTrue(qualification_diagnostics(.495, .505)["qualifies"])
+        self.assertFalse(qualification_diagnostics(.49, .51)["qualifies"])
+        self.assertTrue(qualification_diagnostics(1e-42, 1e-38)["qualifies"])
+        self.assertFalse(qualification_diagnostics(1e-42, 1e-37)["qualifies"])
+        self.assertTrue(qualification_diagnostics(1e-250, 1.01e-250)["qualifies"])
+        self.assertTrue(qualification_diagnostics(1.0, 1.0)["qualifies"])
+        self.assertFalse(qualification_diagnostics(0.0, 1e-12)["qualifies"])
+
+    def test_adaptive_precision_policy_rejects_conflicts_and_invalid_intervals(self):
+        self.assertFalse(qualification_diagnostics(.5, .5, conflicts=True)["qualifies"])
+        for bounds in ((-1e-9, 0.0), (.5, .4), (0.0, 1.0001), (float("nan"), .5), (.5, float("inf"))):
+            self.assertFalse(qualification_diagnostics(*bounds)["qualifies"], bounds)
+        self.assertFalse(qualification_diagnostics(0.0, 0.0)["qualifies"])
+
     def test_cp_matches_direct_binomial_tails(self):
         a=.013
         for n in (1,3,17,100):
