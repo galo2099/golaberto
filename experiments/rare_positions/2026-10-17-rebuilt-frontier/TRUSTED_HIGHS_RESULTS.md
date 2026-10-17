@@ -84,3 +84,52 @@ zero totals. Independent review found no remaining model or driver blockers.
 
 Raw experiment JSON remains local. Only source and aggregate prose are included
 in the recovery branch backup.
+
+## HiGHS inside cohort 5: all 156 team-584 assignments
+
+The follow-up audit fixes each of team 584's 156 native W/D/L prefixes in
+turn and asks HiGHS for a completion satisfying every cohort points/wins
+constraint, including all 15 required-above rivals, four required-below rivals
+and Palmeiras's exact target total. Fixed outcomes intersect the native masks;
+other fixtures retain their original support. This is an offline audit and
+does not change the estimator's proposal or sampling path.
+
+The saved prefix list matches an independent enumeration of the full pivot
+incident fixture set using the pivot's packed bounds. Masses are matched by
+the actual prefix tuple. The request hash, target, cohort membership, native
+fixture indices and home/away orientation are checked before the audit.
+
+| Team 584 results | Assignments | Verified points/wins-feasible | Infeasible | Unknown |
+|---|---:|---:|---:|---:|
+| 8W / 1D / 1L | 90 | 90 | 0 | 0 |
+| 8W / 2D | 45 | 45 | 0 | 0 |
+| 9W / 1L | 10 | 10 | 0 | 0 |
+| 9W / 1D | 10 | 10 | 0 | 0 |
+| 10W | 1 | 1 | 0 | 0 |
+| Total | 156 | 156 | 0 | 0 |
+
+All calls completed in 3.960071 seconds, including native model export,
+independent coverage enumeration, solver setup and integer witness replay.
+Each returned complete W/D/L witness is checked against every native mask,
+the fixed prefix and every team's packed bounds. Thus feasibility is checked
+independently of the solver's numerical status. This establishes necessary
+points/wins feasibility only: no scorelines were constructed or verified, and
+no GD, GF or final-ranking reachability claim is made.
+
+The nine-wins/sole-loss-to-team-24 prefix is feasible. Its nominal relaxed mass
+is 8.177088483052663e-33, about 61.22% of the full post-GD envelope and 89.03%
+of the 9W/1L group's envelope. These remain relaxed masses, not full finishing
+probabilities. No nominal or certified-envelope numerator mass can be removed
+by this assignment-level points/wins test. The 1.335714790055119e-32 proposal
+cap is unchanged; another Monte Carlo comparison would add no pruning effect.
+
+Four new audit tests and all 39 Python tests pass; independent source review
+found no remaining implementation blockers. Native estimator sources and
+binary are unchanged. Run `audit_highs_assignments.py` with the saved pivot
+audit and control result; it accepts request, binary, target, cohort and budget
+arguments and retains uncalled/unknown assignments explicitly. The measured
+audit used a 180-second shared allowance and 0.25 seconds per solver call.
+
+Local raw artifact: `highs-cohort5-assignments.json`, SHA256
+`c3032e32071d0f024a5db8941470040aafabc38345d0f1321cb2368c68aabdbf`.
+Source and aggregate prose are backed up; the raw witness artifact stays local.
