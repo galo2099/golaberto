@@ -256,12 +256,21 @@ would need an upper of about 3.466234e-38 to qualify that historical full-cell
 interval. This is a diagnostic target, not a new confidence calculation. The
 old 179-second sampling run cannot be combined with this additional audit and
 called a 180-second end-to-end result. Keeping its other contributions fixed,
-substituting the best certificate would produce an illustrative full upper
-of 2.1476366612658992e-37, still above the approximately 1.899697e-37 allowed
-with that historical lower endpoint. The new residual bound is 1.715 times
-above the 3.466234e-38 diagnostic target. This is progress on the actual tail
-certificate, not a new qualifying 180-second estimate. None of the audits
-samples campaigns or establishes new cell coverage.
+adding the saved final-look core upper 1.1463390418238276e-39, the best
+residual certificate and the other cohort uppers gives an illustrative full
+upper of approximately 2.159022246778133e-37, still above the approximately
+1.899697e-37 allowed with that historical lower endpoint. The residual upper
+is 1.7737 times its residual-only target of 3.3516004661537957e-38.
+This is progress on the actual tail certificate, not a new qualifying
+180-second estimate. None of the audits samples campaigns or establishes
+new cell coverage.
+
+Accounting correction: the earlier 2.1476366612658992e-37 illustration
+subtracted a residual upper from a full-cohort baseline-comparator upper.
+That subtraction of separate bounds was invalid. The 3.466234e-38 target
+above is a whole-cohort budget; the residual budget must also leave room
+for the actual core upper. Standalone audit results are unchanged. See
+[REMAINING_MASS_ANALYSIS.md](REMAINING_MASS_ANALYSIS.md).
 
 The next justified implementation experiment is to tighten the late-branch
 certificate using the joint V/G cap described above, while retaining the

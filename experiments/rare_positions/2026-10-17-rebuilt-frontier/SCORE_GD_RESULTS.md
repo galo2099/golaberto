@@ -166,15 +166,24 @@ cannot scale the old bound without accounting for likelihood correlation.
 
 ## Relation to the historical full-cell interval
 
-Holding the old lower endpoint and all other historical contributions fixed,
-the residual upper would need to be at most 3.465456321276131e-38 to satisfy
-the adopted adaptive qualification rule. Treatment is still about 1.4484x
-above that residual threshold. Substituting its deterministic residual bound
-into the historical accounting gives a full upper of
-2.055085180250817e-37, above the required 1.899697091410617e-37.
+Holding the old lower endpoint, other cohort uppers and saved final-look core
+upper fixed, the residual upper would need to be at most
+3.3516004661537957e-38 to satisfy the adopted adaptive qualification rule.
+Treatment is still about 1.4976x above that residual threshold. Adding its
+deterministic residual bound to the actual core upper
+1.1463390418238276e-39 and other cohort uppers 1.5530736543769992e-37 gives
+a full upper of approximately 2.066470765763051e-37, above the required
+1.899697091410617e-37.
 This is a post-hoc accounting comparison, not a new 180-second full-cell
 estimate: the historical sampling and this separate audit consume different
 time budgets. No additional cell has been demonstrated qualified.
+
+Accounting correction: an earlier version reported 2.055085180250817e-37
+by subtracting a residual upper from a full-cohort upper supplied by the
+baseline comparator. These were separate bounds, so that subtraction was
+invalid. The source, standalone deterministic certificate and matched
+measurements are unchanged. The corrected combination uses core plus
+residual explicitly; see [REMAINING_MASS_ANALYSIS.md](REMAINING_MASS_ANALYSIS.md).
 
 ## Reproducibility and backup
 

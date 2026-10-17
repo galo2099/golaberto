@@ -202,13 +202,21 @@ default change for this complete-forest case.
 ## Statistical and next-step interpretation
 
 The joint-enabled deterministic residual upper is 14.606 times below the
-historical statistical residual upper of 7.049822405827536e-37. Holding the
-other historical contributions fixed, a post hoc intersection would produce
-a full-cell upper of 2.0358249742544096e-37, still above the approximately
-1.899697e-37 qualification threshold for the historical lower endpoint.
-The new residual upper remains 1.3925 times above the diagnostic target of
-3.46623437033617e-38. This combines separate audits and historical samples;
+historical statistical residual upper of 7.049822405827536e-37. Recombining
+it with the saved final-look core upper of 1.1463390418238276e-39 and the
+other cohort uppers gives a full-cell upper of approximately
+2.047210559766643e-37. This remains above the approximately 1.899697e-37
+qualification threshold for the historical lower endpoint. The residual
+upper is 1.4401 times the corresponding residual-only target of
+3.3516004661537957e-38. This combines separate audits and historical samples;
 it does not establish a qualifying new 180-second estimate.
+
+Accounting correction: an earlier version reported 2.0358249742544096e-37
+by subtracting the statistical residual upper from the retained full-cohort
+upper. The latter was the baseline comparator, not the core-plus-residual
+sum; subtracting those separate upper bounds is invalid. The standalone
+deterministic audit and benchmark measurements are unchanged. See
+[REMAINING_MASS_ANALYSIS.md](REMAINING_MASS_ANALYSIS.md).
 
 The historical statistical interval and confidence allocation are unchanged.
 All current operations are deterministic, conservative certificates, not
