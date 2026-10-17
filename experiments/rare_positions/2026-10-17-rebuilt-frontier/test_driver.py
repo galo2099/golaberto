@@ -70,6 +70,22 @@ class MainFlowEngine:
         self.call(op="quit")
 
 
+class HybridMainFlowEngine(MainFlowEngine):
+    def call(self, **request):
+        self.calls.append(dict(request))
+        if request["op"] == "describe":
+            return {"regions":[{"id":1,"upper":.5,"root_id":0,"target_points":3,"target_wins":1,"opponent_ids":[],"plan":{"states":1000}}],"candidate_slots":16,"uncovered_upper":0.,"target":{}}
+        if request["op"] == "prepare":
+            return {"accepted":True,"complete":True,"epoch":1,"states":1000,"B":1.,"selected_rival_ids":[2],"mode":"joint","setup_ms":0}
+        if request["op"] == "sample_hybrid":
+            n=request["n"]//2
+            def st(cap):
+                return {"n":n,"epoch":1,"B":cap,"lower_exceedances":[0]*241,"upper_exceedances":[0]*241,"sum_lower":0.,"sum_upper":0.,"positive_draws":0,"sum_lower_sq":0.,"sum_upper_sq":0.}
+            baseline=st(1.)
+            return {"n":request["n"],"epoch":1,"B":1.,"H":request["clip_fraction"],"streams":{"core":st(request["clip_fraction"]),"residual":st(1.),"baseline":baseline},"sum_lower":baseline["sum_lower"],"sum_upper":baseline["sum_upper"],"positive_draws":baseline["positive_draws"],"sum_lower_sq":baseline["sum_lower_sq"],"sum_upper_sq":baseline["sum_upper_sq"],"elapsed_ms":1.,"mode":"hybrid"}
+        return {}
+
+
 def state(plan=None):
     return {"epoch":4,"look":3,"focused_looks":2,"n":19,
             "lo":.01,"hi":.08,"row":{"upper":.09},
@@ -252,6 +268,25 @@ class RebuildFlowTests(unittest.TestCase):
         self.assertEqual((result["lower"],result["upper"]),(0.,0.))
         self.assertEqual((region["draws"],region["proof_status"]),(0,"trusted_highs_infeasible"))
         self.assertTrue(result["conditional_on_highs_correct"])
+
+    def test_hybrid_initial_sample_uses_physical_draw_accounting_and_default_is_unchanged(self):
+        engines=[]
+        def factory(*args):
+            e=HybridMainFlowEngine(*args);engines.append(e);return e
+        with tempfile.TemporaryDirectory() as tmp:
+            binary=Path(tmp)/"fake-engine";binary.write_text("x")
+            request=Path(tmp)/"request.json";request.write_text("{}")
+            argv=["driver.py","--binary",str(binary),"--request",str(request),"--budget","30","--cleanup-reserve","1","--initial-draws","4","--max-draws","4","--hybrid","--no-gd-bounds","--no-regimes"]
+            output=io.StringIO()
+            with patch.object(sys,"argv",argv),patch.object(driver,"Protocol",factory),patch.object(driver.time,"monotonic",return_value=10.),contextlib.redirect_stdout(output):
+                driver.main()
+        result=json.loads(output.getvalue());region=result["regions"][0]
+        sample=next(c for c in engines[0].calls if c["op"]=="sample_hybrid")
+        self.assertEqual(sample["n"],4)
+        self.assertEqual(region["draws"],4)
+        self.assertEqual(region["current_epoch"]["baseline"]["n"],2)
+        self.assertEqual(region["hybrid_sample_counts"],{"core":2,"residual":2,"baseline":2})
+        self.assertTrue(result["hybrid_enabled"])
 
     def test_main_accepted_zero_growth_resets_epoch_without_regime_or_stale_sample(self):
         engines=[]

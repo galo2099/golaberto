@@ -109,6 +109,16 @@ separate proof outcomes. A geometric midpoint is reported only for qualified
 positive intervals. Historical reports below used the previous `upper/lower <=10`
 criterion unless explicitly stated otherwise.
 
+The optional `--hybrid` sampler adds guided W/D/L draws for a clipped core
+contribution and a separate baseline stream for its residual. It preserves the
+installed joint and GD proposals and uses three confidence allocations for the
+core, residual and full baseline event. The default clip cap is `B/1024`,
+configurable with `--hybrid-clip-fraction`. Initial and maximum draw limits must
+be even and count physical draws; each stream receives half the draws and the
+baseline event reuses the residual campaigns. See
+[HYBRID_RESULTS.md](HYBRID_RESULTS.md) for the probability identity, comparison
+protocol and measured results. The ordinary sampler remains the default.
+
 ## Validation checkpoint
 
 At the GD-rebuild controller freeze,30 Python tests pass; the unchanged native

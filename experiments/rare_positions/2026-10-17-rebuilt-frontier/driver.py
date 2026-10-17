@@ -5,6 +5,7 @@ import argparse, hashlib, json, math, os, subprocess, sys, time
 from pathlib import Path
 IMPORT_STARTED=time.monotonic()
 from confidence import telescoping_alpha, threshold_mean_bounds, scaled_absolute_bounds, intersect_bounds, apply_analytic_upper, EpochStats, qualification_diagnostics
+from hybrid import HybridEpochStats
 from trusted_highs import prescreen as trusted_highs_prescreen
 from scheduler import next_plan_request, stage_deadline, stage_timeout_ms, sampling_priority, rebuild_request
 
@@ -128,6 +129,8 @@ def main():
     p.add_argument("--regimes",dest="regimes",action="store_true",default=True); p.add_argument("--no-regimes",dest="regimes",action="store_false")
     p.add_argument("--no-regime-rebuilds",dest="regime_rebuilds",action="store_false",default=True,help="disable regime rebuilds after joint plan growth")
     p.add_argument("--trusted-highs",action="store_true",help="trust HiGHS status 2 to prescreen infeasible cohorts")
+    p.add_argument("--hybrid",action="store_true",help="use the optional three-stream hybrid sampler")
+    p.add_argument("--hybrid-clip-fraction",type=float,default=1/1024)
     p.add_argument("--highs-budget",type=float,default=10.0,help="shared HiGHS setup and solve budget in seconds")
     p.add_argument("--highs-time-limit",type=float,default=.25,help="per-cohort HiGHS time limit in seconds")
     p.add_argument("--highs-node-limit",type=int,help="optional HiGHS node limit")
@@ -137,6 +140,10 @@ def main():
     if not math.isfinite(a.highs_budget) or a.highs_budget < 0: p.error("--highs-budget must be finite and nonnegative")
     if not math.isfinite(a.highs_time_limit) or a.highs_time_limit <= 0: p.error("--highs-time-limit must be finite and positive")
     if a.highs_node_limit is not None and a.highs_node_limit < 0: p.error("--highs-node-limit must be nonnegative")
+    if a.hybrid:
+        if a.initial_draws < 2 or a.initial_draws % 2: p.error("--initial-draws must be even and at least 2 with --hybrid")
+        if a.max_draws < 2 or a.max_draws % 2: p.error("--max-draws must be even and at least 2 with --hybrid")
+        if not math.isfinite(a.hybrid_clip_fraction) or not 0 < a.hybrid_clip_fraction <= 1: p.error("--hybrid-clip-fraction must be finite and in (0, 1]")
     started=IMPORT_STARTED; deadline=started+a.budget; req=Path(a.request).resolve(); binary=Path(a.binary).resolve()
     if a.workers != 1: print("frontier-recovery uses a serial native engine; recording workers=1",file=sys.stderr)
     setup_start=time.monotonic()
@@ -213,26 +220,30 @@ def main():
             if row.get("_exact_zero"): continue
             rid=int(row["id"])
             try:
-                first=engine.call(op="sample",id=rid,n=a.initial_draws,seed=a.seed+rid,depth=a.depth)
+                first=engine.call(op="sample_hybrid" if a.hybrid else "sample",id=rid,n=a.initial_draws,seed=a.seed+rid,depth=a.depth,**({"clip_fraction":a.hybrid_clip_fraction} if a.hybrid else {}))
                 row["_first_sample"]=first
                 row["_plan_epoch"]=int(first.get("epoch",row.get("_plan_epoch",0)))
             except (TimeoutError,RuntimeError) as exc:
                 row["_first_sample"]=None;row.setdefault("_sample_errors",[]).append(str(exc))
         state_caps.update({int(r["id"]):int(r.get("_plan_states",state_caps.get(int(r["id"]),0))) for r in candidates})
-        states={int(r["id"]):{"row":r,"epoch":int(r.get("_plan_epoch",0)),"look":0,"focused_looks":0,"n":0,"stats":EpochStats(int(r.get("_plan_epoch",0))),"lo":0.,"hi":float(r.get("upper",1.)),"samples":[],"setup_ms":r.get("_prepare_setup_ms",0),"sampling_ms":0,"epoch_sampling_ms":0.0,"last_attempt_k":int(r.get("_last_attempt_k",-1)),"last_attempt_cap":int(r.get("_last_attempt_cap",-1)),"last_attempt_accepted":bool((r.get("_prepare_attempts") or [{}])[-1].get("accepted",False)),"last_attempt_complete":(bool((r.get("_prepare_attempts") or [{}])[-1]["complete"]) if "complete" in (r.get("_prepare_attempts") or [{}])[-1] else None),"conflict":False,"sample_errors":list(r.get("_sample_errors",[])),"prepare_attempts":list(r.get("_prepare_attempts",[])),"current_plan":r.get("_current_plan",r.get("plan")),"proof_status":r.get("_proof_status","unknown"),"gd_bounds":None,"gd_bounds_status":"pending" if a.gd_bounds else "disabled","gd_bounds_attempts":[],"regime_attempts":[],"regime_status":"pending" if a.regimes else "disabled","rebuild_parent_epochs":set()} for r in candidates}
+        stats_factory=lambda epoch: HybridEpochStats(epoch,a.hybrid_clip_fraction) if a.hybrid else EpochStats(epoch)
+        states={int(r["id"]):{"row":r,"epoch":int(r.get("_plan_epoch",0)),"look":0,"focused_looks":0,"n":0,"stats":stats_factory(int(r.get("_plan_epoch",0))),"lo":0.,"hi":float(r.get("upper",1.)),"samples":[],"setup_ms":r.get("_prepare_setup_ms",0),"sampling_ms":0,"epoch_sampling_ms":0.0,"last_attempt_k":int(r.get("_last_attempt_k",-1)),"last_attempt_cap":int(r.get("_last_attempt_cap",-1)),"last_attempt_accepted":bool((r.get("_prepare_attempts") or [{}])[-1].get("accepted",False)),"last_attempt_complete":(bool((r.get("_prepare_attempts") or [{}])[-1]["complete"]) if "complete" in (r.get("_prepare_attempts") or [{}])[-1] else None),"conflict":False,"sample_errors":list(r.get("_sample_errors",[])),"prepare_attempts":list(r.get("_prepare_attempts",[])),"current_plan":r.get("_current_plan",r.get("plan")),"proof_status":r.get("_proof_status","unknown"),"gd_bounds":None,"gd_bounds_status":"pending" if a.gd_bounds else "disabled","gd_bounds_attempts":[],"regime_attempts":[],"regime_status":"pending" if a.regimes else "disabled","rebuild_parent_epochs":set()} for r in candidates}
         for rid,s in states.items():
             first=s["row"].get("_first_sample")
             if first and int(first.get("n",-1))==a.initial_draws:
                 try:
                     s["stats"].consume(first,a.initial_draws)
                     alpha=telescoping_alpha(.01/(6840*max(int(desc.get("candidate_slots",1)),1)),rid,s["epoch"],s["look"],1)
-                    ll,ul=threshold_mean_bounds(s["stats"].lower,s["stats"].upper,s["stats"].n,alpha)
-                    cap=s["stats"].cap
-                    ll,ul=scaled_absolute_bounds(ll,ul,cap,float(s["row"].get("upper",1.)))
+                    if a.hybrid: ll,ul=s["stats"].bounds(alpha,float(s["row"].get("upper",1.)))
+                    else:
+                        ll,ul=threshold_mean_bounds(s["stats"].lower,s["stats"].upper,s["stats"].n,alpha)
+                        cap=s["stats"].cap
+                        ll,ul=scaled_absolute_bounds(ll,ul,cap,float(s["row"].get("upper",1.)))
+                    if a.hybrid: cap=s["stats"].cap
                     s["n"]+=a.initial_draws;s["look"]+=1;s["sampling_ms"]+=first.get("elapsed_ms",0)
                     s["epoch_sampling_ms"]+=first.get("elapsed_ms",0)
                     s["lo"],s["hi"],conflict=intersect_bounds(s["lo"],s["hi"],ll,ul)
-                    s["conflict"]=s.get("conflict",False) or conflict
+                    s["conflict"]=s.get("conflict",False) or conflict or bool(getattr(s["stats"],"conflict",False))
                     s["samples"].append({"batch_n":a.initial_draws,"epoch_n":s["stats"].n,"epoch":s["epoch"],"mode":first.get("mode",(s.get("current_plan") or {}).get("mode")),"sum_lower":first["sum_lower"],"sum_upper":first["sum_upper"],"positive_draws":first["positive_draws"],"sum_lower_sq":first["sum_lower_sq"],"sum_upper_sq":first["sum_upper_sq"],"lower_absolute":ll,"upper_absolute":ul,"B":cap,"setup_ms":first.get("setup_ms",0),"elapsed_ms":first.get("elapsed_ms",0)})
                 except ValueError as exc: s["sample_errors"].append(str(exc))
         gd_started=time.monotonic();gd_setup_ms=0.0;gd_budget_ms=0.0
@@ -323,6 +334,7 @@ def main():
             def priority(item):
                 _,candidate=item
                 next_batch=min(1000,max(1,a.max_draws-candidate["n"]))
+                if a.hybrid: next_batch-=next_batch%2
                 return sampling_priority(candidate["lo"],candidate["hi"],candidate["stats"].n,
                                          candidate["stats"].cap,candidate["stats"].lower,
                                          candidate["stats"].upper,candidate["epoch_sampling_ms"],next_batch)
@@ -332,6 +344,8 @@ def main():
             max_plan_cap=min(a.state_cap,allowed)
             requested_k,plan_state_cap=next_plan_request(s.get("current_plan"),s["last_attempt_k"],s["last_attempt_cap"],a.max_k,max_plan_cap,s["focused_looks"],s["last_attempt_accepted"],s["last_attempt_complete"])
             batch=min(1000,a.max_draws-s["n"])
+            if a.hybrid: batch-=batch%2
+            if a.hybrid and batch<2: break
             phase="prepare"
             try:
                 # Increasing preparation complexity is local to the current widest cohort.
@@ -371,7 +385,7 @@ def main():
                 if time.monotonic()>=deadline-a.cleanup_reserve:
                     break
                 phase="sample"
-                rec=engine.call(op="sample",id=rid,n=batch,seed=a.seed+rid+1000003*s["epoch"]+s["look"],depth=a.depth)
+                rec=engine.call(op="sample_hybrid" if a.hybrid else "sample",id=rid,n=batch,seed=a.seed+rid+1000003*s["epoch"]+s["look"],depth=a.depth,**({"clip_fraction":a.hybrid_clip_fraction} if a.hybrid else {}))
             except TimeoutError as exc:
                 s["sample_errors"].append(str(exc))
                 if phase=="prepare":
@@ -386,12 +400,15 @@ def main():
             except ValueError as exc:
                 s["sample_errors"].append(str(exc));s["conflict"]=True;break
             alpha=telescoping_alpha(.01/(6840*max(int(desc.get("candidate_slots",1)),1)),rid,s["epoch"],s["look"],1)
-            ll,ul=threshold_mean_bounds(s["stats"].lower,s["stats"].upper,epoch_n,alpha)
-            cap=s["stats"].cap
-            ll,ul=scaled_absolute_bounds(ll,ul,cap,float(s["row"].get("upper",1.)))
+            if a.hybrid: ll,ul=s["stats"].bounds(alpha,float(s["row"].get("upper",1.)))
+            else:
+                ll,ul=threshold_mean_bounds(s["stats"].lower,s["stats"].upper,epoch_n,alpha)
+                cap=s["stats"].cap
+                ll,ul=scaled_absolute_bounds(ll,ul,cap,float(s["row"].get("upper",1.)))
+            if a.hybrid: cap=s["stats"].cap
             # Intersect valid same-event intervals; preserve their hull on conflict.
             s["lo"],s["hi"],conflict=intersect_bounds(s["lo"],s["hi"],ll,ul)
-            s["conflict"]=s.get("conflict",False) or conflict
+            s["conflict"]=s.get("conflict",False) or conflict or bool(getattr(s["stats"],"conflict",False))
             s["n"] += batch; s["look"] += 1; s["focused_looks"] += 1; s["sampling_ms"] += rec.get("elapsed_ms",0); s["epoch_sampling_ms"] += rec.get("elapsed_ms",0)
             s["samples"].append({"batch_n":batch,"epoch_n":epoch_n,"epoch":s["epoch"],"mode":rec.get("mode",(s.get("current_plan") or {}).get("mode")),"sum_lower":rec["sum_lower"],"sum_upper":rec["sum_upper"],"positive_draws":rec["positive_draws"],"sum_lower_sq":rec["sum_lower_sq"],"sum_upper_sq":rec["sum_upper_sq"],"lower_absolute":ll,"upper_absolute":ul,"B":cap,"setup_ms":rec.get("setup_ms",0),"elapsed_ms":rec.get("elapsed_ms",0)})
         engine.close(); engine=None
@@ -409,9 +426,10 @@ def main():
                 "absolute_upper_mean":stats.cap*stats.sum_upper/stats.n,
                 "interpretation":"separate empirical means of the lower and upper score streams; not a single point estimate",
             }
-            region_results.append({"id":rid,"root_id":s["row"].get("root_id"),"target_points":s["row"].get("target_points"),"target_wins":s["row"].get("target_wins"),"opponent_ids":s["row"].get("opponent_ids",[]),"analytic_upper":s["row"].get("upper"),"lower":s["lo"],"upper":s["hi"],"draws":s["n"],"epoch":s["epoch"],"setup_ms":s["setup_ms"],"sampling_ms":s["sampling_ms"],"confidence_conflict":s.get("conflict",False),"proof_status":s.get("proof_status","unknown"),"trusted_highs":s["row"].get("_trusted_highs_log"),"plan":s.get("current_plan"),"prepare_attempts":s.get("prepare_attempts",[]),"sample_errors":s.get("sample_errors",[]),"gd_bounds_status":s.get("gd_bounds_status"),"gd_bounds":s.get("gd_bounds"),"gd_bounds_attempts":s.get("gd_bounds_attempts",[]),"regime_status":s.get("regime_status"),"regime_attempts":s.get("regime_attempts",[]),"empirical_raw_score_streams":empirical,"current_epoch":{"n":stats.n,"B":stats.cap,"sum_lower":stats.sum_lower,"sum_upper":stats.sum_upper,"sum_lower_sq":stats.sum_lower_sq,"sum_upper_sq":stats.sum_upper_sq,"positive_draws":stats.positive_draws,"lower_exceedances":stats.lower,"upper_exceedances":stats.upper},"samples":s["samples"]})
+            current_epoch=stats.diagnostic() if a.hybrid else {"n":stats.n,"B":stats.cap,"sum_lower":stats.sum_lower,"sum_upper":stats.sum_upper,"sum_lower_sq":stats.sum_lower_sq,"sum_upper_sq":stats.sum_upper_sq,"positive_draws":stats.positive_draws,"lower_exceedances":stats.lower,"upper_exceedances":stats.upper}
+            region_results.append({"id":rid,"root_id":s["row"].get("root_id"),"target_points":s["row"].get("target_points"),"target_wins":s["row"].get("target_wins"),"opponent_ids":s["row"].get("opponent_ids",[]),"analytic_upper":s["row"].get("upper"),"lower":s["lo"],"upper":s["hi"],"draws":s["n"],"epoch":s["epoch"],"setup_ms":s["setup_ms"],"sampling_ms":s["sampling_ms"],"confidence_conflict":s.get("conflict",False),"proof_status":s.get("proof_status","unknown"),"trusted_highs":s["row"].get("_trusted_highs_log"),"plan":s.get("current_plan"),"prepare_attempts":s.get("prepare_attempts",[]),"sample_errors":s.get("sample_errors",[]),"gd_bounds_status":s.get("gd_bounds_status"),"gd_bounds":s.get("gd_bounds"),"gd_bounds_attempts":s.get("gd_bounds_attempts",[]),"regime_status":s.get("regime_status"),"regime_attempts":s.get("regime_attempts",[]),"empirical_raw_score_streams":empirical,"hybrid_sample_counts":({k:v["n"] for k,v in current_epoch.items()} if a.hybrid else None),"current_epoch":current_epoch,"samples":s["samples"]})
         relied=bool(highs_pruned)
-        result={"provenance":"independently rebuilt estimator; not the lost binary","target":desc.get("target"),"fixture_signature":{"team_id":a.team_id,"position":a.position},"confidence_level":.99,"qualified":qualified,"qualification":precision,"estimate":10.0**((math.log10(total_lo)+math.log10(total_hi))/2.0) if qualified else None,"lower":total_lo,"upper":total_hi,"confidence_conflicts":conflicts,"elapsed_seconds":time.monotonic()-started,"setup_seconds":setup_seconds,"setup_ms_total":sum(s["setup_ms"] for s in states.values()),"gd_bounds_enabled":a.gd_bounds,"gd_bounds_elapsed_ms":gd_budget_ms,"gd_bounds_setup_ms":gd_setup_ms,"regimes_enabled":a.regimes,"regime_rebuilds_enabled":bool(a.regimes and a.regime_rebuilds),"regime_elapsed_ms":regime_budget_ms+rebuild_totals["budget_ms"],"regime_setup_ms":regime_setup_ms+rebuild_totals["setup_ms"],"sampling_ms_total":sum(s["sampling_ms"] for s in states.values()),"trusted_highs_enabled":a.trusted_highs,"conditional_on_highs_correct":relied,"trusted_highs_budget_seconds":a.highs_budget,"trusted_highs_elapsed_seconds":highs_elapsed,"trusted_highs_solver_runtime_seconds":sum(float(x.get("runtime_seconds",0)) for x in highs_logs),"trusted_highs_calls":highs_logs,"workers":1,"source_sha256":source_hash,"binary_sha256":binary_hash,"request_sha256":input_hash,"hashes_unchanged":sha(binary)==binary_hash and sha(req)==input_hash and all(sha(Path(path))==digest for path,digest in source_file_hashes.items()),"candidate_slots":desc.get("candidate_slots"),"uncovered_upper":desc.get("uncovered_upper"),"regions":region_results}
+        result={"provenance":"independently rebuilt estimator; not the lost binary","target":desc.get("target"),"fixture_signature":{"team_id":a.team_id,"position":a.position},"confidence_level":.99,"qualified":qualified,"qualification":precision,"estimate":10.0**((math.log10(total_lo)+math.log10(total_hi))/2.0) if qualified else None,"lower":total_lo,"upper":total_hi,"confidence_conflicts":conflicts,"hybrid_enabled":a.hybrid,"hybrid_clip_fraction":a.hybrid_clip_fraction,"elapsed_seconds":time.monotonic()-started,"setup_seconds":setup_seconds,"setup_ms_total":sum(s["setup_ms"] for s in states.values()),"gd_bounds_enabled":a.gd_bounds,"gd_bounds_elapsed_ms":gd_budget_ms,"gd_bounds_setup_ms":gd_setup_ms,"regimes_enabled":a.regimes,"regime_rebuilds_enabled":bool(a.regimes and a.regime_rebuilds),"regime_elapsed_ms":regime_budget_ms+rebuild_totals["budget_ms"],"regime_setup_ms":regime_setup_ms+rebuild_totals["setup_ms"],"sampling_ms_total":sum(s["sampling_ms"] for s in states.values()),"trusted_highs_enabled":a.trusted_highs,"conditional_on_highs_correct":relied,"trusted_highs_budget_seconds":a.highs_budget,"trusted_highs_elapsed_seconds":highs_elapsed,"trusted_highs_solver_runtime_seconds":sum(float(x.get("runtime_seconds",0)) for x in highs_logs),"trusted_highs_calls":highs_logs,"workers":1,"source_sha256":source_hash,"binary_sha256":binary_hash,"request_sha256":input_hash,"hashes_unchanged":sha(binary)==binary_hash and sha(req)==input_hash and all(sha(Path(path))==digest for path,digest in source_file_hashes.items()),"candidate_slots":desc.get("candidate_slots"),"uncovered_upper":desc.get("uncovered_upper"),"regions":region_results}
         data=json.dumps(result,indent=2,sort_keys=True)
         if a.output: Path(a.output).write_text(data+"\n")
         print(data)

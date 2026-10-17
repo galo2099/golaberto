@@ -17,6 +17,7 @@ use std::time::Instant;
 
 mod regime;
 use regime::RegimePlan;
+mod hybrid;
 
 /// A support-preserving recovery engine. Every region starts with its native
 /// law conditioned only on the safe unary WDL masks; joint plans refine that
@@ -429,7 +430,12 @@ impl Engine {
     pub fn feasibility_model(&self, id: usize) -> Result<Value, String> {
         let r = self.regions.get(id).ok_or("unknown region id")?;
         let stride = self.packed_stride();
-        let base: Vec<i32> = self.model.base.iter().map(|c| c.points * stride + c.wins).collect();
+        let base: Vec<i32> = self
+            .model
+            .base
+            .iter()
+            .map(|c| c.points * stride + c.wins)
+            .collect();
         let fixtures: Vec<Value> = self.model.fixtures.iter().enumerate().map(|(i, f)| {
             let outcomes = (0..3).map(|o| {
                 let hp = if o == 2 { 3 } else if o == 1 { 1 } else { 0 };
@@ -438,8 +444,10 @@ impl Engine {
             }).collect::<Vec<_>>();
             json!({"home_id":self.model.ids[f.home],"away_id":self.model.ids[f.away],"mask":r.masks[i],"outcomes":outcomes})
         }).collect();
-        Ok(json!({"id":id,"stride":stride,"team_ids":self.model.ids,"base_packed":base,
-            "lower_packed":r.lower,"upper_packed":r.upper_bounds,"fixtures":fixtures}))
+        Ok(
+            json!({"id":id,"stride":stride,"team_ids":self.model.ids,"base_packed":base,
+            "lower_packed":r.lower,"upper_packed":r.upper_bounds,"fixtures":fixtures}),
+        )
     }
 
     /// Tighten a cohort's analytic event cap without changing its sampling

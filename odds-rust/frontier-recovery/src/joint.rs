@@ -8,7 +8,14 @@
 
 use crate::law::{categorical, categorical_probabilities, Interval, Law};
 use golaberto_odds::{model::Model, rng::Rng};
-use std::{collections::HashMap, time::Instant};
+use std::{
+    collections::{BTreeMap, HashMap},
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc, Mutex, OnceLock,
+    },
+    time::Instant,
+};
 
 #[derive(Clone, Debug)]
 struct Edge {
@@ -42,6 +49,52 @@ pub struct Plan {
     clamp_lower: Vec<bool>,
     fallback_caps: Vec<f64>,       // suffix cap indexed by order position
     fallback_potentials: Vec<f64>, // nominal native-mask suffix mass
+    guide: OnceLock<HybridGuide>,
+}
+
+/// Sparse endpoint gain rows are built only when a hybrid draw is requested.
+/// Forest roots share this cache through their common core Plan.
+#[derive(Default)]
+struct HybridGuide {
+    rows: Mutex<HashMap<(usize, usize), Option<Arc<Vec<(i32, f64)>>>>>,
+    rows_built: AtomicUsize,
+    states_built: AtomicUsize,
+}
+
+impl HybridGuide {
+    fn publish(
+        &self,
+        key: (usize, usize),
+        row: Option<Arc<Vec<(i32, f64)>>>,
+    ) -> Result<Option<Arc<Vec<(i32, f64)>>>, String> {
+        let mut rows = self
+            .rows
+            .lock()
+            .map_err(|_| "hybrid guide cache poisoned")?;
+        if let Some(existing) = rows.get(&key) {
+            return Ok(existing.clone());
+        }
+        self.rows_built.fetch_add(1, Ordering::Relaxed);
+        self.states_built
+            .fetch_add(row.as_ref().map_or(0, |r| r.len()), Ordering::Relaxed);
+        rows.insert(key, row.clone());
+        Ok(row)
+    }
+
+    fn stats(&self) -> (usize, usize) {
+        (
+            self.rows_built.load(Ordering::Relaxed),
+            self.states_built.load(Ordering::Relaxed),
+        )
+    }
+}
+
+/// Importance weights returned by a native guided draw.
+#[derive(Clone, Debug)]
+pub struct HybridDraw {
+    pub outcomes: Vec<u8>,
+    pub baseline_weight: Interval,
+    pub guide_over_baseline: Interval,
 }
 
 /// Metadata for one fixed light-prefix assignment in a shared suffix forest.
@@ -117,6 +170,149 @@ fn outcome_gain(model: &Model, _fixture: usize, outcome: usize, stride: i32) -> 
 }
 
 impl Plan {
+    fn suffix_gain_row(
+        &self,
+        model: &Model,
+        laws: &[Law],
+        team: usize,
+        from: usize,
+    ) -> Result<Option<Arc<Vec<(i32, f64)>>>, String> {
+        let cache = self.guide.get_or_init(HybridGuide::default);
+        if let Some(row) = cache
+            .rows
+            .lock()
+            .map_err(|_| "hybrid guide cache poisoned")?
+            .get(&(team, from))
+            .cloned()
+        {
+            return Ok(row);
+        }
+        // Ordered accumulation keeps guidance values independent of HashMap
+        // iteration order when a suffix row is first built on different runs.
+        let mut pmf = BTreeMap::from([(0i32, 1.0f64)]);
+        for pos in from..self.order.len() {
+            let fi = self.order[pos];
+            let f = &model.fixtures[fi];
+            if f.home != team && f.away != team {
+                continue;
+            }
+            let mut w = [0.0; 3];
+            for o in 0..3 {
+                if self.masks[fi] & (1 << o) != 0 {
+                    w[o] = laws[fi].outcomes[o].mid();
+                }
+            }
+            if w.iter().all(|x| *x == 0.0) {
+                for o in 0..3 {
+                    if self.masks[fi] & (1 << o) != 0 && laws[fi].outcomes[o].hi > 0.0 {
+                        w[o] = 1.0;
+                    }
+                }
+            }
+            let probs = match categorical_probabilities(&w) {
+                Ok(p) => p,
+                Err(_) => continue,
+            };
+            let mut next = BTreeMap::<i32, f64>::new();
+            for (&gain, &mass) in &pmf {
+                for o in 0..3 {
+                    let p = probs[o].mid();
+                    if p <= 0.0 {
+                        continue;
+                    }
+                    let (hg, ag) = outcome_gain(model, fi, o, self.stride);
+                    let add = if f.home == team { hg } else { ag };
+                    *next.entry(gain.saturating_add(add)).or_default() += mass * p;
+                }
+            }
+            // Very large rows fall back to a neutral endpoint score. This is
+            // only guidance; it never changes the native likelihood bound.
+            if next.len() > 250_000 {
+                return cache.publish((team, from), None);
+            }
+            pmf = next;
+        }
+        let row: Vec<_> = pmf.into_iter().collect();
+        let row = Some(Arc::new(row));
+        cache.publish((team, from), row)
+    }
+
+    /// Number of cached suffix rows and total sparse PMF states they contain.
+    pub fn hybrid_guide_cache_stats(&self) -> (usize, usize) {
+        self.guide.get_or_init(HybridGuide::default).stats()
+    }
+
+    fn endpoint_chance(
+        &self,
+        model: &Model,
+        laws: &[Law],
+        team: usize,
+        from: usize,
+        score: i32,
+    ) -> Result<f64, String> {
+        let Some(row) = self.suffix_gain_row(model, laws, team, from)? else {
+            return Ok(1.0);
+        };
+        let lo = self.lower[team].saturating_sub(score);
+        let hi = self.upper[team].saturating_sub(score);
+        if lo > hi {
+            return Ok(0.0);
+        }
+        Ok(row
+            .iter()
+            .filter(|(g, _)| *g >= lo && *g <= hi)
+            .map(|(_, p)| *p)
+            .sum::<f64>()
+            .clamp(0.0, 1.0))
+    }
+
+    fn guided_weights(
+        &self,
+        model: &Model,
+        laws: &[Law],
+        fi: usize,
+        pos: usize,
+        totals: &[i32],
+        base: &[f64],
+    ) -> Result<Vec<f64>, String> {
+        let f = &model.fixtures[fi];
+        let mut guide = [0.0; 3];
+        for o in 0..3 {
+            if base[o] <= 0.0 {
+                continue;
+            }
+            let (hg, ag) = outcome_gain(model, fi, o, self.stride);
+            let mut h = 1.0;
+            if !self.selected.contains(&f.home) {
+                h *= self.endpoint_chance(
+                    model,
+                    laws,
+                    f.home,
+                    pos + 1,
+                    totals[f.home].saturating_add(hg),
+                )?;
+            }
+            if !self.selected.contains(&f.away) {
+                h *= self.endpoint_chance(
+                    model,
+                    laws,
+                    f.away,
+                    pos + 1,
+                    totals[f.away].saturating_add(ag),
+                )?;
+            }
+            guide[o] = h;
+        }
+        let bp = categorical_probabilities(base)?;
+        let guided_mass = (0..3).map(|o| bp[o].mid() * guide[o]).sum::<f64>();
+        if guided_mass <= 0.0 {
+            return Ok(base.to_vec());
+        }
+        Ok((0..3)
+            .map(|o| 0.05 * bp[o].mid() + 0.95 * bp[o].mid() * guide[o] / guided_mass)
+            .collect())
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn build(
         model: &Model,
@@ -326,6 +522,7 @@ impl Plan {
             clamp_lower,
             fallback_caps,
             fallback_potentials,
+            guide: OnceLock::new(),
         };
 
         // Empty selection intentionally means the native masked proposal.
@@ -658,6 +855,94 @@ impl Plan {
         Ok((outcomes, weight))
     }
 
+    /// Draw while evaluating both the native proposal likelihood and the
+    /// guided-to-native proposal ratio on the same path.
+    pub fn draw_hybrid(
+        &self,
+        model: &Model,
+        laws: &[Law],
+        rng: &mut Rng,
+        guided: bool,
+    ) -> Result<HybridDraw, String> {
+        if laws.len() != self.masks.len()
+            || model.fixtures.len() != laws.len()
+            || model.n != self.base.len()
+        {
+            return Err("draw law dimensions do not match plan".into());
+        }
+        let mut outcomes = vec![0u8; laws.len()];
+        let mut totals = self.base.clone();
+        let mut baseline_weight = Interval::point(1.0);
+        let mut guide_over_baseline = Interval::point(1.0);
+        let mut id = if self.selected.is_empty() {
+            None
+        } else {
+            self.root
+        };
+        let mut pos = 0usize;
+        while pos < self.order.len() {
+            let fi = self.order[pos];
+            let (base, child) = if let Some(node_id) = id {
+                let node = &self.nodes[node_id];
+                if let Some(accept) = node.terminal {
+                    if !accept {
+                        return Err("planner reached a zero-potential terminal".into());
+                    }
+                    break;
+                }
+                (node.weights.to_vec(), node.edges.clone())
+            } else {
+                let w = (0..3)
+                    .map(|o| {
+                        if self.masks[fi] & (1 << o) != 0 {
+                            laws[fi].outcomes[o].mid()
+                        } else {
+                            0.0
+                        }
+                    })
+                    .collect();
+                (w, Vec::new())
+            };
+            let guided_weights = self.guided_weights(model, laws, fi, pos, &totals, &base)?;
+            let base_probs = categorical_probabilities(&base)?;
+            let guide_probs = categorical_probabilities(&guided_weights)?;
+            let chosen = if guided {
+                categorical(&guided_weights, rng)?.0
+            } else {
+                categorical(&base, rng)?.0
+            };
+            if id.is_some() && !child.iter().any(|e| e.outcome as usize == chosen) {
+                return Err("joint plan edge missing".into());
+            }
+            outcomes[fi] = chosen as u8;
+            baseline_weight =
+                baseline_weight.mul(laws[fi].outcomes[chosen].div(base_probs[chosen]));
+            guide_over_baseline =
+                guide_over_baseline.mul(guide_probs[chosen].div(base_probs[chosen]));
+            let (hg, ag) = outcome_gain(model, fi, chosen, self.stride);
+            let f = &model.fixtures[fi];
+            totals[f.home] = totals[f.home].saturating_add(hg);
+            totals[f.away] = totals[f.away].saturating_add(ag);
+            pos += 1;
+            id = if id.is_some() {
+                child
+                    .iter()
+                    .find(|e| e.outcome as usize == chosen)
+                    .and_then(|e| e.child)
+            } else {
+                None
+            };
+        }
+        if baseline_weight.lo > self.bound {
+            return Err("draw likelihood lower bound exceeds plan cap".into());
+        }
+        Ok(HybridDraw {
+            outcomes,
+            baseline_weight,
+            guide_over_baseline,
+        })
+    }
+
     fn draw_fallback(
         &self,
         from: usize,
@@ -910,6 +1195,7 @@ impl Forest {
             clamp_lower,
             fallback_caps,
             fallback_potentials,
+            guide: OnceLock::new(),
         };
         let ns = core.order.len();
         let mut last_touch = vec![None; core.selected.len()];
@@ -1307,6 +1593,116 @@ impl Forest {
         }
         Ok((outcomes, weight))
     }
+
+    /// Hybrid counterpart to `draw_root`; prefix fixtures are fixed and carry
+    /// no likelihood factor, but their gains are included in endpoint scores.
+    pub fn draw_root_hybrid(
+        &self,
+        root_index: usize,
+        model: &Model,
+        laws: &[Law],
+        rng: &mut Rng,
+        guided: bool,
+    ) -> Result<HybridDraw, String> {
+        if laws.len() != self.core.masks.len()
+            || model.fixtures.len() != laws.len()
+            || model.n != self.core.base.len()
+        {
+            return Err("draw law dimensions do not match forest".into());
+        }
+        let root = self
+            .roots
+            .get(root_index)
+            .ok_or("forest root index out of range")?;
+        if root.zero {
+            return Err("cannot draw from certified zero forest root".into());
+        }
+        let mut outcomes = vec![0u8; laws.len()];
+        let mut totals = self.core.base.clone();
+        for (&fi, &o) in self.prefix_fixtures.iter().zip(&root.prefix_outcomes) {
+            outcomes[fi] = o;
+            let (hg, ag) = outcome_gain(model, fi, o as usize, self.core.stride);
+            let f = &model.fixtures[fi];
+            totals[f.home] = totals[f.home].saturating_add(hg);
+            totals[f.away] = totals[f.away].saturating_add(ag);
+        }
+        let mut baseline_weight = Interval::point(1.0);
+        let mut guide_over_baseline = Interval::point(1.0);
+        let mut id = if root.node == Some(usize::MAX) {
+            None
+        } else {
+            root.node
+        };
+        for pos in 0..self.core.order.len() {
+            let fi = self.core.order[pos];
+            let (base, edges) = if let Some(node_id) = id {
+                let node = &self.core.nodes[node_id];
+                if let Some(accept) = node.terminal {
+                    if !accept {
+                        return Err("forest reached a zero-potential terminal".into());
+                    }
+                    break;
+                }
+                (node.weights.to_vec(), node.edges.clone())
+            } else {
+                (
+                    (0..3)
+                        .map(|o| {
+                            if self.core.masks[fi] & (1 << o) != 0 {
+                                laws[fi].outcomes[o].mid()
+                            } else {
+                                0.0
+                            }
+                        })
+                        .collect(),
+                    Vec::new(),
+                )
+            };
+            let guided_weights = self
+                .core
+                .guided_weights(model, laws, fi, pos, &totals, &base)?;
+            let base_probs = categorical_probabilities(&base)?;
+            let guide_probs = categorical_probabilities(&guided_weights)?;
+            let chosen = if guided {
+                categorical(&guided_weights, rng)?.0
+            } else {
+                categorical(&base, rng)?.0
+            };
+            if id.is_some() && !edges.iter().any(|e| e.outcome as usize == chosen) {
+                return Err("forest edge missing".into());
+            }
+            outcomes[fi] = chosen as u8;
+            baseline_weight =
+                baseline_weight.mul(laws[fi].outcomes[chosen].div(base_probs[chosen]));
+            guide_over_baseline =
+                guide_over_baseline.mul(guide_probs[chosen].div(base_probs[chosen]));
+            let (hg, ag) = outcome_gain(model, fi, chosen, self.core.stride);
+            let f = &model.fixtures[fi];
+            totals[f.home] = totals[f.home].saturating_add(hg);
+            totals[f.away] = totals[f.away].saturating_add(ag);
+            id = if id.is_some() {
+                edges
+                    .iter()
+                    .find(|e| e.outcome as usize == chosen)
+                    .and_then(|e| e.child)
+            } else {
+                None
+            };
+        }
+        if baseline_weight.lo > root.cap {
+            return Err("draw likelihood lower bound exceeds forest root cap".into());
+        }
+        Ok(HybridDraw {
+            outcomes,
+            baseline_weight,
+            guide_over_baseline,
+        })
+    }
+
+    /// Aggregate lazy guide-cache size shared by all roots in this forest.
+    pub fn hybrid_guide_cache_stats(&self) -> (usize, usize) {
+        self.core.hybrid_guide_cache_stats()
+    }
 }
 
 fn node_complete(id: usize, nodes: &[Node], memo: &mut HashMap<usize, bool>) -> bool {
@@ -1449,6 +1845,105 @@ mod tests {
         .unwrap();
         assert!(empty.complete);
         assert_eq!(empty.states, 0);
+    }
+
+    #[test]
+    fn hybrid_baseline_keeps_rng_path_and_cap_and_guided_keeps_support() {
+        let (model, laws) = tiny_model(3);
+        let masks = [7, 7, 7];
+        let lower = vec![39, 0];
+        let upper = vec![39, 18];
+        let plan = Plan::build(
+            &model,
+            &laws,
+            &masks,
+            &lower,
+            &upper,
+            &[0],
+            4,
+            2,
+            Instant::now() + std::time::Duration::from_secs(5),
+        )
+        .unwrap();
+        // Independently initialized lazy PMF caches must produce the same
+        // guided path and ratios for the same RNG seed.
+        let fresh_plan = Plan::build(
+            &model,
+            &laws,
+            &masks,
+            &lower,
+            &upper,
+            &[0],
+            4,
+            2,
+            Instant::now() + std::time::Duration::from_secs(5),
+        )
+        .unwrap();
+        for seed in 0..128 {
+            let expected = plan.draw(&laws, &mut Rng::new(seed)).unwrap();
+            let got = plan
+                .draw_hybrid(&model, &laws, &mut Rng::new(seed), false)
+                .unwrap();
+            assert_eq!(got.outcomes, expected.0);
+            assert_eq!(got.baseline_weight, expected.1);
+            assert!(got.guide_over_baseline.lo > 0.0);
+            assert!(got.baseline_weight.lo <= plan.bound);
+            let guided = plan
+                .draw_hybrid(&model, &laws, &mut Rng::new(seed), true)
+                .unwrap();
+            let fresh_guided = fresh_plan
+                .draw_hybrid(&model, &laws, &mut Rng::new(seed), true)
+                .unwrap();
+            assert_eq!(guided.outcomes, fresh_guided.outcomes);
+            assert_eq!(guided.baseline_weight, fresh_guided.baseline_weight);
+            assert_eq!(guided.guide_over_baseline, fresh_guided.guide_over_baseline);
+            assert!(guided.baseline_weight.lo <= plan.bound);
+            for (fi, outcome) in guided.outcomes.iter().enumerate() {
+                assert_ne!(masks[fi] & (1 << *outcome), 0);
+            }
+        }
+        assert_eq!(
+            plan.hybrid_guide_cache_stats(),
+            fresh_plan.hybrid_guide_cache_stats()
+        );
+        assert!(plan.hybrid_guide_cache_stats().0 > 0);
+    }
+
+    #[test]
+    fn hybrid_actual_path_ratios_normalize_for_one_fixture() {
+        let (model, laws) = tiny_model(1);
+        let masks = [7];
+        let lower = [0, 0];
+        let upper = [1000, 0];
+        let plan = Plan::build(
+            &model,
+            &laws,
+            &masks,
+            &lower,
+            &upper,
+            &[],
+            4,
+            100,
+            Instant::now() + std::time::Duration::from_secs(5),
+        )
+        .unwrap();
+        let mut qg_by_outcome = [None; 3];
+        for seed in 0..4096 {
+            let draw = plan
+                .draw_hybrid(&model, &laws, &mut Rng::new(seed), true)
+                .unwrap();
+            let o = draw.outcomes[0] as usize;
+            let qbase = laws[0].outcomes[o].mid() / draw.baseline_weight.mid();
+            qg_by_outcome[o] = Some(draw.guide_over_baseline.mid() * qbase);
+            if qg_by_outcome.iter().all(Option::is_some) {
+                break;
+            }
+        }
+        let total: f64 = qg_by_outcome.into_iter().map(Option::unwrap).sum();
+        assert!(
+            (total - 1.0).abs() < 1e-12,
+            "guided probabilities sum to {total}"
+        );
     }
 
     #[test]
@@ -1906,6 +2401,11 @@ mod tests {
                 assert_eq!(outcomes[0], prefix[0]);
                 assert!(weight.lo <= root.cap);
                 assert_eq!(outcomes[1..], [2, 2]);
+                let hybrid = forest
+                    .draw_root_hybrid(i, &model, &laws, &mut Rng::new(900 + i as i64), true)
+                    .unwrap();
+                assert_eq!(hybrid.outcomes[0], prefix[0]);
+                assert!(hybrid.baseline_weight.lo <= root.cap);
             }
         }
     }

@@ -99,6 +99,55 @@ impl RegimePlan {
         let weight = wdl_weight.mul(atom.q).div(pi);
         Ok((outcomes, weight, fixed_scores))
     }
+
+    /// Draw through the same atom and pair mixture while retaining its
+    /// likelihood under the baseline proposal and the guide likelihood ratio.
+    pub fn draw_hybrid(
+        &self,
+        model: &Model,
+        laws: &[Law],
+        rng: &mut Rng,
+        guided: bool,
+    ) -> Result<(Vec<u8>, Interval, Interval, Vec<Option<[i32; 2]>>), String> {
+        let (index, pi) = categorical(&self.weights, rng)?;
+        if pi.lo <= 0.0 {
+            return Err("regime mixture ticket has zero lower probability".into());
+        }
+        if let Some(forest) = &self.forest {
+            let atom = &self.forest_atoms[index];
+            let root = forest
+                .roots
+                .get(atom.root_index)
+                .ok_or("regime forest root missing")?;
+            let draw = forest.draw_root_hybrid(atom.root_index, model, laws, rng, guided)?;
+            let fixed_scores = if let Some(pair) = &atom.pair {
+                pair.draw(model, rng)?
+            } else {
+                vec![None; model.fixtures.len()]
+            };
+            let base_weight = root
+                .prefix_mass
+                .div(pi)
+                .mul(draw.baseline_weight)
+                .mul(atom.q);
+            let guide_ratio = draw.guide_over_baseline;
+            return Ok((draw.outcomes, base_weight, guide_ratio, fixed_scores));
+        }
+        let atom = self.atoms.get(index).ok_or("regime atom missing")?;
+        let draw = atom.plan.draw_hybrid(model, laws, rng, guided)?;
+        let fixed_scores = if let Some(pair) = &atom.pair {
+            pair.draw(model, rng)?
+        } else {
+            vec![None; model.fixtures.len()]
+        };
+        let base_weight = draw.baseline_weight.mul(atom.q).div(pi);
+        Ok((
+            draw.outcomes,
+            base_weight,
+            draw.guide_over_baseline,
+            fixed_scores,
+        ))
+    }
 }
 
 fn up(x: f64) -> f64 {
@@ -1229,6 +1278,20 @@ mod tests {
             has_pair && has_strict,
             "mixture must retain tied and strict PW branches"
         );
+        let mut legacy_rng = Rng::new(9123);
+        let mut hybrid_rng = Rng::new(9123);
+        for _ in 0..24 {
+            let (legacy_outcomes, legacy_weight, legacy_scores) = plan
+                .draw(&engine.model, &engine.laws, &mut legacy_rng)
+                .unwrap();
+            let (hybrid_outcomes, hybrid_weight, guide_ratio, hybrid_scores) = plan
+                .draw_hybrid(&engine.model, &engine.laws, &mut hybrid_rng, false)
+                .unwrap();
+            assert_eq!(hybrid_outcomes, legacy_outcomes);
+            assert_eq!(hybrid_scores, legacy_scores);
+            assert_eq!(hybrid_weight, legacy_weight);
+            assert!(guide_ratio.lo >= 0.0 && guide_ratio.hi.is_finite());
+        }
 
         // The ticket probabilities cancel once against the native prefix
         // mass, the suffix estimator and the pair-GD normalizer. This checks
