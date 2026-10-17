@@ -284,6 +284,40 @@ impl Ord for Branch {
     }
 }
 
+fn branch_heap_growth(capacity: usize) -> usize {
+    (capacity / 4).max(1_024)
+}
+
+fn push_branch(heap: &mut BinaryHeap<Branch>, branch: Branch) {
+    if heap.len() == heap.capacity() {
+        heap.reserve_exact(branch_heap_growth(heap.capacity()));
+    }
+    heap.push(branch);
+}
+
+fn retain_mut_fallible<T>(
+    items: &mut Vec<T>,
+    mut keep: impl FnMut(&mut T) -> Result<bool, String>,
+) -> Result<(), String> {
+    let mut first_error = None;
+    items.retain_mut(|item| {
+        if first_error.is_some() {
+            return true;
+        }
+        match keep(item) {
+            Ok(keep) => keep,
+            Err(error) => {
+                first_error = Some(error);
+                true
+            }
+        }
+    });
+    match first_error {
+        Some(error) => Err(error),
+        None => Ok(()),
+    }
+}
+
 fn up(x: f64) -> f64 {
     if x <= 0.0 || !x.is_finite() {
         x.max(0.0)
@@ -710,7 +744,7 @@ pub fn residual_certificate_with_options(
         initial_bounds = up(initial_bounds + bound);
         initial_max = initial_max.max(residual_cap);
         if bound > 0.0 {
-            heap.push(br);
+            push_branch(&mut heap, br);
         } else {
             prunes += 1;
             if scorezero && residual_cap > 0.0 {
@@ -739,7 +773,7 @@ pub fn residual_certificate_with_options(
     let mut completed_max = 0.0f64;
     while let Some(branch) = heap.pop() {
         if expanded >= node_limit || Instant::now() >= search_deadline {
-            heap.push(branch);
+            push_branch(&mut heap, branch);
             break;
         }
         let source = &sources[branch.source];
@@ -792,7 +826,7 @@ pub fn residual_certificate_with_options(
                             cache.record_tightened();
                             branch.bound = new_bound;
                             branch.residual_cap = branch.residual_cap.min(residual_cap);
-                            heap.push(branch);
+                            push_branch(&mut heap, branch);
                             continue;
                         }
                         branch.bound = branch.bound.min(new_bound);
@@ -931,7 +965,7 @@ pub fn residual_certificate_with_options(
         // Commit children as one operation, so the popped branch is never
         // lost from the retained frontier if interruption is observed.
         for child in children {
-            heap.push(child);
+            push_branch(&mut heap, child);
         }
         expanded += 1;
         if heap.len() > frontier_limit {
@@ -960,41 +994,67 @@ pub fn residual_certificate_with_options(
     let mut pending = std::mem::take(&mut heap).into_vec();
     if let Some(cache) = suffix_cache.as_mut() {
         let refresh_started = Instant::now();
-        let mut refreshed = Vec::with_capacity(pending.len());
-        for mut branch in pending {
+        let refresh_result = retain_mut_fallible(&mut pending, |branch| {
             if Instant::now() >= deadline {
                 final_refresh_skipped += 1;
-                refreshed.push(branch);
-                continue;
+                return Ok(true);
             }
             let source = &sources[branch.source];
-            let bound = suffix::cached(source, branch.pos, branch.node, &branch.totals,
-                model, laws, cache)?;
+            let bound = suffix::cached(
+                source,
+                branch.pos,
+                branch.node,
+                &branch.totals,
+                model,
+                laws,
+                cache,
+            )?;
             if matches!(bound, suffix::Bound::Unknown) {
                 final_refresh_skipped += 1;
-                refreshed.push(branch);
-                continue;
+                return Ok(true);
             }
             final_refresh_applied += 1;
             match bound {
                 suffix::Bound::Impossible => {
-                    prunes += 1; zero_pw_prunes += 1;
+                    prunes += 1;
+                    zero_pw_prunes += 1;
+                    Ok(false)
                 }
-                suffix::Bound::Feasible { min_g, native_over_guided_cap } => {
+                suffix::Bound::Feasible {
+                    min_g,
+                    native_over_guided_cap,
+                } => {
                     let plan = source.graph.plan();
-                    let suffix_cap = branch.node.map_or_else(|| plan.fallback_caps[branch.pos], |id| plan.nodes[id].cap);
-                    let v_cap = branch.v.mul(Interval::point(suffix_cap)).hi.min(cap_b).max(0.0);
+                    let suffix_cap = branch
+                        .node
+                        .map_or_else(|| plan.fallback_caps[branch.pos], |id| plan.nodes[id].cap);
+                    let v_cap = branch
+                        .v
+                        .mul(Interval::point(suffix_cap))
+                        .hi
+                        .min(cap_b)
+                        .max(0.0);
                     let old_residual = branch.residual_cap;
                     let guided = clipped_guide_lower(branch.g, min_g, clip_h);
-                    let mut residual = if v_cap <= guided { 0.0 } else { up(v_cap - guided).min(cap_b) };
-                    let joint = apply_joint_cap(v_cap, &branch, native_over_guided_cap, clip_h);
+                    let mut residual = if v_cap <= guided {
+                        0.0
+                    } else {
+                        up(v_cap - guided).min(cap_b)
+                    };
+                    let joint =
+                        apply_joint_cap(v_cap, branch, native_over_guided_cap, clip_h);
                     if joint < residual {
                         cache.record_joint_tightening();
-                        if residual > 0.0 && joint == 0.0 { cache.record_joint_zero(); }
+                        if residual > 0.0 && joint == 0.0 {
+                            cache.record_joint_zero();
+                        }
                         residual = joint;
                     }
                     let residual = residual.min(old_residual);
-                    if residual == 0.0 { cache.record_guide_zero(); cache.record_guide_prune(); }
+                    if residual == 0.0 {
+                        cache.record_guide_zero();
+                        cache.record_guide_prune();
+                    }
                     let score_factor = score_bounder.factor(
                         branch.source,
                         branch.pos,
@@ -1017,13 +1077,15 @@ pub fn residual_certificate_with_options(
                         } else {
                             zero_residual_prunes += 1;
                         }
+                        Ok(false)
+                    } else {
+                        Ok(true)
                     }
-                    else { refreshed.push(branch); }
                 }
                 suffix::Bound::Unknown => unreachable!(),
             }
-        }
-        pending = refreshed;
+        });
+        refresh_result?;
         final_refresh_ms = refresh_started.elapsed().as_secs_f64() * 1000.0;
     }
     let aggregation_started = Instant::now();
@@ -1137,6 +1199,69 @@ mod tests {
 
     fn broad_bounds() -> (Vec<i32>, Vec<i32>) {
         (vec![i32::MIN / 4; 2], vec![i32::MAX / 4; 2])
+    }
+
+    fn test_branch(bound: f64, serial: u64) -> Branch {
+        Branch {
+            source: 0,
+            node: None,
+            pos: 0,
+            totals: Vec::new(),
+            v: Interval::point(1.0),
+            g: Interval::point(1.0),
+            q0: Interval::point(1.0),
+            score_moments: [1.0; 3],
+            bound,
+            residual_cap: bound,
+            depth: 0,
+            serial,
+            suffix_probed: false,
+        }
+    }
+
+    #[test]
+    fn bounded_heap_growth_preserves_priority_and_serial_ties() {
+        assert_eq!(branch_heap_growth(0), 1_024);
+        assert_eq!(branch_heap_growth(4_096), 1_024);
+        assert_eq!(branch_heap_growth(20_000), 5_000);
+
+        let mut expected: Vec<_> = (0..3_000)
+            .map(|serial| test_branch((serial % 97) as f64, serial))
+            .collect();
+        expected.sort_by(|a, b| b.cmp(a));
+        let mut heap = BinaryHeap::new();
+        for serial in 0..3_000 {
+            push_branch(&mut heap, test_branch((serial % 97) as f64, serial));
+        }
+        assert!(heap.capacity() >= heap.len());
+        assert!(heap.capacity() < 4_096);
+        let actual: Vec<_> = std::iter::from_fn(|| heap.pop().map(|branch| branch.serial)).collect();
+        let expected: Vec<_> = expected.into_iter().map(|branch| branch.serial).collect();
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn fallible_stable_retain_preserves_order_and_items_after_first_error() {
+        let mut values: Vec<_> = (0..6).collect();
+        retain_mut_fallible(&mut values, |value| {
+            let keep = *value % 2 == 0;
+            *value += 10;
+            Ok(keep)
+        })
+        .unwrap();
+        assert_eq!(values, vec![10, 12, 14]);
+
+        let mut values = vec![0, 1, 2, 3, 4];
+        let error = retain_mut_fallible(&mut values, |value| {
+            if *value == 2 {
+                return Err("refresh failed".into());
+            }
+            let keep = *value != 1;
+            *value += 10;
+            Ok(keep)
+        });
+        assert_eq!(error.unwrap_err(), "refresh failed");
+        assert_eq!(values, vec![10, 2, 3, 4]);
     }
 
     #[test]
