@@ -1,0 +1,92 @@
+# Reconstructed rare-position estimator
+
+This is a new implementation reconstructed from retained review history and
+surviving production model code after the experimental worktrees disappeared.
+It is not a byte-for-byte restoration of the former `frontier-regimes` binary.
+The historical design and recovery evidence are in
+`../2026-10-17-workspace-recovery/`.
+
+The offline native package lives at `odds-rust/frontier-recovery`. It depends
+on the surviving model library while keeping the frequently edited estimator
+in a small separate crate. No production endpoint or default is changed.
+
+## Fixture and recovered structure
+
+Use `odds-rust/tests/fixtures/group-16498-2026-10-10.json`, SHA256
+`b8d78c18e6ab00b20888dbb36f5f80004879549bd5307fbd8146bdc4c44cccaa`.
+Target: team16 (Palmeiras), position12, zero-based rank11. Palmeiras starts
+on60 points,17 wins,GD27, with nine matches left. Rival18 starts35/9 with
+nine matches left. These match the retained historical case; the original
+experimental request's hash is unavailable, so exact old input identity has
+not been established.
+
+The surviving exact target-total prover and reconstructed integer propagation
+reproduce one eligible final target points/wins total (60/17), force all nine
+target losses, and retain40 candidate exact above sets from286 raw groups.
+This is a useful structural cross-check, not independent proof of old input
+byte identity. Grouped points/wins roots replace the lost fixed-WDL root
+representation; the sampler enforces each grouped root exactly.
+
+## Implemented mechanisms
+
+- Native finite goal laws account for the actual accepted int63-to-f64 grid,
+  including rejection of values rounding to1. These are not substituted
+  continuous Poisson probabilities or the legacy conditional-score CDF law.
+- Every cohort is an exact final above-set event. Weak points/wins constraints
+  can overlap, but their relaxed probabilities are never added as disjoint
+  event estimates. Every fixture contributes to its likelihood exactly once.
+- Selected rival constraints are conditioned jointly over shared fixtures.
+  Unfinished DP branches keep a frozen native-mask fallback and a valid cap.
+  Actual integer-ticket selection probabilities enter the likelihood ratio.
+- Private score GD kernels are integrated independently only after shared
+  tied-team matches are sampled once. Strict/inclusive GD products bracket
+  GF and later tie decisions. Cache capacity only affects retention, preserving
+  the same observation law within a proposal epoch.
+- Adaptive sampling preserves unsampled analytic upper bounds, uses fresh
+  statistics after changed proposals, and retains valid absolute bounds from
+  previous epochs. Cumulative predeclared threshold counts use one-sided
+  Clopper-Pearson bounds with summable cohort/epoch/look confidence allocation.
+  The beta inverses use SciPy double precision with outward adjustments;
+  numerical tests are not a formal proof of the special-function implementation.
+
+The reconstruction currently uses one native worker. It does not yet restore
+the old separator-mixture and generic rival-regime proposal operations, or the
+full native GD-equality residual integrator. Consequently historical runtime
+and interval quality cannot be assumed to transfer.
+
+## Build and run
+
+```bash
+PATH=/workspace/onboarding/cargo/bin:$PATH \
+CARGO_HOME=/workspace/onboarding/cargo \
+RUSTUP_HOME=/workspace/onboarding/rustup \
+CARGO_TARGET_DIR=/tmp/frontier-recovery-target \
+cargo build --profile experiment --locked --offline \
+  --manifest-path odds-rust/frontier-recovery/Cargo.toml
+
+python3 experiments/rare_positions/2026-10-17-rebuilt-frontier/driver.py \
+  --binary /tmp/frontier-recovery-target/experiment/frontier-recovery \
+  --budget 180 --initial-k 4 --max-k 11 --depth 6 \
+  --state-cap 250000 --workers 1 \
+  --output experiments/rare_positions/2026-10-17-rebuilt-frontier/pal12.json
+```
+
+The shared wall budget includes Python startup, native initialization, setup,
+sampling and cleanup, best effort. Builds finish before measurement. Hashes
+freeze request, native source, driver and binary. The target is simultaneous99%
+confidence with an order-of-magnitude interval (`upper/lower <=10`); a midpoint
+is reported as qualified only when that criterion passes without a conflict.
+
+## Validation checkpoint
+
+At initial reconstruction freeze,13 optimized Rust tests and8 Python tests
+passed. Rust tests cover exact shared-fixture proposal mass, actual proposal
+caps, interior partial-table fallback at state caps1–3, satisfied-lower state
+clamping, accepted RNG-grid boundaries, integer conversion enclosures,
+conditional score GD brackets, cache invariance and the real fixture partition.
+Python tests cover binomial tails including alpha1e-20/n1,000,000, layer-cake
+bounds, normalized weight scaling, transactional epoch accumulation, retained
+intervals and summable confidence allocation.
+
+No historical samples are reused. Fresh measured results will be recorded
+separately; the original experimental measurements cannot validate this binary.

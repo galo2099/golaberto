@@ -1,0 +1,11 @@
+*** Begin Patch
+*** Update File: /workspace/golaberto-adaptive-controller/odds-rust/src/target_points_partition/adaptive_controller.rs
+@@
+-            "decision_index": rankings.len(),
++            "decision_index": decisions.len(),
++            "ranking_index": rankings.len(),
+@@
+-                        decisions.push(json!({"event":"incomplete_stage","cohort_index":index,"epoch_index":epoch,"stage_index":look,"interval_preserved":true}));
++                        event_serial += 1;
++                        decisions.push(json!({"event":"incomplete_stage","cohort_index":index,"epoch_index":epoch,"stage_index":look,"interval_preserved":true,"event_serial":event_serial,"decision_index":decisions.len()}));
+*** End Patch

@@ -1,0 +1,20 @@
+[package]
+name = "frontier-recovery"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+golaberto-odds = { path = ".." }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+
+[profile.release]
+lto = false
+codegen-units = 16
+
+[profile.experiment]
+inherits = "release"
+lto = false
+codegen-units = 16
+debug = 0
