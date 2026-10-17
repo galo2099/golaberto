@@ -13,6 +13,10 @@ Raw JSON receipts remain local. This manifest records identities only.
 | primary-pal12-180s.json | 910337 | `1657f07c19d3f8044979f65851039ea36dc39bd62c536a242fbd5a5f400ce90c` |
 | regime-cost-pal12-180s-timing.json | 845 | `af29b1e00146866e4961599304cc54319ffcdbc6ad0a4946b8c4667e67e70aba` |
 | regime-cost-pal12-180s.json | 1515855 | `0aa2182546cce6de4172c913d9f0648056bc1ba9b327d19054d8bd6f8a4b2507` |
+| regime-cost-pal16-285played-180s-timing.json | 1113 | `7ab2ab001932015e5617fc9b0a326ec651b1c641a9f4ff08ede93eb9487437f9` |
+| regime-cost-pal16-285played-180s.json | 288170 | `39705bae52c464bca42d7cf17e790e9efcb6fcce9ed6d31c97ebeb935f867956` |
+| regime-cost-pal16-historical-180s-timing.json | 1238 | `d0e31bd2ef263ad0ceea3e0ffa0d764664d14dd3ff382904422c87337b5b4b5f` |
+| regime-cost-pal16-historical-180s.json | 3751522 | `1214affea3ce9f0f4796e7c05af6acf816e68be2021a9285adcaa7f104795632` |
 | regime-functional.json | 36835 | `e3428f35cb43dffb529044632028663e8a25dc61d7a059210395136db76d9d05` |
 | regime-pal12-180s-timing.json | 851 | `ef4f26dd3f8f10add75b9e86a8d82d877db5eedd82edfa5fdb4236129ffc5eeb` |
 | regime-pal12-180s.json | 1739546 | `813745e2b18bf3ca3ecde8b3c2151f8d73443d53357bc0a53be5e67eff6de10c` |

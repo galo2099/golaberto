@@ -155,3 +155,16 @@ Recovered draft SHA256 fingerprints:
 | `test_partition.py` | `a46d15f55dab4533a099d380abf3c745f874e2546982d44c45caf9c5fc71fc31` |
 | `scripts/run_paired.py` | `77cb29e81a3309b8c8da28be7011cea82915c5a16588cf51019d0bcd8b367cc0` |
 | `scripts/analyze.py` | `c75ccbf7585763cc05f47ca79607f5c91462b37b2c446f8d6d374634e3fe131c` |
+
+## Subsequent Palmeiras16th input identification
+
+The historical canonical request identifier `40b8ab70b9fc` was recovered at
+`experiments/rare_positions/reference/2026-10-04-two-results/inputs/group-16498-two-results.json`.
+Its canonical full hash is
+`40b8ab70b9fc464d154e5123d527a0b62f31d4a47b8e71a464c8b51c1dfe4544`.
+It has279 played games and team79 at29 points/7 wins with10 matches left.
+The285-played uploaded fixture has the same Palmeiras57/16 table state but
+a different rival state (team79 at30 points/nine remaining) and must not be
+used as this historical case. See `../2026-10-17-rebuilt-frontier/PAL16_RESULTS.md`
+for the fresh unchanged-estimator measurement and the separately retained
+initial snapshot mismatch.

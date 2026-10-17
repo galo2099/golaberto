@@ -59,3 +59,12 @@ A safe proposed separator interface is a complete disjoint partition of a parent
 5. Report measured external wall time and explicitly distinguish valid confidence bounds, timing validity and factor-two qualification. A numerical gain alone is not a completed fixed-budget result.
 
 Historical diagnostic only: October 14 seed-1300 controller used 923,000 completed draws over 73 stages and committed one k7→k8 refinement. Its bounds were approximately `[7.19994e-29,7.51063e-28]`, U/L≈10.43, versus control `[3.85252e-29,2.68728e-27]`. The controller took 185.696 seconds externally and failed its declared 180-second budget and conditioning limits. Those samples cannot seed a rebuilt run or substantiate any Palmeiras-12 result on the surviving fixture.
+
+## Later input identification correction
+
+For the historical Palmeiras16th experiment, use the279-played request
+`experiments/rare_positions/reference/2026-10-04-two-results/inputs/group-16498-two-results.json`
+with canonical SHA256 `40b8ab70b9fc464d154e5123d527a0b62f31d4a47b8e71a464c8b51c1dfe4544`.
+The285-played shortlist fixture described above has the same Palmeiras base
+points/wins but a different team79 state and is a separate case. The corrected
+measurement is documented in `../2026-10-17-rebuilt-frontier/PAL16_RESULTS.md`.
