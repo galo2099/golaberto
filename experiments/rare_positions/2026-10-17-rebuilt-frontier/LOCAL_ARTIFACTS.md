@@ -4,6 +4,9 @@ Raw JSON receipts remain local. This manifest records identities only.
 
 | File | Bytes | SHA256 |
 |---|---:|---|
+| compact-pal16-cohort5-k9.jsonl | 4417 | `8a7b2b2d297aed5fad0daf43787f85adadff0d9f8c6094a872eb97a0dcbdf2ab` |
+| compact-pal16-historical-180s-timing.txt | 44 | `a4a6b12aa1d961ac199c1306fe28d32530497db1ad5f7f391397245ec522a816` |
+| compact-pal16-historical-180s.json | 3891707 | `fd99e33bdc639cc55ee80343b1f6e2ee9843cab56741d7abb9f8f40914f6e892` |
 | final-pal12-180s-timing.json | 780 | `cb4f66067969ad42f658d0cd50f5d01dae7da16fa6e8326d22c7965f163727e8` |
 | final-pal12-180s.json | 797713 | `0ff5bdd0d921132b292ee36f73620936f2646bef9e8484459ed8a84d0eb109ce` |
 | functional-v3-pal12.json | 31935 | `7312d9cbb0379b451203624411d47ecbdc10b188d9328401cd5ce0aa1a24f5f1` |

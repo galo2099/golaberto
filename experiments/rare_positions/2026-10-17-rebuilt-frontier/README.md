@@ -60,6 +60,12 @@ unrestored. Variable elimination replaces the
 old explicit separator representation. Historical runtime and interval quality
 cannot be assumed to transfer.
 
+Large pivot partitions now have a compact path: lightweight incident WDL
+assignments retain separate GD factors while sharing one remaining-fixture
+joint DP forest. The existing per-assignment path remains for partitions of at
+most 64 assignments. See COMPACT_PARTITION_RESULTS.md for the statistical
+contract, real 156-assignment regression, and Palmeiras16th measurements.
+
 ## Build and run
 
 ```bash
@@ -87,7 +93,7 @@ is reported as qualified only when that criterion passes without a conflict.
 
 ## Validation checkpoint
 
-At the final GD-bound source freeze,26 optimized Rust tests and20 Python tests
+At the compact-partition source freeze,31 optimized Rust tests and20 Python tests
 passed. Rust tests cover exact shared-fixture proposal mass, actual proposal
 caps, interior partial-table fallback at state caps1–3, satisfied-lower state
 clamping, accepted RNG-grid boundaries, integer conversion enclosures,

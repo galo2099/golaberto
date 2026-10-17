@@ -44,6 +44,31 @@ pub struct Plan {
     fallback_potentials: Vec<f64>, // nominal native-mask suffix mass
 }
 
+/// Metadata for one fixed light-prefix assignment in a shared suffix forest.
+pub struct ForestRoot {
+    /// Native probability of the fixed prefix under the unconditional WDL law.
+    pub prefix_mass: Interval,
+    /// Native masked suffix event mass from this prefix state.
+    pub potential: f64,
+    /// Enclosed maximum suffix likelihood ratio for this root's proposal.
+    pub cap: f64,
+    /// Whether this root was fully represented by the memoized suffix table.
+    pub complete: bool,
+    /// True only when the event was certified impossible for this prefix.
+    pub zero: bool,
+    prefix_outcomes: Vec<u8>,
+    node: Option<usize>,
+}
+
+/// A collection of fixed prefixes sharing one immutable suffix DP and fallback.
+pub struct Forest {
+    pub states: usize,
+    pub complete: bool,
+    pub roots: Vec<ForestRoot>,
+    core: Plan,
+    prefix_fixtures: Vec<usize>,
+}
+
 fn up(x: f64) -> f64 {
     if x == 0.0 || !x.is_finite() {
         x
@@ -179,6 +204,9 @@ impl Plan {
         }
         let mut active = seen.clone();
         while active.iter().any(|&x| x) {
+            if Instant::now() >= deadline {
+                break;
+            }
             let mut best: Option<(usize, usize, usize, i32, usize)> = None;
             for t in 0..model.n {
                 if !active[t] {
@@ -657,6 +685,642 @@ impl Plan {
     }
 }
 
+impl Forest {
+    #[allow(clippy::too_many_arguments)]
+    pub fn build(
+        model: &Model,
+        laws: &[Law],
+        masks: &[u8],
+        lower: &[i32],
+        upper: &[i32],
+        selected: &[usize],
+        stride: i32,
+        prefix_fixtures: &[usize],
+        prefixes: &[Vec<u8>],
+        state_cap: usize,
+        deadline: Instant,
+    ) -> Result<Self, String> {
+        let nf = model.fixtures.len();
+        if laws.len() != nf || masks.len() != nf {
+            return Err("joint forest fixture dimensions do not match".into());
+        }
+        if lower.len() != model.n || upper.len() != model.n {
+            return Err("joint forest team dimensions do not match".into());
+        }
+        if stride <= 0 {
+            return Err("joint forest stride must be positive".into());
+        }
+        if masks.iter().any(|m| m & !7 != 0) {
+            return Err("joint forest mask has invalid outcome bits".into());
+        }
+        if prefixes.iter().any(|p| p.len() != prefix_fixtures.len()) {
+            return Err("joint forest prefix dimensions do not match".into());
+        }
+        let mut is_prefix = vec![false; nf];
+        for &fi in prefix_fixtures {
+            if fi >= nf || is_prefix[fi] {
+                return Err("joint forest prefix fixture is invalid or repeated".into());
+            }
+            is_prefix[fi] = true;
+        }
+        let mut seen = vec![false; model.n];
+        for &t in selected {
+            if t >= model.n || seen[t] {
+                return Err("selected team index is invalid or repeated".into());
+            }
+            seen[t] = true;
+        }
+        let selected = selected.to_vec();
+        let base = (0..model.n)
+            .map(|t| {
+                model.base[t]
+                    .points
+                    .checked_mul(stride)
+                    .and_then(|x| x.checked_add(model.base[t].wins))
+                    .ok_or("packed base overflow")
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        // Fixed single-support suffix fixtures are exposed first. The
+        // remaining variable fixture order uses the same deterministic
+        // selected-team min-degree/min-fill elimination as Plan::build.
+        let mut fixed = Vec::new();
+        let mut variable = Vec::new();
+        for fi in 0..nf {
+            if is_prefix[fi] {
+                continue;
+            }
+            let support = (0..3)
+                .filter(|&o| masks[fi] & (1 << o) != 0 && laws[fi].outcomes[o].hi > 0.0)
+                .count();
+            if support <= 1 {
+                fixed.push(fi);
+            } else {
+                variable.push(fi);
+            }
+        }
+        fixed.sort_unstable();
+        variable.sort_unstable();
+        let mut order = fixed;
+        let mut remaining = vec![false; nf];
+        for &fi in &variable {
+            remaining[fi] = true;
+        }
+        let mut active = seen.clone();
+        while active.iter().any(|&x| x) {
+            if Instant::now() >= deadline {
+                break;
+            }
+            let mut best: Option<(usize, usize, usize, i32, usize)> = None;
+            for t in 0..model.n {
+                if !active[t] {
+                    continue;
+                }
+                let mut neighbors = vec![false; model.n];
+                let mut remaining_games = 0usize;
+                for &fi in &variable {
+                    if !remaining[fi] {
+                        continue;
+                    }
+                    let f = &model.fixtures[fi];
+                    if f.home == t || f.away == t {
+                        remaining_games += 1;
+                        let other = if f.home == t { f.away } else { f.home };
+                        if active[other] && other != t {
+                            neighbors[other] = true;
+                        }
+                    }
+                }
+                let degree = neighbors.iter().filter(|&&x| x).count();
+                let mut fill = 0usize;
+                for a in 0..model.n {
+                    if !neighbors[a] {
+                        continue;
+                    }
+                    for b in a + 1..model.n {
+                        if !neighbors[b] {
+                            continue;
+                        }
+                        let adjacent = variable.iter().any(|&fi| {
+                            remaining[fi]
+                                && ((model.fixtures[fi].home == a && model.fixtures[fi].away == b)
+                                    || (model.fixtures[fi].home == b
+                                        && model.fixtures[fi].away == a))
+                        });
+                        if !adjacent {
+                            fill += 1;
+                        }
+                    }
+                }
+                let key = (degree, fill, remaining_games, model.ids[t], t);
+                if best.map_or(true, |current| key < current) {
+                    best = Some(key);
+                }
+            }
+            let team = best.ok_or("selected fixture elimination failed")?.4;
+            for &fi in &variable {
+                let f = &model.fixtures[fi];
+                if remaining[fi] && (f.home == team || f.away == team) {
+                    order.push(fi);
+                    remaining[fi] = false;
+                }
+            }
+            active[team] = false;
+        }
+        for fi in variable {
+            if remaining[fi] {
+                order.push(fi);
+            }
+        }
+        if order.len() + prefix_fixtures.len() != nf {
+            return Err("joint forest fixture ordering omitted a fixture".into());
+        }
+
+        // Clamp a one-sided lower state only when every outcome, including
+        // every possible prefix assignment, is already proven below upper.
+        let mut max_final = base.clone();
+        for (fi, f) in model.fixtures.iter().enumerate() {
+            for t in [f.home, f.away] {
+                let mut max_gain = 0;
+                for o in 0..3 {
+                    if masks[fi] & (1 << o) == 0 || laws[fi].outcomes[o].hi <= 0.0 {
+                        continue;
+                    }
+                    let (hg, ag) = outcome_gain(model, fi, o, stride);
+                    max_gain = max_gain.max(if t == f.home { hg } else { ag });
+                }
+                max_final[t] = max_final[t].saturating_add(max_gain);
+            }
+        }
+        let clamp_lower: Vec<bool> = selected
+            .iter()
+            .map(|&t| upper[t] > lower[t] && upper[t] >= max_final[t])
+            .collect();
+
+        // All proposal suffix factors are computed once, over the common
+        // suffix only; prefix mass and prefix mixture tickets are caller-owned.
+        let ns = order.len();
+        let mut fallback_caps = vec![1.0; ns + 1];
+        let mut fallback_potentials = vec![1.0; ns + 1];
+        for pos in (0..ns).rev() {
+            let fi = order[pos];
+            let w: Vec<f64> = (0..3)
+                .map(|o| {
+                    if masks[fi] & (1 << o) != 0 {
+                        laws[fi].outcomes[o].mid()
+                    } else {
+                        0.0
+                    }
+                })
+                .collect();
+            let mass = w.iter().sum::<f64>().min(1.0);
+            let raw = mass * fallback_potentials[pos + 1];
+            fallback_potentials[pos] = if raw == 0.0 && mass > 0.0 {
+                f64::from_bits(1)
+            } else {
+                raw
+            };
+            if !w.iter().any(|x| *x > 0.0) {
+                fallback_caps[pos] = 0.0;
+                continue;
+            }
+            let q = categorical_probabilities(&w)?;
+            let mut step = 0.0f64;
+            for o in 0..3 {
+                if w[o] > 0.0 {
+                    step = step.max(ratio(laws[fi].outcomes[o], q[o])?);
+                }
+            }
+            fallback_caps[pos] = mul_cap(step, fallback_caps[pos + 1]);
+        }
+
+        let mut core = Plan {
+            bound: fallback_caps[0],
+            states: 0,
+            complete: true,
+            selected,
+            masks: masks.to_vec(),
+            order,
+            nodes: Vec::new(),
+            root: None,
+            stride,
+            lower: lower.to_vec(),
+            upper: upper.to_vec(),
+            base,
+            clamp_lower,
+            fallback_caps,
+            fallback_potentials,
+        };
+        let ns = core.order.len();
+        let mut last_touch = vec![None; core.selected.len()];
+        for (pos, &fi) in core.order.iter().enumerate() {
+            let f = &model.fixtures[fi];
+            for (j, &t) in core.selected.iter().enumerate() {
+                if t == f.home || t == f.away {
+                    last_touch[j] = Some(pos);
+                }
+            }
+        }
+        let mut suffix_min = vec![vec![0i32; core.selected.len()]; ns + 1];
+        let mut suffix_max = vec![vec![0i32; core.selected.len()]; ns + 1];
+        let mut suffix_possible = vec![true; ns + 1];
+        for pos in (0..ns).rev() {
+            suffix_min[pos] = suffix_min[pos + 1].clone();
+            suffix_max[pos] = suffix_max[pos + 1].clone();
+            suffix_possible[pos] = suffix_possible[pos + 1];
+            let fi = core.order[pos];
+            let f = &model.fixtures[fi];
+            for (j, &t) in core.selected.iter().enumerate() {
+                if t != f.home && t != f.away {
+                    continue;
+                }
+                let mut lo = i32::MAX;
+                let mut hi = i32::MIN;
+                for o in 0..3 {
+                    if core.masks[fi] & (1 << o) == 0 || laws[fi].outcomes[o].hi <= 0.0 {
+                        continue;
+                    }
+                    let (hg, ag) = outcome_gain(model, fi, o, stride);
+                    let g = if t == f.home { hg } else { ag };
+                    lo = lo.min(g);
+                    hi = hi.max(g);
+                }
+                if lo == i32::MAX {
+                    suffix_possible[pos] = false;
+                } else {
+                    suffix_min[pos][j] = suffix_min[pos][j].saturating_add(lo);
+                    suffix_max[pos][j] = suffix_max[pos][j].saturating_add(hi);
+                }
+            }
+        }
+
+        fn build_node(
+            plan: &mut Plan,
+            model: &Model,
+            laws: &[Law],
+            state: Vec<i32>,
+            pos: usize,
+            memo: &mut HashMap<(usize, Vec<i32>), usize>,
+            cap: usize,
+            deadline: Instant,
+            limit_hit: &mut bool,
+            suffix_min: &[Vec<i32>],
+            suffix_max: &[Vec<i32>],
+            suffix_possible: &[bool],
+            last_touch: &[Option<usize>],
+        ) -> Result<Option<usize>, String> {
+            if let Some(&id) = memo.get(&(pos, state.clone())) {
+                return Ok(Some(id));
+            }
+            if *limit_hit || plan.states >= cap || Instant::now() >= deadline {
+                *limit_hit = true;
+                plan.complete = false;
+                return Ok(None);
+            }
+            plan.states += 1;
+            if pos == plan.order.len() {
+                let accept = plan.selected.iter().enumerate().all(|(j, &t)| {
+                    last_touch[j].is_none()
+                        || state[j] == 0
+                        || (state[j] >= plan.lower[t] && state[j] <= plan.upper[t])
+                });
+                let id = plan.nodes.len();
+                plan.nodes.push(Node {
+                    weights: [0.; 3],
+                    edges: Vec::new(),
+                    potential: if accept { 1. } else { 0. },
+                    cap: if accept { 1. } else { 0. },
+                    terminal: Some(accept),
+                });
+                memo.insert((pos, state), id);
+                return Ok(Some(id));
+            }
+            let fi = plan.order[pos];
+            let f = &model.fixtures[fi];
+            let mut weights = [0.; 3];
+            let mut edges = Vec::new();
+            let mut potential = 0.;
+            for o in 0..3 {
+                if plan.masks[fi] & (1 << o) == 0 {
+                    continue;
+                }
+                let p = laws[fi].outcomes[o];
+                if p.hi <= 0. {
+                    continue;
+                }
+                let (hg, ag) = outcome_gain(model, fi, o, plan.stride);
+                let mut next = state.clone();
+                for (j, &t) in plan.selected.iter().enumerate() {
+                    if t == f.home {
+                        next[j] = next[j].checked_add(hg).ok_or("packed state overflow")?;
+                        if plan.clamp_lower[j] {
+                            next[j] = next[j].min(plan.lower[t]);
+                        }
+                    }
+                    if t == f.away {
+                        next[j] = next[j].checked_add(ag).ok_or("packed state overflow")?;
+                        if plan.clamp_lower[j] {
+                            next[j] = next[j].min(plan.lower[t]);
+                        }
+                    }
+                }
+                let mut feasible = true;
+                for (j, &t) in plan.selected.iter().enumerate() {
+                    if last_touch[j] == Some(pos) {
+                        if next[j] < plan.lower[t] || next[j] > plan.upper[t] {
+                            feasible = false;
+                            break;
+                        }
+                        next[j] = 0;
+                    }
+                }
+                if !suffix_possible[pos + 1] {
+                    feasible = false;
+                }
+                for (j, &t) in plan.selected.iter().enumerate() {
+                    if !last_touch[j].is_some_and(|last| last > pos) {
+                        continue;
+                    }
+                    if !feasible
+                        || next[j].saturating_add(suffix_max[pos + 1][j]) < plan.lower[t]
+                        || next[j].saturating_add(suffix_min[pos + 1][j]) > plan.upper[t]
+                    {
+                        feasible = false;
+                        break;
+                    }
+                }
+                if !feasible {
+                    continue;
+                }
+                let child = build_node(
+                    plan,
+                    model,
+                    laws,
+                    next,
+                    pos + 1,
+                    memo,
+                    cap,
+                    deadline,
+                    limit_hit,
+                    suffix_min,
+                    suffix_max,
+                    suffix_possible,
+                    last_touch,
+                )?;
+                let child_potential = child.map_or(plan.fallback_potentials[pos + 1], |id| {
+                    plan.nodes[id].potential
+                });
+                let raw = p.mid() * child_potential;
+                let w = if raw == 0. && p.mid() > 0. && child_potential > 0. {
+                    f64::from_bits(1)
+                } else {
+                    raw
+                };
+                if w <= 0. {
+                    continue;
+                }
+                weights[o] = w;
+                edges.push(Edge {
+                    outcome: o as u8,
+                    child: child,
+                });
+            }
+            if !weights.iter().any(|x| *x > 0.) {
+                let id = plan.nodes.len();
+                plan.nodes.push(Node {
+                    weights,
+                    edges,
+                    potential: 0.,
+                    cap: 0.,
+                    terminal: None,
+                });
+                memo.insert((pos, state), id);
+                return Ok(Some(id));
+            }
+            let q = categorical_probabilities(&weights)?;
+            let mut qbound = 0.0f64;
+            for edge in &edges {
+                let o = edge.outcome as usize;
+                let child_cap = edge
+                    .child
+                    .map_or(plan.fallback_caps[pos + 1], |id| plan.nodes[id].cap);
+                qbound = qbound.max(mul_cap(ratio(laws[fi].outcomes[o], q[o])?, child_cap));
+                let child_pot = edge.child.map_or(plan.fallback_potentials[pos + 1], |id| {
+                    plan.nodes[id].potential
+                });
+                let term = laws[fi].outcomes[o].mid() * child_pot;
+                potential = up(potential
+                    + if term == 0. && laws[fi].outcomes[o].mid() > 0. && child_pot > 0. {
+                        f64::from_bits(1)
+                    } else {
+                        term
+                    });
+            }
+            let id = plan.nodes.len();
+            plan.nodes.push(Node {
+                weights,
+                edges,
+                potential: potential.min(1.),
+                cap: qbound,
+                terminal: None,
+            });
+            memo.insert((pos, state), id);
+            Ok(Some(id))
+        }
+
+        let mut memo = HashMap::new();
+        let mut completeness_memo = HashMap::new();
+        let mut limit_hit = false;
+        let mut roots = Vec::with_capacity(prefixes.len());
+        for prefix in prefixes {
+            let mut prefix_mass = Interval::point(1.);
+            let mut state = core
+                .selected
+                .iter()
+                .map(|&t| core.base[t])
+                .collect::<Vec<_>>();
+            let mut possible = true;
+            for (&fi, &outcome) in prefix_fixtures.iter().zip(prefix) {
+                if outcome > 2 || masks[fi] & (1 << outcome) == 0 {
+                    return Err("joint forest prefix outcome outside mask".into());
+                }
+                let p = laws[fi].outcomes[outcome as usize];
+                prefix_mass = prefix_mass.mul(p);
+                if p.hi <= 0. {
+                    possible = false;
+                    break;
+                }
+                let f = &model.fixtures[fi];
+                let (hg, ag) = outcome_gain(model, fi, outcome as usize, stride);
+                for (j, &t) in core.selected.iter().enumerate() {
+                    if t == f.home {
+                        state[j] = state[j].checked_add(hg).ok_or("packed prefix overflow")?;
+                    }
+                    if t == f.away {
+                        state[j] = state[j].checked_add(ag).ok_or("packed prefix overflow")?;
+                    }
+                }
+            }
+            if !possible || prefix_mass.hi == 0. {
+                roots.push(ForestRoot {
+                    prefix_mass,
+                    potential: 0.,
+                    cap: 0.,
+                    complete: true,
+                    zero: true,
+                    prefix_outcomes: prefix.clone(),
+                    node: None,
+                });
+                continue;
+            }
+            let mut closed_bad = false;
+            for (j, &t) in core.selected.iter().enumerate() {
+                if core.clamp_lower[j] {
+                    state[j] = state[j].min(core.lower[t]);
+                }
+                if last_touch[j].is_none() {
+                    if state[j] < core.lower[t] || state[j] > core.upper[t] {
+                        closed_bad = true;
+                    }
+                    state[j] = 0;
+                }
+            }
+            if Instant::now() >= deadline {
+                limit_hit = true;
+                core.complete = false;
+            }
+            let node = if closed_bad || limit_hit {
+                None
+            } else {
+                build_node(
+                    &mut core,
+                    model,
+                    laws,
+                    state,
+                    0,
+                    &mut memo,
+                    state_cap,
+                    deadline,
+                    &mut limit_hit,
+                    &suffix_min,
+                    &suffix_max,
+                    &suffix_possible,
+                    &last_touch,
+                )?
+            };
+            let unresolved = node.is_none() && !closed_bad;
+            let potential = if closed_bad {
+                0.
+            } else {
+                node.map_or(core.fallback_potentials[0], |id| core.nodes[id].potential)
+            };
+            let cap = if closed_bad {
+                0.
+            } else {
+                node.map_or(core.fallback_caps[0], |id| core.nodes[id].cap)
+            };
+            let complete = closed_bad
+                || node.is_some_and(|id| node_complete(id, &core.nodes, &mut completeness_memo));
+            roots.push(ForestRoot {
+                prefix_mass,
+                potential,
+                cap,
+                complete,
+                zero: complete && potential == 0.,
+                prefix_outcomes: prefix.clone(),
+                node: if closed_bad { Some(usize::MAX) } else { node },
+            });
+            if unresolved {
+                core.complete = false;
+            }
+        }
+        let complete = roots.iter().all(|r| r.complete);
+        Ok(Self {
+            states: core.states,
+            complete,
+            roots,
+            core,
+            prefix_fixtures: prefix_fixtures.to_vec(),
+        })
+    }
+
+    /// Draw from one root's suffix proposal. Prefix outcomes are included in
+    /// the returned fixture-indexed vector but contribute no likelihood factor.
+    pub fn draw_root(
+        &self,
+        root_index: usize,
+        laws: &[Law],
+        rng: &mut Rng,
+    ) -> Result<(Vec<u8>, Interval), String> {
+        if laws.len() != self.core.masks.len() {
+            return Err("draw law dimensions do not match forest".into());
+        }
+        let root = self
+            .roots
+            .get(root_index)
+            .ok_or("forest root index out of range")?;
+        if root.zero {
+            return Err("cannot draw from certified zero forest root".into());
+        }
+        let mut outcomes = vec![0u8; laws.len()];
+        for (&fi, &o) in self.prefix_fixtures.iter().zip(&root.prefix_outcomes) {
+            outcomes[fi] = o;
+        }
+        let mut weight = Interval::point(1.);
+        let mut id = if root.node == Some(usize::MAX) {
+            None
+        } else {
+            root.node
+        };
+        let mut pos = 0;
+        if id.is_none() {
+            self.core
+                .draw_fallback(0, laws, rng, &mut outcomes, &mut weight)?;
+        }
+        while let Some(node_id) = id {
+            let node = &self.core.nodes[node_id];
+            if let Some(accept) = node.terminal {
+                if !accept {
+                    return Err("forest reached a zero-potential terminal".into());
+                }
+                break;
+            }
+            let (o, q) = categorical(&node.weights, rng)?;
+            let edge = node
+                .edges
+                .iter()
+                .find(|e| e.outcome as usize == o)
+                .ok_or("forest edge missing")?;
+            let fi = self.core.order[pos];
+            outcomes[fi] = o as u8;
+            weight = weight.mul(laws[fi].outcomes[o].div(q));
+            pos += 1;
+            id = edge.child;
+            if id.is_none() {
+                self.core
+                    .draw_fallback(pos, laws, rng, &mut outcomes, &mut weight)?;
+                break;
+            }
+        }
+        if weight.lo > root.cap {
+            return Err("draw likelihood lower bound exceeds forest root cap".into());
+        }
+        Ok((outcomes, weight))
+    }
+}
+
+fn node_complete(id: usize, nodes: &[Node], memo: &mut HashMap<usize, bool>) -> bool {
+    if let Some(&v) = memo.get(&id) {
+        return v;
+    }
+    let complete = nodes[id].edges.iter().all(|e| {
+        e.child
+            .is_some_and(|child| node_complete(child, nodes, memo))
+    });
+    memo.insert(id, complete);
+    complete
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1096,6 +1760,453 @@ mod tests {
             let (outcomes, weight) = plan.draw(&laws, &mut Rng::new(seed)).unwrap();
             assert_eq!(outcomes[1], 2);
             assert!(weight.lo <= plan.bound);
+        }
+    }
+
+    fn forest_event_mass(
+        model: &Model,
+        laws: &[Law],
+        prefix_fixtures: &[usize],
+        prefix: &[u8],
+        suffix: &[usize],
+        lower: &[i32],
+        upper: &[i32],
+        selected: &[usize],
+        stride: i32,
+    ) -> f64 {
+        let mut mass = 0.0;
+        let mut state = (0..model.n)
+            .map(|t| model.base[t].points * stride + model.base[t].wins)
+            .collect::<Vec<_>>();
+        for (&fi, &o) in prefix_fixtures.iter().zip(prefix) {
+            let (hg, ag) = outcome_gain(model, fi, o as usize, stride);
+            let f = &model.fixtures[fi];
+            for &t in selected {
+                if t == f.home {
+                    state[t] += hg;
+                }
+                if t == f.away {
+                    state[t] += ag;
+                }
+            }
+        }
+        fn rec(
+            model: &Model,
+            laws: &[Law],
+            suffix: &[usize],
+            at: usize,
+            state: &mut [i32],
+            p: f64,
+            mass: &mut f64,
+            lower: &[i32],
+            upper: &[i32],
+            selected: &[usize],
+            stride: i32,
+        ) {
+            if at == suffix.len() {
+                if selected
+                    .iter()
+                    .all(|&t| state[t] >= lower[t] && state[t] <= upper[t])
+                {
+                    *mass += p;
+                }
+                return;
+            }
+            let fi = suffix[at];
+            let f = &model.fixtures[fi];
+            for o in 0..3 {
+                let probability = laws[fi].outcomes[o].mid();
+                if probability == 0.0 {
+                    continue;
+                }
+                let (hg, ag) = outcome_gain(model, fi, o, stride);
+                if selected.contains(&f.home) {
+                    state[f.home] += hg;
+                }
+                if selected.contains(&f.away) {
+                    state[f.away] += ag;
+                }
+                rec(
+                    model,
+                    laws,
+                    suffix,
+                    at + 1,
+                    state,
+                    p * probability,
+                    mass,
+                    lower,
+                    upper,
+                    selected,
+                    stride,
+                );
+                if selected.contains(&f.home) {
+                    state[f.home] -= hg;
+                }
+                if selected.contains(&f.away) {
+                    state[f.away] -= ag;
+                }
+            }
+        }
+        rec(
+            model, laws, suffix, 0, &mut state, 1.0, &mut mass, lower, upper, selected, stride,
+        );
+        mass
+    }
+
+    #[test]
+    fn forest_roots_share_suffix_states_and_preserve_native_event_mass() {
+        let (model, laws) = tiny_model(3);
+        let masks = [7; 3];
+        let lower = [39, 0];
+        let upper = [39, 0];
+        let prefixes = vec![vec![2], vec![1], vec![0], vec![2]];
+        let deadline = Instant::now() + std::time::Duration::from_secs(5);
+        let forest = Forest::build(
+            &model,
+            &laws,
+            &masks,
+            &lower,
+            &upper,
+            &[0, 1],
+            4,
+            &[0],
+            &prefixes,
+            1000,
+            deadline,
+        )
+        .unwrap();
+        assert!(forest.complete);
+        assert_eq!(forest.roots.len(), 4);
+        let suffix = [1usize, 2];
+        for (i, prefix) in prefixes.iter().enumerate() {
+            let root = &forest.roots[i];
+            let native_prefix = laws[0].outcomes[prefix[0] as usize].mid();
+            assert!(root.prefix_mass.lo <= native_prefix && root.prefix_mass.hi >= native_prefix);
+            let exact = forest_event_mass(
+                &model,
+                &laws,
+                &[0],
+                prefix,
+                &suffix,
+                &lower,
+                &upper,
+                &[0, 1],
+                4,
+            );
+            assert!(
+                root.potential <= exact + 1e-12 && root.potential + 1e-12 >= exact,
+                "root {i}: {} vs {exact}",
+                root.potential
+            );
+            assert_eq!(root.zero, exact == 0.0);
+            if !root.zero {
+                let (outcomes, weight) = forest
+                    .draw_root(i, &laws, &mut Rng::new(61 + i as i64))
+                    .unwrap();
+                assert_eq!(outcomes[0], prefix[0]);
+                assert!(weight.lo <= root.cap);
+                assert_eq!(outcomes[1..], [2, 2]);
+            }
+        }
+    }
+
+    #[test]
+    fn forest_shares_memo_across_many_prefix_roots_and_partial_caps_hold() {
+        let (model, laws) = tiny_model(4);
+        let masks = [7; 4];
+        let lower = [52, 0];
+        let upper = [52, 0];
+        let prefixes = vec![vec![2]; 128];
+        let deadline = Instant::now() + std::time::Duration::from_secs(5);
+        let shared = Forest::build(
+            &model,
+            &laws,
+            &masks,
+            &lower,
+            &upper,
+            &[0, 1],
+            4,
+            &[0],
+            &prefixes,
+            5000,
+            deadline,
+        )
+        .unwrap();
+        let one = Forest::build(
+            &model,
+            &laws,
+            &masks,
+            &lower,
+            &upper,
+            &[0, 1],
+            4,
+            &[0],
+            &[vec![2]],
+            5000,
+            deadline,
+        )
+        .unwrap();
+        assert!(shared.complete && one.complete);
+        assert_eq!(
+            shared.states, one.states,
+            "duplicate prefixes should reuse the same suffix nodes"
+        );
+        assert!(
+            shared.states * 64 < one.states * prefixes.len(),
+            "forest did not amortize prefix roots"
+        );
+
+        let partial = Forest::build(
+            &model,
+            &laws,
+            &masks,
+            &lower,
+            &upper,
+            &[0, 1],
+            4,
+            &[0],
+            &[vec![2]],
+            0,
+            deadline,
+        )
+        .unwrap();
+        assert!(!partial.complete);
+        let root = &partial.roots[0];
+        assert!(!root.complete && !root.zero);
+        let suffix = [1usize, 2, 3];
+        let expected = forest_event_mass(
+            &model,
+            &laws,
+            &[0],
+            &[2],
+            &suffix,
+            &lower,
+            &upper,
+            &[0, 1],
+            4,
+        );
+        let mut estimate = 0.0;
+        for a in 0..3 {
+            for b in 0..3 {
+                for c in 0..3 {
+                    let os = [a, b, c];
+                    let mut q = 1.0;
+                    let mut w = 1.0;
+                    let mut valid = true;
+                    for (j, &fi) in suffix.iter().enumerate() {
+                        if masks[fi] & (1 << os[j]) == 0 {
+                            valid = false;
+                            break;
+                        }
+                        let z: f64 = (0..3).map(|o| laws[fi].outcomes[o].mid()).sum();
+                        q *= laws[fi].outcomes[os[j]].mid() / z;
+                        w *= z;
+                    }
+                    if valid && os.iter().all(|&o| o == 2) {
+                        estimate += q * w;
+                    }
+                    if valid {
+                        assert!(w <= root.cap * (1.0 + 1e-12));
+                    }
+                }
+            }
+        }
+        assert!(
+            (estimate - expected).abs() < 1e-12,
+            "QW={estimate}, native={expected}"
+        );
+    }
+
+    #[test]
+    fn distinct_prefixes_with_equal_selected_state_share_suffix_root() {
+        let (model, laws) = tiny_model(4);
+        let masks = [7; 4];
+        let lower = [26, 26];
+        let upper = [26, 26];
+        let prefixes = vec![vec![2, 0], vec![0, 2]];
+        let forest = Forest::build(
+            &model,
+            &laws,
+            &masks,
+            &lower,
+            &upper,
+            &[0, 1],
+            4,
+            &[0, 1],
+            &prefixes,
+            1000,
+            Instant::now() + std::time::Duration::from_secs(5),
+        )
+        .unwrap();
+        assert!(forest.complete);
+        assert_ne!(
+            forest.roots[0].prefix_outcomes,
+            forest.roots[1].prefix_outcomes
+        );
+        assert_eq!(forest.roots[0].node, forest.roots[1].node);
+        assert_eq!(forest.roots[0].potential, forest.roots[1].potential);
+        for i in 0..2 {
+            let exact = forest_event_mass(
+                &model,
+                &laws,
+                &[0, 1],
+                &prefixes[i],
+                &[2, 3],
+                &lower,
+                &upper,
+                &[0, 1],
+                4,
+            );
+            assert!((forest.roots[i].potential - exact).abs() < 1e-12);
+            let (outcomes, weight) = forest
+                .draw_root(i, &laws, &mut Rng::new(i as i64 + 3))
+                .unwrap();
+            assert_eq!(&outcomes[0..2], &prefixes[i]);
+            assert!(weight.lo <= forest.roots[i].cap);
+        }
+    }
+
+    #[test]
+    fn partial_forest_internal_nodes_preserve_mass_and_root_caps() {
+        fn walk(
+            forest: &Forest,
+            laws: &[Law],
+            pos: usize,
+            node_id: Option<usize>,
+            outcomes: &mut [u8],
+            q_path: Interval,
+            w_path: Interval,
+            event_qw: &mut Interval,
+            max_weight: &mut f64,
+        ) -> Result<(), String> {
+            let plan = &forest.core;
+            if pos == plan.order.len() {
+                *max_weight = max_weight.max(w_path.hi);
+                if plan.order.iter().all(|&fi| outcomes[fi] == 2) {
+                    *event_qw = event_qw.add(q_path.mul(w_path));
+                }
+                return Ok(());
+            }
+            let fi = plan.order[pos];
+            if let Some(id) = node_id {
+                let node = &plan.nodes[id];
+                if node.terminal.is_some() {
+                    return Ok(());
+                }
+                if !node.weights.iter().any(|x| *x > 0.) {
+                    return Ok(());
+                }
+                let q = categorical_probabilities(&node.weights)?;
+                for edge in &node.edges {
+                    let o = edge.outcome as usize;
+                    outcomes[fi] = o as u8;
+                    let ratio = laws[fi].outcomes[o].div(q[o]);
+                    walk(
+                        forest,
+                        laws,
+                        pos + 1,
+                        edge.child,
+                        outcomes,
+                        q_path.mul(q[o]),
+                        w_path.mul(ratio),
+                        event_qw,
+                        max_weight,
+                    )?;
+                }
+            } else {
+                let weights: Vec<f64> = (0..3)
+                    .map(|o| {
+                        if plan.masks[fi] & (1 << o) != 0 {
+                            laws[fi].outcomes[o].mid()
+                        } else {
+                            0.
+                        }
+                    })
+                    .collect();
+                let q = categorical_probabilities(&weights)?;
+                for o in 0..3 {
+                    if weights[o] == 0. {
+                        continue;
+                    }
+                    outcomes[fi] = o as u8;
+                    let ratio = laws[fi].outcomes[o].div(q[o]);
+                    walk(
+                        forest,
+                        laws,
+                        pos + 1,
+                        None,
+                        outcomes,
+                        q_path.mul(q[o]),
+                        w_path.mul(ratio),
+                        event_qw,
+                        max_weight,
+                    )?;
+                }
+            }
+            Ok(())
+        }
+
+        let (model, laws) = tiny_model(4);
+        let masks = [7; 4];
+        let lower = [52, 0];
+        let upper = [52, 0];
+        let prefix = vec![2];
+        let expected = forest_event_mass(
+            &model,
+            &laws,
+            &[0],
+            &prefix,
+            &[1, 2, 3],
+            &lower,
+            &upper,
+            &[0, 1],
+            4,
+        );
+        for state_cap in 1..=3 {
+            let forest = Forest::build(
+                &model,
+                &laws,
+                &masks,
+                &lower,
+                &upper,
+                &[0, 1],
+                4,
+                &[0],
+                &[prefix.clone()],
+                state_cap,
+                Instant::now() + std::time::Duration::from_secs(5),
+            )
+            .unwrap();
+            let root = &forest.roots[0];
+            let mut outcomes = vec![0; laws.len()];
+            outcomes[0] = 2;
+            let mut event_qw = Interval::point(0.);
+            let mut max_weight = 0.;
+            walk(
+                &forest,
+                &laws,
+                0,
+                root.node,
+                &mut outcomes,
+                Interval::point(1.),
+                Interval::point(1.),
+                &mut event_qw,
+                &mut max_weight,
+            )
+            .unwrap();
+            assert!(
+                event_qw.lo <= expected && event_qw.hi >= expected,
+                "cap={state_cap}, QW={event_qw:?}, native={expected}"
+            );
+            assert!(
+                max_weight <= root.cap * (1.0 + 1e-12),
+                "cap={state_cap}, max={max_weight}, B={}",
+                root.cap
+            );
+            for seed in 0..16 {
+                let (_, weight) = forest.draw_root(0, &laws, &mut Rng::new(seed)).unwrap();
+                assert!(weight.lo <= root.cap);
+            }
         }
     }
 }

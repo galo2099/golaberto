@@ -57,6 +57,21 @@ limit; the retained complete plan selected nine rivals and had cap
 reaching a positive score contribution does not by itself tighten the unseen
 contribution enough to satisfy the requested precision.
 
+## Compact conditional WDL follow-up
+
+The shared suffix forest now completes team 584's 156-assignment conditional
+proposal (90 tied and 66 strict assignments) without a full joint table per
+assignment. An isolated nine-rival check reduces the certified contribution
+cap from `1.0140615550832632e-31` to `1.335714790055119e-32`, a factor 7.59.
+
+The unchanged controller's shared 180-second run nevertheless remains
+unqualified: interval `[4.2494598410268494e-41,1.184683963327682e-36]`, ratio
+27878.5, 7297920 draws and 179.249 seconds external wall time. It replaces the
+initial compact proposal with a stronger joint-only plan and never rebuilds
+GD conditioning after that growth. The fixed-plan gain therefore does not
+transfer to the final proposal. See COMPACT_PARTITION_RESULTS.md for the
+construction, statistical review, tests and complete comparison.
+
 ## Initial snapshot mismatch
 
 An initial run used the285-played-game uploaded snapshot, which also has
