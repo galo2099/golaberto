@@ -106,6 +106,7 @@ class ResidualAuditTests(unittest.TestCase):
             "state_cap": 1_000_000, "max_remaining": 24,
             "probe_nodes": 25_000, "probe_ms": 25,
             "budget_fraction": .15, "canonicalize_certain": False,
+            "joint_ratio": False,
         })
         self.assertTrue(result["hashes_unchanged"])
 
@@ -182,6 +183,7 @@ class ResidualAuditTests(unittest.TestCase):
         self.args.suffix_probe_ms = 17
         self.args.suffix_budget_fraction = .2
         self.args.suffix_canonicalize_certain = True
+        self.args.suffix_joint_ratio = True
 
         def factory(*args):
             engine = FakeEngine(*args, clock=clock)
@@ -195,6 +197,7 @@ class ResidualAuditTests(unittest.TestCase):
             "state_cap": 123456, "max_remaining": 18,
             "probe_nodes": 4321, "probe_ms": 17,
             "budget_fraction": .2, "canonicalize_certain": True,
+            "joint_ratio": True,
         })
         self.assertTrue(result["suffix_bounds_enabled"])
         self.assertTrue(result["suffix_request_sent"])
@@ -218,6 +221,15 @@ class ResidualAuditTests(unittest.TestCase):
             residual_audit.suffix_options(self.args)
         self.args.suffix_bounds = True
         self.args.suffix_canonicalize_certain = "true"
+        with self.assertRaisesRegex(ValueError, "must be boolean"):
+            residual_audit.suffix_options(self.args)
+
+    def test_joint_ratio_requires_bounds_and_is_forwarded(self):
+        self.args.suffix_joint_ratio = True
+        with self.assertRaisesRegex(ValueError, "requires --suffix-bounds"):
+            residual_audit.suffix_options(self.args)
+        self.args.suffix_bounds = True
+        self.args.suffix_joint_ratio = "true"
         with self.assertRaisesRegex(ValueError, "must be boolean"):
             residual_audit.suffix_options(self.args)
 

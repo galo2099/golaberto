@@ -32,6 +32,10 @@ fn suffix_options(command: &Value) -> Result<Option<joint::SuffixOptions>, Strin
         None => false,
         Some(v) => v.as_bool().ok_or("suffix.canonicalize_certain must be a boolean")?,
     };
+    let joint_ratio = match object.get("joint_ratio") {
+        None => defaults.joint_ratio,
+        Some(v) => v.as_bool().ok_or("suffix.joint_ratio must be a boolean")?,
+    };
     Ok(Some(joint::SuffixOptions {
         state_cap: uint("state_cap", defaults.state_cap as u64)?,
         max_remaining: uint("max_remaining", defaults.max_remaining as u64)?,
@@ -39,6 +43,7 @@ fn suffix_options(command: &Value) -> Result<Option<joint::SuffixOptions>, Strin
         probe_ms,
         budget_fraction,
         canonicalize_certain,
+        joint_ratio,
     }))
 }
 
@@ -216,6 +221,8 @@ mod tests {
         assert_eq!(options.probe_ms, 25);
         assert_eq!(options.budget_fraction, 0.15);
         assert!(!options.canonicalize_certain);
+        assert!(!options.joint_ratio);
+        assert!(suffix_options(&json!({"suffix":{"joint_ratio":true}})).unwrap().unwrap().joint_ratio);
         assert!(suffix_options(&json!({"suffix":{"canonicalize_certain":true}})).unwrap().unwrap().canonicalize_certain);
     }
 
@@ -225,5 +232,6 @@ mod tests {
         assert!(suffix_options(&json!({"suffix":{"probe_nodes":-1}})).is_err());
         assert!(suffix_options(&json!({"suffix":{"budget_fraction":"small"}})).is_err());
         assert!(suffix_options(&json!({"suffix":{"canonicalize_certain":"true"}})).is_err());
+        assert!(suffix_options(&json!({"suffix":{"joint_ratio":"true"}})).is_err());
     }
 }

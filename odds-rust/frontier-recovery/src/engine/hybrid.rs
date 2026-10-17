@@ -202,7 +202,8 @@ impl Engine {
                 "state_cap":o.state_cap,"max_remaining":o.max_remaining,
                 "probe_nodes":o.probe_nodes,"probe_ms":o.probe_ms,
                 "budget_fraction":o.budget_fraction,
-                "canonicalize_certain":o.canonicalize_certain
+                "canonicalize_certain":o.canonicalize_certain,
+                "joint_ratio":o.joint_ratio
             })),
             "calls":suffix_diagnostics.calls,"visits":suffix_diagnostics.visits,
             "cache_hits":suffix_diagnostics.cache_hits,"entries":suffix_diagnostics.entries,
@@ -227,7 +228,13 @@ impl Engine {
             "max_exact_components":suffix_diagnostics.max_exact_components,
             "unsupported_plans":suffix_diagnostics.unsupported_plans,
             "min_positive_g":suffix_diagnostics.min_positive_g,
-            "max_positive_g":suffix_diagnostics.max_positive_g
+            "max_positive_g":suffix_diagnostics.max_positive_g,
+            "joint_ratio_enabled":suffix_diagnostics.joint_ratio_enabled,
+            "joint_ratio_finite_bounds":suffix_diagnostics.joint_ratio_finite_bounds,
+            "min_joint_ratio_cap":suffix_diagnostics.min_joint_ratio_cap,
+            "max_joint_ratio_cap":suffix_diagnostics.max_joint_ratio_cap,
+            "joint_ratio_tightenings":suffix_diagnostics.joint_ratio_tightenings,
+            "joint_ratio_zero_bounds":suffix_diagnostics.joint_ratio_zero_bounds
         });
         Ok(json!({
             "operation":"residual_certificate","id":id,"epoch":region.epoch,"B":b,"H":h,
@@ -244,6 +251,10 @@ impl Engine {
             "prunes":certificate.prunes,"leaves":certificate.leaves,
             "zero_pw_prunes":certificate.zero_pw_prunes,
             "zero_residual_prunes":certificate.zero_residual_prunes,
+            "final_refresh_applied":certificate.final_refresh_applied,
+            "final_refresh_skipped":certificate.final_refresh_skipped,
+            "final_refresh_ms":certificate.final_refresh_ms,
+            "aggregation_ms":certificate.aggregation_ms,
             "zero_residual_leaves":certificate.zero_residual_leaves,
             "feasible_leaves":certificate.feasible_leaves,
             "memory_limited":certificate.memory_limited,
@@ -565,11 +576,14 @@ mod tests {
             probe_ms: 5,
             budget_fraction: 0.1,
             canonicalize_certain: true,
+            joint_ratio: true,
         };
         let enabled = engine.residual_certificate_with_options(0, 0.1, 100, 100, Some(options)).unwrap();
         assert_eq!(enabled["suffix"]["enabled"], true);
         assert_eq!(enabled["suffix"]["options"]["max_remaining"], 2);
         assert_eq!(enabled["suffix"]["options"]["canonicalize_certain"], true);
+        assert_eq!(enabled["suffix"]["options"]["joint_ratio"], true);
+        assert_eq!(enabled["suffix"]["joint_ratio_enabled"], true);
         assert_eq!(enabled["suffix"]["canonicalization_enabled"], true);
         assert_eq!(engine.regions[0].epoch, epoch);
         assert_eq!(engine.regions[0].plan.as_ref().unwrap().bound, bound);

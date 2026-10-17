@@ -52,6 +52,7 @@ def suffix_options(args) -> dict:
         "probe_ms": getattr(args, "suffix_probe_ms", 25),
         "budget_fraction": getattr(args, "suffix_budget_fraction", .15),
         "canonicalize_certain": getattr(args, "suffix_canonicalize_certain", False),
+        "joint_ratio": getattr(args, "suffix_joint_ratio", False),
     }
     for name in ("state_cap", "max_remaining", "probe_nodes", "probe_ms"):
         value = options[name]
@@ -66,6 +67,11 @@ def suffix_options(args) -> dict:
         raise ValueError("suffix canonicalize-certain must be boolean")
     if canonicalize_certain and not options["enabled"]:
         raise ValueError("--suffix-canonicalize-certain requires --suffix-bounds")
+    joint_ratio = options["joint_ratio"]
+    if not isinstance(joint_ratio, bool):
+        raise ValueError("suffix joint-ratio must be boolean")
+    if joint_ratio and not options["enabled"]:
+        raise ValueError("--suffix-joint-ratio requires --suffix-bounds")
     return options
 
 
@@ -193,6 +199,7 @@ def run_audit(args, protocol_factory=Protocol, now=time.monotonic) -> dict:
                 "probe_ms": suffix["probe_ms"],
                 "budget_fraction": suffix["budget_fraction"],
                 "canonicalize_certain": suffix["canonicalize_certain"],
+                "joint_ratio": suffix["joint_ratio"],
             }
             output["suffix_request_sent"] = True
         certificate = engine.call(**certificate_request)
@@ -244,6 +251,8 @@ def main() -> None:
     parser.add_argument("--suffix-budget-fraction", type=float, default=.15)
     parser.add_argument("--suffix-canonicalize-certain", action="store_true",
                         help="canonicalize certain suffix fixture groups")
+    parser.add_argument("--suffix-joint-ratio", action="store_true",
+                        help="enable joint-ratio suffix bounds")
     parser.add_argument("--output")
     args = parser.parse_args()
     if not math.isfinite(args.budget) or args.budget <= 0:

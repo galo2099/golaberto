@@ -1,8 +1,9 @@
 //! Bounded deterministic audit of the residual left by guided clipping.
 //!
-//! The search explores non-overlapping proposal prefixes.  Its unresolved
-//! bounds use only the native likelihood cap and a one-team PW upper bound;
-//! guided likelihood is used only at complete, feasible paths.
+//! The search explores non-overlapping proposal prefixes. Its bounds combine
+//! native likelihood caps, cached suffix bounds (including joint native/guided
+//! ratios), and one-team PW upper bounds while retaining unfinished proposal
+//! mass in the reported upper bound.
 
 use super::{categorical_probabilities, outcome_gain, Edge, Forest, Interval, Law, Plan};
 use golaberto_odds::model::Model;
@@ -90,6 +91,10 @@ pub struct ResidualCertificate {
     pub depth_stats: Vec<ResidualDepthStat>,
     pub top_pending: Vec<ResidualPendingBranch>,
     pub suffix: SuffixDiagnostics,
+    pub final_refresh_applied: usize,
+    pub final_refresh_skipped: usize,
+    pub final_refresh_ms: f64,
+    pub aggregation_ms: f64,
 }
 
 impl Plan {
@@ -243,6 +248,38 @@ fn up(x: f64) -> f64 {
 fn clipped_guide_lower(prefix: Interval, suffix: f64, clip_h: f64) -> f64 {
     let guide = widen_if_invalid(prefix.mul(Interval::point(suffix)));
     widen_if_invalid(Interval::point(clip_h).mul(Interval::point(guide.lo))).lo
+}
+
+fn apply_joint_cap(v_cap: f64, branch: &Branch, native_over_guided_cap: f64, h: f64) -> f64 {
+    if branch.v.hi == 0.0 { return 0.0; }
+    if !branch.g.lo.is_finite() || branch.g.lo <= 0.0 || !native_over_guided_cap.is_finite() || native_over_guided_cap < 0.0 {
+        return v_cap;
+    }
+    if h <= 0.0 { return v_cap; }
+    let k = Interval::point(branch.v.hi)
+        .div(Interval::point(branch.g.lo))
+        .mul(Interval::point(native_over_guided_cap)).hi;
+    if !k.is_finite() || k <= 0.0 { return v_cap; }
+    if k <= h { return 0.0; }
+    let h_over_k_lower = Interval::point(h).div(Interval::point(k)).lo.max(0.0);
+    let fraction_upper = up(1.0 - h_over_k_lower).clamp(0.0, 1.0);
+    let residual = Interval::point(v_cap).mul(Interval::point(fraction_upper)).hi;
+    residual.min(v_cap)
+}
+
+fn pending_order(a: &ResidualPendingBranch, b: &ResidualPendingBranch) -> Ordering {
+    b.expectation_upper.total_cmp(&a.expectation_upper)
+        .then_with(|| a.source.cmp(&b.source))
+        .then_with(|| a.depth.cmp(&b.depth))
+}
+
+fn retain_top_pending(top: &mut Vec<ResidualPendingBranch>, candidate: ResidualPendingBranch) -> Option<usize> {
+    let at = top.iter().position(|x| pending_order(&candidate, x) == Ordering::Less)
+        .unwrap_or(top.len());
+    if at >= 5 && top.len() == 5 { return None; }
+    top.insert(at, candidate);
+    if top.len() > 5 { top.pop(); }
+    Some(at)
 }
 
 #[derive(Clone)]
@@ -457,7 +494,7 @@ fn branch_bounds(
             cache,
         )? {
             suffix::Bound::Impossible => return Ok((0.0, 0.0, true)),
-            suffix::Bound::Feasible(g_future) => {
+            suffix::Bound::Feasible { min_g: g_future, native_over_guided_cap } => {
                 let clipped = clipped_guide_lower(branch.g, g_future, clip_h);
                 residual_cap = if v_cap <= clipped {
                     0.0
@@ -467,6 +504,14 @@ fn branch_bounds(
                 if residual_cap == 0.0 {
                     cache.record_guide_zero();
                     cache.record_guide_prune();
+                }
+                let joint = apply_joint_cap(v_cap, branch, native_over_guided_cap, clip_h);
+                if joint < residual_cap {
+                    if let Some(cache) = suffix_cache.as_deref_mut() {
+                        cache.record_joint_tightening();
+                        if residual_cap > 0.0 && joint == 0.0 { cache.record_joint_zero(); }
+                    }
+                    residual_cap = joint;
                 }
             }
             suffix::Bound::Unknown => {}
@@ -521,6 +566,9 @@ pub fn residual_certificate_with_options(
     suffix_options: Option<SuffixOptions>,
 ) -> Result<ResidualCertificate, String> {
     let started = Instant::now();
+    let native_budget = deadline.saturating_duration_since(started);
+    let refresh_reserve = Duration::from_secs_f64((native_budget.as_secs_f64() * 0.1).min(1.0));
+    let search_deadline = deadline.checked_sub(refresh_reserve).unwrap_or(deadline);
     if laws.len() != model.fixtures.len()
         || !cap_b.is_finite()
         || cap_b <= 0.0
@@ -536,7 +584,7 @@ pub fn residual_certificate_with_options(
     let mut snapshots = Vec::new();
     let mut pmf_cache = NativePmfCache::default();
     let mut suffix_cache = suffix_options
-        .map(|options| suffix::Cache::new(options, started, deadline))
+        .map(|options| suffix::Cache::new(options, started, search_deadline))
         .transpose()?;
     let mut prunes = 0usize;
     let mut zero_pw_prunes = 0usize;
@@ -572,7 +620,7 @@ pub fn residual_certificate_with_options(
             clip_h,
             &mut pmf_cache,
             suffix_cache.as_mut(),
-            deadline,
+            search_deadline,
         )?;
         br.bound = bound;
         br.residual_cap = residual_cap;
@@ -602,7 +650,7 @@ pub fn residual_certificate_with_options(
     let mut completed_bound = 0.0f64;
     let mut completed_max = 0.0f64;
     while let Some(branch) = heap.pop() {
-        if expanded >= node_limit || Instant::now() >= deadline {
+        if expanded >= node_limit || Instant::now() >= search_deadline {
             heap.push(branch);
             break;
         }
@@ -621,7 +669,7 @@ pub fn residual_certificate_with_options(
                         model,
                         laws,
                         cache,
-                        deadline,
+                        search_deadline,
                     )?;
                     branch.suffix_probed = true;
                     if !matches!(bound, suffix::Bound::Unknown) {
@@ -634,7 +682,7 @@ pub fn residual_certificate_with_options(
                             clip_h,
                             &mut pmf_cache,
                             Some(cache),
-                            deadline,
+                            search_deadline,
                         )?;
                         if new_bound == 0.0 {
                             prunes += 1;
@@ -746,7 +794,7 @@ pub fn residual_certificate_with_options(
                 clip_h,
                 &mut pmf_cache,
                 suffix_cache.as_mut(),
-                deadline,
+                search_deadline,
             )?;
             child.bound = bound;
             child.residual_cap = residual_cap;
@@ -787,70 +835,66 @@ pub fn residual_certificate_with_options(
             });
         }
     }
+    let mut final_refresh_applied = 0usize;
+    let mut final_refresh_skipped = 0usize;
+    let mut final_refresh_ms = 0.0;
+    let mut pending = std::mem::take(&mut heap).into_vec();
     if let Some(cache) = suffix_cache.as_mut() {
-        let mut refreshed = Vec::with_capacity(heap.len());
-        for mut branch in std::mem::take(&mut heap).into_vec() {
-            let source = &sources[branch.source];
-            match suffix::cached(
-                source,
-                branch.pos,
-                branch.node,
-                &branch.totals,
-                model,
-                laws,
-                cache,
-            )? {
-                suffix::Bound::Impossible => {
-                    prunes += 1;
-                    zero_pw_prunes += 1;
-                    continue;
-                }
-                suffix::Bound::Feasible(g_future) => {
-                    let plan = source.graph.plan();
-                    let suffix_cap = branch
-                        .node
-                        .map_or_else(|| plan.fallback_caps[branch.pos], |id| plan.nodes[id].cap);
-                    let v_cap = branch
-                        .v
-                        .mul(Interval::point(suffix_cap))
-                        .hi
-                        .min(cap_b)
-                        .max(0.0);
-                    let clipped = clipped_guide_lower(branch.g, g_future, clip_h);
-                    let residual_cap = if v_cap <= clipped {
-                        0.0
-                    } else {
-                        up(v_cap - clipped).min(cap_b)
-                    };
-                    if residual_cap == 0.0 {
-                        cache.record_guide_zero();
-                        cache.record_guide_prune();
-                    }
-                    branch.bound = branch
-                        .bound
-                        .min(branch.q0.mul(Interval::point(residual_cap)).hi);
-                    branch.residual_cap = branch.residual_cap.min(residual_cap);
-                }
-                suffix::Bound::Unknown => {}
-            }
-            if branch.bound == 0.0 {
-                prunes += 1;
-                if branch.residual_cap == 0.0 {
-                    zero_residual_prunes += 1;
-                }
-            } else {
+        let refresh_started = Instant::now();
+        let mut refreshed = Vec::with_capacity(pending.len());
+        for mut branch in pending {
+            if Instant::now() >= deadline {
+                final_refresh_skipped += 1;
                 refreshed.push(branch);
+                continue;
+            }
+            let source = &sources[branch.source];
+            let bound = suffix::cached(source, branch.pos, branch.node, &branch.totals,
+                model, laws, cache)?;
+            if matches!(bound, suffix::Bound::Unknown) {
+                final_refresh_skipped += 1;
+                refreshed.push(branch);
+                continue;
+            }
+            final_refresh_applied += 1;
+            match bound {
+                suffix::Bound::Impossible => {
+                    prunes += 1; zero_pw_prunes += 1;
+                }
+                suffix::Bound::Feasible { min_g, native_over_guided_cap } => {
+                    let plan = source.graph.plan();
+                    let suffix_cap = branch.node.map_or_else(|| plan.fallback_caps[branch.pos], |id| plan.nodes[id].cap);
+                    let v_cap = branch.v.mul(Interval::point(suffix_cap)).hi.min(cap_b).max(0.0);
+                    let old_residual = branch.residual_cap;
+                    let guided = clipped_guide_lower(branch.g, min_g, clip_h);
+                    let mut residual = if v_cap <= guided { 0.0 } else { up(v_cap - guided).min(cap_b) };
+                    let joint = apply_joint_cap(v_cap, &branch, native_over_guided_cap, clip_h);
+                    if joint < residual {
+                        cache.record_joint_tightening();
+                        if residual > 0.0 && joint == 0.0 { cache.record_joint_zero(); }
+                        residual = joint;
+                    }
+                    let residual = residual.min(old_residual);
+                    if residual == 0.0 { cache.record_guide_zero(); cache.record_guide_prune(); }
+                    branch.bound = branch.bound.min(branch.q0.mul(Interval::point(residual)).hi);
+                    branch.residual_cap = residual;
+                    if branch.bound == 0.0 { prunes += 1; zero_residual_prunes += 1; }
+                    else { refreshed.push(branch); }
+                }
+                suffix::Bound::Unknown => unreachable!(),
             }
         }
-        heap = BinaryHeap::from(refreshed);
+        pending = refreshed;
+        final_refresh_ms = refresh_started.elapsed().as_secs_f64() * 1000.0;
     }
+    let aggregation_started = Instant::now();
     let mut expectation_upper = completed_bound;
     let mut max_residual_cap = completed_max;
     let mut min_depth = usize::MAX;
     let mut max_depth = 0usize;
     let mut depths = BTreeMap::<usize, (usize, f64)>::new();
     let mut top_pending = Vec::new();
-    for branch in &heap {
+    for branch in &pending {
         expectation_upper = up(expectation_upper + branch.bound);
         max_residual_cap = max_residual_cap.max(branch.residual_cap);
         min_depth = min_depth.min(branch.depth);
@@ -858,30 +902,28 @@ pub fn residual_certificate_with_options(
         let entry = depths.entry(branch.depth).or_default();
         entry.0 += 1;
         entry.1 = up(entry.1 + branch.bound);
-        let plan = sources[branch.source].graph.plan();
-        let mut touched = vec![false; model.n];
-        for &fi in plan.order.iter().skip(branch.pos) {
-            touched[model.fixtures[fi].home] = true;
-            touched[model.fixtures[fi].away] = true;
-        }
-        top_pending.push(ResidualPendingBranch {
+        let candidate = ResidualPendingBranch {
             source: branch.source,
             depth: branch.depth,
             expectation_upper: branch.bound,
             residual_cap: branch.residual_cap,
-            remaining_touched_teams: touched.iter().filter(|&&v| v).count(),
-        });
+            remaining_touched_teams: 0,
+        };
+        if let Some(index) = retain_top_pending(&mut top_pending, candidate) {
+            if let Some(retained) = top_pending.get_mut(index) {
+                let plan = sources[branch.source].graph.plan();
+                let mut touched = vec![false; model.n];
+                for &fi in plan.order.iter().skip(branch.pos) {
+                    touched[model.fixtures[fi].home] = true;
+                    touched[model.fixtures[fi].away] = true;
+                }
+                retained.remaining_touched_teams = touched.iter().filter(|&&v| v).count();
+            }
+        }
     }
-    top_pending.sort_by(|a, b| {
-        b.expectation_upper
-            .total_cmp(&a.expectation_upper)
-            .then_with(|| a.source.cmp(&b.source))
-            .then_with(|| a.depth.cmp(&b.depth))
-    });
-    top_pending.truncate(5);
     expectation_upper = expectation_upper.min(initial_bounds).min(cap_b).max(0.0);
     max_residual_cap = max_residual_cap.min(initial_max).min(cap_b);
-    let complete = heap.is_empty();
+    let complete = pending.is_empty();
     let suffix_diagnostics = suffix_cache
         .as_mut()
         .map(|c| {
@@ -889,12 +931,13 @@ pub fn residual_certificate_with_options(
             c.diagnostics()
         })
         .unwrap_or_default();
+    let aggregation_ms = aggregation_started.elapsed().as_secs_f64() * 1000.0;
     Ok(ResidualCertificate {
         expectation_upper,
         max_residual_cap,
         initial_bounds,
         expanded,
-        frontier: heap.len(),
+        frontier: pending.len(),
         prunes,
         leaves,
         zero_pw_prunes,
@@ -902,7 +945,7 @@ pub fn residual_certificate_with_options(
         zero_residual_leaves,
         feasible_leaves,
         source_count: sources.len(),
-        frontier_min_depth: if heap.is_empty() { 0 } else { min_depth },
+        frontier_min_depth: if pending.is_empty() { 0 } else { min_depth },
         frontier_max_depth: max_depth,
         elapsed: started.elapsed(),
         memory_limited,
@@ -919,6 +962,10 @@ pub fn residual_certificate_with_options(
             .collect(),
         top_pending,
         suffix: suffix_diagnostics,
+        final_refresh_applied,
+        final_refresh_skipped,
+        final_refresh_ms,
+        aggregation_ms,
     })
 }
 
@@ -946,6 +993,44 @@ mod tests {
 
     fn broad_bounds() -> (Vec<i32>, Vec<i32>) {
         (vec![i32::MIN / 4; 2], vec![i32::MAX / 4; 2])
+    }
+
+    #[test]
+    fn joint_cap_uses_joint_extremum_and_preserves_old_bound_on_unknowns() {
+        let branch = Branch {
+            source: 0, node: None, pos: 0, totals: vec![],
+            v: Interval::point(0.18), g: Interval::point(0.2), q0: Interval::point(1.0),
+            bound: 1.0, residual_cap: 1.0, depth: 0, serial: 0, suffix_probed: false,
+        };
+        // Independent extrema give K=.9 and a positive residual. The paired
+        // path ratio C=.1 gives K=.09, proving zero at H=.11.
+        assert!(apply_joint_cap(0.18, &branch, 1.0, 0.11) > 0.15);
+        assert_eq!(apply_joint_cap(0.18, &branch, 0.1, 0.11), 0.0);
+        let zero_g = Branch { g: Interval { lo: 0.0, hi: 0.2 }, ..branch.clone() };
+        assert_eq!(apply_joint_cap(0.18, &zero_g, 0.1, 0.11), 0.18);
+        assert_eq!(apply_joint_cap(0.18, &branch, f64::INFINITY, 0.11), 0.18);
+        let overflow_k = Branch { v: Interval::point(f64::MAX), ..branch.clone() };
+        assert_eq!(apply_joint_cap(0.18, &overflow_k, 2.0, 0.11), 0.18);
+        let nonfinite_g = Branch { g: Interval { lo: f64::NAN, hi: 1.0 }, ..branch.clone() };
+        assert_eq!(apply_joint_cap(0.18, &nonfinite_g, 0.1, 0.11), 0.18);
+    }
+
+    #[test]
+    fn streaming_top_five_matches_full_sort_with_deterministic_ties() {
+        let candidates: Vec<_> = (0..31).map(|i| ResidualPendingBranch {
+            source: (i * 7) % 9,
+            depth: (i * 3) % 4,
+            expectation_upper: ((i * 5) % 6) as f64,
+            residual_cap: 1.0,
+            remaining_touched_teams: 0,
+        }).collect();
+        let mut expected = candidates.clone();
+        expected.sort_by(pending_order);
+        expected.truncate(5);
+        let mut streamed = Vec::new();
+        for item in candidates { retain_top_pending(&mut streamed, item); }
+        assert_eq!(streamed.iter().map(|x| (x.expectation_upper, x.source, x.depth)).collect::<Vec<_>>(),
+            expected.iter().map(|x| (x.expectation_upper, x.source, x.depth)).collect::<Vec<_>>());
     }
 
     #[test]
@@ -1004,6 +1089,156 @@ mod tests {
         );
         assert!(cert.expectation_upper - exact_upper < 1e-10);
         assert_eq!(cert.leaves, 9);
+        for (native_prefix, mixture) in [(0.7, 0.4), (0.3, 0.6)] {
+            let scaled_source = plan.residual_source(
+                Interval::point(native_prefix), Interval::point(mixture),
+            ).unwrap();
+            let mut joint_options = SuffixOptions::default();
+            joint_options.joint_ratio = true;
+            let scaled = residual_certificate_with_options(
+                &[scaled_source], &model, &laws, 10.0, 0.4, 10_000,
+                Instant::now() + Duration::from_secs(5), Some(joint_options),
+            ).unwrap();
+            let mut exhaustive = 0.0;
+            for a in 0..3 { for b in 0..3 {
+                let outcomes = [a as u8, b as u8];
+                let replay = plan.guide_ratio(&model, &laws, &outcomes).unwrap();
+                let mut q0 = 1.0;
+                let mut v = Interval::point(native_prefix / mixture);
+                for (fi, o) in [(0, a), (1, b)] {
+                    let weights: Vec<f64> = (0..3).map(|x| laws[fi].outcomes[x].mid()).collect();
+                    let q = categorical_probabilities(&weights).unwrap()[o];
+                    q0 *= q.mid();
+                    v = v.mul(laws[fi].outcomes[o].div(q));
+                }
+                let residual = (v.hi - Interval::point(0.4).mul(Interval::point(replay.lo)).lo).max(0.0);
+                exhaustive += mixture * q0 * residual;
+            }}
+            assert!(scaled.expectation_upper + 1e-12 >= exhaustive,
+                "scaled certificate {} below exhaustive {exhaustive}", scaled.expectation_upper);
+        }
+    }
+
+    #[test]
+    fn joint_suffix_cap_and_residual_cover_actual_full_and_fallback_graphs() {
+        let (model, laws) = tiny(3);
+        let lower = vec![13, i32::MIN / 4];
+        let upper = vec![i32::MAX / 4, 13];
+        for (state_cap, require_full) in [(100, true), (1, false)] {
+            let plan = Plan::build(
+                &model, &laws, &[7; 3], &lower, &upper, &[1], 4, state_cap,
+                Instant::now() + Duration::from_secs(5),
+            ).unwrap();
+            assert_eq!(plan.complete, require_full);
+            let mut max_native_over_guided = 0.0f64;
+            let mut min_native_over_guided = f64::INFINITY;
+            let mut saw_fallback_path = false;
+            let mut brute_by_prefix = [0.0f64; 2];
+            let prefixes = [(0.7, 0.4), (0.3, 0.6)];
+            for a in 0..3 { for b in 0..3 { for c in 0..3 {
+                let choices = [a, b, c];
+                let mut node_id = plan.root;
+                let mut totals = plan.base.clone();
+                let mut proposal_mass = 1.0;
+                let mut native_over_proposal = 1.0;
+                let mut guided_over_proposal = 1.0;
+                let mut supported = true;
+                let mut fallback_path = false;
+                for (pos, &fi) in plan.order.iter().enumerate() {
+                    let outcome = choices[pos];
+                    if plan.masks[fi] & (1 << outcome) == 0 {
+                        supported = false;
+                        break;
+                    }
+                    let base: Vec<f64> = if let Some(id) = node_id {
+                        plan.nodes[id].weights.to_vec()
+                    } else {
+                        fallback_path = true;
+                        (0..3).map(|o| if plan.masks[fi] & (1 << o) != 0 {
+                            laws[fi].outcomes[o].mid()
+                        } else { 0.0 }).collect()
+                    };
+                    let proposal = categorical_probabilities(&base).unwrap();
+                    let proposal_q = proposal[outcome].mid();
+                    if proposal_q <= 0.0 {
+                        supported = false;
+                        break;
+                    }
+                    let guided_weights = plan.guided_weights(&model, &laws, fi, pos, &totals, &base).unwrap();
+                    let guided_q = categorical_probabilities(&guided_weights).unwrap()[outcome].mid();
+                    if guided_q <= 0.0 {
+                        supported = false;
+                        break;
+                    }
+                    let native_p = laws[fi].outcomes[outcome].mid();
+                    proposal_mass *= proposal_q;
+                    native_over_proposal *= native_p / proposal_q;
+                    guided_over_proposal *= guided_q / proposal_q;
+                    let (hg, ag) = outcome_gain(&model, fi, outcome, plan.stride);
+                    let fixture = &model.fixtures[fi];
+                    totals[fixture.home] = totals[fixture.home].saturating_add(hg);
+                    totals[fixture.away] = totals[fixture.away].saturating_add(ag);
+                    if let Some(id) = node_id {
+                        let Some(edge) = plan.nodes[id].edges.iter().find(|e| e.outcome as usize == outcome) else {
+                            supported = false;
+                            break;
+                        };
+                        fallback_path |= edge.child.is_none();
+                        node_id = edge.child;
+                    }
+                }
+                if !supported || proposal_mass == 0.0 || !selected_feasible(&plan, &totals) {
+                    continue;
+                }
+                let native_over_guided = native_over_proposal / guided_over_proposal;
+                max_native_over_guided = max_native_over_guided.max(native_over_guided);
+                min_native_over_guided = min_native_over_guided.min(native_over_guided);
+                saw_fallback_path |= fallback_path;
+                for (i, (native_prefix, mixture)) in prefixes.iter().copied().enumerate() {
+                    let v = native_prefix / mixture * native_over_proposal;
+                    let g = guided_over_proposal;
+                    brute_by_prefix[i] += mixture * proposal_mass * (v - 0.4 * g).max(0.0);
+                }
+            }}}
+            assert!(max_native_over_guided.is_finite() && max_native_over_guided > 0.0);
+            assert!(max_native_over_guided - min_native_over_guided > 1e-6,
+                "fixture must exercise varied guidance ratios: min={min_native_over_guided} max={max_native_over_guided}");
+            if !require_full {
+                assert!(saw_fallback_path, "partial plan must enumerate an actual native fallback path");
+            }
+
+            for canonicalize_certain in [false, true] {
+                let source = plan.residual_source(Interval::point(0.7), Interval::point(0.4)).unwrap();
+                let now = Instant::now();
+                let mut options = SuffixOptions::default();
+                options.joint_ratio = true;
+                options.canonicalize_certain = canonicalize_certain;
+                let mut cache = suffix::Cache::new(options, now, now + Duration::from_secs(3)).unwrap();
+                let bound = suffix::minimum(&source, 0, source.node, &source.totals,
+                    &model, &laws, &mut cache, now + Duration::from_secs(3)).unwrap();
+                let suffix::Bound::Feasible { native_over_guided_cap, .. } = bound else {
+                    panic!("expected solved suffix cap")
+                };
+                assert!(native_over_guided_cap + 1e-12 >= max_native_over_guided,
+                    "cached C {native_over_guided_cap} below actual graph ratio {max_native_over_guided}; full={require_full} canonical={canonicalize_certain}");
+
+                for (i, (native_prefix, mixture)) in prefixes.iter().copied().enumerate() {
+                    let source = plan.residual_source(Interval::point(native_prefix), Interval::point(mixture)).unwrap();
+                    let disabled = residual_certificate(&[source], &model, &laws, 10.0, 0.4,
+                        100_000, Instant::now() + Duration::from_secs(5)).unwrap();
+                    let source = plan.residual_source(Interval::point(native_prefix), Interval::point(mixture)).unwrap();
+                    let mut cert_options = SuffixOptions::default();
+                    cert_options.joint_ratio = true;
+                    cert_options.canonicalize_certain = canonicalize_certain;
+                    let enabled = residual_certificate_with_options(&[source], &model, &laws, 10.0, 0.4,
+                        100_000, Instant::now() + Duration::from_secs(5), Some(cert_options)).unwrap();
+                    assert!(disabled.expectation_upper + 1e-10 >= brute_by_prefix[i],
+                        "disabled certificate {} below brute mass {}", disabled.expectation_upper, brute_by_prefix[i]);
+                    assert!(enabled.expectation_upper + 1e-10 >= brute_by_prefix[i],
+                        "enabled certificate {} below brute mass {}", enabled.expectation_upper, brute_by_prefix[i]);
+                }
+            }
+        }
     }
 
     #[test]
@@ -1060,6 +1295,17 @@ mod tests {
         assert_eq!(capped.expanded, 0);
         assert_eq!(capped.frontier, 2);
         assert!(capped.expectation_upper <= capped.initial_bounds);
+        let a = plan.residual_source(Interval::point(1.0), Interval::point(0.4)).unwrap();
+        let b = plan.residual_source(Interval::point(1.0), Interval::point(0.6)).unwrap();
+        let mut options = SuffixOptions::default();
+        options.joint_ratio = true;
+        let refreshed = residual_certificate_with_options(
+            &[a, b], &model, &laws, 10.0, 0.4, 0,
+            Instant::now() - Duration::from_secs(1), Some(options),
+        ).unwrap();
+        assert!(refreshed.final_refresh_skipped > 0);
+        assert_eq!(refreshed.expectation_upper, refreshed.initial_bounds);
+        assert!(refreshed.max_residual_cap > 0.0);
     }
 
     #[test]
@@ -1155,20 +1401,18 @@ mod tests {
         let source = plan
             .residual_source(Interval::point(1.0), Interval::point(1.0))
             .unwrap();
-        let cert = residual_certificate(
-            &[source],
-            &model,
-            &laws,
-            10.0,
-            0.4,
-            1,
-            Instant::now() + Duration::from_secs(5),
+        let mut options = SuffixOptions::default();
+        options.joint_ratio = true;
+        let cert = residual_certificate_with_options(
+            &[source], &model, &laws, 10.0, 0.4, 1,
+            Instant::now() + Duration::from_secs(5), Some(options),
         )
         .unwrap();
         assert!(!cert.complete);
         assert_eq!(cert.expanded, 1);
         assert!(cert.frontier > 0);
         assert!(cert.expectation_upper <= cert.initial_bounds);
+        assert!(cert.suffix.joint_ratio_enabled);
     }
 
     #[test]
@@ -1267,8 +1511,10 @@ mod tests {
             .residual_source(Interval::point(0.7), Interval::point(0.4))
             .unwrap();
         let now = Instant::now();
+        let mut joint_options = SuffixOptions::default();
+        joint_options.joint_ratio = true;
         let mut cache =
-            suffix::Cache::new(SuffixOptions::default(), now, now + Duration::from_secs(2))
+            suffix::Cache::new(joint_options, now, now + Duration::from_secs(2))
                 .unwrap();
         let observed = suffix::minimum(
             &source,
@@ -1281,11 +1527,12 @@ mod tests {
             now + Duration::from_secs(2),
         )
         .unwrap();
-        let suffix::Bound::Feasible(lower_g) = observed else {
+        let suffix::Bound::Feasible { min_g: lower_g, native_over_guided_cap } = observed else {
             panic!("expected solved feasible suffix")
         };
         let mut exact_min = f64::INFINITY;
         let mut replay_ratios = Vec::new();
+        let mut exact_joint_max: f64 = 0.0;
         for a in 0..3 {
             for b in 0..3 {
                 let outcomes = [a as u8, b as u8];
@@ -1299,6 +1546,20 @@ mod tests {
                 if !selected_feasible(&plan, &totals) {
                     continue;
                 }
+                let mut likelihood_ratio = 1.0;
+                let mut path_totals = plan.base.clone();
+                for (pos, &o) in outcomes.iter().enumerate() {
+                    let fi = plan.order[pos];
+                    let base: Vec<f64> = (0..3).map(|x| laws[fi].outcomes[x].mid()).collect();
+                    let guided = plan.guided_weights(&model, &laws, fi, pos, &path_totals, &base).unwrap();
+                    let guided_q = categorical_probabilities(&guided).unwrap()[o as usize];
+                    likelihood_ratio *= laws[fi].outcomes[o as usize].hi / guided_q.lo;
+                    let (hg, ag) = outcome_gain(&model, fi, o as usize, plan.stride);
+                    let f = &model.fixtures[fi];
+                    path_totals[f.home] += hg;
+                    path_totals[f.away] += ag;
+                }
+                exact_joint_max = exact_joint_max.max(likelihood_ratio);
                 let ratio = plan.guide_ratio(&model, &laws, &outcomes).unwrap().lo;
                 exact_min = exact_min.min(ratio);
                 replay_ratios.push(ratio);
@@ -1312,6 +1573,21 @@ mod tests {
             "fixture must exercise nontrivial guidance: {replay_ratios:?}"
         );
         assert!(lower_g <= exact_min);
+        assert!(native_over_guided_cap >= exact_joint_max,
+            "joint cap {native_over_guided_cap} below enumerated {exact_joint_max}");
+        let mut canonical_options = SuffixOptions::default();
+        canonical_options.joint_ratio = true;
+        canonical_options.canonicalize_certain = true;
+        let canonical_now = Instant::now();
+        let mut canonical_cache = suffix::Cache::new(canonical_options, canonical_now,
+            canonical_now + Duration::from_secs(2)).unwrap();
+        let canonical = suffix::minimum(&source, 0, source.node, &source.totals,
+            &model, &laws, &mut canonical_cache, canonical_now + Duration::from_secs(2)).unwrap();
+        let suffix::Bound::Feasible { min_g: canonical_g, native_over_guided_cap: canonical_c } = canonical else {
+            panic!("expected canonicalized feasible suffix")
+        };
+        assert!(canonical_g <= exact_min);
+        assert!(canonical_c >= exact_joint_max);
         assert!(
             exact_min - lower_g < 1e-10,
             "cached {lower_g}, replay {exact_min}"
@@ -1323,7 +1599,7 @@ mod tests {
             .residual_source(Interval::point(0.9), Interval::point(0.6))
             .unwrap();
         assert!(
-            matches!(suffix::cached(&other, 0, other.node, &other.totals, &model, &laws, &mut cache).unwrap(), suffix::Bound::Feasible(g) if g == lower_g)
+            matches!(suffix::cached(&other, 0, other.node, &other.totals, &model, &laws, &mut cache).unwrap(), suffix::Bound::Feasible { min_g: g, .. } if g == lower_g)
         );
         assert!(matches!(
             suffix::cached(&source, 0, None, &source.totals, &model, &laws, &mut cache).unwrap(),
@@ -1379,7 +1655,7 @@ mod tests {
                 now + Duration::from_secs(2)
             )
             .unwrap(),
-            suffix::Bound::Feasible(1.0)
+            suffix::Bound::Feasible { min_g: 1.0, .. }
         ));
         let bad = suffix::cached(
             &source,
@@ -1434,7 +1710,7 @@ mod tests {
             now + Duration::from_secs(2),
         )
         .unwrap();
-        assert!(matches!(&first, suffix::Bound::Feasible(_)));
+        assert!(matches!(&first, suffix::Bound::Feasible { .. }));
         let mut second_totals = source.totals.clone();
         second_totals[1] += 1;
         let fi = plan.order[0];
@@ -1470,7 +1746,7 @@ mod tests {
         )
         .unwrap();
         assert!(
-            matches!((first, second), (suffix::Bound::Feasible(a), suffix::Bound::Feasible(b)) if a == b)
+            matches!((first, second), (suffix::Bound::Feasible { min_g: a, .. }, suffix::Bound::Feasible { min_g: b, .. }) if a == b)
         );
         let diag = reduced.diagnostics();
         assert!(diag.canonicalized_components > 0);
@@ -1496,7 +1772,7 @@ mod tests {
                 now + Duration::from_secs(2)
             )
             .unwrap(),
-            suffix::Bound::Feasible(1.0)
+            suffix::Bound::Feasible { min_g: 1.0, .. }
         ));
         let mut invalid_totals = valid_totals;
         invalid_totals[0] = i32::MIN;
@@ -1606,7 +1882,7 @@ mod tests {
         )
         .unwrap();
         assert!(
-            matches!((exact_min, reduced_min), (suffix::Bound::Feasible(a), suffix::Bound::Feasible(b)) if a == b)
+            matches!((exact_min, reduced_min), (suffix::Bound::Feasible { min_g: a, .. }, suffix::Bound::Feasible { min_g: b, .. }) if a == b)
         );
         let mut at_lower = source.totals.clone();
         at_lower[1] = 8;
@@ -1639,7 +1915,7 @@ mod tests {
                 now + Duration::from_secs(2)
             )
             .unwrap(),
-            suffix::Bound::Feasible(_)
+            suffix::Bound::Feasible { .. }
         ));
         assert!(matches!(
             suffix::cached(

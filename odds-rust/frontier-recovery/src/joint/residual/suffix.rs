@@ -1,4 +1,5 @@
-//! Cached exact suffix lower bounds for the guided/native likelihood ratio.
+//! Cached suffix lower bounds for the guided/native likelihood ratio and an
+//! optional upper bound on the native/guided joint likelihood ratio.
 
 use super::{widen_if_invalid, ResidualSource};
 use crate::joint::{outcome_gain, Plan};
@@ -18,6 +19,7 @@ pub struct SuffixOptions {
     pub probe_ms: u64,
     pub budget_fraction: f64,
     pub canonicalize_certain: bool,
+    pub joint_ratio: bool,
 }
 
 impl Default for SuffixOptions {
@@ -29,6 +31,7 @@ impl Default for SuffixOptions {
             probe_ms: 25,
             budget_fraction: 0.15,
             canonicalize_certain: false,
+            joint_ratio: false,
         }
     }
 }
@@ -64,13 +67,22 @@ pub struct SuffixDiagnostics {
     pub max_active_components: usize,
     pub max_exact_components: usize,
     pub unsupported_plans: usize,
+    pub joint_ratio_enabled: bool,
+    pub joint_ratio_finite_bounds: usize,
+    pub min_joint_ratio_cap: Option<f64>,
+    pub max_joint_ratio_cap: Option<f64>,
+    pub joint_ratio_tightenings: usize,
+    pub joint_ratio_zero_bounds: usize,
 }
 
 #[derive(Clone, Debug)]
 pub(super) enum Bound {
     Unknown,
     Impossible,
-    Feasible(f64),
+    Feasible {
+        min_g: f64,
+        native_over_guided_cap: f64,
+    },
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
@@ -115,6 +127,7 @@ impl Cache {
         let remaining = deadline.saturating_duration_since(started);
         let budget = Duration::from_secs_f64(remaining.as_secs_f64() * options.budget_fraction);
         let canonicalization_enabled = options.canonicalize_certain;
+        let joint_ratio_enabled = options.joint_ratio;
         Ok(Self {
             rows: HashMap::new(),
             by_node: HashSet::new(),
@@ -125,6 +138,7 @@ impl Cache {
             diagnostics: SuffixDiagnostics {
                 enabled: true,
                 canonicalization_enabled,
+                joint_ratio_enabled,
                 ..Default::default()
             },
         })
@@ -149,6 +163,13 @@ impl Cache {
 
     pub fn record_tightened(&mut self) {
         self.diagnostics.tightened_branches += 1;
+    }
+
+    pub fn record_joint_tightening(&mut self) {
+        self.diagnostics.joint_ratio_tightenings += 1;
+    }
+    pub fn record_joint_zero(&mut self) {
+        self.diagnostics.joint_ratio_zero_bounds += 1;
     }
 
     pub fn finish(&mut self) {
@@ -304,14 +325,31 @@ impl Cache {
                 self.diagnostics.impossible += 1;
                 self.diagnostics.suffix_feasibility_prunes += 1;
             }
-            Bound::Feasible(g) if g > 0.0 => {
-                self.diagnostics.positive_bounds += 1;
-                self.diagnostics.min_positive_g =
-                    Some(self.diagnostics.min_positive_g.map_or(g, |x| x.min(g)));
-                self.diagnostics.max_positive_g =
-                    Some(self.diagnostics.max_positive_g.map_or(g, |x| x.max(g)));
+            Bound::Feasible {
+                min_g: g,
+                native_over_guided_cap,
+            } => {
+                if g > 0.0 {
+                    self.diagnostics.positive_bounds += 1;
+                    self.diagnostics.min_positive_g =
+                        Some(self.diagnostics.min_positive_g.map_or(g, |x| x.min(g)));
+                    self.diagnostics.max_positive_g =
+                        Some(self.diagnostics.max_positive_g.map_or(g, |x| x.max(g)));
+                }
+                if native_over_guided_cap.is_finite() {
+                    self.diagnostics.joint_ratio_finite_bounds += 1;
+                    self.diagnostics.min_joint_ratio_cap = Some(
+                        self.diagnostics
+                            .min_joint_ratio_cap
+                            .map_or(native_over_guided_cap, |x| x.min(native_over_guided_cap)),
+                    );
+                    self.diagnostics.max_joint_ratio_cap = Some(
+                        self.diagnostics
+                            .max_joint_ratio_cap
+                            .map_or(native_over_guided_cap, |x| x.max(native_over_guided_cap)),
+                    );
+                }
             }
-            Bound::Feasible(_) => {}
         }
         Ok(result)
     }
@@ -361,7 +399,14 @@ impl Cache {
                 }
             }
             let row = if feasible {
-                Bound::Feasible(1.0)
+                Bound::Feasible {
+                    min_g: 1.0,
+                    native_over_guided_cap: if self.options.joint_ratio {
+                        1.0
+                    } else {
+                        f64::INFINITY
+                    },
+                }
             } else {
                 Bound::Impossible
             };
@@ -383,7 +428,14 @@ impl Cache {
                 let feasible =
                     (0..model.n).all(|t| totals[t] >= plan.lower[t] && totals[t] <= plan.upper[t]);
                 let row = if feasible {
-                    Bound::Feasible(1.0)
+                    Bound::Feasible {
+                        min_g: 1.0,
+                        native_over_guided_cap: if self.options.joint_ratio {
+                            1.0
+                        } else {
+                            f64::INFINITY
+                        },
+                    }
                 } else {
                     Bound::Impossible
                 };
@@ -421,6 +473,7 @@ impl Cache {
             Err(_) => return Ok(Bound::Unknown),
         };
         let mut min_g = f64::INFINITY;
+        let mut joint_cap: f64 = 0.0;
         let mut any_feasible = false;
         let mut unknown = false;
         for o in 0..3 {
@@ -454,11 +507,31 @@ impl Cache {
             match child {
                 Bound::Impossible => {}
                 Bound::Unknown => unknown = true,
-                Bound::Feasible(suffix) => {
+                Bound::Feasible {
+                    min_g: suffix,
+                    native_over_guided_cap: suffix_cap,
+                } => {
                     any_feasible = true;
                     let ratio = widen_if_invalid(gq[o].div(q[o]));
                     let lower = Interval::point(ratio.lo).mul(Interval::point(suffix)).lo;
                     min_g = min_g.min(lower);
+                    if self.options.joint_ratio {
+                        let native = laws[fi].outcomes[o];
+                        let ticket = gq[o];
+                        let edge_cap = if ticket.lo > 0.0 && suffix_cap.is_finite() {
+                            let cap = Interval::point(native.div(ticket).hi)
+                                .mul(Interval::point(suffix_cap))
+                                .hi;
+                            if cap.is_finite() && cap >= 0.0 {
+                                cap
+                            } else {
+                                f64::INFINITY
+                            }
+                        } else {
+                            f64::INFINITY
+                        };
+                        joint_cap = joint_cap.max(edge_cap);
+                    }
                 }
             }
             if Instant::now() >= deadline {
@@ -467,7 +540,7 @@ impl Cache {
                 break;
             }
             if *visited >= self.options.probe_nodes {
-                self.diagnostics.cache_capacity_hit = true;
+                self.diagnostics.probe_node_limit_hit = true;
                 unknown = true;
                 break;
             }
@@ -477,7 +550,14 @@ impl Cache {
         } else if !any_feasible {
             Bound::Impossible
         } else if min_g.is_finite() && min_g >= 0.0 {
-            Bound::Feasible(min_g)
+            Bound::Feasible {
+                min_g,
+                native_over_guided_cap: if self.options.joint_ratio {
+                    joint_cap
+                } else {
+                    f64::INFINITY
+                },
+            }
         } else {
             Bound::Unknown
         };

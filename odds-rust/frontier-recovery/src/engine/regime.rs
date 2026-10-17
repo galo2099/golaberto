@@ -1478,9 +1478,12 @@ mod tests {
                 probe_ms: 1,
                 budget_fraction: 0.1,
                 canonicalize_certain: true,
+                joint_ratio: true,
             }),
         ).unwrap();
         assert_eq!(suffix_audit["suffix"]["enabled"], true);
+        assert_eq!(suffix_audit["suffix"]["options"]["joint_ratio"], true);
+        assert_eq!(suffix_audit["suffix"]["joint_ratio_enabled"], true);
         assert_eq!(suffix_audit["suffix"]["canonicalization_enabled"], true);
         assert_eq!(suffix_audit["source_count"], 156);
         assert_eq!(engine.regions[id].epoch, epoch);
