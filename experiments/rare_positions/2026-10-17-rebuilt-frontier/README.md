@@ -83,7 +83,7 @@ is reported as qualified only when that criterion passes without a conflict.
 
 ## Validation checkpoint
 
-At the final GD-bound source freeze,20 optimized Rust tests and14 Python tests
+At the final GD-bound source freeze,21 optimized Rust tests and15 Python tests
 passed. Rust tests cover exact shared-fixture proposal mass, actual proposal
 caps, interior partial-table fallback at state caps1–3, satisfied-lower state
 clamping, accepted RNG-grid boundaries, integer conversion enclosures,
@@ -94,7 +94,8 @@ intervals and summable confidence allocation.
 
 No historical samples are reused. Fresh measured results are recorded
 separately; the original experimental measurements cannot validate this binary.
-The first primary reconstruction run is preserved in `primary-pal12-180s.json`: 170.3 seconds,1,000,096 draws,eight exact zero cohorts and32 sampled cohorts;
+The first primary reconstruction run is preserved in `primary-pal12-180s.json`:
+170.3 seconds,1,000,096 draws,eight exact zero cohorts and32 sampled cohorts;
 99% simultaneous interval `[4.648436909477114e-29,1.3232625740437402e-27]`,
 ratio28.47. It did not meet the target. It predates the deterministic GD caps.
 The source manifest in that run omitted scheduler.py; its separately recorded

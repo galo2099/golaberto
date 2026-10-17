@@ -102,7 +102,7 @@ def main():
             except (TimeoutError,RuntimeError) as exc:
                 row["_first_sample"]=None;row.setdefault("_sample_errors",[]).append(str(exc))
         state_caps.update({int(r["id"]):int(r.get("_plan_states",state_caps.get(int(r["id"]),0))) for r in candidates})
-        states={int(r["id"]):{"row":r,"epoch":int(r.get("_plan_epoch",0)),"look":0,"focused_looks":0,"n":0,"stats":EpochStats(int(r.get("_plan_epoch",0))),"lo":0.,"hi":float(r.get("upper",1.)),"samples":[],"setup_ms":r.get("_prepare_setup_ms",0),"sampling_ms":0,"last_attempt_k":int(r.get("_last_attempt_k",-1)),"last_attempt_cap":int(r.get("_last_attempt_cap",-1)),"last_attempt_accepted":bool((r.get("_prepare_attempts") or [{}])[-1].get("accepted",False)),"conflict":False,"sample_errors":list(r.get("_sample_errors",[])),"prepare_attempts":list(r.get("_prepare_attempts",[])),"current_plan":r.get("_current_plan",r.get("plan")),"proof_status":r.get("_proof_status","unknown"),"gd_bounds":None,"gd_bounds_status":"pending" if a.gd_bounds else "disabled","gd_bounds_attempts":[] } for r in candidates}
+        states={int(r["id"]):{"row":r,"epoch":int(r.get("_plan_epoch",0)),"look":0,"focused_looks":0,"n":0,"stats":EpochStats(int(r.get("_plan_epoch",0))),"lo":0.,"hi":float(r.get("upper",1.)),"samples":[],"setup_ms":r.get("_prepare_setup_ms",0),"sampling_ms":0,"last_attempt_k":int(r.get("_last_attempt_k",-1)),"last_attempt_cap":int(r.get("_last_attempt_cap",-1)),"last_attempt_accepted":bool((r.get("_prepare_attempts") or [{}])[-1].get("accepted",False)),"last_attempt_complete":(bool((r.get("_prepare_attempts") or [{}])[-1]["complete"]) if "complete" in (r.get("_prepare_attempts") or [{}])[-1] else None),"conflict":False,"sample_errors":list(r.get("_sample_errors",[])),"prepare_attempts":list(r.get("_prepare_attempts",[])),"current_plan":r.get("_current_plan",r.get("plan")),"proof_status":r.get("_proof_status","unknown"),"gd_bounds":None,"gd_bounds_status":"pending" if a.gd_bounds else "disabled","gd_bounds_attempts":[] } for r in candidates}
         for rid,s in states.items():
             first=s["row"].get("_first_sample")
             if first and int(first.get("n",-1))==a.initial_draws:
@@ -165,7 +165,7 @@ def main():
             others=sum(state_caps.values())-state_caps.get(rid,0)
             allowed=max(0,4_000_000-others)
             max_plan_cap=min(a.state_cap,allowed)
-            requested_k,plan_state_cap=next_plan_request(s.get("current_plan"),s["last_attempt_k"],s["last_attempt_cap"],a.max_k,max_plan_cap,s["focused_looks"],s["last_attempt_accepted"])
+            requested_k,plan_state_cap=next_plan_request(s.get("current_plan"),s["last_attempt_k"],s["last_attempt_cap"],a.max_k,max_plan_cap,s["focused_looks"],s["last_attempt_accepted"],s["last_attempt_complete"])
             batch=min(1000,a.max_draws-s["n"])
             phase="prepare"
             try:
@@ -175,11 +175,13 @@ def main():
                     try:
                         prep=engine.call(op="prepare",id=rid,k=requested_k,state_cap=plan_state_cap,time_ms=min(a.time_ms,1000))
                         s["last_attempt_accepted"]=bool(prep.get("accepted",False))
+                        s["last_attempt_complete"]=bool(prep.get("complete",False))
                         s["setup_ms"] += prep.get("setup_ms",0)
                         s["prepare_attempts"].append({"k":requested_k,"state_cap":plan_state_cap,**prep})
                     except RuntimeError as exc:
                         prep={"accepted":False,"epoch":s["epoch"]}
                         s["last_attempt_accepted"]=False
+                        s["last_attempt_complete"]=False
                         s["sample_errors"].append(str(exc))
                         s["prepare_attempts"].append({"k":requested_k,"state_cap":plan_state_cap,"accepted":False,"error":str(exc)})
                 else: prep={"accepted":False,"epoch":s["epoch"]}
@@ -198,7 +200,9 @@ def main():
                 rec=engine.call(op="sample",id=rid,n=batch,seed=a.seed+rid+1000003*s["epoch"]+s["look"],depth=a.depth)
             except TimeoutError as exc:
                 s["sample_errors"].append(str(exc))
-                if phase=="prepare": s["prepare_attempts"].append({"k":requested_k,"state_cap":plan_state_cap,"accepted":False,"timeout":str(exc)})
+                if phase=="prepare":
+                    s["last_attempt_accepted"]=False;s["last_attempt_complete"]=False
+                    s["prepare_attempts"].append({"k":requested_k,"state_cap":plan_state_cap,"accepted":False,"complete":False,"timeout":str(exc)})
                 break
             except RuntimeError as exc:
                 s["sample_errors"].append(str(exc));break

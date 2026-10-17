@@ -1,0 +1,17 @@
+# Local raw reconstruction evidence
+
+Raw JSON receipts remain local. This manifest records identities only.
+
+| File | Bytes | SHA256 |
+|---|---:|---|
+| final-pal12-180s-timing.json | 780 | `cb4f66067969ad42f658d0cd50f5d01dae7da16fa6e8326d22c7965f163727e8` |
+| final-pal12-180s.json | 797713 | `0ff5bdd0d921132b292ee36f73620936f2646bef9e8484459ed8a84d0eb109ce` |
+| functional-v3-pal12.json | 31935 | `7312d9cbb0379b451203624411d47ecbdc10b188d9328401cd5ce0aa1a24f5f1` |
+| gd-caps-pal12-180s-timing.json | 782 | `7b9be3042b24271839c38d772068fe02a5e1dc05a4dab2310099050fed05267c` |
+| gd-caps-pal12-180s.json | 963237 | `5def450447703cb96ae1eaf5e4a1432af838fdaa44ee78cb5a42c274767245ea` |
+| primary-pal12-180s-timing.json | 743 | `833966c4ca28b136cb030caf22c91dd56ef91d7b0fefc52fe15102f8d07c752b` |
+| primary-pal12-180s.json | 910337 | `1657f07c19d3f8044979f65851039ea36dc39bd62c536a242fbd5a5f400ce90c` |
+| smoke-pal12-timing.json | 676 | `a0c3411218ab016f0689920c6bbd5680d752ecb3cae751b73c48fae3b2342c3c` |
+| smoke-pal12.json | 42997 | `0fdb21e73a7cb9f671c2045758290c4b4a27bbe85f0e1551e588e0cc3d1fad79` |
+| smoke-v2-pal12-timing.json | 683 | `42b3abee0b279424e85bc36ae8b9f5bc6b39859612c5d1bdb7e4037618d7b566` |
+| smoke-v2-pal12.json | 434249 | `ee8eb5e874653eaa3b2fabca380ccf8299a575c1d6d5d7081660e606f7c0e969` |

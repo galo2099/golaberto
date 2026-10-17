@@ -236,3 +236,13 @@ for importance-weight normalization B. Conflicts remain visible and disable
 qualification. Record every cap receipt and include scheduler.py in the source
 hash manifest. Compare a fresh frozen run against the recorded primary run;
 no source edits during measurement.
+
+### Final scheduling restoration
+
+Continue analytic screening across all supported pivots within the same deadline,
+retaining the minimum completed candidate cap and recording every candidate.
+An improvement from the first pivot must not suppress stronger later pivots.
+Track the latest preparation candidate's completeness separately from the
+installed proposal. If a candidate is partial and rejected, grow its state
+capacity at the same requested k before widening k. The installed proposal,
+normalization and epoch remain unchanged until a candidate is accepted.

@@ -16,6 +16,13 @@ class SchedulerTests(unittest.TestCase):
         self.assertEqual(next_plan_request(plan,7,16000,12,16000,0,False),(8,16000))
         self.assertEqual(next_plan_request(plan,7,16000,12,16000,0,True),(7,16000))
 
+    def test_rejected_partial_candidate_grows_before_advancing_from_complete_install(self):
+        installed={"k":7,"states":1200,"complete":True}
+        # Candidate k=8 was rejected, but its table was partial. Continue k=8.
+        self.assertEqual(next_plan_request(installed,8,2000,12,16000,1,False,False),(8,4000))
+        # Only after reaching the ceiling may a rejected partial candidate yield to k=9.
+        self.assertEqual(next_plan_request(installed,8,16000,12,16000,1,False,False),(9,16000))
+
     def test_epoch_look_reset_does_not_shrink_requested_capacity_or_k(self):
         plan={"k":8,"states":8000,"complete":False}
         self.assertEqual(next_plan_request(plan,8,16000,12,32000,0,True),(8,32000))

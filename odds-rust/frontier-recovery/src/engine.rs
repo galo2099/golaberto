@@ -549,6 +549,7 @@ impl Engine {
         let mut strict_upper = 0.0;
         let mut tied_upper = 0.0;
         let mut regime_complete = false;
+        let mut regime_candidates = Vec::new();
 
         // Try each required-above team as a pivot. Each atom fixes every
         // incident WDL result; exact propagation then conditions the entire
@@ -751,18 +752,20 @@ impl Engine {
                 continue;
             }
             let candidate = up(strict + tied).min(parent_upper);
-            if candidate < f64::INFINITY {
+            regime_candidates.push(json!({"pivot_id":self.model.ids[pivot],
+                "event_upper":candidate,"atom_count":atoms.len(),
+                "strict_upper":strict,"tied_upper":tied}));
+            regime_complete = true;
+            if candidate < cap {
+                cap = candidate;
                 pivot_id = Some(self.model.ids[pivot]);
                 atom_count = atoms.len();
                 strict_upper = strict;
                 tied_upper = tied;
-                regime_complete = true;
             }
-            if candidate < cap {
-                cap = candidate;
-                break;
-            }
-            // Continue to another pivot if this one did not sharpen the cap.
+            // Evaluate every eligible pivot within the shared deadline and
+            // retain the strongest certified cap rather than stopping at the
+            // first improvement.
         }
         let improved = cap < parent_upper;
         if improved {
@@ -774,7 +777,7 @@ impl Engine {
         Ok(
             json!({"event_upper":cap,"improved":improved,"parent_upper_before":parent_upper,
             "mandatory_pair_bounds":mandatory,"regime_pivot_id":pivot_id,"atom_count":atom_count,
-            "strict_upper":strict_upper,"tied_upper":tied_upper,
+            "strict_upper":strict_upper,"tied_upper":tied_upper,"regime_candidates":regime_candidates,
             "setup_ms":started.elapsed().as_secs_f64()*1000.0,"complete":regime_complete || Instant::now() < deadline}),
         )
     }
@@ -1164,5 +1167,37 @@ mod tests {
         let receipt = engine.tighten(id, 250_000, 2_000).unwrap();
         assert_eq!(receipt["regime_pivot_id"].as_i64(), Some(18));
         assert_eq!(receipt["atom_count"].as_u64(), Some(10));
+    }
+
+    #[test]
+    fn tighten_keeps_best_of_all_completed_pivots() {
+        let request: Request = serde_json::from_str(include_str!(
+            "../../tests/fixtures/group-16498-2026-10-10.json"
+        ))
+        .unwrap();
+        let mut engine = Engine::new(request, 16, 12).unwrap();
+        let rival = *engine.model.indices.get(&18).unwrap();
+        let id = engine
+            .regions
+            .iter()
+            .position(|r| r.above.contains(&rival))
+            .unwrap();
+        // Repeating the same valid pivot here exercises the all-candidates
+        // reduction deterministically without changing its atom law.
+        engine.regions[id].above = vec![rival, rival];
+        let plan_bound = engine.regions[id].plan.as_ref().unwrap().bound;
+        let epoch = engine.regions[id].epoch;
+        let parent_upper = engine.regions[id].upper;
+        let receipt = engine.tighten(id, 250_000, 3_000).unwrap();
+        let candidates = receipt["regime_candidates"].as_array().unwrap();
+        assert_eq!(candidates.len(), 2);
+        let candidate_min = candidates
+            .iter()
+            .map(|c| c["event_upper"].as_f64().unwrap())
+            .fold(f64::INFINITY, f64::min);
+        assert!(receipt["event_upper"].as_f64().unwrap() <= candidate_min);
+        assert!(receipt["event_upper"].as_f64().unwrap() <= parent_upper);
+        assert_eq!(engine.regions[id].plan.as_ref().unwrap().bound, plan_bound);
+        assert_eq!(engine.regions[id].epoch, epoch);
     }
 }
