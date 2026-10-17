@@ -22,6 +22,10 @@ pub struct SuffixOptions {
     pub joint_ratio: bool,
     pub score_gd: bool,
     pub score_setup_ms: u64,
+    pub shared_expectation: bool,
+    pub expectation_bits: u32,
+    pub expectation_max_remaining: usize,
+    pub expectation_budget_fraction: f64,
 }
 
 impl Default for SuffixOptions {
@@ -36,6 +40,10 @@ impl Default for SuffixOptions {
             joint_ratio: false,
             score_gd: false,
             score_setup_ms: 5_000,
+            shared_expectation: false,
+            expectation_bits: 8,
+            expectation_max_remaining: 18,
+            expectation_budget_fraction: 0.5,
         }
     }
 }
@@ -90,7 +98,7 @@ pub(super) enum Bound {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
-struct Key {
+pub(super) struct Key {
     plan: usize,
     pos: usize,
     node: Option<usize>,
@@ -125,6 +133,10 @@ impl Cache {
         if options.state_cap == 0
             || !options.budget_fraction.is_finite()
             || !(0.0..=1.0).contains(&options.budget_fraction)
+            || (options.shared_expectation
+                && (!(4..=20).contains(&options.expectation_bits)
+                    || !options.expectation_budget_fraction.is_finite()
+                    || !(0.0..=1.0).contains(&options.expectation_budget_fraction)))
         {
             return Err("invalid suffix certificate options".into());
         }
@@ -181,7 +193,7 @@ impl Cache {
         self.diagnostics.elapsed_ms = self.spent.as_secs_f64() * 1000.0;
     }
 
-    fn key(
+    pub(super) fn key(
         &mut self,
         plan: &Plan,
         model: &Model,

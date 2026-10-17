@@ -20,6 +20,8 @@ pub use suffix::{SuffixDiagnostics, SuffixOptions};
 mod score_gd;
 pub use score_gd::ScoreDiagnostics;
 use score_gd::ScoreBounder;
+#[path = "residual/expectation.rs"]
+mod expectation;
 
 #[derive(Clone, Copy)]
 enum Graph<'a> {
@@ -125,6 +127,7 @@ pub struct ResidualCertificate {
     pub final_refresh_ms: f64,
     pub aggregation_ms: f64,
     pub score_gd: ScoreDiagnostics,
+    pub shared_expectation: expectation::ExpectationDiagnostics,
 }
 
 impl Plan {
@@ -258,6 +261,7 @@ struct Branch {
     g: Interval,
     q0: Interval,
     score_moments: [f64; 3],
+    expectation_probed: bool,
     bound: f64,
     residual_cap: f64,
     depth: usize,
@@ -688,6 +692,10 @@ pub fn residual_certificate_with_options(
         .as_ref()
         .map(|options| suffix::Cache::new(options.clone(), started, search_deadline))
         .transpose()?;
+    let mut expectation_cache = suffix_options
+        .as_ref()
+        .filter(|options| options.shared_expectation)
+        .map(|options| expectation::Cache::new(options, started, search_deadline));
     let mut score_bounder = if suffix_options.as_ref().is_some_and(|options| options.score_gd) {
         ScoreBounder::prepare(
             sources,
@@ -721,6 +729,7 @@ pub fn residual_certificate_with_options(
             g: source.g_prefix,
             q0: source.q0_prefix,
             score_moments: [1.0; 3],
+            expectation_probed: false,
             bound: 0.0,
             residual_cap: 0.0,
             depth: 0,
@@ -771,6 +780,14 @@ pub fn residual_certificate_with_options(
     let frontier_limit = node_limit.max(sources.len()).max(1);
     let mut completed_bound = 0.0f64;
     let mut completed_max = 0.0f64;
+    let mut shared_expectation_max_cap = 0.0f64;
+    let mut shared_zero_mean_max_cap = 0.0f64;
+    let mut absorbed_prefixes = 0usize;
+    let mut saved_nonzero_depth = 0usize;
+    let mut absorbed_bound_before = 0.0f64;
+    let mut absorbed_bound_after = 0.0f64;
+    let mut zero_mean_archives = 0usize;
+    let mut partial_tightened_prefixes = 0usize;
     while let Some(branch) = heap.pop() {
         if expanded >= node_limit || Instant::now() >= search_deadline {
             push_branch(&mut heap, branch);
@@ -779,6 +796,78 @@ pub fn residual_certificate_with_options(
         let source = &sources[branch.source];
         let plan = source.graph.plan();
         let mut branch = branch;
+        if !branch.expectation_probed {
+            branch.expectation_probed = true;
+            if let (Some(expectation_cache), Some(suffix_cache)) =
+                (expectation_cache.as_mut(), suffix_cache.as_mut())
+            {
+                let remaining = plan.order.len().saturating_sub(branch.pos);
+                if remaining > 0 && remaining <= expectation_cache.max_remaining() {
+                    let prefix_mass = branch.q0.mul(branch.v);
+                    let v_hi = branch.v.hi;
+                    let threshold = if v_hi.is_finite()
+                        && v_hi > 0.0
+                        && branch.g.lo.is_finite()
+                        && branch.g.lo >= 0.0
+                    {
+                        let threshold = Interval::point(clip_h)
+                            .mul(Interval::point(branch.g.lo))
+                            .div(Interval::point(v_hi))
+                            .lo;
+                        threshold.is_finite().then_some(threshold.max(0.0))
+                    } else {
+                        None
+                    };
+                    if v_hi.is_finite()
+                        && prefix_mass.hi.is_finite()
+                        && prefix_mass.hi >= 0.0
+                    {
+                        if let Some(threshold) = threshold {
+                            let result = expectation_cache.probe(
+                                suffix_cache,
+                                source,
+                                model,
+                                laws,
+                                branch.pos,
+                                branch.node,
+                                &branch.totals,
+                                threshold,
+                                search_deadline,
+                            )?;
+                            let f_upper = if result.upper.is_finite() && result.upper >= 0.0 {
+                                result.upper.min(1.0)
+                            } else {
+                                1.0
+                            };
+                            let candidate = Interval::point(prefix_mass.hi)
+                                .mul(Interval::point(f_upper))
+                                .hi;
+                            let old_bound = branch.bound;
+                            branch.bound = branch.bound.min(candidate);
+                            if f_upper == 0.0 {
+                                zero_mean_archives += 1;
+                                shared_zero_mean_max_cap =
+                                    shared_zero_mean_max_cap.max(branch.residual_cap);
+                            }
+                            if result.complete {
+                                absorbed_prefixes += 1;
+                                saved_nonzero_depth += remaining;
+                                absorbed_bound_before = up(absorbed_bound_before + old_bound);
+                                absorbed_bound_after = up(absorbed_bound_after + branch.bound);
+                                completed_bound = up(completed_bound + branch.bound);
+                                shared_expectation_max_cap =
+                                    shared_expectation_max_cap.max(branch.residual_cap);
+                                expanded += 1;
+                                continue;
+                            }
+                            if branch.bound < old_bound {
+                                partial_tightened_prefixes += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
         if !branch.suffix_probed {
             if let Some(cache) = suffix_cache.as_mut() {
                 let remaining = plan.order.len().saturating_sub(branch.pos);
@@ -925,6 +1014,7 @@ pub fn residual_certificate_with_options(
                     o,
                     branch.score_moments,
                 ),
+                expectation_probed: false,
                 bound: 0.0,
                 residual_cap: 0.0,
                 depth: branch.depth + 1,
@@ -984,7 +1074,13 @@ pub fn residual_certificate_with_options(
                 max_residual_cap: heap
                     .iter()
                     .map(|x| x.residual_cap)
-                    .fold(completed_max.max(score_zero_max), f64::max),
+                    .fold(
+                        completed_max
+                            .max(shared_expectation_max_cap)
+                            .max(shared_zero_mean_max_cap)
+                            .max(score_zero_max),
+                        f64::max,
+                    ),
             });
         }
     }
@@ -1124,6 +1220,8 @@ pub fn residual_certificate_with_options(
     }
     expectation_upper = expectation_upper.min(initial_bounds).min(cap_b).max(0.0);
     max_residual_cap = max_residual_cap
+        .max(shared_expectation_max_cap)
+        .max(shared_zero_mean_max_cap)
         .max(score_zero_max)
         .min(initial_max)
         .min(cap_b);
@@ -1135,6 +1233,18 @@ pub fn residual_certificate_with_options(
             c.diagnostics()
         })
         .unwrap_or_default();
+    let mut shared_expectation_diagnostics = expectation_cache
+        .as_ref()
+        .map(expectation::Cache::diagnostics)
+        .unwrap_or_default();
+    shared_expectation_diagnostics.absorbed_prefixes += absorbed_prefixes;
+    shared_expectation_diagnostics.saved_nonzero_depth += saved_nonzero_depth;
+    shared_expectation_diagnostics.absorbed_bound_sum = absorbed_bound_after;
+    shared_expectation_diagnostics.absorbed_bound_before = absorbed_bound_before;
+    shared_expectation_diagnostics.absorbed_bound_after = absorbed_bound_after;
+    shared_expectation_diagnostics.zero_mean_archives += zero_mean_archives;
+    shared_expectation_diagnostics.zero_mean_max_cap = shared_zero_mean_max_cap;
+    shared_expectation_diagnostics.partial_tightened_prefixes += partial_tightened_prefixes;
     let aggregation_ms = aggregation_started.elapsed().as_secs_f64() * 1000.0;
     Ok(ResidualCertificate {
         expectation_upper,
@@ -1168,6 +1278,7 @@ pub fn residual_certificate_with_options(
         top_pending,
         suffix: suffix_diagnostics,
         score_gd: score_bounder.diagnostics(),
+        shared_expectation: shared_expectation_diagnostics,
         final_refresh_applied,
         final_refresh_skipped,
         final_refresh_ms,
@@ -1201,6 +1312,47 @@ mod tests {
         (vec![i32::MIN / 4; 2], vec![i32::MAX / 4; 2])
     }
 
+    fn exhaustive_tiny_residual_sum(
+        plan: &Plan,
+        model: &Model,
+        laws: &[Law],
+        clip_h: f64,
+    ) -> f64 {
+        exhaustive_tiny_scaled_residual_sum(plan, model, laws, clip_h, 1.0, 1.0, 1.0)
+    }
+
+    fn exhaustive_tiny_scaled_residual_sum(
+        plan: &Plan,
+        model: &Model,
+        laws: &[Law],
+        clip_h: f64,
+        q0_prefix: f64,
+        v_prefix: f64,
+        g_prefix: f64,
+    ) -> f64 {
+        let mut exact = 0.0;
+        for a in 0..3 {
+            for b in 0..3 {
+                let mut q0 = 1.0;
+                let mut v = Interval::point(1.0);
+                for (fi, outcome) in [(0, a), (1, b)] {
+                    let weights: Vec<_> = (0..3).map(|o| laws[fi].outcomes[o].mid()).collect();
+                    let q = categorical_probabilities(&weights).unwrap()[outcome];
+                    q0 *= q.mid();
+                    v = v.mul(laws[fi].outcomes[outcome].div(q));
+                }
+                let replay = plan
+                    .guide_ratio(model, laws, &[a as u8, b as u8])
+                    .unwrap();
+                let residual = (v_prefix * v.hi
+                    - clip_h * g_prefix * replay.lo)
+                .max(0.0);
+                exact += q0_prefix * q0 * residual;
+            }
+        }
+        exact
+    }
+
     fn test_branch(bound: f64, serial: u64) -> Branch {
         Branch {
             source: 0,
@@ -1211,6 +1363,7 @@ mod tests {
             g: Interval::point(1.0),
             q0: Interval::point(1.0),
             score_moments: [1.0; 3],
+            expectation_probed: false,
             bound,
             residual_cap: bound,
             depth: 0,
@@ -1381,6 +1534,7 @@ mod tests {
             source: 0, node: None, pos: 0, totals: vec![],
             v: Interval::point(0.18), g: Interval::point(0.2), q0: Interval::point(1.0),
             score_moments: [1.0; 3],
+            expectation_probed: false,
             bound: 1.0, residual_cap: 1.0, depth: 0, serial: 0, suffix_probed: false,
         };
         // Independent extrema give K=.9 and a positive residual. The paired
@@ -1498,6 +1652,126 @@ mod tests {
             assert!(scaled.expectation_upper + 1e-12 >= exhaustive,
                 "scaled certificate {} below exhaustive {exhaustive}", scaled.expectation_upper);
         }
+    }
+
+    #[test]
+    fn shared_expectation_absorbs_tiny_tree_with_a_conservative_grid_bound() {
+        let (model, laws) = tiny(2);
+        let (lower, upper) = broad_bounds();
+        let plan = Plan::build(
+            &model,
+            &laws,
+            &[7, 7],
+            &lower,
+            &upper,
+            &[],
+            4,
+            100,
+            Instant::now() + Duration::from_secs(5),
+        )
+        .unwrap();
+        let source = plan
+            .residual_source(Interval::point(1.0), Interval::point(1.0))
+            .unwrap();
+        let exact = exhaustive_tiny_residual_sum(&plan, &model, &laws, 0.4);
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let mut options = SuffixOptions::default();
+        options.shared_expectation = true;
+        options.expectation_bits = 4;
+        let shared = residual_certificate_with_options(
+            std::slice::from_ref(&source),
+            &model,
+            &laws,
+            10.0,
+            0.4,
+            1_000,
+            deadline,
+            Some(options),
+        )
+        .unwrap();
+        assert!(shared.complete);
+        assert_eq!(shared.frontier, 0);
+        assert!(shared.shared_expectation.absorbed_prefixes > 0);
+        assert!(shared.shared_expectation.saved_nonzero_depth > 0);
+        assert!(shared.expectation_upper + 1e-12 >= exact);
+        assert!(shared.expectation_upper > exact + 1e-9);
+    }
+
+    #[test]
+    fn shared_expectation_applies_prefix_mass_once_and_retains_cutoff_mass() {
+        let (model, laws) = tiny(2);
+        let (lower, upper) = broad_bounds();
+        let plan = Plan::build(
+            &model,
+            &laws,
+            &[7, 7],
+            &lower,
+            &upper,
+            &[],
+            4,
+            100,
+            Instant::now() + Duration::from_secs(5),
+        )
+        .unwrap();
+        let scaled = plan
+            .residual_source(Interval::point(0.7), Interval::point(0.4))
+            .unwrap();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let mut options = SuffixOptions::default();
+        options.shared_expectation = true;
+        let full = residual_certificate_with_options(
+            std::slice::from_ref(&scaled),
+            &model,
+            &laws,
+            10.0,
+            0.0,
+            1_000,
+            deadline,
+            Some(options.clone()),
+        )
+        .unwrap();
+        assert!(full.complete);
+        assert!(full.shared_expectation.absorbed_prefixes > 0);
+        assert!(full.expectation_upper >= 0.7);
+        assert!(full.expectation_upper < 0.7 + 1e-10);
+
+        let clipped_truth = exhaustive_tiny_scaled_residual_sum(
+            &plan, &model, &laws, 0.4, 0.4, 1.75, 1.0,
+        );
+        let clipped = residual_certificate_with_options(
+            std::slice::from_ref(&scaled),
+            &model,
+            &laws,
+            10.0,
+            0.4,
+            1_000,
+            deadline,
+            Some(options.clone()),
+        )
+        .unwrap();
+        assert!(clipped.complete);
+        assert!(clipped.expectation_upper + 1e-12 >= clipped_truth);
+        assert!(clipped.expectation_upper <= clipped_truth + 0.02);
+
+        options.expectation_budget_fraction = 0.0;
+        let exact = exhaustive_tiny_scaled_residual_sum(
+            &plan, &model, &laws, 0.4, 0.4, 1.75, 1.0,
+        );
+        let partial = residual_certificate_with_options(
+            std::slice::from_ref(&scaled),
+            &model,
+            &laws,
+            10.0,
+            0.4,
+            1,
+            deadline,
+            Some(options),
+        )
+        .unwrap();
+        assert!(!partial.complete);
+        assert!(partial.frontier > 0);
+        assert_eq!(partial.shared_expectation.absorbed_prefixes, 0);
+        assert!(partial.expectation_upper + 1e-12 >= exact);
     }
 
     #[test]

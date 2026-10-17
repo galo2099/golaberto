@@ -55,6 +55,10 @@ def suffix_options(args) -> dict:
         "joint_ratio": getattr(args, "suffix_joint_ratio", False),
         "score_gd": getattr(args, "score_gd", False),
         "score_setup_ms": getattr(args, "score_setup_ms", 5000),
+        "shared_expectation": getattr(args, "shared_expectation", False),
+        "expectation_bits": getattr(args, "expectation_bits", 8),
+        "expectation_max_remaining": getattr(args, "expectation_max_remaining", 18),
+        "expectation_budget_fraction": getattr(args, "expectation_budget_fraction", .5),
     }
     for name in ("state_cap", "max_remaining", "probe_nodes", "probe_ms"):
         value = options[name]
@@ -82,6 +86,22 @@ def suffix_options(args) -> dict:
     setup_ms = options["score_setup_ms"]
     if isinstance(setup_ms, bool) or not isinstance(setup_ms, int) or setup_ms <= 0:
         raise ValueError("--score-setup-ms must be a positive integer")
+    shared_expectation = options["shared_expectation"]
+    if not isinstance(shared_expectation, bool):
+        raise ValueError("--shared-expectation must be boolean")
+    if shared_expectation and not options["enabled"]:
+        raise ValueError("--shared-expectation requires --suffix-bounds")
+    bits = options["expectation_bits"]
+    if isinstance(bits, bool) or not isinstance(bits, int) or not 4 <= bits <= 20:
+        raise ValueError("--expectation-bits must be an integer in 4..20")
+    max_remaining = options["expectation_max_remaining"]
+    if isinstance(max_remaining, bool) or not isinstance(max_remaining, int) or max_remaining <= 0:
+        raise ValueError("--expectation-max-remaining must be a positive integer")
+    fraction = options["expectation_budget_fraction"]
+    if (not isinstance(fraction, (int, float)) or isinstance(fraction, bool)
+            or not math.isfinite(fraction) or not 0 < fraction <= 1):
+        raise ValueError("--expectation-budget-fraction must be finite and in (0, 1]")
+    options["expectation_budget_fraction"] = float(fraction)
     return options
 
 
@@ -212,6 +232,10 @@ def run_audit(args, protocol_factory=Protocol, now=time.monotonic) -> dict:
                 "joint_ratio": suffix["joint_ratio"],
                 "score_gd": suffix["score_gd"],
                 "score_setup_ms": suffix["score_setup_ms"],
+                "shared_expectation": suffix["shared_expectation"],
+                "expectation_bits": suffix["expectation_bits"],
+                "expectation_max_remaining": suffix["expectation_max_remaining"],
+                "expectation_budget_fraction": suffix["expectation_budget_fraction"],
             }
             output["suffix_request_sent"] = True
         certificate = engine.call(**certificate_request)
@@ -269,6 +293,14 @@ def main() -> None:
                         help="enable goal-difference ranking bounds")
     parser.add_argument("--score-setup-ms", type=int, default=5000,
                         help="goal-difference setup time limit in milliseconds")
+    parser.add_argument("--shared-expectation", action="store_true",
+                        help="enable shared fixture expectation bounds")
+    parser.add_argument("--expectation-bits", type=int, default=8,
+                        help="precision bits for shared expectation bounds (4..20)")
+    parser.add_argument("--expectation-max-remaining", type=int, default=18,
+                        help="maximum remaining fixtures for shared expectation bounds")
+    parser.add_argument("--expectation-budget-fraction", type=float, default=.5,
+                        help="fraction of certificate time reserved for shared expectation setup")
     parser.add_argument("--output")
     args = parser.parse_args()
     args.score_gd = args.score_gd == "true"

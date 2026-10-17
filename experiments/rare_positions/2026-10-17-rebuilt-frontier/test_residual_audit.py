@@ -108,6 +108,8 @@ class ResidualAuditTests(unittest.TestCase):
             "budget_fraction": .15, "canonicalize_certain": False,
             "joint_ratio": False,
             "score_gd": False, "score_setup_ms": 5000,
+            "shared_expectation": False, "expectation_bits": 8,
+            "expectation_max_remaining": 18, "expectation_budget_fraction": .5,
         })
         self.assertTrue(result["hashes_unchanged"])
 
@@ -187,6 +189,10 @@ class ResidualAuditTests(unittest.TestCase):
         self.args.suffix_joint_ratio = True
         self.args.score_gd = True
         self.args.score_setup_ms = 7100
+        self.args.shared_expectation = True
+        self.args.expectation_bits = 12
+        self.args.expectation_max_remaining = 16
+        self.args.expectation_budget_fraction = .3
 
         def factory(*args):
             engine = FakeEngine(*args, clock=clock)
@@ -203,6 +209,10 @@ class ResidualAuditTests(unittest.TestCase):
             "joint_ratio": True,
             "score_gd": True,
             "score_setup_ms": 7100,
+            "shared_expectation": True,
+            "expectation_bits": 12,
+            "expectation_max_remaining": 16,
+            "expectation_budget_fraction": .3,
         })
         self.assertTrue(result["suffix_bounds_enabled"])
         self.assertTrue(result["suffix_request_sent"])
@@ -233,6 +243,26 @@ class ResidualAuditTests(unittest.TestCase):
         self.args.score_gd = True
         with self.assertRaisesRegex(ValueError, "requires --suffix-bounds"):
             residual_audit.suffix_options(self.args)
+
+    def test_shared_expectation_requires_bounds_and_validates_parameters(self):
+        self.args.shared_expectation = True
+        with self.assertRaisesRegex(ValueError, "requires --suffix-bounds"):
+            residual_audit.suffix_options(self.args)
+        self.args.suffix_bounds = True
+        for value in (3, 21, True, 8.0):
+            self.args.expectation_bits = value
+            with self.subTest(bits=value), self.assertRaisesRegex(ValueError, "4..20"):
+                residual_audit.suffix_options(self.args)
+        self.args.expectation_bits = 8
+        for value in (0, -1, True, 2.5):
+            self.args.expectation_max_remaining = value
+            with self.subTest(max_remaining=value), self.assertRaisesRegex(ValueError, "positive integer"):
+                residual_audit.suffix_options(self.args)
+        self.args.expectation_max_remaining = 18
+        for value in (0, -0.1, 1.1, float("nan"), float("inf"), True):
+            self.args.expectation_budget_fraction = value
+            with self.subTest(fraction=value), self.assertRaisesRegex(ValueError, r"finite and in \(0, 1\]"):
+                residual_audit.suffix_options(self.args)
         self.args.suffix_bounds = True
         self.args.score_setup_ms = True
         with self.assertRaisesRegex(ValueError, "positive integer"):

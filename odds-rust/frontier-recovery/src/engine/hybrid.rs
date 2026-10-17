@@ -212,7 +212,11 @@ impl Engine {
                 "budget_fraction":o.budget_fraction,
                 "canonicalize_certain":o.canonicalize_certain,
                 "joint_ratio":o.joint_ratio,"score_gd":o.score_gd,
-                "score_setup_ms":o.score_setup_ms
+                "score_setup_ms":o.score_setup_ms,
+                "shared_expectation":o.shared_expectation,
+                "expectation_bits":o.expectation_bits,
+                "expectation_max_remaining":o.expectation_max_remaining,
+                "expectation_budget_fraction":o.expectation_budget_fraction
             })),
             "calls":suffix_diagnostics.calls,"visits":suffix_diagnostics.visits,
             "cache_hits":suffix_diagnostics.cache_hits,"entries":suffix_diagnostics.entries,
@@ -261,6 +265,7 @@ impl Engine {
             "zero_pw_prunes":certificate.zero_pw_prunes,
             "score_gd":certificate.score_gd,
             "score_zero_prunes":certificate.score_zero_prunes,
+            "shared_expectation":certificate.shared_expectation,
             "zero_residual_prunes":certificate.zero_residual_prunes,
             "final_refresh_applied":certificate.final_refresh_applied,
             "final_refresh_skipped":certificate.final_refresh_skipped,

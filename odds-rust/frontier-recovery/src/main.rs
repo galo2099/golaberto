@@ -44,6 +44,30 @@ fn suffix_options(command: &Value) -> Result<Option<joint::SuffixOptions>, Strin
         None => defaults.score_setup_ms,
         Some(v) => v.as_u64().filter(|n| *n > 0).ok_or("suffix.score_setup_ms must be a positive integer")?,
     };
+    let shared_expectation = match object.get("shared_expectation") {
+        None => defaults.shared_expectation,
+        Some(v) => v.as_bool().ok_or("suffix.shared_expectation must be a boolean")?,
+    };
+    let expectation_bits = match object.get("expectation_bits") {
+        None => defaults.expectation_bits,
+        Some(v) => v.as_u64().filter(|n| (4..=20).contains(n))
+            .and_then(|n| u32::try_from(n).ok())
+            .ok_or("suffix.expectation_bits must be an integer in 4..=20")?,
+    };
+    let expectation_max_remaining = match object.get("expectation_max_remaining") {
+        None => defaults.expectation_max_remaining,
+        Some(v) => v.as_u64().filter(|n| *n > 0).and_then(|n| usize::try_from(n).ok())
+            .ok_or("suffix.expectation_max_remaining must be a positive integer")?,
+    };
+    let expectation_budget_fraction = match object.get("expectation_budget_fraction") {
+        None => defaults.expectation_budget_fraction,
+        Some(v) => v.as_f64().ok_or("suffix.expectation_budget_fraction must be a number")?,
+    };
+    if !expectation_budget_fraction.is_finite() || !(0.0..=1.0).contains(&expectation_budget_fraction)
+        || expectation_budget_fraction == 0.0
+    {
+        return Err("suffix.expectation_budget_fraction must be finite and in (0,1]".into());
+    }
     Ok(Some(joint::SuffixOptions {
         state_cap: uint("state_cap", defaults.state_cap as u64)?,
         max_remaining: uint("max_remaining", defaults.max_remaining as u64)?,
@@ -54,6 +78,10 @@ fn suffix_options(command: &Value) -> Result<Option<joint::SuffixOptions>, Strin
         joint_ratio,
         score_gd,
         score_setup_ms,
+        shared_expectation,
+        expectation_bits,
+        expectation_max_remaining,
+        expectation_budget_fraction,
     }))
 }
 
@@ -234,6 +262,10 @@ mod tests {
         assert!(!options.joint_ratio);
         assert!(!options.score_gd);
         assert_eq!(options.score_setup_ms, 5_000);
+        assert!(!options.shared_expectation);
+        assert_eq!(options.expectation_bits, 8);
+        assert_eq!(options.expectation_max_remaining, 18);
+        assert_eq!(options.expectation_budget_fraction, 0.5);
         assert!(suffix_options(&json!({"suffix":{"joint_ratio":true}})).unwrap().unwrap().joint_ratio);
         assert!(suffix_options(&json!({"suffix":{"canonicalize_certain":true}})).unwrap().unwrap().canonicalize_certain);
     }
@@ -247,5 +279,9 @@ mod tests {
         assert!(suffix_options(&json!({"suffix":{"joint_ratio":"true"}})).is_err());
         assert!(suffix_options(&json!({"suffix":{"score_gd":"true"}})).is_err());
         assert!(suffix_options(&json!({"suffix":{"score_setup_ms":0}})).is_err());
+        assert!(suffix_options(&json!({"suffix":{"shared_expectation":"true"}})).is_err());
+        assert!(suffix_options(&json!({"suffix":{"expectation_bits":21}})).is_err());
+        assert!(suffix_options(&json!({"suffix":{"expectation_max_remaining":0}})).is_err());
+        assert!(suffix_options(&json!({"suffix":{"expectation_budget_fraction":0}})).is_err());
     }
 }
