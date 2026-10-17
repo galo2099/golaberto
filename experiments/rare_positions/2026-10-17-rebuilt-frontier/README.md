@@ -106,3 +106,11 @@ The source manifest in that run omitted scheduler.py; its separately recorded
 SHA256 was checked unchanged before and after measurement. Later manifests
 include all Python sources. See `RESULTS.md` for the GD-cap measurements, and `REGIME_RESULTS.md` for
 the subsequent conditional-proposal recovery.
+
+## Latest recovery result
+
+The restored conditional proposals and cost-aware scheduler reach
+`[6.147750115263105e-29,3.1342415010044333e-28]`, U/L5.098, in179.152 seconds
+on Palmeiras12th. This meets the simultaneous99% order-of-magnitude target
+and improves on the retained historical6.386 result for the signature-matching
+surviving fixture. See REGIME_RESULTS.md for comparison, validation and limits.

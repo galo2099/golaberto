@@ -79,3 +79,9 @@ Cohort indices also changed; compare exact above-team sets, not numeric labels.
 Full JSON receipts, moment counts and timings are retained locally alongside
 this report. The GitHub backup contains source, design/review notes and this
 aggregate report. Raw receipt files are not part of the branch backup.
+
+## Subsequent recovery
+
+These measurements predate the restored conditional regime proposals and
+cost-aware sampling. The newer run reaches U/L5.098 in179.152 seconds; see
+REGIME_RESULTS.md. Keep the earlier failed runs as reconstruction evidence.

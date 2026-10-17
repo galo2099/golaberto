@@ -11,6 +11,11 @@ Raw JSON receipts remain local. This manifest records identities only.
 | gd-caps-pal12-180s.json | 963237 | `5def450447703cb96ae1eaf5e4a1432af838fdaa44ee78cb5a42c274767245ea` |
 | primary-pal12-180s-timing.json | 743 | `833966c4ca28b136cb030caf22c91dd56ef91d7b0fefc52fe15102f8d07c752b` |
 | primary-pal12-180s.json | 910337 | `1657f07c19d3f8044979f65851039ea36dc39bd62c536a242fbd5a5f400ce90c` |
+| regime-cost-pal12-180s-timing.json | 845 | `af29b1e00146866e4961599304cc54319ffcdbc6ad0a4946b8c4667e67e70aba` |
+| regime-cost-pal12-180s.json | 1515855 | `0aa2182546cce6de4172c913d9f0648056bc1ba9b327d19054d8bd6f8a4b2507` |
+| regime-functional.json | 36835 | `e3428f35cb43dffb529044632028663e8a25dc61d7a059210395136db76d9d05` |
+| regime-pal12-180s-timing.json | 851 | `ef4f26dd3f8f10add75b9e86a8d82d877db5eedd82edfa5fdb4236129ffc5eeb` |
+| regime-pal12-180s.json | 1739546 | `813745e2b18bf3ca3ecde8b3c2151f8d73443d53357bc0a53be5e67eff6de10c` |
 | smoke-pal12-timing.json | 676 | `a0c3411218ab016f0689920c6bbd5680d752ecb3cae751b73c48fae3b2342c3c` |
 | smoke-pal12.json | 42997 | `0fdb21e73a7cb9f671c2045758290c4b4a27bbe85f0e1551e588e0cc3d1fad79` |
 | smoke-v2-pal12-timing.json | 683 | `42b3abee0b279424e85bc36ae8b9f5bc6b39859612c5d1bdb7e4037618d7b566` |
