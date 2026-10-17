@@ -1,5 +1,5 @@
 import unittest
-from scheduler import next_plan_request, stage_deadline, stage_timeout_ms, sampling_priority
+from scheduler import next_plan_request, stage_deadline, stage_timeout_ms, sampling_priority, rebuild_request
 
 class SchedulerTests(unittest.TestCase):
     def test_incomplete_plan_doubles_capacity_before_growing_k(self):
@@ -52,5 +52,13 @@ class SchedulerTests(unittest.TestCase):
         empty=sampling_priority(0,.03,0,None,counts,counts,0,1000)
         self.assertGreater(no_hits,0)
         self.assertGreater(empty,0)
+
+    def test_rebuild_budget_is_strictly_inside_cleanup_window_and_shared_state_cap(self):
+        self.assertEqual(rebuild_request(300000,3_750_000,4_000_000,250_000,500,100,98.2,1),
+                         (250000,500,None))
+        self.assertEqual(rebuild_request(250000,3_800_000,4_000_000,250_000,500,100,99.2,1),
+                         (200000,None,"deadline"))
+        self.assertEqual(rebuild_request(1000,4_000_000,4_000_000,250_000,500,100,90,1),
+                         (None,None,"state_budget"))
 
 if __name__ == "__main__": unittest.main()

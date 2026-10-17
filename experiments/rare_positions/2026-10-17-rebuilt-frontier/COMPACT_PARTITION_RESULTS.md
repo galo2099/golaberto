@@ -79,8 +79,8 @@ sampling. Source changes and builds finish before the clock.
 The observed ratio improves only about 4.5%; this single adaptive run does not
 establish a general performance improvement. Fifteen regime proposals were
 installed initially, including cohort 5, but later joint-only refinements
-replaced all of them. The controller currently attempts GD regime setup only
-during its initial stage. It does not rebuild a compact proposal after the
+replaced all of them. The controller in this run attempted GD regime setup only
+during its initial stage. It did not rebuild a compact proposal after the
 selected joint group grows. Thus the isolated nine-rival cap reduction above
 was not used by this measured controller run.
 
@@ -95,9 +95,9 @@ Reported regime setup increases from 189.9 ms to 4049.3 ms; all preparation
 increases from 5444.4 ms to 8796.5 ms. Native sampling takes 141456.3 ms.
 There are no sample errors, confidence conflicts or uncovered mass, and all
 measured hashes remain unchanged. No qualified point estimate is reported.
-Retrying compact conditioning after joint growth is a separate scheduling
-experiment; the fixed-plan cap diagnostic does not measure its budget impact
-or final confidence interval.
+The subsequent scheduling experiment rebuilds GD conditioning after accepted
+joint growth; see GD_REBUILD_RESULTS.md. The fixed-plan cap diagnostic above
+does not measure that scheduling policy's budget impact or confidence interval.
 
 ## Validation
 

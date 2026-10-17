@@ -48,6 +48,10 @@ representation; the sampler enforces each grouped root exactly.
   Clopper-Pearson bounds with summable cohort/epoch/look confidence allocation.
   The beta inverses use SciPy double precision with outward adjustments;
   numerical tests are not a formal proof of the special-function implementation.
+- GD proposals are rebuilt once after accepting a completed positive joint
+  plan during focused growth, within the remaining shared time/state budget.
+  Rejected rebuilds retain the joint plan; accepted rebuilds start a fresh
+  proposal epoch while preserving earlier absolute confidence bounds.
 
 The reconstruction uses one native worker. It now also tightens analytic event
 upper bounds using mandatory GD comparisons and exhaustive, bounded pivot WDL
@@ -65,6 +69,9 @@ assignments retain separate GD factors while sharing one remaining-fixture
 joint DP forest. The existing per-assignment path remains for partitions of at
 most 64 assignments. See COMPACT_PARTITION_RESULTS.md for the statistical
 contract, real 156-assignment regression, and Palmeiras16th measurements.
+GD_REBUILD_RESULTS.md records the subsequent controller transition and its
+shared-budget comparison. Use `--no-regime-rebuilds` to retain initial GD setup
+while disabling after-growth rebuilds for a control run.
 
 ## Build and run
 
@@ -93,8 +100,9 @@ is reported as qualified only when that criterion passes without a conflict.
 
 ## Validation checkpoint
 
-At the compact-partition source freeze,31 optimized Rust tests and20 Python tests
-passed. Rust tests cover exact shared-fixture proposal mass, actual proposal
+At the GD-rebuild controller freeze,30 Python tests pass; the unchanged native
+code remains at its31-test optimized Rust validation checkpoint. Rust tests
+cover exact shared-fixture proposal mass, actual proposal
 caps, interior partial-table fallback at state caps1–3, satisfied-lower state
 clamping, accepted RNG-grid boundaries, integer conversion enclosures,
 conditional score GD brackets, cache invariance and the real fixture partition.

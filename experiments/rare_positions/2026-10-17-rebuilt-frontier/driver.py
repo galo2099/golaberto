@@ -5,7 +5,7 @@ import argparse, hashlib, json, math, os, subprocess, sys, time
 from pathlib import Path
 IMPORT_STARTED=time.monotonic()
 from confidence import telescoping_alpha, threshold_mean_bounds, scaled_absolute_bounds, intersect_bounds, apply_analytic_upper, EpochStats
-from scheduler import next_plan_request, stage_deadline, stage_timeout_ms, sampling_priority
+from scheduler import next_plan_request, stage_deadline, stage_timeout_ms, sampling_priority, rebuild_request
 
 HERE = Path(__file__).resolve().parent
 DEFAULT_REQUEST = HERE.parents[2] / "odds-rust/tests/fixtures/group-16498-2026-10-10.json"
@@ -22,7 +22,7 @@ def accept_regime_proposal(state, receipt):
                             "accepted":True,"mode":receipt.get("mode","regime"),
                             "pivot_id":receipt.get("pivot_id"),"atom_count":receipt.get("atom_count")}
     state["last_attempt_k"]=len(selected)
-    state["last_attempt_cap"]=int(receipt.get("states",state["last_attempt_cap"]))
+    state["last_attempt_cap"]=int(receipt.get("states",state.get("last_attempt_cap",1)))
     state["last_attempt_accepted"]=True
     state["last_attempt_complete"]=bool(receipt.get("complete",False))
     if epoch != state["epoch"]:
@@ -32,6 +32,64 @@ def accept_regime_proposal(state, receipt):
         state["epoch_sampling_ms"]=0.0
         state["stats"].reset(epoch)
     return True
+
+def rebuild_after_joint_growth(engine, rid, state, state_caps, args, deadline,
+                               setup_totals, now=time.monotonic):
+    """Try at most one regime proposal for this accepted joint-plan epoch."""
+    plan=state.get("current_plan") or {}
+    parent_epoch=int(plan.get("epoch",state["epoch"]))
+    attempted=state.setdefault("rebuild_parent_epochs",set())
+    if (not args.regimes or not args.regime_rebuilds or not plan.get("accepted")
+            or not plan.get("complete") or plan.get("mode","joint")!="joint"
+            or float(plan.get("B",0.0))<=0.0 or parent_epoch in attempted):
+        return None
+    attempted.add(parent_epoch)
+    old_states=int(state_caps.get(rid,0))
+    others=sum(state_caps.values())-old_states
+    cap,timeout_ms,reason=rebuild_request(args.state_cap,others,4_000_000,250_000,
+                                           args.time_ms,deadline,now(),args.cleanup_reserve)
+    if cap is not None and cap<=old_states:
+        reason="no_growth_state_budget"
+    record={"trigger":"after_joint_growth","parent_epoch":parent_epoch,
+            "k":int(plan.get("k",0)),"state_cap":cap,"time_ms":timeout_ms,
+            "reason":reason}
+    if reason:
+        record["skipped"]=True
+        state["regime_attempts"].append(record)
+        state["regime_status"]="skipped_"+reason
+        return record
+    start=now()
+    try:
+        receipt=engine.call(op="regime",id=rid,state_cap=cap,time_ms=timeout_ms)
+    except TimeoutError as exc:
+        record.update({"error":str(exc),"setup_failure":True})
+        state["regime_status"]="protocol_timeout"
+        state["regime_attempts"].append(record)
+        elapsed=(now()-start)*1000.0
+        state["setup_ms"]+=elapsed;setup_totals["setup_ms"]+=elapsed;setup_totals["budget_ms"]+=elapsed
+        return record
+    except (RuntimeError,ValueError) as exc:
+        record.update({"error":str(exc),"setup_failure":True})
+        state["regime_status"]="setup_failure"
+        state["regime_attempts"].append(record)
+        elapsed=(now()-start)*1000.0
+        state["setup_ms"]+=elapsed;setup_totals["setup_ms"]+=elapsed;setup_totals["budget_ms"]+=elapsed
+        return record
+    receipt={**record,**receipt}
+    state["regime_attempts"].append(receipt)
+    setup=float(receipt.get("setup_ms",0.0))
+    state["setup_ms"]+=setup
+    setup_totals["setup_ms"]+=setup
+    setup_totals["budget_ms"]+=(now()-start)*1000.0
+    state["regime_status"]="accepted" if receipt.get("accepted") else ("complete_rejected" if receipt.get("complete") else "partial_rejected")
+    if accept_regime_proposal(state,receipt):
+        state_caps[rid]=int(receipt.get("states",old_states))
+        if float(receipt.get("B",1.0))==0.0:
+            state["row"]["upper"]=0.0
+            state["proof_status"]="exact_zero"
+            state["lo"],state["hi"],conflict=intersect_bounds(state["lo"],state["hi"],0.0,0.0)
+            state["conflict"]=state.get("conflict",False) or conflict
+    return receipt
 
 class Protocol:
     def __init__(self, binary, request, team, position, deadline):
@@ -67,6 +125,7 @@ def main():
     p.add_argument("--initial-draws",type=int,default=128); p.add_argument("--max-draws",type=int,default=100000); p.add_argument("--initial-state-cap",type=int,default=1000); p.add_argument("--state-cap",type=int,default=250000); p.add_argument("--time-ms",type=int,default=500); p.add_argument("--depth",type=int,default=6); p.add_argument("--initial-k",type=int,default=1); p.add_argument("--max-k",type=int,default=12); p.add_argument("--output")
     p.add_argument("--gd-bounds",dest="gd_bounds",action="store_true",default=True); p.add_argument("--no-gd-bounds",dest="gd_bounds",action="store_false")
     p.add_argument("--regimes",dest="regimes",action="store_true",default=True); p.add_argument("--no-regimes",dest="regimes",action="store_false")
+    p.add_argument("--no-regime-rebuilds",dest="regime_rebuilds",action="store_false",default=True,help="disable regime rebuilds after joint plan growth")
     p.add_argument("--run-full-budget",action="store_true",help="continue focused sampling after the target ratio is reached")
     a=p.parse_args()
     if not 0 <= a.cleanup_reserve < a.budget: p.error("--cleanup-reserve must be at least 0 and less than --budget")
@@ -129,7 +188,7 @@ def main():
             except (TimeoutError,RuntimeError) as exc:
                 row["_first_sample"]=None;row.setdefault("_sample_errors",[]).append(str(exc))
         state_caps.update({int(r["id"]):int(r.get("_plan_states",state_caps.get(int(r["id"]),0))) for r in candidates})
-        states={int(r["id"]):{"row":r,"epoch":int(r.get("_plan_epoch",0)),"look":0,"focused_looks":0,"n":0,"stats":EpochStats(int(r.get("_plan_epoch",0))),"lo":0.,"hi":float(r.get("upper",1.)),"samples":[],"setup_ms":r.get("_prepare_setup_ms",0),"sampling_ms":0,"epoch_sampling_ms":0.0,"last_attempt_k":int(r.get("_last_attempt_k",-1)),"last_attempt_cap":int(r.get("_last_attempt_cap",-1)),"last_attempt_accepted":bool((r.get("_prepare_attempts") or [{}])[-1].get("accepted",False)),"last_attempt_complete":(bool((r.get("_prepare_attempts") or [{}])[-1]["complete"]) if "complete" in (r.get("_prepare_attempts") or [{}])[-1] else None),"conflict":False,"sample_errors":list(r.get("_sample_errors",[])),"prepare_attempts":list(r.get("_prepare_attempts",[])),"current_plan":r.get("_current_plan",r.get("plan")),"proof_status":r.get("_proof_status","unknown"),"gd_bounds":None,"gd_bounds_status":"pending" if a.gd_bounds else "disabled","gd_bounds_attempts":[],"regime_attempts":[],"regime_status":"pending" if a.regimes else "disabled" } for r in candidates}
+        states={int(r["id"]):{"row":r,"epoch":int(r.get("_plan_epoch",0)),"look":0,"focused_looks":0,"n":0,"stats":EpochStats(int(r.get("_plan_epoch",0))),"lo":0.,"hi":float(r.get("upper",1.)),"samples":[],"setup_ms":r.get("_prepare_setup_ms",0),"sampling_ms":0,"epoch_sampling_ms":0.0,"last_attempt_k":int(r.get("_last_attempt_k",-1)),"last_attempt_cap":int(r.get("_last_attempt_cap",-1)),"last_attempt_accepted":bool((r.get("_prepare_attempts") or [{}])[-1].get("accepted",False)),"last_attempt_complete":(bool((r.get("_prepare_attempts") or [{}])[-1]["complete"]) if "complete" in (r.get("_prepare_attempts") or [{}])[-1] else None),"conflict":False,"sample_errors":list(r.get("_sample_errors",[])),"prepare_attempts":list(r.get("_prepare_attempts",[])),"current_plan":r.get("_current_plan",r.get("plan")),"proof_status":r.get("_proof_status","unknown"),"gd_bounds":None,"gd_bounds_status":"pending" if a.gd_bounds else "disabled","gd_bounds_attempts":[],"regime_attempts":[],"regime_status":"pending" if a.regimes else "disabled","rebuild_parent_epochs":set()} for r in candidates}
         for rid,s in states.items():
             first=s["row"].get("_first_sample")
             if first and int(first.get("n",-1))==a.initial_draws:
@@ -178,6 +237,7 @@ def main():
                     gd_setup_ms+=float(receipt.get("setup_ms",0.0))
                 gd_budget_ms+=(time.monotonic()-call_started)*1000.0
         regime_started=time.monotonic();regime_setup_ms=0.0;regime_budget_ms=0.0
+        rebuild_totals={"setup_ms":0.0,"budget_ms":0.0};protocol_failed=False
         if a.regimes:
             regime_deadline=stage_deadline(deadline,regime_started,20.0,a.cleanup_reserve)
             for rid,s in sorted(states.items(),key=lambda kv:kv[1]["hi"]-kv[1]["lo"],reverse=True):
@@ -197,21 +257,27 @@ def main():
                     receipt=engine.call(op="regime",id=rid,state_cap=policy_cap,time_ms=request_ms)
                     s["regime_attempts"].append(receipt)
                     s["regime_status"]="accepted" if receipt.get("accepted") else ("complete_rejected" if receipt.get("complete") else "partial_rejected")
+                    regime_setup_ms+=float(receipt.get("setup_ms",0.0))
                     if accept_regime_proposal(s,receipt):
-                        s["setup_ms"]+=float(receipt.get("setup_ms",0.0))
                         state_caps[rid]=int(receipt.get("states",state_caps.get(rid,0)))
                         if float(receipt.get("B",1.0))==0.0:
                             s["row"]["upper"]=0.0
                             s["proof_status"]="exact_zero"
                             s["lo"],s["hi"],conflict=intersect_bounds(s["lo"],s["hi"],0.0,0.0)
                             s["conflict"]=s.get("conflict",False) or conflict
-                    regime_setup_ms+=float(receipt.get("setup_ms",0.0))
+                    s["setup_ms"]+=float(receipt.get("setup_ms",0.0))
                 except (RuntimeError,TimeoutError,ValueError) as exc:
                     s["regime_status"]="error"
                     s["regime_attempts"].append({"error":str(exc),"state_cap":policy_cap,"time_ms":request_ms})
+                    elapsed=(time.monotonic()-call_started)*1000.0
+                    s["setup_ms"]+=elapsed;regime_setup_ms+=elapsed
+                    if isinstance(exc, TimeoutError):
+                        regime_budget_ms+=elapsed
+                        protocol_failed=True
+                        break
                 regime_budget_ms+=(time.monotonic()-call_started)*1000.0
         # Each focused batch is incorporated only after a complete receipt arrives.
-        while time.monotonic()<deadline-a.cleanup_reserve and states:
+        while not protocol_failed and time.monotonic()<deadline-a.cleanup_reserve and states:
             total_lo=max(0.0,math.nextafter(math.fsum(s["lo"] for s in states.values()),0.0))
             total_hi=min(1.0,math.nextafter(math.fsum([*(s["hi"] for s in states.values()),float(desc.get("uncovered_upper",0))]),math.inf))
             if not a.run_full_budget and total_lo>0 and total_hi/total_lo<=10: break
@@ -255,14 +321,23 @@ def main():
                 if prep.get("accepted"):
                     state_caps[rid]=int(prep.get("states",state_caps.get(rid,0)))
                     s["current_plan"]={"B":prep.get("B"),"states":prep.get("states"),"k":len(prep.get("selected_rival_ids",[])),"selected_rival_ids":prep.get("selected_rival_ids",[]),"complete":prep.get("complete"),"epoch":prep.get("epoch"),"accepted":True,"mode":prep.get("mode","joint")}
+                    if int(prep.get("epoch",s["epoch"])) != s["epoch"]:
+                        s["epoch"]=int(prep["epoch"]); s["look"]=0; s["focused_looks"]=0; s["epoch_sampling_ms"]=0.0; s["stats"].reset(s["epoch"])
                     if float(prep.get("B",1.0))==0.0:
                         s["row"]["upper"]=0.0
                         s["proof_status"]="exact_zero"
                         s["lo"],s["hi"],conflict=intersect_bounds(s["lo"],s["hi"],0.0,0.0)
                         s["conflict"]=s.get("conflict",False) or conflict
                         continue
-                if prep.get("accepted") and int(prep.get("epoch",s["epoch"])) != s["epoch"]:
-                    s["epoch"]=int(prep["epoch"]); s["look"]=0; s["focused_looks"]=0; s["epoch_sampling_ms"]=0.0; s["stats"].reset(s["epoch"])
+                if prep.get("accepted"):
+                    rebuild_after_joint_growth(engine,rid,s,state_caps,a,deadline,rebuild_totals)
+                    if s.get("regime_status")=="protocol_timeout":
+                        protocol_failed=True
+                        break
+                    if s.get("proof_status")=="exact_zero":
+                        continue
+                if time.monotonic()>=deadline-a.cleanup_reserve:
+                    break
                 phase="sample"
                 rec=engine.call(op="sample",id=rid,n=batch,seed=a.seed+rid+1000003*s["epoch"]+s["look"],depth=a.depth)
             except TimeoutError as exc:
@@ -301,7 +376,7 @@ def main():
                 "interpretation":"separate empirical means of the lower and upper score streams; not a single point estimate",
             }
             region_results.append({"id":rid,"root_id":s["row"].get("root_id"),"target_points":s["row"].get("target_points"),"target_wins":s["row"].get("target_wins"),"opponent_ids":s["row"].get("opponent_ids",[]),"analytic_upper":s["row"].get("upper"),"lower":s["lo"],"upper":s["hi"],"draws":s["n"],"epoch":s["epoch"],"setup_ms":s["setup_ms"],"sampling_ms":s["sampling_ms"],"confidence_conflict":s.get("conflict",False),"proof_status":s.get("proof_status","unknown"),"plan":s.get("current_plan"),"prepare_attempts":s.get("prepare_attempts",[]),"sample_errors":s.get("sample_errors",[]),"gd_bounds_status":s.get("gd_bounds_status"),"gd_bounds":s.get("gd_bounds"),"gd_bounds_attempts":s.get("gd_bounds_attempts",[]),"regime_status":s.get("regime_status"),"regime_attempts":s.get("regime_attempts",[]),"empirical_raw_score_streams":empirical,"current_epoch":{"n":stats.n,"B":stats.cap,"sum_lower":stats.sum_lower,"sum_upper":stats.sum_upper,"sum_lower_sq":stats.sum_lower_sq,"sum_upper_sq":stats.sum_upper_sq,"positive_draws":stats.positive_draws,"lower_exceedances":stats.lower,"upper_exceedances":stats.upper},"samples":s["samples"]})
-        result={"provenance":"independently rebuilt estimator; not the lost binary","target":desc.get("target"),"fixture_signature":{"team_id":a.team_id,"position":a.position},"confidence_level":.99,"qualified":qualified,"estimate":(total_lo*total_hi)**.5 if qualified else None,"lower":total_lo,"upper":total_hi,"confidence_conflicts":conflicts,"elapsed_seconds":time.monotonic()-started,"setup_seconds":setup_seconds,"setup_ms_total":sum(s["setup_ms"] for s in states.values()),"gd_bounds_enabled":a.gd_bounds,"gd_bounds_elapsed_ms":gd_budget_ms,"gd_bounds_setup_ms":gd_setup_ms,"regimes_enabled":a.regimes,"regime_elapsed_ms":regime_budget_ms,"regime_setup_ms":regime_setup_ms,"sampling_ms_total":sum(s["sampling_ms"] for s in states.values()),"workers":1,"source_sha256":source_hash,"binary_sha256":binary_hash,"request_sha256":input_hash,"hashes_unchanged":sha(binary)==binary_hash and sha(req)==input_hash and all(sha(Path(path))==digest for path,digest in source_file_hashes.items()),"candidate_slots":desc.get("candidate_slots"),"uncovered_upper":desc.get("uncovered_upper"),"regions":region_results}
+        result={"provenance":"independently rebuilt estimator; not the lost binary","target":desc.get("target"),"fixture_signature":{"team_id":a.team_id,"position":a.position},"confidence_level":.99,"qualified":qualified,"estimate":(total_lo*total_hi)**.5 if qualified else None,"lower":total_lo,"upper":total_hi,"confidence_conflicts":conflicts,"elapsed_seconds":time.monotonic()-started,"setup_seconds":setup_seconds,"setup_ms_total":sum(s["setup_ms"] for s in states.values()),"gd_bounds_enabled":a.gd_bounds,"gd_bounds_elapsed_ms":gd_budget_ms,"gd_bounds_setup_ms":gd_setup_ms,"regimes_enabled":a.regimes,"regime_rebuilds_enabled":bool(a.regimes and a.regime_rebuilds),"regime_elapsed_ms":regime_budget_ms+rebuild_totals["budget_ms"],"regime_setup_ms":regime_setup_ms+rebuild_totals["setup_ms"],"sampling_ms_total":sum(s["sampling_ms"] for s in states.values()),"workers":1,"source_sha256":source_hash,"binary_sha256":binary_hash,"request_sha256":input_hash,"hashes_unchanged":sha(binary)==binary_hash and sha(req)==input_hash and all(sha(Path(path))==digest for path,digest in source_file_hashes.items()),"candidate_slots":desc.get("candidate_slots"),"uncovered_upper":desc.get("uncovered_upper"),"regions":region_results}
         data=json.dumps(result,indent=2,sort_keys=True)
         if a.output: Path(a.output).write_text(data+"\n")
         print(data)

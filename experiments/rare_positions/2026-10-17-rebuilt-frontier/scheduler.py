@@ -65,3 +65,16 @@ def stage_deadline(run_deadline, now, allowance_seconds, cleanup_reserve_seconds
 
 def stage_timeout_ms(stage_deadline_at, now, per_call_ms):
     return max(0,int(min(per_call_ms,(stage_deadline_at-now)*1000.0)))
+
+
+def rebuild_request(state_cap, others, global_cap, per_cell_cap, user_time_ms,
+                    run_deadline, now, cleanup_reserve):
+    """Bound a rebuild by shared state and wall-clock budgets; return reason on skip."""
+    budget=max(0,min(int(state_cap),int(per_cell_cap),int(global_cap)-int(others)))
+    if budget<=0:
+        return None, None, "state_budget"
+    remaining_ms=int((run_deadline-cleanup_reserve-now)*1000.0)
+    timeout_ms=min(int(user_time_ms),1000,remaining_ms)
+    if timeout_ms<=0:
+        return budget, None, "deadline"
+    return budget, timeout_ms, None

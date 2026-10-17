@@ -72,6 +72,17 @@ GD conditioning after that growth. The fixed-plan gain therefore does not
 transfer to the final proposal. See COMPACT_PARTITION_RESULTS.md for the
 construction, statistical review, tests and complete comparison.
 
+## GD rebuilding after joint growth
+
+The next controller version rebuilds GD proposals after accepting completed
+joint plans. Cohort5 now retains its nine-rival GD proposal at cap
+`1.335714790055119e-32`. The shared180-second run reaches interval
+`[3.105431383236009e-41,1.719720850889973e-37]`, ratio5537.8, in179.180 seconds
+with4789920 total draws. The upper endpoint improves6.89-fold and the interval
+ratio improves5.03-fold relative to the initial-only compact controller, but
+the case remains unqualified. GD_REBUILD_RESULTS.md records the transition,
+epoch/budget checks, per-cohort results and sampling cost.
+
 ## Initial snapshot mismatch
 
 An initial run used the285-played-game uploaded snapshot, which also has
