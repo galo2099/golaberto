@@ -16,6 +16,10 @@ use std::{
 #[path = "residual/suffix.rs"]
 mod suffix;
 pub use suffix::{SuffixDiagnostics, SuffixOptions};
+#[path = "residual/score_gd.rs"]
+mod score_gd;
+pub use score_gd::ScoreDiagnostics;
+use score_gd::ScoreBounder;
 
 #[derive(Clone, Copy)]
 enum Graph<'a> {
@@ -40,6 +44,30 @@ pub struct ResidualSource<'a> {
     g_prefix: Interval,
     q0_prefix: Interval,
     zero: bool,
+    fixed_outcomes: Vec<Option<u8>>,
+    score_ranking: Option<ScoreRanking>,
+}
+
+#[derive(Clone)]
+struct ScoreRanking {
+    target: usize,
+    above: Vec<usize>,
+    pair_condition: Option<(usize, usize, Interval)>,
+}
+
+impl ResidualSource<'_> {
+    pub fn set_score_ranking(
+        &mut self,
+        target: usize,
+        above: &[usize],
+        pair_condition: Option<(usize, usize, Interval)>,
+    ) {
+        self.score_ranking = Some(ScoreRanking {
+            target,
+            above: above.to_vec(),
+            pair_condition,
+        });
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -79,6 +107,7 @@ pub struct ResidualCertificate {
     pub zero_pw_prunes: usize,
     pub zero_residual_prunes: usize,
     pub zero_residual_leaves: usize,
+    pub score_zero_prunes: usize,
     pub feasible_leaves: usize,
     pub source_count: usize,
     pub frontier_min_depth: usize,
@@ -95,6 +124,7 @@ pub struct ResidualCertificate {
     pub final_refresh_skipped: usize,
     pub final_refresh_ms: f64,
     pub aggregation_ms: f64,
+    pub score_gd: ScoreDiagnostics,
 }
 
 impl Plan {
@@ -134,7 +164,7 @@ impl Forest {
             totals[f.home] = totals[f.home].saturating_add(hg);
             totals[f.away] = totals[f.away].saturating_add(ag);
         }
-        make_source(
+        let mut source = make_source(
             Graph::Forest(&self.core),
             if root.node == Some(usize::MAX) {
                 None
@@ -146,7 +176,13 @@ impl Forest {
             mixture_probability,
             root.prefix_mass,
             root.zero,
-        )
+        )?;
+        for (&fi, &outcome) in self.prefix_fixtures.iter().zip(&root.prefix_outcomes) {
+            if let Some(slot) = source.fixed_outcomes.get_mut(fi) {
+                *slot = Some(outcome);
+            }
+        }
+        Ok(source)
     }
 }
 
@@ -178,6 +214,14 @@ fn make_source<'a>(
         return Err("residual source has an invalid likelihood factor".into());
     }
     let v_prefix = widen_if_invalid(prefix_mass.mul(native_factor).div(mixture_probability));
+    let fixed_outcomes = graph
+        .plan()
+        .masks
+        .iter()
+        .map(|&mask| {
+            (mask.count_ones() == 1).then(|| mask.trailing_zeros() as u8)
+        })
+        .collect();
     Ok(ResidualSource {
         graph,
         node,
@@ -186,6 +230,8 @@ fn make_source<'a>(
         g_prefix: Interval::point(1.0),
         q0_prefix: mixture_probability,
         zero,
+        fixed_outcomes,
+        score_ranking: None,
     })
 }
 
@@ -211,6 +257,7 @@ struct Branch {
     v: Interval,
     g: Interval,
     q0: Interval,
+    score_moments: [f64; 3],
     bound: f64,
     residual_cap: f64,
     depth: usize,
@@ -242,6 +289,16 @@ fn up(x: f64) -> f64 {
         x.max(0.0)
     } else {
         f64::from_bits(x.to_bits() + 1)
+    }
+}
+
+fn apply_score_factor(bound: f64, factor: f64) -> f64 {
+    if factor == 1.0 {
+        bound
+    } else {
+        Interval::point(bound)
+            .mul(Interval::point(factor))
+            .hi
     }
 }
 
@@ -474,8 +531,9 @@ fn branch_bounds(
     clip_h: f64,
     cache: &mut NativePmfCache,
     suffix_cache: Option<&mut suffix::Cache>,
+    score_bounder: &mut ScoreBounder,
     deadline: Instant,
-) -> Result<(f64, f64, bool), String> {
+) -> Result<(f64, f64, bool, bool), String> {
     let plan = source.graph.plan();
     let suffix_cap = branch
         .node
@@ -493,7 +551,7 @@ fn branch_bounds(
             laws,
             cache,
         )? {
-            suffix::Bound::Impossible => return Ok((0.0, 0.0, true)),
+            suffix::Bound::Impossible => return Ok((0.0, 0.0, true, false)),
             suffix::Bound::Feasible { min_g: g_future, native_over_guided_cap } => {
                 let clipped = clipped_guide_lower(branch.g, g_future, clip_h);
                 residual_cap = if v_cap <= clipped {
@@ -531,8 +589,17 @@ fn branch_bounds(
         )?
     };
     let native = branch.q0.mul(branch.v).mul(Interval::point(event)).hi;
-    let mass_bound = native.min(branch.q0.mul(Interval::point(residual_cap)).hi);
-    Ok((mass_bound.max(0.0), residual_cap, event == 0.0))
+    let score_factor = score_bounder.factor(
+        branch.source,
+        branch.pos,
+        &branch.totals,
+        branch.score_moments,
+    );
+    let mass_bound = apply_score_factor(
+        native.min(branch.q0.mul(Interval::point(residual_cap)).hi),
+        score_factor,
+    );
+    Ok((mass_bound.max(0.0), residual_cap, event == 0.0, score_factor == 0.0))
 }
 
 fn selected_feasible(plan: &Plan, totals: &[i32]) -> bool {
@@ -584,11 +651,25 @@ pub fn residual_certificate_with_options(
     let mut snapshots = Vec::new();
     let mut pmf_cache = NativePmfCache::default();
     let mut suffix_cache = suffix_options
-        .map(|options| suffix::Cache::new(options, started, search_deadline))
+        .as_ref()
+        .map(|options| suffix::Cache::new(options.clone(), started, search_deadline))
         .transpose()?;
+    let mut score_bounder = if suffix_options.as_ref().is_some_and(|options| options.score_gd) {
+        ScoreBounder::prepare(
+            sources,
+            model,
+            laws,
+            suffix_options.as_ref().map_or(5_000, |options| options.score_setup_ms),
+            search_deadline,
+        )
+    } else {
+        ScoreBounder::disabled()
+    };
     let mut prunes = 0usize;
     let mut zero_pw_prunes = 0usize;
     let mut zero_residual_prunes = 0usize;
+    let mut score_zero_prunes = 0usize;
+    let mut score_zero_max = 0.0f64;
     for (si, source) in sources.iter().enumerate() {
         let plan = source.graph.plan();
         if plan.masks.len() != laws.len() || plan.base.len() != model.n {
@@ -605,13 +686,14 @@ pub fn residual_certificate_with_options(
             v: source.v_prefix,
             g: source.g_prefix,
             q0: source.q0_prefix,
+            score_moments: [1.0; 3],
             bound: 0.0,
             residual_cap: 0.0,
             depth: 0,
             serial,
             suffix_probed: false,
         };
-        let (bound, residual_cap, pwzero) = branch_bounds(
+        let (bound, residual_cap, pwzero, scorezero) = branch_bounds(
             &br,
             source,
             model,
@@ -620,6 +702,7 @@ pub fn residual_certificate_with_options(
             clip_h,
             &mut pmf_cache,
             suffix_cache.as_mut(),
+            &mut score_bounder,
             search_deadline,
         )?;
         br.bound = bound;
@@ -630,10 +713,15 @@ pub fn residual_certificate_with_options(
             heap.push(br);
         } else {
             prunes += 1;
+            if scorezero && residual_cap > 0.0 {
+                score_zero_max = score_zero_max.max(residual_cap);
+            }
             if pwzero {
                 zero_pw_prunes += 1;
             } else if residual_cap == 0.0 {
                 zero_residual_prunes += 1;
+            } else {
+                score_zero_prunes += 1;
             }
         }
         serial += 1;
@@ -673,7 +761,7 @@ pub fn residual_certificate_with_options(
                     )?;
                     branch.suffix_probed = true;
                     if !matches!(bound, suffix::Bound::Unknown) {
-                        let (new_bound, residual_cap, pwzero) = branch_bounds(
+                        let (new_bound, residual_cap, pwzero, scorezero) = branch_bounds(
                             &branch,
                             source,
                             model,
@@ -682,14 +770,20 @@ pub fn residual_certificate_with_options(
                             clip_h,
                             &mut pmf_cache,
                             Some(cache),
+                            &mut score_bounder,
                             search_deadline,
                         )?;
                         if new_bound == 0.0 {
                             prunes += 1;
+                            if scorezero && residual_cap > 0.0 {
+                                score_zero_max = score_zero_max.max(residual_cap);
+                            }
                             if pwzero {
                                 zero_pw_prunes += 1;
                             } else if residual_cap == 0.0 {
                                 zero_residual_prunes += 1;
+                            } else {
+                                score_zero_prunes += 1;
                             }
                             expanded += 1;
                             continue;
@@ -720,8 +814,21 @@ pub fn residual_certificate_with_options(
                 if residual == 0.0 {
                     zero_residual_leaves += 1;
                 }
+                let score_factor = score_bounder.factor(
+                    branch.source,
+                    branch.pos,
+                    &branch.totals,
+                    branch.score_moments,
+                );
+                if score_factor == 0.0 && residual > 0.0 {
+                    score_zero_prunes += 1;
+                }
+                let leaf_bound = apply_score_factor(
+                    branch.q0.mul(Interval::point(residual)).hi,
+                    score_factor,
+                );
                 completed_bound = Interval::point(completed_bound)
-                    .add(Interval::point(branch.q0.hi).mul(Interval::point(residual)))
+                    .add(Interval::point(leaf_bound))
                     .hi;
                 completed_max = completed_max.max(residual);
             } else {
@@ -778,6 +885,12 @@ pub fn residual_certificate_with_options(
                 v: widen_if_invalid(branch.v.mul(laws[fi].outcomes[o].div(q[o]))),
                 g: widen_if_invalid(branch.g.mul(gq[o].div(q[o]))),
                 q0: branch.q0.mul(q[o]),
+                score_moments: score_bounder.advance(
+                    branch.source,
+                    branch.pos,
+                    o,
+                    branch.score_moments,
+                ),
                 bound: 0.0,
                 residual_cap: 0.0,
                 depth: branch.depth + 1,
@@ -785,7 +898,7 @@ pub fn residual_certificate_with_options(
                 suffix_probed: false,
             };
             serial += 1;
-            let (bound, residual_cap, pwzero) = branch_bounds(
+            let (bound, residual_cap, pwzero, scorezero) = branch_bounds(
                 &child,
                 source,
                 model,
@@ -794,16 +907,22 @@ pub fn residual_certificate_with_options(
                 clip_h,
                 &mut pmf_cache,
                 suffix_cache.as_mut(),
+                &mut score_bounder,
                 search_deadline,
             )?;
             child.bound = bound;
             child.residual_cap = residual_cap;
             if bound == 0.0 {
                 prunes += 1;
+                if scorezero && residual_cap > 0.0 {
+                    score_zero_max = score_zero_max.max(residual_cap);
+                }
                 if pwzero {
                     zero_pw_prunes += 1;
                 } else if residual_cap == 0.0 {
                     zero_residual_prunes += 1;
+                } else {
+                    score_zero_prunes += 1;
                 }
             } else {
                 children.push(child);
@@ -831,7 +950,7 @@ pub fn residual_certificate_with_options(
                 max_residual_cap: heap
                     .iter()
                     .map(|x| x.residual_cap)
-                    .fold(completed_max, f64::max),
+                    .fold(completed_max.max(score_zero_max), f64::max),
             });
         }
     }
@@ -876,9 +995,29 @@ pub fn residual_certificate_with_options(
                     }
                     let residual = residual.min(old_residual);
                     if residual == 0.0 { cache.record_guide_zero(); cache.record_guide_prune(); }
-                    branch.bound = branch.bound.min(branch.q0.mul(Interval::point(residual)).hi);
+                    let score_factor = score_bounder.factor(
+                        branch.source,
+                        branch.pos,
+                        &branch.totals,
+                        branch.score_moments,
+                    );
+                    let fresh_bound = apply_score_factor(
+                        branch.q0.mul(Interval::point(residual)).hi,
+                        score_factor,
+                    );
+                    branch.bound = branch.bound.min(fresh_bound);
                     branch.residual_cap = residual;
-                    if branch.bound == 0.0 { prunes += 1; zero_residual_prunes += 1; }
+                    if score_factor == 0.0 && residual > 0.0 {
+                        score_zero_max = score_zero_max.max(residual);
+                    }
+                    if branch.bound == 0.0 {
+                        prunes += 1;
+                        if score_factor == 0.0 && residual > 0.0 {
+                            score_zero_prunes += 1;
+                        } else {
+                            zero_residual_prunes += 1;
+                        }
+                    }
                     else { refreshed.push(branch); }
                 }
                 suffix::Bound::Unknown => unreachable!(),
@@ -922,7 +1061,10 @@ pub fn residual_certificate_with_options(
         }
     }
     expectation_upper = expectation_upper.min(initial_bounds).min(cap_b).max(0.0);
-    max_residual_cap = max_residual_cap.min(initial_max).min(cap_b);
+    max_residual_cap = max_residual_cap
+        .max(score_zero_max)
+        .min(initial_max)
+        .min(cap_b);
     let complete = pending.is_empty();
     let suffix_diagnostics = suffix_cache
         .as_mut()
@@ -943,6 +1085,7 @@ pub fn residual_certificate_with_options(
         zero_pw_prunes,
         zero_residual_prunes,
         zero_residual_leaves,
+        score_zero_prunes,
         feasible_leaves,
         source_count: sources.len(),
         frontier_min_depth: if pending.is_empty() { 0 } else { min_depth },
@@ -962,6 +1105,7 @@ pub fn residual_certificate_with_options(
             .collect(),
         top_pending,
         suffix: suffix_diagnostics,
+        score_gd: score_bounder.diagnostics(),
         final_refresh_applied,
         final_refresh_skipped,
         final_refresh_ms,
@@ -996,10 +1140,122 @@ mod tests {
     }
 
     #[test]
+    fn score_gd_tie_bound_tightens_mean_without_changing_uniform_r_cap() {
+        let request: Request = serde_json::from_value(json!({
+            "id": 1,
+            "phase": {"sort":"pt,w,gd,gf,gp,name", "championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+            "team_groups":[{"team_id":10},{"team_id":20},{"team_id":30},{"team_id":40}],
+            "games":[
+                {"id":1,"home_id":10,"away_id":30,"home_power":1.1,"away_power":0.8,"played":false},
+                {"id":2,"home_id":20,"away_id":40,"home_power":0.8,"away_power":1.1,"played":false}
+            ]
+        })).unwrap();
+        let model = Model::new(request).unwrap();
+        let laws: Vec<_> = model.fixtures.iter().map(|f| {
+            Law::new(f.home_sampler.mean, f.away_sampler.mean).unwrap()
+        }).collect();
+        let target = model.fixtures[0].home;
+        let rival = model.fixtures[1].home;
+        let mut lower = vec![i32::MIN / 4; model.n];
+        let mut upper = vec![i32::MAX / 4; model.n];
+        lower[target] = 13;
+        lower[rival] = 13;
+        upper[target] = 13;
+        upper[rival] = 13;
+        let plan = Plan::build(
+            &model,
+            &laws,
+            &[4, 4],
+            &lower,
+            &upper,
+            &[target, rival],
+            4,
+            100,
+            Instant::now() + Duration::from_secs(5),
+        ).unwrap();
+        let mut source = plan
+            .residual_source(Interval::point(1.0), Interval::point(1.0))
+            .unwrap();
+        source.set_score_ranking(target, &[rival], None);
+        assert_eq!(source.fixed_outcomes, vec![Some(2), Some(2)]);
+
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let off = residual_certificate_with_options(
+            std::slice::from_ref(&source), &model, &laws, 10.0, 0.0, 0, deadline,
+            Some(SuffixOptions::default()),
+        ).unwrap();
+        let mut score_options = SuffixOptions::default();
+        score_options.score_gd = true;
+        let on = residual_certificate_with_options(
+            std::slice::from_ref(&source), &model, &laws, 10.0, 0.0, 0, deadline,
+            Some(score_options.clone()),
+        ).unwrap();
+
+        assert!(on.score_gd.prepared_sources > 0);
+        assert!(on.score_gd.tightened_bounds > 0);
+        assert!(on.expectation_upper < off.expectation_upper);
+        assert_eq!(on.max_residual_cap, off.max_residual_cap);
+
+        let completed_off = residual_certificate_with_options(
+            std::slice::from_ref(&source),
+            &model,
+            &laws,
+            10.0,
+            0.0,
+            10_000,
+            deadline,
+            Some(SuffixOptions::default()),
+        )
+        .unwrap();
+        let completed_on = residual_certificate_with_options(
+            std::slice::from_ref(&source),
+            &model,
+            &laws,
+            10.0,
+            0.0,
+            10_000,
+            deadline,
+            Some(score_options.clone()),
+        )
+        .unwrap();
+        assert!(completed_off.complete && completed_on.complete);
+        assert!(completed_on.expectation_upper < completed_off.expectation_upper);
+        assert_eq!(completed_on.max_residual_cap, completed_off.max_residual_cap);
+
+        let expired = Instant::now() - Duration::from_secs(1);
+        let expired_off = residual_certificate_with_options(
+            std::slice::from_ref(&source),
+            &model,
+            &laws,
+            10.0,
+            0.0,
+            0,
+            expired,
+            Some(SuffixOptions::default()),
+        )
+        .unwrap();
+        let expired_on = residual_certificate_with_options(
+            std::slice::from_ref(&source),
+            &model,
+            &laws,
+            10.0,
+            0.0,
+            0,
+            expired,
+            Some(score_options),
+        )
+        .unwrap();
+        assert_eq!(expired_on.score_gd.prepared_sources, 0);
+        assert_eq!(expired_on.expectation_upper, expired_off.expectation_upper);
+        assert_eq!(expired_on.max_residual_cap, expired_off.max_residual_cap);
+    }
+
+    #[test]
     fn joint_cap_uses_joint_extremum_and_preserves_old_bound_on_unknowns() {
         let branch = Branch {
             source: 0, node: None, pos: 0, totals: vec![],
             v: Interval::point(0.18), g: Interval::point(0.2), q0: Interval::point(1.0),
+            score_moments: [1.0; 3],
             bound: 1.0, residual_cap: 1.0, depth: 0, serial: 0, suffix_probed: false,
         };
         // Independent extrema give K=.9 and a positive residual. The paired
@@ -1365,6 +1621,7 @@ mod tests {
         let source = forest
             .residual_source(0, &model, Interval::point(1.0), Interval::point(1.0))
             .unwrap();
+        assert_eq!(source.fixed_outcomes, vec![Some(0), None]);
         let cert = residual_certificate(
             &[source],
             &model,

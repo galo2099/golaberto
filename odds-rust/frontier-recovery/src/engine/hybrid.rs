@@ -139,6 +139,7 @@ impl Engine {
         if let Some(options) = suffix_options.as_ref() {
             if options.state_cap == 0 || options.max_remaining == 0
                 || options.probe_nodes == 0 || options.probe_ms == 0
+                || options.score_setup_ms == 0
             {
                 return Err("suffix state_cap, max_remaining, probe_nodes and probe_ms must be positive".into());
             }
@@ -158,16 +159,23 @@ impl Engine {
         }
         let deadline = started + std::time::Duration::from_millis(time_ms);
         let certificate = match (regime, suffix_options.clone()) {
-            (Some(plan), Some(options)) => plan.residual_certificate_with_options(
-                &self.model, &self.laws, b, h, node_limit, deadline, Some(options),
-            )?,
+            (Some(plan), Some(options)) => {
+                let score_ranking = options.score_gd.then_some((self.target, region.above.as_slice()));
+                plan.residual_certificate_with_options(
+                    &self.model, &self.laws, b, h, node_limit, deadline,
+                    Some(options), score_ranking,
+                )?
+            },
             (Some(plan), None) => plan.residual_certificate(
                 &self.model, &self.laws, b, h, node_limit, deadline,
             )?,
             (None, Some(options)) => {
-                let source = region.plan.as_ref().unwrap().residual_source(
+                let mut source = region.plan.as_ref().unwrap().residual_source(
                     Interval::point(1.0), Interval::point(1.0),
                 )?;
+                if options.score_gd {
+                    source.set_score_ranking(self.target, &region.above, None);
+                }
                 crate::joint::residual_certificate_with_options(
                     &[source], &self.model, &self.laws, b, h, node_limit, deadline, Some(options),
                 )?
@@ -203,7 +211,8 @@ impl Engine {
                 "probe_nodes":o.probe_nodes,"probe_ms":o.probe_ms,
                 "budget_fraction":o.budget_fraction,
                 "canonicalize_certain":o.canonicalize_certain,
-                "joint_ratio":o.joint_ratio
+                "joint_ratio":o.joint_ratio,"score_gd":o.score_gd,
+                "score_setup_ms":o.score_setup_ms
             })),
             "calls":suffix_diagnostics.calls,"visits":suffix_diagnostics.visits,
             "cache_hits":suffix_diagnostics.cache_hits,"entries":suffix_diagnostics.entries,
@@ -250,6 +259,8 @@ impl Engine {
             "frontier_max_depth":certificate.frontier_max_depth,
             "prunes":certificate.prunes,"leaves":certificate.leaves,
             "zero_pw_prunes":certificate.zero_pw_prunes,
+            "score_gd":certificate.score_gd,
+            "score_zero_prunes":certificate.score_zero_prunes,
             "zero_residual_prunes":certificate.zero_residual_prunes,
             "final_refresh_applied":certificate.final_refresh_applied,
             "final_refresh_skipped":certificate.final_refresh_skipped,
@@ -577,12 +588,16 @@ mod tests {
             budget_fraction: 0.1,
             canonicalize_certain: true,
             joint_ratio: true,
+            score_gd: true,
+            ..Default::default()
         };
         let enabled = engine.residual_certificate_with_options(0, 0.1, 100, 100, Some(options)).unwrap();
         assert_eq!(enabled["suffix"]["enabled"], true);
         assert_eq!(enabled["suffix"]["options"]["max_remaining"], 2);
         assert_eq!(enabled["suffix"]["options"]["canonicalize_certain"], true);
         assert_eq!(enabled["suffix"]["options"]["joint_ratio"], true);
+        assert_eq!(enabled["suffix"]["options"]["score_gd"], true);
+        assert_eq!(enabled["score_gd"]["enabled"], true);
         assert_eq!(enabled["suffix"]["joint_ratio_enabled"], true);
         assert_eq!(enabled["suffix"]["canonicalization_enabled"], true);
         assert_eq!(engine.regions[0].epoch, epoch);

@@ -107,6 +107,7 @@ class ResidualAuditTests(unittest.TestCase):
             "probe_nodes": 25_000, "probe_ms": 25,
             "budget_fraction": .15, "canonicalize_certain": False,
             "joint_ratio": False,
+            "score_gd": False, "score_setup_ms": 5000,
         })
         self.assertTrue(result["hashes_unchanged"])
 
@@ -184,6 +185,8 @@ class ResidualAuditTests(unittest.TestCase):
         self.args.suffix_budget_fraction = .2
         self.args.suffix_canonicalize_certain = True
         self.args.suffix_joint_ratio = True
+        self.args.score_gd = True
+        self.args.score_setup_ms = 7100
 
         def factory(*args):
             engine = FakeEngine(*args, clock=clock)
@@ -198,6 +201,8 @@ class ResidualAuditTests(unittest.TestCase):
             "probe_nodes": 4321, "probe_ms": 17,
             "budget_fraction": .2, "canonicalize_certain": True,
             "joint_ratio": True,
+            "score_gd": True,
+            "score_setup_ms": 7100,
         })
         self.assertTrue(result["suffix_bounds_enabled"])
         self.assertTrue(result["suffix_request_sent"])
@@ -222,6 +227,15 @@ class ResidualAuditTests(unittest.TestCase):
         self.args.suffix_bounds = True
         self.args.suffix_canonicalize_certain = "true"
         with self.assertRaisesRegex(ValueError, "must be boolean"):
+            residual_audit.suffix_options(self.args)
+
+    def test_score_gd_requires_bounds_and_setup_milliseconds_are_strict(self):
+        self.args.score_gd = True
+        with self.assertRaisesRegex(ValueError, "requires --suffix-bounds"):
+            residual_audit.suffix_options(self.args)
+        self.args.suffix_bounds = True
+        self.args.score_setup_ms = True
+        with self.assertRaisesRegex(ValueError, "positive integer"):
             residual_audit.suffix_options(self.args)
 
     def test_joint_ratio_requires_bounds_and_is_forwarded(self):

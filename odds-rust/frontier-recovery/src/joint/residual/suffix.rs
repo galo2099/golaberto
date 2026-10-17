@@ -20,6 +20,8 @@ pub struct SuffixOptions {
     pub budget_fraction: f64,
     pub canonicalize_certain: bool,
     pub joint_ratio: bool,
+    pub score_gd: bool,
+    pub score_setup_ms: u64,
 }
 
 impl Default for SuffixOptions {
@@ -32,6 +34,8 @@ impl Default for SuffixOptions {
             budget_fraction: 0.15,
             canonicalize_certain: false,
             joint_ratio: false,
+            score_gd: false,
+            score_setup_ms: 5_000,
         }
     }
 }

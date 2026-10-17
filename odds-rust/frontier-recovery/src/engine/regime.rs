@@ -114,7 +114,7 @@ impl RegimePlan {
         node_limit: usize,
         deadline: Instant,
     ) -> Result<ResidualCertificate, String> {
-        self.residual_certificate_with_options(model, laws, cap_b, clip_h, node_limit, deadline, None)
+        self.residual_certificate_with_options(model, laws, cap_b, clip_h, node_limit, deadline, None, None)
     }
 
     pub(super) fn residual_certificate_with_options(
@@ -126,20 +126,29 @@ impl RegimePlan {
         node_limit: usize,
         deadline: Instant,
         suffix_options: Option<SuffixOptions>,
+        score_ranking: Option<(usize, &[usize])>,
     ) -> Result<ResidualCertificate, String> {
         let tickets = categorical_probabilities(&self.weights)?;
         let mut sources: Vec<ResidualSource<'_>> = Vec::new();
         if let Some(forest) = &self.forest {
             for (index, atom) in self.forest_atoms.iter().enumerate() {
                 if tickets[index].hi <= 0.0 { continue; }
-                sources.push(forest.residual_source(
+                let mut source = forest.residual_source(
                     atom.root_index, model, atom.q, tickets[index],
-                )?);
+                )?;
+                if let Some((target, above)) = score_ranking {
+                    source.set_score_ranking(target, above, atom.pair.as_ref().map(|p| (p.positive, p.negative, p.normalizer)));
+                }
+                sources.push(source);
             }
         } else {
             for (index, atom) in self.atoms.iter().enumerate() {
                 if tickets[index].hi <= 0.0 { continue; }
-                sources.push(atom.plan.residual_source(atom.q, tickets[index])?);
+                let mut source = atom.plan.residual_source(atom.q, tickets[index])?;
+                if let Some((target, above)) = score_ranking {
+                    source.set_score_ranking(target, above, atom.pair.as_ref().map(|p| (p.positive, p.negative, p.normalizer)));
+                }
+                sources.push(source);
             }
         }
         certify_residual_with_options(&sources, model, laws, cap_b, clip_h, node_limit, deadline, suffix_options)
@@ -1479,11 +1488,15 @@ mod tests {
                 budget_fraction: 0.1,
                 canonicalize_certain: true,
                 joint_ratio: true,
+                score_gd: true,
+                ..Default::default()
             }),
         ).unwrap();
         assert_eq!(suffix_audit["suffix"]["enabled"], true);
         assert_eq!(suffix_audit["suffix"]["options"]["joint_ratio"], true);
         assert_eq!(suffix_audit["suffix"]["joint_ratio_enabled"], true);
+        assert_eq!(suffix_audit["suffix"]["options"]["score_gd"], true);
+        assert_eq!(suffix_audit["score_gd"]["enabled"], true);
         assert_eq!(suffix_audit["suffix"]["canonicalization_enabled"], true);
         assert_eq!(suffix_audit["source_count"], 156);
         assert_eq!(engine.regions[id].epoch, epoch);

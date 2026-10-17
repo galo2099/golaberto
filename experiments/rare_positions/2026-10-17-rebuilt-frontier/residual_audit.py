@@ -53,6 +53,8 @@ def suffix_options(args) -> dict:
         "budget_fraction": getattr(args, "suffix_budget_fraction", .15),
         "canonicalize_certain": getattr(args, "suffix_canonicalize_certain", False),
         "joint_ratio": getattr(args, "suffix_joint_ratio", False),
+        "score_gd": getattr(args, "score_gd", False),
+        "score_setup_ms": getattr(args, "score_setup_ms", 5000),
     }
     for name in ("state_cap", "max_remaining", "probe_nodes", "probe_ms"):
         value = options[name]
@@ -72,6 +74,14 @@ def suffix_options(args) -> dict:
         raise ValueError("suffix joint-ratio must be boolean")
     if joint_ratio and not options["enabled"]:
         raise ValueError("--suffix-joint-ratio requires --suffix-bounds")
+    score_gd = options["score_gd"]
+    if not isinstance(score_gd, bool):
+        raise ValueError("--score-gd must be boolean")
+    if score_gd and not options["enabled"]:
+        raise ValueError("--score-gd requires --suffix-bounds")
+    setup_ms = options["score_setup_ms"]
+    if isinstance(setup_ms, bool) or not isinstance(setup_ms, int) or setup_ms <= 0:
+        raise ValueError("--score-setup-ms must be a positive integer")
     return options
 
 
@@ -200,6 +210,8 @@ def run_audit(args, protocol_factory=Protocol, now=time.monotonic) -> dict:
                 "budget_fraction": suffix["budget_fraction"],
                 "canonicalize_certain": suffix["canonicalize_certain"],
                 "joint_ratio": suffix["joint_ratio"],
+                "score_gd": suffix["score_gd"],
+                "score_setup_ms": suffix["score_setup_ms"],
             }
             output["suffix_request_sent"] = True
         certificate = engine.call(**certificate_request)
@@ -253,8 +265,13 @@ def main() -> None:
                         help="canonicalize certain suffix fixture groups")
     parser.add_argument("--suffix-joint-ratio", action="store_true",
                         help="enable joint-ratio suffix bounds")
+    parser.add_argument("--score-gd", choices=("true", "false"), default="false",
+                        help="enable goal-difference ranking bounds")
+    parser.add_argument("--score-setup-ms", type=int, default=5000,
+                        help="goal-difference setup time limit in milliseconds")
     parser.add_argument("--output")
     args = parser.parse_args()
+    args.score_gd = args.score_gd == "true"
     if not math.isfinite(args.budget) or args.budget <= 0:
         parser.error("--budget must be finite and positive")
     if not math.isfinite(args.cleanup_reserve) or not 0 <= args.cleanup_reserve < args.budget:
