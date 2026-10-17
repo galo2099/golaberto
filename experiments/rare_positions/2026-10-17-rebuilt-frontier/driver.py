@@ -5,6 +5,7 @@ import argparse, hashlib, json, math, os, subprocess, sys, time
 from pathlib import Path
 IMPORT_STARTED=time.monotonic()
 from confidence import telescoping_alpha, threshold_mean_bounds, scaled_absolute_bounds, intersect_bounds, apply_analytic_upper, EpochStats
+from trusted_highs import prescreen as trusted_highs_prescreen
 from scheduler import next_plan_request, stage_deadline, stage_timeout_ms, sampling_priority, rebuild_request
 
 HERE = Path(__file__).resolve().parent
@@ -126,9 +127,16 @@ def main():
     p.add_argument("--gd-bounds",dest="gd_bounds",action="store_true",default=True); p.add_argument("--no-gd-bounds",dest="gd_bounds",action="store_false")
     p.add_argument("--regimes",dest="regimes",action="store_true",default=True); p.add_argument("--no-regimes",dest="regimes",action="store_false")
     p.add_argument("--no-regime-rebuilds",dest="regime_rebuilds",action="store_false",default=True,help="disable regime rebuilds after joint plan growth")
+    p.add_argument("--trusted-highs",action="store_true",help="trust HiGHS status 2 to prescreen infeasible cohorts")
+    p.add_argument("--highs-budget",type=float,default=10.0,help="shared HiGHS setup and solve budget in seconds")
+    p.add_argument("--highs-time-limit",type=float,default=.25,help="per-cohort HiGHS time limit in seconds")
+    p.add_argument("--highs-node-limit",type=int,help="optional HiGHS node limit")
     p.add_argument("--run-full-budget",action="store_true",help="continue focused sampling after the target ratio is reached")
     a=p.parse_args()
     if not 0 <= a.cleanup_reserve < a.budget: p.error("--cleanup-reserve must be at least 0 and less than --budget")
+    if not math.isfinite(a.highs_budget) or a.highs_budget < 0: p.error("--highs-budget must be finite and nonnegative")
+    if not math.isfinite(a.highs_time_limit) or a.highs_time_limit <= 0: p.error("--highs-time-limit must be finite and positive")
+    if a.highs_node_limit is not None and a.highs_node_limit < 0: p.error("--highs-node-limit must be nonnegative")
     started=IMPORT_STARTED; deadline=started+a.budget; req=Path(a.request).resolve(); binary=Path(a.binary).resolve()
     if a.workers != 1: print("frontier-recovery uses a serial native engine; recording workers=1",file=sys.stderr)
     setup_start=time.monotonic()
@@ -147,10 +155,32 @@ def main():
         desc=engine.call(op="describe")
         setup_seconds=time.monotonic()-setup_start
         rows=desc.get("regions",[]); candidates=[r for r in rows if not r.get("impossible",False) and float(r.get("upper",0))>0]
+        highs_logs=[]; highs_pruned=set(); prescreen_protocol_failed=False; highs_started=time.monotonic(); highs_deadline=min(deadline-a.cleanup_reserve,highs_started+a.highs_budget)
+        if a.trusted_highs:
+            for row in candidates:
+                if time.monotonic() >= highs_deadline: break
+                rid=int(row["id"])
+                prescreen_call_started=time.monotonic()
+                try:
+                    model=engine.call(op="feasibility_model",id=rid)
+                    rec=trusted_highs_prescreen(model,a.highs_time_limit,highs_deadline,node_limit=a.highs_node_limit)
+                except Exception as exc:
+                    rec={"status":"error","message":f"{type(exc).__name__}: {exc}","runtime_seconds":time.monotonic()-prescreen_call_started,"infeasibility_assumption":"HiGHS status 2 trusted as correct","pruned":False}
+                    if isinstance(exc, TimeoutError):
+                        prescreen_protocol_failed=True
+                rec["id"]=rid; highs_logs.append(rec)
+                if prescreen_protocol_failed: break
+                if rec.get("pruned") is True: highs_pruned.add(rid)
+            for row in candidates:
+                if int(row["id"]) in highs_pruned:
+                    row["upper"]=0.0; row["_exact_zero"]=True; row["_proof_status"]="trusted_highs_infeasible"; row["_trusted_highs_log"]=next(x for x in highs_logs if x["id"]==int(row["id"]))
+        highs_elapsed=time.monotonic()-highs_started if a.trusted_highs else 0.0
         state_caps={int(r["id"]):int((r.get("plan") or {}).get("states",0)) for r in candidates}
         # Establish at least a bounded fallback plan and discovery sample for every cohort.
         for row in candidates:
+            if prescreen_protocol_failed: break
             if time.monotonic()>=deadline-a.cleanup_reserve: break
+            if row.get("_exact_zero"): continue
             rid=int(row["id"])
             try:
                 others=sum(state_caps.values())-state_caps.get(rid,0)
@@ -178,6 +208,7 @@ def main():
         # Only after every reachable cohort has had its small preparation attempt,
         # collect the cheap discovery batch for all of them before focused growth.
         for row in candidates:
+            if prescreen_protocol_failed: break
             if time.monotonic()>=deadline-a.cleanup_reserve: break
             if row.get("_exact_zero"): continue
             rid=int(row["id"])
@@ -205,7 +236,7 @@ def main():
                     s["samples"].append({"batch_n":a.initial_draws,"epoch_n":s["stats"].n,"epoch":s["epoch"],"mode":first.get("mode",(s.get("current_plan") or {}).get("mode")),"sum_lower":first["sum_lower"],"sum_upper":first["sum_upper"],"positive_draws":first["positive_draws"],"sum_lower_sq":first["sum_lower_sq"],"sum_upper_sq":first["sum_upper_sq"],"lower_absolute":ll,"upper_absolute":ul,"B":cap,"setup_ms":first.get("setup_ms",0),"elapsed_ms":first.get("elapsed_ms",0)})
                 except ValueError as exc: s["sample_errors"].append(str(exc))
         gd_started=time.monotonic();gd_setup_ms=0.0;gd_budget_ms=0.0
-        if a.gd_bounds:
+        if a.gd_bounds and not prescreen_protocol_failed:
             gd_deadline=stage_deadline(deadline,gd_started,20.0,a.cleanup_reserve)
             for rid,s in sorted(states.items(),key=lambda kv:float(kv[1]["row"].get("upper",0.0)),reverse=True):
                 if float(s["row"].get("upper",0.0))<=0:
@@ -237,8 +268,8 @@ def main():
                     gd_setup_ms+=float(receipt.get("setup_ms",0.0))
                 gd_budget_ms+=(time.monotonic()-call_started)*1000.0
         regime_started=time.monotonic();regime_setup_ms=0.0;regime_budget_ms=0.0
-        rebuild_totals={"setup_ms":0.0,"budget_ms":0.0};protocol_failed=False
-        if a.regimes:
+        rebuild_totals={"setup_ms":0.0,"budget_ms":0.0};protocol_failed=prescreen_protocol_failed
+        if a.regimes and not protocol_failed:
             regime_deadline=stage_deadline(deadline,regime_started,20.0,a.cleanup_reserve)
             for rid,s in sorted(states.items(),key=lambda kv:kv[1]["hi"]-kv[1]["lo"],reverse=True):
                 if s["proof_status"]=="exact_zero" or float(s["row"].get("upper",0.0))<=0:
@@ -279,7 +310,8 @@ def main():
         # Each focused batch is incorporated only after a complete receipt arrives.
         while not protocol_failed and time.monotonic()<deadline-a.cleanup_reserve and states:
             total_lo=max(0.0,math.nextafter(math.fsum(s["lo"] for s in states.values()),0.0))
-            total_hi=min(1.0,math.nextafter(math.fsum([*(s["hi"] for s in states.values()),float(desc.get("uncovered_upper",0))]),math.inf))
+            raw_hi=math.fsum([*(s["hi"] for s in states.values()),float(desc.get("uncovered_upper",0))])
+            total_hi=min(1.0,0.0 if raw_hi==0.0 else math.nextafter(raw_hi,math.inf))
             if not a.run_full_budget and total_lo>0 and total_hi/total_lo<=10: break
             active=[]
             for item in states.items():
@@ -364,7 +396,8 @@ def main():
             s["samples"].append({"batch_n":batch,"epoch_n":epoch_n,"epoch":s["epoch"],"mode":rec.get("mode",(s.get("current_plan") or {}).get("mode")),"sum_lower":rec["sum_lower"],"sum_upper":rec["sum_upper"],"positive_draws":rec["positive_draws"],"sum_lower_sq":rec["sum_lower_sq"],"sum_upper_sq":rec["sum_upper_sq"],"lower_absolute":ll,"upper_absolute":ul,"B":cap,"setup_ms":rec.get("setup_ms",0),"elapsed_ms":rec.get("elapsed_ms",0)})
         engine.close(); engine=None
         total_lo=max(0.0,math.nextafter(math.fsum(s["lo"] for s in states.values()),0.0))
-        total_hi=min(1.0,math.nextafter(math.fsum([*(s["hi"] for s in states.values()),float(desc.get("uncovered_upper",0))]),math.inf))
+        raw_hi=math.fsum([*(s["hi"] for s in states.values()),float(desc.get("uncovered_upper",0))])
+        total_hi=min(1.0,0.0 if raw_hi==0.0 else math.nextafter(raw_hi,math.inf))
         conflicts=any(s.get("conflict",False) for s in states.values())
         qualified=bool(not conflicts and total_lo>0 and total_hi/total_lo<=10)
         region_results=[]
@@ -375,8 +408,9 @@ def main():
                 "absolute_upper_mean":stats.cap*stats.sum_upper/stats.n,
                 "interpretation":"separate empirical means of the lower and upper score streams; not a single point estimate",
             }
-            region_results.append({"id":rid,"root_id":s["row"].get("root_id"),"target_points":s["row"].get("target_points"),"target_wins":s["row"].get("target_wins"),"opponent_ids":s["row"].get("opponent_ids",[]),"analytic_upper":s["row"].get("upper"),"lower":s["lo"],"upper":s["hi"],"draws":s["n"],"epoch":s["epoch"],"setup_ms":s["setup_ms"],"sampling_ms":s["sampling_ms"],"confidence_conflict":s.get("conflict",False),"proof_status":s.get("proof_status","unknown"),"plan":s.get("current_plan"),"prepare_attempts":s.get("prepare_attempts",[]),"sample_errors":s.get("sample_errors",[]),"gd_bounds_status":s.get("gd_bounds_status"),"gd_bounds":s.get("gd_bounds"),"gd_bounds_attempts":s.get("gd_bounds_attempts",[]),"regime_status":s.get("regime_status"),"regime_attempts":s.get("regime_attempts",[]),"empirical_raw_score_streams":empirical,"current_epoch":{"n":stats.n,"B":stats.cap,"sum_lower":stats.sum_lower,"sum_upper":stats.sum_upper,"sum_lower_sq":stats.sum_lower_sq,"sum_upper_sq":stats.sum_upper_sq,"positive_draws":stats.positive_draws,"lower_exceedances":stats.lower,"upper_exceedances":stats.upper},"samples":s["samples"]})
-        result={"provenance":"independently rebuilt estimator; not the lost binary","target":desc.get("target"),"fixture_signature":{"team_id":a.team_id,"position":a.position},"confidence_level":.99,"qualified":qualified,"estimate":(total_lo*total_hi)**.5 if qualified else None,"lower":total_lo,"upper":total_hi,"confidence_conflicts":conflicts,"elapsed_seconds":time.monotonic()-started,"setup_seconds":setup_seconds,"setup_ms_total":sum(s["setup_ms"] for s in states.values()),"gd_bounds_enabled":a.gd_bounds,"gd_bounds_elapsed_ms":gd_budget_ms,"gd_bounds_setup_ms":gd_setup_ms,"regimes_enabled":a.regimes,"regime_rebuilds_enabled":bool(a.regimes and a.regime_rebuilds),"regime_elapsed_ms":regime_budget_ms+rebuild_totals["budget_ms"],"regime_setup_ms":regime_setup_ms+rebuild_totals["setup_ms"],"sampling_ms_total":sum(s["sampling_ms"] for s in states.values()),"workers":1,"source_sha256":source_hash,"binary_sha256":binary_hash,"request_sha256":input_hash,"hashes_unchanged":sha(binary)==binary_hash and sha(req)==input_hash and all(sha(Path(path))==digest for path,digest in source_file_hashes.items()),"candidate_slots":desc.get("candidate_slots"),"uncovered_upper":desc.get("uncovered_upper"),"regions":region_results}
+            region_results.append({"id":rid,"root_id":s["row"].get("root_id"),"target_points":s["row"].get("target_points"),"target_wins":s["row"].get("target_wins"),"opponent_ids":s["row"].get("opponent_ids",[]),"analytic_upper":s["row"].get("upper"),"lower":s["lo"],"upper":s["hi"],"draws":s["n"],"epoch":s["epoch"],"setup_ms":s["setup_ms"],"sampling_ms":s["sampling_ms"],"confidence_conflict":s.get("conflict",False),"proof_status":s.get("proof_status","unknown"),"trusted_highs":s["row"].get("_trusted_highs_log"),"plan":s.get("current_plan"),"prepare_attempts":s.get("prepare_attempts",[]),"sample_errors":s.get("sample_errors",[]),"gd_bounds_status":s.get("gd_bounds_status"),"gd_bounds":s.get("gd_bounds"),"gd_bounds_attempts":s.get("gd_bounds_attempts",[]),"regime_status":s.get("regime_status"),"regime_attempts":s.get("regime_attempts",[]),"empirical_raw_score_streams":empirical,"current_epoch":{"n":stats.n,"B":stats.cap,"sum_lower":stats.sum_lower,"sum_upper":stats.sum_upper,"sum_lower_sq":stats.sum_lower_sq,"sum_upper_sq":stats.sum_upper_sq,"positive_draws":stats.positive_draws,"lower_exceedances":stats.lower,"upper_exceedances":stats.upper},"samples":s["samples"]})
+        relied=bool(highs_pruned)
+        result={"provenance":"independently rebuilt estimator; not the lost binary","target":desc.get("target"),"fixture_signature":{"team_id":a.team_id,"position":a.position},"confidence_level":.99,"qualified":qualified,"estimate":(total_lo*total_hi)**.5 if qualified else None,"lower":total_lo,"upper":total_hi,"confidence_conflicts":conflicts,"elapsed_seconds":time.monotonic()-started,"setup_seconds":setup_seconds,"setup_ms_total":sum(s["setup_ms"] for s in states.values()),"gd_bounds_enabled":a.gd_bounds,"gd_bounds_elapsed_ms":gd_budget_ms,"gd_bounds_setup_ms":gd_setup_ms,"regimes_enabled":a.regimes,"regime_rebuilds_enabled":bool(a.regimes and a.regime_rebuilds),"regime_elapsed_ms":regime_budget_ms+rebuild_totals["budget_ms"],"regime_setup_ms":regime_setup_ms+rebuild_totals["setup_ms"],"sampling_ms_total":sum(s["sampling_ms"] for s in states.values()),"trusted_highs_enabled":a.trusted_highs,"conditional_on_highs_correct":relied,"trusted_highs_budget_seconds":a.highs_budget,"trusted_highs_elapsed_seconds":highs_elapsed,"trusted_highs_solver_runtime_seconds":sum(float(x.get("runtime_seconds",0)) for x in highs_logs),"trusted_highs_calls":highs_logs,"workers":1,"source_sha256":source_hash,"binary_sha256":binary_hash,"request_sha256":input_hash,"hashes_unchanged":sha(binary)==binary_hash and sha(req)==input_hash and all(sha(Path(path))==digest for path,digest in source_file_hashes.items()),"candidate_slots":desc.get("candidate_slots"),"uncovered_upper":desc.get("uncovered_upper"),"regions":region_results}
         data=json.dumps(result,indent=2,sort_keys=True)
         if a.output: Path(a.output).write_text(data+"\n")
         print(data)

@@ -38,8 +38,10 @@ class MainFlowEngine:
         self.calls.append(dict(request))
         op=request["op"]
         if op=="describe":
-            return {"regions":[{"id":1,"upper":.5,"plan":{"states":1000}}],
-                    "candidate_slots":1,"uncovered_upper":0.,"target":{}}
+            return {"regions":[{"id":1,"upper":.5,"root_id":0,"target_points":3,"target_wins":1,"opponent_ids":[],"plan":{"states":1000}}],
+                    "candidate_slots":16,"uncovered_upper":0.,"target":{}}
+        if op=="feasibility_model":
+            return {"native_fixture_model":True}
         if op=="prepare":
             self.prepares+=1
             if self.prepares==1:
@@ -177,6 +179,31 @@ class RebuildFlowTests(unittest.TestCase):
         rebuild=region["regime_attempts"][-1]
         self.assertEqual((rebuild["trigger"],rebuild["parent_epoch"],rebuild["k"]),
                          ("after_joint_growth",2,2))
+
+    def test_main_all_trusted_highs_pruned_keeps_slots_and_exact_zero_total(self):
+        engines=[]
+        def factory(*args):
+            e=MainFlowEngine(*args);engines.append(e);return e
+        with tempfile.TemporaryDirectory() as tmp:
+            binary=Path(tmp)/"fake-engine";binary.write_text("x")
+            request=Path(tmp)/"request.json";request.write_text("{}")
+            argv=["driver.py","--binary",str(binary),"--request",str(request),
+                  "--budget","30","--cleanup-reserve","1","--initial-draws","1",
+                  "--max-draws","2","--no-gd-bounds","--no-regimes","--trusted-highs"]
+            output=io.StringIO()
+            trusted={"status":2,"message":"mock infeasible","runtime_seconds":.01,
+                     "infeasibility_assumption":"HiGHS status 2 is trusted as correct","pruned":True}
+            with patch.object(sys,"argv",argv),patch.object(driver,"Protocol",factory),\
+                 patch.object(driver,"trusted_highs_prescreen",return_value=trusted),\
+                 patch.object(driver.time,"monotonic",return_value=10.),contextlib.redirect_stdout(output):
+                driver.main()
+        result=json.loads(output.getvalue());region=result["regions"][0]
+        self.assertEqual([c["op"] for c in engines[0].calls],
+                         ["describe","feasibility_model","quit"])
+        self.assertEqual(result["candidate_slots"],16)
+        self.assertEqual((result["lower"],result["upper"]),(0.,0.))
+        self.assertEqual((region["draws"],region["proof_status"]),(0,"trusted_highs_infeasible"))
+        self.assertTrue(result["conditional_on_highs_correct"])
 
     def test_main_accepted_zero_growth_resets_epoch_without_regime_or_stale_sample(self):
         engines=[]

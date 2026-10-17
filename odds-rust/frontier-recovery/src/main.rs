@@ -13,6 +13,7 @@ use std::time::Instant;
 fn receipt(engine: &mut Engine, command: &Value) -> Result<Value, String> {
     match command.get("op").and_then(Value::as_str).unwrap_or("") {
         "describe" => Ok(engine.describe()),
+        "feasibility_model" => engine.feasibility_model(command.get("id").and_then(Value::as_u64).ok_or("missing id")? as usize),
         "prepare" => engine.prepare(
             command.get("id").and_then(Value::as_u64).ok_or("missing id")? as usize,
             command.get("k").and_then(Value::as_u64).unwrap_or(7) as usize,

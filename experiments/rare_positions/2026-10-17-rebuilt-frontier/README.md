@@ -74,6 +74,9 @@ shared-budget comparison. Use `--no-regime-rebuilds` to retain initial GD setup
 while disabling after-growth rebuilds for a control run.
 UPPER_BOUND_ANALYSIS.md breaks down the retained confidence upper and the
 remaining structural envelope for cohort5.
+An optional `--trusted-highs` cohort prescreen trusts numerical infeasibility
+without certificate verification. TRUSTED_HIGHS_RESULTS.md records its
+same-budget Palmeiras16th comparison and the conditional confidence claim.
 
 ## Build and run
 

@@ -425,6 +425,23 @@ impl Engine {
         })
     }
 
+    /// Native packed-total feasibility model for an optional external prescreen.
+    pub fn feasibility_model(&self, id: usize) -> Result<Value, String> {
+        let r = self.regions.get(id).ok_or("unknown region id")?;
+        let stride = self.packed_stride();
+        let base: Vec<i32> = self.model.base.iter().map(|c| c.points * stride + c.wins).collect();
+        let fixtures: Vec<Value> = self.model.fixtures.iter().enumerate().map(|(i, f)| {
+            let outcomes = (0..3).map(|o| {
+                let hp = if o == 2 { 3 } else if o == 1 { 1 } else { 0 };
+                let ap = if o == 0 { 3 } else if o == 1 { 1 } else { 0 };
+                json!({"home": hp * stride + i32::from(o == 2), "away": ap * stride + i32::from(o == 0)})
+            }).collect::<Vec<_>>();
+            json!({"home_id":self.model.ids[f.home],"away_id":self.model.ids[f.away],"mask":r.masks[i],"outcomes":outcomes})
+        }).collect();
+        Ok(json!({"id":id,"stride":stride,"team_ids":self.model.ids,"base_packed":base,
+            "lower_packed":r.lower,"upper_packed":r.upper_bounds,"fixtures":fixtures}))
+    }
+
     /// Tighten a cohort's analytic event cap without changing its sampling
     /// proposal or epoch. Pairwise GD bounds apply only when all incident WDL
     /// outcomes are fixed; the pivot pass partitions the parent's masked
