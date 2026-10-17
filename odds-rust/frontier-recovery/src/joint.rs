@@ -943,6 +943,61 @@ impl Plan {
         })
     }
 
+    /// Replay the guided-to-native likelihood ratio for a supplied path.
+    /// This follows the same memoized edges and sticky native suffix used by
+    /// `draw_hybrid`, without sampling or consuming random state.
+    pub fn guide_ratio(
+        &self,
+        model: &Model,
+        laws: &[Law],
+        outcomes: &[u8],
+    ) -> Result<Interval, String> {
+        if laws.len() != self.masks.len()
+            || model.fixtures.len() != laws.len()
+            || outcomes.len() != laws.len()
+            || model.n != self.base.len()
+        {
+            return Err("replay dimensions do not match plan".into());
+        }
+        if outcomes.iter().any(|&o| o > 2) {
+            return Err("replay outcome is outside the categorical domain".into());
+        }
+        let mut totals = self.base.clone();
+        let mut replay_ratio = Interval::point(1.0);
+        let mut id = if self.selected.is_empty() { None } else { self.root };
+        for (pos, &fi) in self.order.iter().enumerate() {
+            let chosen = outcomes[fi] as usize;
+            let (base, edges) = if let Some(node_id) = id {
+                let node = self.nodes.get(node_id).ok_or("replay node is missing")?;
+                (node.weights.to_vec(), Some(&node.edges[..]))
+            } else {
+                ((0..3).map(|o| if self.masks[fi] & (1 << o) != 0 {
+                    laws[fi].outcomes[o].mid()
+                } else { 0.0 }).collect(), None)
+            };
+            if let Some(edges) = edges {
+                if !edges.iter().any(|e| e.outcome as usize == chosen) {
+                    return Err("replay path has no matching plan edge".into());
+                }
+            }
+            let base_probs = categorical_probabilities(&base)?;
+            let guided = self.guided_weights(model, laws, fi, pos, &totals, &base)?;
+            let guide_probs = categorical_probabilities(&guided)?;
+            if base_probs[chosen].lo <= 0.0 || guide_probs[chosen].lo <= 0.0 {
+                return Err("replay outcome has zero proposal support".into());
+            }
+            replay_ratio = replay_ratio.mul(guide_probs[chosen].div(base_probs[chosen]));
+            let (hg, ag) = outcome_gain(model, fi, chosen, self.stride);
+            let f = &model.fixtures[fi];
+            totals[f.home] = totals[f.home].saturating_add(hg);
+            totals[f.away] = totals[f.away].saturating_add(ag);
+            id = if let Some(edges) = edges {
+                edges.iter().find(|e| e.outcome as usize == chosen).and_then(|e| e.child)
+            } else { None };
+        }
+        Ok(replay_ratio)
+    }
+
     fn draw_fallback(
         &self,
         from: usize,
@@ -1699,6 +1754,77 @@ impl Forest {
         })
     }
 
+    /// Replay a root's guided-to-native likelihood ratio for a supplied full
+    /// fixture assignment. Fixed prefix fixtures are checked and contribute
+    /// gains to guidance, while carrying no suffix likelihood factor.
+    pub fn root_guide_ratio(
+        &self,
+        root_index: usize,
+        model: &Model,
+        laws: &[Law],
+        outcomes: &[u8],
+    ) -> Result<Interval, String> {
+        if laws.len() != self.core.masks.len()
+            || model.fixtures.len() != laws.len()
+            || outcomes.len() != laws.len()
+            || model.n != self.core.base.len()
+        {
+            return Err("replay dimensions do not match forest".into());
+        }
+        if outcomes.iter().any(|&o| o > 2) {
+            return Err("replay outcome is outside the categorical domain".into());
+        }
+        let root = self.roots.get(root_index).ok_or("forest root index out of range")?;
+        if root.zero {
+            return Err("cannot replay a certified zero forest root".into());
+        }
+        for (&fi, &fixed) in self.prefix_fixtures.iter().zip(&root.prefix_outcomes) {
+            if outcomes[fi] != fixed {
+                return Err("replay prefix contradicts selected forest root".into());
+            }
+        }
+        let mut totals = self.core.base.clone();
+        for (&fi, &o) in self.prefix_fixtures.iter().zip(&root.prefix_outcomes) {
+            let (hg, ag) = outcome_gain(model, fi, o as usize, self.core.stride);
+            let f = &model.fixtures[fi];
+            totals[f.home] = totals[f.home].saturating_add(hg);
+            totals[f.away] = totals[f.away].saturating_add(ag);
+        }
+        let mut replay_ratio = Interval::point(1.0);
+        let mut id = if root.node == Some(usize::MAX) { None } else { root.node };
+        for (pos, &fi) in self.core.order.iter().enumerate() {
+            let chosen = outcomes[fi] as usize;
+            let (base, edges) = if let Some(node_id) = id {
+                let node = self.core.nodes.get(node_id).ok_or("replay node is missing")?;
+                (node.weights.to_vec(), Some(&node.edges[..]))
+            } else {
+                ((0..3).map(|o| if self.core.masks[fi] & (1 << o) != 0 {
+                    laws[fi].outcomes[o].mid()
+                } else { 0.0 }).collect(), None)
+            };
+            if let Some(edges) = edges {
+                if !edges.iter().any(|e| e.outcome as usize == chosen) {
+                    return Err("replay path has no matching forest edge".into());
+                }
+            }
+            let base_probs = categorical_probabilities(&base)?;
+            let guided = self.core.guided_weights(model, laws, fi, pos, &totals, &base)?;
+            let guide_probs = categorical_probabilities(&guided)?;
+            if base_probs[chosen].lo <= 0.0 || guide_probs[chosen].lo <= 0.0 {
+                return Err("replay outcome has zero proposal support".into());
+            }
+            replay_ratio = replay_ratio.mul(guide_probs[chosen].div(base_probs[chosen]));
+            let (hg, ag) = outcome_gain(model, fi, chosen, self.core.stride);
+            let f = &model.fixtures[fi];
+            totals[f.home] = totals[f.home].saturating_add(hg);
+            totals[f.away] = totals[f.away].saturating_add(ag);
+            id = if let Some(edges) = edges {
+                edges.iter().find(|e| e.outcome as usize == chosen).and_then(|e| e.child)
+            } else { None };
+        }
+        Ok(replay_ratio)
+    }
+
     /// Aggregate lazy guide-cache size shared by all roots in this forest.
     pub fn hybrid_guide_cache_stats(&self) -> (usize, usize) {
         self.core.hybrid_guide_cache_stats()
@@ -1944,6 +2070,29 @@ mod tests {
             (total - 1.0).abs() < 1e-12,
             "guided probabilities sum to {total}"
         );
+    }
+
+    #[test]
+    fn replay_matches_hybrid_paths_for_full_and_partial_plans() {
+        let (model, laws) = tiny_model(3);
+        let masks = [7, 5, 3];
+        let lower = [0, 0];
+        let upper = [1000, 1000];
+        for cap in [1, 2, 3, 100] {
+            let plan = Plan::build(
+                &model, &laws, &masks, &lower, &upper, &[0], 4, cap,
+                Instant::now() + std::time::Duration::from_secs(5),
+            ).unwrap();
+            for seed in 0..32 {
+                let hybrid = plan.draw_hybrid(&model, &laws, &mut Rng::new(seed), false).unwrap();
+                let replay = plan.guide_ratio(&model, &laws, &hybrid.outcomes).unwrap();
+                assert!((replay.mid() - hybrid.guide_over_baseline.mid()).abs() < 1e-12);
+                let mut a = Rng::new(seed);
+                let (outcomes, weight) = plan.draw(&laws, &mut a).unwrap();
+                assert_eq!(outcomes, hybrid.outcomes);
+                assert!((weight.mid() - hybrid.baseline_weight.mid()).abs() < 1e-12);
+            }
+        }
     }
 
     #[test]
@@ -2406,6 +2555,11 @@ mod tests {
                     .unwrap();
                 assert_eq!(hybrid.outcomes[0], prefix[0]);
                 assert!(hybrid.baseline_weight.lo <= root.cap);
+                let baseline = forest
+                    .draw_root_hybrid(i, &model, &laws, &mut Rng::new(1200 + i as i64), false)
+                    .unwrap();
+                let replay = forest.root_guide_ratio(i, &model, &laws, &baseline.outcomes).unwrap();
+                assert!((replay.mid() - baseline.guide_over_baseline.mid()).abs() < 1e-12);
             }
         }
     }

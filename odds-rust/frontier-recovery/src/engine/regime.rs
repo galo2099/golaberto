@@ -33,6 +33,11 @@ struct Atom {
     q: Interval,
 }
 
+pub(super) enum HybridAtomContext {
+    Atom(usize),
+    ForestRoot(usize),
+}
+
 struct ForestAtom {
     root_index: usize,
     pair: Option<PairPlan>,
@@ -109,6 +114,61 @@ impl RegimePlan {
         rng: &mut Rng,
         guided: bool,
     ) -> Result<(Vec<u8>, Interval, Interval, Vec<Option<[i32; 2]>>), String> {
+        let (outcomes, weight, ratio, fixed_scores, _) = self.draw_hybrid_with_context(model, laws, rng, guided)?;
+        Ok((outcomes, weight, ratio, fixed_scores))
+    }
+
+    pub(super) fn replay_guide_ratio(
+        &self,
+        context: HybridAtomContext,
+        model: &Model,
+        laws: &[Law],
+        outcomes: &[u8],
+    ) -> Result<Interval, String> {
+        match context {
+            HybridAtomContext::Atom(index) => self.atoms.get(index)
+                .ok_or("regime atom missing")?.plan.guide_ratio(model, laws, outcomes),
+            HybridAtomContext::ForestRoot(root_index) => self.forest.as_ref()
+                .ok_or("regime forest missing")?.root_guide_ratio(root_index, model, laws, outcomes),
+        }
+    }
+
+    pub(super) fn draw_baseline_hybrid_context(
+        &self,
+        model: &Model,
+        laws: &[Law],
+        rng: &mut Rng,
+    ) -> Result<(Vec<u8>, Interval, Vec<Option<[i32; 2]>>, HybridAtomContext), String> {
+        let (index, pi) = categorical(&self.weights, rng)?;
+        if pi.lo <= 0.0 {
+            return Err("regime mixture ticket has zero lower probability".into());
+        }
+        if let Some(forest) = &self.forest {
+            let atom = &self.forest_atoms[index];
+            let root = forest.roots.get(atom.root_index).ok_or("regime forest root missing")?;
+            let (outcomes, suffix_weight) = forest.draw_root(atom.root_index, laws, rng)?;
+            let fixed_scores = if let Some(pair) = &atom.pair {
+                pair.draw(model, rng)?
+            } else { vec![None; model.fixtures.len()] };
+            let weight = root.prefix_mass.div(pi).mul(suffix_weight).mul(atom.q);
+            return Ok((outcomes, weight, fixed_scores, HybridAtomContext::ForestRoot(atom.root_index)));
+        }
+        let atom = self.atoms.get(index).ok_or("regime atom missing")?;
+        let (outcomes, wdl_weight) = atom.plan.draw(laws, rng)?;
+        let fixed_scores = if let Some(pair) = &atom.pair {
+            pair.draw(model, rng)?
+        } else { vec![None; model.fixtures.len()] };
+        let weight = wdl_weight.mul(atom.q).div(pi);
+        Ok((outcomes, weight, fixed_scores, HybridAtomContext::Atom(index)))
+    }
+
+    pub(super) fn draw_hybrid_with_context(
+        &self,
+        model: &Model,
+        laws: &[Law],
+        rng: &mut Rng,
+        guided: bool,
+    ) -> Result<(Vec<u8>, Interval, Interval, Vec<Option<[i32; 2]>>, HybridAtomContext), String> {
         let (index, pi) = categorical(&self.weights, rng)?;
         if pi.lo <= 0.0 {
             return Err("regime mixture ticket has zero lower probability".into());
@@ -131,7 +191,7 @@ impl RegimePlan {
                 .mul(draw.baseline_weight)
                 .mul(atom.q);
             let guide_ratio = draw.guide_over_baseline;
-            return Ok((draw.outcomes, base_weight, guide_ratio, fixed_scores));
+            return Ok((draw.outcomes, base_weight, guide_ratio, fixed_scores, HybridAtomContext::ForestRoot(atom.root_index)));
         }
         let atom = self.atoms.get(index).ok_or("regime atom missing")?;
         let draw = atom.plan.draw_hybrid(model, laws, rng, guided)?;
@@ -146,6 +206,7 @@ impl RegimePlan {
             base_weight,
             draw.guide_over_baseline,
             fixed_scores,
+            HybridAtomContext::Atom(index),
         ))
     }
 }
@@ -1343,5 +1404,20 @@ mod tests {
                 }
             }
         }
+
+        // Exercise the complete core, residual and baseline loops with the
+        // installed compact forest. Both modes must retain the same sampled
+        // roots, prefix weights and fixed pair scores on a shared seed.
+        let eager = engine
+            .sample_hybrid_with_options(id, 16, 584_156, 0, 0.25, false)
+            .unwrap();
+        let lazy = engine
+            .sample_hybrid_with_options(id, 16, 584_156, 0, 0.25, true)
+            .unwrap();
+        for stream in ["core", "residual", "baseline"] {
+            assert_eq!(eager[stream], lazy[stream], "forest stream mismatch in {stream}");
+        }
+        assert_eq!(lazy["residual_guide_evaluations"].as_u64().unwrap()
+            + lazy["residual_guide_skips"].as_u64().unwrap(), 8);
     }
 }

@@ -116,6 +116,18 @@ impl Engine {
         depth: usize,
         clip_fraction: f64,
     ) -> Result<Value, String> {
+        self.sample_hybrid_with_options(id, n_total, seed, depth, clip_fraction, true)
+    }
+
+    pub fn sample_hybrid_with_options(
+        &mut self,
+        id: usize,
+        n_total: usize,
+        seed: i64,
+        depth: usize,
+        clip_fraction: f64,
+        lazy_residual: bool,
+    ) -> Result<Value, String> {
         let started = Instant::now();
         if id >= self.regions.len() {
             return Err("unknown region id".into());
@@ -160,6 +172,7 @@ impl Engine {
         let mut baseline = Stats::new();
         let mut guide_ratio_min = f64::INFINITY;
         let mut guide_ratio_max: f64 = 0.0;
+        let core_started = Instant::now();
         for _ in 0..m {
             let (outcomes, v, l, fixed_scores) = {
                 let plan = self.regions[id].plan.as_ref().unwrap();
@@ -187,36 +200,72 @@ impl Engine {
             let coeff = core_coefficient(v, l, h)?;
             core.push(coeff.mul(base_result), h);
         }
+        let core_elapsed_ms = core_started.elapsed().as_secs_f64() * 1000.0;
+        let baseline_started = Instant::now();
+        let mut replay_elapsed = std::time::Duration::ZERO;
+        let mut guide_evaluations = 0usize;
+        let mut guide_skips = 0usize;
         for _ in 0..m {
-            let (outcomes, v, l, fixed_scores) = {
+            let (outcomes, v, l, fixed_scores, atom_context) = {
                 let plan = self.regions[id].plan.as_ref().unwrap();
                 if let Some(r) = self.regions[id].regime.as_ref() {
-                    r.draw_hybrid(&self.model, &self.laws, &mut rng, false)?
+                    if lazy_residual {
+                        let (o, v, fixed, context) = r.draw_baseline_hybrid_context(&self.model, &self.laws, &mut rng)?;
+                        (o, v, Interval::point(0.0), fixed, Some(context))
+                    } else {
+                        let (o, v, l, fixed, context) = r.draw_hybrid_with_context(&self.model, &self.laws, &mut rng, false)?;
+                        (o, v, l, fixed, Some(context))
+                    }
                 } else {
-                    let d = plan.draw_hybrid(&self.model, &self.laws, &mut rng, false)?;
-                    (
-                        d.outcomes,
-                        d.baseline_weight,
-                        d.guide_over_baseline,
-                        vec![None; self.model.fixtures.len()],
-                    )
+                    if lazy_residual {
+                        let (outcomes, baseline_weight) = plan.draw(&self.laws, &mut rng)?;
+                        (outcomes, baseline_weight, Interval::point(0.0), vec![None; self.model.fixtures.len()], None)
+                    } else {
+                        let d = plan.draw_hybrid(&self.model, &self.laws, &mut rng, false)?;
+                        (d.outcomes, d.baseline_weight, d.guide_over_baseline, vec![None; self.model.fixtures.len()], None)
+                    }
                 }
             };
             validate_weight(v, b, "baseline")?;
-            validate_guide_ratio(l)?;
-            guide_ratio_min = guide_ratio_min.min(l.lo);
-            guide_ratio_max = guide_ratio_max.max(l.hi);
             let score = self.score_draw(id, depth, &mut rng, &outcomes, v, &fixed_scores)?;
-            residual.push(
-                sub_nonnegative(v, l.mul(Interval::point(h)), b).mul(score),
-                b,
-            );
+            let l = if lazy_residual && score.hi == 0.0 {
+                guide_skips += 1;
+                Interval::point(0.0)
+            } else {
+                let ratio = if !lazy_residual {
+                    l
+                } else if let Some(context) = atom_context {
+                    let replay_started = Instant::now();
+                    let ratio = self.regions[id].regime.as_ref().unwrap().replay_guide_ratio(
+                        context, &self.model, &self.laws, &outcomes,
+                    )?;
+                    replay_elapsed += replay_started.elapsed();
+                    ratio
+                } else {
+                    let replay_started = Instant::now();
+                    let ratio = self.regions[id].plan.as_ref().unwrap().guide_ratio(&self.model, &self.laws, &outcomes)?;
+                    replay_elapsed += replay_started.elapsed();
+                    ratio
+                };
+                guide_evaluations += 1;
+                validate_guide_ratio(ratio)?;
+                guide_ratio_min = guide_ratio_min.min(ratio.lo);
+                guide_ratio_max = guide_ratio_max.max(ratio.hi);
+                ratio
+            };
+            let residual_value = if lazy_residual && score.hi == 0.0 {
+                Interval::point(0.0)
+            } else {
+                sub_nonnegative(v, l.mul(Interval::point(h)), b).mul(score)
+            };
+            residual.push(residual_value, b);
             baseline.push(v.mul(score), b);
         }
+        let baseline_elapsed_ms = baseline_started.elapsed().as_secs_f64() * 1000.0;
         let core_r = receipt(m, self.regions[id].epoch, h, core);
         let residual_r = receipt(m, self.regions[id].epoch, b, residual);
         let baseline_r = receipt(m, self.regions[id].epoch, b, baseline);
-        let mut out = json!({"id":id,"n":n_total,"epoch":self.regions[id].epoch,"B":b,"H":h,"clip_fraction":clip_fraction,"mode":"hybrid","elapsed_ms":started.elapsed().as_secs_f64()*1000.0,"normalized":true,"absolute_stream":false,"core":core_r,"residual":residual_r,"baseline":baseline_r,"core_positive_draws":core_r["positive_draws"],"residual_positive_draws":residual_r["positive_draws"],"guide_ratio_min":guide_ratio_min,"guide_ratio_max":guide_ratio_max,"sum_lower":baseline_r["sum_lower"],"sum_upper":baseline_r["sum_upper"],"sum_lower_sq":baseline_r["sum_lower_sq"],"sum_upper_sq":baseline_r["sum_upper_sq"],"lower_exceedances":baseline_r["lower_exceedances"],"upper_exceedances":baseline_r["upper_exceedances"],"positive_draws":baseline_r["positive_draws"]});
+        let mut out = json!({"id":id,"n":n_total,"epoch":self.regions[id].epoch,"B":b,"H":h,"clip_fraction":clip_fraction,"mode":"hybrid","elapsed_ms":started.elapsed().as_secs_f64()*1000.0,"normalized":true,"absolute_stream":false,"core":core_r,"residual":residual_r,"baseline":baseline_r,"core_positive_draws":core_r["positive_draws"],"residual_positive_draws":residual_r["positive_draws"],"guide_ratio_min":if guide_ratio_min.is_finite(){json!(guide_ratio_min)}else{Value::Null},"guide_ratio_max":guide_ratio_max,"guide_ratio_scope":"evaluated_core_and_residual_draws","lazy_residual":lazy_residual,"residual_guide_evaluations":guide_evaluations,"residual_guide_skips":guide_skips,"hybrid_core_elapsed_ms":core_elapsed_ms,"hybrid_baseline_elapsed_ms":baseline_elapsed_ms,"hybrid_replay_elapsed_ms":replay_elapsed.as_secs_f64()*1000.0,"sum_lower":baseline_r["sum_lower"],"sum_upper":baseline_r["sum_upper"],"sum_lower_sq":baseline_r["sum_lower_sq"],"sum_upper_sq":baseline_r["sum_upper_sq"],"lower_exceedances":baseline_r["lower_exceedances"],"upper_exceedances":baseline_r["upper_exceedances"],"positive_draws":baseline_r["positive_draws"]});
         if let Some(obj) = out.as_object_mut() {
             obj.insert(
                 "command_elapsed_ms".into(),
@@ -326,5 +375,20 @@ mod tests {
         assert!(engine.sample_hybrid(0, 2, 1, 0, 0.0).is_err());
         assert!(engine.sample_hybrid(0, 2, 1, 0, f64::NAN).is_err());
         assert!(engine.sample_hybrid(0, 2, 1, 0, 1.01).is_err());
+    }
+
+    #[test]
+    fn lazy_and_eager_hybrid_keep_the_same_fixed_stream_receipts() {
+        let mut eager = tiny_engine();
+        let mut lazy = tiny_engine();
+        let eager = eager.sample_hybrid_with_options(0, 64, 8123, 0, 0.2, false).unwrap();
+        let lazy = lazy.sample_hybrid_with_options(0, 64, 8123, 0, 0.2, true).unwrap();
+        for key in ["core", "residual", "baseline"] {
+            assert_eq!(eager[key], lazy[key], "receipt mismatch in {key}");
+        }
+        let evaluations = lazy["residual_guide_evaluations"].as_u64().unwrap();
+        let skips = lazy["residual_guide_skips"].as_u64().unwrap();
+        assert_eq!(evaluations + skips, 32);
+        assert!(evaluations > 0 && skips > 0);
     }
 }

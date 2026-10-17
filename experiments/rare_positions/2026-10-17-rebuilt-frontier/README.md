@@ -118,6 +118,10 @@ be even and count physical draws; each stream receives half the draws and the
 baseline event reuses the residual campaigns. See
 [HYBRID_RESULTS.md](HYBRID_RESULTS.md) for the probability identity, comparison
 protocol and measured results. The ordinary sampler remains the default.
+Hybrid residual draws now calculate the guide ratio only when their conditional
+score upper bound is positive; `--hybrid-eager-residual` restores the earlier
+eager path for comparisons. See
+[LAZY_RESIDUAL_RESULTS.md](LAZY_RESIDUAL_RESULTS.md) for validation and timing.
 
 ## Validation checkpoint
 

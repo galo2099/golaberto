@@ -71,7 +71,7 @@ fn receipt(engine: &mut Engine, command: &Value) -> Result<Value, String> {
             command.get("seed").and_then(Value::as_i64).unwrap_or(1),
             command.get("depth").and_then(Value::as_u64).unwrap_or(6) as usize,
         ),
-        "sample_hybrid" => engine.sample_hybrid(
+        "sample_hybrid" => engine.sample_hybrid_with_options(
             command
                 .get("id")
                 .and_then(Value::as_u64)
@@ -83,6 +83,7 @@ fn receipt(engine: &mut Engine, command: &Value) -> Result<Value, String> {
                 .get("clip_fraction")
                 .and_then(Value::as_f64)
                 .unwrap_or(1.0 / 1024.0),
+            command.get("lazy_residual").and_then(Value::as_bool).unwrap_or(true),
         ),
         "quit" => Ok(json!({"quit": true})),
         _ => Err("unknown operation".into()),
