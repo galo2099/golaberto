@@ -88,6 +88,8 @@ class ResidualAuditTests(unittest.TestCase):
         engine = engines[0]
         self.assertEqual([call["op"] for call in engine.calls],
                          ["describe", "prepare", "regime", "residual_certificate", "close"])
+        self.assertEqual(result["proposal_mode"], "regime")
+        self.assertIn("proposal_mode=regime", result["provenance"])
         self.assertLess(engine.calls[1]["time_ms"], 1000)
         self.assertLess(engine.calls[2]["time_ms"], 1000)
         self.assertEqual(engine.calls[3]["time_ms"], 200)
@@ -112,6 +114,45 @@ class ResidualAuditTests(unittest.TestCase):
             "expectation_max_remaining": 18, "expectation_budget_fraction": .5,
         })
         self.assertTrue(result["hashes_unchanged"])
+
+    def test_joint_mode_uses_prepared_plan_and_skips_regime(self):
+        clock = Clock()
+        engines = []
+        self.args.proposal_mode = "joint"
+
+        def factory(*args):
+            engine = FakeEngine(*args, clock=clock)
+            engines.append(engine)
+            return engine
+
+        with patch.object(residual_audit, "HISTORICAL_REQUEST_SHA256", self.input_hash):
+            result = residual_audit.run_audit(self.args, factory, clock)
+        engine = engines[0]
+        self.assertEqual([call["op"] for call in engine.calls],
+                         ["describe", "prepare", "residual_certificate", "close"])
+        self.assertEqual(engine.calls[1]["k"], self.args.k)
+        self.assertEqual(result["proposal_mode"], "joint")
+        self.assertIn("proposal_mode=joint", result["provenance"])
+        self.assertIsNone(result["regime_plan"])
+        self.assertIsNotNone(result["prepared_plan"])
+
+    def test_joint_mode_skips_regime_when_setup_uses_remaining_budget(self):
+        clock = Clock()
+        engines = []
+        self.args.proposal_mode = "joint"
+        self.args.budget = .7
+
+        def factory(*args):
+            engine = FakeEngine(*args, clock=clock)
+            engines.append(engine)
+            return engine
+
+        with patch.object(residual_audit, "HISTORICAL_REQUEST_SHA256", self.input_hash):
+            result = residual_audit.run_audit(self.args, factory, clock)
+        self.assertEqual([call["op"] for call in engines[0].calls],
+                         ["describe", "prepare", "close"])
+        self.assertEqual(result["status"], "search_budget_exhausted")
+        self.assertIsNone(result["regime_plan"])
 
     def test_describe_target_mismatch_stops_before_prepare(self):
         clock = Clock()

@@ -107,6 +107,9 @@ def suffix_options(args) -> dict:
 
 def run_audit(args, protocol_factory=Protocol, now=time.monotonic) -> dict:
     """Run setup and one bounded certificate call under a shared wall deadline."""
+    proposal_mode = getattr(args, "proposal_mode", "regime")
+    if proposal_mode not in ("regime", "joint"):
+        raise ValueError("proposal_mode must be 'regime' or 'joint'")
     started = now()
     deadline = started + args.budget
     audit_deadline = deadline - args.cleanup_reserve
@@ -119,7 +122,8 @@ def run_audit(args, protocol_factory=Protocol, now=time.monotonic) -> dict:
     played, remaining = played_game_counts(request_data)
     suffix = suffix_options(args)
     output = {
-        "provenance": "bounded residual certificate audit; no sampling or confidence claim",
+        "provenance": f"bounded residual certificate audit; proposal_mode={proposal_mode}; no sampling or confidence claim",
+        "proposal_mode": proposal_mode,
         "target": {"team_id": args.team_id, "position": args.position},
         "region_id": args.region_id,
         "request_sha256": request_hash,
@@ -198,20 +202,21 @@ def run_audit(args, protocol_factory=Protocol, now=time.monotonic) -> dict:
             return output
         if int(prepared.get("states", 0)) > args.state_cap:
             raise ValueError(f"prepare receipt exceeds state cap: {prepared.get('states')} > {args.state_cap}")
-        setup_ms = min(1000, max(0, int((audit_deadline - now()) * 1000)))
-        if setup_ms <= 0:
-            output["status"] = "setup_budget_exhausted"
-            return output
-        call_started = now()
-        regime = engine.call(op="regime", id=args.region_id,
-                             state_cap=args.state_cap, time_ms=setup_ms)
-        output["timing_ms"]["regime"] = (now() - call_started) * 1000.0
-        output["regime_plan"] = regime
-        if not regime.get("accepted"):
-            output["status"] = "regime_rejected"
-            return output
-        if int(regime.get("states", 0)) > args.state_cap:
-            raise ValueError(f"regime receipt exceeds state cap: {regime.get('states')} > {args.state_cap}")
+        if proposal_mode == "regime":
+            setup_ms = min(1000, max(0, int((audit_deadline - now()) * 1000)))
+            if setup_ms <= 0:
+                output["status"] = "setup_budget_exhausted"
+                return output
+            call_started = now()
+            regime = engine.call(op="regime", id=args.region_id,
+                                 state_cap=args.state_cap, time_ms=setup_ms)
+            output["timing_ms"]["regime"] = (now() - call_started) * 1000.0
+            output["regime_plan"] = regime
+            if not regime.get("accepted"):
+                output["status"] = "regime_rejected"
+                return output
+            if int(regime.get("states", 0)) > args.state_cap:
+                raise ValueError(f"regime receipt exceeds state cap: {regime.get('states')} > {args.state_cap}")
         remaining_ms = max(0, int((audit_deadline - now()) * 1000))
         search_ms = min(remaining_ms, args.search_ms) if args.search_ms is not None else remaining_ms
         if search_ms <= 0:
@@ -279,6 +284,8 @@ def main() -> None:
     parser.add_argument("--node-limit", type=int, default=250000)
     parser.add_argument("--clip-fraction", type=float, default=1 / 1024)
     parser.add_argument("--search-ms", type=int, help="optional certificate search cap for smoke runs")
+    parser.add_argument("--proposal-mode", choices=("regime", "joint"), default="regime",
+                        help="proposal used by residual certificate (regime by default, or prepared joint plan)")
     parser.add_argument("--suffix-bounds", action="store_true", help="enable optional cached suffix bounds")
     parser.add_argument("--suffix-state-cap", type=int, default=1_000_000)
     parser.add_argument("--suffix-max-remaining", type=int, default=24)
