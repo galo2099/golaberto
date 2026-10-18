@@ -1,5 +1,6 @@
 pub mod api;
 pub mod conditioned;
+pub mod confidence;
 pub mod database;
 pub mod domains;
 pub mod goal_completion;

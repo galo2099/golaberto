@@ -143,6 +143,8 @@ pub struct Model {
     latest_directed: Vec<Option<DirectedGame>>,
     pub n: usize,
     pub(crate) target_limits: Mutex<HashMap<usize, crate::target_limits::Certified>>,
+    pub(crate) confidence: crate::confidence::Budget,
+    pub(crate) confidence_bridge: OnceLock<Option<crate::confidence::law::Bridge>>,
     joint_score_support_costs: OnceLock<JointScoreSupportCosts>,
     cache_identity: Arc<()>,
 }
@@ -379,6 +381,8 @@ impl Model {
             latest_directed,
             n,
             target_limits: Mutex::new(HashMap::new()),
+            confidence: crate::confidence::Budget::new(n.saturating_mul(n)),
+            confidence_bridge: OnceLock::new(),
             joint_score_support_costs: OnceLock::new(),
             cache_identity: Arc::new(()),
         })

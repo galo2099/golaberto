@@ -33,6 +33,7 @@ fn uniform_estimates(n: usize, design: &str) -> Vec<Estimate> {
             conditional_mass: 0.4,
             conditional_samples: 123,
             conditional_hits: 0,
+            confidence: None,
         })
         .collect()
 }

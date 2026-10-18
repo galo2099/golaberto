@@ -5,7 +5,8 @@ use crate::{
 };
 use std::{
     collections::{BTreeMap, HashMap},
-    hash::{BuildHasherDefault, Hasher},
+    hash::{BuildHasherDefault, Hash, Hasher},
+    sync::OnceLock,
 };
 // Packed integer DP keys only. Request strings continue using the standard hasher.
 #[derive(Default)]
@@ -142,12 +143,18 @@ pub struct Event {
     pub forward: Vec<ForwardLayer>,
     pub terminals: Vec<(u64, f64)>,
     pub mass: f64,
+    pub(crate) certificate_cell: Option<(usize, usize)>,
+    certificate_signature: u64,
+    certificate_model_identity: std::sync::Arc<()>,
+    certificate_law: OnceLock<Option<(crate::confidence::Interval, f64)>>,
 }
 #[inline]
 fn byte(s: u64, slot: usize) -> i32 {
     ((s >> (slot * 8)) & 255) as i32
 }
 impl Event {
+    pub(crate) const CERTIFICATE_STATE_LIMIT: usize = 100_000;
+
     pub fn build(
         model: &Model,
         bounds: &Bounds,
@@ -211,6 +218,34 @@ impl Event {
         {
             return None;
         }
+        let certificate_candidate = model.confidence.enabled()
+            && probabilities.is_none()
+            && model.keys.first() == Some(&Key::Pt)
+            && model.request.phase.bonus_points == 0
+            && rank < model.n
+            && {
+                let mut seen_teams = vec![false; model.n];
+                teams.iter().all(|&team| {
+                    if team >= model.n || seen_teams[team] {
+                        false
+                    } else {
+                        seen_teams[team] = true;
+                        true
+                    }
+                })
+            }
+            && model
+                .fixtures
+                .iter()
+                .all(|f| f.home < model.n && f.away < model.n && f.home != f.away);
+        let certificate_scope = if certificate_candidate {
+            let standard = Bounds::new(model);
+            bounds.current == standard.current
+                && bounds.min == standard.min
+                && bounds.max == standard.max
+        } else {
+            false
+        };
         let hg = [rules.point_loss, rules.point_draw, rules.point_win];
         let ag = [rules.point_win, rules.point_draw, rules.point_loss];
         // Each team's added points occupy one byte. Unsupported totals must
@@ -373,13 +408,76 @@ impl Event {
             mass += *p;
             *p = mass;
         }
-        Some(Self {
+        let mut event = Self {
             teams,
             games,
             forward,
             terminals,
             mass,
-        })
+            certificate_cell: certificate_scope.then_some((target, rank)),
+            certificate_signature: 0,
+            certificate_model_identity: model.cache_identity(),
+            certificate_law: OnceLock::new(),
+        };
+        if certificate_scope && event.certificate_state_count() <= Self::CERTIFICATE_STATE_LIMIT {
+            event.certificate_signature = event.certificate_signature();
+        } else {
+            event.certificate_cell = None;
+        }
+        Some(event)
+    }
+
+    pub(crate) fn certificate_intact(&self) -> bool {
+        self.certificate_signature == self.certificate_signature()
+    }
+
+    pub(crate) fn certificate_state_count(&self) -> usize {
+        self.forward
+            .iter()
+            .map(|layer| layer.len())
+            .fold(self.terminals.len(), usize::saturating_add)
+    }
+
+    pub(crate) fn certificate_intact_for(&self, model: &Model) -> bool {
+        self.certificate_intact()
+            && std::sync::Arc::ptr_eq(&self.certificate_model_identity, &model.cache_identity())
+    }
+
+    pub(crate) fn cached_certificate_law<F>(
+        &self,
+        build: F,
+    ) -> Option<(crate::confidence::Interval, f64)>
+    where
+        F: FnOnce() -> Option<(crate::confidence::Interval, f64)>,
+    {
+        self.certificate_law.get_or_init(build).to_owned()
+    }
+
+    fn certificate_signature(&self) -> u64 {
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        self.games.len().hash(&mut h);
+        self.forward.len().hash(&mut h);
+        self.terminals.len().hash(&mut h);
+        self.teams.hash(&mut h);
+        self.certificate_cell.hash(&mut h);
+        self.mass.to_bits().hash(&mut h);
+        for g in &self.games {
+            g.index.hash(&mut h);
+            g.delta.hash(&mut h);
+            g.prob.map(f64::to_bits).hash(&mut h);
+        }
+        for layer in &self.forward {
+            layer.len().hash(&mut h);
+            for (state, mass) in layer.iter() {
+                state.hash(&mut h);
+                mass.to_bits().hash(&mut h);
+            }
+        }
+        for (state, cdf) in &self.terminals {
+            state.hash(&mut h);
+            cdf.to_bits().hash(&mut h);
+        }
+        h.finish()
     }
     pub fn point_tilt(&self, tilt: f64) -> (Vec<f64>, Vec<f64>) {
         if tilt == 0. || self.mass <= 0. {
@@ -2500,6 +2598,11 @@ pub fn fast(
         mass: event.mass,
         ..Default::default()
     };
+    // Spend the method ticket before any RNG work. It remains spent if a
+    // numerical prerequisite below fails or this estimator is later rejected.
+    let is_alpha = model
+        .confidence
+        .claim_is(target.saturating_mul(model.n).saturating_add(rank));
     if event.mass <= 0. || samples == 0 {
         return result;
     }
@@ -2583,6 +2686,37 @@ pub fn fast(
     }
     result.samples = samples;
     result.work = samples as u64 * work_per_sample(model);
+    if let Some(alpha) = is_alpha {
+        if let (Some((mass, sampler_tv)), Some(bridge)) = (
+            crate::confidence::law::conditioned_law(model, event, target, rank),
+            model
+                .confidence_bridge
+                .get_or_init(|| crate::confidence::law::Bridge::build(model))
+                .as_ref(),
+        ) {
+            if let Ok(conditional) =
+                crate::confidence::binomial_kl_interval(result.hits, samples, alpha)
+            {
+                let conditional = crate::confidence::Interval::new(
+                    (conditional.lower - sampler_tv).next_down().max(0.0),
+                    (conditional.upper + sampler_tv).next_up().min(1.0),
+                );
+                let model_interval = mass.mul(conditional);
+                if let Some(interval) = bridge.convert(model_interval, mass) {
+                    model.confidence.record(
+                        target.saturating_mul(model.n).saturating_add(rank),
+                        crate::confidence::Evidence {
+                            interval,
+                            method: "conditioned_fast_is_native_bridge".into(),
+                            alpha,
+                            samples,
+                            contribution_cap: None,
+                        },
+                    );
+                }
+            }
+        }
+    }
     result
 }
 

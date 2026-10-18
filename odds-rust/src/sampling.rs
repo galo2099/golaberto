@@ -56,6 +56,18 @@ impl Poisson {
         }
         Some(masses)
     }
+    /// Outward bounds for the exact finite-`Rng::float` categorical law used by
+    /// the bounded Poisson sampler. The terminal CDF value is the remainder.
+    pub(crate) fn certificate_masses(&self) -> Option<Vec<crate::confidence::Interval>> {
+        if !self.mean.is_finite() || self.mean < 0. || self.mean > 32. || self.cdf.is_empty() {
+            return None;
+        }
+        crate::confidence::tickets::categorical_masses(
+            &self.cdf[..self.cdf.len() - 1],
+            1.0,
+            crate::confidence::tickets::Comparison::LessEqual,
+        )
+    }
     #[inline]
     pub fn sample(&self, rng: &mut Rng) -> i32 {
         if self.mean <= 0. {
@@ -189,6 +201,34 @@ impl Scores {
             })
     }
 
+    /// Exact finite-ticket probability enclosures for the score rows selected
+    /// by the native conditional-score CDF.
+    pub(crate) fn certificate_conditional_scores(
+        &self,
+        outcome: usize,
+    ) -> Option<Vec<([i32; 2], crate::confidence::Interval)>> {
+        let values = self.values.get(outcome)?;
+        if values.is_empty() {
+            return Some(Vec::new());
+        }
+        let cdf: Vec<_> = values[..values.len() - 1]
+            .iter()
+            .map(|(_, cumulative)| *cumulative)
+            .collect();
+        let masses = crate::confidence::tickets::categorical_masses(
+            &cdf,
+            1.0,
+            crate::confidence::tickets::Comparison::LessEqual,
+        )?;
+        Some(
+            values
+                .iter()
+                .zip(masses)
+                .map(|((score, _), mass)| (*score, mass))
+                .collect(),
+        )
+    }
+
     #[inline]
     pub fn sample(&self, outcome: usize, rng: &mut Rng) -> [i32; 2] {
         let v = &self.values[outcome];
@@ -231,6 +271,43 @@ mod tests {
             native.last().unwrap().to_bits(),
             raw.last().unwrap().to_bits()
         );
+    }
+    #[test]
+    fn certificate_masses_cover_finite_ticket_law_without_changing_sampling() {
+        let zero = Poisson::new(0.0).certificate_masses().unwrap();
+        assert_eq!(zero, vec![crate::confidence::Interval::new(1.0, 1.0)]);
+        assert!(Poisson::new(32.0001).certificate_masses().is_none());
+
+        let poisson = Poisson::new(1.7);
+        let intervals = poisson.certificate_masses().unwrap();
+        assert!(intervals.last().unwrap().upper > 0.0);
+        let sum = intervals
+            .iter()
+            .copied()
+            .fold(crate::confidence::Interval::new(0.0, 0.0), |a, b| a.add(b));
+        assert!(sum.lower <= 1.0 && sum.upper >= 1.0);
+
+        let mut sampled = Rng::new(91);
+        let mut control = Rng::new(91);
+        let _ = poisson.sample(&mut sampled);
+        let _ = control.float();
+        assert_eq!(sampled.float(), control.float());
+    }
+    #[test]
+    fn conditional_score_certificate_rows_cover_each_finite_ticket_cdf() {
+        let scores = Scores::new(2.4, 1.3);
+        for outcome in 0..3 {
+            let rows = scores.certificate_conditional_scores(outcome).unwrap();
+            if rows.is_empty() {
+                assert_eq!(scores.prob[outcome], 0.0);
+                continue;
+            }
+            let sum = rows
+                .iter()
+                .map(|(_, mass)| *mass)
+                .fold(crate::confidence::Interval::new(0.0, 0.0), |a, b| a.add(b));
+            assert!(sum.lower <= 1.0 && sum.upper >= 1.0);
+        }
     }
     #[test]
     fn indexed_scores_match_binary_search_at_boundaries_and_fixed_rng() {

@@ -34,6 +34,8 @@ pub struct Estimate {
     pub conditional_samples: usize,
     #[serde(skip_serializing_if = "is_zero_usize")]
     pub conditional_hits: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub confidence: Option<crate::confidence::Certificate>,
 }
 fn is_zero(v: &f64) -> bool {
     *v == 0.
@@ -748,6 +750,28 @@ pub fn production_logged(
     let samples = 100000;
     let phase = Instant::now();
     let (scout, parts) = batched_scout(model, samples, derive(seed, "pooled-point-scout"), workers);
+    if model.confidence.enabled() {
+        let native_alpha = model.confidence.native_alpha();
+        for index in 0..model.n * model.n {
+            if let Ok(interval) =
+                crate::confidence::binomial_kl_interval(scout.ranks[index], samples, native_alpha)
+            {
+                model.confidence.record(
+                    index,
+                    crate::confidence::Evidence {
+                        interval,
+                        method: "native_mc".into(),
+                        alpha: native_alpha,
+                        samples,
+                        contribution_cap: None,
+                    },
+                );
+            }
+        }
+        for (index, evidence) in crate::confidence::matched::own_points_evidence(model, &scout) {
+            model.confidence.record(index, evidence);
+        }
+    }
     if let Some(log) = log {
         log.stage(
             "pool.mc",

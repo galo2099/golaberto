@@ -241,6 +241,15 @@ pub fn calculate_logged(
     for e in &mut estimates {
         e.work_spent += work;
     }
+    for (index, estimate) in estimates.iter_mut().enumerate() {
+        estimate.confidence = model.confidence.enabled().then(|| {
+            model.confidence.finish(
+                index,
+                estimate.probability,
+                estimate.reachability.starts_with("impossible"),
+            )
+        });
+    }
     let search_ms = phase.elapsed().as_secs_f64() * 1000.;
     log.stage(
         "search",
