@@ -113,6 +113,7 @@ class ResidualAuditTests(unittest.TestCase):
             "shared_expectation": False, "expectation_bits": 8,
             "expectation_max_remaining": 18, "expectation_budget_fraction": .5,
             "expectation_score_gd": False,
+            "expectation_branch_selector": False,
         })
         self.assertTrue(result["hashes_unchanged"])
 
@@ -236,6 +237,7 @@ class ResidualAuditTests(unittest.TestCase):
         self.args.expectation_max_remaining = 16
         self.args.expectation_budget_fraction = .3
         self.args.expectation_score_gd = True
+        self.args.expectation_branch_selector = True
 
         def factory(*args):
             engine = FakeEngine(*args, clock=clock)
@@ -257,6 +259,7 @@ class ResidualAuditTests(unittest.TestCase):
             "expectation_max_remaining": 16,
             "expectation_budget_fraction": .3,
             "expectation_score_gd": True,
+            "expectation_branch_selector": True,
         })
         self.assertTrue(result["suffix_bounds_enabled"])
         self.assertTrue(result["suffix_request_sent"])
@@ -318,6 +321,14 @@ class ResidualAuditTests(unittest.TestCase):
         self.args.shared_expectation = True
         self.args.score_gd = False
         with self.assertRaisesRegex(ValueError, "requires --score-gd true"):
+            residual_audit.suffix_options(self.args)
+        self.args.score_gd = True
+        self.args.expectation_score_gd = False
+        self.args.expectation_branch_selector = "true"
+        with self.assertRaisesRegex(ValueError, "must be boolean"):
+            residual_audit.suffix_options(self.args)
+        self.args.expectation_branch_selector = True
+        with self.assertRaisesRegex(ValueError, "requires --expectation-score-gd"):
             residual_audit.suffix_options(self.args)
         self.args.suffix_bounds = True
         self.args.score_setup_ms = True

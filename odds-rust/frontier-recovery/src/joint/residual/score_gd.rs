@@ -36,23 +36,23 @@ pub struct ScoreDiagnostics {
 }
 
 #[derive(Clone)]
-struct Prepared {
-    rival: usize,
-    above: bool,
-    packed_target: i64,
-    rival_lower: i64,
-    rival_upper: i64,
-    suffix_min: Vec<Option<i64>>,
-    suffix_max: Vec<Option<i64>>,
-    steps: Vec<Option<[[f64; 3]; 3]>>,
-    suffix_moments: Vec<[f64; 3]>,
-    initial: [f64; 3],
-    support_hit: bool,
-    score_expectation_eligible: bool,
+pub(super) struct Prepared {
+    pub(super) rival: usize,
+    pub(super) above: bool,
+    pub(super) packed_target: i64,
+    pub(super) rival_lower: i64,
+    pub(super) rival_upper: i64,
+    pub(super) suffix_min: Vec<Option<i64>>,
+    pub(super) suffix_max: Vec<Option<i64>>,
+    pub(super) steps: Vec<Option<[[f64; 3]; 3]>>,
+    pub(super) suffix_moments: Vec<[f64; 3]>,
+    pub(super) initial: [f64; 3],
+    pub(super) support_hit: bool,
+    pub(super) score_expectation_eligible: bool,
 }
 
 /// Immutable score-moment data borrowed by the score-aware expectation cache.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub(super) struct MomentKernel<'a> {
     pub(super) rival: usize,
     pub(super) above: bool,
@@ -64,9 +64,14 @@ pub(super) struct MomentKernel<'a> {
 }
 
 pub(super) struct ScoreBounder {
-    rows: Vec<Option<Prepared>>,
+    pub(super) rows: Vec<Option<Prepared>>,
     diagnostics: ScoreDiagnostics,
 }
+
+#[path = "selector.rs"]
+mod selector;
+pub(super) use selector::{BranchSelector, Selection};
+pub use selector::SelectorDiagnostics;
 
 impl ScoreBounder {
     pub fn disabled() -> Self {
@@ -109,7 +114,7 @@ impl ScoreBounder {
                 this.diagnostics.budget_exhausted = true;
                 break;
             }
-            match prepare_one(source, model, laws, &mut work, budget_deadline) {
+            match prepare_one(source, model, laws, &mut work, budget_deadline, None) {
                 Ok(Some(row)) => {
                     this.diagnostics.support_limit_hit |= row.support_hit;
                     *this
@@ -221,7 +226,7 @@ impl ScoreBounder {
     }
 }
 
-fn safe_upper_product(a: f64, b: f64) -> f64 {
+pub(super) fn safe_upper_product(a: f64, b: f64) -> f64 {
     if a == 0.0 || b == 0.0 {
         return if a.is_finite() && b.is_finite() {
             0.0
@@ -241,19 +246,20 @@ fn safe_upper_product(a: f64, b: f64) -> f64 {
 }
 
 #[derive(Clone, Copy, Debug)]
-enum PrepareFailure {
+pub(super) enum PrepareFailure {
     Budget,
     Work,
     Support,
     Invalid,
 }
 
-fn prepare_one(
+pub(super) fn prepare_one(
     source: &ResidualSource<'_>,
     model: &Model,
     laws: &[Law],
     work: &mut usize,
     deadline: Instant,
+    requested_rival: Option<usize>,
 ) -> Result<Option<Prepared>, PrepareFailure> {
     if laws.len() != model.fixtures.len() || source.fixed_outcomes.len() != laws.len() {
         return Err(PrepareFailure::Invalid);
@@ -311,6 +317,9 @@ fn prepare_one(
     let mut chosen = None;
     let mut candidate_support_hit = false;
     for &candidate in &candidates {
+        if requested_rival.is_some_and(|requested| requested != candidate) {
+            continue;
+        }
         if ranking.above.contains(&candidate) {
             if i64::from(plan.lower[candidate]) != packed_target
                 || i64::from(plan.upper[candidate]) < packed_target
@@ -723,7 +732,7 @@ fn conditional_moment(
     Ok(sum.hi)
 }
 
-fn incidence(fixture: &golaberto_odds::model::Fixture, team: usize) -> i64 {
+pub(super) fn incidence(fixture: &golaberto_odds::model::Fixture, team: usize) -> i64 {
     (if fixture.home == team { 1 } else { 0 }) - (if fixture.away == team { 1 } else { 0 })
 }
 

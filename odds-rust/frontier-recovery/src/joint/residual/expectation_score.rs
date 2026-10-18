@@ -25,6 +25,8 @@ pub struct ScoreExpectationDiagnostics {
     pub supported_sources: usize,
     pub unsupported_sources: usize,
     pub selected_rivals: BTreeMap<i32, usize>,
+    pub selected_query_rivals: BTreeMap<i32, usize>,
+    pub absorbed_by_rival: BTreeMap<String, AbsorptionDiagnostics>,
     pub moment_overflows: usize,
     pub tightened_queries: usize,
     pub absorbed_prefixes: usize,
@@ -38,6 +40,16 @@ pub struct ScoreExpectationDiagnostics {
     pub absorbed_raw_strict_upper: f64,
     pub absorbed_raw_tie_upper: f64,
     pub absorbed_adjusted_tie_upper: f64,
+}
+
+#[derive(Clone, Debug, Default, Serialize)]
+pub struct AbsorptionDiagnostics {
+    pub prefixes: usize,
+    pub plain_upper: f64,
+    pub score_upper: f64,
+    pub raw_strict_upper: f64,
+    pub raw_tie_upper: f64,
+    pub adjusted_tie_upper: f64,
 }
 
 #[derive(Clone, Debug)]
@@ -119,6 +131,29 @@ impl Cache {
         self.score_diagnostics.clone()
     }
 
+    pub fn record_absorption(
+        &mut self,
+        rival_id: Option<i32>,
+        plain_upper: f64,
+        score_upper: f64,
+        strict_upper: f64,
+        tie_upper: f64,
+        adjusted_tie_upper: f64,
+    ) {
+        let key = rival_id.map_or_else(|| "plain".to_string(), |id| id.to_string());
+        let row = self
+            .score_diagnostics
+            .absorbed_by_rival
+            .entry(key)
+            .or_default();
+        row.prefixes += 1;
+        row.plain_upper = super::up(row.plain_upper + plain_upper);
+        row.score_upper = super::up(row.score_upper + score_upper);
+        row.raw_strict_upper = super::up(row.raw_strict_upper + strict_upper);
+        row.raw_tie_upper = super::up(row.raw_tie_upper + tie_upper);
+        row.adjusted_tie_upper = super::up(row.adjusted_tie_upper + adjusted_tie_upper);
+    }
+
     pub fn max_remaining(&self) -> usize {
         self.options.expectation_max_remaining
     }
@@ -159,6 +194,13 @@ impl Cache {
             self.diagnostics.invalid_states += 1;
         }
         let kernel = kernel.filter(|_| valid_kernel);
+        if let Some(kernel) = kernel {
+            *self
+                .score_diagnostics
+                .selected_query_rivals
+                .entry(model.ids[kernel.rival])
+                .or_default() += 1;
+        }
         if !self.source_support.contains_key(&source_index) {
             self.source_support.insert(source_index, kernel.is_some());
             if let Some(kernel) = kernel {
@@ -170,6 +212,18 @@ impl Cache {
                     .or_default() += 1;
             } else {
                 self.score_diagnostics.unsupported_sources += 1;
+            }
+        } else if kernel.is_some() && !self.source_support[&source_index] {
+            self.source_support.insert(source_index, true);
+            self.score_diagnostics.unsupported_sources =
+                self.score_diagnostics.unsupported_sources.saturating_sub(1);
+            self.score_diagnostics.supported_sources += 1;
+            if let Some(kernel) = kernel {
+                *self
+                    .score_diagnostics
+                    .selected_rivals
+                    .entry(model.ids[kernel.rival])
+                    .or_default() += 1;
             }
         }
         let started = Instant::now();

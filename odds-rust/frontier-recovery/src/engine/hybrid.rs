@@ -151,6 +151,9 @@ impl Engine {
             if options.expectation_score_gd && !(options.shared_expectation && options.score_gd) {
                 return Err("expectation_score_gd requires shared_expectation and score_gd".into());
             }
+            if options.expectation_branch_selector && !options.expectation_score_gd {
+                return Err("expectation_branch_selector requires expectation_score_gd".into());
+            }
         }
         let region = &self.regions[id];
         let regime = region.regime.as_ref();
@@ -220,7 +223,8 @@ impl Engine {
                 "expectation_bits":o.expectation_bits,
                 "expectation_max_remaining":o.expectation_max_remaining,
                 "expectation_budget_fraction":o.expectation_budget_fraction,
-                "expectation_score_gd":o.expectation_score_gd
+                "expectation_score_gd":o.expectation_score_gd,
+                "expectation_branch_selector":o.expectation_branch_selector
             })),
             "calls":suffix_diagnostics.calls,"visits":suffix_diagnostics.visits,
             "cache_hits":suffix_diagnostics.cache_hits,"entries":suffix_diagnostics.entries,
@@ -288,6 +292,7 @@ impl Engine {
             "snapshots":snapshots
         });
         receipt["score_shared_expectation"] = json!(certificate.score_shared_expectation);
+        receipt["score_selector"] = json!(certificate.score_selector);
         Ok(receipt)
     }
 

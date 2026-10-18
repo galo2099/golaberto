@@ -67,8 +67,15 @@ fn suffix_options(command: &Value) -> Result<Option<joint::SuffixOptions>, Strin
         None => defaults.expectation_score_gd,
         Some(v) => v.as_bool().ok_or("suffix.expectation_score_gd must be a boolean")?,
     };
+    let expectation_branch_selector = match object.get("expectation_branch_selector") {
+        None => defaults.expectation_branch_selector,
+        Some(v) => v.as_bool().ok_or("suffix.expectation_branch_selector must be a boolean")?,
+    };
     if expectation_score_gd && !(shared_expectation && score_gd) {
         return Err("suffix.expectation_score_gd requires shared_expectation and score_gd".into());
+    }
+    if expectation_branch_selector && !expectation_score_gd {
+        return Err("suffix.expectation_branch_selector requires expectation_score_gd".into());
     }
     if !expectation_budget_fraction.is_finite() || !(0.0..=1.0).contains(&expectation_budget_fraction)
         || expectation_budget_fraction == 0.0
@@ -90,6 +97,7 @@ fn suffix_options(command: &Value) -> Result<Option<joint::SuffixOptions>, Strin
         expectation_max_remaining,
         expectation_budget_fraction,
         expectation_score_gd,
+        expectation_branch_selector,
     }))
 }
 
@@ -275,6 +283,7 @@ mod tests {
         assert_eq!(options.expectation_max_remaining, 18);
         assert_eq!(options.expectation_budget_fraction, 0.5);
         assert!(!options.expectation_score_gd);
+        assert!(!options.expectation_branch_selector);
         assert!(suffix_options(&json!({"suffix":{"joint_ratio":true}})).unwrap().unwrap().joint_ratio);
         assert!(suffix_options(&json!({"suffix":{"canonicalize_certain":true}})).unwrap().unwrap().canonicalize_certain);
     }
@@ -293,6 +302,10 @@ mod tests {
         assert!(suffix_options(&json!({"suffix":{"expectation_max_remaining":0}})).is_err());
         assert!(suffix_options(&json!({"suffix":{"expectation_budget_fraction":0}})).is_err());
         assert!(suffix_options(&json!({"suffix":{"expectation_score_gd":"true"}})).is_err());
+        assert!(suffix_options(&json!({"suffix":{"expectation_branch_selector":"true"}})).is_err());
+        assert!(suffix_options(&json!({"suffix":{"expectation_branch_selector":true}})).is_err());
+        assert!(suffix_options(&json!({"suffix":{"expectation_score_gd":true,"expectation_branch_selector":true}})).is_err());
+        assert!(suffix_options(&json!({"suffix":{"shared_expectation":true,"score_gd":true,"expectation_score_gd":true,"expectation_branch_selector":true}})).unwrap().unwrap().expectation_branch_selector);
         assert!(suffix_options(&json!({"suffix":{"expectation_score_gd":true}})).is_err());
         assert!(suffix_options(&json!({"suffix":{"shared_expectation":true,"expectation_score_gd":true}})).is_err());
         assert!(suffix_options(&json!({"suffix":{"score_gd":true,"expectation_score_gd":true}})).is_err());

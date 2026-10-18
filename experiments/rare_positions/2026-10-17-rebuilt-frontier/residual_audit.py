@@ -60,6 +60,7 @@ def suffix_options(args) -> dict:
         "expectation_max_remaining": getattr(args, "expectation_max_remaining", 18),
         "expectation_budget_fraction": getattr(args, "expectation_budget_fraction", .5),
         "expectation_score_gd": getattr(args, "expectation_score_gd", False),
+        "expectation_branch_selector": getattr(args, "expectation_branch_selector", False),
     }
     for name in ("state_cap", "max_remaining", "probe_nodes", "probe_ms"):
         value = options[name]
@@ -110,6 +111,11 @@ def suffix_options(args) -> dict:
         raise ValueError("--expectation-score-gd requires --shared-expectation")
     if expectation_score_gd and not score_gd:
         raise ValueError("--expectation-score-gd requires --score-gd true")
+    branch_selector = options["expectation_branch_selector"]
+    if not isinstance(branch_selector, bool):
+        raise ValueError("--expectation-branch-selector must be boolean")
+    if branch_selector and not expectation_score_gd:
+        raise ValueError("--expectation-branch-selector requires --expectation-score-gd")
     return options
 
 
@@ -250,6 +256,7 @@ def run_audit(args, protocol_factory=Protocol, now=time.monotonic) -> dict:
                 "expectation_max_remaining": suffix["expectation_max_remaining"],
                 "expectation_budget_fraction": suffix["expectation_budget_fraction"],
                 "expectation_score_gd": suffix["expectation_score_gd"],
+                "expectation_branch_selector": suffix["expectation_branch_selector"],
             }
             output["suffix_request_sent"] = True
         certificate = engine.call(**certificate_request)
@@ -319,6 +326,8 @@ def main() -> None:
                         help="fraction of certificate time reserved for shared expectation setup")
     parser.add_argument("--expectation-score-gd", action="store_true",
                         help="bound score-ranked shared expectation moments")
+    parser.add_argument("--expectation-branch-selector", action="store_true",
+                        help="use the expectation score bound as a branch selector")
     parser.add_argument("--output")
     args = parser.parse_args()
     args.score_gd = args.score_gd == "true"
