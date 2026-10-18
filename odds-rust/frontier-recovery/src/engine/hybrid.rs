@@ -148,6 +148,9 @@ impl Engine {
             {
                 return Err("suffix budget_fraction must be finite and in (0,1]".into());
             }
+            if options.expectation_score_gd && !(options.shared_expectation && options.score_gd) {
+                return Err("expectation_score_gd requires shared_expectation and score_gd".into());
+            }
         }
         let region = &self.regions[id];
         let regime = region.regime.as_ref();
@@ -216,7 +219,8 @@ impl Engine {
                 "shared_expectation":o.shared_expectation,
                 "expectation_bits":o.expectation_bits,
                 "expectation_max_remaining":o.expectation_max_remaining,
-                "expectation_budget_fraction":o.expectation_budget_fraction
+                "expectation_budget_fraction":o.expectation_budget_fraction,
+                "expectation_score_gd":o.expectation_score_gd
             })),
             "calls":suffix_diagnostics.calls,"visits":suffix_diagnostics.visits,
             "cache_hits":suffix_diagnostics.cache_hits,"entries":suffix_diagnostics.entries,
@@ -249,7 +253,7 @@ impl Engine {
             "joint_ratio_tightenings":suffix_diagnostics.joint_ratio_tightenings,
             "joint_ratio_zero_bounds":suffix_diagnostics.joint_ratio_zero_bounds
         });
-        Ok(json!({
+        let mut receipt = json!({
             "operation":"residual_certificate","id":id,"epoch":region.epoch,"B":b,"H":h,
             "mode":if regime.is_some(){"regime"}else{"joint"},
             "source_count":certificate.source_count,
@@ -282,7 +286,9 @@ impl Engine {
             "elapsed_ms":certificate.elapsed.as_secs_f64()*1000.0,
             "audit_elapsed_ms":started.elapsed().as_secs_f64()*1000.0,
             "snapshots":snapshots
-        }))
+        });
+        receipt["score_shared_expectation"] = json!(certificate.score_shared_expectation);
+        Ok(receipt)
     }
 
     pub fn sample_hybrid(
@@ -584,6 +590,11 @@ mod tests {
         assert_eq!(result["suffix"]["enabled"], false);
         let bad_options = crate::joint::SuffixOptions { state_cap: 0, ..Default::default() };
         assert!(engine.residual_certificate_with_options(0, 0.1, 100, 100, Some(bad_options)).is_err());
+        let bad_expectation_score = crate::joint::SuffixOptions {
+            expectation_score_gd: true,
+            ..Default::default()
+        };
+        assert!(engine.residual_certificate_with_options(0, 0.1, 100, 100, Some(bad_expectation_score)).is_err());
         let epoch = engine.regions[0].epoch;
         let options = crate::joint::SuffixOptions {
             state_cap: 10_000,

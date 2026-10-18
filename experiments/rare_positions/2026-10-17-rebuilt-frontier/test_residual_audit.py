@@ -112,6 +112,7 @@ class ResidualAuditTests(unittest.TestCase):
             "score_gd": False, "score_setup_ms": 5000,
             "shared_expectation": False, "expectation_bits": 8,
             "expectation_max_remaining": 18, "expectation_budget_fraction": .5,
+            "expectation_score_gd": False,
         })
         self.assertTrue(result["hashes_unchanged"])
 
@@ -234,6 +235,7 @@ class ResidualAuditTests(unittest.TestCase):
         self.args.expectation_bits = 12
         self.args.expectation_max_remaining = 16
         self.args.expectation_budget_fraction = .3
+        self.args.expectation_score_gd = True
 
         def factory(*args):
             engine = FakeEngine(*args, clock=clock)
@@ -254,6 +256,7 @@ class ResidualAuditTests(unittest.TestCase):
             "expectation_bits": 12,
             "expectation_max_remaining": 16,
             "expectation_budget_fraction": .3,
+            "expectation_score_gd": True,
         })
         self.assertTrue(result["suffix_bounds_enabled"])
         self.assertTrue(result["suffix_request_sent"])
@@ -304,6 +307,18 @@ class ResidualAuditTests(unittest.TestCase):
             self.args.expectation_budget_fraction = value
             with self.subTest(fraction=value), self.assertRaisesRegex(ValueError, r"finite and in \(0, 1\]"):
                 residual_audit.suffix_options(self.args)
+        self.args.expectation_budget_fraction = .5
+        self.args.expectation_score_gd = "true"
+        with self.assertRaisesRegex(ValueError, "must be boolean"):
+            residual_audit.suffix_options(self.args)
+        self.args.expectation_score_gd = True
+        self.args.shared_expectation = False
+        with self.assertRaisesRegex(ValueError, "requires --shared-expectation"):
+            residual_audit.suffix_options(self.args)
+        self.args.shared_expectation = True
+        self.args.score_gd = False
+        with self.assertRaisesRegex(ValueError, "requires --score-gd true"):
+            residual_audit.suffix_options(self.args)
         self.args.suffix_bounds = True
         self.args.score_setup_ms = True
         with self.assertRaisesRegex(ValueError, "positive integer"):

@@ -48,6 +48,19 @@ struct Prepared {
     suffix_moments: Vec<[f64; 3]>,
     initial: [f64; 3],
     support_hit: bool,
+    score_expectation_eligible: bool,
+}
+
+/// Immutable score-moment data borrowed by the score-aware expectation cache.
+#[derive(Clone, Copy)]
+pub(super) struct MomentKernel<'a> {
+    pub(super) rival: usize,
+    pub(super) above: bool,
+    pub(super) packed_target: i64,
+    pub(super) initial: [f64; 3],
+    pub(super) steps: &'a [Option<[[f64; 3]; 3]>],
+    pub(super) suffix_moments: &'a [[f64; 3]],
+    pub(super) identity: usize,
 }
 
 pub(super) struct ScoreBounder {
@@ -189,6 +202,22 @@ impl ScoreBounder {
 
     pub fn diagnostics(&self) -> ScoreDiagnostics {
         self.diagnostics.clone()
+    }
+
+    pub fn moment_kernel(&self, source: usize) -> Option<MomentKernel<'_>> {
+        let row = self.rows.get(source)?.as_ref()?;
+        if !row.score_expectation_eligible {
+            return None;
+        }
+        Some(MomentKernel {
+            rival: row.rival,
+            above: row.above,
+            packed_target: row.packed_target,
+            initial: row.initial,
+            steps: &row.steps,
+            suffix_moments: &row.suffix_moments,
+            identity: row.steps.as_ptr() as usize,
+        })
     }
 }
 
@@ -428,6 +457,7 @@ fn prepare_one(
         suffix_moments,
         initial,
         support_hit: candidate_support_hit,
+        score_expectation_eligible: ranking.pair_condition.is_none(),
     }))
 }
 
@@ -870,6 +900,7 @@ mod tests {
             suffix_moments: vec![[1.0; 3]],
             initial: [0.8, 0.9, 1.0],
             support_hit: false,
+            score_expectation_eligible: true,
         }
     }
 

@@ -26,6 +26,7 @@ pub struct SuffixOptions {
     pub expectation_bits: u32,
     pub expectation_max_remaining: usize,
     pub expectation_budget_fraction: f64,
+    pub expectation_score_gd: bool,
 }
 
 impl Default for SuffixOptions {
@@ -44,6 +45,7 @@ impl Default for SuffixOptions {
             expectation_bits: 8,
             expectation_max_remaining: 18,
             expectation_budget_fraction: 0.5,
+            expectation_score_gd: false,
         }
     }
 }

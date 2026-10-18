@@ -59,6 +59,7 @@ def suffix_options(args) -> dict:
         "expectation_bits": getattr(args, "expectation_bits", 8),
         "expectation_max_remaining": getattr(args, "expectation_max_remaining", 18),
         "expectation_budget_fraction": getattr(args, "expectation_budget_fraction", .5),
+        "expectation_score_gd": getattr(args, "expectation_score_gd", False),
     }
     for name in ("state_cap", "max_remaining", "probe_nodes", "probe_ms"):
         value = options[name]
@@ -102,6 +103,13 @@ def suffix_options(args) -> dict:
             or not math.isfinite(fraction) or not 0 < fraction <= 1):
         raise ValueError("--expectation-budget-fraction must be finite and in (0, 1]")
     options["expectation_budget_fraction"] = float(fraction)
+    expectation_score_gd = options["expectation_score_gd"]
+    if not isinstance(expectation_score_gd, bool):
+        raise ValueError("--expectation-score-gd must be boolean")
+    if expectation_score_gd and not shared_expectation:
+        raise ValueError("--expectation-score-gd requires --shared-expectation")
+    if expectation_score_gd and not score_gd:
+        raise ValueError("--expectation-score-gd requires --score-gd true")
     return options
 
 
@@ -241,6 +249,7 @@ def run_audit(args, protocol_factory=Protocol, now=time.monotonic) -> dict:
                 "expectation_bits": suffix["expectation_bits"],
                 "expectation_max_remaining": suffix["expectation_max_remaining"],
                 "expectation_budget_fraction": suffix["expectation_budget_fraction"],
+                "expectation_score_gd": suffix["expectation_score_gd"],
             }
             output["suffix_request_sent"] = True
         certificate = engine.call(**certificate_request)
@@ -308,6 +317,8 @@ def main() -> None:
                         help="maximum remaining fixtures for shared expectation bounds")
     parser.add_argument("--expectation-budget-fraction", type=float, default=.5,
                         help="fraction of certificate time reserved for shared expectation setup")
+    parser.add_argument("--expectation-score-gd", action="store_true",
+                        help="bound score-ranked shared expectation moments")
     parser.add_argument("--output")
     args = parser.parse_args()
     args.score_gd = args.score_gd == "true"

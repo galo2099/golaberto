@@ -22,6 +22,8 @@ pub use score_gd::ScoreDiagnostics;
 use score_gd::ScoreBounder;
 #[path = "residual/expectation.rs"]
 mod expectation;
+#[path = "residual/expectation_score.rs"]
+mod expectation_score;
 
 #[derive(Clone, Copy)]
 enum Graph<'a> {
@@ -128,6 +130,7 @@ pub struct ResidualCertificate {
     pub aggregation_ms: f64,
     pub score_gd: ScoreDiagnostics,
     pub shared_expectation: expectation::ExpectationDiagnostics,
+    pub score_shared_expectation: expectation_score::ScoreExpectationDiagnostics,
 }
 
 impl Plan {
@@ -692,10 +695,19 @@ pub fn residual_certificate_with_options(
         .as_ref()
         .map(|options| suffix::Cache::new(options.clone(), started, search_deadline))
         .transpose()?;
+    let score_expectation_enabled = suffix_options.as_ref().is_some_and(|options| {
+        options.shared_expectation && options.score_gd && options.expectation_score_gd
+    });
     let mut expectation_cache = suffix_options
         .as_ref()
-        .filter(|options| options.shared_expectation)
+        .filter(|options| options.shared_expectation && !score_expectation_enabled)
         .map(|options| expectation::Cache::new(options, started, search_deadline));
+    let mut score_expectation_cache = suffix_options
+        .as_ref()
+        .filter(|options| {
+            options.shared_expectation && options.score_gd && options.expectation_score_gd
+        })
+        .map(|options| expectation_score::Cache::new(options, started, search_deadline));
     let mut score_bounder = if suffix_options.as_ref().is_some_and(|options| options.score_gd) {
         ScoreBounder::prepare(
             sources,
@@ -788,6 +800,12 @@ pub fn residual_certificate_with_options(
     let mut absorbed_bound_after = 0.0f64;
     let mut zero_mean_archives = 0usize;
     let mut partial_tightened_prefixes = 0usize;
+    let mut score_absorbed_prefixes = 0usize;
+    let mut score_absorbed_plain_upper = 0.0f64;
+    let mut score_absorbed_upper = 0.0f64;
+    let mut score_absorbed_strict_upper = 0.0f64;
+    let mut score_absorbed_tie_upper = 0.0f64;
+    let mut score_absorbed_adjusted_tie_upper = 0.0f64;
     while let Some(branch) = heap.pop() {
         if expanded >= node_limit || Instant::now() >= search_deadline {
             push_branch(&mut heap, branch);
@@ -798,11 +816,13 @@ pub fn residual_certificate_with_options(
         let mut branch = branch;
         if !branch.expectation_probed {
             branch.expectation_probed = true;
-            if let (Some(expectation_cache), Some(suffix_cache)) =
-                (expectation_cache.as_mut(), suffix_cache.as_mut())
-            {
+            if let Some(suffix_cache) = suffix_cache.as_mut() {
                 let remaining = plan.order.len().saturating_sub(branch.pos);
-                if remaining > 0 && remaining <= expectation_cache.max_remaining() {
+                let max_remaining = score_expectation_cache
+                    .as_ref()
+                    .map(expectation_score::Cache::max_remaining)
+                    .or_else(|| expectation_cache.as_ref().map(expectation::Cache::max_remaining));
+                if remaining > 0 && max_remaining.is_some_and(|max| remaining <= max) {
                     let prefix_mass = branch.q0.mul(branch.v);
                     let v_hi = branch.v.hi;
                     let threshold = if v_hi.is_finite()
@@ -823,17 +843,54 @@ pub fn residual_certificate_with_options(
                         && prefix_mass.hi >= 0.0
                     {
                         if let Some(threshold) = threshold {
-                            let result = expectation_cache.probe(
-                                suffix_cache,
-                                source,
-                                model,
-                                laws,
-                                branch.pos,
-                                branch.node,
-                                &branch.totals,
-                                threshold,
-                                search_deadline,
-                            )?;
+                            let (result, plain_upper, raw_strict, raw_tie, adjusted_tie) =
+                                if let Some(cache) = score_expectation_cache.as_mut() {
+                                    let probe = cache.probe(
+                                        suffix_cache,
+                                        source,
+                                        model,
+                                        laws,
+                                        branch.pos,
+                                        branch.node,
+                                        &branch.totals,
+                                        threshold,
+                                        branch.source,
+                                        score_bounder.moment_kernel(branch.source),
+                                        branch.score_moments,
+                                        search_deadline,
+                                    )?;
+                                    (
+                                        probe.bound,
+                                        probe.plain_upper,
+                                        probe.strict_upper,
+                                        probe.tie_upper,
+                                        probe.tie_adjusted_upper,
+                                    )
+                                } else if let Some(cache) = expectation_cache.as_mut() {
+                                    let bound = cache.probe(
+                                        suffix_cache,
+                                        source,
+                                        model,
+                                        laws,
+                                        branch.pos,
+                                        branch.node,
+                                        &branch.totals,
+                                        threshold,
+                                        search_deadline,
+                                    )?;
+                                    (bound, bound.upper, bound.upper, 0.0, 0.0)
+                                } else {
+                                    (
+                                        expectation::ExpectationBound {
+                                            upper: 1.0,
+                                            complete: false,
+                                        },
+                                        1.0,
+                                        1.0,
+                                        0.0,
+                                        0.0,
+                                    )
+                                };
                             let f_upper = if result.upper.is_finite() && result.upper >= 0.0 {
                                 result.upper.min(1.0)
                             } else {
@@ -844,6 +901,15 @@ pub fn residual_certificate_with_options(
                                 .hi;
                             let old_bound = branch.bound;
                             branch.bound = branch.bound.min(candidate);
+                            let plain_upper = if plain_upper.is_finite() && plain_upper >= 0.0 {
+                                plain_upper.min(1.0)
+                            } else {
+                                1.0
+                            };
+                            let plain_candidate = Interval::point(prefix_mass.hi)
+                                .mul(Interval::point(plain_upper))
+                                .hi
+                                .min(old_bound);
                             if f_upper == 0.0 {
                                 zero_mean_archives += 1;
                                 shared_zero_mean_max_cap =
@@ -855,6 +921,23 @@ pub fn residual_certificate_with_options(
                                 absorbed_bound_before = up(absorbed_bound_before + old_bound);
                                 absorbed_bound_after = up(absorbed_bound_after + branch.bound);
                                 completed_bound = up(completed_bound + branch.bound);
+                                if score_expectation_cache.is_some() {
+                                    score_absorbed_prefixes += 1;
+                                    score_absorbed_plain_upper =
+                                        up(score_absorbed_plain_upper + plain_candidate);
+                                    score_absorbed_upper =
+                                        up(score_absorbed_upper + branch.bound);
+                                    score_absorbed_strict_upper = up(
+                                        score_absorbed_strict_upper + prefix_mass.hi * raw_strict,
+                                    );
+                                    score_absorbed_tie_upper = up(
+                                        score_absorbed_tie_upper + prefix_mass.hi * raw_tie,
+                                    );
+                                    score_absorbed_adjusted_tie_upper = up(
+                                        score_absorbed_adjusted_tie_upper
+                                            + prefix_mass.hi * adjusted_tie,
+                                    );
+                                }
                                 shared_expectation_max_cap =
                                     shared_expectation_max_cap.max(branch.residual_cap);
                                 expanded += 1;
@@ -1236,6 +1319,11 @@ pub fn residual_certificate_with_options(
     let mut shared_expectation_diagnostics = expectation_cache
         .as_ref()
         .map(expectation::Cache::diagnostics)
+        .or_else(|| {
+            score_expectation_cache
+                .as_ref()
+                .map(expectation_score::Cache::diagnostics)
+        })
         .unwrap_or_default();
     shared_expectation_diagnostics.absorbed_prefixes += absorbed_prefixes;
     shared_expectation_diagnostics.saved_nonzero_depth += saved_nonzero_depth;
@@ -1245,6 +1333,23 @@ pub fn residual_certificate_with_options(
     shared_expectation_diagnostics.zero_mean_archives += zero_mean_archives;
     shared_expectation_diagnostics.zero_mean_max_cap = shared_zero_mean_max_cap;
     shared_expectation_diagnostics.partial_tightened_prefixes += partial_tightened_prefixes;
+    let mut score_shared_expectation_diagnostics = score_expectation_cache
+        .as_ref()
+        .map(expectation_score::Cache::score_diagnostics)
+        .unwrap_or_default();
+    score_shared_expectation_diagnostics.absorbed_prefixes += score_absorbed_prefixes;
+    score_shared_expectation_diagnostics.plain_absorbed_bound_sum = score_absorbed_plain_upper;
+    score_shared_expectation_diagnostics.score_absorbed_bound_sum = score_absorbed_upper;
+    score_shared_expectation_diagnostics.strict_upper_sum = score_absorbed_strict_upper;
+    score_shared_expectation_diagnostics.tie_upper_sum = score_absorbed_tie_upper;
+    score_shared_expectation_diagnostics.tie_adjusted_upper_sum =
+        score_absorbed_adjusted_tie_upper;
+    score_shared_expectation_diagnostics.absorbed_plain_upper = score_absorbed_plain_upper;
+    score_shared_expectation_diagnostics.absorbed_score_upper = score_absorbed_upper;
+    score_shared_expectation_diagnostics.absorbed_raw_strict_upper = score_absorbed_strict_upper;
+    score_shared_expectation_diagnostics.absorbed_raw_tie_upper = score_absorbed_tie_upper;
+    score_shared_expectation_diagnostics.absorbed_adjusted_tie_upper =
+        score_absorbed_adjusted_tie_upper;
     let aggregation_ms = aggregation_started.elapsed().as_secs_f64() * 1000.0;
     Ok(ResidualCertificate {
         expectation_upper,
@@ -1279,6 +1384,7 @@ pub fn residual_certificate_with_options(
         suffix: suffix_diagnostics,
         score_gd: score_bounder.diagnostics(),
         shared_expectation: shared_expectation_diagnostics,
+        score_shared_expectation: score_shared_expectation_diagnostics,
         final_refresh_applied,
         final_refresh_skipped,
         final_refresh_ms,
@@ -1351,6 +1457,46 @@ mod tests {
             }
         }
         exact
+    }
+
+    fn exhaustive_fixed_wdl_score_residual(
+        source: &ResidualSource<'_>,
+        model: &Model,
+        laws: &[Law],
+        target: usize,
+        rival: usize,
+        clip_h: f64,
+    ) -> f64 {
+        let mut wdl_mass = 1.0;
+        let outcomes = &source.fixed_outcomes;
+        for (fi, outcome) in outcomes.iter().enumerate() {
+            let Some(outcome) = outcome else { continue };
+            wdl_mass *= laws[fi].outcomes[*outcome as usize].mid();
+        }
+        let mut adverse = 0.0;
+        let target_initial = i64::from(model.base[target].gf - model.base[target].ga);
+        let rival_initial = i64::from(model.base[rival].gf - model.base[rival].ga);
+        // These fixtures are independent and each team's single match fixes
+        // its conditional goal-difference support after the WDL atom.
+        let tf = model.fixtures.iter().position(|f| f.home == target || f.away == target).unwrap();
+        let rf = model.fixtures.iter().position(|f| f.home == rival || f.away == rival).unwrap();
+        let to = outcomes[tf].unwrap() as usize;
+        let ro = outcomes[rf].unwrap() as usize;
+        for tp in &laws[tf].pairs[to] {
+            for rp in &laws[rf].pairs[ro] {
+                let tdelta = i64::from(tp.home) - i64::from(tp.away);
+                let tdelta = if model.fixtures[tf].home == target { tdelta } else { -tdelta };
+                let rdelta = i64::from(rp.home) - i64::from(rp.away);
+                let rdelta = if model.fixtures[rf].home == rival { rdelta } else { -rdelta };
+                let tp_mass = tp.mass.mid() / laws[tf].outcomes[to].mid();
+                let rp_mass = rp.mass.mid() / laws[rf].outcomes[ro].mid();
+                if rival_initial + rdelta >= target_initial + tdelta {
+                    adverse += tp_mass * rp_mass;
+                }
+            }
+        }
+        let residual = (source.v_prefix.hi * wdl_mass - clip_h * source.g_prefix.lo).max(0.0);
+        source.q0_prefix.lo * residual * adverse
     }
 
     fn test_branch(bound: f64, serial: u64) -> Branch {
@@ -1462,6 +1608,21 @@ mod tests {
             std::slice::from_ref(&source), &model, &laws, 10.0, 0.0, 0, deadline,
             Some(SuffixOptions::default()),
         ).unwrap();
+        let mut score_flag_without_prerequisites = SuffixOptions::default();
+        score_flag_without_prerequisites.expectation_score_gd = true;
+        let off_with_unmet_score_flag = residual_certificate_with_options(
+            std::slice::from_ref(&source),
+            &model,
+            &laws,
+            10.0,
+            0.0,
+            0,
+            deadline,
+            Some(score_flag_without_prerequisites),
+        )
+        .unwrap();
+        assert_eq!(off_with_unmet_score_flag.expectation_upper, off.expectation_upper);
+        assert_eq!(off_with_unmet_score_flag.max_residual_cap, off.max_residual_cap);
         let mut score_options = SuffixOptions::default();
         score_options.score_gd = true;
         let on = residual_certificate_with_options(
@@ -1499,6 +1660,94 @@ mod tests {
         assert!(completed_off.complete && completed_on.complete);
         assert!(completed_on.expectation_upper < completed_off.expectation_upper);
         assert_eq!(completed_on.max_residual_cap, completed_off.max_residual_cap);
+
+        let mut scaled = plan
+            .residual_source(Interval::point(0.7), Interval::point(0.4))
+            .unwrap();
+        scaled.set_score_ranking(target, &[rival], None);
+        let mut score_expectation_options = score_options.clone();
+        score_expectation_options.shared_expectation = true;
+        score_expectation_options.expectation_score_gd = true;
+        score_expectation_options.expectation_bits = 8;
+        let mut plain_expectation_options = score_expectation_options.clone();
+        plain_expectation_options.expectation_score_gd = false;
+        let score_aware = residual_certificate_with_options(
+            std::slice::from_ref(&scaled),
+            &model,
+            &laws,
+            10.0,
+            0.01,
+            10_000,
+            deadline,
+            Some(score_expectation_options.clone()),
+        )
+        .unwrap();
+        let plain_expectation = residual_certificate_with_options(
+            std::slice::from_ref(&scaled),
+            &model,
+            &laws,
+            10.0,
+            0.01,
+            10_000,
+            deadline,
+            Some(plain_expectation_options.clone()),
+        )
+        .unwrap();
+        let score_truth = exhaustive_fixed_wdl_score_residual(
+            &scaled, &model, &laws, target, rival, 0.01,
+        );
+        assert!(score_aware.complete);
+        assert!(score_aware.shared_expectation.absorbed_prefixes > 0);
+        assert!(score_aware.score_shared_expectation.supported_sources > 0);
+        assert!(score_aware
+            .score_shared_expectation
+            .selected_rivals
+            .get(&model.ids[rival])
+            .copied()
+            .unwrap_or(0)
+            > 0);
+        assert!(score_aware.expectation_upper <= plain_expectation.expectation_upper);
+        assert!(score_aware.expectation_upper + 1e-12 >= score_truth,
+            "score-aware bound {} below enumerated truth {score_truth}", score_aware.expectation_upper);
+        assert_eq!(score_aware.max_residual_cap, plain_expectation.max_residual_cap);
+
+        let zero_score_mean = residual_certificate_with_options(
+            std::slice::from_ref(&scaled),
+            &model,
+            &laws,
+            10.0,
+            1.76,
+            10_000,
+            deadline,
+            Some(score_expectation_options.clone()),
+        )
+        .unwrap();
+        let zero_score_plain = residual_certificate_with_options(
+            std::slice::from_ref(&scaled),
+            &model,
+            &laws,
+            10.0,
+            1.76,
+            10_000,
+            deadline,
+            Some(plain_expectation_options),
+        )
+        .unwrap();
+        assert!(zero_score_mean.score_shared_expectation.absorbed_prefixes > 0);
+        assert!(zero_score_mean.shared_expectation.zero_mean_archives > 0);
+        assert_eq!(zero_score_mean.max_residual_cap, zero_score_plain.max_residual_cap);
+        assert!(zero_score_mean.max_residual_cap > 0.0);
+
+        let mut paired_source = scaled;
+        paired_source.set_score_ranking(target, &[rival], Some((target, rival, Interval::point(1.0))));
+        let pair_bounder = ScoreBounder::prepare(
+            std::slice::from_ref(&paired_source),
+            &model,
+            &laws,
+            5_000,
+            deadline,
+        );
+        assert!(pair_bounder.moment_kernel(0).is_none());
 
         let expired = Instant::now() - Duration::from_secs(1);
         let expired_off = residual_certificate_with_options(
