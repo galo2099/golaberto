@@ -1113,8 +1113,17 @@ establish coverage and cost, rather than exact accuracy in the extreme tail.
 
 The default coverage profile also enables bounded joint rival discovery. When
 the expected-points cohort pilots admit no proposal, the stage searches rival
-memberships jointly under the remaining training allowance. Point-bound
-propagation rejects incompatible memberships before building sampling tables.
+memberships jointly under the remaining training allowance. The late analytic
+goal-difference refinement pass also admits discovery when every existing proposal
+has weak pilot evidence. The native pass finishes first, preserving its successful
+estimates. A healthy pilot has a finite positive probability, ESS of at least 25,
+relative standard error at most 0.25, and maximum event weight
+share at most 0.1. These thresholds control training admission; publication still
+requires the existing independent main/check gates. Existing proposals remain
+eligible and compete with discovered proposals by pilot ESS per modeled operation.
+`rust_odds_feasible_cohort_trigger` records the trigger and existing pilot evidence.
+
+Point-bound propagation rejects incompatible memberships before building sampling tables.
 Selected rivals may tie the target on points; complete ranking rules, including
 goal difference and goals scored, determine the sampled final position. Shared
 games remain joint variables, overlapping families receive the full mixture
@@ -1128,6 +1137,80 @@ main/check streams use the existing publication gates. Exhausting a discovery
 budget does not prove a position impossible. Set
 `RUST_ODDS_FEASIBLE_COHORTS=0` to disable discovery, or `1` to enable it explicitly
 within an enabled expected-cohort stage in another supported profile.
+
+With exact-cap recovery disabled, seeds 800–809 on the October 18 group-16498
+snapshot retained all positive estimates and impossibility classifications
+within the existing cohort budget.
+Chapecoense ninth-place estimates reported meeting the precision goal in two
+seeds versus one previously; four seeds, including 808, still returned reachable zeros.
+Eight other reference fixtures at seed 808 retained identical responses.
+
+The snapshot-specific [restricted-rank diagnostic](examples/restricted_rank_analysis.rs)
+fixes Chapecoense's eight wins, removes 13 irrelevant fixtures, integrates 33
+single-rival fixtures, and exactly sums the remaining 24 shared fixtures under
+the stored WDL law. Its strict points/wins event guarantees ninth place with
+probability approximately `5.167576459e-24`; allowing points/wins ties gives a
+necessary-event upper bound of `6.258414029e-21`. Both counts finish below the
+20-million-node quota. Score tiebreaks remain unresolved between these bounds.
+The lower bound exceeds the previous sampled estimates, showing that their
+empirical precision flags did not detect the missing mass in this case.
+
+The diagnostic's optional `--gd-samples N --seed S` mode samples WDL worlds
+directly from that exact necessary event. For each points/wins-tied cohort, it
+samples each shared match score once, then convolves the independent private
+GD contributions. Strict and weak GD comparisons bracket the unresolved GF
+boundary. The strict points/wins event is added as an exact constant. The
+reported GD bounds are Monte Carlo estimates, accompanied by simultaneous
+99% empirical Bernstein confidence bounds; an independent full-score sample
+uses the production standings sorter as a check. This mode is an offline,
+snapshot-specific diagnostic and does not change production estimation.
+
+Production's coverage profile also enables a separate exact-cap recovery stage
+for compatible points/wins phases. It proves that the target must win every
+remaining match, exhaustively prunes the possible exceptional rivals, and
+proceeds only when one complete cap case remains. Shared-fixture enumeration
+and unary suffix distributions give its exact conditioning mass. Full score
+sampling then uses the production standings sorter, including GF and later
+tiebreaks. Where a strict points/wins subset guarantees the requested rank,
+its exact probability is used as a constant contribution to reduce variance.
+
+The stage has a separate allowance of 100,000 reference draws in the existing
+operation model. It attempts at most eight constructors and publishes at most
+one cell per request, using two independent fixed batches of 32,768–65,536
+draws each. Constructor limits are four million shared DFS nodes, 600,000
+leaves, 32 shared edges, 16 capped teams, and 32 MiB of plan memory. Incomplete
+proofs or counts decline the proposal. Publication and matrix reconciliation
+preserve positive cells and certified probability bounds. An existing positive
+estimate below the exact strict lower bound can be corrected even when its
+empirical precision flag was healthy. Set `RUST_ODDS_EXACT_CAP_RECOVERY=0` to
+disable the stage; explicit `1` enables it in other modeled-work profiles.
+
+On the October 18 snapshot at seed 808, production recovered Chapecoense ninth
+at `7.93696e-24` with 6.48% relative SE, independently checked at `8.03245e-24`.
+Both batches used 65,536 draws. The stage used 431,773,188 of 563,300,000
+operation units and an 18.3 MB plan; its first four-worker run took 224 ms
+locally. Seeds 800–809 all recovered the cell and met the precision goal,
+with estimates from `7.45948e-24` to `9.17840e-24`. The explicit opt-out
+reproduced the frozen pre-stage response byte for byte. Eight other reference
+requests also retained byte-for-byte identical responses. The locked release
+suite across all targets passed with 519 tests passing and five ignored.
+
+To reproduce the offline GD analysis:
+
+```bash
+cargo run --release --locked --manifest-path odds-rust/Cargo.toml \
+  --example restricted_rank_analysis -- \
+  odds-rust/tests/fixtures/group-16498-2026-10-18.json \
+  --gd-samples 1000000 --seed 808
+```
+
+This fixed run took 19.4 seconds locally and estimated strict/weak GD masses
+of `6.8905e-24` and `8.1658e-24`, including the exact strict points/wins subset.
+The simultaneous 99% interval was `[6.6715e-24, 8.4404e-24]`. The independent
+full-score reference had 1,327 ninth-place hits in one million conditioned
+worlds, estimating `8.3049e-24` with a 99% Wilson interval of
+`[7.7384e-24, 8.9128e-24]`. These estimates are consistent; the remaining
+strict/weak GD gap requires GF and subsequent tiebreaks.
 
 On the latest95 fixture, five seeds with three timing repetitions each
 recovered Palmeiras 16th in four of five seeds versus zero for committed
