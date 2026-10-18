@@ -64,6 +64,33 @@ fn run_seed(
     (fs::read(output).unwrap(), logs)
 }
 
+fn run_chapecoense(request: &PathBuf, output: &PathBuf, workers: usize) -> (Vec<u8>, Vec<Value>) {
+    let mut command = clean_command();
+    command
+        .env("RUST_ODDS_LOG", "1")
+        .env("RUST_ODDS_EXPECTED_COHORTS", "1")
+        .env("RUST_ODDS_FEASIBLE_COHORTS", "1");
+    let result = command
+        .arg("estimate")
+        .arg(request)
+        .arg(output)
+        .arg("808")
+        .arg(workers.to_string())
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let logs = String::from_utf8(result.stderr)
+        .unwrap()
+        .lines()
+        .filter_map(|line| serde_json::from_str(line).ok())
+        .collect();
+    (fs::read(output).unwrap(), logs)
+}
+
 #[test]
 fn native_recovery_preserves_original_rare_positive_cells_for_seed_13001() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -285,6 +312,78 @@ fn expected_cohorts_default_is_bounded_and_deterministic_and_can_be_disabled() {
         assert_eq!(
             disabled_response["rare_position_estimates"][team][rank]["probability"], 0.0,
             "opt-out should retain the baseline zero for team {team} rank {rank}"
+        );
+    }
+}
+
+#[test]
+fn weak_expected_cohort_pilots_trigger_bounded_chapecoense_recovery_deterministically() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let request = root.join("tests/fixtures/group-16498-2026-10-18.json");
+    let dir = OutputDir(std::env::temp_dir().join(format!(
+        "golaberto-chapecoense-feasible-recovery-{}",
+        std::process::id()
+    )));
+    fs::create_dir(&dir.0).unwrap();
+
+    let (four_worker_bytes, four_worker_logs) =
+        run_chapecoense(&request, &dir.0.join("four-workers.json"), 4);
+    let response = validate_response(&four_worker_bytes);
+    let target = &response["rare_position_estimates"]["318"]["8"];
+    assert_eq!(target["reachability"], "reachable");
+    let trigger = four_worker_logs
+        .iter()
+        .find(|event| {
+            event["event"] == "rust_odds_feasible_cohort_trigger"
+                && event["team"] == 318
+                && event["rank"] == 9
+        })
+        .expect("Chapecoense weak expected-cohort pilots should trigger feasible discovery");
+    assert_eq!(trigger["trigger"], "all_expected_pilots_weak");
+    assert_eq!(trigger["stage"], "gd_refinement");
+    assert!(trigger["existing_expected_arms"].as_u64().unwrap() > 0);
+    let best_pilot = &trigger["best_pilot"];
+    assert_eq!(best_pilot["healthy"], false);
+    assert!(best_pilot["probability"].as_f64().unwrap().is_finite());
+    assert!(
+        four_worker_logs.iter().any(|event| {
+            event["team"] == 318
+                && event["rank"] == 9
+                && (event["event"] == "rust_odds_order_fallback_arm"
+                    || event["event"] == "rust_odds_order_fallback_declined")
+        }),
+        "feasible cohort discovery was not attempted for Chapecoense"
+    );
+
+    let summary = four_worker_logs
+        .iter()
+        .find(|event| event["event"] == "rust_odds_expected_cohorts_summary")
+        .expect("expected-cohort summary");
+    let actual_work = summary["actual_work"].as_u64().unwrap();
+    let forecast_capacity = summary["forecast_capacity"].as_u64().unwrap();
+    assert!(actual_work <= forecast_capacity);
+    assert!(summary["candidate_cells"].as_u64().unwrap() <= 5);
+
+    let (repeat_bytes, repeat_logs) = run_chapecoense(&request, &dir.0.join("repeat.json"), 4);
+    let (one_worker_bytes, one_worker_logs) =
+        run_chapecoense(&request, &dir.0.join("one-worker.json"), 1);
+    assert_eq!(four_worker_bytes, repeat_bytes);
+    assert_eq!(four_worker_bytes, one_worker_bytes);
+    for logs in [&repeat_logs, &one_worker_logs] {
+        assert!(logs.iter().any(|event| {
+            event["event"] == "rust_odds_feasible_cohort_trigger"
+                && event["team"] == 318
+                && event["rank"] == 9
+                && event["trigger"] == "all_expected_pilots_weak"
+                && event["stage"] == "gd_refinement"
+        }));
+        let summary = logs
+            .iter()
+            .find(|event| event["event"] == "rust_odds_expected_cohorts_summary")
+            .unwrap();
+        assert!(
+            summary["actual_work"].as_u64().unwrap()
+                <= summary["forecast_capacity"].as_u64().unwrap()
         );
     }
 }

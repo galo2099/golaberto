@@ -22,6 +22,7 @@ mod branches;
 pub(crate) mod budget;
 mod confirmations;
 mod early_roots;
+pub(crate) mod exact_caps;
 pub(crate) mod family_config;
 pub(crate) mod order_cohorts;
 mod overflow_trees;

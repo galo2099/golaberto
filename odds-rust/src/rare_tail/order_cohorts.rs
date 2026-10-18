@@ -111,6 +111,33 @@ fn weak_reason(estimate: &Estimate) -> Vec<&'static str> {
     reasons
 }
 
+fn pilot_is_healthy(pilot: &Result) -> bool {
+    let relative_se = if pilot.probability > 0.0 && pilot.probability.is_finite() {
+        pilot.std_err / pilot.probability
+    } else {
+        f64::INFINITY
+    };
+    pilot.probability.is_finite()
+        && pilot.probability > 0.0
+        && pilot.ess.is_finite()
+        && pilot.ess >= 25.0
+        && relative_se.is_finite()
+        && relative_se >= 0.0
+        && relative_se <= 0.25
+        && pilot.max_share.is_finite()
+        && pilot.max_share <= 0.1
+}
+
+fn feasible_fallback_trigger(arm_health: &[bool], analytic_gd: bool) -> Option<&'static str> {
+    if arm_health.is_empty() {
+        Some("empty_expected_arms")
+    } else if analytic_gd && arm_health.iter().all(|healthy| !healthy) {
+        Some("all_expected_pilots_weak")
+    } else {
+        None
+    }
+}
+
 pub(crate) fn has_weak_eligible_cells(
     m: &Model,
     estimates: &[Estimate],
@@ -711,7 +738,37 @@ fn run_pass(
             );
             arms.push((width, proposal, pilot, pilot_ms, score, use_gd));
         }
-        if arms.is_empty() && feasible_cohorts_enabled() && !candidate_overrun {
+        let fallback_trigger = if feasible_cohorts_enabled() && !candidate_overrun {
+            let health = arms
+                .iter()
+                .map(|arm| pilot_is_healthy(&arm.2))
+                .collect::<Vec<_>>();
+            feasible_fallback_trigger(&health, analytic_gd)
+        } else {
+            None
+        };
+        'feasible_fallback: {
+            let Some(trigger) = fallback_trigger else {
+                break 'feasible_fallback;
+            };
+            let best_pilot = arms
+                .iter()
+                .max_by(|a, b| a.4.total_cmp(&b.4))
+                .map(|arm| json!({
+                    "width":arm.0,
+                    "score":arm.4,
+                    "probability":arm.2.probability,
+                    "ess":arm.2.ess,
+                    "relative_se":if arm.2.probability > 0.0 {Some(arm.2.std_err / arm.2.probability)} else {None},
+                    "max_event_weight_share":arm.2.max_share,
+                    "healthy":pilot_is_healthy(&arm.2)
+                }));
+            emit(
+                log,
+                "rust_odds_feasible_cohort_trigger",
+                json!({"team":m.ids[cell.team],"rank":cell.rank+1,"stage":pass_name,"trigger":trigger,
+                    "existing_expected_arms":arms.len(),"best_pilot":best_pilot}),
+            );
             let fallback_grant = training_cap.saturating_sub(training_used);
             let clone_work = base.clone_work();
             let positive_cell = prior.probability > 0.0;
@@ -855,7 +912,7 @@ fn run_pass(
                     let native_possible = native_needed;
                     let gd_possible = analytic_gd && gd_draws >= MIN_PILOT_DRAWS;
                     if !native_possible && !gd_possible {
-                        continue;
+                        break 'feasible_fallback;
                     }
                     let mut native_pilot = None;
                     let mut native_work = 0usize;
@@ -934,7 +991,7 @@ fn run_pass(
                         proposal.set_order_score_mode("sampled");
                         native_pilot.expect("usable native fallback pilot")
                     } else {
-                        continue;
+                        break 'feasible_fallback;
                     };
                     let score = normalized_efficiency(&pilot);
                     emit(
@@ -1399,6 +1456,52 @@ mod tests {
                 Cell { team: 1, rank: 1 },
             ]
         );
+    }
+
+    #[test]
+    fn feasible_fallback_requires_empty_or_all_weak_expected_pilots() {
+        let healthy = Result {
+            probability: 0.01,
+            std_err: 0.002,
+            ess: 30.0,
+            max_share: 0.05,
+            ..Default::default()
+        };
+        assert!(pilot_is_healthy(&healthy));
+        assert_eq!(
+            feasible_fallback_trigger(&[], false),
+            Some("empty_expected_arms")
+        );
+        assert_eq!(
+            feasible_fallback_trigger(&[], true),
+            Some("empty_expected_arms")
+        );
+
+        let weak = Result {
+            ess: 24.9,
+            ..healthy.clone()
+        };
+        assert!(!pilot_is_healthy(&weak));
+        assert_eq!(
+            feasible_fallback_trigger(&[false, false], true),
+            Some("all_expected_pilots_weak")
+        );
+        assert_eq!(feasible_fallback_trigger(&[false, false], false), None);
+        assert_eq!(feasible_fallback_trigger(&[false, true], true), None);
+        assert_eq!(feasible_fallback_trigger(&[true], true), None);
+
+        assert!(!pilot_is_healthy(&Result {
+            probability: 0.0,
+            ..healthy.clone()
+        }));
+        assert!(!pilot_is_healthy(&Result {
+            std_err: f64::NAN,
+            ..healthy.clone()
+        }));
+        assert!(!pilot_is_healthy(&Result {
+            max_share: f64::INFINITY,
+            ..healthy
+        }));
     }
 
     #[test]

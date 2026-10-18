@@ -710,11 +710,65 @@ pub fn run_logged(
             }),
         );
     }
+    let exact_caps_baseline = estimates.to_vec();
+    let mut exact_caps = crate::rare_tail::exact_caps::run(model, seed, workers, estimates, log);
+    work = work.saturating_add(exact_caps.work);
+    let mut exact_caps_rolled_back = false;
+    if exact_caps.accepted > 0 {
+        let reconciled = reconcile(model, estimates, &exact_caps_baseline);
+        let matrix_valid = crate::pool::valid(
+            &estimates.iter().map(|e| e.probability).collect::<Vec<_>>(),
+            model.n,
+        );
+        let positives_preserved = exact_caps_baseline
+            .iter()
+            .zip(estimates.iter())
+            .all(|(before, after)| before.probability <= 0. || after.probability > 0.);
+        let intervals_preserved = complement.intervals.iter().all(|(index, lower, upper)| {
+            let p = estimates[*index].probability;
+            let tolerance =
+                16. * f64::EPSILON * lower.abs().max(upper.abs()).max(f64::MIN_POSITIVE);
+            p >= *lower - tolerance && p <= *upper + tolerance
+        });
+        let bounds_preserved = exact_caps.bounds.iter().all(|(index, floor, upper)| {
+            let probability = estimates[*index].probability;
+            let lower_tolerance = floor.abs().max(f64::MIN_POSITIVE) * 1e-10;
+            let upper_tolerance = upper.abs().max(f64::MIN_POSITIVE) * 1e-10;
+            probability + lower_tolerance >= *floor && probability <= *upper + upper_tolerance
+        });
+        if !reconciled
+            || !matrix_valid
+            || !positives_preserved
+            || !intervals_preserved
+            || !bounds_preserved
+        {
+            estimates.clone_from_slice(&exact_caps_baseline);
+            exact_caps_rolled_back = true;
+            exact_caps.accepted = 0;
+            exact_caps.bounds.clear();
+        }
+    }
+    if let Some(log) = log {
+        log.event(
+            "rust_odds_exact_caps_reconcile",
+            serde_json::json!({
+                "accepted":exact_caps.accepted,
+                "rolled_back":exact_caps_rolled_back,
+                "preserved_positive_count":exact_caps_baseline.iter().zip(estimates.iter()).filter(|(before,after)|before.probability>0.&&after.probability>0.).count(),
+                "valid_matrix":crate::pool::valid(&estimates.iter().map(|e|e.probability).collect::<Vec<_>>(),model.n),
+                "bounds_preserved":exact_caps.bounds.iter().all(|(index,floor,upper)|{let p=estimates[*index].probability;p+floor.abs().max(f64::MIN_POSITIVE)*1e-10>=*floor&&p<=*upper+upper.abs().max(f64::MIN_POSITIVE)*1e-10})
+            }),
+        );
+    }
     if !rank_rescue.enabled {
         let packed_phase = std::time::Instant::now();
         let packed = packed_witness_fallback(model, estimates);
         if let Some(log) = log {
-            log.stage("search.packed_witness", packed_phase, serde_json::json!(packed));
+            log.stage(
+                "search.packed_witness",
+                packed_phase,
+                serde_json::json!(packed),
+            );
         }
         return work;
     }
@@ -744,6 +798,16 @@ pub fn run_logged(
                 .iter()
                 .zip(estimates.iter())
                 .any(|(before, after)| before.probability > 0. && after.probability <= 0.)
+        {
+            restore_baseline_preserving_reachability(estimates, &rescue_baseline);
+            rolled_back = true;
+        }
+        if !rolled_back
+            && exact_caps.bounds.iter().any(|(index, floor, upper)| {
+                let probability = estimates[*index].probability;
+                probability + floor.abs().max(f64::MIN_POSITIVE) * 1e-10 < *floor
+                    || probability > *upper + upper.abs().max(f64::MIN_POSITIVE) * 1e-10
+            })
         {
             restore_baseline_preserving_reachability(estimates, &rescue_baseline);
             rolled_back = true;
@@ -782,7 +846,11 @@ pub fn run_logged(
     let packed_phase = std::time::Instant::now();
     let packed = packed_witness_fallback(model, estimates);
     if let Some(log) = log {
-        log.stage("search.packed_witness", packed_phase, serde_json::json!(packed));
+        log.stage(
+            "search.packed_witness",
+            packed_phase,
+            serde_json::json!(packed),
+        );
     }
     work.saturating_add(rescue_work)
 }
@@ -1988,7 +2056,8 @@ mod packed_witness_tests {
             PACKED_WITNESS_NODE_BUDGET,
             crate::rank_proof::Options::default(),
         );
-        let outcomes = choose_supported_outcomes(&model, search.domains.as_deref().unwrap()).unwrap();
+        let outcomes =
+            choose_supported_outcomes(&model, search.domains.as_deref().unwrap()).unwrap();
         let raw = crate::goal_completion::complete_with_paths(
             &model,
             &outcomes,
@@ -2001,7 +2070,9 @@ mod packed_witness_tests {
             &raw,
             Cell { team, rank: 12 }
         ));
-        assert!(!crate::goal_completion::has_native_score_support(&model, &raw));
+        assert!(!crate::goal_completion::has_native_score_support(
+            &model, &raw
+        ));
 
         let mut supported_stats = PackedWitnessStats::default();
         let supported = verified_packed_certificate(
@@ -2019,8 +2090,7 @@ mod packed_witness_tests {
             Cell { team, rank: 12 }
         ));
         assert!(crate::goal_completion::has_native_score_support(
-            &model,
-            &supported
+            &model, &supported
         ));
 
         let disabled = packed_witness_fallback_with_enabled(&model, &mut estimates, false);
@@ -2081,7 +2151,10 @@ mod packed_witness_tests {
         assert!(stats.certificates > 0, "{stats:?}");
         assert_eq!(estimates[target].reachability, "reachable_by_construction");
         assert_eq!(estimates[positive].reachability, "pool_positive");
-        assert_eq!(estimates[impossible].reachability, "impossible_by_joint_points");
+        assert_eq!(
+            estimates[impossible].reachability,
+            "impossible_by_joint_points"
+        );
         assert_eq!(estimates[witness].reachability, "witness");
         assert_eq!(numeric_values(&estimates), before);
     }
