@@ -345,6 +345,7 @@ pub(crate) fn run_with_positive_baselines(
     let setup_audit_extra_work = AtomicUsize::new(0);
     let setup_audit_complete = AtomicU8::new(1);
     let unmetered_constructor_failures = AtomicUsize::new(0);
+    let training_phase_start = Instant::now();
     let plans = parallel(cells.len().min(training_limit), workers, |i| {
         let cell = cells[i];
         if !deterministic && start.elapsed().as_secs_f64() * 1000. >= allowance_ms * 0.65 {
@@ -503,6 +504,7 @@ pub(crate) fn run_with_positive_baselines(
             training_work,
         )
     });
+    let training_phase_ms = training_phase_start.elapsed().as_secs_f64() * 1000.0;
     let mut training_work_units: usize = plans.iter().map(|p| p.1).sum();
     let mut plans: Vec<_> = plans.into_iter().filter_map(|p| p.0).collect();
     if std::env::var("RUST_ODDS_RARE_TAIL_REUSE").as_deref() == Ok("1") {
@@ -1265,7 +1267,7 @@ pub(crate) fn run_with_positive_baselines(
             json!({"group":m.request.id,"mode":extension_mode,"ordinary_finalists":plans.len(),"unfunded_pilots":pending.len(),"accepted":extra_found,"main_draws":extra_draws,"final_phase_ms":ordinary_final_phase_ms,"deadline_ms":if deterministic {None}else{Some(extension_capacity)},"budget_mode":budget::mode()}),
         );
     }
-    let mut summary = json!({"group":m.request.id,"cells":cells.len(),"finalists":plans.len(),"accepted":found,"elapsed_ms":start.elapsed().as_secs_f64()*1000.,"allowance_ms":if deterministic {None}else{Some(allowance_ms)},"remaining_after_training_ms":if deterministic {None}else{Some(remaining_capacity)},"budget_mode":budget::mode(),"training_cell_limit":training_limit,"work_limit":if deterministic {Some(budget::capacity(m, scaled(2 * REFERENCE_DRAWS, fraction)))}else{None},"reserved_work":if deterministic {Some(reserved_final_work + if budget::modeled() {training_work_units} else {0})}else{None},"setup_pilot_work":training_work_units,"reference_draw_cost":budget::reference_cost(m),"work":work,"batch_allocation":value("RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION"),"root_retry":value("RUST_ODDS_RARE_TAIL_RETRY"),"union_patterns":value("RUST_ODDS_RARE_TAIL_UNION_PATTERNS"),"extension":extension_mode,"effective_union_patterns":value("RUST_ODDS_RARE_TAIL_UNION_PATTERNS"),"effective_root_retry":if extension{"0".into()}else{value("RUST_ODDS_RARE_TAIL_RETRY")},"effective_batch_allocation":if extension{"0".into()}else{value("RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION")},"shared_guides":shared.as_ref().map(|s|s.describe())});
+    let mut summary = json!({"group":m.request.id,"cells":cells.len(),"finalists":plans.len(),"accepted":found,"elapsed_ms":start.elapsed().as_secs_f64()*1000.,"training_phase_ms":training_phase_ms,"allowance_ms":if deterministic {None}else{Some(allowance_ms)},"remaining_after_training_ms":if deterministic {None}else{Some(remaining_capacity)},"budget_mode":budget::mode(),"training_cell_limit":training_limit,"work_limit":if deterministic {Some(budget::capacity(m, scaled(2 * REFERENCE_DRAWS, fraction)))}else{None},"reserved_work":if deterministic {Some(reserved_final_work + if budget::modeled() {training_work_units} else {0})}else{None},"setup_pilot_work":training_work_units,"reference_draw_cost":budget::reference_cost(m),"work":work,"batch_allocation":value("RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION"),"root_retry":value("RUST_ODDS_RARE_TAIL_RETRY"),"union_patterns":value("RUST_ODDS_RARE_TAIL_UNION_PATTERNS"),"extension":extension_mode,"effective_union_patterns":value("RUST_ODDS_RARE_TAIL_UNION_PATTERNS"),"effective_root_retry":if extension{"0".into()}else{value("RUST_ODDS_RARE_TAIL_RETRY")},"effective_batch_allocation":if extension{"0".into()}else{value("RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION")},"shared_guides":shared.as_ref().map(|s|s.describe())});
     summary.as_object_mut().unwrap().insert(
         "native_family_recording_stage".into(),
         json!({

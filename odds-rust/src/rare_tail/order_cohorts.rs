@@ -9,6 +9,7 @@ use crate::{
     search::{apply, Cell},
 };
 use serde_json::json;
+use std::time::Instant;
 
 const MAX_CELLS: usize = 4;
 const PILOT_DRAWS: usize = 1_024;
@@ -310,6 +311,7 @@ pub(super) fn run(
     log: Option<&crate::logging::RequestLog>,
     positive_baselines: Option<&[(usize, Estimate)]>,
 ) -> Outcome {
+    let run_start = Instant::now();
     let capacity = budget::capacity(m, budget::scaled(2 * budget::REFERENCE_DRAWS, 0.45));
     let rough = crate::rare_tail::value("RUST_ODDS_RARE_TAIL_QUALITY") == "order";
     let analytic_gd = positive_refinement_enabled(m);
@@ -379,7 +381,7 @@ pub(super) fn run(
     emit(
         log,
         "rust_odds_expected_cohorts_summary",
-        json!({"enabled":true,"budget_mode":budget::mode(),"score_mode":if analytic_gd {"analytic_gd_cohort"} else {"sampled"},"gd_eligible":crate::score_integral::supported(m),"restored_donor_baselines":restored_baselines,"kept_better_donor_estimates":kept_better_baselines,"selected_weak_positive_candidates":gd_weak_candidate_count,"replaced_weak_positives":totals.accepted_weak_positives,"preserved_weak_positives":gd_weak_candidate_count.saturating_sub(totals.accepted_weak_positives),"preserved_reason":"failed_publication_or_improvement_gate_or_budget","candidate_cells":native_candidate_count+gd_candidate_count,"selected":totals.selected,"accepted":totals.accepted,"reserve":capacity,"forecast_capacity":capacity,"setup_pilot_work":totals.setup_pilot_work,"actual_work":totals.actual_work,"actual_final_work":totals.actual_final_work,"forecast_pair_work":totals.forecast_pair_work,"overrun":totals.overrun,"capacity_exceeded":totals.actual_work>capacity}),
+        json!({"enabled":true,"budget_mode":budget::mode(),"score_mode":if analytic_gd {"analytic_gd_cohort"} else {"sampled"},"gd_eligible":crate::score_integral::supported(m),"restored_donor_baselines":restored_baselines,"kept_better_donor_estimates":kept_better_baselines,"selected_weak_positive_candidates":gd_weak_candidate_count,"replaced_weak_positives":totals.accepted_weak_positives,"preserved_weak_positives":gd_weak_candidate_count.saturating_sub(totals.accepted_weak_positives),"preserved_reason":"failed_publication_or_improvement_gate_or_budget","candidate_cells":native_candidate_count+gd_candidate_count,"selected":totals.selected,"accepted":totals.accepted,"reserve":capacity,"forecast_capacity":capacity,"setup_pilot_work":totals.setup_pilot_work,"actual_work":totals.actual_work,"actual_final_work":totals.actual_final_work,"forecast_pair_work":totals.forecast_pair_work,"overrun":totals.overrun,"capacity_exceeded":totals.actual_work>capacity,"elapsed_ms":run_start.elapsed().as_secs_f64()*1000.0}),
     );
     Outcome {
         accepted: totals.accepted,
@@ -398,6 +400,7 @@ fn run_pass(
     analytic_gd: bool,
     rough: bool,
 ) -> PassTotals {
+    let pass_start = Instant::now();
     let pass_name = if analytic_gd {
         "gd_refinement"
     } else {
@@ -1218,7 +1221,7 @@ fn run_pass(
     emit(
         log,
         "rust_odds_expected_cohorts_pass_summary",
-        json!({"stage":pass_name,"candidate_cells":cells.len(),"selected":selected_count,"accepted":accepted_count,"reserve":initial_capacity,"setup_pilot_work":setup_pilot_work,"actual_work":actual_total,"actual_final_work":actual_final_work,"forecast_pair_work":forecast_pair_work,"overrun":overrun,"capacity_exceeded":actual_total>initial_capacity}),
+        json!({"stage":pass_name,"candidate_cells":cells.len(),"selected":selected_count,"accepted":accepted_count,"reserve":initial_capacity,"setup_pilot_work":setup_pilot_work,"actual_work":actual_total,"actual_final_work":actual_final_work,"forecast_pair_work":forecast_pair_work,"overrun":overrun,"capacity_exceeded":actual_total>initial_capacity,"elapsed_ms":pass_start.elapsed().as_secs_f64()*1000.0}),
     );
     PassTotals {
         accepted: accepted_count,
