@@ -1380,11 +1380,56 @@ calculation wall time and admitted fixed batches finish even if the forecast
 overruns the allowance.
 Construction remains bounded by64 target paths,256 attempted exception cases,
 100k joint setup nodes and the existing four-million guide-value cap. At most
-eight remaining zero cells are considered. Incomplete enumeration skips the
-proposal and does not prove impossibility.
+eight cells are attempted, with remaining zero cells first. Incomplete
+enumeration skips the proposal and does not prove impossibility.
+
+The late stage also revisits poorly supported positive conditional estimates
+under the default modeled work budget. Eligibility includes a missed precision
+goal, ESS below 25, relative standard error above 0.25, or a largest-weight
+share above 0.1. It considers at most two distinct teams, ordered by estimated
+probability. Set `RUST_ODDS_RARE_TAIL_POSITIVE_BRANCHES=0` to disable this
+refinement independently.
+
+A positive replacement needs independent main/check batches that improve both
+ESS and relative standard error without increasing the largest-weight share.
+Every complete branch receives final draws in both batches. A branch needs
+the existing coarse quality checks in each batch and agreement within a factor
+of five, or its model upper bound counts toward an unsupported-mass total.
+That total must be at most 1% of the smaller main/check estimate. The bounds
+use ordinary floating-point arithmetic and conservative model headroom; they
+are not interval-certified probability proofs. Failed checks preserve the old
+estimate, even when the new aggregate estimate appears precise.
+
+Positive refinement uses 100 draws per pilot guide and charges a conservative
+construction allowance before attempting setup, including failed construction.
+Pilot quality sets each branch's minimum final allocation, forecasting 100 hits,
+ESS 50, relative standard error 0.1, and largest-weight share 0.1. Half of surplus
+draws are spread uniformly across branches and half follow variance. These
+forecasts do not establish final quality; the independent checks still decide
+publication. Positive work has a separate
+30,000-reference-draw allowance at the default branch fraction, including setup,
+pilots and paired finals; the original zero-cell allowance remains 90,000.
+Both scale with the branch fraction, and all candidates share the eight-cell
+attempt cap. Its training choices are frozen before final sampling; rejected
+final batches do not receive top-ups.
+
+On the October 19 group-16498 snapshot at seed 810, Cruzeiro finishing 17th
+changed from `6.84514e-27` to `6.13283e-23`, with ESS increasing from 19.3 to
+682.4 and all 25 branches supported in both final batches. This agrees with
+the scale found by larger independent sampling runs.
+
+Validation covered all 27 saved requests (20 real snapshots and seven synthetic
+cases), seeds 808 and 810, and four workers. All 216 runs passed coverage and
+determinism comparisons; three positive cells were refined, with no lost
+positives or changed reachability classifications. Disabling positive recovery
+reproduced all 54 baseline exports exactly. Using the ordinary release profile,
+measured aggregate wall time increased from 46.742 to 48.781 seconds (+4.4%) and
+CPU time from 93.617 to 99.216 seconds (+6.0%); warmups were excluded. The largest
+individual wall-time increase was 0.450 seconds. The full workspace suite passed
+529 tests with five ignored, and the production release build passed.
 
 `RUST_ODDS_RARE_TAIL_BRANCH_BOUND_FLOOR=1` experimentally reduces negligible
-branches to two final draws and reallocates the freed draws while retaining
+zero-cell branches to two final draws and reallocates the freed draws while retaining
 full support. It is not required for the measured main configuration. Logs
 `rust_odds_rare_tail_branches`, `_skip` and `_summary` record stage timings,
 evidence, setup failures, budget and preservation of earlier estimates.
@@ -1422,6 +1467,7 @@ cycles. No duration enters admission in the default mode.
 | Individual setup, pilots, finals and retries | 90,000 | `200000 × tail_fraction` |
 | Additional confirmations, reusing trained proposals | 200,000 | `200000 × confirm_more / 1.5` |
 | Complete branches, including setup and pilots | 90,000 | `600000 × branch_fraction` |
+| Positive complete-branch refinement, including setup and pilots | 30,000 | `200000 × branch_fraction` |
 
 Reference allocations multiply by `reference_draw_cost` to obtain work units.
 Fractions retain defaults 0.45, 0.5, 1.5, and 0.15. Individual setup and pilots
@@ -1448,7 +1494,8 @@ results are returned in stable admission order.
 Complete branches retain the original 30,000-draw allocation and streams first.
 On failure, spare modeled work may fund a fresh, independent retry of up to
 90,000 draws for a cheap proposal. Every supported branch retains a positive
-allocation. Earlier positive estimates are preserved. The residual-loop
+allocation. Positive estimates are preserved unless the separate positive
+refinement passes its improvement and branch-coverage checks. The residual-loop
 experiment was discarded from active code; its results and source patch are
 retained in the experiment archives.
 
