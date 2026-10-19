@@ -1,0 +1,18 @@
+[package]
+name = "golaberto-odds-proposals"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+publish = false
+
+[dependencies]
+golaberto-odds-core = { path = "../core" }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+smallvec = "1.10.0"
+
+[dev-dependencies]
+golaberto-odds-core = { path = "../core", features = ["test-support"] }
+sha2 = "0.10"
+
+[features]
+test-support = ["golaberto-odds-core/test-support"]

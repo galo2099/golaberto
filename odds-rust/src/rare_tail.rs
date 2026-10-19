@@ -20,11 +20,12 @@ use std::time::Instant;
 
 mod allocation;
 mod branches;
-pub(crate) mod budget;
+pub use golaberto_odds_core::budget;
+use golaberto_odds_core::config::{profile_default, resolve_profile, resolve_value};
 mod confirmations;
 mod early_roots;
 pub(crate) mod exact_caps;
-pub(crate) mod family_config;
+pub use golaberto_odds_core::family_config;
 pub(crate) mod order_cohorts;
 mod overflow_trees;
 pub(crate) mod rank_rescue;
@@ -38,11 +39,6 @@ fn add_atomic_units(counter: &AtomicUsize, amount: usize) -> bool {
         .is_ok()
 }
 
-// Coverage is the default profile, with explicit environment overrides. Reading it does
-// not mutate the process environment or interfere with concurrent requests.
-pub fn profile() -> String {
-    resolve_profile(std::env::var("RUST_ODDS_RARE_TAIL").ok())
-}
 /// Whether production family fallback work is enabled for this request.
 pub fn family_fallback_enabled() -> bool {
     family_config::enabled()
@@ -106,48 +102,7 @@ fn resolve_early_rank_roots(value: Option<&str>) -> usize {
         .unwrap_or(32)
         .clamp(1, 32)
 }
-fn resolve_profile(explicit: Option<String>) -> String {
-    explicit.unwrap_or_else(|| "coverage".into())
-}
-pub fn value(name: &str) -> String {
-    resolve_value(name, std::env::var(name).ok(), profile() == "coverage")
-}
-fn resolve_value(name: &str, explicit: Option<String>, coverage: bool) -> String {
-    explicit.unwrap_or_else(|| {
-        if coverage {
-            profile_default(name).into()
-        } else {
-            String::new()
-        }
-    })
-}
-fn profile_default(name: &str) -> &'static str {
-    match name {
-        "RUST_ODDS_LAZY_GUIDE" => "cardinality",
-        "RUST_ODDS_LAZY_GOALS"
-        | "RUST_ODDS_LAZY_OMIT"
-        | "RUST_ODDS_RARE_TAIL_SHARE"
-        | "RUST_ODDS_RARE_TAIL_BRANCHES"
-        | "RUST_ODDS_RARE_TAIL_TREE" => "1",
-        "RUST_ODDS_LAZY_SUBSET" => "adaptive",
-        "RUST_ODDS_RARE_TAIL_FINALISTS" => "16",
-        "RUST_ODDS_LAZY_RIVALS" => "4",
-        "RUST_ODDS_RARE_TAIL_QUALITY" => "order",
-        // Faster native stages otherwise reduce funding for the same rare
-        // plans. Reallocate part of their CPU savings to preserve coverage.
-        "RUST_ODDS_RARE_TAIL_BUDGET_FRACTION" => "0.45",
-        "RUST_ODDS_RARE_TAIL_CONFIRM_MORE" => "1.5",
-        "RUST_ODDS_RARE_TAIL_EXTENSION" => "after",
-        "RUST_ODDS_RARE_TAIL_UNION_PATTERNS" => "256",
-        "RUST_ODDS_RARE_TAIL_RETRY" | "RUST_ODDS_RARE_TAIL_BATCH_ALLOCATION" => "0",
-        "RUST_ODDS_SHARED_CONSTRAINTS" => "guided",
-        "RUST_ODDS_SHARED_CONSTRAINTS_BLOCKERS" => "2",
-        "RUST_ODDS_SHARED_CONSTRAINTS_RELATIVE" => "1",
-        "RUST_ODDS_SHARED_CONSTRAINTS_CONFIRMATION" => "parallel",
-        "RUST_ODDS_SHARED_CONSTRAINTS_FRACTION" => "0.5",
-        _ => "",
-    }
-}
+pub use golaberto_odds_core::config::{profile, value};
 
 /// Complete-tree fallback and its measured allocation policy, enabled by the
 /// coverage profile. An explicit zero restores the previous allocation policy.
