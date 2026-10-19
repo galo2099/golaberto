@@ -18,6 +18,7 @@ use serde_json::json;
 use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
 use std::time::Instant;
 
+mod allocation;
 mod branches;
 pub(crate) mod budget;
 mod confirmations;
@@ -334,6 +335,7 @@ pub(crate) fn run_with_positive_baselines(
         )),
     );
     cells.retain(|c| estimates[c.index(m.n)].probability == 0.);
+    cells = allocation::interleave(cells, &m.ids, seed, "rare-tail-zero");
     let shared = (value("RUST_ODDS_RARE_TAIL_SHARE") == "1")
         .then(|| std::sync::Arc::new(SharedGuides::default()));
     let training_limit = if deterministic {

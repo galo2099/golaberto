@@ -137,6 +137,26 @@ Goal-score tilting supports goal difference later in a points-first
 ranking order, including after head-to-head; sampled finishes always use the
 production sorter.
 
+Matrix balancing retains the existing multiplicative normalization and its
+`1e-12` row/column validity tolerance. If normalization exhausts its iteration
+limit with residuals at most `1e-6`, a bounded additive repair can redistribute
+mass through supported cells. The repair locks exact zeros and entries at or
+below `1e-15`, retains bounded per-cell adjustments, and must pass the same
+validity check. Main and jackknife matrices use the same procedure; successful
+normalization results remain unchanged. If repair declines, matrices with at
+most 64 teams can receive up to 40,000 further normalization steps, still
+requiring the same validity check. This extension preserves structural zeros;
+normalization can scale positive entries, including tiny ones.
+
+The paired saved-request benchmark covered 20 real snapshots and seven
+synthetic controls with four workers, three seeds, and two measured repeats.
+Aggregate wall time fell 3.7% and CPU time fell 7.3%, with 71 additional positive
+request/seed/position estimates and no lost positives. The accuracy comparison
+guard nevertheless flagged 11 disagreements against qualified baseline
+estimates on the latest group-16498 snapshot, including an approximately
+8,600-fold probability change. These disagreements remain unresolved; restored
+coverage and valid row/column totals do not establish probability accuracy.
+
 ## Build and run
 
 Use a recent stable Rust toolchain. The locked ICU dependencies require Rust
@@ -977,6 +997,13 @@ across cells only when fixture order, gains and probabilities match exactly.
 Final main/check batches are fresh and fixed;
 proposals are frozen after training. Remaining zeros are not assigned witnesses
 or probability bounds as estimates.
+
+Before the main training cap and the expected-cohort candidate cap, zero-cell
+candidates are interleaved across teams. Each team receives one turn before
+another receives a second, retaining its existing position priority. Team order
+depends deterministically on team IDs, request seed, and stage. Work limits and
+publication gates stay unchanged; weak positive refinements retain their
+existing priority after zero candidates.
 
 It targets order-of-magnitude coverage: final estimates may have relative
 standard error up to 60%, with a separate check up to 75% and agreement within

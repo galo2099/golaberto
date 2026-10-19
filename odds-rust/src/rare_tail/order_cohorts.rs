@@ -188,7 +188,13 @@ fn restore_positive_baselines(
     (restored, kept_better)
 }
 
-fn candidate_cells(estimates: &[Estimate], n: usize, refine_positives: bool) -> Vec<Cell> {
+fn candidate_cells(
+    estimates: &[Estimate],
+    n: usize,
+    refine_positives: bool,
+    ids: &[i32],
+    seed: i64,
+) -> Vec<Cell> {
     let mut zeros = Vec::new();
     let mut positives = Vec::new();
     for (index, estimate) in estimates.iter().enumerate() {
@@ -204,7 +210,7 @@ fn candidate_cells(estimates: &[Estimate], n: usize, refine_positives: bool) -> 
     // Keep the established zero-first ordering. Weak positive cells then run
     // from rarest upward, with stable team/rank tie breakers.
     positives.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
-    let mut cells = zeros;
+    let mut cells = super::allocation::interleave(zeros, ids, seed, "expected-cohort-zero");
     cells.extend(
         positives
             .into_iter()
@@ -320,7 +326,7 @@ pub(super) fn run(
     } else {
         (0, 0)
     };
-    let native_cells = candidate_cells(estimates, m.n, false);
+    let native_cells = candidate_cells(estimates, m.n, false, &m.ids, request_seed);
     let native_candidate_count = native_cells.len();
     let mut totals = run_pass(
         m,
@@ -337,7 +343,7 @@ pub(super) fn run(
     let mut gd_candidate_count = 0;
     let mut gd_weak_candidate_count = 0;
     if analytic_gd {
-        let mut gd_cells = candidate_cells(estimates, m.n, true);
+        let mut gd_cells = candidate_cells(estimates, m.n, true, &m.ids, request_seed);
         gd_cells.truncate(1);
         gd_candidate_count = gd_cells.len();
         gd_weak_candidate_count = gd_cells
@@ -1426,11 +1432,11 @@ mod tests {
         assert!(!weak_positive(&cells[3]));
         assert!(!weak_positive(&cells[4]));
         assert_eq!(
-            candidate_cells(&cells, 5, true),
+            candidate_cells(&cells, 5, true, &[0, 1, 2, 3, 4], 17),
             vec![Cell { team: 0, rank: 0 }, Cell { team: 0, rank: 2 }]
         );
         assert_eq!(
-            candidate_cells(&cells, 5, false),
+            candidate_cells(&cells, 5, false, &[0, 1, 2, 3, 4], 17),
             vec![Cell { team: 0, rank: 0 }]
         );
     }
@@ -1448,7 +1454,7 @@ mod tests {
             estimate(0.01, 8),
         ];
         assert_eq!(
-            candidate_cells(&values, 2, true),
+            candidate_cells(&values, 2, true, &[11, 22], 8),
             vec![
                 Cell { team: 0, rank: 0 },
                 Cell { team: 1, rank: 0 },
@@ -1456,6 +1462,37 @@ mod tests {
                 Cell { team: 1, rank: 1 },
             ]
         );
+    }
+
+    #[test]
+    fn candidate_cap_spreads_zero_cells_across_teams_before_truncating() {
+        let mut values = vec![
+            Estimate {
+                reachability: "impossible_test".into(),
+                ..Default::default()
+            };
+            25
+        ];
+        for rank in 0..5 {
+            values[rank] = Estimate {
+                probability: 0.0,
+                reachability: "reachable".into(),
+                ..Default::default()
+            };
+        }
+        for team in 1..5 {
+            values[team * 5] = Estimate {
+                probability: 0.0,
+                reachability: "reachable".into(),
+                ..Default::default()
+            };
+        }
+
+        let selected = candidate_cells(&values, 5, false, &[10, 20, 30, 40, 50], 123);
+        assert_eq!(selected.len(), MAX_CELLS);
+        let teams: std::collections::BTreeSet<_> = selected.iter().map(|cell| cell.team).collect();
+        assert_eq!(teams.len(), MAX_CELLS);
+        assert!(selected.iter().filter(|cell| cell.team == 0).count() <= 1);
     }
 
     #[test]
