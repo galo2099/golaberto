@@ -1,34 +1,19 @@
 pub mod api;
-pub mod conditioned;
+pub use golaberto_odds_core::{conditioned, domains, goal_completion, goal_tilt, logging, lookahead};
 pub mod database;
-pub mod domains;
-pub mod goal_completion;
-pub mod goal_tilt;
-pub(crate) mod head_buckets;
+pub(crate) use golaberto_odds_core::{head_buckets, native_complement, score_integral};
+pub(crate) use golaberto_odds_proposals::shortlist_guidance;
 pub mod http;
-pub mod joint_caps;
-pub mod logging;
-pub mod lookahead;
-pub mod model;
-pub(crate) mod native_complement;
-pub mod neighbors;
-pub mod outcome_stratification;
+pub use golaberto_odds_proposals::joint_caps;
+pub use golaberto_odds_core::{model, neighbors, outcome_stratification, pool, proof, rank_proof};
 pub mod player_ratings;
-pub mod pool;
-pub mod proof;
-pub mod rank_proof;
 pub mod rare_tail;
 pub mod ratings;
-pub mod reachability;
+pub use golaberto_odds_core::{reachability, rng, sampling, sort, target_limits, tilt};
 pub mod rescue;
-pub mod rng;
-pub mod sampling;
-pub(crate) mod score_integral;
 pub mod search;
 pub mod shared_constraints;
-pub(crate) mod shortlist_guidance;
-pub mod sort;
-pub mod target_limits;
 #[cfg(test)]
-pub(crate) mod test_env;
-pub mod tilt;
+pub mod test_env {
+    pub use golaberto_odds_core::test_env::*;
+}

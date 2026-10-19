@@ -283,6 +283,8 @@ name = "golaberto-odds"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "golaberto-odds-core",
+ "golaberto-odds-proposals",
  "golaberto-player-ratings",
  "mysql",
  "serde",
@@ -293,10 +295,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "golaberto-odds-core"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "smallvec",
+]
+
+[[package]]
+name = "golaberto-odds-proposals"
+version = "0.1.0"
+dependencies = [
+ "golaberto-odds-core",
+ "serde_json",
+ "sha2",
+ "smallvec",
+]
+
+[[package]]
 name = "golaberto-player-ratings"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "serde_json",
  "smallvec",
 ]
 

@@ -201,6 +201,59 @@ RUST_ODDS_PROFILE=1 odds-rust/target/release/golaberto-odds estimate \
 
 `bench` repeats complete requests and reports a median.
 
+### Workspace crates
+
+The odds Rust workspace separates compilation into three layers.
+`golaberto-odds-core` contains the shared model, sampling, proof, and scoring
+algorithms. `golaberto-odds-proposals` contains joint-cap proposal builders and
+shortlist guidance. The root `golaberto-odds` crate contains search orchestration,
+the API, and the service, and reexports the established `golaberto_odds` module
+paths. Proposals depend on core; the root crate depends on both. Service changes
+can reuse compiled numerical and proposal code.
+
+The existing build command and binary path are unchanged. Workspace default
+members include both extracted crates and player ratings, so the existing
+`cargo test --manifest-path odds-rust/Cargo.toml` command also runs their tests.
+
+Local release measurements used cached external dependencies, one Cargo job,
+and the unchanged Thin LTO, single codegen unit, and debug level 1 settings:
+
+| Rebuild | Before split | After split |
+| --- | ---: | ---: |
+| All application crates | 111.2 s | 108.0 s |
+| HTTP-only change | 111.0 s | 83.3 s |
+| Peak compiler RSS, all application crates | 2.04 GiB | 1.13 GiB |
+
+These are individual measurements on the development machine. The main gains
+are lower compiler memory use and reuse of extracted crates when editing the
+service; a rebuild of all application crates took nearly the same time.
+
+All workspace targets checked successfully and the release workspace tests
+passed. The default-release binaries produced byte-identical outputs across
+all 27 saved requests at seeds 808 and 810 with four workers: 216 runs including
+warmups and 216 parity checks passed. Aggregate measured wall time was unchanged
+(46.69 seconds before and 46.69 seconds after).
+
+### Troubleshooting release-build SIGKILL
+
+If `rustc` is terminated with `SIGKILL` during a release build, the operating
+system or an external process may have killed it, often because memory ran low.
+The compiler may report no Rust error; check the kernel journal or `dmesg` for
+an out-of-memory kill. Retry from the repository root with lower build-time
+memory use:
+
+```sh
+CARGO_BUILD_JOBS=1 \
+CARGO_PROFILE_RELEASE_LTO=false \
+CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 \
+CARGO_PROFILE_RELEASE_DEBUG=0 \
+cargo +stable build --release --locked --manifest-path odds-rust/Cargo.toml
+```
+
+These environment overrides affect only this build and keep the normal release
+optimization level and output path. Disabling LTO and using more codegen units
+can change runtime performance; the overrides do not change estimator logic.
+
 ## Odds memory
 
 Matrix balancing reuses a sparse workspace for matrices with at least 32 teams
