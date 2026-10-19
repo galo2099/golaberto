@@ -339,17 +339,56 @@ fn assert_balance_matches_reference(mut matrix: Vec<f64>, n: usize) -> bool {
     let mut expected = matrix.clone();
     let expected_result = reference_balance(&mut expected, n);
     let actual_result = pool::balance(&mut matrix, n);
-    assert_eq!(actual_result, expected_result);
-    assert_eq!(
-        matrix
-            .iter()
-            .map(|value| value.to_bits())
-            .collect::<Vec<_>>(),
-        expected
-            .iter()
-            .map(|value| value.to_bits())
-            .collect::<Vec<_>>()
-    );
+    if expected_result {
+        assert!(actual_result);
+        assert_eq!(
+            matrix
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>(),
+            expected
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>(),
+            "legacy success must remain bitwise unchanged"
+        );
+    } else if actual_result {
+        assert!(pool::valid(&matrix, n));
+        for (&before, &after) in expected.iter().zip(&matrix) {
+            if before == 0. {
+                assert_eq!(after.to_bits(), before.to_bits());
+            } else {
+                assert!(after > 0.);
+            }
+        }
+    } else {
+        assert_eq!(
+            matrix
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>(),
+            expected
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>(),
+            "failed repair must retain the legacy exhausted matrix"
+        );
+        if expected.iter().all(|value| value.is_finite()) {
+            assert!(matrix.iter().all(|value| value.is_finite()));
+        }
+        for (before, after) in expected.iter().zip(&matrix) {
+            if !before.is_finite() {
+                assert_eq!(after.to_bits(), before.to_bits());
+            }
+            if *before == 0. {
+                assert_eq!(
+                    after.to_bits(),
+                    before.to_bits(),
+                    "normalization must keep zero support locked"
+                );
+            }
+        }
+    }
     actual_result
 }
 

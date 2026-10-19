@@ -1,7 +1,8 @@
 use golaberto_odds::{
     logging::RequestLog,
     model::{Model, Request},
-    pool::Estimate,
+    pool::{self, Estimate},
+    rng::derive,
     search,
 };
 
@@ -37,6 +38,45 @@ fn uniform_estimates(n: usize, design: &str) -> Vec<Estimate> {
         .collect()
 }
 
+fn plain_mc_estimates(model: &Model, seed: i64) -> Vec<Estimate> {
+    let samples = 100_000;
+    let (scout, _) = pool::batched_scout(model, samples, derive(seed, "pooled-point-scout"), 1);
+    let work = pool::work_per_sample(model) * samples as u64;
+    (0..model.n * model.n)
+        .map(|index| {
+            let hits = scout.ranks[index];
+            let probability = hits as f64 / samples as f64;
+            let std_err = (probability * (1. - probability) / (samples - 1) as f64).sqrt();
+            Estimate {
+                probability,
+                std_err,
+                samples,
+                hits,
+                ess: hits as f64,
+                mean_weight: 1.,
+                work_spent: work,
+                available: true,
+                meets_precision_goal: probability > 0.
+                    && hits >= 10
+                    && std_err / probability <= 0.5,
+                relative_se: if probability > 0. {
+                    Some(std_err / probability)
+                } else {
+                    None
+                },
+                max_event_weight_share: if hits > 0 { 1. / hits as f64 } else { 0. },
+                zero_hit_upper_95: if hits == 0 {
+                    pool::zero_upper(samples)
+                } else {
+                    0.
+                },
+                design: "plain_mc".into(),
+                ..Default::default()
+            }
+        })
+        .collect()
+}
+
 #[test]
 fn donor_only_search_is_deterministic_and_unsupported_plain_mc_stays_skipped() {
     std::env::set_var("RUST_ODDS_RARE_TAIL_BUDGET_FRACTION", "0.45");
@@ -46,8 +86,22 @@ fn donor_only_search_is_deterministic_and_unsupported_plain_mc_stays_skipped() {
     let model = Model::new(request.clone()).unwrap();
     assert!(golaberto_odds::pool::point_pmfs(&model).is_some());
 
-    let mut group_pool = golaberto_odds::pool::production(&model, 809, 1);
-    assert!(group_pool.iter().all(|e| e.design == "plain_mc"));
+    let matched = pool::production(&model, 809, 1);
+    assert!(matched
+        .iter()
+        .all(|estimate| estimate.design == "matched_point_pool"));
+    assert!(pool::valid(
+        &matched
+            .iter()
+            .map(|estimate| estimate.probability)
+            .collect::<Vec<_>>(),
+        model.n
+    ));
+
+    // Preserve and exercise the actual unsupported-looking zero-hits MC
+    // search path independently of whether the production matched matrix can
+    // now recover this fixture.
+    let mut group_pool = plain_mc_estimates(&model, 809);
     let original_zeros: Vec<_> = group_pool
         .iter()
         .enumerate()

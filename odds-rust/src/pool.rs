@@ -376,6 +376,63 @@ impl SparseBalance {
 }
 
 pub fn balance(matrix: &mut [f64], n: usize) -> bool {
+    if n.checked_mul(n) != Some(matrix.len()) {
+        return false;
+    }
+    if balance_legacy(matrix, n) {
+        return true;
+    }
+
+    let len = match n.checked_mul(n) {
+        Some(len) if n > 0 && matrix.len() == len => len,
+        _ => return false,
+    };
+    if matrix
+        .iter()
+        .any(|value| !value.is_finite() || !(0.0..=1.0).contains(value))
+    {
+        return false;
+    }
+    let row_residual = (0..n)
+        .map(|row| (matrix[row * n..(row + 1) * n].iter().sum::<f64>() - 1.0).abs())
+        .fold(0.0_f64, f64::max);
+    let column_residual = (0..n)
+        .map(|column| ((0..n).map(|row| matrix[row * n + column]).sum::<f64>() - 1.0).abs())
+        .fold(0.0_f64, f64::max);
+    if row_residual.max(column_residual) > 1e-6 {
+        return false;
+    }
+
+    if let Some(repaired) = balance_additive(matrix, n) {
+        if repaired.len() == len && valid(&repaired, n) {
+            matrix.copy_from_slice(&repaired);
+            return true;
+        }
+    }
+
+    // A valid support can also converge too slowly for the legacy iteration
+    // limit. Give only small, already near-valid matrices a bounded scaling
+    // tail after the additive repair declines. Exact zeros remain zero under
+    // row/column normalization; the unchanged `valid` tolerance is still the
+    // sole success condition.
+    if n <= 64 {
+        let mut scaled = matrix.to_vec();
+        for iteration in 0..40_000 {
+            normalize(&mut scaled, n);
+            if iteration % 100 == 0 && valid(&scaled, n) {
+                matrix.copy_from_slice(&scaled);
+                return true;
+            }
+        }
+        if valid(&scaled, n) {
+            matrix.copy_from_slice(&scaled);
+            return true;
+        }
+    }
+    false
+}
+
+fn balance_legacy(matrix: &mut [f64], n: usize) -> bool {
     if let Some(mut sparse) = SparseBalance::new(matrix, n) {
         for i in 0..20000 {
             sparse.normalize(n);
@@ -863,7 +920,7 @@ pub fn production_logged(
 
 #[cfg(test)]
 mod tests {
-    use super::{balance_additive, ordered_jackknife_prefix, valid};
+    use super::{balance, balance_additive, ordered_jackknife_prefix, valid};
 
     #[test]
     fn ordered_jackknife_results_keep_only_the_successful_batch_prefix() {
@@ -880,7 +937,7 @@ mod tests {
     fn additive_balance_repairs_small_ill_conditioned_matrix() {
         let matrix = vec![1. - 1e-6, 1e-6, 2e-6, 1. - 2e-6];
         let mut multiplicative = matrix.clone();
-        assert!(!super::balance(&mut multiplicative, 2));
+        assert!(!super::balance_legacy(&mut multiplicative, 2));
         let balanced = balance_additive(&matrix, 2).expect("bounded additive repair");
         assert!(valid(&balanced, 2));
         assert!(balanced.iter().all(|p| (0.0..=1.0).contains(p)));
@@ -888,6 +945,14 @@ mod tests {
             assert!(after >= before * 0.5 && after <= (before * 2.).min(1.));
             assert!(after > 0.);
         }
+    }
+
+    #[test]
+    fn balance_falls_back_to_bounded_additive_repair_after_legacy_exhaustion() {
+        let mut matrix = vec![1. - 1e-6, 1e-6, 2e-6, 1. - 2e-6];
+        assert!(balance(&mut matrix, 2));
+        assert!(valid(&matrix, 2));
+        assert!(matrix.iter().all(|value| *value > 0.));
     }
 
     #[test]
@@ -913,6 +978,8 @@ mod tests {
         assert_eq!(matrix, vec![1., 0., 0., 0.]);
         let incompatible = vec![1. - 1e-6, 1e-6, 1e-9, 1. - 1e-9];
         assert_eq!(balance_additive(&incompatible, 2), None);
+        let mut incompatible_legacy = incompatible.clone();
+        assert!(!balance(&mut incompatible_legacy, 2));
     }
 
     #[test]
@@ -934,6 +1001,29 @@ mod tests {
         assert_eq!(balance_additive(&[f64::NAN, 0., 0., 1.], 2), None);
         assert_eq!(balance_additive(&[-0.1, 0., 0., 1.], 2), None);
         assert_eq!(balance_additive(&[0., 1.], 2), None);
+    }
+
+    #[test]
+    fn integrated_repair_preserves_tiny_cell_at_legacy_exhaustion() {
+        let tiny = vec![
+            1. - 3e-6,
+            3e-6,
+            1e-40,
+            1e-6,
+            1. - 4e-6,
+            3e-6,
+            2e-6,
+            2e-6,
+            1. - 3e-6,
+        ];
+        let mut legacy = tiny.clone();
+        assert!(!super::balance_legacy(&mut legacy, 3));
+        assert!(legacy[2] <= 1e-15);
+
+        let mut repaired = tiny;
+        assert!(balance(&mut repaired, 3));
+        assert_eq!(repaired[2].to_bits(), legacy[2].to_bits());
+        assert!(valid(&repaired, 3));
     }
 
     #[test]
