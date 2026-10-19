@@ -82,6 +82,9 @@ fn donor_only_search_is_deterministic_and_unsupported_plain_mc_stays_skipped() {
     std::env::set_var("RUST_ODDS_RARE_TAIL_BUDGET_FRACTION", "0.45");
     std::env::set_var("RUST_ODDS_DETERMINISTIC_WORK", "1");
     std::env::set_var("RUST_ODDS_LOG", "0");
+    // Keep this test focused on donor-only search; positive refinement is
+    // covered end-to-end in positive_branch_recovery.
+    std::env::set_var("RUST_ODDS_RARE_TAIL_POSITIVE_BRANCHES", "0");
     let request = fixture_request();
     let model = Model::new(request.clone()).unwrap();
     assert!(golaberto_odds::pool::point_pmfs(&model).is_some());

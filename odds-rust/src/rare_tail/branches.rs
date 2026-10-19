@@ -7,6 +7,383 @@ use crate::joint_caps::propagated::lazy::{combine_branches, BranchSample, Branch
 const TOTAL: usize = 30000;
 const PILOT: usize = 500;
 const FLOOR: usize = 200;
+const POSITIVE_BRANCH_LIMIT: usize = 2;
+const POSITIVE_DEFENSIVE_PERCENT: usize = 50;
+
+fn job_defensive_percent(positive_refinement: bool, configured: usize) -> usize {
+    if positive_refinement {
+        POSITIVE_DEFENSIVE_PERCENT
+    } else {
+        configured
+    }
+}
+
+fn positive_branches_enabled() -> bool {
+    value("RUST_ODDS_RARE_TAIL_POSITIVE_BRANCHES") == "1"
+}
+
+fn positive_setup_fee(m: &Model) -> usize {
+    let n = m.n;
+    let g = m.fixtures.len();
+    budget::setup_cost(100_000, 4_000_000)
+        .saturating_add(
+            4usize
+                .saturating_mul(g.saturating_add(1))
+                .saturating_mul(4097),
+        )
+        .saturating_add(
+            64usize
+                .saturating_mul(n.saturating_add(g).saturating_add(1))
+                .saturating_mul(n.saturating_add(4)),
+        )
+        .saturating_add(
+            256usize
+                .saturating_mul(n.saturating_add(g).saturating_add(1))
+                .saturating_mul(n.saturating_add(8)),
+        )
+}
+
+fn reserve_positive_setup_fee(budget: &mut WorkBudget, m: &Model) -> Option<usize> {
+    let fee = positive_setup_fee(m);
+    budget.reserve(fee).then_some(fee)
+}
+
+fn positive_skip_fields(
+    old: &Estimate,
+    reason: &str,
+    prepaid_setup_work: usize,
+) -> serde_json::Value {
+    serde_json::json!({
+        "positive_refinement":true,
+        "positive_accepted":false,
+        "positive_rejection_reason":reason,
+        "positive_old_probability":old.probability,
+        "positive_old_quality":{"ess":old.ess,"rse":old.relative_se,"max_share":old.max_event_weight_share,"meets_precision_goal":old.meets_precision_goal},
+        "positive_new_probability":null,
+        "positive_setup_fee_required":prepaid_setup_work,
+        "positive_prepaid_setup_work":if reason=="positive_setup_fee_unfundable" {0} else {prepaid_setup_work},
+        "branch_coverage":null
+    })
+}
+
+fn log_positive_skip(
+    log: Option<&crate::logging::RequestLog>,
+    m: &Model,
+    cell: Cell,
+    old: &Estimate,
+    reason: &str,
+    prepaid_setup_work: usize,
+) {
+    let mut entry = serde_json::json!({
+        "group":m.request.id,
+        "team":m.ids[cell.team],
+        "rank":cell.rank+1,
+        "reason":reason
+    });
+    if let Some(fields) = positive_skip_fields(old, reason, prepaid_setup_work).as_object() {
+        for (key, value) in fields {
+            entry[key] = value.clone();
+        }
+    }
+    emit(log, "rust_odds_rare_tail_branches_skip", entry);
+}
+
+fn weak_positive_estimate(estimate: &Estimate) -> bool {
+    let rse = if estimate.probability > 0.0 {
+        estimate.std_err / estimate.probability
+    } else {
+        f64::NAN
+    };
+    !estimate.meets_precision_goal
+        || !estimate.ess.is_finite()
+        || estimate.ess < 25.0
+        || !rse.is_finite()
+        || rse < 0.0
+        || rse > 0.25
+        || !estimate.max_event_weight_share.is_finite()
+        || estimate.max_event_weight_share < 0.0
+        || estimate.max_event_weight_share > 0.1
+}
+
+fn positive_candidates(m: &Model, estimates: &[Estimate], excluded: &[Cell]) -> Vec<Cell> {
+    let mut candidates = estimates
+        .iter()
+        .enumerate()
+        .filter_map(|(index, estimate)| {
+            (estimate.probability.is_finite()
+                && estimate.probability > 0.0
+                && estimate.probability <= 1.0
+                && estimate.conditional_samples > 0
+                && !estimate.reachability.starts_with("impossible")
+                && weak_positive_estimate(estimate))
+            .then_some(Cell {
+                team: index / m.n,
+                rank: index % m.n,
+            })
+        })
+        .filter(|cell| !excluded.contains(cell))
+        .collect::<Vec<_>>();
+    candidates.sort_by(|a, b| {
+        estimates[a.index(m.n)]
+            .probability
+            .total_cmp(&estimates[b.index(m.n)].probability)
+            .then(m.ids[a.team].cmp(&m.ids[b.team]))
+            .then(a.rank.cmp(&b.rank))
+    });
+
+    candidates
+}
+
+fn select_positive_candidates(candidates: &[Cell]) -> Vec<Cell> {
+    // Give each selected team one turn before considering a second cell from
+    // any team. The current bounded pass admits at most two teams.
+    let mut selected = Vec::with_capacity(POSITIVE_BRANCH_LIMIT);
+    let mut teams = std::collections::BTreeSet::new();
+    for &cell in candidates {
+        if teams.insert(cell.team) {
+            selected.push(cell);
+            if selected.len() == POSITIVE_BRANCH_LIMIT {
+                break;
+            }
+        }
+    }
+    selected
+}
+
+#[derive(Clone, Debug)]
+struct PositiveBranchCoverage {
+    accepted: bool,
+    supported: Vec<usize>,
+    unsupported: Vec<usize>,
+    unsupported_upper_sum: f64,
+    unsupported_allowance: f64,
+    branches: Vec<serde_json::Value>,
+    rejection: Option<&'static str>,
+}
+
+fn positive_branch_coverage(
+    bounds: &[crate::joint_caps::propagated::lazy::BranchBound],
+    main: &[BranchSample],
+    check: &[BranchSample],
+    allocated: &[usize],
+    main_probability: f64,
+    check_probability: f64,
+) -> PositiveBranchCoverage {
+    let count = allocated.len();
+    let mut coverage = PositiveBranchCoverage {
+        accepted: false,
+        supported: Vec::new(),
+        unsupported: Vec::new(),
+        unsupported_upper_sum: 0.0,
+        unsupported_allowance: 0.0,
+        branches: Vec::with_capacity(count),
+        rejection: None,
+    };
+    if count == 0 {
+        coverage.rejection = Some("empty_branch_set");
+        return coverage;
+    }
+    if bounds.len() != count || main.len() != count || check.len() != count {
+        coverage.rejection = Some("branch_count_mismatch");
+        return coverage;
+    }
+    if bounds
+        .iter()
+        .any(|bound| !bound.upper_bound.is_finite() || bound.upper_bound < 0.0)
+    {
+        coverage.rejection = Some("invalid_branch_bound");
+        return coverage;
+    }
+    if !main_probability.is_finite()
+        || main_probability <= 0.0
+        || main_probability > 1.0
+        || !check_probability.is_finite()
+        || check_probability <= 0.0
+        || check_probability > 1.0
+    {
+        coverage.rejection = Some("invalid_combined_probability");
+        return coverage;
+    }
+    if (0..count).any(|index| {
+        allocated[index] == 0
+            || main[index].result.samples != allocated[index]
+            || check[index].result.samples != allocated[index]
+    }) {
+        coverage.rejection = Some("final_branch_draw_count_mismatch");
+        return coverage;
+    }
+
+    for index in 0..count {
+        let main_result = &main[index].result;
+        let check_result = &check[index].result;
+        let ratio = if main_result.probability.is_finite()
+            && check_result.probability.is_finite()
+            && main_result.probability > 0.0
+            && check_result.probability > 0.0
+        {
+            Some(main_result.probability / check_result.probability)
+        } else {
+            None
+        };
+        let supported = branch_result_valid(main_result)
+            && branch_result_valid(check_result)
+            && main_result.coarse()
+            && check_result.coarse()
+            && ratio.is_some_and(|ratio| (0.2..=5.0).contains(&ratio));
+        if supported {
+            coverage.supported.push(index);
+        } else {
+            coverage.unsupported.push(index);
+            coverage.unsupported_upper_sum =
+                (coverage.unsupported_upper_sum + bounds[index].upper_bound).next_up();
+        }
+        coverage.branches.push(serde_json::json!({
+            "branch_index":index,
+            "allocated_draws":allocated[index],
+            "bound_upper":bounds[index].upper_bound,
+            "main":{"samples":main_result.samples,"hits":main_result.hits,"ess":main_result.ess,"probability":main_result.probability,"rse":if main_result.probability>0.0 {Some(main_result.std_err/main_result.probability)} else {None},"max_share":main_result.max_share},
+            "check":{"samples":check_result.samples,"hits":check_result.hits,"ess":check_result.ess,"probability":check_result.probability,"rse":if check_result.probability>0.0 {Some(check_result.std_err/check_result.probability)} else {None},"max_share":check_result.max_share},
+            "main_batch_gap":main_result.batch_gap,
+            "check_batch_gap":check_result.batch_gap,
+            "pair_ratio":ratio,
+            "supported":supported
+        }));
+    }
+
+    coverage.unsupported_allowance = 0.01 * main_probability.min(check_probability);
+    coverage.accepted = coverage.unsupported_upper_sum.is_finite()
+        && coverage.unsupported_upper_sum <= coverage.unsupported_allowance;
+    if !coverage.accepted {
+        coverage.rejection = Some("unsupported_branch_bounds_exceed_allowance");
+    }
+    coverage
+}
+
+fn positive_allocation_floors(pilots: &[(BranchSample, bool, u64, usize)]) -> Option<Vec<usize>> {
+    pilots
+        .iter()
+        .map(|(pilot, _, _, _)| {
+            let result = &pilot.result;
+            let probability = result.probability;
+            let rse = result.std_err / probability;
+            if !probability.is_finite()
+                || probability <= 0.0
+                || probability > 1.0
+                || result.samples == 0
+                || result.hits == 0
+                || result.hits > result.samples
+                || !result.ess.is_finite()
+                || result.ess <= 0.0
+                || !result.std_err.is_finite()
+                || result.std_err < 0.0
+                || !rse.is_finite()
+                || rse < 0.0
+                || !result.max_share.is_finite()
+                || !(0.0..=1.0).contains(&result.max_share)
+                || !result.batch_gap.is_finite()
+                || result.batch_gap < 0.0
+            {
+                return None;
+            }
+
+            let samples = result.samples as f64;
+            let required = [
+                200.0,
+                samples * 100.0 / result.hits as f64,
+                samples * 50.0 / result.ess,
+                samples * (rse / 0.10).powi(2),
+                samples * result.max_share / 0.10,
+            ];
+            let floor = required.into_iter().fold(200.0_f64, f64::max).ceil();
+            if !floor.is_finite() || floor > usize::MAX as f64 {
+                return None;
+            }
+            Some(floor as usize)
+        })
+        .collect()
+}
+
+fn branch_result_valid(result: &Result) -> bool {
+    result.probability.is_finite()
+        && result.probability > 0.0
+        && result.probability <= 1.0
+        && result.std_err.is_finite()
+        && result.std_err >= 0.0
+        && result.ess.is_finite()
+        && result.ess >= 0.0
+        && result.max_share.is_finite()
+        && (0.0..=1.0).contains(&result.max_share)
+        && result.batch_gap.is_finite()
+        && result.batch_gap >= 0.0
+}
+
+fn positive_replacement_quality(old: &Estimate, main: &Result, check: &Result) -> bool {
+    let old_ess = if old.ess.is_finite() && old.ess >= 0.0 {
+        old.ess
+    } else {
+        0.0
+    };
+    let old_rse = if old.probability.is_finite()
+        && old.probability > 0.0
+        && old.std_err.is_finite()
+        && old.std_err >= 0.0
+    {
+        old.std_err / old.probability
+    } else {
+        f64::INFINITY
+    };
+    let old_rse = if old_rse.is_finite() && old_rse >= 0.0 {
+        old_rse
+    } else {
+        f64::INFINITY
+    };
+    let old_share = if old.max_event_weight_share.is_finite()
+        && (0.0..=1.0).contains(&old.max_event_weight_share)
+    {
+        old.max_event_weight_share
+    } else {
+        1.0
+    };
+    [main, check].into_iter().all(|result| {
+        let rse = if result.probability > 0.0 {
+            result.std_err / result.probability
+        } else {
+            f64::INFINITY
+        };
+        result.probability.is_finite()
+            && result.probability > 0.0
+            && result.ess.is_finite()
+            && result.ess > old_ess
+            && result.std_err.is_finite()
+            && result.std_err >= 0.0
+            && rse.is_finite()
+            && rse < old_rse
+            && result.max_share.is_finite()
+            && (0.0..=1.0).contains(&result.max_share)
+            && result.max_share <= old_share
+    })
+}
+
+fn commit_positive_estimate(
+    estimate: &mut Estimate,
+    old: &Estimate,
+    main: &Result,
+    check: &Result,
+    coverage: &PositiveBranchCoverage,
+) -> bool {
+    if !accepted(main, check, true)
+        || !positive_replacement_quality(old, main, check)
+        || !coverage.accepted
+    {
+        return false;
+    }
+    crate::search::apply(
+        estimate,
+        main,
+        "matched_point_pool_complete_branches_positive",
+    );
+    true
+}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(super) struct DrawAudit {
@@ -72,15 +449,36 @@ fn allocation_with_defensive_percent(
     floor: usize,
     defensive_percent: usize,
 ) -> Option<Vec<usize>> {
+    allocation_with_branch_floors(
+        scores,
+        small,
+        &vec![floor; scores.len()],
+        total,
+        defensive_percent,
+    )
+}
+
+fn allocation_with_branch_floors(
+    scores: &[f64],
+    small: &[bool],
+    floors: &[usize],
+    total: usize,
+    defensive_percent: usize,
+) -> Option<Vec<usize>> {
     if scores.len() != small.len()
+        || scores.len() != floors.len()
         || scores.is_empty()
         || scores.iter().any(|s| !s.is_finite() || *s < 0.)
         || !(10..=50).contains(&defensive_percent)
     {
         return None;
     }
-    let mut ns: Vec<_> = small.iter().map(|&s| if s { 2 } else { floor }).collect();
-    let assigned: usize = ns.iter().sum();
+    let mut ns: Vec<_> = small
+        .iter()
+        .zip(floors)
+        .map(|(&is_small, &floor)| if is_small { 2 } else { floor })
+        .collect();
+    let assigned = ns.iter().try_fold(0usize, |sum, &n| sum.checked_add(n))?;
     if assigned > total {
         return None;
     }
@@ -265,10 +663,19 @@ pub(super) fn run(
         defensive_percent_raw.is_some() || prior_enabled || skip_empty_pilot_final;
     let share = fraction(&value("RUST_ODDS_RARE_TAIL_BRANCH_BUDGET_FRACTION"));
     let allowance = preceding_ms * share;
-    let mut draw_budget = WorkBudget::new(work_limit(
+    let positive_branches_on =
+        !tightened_only && !tree_mode && budget::modeled() && positive_branches_enabled();
+    let zero_work_limit = work_limit(
         budget::capacity(m, scaled(6 * REFERENCE_DRAWS, share)),
         available_work,
-    ));
+    );
+    let positive_work_limit = if positive_branches_on {
+        budget::capacity(m, scaled(2 * REFERENCE_DRAWS, share))
+    } else {
+        0
+    };
+    let mut zero_budget = WorkBudget::new(zero_work_limit);
+    let mut positive_budget = WorkBudget::new(positive_work_limit);
     let audit_enabled = super::target_overflow_tree_enabled() && budget::modeled();
     let mut audit = DrawAudit {
         valid: audit_enabled,
@@ -285,6 +692,15 @@ pub(super) fn run(
         })
         .filter(|c| !excluded.contains(c))
         .collect();
+    let zero_eligible = cells.len();
+    let positive_pool = if positive_branches_on {
+        positive_candidates(m, estimates, excluded)
+    } else {
+        Vec::new()
+    };
+    let positive_eligible = positive_pool.len();
+    let positive_selected = select_positive_candidates(&positive_pool);
+    cells.extend(positive_selected.iter().copied());
     if tree_mode {
         let mut counted: Vec<_> = cells
             .into_iter()
@@ -301,21 +717,74 @@ pub(super) fn run(
         .collect();
     let reduce_floor = value("RUST_ODDS_RARE_TAIL_BRANCH_BOUND_FLOOR") == "1";
     let (mut found, mut work, mut attempted, mut skipped, mut setups_ms) = (0, 0, 0, 0, 0.);
+    let (mut positive_attempted, mut positive_refined) = (0usize, 0usize);
+    let mut positive_setup_fee_work = 0u64;
     let refund_checks = tree_mode || tree_enabled();
     let mut reclaimed_check_work = 0;
     let mut handled = Vec::new();
     let mut tree_eligible = Vec::new();
-    for cell in cells.iter().take(8).copied() {
-        if (deterministic && draw_budget.reserved >= draw_budget.limit)
-            || (!deterministic && start.elapsed().as_secs_f64() * 1000. >= allowance)
+    for cell in cells.iter().copied() {
+        if attempted >= 8 {
+            break;
+        }
+        let positive_refinement = estimates[cell.index(m.n)].probability > 0.0;
+        if deterministic && !positive_refinement && zero_budget.reserved >= zero_budget.limit {
+            if positive_branches_on {
+                continue;
+            }
+            break;
+        }
+        if deterministic && positive_refinement && positive_budget.reserved >= positive_budget.limit
         {
             break;
         }
+        if !deterministic && start.elapsed().as_secs_f64() * 1000. >= allowance {
+            break;
+        }
+        let job_budget = if positive_refinement {
+            &mut positive_budget
+        } else {
+            &mut zero_budget
+        };
+        let job_defensive_percent = job_defensive_percent(positive_refinement, defensive_percent);
         attempted += 1;
+        let old_estimate = positive_refinement.then(|| estimates[cell.index(m.n)].clone());
+        let cell_pilot_draws = if positive_refinement {
+            100
+        } else {
+            pilot_draws
+        };
+        if positive_refinement {
+            positive_attempted += 1;
+        }
+        let positive_prepaid_setup = if positive_refinement {
+            match reserve_positive_setup_fee(job_budget, m) {
+                Some(fee) => fee,
+                None => {
+                    skipped += 1;
+                    let fee = positive_setup_fee(m);
+                    log_positive_skip(
+                        log,
+                        m,
+                        cell,
+                        old_estimate.as_ref().unwrap(),
+                        "positive_setup_fee_unfundable",
+                        fee,
+                    );
+                    break;
+                }
+            }
+        } else {
+            0
+        };
+        if positive_refinement {
+            positive_setup_fee_work =
+                positive_setup_fee_work.saturating_add(positive_prepaid_setup as u64);
+        }
         let setup = Instant::now();
         if crate::search::enabled("RUST_ODDS_CERTIFIED_TARGET_LIMITS") {
             let cost = 8 * m.fixtures.len() + 4 * m.n;
-            let remaining = draw_budget.limit.saturating_sub(draw_budget.reserved);
+            let remaining = job_budget.limit.saturating_sub(job_budget.reserved);
             let node_budget = if budget::modeled() {
                 remaining.saturating_sub(16 * m.fixtures.len()) / cost.max(1)
             } else {
@@ -328,7 +797,7 @@ pub(super) fn run(
             } else {
                 setup_work.div_ceil(budget::reference_cost(m))
             };
-            if deterministic && !draw_budget.reserve(charge) {
+            if deterministic && !job_budget.reserve(charge) {
                 break;
             }
             emit(
@@ -362,24 +831,62 @@ pub(super) fn run(
                     }
                     Ok(_) => "branch allocation floor exceeds draw budget".into(),
                 };
-                emit(
-                    log,
-                    "rust_odds_rare_tail_branches_skip",
-                    json!({"group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,"setup_ms":setup_ms,"reason":reason}),
-                );
+                if positive_refinement {
+                    log_positive_skip(
+                        log,
+                        m,
+                        cell,
+                        old_estimate.as_ref().unwrap(),
+                        &reason,
+                        positive_prepaid_setup,
+                    );
+                } else {
+                    emit(
+                        log,
+                        "rust_odds_rare_tail_branches_skip",
+                        json!({"group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,"setup_ms":setup_ms,"reason":reason}),
+                    );
+                }
                 continue;
             }
         };
+        let positive_setup_extra = if positive_refinement {
+            p.setup_work().saturating_sub(positive_prepaid_setup)
+        } else {
+            0
+        };
+        if positive_refinement && positive_setup_extra > 0 {
+            if !job_budget.reserve(positive_setup_extra) {
+                skipped += 1;
+                log_positive_skip(
+                    log,
+                    m,
+                    cell,
+                    old_estimate.as_ref().unwrap(),
+                    "positive_setup_extra_unfundable",
+                    positive_prepaid_setup,
+                );
+                break;
+            }
+            positive_setup_fee_work =
+                positive_setup_fee_work.saturating_add(positive_setup_extra as u64);
+        }
         if !deterministic && start.elapsed().as_secs_f64() * 1000. >= allowance {
             break;
         }
         // Reserve both pilots and complete main/check batches before sampling.
         // Branch count comes from complete enumeration, never pilot outcomes.
-        let pilot_cost = if budget::modeled() {
+        let setup_component = if positive_refinement {
             p.setup_work()
+                .saturating_sub(positive_prepaid_setup.saturating_add(positive_setup_extra))
+        } else {
+            p.setup_work()
+        };
+        let pilot_cost = if budget::modeled() {
+            setup_component
                 + (0..p.len())
                     .map(|i| {
-                        pilot_draws
+                        cell_pilot_draws
                             * (if tree_mode {
                                 p.draw_work(m, i, true)
                             } else {
@@ -388,20 +895,31 @@ pub(super) fn run(
                     })
                     .sum::<usize>()
         } else {
-            2 * p.len() * pilot_draws + 2 * nominal_total
+            2 * p.len() * cell_pilot_draws + 2 * nominal_total
         };
-        if deterministic && !draw_budget.reserve(pilot_cost) {
+        if deterministic && !job_budget.reserve(pilot_cost) {
             skipped += 1;
-            emit(
-                log,
-                "rust_odds_rare_tail_branches_skip",
-                json!({
-                    "group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,
-                    "setup_ms":setup_ms,"branches":p.len(),
-                    "requested_draws":2 * p.len() * pilot_draws + 2 * nominal_total,
-                    "reason":"complete pilot pair exceeds remaining work budget"
-                }),
-            );
+            if positive_refinement {
+                log_positive_skip(
+                    log,
+                    m,
+                    cell,
+                    old_estimate.as_ref().unwrap(),
+                    "complete pilot pair exceeds remaining work budget",
+                    positive_prepaid_setup,
+                );
+            } else {
+                emit(
+                    log,
+                    "rust_odds_rare_tail_branches_skip",
+                    json!({
+                        "group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,
+                        "setup_ms":setup_ms,"branches":p.len(),
+                        "requested_draws":2 * p.len() * cell_pilot_draws + 2 * nominal_total,
+                        "reason":"complete pilot pair exceeds remaining work budget"
+                    }),
+                );
+            }
             continue;
         }
         let bound_clock = Instant::now();
@@ -420,7 +938,7 @@ pub(super) fn run(
                 let interval = p.sample(
                     m,
                     i,
-                    pilot_draws,
+                    cell_pilot_draws,
                     derive(seed, &format!("branch-bound-pilot-{i}")),
                     true,
                     true,
@@ -432,7 +950,7 @@ pub(super) fn run(
             let rank = p.sample(
                 m,
                 i,
-                pilot_draws,
+                cell_pilot_draws,
                 derive(seed, &format!("branch-pilot-{i}")),
                 false,
                 true,
@@ -440,7 +958,7 @@ pub(super) fn run(
             let interval = p.sample(
                 m,
                 i,
-                pilot_draws,
+                cell_pilot_draws,
                 derive(seed, &format!("branch-bound-pilot-{i}")),
                 true,
                 true,
@@ -469,7 +987,7 @@ pub(super) fn run(
         if tree_mode && budget::modeled() {
             let actual = p.setup_work().saturating_add(pilot_actual);
             if actual < pilot_cost {
-                assert!(draw_budget.release(pilot_cost - actual));
+                assert!(job_budget.release(pilot_cost - actual));
             }
         }
         if audit_enabled {
@@ -499,7 +1017,7 @@ pub(super) fn run(
             emit(
                 log,
                 "rust_odds_rare_tail_branches_skip",
-                json!({"team":m.ids[cell.team],"rank":cell.rank+1,"reason":"no event evidence in complete tree pilots","pilot_draws":pilot_draws*p.len()}),
+                json!({"team":m.ids[cell.team],"rank":cell.rank+1,"reason":"no event evidence in complete tree pilots","pilot_draws":cell_pilot_draws*p.len()}),
             );
             continue;
         }
@@ -509,7 +1027,7 @@ pub(super) fn run(
                 || crate::rare_tail::family_structure()
                     != crate::rare_tail::family_config::FamilyStructure::Full;
             let re_pilot_guard = if bounded_messages {
-                pilot_draws.saturating_mul(
+                cell_pilot_draws.saturating_mul(
                     (0..p.len())
                         .map(|i| p.draw_work(m, i, true))
                         .max()
@@ -518,13 +1036,13 @@ pub(super) fn run(
             } else {
                 0
             };
-            let free_before_messages = draw_budget.limit.saturating_sub(draw_budget.reserved);
+            let free_before_messages = job_budget.limit.saturating_sub(job_budget.reserved);
             let message_allowance = if bounded_messages {
                 20_000_000usize.min(free_before_messages.saturating_sub(re_pilot_guard))
             } else {
                 20_000_000
             };
-            if bounded_messages && !draw_budget.reserve(message_allowance) {
+            if bounded_messages && !job_budget.reserve(message_allowance) {
                 skipped += 1;
                 continue;
             }
@@ -536,7 +1054,7 @@ pub(super) fn run(
             let message_work = message_info["work"].as_u64().unwrap() as usize;
             if bounded_messages {
                 assert!(message_work <= message_allowance);
-                assert!(draw_budget.release(message_allowance - message_work));
+                assert!(job_budget.release(message_allowance - message_work));
             }
             let selected: Vec<_> = message_info["selected"]
                 .as_array()
@@ -546,12 +1064,12 @@ pub(super) fn run(
                 .collect();
             let re_pilot_work = selected
                 .iter()
-                .map(|&i| pilot_draws * p.draw_work(m, i, true))
+                .map(|&i| cell_pilot_draws * p.draw_work(m, i, true))
                 .sum::<usize>();
             let reserve_after_discovery = if bounded_messages {
-                draw_budget.reserve(re_pilot_work)
+                job_budget.reserve(re_pilot_work)
             } else {
-                draw_budget.reserve(message_work + re_pilot_work)
+                job_budget.reserve(message_work + re_pilot_work)
             };
             if !reserve_after_discovery {
                 skipped += 1;
@@ -562,7 +1080,7 @@ pub(super) fn run(
                 let r = p.sample(
                     m,
                     i,
-                    pilot_draws,
+                    cell_pilot_draws,
                     derive(seed, &format!("message-pilot-{i}")),
                     true,
                     true,
@@ -586,7 +1104,7 @@ pub(super) fn run(
                 emit(
                     log,
                     "rust_odds_rare_tail_branches_skip",
-                    json!({"team":m.ids[cell.team],"rank":cell.rank+1,"reason":"no event evidence after structural discovery re-pilot","pilot_draws":pilot_draws*p.len(),"messages":message_info}),
+                    json!({"team":m.ids[cell.team],"rank":cell.rank+1,"reason":"no event evidence after structural discovery re-pilot","pilot_draws":cell_pilot_draws*p.len(),"messages":message_info}),
                 );
                 continue;
             }
@@ -607,6 +1125,25 @@ pub(super) fn run(
             .collect();
         let pilot_counts: Vec<_> = pilots.iter().map(|r| r.0.result.samples).collect();
         let pilot_hits: Vec<_> = pilots.iter().map(|r| r.0.result.hits).collect();
+        let positive_floors = if positive_refinement {
+            match positive_allocation_floors(&pilots) {
+                Some(floors) => Some(floors),
+                None => {
+                    skipped += 1;
+                    log_positive_skip(
+                        log,
+                        m,
+                        cell,
+                        old_estimate.as_ref().unwrap(),
+                        "invalid positive pilot diagnostics",
+                        positive_prepaid_setup,
+                    );
+                    continue;
+                }
+            }
+        } else {
+            None
+        };
         let (scores, prior_scores_used) = if prior_enabled {
             let samples: Vec<_> = pilots.iter().map(|r| r.0.result.samples).collect();
             let upper_bounds: Vec<_> = bounds.iter().map(|bound| bound.upper_bound).collect();
@@ -622,49 +1159,111 @@ pub(super) fn run(
             .iter()
             .map(|r| budget::draw_cost(&r.0.result))
             .collect();
+        let allocation_floors = positive_floors
+            .clone()
+            .unwrap_or_else(|| vec![floor; p.len()]);
+        let allocation_small = if positive_refinement {
+            vec![false; p.len()]
+        } else {
+            small.clone()
+        };
         if budget::modeled() {
             // Preserve the ordinary allocation and streams before spending
             // remaining units on a larger independent retry for cheap failures.
-            while total >= p.len() * floor {
-                let Some(ns) = allocation_with_defensive_percent(
+            let floor_total = allocation_floors
+                .iter()
+                .try_fold(0usize, |sum, &n| sum.checked_add(n))
+                .unwrap_or(usize::MAX);
+            let minimum_total = if positive_refinement {
+                floor_total
+            } else {
+                p.len().saturating_mul(floor)
+            };
+            let mut allocation_funded = false;
+            while total >= minimum_total {
+                let Some(ns) = allocation_with_branch_floors(
                     &scores,
-                    &small,
+                    &allocation_small,
+                    &allocation_floors,
                     total,
-                    floor,
-                    defensive_percent,
+                    job_defensive_percent,
                 ) else {
                     break;
                 };
                 let cost: usize = ns.iter().zip(&costs).map(|(n, c)| 2 * n * c).sum();
-                if draw_budget.reserve(cost) {
+                if job_budget.reserve(cost) {
+                    allocation_funded = true;
                     break;
                 }
-                total = total.saturating_sub(1000);
+                if positive_refinement {
+                    if total == minimum_total {
+                        break;
+                    }
+                    total = total.saturating_sub(1000).max(minimum_total);
+                } else {
+                    total = total.saturating_sub(1000);
+                }
             }
-            if total < p.len() * floor {
+            if (positive_refinement && !allocation_funded) || total < minimum_total {
                 skipped += 1;
+                if positive_refinement {
+                    log_positive_skip(
+                        log,
+                        m,
+                        cell,
+                        old_estimate.as_ref().unwrap(),
+                        "branch allocation floors exceed remaining draw budget",
+                        positive_prepaid_setup,
+                    );
+                }
                 continue;
             }
         }
-        let Some(ns) =
-            allocation_with_defensive_percent(&scores, &small, total, floor, defensive_percent)
-        else {
+        let Some(ns) = allocation_with_branch_floors(
+            &scores,
+            &allocation_small,
+            &allocation_floors,
+            total,
+            job_defensive_percent,
+        ) else {
+            if positive_refinement {
+                log_positive_skip(
+                    log,
+                    m,
+                    cell,
+                    old_estimate.as_ref().unwrap(),
+                    "branch allocation failed",
+                    positive_prepaid_setup,
+                );
+            }
             continue;
         };
         let guides: Vec<_> = pilots.iter().map(|r| r.1).collect();
         // Soft admission deadline; the entire fixed main/check pair runs after
         // admission. Never stop a reported batch based on its own results.
         let forecast =
-            1.3 * pilot_ms * (2 * nominal_total) as f64 / (2 * p.len() * pilot_draws) as f64;
+            1.3 * pilot_ms * (2 * nominal_total) as f64 / (2 * p.len() * cell_pilot_draws) as f64;
         if !deterministic && start.elapsed().as_secs_f64() * 1000. + forecast > allowance {
-            emit(
-                log,
-                "rust_odds_rare_tail_branches_skip",
-                json!({"group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,"setup_ms":setup_ms,"pilot_ms":pilot_ms,"forecast_ms":if deterministic {None}else{Some(forecast)},"reason":"final pair exceeds remaining admission allowance"}),
-            );
+            if positive_refinement {
+                log_positive_skip(
+                    log,
+                    m,
+                    cell,
+                    old_estimate.as_ref().unwrap(),
+                    "final pair exceeds remaining admission allowance",
+                    positive_prepaid_setup,
+                );
+            } else {
+                emit(
+                    log,
+                    "rust_odds_rare_tail_branches_skip",
+                    json!({"group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,"setup_ms":setup_ms,"pilot_ms":pilot_ms,"forecast_ms":if deterministic {None}else{Some(forecast)},"reason":"final pair exceeds remaining admission allowance"}),
+                );
+            }
             skipped += 1;
             continue;
         }
+        let mut positive_coverage = None;
         let (main, check, main_ms, check_ms) = if tree_mode {
             let clock = Instant::now();
             let costs: Vec<_> = (0..2 * p.len())
@@ -704,15 +1303,29 @@ pub(super) fn run(
             let main_ms = main_clock.elapsed().as_secs_f64() * 1000.;
             let main = combine_branches(&mains);
             let check_clock = Instant::now();
-            let check = if publishable(&main, true) {
-                combine_branches(&sample(&p, m, &ns, &guides, &order, seed, "check", workers))
+            let checks = if positive_refinement || publishable(&main, true) {
+                Some(sample(&p, m, &ns, &guides, &order, seed, "check", workers))
             } else {
-                Result::default()
+                None
             };
+            let check = checks
+                .as_ref()
+                .map(|rows| combine_branches(rows))
+                .unwrap_or_default();
             let check_ms = check_clock.elapsed().as_secs_f64() * 1000.;
+            if positive_refinement {
+                positive_coverage = Some(positive_branch_coverage(
+                    &bounds,
+                    &mains,
+                    checks.as_deref().unwrap_or(&[]),
+                    &ns,
+                    main.probability,
+                    check.probability,
+                ));
+            }
             if refund_checks && check.samples == 0 {
                 let unused = ns.iter().zip(&costs).map(|(n, c)| n * c).sum();
-                assert!(draw_budget.release(unused));
+                assert!(job_budget.release(unused));
                 reclaimed_check_work += unused;
             }
             if audit_enabled {
@@ -749,14 +1362,101 @@ pub(super) fn run(
             );
         }
         work += main.work + check.work;
-        let ok = accepted(&main, &check, true);
-        if ok && commit_estimate(&mut estimates[cell.index(m.n)], &main, true) {
-            estimates[cell.index(m.n)].design = "matched_point_pool_complete_branches".into();
+        let legacy_accepted = accepted(&main, &check, true);
+        let positive_accepted = if positive_refinement {
+            legacy_accepted
+                && old_estimate
+                    .as_ref()
+                    .is_some_and(|old| positive_replacement_quality(old, &main, &check))
+                && positive_coverage
+                    .as_ref()
+                    .is_some_and(|coverage| coverage.accepted)
+        } else {
+            false
+        };
+        let ok = if positive_refinement {
+            positive_accepted
+        } else {
+            legacy_accepted
+        };
+        let committed = if positive_refinement {
+            ok && old_estimate.as_ref().is_some_and(|old| {
+                positive_coverage.as_ref().is_some_and(|coverage| {
+                    commit_positive_estimate(
+                        &mut estimates[cell.index(m.n)],
+                        old,
+                        &main,
+                        &check,
+                        coverage,
+                    )
+                })
+            })
+        } else {
+            ok && commit_estimate(&mut estimates[cell.index(m.n)], &main, true)
+        };
+        if committed {
+            if !positive_refinement {
+                estimates[cell.index(m.n)].design = "matched_point_pool_complete_branches".into();
+            } else {
+                positive_refined += 1;
+            }
             estimates[cell.index(m.n)].work_spent +=
                 pilots.iter().map(|r| r.2).sum::<u64>() + main.work + check.work;
             found += 1;
         }
         let mut branch_log = json!({"group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,"branches":p.len(),"setup":p.setup_diagnostics(),"parallel_pair":tree_mode,"setup_ms":setup_ms,"bounds_ms":bounds_ms,"messages":message_info,"pilot_ms":pilot_ms,"main_ms":main_ms,"check_ms":check_ms,"pilot_probability":pilot_probability,"small_branch_floors":small.iter().filter(|&&s|s).count(),"allocated_main_draws":total,"estimated_cost_per_draw":costs,"main_draws":main.samples,"main_hits":main.hits,"main_ess":main.ess,"main_max_share":main.max_share,"main_batch_gap":main.batch_gap,"probability":main.probability,"check_probability":check.probability,"check_ess":check.ess,"accepted":ok,"full_support":true,"omitted_probability":0,"forecast_ms":if deterministic {None}else{Some(forecast)}});
+        if positive_refinement {
+            let coverage = positive_coverage.as_ref();
+            let quality_improved = old_estimate
+                .as_ref()
+                .is_some_and(|old| positive_replacement_quality(old, &main, &check));
+            let rejection = if !legacy_accepted {
+                Some("main_check_not_accepted")
+            } else if !quality_improved {
+                Some("global_quality_not_improved")
+            } else {
+                coverage.and_then(|coverage| coverage.rejection)
+            };
+            branch_log["positive_refinement"] = json!(true);
+            branch_log["positive_accepted"] = json!(positive_accepted);
+            branch_log["positive_quality_improved"] = json!(quality_improved);
+            branch_log["positive_old_probability"] =
+                json!(old_estimate.as_ref().map(|old| old.probability));
+            branch_log["positive_new_probability"] = json!(main.probability);
+            branch_log["positive_rejection_reason"] = json!(rejection);
+            branch_log["positive_prepaid_setup_work"] = json!(positive_prepaid_setup);
+            branch_log["positive_setup_extra_work"] = json!(positive_setup_extra);
+            branch_log["positive_pilot_draws_per_branch"] = json!(cell_pilot_draws);
+            branch_log["positive_defensive_percent"] = json!(job_defensive_percent);
+            branch_log["positive_allocation_floors"] = json!(positive_floors);
+            branch_log["positive_pilot_branches"] = json!(pilots.iter().enumerate().map(|(index, (pilot, guided, _, _))| {
+                let result = &pilot.result;
+                json!({
+                    "branch_index":index,
+                    "guided":guided,
+                    "samples":result.samples,
+                    "hits":result.hits,
+                    "ess":result.ess,
+                    "probability":result.probability,
+                    "rse":if result.probability > 0.0 {Some(result.std_err / result.probability)} else {None},
+                    "max_share":result.max_share,
+                    "batch_gap":result.batch_gap,
+                    "cost_per_draw":budget::draw_cost(result)
+                })
+            }).collect::<Vec<_>>());
+            branch_log["positive_old_quality"] = json!(old_estimate.as_ref().map(|old| json!({
+                "probability":old.probability,"ess":old.ess,"rse":if old.probability>0.0 {Some(old.std_err/old.probability)} else {None},
+                "max_share":old.max_event_weight_share,"meets_precision_goal":old.meets_precision_goal
+            })));
+            branch_log["branch_coverage"] = json!({
+                "supported":coverage.map(|value| &value.supported),
+                "unsupported":coverage.map(|value| &value.unsupported),
+                "unsupported_upper_sum":coverage.map(|value| value.unsupported_upper_sum),
+                "unsupported_allowance":coverage.map(|value| value.unsupported_allowance),
+                "branches":coverage.map(|value| &value.branches),
+                "rejection_reason":rejection
+            });
+        }
         if experiment_controls_logged {
             let actual_check_draws = if tree_mode || check.samples > 0 {
                 ns.clone()
@@ -764,7 +1464,7 @@ pub(super) fn run(
                 vec![0; p.len()]
             };
             branch_log["allocation_experiment"] = json!({
-                "defensive_percent":defensive_percent,
+                "defensive_percent":job_defensive_percent,
                 "pilot_prior_enabled":prior_enabled,
                 "skip_empty_pilot_final":skip_empty_pilot_final,
                 "pilot_prior_scores_used":prior_scores_used,
@@ -776,7 +1476,7 @@ pub(super) fn run(
             });
         }
         emit(log, "rust_odds_rare_tail_branches", branch_log);
-        if !ok && budget::modeled() {
+        if !ok && budget::modeled() && !positive_refinement {
             let reference = budget::reference_cost(m);
             let average = costs.iter().sum::<usize>() / costs.len().max(1);
             let retry_total = (nominal_total * reference / average.max(reference / 3).max(1))
@@ -789,7 +1489,7 @@ pub(super) fn run(
                 defensive_percent,
             ) {
                 let retry_cost: usize = retry_ns.iter().zip(&costs).map(|(n, c)| 2 * n * c).sum();
-                if draw_budget.reserve(retry_cost) {
+                if job_budget.reserve(retry_cost) {
                     let clock = Instant::now();
                     let retry = combine_branches(&sample(
                         &p,
@@ -821,7 +1521,7 @@ pub(super) fn run(
                         0
                     };
                     if refund_checks && check.samples == 0 {
-                        assert!(draw_budget.release(released));
+                        assert!(job_budget.release(released));
                         reclaimed_check_work += retry_cost / 2;
                     }
                     if audit_enabled {
@@ -870,7 +1570,45 @@ pub(super) fn run(
             }
         }
     }
-    let mut summary = json!({"group":m.request.id,"tree_mode":tree_mode,"pilot_draws_per_branch":pilot_draws,"tightened_only":tightened_only,"eligible":cells.len(),"attempted":attempted,"skipped":skipped,"accepted":found,"elapsed_ms":start.elapsed().as_secs_f64()*1000.,"setup_ms":setups_ms,"allowance_ms":if deterministic {None}else{Some(allowance)},"budget_mode":budget::mode(),"work_limit":if deterministic {Some(draw_budget.limit)}else{None},"reclaimed_check_work":reclaimed_check_work,"reserved_work":if deterministic {Some(draw_budget.reserved)}else{None},"work":work,"bound_floor":reduce_floor,"preserved_existing_estimates":before.iter().all(|(i, e)| *e == serde_json::to_value(&estimates[*i]).unwrap())});
+    let total_work_limit = zero_budget.limit.saturating_add(positive_budget.limit);
+    let total_reserved_work = zero_budget
+        .reserved
+        .saturating_add(positive_budget.reserved);
+    let mut summary = json!({"group":m.request.id,"tree_mode":tree_mode,"pilot_draws_per_branch":pilot_draws,"tightened_only":tightened_only,"eligible":zero_eligible,"attempted":attempted,"skipped":skipped,"accepted":found,"elapsed_ms":start.elapsed().as_secs_f64()*1000.,"setup_ms":setups_ms,"allowance_ms":if deterministic {None}else{Some(allowance)},"budget_mode":budget::mode(),"work_limit":if deterministic {Some(total_work_limit)}else{None},"reclaimed_check_work":reclaimed_check_work,"reserved_work":if deterministic {Some(total_reserved_work)}else{None},"work":work,"bound_floor":reduce_floor,"preserved_existing_estimates":before.iter().all(|(i, e)| *e == serde_json::to_value(&estimates[*i]).unwrap())});
+    summary["zero_work_limit"] = json!(if deterministic {
+        Some(zero_budget.limit)
+    } else {
+        None
+    });
+    summary["zero_reserved_work"] = json!(if deterministic {
+        Some(zero_budget.reserved)
+    } else {
+        None
+    });
+    summary["positive_work_limit"] = json!(if deterministic {
+        Some(positive_budget.limit)
+    } else {
+        None
+    });
+    summary["positive_reserved_work"] = json!(if deterministic {
+        Some(positive_budget.reserved)
+    } else {
+        None
+    });
+    summary["positive_branches_enabled"] = json!(positive_branches_on);
+    summary["positive_eligible"] = json!(positive_eligible);
+    summary["positive_selected"] = json!(positive_selected.len());
+    summary["positive_attempted"] = json!(positive_attempted);
+    summary["positive_refined"] = json!(positive_refined);
+    summary["positive_rejected"] = json!(positive_attempted.saturating_sub(positive_refined));
+    summary["positive_unselected"] =
+        json!(positive_eligible.saturating_sub(positive_selected.len()));
+    summary["positive_prepaid_setup_work"] = json!(positive_setup_fee_work);
+    summary["positive_defensive_percent"] = json!(if positive_branches_on {
+        Some(POSITIVE_DEFENSIVE_PERCENT)
+    } else {
+        None
+    });
     if experiment_controls_logged {
         summary["allocation_experiment"] = json!({
             "defensive_percent":defensive_percent,
@@ -885,7 +1623,7 @@ pub(super) fn run(
     (
         found,
         work,
-        draw_budget.reserved,
+        total_reserved_work,
         handled,
         tree_eligible,
         audit,
@@ -895,6 +1633,54 @@ pub(super) fn run(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn snapshot() -> Model {
+        let request = serde_json::from_str(include_str!(
+            "../../tests/fixtures/group-16498-2026-10-10.json"
+        ))
+        .unwrap();
+        Model::new(request).unwrap()
+    }
+
+    fn result(
+        samples: usize,
+        probability: f64,
+        hits: usize,
+        ess: f64,
+        rse: f64,
+        share: f64,
+    ) -> Result {
+        Result {
+            samples,
+            probability,
+            hits,
+            ess,
+            std_err: probability * rse,
+            max_share: share,
+            batch_gap: 0.0,
+            weighted: true,
+            ..Result::default()
+        }
+    }
+
+    fn bound(upper_bound: f64) -> crate::joint_caps::propagated::lazy::BranchBound {
+        crate::joint_caps::propagated::lazy::BranchBound {
+            fixed_prior: upper_bound,
+            domain_prior: upper_bound,
+            normalizer_upper: upper_bound,
+            six_rival_upper: None,
+            read_two_upper: upper_bound,
+            upper_bound,
+        }
+    }
+
+    fn branch(result: Result) -> BranchSample {
+        BranchSample {
+            result,
+            ..BranchSample::default()
+        }
+    }
+
     #[test]
     fn draw_audit_credits_discarded_pilot_surplus() {
         let mut audit = DrawAudit {
@@ -1046,6 +1832,25 @@ mod tests {
     }
 
     #[test]
+    fn positive_jobs_use_coverage_defensive_surplus_without_changing_zero_policy() {
+        assert_eq!(job_defensive_percent(true, 10), 50);
+        assert_eq!(job_defensive_percent(false, 10), 10);
+        let floors = [200, 200];
+        let zero =
+            allocation_with_branch_floors(&[1.0, 9.0], &[false; 2], &floors, 1200, 10).unwrap();
+        let positive = allocation_with_branch_floors(
+            &[1.0, 9.0],
+            &[false; 2],
+            &floors,
+            1200,
+            job_defensive_percent(true, 10),
+        )
+        .unwrap();
+        assert_eq!(zero, vec![312, 888]);
+        assert_eq!(positive, vec![440, 760]);
+    }
+
+    #[test]
     fn pilot_prior_allocates_to_zero_hit_strata_with_positive_bounds() {
         let (scores, maximum_bound) =
             pilot_prior_scores(&[0.0, 1.0], &[500, 500], &[0.1, 0.4]).unwrap();
@@ -1114,6 +1919,373 @@ mod tests {
         assert_eq!(
             resolve_value("RUST_ODDS_RARE_TAIL_BRANCH_BOUND_FLOOR", None, true),
             ""
+        );
+        assert_eq!(
+            resolve_value("RUST_ODDS_RARE_TAIL_POSITIVE_BRANCHES", None, true),
+            "1"
+        );
+        assert_eq!(
+            resolve_value(
+                "RUST_ODDS_RARE_TAIL_POSITIVE_BRANCHES",
+                Some("0".into()),
+                true
+            ),
+            "0"
+        );
+        assert_eq!(
+            resolve_value("RUST_ODDS_RARE_TAIL_POSITIVE_BRANCHES", None, false),
+            ""
+        );
+    }
+
+    #[test]
+    fn positive_setup_fee_is_paid_before_construction_and_small_grants_decline() {
+        let m = snapshot();
+        let fee = positive_setup_fee(&m);
+        assert!(fee >= budget::setup_cost(100_000, 4_000_000));
+        let mut short = WorkBudget::new(fee - 1);
+        assert_eq!(reserve_positive_setup_fee(&mut short, &m), None);
+        assert_eq!(short.reserved, 0);
+        let mut funded = WorkBudget::new(fee);
+        assert_eq!(reserve_positive_setup_fee(&mut funded, &m), Some(fee));
+        // A later constructor decline does not refund already paid setup work.
+        assert_eq!(funded.reserved, fee);
+    }
+
+    #[test]
+    fn positive_work_grant_is_independent_of_the_zero_stage_budget() {
+        let mut zero = WorkBudget::new(300);
+        let mut positive = WorkBudget::new(100);
+        assert!(zero.reserve(300));
+        assert_eq!(zero.reserve(1), false);
+        assert!(positive.reserve(100));
+        assert_eq!(zero.reserved, 300);
+        assert_eq!(positive.reserved, 100);
+        assert!(positive.release(50));
+        assert_eq!(zero.reserved, 300);
+        assert_eq!(positive.reserved, 50);
+    }
+
+    #[test]
+    fn weak_positive_candidates_exclude_strong_mc_and_impossible_cells() {
+        let m = snapshot();
+        let mut estimates = vec![Estimate::default(); m.n * m.n];
+        let weak = Cell {
+            team: m.indices[&16],
+            rank: 17,
+        };
+        let strong = Cell {
+            team: m.indices[&17],
+            rank: 17,
+        };
+        let mc = Cell {
+            team: m.indices[&18],
+            rank: 17,
+        };
+        let impossible = Cell {
+            team: m.indices[&20],
+            rank: 17,
+        };
+        estimates[weak.index(m.n)] = Estimate {
+            probability: 1e-30,
+            conditional_samples: 20,
+            ess: 2.0,
+            relative_se: Some(1.0),
+            max_event_weight_share: 0.5,
+            ..Estimate::default()
+        };
+        estimates[strong.index(m.n)] = Estimate {
+            probability: 0.01,
+            conditional_samples: 100,
+            meets_precision_goal: true,
+            ess: 100.0,
+            relative_se: Some(0.1),
+            max_event_weight_share: 0.05,
+            ..Estimate::default()
+        };
+        estimates[mc.index(m.n)] = Estimate {
+            probability: 0.001,
+            ess: 1.0,
+            relative_se: Some(1.0),
+            ..Estimate::default()
+        };
+        estimates[impossible.index(m.n)] = Estimate {
+            probability: 0.001,
+            conditional_samples: 100,
+            ess: 1.0,
+            relative_se: Some(1.0),
+            reachability: "impossible:certificate".into(),
+            ..Estimate::default()
+        };
+        assert_eq!(positive_candidates(&m, &estimates, &[]), vec![weak]);
+    }
+
+    #[test]
+    fn positive_candidates_sort_by_mass_and_take_distinct_team_turns() {
+        let m = snapshot();
+        let first_team = m.indices[&16];
+        let second_team = m.indices[&17];
+        let mut estimates = vec![Estimate::default(); m.n * m.n];
+        let first = Cell {
+            team: first_team,
+            rank: 16,
+        };
+        let same_team_next = Cell {
+            team: first_team,
+            rank: 17,
+        };
+        let second = Cell {
+            team: second_team,
+            rank: 18,
+        };
+        for (cell, probability) in [(first, 1e-27), (same_team_next, 1e-26), (second, 2e-26)] {
+            estimates[cell.index(m.n)] = Estimate {
+                probability,
+                conditional_samples: 10,
+                ess: 1.0,
+                relative_se: Some(1.0),
+                max_event_weight_share: 0.5,
+                ..Estimate::default()
+            };
+        }
+        let pool = positive_candidates(&m, &estimates, &[]);
+        assert_eq!(pool, vec![first, same_team_next, second]);
+        assert_eq!(select_positive_candidates(&pool), vec![first, second]);
+        let zero_first = [Cell { team: 4, rank: 2 }];
+        let appended = zero_first
+            .into_iter()
+            .chain(select_positive_candidates(&pool))
+            .collect::<Vec<_>>();
+        assert_eq!(appended[0], zero_first[0]);
+        assert_eq!(appended.len(), 3);
+    }
+
+    #[test]
+    fn positive_training_floors_cover_low_support_and_validate_pilots() {
+        let pilots = vec![
+            (branch(result(100, 0.2, 80, 80.0, 0.05, 0.05)), false, 0, 0),
+            (branch(result(100, 1e-24, 10, 2.0, 0.5, 0.5)), true, 0, 0),
+        ];
+        let floors = positive_allocation_floors(&pilots).unwrap();
+        assert_eq!(floors, vec![200, 2500]);
+
+        let floors = [floors[0], floors[1]];
+        let allocation =
+            allocation_with_branch_floors(&[1.0, 10.0], &[false, false], &floors, 3000, 10)
+                .unwrap();
+        assert_eq!(allocation.iter().sum::<usize>(), 3000);
+        assert!(allocation
+            .iter()
+            .zip(floors)
+            .all(|(&draws, floor)| draws >= floor));
+        assert!(
+            allocation_with_branch_floors(&[1.0, 10.0], &[false, false], &floors, 2699, 10,)
+                .is_none()
+        );
+
+        let invalid = vec![(branch(result(100, 0.0, 0, 0.0, 0.0, 0.0)), false, 0, 0)];
+        assert!(positive_allocation_floors(&invalid).is_none());
+    }
+
+    #[test]
+    fn invalid_positive_quality_diagnostics_are_weak_but_out_of_range_probability_is_excluded() {
+        let m = snapshot();
+        let negative_rse = Cell {
+            team: m.indices[&16],
+            rank: 15,
+        };
+        let negative_share = Cell {
+            team: m.indices[&17],
+            rank: 15,
+        };
+        let invalid_probability = Cell {
+            team: m.indices[&18],
+            rank: 15,
+        };
+        let mut estimates = vec![Estimate::default(); m.n * m.n];
+        estimates[negative_rse.index(m.n)] = Estimate {
+            probability: 0.01,
+            std_err: -0.001,
+            conditional_samples: 100,
+            meets_precision_goal: true,
+            ess: 100.0,
+            max_event_weight_share: 0.05,
+            ..Estimate::default()
+        };
+        estimates[negative_share.index(m.n)] = Estimate {
+            probability: 0.02,
+            std_err: 0.001,
+            conditional_samples: 100,
+            meets_precision_goal: true,
+            ess: 100.0,
+            max_event_weight_share: -0.1,
+            ..Estimate::default()
+        };
+        estimates[invalid_probability.index(m.n)] = Estimate {
+            probability: 1.1,
+            conditional_samples: 100,
+            meets_precision_goal: false,
+            ess: 1.0,
+            max_event_weight_share: 0.5,
+            ..Estimate::default()
+        };
+        assert_eq!(
+            positive_candidates(&m, &estimates, &[]),
+            vec![negative_rse, negative_share]
+        );
+    }
+
+    #[test]
+    fn positive_coverage_rejects_a_hidden_large_bound() {
+        let allocated = [100, 100];
+        let main = [
+            branch(result(100, 0.1, 40, 20.0, 0.1, 0.1)),
+            branch(result(100, 0.0, 0, 0.0, 0.0, 0.0)),
+        ];
+        let check = [
+            branch(result(100, 0.1, 40, 20.0, 0.1, 0.1)),
+            branch(result(100, 0.0, 0, 0.0, 0.0, 0.0)),
+        ];
+        let coverage = positive_branch_coverage(
+            &[bound(0.9), bound(0.05)],
+            &main,
+            &check,
+            &allocated,
+            0.1,
+            0.1,
+        );
+        assert!(!coverage.accepted);
+        assert_eq!(coverage.supported, vec![0]);
+        assert_eq!(coverage.unsupported, vec![1]);
+        assert_eq!(
+            coverage.rejection,
+            Some("unsupported_branch_bounds_exceed_allowance")
+        );
+    }
+
+    #[test]
+    fn positive_coverage_sums_all_small_unsupported_bounds_conservatively() {
+        let allocated = [100, 100, 100];
+        let main = [
+            branch(result(100, 0.0997, 40, 20.0, 0.1, 0.1)),
+            branch(result(100, 0.0, 0, 0.0, 0.0, 0.0)),
+            branch(result(100, 0.0, 0, 0.0, 0.0, 0.0)),
+        ];
+        let check = [
+            branch(result(100, 0.0997, 40, 20.0, 0.1, 0.1)),
+            branch(result(100, 0.0, 0, 0.0, 0.0, 0.0)),
+            branch(result(100, 0.0, 0, 0.0, 0.0, 0.0)),
+        ];
+        let coverage = positive_branch_coverage(
+            &[bound(0.1), bound(0.0006), bound(0.0006)],
+            &main,
+            &check,
+            &allocated,
+            0.0997,
+            0.0997,
+        );
+        assert!(!coverage.accepted);
+        assert!(coverage.unsupported_upper_sum > coverage.unsupported_allowance);
+        assert_eq!(coverage.unsupported, vec![1, 2]);
+    }
+
+    #[test]
+    fn positive_coverage_allows_negligible_sampled_branches_with_small_total_bound() {
+        let allocated = [100, 100];
+        let main = [
+            branch(result(100, 0.1, 40, 20.0, 0.1, 0.1)),
+            branch(result(100, 0.0, 0, 0.0, 0.0, 0.0)),
+        ];
+        let check = [
+            branch(result(100, 0.1, 40, 20.0, 0.1, 0.1)),
+            branch(result(100, 0.0, 0, 0.0, 0.0, 0.0)),
+        ];
+        let coverage = positive_branch_coverage(
+            &[bound(0.9), bound(0.0005)],
+            &main,
+            &check,
+            &allocated,
+            0.1,
+            0.1,
+        );
+        assert!(coverage.accepted);
+        assert_eq!(coverage.supported, vec![0]);
+        assert_eq!(coverage.unsupported, vec![1]);
+    }
+
+    #[test]
+    fn positive_coverage_rejects_missing_draws_or_invalid_bounds() {
+        let samples = [branch(result(99, 0.1, 40, 20.0, 0.1, 0.1))];
+        let check = [branch(result(100, 0.1, 40, 20.0, 0.1, 0.1))];
+        let missing = positive_branch_coverage(&[bound(0.0)], &samples, &check, &[100], 0.1, 0.1);
+        assert!(!missing.accepted);
+        assert_eq!(missing.rejection, Some("final_branch_draw_count_mismatch"));
+        let invalid =
+            positive_branch_coverage(&[bound(f64::NAN)], &check, &check, &[100], 0.1, 0.1);
+        assert!(!invalid.accepted);
+        assert_eq!(invalid.rejection, Some("invalid_branch_bound"));
+    }
+
+    #[test]
+    fn positive_replacement_requires_both_batches_to_improve_but_allows_probability_jumps() {
+        let old = Estimate {
+            probability: 1e-27,
+            std_err: 5e-28,
+            ess: 5.0,
+            relative_se: Some(0.5),
+            max_event_weight_share: 0.3,
+            ..Estimate::default()
+        };
+        let main = result(100, 1e-23, 40, 10.0, 0.1, 0.2);
+        let check = result(100, 1e-23, 40, 8.0, 0.2, 0.1);
+        assert!(positive_replacement_quality(&old, &main, &check));
+        let mut poor_check = check.clone();
+        poor_check.ess = old.ess;
+        assert!(!positive_replacement_quality(&old, &main, &poor_check));
+    }
+
+    #[test]
+    fn rejected_positive_refinement_preserves_estimate_atomically() {
+        let old = Estimate {
+            probability: 1e-27,
+            std_err: 2e-28,
+            samples: 9000,
+            hits: 40,
+            ess: 5.0,
+            mean_weight: 0.75,
+            work_spent: 123,
+            available: true,
+            meets_precision_goal: false,
+            relative_se: Some(0.2),
+            max_event_weight_share: 0.3,
+            zero_hit_upper_95: 0.0,
+            design: "previous design".into(),
+            reachability: "witness".into(),
+            conditional_mass: 0.2,
+            conditional_samples: 9000,
+            conditional_hits: 40,
+        };
+        let mut estimate = old.clone();
+        let good = result(100, 1e-23, 40, 10.0, 0.1, 0.2);
+        let coverage = PositiveBranchCoverage {
+            accepted: false,
+            supported: vec![0],
+            unsupported: vec![],
+            unsupported_upper_sum: 0.0,
+            unsupported_allowance: 0.0,
+            branches: vec![],
+            rejection: Some("unsupported_branch_bounds_exceed_allowance"),
+        };
+        assert!(!commit_positive_estimate(
+            &mut estimate,
+            &old,
+            &good,
+            &good,
+            &coverage
+        ));
+        assert_eq!(
+            serde_json::to_value(estimate).unwrap(),
+            serde_json::to_value(old).unwrap()
         );
     }
 }

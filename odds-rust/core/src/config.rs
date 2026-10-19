@@ -28,6 +28,7 @@ pub fn profile_default(name: &str) -> &'static str {
         | "RUST_ODDS_LAZY_OMIT"
         | "RUST_ODDS_RARE_TAIL_SHARE"
         | "RUST_ODDS_RARE_TAIL_BRANCHES"
+        | "RUST_ODDS_RARE_TAIL_POSITIVE_BRANCHES"
         | "RUST_ODDS_RARE_TAIL_TREE" => "1",
         "RUST_ODDS_LAZY_SUBSET" => "adaptive",
         "RUST_ODDS_RARE_TAIL_FINALISTS" => "16",
