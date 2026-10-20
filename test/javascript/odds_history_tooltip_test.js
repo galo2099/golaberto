@@ -48,13 +48,13 @@ const context = {
 };
 const renderTooltip = vm.runInNewContext("(function(event, pos, item) {" + match[1] + "})", context);
 renderTooltip.call(context, {}, { pageY: 1, pageX: 2 }, { seriesIndex: 0, dataIndex: 0 });
-assert.match(tooltipState.html, /0\.0%<\/span>/, "impossible zeros show the percentage sign without a marker");
-assert.match(tooltipState.html, /0\.0%<sup[^>]*>\*<\/sup>/, "reachable zone zero has an asterisk after the percentage sign");
-assert.match(tooltipState.html, /0\.0%<sup[^>]*>\?<\/sup>/, "undecided zero has a question mark after the percentage sign");
-assert.equal(tooltipState.title, "0.0%");
-assert.equal(tooltipState.placeholderTitle, "0.0%");
+assert.match(tooltipState.html, /0\.00%<\/span>/, "impossible zeros show the percentage sign without a marker");
+assert.match(tooltipState.html, /0\.00%<sup[^>]*>\*<\/sup>/, "reachable zone zero has an asterisk after the percentage sign");
+assert.match(tooltipState.html, /0\.00%<sup[^>]*>\?<\/sup>/, "undecided zero has a question mark after the percentage sign");
+assert.equal(tooltipState.title, "0.00%");
+assert.equal(tooltipState.placeholderTitle, "0.00%");
 
 renderTooltip.call(context, {}, { pageY: 1, pageX: 2 }, { seriesIndex: 0, dataIndex: 1 });
-assert.match(tooltipState.html, /0\.0%<sup[^>]*>\*<\/sup>/, "reachable position zero has an asterisk after the percentage sign");
+assert.match(tooltipState.html, /0\.00%<sup[^>]*>\*<\/sup>/, "reachable position zero has an asterisk after the percentage sign");
 renderTooltip.call(context, {}, { pageY: 1, pageX: 2 }, { seriesIndex: 0, dataIndex: 2 });
-assert.match(tooltipState.html, /0\.0%<sup[^>]*>\?<\/sup>/, "legacy metadata remains undecided");
+assert.match(tooltipState.html, /0\.00%<sup[^>]*>\?<\/sup>/, "legacy metadata remains undecided");

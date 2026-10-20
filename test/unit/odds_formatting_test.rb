@@ -40,7 +40,7 @@ class OddsFormattingTest < Minitest::Test
     assert_equal '0.01235%', @view.odds_title(0.012345)
     assert_equal '12.35%', @view.odds_title(12.3456)
     assert_equal '0.01%', @view.odds_title(0.01)
-    assert_equal '100%', @view.odds_title(100)
+    assert_equal '100.00%', @view.odds_title(100)
     assert_equal '1.235e-5%', @view.compact_team_odds_title(0.0000123456)
     assert_equal '12.35%', @view.compact_team_odds_title(12.3456)
   end
@@ -79,8 +79,10 @@ class OddsFormattingTest < Minitest::Test
       assert_equal '4,321e-5%', @view.odds_title(0.00004321)
       assert_equal '0,[03]1', @view.compact_team_odds_text(0.0001)
       assert_equal '99,[03]9', @view.compact_team_odds_text(99.9999)
-      assert_equal '0,0', @view.compact_team_odds_text(0)
-      assert_equal '100,0', @view.compact_team_odds_text(100)
+      assert_equal '0,00', @view.compact_team_odds_text(0)
+      assert_equal '100,00', @view.compact_team_odds_text(100)
+      assert_equal '0,00%', @view.formatted_odds(0)
+      assert_equal '100,00%', @view.odds_title(100)
     end
   end
 
@@ -97,8 +99,8 @@ class OddsFormattingTest < Minitest::Test
       0.0000004 => '0.[06]4',
       0.0000000000876 => '0.[10]9',
       12 => '12.00',
-      100 => '100.0',
-      0 => '0.0',
+      100 => '100.00',
+      0 => '0.00',
       1.005 => '1.01',
       0.005 => '0.01',
       0.00000045 => '0.[06]5',
@@ -145,28 +147,28 @@ class OddsFormattingTest < Minitest::Test
     assert_equal 'white', @view.odds_text_color(25, 25)
   end
   def test_position_zeros_distinguish_proofs_and_missing_estimates
-    { 'en' => ['.', '0.0%', '0.0% — Reachable; no probability estimate found.', '0.0% — Reachability not resolved.'],
-      'pt-BR' => [',', '0,0%', '0,0% — Possível; estimativa de probabilidade não encontrada.', '0,0% — Possibilidade ainda não determinada.'] }.each do |locale, (separator, impossible_title, reachable_title, undecided_title)|
+    { 'en' => ['.', '0.00%', '0.00% — Reachable; no probability estimate found.', '0.00% — Reachability not resolved.'],
+      'pt-BR' => [',', '0,00%', '0,00% — Possível; estimativa de probabilidade não encontrada.', '0,00% — Possibilidade ainda não determinada.'] }.each do |locale, (separator, impossible_title, reachable_title, undecided_title)|
       I18n.with_locale(locale) do
         { 'impossible' => ['', impossible_title], 'reachable' => ['*', reachable_title], 'undecided' => ['?', undecided_title] }.each do |status, (marker, title)|
           compact = Nokogiri::HTML.fragment(@view.position_odds_html(0, status))
-          assert_equal "0#{separator}0#{marker}", compact.text
+          assert_equal "0#{separator}00#{marker}", compact.text
           assert_equal title, compact.at_css('.odds-zero')['aria-label']
           assert_equal separator, compact.at_css('.odds-compact-dot').text
           assert_equal 2, compact.css('.odds-compact-slot').size
           assert_equal marker, compact.at_css('sup.odds-zero-marker')&.text || ''
 
           expanded = Nokogiri::HTML.fragment(@view.position_odds_html(0, status, compact: false))
-          assert_equal "0#{separator}0%#{marker}", expanded.text
+          assert_equal "0#{separator}00%#{marker}", expanded.text
           assert_equal title, expanded.at_css('.odds-zero')['aria-label']
         end
       end
     end
     assert_equal @view.formatted_compact_team_odds(1e-12), @view.position_odds_html(1e-12, 'reachable')
     assert_equal '', @view.position_odds_html(nil, 'undecided')
-    assert_equal '0.0% — Reachable; no probability estimate found.', @view.position_odds_title(0, 'reachable')
+    assert_equal '0.00% — Reachable; no probability estimate found.', @view.position_odds_title(0, 'reachable')
     I18n.with_locale('pt-BR') do
-      assert_equal '0,0% — Possível; estimativa de probabilidade não encontrada.', @view.position_odds_title(0, 'reachable')
+      assert_equal '0,00% — Possível; estimativa de probabilidade não encontrada.', @view.position_odds_title(0, 'reachable')
       assert_includes @view.position_odds_html(0, 'reachable'), '<span class="odds-compact-dot">,</span>'
       assert_equal '12,35', Nokogiri::HTML.fragment(@view.formatted_compact_team_odds(12.345)).text
     end

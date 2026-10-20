@@ -119,7 +119,7 @@
 
     positionTitle: function(value, status, locale, labels) {
       if (validNumber(value) !== 0) return this.title(value, locale);
-      var zero = "0" + decimalSeparator(locale) + "0%";
+      var zero = "0" + decimalSeparator(locale) + "00%";
       if (status === "impossible") return zero;
       status = status === "reachable" ? status : "undecided";
       return zero + " — " + ((labels || {})[status] || { reachable: "Reachable; no probability estimate found.", undecided: "Reachability not resolved." }[status]);
@@ -134,9 +134,9 @@
         return '<span class="odds-zero odds-compact-number" aria-label="' + title + '">' +
           '<span class="odds-compact-integer">0</span><span class="odds-compact-dot">' + decimalSeparator(locale) + '</span>' +
           '<span class="odds-compact-fraction"><span class="odds-compact-slot">0</span>' +
-          '<span class="odds-compact-slot">' + superscript + '</span></span></span>';
+          '<span class="odds-compact-slot">0</span>' + superscript + '</span></span>';
       }
-      return '<span class="odds-zero" aria-label="' + title + '">0' + decimalSeparator(locale) + '0%' + superscript + '</span>';
+      return '<span class="odds-zero" aria-label="' + title + '">0' + decimalSeparator(locale) + '00%' + superscript + '</span>';
     },
 
     format: function(value, locale) {
@@ -176,8 +176,8 @@
     compactParts: function(value) {
       var number = validNumber(value);
       if (number === null || number < 0 || number > 100) return null;
-      if (number === 0) return { integer: "0", first: "0", second: "" };
-      if (number === 100) return { integer: "100", first: "0", second: "" };
+      if (number === 0) return { integer: "0", first: "0", second: "0" };
+      if (number === 100) return { integer: "100", first: "0", second: "0" };
 
       var cents = roundedCents(number);
       if (cents > 0 && cents < 10000) {
@@ -246,6 +246,9 @@
     title: function(value, locale) {
       var number = validNumber(value);
       if (number === null) return "";
+      if (number === 0 || number === 100) {
+        return number.toLocaleString(resolvedLocale(locale), { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%";
+      }
       if (number > 0 && number < 0.01) {
         var decimal = decimalSeparator(locale);
         var scientific = number.toExponential(3).split("e");

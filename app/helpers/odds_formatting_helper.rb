@@ -60,8 +60,8 @@ module OddsFormattingHelper
 
     value = BigDecimal(percentage.to_s)
     return nil unless value.finite? && value >= 0 && value <= 100
-    return { integer: '0', first: '0', second: '' } if value.zero?
-    return { integer: '100', first: '0', second: '' } if value == 100
+    return { integer: '0', first: '0', second: '0' } if value.zero?
+    return { integer: '100', first: '0', second: '0' } if value == 100
 
     rounded = value.round(2, BigDecimal::ROUND_HALF_UP)
     if rounded > 0 && rounded < 100
@@ -137,11 +137,11 @@ module OddsFormattingHelper
         content_tag(:span, "0", class: "odds-compact-integer") +
           content_tag(:span, I18n.t("number.format.separator", default: "."), class: "odds-compact-dot") +
           content_tag(:span, class: "odds-compact-fraction") do
-            content_tag(:span, "0", class: "odds-compact-slot") +
-              content_tag(:span, superscript, class: "odds-compact-slot")
-          end
+          content_tag(:span, "0", class: "odds-compact-slot") +
+            content_tag(:span, "0", class: "odds-compact-slot") + superscript
+        end
       else
-        "0#{I18n.t("number.format.separator", default: ".")}0%".html_safe + superscript
+        "0#{I18n.t("number.format.separator", default: ".")}00%".html_safe + superscript
       end
     end
   end
@@ -149,7 +149,7 @@ module OddsFormattingHelper
   def position_odds_title(percentage, status)
     return odds_title(percentage) unless percentage && percentage.to_f.zero?
 
-    zero = "0#{I18n.t("number.format.separator", default: ".")}0%"
+    zero = "0#{I18n.t("number.format.separator", default: ".")}00%"
     return zero if status == "impossible"
 
     "#{zero} — #{I18n.t("odds_reachability.#{status == 'reachable' ? 'reachable' : 'undecided'}")}"
@@ -163,6 +163,7 @@ module OddsFormattingHelper
     return nil if percentage.nil?
 
     value = percentage.to_f
+    return number_to_percentage(value, precision: 2) if value.zero? || value == 100
     if value > 0 && value < 0.01
       mantissa, exponent = format("%.3e", value).split("e")
       separator = I18n.t("number.format.separator", default: ".")
