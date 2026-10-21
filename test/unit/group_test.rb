@@ -65,6 +65,51 @@ class GroupTest < ActiveSupport::TestCase
     assert_kind_of Array, retrieved_group.zones, "Zones attribute should be an Array"
   end
 
+  test 'per-game table snapshots split games in the same round without changing cached round table' do
+    category = Category.create!(name: 'Same Round Category')
+    championship = Championship.create!(
+      name: 'Same Round Championship', region: :national, category: category,
+      begin: Date.today, end: Date.today + 30.days,
+      point_win: 3, point_draw: 1, point_loss: 0
+    )
+    phase = Phase.create!(name: 'Same Round Phase', championship: championship, order_by: 1, sort: 'pt,gd,name')
+    group = Group.create!(name: 'Same Round Group', phase: phase)
+    boca, vasco = nil, nil
+    Net::HTTP.stub(:get, '[]') do
+      boca = Team.create!(name: 'Boca Regression', country: 'Argentina')
+      vasco = Team.create!(name: 'Vasco Regression', country: 'Brazil')
+    end
+    TeamGroup.create!(group: group, team: boca, add_sub: 0, bias: 0)
+    TeamGroup.create!(group: group, team: vasco, add_sub: 0, bias: 0)
+    first = Game.create!(phase: phase, home: boca, away: vasco, played: true, round: 1,
+                         date: Time.zone.parse('2024-01-01 12:00'), home_score: 0, away_score: 1)
+    second = Game.create!(phase: phase, home: vasco, away: boca, played: true, round: 1,
+                          date: Time.zone.parse('2024-01-02 12:00'), home_score: 0, away_score: 2)
+
+    round_snapshots = []
+    round_table = group.team_table { |teams, games| round_snapshots << [teams, games] }
+    assert_equal 1, round_snapshots.size
+    assert_equal [first.id, second.id], round_snapshots.last[1].map(&:id)
+    assert_equal [3, 3], [round_table.find { |tg, _| tg.team_id == vasco.id }[1].points,
+                          round_table.find { |tg, _| tg.team_id == boca.id }[1].points]
+    assert_same round_table, group.team_table
+
+    per_game_snapshots = []
+    group.team_table(per_game: true) do |teams, games|
+      vasco_stats = teams.find { |tg, _| tg.team_id == vasco.id }[1]
+      boca_stats = teams.find { |tg, _| tg.team_id == boca.id }[1]
+      per_game_snapshots << {
+        game_ids: games.map(&:id),
+        points: [vasco_stats.points, boca_stats.points],
+        vasco_position: teams.index { |tg, _| tg.team_id == vasco.id } + 1
+      }
+    end
+    assert_equal [[first.id], [second.id]], per_game_snapshots.map { |snapshot| snapshot[:game_ids] }
+    assert_equal [[3, 0], [3, 3]], per_game_snapshots.map { |snapshot| snapshot[:points] }
+    assert_equal [1, 2], per_game_snapshots.map { |snapshot| snapshot[:vasco_position] }
+    assert_same round_table, group.team_table
+  end
+
 
   test 'odds backfill mode only writes odds history' do
     category = Category.create!(name: 'Backfill Category')

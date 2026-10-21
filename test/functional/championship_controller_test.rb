@@ -62,6 +62,40 @@ class ChampionshipControllerTest < Test::Unit::TestCase
     assert_equal 1, footer[17]
   end
 
+  def test_team_position_json_uses_per_game_snapshots_after_round_table_is_cached
+    category = Category.create!(name: 'Chart Snapshot Category')
+    championship = Championship.create!(
+      name: 'Chart Snapshot Championship', region: :national, category: category,
+      begin: Date.today, end: Date.today + 30.days,
+      point_win: 3, point_draw: 1, point_loss: 0
+    )
+    phase = Phase.create!(name: 'Chart Snapshot Phase', championship: championship, order_by: 1, sort: 'pt,gd,name')
+    group = Group.create!(name: 'Chart Snapshot Group', phase: phase)
+    boca, vasco = nil, nil
+    Net::HTTP.stub(:get, '[]') do
+      boca = Team.create!(name: 'Chart Boca Regression', country: 'Argentina')
+      vasco = Team.create!(name: 'Chart Vasco Regression', country: 'Brazil')
+    end
+    TeamGroup.create!(group: group, team: boca, add_sub: 0, bias: 0)
+    TeamGroup.create!(group: group, team: vasco, add_sub: 0, bias: 0)
+    Game.create!(phase: phase, home: boca, away: vasco, played: true, round: 1,
+                 date: Time.zone.parse('2024-01-01 12:00'), home_score: 0, away_score: 1)
+    Game.create!(phase: phase, home: vasco, away: boca, played: true, round: 1,
+                 date: Time.zone.parse('2024-01-02 12:00'), home_score: 0, away_score: 2)
+
+    @controller.request = @request
+    json, = @controller.send(:generate_team_json, championship, phase, group, vasco)
+    chart = JSON.parse(json)
+    position_series = chart.fetch('data').last
+    assert_equal [[1, 1], [2, 2]], position_series.fetch('data')
+    assert_equal 2, chart.fetch('tooltips').first.size
+
+    group.team_table
+    cached_json, = @controller.send(:generate_team_json, championship, phase, group, vasco)
+    cached_chart = JSON.parse(cached_json)
+    assert_equal [[1, 1], [2, 2]], cached_chart.fetch('data').last.fetch('data')
+  end
+
   def test_odds_history_json_includes_snapshot_reachability_for_points_and_zones
     snapshot = TeamGroupOddsHistory.new(
       recorded_on: Date.new(2026, 10, 11),

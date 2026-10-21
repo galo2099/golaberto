@@ -112,7 +112,7 @@ class ChampionshipController < ApplicationController
   def generate_team_json(championship, phase, group, team)
     data = []
 
-    team_table = group.team_table do |teams, games|
+    team_table = group.team_table(per_game: true) do |teams, games|
       games.select{|g| g.home_id == team.id or g.away_id == team.id}.each do |g|
         teams.each_with_index do |t,idx|
           if t[0].team_id == team.id

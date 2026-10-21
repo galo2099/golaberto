@@ -92,11 +92,13 @@ class Group < ApplicationRecord
     end
   end
 
-  def team_table
-    @team_table ||= begin
+  def team_table(per_game: false)
+    return @team_table if !per_game && instance_variable_defined?(:@team_table)
+
+    table = begin
       played_games = games.where(played: true).
           includes(:home, :away, :phase, [:phase => :championship ]).
-          order(:date)
+          order(per_game ? [:date, :id] : :date)
       stats = Hash.new
       team_groups.each do |team_group|
         stats[team_group.team.id] =
@@ -106,8 +108,8 @@ class Group < ApplicationRecord
       last_date = nil
       last_games = Array.new
       played_games.each do |g|
-        if (last_round and last_round != g.round) or
-           (!last_round and last_date and last_date != g.date)
+        if !per_game && ((last_round and last_round != g.round) or
+                         (!last_round and last_date and last_date != g.date))
           yield sort_teams(stats), last_games if block_given?
           last_games = Array.new
         end
@@ -117,11 +119,16 @@ class Group < ApplicationRecord
         stats.each_value do |s|
           s.add_game g
         end
+        if per_game
+          yield sort_teams(stats), [g] if block_given?
+        end
       end
       ret = sort_teams(stats)
-      yield ret, last_games if block_given?
+      yield ret, last_games if block_given? && !per_game
       ret
     end
+
+    per_game ? table : (@team_table = table)
   end
 
   def get_game(team_class, a, b)
