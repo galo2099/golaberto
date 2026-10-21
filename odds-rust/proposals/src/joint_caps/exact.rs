@@ -16,7 +16,7 @@ use crate::{
 use serde_json::{json, Value};
 use std::mem::size_of;
 
-const MAX_TEAMS: usize = 32;
+const MAX_TEAMS: usize = 64;
 const MAX_FIXTURES: usize = 128;
 const MAX_CAP_TEAMS: usize = 16;
 const MAX_SHARED_EDGES: usize = 32;
@@ -31,6 +31,7 @@ struct Geometry {
     target: usize,
     rank: usize,
     stride: i32,
+    win_bonus: i32,
     cap: i32,
     target_mass: f64,
     base_packed: Vec<i32>,
@@ -234,6 +235,7 @@ pub struct ExactCaps {
     target: usize,
     rank: usize,
     stride: i32,
+    win_bonus: i32,
     cap: i32,
     target_mass: f64,
     joint_mass: f64,
@@ -363,10 +365,20 @@ impl ExactCaps {
                         mask,
                         probability: fixture.prob,
                         gain_a: std::array::from_fn(|o| {
-                            packed_gain(o, fixture.home == cap_teams[a], geometry.stride)
+                            packed_gain(
+                                o,
+                                fixture.home == cap_teams[a],
+                                geometry.stride,
+                                geometry.win_bonus,
+                            )
                         }),
                         gain_b: std::array::from_fn(|o| {
-                            packed_gain(o, fixture.home == cap_teams[b], geometry.stride)
+                            packed_gain(
+                                o,
+                                fixture.home == cap_teams[b],
+                                geometry.stride,
+                                geometry.win_bonus,
+                            )
                         }),
                     });
                 }
@@ -375,7 +387,12 @@ impl ExactCaps {
                     mask,
                     probability: fixture.prob,
                     gain: std::array::from_fn(|o| {
-                        packed_gain(o, fixture.home == cap_teams[local_team], geometry.stride)
+                        packed_gain(
+                            o,
+                            fixture.home == cap_teams[local_team],
+                            geometry.stride,
+                            geometry.win_bonus,
+                        )
                     }),
                 }),
                 (None, Some(local_team)) => unary_games[local_team].push(UnaryGame {
@@ -383,7 +400,12 @@ impl ExactCaps {
                     mask,
                     probability: fixture.prob,
                     gain: std::array::from_fn(|o| {
-                        packed_gain(o, fixture.home == cap_teams[local_team], geometry.stride)
+                        packed_gain(
+                            o,
+                            fixture.home == cap_teams[local_team],
+                            geometry.stride,
+                            geometry.win_bonus,
+                        )
                     }),
                 }),
                 (None, None) => {
@@ -526,6 +548,7 @@ impl ExactCaps {
             target: geometry.target,
             rank: geometry.rank,
             stride: geometry.stride,
+            win_bonus: geometry.win_bonus,
             cap: geometry.cap,
             target_mass: geometry.target_mass,
             joint_mass: tree[1],
@@ -665,7 +688,7 @@ impl ExactCaps {
                 let hg = [
                     rules.point_loss * self.stride,
                     rules.point_draw * self.stride,
-                    rules.point_win * self.stride + 1,
+                    rules.point_win * self.stride + self.win_bonus,
                 ];
                 let ag = [hg[2], hg[1], hg[0]];
                 points[fixture.home] += hg[outcome];
@@ -759,7 +782,7 @@ fn geometry(model: &Model, cell: Cell) -> Option<Geometry> {
         || cell.team >= model.n
         || cell.rank >= model.n
         || model.keys.first() != Some(&Key::Pt)
-        || model.keys.get(1) != Some(&Key::W)
+        || !(model.keys.get(1) == Some(&Key::W) || valid_points_only_prefix(model))
         || model.request.phase.bonus_points != 0
         || (
             model.request.phase.championship.point_win,
@@ -779,13 +802,19 @@ fn geometry(model: &Model, cell: Cell) -> Option<Geometry> {
         left[fixture.home] += 1;
         left[fixture.away] += 1;
     }
+    let wins_first = model.keys.get(1) == Some(&Key::W);
     let max_wins = model
         .base
         .iter()
         .enumerate()
         .map(|(team, base)| i64::from(base.wins) + left[team] as i64)
         .max()?;
-    let stride64 = max_wins + 1;
+    let stride64 = if wins_first {
+        max_wins.checked_add(1)?
+    } else {
+        1
+    };
+    let win_bonus64 = if wins_first { 1 } else { 0 };
     if stride64 <= 0 || stride64 > i64::from(i32::MAX / 4) {
         return None;
     }
@@ -793,9 +822,14 @@ fn geometry(model: &Model, cell: Cell) -> Option<Geometry> {
     let base_packed = model
         .base
         .iter()
-        .map(|base| i32::try_from(i64::from(base.points) * stride64 + i64::from(base.wins)).ok())
+        .map(|base| {
+            let points = i64::from(base.points).checked_mul(stride64)?;
+            let wins = i64::from(base.wins).checked_mul(win_bonus64)?;
+            i32::try_from(points.checked_add(wins)?).ok()
+        })
         .collect::<Option<Vec<_>>>()?;
-    let max_future_gain = (3 * stride64 + 1).checked_mul(model.fixtures.len() as i64)?;
+    let max_future_gain = (3i64.checked_mul(stride64)?.checked_add(win_bonus64)?)
+        .checked_mul(model.fixtures.len() as i64)?;
     if base_packed.iter().any(|value| {
         i64::from(*value).abs().saturating_add(max_future_gain) >= i64::from(i32::MAX / 4)
     }) {
@@ -814,8 +848,10 @@ fn geometry(model: &Model, cell: Cell) -> Option<Geometry> {
     }
     let final_points = i64::from(model.base[target].points) + 3 * target_games.len() as i64;
     let final_wins = i64::from(model.base[target].wins) + target_games.len() as i64;
-    let cap64 = final_points * stride64 + final_wins;
-    let drop64 = 2 * stride64 + 1;
+    let cap64 = final_points
+        .checked_mul(stride64)?
+        .checked_add(final_wins.checked_mul(win_bonus64)?)?;
+    let drop64 = 2i64.checked_mul(stride64)?.checked_add(win_bonus64)?;
     if cap64.abs() >= i64::from(i32::MAX / 4) || drop64 > i64::from(i32::MAX / 4) {
         return None;
     }
@@ -855,7 +891,7 @@ fn geometry(model: &Model, cell: Cell) -> Option<Geometry> {
             seed_masks[i] = 1 << outcome;
             target_fixed.push((i, outcome as u8));
         }
-        let hg = [0, stride, 3 * stride + 1];
+        let hg = [0, stride, 3 * stride + i32::try_from(win_bonus64).ok()?];
         games.push(RankGame {
             index: i,
             home: fixture.home,
@@ -895,6 +931,7 @@ fn geometry(model: &Model, cell: Cell) -> Option<Geometry> {
         target,
         rank: cell.rank,
         stride,
+        win_bonus: win_bonus64 as i32,
         cap,
         target_mass,
         base_packed,
@@ -917,9 +954,20 @@ fn valid_score_suffix(model: &Model) -> bool {
         && model.keys[gd + 2..].iter().all(|key| {
             matches!(
                 key,
-                Key::Gp | Key::Aet | Key::Bias | Key::Name | Key::Random | Key::Head
+                Key::Gp
+                    | Key::Aet
+                    | Key::Bias
+                    | Key::Name
+                    | Key::Random
+                    | Key::Head
+                    | Key::Away
+                    | Key::W
             )
         })
+}
+
+fn valid_points_only_prefix(model: &Model) -> bool {
+    model.keys.starts_with(&[Key::Pt, Key::Gd, Key::Gf])
 }
 
 fn candidate_cases(model: &Model, geometry: &Geometry) -> Vec<Option<usize>> {
@@ -999,11 +1047,11 @@ fn strict_mass(
     }
 }
 
-fn packed_gain(outcome: usize, is_home: bool, stride: i32) -> i32 {
+fn packed_gain(outcome: usize, is_home: bool, stride: i32, win_bonus: i32) -> i32 {
     match (outcome, is_home) {
         (0, true) | (2, false) => 0,
         (1, _) => stride,
-        (2, true) | (0, false) => 3 * stride + 1,
+        (2, true) | (0, false) => 3 * stride + win_bonus,
         _ => unreachable!(),
     }
 }
@@ -1062,9 +1110,13 @@ mod tests {
     const IDS: [i32; 5] = [100, 200, 300, 400, 500];
 
     fn toy_model(ids: [i32; 5], b_points: i32) -> Model {
+        toy_model_with_sort(ids, b_points, "pt,w,gd,gf")
+    }
+
+    fn toy_model_with_sort(ids: [i32; 5], b_points: i32, sort: &str) -> Model {
         let request: Request = serde_json::from_value(json!({
             "id": 1,
-            "phase": {"sort":"pt,w,gd,gf", "championship":{
+            "phase": {"sort":sort, "championship":{
                 "point_win":3,"point_draw":1,"point_loss":0}},
             "team_groups":ids.iter().map(|id| json!({"team_id":id,"add_sub":0})).collect::<Vec<_>>(),
             "games":TOY_GAMES.iter().enumerate().map(|(i,(home,away))| json!({
@@ -1114,7 +1166,7 @@ mod tests {
     }
 
     fn brute_masses(model: &Model, plan: &ExactCaps) -> (f64, f64, usize, usize) {
-        let exception = model.indices[&plan.exceptional_id.unwrap()];
+        let exception = plan.exceptional_id.map(|id| model.indices[&id]);
         let target_fixtures = plan
             .target_fixed
             .iter()
@@ -1128,25 +1180,44 @@ mod tests {
         for mut code in 0..combinations {
             let mut outcomes = vec![0usize; model.fixtures.len()];
             let mut weight = 1.0;
-            let mut packed = model
+            let mut points = model
                 .base
                 .iter()
-                .map(|base| base.points * plan.stride + base.wins)
+                .map(|base| base.points)
                 .collect::<Vec<_>>();
+            let mut wins = model.base.iter().map(|base| base.wins).collect::<Vec<_>>();
             for (index, fixture) in model.fixtures.iter().enumerate() {
                 outcomes[index] = code % 3;
                 code /= 3;
                 let outcome = outcomes[index];
                 weight *= fixture.prob[outcome];
-                packed[fixture.home] += packed_gain(outcome, true, plan.stride);
-                packed[fixture.away] += packed_gain(outcome, false, plan.stride);
+                match outcome {
+                    0 => {
+                        points[fixture.away] += 3;
+                        wins[fixture.away] += 1;
+                    }
+                    1 => {
+                        points[fixture.home] += 1;
+                        points[fixture.away] += 1;
+                    }
+                    2 => {
+                        points[fixture.home] += 3;
+                        wins[fixture.home] += 1;
+                    }
+                    _ => unreachable!(),
+                }
             }
+            let packed = points
+                .into_iter()
+                .zip(wins)
+                .map(|(points, wins)| points * plan.stride + wins * plan.win_bonus)
+                .collect::<Vec<_>>();
             if target_fixtures.iter().any(|&index| {
                 let fixture = &model.fixtures[index];
                 let expected = if fixture.home == plan.target { 2 } else { 0 };
                 outcomes[index] != expected
             }) || packed[plan.target] != plan.cap
-                || packed[exception] <= plan.cap
+                || exception.is_some_and(|team| packed[team] <= plan.cap)
             {
                 continue;
             }
@@ -1232,26 +1303,130 @@ mod tests {
 
     #[test]
     fn bounded_construction_declines_without_work_allowance() {
-        let model = toy_model(IDS, 10);
-        let cell = Cell {
-            team: model.indices[&100],
-            rank: 1,
-        };
-        let built = ExactCaps::build(&model, cell, 0);
-        assert!(built.plan.is_none());
-        assert_eq!(built.reason, "work_budget");
-        assert_eq!(built.work, 0);
+        for sort in ["pt,w,gd,gf", "pt,gd,gf"] {
+            let model = toy_model_with_sort(IDS, 10, sort);
+            let mut model = model;
+            if sort == "pt,gd,gf" {
+                model.base[1].points = 11;
+                model.base[2].points = 13;
+            }
+            let cell = Cell {
+                team: model.indices[&100],
+                rank: 1,
+            };
+            let built = ExactCaps::build(&model, cell, 0);
+            assert!(built.plan.is_none());
+            assert_eq!(built.reason, "work_budget");
+            assert_eq!(built.work, 0);
+        }
     }
 
     #[test]
     fn rejects_packed_campaigns_that_could_overflow_domain_propagation() {
-        let mut model = toy_model(IDS, 10);
-        model.base[1].points = 180_000_000;
+        for sort in ["pt,w,gd,gf", "pt,gd,gf"] {
+            let mut model = toy_model_with_sort(IDS, 10, sort);
+            model.base[1].points = 600_000_000;
+            let cell = Cell {
+                team: model.indices[&100],
+                rank: 1,
+            };
+            assert!(ExactCaps::build(&model, cell, 50_000_000).plan.is_none());
+        }
+    }
+
+    #[test]
+    fn points_only_packing_ignores_wins_when_points_are_tied() {
+        let mut model = toy_model_with_sort(IDS, 13, "pt,gd,gf,g_away,w,name");
+        model.base[1].points = 11;
+        model.base[3].points = 6;
+        model.base[4].points = 6;
         let cell = Cell {
             team: model.indices[&100],
             rank: 1,
         };
-        assert!(ExactCaps::build(&model, cell, 50_000_000).plan.is_none());
+        let Some(geometry) = geometry(&model, cell) else {
+            panic!("points-only ranking is structurally supported");
+        };
+        assert_eq!((geometry.stride, geometry.win_bonus), (1, 0));
+        assert_eq!(packed_gain(2, true, geometry.stride, geometry.win_bonus), 3);
+        assert_eq!(packed_gain(2, true, geometry.stride, 1), 4);
+        let tied_points = 12;
+        let higher_wins_packed = tied_points * geometry.stride + 99 * geometry.win_bonus;
+        let fewer_wins_packed = tied_points * geometry.stride;
+        assert_eq!(higher_wins_packed, fewer_wins_packed);
+        assert_eq!(higher_wins_packed, geometry.cap);
+        assert!(!(higher_wins_packed < geometry.cap));
+        assert_eq!(
+            model.base[1].points * geometry.stride + model.base[1].wins * geometry.win_bonus,
+            model.base[1].points
+        );
+    }
+
+    #[test]
+    fn wins_first_keeps_deferred_bias_before_goal_difference_supported() {
+        let model = toy_model_with_sort(IDS, 10, "pt,w,bias,gd,gf");
+        let cell = Cell {
+            team: model.indices[&100],
+            rank: 1,
+        };
+        assert!(geometry(&model, cell).is_some());
+    }
+
+    #[test]
+    fn points_only_exact_cap_mass_and_strict_floor_match_exhaustive_wdl() {
+        let mut model = toy_model_with_sort(IDS, 13, "pt,gd,gf,g_away,w,name");
+        model.base[1].points = 11;
+        model.base[3].points = 6;
+        model.base[4].points = 6;
+        let cell = Cell {
+            team: model.indices[&100],
+            rank: 1,
+        };
+        let plan = ExactCaps::build(&model, cell, 50_000_000)
+            .plan
+            .expect("toy has a unique feasible case under points-only packing");
+        assert_eq!((plan.stride, plan.win_bonus), (1, 0));
+        let (upper, strict, upper_count, strict_count) = brute_masses(&model, &plan);
+        assert!(upper_count > 0);
+        assert!(strict_count > 0);
+        assert!(relative_close(plan.mass(), upper, 1e-12));
+        assert!(relative_close(plan.guaranteed_mass(), strict, 1e-12));
+        assert!(plan.strict_cv);
+        let sampled = plan.sample(&model, 128, 43);
+        assert_eq!(sampled.samples, 128);
+        assert!(sampled.weighted);
+        assert_eq!(sampled.mass.to_bits(), plan.mass().to_bits());
+    }
+
+    #[test]
+    fn proof_gated_caps_support_thirty_six_teams() {
+        let base = toy_model(IDS, 10);
+        let mut request = base.request.clone();
+        let target_group = request.team_groups.remove(0);
+        for id in 600..631 {
+            let padding_team = serde_json::from_value(json!({"team_id":id,"add_sub":0}))
+                .expect("valid inert padding team");
+            request.team_groups.push(padding_team);
+        }
+        request.team_groups.push(target_group);
+        let mut model = Model::new(request).unwrap();
+        for id in IDS {
+            model.base[model.indices[&id]] = base.base[base.indices[&id]];
+        }
+        for id in 600..631 {
+            model.base[model.indices[&id]].points = 100;
+        }
+        let cell = Cell {
+            team: model.indices[&100],
+            rank: 32,
+        };
+        let plan = ExactCaps::build(&model, cell, 50_000_000)
+            .plan
+            .expect("31 inert guaranteed-ahead teams preserve the toy proof");
+        assert_eq!(model.n, 36);
+        assert_eq!(model.indices[&100], 35);
+        assert_eq!(plan.exceptional_id, Some(200));
+        assert_eq!(plan.rank, 32);
     }
 
     #[test]
@@ -1267,7 +1442,10 @@ mod tests {
 
     #[test]
     fn chapecoense_snapshot_exact_cap_masses_match_reproducible_counter() {
-        let request: Request = serde_json::from_str(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../tests/fixtures/group-16498-2026-10-18.json")))
+        let request: Request = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../tests/fixtures/group-16498-2026-10-18.json"
+        )))
         .unwrap();
         let model = Model::new(request).unwrap();
         let cell = Cell {

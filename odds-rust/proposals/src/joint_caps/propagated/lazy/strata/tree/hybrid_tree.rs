@@ -360,7 +360,7 @@ fn parent_context(
 fn build_with_fixed(
     builder: &mut LazyJoint,
     parent: &Leaf,
-    case: (bool, u32, u32),
+    case: (bool, u64, u64),
     new_fixed: &[(usize, u8)],
     work: &mut usize,
     cap: usize,

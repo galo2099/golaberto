@@ -273,6 +273,14 @@ fn work_cost_from_estimates(p: &BranchStrata, m: &Model, ns: &[usize], paired: b
         .sum()
 }
 
+fn final_pair_per_draw_cost(pilot_cost: usize, draw_upper: usize, use_draw_upper: bool) -> usize {
+    if use_draw_upper {
+        pilot_cost.max(draw_upper)
+    } else {
+        pilot_cost
+    }
+}
+
 /// Spend the residual confirmation bank on up to four complete target trees.
 /// The caller invokes this only after all native and family fallback work.
 pub(super) fn run(
@@ -566,9 +574,17 @@ pub(super) fn run(
             .iter()
             .map(|sample| sample.result.std_err * (sample.result.samples as f64).sqrt())
             .collect();
+        let use_draw_upper = m.n > 32 && budget::modeled();
         let costs: Vec<_> = pilots
             .iter()
-            .map(|sample| budget::per_draw(&sample.result))
+            .enumerate()
+            .map(|(i, sample)| {
+                final_pair_per_draw_cost(
+                    budget::per_draw(&sample.result),
+                    p.draw_work(m, i, true),
+                    use_draw_upper,
+                )
+            })
             .collect();
         let mut total = nominal_final_draws;
         let pair_bank_free = bank.limit.saturating_sub(bank.reserved);

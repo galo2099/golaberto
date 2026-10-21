@@ -267,10 +267,10 @@ fn supported_prefix(keys: &[Key]) -> bool {
 
 fn eligibility_reason(
     above: bool,
-    selected: u32,
-    mask: u32,
+    selected: u64,
+    mask: u64,
     max_exceptions: usize,
-    ambiguous: u32,
+    ambiguous: u64,
     rival: usize,
 ) -> Option<&'static str> {
     if above {

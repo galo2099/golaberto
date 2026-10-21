@@ -99,7 +99,9 @@ fn compute(m: &Model, cell: Cell, budget: usize) -> Certified {
         1
     };
     if m.ids.len() != m.n
-        || m.n > 32
+        // RankProof stores conflict decisions in at least two u64 words and
+        // supports 64 ranked teams. Keep this gate aligned with that contract.
+        || m.n > 64
         || m.fixtures.len() > 256
         || stride <= 0
         || left
@@ -204,6 +206,25 @@ mod tests {
     fn snapshot() -> Model {
         Model::new(serde_json::from_str::<Request>(include_str!("../../../experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16498-44eabb47.json")).unwrap()).unwrap()
     }
+    fn snapshot_with_36_teams() -> Model {
+        let mut request: Request = serde_json::from_str(include_str!("../../../experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16498-44eabb47.json")).unwrap();
+        let mut id = request
+            .team_groups
+            .iter()
+            .map(|team| team.team_id)
+            .max()
+            .unwrap()
+            + 1;
+        while request.team_groups.len() < 36 {
+            request.team_groups.push(crate::model::Team {
+                team_id: id,
+                add_sub: 0,
+                bias: 0,
+            });
+            id += 1;
+        }
+        Model::new(request).unwrap()
+    }
     #[test]
     fn certified_zero_point_path_is_cached() {
         let m = snapshot();
@@ -235,5 +256,25 @@ mod tests {
         assert!(c.allows(58 * 29 + 16));
         let empty = compute(&m, cell, 0);
         assert!(empty.lower.is_none() && empty.upper.is_none());
+    }
+
+    #[test]
+    fn certifies_target_limits_above_32_teams() {
+        let m = snapshot_with_36_teams();
+        assert_eq!(m.n, 36);
+        let cell = Cell {
+            team: m.indices[&16],
+            rank: 15,
+        };
+        let c = certify(&m, cell, NODE_LIMIT);
+        assert!(c.upper.is_some());
+        assert!(c.nodes <= NODE_LIMIT);
+        let base = m.base[cell.team].points * 29 + m.base[cell.team].wins;
+        assert!(c.allows(i64::from(base)));
+        assert!(!c.allows(i64::from(base + 29)));
+        // Equal packed totals remain admissible; the proof counts ties in the
+        // rivals' favor and can only establish a strict total boundary.
+        assert!(c.allows(c.upper.unwrap()));
+        assert_eq!(certify(&m, cell, 1).upper, c.upper);
     }
 }

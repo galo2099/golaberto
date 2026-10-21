@@ -79,7 +79,7 @@ impl LazyJoint {
                 m.request.phase.championship.point_loss,
             ) == (3, 1, 0)
             && m.ids.len() == m.n
-            && m.n <= 32
+            && m.n <= 64
             && m.fixtures.len() <= 256
             && m.fixtures.iter().all(|g| g.home != g.away)
             && cell.team < m.n

@@ -90,14 +90,14 @@ pub(super) fn leaf_log_mass(
     comparators: &[[f64; 3]],
     rank: usize,
     above: bool,
-    mask: u32,
-    selected: u32,
+    mask: u64,
+    selected: u64,
     target_team: usize,
     work: &mut usize,
     limit: usize,
 ) -> Option<f64> {
     let n = comparators.len() + 1;
-    let target_bit = 1u32.checked_shl(target_team as u32).unwrap_or(0);
+    let target_bit = 1u64.checked_shl(target_team as u32).unwrap_or(0);
     let mut dp = vec![f64::NEG_INFINITY; rank.saturating_add(1).min(n)];
     if rank >= dp.len() {
         return Some(f64::NEG_INFINITY);
@@ -114,7 +114,7 @@ pub(super) fn leaf_log_mass(
         if !increment(work, limit, dp.len()) {
             return None;
         }
-        let bit = 1u32 << team;
+        let bit = 1u64 << team;
         let restricted = selected & bit != 0;
         let strict = mask & bit != 0;
         let (ahead, behind) = if !restricted {

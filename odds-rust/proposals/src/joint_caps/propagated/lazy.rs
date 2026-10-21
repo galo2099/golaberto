@@ -140,8 +140,8 @@ type JointKey = (Vec<(usize, [u64; 3])>, Vec<(i32, i32)>);
 #[derive(Clone)]
 struct Cases {
     above: bool,
-    selected: u32,
-    patterns: Vec<(u32, Pattern, f64)>,
+    selected: u64,
+    patterns: Vec<(u64, Pattern, f64)>,
     mass: f64,
     complete: bool,
 }
@@ -287,7 +287,7 @@ impl LazyJoint {
             || m.request.phase.bonus_points != 0
             || (rules.point_win, rules.point_draw, rules.point_loss) != (3, 1, 0)
             || m.ids.len() != m.n
-            || m.n > 32
+            || m.n > 64
             || m.fixtures.len() > 256
             || m.fixtures.iter().any(|g| g.home == g.away)
         {
@@ -596,7 +596,7 @@ impl LazyJoint {
         key: &[u8],
         teams: usize,
         anchor: Option<&[u8]>,
-        case: Option<(bool, u32, u32)>,
+        case: Option<(bool, u64, u64)>,
     ) -> std::result::Result<Option<Pattern>, ()> {
         self.build_bounded(key, teams, anchor, case, None, false)
     }
@@ -608,7 +608,7 @@ impl LazyJoint {
         key: &[u8],
         teams: usize,
         anchor: Option<&[u8]>,
-        case: Option<(bool, u32, u32)>,
+        case: Option<(bool, u64, u64)>,
         explicit_bounds: Option<(&[i32], &[i32])>,
         bound_guidance: bool,
     ) -> std::result::Result<Option<Pattern>, ()> {
@@ -627,7 +627,7 @@ impl LazyJoint {
         key: &[u8],
         teams: usize,
         anchor: Option<&[u8]>,
-        case: Option<(bool, u32, u32)>,
+        case: Option<(bool, u64, u64)>,
         explicit_bounds: Option<(&[i32], &[i32])>,
         bound_guidance: bool,
         mut domain_work: Option<&mut crate::domains::DomainWork>,
@@ -1081,7 +1081,7 @@ impl LazyJoint {
         }
     }
     pub fn add_cases(&mut self, m: &Model, witnesses: &[Vec<u8>]) {
-        if m.n > 32 {
+        if m.n > 64 {
             return;
         }
         let hard = std::env::var("RUST_ODDS_LAZY_CARDINALITY_CASES").as_deref() == Ok("hard");
@@ -1125,7 +1125,7 @@ impl LazyJoint {
             } else {
                 m.n - 1 - self.cell.rank
             };
-            let mut mandatory = 0u32;
+            let mut mandatory = 0u64;
             let mut ambiguous = Vec::new();
             for &t in &rivals {
                 let lo = points[t] + d.min[0][t];
@@ -1147,7 +1147,7 @@ impl LazyJoint {
             let complete = counts.iter().sum::<usize>() <= limit;
             let mut masks = Vec::new();
             if complete {
-                fn enumerate(ts: &[usize], i: usize, left: usize, mask: u32, out: &mut Vec<u32>) {
+                fn enumerate(ts: &[usize], i: usize, left: usize, mask: u64, out: &mut Vec<u64>) {
                     if i == ts.len() {
                         out.push(mask);
                         return;
@@ -1183,7 +1183,7 @@ impl LazyJoint {
                                 p[t] < p[self.cell.team]
                             }
                         })
-                        .fold(0u32, |s, &t| s | (1 << t));
+                        .fold(0u64, |s, &t| s | (1 << t));
                     if mask.count_ones() as usize <= allowed && !masks.contains(&mask) {
                         masks.push(mask);
                     }
@@ -1191,7 +1191,7 @@ impl LazyJoint {
             }
             let mut cases = Cases {
                 above,
-                selected: u32::MAX,
+                selected: u64::MAX,
                 patterns: Vec::new(),
                 mass: 0.,
                 complete,
@@ -1201,7 +1201,7 @@ impl LazyJoint {
                     cases.complete = false;
                     break;
                 }
-                match self.build(&key, m.n, None, Some((above, mask, u32::MAX))) {
+                match self.build(&key, m.n, None, Some((above, mask, u64::MAX))) {
                     Ok(Some(p)) => {
                         let score = p.mass * p.joint.residual_hint.max(1e-80);
                         cases.mass += score;
@@ -2577,7 +2577,7 @@ impl LazyJoint {
                                             points[t] < points[self.cell.team]
                                         }
                                 })
-                                .fold(0u32, |s, t| s | (1 << t));
+                                .fold(0u64, |s, t| s | (1 << t));
                             case_index = cases.patterns.iter().position(|(s, _, _)| *s == mask);
                         }
                         if let Some(ix) = case_index {

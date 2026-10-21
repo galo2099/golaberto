@@ -25,6 +25,7 @@ use golaberto_odds_core::config::{profile_default, resolve_profile, resolve_valu
 mod confirmations;
 mod early_roots;
 pub(crate) mod exact_caps;
+mod large_training;
 pub use golaberto_odds_core::family_config;
 pub(crate) mod order_cohorts;
 mod overflow_trees;
@@ -298,171 +299,191 @@ pub(crate) fn run_with_positive_baselines(
     } else {
         cells.len()
     };
+    let large_mode = m.n > 32 && budget::modeled();
     let native_training_audit_enabled = family_fallback_enabled() && budget::modeled();
     let setup_audit_extra_work = AtomicUsize::new(0);
     let setup_audit_complete = AtomicU8::new(1);
     let unmetered_constructor_failures = AtomicUsize::new(0);
-    let plans = parallel(cells.len().min(training_limit), workers, |i| {
-        let cell = cells[i];
-        if !deterministic && start.elapsed().as_secs_f64() * 1000. >= allowance_ms * 0.65 {
-            return (None, 0);
-        }
-        let start = Instant::now();
-        let stream = derive(
-            seed,
-            &format!("rare-tail-pilot-{}-{}", m.ids[cell.team], cell.rank),
-        );
-        let union = if mode != "lazy" {
-            let limits = Limits {
-                minimum_forced: 0,
-                rivals: value("RUST_ODDS_RARE_TAIL_UNION_RIVALS")
-                    .parse::<usize>()
-                    .ok()
-                    .filter(|&v| v >= 1 && v <= 6)
-                    .unwrap_or(6),
-                target_patterns: value("RUST_ODDS_RARE_TAIL_UNION_PATTERNS")
-                    .parse::<usize>()
-                    .ok()
-                    .filter(|&v| (1..=256).contains(&v))
-                    .unwrap_or(256),
-                feasible_cases: 128,
-            };
-            if native_training_audit_enabled {
-                let (result, setup_work) =
-                    PropagatedJoint::configured_with_setup_work(m, cell, limits);
-                if let Some(setup_work) = setup_work {
-                    let charged = result.as_ref().map_or(setup_work, |plan| {
-                        setup_work.saturating_sub(plan.setup_work())
-                    });
-                    if !add_atomic_units(&setup_audit_extra_work, charged) {
+    let (plans, large_training_work, large_training_audit_valid) = if large_mode {
+        let capacity = budget::capacity(m, scaled(2 * REFERENCE_DRAWS, fraction));
+        let (trained, charged, valid) =
+            large_training::train(m, &cells, training_limit, workers, seed, capacity, log);
+        (
+            trained.into_iter().map(|plan| (Some(plan), 0)).collect(),
+            charged,
+            valid,
+        )
+    } else {
+        let plans = parallel(cells.len().min(training_limit), workers, |i| {
+            let cell = cells[i];
+            if !deterministic && start.elapsed().as_secs_f64() * 1000. >= allowance_ms * 0.65 {
+                return (None, 0);
+            }
+            let start = Instant::now();
+            let stream = derive(
+                seed,
+                &format!("rare-tail-pilot-{}-{}", m.ids[cell.team], cell.rank),
+            );
+            let union = if mode != "lazy" {
+                let limits = Limits {
+                    minimum_forced: 0,
+                    rivals: value("RUST_ODDS_RARE_TAIL_UNION_RIVALS")
+                        .parse::<usize>()
+                        .ok()
+                        .filter(|&v| v >= 1 && v <= 6)
+                        .unwrap_or(6),
+                    target_patterns: value("RUST_ODDS_RARE_TAIL_UNION_PATTERNS")
+                        .parse::<usize>()
+                        .ok()
+                        .filter(|&v| (1..=256).contains(&v))
+                        .unwrap_or(256),
+                    feasible_cases: 128,
+                };
+                if native_training_audit_enabled {
+                    let (result, setup_work) =
+                        PropagatedJoint::configured_with_setup_work(m, cell, limits);
+                    if let Some(setup_work) = setup_work {
+                        let charged = result.as_ref().map_or(setup_work, |plan| {
+                            setup_work.saturating_sub(plan.setup_work())
+                        });
+                        if !add_atomic_units(&setup_audit_extra_work, charged) {
+                            setup_audit_complete.store(0, Ordering::Relaxed);
+                        }
+                    } else {
                         setup_audit_complete.store(0, Ordering::Relaxed);
                     }
+                    result.ok()
                 } else {
-                    setup_audit_complete.store(0, Ordering::Relaxed);
+                    PropagatedJoint::configured(m, cell, limits).ok()
                 }
-                result.ok()
             } else {
-                PropagatedJoint::configured(m, cell, limits).ok()
-            }
-        } else {
-            None
-        };
-        let mut candidate = union.map(|p| {
-            let clock = Instant::now();
-            let r = p.sample(m, if mode == "union" { 1500 } else { 1000 }, stream, true);
-            (Plan::Union(p), r, clock.elapsed().as_secs_f64() * 1000.)
-        });
-        let mut training_work = candidate
-            .as_ref()
-            .map_or(0, |p| p.0.setup_work() + p.1.operations.units());
-        let mut pilot_work = candidate.as_ref().map_or(0, |p| p.1.work);
-        if mode != "union" && candidate.as_ref().is_none_or(|p| p.1.ess < 25.) {
-            let seeds: Vec<_> = witnesses
-                .iter()
-                .filter(|(_, r)| r[cell.team] == cell.rank)
-                .map(|(o, _)| o.clone())
-                .collect();
-            if let Some(mut p) = LazyJoint::new_shared(
-                m,
-                cell,
-                derive(
-                    seed,
-                    &format!("rare-tail-setup-{}-{}", m.ids[cell.team], cell.rank),
-                ),
-                &seeds,
-                32,
-                shared.clone(),
-            ) {
+                None
+            };
+            let mut candidate = union.map(|p| {
                 let clock = Instant::now();
-                let fit_roots = !extension && value("RUST_ODDS_RARE_TAIL_RETRY") == "roots";
-                let (mut r, moments) = if fit_roots {
-                    let (r, moments) = p.sample_training(m, 1000, derive(stream, "lazy"));
-                    (r, Some(moments))
-                } else {
-                    (p.sample(m, 1000, derive(stream, "lazy")), None)
-                };
-                let mut pilot_ms = clock.elapsed().as_secs_f64() * 1000.;
-                training_work += r.operations.units();
-                pilot_work += r.work;
-                if value("RUST_ODDS_LAZY_SUBSET") == "adaptive" && r.ess < 12. {
-                    // Sparse pilot hits contain too little branch information.
-                    // Keep the existing witness/alternate-mode retry for them.
-                    let fitted =
-                        r.hits >= 30 && moments.as_ref().is_some_and(|s| p.fit_root_allocation(s));
-                    if !fitted {
-                        p.add_alternates(m, &seeds);
-                    }
+                let r = p.sample(m, if mode == "union" { 1500 } else { 1000 }, stream, true);
+                (Plan::Union(p), r, clock.elapsed().as_secs_f64() * 1000.)
+            });
+            let mut training_work = candidate
+                .as_ref()
+                .map_or(0, |p| p.0.setup_work() + p.1.operations.units());
+            let mut pilot_work = candidate.as_ref().map_or(0, |p| p.1.work);
+            if mode != "union" && candidate.as_ref().is_none_or(|p| p.1.ess < 25.) {
+                let seeds: Vec<_> = witnesses
+                    .iter()
+                    .filter(|(_, r)| r[cell.team] == cell.rank)
+                    .map(|(o, _)| o.clone())
+                    .collect();
+                if let Some(mut p) = LazyJoint::new_shared(
+                    m,
+                    cell,
+                    derive(
+                        seed,
+                        &format!("rare-tail-setup-{}-{}", m.ids[cell.team], cell.rank),
+                    ),
+                    &seeds,
+                    32,
+                    shared.clone(),
+                ) {
                     let clock = Instant::now();
-                    let alt = p.sample(m, 1000, derive(stream, "multimode"));
-                    let alt_ms = clock.elapsed().as_secs_f64() * 1000.;
-                    training_work += alt.operations.units();
-                    pilot_work += alt.work;
-                    if alt.ess > r.ess {
-                        r = alt;
-                        pilot_ms = alt_ms;
+                    let fit_roots = !extension && value("RUST_ODDS_RARE_TAIL_RETRY") == "roots";
+                    let (mut r, moments) = if fit_roots {
+                        let (r, moments) = p.sample_training(m, 1000, derive(stream, "lazy"));
+                        (r, Some(moments))
                     } else {
-                        if fitted {
-                            p.clear_root_allocation();
+                        (p.sample(m, 1000, derive(stream, "lazy")), None)
+                    };
+                    let mut pilot_ms = clock.elapsed().as_secs_f64() * 1000.;
+                    training_work += r.operations.units();
+                    pilot_work += r.work;
+                    if value("RUST_ODDS_LAZY_SUBSET") == "adaptive" && r.ess < 12. {
+                        // Sparse pilot hits contain too little branch information.
+                        // Keep the existing witness/alternate-mode retry for them.
+                        let fitted = r.hits >= 30
+                            && moments.as_ref().is_some_and(|s| p.fit_root_allocation(s));
+                        if !fitted {
+                            p.add_alternates(m, &seeds);
+                        }
+                        let clock = Instant::now();
+                        let alt = p.sample(m, 1000, derive(stream, "multimode"));
+                        let alt_ms = clock.elapsed().as_secs_f64() * 1000.;
+                        training_work += alt.operations.units();
+                        pilot_work += alt.work;
+                        if alt.ess > r.ess {
+                            r = alt;
+                            pilot_ms = alt_ms;
                         } else {
-                            p.clear_alternates();
+                            if fitted {
+                                p.clear_root_allocation();
+                            } else {
+                                p.clear_alternates();
+                            }
                         }
                     }
-                }
-                if std::env::var("RUST_ODDS_LAZY_FIXTURE_BIAS").as_deref() == Ok("1") && r.ess < 12.
-                {
-                    p.add_fixture_bias(m, &seeds);
-                    let clock = Instant::now();
-                    let biased = p.sample(m, 1000, derive(stream, "fixture-bias"));
-                    let biased_ms = clock.elapsed().as_secs_f64() * 1000.;
-                    training_work += biased.operations.units();
-                    pilot_work += biased.work;
-                    if biased.ess > r.ess {
-                        r = biased;
-                        pilot_ms = biased_ms;
-                    } else {
-                        p.clear_bias();
+                    if std::env::var("RUST_ODDS_LAZY_FIXTURE_BIAS").as_deref() == Ok("1")
+                        && r.ess < 12.
+                    {
+                        p.add_fixture_bias(m, &seeds);
+                        let clock = Instant::now();
+                        let biased = p.sample(m, 1000, derive(stream, "fixture-bias"));
+                        let biased_ms = clock.elapsed().as_secs_f64() * 1000.;
+                        training_work += biased.operations.units();
+                        pilot_work += biased.work;
+                        if biased.ess > r.ess {
+                            r = biased;
+                            pilot_ms = biased_ms;
+                        } else {
+                            p.clear_bias();
+                        }
                     }
-                }
-                if (std::env::var("RUST_ODDS_LAZY_CARDINALITY_CASES").as_deref() == Ok("1")
-                    && r.ess < 12.)
-                    || (std::env::var("RUST_ODDS_LAZY_CARDINALITY_CASES").as_deref() == Ok("hard")
-                        && r.ess < 2.)
-                {
-                    p.add_cases(m, &seeds);
-                    let clock = Instant::now();
-                    let case = p.sample(m, 1000, derive(stream, "cardinality-cases"));
-                    let case_ms = clock.elapsed().as_secs_f64() * 1000.;
-                    training_work += case.operations.units();
-                    pilot_work += case.work;
-                    if case.ess > r.ess {
-                        r = case;
-                        pilot_ms = case_ms;
-                    } else {
-                        p.clear_cases();
+                    if (std::env::var("RUST_ODDS_LAZY_CARDINALITY_CASES").as_deref() == Ok("1")
+                        && r.ess < 12.)
+                        || (std::env::var("RUST_ODDS_LAZY_CARDINALITY_CASES").as_deref()
+                            == Ok("hard")
+                            && r.ess < 2.)
+                    {
+                        p.add_cases(m, &seeds);
+                        let clock = Instant::now();
+                        let case = p.sample(m, 1000, derive(stream, "cardinality-cases"));
+                        let case_ms = clock.elapsed().as_secs_f64() * 1000.;
+                        training_work += case.operations.units();
+                        pilot_work += case.work;
+                        if case.ess > r.ess {
+                            r = case;
+                            pilot_ms = case_ms;
+                        } else {
+                            p.clear_cases();
+                        }
                     }
+                    training_work += p.setup_work();
+                    if candidate.as_ref().is_none_or(|v| r.ess > v.1.ess) {
+                        candidate = Some((Plan::Lazy(p), r, pilot_ms));
+                    }
+                } else if native_training_audit_enabled {
+                    unmetered_constructor_failures.fetch_add(1, Ordering::Relaxed);
                 }
-                training_work += p.setup_work();
-                if candidate.as_ref().is_none_or(|v| r.ess > v.1.ess) {
-                    candidate = Some((Plan::Lazy(p), r, pilot_ms));
-                }
-            } else if native_training_audit_enabled {
-                unmetered_constructor_failures.fetch_add(1, Ordering::Relaxed);
             }
-        }
-        let setup_ms = start.elapsed().as_secs_f64() * 1000.;
-        emit(
-            log,
-            "rust_odds_rare_tail_training",
-            json!({"group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,"training_ms":setup_ms,"pilot_work":pilot_work,"training_work_units":training_work,"pilot":candidate.as_ref().map(|(p,r,ms)|json!({"hits":r.hits,"ess":r.ess,"sampling_ms":ms,"setup_work":p.setup_work(),"cost_per_draw":budget::per_draw(r),"operations":json!({"fixtures":r.operations.fixtures,"guidance":r.operations.guidance,"ranking":r.operations.ranking}),"plan":p.describe(m)}))}),
-        );
-        (
-            candidate.map(|(plan, r, pilot_ms)| (cell, plan, r, setup_ms, pilot_work, pilot_ms)),
-            training_work,
-        )
-    });
-    let mut training_work_units: usize = plans.iter().map(|p| p.1).sum();
+            let setup_ms = start.elapsed().as_secs_f64() * 1000.;
+            emit(
+                log,
+                "rust_odds_rare_tail_training",
+                json!({"group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,"training_ms":setup_ms,"pilot_work":pilot_work,"training_work_units":training_work,"pilot":candidate.as_ref().map(|(p,r,ms)|json!({"hits":r.hits,"ess":r.ess,"sampling_ms":ms,"setup_work":p.setup_work(),"cost_per_draw":budget::per_draw(r),"operations":json!({"fixtures":r.operations.fixtures,"guidance":r.operations.guidance,"ranking":r.operations.ranking}),"plan":p.describe(m)}))}),
+            );
+            (
+                candidate
+                    .map(|(plan, r, pilot_ms)| (cell, plan, r, setup_ms, pilot_work, pilot_ms)),
+                training_work,
+            )
+        });
+        (plans, 0, true)
+    };
+    if !large_training_audit_valid {
+        setup_audit_complete.store(0, Ordering::Relaxed);
+    }
+    let mut training_work_units: usize =
+        large_training_work.saturating_add(plans.iter().map(|p| p.1).sum::<usize>());
     let mut plans: Vec<_> = plans.into_iter().filter_map(|p| p.0).collect();
-    if std::env::var("RUST_ODDS_RARE_TAIL_REUSE").as_deref() == Ok("1") {
+    if !large_mode && std::env::var("RUST_ODDS_RARE_TAIL_REUSE").as_deref() == Ok("1") {
         let seasons: Vec<_> = plans
             .iter()
             .filter_map(|p| p.2.witness.as_ref())

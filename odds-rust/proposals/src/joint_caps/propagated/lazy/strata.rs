@@ -125,8 +125,8 @@ fn secondary(
     rivals: &[usize],
     initial: &Domains,
     above: bool,
-    mask: u32,
-    selected: u32,
+    mask: u64,
+    selected: u64,
 ) -> std::result::Result<Option<(usize, Vec<Pattern>)>, String> {
     let mut work = 0;
     secondary_with_options(
@@ -152,8 +152,8 @@ pub(super) fn rival_path_partition(
     rivals: &[usize],
     initial: &Domains,
     above: bool,
-    mask: u32,
-    selected: u32,
+    mask: u64,
+    selected: u64,
     work_limit: usize,
 ) -> (
     std::result::Result<Option<(usize, Vec<Pattern>)>, String>,
@@ -174,8 +174,8 @@ fn secondary_with_options(
     rivals: &[usize],
     initial: &Domains,
     above: bool,
-    mask: u32,
-    selected: u32,
+    mask: u64,
+    selected: u64,
     path_limit: usize,
     require_low_conditional_mass: bool,
     work_limit: usize,
@@ -586,8 +586,8 @@ impl BranchStrata {
                 ts: &[usize],
                 i: usize,
                 left: usize,
-                mask: u32,
-                out: &mut Vec<u32>,
+                mask: u64,
+                out: &mut Vec<u64>,
             ) -> std::result::Result<(), String> {
                 if out.len() >= 256 {
                     return Err("case enumeration budget exhausted".into());
@@ -604,7 +604,7 @@ impl BranchStrata {
             }
             let mut cases = Vec::new();
             masks(&ambiguous, 0, left, 0, &mut cases)?;
-            let selected = ambiguous.iter().fold(0u32, |s, &t| s | (1 << t));
+            let selected = ambiguous.iter().fold(0u64, |s, &t| s | (1 << t));
             for mask in cases {
                 attempted += 1;
                 if attempted > 256 {
@@ -1580,6 +1580,158 @@ pub fn combine(samples: &[BranchSample]) -> Result {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn padded_three_team_model(team_count: usize) -> Model {
+        let active = [0usize, 1, team_count - 1];
+        let games = [
+            (active[0], active[1]),
+            (active[0], active[2]),
+            (active[1], active[2]),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(i, (home, away))| {
+            json!({
+                "id":i,"home_id":home,"away_id":away,"home_power":1.1,"away_power":0.9
+            })
+        })
+        .collect::<Vec<_>>();
+        let request: Request = serde_json::from_value(json!({
+            "id": 938,
+            "phase": {"sort":"pt,w,bias", "championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+            "team_groups": (0..team_count).map(|team| {
+                let add_sub = match team {
+                    t if t == active[0] => 0,
+                    t if t == active[1] => 1,
+                    t if t == active[2] => 2,
+                    _ => 100,
+                };
+                json!({"team_id":team,"add_sub":add_sub,"bias":team})
+            }).collect::<Vec<_>>(),
+            "games": games
+        })).unwrap();
+        Model::new(request).unwrap()
+    }
+
+    #[test]
+    fn high_team_masks_partition_and_sample_the_padded_small_model() {
+        for team_count in [36usize, 64] {
+            let m = padded_three_team_model(team_count);
+            let active = [0usize, 1, team_count - 1];
+            let mut exact_by_rank = vec![0.0; team_count];
+            for mut code in 0..27 {
+                let mut out = vec![0; m.fixtures.len()];
+                let mut mass = 1.0;
+                for (i, game) in m.fixtures.iter().enumerate() {
+                    let outcome = code % 3;
+                    code /= 3;
+                    out[i] = outcome as u8;
+                    mass *= game.prob[outcome];
+                }
+                exact_by_rank[canonical_ranks(&m, &out)[0]] += mass;
+            }
+            let target_ranks = exact_by_rank
+                .iter()
+                .enumerate()
+                .filter_map(|(rank, &mass)| (mass > 0.0).then_some(rank))
+                .collect::<Vec<_>>();
+            let mut exercised_high_exception = false;
+            for rank in target_ranks {
+                let plan = BranchStrata::new(
+                    &m,
+                    Cell {
+                        team: active[0],
+                        rank,
+                    },
+                    8801,
+                    4,
+                )
+                .unwrap();
+                let desc = plan.describe(&m);
+                exercised_high_exception |= desc["strata"].as_array().unwrap().iter().any(|s| {
+                    s["exceptions"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .any(|id| id.as_i64() == Some(m.ids[active[2]] as i64))
+                });
+
+                let mut covered = 0.0;
+                for mut code in 0..27 {
+                    let mut out = vec![0; m.fixtures.len()];
+                    let mut mass = 1.0;
+                    for (i, game) in m.fixtures.iter().enumerate() {
+                        let outcome = code % 3;
+                        code /= 3;
+                        out[i] = outcome as u8;
+                        mass *= game.prob[outcome];
+                    }
+                    if canonical_ranks(&m, &out)[active[0]] != rank {
+                        continue;
+                    }
+                    let mut memberships = 0;
+                    for stratum in &plan.strata {
+                        let pattern = &stratum.pattern;
+                        let games = pattern
+                            .joint
+                            .games
+                            .iter()
+                            .chain(&pattern.guide.games)
+                            .collect::<Vec<_>>();
+                        if pattern.fixed.iter().any(|&(i, want)| out[i] != want)
+                            || games
+                                .iter()
+                                .any(|game| game.prob[out[game.index] as usize] <= 0.)
+                        {
+                            continue;
+                        }
+                        let mut totals = pattern.base.clone();
+                        for game in games {
+                            let outcome = out[game.index] as usize;
+                            totals[game.home] += game.hg[outcome];
+                            totals[game.away] += game.ag[outcome];
+                        }
+                        if (0..m.n).all(|team| {
+                            totals[team] >= pattern.lower[team]
+                                && totals[team] <= pattern.upper[team]
+                        }) {
+                            memberships += 1;
+                        }
+                    }
+                    assert_eq!(
+                        memberships, 1,
+                        "{team_count} teams rank {rank}, outcome {out:?}"
+                    );
+                    covered += mass;
+                }
+                assert!((covered - exact_by_rank[rank]).abs() < 1e-12);
+
+                let samples = (0..plan.len())
+                    .map(|i| plan.sample(&m, i, 4000, 9000 + i as i64 * 31, false, false))
+                    .collect::<Vec<_>>();
+                let estimate = combine(&samples);
+                assert!(
+                    (estimate.probability - exact_by_rank[rank]).abs()
+                        < 6.0 * estimate.std_err + 1e-5,
+                    "{team_count} teams rank {rank}: {} vs {}",
+                    estimate.probability,
+                    exact_by_rank[rank]
+                );
+            }
+            assert!(
+                exercised_high_exception,
+                "no high-index exception exercised at {team_count} teams"
+            );
+        }
+    }
+
+    #[test]
+    fn team_mask_capacity_rejects_sixty_five_teams() {
+        let m = padded_three_team_model(65);
+        assert!(LazyJoint::new(&m, Cell { team: 0, rank: 0 }, 1, &[], 1).is_none());
+        assert!(BranchStrata::new(&m, Cell { team: 0, rank: 0 }, 1, 1).is_err());
+    }
+
     use crate::{conditioned::canonical_ranks, model::Request};
 
     #[test]

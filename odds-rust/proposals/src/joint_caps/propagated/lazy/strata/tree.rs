@@ -18,9 +18,9 @@ struct Leaf {
     root: Vec<u8>,
     root_index: usize,
     above: bool,
-    mask: u32,
-    selected: u32,
-    ambiguous: u32,
+    mask: u64,
+    selected: u64,
+    ambiguous: u64,
     max_exceptions: usize,
     pattern: Pattern,
     frozen: bool,
@@ -158,11 +158,11 @@ fn filter_complete_roots(
 }
 
 fn branch_ready(leaf: &Leaf, target_team: usize, teams: usize) -> bool {
-    let rival_mask = if teams >= u32::BITS as usize {
-        u32::MAX
+    let rival_mask = if teams >= u64::BITS as usize {
+        u64::MAX
     } else {
-        (1u32 << teams) - 1
-    } & !(1u32 << target_team);
+        (1u64 << teams) - 1
+    } & !(1u64 << target_team);
     leaf.ambiguous & !leaf.selected & rival_mask == 0
 }
 
@@ -281,7 +281,7 @@ fn comparable_structural_shares(
 fn stratum(l: &Leaf) -> Stratum {
     Stratum {
         root: l.root.clone(),
-        exceptions: (0..32).filter(|&t| l.mask & (1 << t) != 0).collect(),
+        exceptions: (0..64).filter(|&t| l.mask & (1 << t) != 0).collect(),
         above: l.above,
         secondary: None,
         pattern: l.pattern.clone(),
@@ -776,7 +776,7 @@ fn lazy_bootstrap_work_estimate(m: &Model, cell: Cell, goal_tilt_requested: bool
         || (rules.point_win, rules.point_draw, rules.point_loss) != (3, 1, 0)
         || m.ids.len() != teams
         || teams == 0
-        || teams > 32
+        || teams > 64
         || fixtures > 256
         || cell.team >= teams
         || m.fixtures.iter().any(|game| game.home == game.away)

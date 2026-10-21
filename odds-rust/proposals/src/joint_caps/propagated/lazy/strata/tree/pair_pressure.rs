@@ -339,7 +339,7 @@ pub(super) fn adjust(
         }
         let mut required = Vec::new();
         for rival in 0..base.len() {
-            let bit = 1u32 << rival;
+            let bit = 1u64 << rival;
             let strict_above = leaf.above && leaf.mask & bit != 0;
             let nonstrict_above = !leaf.above && leaf.mask & bit == 0;
             if rival != team && leaf.selected & bit != 0 && (strict_above || nonstrict_above) {

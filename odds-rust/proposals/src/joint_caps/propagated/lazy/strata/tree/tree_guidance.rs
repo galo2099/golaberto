@@ -433,8 +433,8 @@ fn label_entropy_team(
     candidates: &[Candidate],
     compatible: &[bool],
     target_team: usize,
-    selected: u32,
-    ambiguous: u32,
+    selected: u64,
+    ambiguous: u64,
     ids: &[i32],
 ) -> Option<usize> {
     let selected_weight = candidates
