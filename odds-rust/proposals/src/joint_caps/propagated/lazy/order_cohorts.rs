@@ -447,7 +447,7 @@ impl LazyJoint {
             "selection_work":charged,"selection_budget":max_selection_work,"setup_work":setup,
             "nodes_before":node_start,"nodes_after":self.nodes,"guides_before":guide_start,"guides_after":self.guide_values})
     }
-    fn order_constructor_allowance(m: &Model, cell: Cell) -> usize {
+    pub fn order_constructor_allowance(m: &Model, cell: Cell) -> usize {
         let n = m.n;
         let f = m.fixtures.len();
         let wins = m.keys.get(1) == Some(&Key::W);

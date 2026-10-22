@@ -1862,12 +1862,7 @@ impl LazyJoint {
             *cumulative = self.mixture_mass;
         }
     }
-    pub fn sample_training(
-        &self,
-        m: &Model,
-        samples: usize,
-        seed: i64,
-    ) -> (Result, RootMoments) {
+    pub fn sample_training(&self, m: &Model, samples: usize, seed: i64) -> (Result, RootMoments) {
         let mut moments = RootMoments::default();
         let result = self.sample_internal(m, samples, seed, Some(&mut moments), None, None);
         (result, moments)
@@ -2096,6 +2091,39 @@ impl LazyJoint {
                     + m.n * (m.n.max(2).ilog2() as usize + 1) * m.keys.len().max(1),
             )
     }
+
+    /// Conservative total cost for a complete sampled order run. Includes
+    /// goal preparation and, in analytic score mode, GD work and shared pools.
+    pub fn sample_work_upper_bound(&self, m: &Model, samples: usize) -> usize {
+        let goal_preparation = if self
+            .goals
+            .as_ref()
+            .is_some_and(crate::goal_tilt::GoalTilt::joint_preparation_enabled)
+        {
+            crate::goal_tilt::JOINT_PREPARATION_ALLOWANCE_PER_DRAW
+        } else {
+            0
+        };
+        let analytic = self.order_score_gd_cohort && crate::score_integral::supported(m);
+        let per_draw = self
+            .order_native_draw_upper_work(m)
+            .saturating_add(goal_preparation)
+            .saturating_add(if analytic {
+                m.fixtures
+                    .len()
+                    .saturating_mul(3)
+                    .saturating_add(m.n.saturating_mul(8))
+            } else {
+                0
+            });
+        per_draw
+            .saturating_mul(samples)
+            .saturating_add(if analytic {
+                crate::score_integral::MAX_WORK.saturating_mul(2)
+            } else {
+                0
+            })
+    }
     /// Capped sample path reserved for independent setup pilots. Ordinary
     /// main and check streams continue through the uncapped path above.
     pub fn sample_order_pilot(
@@ -2178,6 +2206,28 @@ impl LazyJoint {
             Some(work_limit),
             snapshot,
             false,
+        )
+    }
+    /// Native final-stream sampler with a conservative one-draw work guard.
+    /// A partial result is possible when the fixed request cannot fit; callers
+    /// must reject it unless every requested draw completed.
+    pub fn sample_order_native_bounded(
+        &self,
+        m: &Model,
+        samples: usize,
+        seed: i64,
+        work_limit: usize,
+    ) -> Result {
+        self.sample_internal_limited(
+            m,
+            samples,
+            seed,
+            None,
+            None,
+            None,
+            Some(work_limit),
+            None,
+            true,
         )
     }
     /// Experiment-only collection of corrected target-event contributions.
@@ -3035,6 +3085,7 @@ mod tests {
         assert!(result.score_integral.calls > 0);
         assert_eq!(result.score_integral.cohort_private_integrated, 0);
         assert!(result.operations.units() <= per_draw * samples);
+        assert!(result.operations.units() <= proposal.sample_work_upper_bound(&model, samples));
     }
 
     #[test]
@@ -3058,6 +3109,10 @@ mod tests {
         assert!(result.score_integral.calls > 0);
         assert!(result.score_integral.cohort_private_integrated > 0);
         assert!(result.operations.units() <= allowance);
+        assert!(result.operations.units() <= proposal.sample_work_upper_bound(&model, samples));
+        let ordinary = proposal.sample(&model, samples, 814);
+        assert!(ordinary.samples == samples);
+        assert!(ordinary.operations.units() <= proposal.sample_work_upper_bound(&model, samples));
         assert!(
             result.score_integral.query_work <= result.score_integral.query_work_reserved
                 || result.score_integral.query_work_reserved == 0
@@ -3084,8 +3139,55 @@ mod tests {
     }
 
     #[test]
+    fn native_bounded_final_sampling_never_exceeds_its_grant_and_preserves_full_streams() {
+        let model = compact_gd_model();
+        let cell = Cell { team: 0, rank: 1 };
+        let proposal = LazyJoint::with_mode(&model, cell, 815, &[], 32, false, false, None)
+            .expect("supported native proposal should build");
+        let samples: usize = 4_096;
+        let upper = proposal.order_native_draw_upper_work(&model);
+        let goal_reserve = if proposal
+            .goals
+            .as_ref()
+            .is_some_and(crate::goal_tilt::GoalTilt::joint_preparation_enabled)
+        {
+            samples.saturating_mul(crate::goal_tilt::JOINT_PREPARATION_ALLOWANCE_PER_DRAW)
+        } else {
+            0
+        };
+        let ordinary = proposal.sample(&model, samples, 817);
+        let one_draw_floor = goal_reserve.saturating_add(upper);
+        assert!(
+            ordinary.operations.units() > one_draw_floor,
+            "fixture must leave room between one-draw admission and full-stream work"
+        );
+        let work_limit = one_draw_floor
+            .saturating_add(ordinary.operations.units().saturating_sub(one_draw_floor) / 2);
+        let limited = proposal.sample_order_native_bounded(&model, samples, 817, work_limit);
+        assert!(limited.samples > 0);
+        assert!(limited.samples < samples);
+        assert!(limited.operations.units() <= work_limit);
+
+        let cap = proposal.sample_work_upper_bound(&model, samples);
+        let bounded = proposal.sample_order_native_bounded(&model, samples, 817, cap);
+        assert_eq!(bounded.samples, samples);
+        assert_eq!(bounded.samples, ordinary.samples);
+        assert_eq!(bounded.hits, ordinary.hits);
+        assert_eq!(
+            bounded.probability.to_bits(),
+            ordinary.probability.to_bits()
+        );
+        assert_eq!(bounded.std_err.to_bits(), ordinary.std_err.to_bits());
+        assert_eq!(bounded.operations.units(), ordinary.operations.units());
+        assert!(bounded.operations.units() <= cap);
+    }
+
+    #[test]
     fn cold_goal_guidance_work_fits_family_admission_bound_at_two_batch_sizes() {
-        let request: Request = serde_json::from_str(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../tests/fixtures/group-17059-head-gd.json")))
+        let request: Request = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../tests/fixtures/group-17059-head-gd.json"
+        )))
         .unwrap();
         let m = Model::new(request).unwrap();
         let cell = Cell {
@@ -3400,6 +3502,7 @@ mod tests {
                     }
                 }
                 let r = p.sample(&m, 30000, 808);
+                assert!(r.operations.units() <= p.sample_work_upper_bound(&m, r.samples));
                 assert!(
                     (r.probability - expected).abs() < 6. * r.std_err + 1e-4,
                     "roots={roots} rank={rank}: {} vs {expected}",
@@ -3446,6 +3549,7 @@ mod tests {
                     p.add_fixture_bias(&m, &[vec![0, 0, 0, 0]]);
                 }
                 let r = p.sample(&m, 30000, 808);
+                assert!(r.operations.units() <= p.sample_work_upper_bound(&m, r.samples));
                 assert!(
                     (r.probability - exact).abs() < 6. * r.std_err + 1e-4,
                     "rank={rank}, bias={bias}: {} vs {exact}",

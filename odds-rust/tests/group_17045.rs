@@ -515,19 +515,30 @@ fn cli_recovers_group_17045_tail_cells_with_audited_costs_and_stable_output() {
             .find(|event| event["event"] == "rust_odds_large_training_summary")
             .unwrap();
         let training_capacity = large_training["capacity"].as_u64().unwrap();
-        let training_granted = large_training["granted"].as_u64().unwrap();
+        let training_stage_capacity = large_training["stage_capacity"].as_u64().unwrap();
         let training_actual = large_training["actual_charged"].as_u64().unwrap();
         assert_eq!(large_training["overrun"], false);
         assert_eq!(large_training["worker_independent_admission"], true);
-        assert!(training_actual <= training_granted);
-        assert!(training_granted <= training_capacity);
+        assert_eq!(large_training["recycled_grants"], true);
+        assert!(training_actual <= training_capacity);
+        assert!(training_capacity <= training_stage_capacity);
 
         let jobs = large_training["jobs"].as_array().unwrap();
-        if !jobs.is_empty() {
+        assert!(
+            !jobs.is_empty(),
+            "seed {seed}: expected admitted training jobs"
+        );
+        {
             let mut job_grants = 0u64;
             let mut job_charged = 0u64;
+            let mut setup_charged = 0u64;
+            let mut pilot_charged = 0u64;
+            let mut setup_refunded = 0u64;
+            let mut pilot_refunded = 0u64;
             for job in jobs {
                 let grant = job["grant"].as_u64().unwrap();
+                let setup_grant = job["setup_grant"].as_u64().unwrap();
+                let pilot_grant = job["pilot_grant"].as_u64().unwrap();
                 let setup = job["setup_work"].as_u64().unwrap();
                 let pilot = job["pilot_work"].as_u64().unwrap();
                 let charged = setup + pilot;
@@ -539,11 +550,42 @@ fn cli_recovers_group_17045_tail_cells_with_audited_costs_and_stable_output() {
                     job["constructor"]["work"].as_u64().unwrap() <= setup,
                     "seed {seed}: constructor work exceeds setup charge"
                 );
+                assert!(setup <= setup_grant, "seed {seed}: setup exceeded grant");
+                assert!(pilot <= pilot_grant, "seed {seed}: pilot exceeded grant");
+                assert_eq!(setup_grant - setup, job["setup_refund"].as_u64().unwrap());
+                assert_eq!(pilot_grant - pilot, job["pilot_refund"].as_u64().unwrap());
+                assert_eq!(setup_grant + pilot_grant, grant);
                 job_grants += grant;
                 job_charged += charged;
+                setup_charged += setup;
+                pilot_charged += pilot;
+                setup_refunded += job["setup_refund"].as_u64().unwrap();
+                pilot_refunded += job["pilot_refund"].as_u64().unwrap();
             }
-            assert_eq!(job_grants, training_capacity);
+            assert_eq!(
+                job_grants,
+                large_training["cumulative_quoted_work"].as_u64().unwrap()
+            );
             assert_eq!(job_charged, training_actual);
+            assert_eq!(job_charged, setup_charged + pilot_charged);
+            assert_eq!(
+                setup_charged,
+                large_training["setup_charged"].as_u64().unwrap()
+            );
+            assert_eq!(
+                pilot_charged,
+                large_training["pilot_charged"].as_u64().unwrap()
+            );
+            assert_eq!(
+                setup_refunded + pilot_refunded,
+                job_grants - job_charged,
+                "seed {seed}: unused setup and pilot grants were not refunded"
+            );
+            assert!(
+                setup_refunded + pilot_refunded > 0,
+                "seed {seed}: no unused grant was refunded"
+            );
+            assert!(job_charged <= training_capacity);
         }
 
         let rare_tail = logs

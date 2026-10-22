@@ -11,7 +11,7 @@ use std::collections::HashMap;
 const ROOT_LIMIT: usize = 256;
 const LEGACY_MIN_ROOTS: usize = 65;
 const DEFAULT_MIN_ROOTS: usize = 1;
-const MAX_CELLS: usize = 4;
+const MAX_CELLS: usize = 128;
 const DEFAULT_FLOOR: usize = 2;
 const MAX_FLOOR: usize = 10;
 const FINAL_HEADROOM_PERCENT: usize = 2;
@@ -164,6 +164,11 @@ fn reserve_all(bank: &mut WorkBudget) -> Option<usize> {
     (grant > 0 && bank.reserve(grant)).then_some(grant)
 }
 
+fn reserve_amount(bank: &mut WorkBudget, amount: usize) -> Option<usize> {
+    (amount > 0 && amount <= bank.limit.saturating_sub(bank.reserved) && bank.reserve(amount))
+        .then_some(amount)
+}
+
 fn setup_grant_admitted(grant: usize, admission_floor: usize) -> bool {
     grant >= admission_floor
 }
@@ -281,7 +286,8 @@ fn final_pair_per_draw_cost(pilot_cost: usize, draw_upper: usize, use_draw_upper
     }
 }
 
-/// Spend the residual confirmation bank on up to four complete target trees.
+/// Spend the residual confirmation bank on complete target trees. Candidate
+/// count is only a safety cap; each tree must fit its setup and sampling quote.
 /// The caller invokes this only after all native and family fallback work.
 pub(super) fn run(
     m: &Model,
@@ -343,8 +349,8 @@ pub(super) fn run(
         return (0, 0);
     }
 
-    // Count complete roots for every still-zero cell. Each count call reserves
-    // the whole current residual bank before entering setup/enumeration.
+    // Count complete roots for every still-zero cell. Each count call preflights
+    // its model-derived allowance and settles unused work back to the bank.
     for index in 0..estimates.len() {
         let estimate = &estimates[index];
         if !zero_non_impossible(estimate) {
@@ -353,19 +359,24 @@ pub(super) fn run(
         if stopped {
             break;
         }
-        let grant = match reserve_all(bank) {
-            Some(grant) => grant,
-            None => {
-                stop_reason = Some("no residual bank for root counting");
-                break;
-            }
-        };
-        root_attempts += 1;
         let cell = Cell {
             team: index / m.n,
             rank: index % m.n,
         };
-        let (result, count_work) = BranchStrata::overflow_root_count(
+        let allowance = BranchStrata::overflow_root_count_allowance(m, cell, ROOT_LIMIT);
+        let grant = match reserve_amount(bank, allowance) {
+            Some(grant) => grant,
+            None => {
+                setup_rows.push(
+                    json!({"stage":"root_count","team":m.ids[cell.team],"rank":cell.rank+1,
+                    "grant":0,"actual":0,"within_grant":true,"admission_floor":allowance,
+                    "status":"skipped","reason":"root-count allowance exceeds residual bank"}),
+                );
+                continue;
+            }
+        };
+        root_attempts += 1;
+        let (result, count_work) = BranchStrata::overflow_root_count_bounded(
             m,
             cell,
             derive(
@@ -376,6 +387,7 @@ pub(super) fn run(
                 ),
             ),
             ROOT_LIMIT,
+            grant,
         );
         granted = granted.saturating_add(grant);
         charged = charged.saturating_add(count_work);
@@ -419,7 +431,8 @@ pub(super) fn run(
                 break;
             }
         };
-        let admission_floor = BranchStrata::overflow_tree_setup_admission_floor(cell_actual_work);
+        let admission_floor =
+            BranchStrata::overflow_tree_setup_allowance(m, cell).unwrap_or(usize::MAX);
         if !setup_grant_admitted(setup_grant, admission_floor) {
             assert!(bank.release(setup_grant));
             granted = granted.saturating_add(setup_grant);
@@ -433,13 +446,14 @@ pub(super) fn run(
             continue;
         }
         let setup_started = Instant::now();
-        let (proposal, setup_work) = BranchStrata::with_overflow_tree(
+        let (proposal, setup_work) = BranchStrata::with_overflow_tree_bounded(
             m,
             cell,
             derive(
                 seed,
                 &format!("target-overflow-tree-{}-{}", m.ids[cell.team], cell.rank),
             ),
+            setup_grant,
         );
         granted = granted.saturating_add(setup_grant);
         charged = charged.saturating_add(setup_work);
@@ -574,7 +588,9 @@ pub(super) fn run(
             .iter()
             .map(|sample| sample.result.std_err * (sample.result.samples as f64).sqrt())
             .collect();
-        let use_draw_upper = m.n > 32 && budget::modeled();
+        // Modeled admission uses the proposal's conservative per-draw bound
+        // for every supported team count; pilot averages only prioritize work.
+        let use_draw_upper = budget::modeled();
         let costs: Vec<_> = pilots
             .iter()
             .enumerate()

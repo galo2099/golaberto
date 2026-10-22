@@ -36,11 +36,38 @@ family searches.
 No enabling flags are needed; `RUST_ODDS_TARGET_OVERFLOW_TREE=0` disables it.
 Rebuild and restart the Rust service to apply the default.
 
+Large-league native recovery (33–64 teams) admits constructors and pilots by
+conservative modeled work costs. It considers up to 128 candidates as a safety
+limit, replacing the former 28-cell default and equal per-cell quotas. Training
+uses at most two thirds of the existing native stage capacity, reserving the
+rest for independent final sampling. Pilots request 256 draws, with a 32-draw
+minimum. Unused constructor and sampling grants return to the budget at
+deterministic barriers. The smaller-league Union/adaptive training path retains
+its established proposal selection and training limits.
+
+Ordinary final pairs and additional confirmations use proposal-specific upper
+work bounds, including fixed preparation for each independent sampler call.
+Confirmation rounds recycle unused main/check grants before considering more
+candidates; an expensive candidate does not block cheaper later candidates.
+Main-only results cannot publish. Deterministic draw-budget mode retains draw
+counts as its accounting unit. Existing total work capacities and quality
+thresholds are retained. Analytic zero recovery also rejects conflicting
+evidence from completed native samples.
+
+Expected-cohort and late complete-tree recovery also use a secondary 128-cell
+safety limit. Cohorts admit bounded construction and pilots first, then price
+final work from the constructed proposal. Sampled cohort requests derive from
+pilot costs and a work ceiling, with a conservative 1,000-draw pair admission
+floor. Each next draw requires its conservative allowance; a partial fixed-length
+stream cannot publish. Complete-tree root
+counting now requires a conservative setup/enumeration allowance before work
+starts; unused grants are returned before the next candidate.
+
 The target-overflow fallback admits remaining cells with 1–256 target paths by
 default. Candidates with 65–256 paths retain priority and ordering ahead of
 1–64-path candidates. `RUST_ODDS_EXPERIMENT_TARGET_TREE_MIN_ROOTS=65` restores
 the former eligibility boundary; values clamp to 1–65. The fallback retains the
-same confirmation bank, four-cell limit and publication gates, and uses only
+same confirmation bank and publication gates, and uses only
 leftover work for these candidates. Broader eligibility can increase CPU and
 latency. See the [separate and combined measurements](../experiments/rare_positions/2026-10-07-isolated-recovery-changes/README.md).
 
@@ -503,8 +530,9 @@ results integration.
 ### Lean target-overflow tree fallback
 
 The final tree fallback is enabled by default in the coverage profile. It
-considers at most four remaining non-impossible zeros with 1–256 target paths,
-processing 65–256-path candidates before 1–64-path candidates.
+admits remaining non-impossible zeros with 1–256 target paths by modeled work,
+with a secondary 128-cell safety cap. It processes 65–256-path candidates before
+1–64-path candidates.
 It retains the complete outcome partition, failed-refinement parents and actual
 score tiebreakers. It starts with five pilot draws per leaf, refines three message
 proposals, and sizes independent MAIN/CHECK batches to the residual confirmation
@@ -516,10 +544,13 @@ original confirmation capacity. Startup and request logs expose the effective
 `target_overflow_tree` settings; the stage summary reports setup, draw work,
 acceptance, budget settlement and timing.
 
-Tree construction requires a residual grant covering its measured root-count
-work plus the configured node and guide quotas. Smaller grants skip construction.
-This is an admission floor, not a strict setup upper bound: rank-hint work is
-measured afterward, and an overrun stops the stage and declines publication.
+Tree construction requires a residual grant covering conservative bootstrap,
+complete-root enumeration, and node/guide quotas. Smaller grants skip construction
+before doing setup. Rank hints require a conservative quote from the remaining
+grant before each invocation. An unaffordable hint freezes its leaf while retaining
+that outcome region in the complete cover. Unused setup and hint allowances return
+to the bank. Final sampled pairs use conservative branch-specific draw costs for
+all modeled team counts; pilot averages only inform allocation priorities.
 
 `RUST_ODDS_TARGET_OVERFLOW_TREE=0` opts out and takes precedence over the legacy
 `RUST_ODDS_EXPERIMENT_TARGET_OVERFLOW_TREE` toggle. Existing experimental tuning
@@ -1156,8 +1187,8 @@ record evidence, acceptance, work and additional time.
 
 The coverage profile enables expected-points cohorts when deterministic
 operation budgets are active. After the existing estimators finish, a separate
-pass can fill up to four remaining zero cells without replacing positive
-estimates. Set `RUST_ODDS_EXPECTED_COHORTS=0` to disable this stage, or `1` to
+pass considers remaining zero cells under work admission and a 128-cell safety
+limit. A separate analytic pass can also refine weak positive estimates. Set `RUST_ODDS_EXPECTED_COHORTS=0` to disable this stage, or `1` to
 enable it explicitly in another supported tail profile.
 
 For each cached target outcome path, the proposal fixes both endpoints of the
@@ -1169,17 +1200,33 @@ and the native component retains support outside the proposed cohorts.
 Overlapping cohorts contribute their full mixture density to each weight.
 
 Independent pilots compare four- and six-rival conditioning by ESS per modeled
-operation, with at most 1,024 draws per arm. The additional forecast allowance
-is `200000 × reference_draw_cost × 0.45`, divided across eligible cells. Setup,
-cloning, failed attempts, and both pilots are charged within a hard training
-grant of at most one third of each cell's allowance. The remaining allowance
-funds equal, fixed main/check batches from a pilot cost forecast with a 25%
-margin. The pair runs concurrently within the existing worker limit. Actual
-final work is settled afterward; exceeding the total allowance
-stops admission of further cells. This forecast is not a hard execution limit.
+operation, with at most 1,024 draws per arm. Native pilots must finish all 1,024
+requested draws to compete for selection; a truncated prefix can give a
+misleading ESS. Analytic pilots retain their separately planned bounded prefix.
+The additional forecast allowance
+is `200000 × reference_draw_cost × 0.45`. Setup, cloning, failed attempts,
+and pilots must fit a conservative construction allowance before execution.
+Unused work becomes available to subsequent candidates. Each proposal then
+needs enough work for a conservative 1,000-draw main/check pair before final
+admission. A candidate's training ceiling is two thirds of the current residual
+bank, raised when its conservative minimum requires more. Sampled final pairs receive
+a ceiling of two fifths of stage capacity, raised for their conservative
+minimum, and bounded by residual work. A pilot forecast with 25% margin chooses
+the fixed requested length within that execution cap; a conservative check
+before every draw enforces the cap. Main and check have
+independent fixed streams and equal requested lengths. A partial stream is
+discarded, and actual work settles before the next candidate. Analytic streams
+retain complete-call conservative preparation and query allowances. One later
+candidate's setup/pilot allowance is protected while the current pair runs;
+no equal per-cell work quota determines admission.
 
 Published estimates require fresh main/check samples and the existing quality
-gates. Finite budgets can still leave reachable zeros. Logs prefixed
+gates. Analytic zero recovery is additionally rejected when its two-standard-error
+upper bounds both fall below a qualified completed native stream’s lower bound.
+Native evidence requires at least 30 hits and ESS 3, with finite positive
+probability and finite nonnegative standard error. These approximate intervals
+serve as a consistency check, not an impossibility certificate. Finite budgets
+and failed precision checks can still leave reachable zeros. Logs prefixed
 `rust_odds_expected_cohorts_` record admission, pilot evidence, selected widths,
 final confirmation, and total work.
 
@@ -1443,10 +1490,11 @@ admission for comparison. The fixed seed default is independent of this flag.
 `RUST_ODDS_WORK_MODEL=draws` is an experimental draw-count diagnostic; use the
 archived prototype binary to reproduce its measured trial.
 
-The production coverage allocator models:
+The production coverage allocator records:
 
 ```
-estimated work = setup units + draws × pilot cost per draw
+recorded work = setup units + 8 × fixture operations
+               + guidance units + ranking allowance
 reference_draw_cost = 64 × remaining fixtures + 32 × teams + 1
 pilot cost per draw = ceil((8 × fixture operations + guidance units
                            + ranking allowance) / pilot draws)
@@ -1463,7 +1511,8 @@ cycles. No duration enters admission in the default mode.
 | Stage | Default reference allocation | Scaling |
 | --- | ---: | --- |
 | Shared setup, pilots and finals | 22,500 | `100000 × tail_fraction × shared_fraction` |
-| Individual training prefix | 28 cells | `floor(64 × tail_fraction)`, maximum 128 |
+| Individual training prefix, at most 32 teams | 28 cells | Established Union/adaptive path: `floor(64 × tail_fraction)`, maximum 128 |
+| Native training, 33–64 teams | Work admission; 128-cell safety cap | At most two thirds of individual work capacity; setup and pilot refunds are reused |
 | Individual setup, pilots, finals and retries | 90,000 | `200000 × tail_fraction` |
 | Additional confirmations, reusing trained proposals | 200,000 | `200000 × confirm_more / 1.5` |
 | Complete branches, including setup and pilots | 90,000 | `600000 × branch_fraction` |
@@ -1476,15 +1525,18 @@ Constructor cell/node/guide limits additionally bound setup attempts, including
 unsuccessful construction. The model estimates proposal costs; it does not
 establish an exact instruction count or hard wall deadline.
 
-Ordinary main/check pairs are reserved together in stable order. Ordinary finals
-finish before retries are admitted, irrespective of worker count. Their skipped
-checks are not refunded. Additional confirmation uses two fixed waves: reserve
-normal pairs first, use spare units for pending mains, then reclaim checks that
-were skipped after every first-wave job finishes. Only then reserve fresh checks
-for publishable pending mains or complete pairs for unstarted candidates. A main
-without an independent check never publishes. Neither wave changes main lengths
-or proposal costs based on its own observations. The total modeled quota stays
-fixed; second-wave savings are not recycled into another wave.
+Ordinary main/check pairs reserve the sum of the conservative work bounds for
+their two independent sampler calls. Ordinary finals finish before unused work
+is refunded and retries are admitted, irrespective of worker count. Additional
+confirmation uses repeated deterministic rounds: reserve affordable complete
+pairs, then use spare units for pending mains; after the barrier, return unused
+main/check grants and consider the remaining candidates again. An unaffordable
+candidate does not stop the scan. A main without an independent check never
+publishes. Each confirmation job keeps its pilot-selected proposal, length,
+and RNG streams. Failed-job observations may train the separately budgeted
+family fallback, whose estimates require fresh main/check samples.
+The total modeled quota stays fixed. Pilot averages still inform priorities;
+proposal-specific upper bounds determine execution reservations.
 
 Confirmation priority uses forecast ESS per work unit, smoothed by pilot hit
 reliability `hits / (hits + 30)`. The 30-hit acceptance requirement itself is

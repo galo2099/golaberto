@@ -200,11 +200,38 @@ impl Plan {
             Self::Lazy(p) => p.setup_work(),
         }
     }
+    /// Conservative complete-run work quote used for deterministic admission.
+    fn sample_work_upper_bound(&self, m: &Model, samples: usize) -> usize {
+        match self {
+            Self::Union(p) => samples.saturating_mul(p.draw_upper_work(m)),
+            Self::Lazy(p) => p.sample_work_upper_bound(m, samples),
+        }
+    }
+    fn scheduled_sample_work(&self, m: &Model, samples: usize) -> usize {
+        if budget::modeled() {
+            self.sample_work_upper_bound(m, samples)
+        } else {
+            samples
+        }
+    }
     fn describe(&self, m: &Model) -> serde_json::Value {
         match self {
             Self::Union(p) => p.describe(m),
             Self::Lazy(p) => p.describe(m),
         }
+    }
+}
+
+fn final_pair_reservation(plan: &Plan, m: &Model, main: usize, check: usize) -> usize {
+    plan.scheduled_sample_work(m, main)
+        .saturating_add(plan.scheduled_sample_work(m, check))
+}
+
+fn settled_final_currency(modeled: bool, operation_units: usize, draws: usize) -> usize {
+    if modeled {
+        operation_units
+    } else {
+        draws
     }
 }
 pub fn run(
@@ -294,12 +321,16 @@ pub(crate) fn run_with_positive_baselines(
     cells = allocation::interleave(cells, &m.ids, seed, "rare-tail-zero");
     let shared = (value("RUST_ODDS_RARE_TAIL_SHARE") == "1")
         .then(|| std::sync::Arc::new(SharedGuides::default()));
+    let large_mode = m.n > 32 && budget::modeled();
     let training_limit = if deterministic {
-        scaled(64, fraction).min(128)
+        if large_mode {
+            128
+        } else {
+            scaled(64, fraction).min(128)
+        }
     } else {
         cells.len()
     };
-    let large_mode = m.n > 32 && budget::modeled();
     let native_training_audit_enabled = family_fallback_enabled() && budget::modeled();
     let setup_audit_extra_work = AtomicUsize::new(0);
     let setup_audit_complete = AtomicU8::new(1);
@@ -566,10 +597,19 @@ pub(crate) fn run_with_positive_baselines(
             .total_cmp(&a.2.ess)
             .then(a.0.index(m.n).cmp(&b.0.index(m.n)))
     });
-    let finalists = Some(value("RUST_ODDS_RARE_TAIL_FINALISTS"))
+    let finalists = std::env::var("RUST_ODDS_RARE_TAIL_FINALISTS")
+        .ok()
         .and_then(|s| s.parse::<usize>().ok())
-        .unwrap_or(8)
-        .min(32);
+        .unwrap_or_else(|| {
+            if large_mode {
+                128
+            } else {
+                value("RUST_ODDS_RARE_TAIL_FINALISTS")
+                    .parse::<usize>()
+                    .unwrap_or(8)
+            }
+        })
+        .min(if large_mode { 128 } else { 32 });
     let mut weak = Vec::new();
     if more_fraction > 0. {
         let (strong, rest): (Vec<_>, Vec<_>) = plans
@@ -644,7 +684,7 @@ pub(crate) fn run_with_positive_baselines(
             (n / 2).max(1000)
         };
         let cost = if deterministic {
-            ((n + check) * budget::draw_cost(&p.2)) as f64
+            final_pair_reservation(&p.1, m, n, check) as f64
         } else {
             1.2 * p.5 / p.2.samples.max(1) as f64 * (n + check) as f64
         };
@@ -673,7 +713,7 @@ pub(crate) fn run_with_positive_baselines(
                 p.2.samples,
                 p.2.ess,
                 if deterministic {
-                    budget::draw_cost(&p.2) as f64
+                    p.1.scheduled_sample_work(m, 1) as f64
                 } else {
                     1.2 * p.5 / p.2.samples.max(1) as f64
                 },
@@ -688,7 +728,7 @@ pub(crate) fn run_with_positive_baselines(
     let plans = funded;
     let mut reserved_final_work: usize = plans
         .iter()
-        .map(|(p, n, check)| (n + check) * budget::draw_cost(&p.2))
+        .map(|(p, n, check)| final_pair_reservation(&p.1, m, *n, *check))
         .sum();
     // Original jobs and sampling streams are fixed before any extension work.
     // Status 0 is in flight, 1 accepted, 2 rejected; only rejected jobs may retry.
@@ -729,7 +769,7 @@ pub(crate) fn run_with_positive_baselines(
                 );
                 let check = (n / 2).max(1000);
                 let cost = if deterministic {
-                    ((n + check) * budget::draw_cost(&p.2)) as f64
+                    final_pair_reservation(&p.1, m, n, check) as f64
                 } else {
                     1.2 * p.5 / p.2.samples.max(1) as f64 * (n + check) as f64
                 };
@@ -768,13 +808,14 @@ pub(crate) fn run_with_positive_baselines(
         };
         let accepted = accepted(&main, &check, rough);
         let operations = main.operations.units() + check.operations.units();
+        let draws = main.samples.saturating_add(check.samples);
         status[i].store(if accepted { 1 } else { 2 }, Ordering::Release);
         emit(
             log,
             "rust_odds_rare_tail",
             json!({"group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,"setup_ms":setup_ms,"pilot_ess":pilot.ess,"pilot_hits":pilot.hits,"main_draws":main.samples,"main_hits":main.hits,"main_ess":main.ess,"main_max_share":main.max_share,"main_batch_gap":main.batch_gap,"check_relative_se":if check.probability>0.{Some(check.std_err/check.probability)}else{None},"quality":if rough{"order"}else{"current"},"probability":main.probability,"relative_se":if main.probability>0.{Some(main.std_err/main.probability)}else{None},"check_probability":check.probability,"check_ess":check.ess,"accepted":accepted,"sampling_ms":start.elapsed().as_secs_f64()*1000.,"plan":plan.describe(m)}),
         );
-        (*cell, main, check.work, accepted, false, operations)
+        (*cell, main, check.work, accepted, false, operations, draws)
     };
     let extra = |i: usize, admitted: bool| {
         let (source, p, n, check_n, cost) = &extension_jobs[i];
@@ -817,12 +858,13 @@ pub(crate) fn run_with_positive_baselines(
         };
         let ok = accepted(&main, &check, rough);
         let operations = main.operations.units() + check.operations.units();
+        let draws = main.samples.saturating_add(check.samples);
         emit(
             log,
             "rust_odds_rare_tail_extension",
             json!({"group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,"mode":extension_mode,"source":if source.is_some(){"rejected_final"}else{"unfunded_pilot"},"main_draws":main.samples,"main_hits":main.hits,"main_ess":main.ess,"main_max_share":main.max_share,"main_relative_se":if main.probability>0.{Some(main.std_err/main.probability)}else{None},"main_batch_gap":main.batch_gap,"probability":main.probability,"check_probability":check.probability,"check_hits":check.hits,"check_ess":check.ess,"check_relative_se":if check.probability>0.{Some(check.std_err/check.probability)}else{None},"accepted":ok,"forecast_ms":if deterministic {None}else{Some(cost)},"reserved_work":if deterministic {Some(*cost as usize)}else{None},"cost_per_draw":budget::draw_cost(&p.2),"sampling_ms":clock.elapsed().as_secs_f64()*1000.}),
         );
-        Some((cell, main, check.work, ok, true, operations))
+        Some((cell, main, check.work, ok, true, operations, draws))
     };
     let results = if !deterministic && extension_mode == "overlap" && extension {
         // All ordinary jobs are dispatched ahead of extension jobs, on the same
@@ -837,17 +879,26 @@ pub(crate) fn run_with_positive_baselines(
     } else {
         let costs: Vec<_> = plans
             .iter()
-            .map(|(p, n, check)| (n + check) * budget::draw_cost(&p.2))
+            .map(|(p, n, check)| final_pair_reservation(&p.1, m, *n, *check))
             .collect();
         let mut r = budget::parallel(&costs, workers, |i| Some(ordinary(i)));
         if extension {
-            // All ordinary results finish before admission of any retry.
-            // Reserve complete pairs in stable job order; unused check draws
-            // are not recycled based on a final batch's observations.
+            // All ordinary results settle before retry admission. Refund each
+            // unused conservative grant at this barrier before reserving retries.
             let mut draw_budget = WorkBudget::new(remaining_capacity as usize);
             if deterministic {
                 for (p, n, check) in &plans {
-                    assert!(draw_budget.reserve((n + check) * budget::draw_cost(&p.2)));
+                    assert!(draw_budget.reserve(final_pair_reservation(&p.1, m, *n, *check)));
+                }
+                // Ordinary jobs have all completed. Refund each conservative
+                // quote's unused portion before admitting retry jobs.
+                for (index, result) in r.iter().take(plans.len()).enumerate() {
+                    if let Some(result) = result {
+                        let reserved = costs[index];
+                        let settled = settled_final_currency(budget::modeled(), result.5, result.6);
+                        assert!(settled <= reserved);
+                        assert!(draw_budget.release(reserved.saturating_sub(settled)));
+                    }
                 }
             }
             let admitted: Vec<_> = extension_jobs
@@ -855,7 +906,7 @@ pub(crate) fn run_with_positive_baselines(
                 .map(|(source, p, n, check, _)| {
                     !deterministic
                         || (source.is_none_or(|j| status[j].load(Ordering::Acquire) == 2)
-                            && draw_budget.reserve((n + check) * budget::draw_cost(&p.2)))
+                            && draw_budget.reserve(final_pair_reservation(&p.1, m, *n, *check)))
                 })
                 .collect();
             if deterministic {
@@ -870,11 +921,19 @@ pub(crate) fn run_with_positive_baselines(
         }
         r
     };
+    if deterministic {
+        reserved_final_work = results
+            .iter()
+            .flatten()
+            .map(|result| settled_final_currency(budget::modeled(), result.5, result.6))
+            .sum();
+    }
     let mut found = shared_found;
     let mut extra_found = 0;
     let mut extra_draws = 0;
     let mut actual_final_operations = 0usize;
-    for (cell, r, check_work, accepted, extra, operations) in results.into_iter().flatten() {
+    for (cell, r, check_work, accepted, extra, operations, _draws) in results.into_iter().flatten()
+    {
         work += r.work + check_work;
         actual_final_operations = actual_final_operations.saturating_add(operations);
         if extra {
@@ -1076,7 +1135,7 @@ pub(crate) fn run_with_positive_baselines(
             .filter_map(|p| {
                 confirmation_batches(&p.2).map(|n| {
                     let cost = if deterministic {
-                        (2 * n * budget::draw_cost(&p.2)) as f64
+                        final_pair_reservation(&p.1, m, n, n) as f64
                     } else {
                         1.2 * p.5 / p.2.samples as f64 * (2 * n) as f64
                     };
@@ -1378,6 +1437,12 @@ fn publishable(r: &Result, rough: bool) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn draw_mode_final_settlement_uses_draws_not_operation_units() {
+        assert_eq!(settled_final_currency(false, 900_000, 2_000), 2_000);
+        assert_eq!(settled_final_currency(true, 900_000, 2_000), 900_000);
+    }
+
     #[test]
     fn early_rank_flags_are_opt_in_and_root_count_is_bounded() {
         assert_eq!(resolve_early_rank_mode(None), None);

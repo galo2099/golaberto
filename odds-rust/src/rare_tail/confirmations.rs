@@ -1,4 +1,4 @@
-//! Two deterministic waves reuse skipped checks without a time-dependent race.
+//! Deterministic waves recycle unused grants without a time-dependent race.
 //! Main lengths remain fixed from independent training. Speculative mains never
 //! publish alone; all reported estimates require a fresh independent check.
 use super::*;
@@ -13,7 +13,7 @@ const FAMILY_MAX_GUIDE_VALUES: usize = 4_000_000;
 struct Job<'a> {
     p: &'a Proposal,
     n: usize,
-    draw_cost: usize,
+    sample_work_upper: usize,
     original_grant: usize,
 }
 impl Job<'_> {
@@ -386,6 +386,41 @@ fn release_candidate_promise(bank: &mut WorkBudget, promises: &mut [usize], inde
     held
 }
 
+/// Settle one reserved sample invocation against its measured operation work.
+/// Unused work is released at a wave barrier; an overrun is charged in full and
+/// returned as a violation so callers can stop admission and suppress output.
+fn settle_sample_grant(bank: &mut WorkBudget, grant: usize, actual: usize) -> bool {
+    if actual <= grant {
+        return bank.release(grant - actual);
+    }
+    if !bank.release(grant) {
+        return false;
+    }
+    let Some(reserved) = bank.reserved.checked_add(actual) else {
+        return false;
+    };
+    bank.reserved = reserved;
+    false
+}
+
+fn reserve_pair(bank: &mut WorkBudget, sample_work_upper: usize) -> bool {
+    sample_work_upper
+        .checked_mul(2)
+        .is_some_and(|pair| bank.reserve(pair))
+}
+
+fn reserve_pairs_in_order(
+    bank: &mut WorkBudget,
+    sample_work_bounds: &[usize],
+    eligible: &[bool],
+) -> Vec<bool> {
+    sample_work_bounds
+        .iter()
+        .zip(eligible)
+        .map(|(&bound, &eligible)| eligible && reserve_pair(bank, bound))
+        .collect()
+}
+
 fn run_overflow_stage(
     state: &mut FallbackState<'_>,
     m: &Model,
@@ -478,21 +513,20 @@ pub(super) fn run<'a>(
     let mut jobs: Vec<_> = proposals
         .iter()
         .filter_map(|p| {
-            confirmation_batches(&p.2).map(|n| Job {
-                p,
-                n,
-                draw_cost: budget::draw_cost(&p.2),
-                original_grant: 2 * n * budget::draw_cost(&p.2),
+            confirmation_batches(&p.2).map(|n| {
+                let sample_work_upper = p.1.sample_work_upper_bound(m, n).max(1);
+                Job {
+                    p,
+                    n,
+                    sample_work_upper,
+                    original_grant: sample_work_upper.saturating_mul(2),
+                }
             })
         })
         .collect();
     jobs.sort_by(|a, b| {
-        confirmation_priority(&a.p.2, a.n, (2 * a.n * a.draw_cost) as f64)
-            .total_cmp(&confirmation_priority(
-                &b.p.2,
-                b.n,
-                (2 * b.n * b.draw_cost) as f64,
-            ))
+        confirmation_priority(&a.p.2, a.n, a.original_grant as f64)
+            .total_cmp(&confirmation_priority(&b.p.2, b.n, b.original_grant as f64))
             .then(a.p.0.index(m.n).cmp(&b.p.0.index(m.n)))
     });
     let mut bank = WorkBudget::new(
@@ -500,30 +534,35 @@ pub(super) fn run<'a>(
     );
     let mut paired = vec![false; jobs.len()];
     let mut started = vec![false; jobs.len()];
+    let mut main_grants = vec![0usize; jobs.len()];
+    let mut check_grants = vec![0usize; jobs.len()];
+    let mut main_granted_total = vec![0usize; jobs.len()];
+    let mut check_granted_total = vec![0usize; jobs.len()];
     let prefix = tree_enabled();
-    if prefix {
-        // A lower-priority full pair must not steal a higher-priority main.
-        // Complete the first priority prefix, then fund one speculative main.
-        for (i, j) in jobs.iter().enumerate() {
-            if bank.reserve(2 * j.n * j.draw_cost) {
-                paired[i] = true;
-                started[i] = true;
-            } else {
-                started[i] = bank.reserve(j.n * j.draw_cost);
+    // Reserve independent pairs in stable priority order. An unaffordable
+    // large pair does not block a cheaper candidate later in that order.
+    let bounds: Vec<_> = jobs.iter().map(|job| job.sample_work_upper).collect();
+    let all_eligible = vec![true; jobs.len()];
+    let pair_funded = reserve_pairs_in_order(&mut bank, &bounds, &all_eligible);
+    for (i, funded) in pair_funded.into_iter().enumerate() {
+        if funded {
+            paired[i] = true;
+            started[i] = true;
+            main_grants[i] = jobs[i].sample_work_upper;
+            check_grants[i] = jobs[i].sample_work_upper;
+            main_granted_total[i] = jobs[i].sample_work_upper;
+            check_granted_total[i] = jobs[i].sample_work_upper;
+        }
+    }
+    // Spare units can start speculative mains. Tree mode limits this to one
+    // main at a time; neither mode publishes without an independent check.
+    for (i, job) in jobs.iter().enumerate() {
+        if !started[i] && bank.reserve(job.sample_work_upper) {
+            started[i] = true;
+            main_grants[i] = job.sample_work_upper;
+            main_granted_total[i] = job.sample_work_upper;
+            if prefix {
                 break;
-            }
-        }
-    } else {
-        // Reserve normal independent pairs first in stable priority order.
-        for (i, j) in jobs.iter().enumerate() {
-            paired[i] = bank.reserve(2 * j.n * j.draw_cost);
-            started[i] = paired[i];
-        }
-        // Spare units can start a pending main while other workers run pairs.
-        // Its check is not promised, and it cannot be published on its own.
-        for (i, j) in jobs.iter().enumerate() {
-            if !started[i] {
-                started[i] = bank.reserve(j.n * j.draw_cost);
             }
         }
     }
@@ -557,87 +596,156 @@ pub(super) fn run<'a>(
     }
     let mut moments: Vec<Option<crate::joint_caps::propagated::lazy::FamilyMoments>> =
         (0..jobs.len()).map(|_| None).collect();
-    let first: Vec<_> = (0..jobs.len()).filter(|&i| started[i]).collect();
-    let costs: Vec<_> = first
-        .iter()
-        .map(|&i| jobs[i].n * jobs[i].draw_cost * if paired[i] { 2 } else { 1 })
-        .collect();
-    let rows = budget::parallel(&costs, workers, |slot| {
-        let i = first[slot];
-        let j = &jobs[i];
-        let start = Instant::now();
-        let (main, family_moments) = if observer_funded && observer_bounds[i].is_some() {
-            j.main_with_native_training(m, seed)
-                .map(|(main, moments)| (main, Some(moments)))
-                .unwrap_or_else(|| (j.main(m, seed), None))
-        } else {
-            (j.main(m, seed), None)
-        };
-        let check = if paired[i] {
-            j.check(m, seed, &main, rough)
-        } else {
-            Result::default()
-        };
-        (
-            i,
-            main,
-            check,
-            family_moments,
-            start.elapsed().as_secs_f64() * 1000.,
-        )
-    });
     let mut results = vec![None; jobs.len()];
-    let mut reclaimed = 0;
-    for (i, main, check, family_moments, ms) in rows {
-        if paired[i] && check.samples == 0 {
-            let unused = jobs[i].n * jobs[i].draw_cost;
-            assert!(bank.release(unused));
-            reclaimed += unused;
+    let mut main_actual = vec![0usize; jobs.len()];
+    let mut check_actual = vec![0usize; jobs.len()];
+    let mut main_violation = vec![false; jobs.len()];
+    let mut check_violation = vec![false; jobs.len()];
+    let mut check_done = vec![false; jobs.len()];
+    let mut reclaimed = 0usize;
+    let mut reclaimed_main = 0usize;
+    let mut reclaimed_check = 0usize;
+    let mut reclaimed_skipped_check = 0usize;
+    let mut waves = 0usize;
+    let mut cost_violation: Option<(usize, &'static str, usize, usize)> = None;
+
+    loop {
+        let active: Vec<_> = (0..jobs.len())
+            .filter(|&i| {
+                (results[i].is_none() && main_grants[i] > 0)
+                    || (results[i].is_some() && check_grants[i] > 0)
+            })
+            .collect();
+        if active.is_empty() || cost_violation.is_some() {
+            break;
         }
-        moments[i] = family_moments;
-        results[i] = Some((main, check, ms));
-    }
-    // Barrier: all first-wave results are known. Allocation cannot depend on
-    // which worker finished first, nor on elapsed duration.
-    let mut second = Vec::new();
-    for (i, j) in jobs.iter().enumerate() {
-        if paired[i] {
-            continue;
-        }
-        let cost = if started[i] {
-            if !publishable(&results[i].as_ref().unwrap().0, rough) {
-                continue;
+        waves += 1;
+        let costs: Vec<_> = active
+            .iter()
+            .map(|&i| main_grants[i].saturating_add(check_grants[i]))
+            .collect();
+        let rows = budget::parallel(&costs, workers, |slot| {
+            let i = active[slot];
+            let j = &jobs[i];
+            let start = Instant::now();
+            if results[i].is_none() {
+                let (main, family_moments) = if observer_funded && observer_bounds[i].is_some() {
+                    j.main_with_native_training(m, seed)
+                        .map(|(main, moments)| (main, Some(moments)))
+                        .unwrap_or_else(|| (j.main(m, seed), None))
+                } else {
+                    (j.main(m, seed), None)
+                };
+                let main_work = main.operations.units();
+                let check = if check_grants[i] > 0 && publishable(&main, rough) {
+                    j.check(m, seed, &main, rough)
+                } else {
+                    Result::default()
+                };
+                let check_work = check.operations.units();
+                let check_ran = check_grants[i] > 0 && publishable(&main, rough);
+                (
+                    i,
+                    main,
+                    check,
+                    family_moments,
+                    main_work,
+                    check_work,
+                    check_ran,
+                    start.elapsed().as_secs_f64() * 1000.,
+                )
+            } else {
+                let (main, _, old_ms) = results[i].as_ref().unwrap();
+                let check_ran = publishable(main, rough);
+                let check = j.check(m, seed, main, rough);
+                let check_work = check.operations.units();
+                (
+                    i,
+                    (*main).clone(),
+                    check,
+                    None,
+                    0,
+                    check_work,
+                    check_ran,
+                    *old_ms + start.elapsed().as_secs_f64() * 1000.,
+                )
             }
-            j.n * j.draw_cost
-        } else {
-            2 * j.n * j.draw_cost
-        };
-        if bank.reserve(cost) {
-            second.push((i, cost));
+        });
+
+        // Deterministic barrier: settle all complete jobs before admitting the
+        // next wave, regardless of worker completion order or elapsed time.
+        for (i, main, check, family_moments, main_work, check_work, check_ran, ms) in rows {
+            if main_grants[i] > 0 {
+                main_actual[i] = main_work;
+                main_violation[i] = main_work > main_grants[i];
+                if !settle_sample_grant(&mut bank, main_grants[i], main_work) {
+                    cost_violation.get_or_insert((i, "main", main_grants[i], main_work));
+                }
+                let released = main_grants[i].saturating_sub(main_work);
+                reclaimed = reclaimed.saturating_add(released);
+                reclaimed_main = reclaimed_main.saturating_add(released);
+                main_grants[i] = 0;
+            }
+            if check_grants[i] > 0 {
+                check_done[i] = true;
+                check_actual[i] = check_work;
+                check_violation[i] = check_work > check_grants[i];
+                if !settle_sample_grant(&mut bank, check_grants[i], check_work) {
+                    cost_violation.get_or_insert((i, "check", check_grants[i], check_work));
+                }
+                let released = check_grants[i].saturating_sub(check_work);
+                reclaimed = reclaimed.saturating_add(released);
+                reclaimed_check = reclaimed_check.saturating_add(released);
+                if !check_ran {
+                    reclaimed_skipped_check = reclaimed_skipped_check.saturating_add(released);
+                }
+                check_grants[i] = 0;
+            }
+            if let Some(family_moments) = family_moments {
+                moments[i] = Some(family_moments);
+            }
+            results[i] = Some((main, check, ms));
         }
-    }
-    let costs: Vec<_> = second.iter().map(|r| r.1).collect();
-    let rows = budget::parallel(&costs, workers, |slot| {
-        let i = second[slot].0;
-        let j = &jobs[i];
-        let start = Instant::now();
-        let main = if started[i] {
-            None
-        } else {
-            Some(j.main(m, seed))
-        };
-        let existing = results[i].as_ref().map(|r| &r.0);
-        let check = j.check(m, seed, main.as_ref().or(existing).unwrap(), rough);
-        (i, main, check, start.elapsed().as_secs_f64() * 1000.)
-    });
-    for (i, main, check, ms) in rows {
-        let old = results[i].take();
-        results[i] = Some((
-            main.unwrap_or_else(|| old.as_ref().unwrap().0.clone()),
-            check,
-            ms + old.map_or(0., |r| r.2),
-        ));
-        paired[i] = true;
+        if cost_violation.is_some() {
+            break;
+        }
+
+        let mut admitted = false;
+        for (i, job) in jobs.iter().enumerate() {
+            if results[i].is_some() && !check_done[i] && bank.reserve(job.sample_work_upper) {
+                check_grants[i] = job.sample_work_upper;
+                check_granted_total[i] = job.sample_work_upper;
+                paired[i] = true;
+                admitted = true;
+            }
+        }
+        let eligible: Vec<_> = (0..jobs.len())
+            .map(|i| results[i].is_none() && main_grants[i] == 0)
+            .collect();
+        let pair_funded = reserve_pairs_in_order(&mut bank, &bounds, &eligible);
+        for (i, funded) in pair_funded.into_iter().enumerate() {
+            if funded {
+                paired[i] = true;
+                main_grants[i] = jobs[i].sample_work_upper;
+                check_grants[i] = jobs[i].sample_work_upper;
+                main_granted_total[i] = jobs[i].sample_work_upper;
+                check_granted_total[i] = jobs[i].sample_work_upper;
+                admitted = true;
+            }
+        }
+        for (i, job) in jobs.iter().enumerate() {
+            if results[i].is_none() && main_grants[i] == 0 && bank.reserve(job.sample_work_upper) {
+                main_grants[i] = job.sample_work_upper;
+                main_granted_total[i] = job.sample_work_upper;
+                admitted = true;
+                if prefix {
+                    break;
+                }
+            }
+        }
+        if !admitted {
+            break;
+        }
     }
     let observer_actual: usize = moments
         .iter()
@@ -657,7 +765,7 @@ pub(super) fn run<'a>(
         work += main.work + check.work;
         let j = &jobs[i];
         let cell = j.p.0;
-        let ok = paired[i] && accepted(&main, &check, rough);
+        let ok = cost_violation.is_none() && paired[i] && accepted(&main, &check, rough);
         if paired[i] {
             completed += 1;
         } else {
@@ -676,8 +784,12 @@ pub(super) fn run<'a>(
                 "main_hits":main.hits,"main_ess":main.ess,"main_max_share":main.max_share,
                 "probability":main.probability,"check_draws":check.samples,"check_hits":check.hits,
                 "check_ess":check.ess,"check_probability":check.probability,"accepted":ok,
-                "cost_per_draw":j.draw_cost,"modeled_main_work":main.samples*j.draw_cost,
-                "modeled_check_work":check.samples*j.draw_cost,"sampling_ms":ms,"main_only":!paired[i]
+                "sample_work_upper":j.sample_work_upper,
+                "main_granted_work":main_granted_total[i],
+                "check_granted_work":check_granted_total[i],
+                "main_actual_work":main_actual[i],"check_actual_work":check_actual[i],
+                "main_cost_violation":main_violation[i],"check_cost_violation":check_violation[i],
+                "sampling_ms":ms,"main_only":!paired[i]
             }),
         );
     }
@@ -687,7 +799,7 @@ pub(super) fn run<'a>(
     } else {
         Some(0)
     };
-    let handoff_fee = if family_enabled {
+    let handoff_fee = if family_enabled && cost_violation.is_none() {
         required_handoff_fee
             .filter(|&fee| bank.reserve(fee))
             .unwrap_or(0)
@@ -699,9 +811,17 @@ pub(super) fn run<'a>(
     let mut summary = json!({
         "group":m.request.id,"fraction":fraction,"budget_mode":budget::mode(),
         "transferred_branch_work":transferred_work,
-        "work_limit":bank.limit,"reserved_work":bank.reserved,"reclaimed_check_work":reclaimed,
+        "work_limit":bank.limit,"reserved_work":bank.reserved,"reclaimed_unused_work":reclaimed,
+        "reclaimed_main_work":reclaimed_main,"reclaimed_check_work":reclaimed_check,
+        "reclaimed_skipped_check_work":reclaimed_skipped_check,
+        "settled_sample_work":main_actual.iter().chain(&check_actual).sum::<usize>(),
+        "actual_work_within_limit":bank.reserved<=bank.limit,
+        "cost_violation":cost_violation.map(|(i,side,grant,actual)| json!({
+            "team":m.ids[jobs[i].p.0.team],"rank":jobs[i].p.0.rank+1,"side":side,
+            "grant":grant,"actual":actual,"over_by":actual.saturating_sub(grant)
+        })),
         "eligible":jobs.len(),"funded":paired.iter().filter(|&&p|p).count(),
-        "completed":completed,"accepted":added,"main_only":main_only,"waves":2,
+        "completed":completed,"accepted":added,"main_only":main_only,"waves":waves,
         "family_fallback_enabled":family_enabled,"family_fallback_handoff_fee_required":required_handoff_fee,
         "family_fallback_handoff_fee":handoff_fee,"family_fallback_handoff_fee_funded":handoff_funded,
         "native_family_observer_funded":observer_funded,"native_family_observer_bound":observer_bound,
@@ -717,13 +837,14 @@ pub(super) fn run<'a>(
     let overflow_enabled = super::target_overflow_tree_enabled();
     let family_fallback_available = family_enabled && handoff_funded && observer_within_bound;
     let early_rank_available = super::experimental_early_rank_mode().is_some() && budget::modeled();
-    let fallback = if family_fallback_available
-        || ((overflow_enabled || early_rank_available) && budget::modeled())
+    let fallback = if cost_violation.is_none()
+        && (family_fallback_available
+            || ((overflow_enabled || early_rank_available) && budget::modeled()))
     {
         Some(FallbackState {
             jobs,
             results,
-            paired: originally_paired,
+            paired,
             moments,
             bank,
             seed,
@@ -1497,6 +1618,61 @@ fn training_draw_accounting(total: usize, native_samples: usize) -> (usize, usiz
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn settle_synthetic_pair_order(order: &[usize]) -> usize {
+        let mut bank = WorkBudget::new(1_000);
+        assert!(reserve_pair(&mut bank, 100));
+        assert!(reserve_pair(&mut bank, 100));
+        let grants = [(100, 100), (100, 100)];
+        let actual = [(60, 0), (90, 80)];
+        for &job in order {
+            assert!(settle_sample_grant(&mut bank, grants[job].0, actual[job].0));
+            assert!(settle_sample_grant(&mut bank, grants[job].1, actual[job].1));
+        }
+        bank.reserved
+    }
+
+    #[test]
+    fn conservative_pair_admission_uses_two_complete_sample_bounds() {
+        let mut bank = WorkBudget::new(199);
+        assert!(!reserve_pair(&mut bank, 100));
+        assert_eq!(bank.reserved, 0);
+        bank.limit = 200;
+        assert!(reserve_pair(&mut bank, 100));
+        assert_eq!(bank.reserved, 200);
+    }
+
+    #[test]
+    fn unaffordable_high_priority_pair_does_not_block_a_cheaper_pair() {
+        let mut bank = WorkBudget::new(300);
+        let funded = reserve_pairs_in_order(&mut bank, &[200, 100], &[true, true]);
+        assert_eq!(funded, vec![false, true]);
+        assert_eq!(bank.reserved, 200);
+    }
+
+    #[test]
+    fn settled_unused_main_and_check_work_recycles_independent_of_worker_order() {
+        let forward = settle_synthetic_pair_order(&[0, 1]);
+        let reverse = settle_synthetic_pair_order(&[1, 0]);
+        assert_eq!(forward, 230);
+        assert_eq!(reverse, forward);
+
+        let mut bank = WorkBudget {
+            limit: 1_000,
+            reserved: forward,
+        };
+        assert!(reserve_pair(&mut bank, 380));
+        assert_eq!(bank.reserved, 990);
+    }
+
+    #[test]
+    fn overgrant_settlement_records_actual_work_and_reports_violation() {
+        let mut bank = WorkBudget::new(90);
+        assert!(bank.reserve(80));
+        assert!(!settle_sample_grant(&mut bank, 80, 95));
+        assert_eq!(bank.reserved, 95);
+        assert!(bank.reserved > bank.limit);
+    }
 
     #[test]
     fn family_pair_floor_uses_conservative_bound_only_for_partial_structures() {

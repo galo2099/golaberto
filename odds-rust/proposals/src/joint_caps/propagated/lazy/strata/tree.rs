@@ -1,11 +1,11 @@
 //! Bounded complete partition: child failure retains the parent.
 use super::*;
 use crate::rng::derive;
-use std::time::Instant;
 #[cfg(any(test, feature = "test-support"))]
 use crate::test_env as experiment_env;
 #[cfg(not(any(test, feature = "test-support")))]
 use std::env as experiment_env;
+use std::time::Instant;
 mod hybrid_tree;
 mod na_guidance;
 mod pair_pressure;
@@ -528,6 +528,60 @@ fn next_team_with_work(
             .sum(),
         estimated_work,
     )
+}
+
+fn rank_hint_work_upper(builder: &LazyJoint, leaf: &Leaf, teams: usize) -> usize {
+    let mut work = builder
+        .remaining
+        .len()
+        .saturating_mul(teams.saturating_add(1));
+    for team in 0..teams {
+        if team == builder.cell.team
+            || leaf.selected & (1 << team) != 0
+            || leaf.ambiguous & (1 << team) == 0
+        {
+            continue;
+        }
+        let mut incident = 0usize;
+        let mut span = 0usize;
+        for game in builder
+            .remaining
+            .iter()
+            .filter(|game| game.home == team || game.away == team)
+        {
+            incident = incident.saturating_add(1);
+            let gains = if game.home == team {
+                &game.hg
+            } else {
+                &game.ag
+            };
+            span = span.saturating_add(*gains.iter().max().unwrap_or(&0) as usize);
+        }
+        let key_work = incident.saturating_add(1);
+        let miss_work = incident.saturating_mul(span.saturating_add(1));
+        work = work.saturating_add(key_work).saturating_add(miss_work);
+    }
+    work
+}
+
+fn next_team_with_budget(
+    builder: &LazyJoint,
+    leaf: &Leaf,
+    teams: usize,
+    cache: &mut HashMap<MarginalKey, f64>,
+    budget: &mut usize,
+) -> (Option<usize>, f64, usize, bool) {
+    let upper = rank_hint_work_upper(builder, leaf, teams);
+    if upper > *budget {
+        return (None, 1.0, 0, false);
+    }
+    let (team, hint, work) = next_team_with_work(builder, leaf, teams, true, Some(cache));
+    debug_assert!(
+        work <= upper,
+        "rank-hint estimate exceeded its preflight bound"
+    );
+    *budget = budget.saturating_sub(work);
+    (team, hint, work, true)
 }
 
 fn rank_priority_score(score: f64, hint: f64) -> f64 {
@@ -1086,6 +1140,7 @@ impl BranchStrata {
             shared_goal_work_limit,
             structural_recovery,
             Some(root_filter),
+            None,
         )
     }
 
@@ -1223,6 +1278,7 @@ impl BranchStrata {
             shared_goal_work_limit,
             false,
             None,
+            None,
         )
     }
 
@@ -1250,6 +1306,7 @@ impl BranchStrata {
         shared_goal_work_limit: usize,
         structural_recovery: bool,
         root_filter: Option<&mut dyn FnMut(&[u8]) -> (bool, usize)>,
+        rank_hint_budget: Option<usize>,
     ) -> (std::result::Result<Self, String>, usize) {
         let mut consumed_work = 0usize;
         let result = Self::build_tree_profile(
@@ -1275,6 +1332,7 @@ impl BranchStrata {
             shared_goal_work_limit,
             structural_recovery,
             root_filter,
+            rank_hint_budget,
             &mut consumed_work,
         );
         (result, consumed_work)
@@ -1304,6 +1362,7 @@ impl BranchStrata {
         shared_goal_work_limit: usize,
         structural_recovery: bool,
         root_filter: Option<&mut dyn FnMut(&[u8]) -> (bool, usize)>,
+        rank_hint_budget: Option<usize>,
         consumed_work: &mut usize,
     ) -> std::result::Result<Self, String> {
         let clock = Instant::now();
@@ -1318,7 +1377,8 @@ impl BranchStrata {
             && pair_pilot
             && rival_path;
         let repair_requested =
-            experiment_env::var("RUST_ODDS_EXPERIMENT_RANK_RESCUE_HYBRID_REPAIR").as_deref() == Ok("1");
+            experiment_env::var("RUST_ODDS_EXPERIMENT_RANK_RESCUE_HYBRID_REPAIR").as_deref()
+                == Ok("1");
         let tree_repair_active = repair_requested && hybrid_active;
         let leaf_limit = if hybrid_active {
             hybrid_tree::leaf_limit(large_budget, leaf_limit)
@@ -1485,6 +1545,8 @@ impl BranchStrata {
         let mut leaves = Vec::new();
         let (mut training_work, mut training_draws, mut training_ms) = (0, 0, 0.);
         let mut rank_hint_work = 0usize;
+        let mut rank_hint_budget = rank_hint_budget;
+        let mut skipped_rank_hints = 0usize;
         let mut marginal_cache = rank_priority.then(HashMap::<MarginalKey, f64>::new);
         let mut serial = 0;
         for (root_index, root) in roots.iter().enumerate() {
@@ -1577,21 +1639,35 @@ impl BranchStrata {
                 training_work += w;
                 training_draws += n;
                 if rank_priority {
-                    let (next, hint, work) = if tree_repair_active {
-                        next_team_with_work(&builder, &l, m.n, true, marginal_cache.as_mut())
-                    } else if hybrid_active {
-                        hybrid_tree::next_team(
+                    let (next, hint, work, admitted) = if let Some(budget) =
+                        rank_hint_budget.as_mut()
+                    {
+                        next_team_with_budget(
                             &builder,
                             &l,
                             m.n,
-                            &m.ids,
-                            measured,
-                            marginal_cache.as_mut(),
-                            hybrid_cap.saturating_sub(hybrid_work),
+                            marginal_cache.as_mut().expect("rank priority cache"),
+                            budget,
                         )
                     } else {
-                        next_team_with_work(&builder, &l, m.n, true, marginal_cache.as_mut())
+                        let (team, hint, work) = if tree_repair_active {
+                            next_team_with_work(&builder, &l, m.n, true, marginal_cache.as_mut())
+                        } else if hybrid_active {
+                            hybrid_tree::next_team(
+                                &builder,
+                                &l,
+                                m.n,
+                                &m.ids,
+                                measured,
+                                marginal_cache.as_mut(),
+                                hybrid_cap.saturating_sub(hybrid_work),
+                            )
+                        } else {
+                            next_team_with_work(&builder, &l, m.n, true, marginal_cache.as_mut())
+                        };
+                        (team, hint, work, true)
                     };
+                    skipped_rank_hints += usize::from(!admitted);
                     l.rank_hint_next_team = next;
                     l.score = rank_priority_score(l.score, hint);
                     rank_hint_work = rank_hint_work.saturating_add(work);
@@ -2136,8 +2212,22 @@ impl BranchStrata {
                 training_work += w;
                 training_draws += n;
                 if rank_priority {
-                    let (next, hint, work) =
-                        next_team_with_work(&builder, l, m.n, true, marginal_cache.as_mut());
+                    let (next, hint, work, admitted) = if let Some(budget) =
+                        rank_hint_budget.as_mut()
+                    {
+                        next_team_with_budget(
+                            &builder,
+                            l,
+                            m.n,
+                            marginal_cache.as_mut().expect("rank priority cache"),
+                            budget,
+                        )
+                    } else {
+                        let (team, hint, work) =
+                            next_team_with_work(&builder, l, m.n, true, marginal_cache.as_mut());
+                        (team, hint, work, true)
+                    };
+                    skipped_rank_hints += usize::from(!admitted);
                     l.rank_hint_next_team = next;
                     l.score = rank_priority_score(l.score, hint);
                     rank_hint_work = rank_hint_work.saturating_add(work);
@@ -2626,7 +2716,7 @@ impl BranchStrata {
         if pair_pilot {
             leaf_pilot_diag["pair_pilot"] = pair_pilot_diag;
         }
-        let mut metadata = json!({"rank_hint_priority":rank_priority,"path_priority":path_diag,"leaf_pilot":leaf_pilot_diag,"path_priority_work_units":path_priority_work,"bootstrap_work_units":bootstrap_work,"root_enumeration_work_units":enumeration_work,"rank_hint_work_units":rank_hint_work,"training_work":training_work,"modeled_setup_work":modeled_setup_work,"initial_leaves":initial,"leaf_limit":leaf_limit,"leaves":leaves.len(),"splits":splits,"attempts":attempts,"failed_splits":failed,"refuted_children":refuted,"joint_nodes":builder.nodes,"guide_limit":guide_limit,"guide_values":builder.guide_values,"training_draws":training_draws,"training_ms":training_ms,"setup_ms":clock.elapsed().as_secs_f64()*1000.,"selected":leaves.iter().map(|l|json!({"root":l.root,"selected":(0..m.n).filter(|&t|l.selected&(1<<t)!=0).map(|t|m.ids[t]).collect::<Vec<_>>(),"strict":(0..m.n).filter(|&t|l.mask&(1<<t)!=0).map(|t|m.ids[t]).collect::<Vec<_>>() })).collect::<Vec<_>>()});
+        let mut metadata = json!({"rank_hint_priority":rank_priority,"path_priority":path_diag,"leaf_pilot":leaf_pilot_diag,"path_priority_work_units":path_priority_work,"bootstrap_work_units":bootstrap_work,"root_enumeration_work_units":enumeration_work,"rank_hint_work_units":rank_hint_work,"rank_hint_budget_remaining":rank_hint_budget,"rank_hint_skipped":skipped_rank_hints,"training_work":training_work,"modeled_setup_work":modeled_setup_work,"initial_leaves":initial,"leaf_limit":leaf_limit,"leaves":leaves.len(),"splits":splits,"attempts":attempts,"failed_splits":failed,"refuted_children":refuted,"joint_nodes":builder.nodes,"guide_limit":guide_limit,"guide_values":builder.guide_values,"training_draws":training_draws,"training_ms":training_ms,"setup_ms":clock.elapsed().as_secs_f64()*1000.,"selected":leaves.iter().map(|l|json!({"root":l.root,"selected":(0..m.n).filter(|&t|l.selected&(1<<t)!=0).map(|t|m.ids[t]).collect::<Vec<_>>(),"strict":(0..m.n).filter(|&t|l.mask&(1<<t)!=0).map(|t|m.ids[t]).collect::<Vec<_>>() })).collect::<Vec<_>>()});
         if let Some(recovery) = structural_recovery_diag {
             metadata["structural_recovery"] = recovery;
         }
@@ -2703,6 +2793,118 @@ impl BranchStrata {
         Self::overflow_root_count_filtered(m, cell, seed, limit, &mut |_| (true, 0))
     }
 
+    /// Conservative preflight for the unfiltered complete-root enumerator.
+    /// Enumeration visits at most `limit + 1` accepted paths (the extra path
+    /// detects overflow), each with at most one node per target fixture and
+    /// three outcome checks per node.
+    pub fn overflow_root_count_allowance(m: &Model, cell: Cell, limit: usize) -> usize {
+        let goals = crate::rare_tail::value("RUST_ODDS_LAZY_GOALS") == "1";
+        if m.fixtures.iter().any(|g| g.home >= m.n || g.away >= m.n) {
+            return m.fixtures.len().saturating_add(m.n).max(1);
+        }
+        let bootstrap = lazy_bootstrap_work_estimate(m, cell, goals);
+        let rules = &m.request.phase.championship;
+        if m.keys.first() != Some(&crate::model::Key::Pt)
+            || m.request.phase.bonus_points != 0
+            || (rules.point_win, rules.point_draw, rules.point_loss) != (3, 1, 0)
+            || m.n == 0
+            || m.n > 64
+            || m.fixtures.len() > 256
+            || m.ids.len() != m.n
+            || cell.team >= m.n
+            || cell.rank >= m.n
+            || m.fixtures
+                .iter()
+                .any(|g| g.home >= m.n || g.away >= m.n || g.home == g.away)
+        {
+            return bootstrap;
+        }
+        let remaining = m
+            .fixtures
+            .iter()
+            .filter(|g| g.home != cell.team && g.away != cell.team)
+            .count();
+        let mut all_degree = vec![0usize; m.n];
+        let mut remaining_degree = vec![0usize; m.n];
+        for game in &m.fixtures {
+            all_degree[game.home] = all_degree[game.home].saturating_add(1);
+            all_degree[game.away] = all_degree[game.away].saturating_add(1);
+            if game.home != cell.team && game.away != cell.team {
+                remaining_degree[game.home] = remaining_degree[game.home].saturating_add(1);
+                remaining_degree[game.away] = remaining_degree[game.away].saturating_add(1);
+            }
+        }
+        let has_wins = m.keys.get(1) == Some(&crate::model::Key::W);
+        let stride = if has_wins {
+            m.base
+                .iter()
+                .zip(&all_degree)
+                .map(|(base, &left)| base.wins.saturating_add(left as i32))
+                .max()
+                .unwrap_or(0)
+                .saturating_add(1)
+                .max(1) as usize
+        } else {
+            1
+        };
+        let max_gain = 3usize
+            .saturating_mul(stride)
+            .saturating_add(usize::from(has_wins));
+        let max_span = remaining_degree
+            .into_iter()
+            .max()
+            .unwrap_or(0)
+            .saturating_mul(max_gain)
+            .saturating_add(1);
+        let values = remaining
+            .saturating_mul(2)
+            .saturating_add(1)
+            .saturating_mul(max_span)
+            .saturating_mul(2)
+            .min(4_000_000);
+        let optional_setup = if crate::rare_tail::value("RUST_ODDS_LAZY_FALLBACK") == "guided" {
+            crate::rare_tail::budget::setup_cost(0, values)
+        } else {
+            0
+        };
+        let target_depth = m
+            .fixtures
+            .iter()
+            .filter(|g| g.home == cell.team || g.away == cell.team)
+            .count();
+        let enumeration = limit
+            .saturating_add(1)
+            .saturating_mul(target_depth)
+            .saturating_mul(4)
+            .saturating_add(1);
+        bootstrap
+            .saturating_add(optional_setup)
+            .saturating_add(enumeration)
+    }
+
+    /// Decline before setup unless the complete conservative allowance fits.
+    pub fn overflow_root_count_bounded(
+        m: &Model,
+        cell: Cell,
+        seed: i64,
+        limit: usize,
+        work_limit: usize,
+    ) -> (std::result::Result<usize, String>, usize) {
+        if m.n == 0
+            || cell.team >= m.n
+            || cell.rank >= m.n
+            || m.ids.len() != m.n
+            || m.fixtures.iter().any(|g| g.home >= m.n || g.away >= m.n)
+        {
+            return (Err("unsupported tree model".into()), 0);
+        }
+        let allowance = Self::overflow_root_count_allowance(m, cell, limit);
+        if allowance > work_limit {
+            return (Err("root-count work allowance exceeds grant".into()), 0);
+        }
+        Self::overflow_root_count(m, cell, seed, limit)
+    }
+
     pub fn overflow_root_count_filtered(
         m: &Model,
         cell: Cell,
@@ -2752,6 +2954,78 @@ impl BranchStrata {
         )
     }
 
+    fn overflow_tree_model_supported(m: &Model, cell: Cell) -> bool {
+        let rules = &m.request.phase.championship;
+        m.n > 0
+            && m.n <= 64
+            && m.ids.len() == m.n
+            && cell.team < m.n
+            && cell.rank < m.n
+            && m.fixtures.len() <= 256
+            && m.keys.first() == Some(&crate::model::Key::Pt)
+            && m.request.phase.bonus_points == 0
+            && (rules.point_win, rules.point_draw, rules.point_loss) == (3, 1, 0)
+            && m.fixtures.iter().all(|fixture| {
+                fixture.home < m.n && fixture.away < m.n && fixture.home != fixture.away
+            })
+    }
+
+    /// Conservative quote for the default overflow-tree setup: complete root
+    /// construction plus the full node/guide allocation quota. Per-hint work
+    /// is funded from the residual grant by `with_overflow_tree_bounded`.
+    pub fn overflow_tree_setup_allowance(m: &Model, cell: Cell) -> Option<usize> {
+        Self::overflow_tree_model_supported(m, cell).then(|| {
+            Self::overflow_root_count_allowance(m, cell, 256).saturating_add(
+                crate::rare_tail::budget::setup_cost(
+                    OVERFLOW_TREE_NODE_LIMIT,
+                    OVERFLOW_TREE_GUIDE_LIMIT,
+                ),
+            )
+        })
+    }
+
+    /// Cost-bounded wrapper for the default overflow path. Unsupported inputs
+    /// and grants below the full setup quote decline before construction.
+    pub fn with_overflow_tree_bounded(
+        m: &Model,
+        cell: Cell,
+        seed: i64,
+        work_limit: usize,
+    ) -> (std::result::Result<Self, String>, usize) {
+        let Some(setup_allowance) = Self::overflow_tree_setup_allowance(m, cell) else {
+            return (Err("unsupported tree model".into()), 0);
+        };
+        if setup_allowance > work_limit {
+            return (Err("overflow-tree setup allowance exceeds grant".into()), 0);
+        }
+        Self::with_tree_profile_options_recovery(
+            m,
+            cell,
+            seed,
+            4,
+            256,
+            0,
+            OVERFLOW_TREE_GUIDE_LIMIT,
+            OVERFLOW_TREE_NODE_LIMIT,
+            256,
+            true,
+            true,
+            false,
+            false,
+            false,
+            false,
+            false,
+            0,
+            false,
+            false,
+            rival_path::SHARED_GOAL_TIEBREAK_WORK_LIMIT,
+            false,
+            None,
+            Some(work_limit - setup_allowance),
+        )
+    }
+
+    #[cfg(test)]
     pub fn overflow_tree_setup_admission_floor(root_count_work: usize) -> usize {
         root_count_work.saturating_add(crate::rare_tail::budget::setup_cost(
             OVERFLOW_TREE_NODE_LIMIT,
@@ -2878,6 +3152,7 @@ mod tests {
             rival_path::SHARED_GOAL_TIEBREAK_WORK_LIMIT,
             true,
             Some(&mut tree_filter),
+            None,
         );
         let tree = tree.unwrap();
         assert!(tree_work > 0);
@@ -3707,8 +3982,35 @@ mod tests {
         let m = model();
         let cell = Cell { team: 0, rank: 1 };
         let (root_result, root_work) = BranchStrata::overflow_root_count(&m, cell, 808, 256);
-        assert!(root_result.unwrap() > 0);
+        let complete_roots = root_result.unwrap();
+        assert!(complete_roots > 0);
         assert!(root_work > 0);
+        let root_allowance = BranchStrata::overflow_root_count_allowance(&m, cell, 256);
+        assert!(root_allowance >= root_work);
+        let (declined, declined_work) = BranchStrata::overflow_root_count_bounded(
+            &m,
+            cell,
+            808,
+            256,
+            root_allowance.saturating_sub(1),
+        );
+        assert!(declined.is_err());
+        assert_eq!(declined_work, 0);
+        let (admitted, admitted_work) =
+            BranchStrata::overflow_root_count_bounded(&m, cell, 808, 256, root_allowance);
+        assert_eq!(admitted.unwrap(), complete_roots);
+        assert!(admitted_work <= root_allowance);
+        let invalid_cell = Cell { team: m.n, rank: 0 };
+        let invalid_allowance = BranchStrata::overflow_root_count_allowance(&m, invalid_cell, 256);
+        let (invalid_result, invalid_work) = BranchStrata::overflow_root_count_bounded(
+            &m,
+            invalid_cell,
+            808,
+            256,
+            invalid_allowance,
+        );
+        assert!(invalid_result.is_err());
+        assert!(invalid_work <= invalid_allowance);
         let (capped_roots, capped_root_work) = BranchStrata::overflow_root_count(&m, cell, 808, 1);
         assert!(
             matches!(capped_roots, Err(error) if error.contains("complete tree target-path budget exhausted"))
@@ -3720,5 +4022,36 @@ mod tests {
         );
         assert!(matches!(tree_result, Err(error) if error.contains("complete roots exceed")));
         assert!(tree_work > 0);
+    }
+
+    #[test]
+    fn bounded_overflow_tree_declines_before_work_and_keeps_complete_coverage() {
+        let m = model();
+        let cell = Cell { team: 0, rank: 1 };
+        let quote = BranchStrata::overflow_tree_setup_allowance(&m, cell).unwrap();
+        let (declined, declined_work) =
+            BranchStrata::with_overflow_tree_bounded(&m, cell, 808, quote - 1);
+        assert!(declined.is_err());
+        assert_eq!(declined_work, 0);
+
+        let (bounded, bounded_work) =
+            BranchStrata::with_overflow_tree_bounded(&m, cell, 808, quote);
+        let bounded = bounded.expect("quoted setup must complete");
+        assert!(bounded_work <= quote);
+        assert!((coverage(&m, &bounded) - exact_rank_mass_for_test(&m, cell)).abs() < 1e-12);
+
+        let (legacy, _) = BranchStrata::with_overflow_tree(&m, cell, 808);
+        let legacy = legacy.expect("legacy tree should build");
+        assert!((coverage(&m, &legacy) - coverage(&m, &bounded)).abs() < 1e-10);
+
+        let (ample, ample_work) =
+            BranchStrata::with_overflow_tree_bounded(&m, cell, 808, usize::MAX);
+        let ample = ample.expect("ample bounded grant should build");
+        assert!(ample_work <= usize::MAX);
+        assert_eq!(coverage(&m, &ample), coverage(&m, &legacy));
+        assert_eq!(
+            ample.setup_diagnostics()["tree"]["rank_hint_skipped"],
+            serde_json::json!(0)
+        );
     }
 }

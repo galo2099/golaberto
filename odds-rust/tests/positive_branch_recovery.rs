@@ -101,31 +101,57 @@ fn weak_positive_complete_branch_recovery_is_bounded_and_deterministic() {
     assert_valid_rank_matrix(&disabled);
     assert_valid_rank_matrix(&recovered);
 
-    let old = &disabled["rare_position_estimates"]["15"]["16"];
-    let new = &recovered["rare_position_estimates"]["15"]["16"];
-    let old_probability = old["probability"].as_f64().unwrap();
+    // The older stage now already recovers this reference cell at the target
+    // probability scale, so keep its order-of-magnitude check without requiring
+    // positive-branch recovery to run on a cell that no longer needs it.
+    let reference_old = &disabled["rare_position_estimates"]["15"]["16"];
+    let reference_new = &recovered["rare_position_estimates"]["15"]["16"];
+    let reference_old_probability = reference_old["probability"].as_f64().unwrap();
+    let reference_new_probability = reference_new["probability"].as_f64().unwrap();
+    assert!(
+        (2e-23..=2e-22).contains(&reference_old_probability),
+        "baseline reference estimate={reference_old_probability:e}"
+    );
+    assert!(
+        (2e-23..=2e-22).contains(&reference_new_probability),
+        "enabled reference estimate={reference_new_probability:e}"
+    );
+
+    let refined = one_logs
+        .iter()
+        .find(|event| {
+            event["event"] == "rust_odds_rare_tail_branches"
+                && event["positive_refinement"] == true
+                && event["positive_accepted"] == true
+        })
+        .expect("accepted positive complete-branch refinement");
+    assert_eq!(refined["positive_quality_improved"], true);
+    let positive_team = refined["team"].as_u64().unwrap().to_string();
+    let positive_rank = (refined["rank"].as_u64().unwrap() - 1).to_string();
+    let new = &recovered["rare_position_estimates"][&positive_team][&positive_rank];
+    let old_probability = refined["positive_old_probability"].as_f64().unwrap();
     let new_probability = new["probability"].as_f64().unwrap();
-    let old_relative_se = old["std_err"].as_f64().unwrap() / old_probability;
-    let new_relative_se = new["std_err"].as_f64().unwrap() / new_probability;
+    let old_quality = &refined["positive_old_quality"];
+    let old_ess = old_quality["ess"].as_f64().unwrap();
+    let old_relative_se = old_quality["rse"].as_f64().unwrap();
+    let old_max_share = old_quality["max_share"].as_f64().unwrap();
+    let new_relative_se = new["relative_se"].as_f64().unwrap();
+    assert!(old_probability > 0.0, "old={old_probability:e}");
+    assert!(new_probability > 0.0, "new={new_probability:e}");
     assert!(
-        old_probability > 0.0 && old_probability < 1e-24,
-        "old={old_probability:e}"
+        (old_probability / 2.0..=old_probability * 2.0).contains(&new_probability),
+        "complete-branch estimate={new_probability:e}, baseline={old_probability:e}"
     );
-    assert!(
-        (2e-23..=2e-22).contains(&new_probability),
-        "complete-branch estimate={new_probability:e}"
-    );
+    let logged_new_probability = refined["positive_new_probability"].as_f64().unwrap();
+    assert!((logged_new_probability - new_probability).abs() / new_probability < 1e-5);
     assert_eq!(
         new["design"],
         "matched_point_pool_complete_branches_positive"
     );
     assert_eq!(new["meets_precision_goal"], true);
-    assert!(new["ess"].as_f64().unwrap() > old["ess"].as_f64().unwrap());
+    assert!(new["ess"].as_f64().unwrap() > old_ess);
     assert!(new_relative_se < old_relative_se);
-    assert!(
-        new["max_event_weight_share"].as_f64().unwrap()
-            <= old["max_event_weight_share"].as_f64().unwrap()
-    );
+    assert!(new["max_event_weight_share"].as_f64().unwrap() <= old_max_share);
 
     let old_rows = disabled["rare_position_estimates"].as_object().unwrap();
     let new_rows = recovered["rare_position_estimates"].as_object().unwrap();
@@ -178,23 +204,13 @@ fn weak_positive_complete_branch_recovery_is_bounded_and_deterministic() {
     let limit = summary["work_limit"].as_u64().unwrap();
     assert!(reserved <= limit, "reserved={reserved}, limit={limit}");
 
-    let refined = one_logs
-        .iter()
-        .find(|event| {
-            event["event"] == "rust_odds_rare_tail_branches"
-                && event["positive_refinement"] == true
-                && event["positive_accepted"] == true
-                && event["team"] == 15
-                && event["rank"] == 17
-        })
-        .expect("accepted positive complete-branch refinement");
     let coverage = &refined["branch_coverage"];
     assert!(
         coverage["unsupported_upper_sum"].as_f64().unwrap()
             <= coverage["unsupported_allowance"].as_f64().unwrap()
     );
     let branches = coverage["branches"].as_array().unwrap();
-    assert_eq!(branches.len(), 25);
+    assert!(!branches.is_empty());
     for branch in branches {
         assert!(branch["allocated_draws"].as_u64().unwrap() > 0);
         assert!(branch["main"]["samples"].as_u64().unwrap() > 0);

@@ -839,6 +839,35 @@ pub struct PropagatedJoint {
     guides: usize,
 }
 impl PropagatedJoint {
+    /// Conservative modeled work bound for one sampled draw, including the
+    /// union pattern draw and the ranking/reconstruction work after it.
+    pub fn draw_upper_work(&self, m: &Model) -> usize {
+        let mut pattern = 0usize;
+        for p in &self.patterns {
+            let teams = m.n;
+            let guide_games = p.guide.games.len();
+            let fixtures = p
+                .omitted
+                .len()
+                .saturating_add(p.joint.games.len())
+                .saturating_add(guide_games);
+            let guidance = p
+                .fixed
+                .len()
+                .saturating_add(4usize.saturating_mul(teams))
+                .saturating_add(3usize.saturating_mul(p.joint.selected.len()))
+                .saturating_add(8usize.saturating_mul(teams.saturating_sub(1)))
+                .saturating_add(90usize.saturating_mul(guide_games));
+            pattern = pattern.max(fixtures.saturating_mul(8).saturating_add(guidance));
+        }
+        pattern
+            .saturating_add(8usize.saturating_mul(m.fixtures.len()))
+            .saturating_add(
+                m.n.saturating_mul(m.n.max(2).ilog2() as usize + 1)
+                    .saturating_mul(m.keys.len().max(1)),
+            )
+    }
+
     pub fn new(m: &Model, cell: Cell) -> Option<Self> {
         Self::with_limits(m, cell, 4, 6)
     }
@@ -1515,9 +1544,23 @@ mod tests {
             let m = league(sort);
             for rank in 0..4 {
                 let p = PropagatedJoint::with_limits(&m, Cell { team: 0, rank }, 0, 1).unwrap();
+                let guide_steps = p
+                    .patterns
+                    .iter()
+                    .map(|pattern| pattern.guide.games.len())
+                    .max()
+                    .unwrap_or(0);
+                assert!(
+                    guide_steps > 0,
+                    "fixture should exercise propagated guide work"
+                );
+                assert!(p.draw_upper_work(&m) >= guide_steps.saturating_mul(98));
                 let (_, expected) = exact(&m, &p);
                 for guided in [false, true] {
                     let r = p.sample(&m, 10000, 808, guided);
+                    assert!(
+                        r.operations.units() <= p.draw_upper_work(&m).saturating_mul(r.samples)
+                    );
                     assert!(
                         (r.probability - expected).abs() < 6. * r.std_err + 1e-12,
                         "sort={sort} rank={rank} guided={guided} estimate={} exact={expected}",

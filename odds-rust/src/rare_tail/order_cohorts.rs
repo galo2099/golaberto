@@ -10,11 +10,15 @@ use crate::{
 };
 use serde_json::json;
 
-const MAX_CELLS: usize = 4;
+const MAX_CELLS: usize = 128;
 const PILOT_DRAWS: usize = 1_024;
 const MIN_PILOT_DRAWS: usize = 32;
 const MAX_FINAL_DRAWS: usize = 20_000;
 const MIN_FINAL_DRAWS: usize = 1_000;
+const NATIVE_FINAL_CAPACITY_NUMERATOR: usize = 2;
+const NATIVE_FINAL_CAPACITY_DENOMINATOR: usize = 5;
+const TRAINING_CAP_NUMERATOR: usize = 2;
+const TRAINING_CAP_DENOMINATOR: usize = 3;
 const MAX_NODES: usize = 60_000;
 const MAX_GUIDES: usize = 4_000_000;
 const MAX_SELECTION_WORK: usize = 2_000_000;
@@ -80,20 +84,6 @@ fn weak_positive(estimate: &Estimate) -> bool {
             || estimate.max_event_weight_share > 0.1)
 }
 
-fn priority_candidate_grant(
-    remaining_capacity: usize,
-    positive_cell: bool,
-    zero_slots_left: usize,
-    positive_slots_left: usize,
-) -> usize {
-    let slots = if positive_cell {
-        positive_slots_left
-    } else {
-        zero_slots_left
-    };
-    remaining_capacity / slots.max(1)
-}
-
 fn weak_reason(estimate: &Estimate) -> Vec<&'static str> {
     let mut reasons = Vec::new();
     if !estimate.meets_precision_goal {
@@ -111,6 +101,10 @@ fn weak_reason(estimate: &Estimate) -> Vec<&'static str> {
     reasons
 }
 
+fn admit_candidate(remaining: usize, minimum_work: usize) -> Option<usize> {
+    (minimum_work > 0 && remaining >= minimum_work).then_some(minimum_work)
+}
+
 fn pilot_is_healthy(pilot: &Result) -> bool {
     let relative_se = if pilot.probability > 0.0 && pilot.probability.is_finite() {
         pilot.std_err / pilot.probability
@@ -126,6 +120,12 @@ fn pilot_is_healthy(pilot: &Result) -> bool {
         && relative_se <= 0.25
         && pilot.max_share.is_finite()
         && pilot.max_share <= 0.1
+}
+
+/// Native arm comparisons use a common, fixed pilot stream length. A bounded
+/// prefix may be useful diagnostically, but it cannot compete for selection.
+fn native_pilot_complete(pilot: &Result) -> bool {
+    pilot.samples == PILOT_DRAWS
 }
 
 fn feasible_fallback_trigger(arm_health: &[bool], analytic_gd: bool) -> Option<&'static str> {
@@ -295,6 +295,63 @@ struct PassTotals {
     overrun: bool,
 }
 
+// This is an approximate two-standard-error consistency guard for sampled
+// importance tails, not a rigorous confidence certificate.
+#[derive(Clone, Copy, Debug)]
+struct NativeEvidence {
+    probability: f64,
+    std_err: f64,
+}
+
+impl NativeEvidence {
+    fn from_result(result: &Result) -> Option<Self> {
+        (result.probability.is_finite()
+            && result.probability > 0.0
+            && result.std_err.is_finite()
+            && result.std_err >= 0.0
+            && result.ess.is_finite()
+            && result.ess >= 3.0
+            && result.hits >= 30)
+            .then_some(Self {
+                probability: result.probability,
+                std_err: result.std_err,
+            })
+    }
+
+    fn two_se_lower(self) -> f64 {
+        (self.probability - 2.0 * self.std_err).max(0.0)
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+struct NativeGdDisagreement {
+    native_lower: f64,
+    gd_upper: f64,
+}
+
+fn native_gd_disagreement(
+    native: &[Option<NativeEvidence>; 2],
+    gd_main: &Result,
+    gd_check: &Result,
+) -> Option<NativeGdDisagreement> {
+    let gd_upper = [gd_main, gd_check]
+        .iter()
+        .filter(|r| r.probability.is_finite() && r.std_err.is_finite() && r.std_err >= 0.0)
+        .map(|r| r.probability + 2.0 * r.std_err)
+        .reduce(f64::max)?;
+    native
+        .iter()
+        .flatten()
+        .copied()
+        .map(NativeEvidence::two_se_lower)
+        .filter(|lower| *lower > gd_upper)
+        .map(|native_lower| NativeGdDisagreement {
+            native_lower,
+            gd_upper,
+        })
+        .max_by(|a, b| a.native_lower.total_cmp(&b.native_lower))
+}
+
 pub(crate) fn log_status(
     log: Option<&crate::logging::RequestLog>,
     group: i32,
@@ -328,6 +385,7 @@ pub(super) fn run(
     };
     let native_cells = candidate_cells(estimates, m.n, false, &m.ids, request_seed);
     let native_candidate_count = native_cells.len();
+    let mut native_evidence = vec![[None; 2]; estimates.len()];
     let mut totals = run_pass(
         m,
         request_seed,
@@ -338,13 +396,13 @@ pub(super) fn run(
         native_cells,
         false,
         rough,
+        &mut native_evidence,
     );
     let mut gd_totals = PassTotals::default();
     let mut gd_candidate_count = 0;
     let mut gd_weak_candidate_count = 0;
     if analytic_gd {
-        let mut gd_cells = candidate_cells(estimates, m.n, true, &m.ids, request_seed);
-        gd_cells.truncate(1);
+        let gd_cells = candidate_cells(estimates, m.n, true, &m.ids, request_seed);
         gd_candidate_count = gd_cells.len();
         gd_weak_candidate_count = gd_cells
             .iter()
@@ -362,6 +420,7 @@ pub(super) fn run(
                 gd_cells,
                 true,
                 rough,
+                &mut native_evidence,
             );
         }
     }
@@ -403,6 +462,7 @@ fn run_pass(
     cells: Vec<Cell>,
     analytic_gd: bool,
     rough: bool,
+    native_evidence: &mut [[Option<NativeEvidence>; 2]],
 ) -> PassTotals {
     let pass_name = if analytic_gd {
         "gd_refinement"
@@ -438,18 +498,7 @@ fn run_pass(
     } else {
         0
     };
-    let mut remaining_candidate_slots = vec![(0usize, 0usize); cells.len() + 1];
-    for position in (0..cells.len()).rev() {
-        remaining_candidate_slots[position] = remaining_candidate_slots[position + 1];
-        let candidate = cells[position];
-        let slots = &mut remaining_candidate_slots[position];
-        if estimates[candidate.index(m.n)].probability > 0.0 {
-            slots.1 += 1;
-        } else {
-            slots.0 += 1;
-        }
-    }
-    for (position, cell) in cells.iter().copied().enumerate() {
+    for (cell_index, cell) in cells.iter().copied().enumerate() {
         let prior = &estimates[cell.index(m.n)];
         if prior.probability > 0.0 {
             emit(
@@ -464,24 +513,29 @@ fn run_pass(
         }
         let remaining = initial_capacity.saturating_sub(actual_total);
         let positive_cell = prior.probability > 0.0;
-        let (zero_slots_left, positive_slots_left) = remaining_candidate_slots[position];
-        let grant = priority_candidate_grant(
-            remaining,
-            positive_cell,
-            zero_slots_left,
-            positive_slots_left,
-        );
-        let training_cap = grant / 3;
         let constructor_clone = LazyJoint::order_base_constructor_and_clone_allowance(m, cell);
         let minimum_arm = one_arm_minimum(constructor_clone, draw_upper, goal_preparation);
-        if training_cap < minimum_arm {
+        let pilot_reserve = MIN_PILOT_DRAWS.saturating_mul(draw_upper.saturating_add(if goals {
+            crate::goal_tilt::JOINT_PREPARATION_ALLOWANCE_PER_DRAW
+        } else {
+            0
+        }));
+        let minimum_grant = minimum_arm.saturating_add(pilot_reserve);
+        let Some(minimum_admission) = admit_candidate(remaining, minimum_grant) else {
             emit(
                 log,
                 "rust_odds_expected_cohorts_skip",
-                json!({"team":m.ids[cell.team],"rank":cell.rank+1,"reason":"training_preflight","cell_grant":grant,"training_cap":training_cap,"required":minimum_arm,"constructor_clone_allowance":constructor_clone,"draw_upper":draw_upper,"goal_preparation":goal_preparation}),
+                json!({"team":m.ids[cell.team],"rank":cell.rank+1,"reason":"cost_admission","remaining_work":remaining,"required_work":minimum_grant,"constructor_clone_allowance":constructor_clone,"draw_upper":draw_upper,"goal_preparation":goal_preparation}),
             );
             continue;
-        }
+        };
+        // Training gets at most two thirds of the current residual bank, with
+        // the conservative minimum raised when needed. Actual work is charged
+        // immediately, so unused training capacity remains available to final
+        // pairs and later candidates.
+        let training_share =
+            remaining.saturating_mul(TRAINING_CAP_NUMERATOR) / TRAINING_CAP_DENOMINATOR;
+        let training_cap = remaining.min(minimum_admission.max(training_share));
 
         let base_seed = derive(
             request_seed,
@@ -709,11 +763,21 @@ fn run_pass(
                 proposal.set_order_score_mode("analytic_gd_cohort");
                 gd_pilot.expect("GD pilot selected only when usable")
             } else if native_pilot.as_ref().is_some_and(|result| {
-                result.samples >= MIN_PILOT_DRAWS && result.hits >= 3 && result.ess > 0.0
+                native_pilot_complete(result) && result.hits >= 3 && result.ess > 0.0
             }) {
                 proposal.set_order_score_mode("sampled");
                 native_pilot.expect("native pilot selected only when usable")
             } else {
+                if let Some(result) = native_pilot.as_ref().filter(|r| !native_pilot_complete(r)) {
+                    emit(
+                        log,
+                        "rust_odds_expected_cohorts_arm",
+                        json!({"team":m.ids[cell.team],"rank":cell.rank+1,"width":width,
+                            "status":"incomplete_native_pilot_discarded",
+                            "requested_draws":PILOT_DRAWS,"completed_draws":result.samples,
+                            "pilot_work":native_pilot_work,"arm_grant":arm_grant}),
+                    );
+                }
                 continue;
             };
             if use_gd {
@@ -958,7 +1022,7 @@ fn run_pass(
                         gd_pilot = Some(result);
                     }
                     let native_usable = native_pilot.as_ref().is_some_and(|result| {
-                        result.samples >= MIN_PILOT_DRAWS && result.hits >= 3 && result.ess > 0.0
+                        native_pilot_complete(result) && result.hits >= 3 && result.ess > 0.0
                     });
                     let gd_usable = gd_pilot.as_ref().is_some_and(|result| {
                         result.samples >= MIN_PILOT_DRAWS
@@ -1078,9 +1142,36 @@ fn run_pass(
                     .saturating_add(gd_attempt_overhead(m)),
             )
         } else {
-            final_forecast_per_draw(budget::per_draw(&pilot))
+            proposal.sample_work_upper_bound(m, 1)
         };
-        let final_remaining = grant.saturating_sub(training_used);
+        let available_final = initial_capacity.saturating_sub(actual_total);
+        let next_setup_reserve = cells.get(cell_index + 1).map_or(0, |next| {
+            LazyJoint::order_base_constructor_and_clone_allowance(m, *next).saturating_add(
+                MIN_PILOT_DRAWS.saturating_mul(draw_upper.saturating_add(if goals {
+                    crate::goal_tilt::JOINT_PREPARATION_ALLOWANCE_PER_DRAW
+                } else {
+                    0
+                })),
+            )
+        });
+        let available_for_pair = available_final.saturating_sub(next_setup_reserve);
+        let final_remaining = if analytic_gd {
+            let desired = final_per_draw
+                .saturating_mul(2)
+                .saturating_mul((2 * MIN_FINAL_DRAWS).min(4_000))
+                .saturating_add(cold_score_prep_per_stream.saturating_mul(2));
+            desired.min(available_for_pair)
+        } else {
+            let minimum_pair = proposal
+                .sample_work_upper_bound(m, MIN_FINAL_DRAWS)
+                .saturating_mul(2);
+            let desired = initial_capacity
+                .saturating_mul(NATIVE_FINAL_CAPACITY_NUMERATOR)
+                .checked_div(NATIVE_FINAL_CAPACITY_DENOMINATOR)
+                .unwrap_or(0)
+                .max(minimum_pair);
+            desired.min(available_for_pair)
+        };
         let allocation = if analytic_gd {
             fixed_pair_allocation_with_setup(
                 final_remaining,
@@ -1088,8 +1179,11 @@ fn run_pass(
                 cold_score_prep_per_stream,
             )
         } else {
-            fixed_pair_allocation(final_remaining, final_per_draw)
-                .map(|(draws, forecast)| (draws, forecast, 0))
+            let draws = native_final_draw_target(&pilot, final_remaining);
+            let minimum_pair = proposal
+                .sample_work_upper_bound(m, MIN_FINAL_DRAWS)
+                .saturating_mul(2);
+            (final_remaining >= minimum_pair).then_some((draws, final_remaining, 0))
         };
         let Some((draws, pair_forecast, query_per_stream)) = allocation else {
             emit(
@@ -1099,8 +1193,9 @@ fn run_pass(
             );
             continue;
         };
-        // Main and check use distinct, fixed streams. Both always complete even
-        // when MAIN fails the publication gate.
+        // Main and check use distinct, fixed streams with the same requested
+        // count. Bounded native streams may stop early; only complete pairs
+        // are eligible for publication.
         let score_integral_snapshot = if analytic_gd {
             pilot.score_integral_snapshot.clone()
         } else {
@@ -1131,10 +1226,7 @@ fn run_pass(
                     score_integral_snapshot.clone(),
                 )
             } else {
-                // Preserve the established sampled rollback stream and fixed
-                // count. The independent publication guard below rejects it
-                // if metered work exceeds its forecast.
-                proposal.sample(m, draws, seed)
+                proposal.sample_order_native_bounded(m, draws, seed, pair_forecast / 2)
             }
         });
         let mut pair = pair.into_iter();
@@ -1147,9 +1239,21 @@ fn run_pass(
         let pair_legacy = main.work.saturating_add(check.work);
         let pair_is_complete =
             pair_is_publishable(&main, &check, draws, actual_pair, pair_forecast);
-        let ok = pair_is_complete && super::accepted(&main, &check, rough);
+        let quality_ok = pair_is_complete && super::accepted(&main, &check, rough);
         let estimate = &mut estimates[cell.index(m.n)];
         let old_probability = estimate.probability;
+        if !analytic_gd && pair_is_complete {
+            native_evidence[cell.index(m.n)] = [
+                NativeEvidence::from_result(&main),
+                NativeEvidence::from_result(&check),
+            ];
+        }
+        let disagreement = if analytic_gd && old_probability == 0.0 && quality_ok {
+            native_gd_disagreement(&native_evidence[cell.index(m.n)], &main, &check)
+        } else {
+            None
+        };
+        let ok = quality_ok && disagreement.is_none();
         let candidate_kind = if old_probability > 0.0 {
             "weak_positive_refinement"
         } else {
@@ -1212,10 +1316,21 @@ fn run_pass(
                 }),
             );
         }
+        let replacement_reason = if committed {
+            "both_streams_improved"
+        } else if disagreement.is_some() {
+            "native_gd_disagreement"
+        } else if old_probability > 0.0 && !ok {
+            "failed_independent_publication_gate"
+        } else if old_probability > 0.0 {
+            "did_not_improve_both_precision_and_ess"
+        } else {
+            "zero_recovery_not_accepted"
+        };
         emit(
             log,
             "rust_odds_expected_cohorts_pair",
-            json!({"team":m.ids[cell.team],"rank":cell.rank+1,"stage":pass_name,"method":winner_method,"score_mode":if analytic_gd {"analytic_gd_cohort"} else {"sampled"},"candidate_kind":candidate_kind,"old_probability":if old_probability>0.0 {Some(old_probability)} else {None},"replacement_reason":if committed {"both_streams_improved"} else if old_probability>0.0 && !ok {"failed_independent_publication_gate"} else if old_probability>0.0 {"did_not_improve_both_precision_and_ess"} else {"zero_recovery_not_accepted"},"width":winner_width,"pilot_hits":pilot.hits,"pilot_ess":pilot.ess,"efficiency_score":score,"main_draws":main.samples,"main_hits":main.hits,"main_ess":main.ess,"check_draws":check.samples,"check_hits":check.hits,"check_ess":check.ess,"probability":main.probability,"check_probability":check.probability,"accepted":committed,"publication_gate":ok,"forecast_pair_work":pair_forecast,"actual_pair_work":actual_pair,"overrun":pair_overrun,"setup_ms":stage_ms,"pilot_ms":pilot_ms}),
+            json!({"team":m.ids[cell.team],"rank":cell.rank+1,"stage":pass_name,"method":winner_method,"score_mode":if analytic_gd {"analytic_gd_cohort"} else {"sampled"},"candidate_kind":candidate_kind,"old_probability":if old_probability>0.0 {Some(old_probability)} else {None},"replacement_reason":replacement_reason,"native_gd_disagreement":disagreement.map(|d|json!({"native_lower_two_se":d.native_lower,"gd_upper_two_se":d.gd_upper})),"width":winner_width,"pilot_hits":pilot.hits,"pilot_ess":pilot.ess,"efficiency_score":score,"requested_draws":draws,"execution_cap":pair_forecast,"main_draws":main.samples,"main_hits":main.hits,"main_ess":main.ess,"check_draws":check.samples,"check_hits":check.hits,"check_ess":check.ess,"probability":main.probability,"check_probability":check.probability,"accepted":committed,"publication_gate":ok,"forecast_pair_work":pair_forecast,"actual_pair_work":actual_pair,"overrun":pair_overrun,"setup_ms":stage_ms,"pilot_ms":pilot_ms}),
         );
         if actual_total > initial_capacity {
             break;
@@ -1265,6 +1380,11 @@ fn final_forecast_per_draw(pilot_per_draw: usize) -> usize {
     pilot_per_draw.saturating_mul(5).div_ceil(4).max(1)
 }
 
+fn native_final_draw_target(pilot: &Result, execution_cap: usize) -> usize {
+    let pair_per_draw = final_forecast_per_draw(budget::per_draw(pilot)).saturating_mul(2);
+    (execution_cap / pair_per_draw.max(1)).clamp(MIN_FINAL_DRAWS, MAX_FINAL_DRAWS)
+}
+
 fn bounded_pilot_draws(allowance: usize, per_draw: usize, analytic_gd: bool) -> usize {
     let draw_budget = if analytic_gd {
         allowance.saturating_mul(4) / 5
@@ -1306,6 +1426,7 @@ fn gd_pilot_exceeds_final_cache_capacity(pilot: &Result) -> bool {
     predicted_final_gd_paths(pilot) > crate::score_integral::MAX_COHORT_GD_PATHS
 }
 
+#[cfg(test)]
 fn fixed_pair_allocation(remaining: usize, per_draw: usize) -> Option<(usize, usize)> {
     let pair_cost = per_draw.saturating_mul(2);
     let draws = (remaining / pair_cost.max(1)).min(MAX_FINAL_DRAWS);
@@ -1466,33 +1587,25 @@ mod tests {
 
     #[test]
     fn candidate_cap_spreads_zero_cells_across_teams_before_truncating() {
-        let mut values = vec![
+        let values = vec![
             Estimate {
-                reachability: "impossible_test".into(),
+                probability: 0.0,
+                reachability: "reachable".into(),
                 ..Default::default()
             };
-            25
+            144
         ];
-        for rank in 0..5 {
-            values[rank] = Estimate {
-                probability: 0.0,
-                reachability: "reachable".into(),
-                ..Default::default()
-            };
-        }
-        for team in 1..5 {
-            values[team * 5] = Estimate {
-                probability: 0.0,
-                reachability: "reachable".into(),
-                ..Default::default()
-            };
-        }
-
-        let selected = candidate_cells(&values, 5, false, &[10, 20, 30, 40, 50], 123);
+        let selected = candidate_cells(
+            &values,
+            12,
+            false,
+            &[10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120],
+            123,
+        );
         assert_eq!(selected.len(), MAX_CELLS);
         let teams: std::collections::BTreeSet<_> = selected.iter().map(|cell| cell.team).collect();
-        assert_eq!(teams.len(), MAX_CELLS);
-        assert!(selected.iter().filter(|cell| cell.team == 0).count() <= 1);
+        assert_eq!(teams.len(), 12);
+        assert!(selected.iter().filter(|cell| cell.team == 0).count() <= 11);
     }
 
     #[test]
@@ -1542,26 +1655,127 @@ mod tests {
     }
 
     #[test]
-    fn weak_positive_candidates_do_not_dilute_zero_recovery_grants() {
-        // Same actual spend before each zero: its grant must not depend on
-        // whether weak-positive work follows it in the fixed candidate list.
-        let without_positive = priority_candidate_grant(1_000, false, 2, 0);
-        let with_trailing_positive = priority_candidate_grant(1_000, false, 2, 1);
-        assert_eq!(without_positive, 500);
-        assert_eq!(with_trailing_positive, without_positive);
+    fn incomplete_native_pilot_cannot_win_on_prefix_ess() {
+        let complete = Result {
+            samples: PILOT_DRAWS,
+            ess: 1.3,
+            ..Default::default()
+        };
+        let incomplete_prefix_with_high_ess = Result {
+            samples: 863,
+            ess: 10.11,
+            ..Default::default()
+        };
+        assert!(native_pilot_complete(&complete));
+        assert!(!native_pilot_complete(&incomplete_prefix_with_high_ess));
+        // A partial native result is excluded before efficiency comparison,
+        // regardless of an apparently favorable prefix ESS.
+        let eligible = [complete.clone(), incomplete_prefix_with_high_ess]
+            .into_iter()
+            .filter(native_pilot_complete)
+            .collect::<Vec<_>>();
+        assert_eq!(eligible.len(), 1);
+        assert_eq!(eligible[0].ess, 1.3);
+    }
 
-        let remaining_after_first_zero = 1_000 - 350;
-        let last_zero_grant = priority_candidate_grant(remaining_after_first_zero, false, 1, 1);
-        assert_eq!(last_zero_grant, remaining_after_first_zero);
-        let positive_residual = remaining_after_first_zero - last_zero_grant;
+    #[test]
+    fn native_gd_disagreement_uses_qualified_two_se_intervals() {
+        let native = NativeEvidence::from_result(&Result {
+            probability: 10.0,
+            std_err: 1.0,
+            hits: 30,
+            ess: 3.0,
+            ..Default::default()
+        });
+        assert!(native.is_some());
+        let native = [native, None];
+        let separated = native_gd_disagreement(
+            &native,
+            &Result {
+                probability: 1.0,
+                std_err: 1.0,
+                ..Default::default()
+            },
+            &Result {
+                probability: 2.0,
+                std_err: 1.0,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(separated.native_lower, 8.0);
+        assert_eq!(separated.gd_upper, 4.0);
+
+        let overlapping = [
+            NativeEvidence::from_result(&Result {
+                probability: 10.0,
+                std_err: 3.0,
+                hits: 30,
+                ess: 3.0,
+                ..Default::default()
+            }),
+            None,
+        ];
+        assert!(native_gd_disagreement(
+            &overlapping,
+            &Result {
+                probability: 1.0,
+                std_err: 5.0,
+                ..Default::default()
+            },
+            &Result {
+                probability: 1.0,
+                std_err: 5.0,
+                ..Default::default()
+            },
+        )
+        .is_none());
+        assert!(native_gd_disagreement(
+            &[None, None],
+            &Result {
+                probability: 1.0,
+                std_err: 0.1,
+                ..Default::default()
+            },
+            &Result {
+                probability: 1.0,
+                std_err: 0.1,
+                ..Default::default()
+            },
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn cost_admission_skips_expensive_cells_and_recycles_unused_work() {
+        let bank = 1_000;
+        let expensive = admit_candidate(bank, 1_200);
+        assert_eq!(expensive, None);
+
+        let first_grant = admit_candidate(bank, 400).unwrap();
+        let free_while_reserved = bank - first_grant;
+        assert_eq!(admit_candidate(free_while_reserved, 700), None);
+
+        let actual_spend = 250;
+        let unused_refund = first_grant - actual_spend;
+        let recycled = free_while_reserved + unused_refund;
+        assert_eq!(recycled, bank - actual_spend);
+        assert_eq!(admit_candidate(recycled, 700), Some(700));
+        assert_eq!(admit_candidate(recycled, 500), Some(500));
+    }
+
+    #[test]
+    fn native_final_target_uses_execution_ceiling_with_a_floor_and_hard_cap() {
+        let healthy = Result {
+            samples: 1_024,
+            ..Default::default()
+        };
+        assert_eq!(native_final_draw_target(&healthy, 2_000), MIN_FINAL_DRAWS);
+        assert_eq!(native_final_draw_target(&healthy, 8_000), 2_000);
         assert_eq!(
-            priority_candidate_grant(positive_residual, true, 0, 1),
-            positive_residual
+            native_final_draw_target(&healthy, usize::MAX),
+            MAX_FINAL_DRAWS
         );
-
-        // Every grant partitions only currently remaining capacity.
-        assert!(without_positive + with_trailing_positive <= 1_000);
-        assert!(last_zero_grant + positive_residual <= remaining_after_first_zero);
     }
 
     #[test]
