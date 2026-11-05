@@ -6,8 +6,8 @@ use crate::{
     pool::{zero_upper, Bounds, Estimate},
     rng::derive,
 };
-use std::sync::Arc;
 pub use golaberto_odds_core::search_support::{apply, crosscheck, enabled, parallel, policy, Cell};
+use std::sync::Arc;
 pub struct SearchResult {
     pub result: Result,
     pub impossible: bool,
@@ -1237,8 +1237,10 @@ fn packed_witness_supported(model: &Model) -> bool {
             .iter()
             .enumerate()
             .all(|(offset, key)| {
-                matches!(key, Key::Gd | Key::Gf | Key::Gp | Key::Name)
-                    || (*key == Key::Bias && score_start + offset + 1 == model.keys.len())
+                matches!(
+                    key,
+                    Key::Gd | Key::Gf | Key::Gp | Key::Away | Key::W | Key::Name
+                ) || (*key == Key::Bias && score_start + offset + 1 == model.keys.len())
             })
 }
 
@@ -1292,17 +1294,17 @@ fn verified_packed_certificate(
     if let Some(certificate) =
         crate::goal_completion::complete_with_paths(model, &outcomes, cell, true)
     {
-        if crate::goal_completion::verify(model, &certificate, cell)
-            && crate::goal_completion::has_native_score_support(model, &certificate)
-        {
+        // Reachability is mathematical: every nonnegative integer score has
+        // positive probability under the positive finite Poisson means checked
+        // by packed_witness_supported. Native CDF support only affects finite
+        // sampling and must not decide whether the ranked cell is reachable.
+        if crate::goal_completion::verify(model, &certificate, cell) {
             return Some(certificate);
         }
     }
     let certificate =
         crate::goal_completion::complete_with_supported_margins(model, &outcomes, cell)?;
-    if !crate::goal_completion::verify(model, &certificate, cell)
-        || !crate::goal_completion::has_native_score_support(model, &certificate)
-    {
+    if !crate::goal_completion::verify(model, &certificate, cell) {
         return None;
     }
     Some(certificate)
@@ -1917,7 +1919,7 @@ mod packed_witness_tests {
     }
 
     #[test]
-    fn packed_witness_replaces_unsupported_palmeiras_completion_with_supported_one() {
+    fn packed_witness_accepts_verified_palmeiras_completion_outside_native_support() {
         let model = snapshot();
         let team = model.indices[&16];
         let target_index = Cell { team, rank: 12 }.index(model.n);
@@ -1979,23 +1981,23 @@ mod packed_witness_tests {
             &model, &raw
         ));
 
-        let mut supported_stats = PackedWitnessStats::default();
-        let supported = verified_packed_certificate(
+        let mut certificate_stats = PackedWitnessStats::default();
+        let accepted = verified_packed_certificate(
             &model,
             &proof,
             Cell { team, rank: 12 },
             12,
             PACKED_WITNESS_NODE_BUDGET,
-            &mut supported_stats,
+            &mut certificate_stats,
         )
-        .expect("supported-margin fallback should find a native-scored completion");
+        .expect("verified ranking completion should establish reachability");
         assert!(crate::goal_completion::verify(
             &model,
-            &supported,
+            &accepted,
             Cell { team, rank: 12 }
         ));
-        assert!(crate::goal_completion::has_native_score_support(
-            &model, &supported
+        assert!(!crate::goal_completion::has_native_score_support(
+            &model, &accepted
         ));
 
         let disabled = packed_witness_fallback_with_enabled(&model, &mut estimates, false);
@@ -2022,6 +2024,63 @@ mod packed_witness_tests {
             "impossible_by_joint_points"
         );
         assert_eq!(numeric_values(&estimates), numeric_values(&original));
+    }
+
+    #[test]
+    fn packed_witness_accepts_group_17045_rank_32_beyond_native_score_support() {
+        let request: Request = serde_json::from_str(include_str!(
+            "../tests/fixtures/group-17045-2026-11-04.json"
+        ))
+        .unwrap();
+        let model = Model::new(request).unwrap();
+        let team = model.indices[&290];
+        let cell = Cell { team, rank: 32 };
+        let proof = crate::rank_proof::RankProof::new(&model).unwrap();
+        let search = proof.feasible_domains_with_limits(
+            cell,
+            32,
+            1000,
+            crate::rank_proof::Options::default(),
+            crate::rank_proof::Limits {
+                max_cohorts: 100_000,
+                max_depth: 512,
+            },
+        );
+        let outcomes = choose_supported_outcomes(&model, search.domains.as_deref().unwrap())
+            .expect("all relaxed fixture domains should have positive-probability outcomes");
+        let raw = crate::goal_completion::complete_with_paths(&model, &outcomes, cell, true)
+            .expect("the relaxed assignment should admit an exact ranking completion");
+        assert!(crate::goal_completion::verify(&model, &raw, cell));
+        assert!(!crate::goal_completion::has_native_score_support(
+            &model, &raw
+        ));
+        assert!(raw.adjustments.iter().any(|adjustment| {
+            model.request.games[model.fixtures[adjustment.fixture].request_index].id == 370283
+        }));
+
+        let mut estimates = vec![Estimate::default(); model.n * model.n];
+        for estimate in &mut estimates {
+            estimate.reachability = "impossible_by_points".into();
+        }
+        let target_index = cell.index(model.n);
+        estimates[target_index].reachability = "undecided".into();
+        let original = estimates.clone();
+        let stats = packed_witness_fallback_with_enabled(&model, &mut estimates, true);
+
+        assert!(stats.supported);
+        assert_eq!(stats.candidates, 1);
+        assert_eq!(stats.certificates, 1, "{stats:?}");
+        assert_eq!(stats.labels, 1, "{stats:?}");
+        assert_eq!(
+            estimates[target_index].reachability,
+            "reachable_by_construction"
+        );
+        assert_eq!(numeric_values(&estimates), numeric_values(&original));
+        assert!(estimates
+            .iter()
+            .enumerate()
+            .all(|(index, estimate)| index == target_index
+                || estimate.reachability == "impossible_by_points"));
     }
 
     #[test]
@@ -2111,6 +2170,31 @@ mod packed_witness_tests {
     }
 
     #[test]
+    fn packed_witness_accepts_goal_away_win_name_sort_and_rejects_away_prefix() {
+        let request: Request = serde_json::from_str(include_str!(
+            "../tests/fixtures/group-17045-2026-11-04.json"
+        ))
+        .unwrap();
+        let model = Model::new(request).unwrap();
+        assert_eq!(
+            model.keys,
+            vec![
+                crate::model::Key::Pt,
+                crate::model::Key::Gd,
+                crate::model::Key::Gf,
+                crate::model::Key::Away,
+                crate::model::Key::W,
+                crate::model::Key::Name,
+            ]
+        );
+        assert!(packed_witness_supported(&model));
+
+        let mut changed = model.request.clone();
+        changed.phase.sort = "pt,g_away,gd,gf,w,name".into();
+        assert!(!packed_witness_supported(&Model::new(changed).unwrap()));
+    }
+
+    #[test]
     fn points_goal_bias_fixture_builds_native_supported_full_world_without_numeric_changes() {
         let request: Request = serde_json::from_str(include_str!(
             "../tests/fixtures/rare_position_benchmarks/group-99003-dominant.json"
@@ -2171,6 +2255,35 @@ mod packed_witness_tests {
         assert!(estimates
             .iter()
             .any(|estimate| estimate.reachability == "reachable_by_construction"));
+    }
+
+    #[test]
+    fn real_goal_away_win_name_sort_builds_verified_witness_without_numeric_changes() {
+        let mut model = tiny_points_goal_bias_model();
+        model.request.phase.sort = "pt,gd,gf,g_away,w,name".into();
+        let model = Model::new(model.request).unwrap();
+        assert!(packed_witness_supported(&model));
+        let mut estimates = vec![Estimate::default(); model.n * model.n];
+        for estimate in &mut estimates {
+            estimate.reachability = "undecided".into();
+        }
+        let before = numeric_values(&estimates);
+
+        let stats = packed_witness_fallback_with_enabled(&model, &mut estimates, true);
+
+        assert!(stats.certificates > 0, "{stats:?}");
+        assert!(stats.nodes <= PACKED_WITNESS_TOTAL_NODES, "{stats:?}");
+        assert!(estimates
+            .iter()
+            .any(|estimate| estimate.reachability == "reachable_by_construction"));
+        assert_eq!(numeric_values(&estimates), before);
+        for estimate in estimates
+            .iter()
+            .filter(|estimate| estimate.reachability == "reachable_by_construction")
+        {
+            // Labels are assigned only after certificate verification.
+            assert_eq!(estimate.probability, 0.);
+        }
     }
 
     #[test]

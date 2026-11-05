@@ -766,7 +766,7 @@ default. No extra flags are required. Sampling acceptance gates are unchanged.
 | `RUST_ODDS_AGGREGATE_CUTS` (default `early`) | `early`: shared-fixture subset capacity cuts in early proofs; `1`: also use them in construction |
 | `RUST_ODDS_DISCRETE_CUTS` (default enabled; `0` disables) | In early floor proofs for standard 3/1/0 scoring without bonus points, check every team coalition for incompatible integer win/draw requirements using one graph cut |
 | `RUST_ODDS_RANK_PROOF` (default enabled; `0` disables) | After a conflicting but unresolved point-cohort proof, use the remaining shared 500-node cell / 10,000-node direction quota for packed points/wins fixture branching, explained backjumping, and conflicting-cohort reuse |
-| `RUST_ODDS_PACKED_WITNESS` (default enabled; `0` disables) | After sampling and matrix reconciliation, construct points/wins seasons for remaining undecided zeros, complete goal ties, and verify their ranks; limited to 100 fixture-search nodes per cell and 3,200 per request |
+| `RUST_ODDS_PACKED_WITNESS` (default enabled; `0` disables) | After sampling and matrix reconciliation, construct points/wins seasons for remaining undecided zeros, complete goal ties, and verify their ranks; limited to 1,000 fixture-search nodes per cell and 6,000 per request |
 | `RUST_ODDS_PROOF_RECYCLE_CREDIT` (default `legacy`) | For strengthened early proofs, check recycling eligibility using the original relaxation, within the remaining cell/direction node budget |
 | `RUST_ODDS_GOAL_COMPLETION` (default enabled; `0` disables) | With `deferred` mode, complete failed canonical seasons using independent outside-cohort winning margins and equal-goal additions; verify with the production sorter and publish compact certificates after sampling |
 | `RUST_ODDS_REACHABILITY_ALLOCATION` | `replace_neighborhood`, `replace_walk`, `split_walk`, `adaptive_tail`: experimental replacements described in the report |
@@ -777,10 +777,15 @@ experimental; the report distinguishes useful cuts from rejected reallocations. 
 verified witness changes reachability metadata, never assigns a probability.
 The packed witness fallback tries up to one feasible outcome assignment per
 extreme-target direction within the shared cell limit. It supports standard
-3/1/0 scoring without bonus points, a `pt,w` prefix followed by goal difference
-or goals scored, and positive future scoring means. Later ranking keys are
-limited to `gd,gf,gp,name`. Every published certificate passes the production
-sorter. Failed or skipped construction leaves the cell
+3/1/0 scoring without bonus points, points first with optional wins second,
+followed by goal difference or goals scored. Later ranking keys may include
+`gd,gf,g_away,w,gp,name`, with `bias` allowed only as the final key. Future
+Poisson means must be finite and strictly positive. Every published certificate
+reconstructs a legal season and passes the production sorter. With positive
+Poisson means, every finite nonnegative integer score has positive mathematical
+probability, including scores beyond the native sampler's finite CDF support.
+Reachability uses this full Poisson model; probability estimation retains its
+existing finite sampling support. Failed or skipped construction leaves the cell
 undecided. This stage preserves probability estimates, uncertainty fields and
 sampling work; its nodes and certificate counts appear in `search.packed_witness`.
 For the October 10 group 16498 snapshot, it proves Palmeiras (team 16) can finish
