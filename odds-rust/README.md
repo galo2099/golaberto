@@ -767,6 +767,7 @@ default. No extra flags are required. Sampling acceptance gates are unchanged.
 | `RUST_ODDS_DISCRETE_CUTS` (default enabled; `0` disables) | In early floor proofs for standard 3/1/0 scoring without bonus points, check every team coalition for incompatible integer win/draw requirements using one graph cut |
 | `RUST_ODDS_RANK_PROOF` (default enabled; `0` disables) | After a conflicting but unresolved point-cohort proof, use the remaining shared 500-node cell / 10,000-node direction quota for packed points/wins fixture branching, explained backjumping, and conflicting-cohort reuse |
 | `RUST_ODDS_PACKED_WITNESS` (default enabled; `0` disables) | After sampling and matrix reconciliation, search remaining undecided zeros for verified season witnesses or completed rank refutations; limited to 1,000 fixture-search nodes per cell and 6,000 per request |
+| `RUST_ODDS_PACKED_WITNESS_REUSE` (default enabled; `0` disables) | After the packed search, reuse up to 64 distinct verified W/D/L seasons to complete unresolved ranks; at most 8 goal-completion calls per cell and 128 per request |
 | `RUST_ODDS_PROOF_RECYCLE_CREDIT` (default `legacy`) | For strengthened early proofs, check recycling eligibility using the original relaxation, within the remaining cell/direction node budget |
 | `RUST_ODDS_GOAL_COMPLETION` (default enabled; `0` disables) | With `deferred` mode, complete failed canonical seasons using independent outside-cohort winning margins and equal-goal additions; verify with the production sorter and publish compact certificates after sampling |
 | `RUST_ODDS_REACHABILITY_ALLOCATION` | `replace_neighborhood`, `replace_walk`, `split_walk`, `adaptive_tail`: experimental replacements described in the report |
@@ -792,6 +793,20 @@ by a node, depth, or cohort limit remains undecided, as does a failed score
 completion. Only unresolved zero cells can change. Probability estimates, other
 uncertainty fields, and sampling work are preserved; nodes, certificates, and
 published refutations appear in `search.packed_witness`.
+The reuse pass keeps the W/D/L assignments from verified packed certificates.
+It screens requested ranks against each season's immutable points tier, including
+wins only when wins is the second ranking key. Eligible seasons are ordered by
+their verified finish's distance from the requested rank, with deterministic
+round-robin attempts across unresolved cells. Each completion must reconstruct
+legal scores and pass the production sorter before any reachability label changes.
+Failed or capped completion remains undecided. Reuse never publishes a refutation
+or changes probability estimates, uncertainty fields, or fixture-search quotas.
+Its seed, screening, attempt, certificate, label, and cap counters are logged
+separately from fixture-search nodes in `search.packed_witness`.
+The November 4 group 17045 regression compares reuse disabled and enabled:
+at seed 808, reuse supplies witnesses for all 23 remaining undecided cells,
+leaving 1,286 reachable and 10 impossible cells. Probability estimates and all
+other numerical metadata stay identical between those two paths.
 For the October 10 group 16498 snapshot, it proves Palmeiras (team 16) can finish
 13th in 38 nodes, while leaving its unresolved probability estimate at zero.
 Reachability tracing also splits neighborhood and constructive stage timing;

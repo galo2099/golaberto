@@ -1197,6 +1197,9 @@ fn run_logged_inner(
 
 const PACKED_WITNESS_NODE_BUDGET: usize = 1000;
 const PACKED_WITNESS_TOTAL_NODES: usize = 6000;
+const PACKED_REUSE_SEED_LIMIT: usize = 64;
+const PACKED_REUSE_PER_CELL_LIMIT: usize = 8;
+const PACKED_REUSE_TOTAL_LIMIT: usize = 128;
 
 #[derive(Default, Debug, serde::Serialize)]
 struct PackedWitnessStats {
@@ -1208,6 +1211,21 @@ struct PackedWitnessStats {
     certificates: usize,
     labels: usize,
     refutations: usize,
+    reuse_enabled: bool,
+    reuse_seeds: usize,
+    reuse_prefix_screened_pairs: usize,
+    reuse_attempts: usize,
+    reuse_certificates: usize,
+    reuse_labels: usize,
+    reuse_global_cap_reached: bool,
+    reuse_cell_cap_reached: usize,
+}
+
+#[derive(Clone)]
+struct PackedReuseSeed {
+    outcomes: Vec<u8>,
+    ranks: Vec<usize>,
+    bands: Vec<(usize, usize)>,
 }
 
 fn packed_witness_supported(model: &Model) -> bool {
@@ -1334,15 +1352,33 @@ fn packed_witness_candidate(estimate: &Estimate) -> bool {
 }
 
 fn packed_witness_fallback(model: &Model, estimates: &mut [Estimate]) -> PackedWitnessStats {
-    packed_witness_fallback_with_enabled(model, estimates, enabled("RUST_ODDS_PACKED_WITNESS"))
+    packed_witness_fallback_with_options(
+        model,
+        estimates,
+        enabled("RUST_ODDS_PACKED_WITNESS"),
+        enabled("RUST_ODDS_PACKED_WITNESS_REUSE"),
+    )
 }
 
+#[cfg(test)]
 fn packed_witness_fallback_with_enabled(
     model: &Model,
     estimates: &mut [Estimate],
     feature_enabled: bool,
 ) -> PackedWitnessStats {
-    let mut stats = PackedWitnessStats::default();
+    packed_witness_fallback_with_options(model, estimates, feature_enabled, true)
+}
+
+fn packed_witness_fallback_with_options(
+    model: &Model,
+    estimates: &mut [Estimate],
+    feature_enabled: bool,
+    reuse_enabled: bool,
+) -> PackedWitnessStats {
+    let mut stats = PackedWitnessStats {
+        reuse_enabled,
+        ..PackedWitnessStats::default()
+    };
     if !feature_enabled {
         return stats;
     }
@@ -1372,6 +1408,7 @@ fn packed_witness_fallback_with_enabled(
         return stats;
     };
     let opposite = primary.negated();
+    let mut reuse_seeds: Vec<PackedReuseSeed> = Vec::new();
     for cell in cells {
         if stats.nodes >= PACKED_WITNESS_TOTAL_NODES {
             break;
@@ -1425,6 +1462,14 @@ fn packed_witness_fallback_with_enabled(
             PackedSearchResult::Unknown => {}
             PackedSearchResult::Witness(certificate) => {
                 stats.certificates += 1;
+                if reuse_enabled {
+                    packed_reuse_seed_push(
+                        model,
+                        &mut reuse_seeds,
+                        &certificate.outcomes,
+                        &certificate.ranks,
+                    );
+                }
                 for (team, &rank) in certificate.ranks.iter().enumerate() {
                     let estimate = &mut estimates[team * model.n + rank];
                     if packed_witness_candidate(estimate) {
@@ -1435,7 +1480,158 @@ fn packed_witness_fallback_with_enabled(
             }
         }
     }
+    if reuse_enabled && !reuse_seeds.is_empty() {
+        stats.reuse_seeds = reuse_seeds.len();
+        packed_witness_reuse(model, estimates, &reuse_seeds, &mut stats);
+    }
     stats
+}
+
+fn packed_prefix_rank_bands(model: &Model, outcomes: &[u8]) -> Vec<(usize, usize)> {
+    let mut campaigns = model.base.clone();
+    for (index, &outcome) in outcomes.iter().enumerate() {
+        model.add(
+            &mut campaigns,
+            index,
+            crate::conditioned::canonical(outcome),
+        );
+    }
+    let wins = model.keys.get(1) == Some(&Key::W);
+    let key = |team: usize| {
+        (
+            campaigns[team].points,
+            if wins { campaigns[team].wins } else { 0 },
+        )
+    };
+    (0..model.n)
+        .map(|team| {
+            let own = key(team);
+            let strictly_ahead = (0..model.n).filter(|&other| key(other) > own).count();
+            let tied = (0..model.n).filter(|&other| key(other) == own).count();
+            (strictly_ahead, strictly_ahead + tied - 1)
+        })
+        .collect()
+}
+
+fn packed_witness_reuse(
+    model: &Model,
+    estimates: &mut [Estimate],
+    seeds: &[PackedReuseSeed],
+    stats: &mut PackedWitnessStats,
+) {
+    packed_witness_reuse_with_limits(
+        model,
+        estimates,
+        seeds,
+        stats,
+        PACKED_REUSE_PER_CELL_LIMIT,
+        PACKED_REUSE_TOTAL_LIMIT,
+    );
+}
+
+fn packed_witness_reuse_with_limits(
+    model: &Model,
+    estimates: &mut [Estimate],
+    seeds: &[PackedReuseSeed],
+    stats: &mut PackedWitnessStats,
+    per_cell_limit: usize,
+    total_limit: usize,
+) {
+    let mut cells: Vec<Cell> = (0..model.n)
+        .flat_map(|team| (0..model.n).map(move |rank| Cell { team, rank }))
+        .filter(|cell| packed_witness_candidate(&estimates[cell.index(model.n)]))
+        .collect();
+    cells.sort_by_key(|cell| {
+        (
+            cell.rank.min(model.n - 1 - cell.rank),
+            model.ids[cell.team],
+            cell.rank,
+        )
+    });
+    let mut eligible: Vec<Vec<usize>> = Vec::with_capacity(cells.len());
+    for cell in &cells {
+        let mut order: Vec<_> = seeds
+            .iter()
+            .enumerate()
+            .filter(|(_, seed)| {
+                (seed.bands[cell.team].0..=seed.bands[cell.team].1).contains(&cell.rank)
+            })
+            .map(|(index, _)| index)
+            .collect();
+        stats.reuse_prefix_screened_pairs += seeds.len();
+        order.sort_by_key(|&index| (seeds[index].ranks[cell.team].abs_diff(cell.rank), index));
+        eligible.push(order);
+    }
+    let mut calls = vec![0usize; cells.len()];
+    let mut positions = vec![0usize; cells.len()];
+    let mut total = 0;
+    loop {
+        let mut progressed = false;
+        for index in 0..cells.len() {
+            if calls[index] >= per_cell_limit
+                || !packed_witness_candidate(&estimates[cells[index].index(model.n)])
+                || positions[index] >= eligible[index].len()
+                || total >= total_limit
+            {
+                continue;
+            }
+            let seed = &seeds[eligible[index][positions[index]]];
+            positions[index] += 1;
+            calls[index] += 1;
+            total += 1;
+            progressed = true;
+            stats.reuse_attempts += 1;
+            if let Some(certificate) = crate::goal_completion::complete_with_paths(
+                model,
+                &seed.outcomes,
+                cells[index],
+                true,
+            ) {
+                if crate::goal_completion::verify(model, &certificate, cells[index]) {
+                    stats.reuse_certificates += 1;
+                    for (team, &rank) in certificate.ranks.iter().enumerate() {
+                        let estimate = &mut estimates[team * model.n + rank];
+                        if packed_witness_candidate(estimate) {
+                            estimate.reachability = "reachable_by_construction".into();
+                            stats.reuse_labels += 1;
+                        }
+                    }
+                }
+            }
+        }
+        if !progressed {
+            break;
+        }
+    }
+    let pending = |index: usize| {
+        packed_witness_candidate(&estimates[cells[index].index(model.n)])
+            && positions[index] < eligible[index].len()
+    };
+    // Attribute each pending cell to its per-cell cap first; the global flag
+    // records only pending cells that still had per-cell budget available.
+    stats.reuse_cell_cap_reached = (0..cells.len())
+        .filter(|&index| calls[index] >= per_cell_limit && pending(index))
+        .count();
+    stats.reuse_global_cap_reached = total >= total_limit
+        && (0..cells.len()).any(|index| pending(index) && calls[index] < per_cell_limit);
+}
+
+fn packed_reuse_seed_push(
+    model: &Model,
+    seeds: &mut Vec<PackedReuseSeed>,
+    outcomes: &[u8],
+    ranks: &[usize],
+) -> bool {
+    if seeds.len() >= PACKED_REUSE_SEED_LIMIT || seeds.iter().any(|seed| seed.outcomes == outcomes)
+    {
+        return false;
+    }
+    seeds.push(PackedReuseSeed {
+        outcomes: outcomes.to_vec(),
+        ranks: ranks.to_vec(),
+        bands: packed_prefix_rank_bands(model, outcomes),
+    });
+    true
 }
 
 fn reset_donor_for_tail(est: &mut Estimate) {
@@ -1943,6 +2139,203 @@ mod packed_witness_tests {
             estimate.reachability.clear();
         }
         serde_json::to_value(estimates).unwrap()
+    }
+
+    #[test]
+    fn reuse_prefix_bands_contain_the_verified_full_sorter_ranks() {
+        let model = snapshot();
+        let outcomes = vec![1; model.fixtures.len()];
+        let ranks = crate::conditioned::canonical_ranks(&model, &outcomes);
+        let bands = packed_prefix_rank_bands(&model, &outcomes);
+        for team in 0..model.n {
+            assert!((bands[team].0..=bands[team].1).contains(&ranks[team]));
+        }
+    }
+
+    #[test]
+    fn reuse_seed_cache_deduplicates_and_stops_at_its_bound() {
+        let model = snapshot();
+        let outcomes = vec![1; model.fixtures.len()];
+        let ranks = crate::conditioned::canonical_ranks(&model, &outcomes);
+        let mut seeds = Vec::new();
+        assert!(packed_reuse_seed_push(
+            &model, &mut seeds, &outcomes, &ranks
+        ));
+        assert!(!packed_reuse_seed_push(
+            &model, &mut seeds, &outcomes, &ranks
+        ));
+        for marker in 0..PACKED_REUSE_SEED_LIMIT {
+            let mut distinct = outcomes.clone();
+            if distinct.is_empty() {
+                continue;
+            }
+            let mut value = marker;
+            for outcome in &mut distinct {
+                *outcome = (value % 3) as u8;
+                value /= 3;
+            }
+            if !seeds.iter().any(|seed| seed.outcomes == distinct) {
+                let canonical_ranks = crate::conditioned::canonical_ranks(&model, &distinct);
+                packed_reuse_seed_push(&model, &mut seeds, &distinct, &canonical_ranks);
+            }
+        }
+        assert_eq!(seeds.len(), PACKED_REUSE_SEED_LIMIT);
+        let mut sixty_fifth = outcomes.clone();
+        let mut marker = PACKED_REUSE_SEED_LIMIT;
+        for outcome in &mut sixty_fifth {
+            *outcome = (marker % 3) as u8;
+            marker /= 3;
+        }
+        assert!(!seeds.iter().any(|seed| seed.outcomes == sixty_fifth));
+        let canonical_ranks = crate::conditioned::canonical_ranks(&model, &sixty_fifth);
+        assert!(!packed_reuse_seed_push(
+            &model,
+            &mut seeds,
+            &sixty_fifth,
+            &canonical_ranks
+        ));
+    }
+
+    #[test]
+    fn reuse_zero_limits_preserve_unknown_numeric_metadata() {
+        let model = snapshot();
+        let cell = Cell { team: 0, rank: 0 };
+        let mut estimates = vec![Estimate::default(); model.n * model.n];
+        estimates[cell.index(model.n)] = Estimate {
+            std_err: 0.125,
+            samples: 17,
+            reachability: "undecided".into(),
+            ..Estimate::default()
+        };
+        let before = numeric_values(&estimates);
+        let ranks = crate::conditioned::canonical_ranks(&model, &vec![1; model.fixtures.len()]);
+        let outcomes = vec![1; model.fixtures.len()];
+        let seed = PackedReuseSeed {
+            bands: packed_prefix_rank_bands(&model, &outcomes),
+            outcomes,
+            ranks,
+        };
+        let mut stats = PackedWitnessStats::default();
+        packed_witness_reuse_with_limits(&model, &mut estimates, &[seed], &mut stats, 0, 0);
+        assert_eq!(stats.reuse_attempts, 0);
+        assert_eq!(estimates[cell.index(model.n)].reachability, "undecided");
+        assert_eq!(numeric_values(&estimates), before);
+    }
+
+    #[test]
+    fn reuse_positive_limits_skip_prefix_excluded_cells() {
+        let model = snapshot();
+        let outcomes = vec![1; model.fixtures.len()];
+        let ranks = crate::conditioned::canonical_ranks(&model, &outcomes);
+        let bands = packed_prefix_rank_bands(&model, &outcomes);
+        let (team, rank) = (0..model.n)
+            .flat_map(|team| (0..model.n).map(move |rank| (team, rank)))
+            .find(|&(team, rank)| !(bands[team].0..=bands[team].1).contains(&rank))
+            .expect("snapshot should have a prefix-excluded rank");
+        let cell = Cell { team, rank };
+        let mut estimates = vec![Estimate::default(); model.n * model.n];
+        for estimate in &mut estimates {
+            estimate.reachability = "impossible_by_points".into();
+        }
+        estimates[cell.index(model.n)].reachability = "undecided".into();
+        let seed = PackedReuseSeed {
+            bands,
+            outcomes,
+            ranks,
+        };
+        let mut stats = PackedWitnessStats::default();
+        packed_witness_reuse_with_limits(&model, &mut estimates, &[seed], &mut stats, 2, 2);
+        assert_eq!(stats.reuse_attempts, 0);
+        assert!(!stats.reuse_global_cap_reached);
+        assert_eq!(stats.reuse_cell_cap_reached, 0);
+        assert_eq!(estimates[cell.index(model.n)].reachability, "undecided");
+    }
+
+    #[test]
+    fn reuse_success_preserves_other_labels_and_numeric_metadata() {
+        let model = snapshot();
+        let outcomes = vec![1; model.fixtures.len()];
+        let ranks = crate::conditioned::canonical_ranks(&model, &outcomes);
+        let target = Cell {
+            team: 0,
+            rank: ranks[0],
+        };
+        let certificate =
+            crate::goal_completion::complete_with_paths(&model, &outcomes, target, true)
+                .expect("seed completion should construct the selected canonical rank");
+        assert!(crate::goal_completion::verify(&model, &certificate, target));
+        let mut estimates = vec![Estimate::default(); model.n * model.n];
+        for estimate in &mut estimates {
+            estimate.reachability = "impossible_by_points".into();
+        }
+        estimates[target.index(model.n)] = Estimate {
+            std_err: 0.125,
+            samples: 17,
+            relative_se: Some(0.25),
+            reachability: "undecided".into(),
+            ..Estimate::default()
+        };
+        let positive = Cell {
+            team: 1,
+            rank: ranks[1],
+        };
+        estimates[positive.index(model.n)] = Estimate {
+            probability: 0.01,
+            reachability: "pool_positive".into(),
+            ..Estimate::default()
+        };
+        let witness = Cell {
+            team: 2,
+            rank: ranks[2],
+        };
+        estimates[witness.index(model.n)].reachability = "reachable_by_construction".into();
+        let before = estimates.clone();
+        let seed = PackedReuseSeed {
+            bands: packed_prefix_rank_bands(&model, &outcomes),
+            outcomes,
+            ranks,
+        };
+        let mut stats = PackedWitnessStats::default();
+        packed_witness_reuse_with_limits(&model, &mut estimates, &[seed], &mut stats, 8, 8);
+        assert!(stats.reuse_attempts > 0);
+        assert_eq!(
+            estimates[target.index(model.n)].reachability,
+            "reachable_by_construction"
+        );
+        assert_eq!(
+            estimates[positive.index(model.n)].reachability,
+            "pool_positive"
+        );
+        assert_eq!(
+            estimates[witness.index(model.n)].reachability,
+            "reachable_by_construction"
+        );
+        assert_eq!(numeric_values(&estimates), numeric_values(&before));
+    }
+
+    #[test]
+    fn reuse_cap_stats_count_only_remaining_eligible_work() {
+        let model = snapshot();
+        let outcomes = vec![1; model.fixtures.len()];
+        let ranks = crate::conditioned::canonical_ranks(&model, &outcomes);
+        let mut estimates = vec![Estimate::default(); model.n * model.n];
+        let bands = packed_prefix_rank_bands(&model, &outcomes);
+        for team in 0..model.n {
+            let rank = (bands[team].0..=bands[team].1).find(|&rank| rank != ranks[team]);
+            let Some(rank) = rank else { continue };
+            let cell = Cell { team, rank };
+            estimates[cell.index(model.n)].reachability = "undecided".into();
+        }
+        let seed = PackedReuseSeed {
+            bands,
+            outcomes,
+            ranks,
+        };
+        let mut stats = PackedWitnessStats::default();
+        packed_witness_reuse_with_limits(&model, &mut estimates, &[seed], &mut stats, 1, 1);
+        assert_eq!(stats.reuse_attempts, 1);
+        assert!(stats.reuse_global_cap_reached);
+        assert_eq!(stats.reuse_cell_cap_reached, 0);
     }
 
     #[test]
