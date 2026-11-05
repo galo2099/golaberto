@@ -766,7 +766,7 @@ default. No extra flags are required. Sampling acceptance gates are unchanged.
 | `RUST_ODDS_AGGREGATE_CUTS` (default `early`) | `early`: shared-fixture subset capacity cuts in early proofs; `1`: also use them in construction |
 | `RUST_ODDS_DISCRETE_CUTS` (default enabled; `0` disables) | In early floor proofs for standard 3/1/0 scoring without bonus points, check every team coalition for incompatible integer win/draw requirements using one graph cut |
 | `RUST_ODDS_RANK_PROOF` (default enabled; `0` disables) | After a conflicting but unresolved point-cohort proof, use the remaining shared 500-node cell / 10,000-node direction quota for packed points/wins fixture branching, explained backjumping, and conflicting-cohort reuse |
-| `RUST_ODDS_PACKED_WITNESS` (default enabled; `0` disables) | After sampling and matrix reconciliation, construct points/wins seasons for remaining undecided zeros, complete goal ties, and verify their ranks; limited to 1,000 fixture-search nodes per cell and 6,000 per request |
+| `RUST_ODDS_PACKED_WITNESS` (default enabled; `0` disables) | After sampling and matrix reconciliation, search remaining undecided zeros for verified season witnesses or completed rank refutations; limited to 1,000 fixture-search nodes per cell and 6,000 per request |
 | `RUST_ODDS_PROOF_RECYCLE_CREDIT` (default `legacy`) | For strengthened early proofs, check recycling eligibility using the original relaxation, within the remaining cell/direction node budget |
 | `RUST_ODDS_GOAL_COMPLETION` (default enabled; `0` disables) | With `deferred` mode, complete failed canonical seasons using independent outside-cohort winning margins and equal-goal additions; verify with the production sorter and publish compact certificates after sampling |
 | `RUST_ODDS_REACHABILITY_ALLOCATION` | `replace_neighborhood`, `replace_walk`, `split_walk`, `adaptive_tail`: experimental replacements described in the report |
@@ -785,9 +785,13 @@ reconstructs a legal season and passes the production sorter. With positive
 Poisson means, every finite nonnegative integer score has positive mathematical
 probability, including scores beyond the native sampler's finite CDF support.
 Reachability uses this full Poisson model; probability estimation retains its
-existing finite sampling support. Failed or skipped construction leaves the cell
-undecided. This stage preserves probability estimates, uncertainty fields and
-sampling work; its nodes and certificate counts appear in `search.packed_witness`.
+existing finite sampling support. The same search also preserves completed
+refutations of the necessary points/wins relaxation and publishes those cells as
+`impossible_by_joint_rank`, with a zero `zero_hit_upper_95` bound. A search stopped
+by a node, depth, or cohort limit remains undecided, as does a failed score
+completion. Only unresolved zero cells can change. Probability estimates, other
+uncertainty fields, and sampling work are preserved; nodes, certificates, and
+published refutations appear in `search.packed_witness`.
 For the October 10 group 16498 snapshot, it proves Palmeiras (team 16) can finish
 13th in 38 nodes, while leaving its unresolved probability estimate at zero.
 Reachability tracing also splits neighborhood and constructive stage timing;

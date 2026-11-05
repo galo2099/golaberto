@@ -155,14 +155,24 @@ fn packed_witness_reduces_undecided_cells_without_changing_estimates() {
     assert_eq!(team_290_rank_32_baseline["reachability"], "undecided");
     assert_eq!(team_290_rank_32_enabled["reachability"], "reachable");
     assert_eq!(team_290_rank_32_enabled["probability"], 0.0);
+    assert_eq!(baseline_estimates["401"]["24"]["reachability"], "undecided");
+    assert_eq!(enabled_estimates["401"]["24"]["reachability"], "undecided");
+    for team in ["401", "855"] {
+        for rank in ["32", "33"] {
+            let before = &baseline_estimates[team][rank];
+            let after = &enabled_estimates[team][rank];
+            assert_eq!(before["reachability"], "undecided");
+            assert_eq!(after["reachability"], "impossible");
+            assert_eq!(after["probability"], 0.0);
+            assert_eq!(after["zero_hit_upper_95"], 0.0);
+        }
+    }
     assert_eq!(baseline_odds.len(), 36);
     assert_eq!(enabled_odds.len(), 36);
     assert_eq!(baseline_estimates.len(), 36);
     assert_eq!(enabled_estimates.len(), 36);
     assert_eq!(baseline["game_importance"], enabled["game_importance"]);
 
-    let mut undecided_before = 0;
-    let mut undecided_after = 0;
     let mut normalized_baseline = baseline.clone();
     let mut normalized_enabled = enabled.clone();
     for team in snapshot_request().team_groups {
@@ -176,16 +186,23 @@ fn packed_witness_reduces_undecided_cells_without_changing_estimates() {
             let new = &after[&rank.to_string()];
             let old_state = old["reachability"].as_str().unwrap();
             let new_state = new["reachability"].as_str().unwrap();
-            undecided_before += usize::from(old_state == "undecided");
-            undecided_after += usize::from(new_state == "undecided");
+            let refuted = matches!((key.as_str(), rank), ("401" | "855", 32 | 33));
             assert!(
-                new_state == old_state || (old_state == "undecided" && new_state == "reachable"),
+                new_state == old_state
+                    || (old_state == "undecided"
+                        && (new_state == "reachable" || (refuted && new_state == "impossible"))),
                 "team {key}, rank {rank}: {old_state} -> {new_state}"
             );
             normalized_baseline["rare_position_estimates"][&key][&rank.to_string()]
                 ["reachability"] = serde_json::Value::Null;
             normalized_enabled["rare_position_estimates"][&key][&rank.to_string()]
                 ["reachability"] = serde_json::Value::Null;
+            if refuted {
+                normalized_baseline["rare_position_estimates"][&key][&rank.to_string()]
+                    ["zero_hit_upper_95"] = serde_json::Value::Null;
+                normalized_enabled["rare_position_estimates"][&key][&rank.to_string()]
+                    ["zero_hit_upper_95"] = serde_json::Value::Null;
+            }
         }
         let old_row = baseline_odds[&key]["Pos"].as_array().unwrap();
         let new_row = enabled_odds[&key]["Pos"].as_array().unwrap();
@@ -196,7 +213,6 @@ fn packed_witness_reduces_undecided_cells_without_changing_estimates() {
             .all(|value| value.as_f64().unwrap().is_finite()));
         assert!((old_row.iter().map(|v| v.as_f64().unwrap()).sum::<f64>() - 100.).abs() < 1e-12);
     }
-    assert!(undecided_after < undecided_before);
     for rank in 0..36 {
         let total: f64 = enabled_odds
             .values()

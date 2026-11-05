@@ -104,6 +104,9 @@ pub struct Report {
 #[derive(Default)]
 pub struct FeasibleDomains {
     pub domains: Option<Vec<u8>>,
+    /// True only when the necessary relaxation was exhaustively refuted.
+    /// Missing domains with `impossible == false` means unknown or skipped.
+    pub impossible: bool,
     pub stats: Stats,
 }
 impl RankProof {
@@ -359,13 +362,7 @@ impl RankProof {
         budget: usize,
         options: Options,
     ) -> FeasibleDomains {
-        self.feasible_domains_with_limits(
-            cell,
-            required_count,
-            budget,
-            options,
-            Limits::default(),
-        )
+        self.feasible_domains_with_limits(cell, required_count, budget, options, Limits::default())
     }
     pub fn feasible_domains_with_limits(
         &self,
@@ -395,7 +392,10 @@ impl RankProof {
             .filter(|t| *t != cell.team && maximum[*t] >= floor)
             .collect();
         if eligible.len() < required_count {
-            return FeasibleDomains::default();
+            return FeasibleDomains {
+                impossible: true,
+                ..FeasibleDomains::default()
+            };
         }
         if options.require_root_pressure
             && !eligible.iter().any(|&t| {
@@ -441,9 +441,10 @@ impl RankProof {
                 capture_feasible_domains: true,
                 feasible_domains: None,
             };
-            solver.cohorts(&eligible, 0, required_count, 0);
+            let impossible = solver.cohorts(&eligible, 0, required_count, 0);
             return FeasibleDomains {
                 domains: solver.feasible_domains,
+                impossible,
                 stats: solver.stats,
             };
         }
@@ -460,9 +461,10 @@ impl RankProof {
             capture_feasible_domains: true,
             feasible_domains: None,
         };
-        solver.cohorts(&eligible, 0, required_count, 0);
+        let impossible = solver.cohorts(&eligible, 0, required_count, 0);
         FeasibleDomains {
             domains: solver.feasible_domains,
+            impossible,
             stats: solver.stats,
         }
     }
@@ -1190,7 +1192,10 @@ mod tests {
                                 10000,
                                 Options::default(),
                                 Some(floor),
-                                Limits { max_cohorts: 100_000, max_depth: 512 },
+                                Limits {
+                                    max_cohorts: 100_000,
+                                    max_depth: 512,
+                                },
                             );
                             assert!(
                                 !expanded.impossible || ahead.is_none_or(|a| a < rank),
@@ -1233,7 +1238,10 @@ mod tests {
     }
     #[test]
     fn feasible_domain_capture_finds_palmeiras_thirteenth_within_small_budget() {
-        let request: Request = serde_json::from_str(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../tests/fixtures/group-16498-2026-10-10.json")))
+        let request: Request = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../tests/fixtures/group-16498-2026-10-10.json"
+        )))
         .unwrap();
         let model = Model::new(request).unwrap();
         let proof = RankProof::new(&model).unwrap();
@@ -1243,6 +1251,7 @@ mod tests {
         };
         let found = proof.feasible_domains(cell, 12, 100, Options::default());
         assert!(found.domains.is_some(), "nodes={}", found.stats.nodes);
+        assert!(!found.impossible);
         assert!(found.stats.nodes <= 100);
         assert!(found.stats.cohorts > 0);
         assert!(found
@@ -1253,9 +1262,11 @@ mod tests {
 
         let short = proof.feasible_domains(cell, 12, 1, Options::default());
         assert!(short.domains.is_none());
+        assert!(!short.impossible);
         assert!(short.stats.nodes <= 1);
         let empty = proof.feasible_domains(cell, 12, 0, Options::default());
         assert!(empty.domains.is_none());
+        assert!(!empty.impossible);
         assert_eq!(empty.stats.nodes, 0);
     }
     #[test]
@@ -1325,6 +1336,7 @@ mod tests {
         let cell = Cell { team: 0, rank: 1 };
         let default = proof.feasible_domains(cell, 1, 1000, Options::default());
         assert!(default.domains.is_none());
+        assert!(!default.impossible);
         let depth_limited = proof.feasible_domains_with_limits(
             cell,
             1,
@@ -1336,6 +1348,7 @@ mod tests {
             },
         );
         assert!(depth_limited.domains.is_none());
+        assert!(!depth_limited.impossible);
         assert!(depth_limited.stats.nodes <= 1);
 
         let expanded = proof.feasible_domains_with_limits(
@@ -1349,6 +1362,7 @@ mod tests {
             },
         );
         assert!(expanded.domains.is_some());
+        assert!(!expanded.impossible);
         assert!(expanded.stats.nodes > 128, "{:?}", expanded.stats);
         assert!(expanded.stats.nodes <= 1000);
     }
@@ -1435,6 +1449,12 @@ mod tests {
                                 exact_capture_exists,
                                 "capture mismatch: adjustment={adjustment} sort={sort} direction={direction} team={team} required={rank}"
                             );
+                            assert_eq!(
+                                captured.impossible,
+                                !exact_capture_exists,
+                                "capture refutation mismatch: adjustment={adjustment} sort={sort} direction={direction} team={team} required={rank}"
+                            );
+                            assert!(!captured.impossible || rank > ahead);
                             if let Some(domains) = captured.domains {
                                 for mut code in 0..3_usize.pow(proof.games.len() as u32) {
                                     let mut totals = proof.base.clone();
@@ -1480,6 +1500,12 @@ mod tests {
                                 exact_capture_exists,
                                 "unoptimized capture mismatch: adjustment={adjustment} sort={sort} direction={direction} team={team} required={rank}"
                             );
+                            assert_eq!(
+                                capture_without_helpers.impossible,
+                                !exact_capture_exists,
+                                "unoptimized capture refutation mismatch: adjustment={adjustment} sort={sort} direction={direction} team={team} required={rank}"
+                            );
+                            assert!(!capture_without_helpers.impossible || rank > ahead);
                             if let Some(domains) = capture_without_helpers.domains {
                                 for mut code in 0..3_usize.pow(proof.games.len() as u32) {
                                     let mut totals = proof.base.clone();
@@ -1523,6 +1549,59 @@ mod tests {
             }
         }
     }
+    #[test]
+    fn feasible_domain_capture_reports_completed_joint_refutations_at_both_depth_widths() {
+        let request = json!({
+            "id": 99006,
+            "phase": {"sort":"pt,gd,gf", "championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+            "team_groups": [
+                {"team_id":1,"add_sub":3},
+                {"team_id":2,"add_sub":0},
+                {"team_id":3,"add_sub":0}
+            ],
+            "games": [{"id":1,"home_id":2,"away_id":3,"home_power":1.0,"away_power":1.0}]
+        });
+        let model = Model::new(serde_json::from_value(request).unwrap()).unwrap();
+        let proof = RankProof::new(&model).unwrap();
+        let cell = Cell {
+            team: model.indices[&1],
+            rank: 2,
+        };
+        for max_depth in [128, 512] {
+            let result = proof.feasible_domains_with_limits(
+                cell,
+                2,
+                100,
+                Options::default(),
+                Limits {
+                    max_cohorts: 100_000,
+                    max_depth,
+                },
+            );
+            assert!(result.domains.is_none());
+            assert!(
+                result.impossible,
+                "depth={max_depth} stats={:?}",
+                result.stats
+            );
+            assert!(result.stats.nodes > 0);
+
+            let capped = proof.feasible_domains_with_limits(
+                cell,
+                2,
+                100,
+                Options::default(),
+                Limits {
+                    max_cohorts: 0,
+                    max_depth,
+                },
+            );
+            assert!(capped.domains.is_none());
+            assert!(!capped.impossible);
+            assert_eq!(capped.stats.nodes, 0);
+        }
+    }
+
     #[test]
     fn rejects_unsupported_scoring_and_bonus_points() {
         let m = snapshot();
