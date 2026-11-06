@@ -793,6 +793,13 @@ by a node, depth, or cohort limit remains undecided, as does a failed score
 completion. Only unresolved zero cells can change. Probability estimates, other
 uncertainty fields, and sampling work are preserved; nodes, certificates, and
 published refutations appear in `search.packed_witness`.
+Witness capture spends its cohort quota on visited cohorts, including learned
+conflict cache hits. A large hypothetical cohort space does not reject the
+search before its first candidate. Exhaustive impossibility proofs retain
+their full-count preflight, and any incomplete traversal remains unknown.
+The [November 5 cohort-quota fix](../experiments/rare_positions/2026-11-05-group-17046-cohort-fix.md)
+resolves the four previously undecided cells in the new Europa League fixture
+without raising node, depth or cohort limits or changing probability estimates.
 The reuse pass keeps the W/D/L assignments from verified packed certificates.
 It screens requested ranks against each season's immutable points tier, including
 wins only when wins is the second ranking key. Eligible seasons are ordered by
@@ -804,9 +811,10 @@ or changes probability estimates, uncertainty fields, or fixture-search quotas.
 Its seed, screening, attempt, certificate, label, and cap counters are logged
 separately from fixture-search nodes in `search.packed_witness`.
 The November 4 group 17045 regression compares reuse disabled and enabled:
-at seed 808, reuse supplies witnesses for all 23 remaining undecided cells,
-leaving 1,286 reachable and 10 impossible cells. Probability estimates and all
-other numerical metadata stay identical between those two paths.
+at seed 808, direct packed construction now leaves 1,286 reachable and ten
+impossible cells, including the 23 cells that previously needed reuse.
+Probability estimates and all other numerical metadata stay identical between
+those two paths.
 For the October 10 group 16498 snapshot, it proves Palmeiras (team 16) can finish
 13th in 38 nodes, while leaving its unresolved probability estimate at zero.
 Reachability tracing also splits neighborhood and constructive stage timing;

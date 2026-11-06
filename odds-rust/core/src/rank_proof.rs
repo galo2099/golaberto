@@ -69,6 +69,9 @@ pub struct Options {
 }
 #[derive(Clone, Copy, Debug)]
 pub struct Limits {
+    /// Maximum number of required-rival cohorts admitted by one search.
+    /// Proof searches preflight the full combinatorial count; capture searches
+    /// spend this quota as cohorts are visited and may stop with unknown.
     pub max_cohorts: usize,
     pub max_depth: usize,
 }
@@ -319,6 +322,7 @@ impl RankProof {
                 initial,
                 initial_maximum: maximum,
                 budget,
+                max_cohorts: limits.max_cohorts,
                 options,
                 max_depth,
                 stats: Stats::default(),
@@ -338,6 +342,7 @@ impl RankProof {
             initial,
             initial_maximum: maximum,
             budget,
+            max_cohorts: limits.max_cohorts,
             options,
             max_depth,
             stats: Stats::default(),
@@ -412,20 +417,6 @@ impl RankProof {
         {
             return FeasibleDomains::default();
         }
-        let k = required_count.min(eligible.len() - required_count);
-        let mut count = 1_usize;
-        for i in 0..k {
-            count = match count.checked_mul(eligible.len() - i) {
-                Some(v) => v / (i + 1),
-                None => return FeasibleDomains::default(),
-            };
-            if count > limits.max_cohorts {
-                return FeasibleDomains::default();
-            }
-        }
-        if count > limits.max_cohorts {
-            return FeasibleDomains::default();
-        }
         let max_depth = limits.max_depth.min(512);
         if max_depth <= 128 {
             let mut solver: Solver<'_, 2> = Solver {
@@ -434,6 +425,7 @@ impl RankProof {
                 initial,
                 initial_maximum: maximum,
                 budget,
+                max_cohorts: limits.max_cohorts,
                 options,
                 max_depth,
                 stats: Stats::default(),
@@ -454,6 +446,7 @@ impl RankProof {
             initial,
             initial_maximum: maximum,
             budget,
+            max_cohorts: limits.max_cohorts,
             options,
             max_depth,
             stats: Stats::default(),
@@ -475,6 +468,7 @@ struct Solver<'a, const WORDS: usize> {
     initial: Vec<u8>,
     initial_maximum: Vec<i64>,
     budget: usize,
+    max_cohorts: usize,
     options: Options,
     max_depth: usize,
     stats: Stats,
@@ -1077,6 +1071,9 @@ impl<const WORDS: usize> Solver<'_, WORDS> {
     }
     fn cohorts(&mut self, candidates: &[usize], start: usize, left: usize, required: u64) -> bool {
         if left == 0 {
+            if self.stats.cohorts >= self.max_cohorts {
+                return false;
+            }
             self.stats.cohorts += 1;
             if self.options.reuse_cohorts && self.cores.iter().any(|core| core & required == *core)
             {
@@ -1270,6 +1267,165 @@ mod tests {
         assert_eq!(empty.stats.nodes, 0);
     }
     #[test]
+    fn capture_spends_cohort_quota_incrementally() {
+        let teams: Vec<_> = (1..=36).map(|id| json!({"team_id":id})).collect();
+        let request: Request = serde_json::from_value(json!({
+            "id": 1,
+            "phase": {"sort":"pt,gd,gf", "championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+            "team_groups": teams,
+            "games": []
+        })).unwrap();
+        let model = Model::new(request).unwrap();
+        let proof = RankProof::new(&model).unwrap();
+        let cell = Cell { team: 0, rank: 17 };
+        let found = proof.feasible_domains_with_limits(
+            cell,
+            17,
+            10,
+            Options::default(),
+            Limits {
+                max_cohorts: 1,
+                max_depth: 128,
+            },
+        );
+        assert!(found.domains.is_some());
+        assert!(!found.impossible);
+        assert_eq!(found.stats.cohorts, 1);
+
+        let empty = proof.feasible_domains_with_limits(
+            cell,
+            17,
+            10,
+            Options::default(),
+            Limits {
+                max_cohorts: 0,
+                max_depth: 128,
+            },
+        );
+        assert!(empty.domains.is_none());
+        assert!(!empty.impossible);
+        assert_eq!(empty.stats.cohorts, 0);
+    }
+    #[test]
+    fn capture_cohort_quota_distinguishes_unknown_from_complete_search() {
+        let request: Request = serde_json::from_value(json!({
+            "id": 1,
+            "phase": {"sort":"pt,gd,gf", "championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+            "team_groups": [
+                {"team_id":1,"add_sub":3}, {"team_id":2}, {"team_id":3}, {"team_id":4,"add_sub":3}
+            ],
+            "games": [{"id":1,"home_id":2,"away_id":3}]
+        })).unwrap();
+        let model = Model::new(request).unwrap();
+        let proof = RankProof::new(&model).unwrap();
+        let cell = Cell {
+            team: model.indices[&1],
+            rank: 2,
+        };
+
+        // A and B can each reach the floor, but their shared game prevents
+        // both doing so. The next cohort, A with C, has a completion.
+        for max_depth in [128, 512] {
+            let partial = proof.feasible_domains_with_limits(
+                cell,
+                2,
+                100,
+                Options::default(),
+                Limits {
+                    max_cohorts: 1,
+                    max_depth,
+                },
+            );
+            assert!(partial.domains.is_none());
+            assert!(!partial.impossible);
+            assert_eq!(partial.stats.cohorts, 1);
+
+            let complete = proof.feasible_domains_with_limits(
+                cell,
+                2,
+                100,
+                Options::default(),
+                Limits {
+                    max_cohorts: 2,
+                    max_depth,
+                },
+            );
+            assert!(complete.domains.is_some());
+            assert!(!complete.impossible);
+            assert_eq!(complete.stats.cohorts, 2);
+        }
+
+        // There are three eligible opponents, so rank three has one
+        // possible cohort; exhausting it proves impossibility.
+        let exhausted = proof.feasible_domains_with_limits(
+            cell,
+            3,
+            100,
+            Options::default(),
+            Limits {
+                max_cohorts: 1,
+                max_depth: 128,
+            },
+        );
+        assert!(exhausted.domains.is_none());
+        assert!(exhausted.impossible);
+        assert_eq!(exhausted.stats.cohorts, 1);
+
+        for required_count in [0, 3] {
+            let unsearched = proof.feasible_domains_with_limits(
+                cell,
+                required_count,
+                100,
+                Options::default(),
+                Limits {
+                    max_cohorts: 0,
+                    max_depth: 128,
+                },
+            );
+            assert!(unsearched.domains.is_none());
+            assert!(!unsearched.impossible);
+            assert_eq!(unsearched.stats.cohorts, 0);
+        }
+    }
+    #[test]
+    fn cached_cohort_leaves_still_consume_the_quota() {
+        let request: Request = serde_json::from_value(json!({
+            "id": 1,
+            "phase": {"sort":"pt,gd,gf", "championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+            "team_groups": [
+                {"team_id":1,"add_sub":3}, {"team_id":2}, {"team_id":3},
+                {"team_id":4,"add_sub":3}, {"team_id":5,"add_sub":3}
+            ],
+            "games": [{"id":1,"home_id":2,"away_id":3}]
+        })).unwrap();
+        let model = Model::new(request).unwrap();
+        let proof = RankProof::new(&model).unwrap();
+        // The raw proof base is T=3, A=B=0, C=D=3. Either A or B
+        // alone can reach three; together they cannot, so {A,B} is a
+        // valid impossibility core for the remaining fixture.
+        let initial_maximum = vec![3; 5];
+        let mut solver: Solver<'_, 8> = Solver {
+            p: &proof,
+            floor: 3,
+            initial: vec![7],
+            initial_maximum,
+            budget: 100,
+            max_cohorts: 2,
+            options: Options::default(),
+            max_depth: 128,
+            stats: Stats::default(),
+            cores: vec![(1 << 1) | (1 << 2)],
+            capture_feasible_domains: true,
+            feasible_domains: None,
+        };
+        let complete = solver.cohorts(&[1, 2, 3, 4], 0, 3, 0);
+        assert!(!complete);
+        assert_eq!(solver.stats.cohorts, 2);
+        assert_eq!(solver.stats.cohort_cache_hits, 2);
+        assert_eq!(solver.stats.nodes, 0);
+        assert!(solver.feasible_domains.is_none());
+    }
+    #[test]
     fn capture_collective_bound_keeps_draw_dependency_when_maxima_do_not_change() {
         let request: Request = serde_json::from_value(json!({
             "id": 1,
@@ -1293,6 +1449,7 @@ mod tests {
             initial: vec![7],
             initial_maximum: vec![0; proof.base.len()],
             budget: 100,
+            max_cohorts: usize::MAX,
             options: Options::default(),
             max_depth: 512,
             stats: Stats::default(),

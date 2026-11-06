@@ -2553,24 +2553,51 @@ mod packed_witness_tests {
     }
 
     #[test]
-    fn packed_witness_keeps_bounded_group_17045_search_unknown_unresolved() {
+    fn packed_witness_constructs_group_17045_rank_24_within_node_budget() {
         let request: Request = serde_json::from_str(include_str!(
             "../tests/fixtures/group-17045-2026-11-04.json"
         ))
         .unwrap();
         let model = Model::new(request).unwrap();
-        let target = Cell {
+        let cell = Cell {
             team: model.indices[&401],
             rank: 24,
-        }
-        .index(model.n);
+        };
+        let target = cell.index(model.n);
         let mut estimates = vec![Estimate::default(); model.n * model.n];
         for estimate in &mut estimates {
             estimate.reachability = "impossible_by_points".into();
         }
         estimates[target].reachability = "undecided".into();
+        let original = estimates.clone();
         let stats = packed_witness_fallback_with_enabled(&model, &mut estimates, true);
-        assert_eq!(estimates[target].reachability, "undecided", "{stats:?}");
+        assert_eq!(
+            estimates[target].reachability, "reachable_by_construction",
+            "{stats:?}"
+        );
+        assert_eq!(stats.certificates, 1, "{stats:?}");
+        assert_eq!(stats.refutations, 0, "{stats:?}");
+        assert!(stats.nodes <= PACKED_WITNESS_NODE_BUDGET, "{stats:?}");
+        assert_eq!(numeric_values(&estimates), numeric_values(&original));
+    }
+
+    #[test]
+    fn packed_witness_keeps_one_node_group_17045_rank_24_search_unknown() {
+        let request: Request = serde_json::from_str(include_str!(
+            "../tests/fixtures/group-17045-2026-11-04.json"
+        ))
+        .unwrap();
+        let model = Model::new(request).unwrap();
+        let cell = Cell {
+            team: model.indices[&401],
+            rank: 24,
+        };
+        let proof = crate::rank_proof::RankProof::new(&model).unwrap();
+        let mut stats = PackedWitnessStats::default();
+        let result = verified_packed_certificate(&model, &proof, cell, 24, 1, &mut stats);
+
+        assert!(matches!(result, PackedSearchResult::Unknown), "{stats:?}");
+        assert!(stats.nodes <= 1, "{stats:?}");
         assert_eq!(stats.refutations, 0, "{stats:?}");
     }
 

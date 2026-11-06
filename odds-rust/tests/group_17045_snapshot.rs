@@ -140,7 +140,7 @@ fn wider_cohort_allowance_proves_top_teams_cannot_finish_33rd_or_34th() {
 }
 
 #[test]
-fn packed_witness_reuse_resolves_fixture_without_changing_estimates() {
+fn packed_witness_construction_resolves_fixture_without_changing_estimates() {
     let output_dir = OutputDir(std::env::temp_dir().join(format!(
         "group-17045-witness-{}-{}",
         std::process::id(),
@@ -164,7 +164,7 @@ fn packed_witness_reuse_resolves_fixture_without_changing_estimates() {
     assert_eq!(team_290_rank_32_packed["reachability"], "reachable");
     assert_eq!(team_290_rank_32_reused["reachability"], "reachable");
     assert_eq!(team_290_rank_32_reused["probability"], 0.0);
-    assert_eq!(packed_estimates["401"]["24"]["reachability"], "undecided");
+    assert_eq!(packed_estimates["401"]["24"]["reachability"], "reachable");
     assert_eq!(reused_estimates["401"]["24"]["reachability"], "reachable");
     for team in ["401", "855"] {
         for rank in ["32", "33"] {
@@ -265,7 +265,7 @@ fn packed_witness_reuse_resolves_fixture_without_changing_estimates() {
         assert!((old_row.iter().map(|v| v.as_f64().unwrap()).sum::<f64>() - 100.).abs() < 1e-12);
     }
     assert_eq!(baseline_undecided, 53);
-    assert_eq!(packed_undecided, 23);
+    assert_eq!(packed_undecided, 0);
     assert_eq!(reused_undecided, 0);
     let mut impossible: HashSet<(i32, usize)> = HashSet::new();
     for (team, ranks) in [

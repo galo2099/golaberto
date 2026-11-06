@@ -1,0 +1,1383 @@
+{
+  "all_comparisons_passed": true,
+  "configuration": {
+    "baseline_binary": "/workspace/work/production-17046-2026-11-05/baseline/golaberto-odds",
+    "baseline_commit": "91b1226c2d7f9c03301f946c6cd05d2bac2db8ad",
+    "binary_sha256": {
+      "baseline": "a367e66936e7435966fc7955693f4ac55b1b442c88f70bdca5fa084f8e512556",
+      "candidate": "c5a6fc0c36c4a582ea19c6699cf3217e760959dc3f0ce08994aa4a7c7fa915a3"
+    },
+    "candidate_binary": "/workspace/work/production-17046-cohort-fix-2026-11-05/candidate/golaberto-odds",
+    "candidate_source": {
+      "branch": "analysis-17046-nov05",
+      "candidate_binary_sha256_expected": "c5a6fc0c36c4a582ea19c6699cf3217e760959dc3f0ce08994aa4a7c7fa915a3",
+      "cohort_fix_source_patch_sha256": "1affec8f0c756ba43c479248472e2728300dd29dc06aea92168924b1d5fbb85b",
+      "commit": "91b1226c2d7f9c03301f946c6cd05d2bac2db8ad"
+    },
+    "comparison": "coverage",
+    "environment": {
+      "RUST_ODDS_LOG": "1",
+      "cleared_prefixes": [
+        "RUST_ODDS_",
+        "RARE_POSITION_"
+      ]
+    },
+    "measured_repeat": 1,
+    "repeats": 1,
+    "requests": [
+      {
+        "path": "/workspace/golaberto-production-17046/odds-rust/tests/fixtures/group-17046-2026-11-05.json",
+        "sha256": "b3440005e6633db297252c25d9dbb941d7730667cdaac4f5e1aac73a3c4c0f1a"
+      },
+      {
+        "path": "/workspace/golaberto-production-17046/odds-rust/tests/fixtures/group-17045-2026-11-04.json",
+        "sha256": "7fe006b853594ddbae86a54bfa7bb0d9674864a1f7721514d364e3cc22c0a176"
+      },
+      {
+        "path": "/workspace/golaberto-production-17046/odds-rust/tests/fixtures/group-17046-2026-10-22.json",
+        "sha256": "02f09e5fe88acb7b8d39aa47d358eef245091b005bdb3c4f489756de53083f23"
+      }
+    ],
+    "seeds": [
+      808,
+      809,
+      1669,
+      2293
+    ],
+    "warmups": "one per arm, excluded",
+    "workers": [
+      4
+    ]
+  },
+  "expected_new_reachable_cells": [
+    "2436:6",
+    "3169:30",
+    "402:30",
+    "402:31"
+  ],
+  "group_17046_newly_reachable_union": [
+    "2436:6",
+    "3169:30",
+    "402:30",
+    "402:31"
+  ],
+  "previously_unknown_cells": [
+    "2436:6",
+    "3169:30",
+    "402:30",
+    "402:31"
+  ],
+  "purpose": "group 17046 cohort-fix production benchmark collector",
+  "results": [
+    {
+      "baseline_child_cpu_seconds": 8.212781000000001,
+      "baseline_elapsed_seconds": 3.9524934369983384,
+      "baseline_export_sha256": "26ca7130cb01a30c1d74806d5a6a13f95f0190b9940174f87074c6108bf338f9",
+      "candidate_child_cpu_seconds": 8.142700999999997,
+      "candidate_elapsed_seconds": 3.8997838610084727,
+      "candidate_export_sha256": "1234e16737e90eaa09543faeba04e60301d235a2254f42f81e86c50c74999ca8",
+      "candidate_work_audit": {
+        "large_training_overrun": false,
+        "large_training_summary": {
+          "actual_charged": 344889742,
+          "capacity": 345660000,
+          "completed": 59,
+          "cumulative_quoted_work": 1311791741,
+          "declined": 43
+        },
+        "native_family_recording_stage_records": [
+          {
+            "actual_final_operations": 147274505,
+            "admission_valid": true,
+            "audited_training_work": 344889742,
+            "capacity": 518490000,
+            "conservative_spare": 26325753,
+            "conservative_used": 492164247,
+            "enabled": true,
+            "reserved_final_work": 147274505,
+            "settled_spare": 26325753,
+            "settled_used": 492164247,
+            "setup_audit_complete": true,
+            "setup_audit_extra_work": 0,
+            "unknown_constructor_failures": 0
+          }
+        ],
+        "packed_totals": {
+          "attempts": 38,
+          "certificates": 35,
+          "cohorts": 277967,
+          "labels": 38,
+          "nodes": 1600,
+          "refutations": 3
+        },
+        "packed_witness_stages": [
+          {
+            "attempts": 38,
+            "certificates": 35,
+            "cohorts": 277967,
+            "elapsed_ms": 30.718,
+            "labels": 38,
+            "nodes": 1600,
+            "refutations": 3,
+            "reuse_attempts": 0,
+            "reuse_certificates": 0,
+            "reuse_labels": 0,
+            "reuse_prefix_screened_pairs": 0,
+            "reuse_seeds": 29
+          }
+        ]
+      },
+      "classification_and_exact_comparison": {
+        "baseline": {
+          "cell_count": 1296,
+          "impossible_count": 10,
+          "positive_count": 1214,
+          "reachable_count": 1285,
+          "undecided_cell_ids": [
+            "3169:30"
+          ],
+          "undecided_count": 1,
+          "unestimated_count": 72,
+          "zero_not_impossible_count": 72
+        },
+        "baseline_unknown_to_candidate_reachable": [
+          "3169:30"
+        ],
+        "candidate": {
+          "cell_count": 1296,
+          "impossible_count": 10,
+          "positive_count": 1214,
+          "reachable_count": 1286,
+          "undecided_cell_ids": [],
+          "undecided_count": 0,
+          "unestimated_count": 72,
+          "zero_not_impossible_count": 72
+        },
+        "candidate_unknown_cell_ids": [],
+        "exact_team_odds_game_importance_errors": [],
+        "passed": true,
+        "reachability_changes": [
+          {
+            "baseline": "undecided",
+            "candidate": "reachable",
+            "cell": "3169:30"
+          }
+        ],
+        "reachability_invariant_errors": [],
+        "unexpected_estimate_field_differences": []
+      },
+      "request": "/workspace/golaberto-production-17046/odds-rust/tests/fixtures/group-17046-2026-11-05.json",
+      "request_sha256": "b3440005e6633db297252c25d9dbb941d7730667cdaac4f5e1aac73a3c4c0f1a",
+      "seed": 808
+    },
+    {
+      "baseline_child_cpu_seconds": 7.517692999999998,
+      "baseline_elapsed_seconds": 3.6353388690040447,
+      "baseline_export_sha256": "5e275b00ba09dd6b0573ab8297dfb9d98bfa063a3080b406569f076e41894c7a",
+      "candidate_child_cpu_seconds": 7.970708000000002,
+      "candidate_elapsed_seconds": 3.9249799529934535,
+      "candidate_export_sha256": "217789669e8b2fddf9825ccbaa3efff6eacbf3634073a7a582e127902ccd716b",
+      "candidate_work_audit": {
+        "large_training_overrun": false,
+        "large_training_summary": {
+          "actual_charged": 344873080,
+          "capacity": 345660000,
+          "completed": 56,
+          "cumulative_quoted_work": 1312509669,
+          "declined": 43
+        },
+        "native_family_recording_stage_records": [
+          {
+            "actual_final_operations": 149023536,
+            "admission_valid": true,
+            "audited_training_work": 344873080,
+            "capacity": 518490000,
+            "conservative_spare": 24593384,
+            "conservative_used": 493896616,
+            "enabled": true,
+            "reserved_final_work": 149023536,
+            "settled_spare": 24593384,
+            "settled_used": 493896616,
+            "setup_audit_complete": true,
+            "setup_audit_extra_work": 0,
+            "unknown_constructor_failures": 0
+          }
+        ],
+        "packed_totals": {
+          "attempts": 39,
+          "certificates": 36,
+          "cohorts": 227751,
+          "labels": 38,
+          "nodes": 1647,
+          "refutations": 3
+        },
+        "packed_witness_stages": [
+          {
+            "attempts": 39,
+            "certificates": 36,
+            "cohorts": 227751,
+            "elapsed_ms": 32.239,
+            "labels": 38,
+            "nodes": 1647,
+            "refutations": 3,
+            "reuse_attempts": 0,
+            "reuse_certificates": 0,
+            "reuse_labels": 0,
+            "reuse_prefix_screened_pairs": 0,
+            "reuse_seeds": 30
+          }
+        ]
+      },
+      "classification_and_exact_comparison": {
+        "baseline": {
+          "cell_count": 1296,
+          "impossible_count": 10,
+          "positive_count": 1214,
+          "reachable_count": 1284,
+          "undecided_cell_ids": [
+            "402:30",
+            "402:31"
+          ],
+          "undecided_count": 2,
+          "unestimated_count": 72,
+          "zero_not_impossible_count": 72
+        },
+        "baseline_unknown_to_candidate_reachable": [
+          "402:30",
+          "402:31"
+        ],
+        "candidate": {
+          "cell_count": 1296,
+          "impossible_count": 10,
+          "positive_count": 1214,
+          "reachable_count": 1286,
+          "undecided_cell_ids": [],
+          "undecided_count": 0,
+          "unestimated_count": 72,
+          "zero_not_impossible_count": 72
+        },
+        "candidate_unknown_cell_ids": [],
+        "exact_team_odds_game_importance_errors": [],
+        "passed": true,
+        "reachability_changes": [
+          {
+            "baseline": "undecided",
+            "candidate": "reachable",
+            "cell": "402:30"
+          },
+          {
+            "baseline": "undecided",
+            "candidate": "reachable",
+            "cell": "402:31"
+          }
+        ],
+        "reachability_invariant_errors": [],
+        "unexpected_estimate_field_differences": []
+      },
+      "request": "/workspace/golaberto-production-17046/odds-rust/tests/fixtures/group-17046-2026-11-05.json",
+      "request_sha256": "b3440005e6633db297252c25d9dbb941d7730667cdaac4f5e1aac73a3c4c0f1a",
+      "seed": 809
+    },
+    {
+      "baseline_child_cpu_seconds": 7.587667999999999,
+      "baseline_elapsed_seconds": 3.5612729049898917,
+      "baseline_export_sha256": "7feafd44b35afe558562dc79086a52815a0ab88ba1b5be2a1e21b6507a111b97",
+      "candidate_child_cpu_seconds": 7.558434999999996,
+      "candidate_elapsed_seconds": 3.517330687987851,
+      "candidate_export_sha256": "44122c5f2c292b1649543dcd8c0f99017a557b0fb44e5a19b571820b968c7564",
+      "candidate_work_audit": {
+        "large_training_overrun": false,
+        "large_training_summary": {
+          "actual_charged": 344967682,
+          "capacity": 345660000,
+          "completed": 54,
+          "cumulative_quoted_work": 1304600813,
+          "declined": 51
+        },
+        "native_family_recording_stage_records": [
+          {
+            "actual_final_operations": 136885218,
+            "admission_valid": true,
+            "audited_training_work": 344967682,
+            "capacity": 518490000,
+            "conservative_spare": 36637100,
+            "conservative_used": 481852900,
+            "enabled": true,
+            "reserved_final_work": 136885218,
+            "settled_spare": 36637100,
+            "settled_used": 481852900,
+            "setup_audit_complete": true,
+            "setup_audit_extra_work": 0,
+            "unknown_constructor_failures": 0
+          }
+        ],
+        "packed_totals": {
+          "attempts": 42,
+          "certificates": 39,
+          "cohorts": 229843,
+          "labels": 44,
+          "nodes": 1779,
+          "refutations": 3
+        },
+        "packed_witness_stages": [
+          {
+            "attempts": 42,
+            "certificates": 39,
+            "cohorts": 229843,
+            "elapsed_ms": 33.99,
+            "labels": 44,
+            "nodes": 1779,
+            "refutations": 3,
+            "reuse_attempts": 0,
+            "reuse_certificates": 0,
+            "reuse_labels": 0,
+            "reuse_prefix_screened_pairs": 0,
+            "reuse_seeds": 31
+          }
+        ]
+      },
+      "classification_and_exact_comparison": {
+        "baseline": {
+          "cell_count": 1296,
+          "impossible_count": 10,
+          "positive_count": 1210,
+          "reachable_count": 1284,
+          "undecided_cell_ids": [
+            "402:30",
+            "402:31"
+          ],
+          "undecided_count": 2,
+          "unestimated_count": 76,
+          "zero_not_impossible_count": 76
+        },
+        "baseline_unknown_to_candidate_reachable": [
+          "402:30",
+          "402:31"
+        ],
+        "candidate": {
+          "cell_count": 1296,
+          "impossible_count": 10,
+          "positive_count": 1210,
+          "reachable_count": 1286,
+          "undecided_cell_ids": [],
+          "undecided_count": 0,
+          "unestimated_count": 76,
+          "zero_not_impossible_count": 76
+        },
+        "candidate_unknown_cell_ids": [],
+        "exact_team_odds_game_importance_errors": [],
+        "passed": true,
+        "reachability_changes": [
+          {
+            "baseline": "undecided",
+            "candidate": "reachable",
+            "cell": "402:30"
+          },
+          {
+            "baseline": "undecided",
+            "candidate": "reachable",
+            "cell": "402:31"
+          }
+        ],
+        "reachability_invariant_errors": [],
+        "unexpected_estimate_field_differences": []
+      },
+      "request": "/workspace/golaberto-production-17046/odds-rust/tests/fixtures/group-17046-2026-11-05.json",
+      "request_sha256": "b3440005e6633db297252c25d9dbb941d7730667cdaac4f5e1aac73a3c4c0f1a",
+      "seed": 1669
+    },
+    {
+      "baseline_child_cpu_seconds": 7.820947999999998,
+      "baseline_elapsed_seconds": 3.602273241005605,
+      "baseline_export_sha256": "85ff44b5af0da5b45635cb5f38010dc0f99f4e8d6e786d0051f5ef5ac72f55df",
+      "candidate_child_cpu_seconds": 7.787645999999999,
+      "candidate_elapsed_seconds": 3.6157553649973124,
+      "candidate_export_sha256": "13c26171143170e1cb00935b6309142937514a1c69a63091a4bb3dc667e29fa8",
+      "candidate_work_audit": {
+        "large_training_overrun": false,
+        "large_training_summary": {
+          "actual_charged": 345006868,
+          "capacity": 345660000,
+          "completed": 54,
+          "cumulative_quoted_work": 1304660490,
+          "declined": 57
+        },
+        "native_family_recording_stage_records": [
+          {
+            "actual_final_operations": 139274627,
+            "admission_valid": true,
+            "audited_training_work": 345006868,
+            "capacity": 518490000,
+            "conservative_spare": 34208505,
+            "conservative_used": 484281495,
+            "enabled": true,
+            "reserved_final_work": 139274627,
+            "settled_spare": 34208505,
+            "settled_used": 484281495,
+            "setup_audit_complete": true,
+            "setup_audit_extra_work": 0,
+            "unknown_constructor_failures": 0
+          }
+        ],
+        "packed_totals": {
+          "attempts": 41,
+          "certificates": 38,
+          "cohorts": 228722,
+          "labels": 42,
+          "nodes": 1767,
+          "refutations": 3
+        },
+        "packed_witness_stages": [
+          {
+            "attempts": 41,
+            "certificates": 38,
+            "cohorts": 228722,
+            "elapsed_ms": 35.324,
+            "labels": 42,
+            "nodes": 1767,
+            "refutations": 3,
+            "reuse_attempts": 0,
+            "reuse_certificates": 0,
+            "reuse_labels": 0,
+            "reuse_prefix_screened_pairs": 0,
+            "reuse_seeds": 32
+          }
+        ]
+      },
+      "classification_and_exact_comparison": {
+        "baseline": {
+          "cell_count": 1296,
+          "impossible_count": 10,
+          "positive_count": 1208,
+          "reachable_count": 1283,
+          "undecided_cell_ids": [
+            "2436:6",
+            "402:30",
+            "402:31"
+          ],
+          "undecided_count": 3,
+          "unestimated_count": 78,
+          "zero_not_impossible_count": 78
+        },
+        "baseline_unknown_to_candidate_reachable": [
+          "2436:6",
+          "402:30",
+          "402:31"
+        ],
+        "candidate": {
+          "cell_count": 1296,
+          "impossible_count": 10,
+          "positive_count": 1208,
+          "reachable_count": 1286,
+          "undecided_cell_ids": [],
+          "undecided_count": 0,
+          "unestimated_count": 78,
+          "zero_not_impossible_count": 78
+        },
+        "candidate_unknown_cell_ids": [],
+        "exact_team_odds_game_importance_errors": [],
+        "passed": true,
+        "reachability_changes": [
+          {
+            "baseline": "undecided",
+            "candidate": "reachable",
+            "cell": "2436:6"
+          },
+          {
+            "baseline": "undecided",
+            "candidate": "reachable",
+            "cell": "402:30"
+          },
+          {
+            "baseline": "undecided",
+            "candidate": "reachable",
+            "cell": "402:31"
+          }
+        ],
+        "reachability_invariant_errors": [],
+        "unexpected_estimate_field_differences": []
+      },
+      "request": "/workspace/golaberto-production-17046/odds-rust/tests/fixtures/group-17046-2026-11-05.json",
+      "request_sha256": "b3440005e6633db297252c25d9dbb941d7730667cdaac4f5e1aac73a3c4c0f1a",
+      "seed": 2293
+    },
+    {
+      "baseline_child_cpu_seconds": 6.801119999999978,
+      "baseline_elapsed_seconds": 3.3796144840016495,
+      "baseline_export_sha256": "32c8a14cd79c536258f01a8e57bf051916aa813ca3e2f1bfc335f8430b632f0c",
+      "candidate_child_cpu_seconds": 7.161293000000001,
+      "candidate_elapsed_seconds": 3.599525918994914,
+      "candidate_export_sha256": "32c8a14cd79c536258f01a8e57bf051916aa813ca3e2f1bfc335f8430b632f0c",
+      "candidate_work_audit": {
+        "large_training_overrun": false,
+        "large_training_summary": {
+          "actual_charged": 345115903,
+          "capacity": 345660000,
+          "completed": 59,
+          "cumulative_quoted_work": 1330004413,
+          "declined": 55
+        },
+        "native_family_recording_stage_records": [
+          {
+            "actual_final_operations": 90748410,
+            "admission_valid": true,
+            "audited_training_work": 345115903,
+            "capacity": 518490000,
+            "conservative_spare": 82625687,
+            "conservative_used": 435864313,
+            "enabled": true,
+            "reserved_final_work": 90748410,
+            "settled_spare": 82625687,
+            "settled_used": 435864313,
+            "setup_audit_complete": true,
+            "setup_audit_extra_work": 0,
+            "unknown_constructor_failures": 0
+          }
+        ],
+        "packed_totals": {
+          "attempts": 52,
+          "certificates": 48,
+          "cohorts": 18466,
+          "labels": 49,
+          "nodes": 2660,
+          "refutations": 4
+        },
+        "packed_witness_stages": [
+          {
+            "attempts": 52,
+            "certificates": 48,
+            "cohorts": 18466,
+            "elapsed_ms": 63.426,
+            "labels": 49,
+            "nodes": 2660,
+            "refutations": 4,
+            "reuse_attempts": 0,
+            "reuse_certificates": 0,
+            "reuse_labels": 0,
+            "reuse_prefix_screened_pairs": 0,
+            "reuse_seeds": 45
+          }
+        ]
+      },
+      "classification_and_exact_comparison": {
+        "baseline": {
+          "cell_count": 1296,
+          "impossible_count": 10,
+          "positive_count": 1191,
+          "reachable_count": 1286,
+          "undecided_cell_ids": [],
+          "undecided_count": 0,
+          "unestimated_count": 95,
+          "zero_not_impossible_count": 95
+        },
+        "baseline_unknown_to_candidate_reachable": [],
+        "candidate": {
+          "cell_count": 1296,
+          "impossible_count": 10,
+          "positive_count": 1191,
+          "reachable_count": 1286,
+          "undecided_cell_ids": [],
+          "undecided_count": 0,
+          "unestimated_count": 95,
+          "zero_not_impossible_count": 95
+        },
+        "candidate_unknown_cell_ids": [],
+        "exact_team_odds_game_importance_errors": [],
+        "passed": true,
+        "reachability_changes": [],
+        "reachability_invariant_errors": [],
+        "unexpected_estimate_field_differences": []
+      },
+      "request": "/workspace/golaberto-production-17046/odds-rust/tests/fixtures/group-17045-2026-11-04.json",
+      "request_sha256": "7fe006b853594ddbae86a54bfa7bb0d9674864a1f7721514d364e3cc22c0a176",
+      "seed": 808
+    },
+    {
+      "baseline_child_cpu_seconds": 8.175165000000003,
+      "baseline_elapsed_seconds": 3.934606246999465,
+      "baseline_export_sha256": "d1e1baa135ea45de16fc44aede86853f920068e9bf110988bde1a4fb702d153e",
+      "candidate_child_cpu_seconds": 8.105011000000008,
+      "candidate_elapsed_seconds": 4.020158414001344,
+      "candidate_export_sha256": "d1e1baa135ea45de16fc44aede86853f920068e9bf110988bde1a4fb702d153e",
+      "candidate_work_audit": {
+        "large_training_overrun": false,
+        "large_training_summary": {
+          "actual_charged": 345095557,
+          "capacity": 345660000,
+          "completed": 58,
+          "cumulative_quoted_work": 1320113465,
+          "declined": 54
+        },
+        "native_family_recording_stage_records": [
+          {
+            "actual_final_operations": 108039985,
+            "admission_valid": true,
+            "audited_training_work": 345095557,
+            "capacity": 518490000,
+            "conservative_spare": 65354458,
+            "conservative_used": 453135542,
+            "enabled": true,
+            "reserved_final_work": 108039985,
+            "settled_spare": 65354458,
+            "settled_used": 453135542,
+            "setup_audit_complete": true,
+            "setup_audit_extra_work": 0,
+            "unknown_constructor_failures": 0
+          }
+        ],
+        "packed_totals": {
+          "attempts": 47,
+          "certificates": 43,
+          "cohorts": 18461,
+          "labels": 43,
+          "nodes": 2339,
+          "refutations": 4
+        },
+        "packed_witness_stages": [
+          {
+            "attempts": 47,
+            "certificates": 43,
+            "cohorts": 18461,
+            "elapsed_ms": 52.627,
+            "labels": 43,
+            "nodes": 2339,
+            "refutations": 4,
+            "reuse_attempts": 0,
+            "reuse_certificates": 0,
+            "reuse_labels": 0,
+            "reuse_prefix_screened_pairs": 0,
+            "reuse_seeds": 40
+          }
+        ]
+      },
+      "classification_and_exact_comparison": {
+        "baseline": {
+          "cell_count": 1296,
+          "impossible_count": 10,
+          "positive_count": 1198,
+          "reachable_count": 1286,
+          "undecided_cell_ids": [],
+          "undecided_count": 0,
+          "unestimated_count": 88,
+          "zero_not_impossible_count": 88
+        },
+        "baseline_unknown_to_candidate_reachable": [],
+        "candidate": {
+          "cell_count": 1296,
+          "impossible_count": 10,
+          "positive_count": 1198,
+          "reachable_count": 1286,
+          "undecided_cell_ids": [],
+          "undecided_count": 0,
+          "unestimated_count": 88,
+          "zero_not_impossible_count": 88
+        },
+        "candidate_unknown_cell_ids": [],
+        "exact_team_odds_game_importance_errors": [],
+        "passed": true,
+        "reachability_changes": [],
+        "reachability_invariant_errors": [],
+        "unexpected_estimate_field_differences": []
+      },
+      "request": "/workspace/golaberto-production-17046/odds-rust/tests/fixtures/group-17045-2026-11-04.json",
+      "request_sha256": "7fe006b853594ddbae86a54bfa7bb0d9674864a1f7721514d364e3cc22c0a176",
+      "seed": 809
+    },
+    {
+      "baseline_child_cpu_seconds": 7.14235400000002,
+      "baseline_elapsed_seconds": 3.3938627719908254,
+      "baseline_export_sha256": "cd1936fe154bc0659f6032efe76fedff2d651ab58653810b62a4c6ecf699ce9f",
+      "candidate_child_cpu_seconds": 6.846011999999982,
+      "candidate_elapsed_seconds": 3.3131726370047545,
+      "candidate_export_sha256": "cd1936fe154bc0659f6032efe76fedff2d651ab58653810b62a4c6ecf699ce9f",
+      "candidate_work_audit": {
+        "large_training_overrun": false,
+        "large_training_summary": {
+          "actual_charged": 345170872,
+          "capacity": 345660000,
+          "completed": 57,
+          "cumulative_quoted_work": 1318382625,
+          "declined": 61
+        },
+        "native_family_recording_stage_records": [
+          {
+            "actual_final_operations": 103849225,
+            "admission_valid": true,
+            "audited_training_work": 345170872,
+            "capacity": 518490000,
+            "conservative_spare": 69469903,
+            "conservative_used": 449020097,
+            "enabled": true,
+            "reserved_final_work": 103849225,
+            "settled_spare": 69469903,
+            "settled_used": 449020097,
+            "setup_audit_complete": true,
+            "setup_audit_extra_work": 0,
+            "unknown_constructor_failures": 0
+          }
+        ],
+        "packed_totals": {
+          "attempts": 54,
+          "certificates": 50,
+          "cohorts": 18468,
+          "labels": 51,
+          "nodes": 2820,
+          "refutations": 4
+        },
+        "packed_witness_stages": [
+          {
+            "attempts": 54,
+            "certificates": 50,
+            "cohorts": 18468,
+            "elapsed_ms": 68.625,
+            "labels": 51,
+            "nodes": 2820,
+            "refutations": 4,
+            "reuse_attempts": 0,
+            "reuse_certificates": 0,
+            "reuse_labels": 0,
+            "reuse_prefix_screened_pairs": 0,
+            "reuse_seeds": 48
+          }
+        ]
+      },
+      "classification_and_exact_comparison": {
+        "baseline": {
+          "cell_count": 1296,
+          "impossible_count": 10,
+          "positive_count": 1191,
+          "reachable_count": 1286,
+          "undecided_cell_ids": [],
+          "undecided_count": 0,
+          "unestimated_count": 95,
+          "zero_not_impossible_count": 95
+        },
+        "baseline_unknown_to_candidate_reachable": [],
+        "candidate": {
+          "cell_count": 1296,
+          "impossible_count": 10,
+          "positive_count": 1191,
+          "reachable_count": 1286,
+          "undecided_cell_ids": [],
+          "undecided_count": 0,
+          "unestimated_count": 95,
+          "zero_not_impossible_count": 95
+        },
+        "candidate_unknown_cell_ids": [],
+        "exact_team_odds_game_importance_errors": [],
+        "passed": true,
+        "reachability_changes": [],
+        "reachability_invariant_errors": [],
+        "unexpected_estimate_field_differences": []
+      },
+      "request": "/workspace/golaberto-production-17046/odds-rust/tests/fixtures/group-17045-2026-11-04.json",
+      "request_sha256": "7fe006b853594ddbae86a54bfa7bb0d9674864a1f7721514d364e3cc22c0a176",
+      "seed": 1669
+    },
+    {
+      "baseline_child_cpu_seconds": 7.732337000000017,
+      "baseline_elapsed_seconds": 3.8140327610017266,
+      "baseline_export_sha256": "06b4733307ac42424d6a6083b971a88e587f8c6785ebda5ec9e9016a99bb3e5f",
+      "candidate_child_cpu_seconds": 7.127651999999996,
+      "candidate_elapsed_seconds": 3.44769934299984,
+      "candidate_export_sha256": "06b4733307ac42424d6a6083b971a88e587f8c6785ebda5ec9e9016a99bb3e5f",
+      "candidate_work_audit": {
+        "large_training_overrun": false,
+        "large_training_summary": {
+          "actual_charged": 344897947,
+          "capacity": 345660000,
+          "completed": 58,
+          "cumulative_quoted_work": 1320020957,
+          "declined": 52
+        },
+        "native_family_recording_stage_records": [
+          {
+            "actual_final_operations": 127823892,
+            "admission_valid": true,
+            "audited_training_work": 344897947,
+            "capacity": 518490000,
+            "conservative_spare": 45768161,
+            "conservative_used": 472721839,
+            "enabled": true,
+            "reserved_final_work": 127823892,
+            "settled_spare": 45768161,
+            "settled_used": 472721839,
+            "setup_audit_complete": true,
+            "setup_audit_extra_work": 0,
+            "unknown_constructor_failures": 0
+          }
+        ],
+        "packed_totals": {
+          "attempts": 44,
+          "certificates": 40,
+          "cohorts": 17955,
+          "labels": 40,
+          "nodes": 2152,
+          "refutations": 4
+        },
+        "packed_witness_stages": [
+          {
+            "attempts": 44,
+            "certificates": 40,
+            "cohorts": 17955,
+            "elapsed_ms": 47.756,
+            "labels": 40,
+            "nodes": 2152,
+            "refutations": 4,
+            "reuse_attempts": 0,
+            "reuse_certificates": 0,
+            "reuse_labels": 0,
+            "reuse_prefix_screened_pairs": 0,
+            "reuse_seeds": 37
+          }
+        ]
+      },
+      "classification_and_exact_comparison": {
+        "baseline": {
+          "cell_count": 1296,
+          "impossible_count": 10,
+          "positive_count": 1201,
+          "reachable_count": 1286,
+          "undecided_cell_ids": [],
+          "undecided_count": 0,
+          "unestimated_count": 85,
+          "zero_not_impossible_count": 85
+        },
+        "baseline_unknown_to_candidate_reachable": [],
+        "candidate": {
+          "cell_count": 1296,
+          "impossible_count": 10,
+          "positive_count": 1201,
+          "reachable_count": 1286,
+          "undecided_cell_ids": [],
+          "undecided_count": 0,
+          "unestimated_count": 85,
+          "zero_not_impossible_count": 85
+        },
+        "candidate_unknown_cell_ids": [],
+        "exact_team_odds_game_importance_errors": [],
+        "passed": true,
+        "reachability_changes": [],
+        "reachability_invariant_errors": [],
+        "unexpected_estimate_field_differences": []
+      },
+      "request": "/workspace/golaberto-production-17046/odds-rust/tests/fixtures/group-17045-2026-11-04.json",
+      "request_sha256": "7fe006b853594ddbae86a54bfa7bb0d9674864a1f7721514d364e3cc22c0a176",
+      "seed": 2293
+    },
+    {
+      "baseline_child_cpu_seconds": 8.72019499999999,
+      "baseline_elapsed_seconds": 4.423725423999713,
+      "baseline_export_sha256": "908b471835b537deebff5073cac8d57ac4a9ef27a70a3d7501ecabeb222d690c",
+      "candidate_child_cpu_seconds": 8.658439999999976,
+      "candidate_elapsed_seconds": 4.314346811996074,
+      "candidate_export_sha256": "908b471835b537deebff5073cac8d57ac4a9ef27a70a3d7501ecabeb222d690c",
+      "candidate_work_audit": {
+        "large_training_overrun": false,
+        "large_training_summary": {
+          "actual_charged": 292408960,
+          "capacity": 414780000,
+          "completed": 43,
+          "cumulative_quoted_work": 793032620,
+          "declined": 0
+        },
+        "native_family_recording_stage_records": [
+          {
+            "actual_final_operations": 236635394,
+            "admission_valid": true,
+            "audited_training_work": 292408960,
+            "capacity": 622170000,
+            "conservative_spare": 93125646,
+            "conservative_used": 529044354,
+            "enabled": true,
+            "reserved_final_work": 236635394,
+            "settled_spare": 93125646,
+            "settled_used": 529044354,
+            "setup_audit_complete": true,
+            "setup_audit_extra_work": 0,
+            "unknown_constructor_failures": 0
+          }
+        ],
+        "packed_totals": {
+          "attempts": 0,
+          "certificates": 0,
+          "cohorts": 0,
+          "labels": 0,
+          "nodes": 0,
+          "refutations": 0
+        },
+        "packed_witness_stages": [
+          {
+            "attempts": 0,
+            "certificates": 0,
+            "cohorts": 0,
+            "elapsed_ms": 0.007,
+            "labels": 0,
+            "nodes": 0,
+            "refutations": 0,
+            "reuse_attempts": 0,
+            "reuse_certificates": 0,
+            "reuse_labels": 0,
+            "reuse_prefix_screened_pairs": 0,
+            "reuse_seeds": 0
+          }
+        ]
+      },
+      "classification_and_exact_comparison": {
+        "baseline": {
+          "cell_count": 1296,
+          "impossible_count": 0,
+          "positive_count": 1276,
+          "reachable_count": 1296,
+          "undecided_cell_ids": [],
+          "undecided_count": 0,
+          "unestimated_count": 20,
+          "zero_not_impossible_count": 20
+        },
+        "baseline_unknown_to_candidate_reachable": [],
+        "candidate": {
+          "cell_count": 1296,
+          "impossible_count": 0,
+          "positive_count": 1276,
+          "reachable_count": 1296,
+          "undecided_cell_ids": [],
+          "undecided_count": 0,
+          "unestimated_count": 20,
+          "zero_not_impossible_count": 20
+        },
+        "candidate_unknown_cell_ids": [],
+        "exact_team_odds_game_importance_errors": [],
+        "passed": true,
+        "reachability_changes": [],
+        "reachability_invariant_errors": [],
+        "unexpected_estimate_field_differences": []
+      },
+      "request": "/workspace/golaberto-production-17046/odds-rust/tests/fixtures/group-17046-2026-10-22.json",
+      "request_sha256": "02f09e5fe88acb7b8d39aa47d358eef245091b005bdb3c4f489756de53083f23",
+      "seed": 808
+    },
+    {
+      "baseline_child_cpu_seconds": 8.532565000000009,
+      "baseline_elapsed_seconds": 4.357909583995934,
+      "baseline_export_sha256": "0c1b2815a9eb578ba9e40ef1321501ecd8ac86c31f80f31499f14ef413e91f26",
+      "candidate_child_cpu_seconds": 8.521084000000018,
+      "candidate_elapsed_seconds": 4.327753279998433,
+      "candidate_export_sha256": "0c1b2815a9eb578ba9e40ef1321501ecd8ac86c31f80f31499f14ef413e91f26",
+      "candidate_work_audit": {
+        "large_training_overrun": false,
+        "large_training_summary": {
+          "actual_charged": 252010474,
+          "capacity": 414780000,
+          "completed": 38,
+          "cumulative_quoted_work": 688612568,
+          "declined": 0
+        },
+        "native_family_recording_stage_records": [
+          {
+            "actual_final_operations": 285961699,
+            "admission_valid": true,
+            "audited_training_work": 252010474,
+            "capacity": 622170000,
+            "conservative_spare": 84197827,
+            "conservative_used": 537972173,
+            "enabled": true,
+            "reserved_final_work": 285961699,
+            "settled_spare": 84197827,
+            "settled_used": 537972173,
+            "setup_audit_complete": true,
+            "setup_audit_extra_work": 0,
+            "unknown_constructor_failures": 0
+          }
+        ],
+        "packed_totals": {
+          "attempts": 0,
+          "certificates": 0,
+          "cohorts": 0,
+          "labels": 0,
+          "nodes": 0,
+          "refutations": 0
+        },
+        "packed_witness_stages": [
+          {
+            "attempts": 0,
+            "certificates": 0,
+            "cohorts": 0,
+            "elapsed_ms": 0.007,
+            "labels": 0,
+            "nodes": 0,
+            "refutations": 0,
+            "reuse_attempts": 0,
+            "reuse_certificates": 0,
+            "reuse_labels": 0,
+            "reuse_prefix_screened_pairs": 0,
+            "reuse_seeds": 0
+          }
+        ]
+      },
+      "classification_and_exact_comparison": {
+        "baseline": {
+          "cell_count": 1296,
+          "impossible_count": 0,
+          "positive_count": 1283,
+          "reachable_count": 1296,
+          "undecided_cell_ids": [],
+          "undecided_count": 0,
+          "unestimated_count": 13,
+          "zero_not_impossible_count": 13
+        },
+        "baseline_unknown_to_candidate_reachable": [],
+        "candidate": {
+          "cell_count": 1296,
+          "impossible_count": 0,
+          "positive_count": 1283,
+          "reachable_count": 1296,
+          "undecided_cell_ids": [],
+          "undecided_count": 0,
+          "unestimated_count": 13,
+          "zero_not_impossible_count": 13
+        },
+        "candidate_unknown_cell_ids": [],
+        "exact_team_odds_game_importance_errors": [],
+        "passed": true,
+        "reachability_changes": [],
+        "reachability_invariant_errors": [],
+        "unexpected_estimate_field_differences": []
+      },
+      "request": "/workspace/golaberto-production-17046/odds-rust/tests/fixtures/group-17046-2026-10-22.json",
+      "request_sha256": "02f09e5fe88acb7b8d39aa47d358eef245091b005bdb3c4f489756de53083f23",
+      "seed": 809
+    },
+    {
+      "baseline_child_cpu_seconds": 8.849554999999985,
+      "baseline_elapsed_seconds": 4.468175597008667,
+      "baseline_export_sha256": "211eea71020899b1f42e5a9121680be7266123975f3b4e19fafa1e9b2c50ab4e",
+      "candidate_child_cpu_seconds": 8.556530000000004,
+      "candidate_elapsed_seconds": 4.231334064999828,
+      "candidate_export_sha256": "211eea71020899b1f42e5a9121680be7266123975f3b4e19fafa1e9b2c50ab4e",
+      "candidate_work_audit": {
+        "large_training_overrun": false,
+        "large_training_summary": {
+          "actual_charged": 241209752,
+          "capacity": 414780000,
+          "completed": 37,
+          "cumulative_quoted_work": 658880628,
+          "declined": 0
+        },
+        "native_family_recording_stage_records": [
+          {
+            "actual_final_operations": 284994590,
+            "admission_valid": true,
+            "audited_training_work": 241209752,
+            "capacity": 622170000,
+            "conservative_spare": 95965658,
+            "conservative_used": 526204342,
+            "enabled": true,
+            "reserved_final_work": 284994590,
+            "settled_spare": 95965658,
+            "settled_used": 526204342,
+            "setup_audit_complete": true,
+            "setup_audit_extra_work": 0,
+            "unknown_constructor_failures": 0
+          }
+        ],
+        "packed_totals": {
+          "attempts": 0,
+          "certificates": 0,
+          "cohorts": 0,
+          "labels": 0,
+          "nodes": 0,
+          "refutations": 0
+        },
+        "packed_witness_stages": [
+          {
+            "attempts": 0,
+            "certificates": 0,
+            "cohorts": 0,
+            "elapsed_ms": 0.007,
+            "labels": 0,
+            "nodes": 0,
+            "refutations": 0,
+            "reuse_attempts": 0,
+            "reuse_certificates": 0,
+            "reuse_labels": 0,
+            "reuse_prefix_screened_pairs": 0,
+            "reuse_seeds": 0
+          }
+        ]
+      },
+      "classification_and_exact_comparison": {
+        "baseline": {
+          "cell_count": 1296,
+          "impossible_count": 0,
+          "positive_count": 1281,
+          "reachable_count": 1296,
+          "undecided_cell_ids": [],
+          "undecided_count": 0,
+          "unestimated_count": 15,
+          "zero_not_impossible_count": 15
+        },
+        "baseline_unknown_to_candidate_reachable": [],
+        "candidate": {
+          "cell_count": 1296,
+          "impossible_count": 0,
+          "positive_count": 1281,
+          "reachable_count": 1296,
+          "undecided_cell_ids": [],
+          "undecided_count": 0,
+          "unestimated_count": 15,
+          "zero_not_impossible_count": 15
+        },
+        "candidate_unknown_cell_ids": [],
+        "exact_team_odds_game_importance_errors": [],
+        "passed": true,
+        "reachability_changes": [],
+        "reachability_invariant_errors": [],
+        "unexpected_estimate_field_differences": []
+      },
+      "request": "/workspace/golaberto-production-17046/odds-rust/tests/fixtures/group-17046-2026-10-22.json",
+      "request_sha256": "02f09e5fe88acb7b8d39aa47d358eef245091b005bdb3c4f489756de53083f23",
+      "seed": 1669
+    },
+    {
+      "baseline_child_cpu_seconds": 9.184974000000032,
+      "baseline_elapsed_seconds": 4.563840802991763,
+      "baseline_export_sha256": "cd636e4fddaf7fe81a1d29f7d0c954aa0e54c5e82c3061dedd46856db86d6cbb",
+      "candidate_child_cpu_seconds": 8.62041199999998,
+      "candidate_elapsed_seconds": 4.209974273995613,
+      "candidate_export_sha256": "cd636e4fddaf7fe81a1d29f7d0c954aa0e54c5e82c3061dedd46856db86d6cbb",
+      "candidate_work_audit": {
+        "large_training_overrun": false,
+        "large_training_summary": {
+          "actual_charged": 277754638,
+          "capacity": 414780000,
+          "completed": 42,
+          "cumulative_quoted_work": 759419080,
+          "declined": 0
+        },
+        "native_family_recording_stage_records": [
+          {
+            "actual_final_operations": 268164562,
+            "admission_valid": true,
+            "audited_training_work": 277754638,
+            "capacity": 622170000,
+            "conservative_spare": 76250800,
+            "conservative_used": 545919200,
+            "enabled": true,
+            "reserved_final_work": 268164562,
+            "settled_spare": 76250800,
+            "settled_used": 545919200,
+            "setup_audit_complete": true,
+            "setup_audit_extra_work": 0,
+            "unknown_constructor_failures": 0
+          }
+        ],
+        "packed_totals": {
+          "attempts": 0,
+          "certificates": 0,
+          "cohorts": 0,
+          "labels": 0,
+          "nodes": 0,
+          "refutations": 0
+        },
+        "packed_witness_stages": [
+          {
+            "attempts": 0,
+            "certificates": 0,
+            "cohorts": 0,
+            "elapsed_ms": 0.007,
+            "labels": 0,
+            "nodes": 0,
+            "refutations": 0,
+            "reuse_attempts": 0,
+            "reuse_certificates": 0,
+            "reuse_labels": 0,
+            "reuse_prefix_screened_pairs": 0,
+            "reuse_seeds": 0
+          }
+        ]
+      },
+      "classification_and_exact_comparison": {
+        "baseline": {
+          "cell_count": 1296,
+          "impossible_count": 0,
+          "positive_count": 1279,
+          "reachable_count": 1296,
+          "undecided_cell_ids": [],
+          "undecided_count": 0,
+          "unestimated_count": 17,
+          "zero_not_impossible_count": 17
+        },
+        "baseline_unknown_to_candidate_reachable": [],
+        "candidate": {
+          "cell_count": 1296,
+          "impossible_count": 0,
+          "positive_count": 1279,
+          "reachable_count": 1296,
+          "undecided_cell_ids": [],
+          "undecided_count": 0,
+          "unestimated_count": 17,
+          "zero_not_impossible_count": 17
+        },
+        "candidate_unknown_cell_ids": [],
+        "exact_team_odds_game_importance_errors": [],
+        "passed": true,
+        "reachability_changes": [],
+        "reachability_invariant_errors": [],
+        "unexpected_estimate_field_differences": []
+      },
+      "request": "/workspace/golaberto-production-17046/odds-rust/tests/fixtures/group-17046-2026-10-22.json",
+      "request_sha256": "02f09e5fe88acb7b8d39aa47d358eef245091b005bdb3c4f489756de53083f23",
+      "seed": 2293
+    }
+  ],
+  "schema_version": 1,
+  "tests_result_sidecar": {
+    "path": "/workspace/work/production-17046-cohort-fix-2026-11-05/tests-result.json",
+    "result": {
+      "command": "cargo test --release --locked --offline --no-fail-fast --manifest-path odds-rust/Cargo.toml",
+      "completed_at": "2026-11-06T00:22:48.428399+00:00",
+      "exit_code": 0,
+      "failed": 0,
+      "focused_packed_witness_tests": 20,
+      "focused_rank_proof_tests": 12,
+      "ignored": 5,
+      "log": "/workspace/work/production-17046-cohort-fix-2026-11-05/full-tests-final.log",
+      "passed": 581,
+      "result_blocks": 41,
+      "status": "passed"
+    },
+    "sha256": "1439062f40cc369f04cbb4b9976d53f0ec664b6d51e86084c20a7b99a909f233"
+  },
+  "timing_descriptives": {
+    "child_cpu_ratio_median": 0.9921925607941378,
+    "child_cpu_ratio_of_totals": 0.9873134134189699,
+    "child_cpu_seconds_baseline_total": 96.27735500000003,
+    "child_cpu_seconds_candidate_total": 95.05592399999996,
+    "wall_ratio_median": 0.9871626571212624,
+    "wall_ratio_of_totals": 0.9858702094355472,
+    "wall_seconds_baseline_total": 47.08714612398762,
+    "wall_seconds_candidate_total": 46.42181461097789
+  },
+  "timing_pairs": [
+    {
+      "baseline_child_cpu_seconds": 8.212781000000001,
+      "baseline_wall_seconds": 3.9524934369983384,
+      "candidate_child_cpu_seconds": 8.142700999999997,
+      "candidate_wall_seconds": 3.8997838610084727,
+      "child_cpu_candidate_over_baseline": 0.9914669586343524,
+      "request": "/workspace/golaberto-production-17046/odds-rust/tests/fixtures/group-17046-2026-11-05.json",
+      "seed": 808,
+      "wall_candidate_over_baseline": 0.9866642217551927
+    },
+    {
+      "baseline_child_cpu_seconds": 7.517692999999998,
+      "baseline_wall_seconds": 3.6353388690040447,
+      "candidate_child_cpu_seconds": 7.970708000000002,
+      "candidate_wall_seconds": 3.9249799529934535,
+      "child_cpu_candidate_over_baseline": 1.06025984301301,
+      "request": "/workspace/golaberto-production-17046/odds-rust/tests/fixtures/group-17046-2026-11-05.json",
+      "seed": 809,
+      "wall_candidate_over_baseline": 1.0796737510384444
+    },
+    {
+      "baseline_child_cpu_seconds": 7.587667999999999,
+      "baseline_wall_seconds": 3.5612729049898917,
+      "candidate_child_cpu_seconds": 7.558434999999996,
+      "candidate_wall_seconds": 3.517330687987851,
+      "child_cpu_candidate_over_baseline": 0.9961473011207128,
+      "request": "/workspace/golaberto-production-17046/odds-rust/tests/fixtures/group-17046-2026-11-05.json",
+      "seed": 1669,
+      "wall_candidate_over_baseline": 0.987661092487332
+    },
+    {
+      "baseline_child_cpu_seconds": 7.820947999999998,
+      "baseline_wall_seconds": 3.602273241005605,
+      "candidate_child_cpu_seconds": 7.787645999999999,
+      "candidate_wall_seconds": 3.6157553649973124,
+      "child_cpu_candidate_over_baseline": 0.9957419484185295,
+      "request": "/workspace/golaberto-production-17046/odds-rust/tests/fixtures/group-17046-2026-11-05.json",
+      "seed": 2293,
+      "wall_candidate_over_baseline": 1.00374267111063
+    },
+    {
+      "baseline_child_cpu_seconds": 6.801119999999978,
+      "baseline_wall_seconds": 3.3796144840016495,
+      "candidate_child_cpu_seconds": 7.161293000000001,
+      "candidate_wall_seconds": 3.599525918994914,
+      "child_cpu_candidate_over_baseline": 1.0529578951702108,
+      "request": "/workspace/golaberto-production-17046/odds-rust/tests/fixtures/group-17045-2026-11-04.json",
+      "seed": 808,
+      "wall_candidate_over_baseline": 1.0650699764823108
+    },
+    {
+      "baseline_child_cpu_seconds": 8.175165000000003,
+      "baseline_wall_seconds": 3.934606246999465,
+      "candidate_child_cpu_seconds": 8.105011000000008,
+      "candidate_wall_seconds": 4.020158414001344,
+      "child_cpu_candidate_over_baseline": 0.9914186441496905,
+      "request": "/workspace/golaberto-production-17046/odds-rust/tests/fixtures/group-17045-2026-11-04.json",
+      "seed": 809,
+      "wall_candidate_over_baseline": 1.0217435142505356
+    },
+    {
+      "baseline_child_cpu_seconds": 7.14235400000002,
+      "baseline_wall_seconds": 3.3938627719908254,
+      "candidate_child_cpu_seconds": 6.846011999999982,
+      "candidate_wall_seconds": 3.3131726370047545,
+      "child_cpu_candidate_over_baseline": 0.9585091973878589,
+      "request": "/workspace/golaberto-production-17046/odds-rust/tests/fixtures/group-17045-2026-11-04.json",
+      "seed": 1669,
+      "wall_candidate_over_baseline": 0.9762246913304811
+    },
+    {
+      "baseline_child_cpu_seconds": 7.732337000000017,
+      "baseline_wall_seconds": 3.8140327610017266,
+      "candidate_child_cpu_seconds": 7.127651999999996,
+      "candidate_wall_seconds": 3.44769934299984,
+      "child_cpu_candidate_over_baseline": 0.9217978988758483,
+      "request": "/workspace/golaberto-production-17046/odds-rust/tests/fixtures/group-17045-2026-11-04.json",
+      "seed": 2293,
+      "wall_candidate_over_baseline": 0.9039511611573908
+    },
+    {
+      "baseline_child_cpu_seconds": 8.72019499999999,
+      "baseline_wall_seconds": 4.423725423999713,
+      "candidate_child_cpu_seconds": 8.658439999999976,
+      "candidate_wall_seconds": 4.314346811996074,
+      "child_cpu_candidate_over_baseline": 0.9929181629539232,
+      "request": "/workspace/golaberto-production-17046/odds-rust/tests/fixtures/group-17046-2026-10-22.json",
+      "seed": 808,
+      "wall_candidate_over_baseline": 0.9752745476900002
+    },
+    {
+      "baseline_child_cpu_seconds": 8.532565000000009,
+      "baseline_wall_seconds": 4.357909583995934,
+      "candidate_child_cpu_seconds": 8.521084000000018,
+      "candidate_wall_seconds": 4.327753279998433,
+      "child_cpu_candidate_over_baseline": 0.9986544491603649,
+      "request": "/workspace/golaberto-production-17046/odds-rust/tests/fixtures/group-17046-2026-10-22.json",
+      "seed": 809,
+      "wall_candidate_over_baseline": 0.9930800987454519
+    },
+    {
+      "baseline_child_cpu_seconds": 8.849554999999985,
+      "baseline_wall_seconds": 4.468175597008667,
+      "candidate_child_cpu_seconds": 8.556530000000004,
+      "candidate_wall_seconds": 4.231334064999828,
+      "child_cpu_candidate_over_baseline": 0.9668881655631293,
+      "request": "/workspace/golaberto-production-17046/odds-rust/tests/fixtures/group-17046-2026-10-22.json",
+      "seed": 1669,
+      "wall_candidate_over_baseline": 0.9469936830219031
+    },
+    {
+      "baseline_child_cpu_seconds": 9.184974000000032,
+      "baseline_wall_seconds": 4.563840802991763,
+      "candidate_child_cpu_seconds": 8.62041199999998,
+      "candidate_wall_seconds": 4.209974273995613,
+      "child_cpu_candidate_over_baseline": 0.9385341754914004,
+      "request": "/workspace/golaberto-production-17046/odds-rust/tests/fixtures/group-17046-2026-10-22.json",
+      "seed": 2293,
+      "wall_candidate_over_baseline": 0.9224629989801183
+    }
+  ]
+}
