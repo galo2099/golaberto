@@ -789,14 +789,22 @@ Reachability uses this full Poisson model; probability estimation retains its
 existing finite sampling support. The same search also preserves completed
 refutations of the necessary points/wins relaxation and publishes those cells as
 `impossible_by_joint_rank`, with a zero `zero_hit_upper_95` bound. A search stopped
-by a node, depth, or cohort limit remains undecided, as does a failed score
+by a node, depth, or traversal-work limit remains undecided, as does a failed score
 completion. Only unresolved zero cells can change. Probability estimates, other
 uncertainty fields, and sampling work are preserved; nodes, certificates, and
 published refutations appear in `search.packed_witness`.
-Witness capture spends its cohort quota on visited cohorts, including learned
-conflict cache hits. A large hypothetical cohort space does not reject the
-search before its first candidate. Exhaustive impossibility proofs retain
-their full-count preflight, and any incomplete traversal remains unknown.
+Packed witness capture has no limit on the number of completed rival cohorts.
+It charges one traversal-work unit per recursive cohort entry and per cached-core
+comparison. A learned conflict prunes an entire subtree once the partially
+selected rival set contains that conflict. The cell allowance is
+`100_000 * (team_count + 1)` units, shared across both directions; the request
+allowance is six times that amount. Fixture-search limits remain 1,000 nodes per
+cell and 6,000 per request, with depth at most 512. Logs expose used work, denied
+searches, visited branches, pruned subtrees, and both work allowances. A proof
+completed exactly at its work allowance is valid; a denied charge leaves the
+search unknown. Earlier exhaustive proof stages retain their full-count
+preflight. The legacy cohort-limited capture API retains its original quota and
+traversal behavior.
 The [November 5 cohort-quota fix](../experiments/rare_positions/2026-11-05-group-17046-cohort-fix.md)
 resolves the four previously undecided cells in the new Europa League fixture
 without raising node, depth or cohort limits or changing probability estimates.

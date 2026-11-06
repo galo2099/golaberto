@@ -57,6 +57,10 @@ pub struct Stats {
     pub nodes: usize,
     pub cohorts: usize,
     pub cohort_cache_hits: usize,
+    pub cohort_branch_visits: usize,
+    pub cohort_pruned_branches: usize,
+    pub cohort_work: usize,
+    pub cohort_work_exhausted: bool,
     pub backjumps: usize,
 }
 #[derive(Clone, Copy)]
@@ -73,6 +77,11 @@ pub struct Limits {
     /// Proof searches preflight the full combinatorial count; capture searches
     /// spend this quota as cohorts are visited and may stop with unknown.
     pub max_cohorts: usize,
+    pub max_depth: usize,
+}
+#[derive(Clone, Copy, Debug)]
+pub struct WorkLimits {
+    pub max_work: usize,
     pub max_depth: usize,
 }
 impl Default for Limits {
@@ -323,6 +332,8 @@ impl RankProof {
                 initial_maximum: maximum,
                 budget,
                 max_cohorts: limits.max_cohorts,
+                work_budget: None,
+                work_mode: false,
                 options,
                 max_depth,
                 stats: Stats::default(),
@@ -343,6 +354,8 @@ impl RankProof {
             initial_maximum: maximum,
             budget,
             max_cohorts: limits.max_cohorts,
+            work_budget: None,
+            work_mode: false,
             options,
             max_depth,
             stats: Stats::default(),
@@ -376,6 +389,47 @@ impl RankProof {
         budget: usize,
         options: Options,
         limits: Limits,
+    ) -> FeasibleDomains {
+        self.capture_feasible_domains(
+            cell,
+            required_count,
+            budget,
+            options,
+            limits.max_cohorts,
+            None,
+            limits.max_depth,
+        )
+    }
+
+    /// Capture a feasible relaxation assignment with a deterministic traversal-work bound.
+    pub fn feasible_domains_with_work_limits(
+        &self,
+        cell: Cell,
+        required_count: usize,
+        budget: usize,
+        options: Options,
+        limits: WorkLimits,
+    ) -> FeasibleDomains {
+        self.capture_feasible_domains(
+            cell,
+            required_count,
+            budget,
+            options,
+            usize::MAX,
+            Some(limits.max_work),
+            limits.max_depth,
+        )
+    }
+
+    fn capture_feasible_domains(
+        &self,
+        cell: Cell,
+        required_count: usize,
+        budget: usize,
+        options: Options,
+        max_cohorts: usize,
+        work_budget: Option<usize>,
+        requested_depth: usize,
     ) -> FeasibleDomains {
         if cell.team >= self.ranked || required_count >= self.ranked || budget == 0 {
             return FeasibleDomains::default();
@@ -417,48 +471,38 @@ impl RankProof {
         {
             return FeasibleDomains::default();
         }
-        let max_depth = limits.max_depth.min(512);
-        if max_depth <= 128 {
-            let mut solver: Solver<'_, 2> = Solver {
-                p: self,
-                floor,
-                initial,
-                initial_maximum: maximum,
-                budget,
-                max_cohorts: limits.max_cohorts,
-                options,
-                max_depth,
-                stats: Stats::default(),
-                cores: Vec::new(),
-                capture_feasible_domains: true,
-                feasible_domains: None,
-            };
-            let impossible = solver.cohorts(&eligible, 0, required_count, 0);
-            return FeasibleDomains {
-                domains: solver.feasible_domains,
-                impossible,
-                stats: solver.stats,
-            };
+        let max_depth = requested_depth.min(512);
+        let work_mode = work_budget.is_some();
+        macro_rules! run_solver {
+            ($words:literal) => {{
+                let mut solver: Solver<'_, $words> = Solver {
+                    p: self,
+                    floor,
+                    initial,
+                    initial_maximum: maximum,
+                    budget,
+                    max_cohorts,
+                    work_budget,
+                    work_mode,
+                    options,
+                    max_depth,
+                    stats: Stats::default(),
+                    cores: Vec::new(),
+                    capture_feasible_domains: true,
+                    feasible_domains: None,
+                };
+                let impossible = solver.cohorts(&eligible, 0, required_count, 0);
+                FeasibleDomains {
+                    domains: solver.feasible_domains,
+                    impossible,
+                    stats: solver.stats,
+                }
+            }};
         }
-        let mut solver: Solver<'_, 8> = Solver {
-            p: self,
-            floor,
-            initial,
-            initial_maximum: maximum,
-            budget,
-            max_cohorts: limits.max_cohorts,
-            options,
-            max_depth,
-            stats: Stats::default(),
-            cores: Vec::new(),
-            capture_feasible_domains: true,
-            feasible_domains: None,
-        };
-        let impossible = solver.cohorts(&eligible, 0, required_count, 0);
-        FeasibleDomains {
-            domains: solver.feasible_domains,
-            impossible,
-            stats: solver.stats,
+        if max_depth <= 128 {
+            run_solver!(2)
+        } else {
+            run_solver!(8)
         }
     }
 }
@@ -469,6 +513,8 @@ struct Solver<'a, const WORDS: usize> {
     initial_maximum: Vec<i64>,
     budget: usize,
     max_cohorts: usize,
+    work_budget: Option<usize>,
+    work_mode: bool,
     options: Options,
     max_depth: usize,
     stats: Stats,
@@ -1070,15 +1116,22 @@ impl<const WORDS: usize> Solver<'_, WORDS> {
         Answer::Conflict(union)
     }
     fn cohorts(&mut self, candidates: &[usize], start: usize, left: usize, required: u64) -> bool {
+        if self.work_mode {
+            if self.charge_work() {
+                return false;
+            }
+        }
+        self.stats.cohort_branch_visits += 1;
         if left == 0 {
-            if self.stats.cohorts >= self.max_cohorts {
+            if !self.work_mode && self.stats.cohorts >= self.max_cohorts {
                 return false;
             }
             self.stats.cohorts += 1;
-            if self.options.reuse_cohorts && self.cores.iter().any(|core| core & required == *core)
-            {
+            if self.options.reuse_cohorts && self.core_covers(required) == Some(true) {
                 self.stats.cohort_cache_hits += 1;
                 return true;
+            } else if self.stats.cohort_work_exhausted {
+                return false;
             }
             if self.stats.nodes >= self.budget {
                 return false;
@@ -1103,6 +1156,16 @@ impl<const WORDS: usize> Solver<'_, WORDS> {
                 _ => false,
             }
         } else {
+            if self.work_mode
+                && self.options.reuse_cohorts
+                && self.core_covers(required) == Some(true)
+            {
+                self.stats.cohort_cache_hits += 1;
+                self.stats.cohort_pruned_branches += 1;
+                return true;
+            } else if self.stats.cohort_work_exhausted {
+                return false;
+            }
             for i in start..=candidates.len() - left {
                 if !self.cohorts(candidates, i + 1, left - 1, required | (1 << candidates[i])) {
                     return false;
@@ -1110,6 +1173,27 @@ impl<const WORDS: usize> Solver<'_, WORDS> {
             }
             true
         }
+    }
+    fn charge_work(&mut self) -> bool {
+        let limit = self.work_budget.unwrap_or(usize::MAX);
+        if self.stats.cohort_work >= limit {
+            self.stats.cohort_work_exhausted = true;
+            true
+        } else {
+            self.stats.cohort_work += 1;
+            false
+        }
+    }
+    fn core_covers(&mut self, required: u64) -> Option<bool> {
+        for index in 0..self.cores.len() {
+            if self.work_mode && self.charge_work() {
+                return None;
+            }
+            if self.cores[index] & required == self.cores[index] {
+                return Some(true);
+            }
+        }
+        Some(false)
     }
 }
 
@@ -1411,6 +1495,8 @@ mod tests {
             initial_maximum,
             budget: 100,
             max_cohorts: 2,
+            work_budget: None,
+            work_mode: false,
             options: Options::default(),
             max_depth: 128,
             stats: Stats::default(),
@@ -1424,6 +1510,189 @@ mod tests {
         assert_eq!(solver.stats.cohort_cache_hits, 2);
         assert_eq!(solver.stats.nodes, 0);
         assert!(solver.feasible_domains.is_none());
+    }
+    #[test]
+    fn learned_core_prunes_a_partial_cohort_subtree() {
+        let request: Request = serde_json::from_value(json!({
+            "id": 1,
+            "phase": {"sort":"pt,gd,gf", "championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+            "team_groups": [
+                {"team_id":1}, {"team_id":2}, {"team_id":3}, {"team_id":4}
+            ],
+            "games": [{"id":1,"home_id":3,"away_id":4}]
+        })).unwrap();
+        let model = Model::new(request).unwrap();
+        let proof = RankProof::new(&model).unwrap();
+        let core = (1 << 0) | (1 << 1);
+        let mut solver: Solver<'_, 8> = Solver {
+            p: &proof,
+            floor: 3,
+            initial: vec![7],
+            initial_maximum: vec![3; 4],
+            budget: 100,
+            max_cohorts: 10,
+            work_budget: Some(10),
+            work_mode: true,
+            options: Options::default(),
+            max_depth: 128,
+            stats: Stats::default(),
+            cores: vec![core],
+            capture_feasible_domains: false,
+            feasible_domains: None,
+        };
+        assert!(solver.cohorts(&[2, 3], 0, 1, core));
+        assert_eq!(solver.stats.cohorts, 0);
+        assert_eq!(solver.stats.cohort_cache_hits, 1);
+        assert_eq!(solver.stats.cohort_pruned_branches, 1);
+        assert_eq!(solver.stats.cohort_branch_visits, 1);
+        assert_eq!(solver.stats.cohort_work, 2);
+    }
+    #[test]
+    fn work_limit_zero_denies_first_entry_and_returns_unknown() {
+        let request: Request = serde_json::from_value(json!({
+            "id": 1, "phase": {"sort":"pt,gd,gf", "championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+            "team_groups": [{"team_id":1},{"team_id":2}], "games": []
+        })).unwrap();
+        let model = Model::new(request).unwrap();
+        let proof = RankProof::new(&model).unwrap();
+        let found = proof.feasible_domains_with_work_limits(
+            Cell { team: 0, rank: 0 },
+            0,
+            10,
+            Options::default(),
+            WorkLimits {
+                max_work: 0,
+                max_depth: 512,
+            },
+        );
+        assert!(found.domains.is_none() && !found.impossible);
+        assert_eq!(found.stats.cohort_work, 0);
+        assert!(found.stats.cohort_work_exhausted);
+    }
+    #[test]
+    fn work_mode_matches_unbounded_small_capture_oracle() {
+        let request: Request = serde_json::from_value(json!({
+            "id": 1, "phase": {"sort":"pt,gd,gf", "championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+            "team_groups": [{"team_id":1},{"team_id":2},{"team_id":3}],
+            "games": [{"id":1,"home_id":2,"away_id":3}]
+        })).unwrap();
+        let model = Model::new(request).unwrap();
+        let proof = RankProof::new(&model).unwrap();
+        let legacy = proof.feasible_domains_with_limits(
+            Cell { team: 0, rank: 1 },
+            1,
+            100,
+            Options::default(),
+            Limits {
+                max_cohorts: 100,
+                max_depth: 512,
+            },
+        );
+        let work = proof.feasible_domains_with_work_limits(
+            Cell { team: 0, rank: 1 },
+            1,
+            100,
+            Options::default(),
+            WorkLimits {
+                max_work: 10000,
+                max_depth: 512,
+            },
+        );
+        assert_eq!(work.impossible, legacy.impossible);
+        assert_eq!(work.domains, legacy.domains);
+        assert!(!work.stats.cohort_work_exhausted);
+    }
+    #[test]
+    fn work_quota_exactly_finishes_one_cohort_refutation_at_both_widths() {
+        let request: Request = serde_json::from_value(json!({
+            "id": 1, "phase": {"sort":"pt,gd,gf", "championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+            "team_groups": [{"team_id":1,"add_sub":3},{"team_id":2},{"team_id":3},{"team_id":4,"add_sub":3}],
+            "games": [{"id":1,"home_id":2,"away_id":3}]
+        })).unwrap();
+        let model = Model::new(request).unwrap();
+        let proof = RankProof::new(&model).unwrap();
+        let cell = Cell {
+            team: model.indices[&1],
+            rank: 2,
+        };
+        for max_depth in [128, 512] {
+            let full = proof.feasible_domains_with_work_limits(
+                cell,
+                3,
+                100,
+                Options::default(),
+                WorkLimits {
+                    max_work: 10_000,
+                    max_depth,
+                },
+            );
+            assert!(full.impossible && full.domains.is_none());
+            assert!(full.stats.cohort_work > 0 && !full.stats.cohort_work_exhausted);
+            let exact = proof.feasible_domains_with_work_limits(
+                cell,
+                3,
+                100,
+                Options::default(),
+                WorkLimits {
+                    max_work: full.stats.cohort_work,
+                    max_depth,
+                },
+            );
+            assert!(exact.impossible && !exact.stats.cohort_work_exhausted);
+            assert_eq!(exact.stats.cohort_work, full.stats.cohort_work);
+            let short = proof.feasible_domains_with_work_limits(
+                cell,
+                3,
+                100,
+                Options::default(),
+                WorkLimits {
+                    max_work: full.stats.cohort_work - 1,
+                    max_depth,
+                },
+            );
+            assert!(
+                !short.impossible && short.domains.is_none() && short.stats.cohort_work_exhausted
+            );
+        }
+    }
+
+    #[test]
+    fn work_budget_guards_internal_and_leaf_cache_comparisons() {
+        let request: Request = serde_json::from_value(json!({
+            "id": 1, "phase": {"sort":"pt,gd,gf", "championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+            "team_groups": [{"team_id":1},{"team_id":2},{"team_id":3}], "games": []
+        })).unwrap();
+        let model = Model::new(request).unwrap();
+        let proof = RankProof::new(&model).unwrap();
+        let core = (1 << 0) | (1 << 1);
+        for left in [0, 1] {
+            let make = |max_work| Solver::<8> {
+                p: &proof,
+                floor: 1,
+                initial: Vec::new(),
+                initial_maximum: vec![0; 3],
+                budget: 10,
+                max_cohorts: usize::MAX,
+                work_budget: Some(max_work),
+                work_mode: true,
+                options: Options::default(),
+                max_depth: 128,
+                stats: Stats::default(),
+                cores: vec![core],
+                capture_feasible_domains: true,
+                feasible_domains: None,
+            };
+            let mut short = make(1);
+            assert!(!short.cohorts(&[2], 0, left, core));
+            assert!(short.stats.cohort_work_exhausted);
+            assert_eq!(short.stats.cohort_pruned_branches, 0);
+            assert!(short.feasible_domains.is_none());
+            let mut exact = make(2);
+            assert!(exact.cohorts(&[2], 0, left, core));
+            assert!(!exact.stats.cohort_work_exhausted);
+            assert_eq!(exact.stats.cohort_work, 2);
+            assert_eq!(exact.stats.cohort_pruned_branches, usize::from(left > 0));
+        }
     }
     #[test]
     fn capture_collective_bound_keeps_draw_dependency_when_maxima_do_not_change() {
@@ -1450,6 +1719,8 @@ mod tests {
             initial_maximum: vec![0; proof.base.len()],
             budget: 100,
             max_cohorts: usize::MAX,
+            work_budget: None,
+            work_mode: false,
             options: Options::default(),
             max_depth: 512,
             stats: Stats::default(),
@@ -1611,6 +1882,40 @@ mod tests {
                                 !exact_capture_exists,
                                 "capture refutation mismatch: adjustment={adjustment} sort={sort} direction={direction} team={team} required={rank}"
                             );
+                            let work_capture = proof.feasible_domains_with_work_limits(
+                                Cell { team, rank },
+                                rank,
+                                10_000,
+                                Options::default(),
+                                WorkLimits {
+                                    max_work: 1_000_000,
+                                    max_depth: 512,
+                                },
+                            );
+                            assert_eq!(work_capture.impossible, !exact_capture_exists,
+                                "work capture refutation mismatch: adjustment={adjustment} sort={sort} direction={direction} team={team} required={rank}");
+                            assert_eq!(work_capture.domains.is_some(), exact_capture_exists,
+                                "work capture mismatch: adjustment={adjustment} sort={sort} direction={direction} team={team} required={rank}");
+                            if let Some(domains) = work_capture.domains.as_ref() {
+                                for mut code in 0..3_usize.pow(proof.games.len() as u32) {
+                                    let mut totals = proof.base.clone();
+                                    let mut allowed = true;
+                                    for (i, game) in proof.games.iter().enumerate() {
+                                        let outcome = code % 3;
+                                        code /= 3;
+                                        if domains[i] & (1 << outcome) == 0 {
+                                            allowed = false;
+                                            break;
+                                        }
+                                        totals[game.home] += game.gain[0][outcome];
+                                        totals[game.away] += game.gain[1][outcome];
+                                    }
+                                    if allowed {
+                                        assert!((0..m.n).filter(|other| *other != team && totals[*other] >= floor).count() >= rank,
+                                        "invalid work capture completion: adjustment={adjustment} sort={sort} direction={direction} team={team} required={rank}");
+                                    }
+                                }
+                            }
                             assert!(!captured.impossible || rank > ahead);
                             if let Some(domains) = captured.domains {
                                 for mut code in 0..3_usize.pow(proof.games.len() as u32) {

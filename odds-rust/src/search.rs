@@ -1208,6 +1208,12 @@ struct PackedWitnessStats {
     attempts: usize,
     nodes: usize,
     cohorts: usize,
+    cohort_work: usize,
+    cohort_work_exhausted: usize,
+    cohort_branch_visits: usize,
+    cohort_pruned_branches: usize,
+    per_cell_work_limit: usize,
+    request_work_limit: usize,
     certificates: usize,
     labels: usize,
     refutations: usize,
@@ -1297,24 +1303,29 @@ fn verified_packed_certificate(
     cell: Cell,
     required_count: usize,
     budget: usize,
+    work_budget: usize,
     stats: &mut PackedWitnessStats,
 ) -> PackedSearchResult {
     if budget == 0 {
         return PackedSearchResult::Unknown;
     }
     stats.attempts += 1;
-    let search = proof.feasible_domains_with_limits(
+    let search = proof.feasible_domains_with_work_limits(
         cell,
         required_count,
         budget,
         crate::rank_proof::Options::default(),
-        crate::rank_proof::Limits {
-            max_cohorts: 100_000,
+        crate::rank_proof::WorkLimits {
+            max_work: work_budget,
             max_depth: 512,
         },
     );
     stats.nodes += search.stats.nodes;
     stats.cohorts += search.stats.cohorts;
+    stats.cohort_work += search.stats.cohort_work;
+    stats.cohort_work_exhausted += usize::from(search.stats.cohort_work_exhausted);
+    stats.cohort_branch_visits += search.stats.cohort_branch_visits;
+    stats.cohort_pruned_branches += search.stats.cohort_pruned_branches;
     if search.impossible {
         return PackedSearchResult::Impossible;
     }
@@ -1375,6 +1386,25 @@ fn packed_witness_fallback_with_options(
     feature_enabled: bool,
     reuse_enabled: bool,
 ) -> PackedWitnessStats {
+    let per_cell_work_limit = 100_000usize.saturating_mul(model.n + 1);
+    packed_witness_fallback_with_work_limits(
+        model,
+        estimates,
+        feature_enabled,
+        reuse_enabled,
+        per_cell_work_limit,
+        6usize.saturating_mul(per_cell_work_limit),
+    )
+}
+
+fn packed_witness_fallback_with_work_limits(
+    model: &Model,
+    estimates: &mut [Estimate],
+    feature_enabled: bool,
+    reuse_enabled: bool,
+    per_cell_work_limit: usize,
+    request_work_limit: usize,
+) -> PackedWitnessStats {
     let mut stats = PackedWitnessStats {
         reuse_enabled,
         ..PackedWitnessStats::default()
@@ -1383,6 +1413,8 @@ fn packed_witness_fallback_with_options(
         return stats;
     }
     stats.supported = packed_witness_supported(model);
+    stats.per_cell_work_limit = per_cell_work_limit;
+    stats.request_work_limit = request_work_limit;
     if !stats.supported || estimates.len() != model.n * model.n {
         return stats;
     }
@@ -1410,7 +1442,9 @@ fn packed_witness_fallback_with_options(
     let opposite = primary.negated();
     let mut reuse_seeds: Vec<PackedReuseSeed> = Vec::new();
     for cell in cells {
-        if stats.nodes >= PACKED_WITNESS_TOTAL_NODES {
+        if stats.nodes >= PACKED_WITNESS_TOTAL_NODES
+            || stats.cohort_work >= stats.request_work_limit
+        {
             break;
         }
         let estimate = &estimates[cell.index(model.n)];
@@ -1418,7 +1452,11 @@ fn packed_witness_fallback_with_options(
             continue;
         }
         let cell_budget = PACKED_WITNESS_NODE_BUDGET.min(PACKED_WITNESS_TOTAL_NODES - stats.nodes);
+        let cell_work_budget = stats
+            .per_cell_work_limit
+            .min(stats.request_work_limit.saturating_sub(stats.cohort_work));
         let mut remaining = cell_budget;
+        let mut remaining_work = cell_work_budget;
         let use_opposite = cell.rank < model.n / 2;
         let preferred = if !use_opposite { &primary } else { &opposite };
         let preferred_required_count = if use_opposite {
@@ -1433,22 +1471,26 @@ fn packed_witness_fallback_with_options(
             model.n - 1 - cell.rank
         };
         let nodes_before = stats.nodes;
+        let work_before = stats.cohort_work;
         let mut result = verified_packed_certificate(
             model,
             preferred,
             cell,
             preferred_required_count,
             remaining,
+            remaining_work,
             &mut stats,
         );
         remaining = cell_budget.saturating_sub(stats.nodes - nodes_before);
-        if matches!(&result, PackedSearchResult::Unknown) && remaining > 0 {
+        remaining_work = cell_work_budget.saturating_sub(stats.cohort_work - work_before);
+        if matches!(&result, PackedSearchResult::Unknown) && remaining > 0 && remaining_work > 0 {
             result = verified_packed_certificate(
                 model,
                 alternate,
                 cell,
                 alternate_required_count,
                 remaining,
+                remaining_work,
                 &mut stats,
             );
         }
@@ -2408,6 +2450,7 @@ mod packed_witness_tests {
             Cell { team, rank: 12 },
             12,
             PACKED_WITNESS_NODE_BUDGET,
+            usize::MAX,
             &mut certificate_stats,
         );
         let accepted = match accepted {
@@ -2594,7 +2637,8 @@ mod packed_witness_tests {
         };
         let proof = crate::rank_proof::RankProof::new(&model).unwrap();
         let mut stats = PackedWitnessStats::default();
-        let result = verified_packed_certificate(&model, &proof, cell, 24, 1, &mut stats);
+        let result =
+            verified_packed_certificate(&model, &proof, cell, 24, 1, usize::MAX, &mut stats);
 
         assert!(matches!(result, PackedSearchResult::Unknown), "{stats:?}");
         assert!(stats.nodes <= 1, "{stats:?}");
@@ -2811,7 +2855,8 @@ mod packed_witness_tests {
         let cell = Cell { team, rank: 0 };
         let proof = crate::rank_proof::RankProof::new(&model).unwrap().negated();
         let mut stats = PackedWitnessStats::default();
-        let certificate = verified_packed_certificate(&model, &proof, cell, 19, 100, &mut stats);
+        let certificate =
+            verified_packed_certificate(&model, &proof, cell, 19, 100, usize::MAX, &mut stats);
         assert!(stats.nodes <= PACKED_WITNESS_NODE_BUDGET);
         match certificate {
             PackedSearchResult::Witness(certificate) => assert_eq!(certificate.ranks[team], 0),
@@ -2831,6 +2876,60 @@ mod packed_witness_tests {
         assert_eq!(stats.candidates, model.n * model.n);
         assert!(stats.nodes <= PACKED_WITNESS_TOTAL_NODES);
         assert!(stats.attempts > 0);
+    }
+
+    #[test]
+    fn packed_work_budget_is_shared_across_orientations_and_request_cells() {
+        let request: crate::model::Request = serde_json::from_str(include_str!(
+            "../tests/fixtures/group-17047-2026-11-06.json"
+        ))
+        .unwrap();
+        let model = Model::new(request).unwrap();
+        let mut estimates = vec![
+            Estimate {
+                reachability: "impossible_by_points".into(),
+                ..Estimate::default()
+            };
+            model.n * model.n
+        ];
+        let target_ids = [367, 809, 848];
+        for id in target_ids {
+            let team = model.indices[&id];
+            estimates[Cell { team, rank: 29 }.index(model.n)] = Estimate {
+                std_err: 0.125,
+                samples: 17,
+                reachability: "undecided".into(),
+                zero_hit_upper_95: 0.2,
+                ..Estimate::default()
+            };
+        }
+        let before = estimates.clone();
+        let stats =
+            packed_witness_fallback_with_work_limits(&model, &mut estimates, true, false, 1, 2);
+        assert_eq!(stats.attempts, 2);
+        assert_eq!(stats.cohort_work, 2);
+        assert_eq!(stats.cohort_work_exhausted, 2);
+        assert_eq!(stats.nodes, 0);
+        assert_eq!(stats.per_cell_work_limit, 1);
+        assert_eq!(stats.request_work_limit, 2);
+        assert_eq!(stats.certificates, 0);
+        assert_eq!(stats.refutations, 0);
+        assert_eq!(stats.labels, 0);
+        for id in target_ids {
+            let index = Cell {
+                team: model.indices[&id],
+                rank: 29,
+            }
+            .index(model.n);
+            assert_eq!(estimates[index].reachability, "undecided");
+            assert_eq!(estimates[index].probability, before[index].probability);
+            assert_eq!(estimates[index].std_err, before[index].std_err);
+            assert_eq!(estimates[index].samples, before[index].samples);
+            assert_eq!(
+                estimates[index].zero_hit_upper_95,
+                before[index].zero_hit_upper_95
+            );
+        }
     }
 }
 

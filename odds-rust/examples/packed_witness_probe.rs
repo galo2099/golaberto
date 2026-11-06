@@ -2,7 +2,7 @@ use golaberto_odds::{
     conditioned::{canonical, canonical_ranks},
     goal_completion::{self, Certificate},
     model::{Model, Request},
-    rank_proof::{Limits, Options, RankProof},
+    rank_proof::{Limits, Options, RankProof, WorkLimits},
     search::Cell,
 };
 use serde_json::{json, Value};
@@ -33,14 +33,18 @@ fn cert_json(model: &Model, cert: &Certificate) -> Value {
 fn run() -> Result<Value, String> {
     let mut args = env::args().skip(1);
     let path = args.next().ok_or(
-        "usage: packed_witness_probe REQUEST TEAM ONE_BASED_RANK [MAX_COHORTS=100000] [NODES=1000]",
+        "usage: packed_witness_probe REQUEST TEAM ONE_BASED_RANK [MAX_COHORTS=100000] [NODES=1000] [MAX_WORK]",
     )?;
     let team_id: i32 = number(args.next(), 0, "TEAM")?;
     let one_rank: usize = number(args.next(), 0, "ONE_BASED_RANK")?;
     let max_cohorts: usize = number(args.next(), 100_000, "MAX_COHORTS")?;
     let node_budget: usize = number(args.next(), 1_000, "NODES")?;
+    let max_work: Option<usize> = args
+        .next()
+        .map(|v| v.parse().map_err(|_| format!("invalid MAX_WORK: {v}")))
+        .transpose()?;
     if args.next().is_some() || one_rank == 0 {
-        return Err("usage: packed_witness_probe REQUEST TEAM ONE_BASED_RANK [MAX_COHORTS=100000] [NODES=1000]".into());
+        return Err("usage: packed_witness_probe REQUEST TEAM ONE_BASED_RANK [MAX_COHORTS=100000] [NODES=1000] [MAX_WORK]".into());
     }
     let request: Request = serde_json::from_slice(&fs::read(&path).map_err(|e| e.to_string())?)
         .map_err(|e| e.to_string())?;
@@ -90,6 +94,7 @@ fn run() -> Result<Value, String> {
     };
     let mut attempts = Vec::new();
     let mut total_nodes = 0usize;
+    let mut total_work = 0usize;
     let mut witness: Option<Certificate> = None;
     let mut impossible = false;
     for (direction, p, required) in [
@@ -97,26 +102,42 @@ fn run() -> Result<Value, String> {
         (alt_name, alternate, alt_required),
     ] {
         let remaining = node_budget.saturating_sub(total_nodes);
+        let remaining_work = max_work.map(|cap| cap.saturating_sub(total_work));
         if remaining == 0
+            || remaining_work == Some(0)
             || (attempts.len() > 0 && !attempts.iter().any(|a: &Value| a["result"] == "unknown"))
         {
             break;
         }
-        let found =
-            p.feasible_domains_with_limits(cell, required, remaining, Options::default(), limits);
+        let found = if let Some(work) = remaining_work {
+            p.feasible_domains_with_work_limits(
+                cell,
+                required,
+                remaining,
+                Options::default(),
+                WorkLimits {
+                    max_work: work,
+                    max_depth: 512,
+                },
+            )
+        } else {
+            p.feasible_domains_with_limits(cell, required, remaining, Options::default(), limits)
+        };
+        let search_stats = serde_json::to_value(&found.stats).unwrap_or(Value::Null);
         total_nodes += found.stats.nodes;
+        total_work += found.stats.cohort_work;
         let cohorts = found.stats.cohorts;
         if found.impossible {
-            attempts.push(json!({"direction": direction, "nodes": found.stats.nodes, "cohorts": cohorts, "domains_present": false, "completion_ok": false, "result": "impossible"}));
+            attempts.push(json!({"direction": direction, "nodes": found.stats.nodes, "cohorts": cohorts, "search_stats": search_stats, "domains_present": false, "completion_ok": false, "result": "impossible"}));
             impossible = true;
             break;
         }
         let Some(domains) = found.domains.as_deref() else {
-            attempts.push(json!({"direction": direction, "nodes": found.stats.nodes, "cohorts": cohorts, "domains_present": false, "completion_ok": false, "result": "unknown"}));
+            attempts.push(json!({"direction": direction, "nodes": found.stats.nodes, "cohorts": cohorts, "search_stats": search_stats, "domains_present": false, "completion_ok": false, "result": "unknown"}));
             continue;
         };
         if domains.len() != model.fixtures.len() {
-            attempts.push(json!({"direction": direction, "nodes": found.stats.nodes, "cohorts": cohorts, "domains_present": false, "completion_ok": false, "result": "unknown"}));
+            attempts.push(json!({"direction": direction, "nodes": found.stats.nodes, "cohorts": cohorts, "search_stats": search_stats, "domains_present": false, "completion_ok": false, "result": "unknown"}));
             continue;
         }
         let mut outcomes = Vec::with_capacity(domains.len());
@@ -153,7 +174,7 @@ fn run() -> Result<Value, String> {
         };
         let completion_ok = cert.is_some();
         let ranks = cert.as_ref().map(|c| canonical_ranks(&model, &c.outcomes));
-        attempts.push(json!({"direction": direction, "nodes": found.stats.nodes, "cohorts": cohorts, "domains_present": true, "completion_ok": completion_ok, "canonical_rank": ranks.as_ref().map(|r| r[team]), "result": if completion_ok {"witness"} else {"unknown"}}));
+        attempts.push(json!({"direction": direction, "nodes": found.stats.nodes, "cohorts": cohorts, "search_stats": search_stats, "domains_present": true, "completion_ok": completion_ok, "canonical_rank": ranks.as_ref().map(|r| r[team]), "result": if completion_ok {"witness"} else {"unknown"}}));
         if cert.is_some() {
             witness = cert;
             break;
@@ -168,7 +189,7 @@ fn run() -> Result<Value, String> {
     };
     Ok(json!({
         "request": path, "team": team_id, "one_based_rank": one_rank,
-        "limits": {"max_cohorts": max_cohorts, "nodes": node_budget, "max_depth": 512},
+        "limits": {"max_cohorts": if max_work.is_none() {Some(max_cohorts)} else {None}, "nodes": node_budget, "max_work": max_work, "max_depth": 512},
         "attempts": attempts, "status": status,
         "certificate": witness.as_ref().map(|c| cert_json(&model, c)),
     }))
