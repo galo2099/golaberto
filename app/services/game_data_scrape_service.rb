@@ -1,4 +1,5 @@
 require 'scrape'
+require 'scrape_proxy_retries'
 
 class GameDataScrapeService
   LOCK_PATH = Rails.root.join("tmp", "game_data_scrape.lock")
