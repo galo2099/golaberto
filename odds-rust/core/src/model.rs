@@ -547,8 +547,47 @@ impl Model {
         if key == Key::Average {
             return self.average_key_varies(a, b, game_scope);
         }
-        let (_, terms) = self.score_key_support(key, a, b, ca, cb, scores, game_scope);
-        self.score_key_varies(&terms, scores)
+        let (offset, terms) = self.score_key_support(key, a, b, ca, cb, scores, game_scope);
+        if !self.score_key_varies(&terms, scores) {
+            return false;
+        }
+        !self.has_strict_wdl_sign(offset, &terms, scores)
+    }
+
+    /// Whether an unbounded, fixed-WDL score support is strictly one-sided.
+    /// Each draw has score [t,t], each away win [t,t+d], and each home win
+    /// [t+d,t], where t >= 0 and d >= 1. This deliberately over-approximates
+    /// the sampler's finite support so the result remains a sound certificate.
+    fn has_strict_wdl_sign(
+        &self,
+        offset: f64,
+        terms: &[(usize, [f64; 2])],
+        scores: &[[i32; 2]],
+    ) -> bool {
+        let mut lower = offset;
+        let mut upper = offset;
+        let mut lower_finite = true;
+        let mut upper_finite = true;
+        for &(fixture_index, [home, away]) in terms {
+            let (t, winning_margin) = match self.outcome_at(&fixture_index, scores) {
+                0 => (home + away, away),
+                1 => (home + away, 0.),
+                2 => (home + away, home),
+                _ => unreachable!(),
+            };
+            // A win's margin is 1 + e with e >= 0. Include its mandatory
+            // one-goal contribution in both finite bounds; t and e remain
+            // independently unbounded nonnegative variables.
+            lower += winning_margin;
+            upper += winning_margin;
+            if t < 0. || winning_margin < 0. {
+                lower_finite = false;
+            }
+            if t > 0. || winning_margin > 0. {
+                upper_finite = false;
+            }
+        }
+        (lower_finite && lower > 0.) || (upper_finite && upper < 0.)
     }
 
     fn outcome_at(&self, fixture_index: &usize, scores: &[[i32; 2]]) -> u8 {
@@ -1014,7 +1053,8 @@ impl Model {
     }
 
     /// Over-approximate ranks for one fixed W/D/L path while leaving every
-    /// score-dependent or random comparator decision unconstrained. The helper
+    /// score comparison whose sign is not fixed by its support, and every
+    /// random comparator decision, unconstrained. The helper
     /// uses the production sorter and comparator; each replay fixes a prefix of
     /// unknown comparison results, then branches at the next unknown result.
     /// If the replay quota is exhausted, it returns the all-possible mask.
@@ -1652,6 +1692,179 @@ mod contextual_head_tests {
                 .collect(),
         })
         .unwrap()
+    }
+
+    fn two_future_games_model() -> Model {
+        Model::new(Request {
+            id: 1,
+            zones: vec![],
+            phase: Phase {
+                sort: "gd,gf".into(),
+                championship: Championship {
+                    point_win: 3,
+                    point_draw: 1,
+                    point_loss: 0,
+                },
+                bonus_points: 0,
+                bonus_points_threshold: 0,
+            },
+            games: [(1, 3), (2, 4)]
+                .into_iter()
+                .enumerate()
+                .map(|(i, (home_id, away_id))| Game {
+                    id: i as i32 + 1,
+                    home_id,
+                    away_id,
+                    home_score: 0,
+                    away_score: 0,
+                    home_power: 1.,
+                    away_power: 1.,
+                    played: false,
+                })
+                .collect(),
+            team_groups: (1..=4)
+                .map(|team_id| Team {
+                    team_id,
+                    add_sub: 0,
+                    bias: 0,
+                })
+                .collect(),
+        })
+        .unwrap()
+    }
+
+    fn played_minus_two_then_future_win_model() -> Model {
+        Model::new(Request {
+            id: 1,
+            zones: vec![],
+            phase: Phase {
+                sort: "gd".into(),
+                championship: Championship {
+                    point_win: 3,
+                    point_draw: 1,
+                    point_loss: 0,
+                },
+                bonus_points: 0,
+                bonus_points_threshold: 0,
+            },
+            games: vec![
+                Game {
+                    id: 1,
+                    home_id: 1,
+                    away_id: 2,
+                    home_score: 0,
+                    away_score: 1,
+                    home_power: 1.,
+                    away_power: 1.,
+                    played: true,
+                },
+                Game {
+                    id: 2,
+                    home_id: 1,
+                    away_id: 2,
+                    home_score: 0,
+                    away_score: 0,
+                    home_power: 1.,
+                    away_power: 1.,
+                    played: false,
+                },
+            ],
+            team_groups: (1..=2)
+                .map(|team_id| Team {
+                    team_id,
+                    add_sub: 0,
+                    bias: 0,
+                })
+                .collect(),
+        })
+        .unwrap()
+    }
+
+    fn campaigns_for_scores(model: &Model, scores: &[[i32; 2]]) -> Vec<Campaign> {
+        let mut campaigns = model.base.clone();
+        for (fixture_index, fixture) in model.fixtures.iter().enumerate() {
+            model.add(&mut campaigns, fixture_index, scores[fixture.request_index]);
+        }
+        campaigns
+    }
+
+    #[test]
+    fn certificate_proves_strict_wdl_goal_key_signs_but_keeps_equality_unknown() {
+        let model = two_future_games_model();
+        // For GD, a home win by team 1 has a strictly positive contribution;
+        // an away win has a strictly negative contribution. The other game is
+        // a draw and cancels from GD. An all-draw path leaves equality possible.
+        let mut scores = model.empty_scores();
+        scores[0] = [1, 0];
+        scores[1] = [0, 0];
+        let campaigns = campaigns_for_scores(&model, &scores);
+        assert!(!model.score_key_is_variable(
+            Key::Gd,
+            0,
+            1,
+            &campaigns[0],
+            &campaigns[1],
+            &scores,
+            None
+        ));
+        scores[0] = [0, 1];
+        let campaigns = campaigns_for_scores(&model, &scores);
+        assert!(!model.score_key_is_variable(
+            Key::Gd,
+            0,
+            1,
+            &campaigns[0],
+            &campaigns[1],
+            &scores,
+            None
+        ));
+        scores[0] = [0, 0];
+        let campaigns = campaigns_for_scores(&model, &scores);
+        assert!(!model.score_key_is_variable(
+            Key::Gd,
+            0,
+            1,
+            &campaigns[0],
+            &campaigns[1],
+            &scores,
+            None
+        ));
+
+        // GF has opposite signed draw-goal coefficients in these two games.
+        // Its support can cross zero, so it must stay an unknown comparison.
+        scores[0] = [0, 0];
+        scores[1] = [0, 0];
+        let campaigns = campaigns_for_scores(&model, &scores);
+        assert!(model.score_key_is_variable(
+            Key::Gf,
+            0,
+            1,
+            &campaigns[0],
+            &campaigns[1],
+            &scores,
+            None
+        ));
+    }
+
+    #[test]
+    fn certificate_keeps_a_win_comparison_unknown_when_its_minimum_ties() {
+        let model = played_minus_two_then_future_win_model();
+        let mut scores = model.empty_scores();
+        scores[1] = [1, 0];
+        let campaigns = campaigns_for_scores(&model, &scores);
+        assert_eq!(
+            campaigns[0].gf - campaigns[0].ga,
+            campaigns[1].gf - campaigns[1].ga
+        );
+        assert!(model.score_key_is_variable(
+            Key::Gd,
+            0,
+            1,
+            &campaigns[0],
+            &campaigns[1],
+            &scores,
+            None
+        ));
     }
 
     #[test]
