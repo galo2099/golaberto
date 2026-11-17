@@ -55,8 +55,8 @@ class Game < ApplicationRecord
                     ->{ includes :player },
                     :dependent => :delete_all
 
-      base.has_one :home_rating, ->(game){where("measure_date < ?", game.date).order(measure_date: :desc)}, through: :home, source: :historical_ratings
-      base.has_one :away_rating, ->(game){where("measure_date < ?", game.date).order(measure_date: :desc)}, through: :away, source: :historical_ratings
+      base.has_one :home_rating, ->(game){where("measure_date < ?", game.historical_rating_boundary).order(measure_date: :desc)}, through: :home, source: :historical_ratings
+      base.has_one :away_rating, ->(game){where("measure_date < ?", game.historical_rating_boundary).order(measure_date: :desc)}, through: :away, source: :historical_ratings
 
       base.validates_presence_of :date
       base.validates_inclusion_of :played, :in => [ true, false ]
@@ -118,6 +118,40 @@ class Game < ApplicationRecord
     def played_str
       played? ? _("Played") : _("Scheduled")
     end
+
+    def home_rating
+      reset_historical_rating_associations_if_boundary_changed
+      super
+    end
+
+    def away_rating
+      reset_historical_rating_associations_if_boundary_changed
+      super
+    end
+
+    # Historical ratings are dated, so played games must exclude every rating
+    # from their UTC matchday. Scheduled games retain the strict-before-time
+    # rule: a same-day rating is eligible only after UTC midnight.
+    def historical_rating_boundary
+      return nil if date.nil?
+
+      utc_time = date.getutc
+      utc_date = utc_time.to_date
+      return utc_date if played?
+
+      utc_time == utc_time.beginning_of_day ? utc_date : utc_date + 1
+    end
+
+    def reset_historical_rating_associations_if_boundary_changed
+      boundary = historical_rating_boundary
+      return if defined?(@historical_rating_association_boundary) &&
+        @historical_rating_association_boundary == boundary
+
+      association(:home_rating).reset
+      association(:away_rating).reset
+      @historical_rating_association_boundary = boundary
+    end
+    private :reset_historical_rating_associations_if_boundary_changed
 
     def goal_distribution(team, side, score)
       phase.championship.games.order(:date)

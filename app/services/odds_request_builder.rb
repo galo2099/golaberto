@@ -22,7 +22,7 @@ class OddsRequestBuilder
     games = @group.games.select('games.*').to_a
     ratings = ratings_for(games)
     games.map do |game|
-      boundary = rating_boundary(game.date)
+      boundary = game.historical_rating_boundary
       home_rating = latest_rating(ratings[game.home_id], boundary)
       away_rating = latest_rating(ratings[game.away_id], boundary)
       game.as_json(only: fields).merge(
@@ -34,19 +34,8 @@ class OddsRequestBuilder
 
   private
 
-  # Ratings are DATEs, but games can have a time of day. Strict-before includes
-  # today's rating after UTC midnight, and excludes it at exactly UTC midnight. Compare
-  # DATEs in SQL so the existing (team_id, measure_date) index remains usable.
-  def rating_boundary(time)
-    return nil if time.nil?
-
-    time = time.getutc
-    date = time.to_date
-    time == time.beginning_of_day ? date : date + 1
-  end
-
   def ratings_for(games)
-    boundaries = games.filter_map { |game| rating_boundary(game.date) }
+    boundaries = games.filter_map(&:historical_rating_boundary)
     return {} if boundaries.empty?
 
     first, last = boundaries.minmax

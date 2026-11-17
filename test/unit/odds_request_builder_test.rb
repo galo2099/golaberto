@@ -31,13 +31,25 @@ class OddsRequestBuilderTest < ActiveSupport::TestCase
     add_game(Time.utc(2023, 12, 31), 'left') # No earlier rating.
     assert_equal legacy_request.to_json, @group.odds_request.to_json
     games = OddsRequestBuilder.new(@group).games_json
-    assert_nil games.first.fetch('home_power')
-    assert_nil games.first.fetch('away_power')
-    assert_not_equal games[1]['home_power'], games[2]['home_power']
+    no_prior_game = @group.games.find_by!(date: Time.utc(2023, 12, 31))
+    assert_nil games.find { |game| game['id'] == no_prior_game.id }.fetch('home_power')
+    assert_nil games.find { |game| game['id'] == no_prior_game.id }.fetch('away_power')
+
+    played = @group.games.find_by!(date: Time.utc(2024, 1, 10, 0, 0, 1), played: true)
+    played_json = games.find { |game| game['id'] == played.id }
+    previous_home_rating = HistoricalRating.find_by!(team: @home, measure_date: Date.new(2024, 1, 1))
+    previous_away_rating = HistoricalRating.find_by!(team: @away, measure_date: Date.new(2024, 1, 1))
+    assert_equal played.home_power(previous_home_rating, previous_away_rating), played_json['home_power']
+    assert_equal played.away_power(previous_home_rating, previous_away_rating), played_json['away_power']
+
+    next_day = @group.games.find_by!(date: Time.utc(2024, 1, 11), played: false)
+    next_day_json = games.find { |game| game['id'] == next_day.id }
+    assert_not_equal played_json['home_power'], next_day_json['home_power']
   end
 
   test 'rating selection always uses UTC across user timezones' do
     midnight = add_game(Time.utc(2024, 1, 10), 'right')
+    played = add_game(Time.utc(2024, 1, 10, 0, 0, 1), 'right', played: true)
     add_game(Time.utc(2024, 1, 10, 0, 0, 1), 'right')
     expected = @group.odds_request['games']
     ['UTC', 'America/Sao_Paulo', 'America/Los_Angeles', 'Asia/Tokyo'].each do |zone|
@@ -46,7 +58,7 @@ class OddsRequestBuilderTest < ActiveSupport::TestCase
         assert_equal expected, request['games']
         request['games'].each do |game_json|
           game = Game.find(game_json['id'])
-          rating_date = game.id == midnight.id ? Date.new(2024, 1, 1) : Date.new(2024, 1, 10)
+          rating_date = [midnight.id, played.id].include?(game.id) ? Date.new(2024, 1, 1) : Date.new(2024, 1, 10)
           home_rating = HistoricalRating.find_by!(team: @home, measure_date: rating_date)
           away_rating = HistoricalRating.find_by!(team: @away, measure_date: rating_date)
           assert_equal game.home_power(home_rating, away_rating), game_json['home_power']
@@ -57,11 +69,10 @@ class OddsRequestBuilderTest < ActiveSupport::TestCase
   end
 
   test 'UTC rating boundary does not depend on database timezone settings' do
-    builder = OddsRequestBuilder.new(@group)
     ActiveRecord.stub(:default_timezone, :local) do
       # Both timestamps are on Jan 9 in this offset, but on Jan 10 in UTC.
-      assert_equal Date.new(2024, 1, 10), builder.send(:rating_boundary, Time.utc(2024, 1, 10).getlocal('-03:00'))
-      assert_equal Date.new(2024, 1, 11), builder.send(:rating_boundary, Time.utc(2024, 1, 10, 1).getlocal('-03:00'))
+      assert_equal Date.new(2024, 1, 10), Game.new(date: Time.utc(2024, 1, 10).getlocal('-03:00')).historical_rating_boundary
+      assert_equal Date.new(2024, 1, 11), Game.new(date: Time.utc(2024, 1, 10, 1).getlocal('-03:00')).historical_rating_boundary
     end
   end
 
