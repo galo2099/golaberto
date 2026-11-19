@@ -243,28 +243,6 @@ pub fn run(
     witnesses: &[(Vec<u8>, Vec<usize>)],
     unlogged_search_ms: f64,
 ) -> (usize, u64) {
-    run_with_positive_baselines(
-        m,
-        seed,
-        workers,
-        estimates,
-        log,
-        witnesses,
-        unlogged_search_ms,
-        None,
-    )
-}
-
-pub(crate) fn run_with_positive_baselines(
-    m: &Model,
-    seed: i64,
-    workers: usize,
-    estimates: &mut [Estimate],
-    log: Option<&crate::logging::RequestLog>,
-    witnesses: &[(Vec<u8>, Vec<usize>)],
-    unlogged_search_ms: f64,
-    positive_baselines: Option<&[(usize, Estimate)]>,
-) -> (usize, u64) {
     let mode = profile();
     let mode = if mode == "coverage" {
         "portfolio".to_string()
@@ -1289,7 +1267,7 @@ pub(crate) fn run_with_positive_baselines(
         work = work.saturating_add(fallback_work);
     }
     if order_cohorts::enabled() && budget::modeled() {
-        let outcome = order_cohorts::run(m, seed, workers, estimates, log, positive_baselines);
+        let outcome = order_cohorts::run(m, seed, workers, estimates, log);
         found += outcome.accepted;
         work = work.saturating_add(outcome.legacy_sample_work);
     } else {
@@ -1333,16 +1311,23 @@ pub(crate) fn run_late_positive_refinement(
     log: Option<&crate::logging::RequestLog>,
 ) -> (usize, u64) {
     let is_enabled = order_cohorts::enabled() && budget::modeled();
-    if !is_enabled || !order_cohorts::has_weak_eligible_cells(m, estimates, None) {
+    if !is_enabled || !order_cohorts::has_weak_eligible_cells(m, estimates) {
         order_cohorts::log_status(log, m.request.id, is_enabled, budget::mode());
         return (0, 0);
     }
-    let outcome = order_cohorts::run(m, seed, workers, estimates, log, None);
+    let outcome = order_cohorts::run(m, seed, workers, estimates, log);
     (outcome.accepted, outcome.legacy_sample_work)
 }
 
-pub(crate) fn positive_refinement_enabled(m: &Model) -> bool {
-    order_cohorts::positive_refinement_enabled(m)
+/// Recover additional still-zero cells with bounded analytic-GD cohorts.
+pub(crate) fn recover_remaining_gd(
+    m: &Model,
+    seed: i64,
+    workers: usize,
+    estimates: &mut [Estimate],
+    log: Option<&crate::logging::RequestLog>,
+) -> (usize, u64) {
+    order_cohorts::recover_remaining_gd(m, seed, workers, estimates, log)
 }
 
 // Ordinary results are committed first; extension results can only fill zeros.

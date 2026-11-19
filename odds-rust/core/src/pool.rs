@@ -3,6 +3,7 @@ use crate::{
     model::{Key, Model},
     rng::{derive, Rng},
 };
+mod witnesses;
 use serde::Serialize;
 use serde_json::json;
 use std::{
@@ -14,6 +15,10 @@ use std::{
 #[derive(Clone, Serialize, Default)]
 pub struct Estimate {
     pub probability: f64,
+    #[serde(skip)]
+    pub pool_guide: f64,
+    #[serde(skip)]
+    pub native_cohort_lower: f64,
     pub std_err: f64,
     pub samples: usize,
     pub hits: usize,
@@ -226,6 +231,29 @@ impl Bounds {
         (first..=last).contains(&r)
     }
 
+    /// Whether a rank falls within the conservative interval implied by point bounds.
+    /// A true result is not proof that the rank is reachable.
+    pub fn rank_possible(&self, t: usize, r: usize) -> bool {
+        if t >= self.current.len() || r >= self.current.len() {
+            return false;
+        }
+        if self.min.len() != self.current.len() || self.max.len() != self.current.len() {
+            return true;
+        }
+        let Some((&min_points, &max_points)) = self.min.get(t).zip(self.max.get(t)) else {
+            return true;
+        };
+        let Some(min_added) = min_points.checked_sub(self.current[t]) else {
+            return true;
+        };
+        let Some(max_added) = max_points.checked_sub(self.current[t]) else {
+            return true;
+        };
+        let (best_first, _) = self.rank_range(t, max_added);
+        let (_, worst_last) = self.rank_range(t, min_added);
+        (best_first..=worst_last).contains(&r)
+    }
+
     #[inline]
     fn rank_range(&self, t: usize, added: i32) -> (usize, usize) {
         let p = self.current[t] + added;
@@ -287,7 +315,14 @@ impl Bounds {
     }
 }
 pub fn point_pmfs(model: &Model) -> Option<Vec<Vec<(i32, f64)>>> {
-    if model.keys.first() != Some(&Key::Pt) {
+    if !point_proofs_supported(model) {
+        return None;
+    }
+    if model
+        .fixtures
+        .iter()
+        .any(|fixture| fixture.home == fixture.away)
+    {
         return None;
     }
     if model
@@ -298,9 +333,6 @@ pub fn point_pmfs(model: &Model) -> Option<Vec<Vec<(i32, f64)>>> {
         return None;
     }
     let c = &model.request.phase.championship;
-    if c.point_win < 0 || c.point_draw < 0 || c.point_loss < 0 {
-        return None;
-    }
     let mut pmfs = Vec::new();
     for t in 0..model.n {
         let mut pmf = BTreeMap::from([(0, 1.)]);
@@ -786,30 +818,33 @@ pub fn matched(
     raw
 }
 
+fn apply_pool_mask(matrix: &mut [f64], mask: &[bool]) {
+    for (value, &keep) in matrix.iter_mut().zip(mask) {
+        if !keep {
+            *value = 0.;
+        }
+    }
+}
+
+fn effective_impossible_ranks(proved: &[bool], hits: &[usize]) -> Vec<bool> {
+    (0..hits.len())
+        .map(|i| proved.get(i).copied().unwrap_or(false) && hits[i] == 0)
+        .collect()
+}
+
 fn jackknife_matrices(
     model: &Model,
     scout: &Scout,
     parts: &[Scout],
     pmfs: &[Vec<(i32, f64)>],
     bounds: &Bounds,
+    mask: &[bool],
     workers: usize,
 ) -> (Vec<Vec<f64>>, bool) {
     let workers = workers.clamp(1, 4);
-    if workers == 1 {
-        let mut matrices = Vec::with_capacity(parts.len());
-        for part in parts {
-            let mut matrix = matched(model, &scout.subtract(part), pmfs, bounds);
-            if !balance(&mut matrix, model.n) {
-                return (matrices, false);
-            }
-            matrices.push(matrix);
-        }
-        return (matrices, true);
-    }
-
     let next = AtomicUsize::new(0);
     let results = std::thread::scope(|scope| {
-        let mut handles = Vec::with_capacity(workers);
+        let mut handles = Vec::new();
         for _ in 0..workers {
             let next = &next;
             handles.push(scope.spawn(move || {
@@ -819,7 +854,14 @@ fn jackknife_matrices(
                     if batch >= parts.len() {
                         break;
                     }
-                    let mut matrix = matched(model, &scout.subtract(&parts[batch]), pmfs, bounds);
+                    let leaveout = scout.subtract(&parts[batch]);
+                    let mut matrix = matched(model, &leaveout, pmfs, bounds);
+                    apply_pool_mask(&mut matrix, mask);
+                    for i in 0..matrix.len() {
+                        if mask[i] && matrix[i] <= 0. && leaveout.ranks[i] > 0 {
+                            matrix[i] = leaveout.ranks[i] as f64 / leaveout.samples as f64;
+                        }
+                    }
                     let balanced = balance(&mut matrix, model.n);
                     local.push((batch, matrix, balanced));
                 }
@@ -828,7 +870,7 @@ fn jackknife_matrices(
         }
         handles
             .into_iter()
-            .flat_map(|handle| handle.join().unwrap())
+            .flat_map(|h| h.join().unwrap())
             .collect::<Vec<_>>()
     });
     ordered_jackknife_prefix(results)
@@ -837,8 +879,8 @@ fn jackknife_matrices(
 fn ordered_jackknife_prefix(mut results: Vec<(usize, Vec<f64>, bool)>) -> (Vec<Vec<f64>>, bool) {
     results.sort_by_key(|(batch, _, _)| *batch);
     let mut matrices = Vec::with_capacity(results.len());
-    for (_, matrix, balanced) in results {
-        if !balanced {
+    for (_, matrix, ok) in results {
+        if !ok {
             return (matrices, false);
         }
         matrices.push(matrix);
@@ -853,6 +895,26 @@ pub fn zero_upper(samples: usize) -> f64 {
         -((0.05f64).ln() / samples as f64).exp_m1()
     }
 }
+
+pub fn point_proofs_supported(model: &Model) -> bool {
+    let c = &model.request.phase.championship;
+    model.keys.first() == Some(&Key::Pt)
+        && model.request.phase.bonus_points == 0
+        && c.point_win >= 0
+        && c.point_draw >= 0
+        && c.point_loss >= 0
+}
+
+fn clipped_zero_upper(samples: usize, hard_bound: f64, rank_possible: bool) -> f64 {
+    if !rank_possible {
+        0.
+    } else if hard_bound > 0. {
+        zero_upper(samples).min(hard_bound)
+    } else {
+        zero_upper(samples)
+    }
+}
+
 pub fn work_per_sample(model: &Model) -> u64 {
     if model.fixtures.is_empty() {
         (model.n + 1) as u64
@@ -882,15 +944,10 @@ pub fn production_logged(
         );
     }
     let phase = Instant::now();
-    let mut estimates = Vec::new();
     let work = work_per_sample(model) * samples as u64;
     let bounds = Bounds::new(model);
+    let rank_proof_compatible = point_proofs_supported(model);
     let pmfs = point_pmfs(model);
-    let mut fallback_reason = if pmfs.is_none() {
-        Some("unsupported_point_pmfs")
-    } else {
-        None
-    };
     if let Some(log) = log {
         log.stage(
             "pool.point_pmfs",
@@ -898,29 +955,63 @@ pub fn production_logged(
             json!({"supported":pmfs.is_some()}),
         );
     }
+    // An observed native season is itself a concrete reachability witness. If
+    // it contradicts a conservative screen, keep the observation authoritative.
+    let impossible =
+        effective_impossible_ranks(&crate::rank_support::impossible_ranks(model), &scout.ranks);
     let phase = Instant::now();
-    let mut matrix = pmfs
+    let guide = pmfs
         .as_ref()
         .map(|pmfs| matched(model, &scout, pmfs, &bounds));
-    if let Some(m) = &mut matrix {
-        if !balance(m, model.n) {
-            matrix = None;
+    let mut needed = vec![false; model.n * model.n];
+    if let Some(g) = &guide {
+        for i in 0..needed.len() {
+            needed[i] = scout.ranks[i] == 0
+                && !impossible.get(i).copied().unwrap_or(false)
+                && g[i].is_finite()
+                && g[i] > 0.;
+        }
+    }
+    let witnessed = witnesses::find(model, &needed, derive(seed, "pooled-point-witness"));
+    if let Some(log) = log {
+        log.stage(
+            "pool.matched_guide",
+            phase,
+            json!({"supported":guide.is_some(), "needed":needed.iter().filter(|&&v| v).count()}),
+        );
+    }
+    let mut estimates = Vec::with_capacity(model.n * model.n);
+    let mut published_matrix = guide.clone();
+    let mut keep = vec![true; model.n * model.n];
+    for i in 0..keep.len() {
+        let hit = scout.ranks[i] > 0;
+        let proved_impossible = impossible.get(i).copied().unwrap_or(false);
+        keep[i] = !proved_impossible && (hit || witnessed.get(i).copied().unwrap_or(false));
+        if let Some(matrix) = published_matrix.as_mut() {
+            if !keep[i] {
+                matrix[i] = 0.;
+            } else if hit && matrix[i] <= 0. {
+                matrix[i] = scout.ranks[i] as f64 / samples as f64;
+            }
+        }
+    }
+    let mut fallback_reason = if published_matrix.is_none() {
+        Some("unsupported_point_pmfs")
+    } else {
+        None
+    };
+    if let Some(matrix) = published_matrix.as_mut() {
+        if !balance(matrix, model.n) {
+            published_matrix = None;
             fallback_reason = Some("invalid_balanced_matrix");
         }
     }
-    if let Some(log) = log {
-        log.stage(
-            "pool.matched_matrix",
-            phase,
-            json!({"matched":matrix.is_some()}),
-        );
-    }
     let phase = Instant::now();
-    let leaveout = if let (Some(pmfs), Some(_)) = (&pmfs, &matrix) {
-        let (matrices, balanced) =
-            jackknife_matrices(model, &scout, &parts, pmfs, &bounds, workers);
-        if !balanced {
-            matrix = None;
+    let leaveout = if let (Some(pmfs), Some(_)) = (&pmfs, &published_matrix) {
+        let (matrices, ok) =
+            jackknife_matrices(model, &scout, &parts, pmfs, &bounds, &keep, workers);
+        if !ok {
+            published_matrix = None;
             fallback_reason = Some("invalid_jackknife_matrix");
         }
         matrices
@@ -928,7 +1019,11 @@ pub fn production_logged(
         Vec::new()
     };
     if let Some(log) = log {
-        log.stage("pool.jackknife", phase, json!({"batches":leaveout.len()}));
+        log.stage(
+            "pool.jackknife",
+            phase,
+            json!({"batches": if published_matrix.is_some() { leaveout.len() } else { 0 }}),
+        );
         if let Some(reason) = fallback_reason {
             log.event(
                 "rust_odds_fallback",
@@ -940,34 +1035,59 @@ pub fn production_logged(
         for r in 0..model.n {
             let index = t * model.n + r;
             let hits = scout.ranks[index];
-            let (p, se, design) = if let Some(m) = &matrix {
-                let p = m[index];
-                let mean = leaveout.iter().map(|m| m[index]).sum::<f64>() / 10.;
-                let se = (0.9
-                    * leaveout
-                        .iter()
-                        .map(|m| (m[index] - mean).powi(2))
-                        .sum::<f64>())
-                .sqrt();
-                (p, se, "matched_point_pool")
+            let native = hits as f64 / samples as f64;
+            let pooled = published_matrix.as_ref().map(|m| m[index]);
+            let p = if impossible.get(index).copied().unwrap_or(false) {
+                0.
             } else {
-                let p = hits as f64 / samples as f64;
-                (p, (p * (1. - p) / (samples - 1) as f64).sqrt(), "plain_mc")
+                pooled.unwrap_or(native)
+            };
+            let se = if pooled.is_some() && !leaveout.is_empty() {
+                let mean = leaveout.iter().map(|m| m[index]).sum::<f64>() / leaveout.len() as f64;
+                (0.9 * leaveout
+                    .iter()
+                    .map(|m| (m[index] - mean).powi(2))
+                    .sum::<f64>())
+                .sqrt()
+            } else {
+                (native * (1. - native) / (samples - 1) as f64).sqrt()
             };
             let mut upper = if hits == 0 { zero_upper(samples) } else { 0. };
+            let mut hard_bound = 0.;
+            let mut rank_possible = true;
+            let proved_impossible = impossible.get(index).copied().unwrap_or(false);
             if hits == 0 {
-                if let Some(pmfs) = pmfs.as_ref().filter(|_| matrix.is_some()) {
-                    upper = upper.min(bounds.hard_bound(t, r, &pmfs[t]).0);
+                if rank_proof_compatible {
+                    rank_possible = bounds.rank_possible(t, r);
                 }
+                if let Some(pmfs) = pmfs.as_ref() {
+                    hard_bound = bounds.hard_bound(t, r, &pmfs[t]).0;
+                }
+                upper = clipped_zero_upper(samples, hard_bound, rank_possible);
             }
+            if proved_impossible {
+                upper = 0.;
+            }
+            let pool_guide = if hits == 0 && hard_bound > 0. && rank_possible && !proved_impossible
+            {
+                guide.as_ref().map_or(0., |matrix| matrix[index])
+            } else {
+                0.
+            };
+            let pool_guide = if pool_guide.is_finite() {
+                pool_guide
+            } else {
+                0.
+            };
             estimates.push(Estimate {
                 probability: p,
+                pool_guide,
                 std_err: se,
                 samples,
                 hits,
-                ess: if matrix.is_none() { hits as f64 } else { 0. },
-                meets_precision_goal: matrix.is_none() && hits >= 10 && p > 0. && se / p <= 0.5,
-                max_event_weight_share: if matrix.is_none() && hits > 0 {
+                ess: if pooled.is_some() { 0. } else { hits as f64 },
+                meets_precision_goal: pooled.is_none() && hits >= 10 && p > 0. && se / p <= 0.5,
+                max_event_weight_share: if pooled.is_none() && hits > 0 {
                     1. / hits as f64
                 } else {
                     0.
@@ -976,8 +1096,20 @@ pub fn production_logged(
                 work_spent: work,
                 available: true,
                 relative_se: if p > 0. { Some(se / p) } else { None },
-                zero_hit_upper_95: upper,
-                design: design.into(),
+                design: if pooled.is_some() {
+                    "matched_point_pool"
+                } else {
+                    "plain_mc"
+                }
+                .into(),
+                reachability: if proved_impossible {
+                    "impossible_by_points".into()
+                } else if hits == 0 && witnessed.get(index).copied().unwrap_or(false) && p > 0. {
+                    "witness".into()
+                } else {
+                    String::new()
+                },
+                zero_hit_upper_95: if hits == 0 && p > 0. { 0. } else { upper },
                 ..Default::default()
             });
         }
@@ -987,17 +1119,202 @@ pub fn production_logged(
 
 #[cfg(test)]
 mod tests {
-    use super::{balance, balance_additive, ordered_jackknife_prefix, valid};
+    use super::{balance, balance_additive, valid, Bounds};
+    use crate::{
+        model::{Championship, Game, Model, Phase, Request, Team},
+        rng::Rng,
+    };
+
+    fn model_with_unplayed_game(bonus_points: i32, home_id: i32, away_id: i32) -> Model {
+        Model::new(Request {
+            id: 1,
+            zones: vec![],
+            phase: Phase {
+                sort: "pt".into(),
+                championship: Championship {
+                    point_win: 3,
+                    point_draw: 1,
+                    point_loss: 0,
+                },
+                bonus_points,
+                bonus_points_threshold: 0,
+            },
+            games: vec![Game {
+                id: 1,
+                home_id,
+                away_id,
+                home_score: 0,
+                away_score: 0,
+                home_power: 1.,
+                away_power: 1.,
+                played: false,
+            }],
+            team_groups: vec![
+                Team {
+                    team_id: 1,
+                    add_sub: 0,
+                    bias: 0,
+                },
+                Team {
+                    team_id: 2,
+                    add_sub: 0,
+                    bias: 0,
+                },
+            ],
+        })
+        .unwrap()
+    }
 
     #[test]
-    fn ordered_jackknife_results_keep_only_the_successful_batch_prefix() {
-        let (matrices, balanced) = ordered_jackknife_prefix(vec![
-            (2, vec![2.], true),
-            (1, vec![1.], false),
-            (0, vec![0.], true),
-        ]);
-        assert!(!balanced);
-        assert_eq!(matrices, vec![vec![0.]]);
+    fn point_pmfs_reject_bonus_scoring_and_unplayed_self_fixtures() {
+        let bonus = model_with_unplayed_game(1, 1, 2);
+        assert!(super::point_pmfs(&bonus).is_none());
+
+        let self_fixture = model_with_unplayed_game(0, 1, 1);
+        assert!(super::point_pmfs(&self_fixture).is_none());
+
+        let supported = model_with_unplayed_game(0, 1, 2);
+        assert!(super::point_pmfs(&supported).is_some());
+    }
+
+    #[test]
+    fn native_standings_hit_overrides_conflicting_impossibility_bit() {
+        let model = model_with_unplayed_game(0, 1, 2);
+        let scout = super::scout(&model, 64, 11);
+        let observed = scout.ranks.iter().position(|&hits| hits > 0).unwrap();
+        let mut proved = vec![false; model.n * model.n];
+        proved[observed] = true;
+
+        let effective = super::effective_impossible_ranks(&proved, &scout.ranks);
+        assert!(!effective[observed]);
+        assert!(effective
+            .iter()
+            .enumerate()
+            .all(|(i, &impossible)| !impossible || scout.ranks[i] == 0));
+    }
+
+    #[test]
+    fn rank_possible_respects_forced_point_order_and_invalid_indexes() {
+        let bounds = Bounds {
+            current: vec![0, 0],
+            min: vec![0, 1],
+            max: vec![0, 1],
+            current_wins: vec![0, 0],
+            remaining: vec![0, 0],
+            conditional_wins: false,
+            standard_scoring: false,
+        };
+        assert!(!bounds.rank_possible(0, 0));
+        assert!(bounds.rank_possible(0, 1));
+        assert!(!bounds.rank_possible(2, 0));
+        assert!(!bounds.rank_possible(0, 2));
+
+        let missing_bounds = Bounds {
+            current: vec![0, 0],
+            min: Vec::new(),
+            max: vec![0, 1],
+            current_wins: vec![0, 0],
+            remaining: vec![0, 0],
+            conditional_wins: false,
+            standard_scoring: false,
+        };
+        assert!(missing_bounds.rank_possible(0, 0));
+        let truncated_rival_bounds = Bounds {
+            current: vec![0, 0],
+            min: vec![0],
+            max: vec![0, 1],
+            current_wins: vec![0, 0],
+            remaining: vec![0, 0],
+            conditional_wins: false,
+            standard_scoring: false,
+        };
+        assert!(truncated_rival_bounds.rank_possible(0, 0));
+
+        let unrepresentable_bounds = Bounds {
+            current: vec![i32::MIN],
+            min: vec![i32::MAX],
+            max: vec![i32::MAX],
+            current_wins: vec![0],
+            remaining: vec![0],
+            conditional_wins: false,
+            standard_scoring: false,
+        };
+        assert!(unrepresentable_bounds.rank_possible(0, 0));
+    }
+
+    #[test]
+    fn unsupported_gd_first_model_keeps_empirical_upper_for_zero_hit_rank() {
+        let model = Model::new(Request {
+            id: 2,
+            zones: vec![],
+            phase: Phase {
+                sort: "gd,pt".into(),
+                championship: Championship {
+                    point_win: 3,
+                    point_draw: 1,
+                    point_loss: 0,
+                },
+                bonus_points: 0,
+                bonus_points_threshold: 0,
+            },
+            games: vec![Game {
+                id: 1,
+                home_id: 1,
+                away_id: 2,
+                home_score: 0,
+                away_score: 20,
+                home_power: 1.,
+                away_power: 0.1,
+                played: true,
+            }]
+            .into_iter()
+            .chain((2..5).map(|id| Game {
+                id,
+                home_id: 1,
+                away_id: 2,
+                home_score: 0,
+                away_score: 0,
+                home_power: 2.,
+                away_power: 0.,
+                played: false,
+            }))
+            .collect(),
+            team_groups: vec![
+                Team {
+                    team_id: 1,
+                    add_sub: -100,
+                    bias: 0,
+                },
+                Team {
+                    team_id: 2,
+                    add_sub: 0,
+                    bias: 0,
+                },
+            ],
+        })
+        .unwrap();
+        assert!(!super::point_proofs_supported(&model));
+        assert!(!Bounds::new(&model).rank_possible(0, 0));
+
+        let mut campaign = model.base.clone();
+        let mut scores = model.empty_scores();
+        let mut order = vec![0; model.n];
+        for i in 0..model.fixtures.len() {
+            let score = [7, 0];
+            scores[model.fixtures[i].request_index] = score;
+            model.add(&mut campaign, i, score);
+        }
+        model.standings(&mut order, &campaign, &scores, &mut Rng::new(1));
+        assert_eq!(order[0], 0, "supported 7–0 scorelines reach first place");
+
+        let estimate = super::production(&model, 19, 1)[0].clone();
+        assert_eq!(estimate.hits, 0);
+        assert_eq!(estimate.probability, 0.);
+        assert!(estimate.zero_hit_upper_95 > 0.);
+        assert_eq!(
+            estimate.zero_hit_upper_95,
+            super::zero_upper(estimate.samples)
+        );
     }
 
     #[test]

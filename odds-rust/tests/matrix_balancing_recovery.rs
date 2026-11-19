@@ -12,7 +12,7 @@ fn new_request_model() -> Model {
 }
 
 #[test]
-fn new_fixture_keeps_matched_pool_design_for_seeds_800_through_819() {
+fn new_fixture_pooling_stays_finite_and_balanced_for_seeds_800_through_819() {
     let model = new_request_model();
     for seed in 800..=819 {
         let estimates = pool::production(&model, seed, 4);

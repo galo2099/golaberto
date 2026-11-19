@@ -15,6 +15,10 @@ const PILOT_DRAWS: usize = 4096;
 const TARGET_ESS: f64 = 128.0;
 const MIN_DRAWS: usize = 16_384;
 const MAX_DRAWS: usize = 524_288;
+// A Markov-style veto margin from two independent, nonnegative, unbiased
+// final streams. This is corroborating evidence only; it never publishes an
+// estimate or upgrades a stream that failed its normal quality gate.
+const PAIRED_VETO_ALPHA: f64 = 0.01;
 
 struct ProposalRun {
     pilot: Result,
@@ -80,6 +84,22 @@ fn relative_se(result: &Result) -> Option<f64> {
 
 fn nominal_work(run: &ProposalRun) -> u64 {
     run.pilot.work.saturating_add(run.final_result.work)
+}
+
+fn paired_veto_lower(main: &ProposalRun, check: &ProposalRun) -> Option<f64> {
+    let complete = |run: &ProposalRun| {
+        run.pilot.samples == PILOT_DRAWS
+            && run.final_result.samples == adaptive_draws(run.pilot.samples, run.pilot.ess)
+            && run.final_result.probability.is_finite()
+            && run.final_result.probability > 0.0
+    };
+    (complete(main) && complete(check)).then(|| {
+        PAIRED_VETO_ALPHA
+            * main
+                .final_result
+                .probability
+                .min(check.final_result.probability)
+    })
 }
 
 fn proposal_diagnostic(run: &ProposalRun) -> serde_json::Value {
@@ -172,8 +192,11 @@ pub(crate) fn run(
         public_work = public_work
             .saturating_add(nominal_work(&outcome.main))
             .saturating_add(nominal_work(&outcome.check));
+        let index = outcome.cell.index(model.n);
+        let retained_lower = estimates[index].native_cohort_lower;
+        let paired_lower = paired_veto_lower(&outcome.main, &outcome.check).unwrap_or(0.0);
+        estimates[index].native_cohort_lower = paired_lower.max(retained_lower);
         if outcome.accepted {
-            let index = outcome.cell.index(model.n);
             search::apply(
                 &mut estimates[index],
                 &outcome.main.final_result,
@@ -192,6 +215,7 @@ pub(crate) fn run(
                     "main": proposal_diagnostic(&outcome.main),
                     "check": proposal_diagnostic(&outcome.check),
                     "accepted": outcome.accepted,
+                    "paired_veto_lower": paired_lower,
                     "work_spent": nominal_work(&outcome.main).saturating_add(nominal_work(&outcome.check))
                 }),
             );
@@ -202,8 +226,12 @@ pub(crate) fn run(
 
 #[cfg(test)]
 mod tests {
-    use super::{adaptive_draws, MAX_DRAWS, MIN_DRAWS, PILOT_DRAWS};
+    use super::{
+        adaptive_draws, paired_veto_lower, ProposalRun, MAX_DRAWS, MIN_DRAWS, PAIRED_VETO_ALPHA,
+        PILOT_DRAWS,
+    };
     use crate::{
+        conditioned::Result,
         model::{Model, Request},
         pool::Estimate,
     };
@@ -238,6 +266,36 @@ mod tests {
         assert_eq!(adaptive_draws(PILOT_DRAWS, 8.0), 65_536);
         assert_eq!(adaptive_draws(PILOT_DRAWS, 4.0), 131_072);
         assert_eq!(adaptive_draws(PILOT_DRAWS, 1.0), MAX_DRAWS);
+    }
+
+    #[test]
+    fn paired_veto_floor_uses_only_complete_independent_final_streams() {
+        let proposal = |probability: f64, ess: f64| {
+            let pilot = Result {
+                samples: PILOT_DRAWS,
+                ess,
+                ..Default::default()
+            };
+            ProposalRun {
+                pilot: pilot.clone(),
+                final_result: Result {
+                    samples: adaptive_draws(pilot.samples, pilot.ess),
+                    probability,
+                    ..Default::default()
+                },
+                gate: serde_json::Value::Null,
+            }
+        };
+        let main = proposal(5.0e-35, 0.0);
+        let check = proposal(6.0e-34, 0.0);
+        assert_eq!(
+            paired_veto_lower(&main, &check),
+            Some(PAIRED_VETO_ALPHA * 5.0e-35)
+        );
+
+        let mut incomplete = proposal(6.0e-34, 0.0);
+        incomplete.final_result.samples -= 1;
+        assert_eq!(paired_veto_lower(&main, &incomplete), None);
     }
 
     #[test]

@@ -8,6 +8,43 @@ impl Drop for OutputDir {
     }
 }
 
+fn assert_valid_rank_matrix(response: &Value) {
+    let rows = response["rare_position_estimates"].as_object().unwrap();
+    assert_eq!(rows.len(), 20);
+    let mut matrix = Vec::with_capacity(400);
+    for (team, row) in rows {
+        let ranks = row.as_object().unwrap();
+        assert_eq!(ranks.len(), 20);
+        for rank in 0..20 {
+            let estimate = &ranks[&rank.to_string()];
+            let probability = estimate["probability"].as_f64().unwrap();
+            assert!(probability.is_finite() && (0.0..=1.0).contains(&probability));
+            if estimate["reachability"]
+                .as_str()
+                .unwrap_or("")
+                .starts_with("impossible")
+            {
+                assert_eq!(probability, 0.0, "impossible team={team} rank={rank}");
+            }
+            assert_eq!(
+                response["team_odds"][team]["Pos"][rank],
+                probability * 100.0,
+                "team odds disagree for team={team} rank={rank}"
+            );
+            matrix.push(probability);
+        }
+    }
+    for team in 0..20 {
+        let row_sum: f64 = matrix[team * 20..(team + 1) * 20].iter().sum();
+        let column_sum: f64 = (0..20).map(|other| matrix[other * 20 + team]).sum();
+        assert!((row_sum - 1.0).abs() <= 1e-12, "team row {team}: {row_sum}");
+        assert!(
+            (column_sum - 1.0).abs() <= 1e-12,
+            "rank column {team}: {column_sum}"
+        );
+    }
+}
+
 #[test]
 fn default_coverage_runs_shared_sampling_and_zero_disables_the_portfolio() {
     let request = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(
@@ -342,31 +379,20 @@ fn normal_binary_enables_joint_caps_and_preserves_existing_estimates_and_proofs(
 }
 
 #[test]
-fn broad_replacement_preserves_estimates_that_short_ordinary_batches_lost() {
+fn broad_replacement_preserves_existing_estimates_and_confirms_rare_gains() {
     let dir = OutputDir(
         std::env::temp_dir().join(format!("golaberto-broad-test-{}", std::process::id())),
     );
     fs::create_dir(&dir.0).unwrap();
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../experiments/rare_positions/reference/2026-09-30-hundredfold/inputs");
-    for (request, seed, regression_team, regression_rank, gained_team, gained_rank) in [
+    for (request, seed) in [
         (
             PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .join("tests/fixtures/group-16653-2d1c1d6f.json"),
             808,
-            "95",
-            "3",
-            "95",
-            "1",
         ),
-        (
-            root.join("group-16653-71d4fea8.json"),
-            818,
-            "12",
-            "16",
-            "22",
-            "16",
-        ),
+        (root.join("group-16653-71d4fea8.json"), 818),
     ] {
         let run = |broad: bool| {
             let output = dir.0.join(format!("{seed}-{broad}.json"));
@@ -410,25 +436,79 @@ fn broad_replacement_preserves_estimates_that_short_ordinary_batches_lost() {
         let (after, logs) = run(true);
         let old = &before["rare_position_estimates"];
         let new = &after["rare_position_estimates"];
+        assert_valid_rank_matrix(&before);
+        assert_valid_rank_matrix(&after);
+        let old_positive_count = old
+            .as_object()
+            .unwrap()
+            .values()
+            .flat_map(|ranks| ranks.as_object().unwrap().values())
+            .filter(|cell| cell["probability"].as_f64().unwrap() > 0.0)
+            .count();
+        assert!(old_positive_count > 0, "baseline positive preservation set");
+
+        let accepted_evidence = logs
+            .iter()
+            .filter(|event| {
+                event["event"] == "rust_odds_joint_caps"
+                    && event["setup"]["mode"] == "target_total_mixture"
+                    && event["accepted"] == true
+            })
+            .collect::<Vec<_>>();
         assert!(
-            old[regression_team][regression_rank]["probability"]
-                .as_f64()
-                .unwrap()
-                > 0.
+            !accepted_evidence.is_empty(),
+            "accepted joint evidence for seed={seed}"
         );
+        let mut newly_gained = Vec::new();
+        for evidence in &accepted_evidence {
+            assert_eq!(evidence["joint_draws"], 1_500);
+            assert_eq!(evidence["check_draws"], 1_500);
+            assert!(evidence["hits"].as_u64().unwrap() >= 30);
+            assert!(evidence["check_hits"].as_u64().unwrap() >= 30);
+            assert!(evidence["ess"].as_f64().unwrap() >= 3.0);
+            assert!(evidence["check_ess"].as_f64().unwrap() >= 3.0);
+            assert!(evidence["probability"].as_f64().unwrap() > 0.0);
+            assert!(evidence["check_probability"].as_f64().unwrap() > 0.0);
+            assert!(evidence["relative_se"].as_f64().unwrap() <= 0.75);
+            let pair_ratio = evidence["probability"].as_f64().unwrap()
+                / evidence["check_probability"].as_f64().unwrap();
+            assert!((0.2..=5.0).contains(&pair_ratio));
+
+            let team = evidence["setup"]["team"].as_u64().unwrap().to_string();
+            let rank = (evidence["setup"]["rank"].as_u64().unwrap() - 1).to_string();
+            let old_probability = old[&team][&rank]["probability"].as_f64().unwrap();
+            let new_probability = new[&team][&rank]["probability"].as_f64().unwrap();
+            if old_probability == 0.0 {
+                assert!(
+                    new_probability > 0.0,
+                    "accepted zero cell not published: {team}/{rank}"
+                );
+                assert_eq!(new[&team][&rank]["design"], "matched_point_pool_joint_caps");
+                assert_eq!(new[&team][&rank]["reachability"], "reachable");
+                let evidence_probability = evidence["probability"].as_f64().unwrap();
+                assert!(
+                    (new_probability / evidence_probability - 1.0).abs() < 1e-3,
+                    "team={team} rank={rank}: response={new_probability:e}, evidence={evidence_probability:e}"
+                );
+                newly_gained.push((team, rank));
+            }
+        }
         assert!(
-            new[regression_team][regression_rank]["probability"]
-                .as_f64()
-                .unwrap()
-                > 0.
+            !newly_gained.is_empty(),
+            "broad replacement should publish at least one independently accepted new cell for seed={seed}"
         );
-        assert_eq!(old[gained_team][gained_rank]["probability"], 0.);
-        assert!(
-            new[gained_team][gained_rank]["probability"]
-                .as_f64()
-                .unwrap()
-                > 0.
-        );
+        for (team, ranks) in new.as_object().unwrap() {
+            for (rank, cell) in ranks.as_object().unwrap() {
+                if old[team][rank]["probability"].as_f64().unwrap() == 0.0
+                    && cell["probability"].as_f64().unwrap() > 0.0
+                {
+                    assert!(
+                        newly_gained.contains(&(team.clone(), rank.clone())),
+                        "unattributed new cell team={team} rank={rank}"
+                    );
+                }
+            }
+        }
         for (team, ranks) in old.as_object().unwrap() {
             for (rank, e) in ranks.as_object().unwrap() {
                 let n = &new[team][rank];

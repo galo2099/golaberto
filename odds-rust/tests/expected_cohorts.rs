@@ -124,16 +124,25 @@ fn seed_13001_reference_cells_are_confirmed_or_conservatively_declined() {
     let pairs = logs
         .iter()
         .filter(|event| event["event"] == "rust_odds_expected_cohorts_pair")
+        .filter(|event| {
+            matches!(
+                event["stage"].as_str(),
+                Some("native_recovery") | Some("gd_refinement")
+            )
+        })
         .collect::<Vec<_>>();
     assert_eq!(summary["selected"].as_u64().unwrap() as usize, pairs.len());
     assert_eq!(summary["forecast_capacity"], summary["reserve"]);
     assert!(
         summary["actual_work"].as_u64().unwrap() <= summary["forecast_capacity"].as_u64().unwrap()
     );
+    assert_cohort_pass_accounting(&logs);
+    assert_final_recovery_accounting(&logs);
     let stages = logs
         .iter()
         .filter(|event| event["event"] == "rust_odds_expected_cohorts_pass_summary")
         .filter_map(|event| event["stage"].as_str())
+        .filter(|stage| matches!(*stage, "native_recovery" | "gd_refinement"))
         .collect::<Vec<_>>();
     assert_eq!(stages, vec!["native_recovery", "gd_refinement"]);
 }
@@ -161,6 +170,10 @@ fn validate_response(bytes: &[u8]) -> Value {
 }
 
 fn assert_confirmed_evidence(logs: &[Value], team: &str, rank: &str, estimate: &Value) {
+    // Accepted evidence records the estimator's pre-reconciliation value;
+    // final pool balancing can move very small cells slightly while retaining
+    // the published evidence. Allow that bounded adjustment in this match.
+    const RECONCILIATION_RELATIVE_TOLERANCE: f64 = 1e-4;
     let team_id = team.parse::<u64>().unwrap();
     let log_rank = rank.parse::<u64>().unwrap() + 1;
     let estimate_probability = estimate["probability"].as_f64().unwrap();
@@ -173,22 +186,117 @@ fn assert_confirmed_evidence(logs: &[Value], team: &str, rank: &str, estimate: &
                 && match event["event"].as_str() {
                     Some("rust_odds_rare_tail_confirm_more") => event["main_only"] == false,
                     Some("rust_odds_expected_cohorts_pair") => event["publication_gate"] == true,
+                    Some("rust_odds_tail_conditioned_cell") => event["quality"] == "order",
                     _ => false,
                 }
-                && event["probability"].as_f64().is_some_and(|probability| {
-                    ((probability - estimate_probability).abs() / estimate_probability) < 1e-5
+                && evidence_probability(event).is_some_and(|probability| {
+                    ((probability - estimate_probability).abs() / estimate_probability)
+                        < RECONCILIATION_RELATIVE_TOLERANCE
                 })
         })
         .unwrap_or_else(|| panic!("team {team} rank {rank} has no accepted independent evidence"));
 
-    let main_draws = evidence["main_draws"].as_u64().unwrap();
-    let check_draws = evidence["check_draws"].as_u64().unwrap();
+    let (main_draws, check_draws, main_hits, check_hits, main_ess, check_ess) =
+        match evidence["event"].as_str().unwrap() {
+            "rust_odds_tail_conditioned_cell" => (
+                evidence["main"]["final_samples"].as_u64().unwrap(),
+                evidence["check"]["final_samples"].as_u64().unwrap(),
+                evidence["main"]["final_hits"].as_u64().unwrap(),
+                evidence["check"]["final_hits"].as_u64().unwrap(),
+                evidence["main"]["ess"].as_f64().unwrap(),
+                evidence["check"]["ess"].as_f64().unwrap(),
+            ),
+            _ => (
+                evidence["main_draws"].as_u64().unwrap(),
+                evidence["check_draws"].as_u64().unwrap(),
+                evidence["main_hits"].as_u64().unwrap(),
+                evidence["check_hits"].as_u64().unwrap(),
+                evidence["main_ess"].as_f64().unwrap(),
+                evidence["check_ess"].as_f64().unwrap(),
+            ),
+        };
     assert!(main_draws >= 1_000, "team {team} rank {rank}: {evidence}");
     assert!(check_draws >= 1_000, "team {team} rank {rank}: {evidence}");
-    assert!(evidence["main_hits"].as_u64().unwrap() >= 30);
-    assert!(evidence["check_hits"].as_u64().unwrap() >= 30);
-    assert!(evidence["main_ess"].as_f64().unwrap() >= 3.0);
-    assert!(evidence["check_ess"].as_f64().unwrap() >= 3.0);
+    assert!(main_hits >= 30);
+    assert!(check_hits >= 30);
+    assert!(main_ess >= 3.0);
+    assert!(check_ess >= 3.0);
+}
+
+fn evidence_probability(event: &Value) -> Option<f64> {
+    match event["event"].as_str()? {
+        "rust_odds_tail_conditioned_cell" => event["main"]["probability"].as_f64(),
+        _ => event["probability"].as_f64(),
+    }
+}
+
+fn assert_cohort_pass_accounting(logs: &[Value]) {
+    let passes = logs
+        .iter()
+        .filter(|event| event["event"] == "rust_odds_expected_cohorts_pass_summary")
+        .collect::<Vec<_>>();
+    for pass in passes {
+        let stage = pass["stage"].as_str().unwrap();
+        let pairs = logs
+            .iter()
+            .filter(|event| {
+                event["event"] == "rust_odds_expected_cohorts_pair" && event["stage"] == stage
+            })
+            .collect::<Vec<_>>();
+        let actual_final_work = pairs
+            .iter()
+            .map(|pair| pair["actual_pair_work"].as_u64().unwrap())
+            .sum::<u64>();
+        let forecast_pair_work = pairs
+            .iter()
+            .map(|pair| pair["forecast_pair_work"].as_u64().unwrap())
+            .sum::<u64>();
+        assert_eq!(pass["selected"].as_u64().unwrap() as usize, pairs.len());
+        assert_eq!(
+            pass["accepted"].as_u64().unwrap() as usize,
+            pairs.iter().filter(|pair| pair["accepted"] == true).count()
+        );
+        assert_eq!(
+            pass["actual_final_work"].as_u64().unwrap(),
+            actual_final_work
+        );
+        assert_eq!(
+            pass["forecast_pair_work"].as_u64().unwrap(),
+            forecast_pair_work
+        );
+        let actual_work = pass["actual_work"].as_u64().unwrap();
+        assert_eq!(
+            actual_work,
+            pass["setup_pilot_work"].as_u64().unwrap() + actual_final_work
+        );
+        assert_eq!(
+            pass["capacity_exceeded"],
+            actual_work > pass["reserve"].as_u64().unwrap()
+        );
+    }
+}
+
+fn assert_final_recovery_accounting(logs: &[Value]) {
+    let Some(summary) = logs
+        .iter()
+        .find(|event| event["event"] == "rust_odds_expected_cohorts_final_recovery_summary")
+    else {
+        return;
+    };
+    let capacity = summary["capacity"].as_u64().unwrap();
+    let native_work = summary["native_work"].as_u64().unwrap();
+    let gd_work = summary["gd_work"].as_u64().unwrap();
+    assert!(native_work.saturating_add(gd_work) <= capacity);
+    for (stage, expected_work) in [
+        ("final_recovery_native", native_work),
+        ("final_recovery_gd", gd_work),
+    ] {
+        if let Some(pass) = logs.iter().find(|event| {
+            event["event"] == "rust_odds_expected_cohorts_pass_summary" && event["stage"] == stage
+        }) {
+            assert_eq!(pass["actual_work"].as_u64().unwrap(), expected_work);
+        }
+    }
 }
 
 /// Returns true when a reference cell is published. A zero estimate is allowed
@@ -237,7 +345,9 @@ fn assert_reference_result(
                     && (event["accepted"] == true || event["publication_gate"] == true))
                     || (event["event"] == "rust_odds_rare_tail_confirm_more"
                         && event["accepted"] == true
-                        && event["main_only"] == false))
+                        && event["main_only"] == false)
+                    || (event["event"] == "rust_odds_tail_conditioned_cell"
+                        && event["accepted"] == true))
         }),
         "zero reference estimate team {team} rank {rank} has an accepted publication event"
     );
@@ -325,11 +435,28 @@ fn expected_cohorts_default_is_bounded_and_deterministic_and_can_be_disabled() {
         !pairs.is_empty(),
         "expected an ordered proposal to be evaluated"
     );
-    assert_eq!(summary["selected"].as_u64().unwrap() as usize, pairs.len());
+    let primary_pairs = pairs
+        .iter()
+        .filter(|pair| {
+            matches!(
+                pair["stage"].as_str(),
+                Some("native_recovery") | Some("gd_refinement")
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        summary["selected"].as_u64().unwrap() as usize,
+        primary_pairs.len()
+    );
     assert_eq!(
         summary["accepted"].as_u64().unwrap() as usize,
-        pairs.iter().filter(|pair| pair["accepted"] == true).count()
+        primary_pairs
+            .iter()
+            .filter(|pair| pair["accepted"] == true)
+            .count()
     );
+    assert_cohort_pass_accounting(&logs);
+    assert_final_recovery_accounting(&logs);
     let mut actual_final_work = 0u64;
     let mut forecast_pair_work = 0u64;
     for pair in &pairs {
@@ -358,8 +485,13 @@ fn expected_cohorts_default_is_bounded_and_deterministic_and_can_be_disabled() {
             assert_eq!(pair["accepted"], false);
             assert_eq!(pair["publication_gate"], false);
         }
-        actual_final_work = actual_final_work.saturating_add(actual);
-        forecast_pair_work = forecast_pair_work.saturating_add(forecast);
+        if matches!(
+            pair["stage"].as_str(),
+            Some("native_recovery") | Some("gd_refinement")
+        ) {
+            actual_final_work = actual_final_work.saturating_add(actual);
+            forecast_pair_work = forecast_pair_work.saturating_add(forecast);
+        }
     }
     assert_eq!(
         summary["actual_final_work"].as_u64().unwrap(),
@@ -431,7 +563,7 @@ fn expected_cohorts_default_is_bounded_and_deterministic_and_can_be_disabled() {
 }
 
 #[test]
-fn weak_expected_cohort_pilots_trigger_bounded_chapecoense_recovery_deterministically() {
+fn weak_chapecoense_expected_cohort_pilot_is_bounded_and_declined_deterministically() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let request = root.join("tests/fixtures/group-16498-2026-10-18.json");
     let dir = OutputDir(std::env::temp_dir().join(format!(
@@ -445,29 +577,77 @@ fn weak_expected_cohort_pilots_trigger_bounded_chapecoense_recovery_deterministi
     let response = validate_response(&four_worker_bytes);
     let target = &response["rare_position_estimates"]["318"]["8"];
     assert_eq!(target["reachability"], "reachable");
-    let trigger = four_worker_logs
+    assert!(target["probability"].as_f64().unwrap() > 0.0);
+    assert_cohort_pass_accounting(&four_worker_logs);
+    assert_final_recovery_accounting(&four_worker_logs);
+
+    let exact_caps = four_worker_logs
+        .iter()
+        .find(|event| event["event"] == "rust_odds_exact_caps_summary")
+        .expect("Chapecoense should have a bounded exact-caps recovery summary");
+    assert_eq!(exact_caps["enabled"], true);
+    let confirmation = exact_caps["events"]
+        .as_array()
+        .unwrap()
         .iter()
         .find(|event| {
-            event["event"] == "rust_odds_feasible_cohort_trigger"
+            event["team"] == 318
+                && event["rank"] == 9
+                && event["status"] == "published"
+                && event["pair_ok"] == true
+        })
+        .expect("Chapecoense rank nine needs published independent exact-caps evidence");
+    let probability = target["probability"].as_f64().unwrap();
+    let main_probability = confirmation["main_probability"].as_f64().unwrap();
+    let exact_floor = confirmation["exact_floor"].as_f64().unwrap();
+    let exact_mass = confirmation["exact_mass"].as_f64().unwrap();
+    assert!((exact_floor..=exact_mass).contains(&probability));
+    assert!((probability - main_probability).abs() / main_probability < 1e-3);
+    assert!(confirmation["main_samples"].as_u64().unwrap() >= 32_768);
+    assert!(confirmation["check_samples"].as_u64().unwrap() >= 32_768);
+    assert!(confirmation["main_hits"].as_u64().unwrap() >= 30);
+    assert!(confirmation["check_hits"].as_u64().unwrap() >= 30);
+    assert!(confirmation["main_ess"].as_f64().unwrap() >= 25.0);
+    assert!(confirmation["check_ess"].as_f64().unwrap() >= 25.0);
+    assert!(confirmation["main_rse"].as_f64().unwrap() <= 0.25);
+    assert!(confirmation["check_rse"].as_f64().unwrap() <= 0.25);
+    let weak_arm = four_worker_logs
+        .iter()
+        .find(|event| {
+            event["event"] == "rust_odds_expected_cohorts_arm"
                 && event["team"] == 318
                 && event["rank"] == 9
         })
-        .expect("Chapecoense weak expected-cohort pilots should trigger feasible discovery");
-    assert_eq!(trigger["trigger"], "all_expected_pilots_weak");
-    assert_eq!(trigger["stage"], "gd_refinement");
-    assert!(trigger["existing_expected_arms"].as_u64().unwrap() > 0);
-    let best_pilot = &trigger["best_pilot"];
-    assert_eq!(best_pilot["healthy"], false);
-    assert!(best_pilot["probability"].as_f64().unwrap().is_finite());
-    assert!(
-        four_worker_logs.iter().any(|event| {
-            event["team"] == 318
+        .expect("Chapecoense should receive a target-specific expected-cohort pilot");
+    assert_eq!(weak_arm["pilot_selection_reason"], "native_recovery_pass");
+    assert!(weak_arm["pilot_hits"].as_u64().unwrap() < 30);
+    assert!(weak_arm["pilot_ess"].as_f64().unwrap() < 3.0);
+
+    // This pilot's final independent pair is too weak to publish. The target
+    // remains reachable with its pre-existing native estimate; the later GD
+    // refinement no longer needs to rediscover it through a borrowed-order arm.
+    let declined_pair = four_worker_logs
+        .iter()
+        .find(|event| {
+            event["event"] == "rust_odds_expected_cohorts_pair"
+                && event["team"] == 318
                 && event["rank"] == 9
-                && (event["event"] == "rust_odds_order_fallback_arm"
-                    || event["event"] == "rust_odds_order_fallback_declined")
-        }),
-        "feasible cohort discovery was not attempted for Chapecoense"
-    );
+                && event["stage"] == "native_recovery"
+        })
+        .expect("Chapecoense native-recovery pair should be recorded");
+    assert_eq!(declined_pair["accepted"], false);
+    assert_eq!(declined_pair["publication_gate"], false);
+    assert!(declined_pair["main_draws"].as_u64().unwrap() >= 1_000);
+    assert!(declined_pair["check_draws"].as_u64().unwrap() >= 1_000);
+    assert!(declined_pair["main_ess"].as_f64().unwrap() < 3.0);
+    assert!(declined_pair["check_ess"].as_f64().unwrap() < 3.0);
+    assert!(target["probability"].as_f64().unwrap() > 0.0);
+    assert!(!four_worker_logs.iter().any(|event| {
+        event["event"] == "rust_odds_expected_cohorts_pair"
+            && event["team"] == 318
+            && event["rank"] == 9
+            && (event["accepted"] == true || event["publication_gate"] == true)
+    }));
 
     let summary = four_worker_logs
         .iter()
@@ -477,6 +657,13 @@ fn weak_expected_cohort_pilots_trigger_bounded_chapecoense_recovery_deterministi
     let forecast_capacity = summary["forecast_capacity"].as_u64().unwrap();
     assert!(actual_work <= forecast_capacity);
     assert!(summary["candidate_cells"].as_u64().unwrap() <= 256);
+    let stages = four_worker_logs
+        .iter()
+        .filter(|event| event["event"] == "rust_odds_expected_cohorts_pass_summary")
+        .filter_map(|event| event["stage"].as_str())
+        .filter(|stage| matches!(*stage, "native_recovery" | "gd_refinement"))
+        .collect::<Vec<_>>();
+    assert_eq!(stages, vec!["native_recovery", "gd_refinement"]);
 
     let (repeat_bytes, repeat_logs) = run_chapecoense(&request, &dir.0.join("repeat.json"), 4);
     let (one_worker_bytes, one_worker_logs) =
@@ -484,13 +671,19 @@ fn weak_expected_cohort_pilots_trigger_bounded_chapecoense_recovery_deterministi
     assert_eq!(four_worker_bytes, repeat_bytes);
     assert_eq!(four_worker_bytes, one_worker_bytes);
     for logs in [&repeat_logs, &one_worker_logs] {
-        assert!(logs.iter().any(|event| {
-            event["event"] == "rust_odds_feasible_cohort_trigger"
-                && event["team"] == 318
-                && event["rank"] == 9
-                && event["trigger"] == "all_expected_pilots_weak"
-                && event["stage"] == "gd_refinement"
-        }));
+        assert_cohort_pass_accounting(logs);
+        assert_final_recovery_accounting(logs);
+        let pair = logs
+            .iter()
+            .find(|event| {
+                event["event"] == "rust_odds_expected_cohorts_pair"
+                    && event["team"] == 318
+                    && event["rank"] == 9
+                    && event["stage"] == "native_recovery"
+            })
+            .unwrap();
+        assert_eq!(pair["accepted"], false);
+        assert_eq!(pair["publication_gate"], false);
         let summary = logs
             .iter()
             .find(|event| event["event"] == "rust_odds_expected_cohorts_summary")
@@ -499,5 +692,19 @@ fn weak_expected_cohort_pilots_trigger_bounded_chapecoense_recovery_deterministi
             summary["actual_work"].as_u64().unwrap()
                 <= summary["forecast_capacity"].as_u64().unwrap()
         );
+        let exact_caps = logs
+            .iter()
+            .find(|event| event["event"] == "rust_odds_exact_caps_summary")
+            .unwrap();
+        assert!(exact_caps["events"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|event| {
+                event["team"] == 318
+                    && event["rank"] == 9
+                    && event["status"] == "published"
+                    && event["pair_ok"] == true
+            }));
     }
 }

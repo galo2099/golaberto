@@ -195,9 +195,8 @@ fn frozen_go_rare_position_references_are_complete_and_scout_regresses_them() {
 
 #[test]
 fn production_pool_is_valid_and_tracks_frozen_reference() {
-    // Empirical regression gate on these fixed synthetic cases, not a guarantee that
-    // the jackknife error captures pooling or shrinkage bias. Oracle zeros are not
-    // treated as proof that an event is impossible.
+    // Compare fixed-scenario Monte Carlo estimates against a frozen independent
+    // reference, allowing for sampling error.
     const SAMPLES: usize = 100_000;
     let mut designs = std::collections::BTreeMap::<String, usize>::new();
     for (name, reference_name) in CASES {
@@ -214,6 +213,19 @@ fn production_pool_is_valid_and_tracks_frozen_reference() {
         for team in 0..model.n {
             for position in 0..model.n {
                 let estimate = &estimates[team * model.n + position];
+                let expected_design = if model.request.id == 99003 {
+                    // This dominant-team fixture deliberately exercises the
+                    // plain-MC fallback when the matched matrix cannot be
+                    // balanced to the production tolerance.
+                    "plain_mc"
+                } else {
+                    "matched_point_pool"
+                };
+                assert_eq!(
+                    estimate.design, expected_design,
+                    "{} ({name})",
+                    model.request.id
+                );
                 assert!(
                     estimate.probability.is_finite() && (0.0..=1.0).contains(&estimate.probability),
                     "{} ({name}): invalid team={} rank={position}",
@@ -233,6 +245,13 @@ fn production_pool_is_valid_and_tracks_frozen_reference() {
                     .iter()
                     .find(|cell| cell.team == model.ids[team] && cell.position == position)
                     .unwrap();
+                if estimate.reachability.starts_with("impossible") {
+                    assert_eq!(
+                        baseline.count, 0,
+                        "{} ({name}): proof contradicts frozen Go observations for team={} rank={position}",
+                        model.request.id, model.ids[team]
+                    );
+                }
                 if baseline.count >= 25 {
                     let allowance = 6.0
                         * (estimate.std_err.powi(2)

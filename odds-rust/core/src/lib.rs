@@ -16,6 +16,7 @@ pub mod pilot_allocation;
 pub mod pool;
 pub mod proof;
 pub mod rank_proof;
+pub mod rank_support;
 pub mod reachability;
 pub mod rng;
 pub mod sampling;

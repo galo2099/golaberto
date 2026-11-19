@@ -19,8 +19,9 @@ fixed seed. Every cell is compared with the frozen probability using six
 combined standard errors plus three scout counts of allowance. A second default
 test checks the current 100,000-season production pool's matrix and compares
 cells with at least 25 reference hits using six combined standard errors plus
-three production counts of allowance. This is an empirical regression gate for
-these fixed cases; jackknife errors do not quantify pooling bias. See
+three production counts of allowance. The matched-point estimator uses a
+ten-batch jackknife for its sampling error. Differences due to borrowing are
+also checked against the independent Go simulations. See
 `odds-rust/README.md` for commands.
 
 The references never enter the estimator. They are noisy test expectations,

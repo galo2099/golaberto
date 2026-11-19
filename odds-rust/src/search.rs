@@ -3,13 +3,15 @@ use crate::{
     joint_caps::JointProposal,
     lookahead::{self, Policy},
     model::{Key, Model},
-    pool::{zero_upper, Bounds, Estimate},
+    pool::{point_proofs_supported, zero_upper, Bounds, Estimate},
     rng::derive,
 };
+mod guided_points;
 pub use golaberto_odds_core::search_support::{apply, crosscheck, enabled, parallel, policy, Cell};
 use std::sync::Arc;
 pub struct SearchResult {
     pub result: Result,
+    /// Retained for callers; numeric Event support is no longer a proof.
     pub impossible: bool,
     pub event: Option<Arc<Event>>,
     pub witness: Option<Vec<u8>>,
@@ -41,7 +43,8 @@ pub fn initial(
         return search;
     };
     if event.mass <= 0. {
-        search.impossible = event.terminals.is_empty();
+        // A zero under the finite WDL kernel is a numeric support result, not
+        // a certificate that the ranked cell is mathematically impossible.
         search.event = None;
         return search;
     }
@@ -80,7 +83,7 @@ fn guided(
     let pilots = parallel(cells.len(), workers, |i| {
         let cell = cells[i];
         let search = &results[i];
-        if search.impossible || search.result.samples == 0 || search.result.hits > 0 {
+        if search.result.samples == 0 || search.result.hits > 0 {
             return None;
         }
         let mut event = search.event.clone()?;
@@ -123,7 +126,6 @@ fn guided(
             }
             results[i].event = Some(event.clone());
             if event.mass <= 0. {
-                results[i].impossible = event.terminals.is_empty();
                 results[i].event = None;
                 continue;
             }
@@ -220,7 +222,7 @@ fn extra(
         let cell = cells[i];
         let search = &results[i];
         let r = &search.result;
-        if search.impossible || r.samples == 0 || r.hits > 0 || r.mass <= 0. {
+        if r.samples == 0 || r.hits > 0 || r.mass <= 0. {
             return None;
         }
         let mut upper = r.mass * zero_upper(r.samples);
@@ -252,13 +254,7 @@ fn extra(
             let selected = blockers(model, bounds, pmfs, cell.team, cell.rank, 3);
             if let Some(e) = Event::build(model, bounds, cell.team, cell.rank, &selected, 120000) {
                 if e.mass <= 0. {
-                    return Some(ExtraPlan {
-                        index: i,
-                        event: Some(Arc::new(e)),
-                        gain: f64::INFINITY,
-                        native: None,
-                        setup_ms: 0.,
-                    });
+                    return None;
                 }
                 if e.mass < mass * (1. - 1e-8) {
                     mass = e.mass;
@@ -296,9 +292,7 @@ fn extra(
     let mut candidates = Vec::new();
     let mut rare = Vec::new();
     for plan in plans.into_iter().flatten() {
-        if plan.gain.is_infinite() {
-            results[plan.index].impossible = true;
-        } else if plan.native.is_some() {
+        if plan.native.is_some() {
             rare.push(plan);
         } else {
             candidates.push(plan);
@@ -792,6 +786,15 @@ pub fn run_logged(
             &complement.intervals,
             &exact_caps.bounds,
         ));
+        work = work.saturating_add(recover_remaining_gd_reconciled(
+            model,
+            seed,
+            workers,
+            estimates,
+            log,
+            &complement.intervals,
+            &exact_caps.bounds,
+        ));
         let packed_phase = std::time::Instant::now();
         let packed = packed_witness_fallback(model, estimates);
         if let Some(log) = log {
@@ -884,6 +887,15 @@ pub fn run_logged(
         &complement.intervals,
         &exact_caps.bounds,
     ));
+    work = work.saturating_add(recover_remaining_gd_reconciled(
+        model,
+        seed,
+        workers,
+        estimates,
+        log,
+        &complement.intervals,
+        &exact_caps.bounds,
+    ));
     let packed_phase = std::time::Instant::now();
     let packed = packed_witness_fallback(model, estimates);
     if let Some(log) = log {
@@ -896,18 +908,148 @@ pub fn run_logged(
     work
 }
 
+fn recover_remaining_gd_reconciled(
+    model: &Model,
+    seed: i64,
+    workers: usize,
+    estimates: &mut [Estimate],
+    log: Option<&crate::logging::RequestLog>,
+    intervals: &[(usize, f64, f64)],
+    bounds: &[(usize, f64, f64)],
+) -> u64 {
+    if !estimates.iter().any(|estimate| {
+        estimate.probability == 0. && !estimate.reachability.starts_with("impossible")
+    }) {
+        return 0;
+    }
+    let baseline = estimates.to_vec();
+    let (accepted, work) =
+        crate::rare_tail::recover_remaining_gd(model, seed, workers, estimates, log);
+    let mut rolled_back = false;
+    if accepted > 0 {
+        let valid = reconcile(model, estimates, &baseline)
+            && crate::pool::valid(
+                &estimates
+                    .iter()
+                    .map(|estimate| estimate.probability)
+                    .collect::<Vec<_>>(),
+                model.n,
+            )
+            && baseline
+                .iter()
+                .zip(estimates.iter())
+                .all(|(before, after)| {
+                    (before.probability <= 0. || after.probability > 0.)
+                        && (!before.reachability.starts_with("impossible")
+                            || (after.probability == 0.
+                                && after.reachability.starts_with("impossible")))
+                })
+            && intervals.iter().all(|(index, lower, upper)| {
+                let probability = estimates[*index].probability;
+                let tolerance =
+                    16. * f64::EPSILON * lower.abs().max(upper.abs()).max(f64::MIN_POSITIVE);
+                probability >= *lower - tolerance && probability <= *upper + tolerance
+            })
+            && bounds.iter().all(|(index, floor, upper)| {
+                let probability = estimates[*index].probability;
+                probability + floor.abs().max(f64::MIN_POSITIVE) * 1e-10 >= *floor
+                    && probability <= *upper + upper.abs().max(f64::MIN_POSITIVE) * 1e-10
+            });
+        if !valid {
+            restore_baseline_preserving_reachability(estimates, &baseline);
+            rolled_back = true;
+        }
+    }
+    if let Some(log) = log {
+        log.event(
+            "rust_odds_remaining_gd_reconcile",
+            serde_json::json!({
+                "accepted": if rolled_back { 0 } else { accepted },
+                "rolled_back": rolled_back,
+                "work": work,
+                "remaining_zeros": estimates.iter().filter(|estimate| {
+                    estimate.probability == 0. && !estimate.reachability.starts_with("impossible")
+                }).count()
+            }),
+        );
+    }
+    work
+}
+
+fn publish_fixed_mass_result(est: &mut Estimate, result: &Result) {
+    let frequency = result.hits as f64 / result.samples as f64;
+    est.probability = result.mass * frequency;
+    est.std_err = result.mass * (frequency * (1. - frequency) / result.samples as f64).sqrt();
+    est.design = "matched_point_pool_conditioned".into();
+    est.relative_se = Some(est.std_err / est.probability);
+    est.reachability = "witness".into();
+    est.zero_hit_upper_95 = 0.;
+    est.ess = result.hits as f64;
+    est.max_event_weight_share = 1. / result.hits as f64;
+    est.meets_precision_goal = result.hits >= 10 && est.std_err / est.probability <= 0.5;
+}
+
+#[cfg(test)]
+fn structurally_possible_cells(
+    model: &Model,
+    bounds: &Bounds,
+    estimates: &mut [Estimate],
+) -> Vec<Cell> {
+    structurally_possible_cells_with_proofs(
+        model,
+        bounds,
+        estimates,
+        &golaberto_odds_core::rank_support::impossible_ranks(model),
+    )
+}
+
+fn structurally_possible_cells_with_proofs(
+    model: &Model,
+    bounds: &Bounds,
+    estimates: &mut [Estimate],
+    impossible_ranks: &[bool],
+) -> Vec<Cell> {
+    let mut cells = Vec::new();
+    for team in 0..model.n {
+        for rank in 0..model.n {
+            let estimate = &mut estimates[team * model.n + rank];
+            let rank_proven_impossible = impossible_ranks
+                .get(team * model.n + rank)
+                .copied()
+                .unwrap_or(false);
+            if rank_proven_impossible {
+                let warranted = has_direct_evidence(estimate);
+                if !warranted {
+                    estimate.probability = 0.;
+                    estimate.reachability = "impossible_by_rank_support".into();
+                    estimate.zero_hit_upper_95 = 0.;
+                    estimate.pool_guide = 0.;
+                    continue;
+                }
+            }
+            if estimate.probability != 0. {
+                continue;
+            }
+            if estimate.reachability.starts_with("impossible") {
+                estimate.zero_hit_upper_95 = 0.;
+                estimate.pool_guide = 0.;
+                continue;
+            }
+            if point_proofs_supported(model) && !bounds.rank_possible(team, rank) {
+                estimate.reachability = "impossible_by_points".into();
+                estimate.zero_hit_upper_95 = 0.;
+                estimate.pool_guide = 0.;
+            } else {
+                estimate.reachability = "undecided".into();
+                cells.push(Cell { team, rank });
+            }
+        }
+    }
+    cells
+}
+
 fn prove_saturated_by_points(model: &Model, estimates: &mut [Estimate]) {
-    if model.keys.first() != Some(&Key::Pt)
-        || model.request.phase.bonus_points != 0
-        || model.n == 0
-        || [
-            model.request.phase.championship.point_win,
-            model.request.phase.championship.point_draw,
-            model.request.phase.championship.point_loss,
-        ]
-        .iter()
-        .any(|p| *p < 0)
-    {
+    if model.n == 0 || !point_proofs_supported(model) {
         return;
     }
     let bounds = Bounds::new(model);
@@ -953,39 +1095,8 @@ fn run_logged_inner(
     estimates: &mut [Estimate],
     log: Option<&crate::logging::RequestLog>,
 ) -> u64 {
-    if !enabled("RARE_POSITION_CONDITIONED_ZERO") {
-        if let Some(log) = log {
-            log.event(
-                "rust_odds_search_skipped",
-                serde_json::json!({"reason":"disabled"}),
-            );
-        }
-        return 0;
-    }
     let search_start = std::time::Instant::now();
     let baseline = estimates.to_vec();
-    let donors = borrowed_donors(&baseline);
-    if !donors.is_empty() && estimates.iter().all(|e| e.probability > 0.) {
-        let selection = select_donors(model, &donors);
-        if selection.admitted.is_empty() {
-            report_donor_selection(log, &selection, 0, false);
-            let baseline = estimates.to_vec();
-            let (found, spent) = crate::rare_tail::run_late_positive_refinement(
-                model, seed, workers, estimates, log,
-            );
-            let reconciled = found > 0 && reconcile(model, estimates, &baseline);
-            if let Some(log) = log {
-                log.event(
-                    "rust_odds_search_positive_cohort_refinement",
-                    serde_json::json!({"found":found,"reconciled":reconciled,"work":spent}),
-                );
-            }
-            return spent;
-        }
-    }
-    let Some(pmfs) = crate::pool::point_pmfs(model) else {
-        return 0;
-    };
     let bounds = Bounds::new(model);
     let profile = std::env::var("RUST_ODDS_PROFILE").as_deref() == Ok("1");
     let mut phase = std::time::Instant::now();
@@ -1000,67 +1111,88 @@ fn run_logged_inner(
         }
         phase = std::time::Instant::now();
     };
-    let mut cells = Vec::new();
-    for t in 0..model.n {
-        for r in 0..model.n {
-            let est = &mut estimates[t * model.n + r];
-            if est.probability != 0. {
-                continue;
-            }
-            if est.reachability.starts_with("impossible") {
-                continue;
-            }
-            if bounds.hard_bound(t, r, &pmfs[t]).0 <= 0. {
-                est.reachability = "impossible_by_points".into();
-            } else {
-                est.reachability = "undecided".into();
-                cells.push(Cell { team: t, rank: r });
-            }
-        }
-    }
-    cells.sort_by_key(|c| (c.rank.min(model.n - 1 - c.rank), model.ids[c.team], c.rank));
+    // Compute the conservative full-world support proof once per search. It is
+    // deliberately independent of pool guides and numeric zero-hit outcomes.
+    let rank_support = golaberto_odds_core::rank_support::impossible_ranks(model);
+    let mut cells =
+        structurally_possible_cells_with_proofs(model, &bounds, estimates, &rank_support);
+    cells.sort_by(|a, b| {
+        let guide = |cell: &Cell| estimates[cell.index(model.n)].pool_guide;
+        let ga = guide(a);
+        let gb = guide(b);
+        let a_valid = ga.is_finite() && ga > 0.;
+        let b_valid = gb.is_finite() && gb > 0.;
+        b_valid
+            .cmp(&a_valid)
+            .then_with(|| {
+                if a_valid && b_valid {
+                    gb.total_cmp(&ga)
+                } else {
+                    std::cmp::Ordering::Equal
+                }
+            })
+            .then(
+                a.rank
+                    .min(model.n - 1 - a.rank)
+                    .cmp(&b.rank.min(model.n - 1 - b.rank)),
+            )
+            .then(model.ids[a.team].cmp(&model.ids[b.team]))
+            .then(a.rank.cmp(&b.rank))
+    });
     report(
         "screen",
         serde_json::json!({"candidate_cells":cells.len(),"cells":crate::logging::cell_counts(estimates)}),
     );
-    let proof_report = crate::proof::early_report(model, &cells, estimates);
+    let proof_report = if point_proofs_supported(model) {
+        crate::proof::early_report(model, &cells, estimates)
+    } else {
+        Default::default()
+    };
     let proofs = proof_report.proofs;
     cells.retain(|c| estimates[c.index(model.n)].reachability == "undecided");
     report(
         "early_proofs",
         serde_json::json!({"proofs":proofs,"candidate_cells":cells.len()}),
     );
-    if cells.is_empty() {
-        if donors.is_empty() {
-            let baseline = estimates.to_vec();
-            let (found, spent) = crate::rare_tail::run_late_positive_refinement(
-                model, seed, workers, estimates, log,
+    if !enabled("RARE_POSITION_CONDITIONED_ZERO") {
+        if let Some(log) = log {
+            log.event(
+                "rust_odds_search_skipped",
+                serde_json::json!({"reason":"disabled"}),
             );
-            let reconciled = found > 0 && reconcile(model, estimates, &baseline);
-            if let Some(log) = log {
-                log.event(
-                    "rust_odds_search_positive_cohort_refinement",
-                    serde_json::json!({"found":found,"reconciled":reconciled,"work":spent,"path":"no_zero_cells_no_donors"}),
-                );
-            }
-            return spent;
         }
-        let (found, spent) = run_tail_with_donors(
-            model,
-            seed,
-            workers,
-            estimates,
-            &donors,
-            log,
-            &[],
-            search_start.elapsed().as_secs_f64() * 1000.,
-        );
-        if found > 0 {
-            if !reconcile(model, estimates, &baseline) {
-                return spent;
-            }
+        return 0;
+    }
+    let Some(pmfs) = crate::pool::point_pmfs(model) else {
+        return 0;
+    };
+    let (guided_count, guided_work) =
+        guided_points::estimate(model, &bounds, &pmfs, &cells, estimates, seed, workers);
+    report(
+        "guided_points",
+        serde_json::json!({"count":guided_count,"work":guided_work}),
+    );
+    let mut witnesses = guided_count;
+    let mut work = guided_work;
+    cells.retain(|cell| {
+        let estimate = &estimates[cell.index(model.n)];
+        estimate.probability == 0. && estimate.reachability == "undecided"
+    });
+    if cells.is_empty() {
+        if witnesses > 0 && !reconcile(model, estimates, &baseline) {
+            return work;
         }
-        return spent;
+        let baseline = estimates.to_vec();
+        let (found, spent) =
+            crate::rare_tail::run_late_positive_refinement(model, seed, workers, estimates, log);
+        let reconciled = found > 0 && reconcile(model, estimates, &baseline);
+        if let Some(log) = log {
+            log.event(
+                "rust_odds_search_positive_cohort_refinement",
+                serde_json::json!({"found":found,"reconciled":reconciled,"work":spent}),
+            );
+        }
+        return work.saturating_add(spent);
     }
     let mut results = parallel(cells.len(), workers, |i| {
         initial(model, &bounds, &pmfs, cells[i], seed)
@@ -1088,17 +1220,9 @@ fn run_logged_inner(
         log,
     );
     report("extra", serde_json::json!({}));
-    let mut work = 0;
-    let mut witnesses = 0;
     for (cell, search) in cells.iter().zip(&results) {
         let est = &mut estimates[cell.index(model.n)];
         let result = &search.result;
-        if search.impossible {
-            work += result.work;
-            est.reachability = "impossible_by_joint_points".into();
-            est.zero_hit_upper_95 = 0.;
-            continue;
-        }
         if result.samples == 0 {
             continue;
         }
@@ -1110,14 +1234,7 @@ fn run_logged_inner(
             if result.weighted {
                 apply(est, result, "matched_point_pool_conditioned_lookahead");
             } else {
-                let frequency = result.hits as f64 / result.samples as f64;
-                est.probability = result.mass * frequency;
-                est.std_err =
-                    result.mass * (frequency * (1. - frequency) / result.samples as f64).sqrt();
-                est.design = "matched_point_pool_conditioned".into();
-                est.relative_se = Some(est.std_err / est.probability);
-                est.reachability = "witness".into();
-                est.zero_hit_upper_95 = 0.;
+                publish_fixed_mass_result(est, result);
             }
             witnesses += 1;
         } else {
@@ -1299,12 +1416,11 @@ fn run_logged_inner(
     } else {
         Vec::new()
     };
-    let (found, spent) = run_tail_with_donors(
+    let (found, spent) = crate::rare_tail::run(
         model,
         seed,
         workers,
         estimates,
-        &donors,
         log,
         &tail_seasons,
         search_start.elapsed().as_secs_f64() * 1000.,
@@ -1812,221 +1928,15 @@ fn packed_reuse_seed_push(
     true
 }
 
-fn reset_donor_for_tail(est: &mut Estimate) {
-    est.probability = 0.;
-    est.std_err = 0.;
-    est.ess = 0.;
-    est.meets_precision_goal = false;
-    est.relative_se = None;
-    est.max_event_weight_share = 0.;
-    est.zero_hit_upper_95 = 0.;
-    est.design.clear();
-    est.reachability = "undecided".into();
-    est.conditional_mass = 0.;
-    est.conditional_samples = 0;
-    est.conditional_hits = 0;
-}
-
-fn donor_estimate_dominates(candidate: &Estimate, baseline: &Estimate) -> bool {
-    let candidate_rse = if candidate.probability > 0.0 {
-        candidate.std_err / candidate.probability
-    } else {
-        f64::INFINITY
-    };
-    let baseline_rse = if baseline.probability > 0.0 {
-        baseline.std_err / baseline.probability
-    } else {
-        f64::INFINITY
-    };
-    candidate.probability.is_finite()
-        && candidate.probability > 0.0
-        && candidate.ess.is_finite()
-        && candidate.ess > baseline.ess
-        && candidate_rse.is_finite()
-        && candidate_rse < baseline_rse
-}
-
-fn should_restore_tail_donor(
-    candidate: &Estimate,
-    baseline: &Estimate,
-    gd_refinement: bool,
-) -> bool {
-    if gd_refinement {
-        !donor_estimate_dominates(candidate, baseline)
-    } else {
-        candidate.probability <= 0.0
-    }
-}
-
-struct DonorSelection {
-    admitted: Vec<(usize, Estimate)>,
-    deferred: Vec<(usize, Estimate)>,
-    candidate_count: usize,
-    forecast_per_donor: usize,
-    forecasted_total: usize,
-    forecast_cap: usize,
-}
-
-const BORROWED_RETRY_BUDGET_REFERENCE_DRAWS: usize = 20_000;
-
-fn donor_draw_floors_for_profile(profile: &str) -> (usize, usize, usize) {
-    if profile == "union" {
-        (1500, 8000, 4000)
-    } else {
-        // Default lazy/portfolio work uses a 1,000-draw pilot and a fresh
-        // 2,000/1,000 main/check pair. Keep this tied to the current minima.
-        (1000, 2000, 1000)
-    }
-}
-
-fn select_donors(model: &Model, donors: &[(usize, Estimate)]) -> DonorSelection {
-    select_donors_for_profile(model, donors, &crate::rare_tail::profile())
-}
-
-fn select_donors_for_profile(
-    model: &Model,
-    donors: &[(usize, Estimate)],
-    profile: &str,
-) -> DonorSelection {
-    let reference = crate::rare_tail::budget::reference_cost(model).max(1);
-    let family = crate::rare_tail::budget::family_validation_screen_cost(model).max(reference);
-    let (pilot, main, check) = donor_draw_floors_for_profile(profile);
-    let draws = pilot.saturating_add(main).saturating_add(check);
-    let forecast_per_donor = family.saturating_mul(draws);
-    // This is a deterministic feasibility screen, not an execution reservation:
-    // it excludes bounded batch joint-proposal preparation and caps borrowed
-    // retries at 20% of 100,000 reference draws. Actual preparation is charged
-    // in pilots and work counters; family validation retains its full bound.
-    let forecast_cap = reference.saturating_mul(BORROWED_RETRY_BUDGET_REFERENCE_DRAWS);
-    let mut prioritized = donors.to_vec();
-    prioritized.sort_by(|a, b| {
-        a.1.probability
-            .total_cmp(&b.1.probability)
-            .then(a.0.cmp(&b.0))
-    });
-    let mut admitted = Vec::new();
-    let mut deferred = Vec::new();
-    let mut forecasted_total = 0usize;
-    for donor in prioritized {
-        if forecasted_total.saturating_add(forecast_per_donor) <= forecast_cap {
-            forecasted_total += forecast_per_donor;
-            admitted.push(donor);
-        } else {
-            deferred.push(donor);
-        }
-    }
-    DonorSelection {
-        candidate_count: donors.len(),
-        admitted,
-        deferred,
-        forecast_per_donor,
-        forecasted_total,
-        forecast_cap,
-    }
-}
-
-fn borrowed_donors(estimates: &[Estimate]) -> Vec<(usize, Estimate)> {
-    estimates
-        .iter()
-        .enumerate()
-        .filter(|(_, e)| {
-            e.design == "matched_point_pool"
-                && e.probability > 0.
-                && e.hits == 0
-                && e.conditional_mass == 0.
-                && e.conditional_samples == 0
-                && e.conditional_hits == 0
-        })
-        .map(|(i, e)| (i, e.clone()))
-        .collect()
-}
-
-fn report_donor_selection(
-    log: Option<&crate::logging::RequestLog>,
-    selection: &DonorSelection,
-    true_zero_candidates: usize,
-    reserve_true_zeros: bool,
-) {
-    if selection.candidate_count == 0 {
-        return;
-    }
-    let reserved = reserve_true_zeros && true_zero_candidates > 0;
-    let admitted = if reserved {
-        0
-    } else {
-        selection.admitted.len()
-    };
-    let deferred = selection.candidate_count - admitted;
-    if let Some(log) = log {
-        log.event(
-            "rust_odds_search_donors",
-            serde_json::json!({
-                "donor_candidates": selection.candidate_count,
-                "candidate_count": selection.candidate_count,
-                "admitted": admitted,
-                "deferred": deferred,
-                "true_zero_candidates": true_zero_candidates,
-                "reason": if reserved {"zero_recovery_budget_reserved"} else if deferred > 0 {"forecast_cap"} else {"within_forecast_cap"},
-                "forecast_per_donor": selection.forecast_per_donor,
-                "forecast_cap": selection.forecast_cap,
-                "forecasted_total": if reserved {0} else {selection.forecasted_total}
-            }),
-        );
-    }
-}
-
-fn run_tail_with_donors(
-    model: &Model,
-    seed: i64,
-    workers: usize,
-    estimates: &mut [Estimate],
-    donors: &[(usize, Estimate)],
-    log: Option<&crate::logging::RequestLog>,
-    seasons: &[(Vec<u8>, Vec<usize>)],
-    elapsed_ms: f64,
-) -> (usize, u64) {
-    let selection = select_donors(model, donors);
-    let true_zero_candidates = estimates
-        .iter()
-        .filter(|e| e.probability == 0. && !e.reachability.starts_with("impossible"))
-        .count();
-    if !donors.is_empty() && true_zero_candidates > 0 {
-        for (index, donor) in donors {
-            estimates[*index] = donor.clone();
-        }
-        report_donor_selection(log, &selection, true_zero_candidates, true);
-        return crate::rare_tail::run(model, seed, workers, estimates, log, seasons, elapsed_ms);
-    }
-    for (index, donor) in &selection.deferred {
-        estimates[*index] = donor.clone();
-    }
-    report_donor_selection(log, &selection, 0, false);
-    for (index, donor) in &selection.admitted {
-        estimates[*index] = donor.clone();
-        reset_donor_for_tail(&mut estimates[*index]);
-    }
-    let positive_baselines = selection.admitted.clone();
-    let (found, spent) = crate::rare_tail::run_with_positive_baselines(
-        model,
-        seed,
-        workers,
-        estimates,
-        log,
-        seasons,
-        elapsed_ms,
-        Some(&positive_baselines),
-    );
-    let gd_refinement = crate::rare_tail::positive_refinement_enabled(model);
-    for (index, donor) in &selection.admitted {
-        let candidate = &estimates[*index];
-        if should_restore_tail_donor(candidate, donor, gd_refinement) {
-            estimates[*index] = donor.clone();
-        }
-    }
-    (found, spent)
-}
-
 fn reconcile(model: &Model, estimates: &mut [Estimate], baseline: &[Estimate]) -> bool {
+    // A rank-support proof remains authoritative through every reconciliation
+    // path, including candidates whose baseline came from a borrowed donor.
+    for estimate in estimates.iter_mut() {
+        if estimate.reachability == "impossible_by_rank_support" {
+            estimate.probability = 0.;
+            estimate.zero_hit_upper_95 = 0.;
+        }
+    }
     let original: Vec<_> = estimates.iter().map(|e| e.probability).collect();
     let mut matrix = original.clone();
     if !crate::pool::balance(&mut matrix, model.n) {
@@ -2041,6 +1951,11 @@ fn reconcile(model: &Model, estimates: &mut [Estimate], baseline: &[Estimate]) -
         return false;
     }
     for (e, p) in estimates.iter_mut().zip(matrix) {
+        if e.reachability == "impossible_by_rank_support" {
+            e.probability = 0.;
+            e.zero_hit_upper_95 = 0.;
+            continue;
+        }
         if (e.reachability == "witness"
             || e.design == "outcome_path_stratified"
             || e.design == "native_full_world_complement"
@@ -2060,24 +1975,44 @@ fn restore_baseline_preserving_reachability(estimates: &mut [Estimate], baseline
     let candidate = estimates.to_vec();
     estimates.clone_from_slice(baseline);
     for ((restored, candidate), original) in estimates.iter_mut().zip(candidate).zip(baseline) {
-        // A baseline proof takes precedence, and an impossible claim cannot
-        // override a cell that already had positive baseline mass.
-        if original.probability > 0.
-            || original.reachability.starts_with("impossible")
-            || original.reachability == "witness"
-            || original.reachability == "reachable_by_construction"
-        {
+        restored.native_cohort_lower =
+            [restored.native_cohort_lower, candidate.native_cohort_lower]
+                .into_iter()
+                .filter(|value| value.is_finite() && *value >= 0.)
+                .fold(0.0, f64::max);
+        // Preserve baseline proofs and direct observations. A new proof may
+        // override a pooled positive whose own native stream saw no instance.
+        if original.reachability.starts_with("impossible") {
+            restored.probability = 0.;
+            restored.zero_hit_upper_95 = 0.;
+            restored.pool_guide = 0.;
+            continue;
+        }
+        if has_direct_evidence(original) {
             continue;
         }
         if candidate.reachability.starts_with("impossible") {
+            restored.probability = 0.;
             restored.reachability = candidate.reachability;
             restored.zero_hit_upper_95 = 0.;
+            restored.pool_guide = 0.;
+            restored.native_cohort_lower = 0.;
         } else if candidate.reachability == "witness"
             || candidate.reachability == "reachable_by_construction"
         {
             restored.reachability = candidate.reachability;
         }
     }
+}
+
+fn has_direct_evidence(estimate: &Estimate) -> bool {
+    estimate.reachability == "witness"
+        || estimate.reachability == "reachable_by_construction"
+        || estimate.reachability == "certain_by_points"
+        || estimate.design == "exact_caps_conditioned"
+        || (estimate.samples > 0
+            && estimate.hits > 0
+            && matches!(estimate.design.as_str(), "plain_mc" | "matched_point_pool"))
 }
 
 #[cfg(test)]
@@ -2267,170 +2202,152 @@ mod saturated_points_proof_tests {
 }
 
 #[cfg(test)]
-mod donor_preflight_tests {
-    use super::{donor_estimate_dominates, select_donors_for_profile, should_restore_tail_donor};
+mod unsupported_bonus_point_search_tests {
+    use super::{point_proofs_supported, structurally_possible_cells, Cell};
     use crate::{
         model::{Model, Request},
-        pool::Estimate,
+        pool::{Bounds, Estimate},
     };
 
-    fn model(source: &str) -> Model {
-        Model::new(serde_json::from_str::<Request>(source).unwrap()).unwrap()
-    }
+    #[test]
+    fn reachable_bonus_points_cell_skips_point_proofs_and_guided_sampling() {
+        let request: Request = serde_json::from_value(serde_json::json!({
+            "id": 72,
+            "phase": {
+                "sort":"pt,gd,gf",
+                "bonus_points":1,
+                "bonus_points_threshold":0,
+                "championship":{"point_win":3,"point_draw":1,"point_loss":0}
+            },
+            "team_groups":[
+                {"team_id":0,"add_sub":0},
+                {"team_id":1,"add_sub":0},
+                {"team_id":2,"add_sub":3}
+            ],
+            "games":[{"id":1,"home_id":0,"away_id":1,"home_power":0.4,"away_power":0.5}]
+        }))
+        .unwrap();
+        let model = Model::new(request).unwrap();
+        let target = Cell { team: 0, rank: 2 };
+        assert!(Bounds::new(&model).rank_possible(target.team, target.rank));
+        assert!(!point_proofs_supported(&model));
+        assert!(crate::pool::point_pmfs(&model).is_none());
 
-    fn donors(count: usize) -> Vec<(usize, Estimate)> {
-        (0..count)
-            .map(|index| {
-                (
-                    index,
-                    Estimate {
-                        probability: 0.001,
-                        ..Estimate::default()
-                    },
-                )
-            })
-            .collect()
+        let mut estimates = vec![Estimate::default(); model.n * model.n];
+        estimates[target.index(model.n)].pool_guide = 0.25;
+        let result = super::guided_points::estimate(
+            &model,
+            &Bounds::new(&model),
+            &[],
+            &[target],
+            &mut estimates,
+            19,
+            1,
+        );
+        assert_eq!(result, (0, 0));
+        assert_eq!(estimates[target.index(model.n)].probability, 0.0);
     }
 
     #[test]
-    fn donor_refinement_baseline_requires_both_ess_and_relative_error_to_improve() {
-        let baseline = Estimate {
-            probability: 1e-5,
-            std_err: 0.5e-5,
-            ess: 20.0,
+    fn structural_zero_hit_proof_is_independent_of_pmfs_and_clears_upper_bound() {
+        let request: Request = serde_json::from_value(serde_json::json!({
+            "id": 73,
+            "phase": {"sort":"pt,gd,gf","championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+            "team_groups":[
+                {"team_id":0,"add_sub":0},
+                {"team_id":1,"add_sub":3},
+                {"team_id":2,"add_sub":6}
+            ],
+            "games":[]
+        })).unwrap();
+        let model = Model::new(request).unwrap();
+        let impossible = Cell { team: 0, rank: 0 };
+        let mut estimates = vec![Estimate::default(); model.n * model.n];
+        estimates[impossible.index(model.n)].zero_hit_upper_95 = 0.25;
+
+        let cells = structurally_possible_cells(&model, &Bounds::new(&model), &mut estimates);
+
+        assert!(!cells.contains(&impossible));
+        assert!(estimates[impossible.index(model.n)]
+            .reachability
+            .starts_with("impossible"));
+        assert_eq!(estimates[impossible.index(model.n)].zero_hit_upper_95, 0.0);
+        assert_eq!(estimates[impossible.index(model.n)].pool_guide, 0.0);
+    }
+
+    #[test]
+    fn rank_support_proof_overrides_borrowed_positive_and_survives_rollback() {
+        let request: Request = serde_json::from_value(serde_json::json!({
+            "id": 74,
+            "phase": {"sort":"pt,gd,gf","championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+            "team_groups":[
+                {"team_id":0,"add_sub":0},
+                {"team_id":1,"add_sub":3},
+                {"team_id":2,"add_sub":6}
+            ],
+            "games":[]
+        })).unwrap();
+        let model = Model::new(request).unwrap();
+        let impossible = Cell { team: 0, rank: 0 };
+        let index = impossible.index(model.n);
+        let baseline = vec![Estimate::default(); model.n * model.n];
+        let mut candidate = baseline.clone();
+        candidate[index].probability = 0.2; // unsupported borrowed donor mass
+        candidate[index].pool_guide = 0.2;
+        candidate[index].zero_hit_upper_95 = 0.2;
+
+        let _ = structurally_possible_cells(&model, &Bounds::new(&model), &mut candidate);
+        assert_eq!(candidate[index].probability, 0.0);
+        assert_eq!(candidate[index].zero_hit_upper_95, 0.0);
+        let mut baseline_with_donor = baseline;
+        baseline_with_donor[index].probability = 0.2;
+        super::restore_baseline_preserving_reachability(&mut baseline_with_donor, &candidate);
+        assert_eq!(baseline_with_donor[index].probability, 0.0);
+        assert_eq!(baseline_with_donor[index].zero_hit_upper_95, 0.0);
+        assert_eq!(
+            baseline_with_donor[index].reachability,
+            "impossible_by_rank_support"
+        );
+    }
+}
+
+#[cfg(test)]
+mod fixed_mass_result_tests {
+    use super::{initial, publish_fixed_mass_result, Cell};
+    use crate::{
+        model::{Model, Request},
+        pool::{Bounds, Estimate},
+    };
+
+    #[test]
+    fn production_conditional_hits_publish_effective_sample_quality() {
+        let request: Request = serde_json::from_value(serde_json::json!({
+            "id": 74,
+            "phase": {"sort":"pt,gd,gf","championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+            "team_groups":[{"team_id":0,"add_sub":0},{"team_id":1,"add_sub":0}],
+            "games":[{"id":1,"home_id":0,"away_id":1,"home_power":1.0,"away_power":1.0}]
+        })).unwrap();
+        let model = Model::new(request).unwrap();
+        let pmfs = crate::pool::point_pmfs(&model).unwrap();
+        let bounds = Bounds::new(&model);
+        let cell = Cell { team: 0, rank: 0 };
+        let result = initial(&model, &bounds, &pmfs, cell, 123).result;
+        assert!(!result.weighted);
+        assert!(result.hits >= 10, "{result:?}");
+
+        let mut estimate = Estimate {
+            samples: 100_000,
+            hits: 0,
             ..Estimate::default()
         };
-        let better = Estimate {
-            probability: 1.1e-5,
-            std_err: 0.22e-5,
-            ess: 25.0,
-            ..Estimate::default()
-        };
-        let weak_rse = Estimate {
-            std_err: 0.6e-5,
-            ess: 40.0,
-            ..better.clone()
-        };
-        let lower_ess = Estimate {
-            std_err: 0.1e-5,
-            ess: 19.0,
-            ..better.clone()
-        };
-        assert!(donor_estimate_dominates(&better, &baseline));
-        assert!(!donor_estimate_dominates(&weak_rse, &baseline));
-        assert!(!donor_estimate_dominates(&lower_ess, &baseline));
-        assert!(!donor_estimate_dominates(&Estimate::default(), &baseline));
-        assert!(should_restore_tail_donor(
-            &Estimate::default(),
-            &baseline,
-            false
-        ));
-        assert!(!should_restore_tail_donor(&weak_rse, &baseline, false));
-        assert!(should_restore_tail_donor(&weak_rse, &baseline, true));
-        assert!(!should_restore_tail_donor(&better, &baseline, true));
-    }
+        publish_fixed_mass_result(&mut estimate, &result);
 
-    fn assert_large_group_is_deferred(source: &str) {
-        let model = model(source);
-        let selection = select_donors_for_profile(&model, &donors(50), "coverage");
-        assert_eq!(selection.candidate_count, 50);
-        assert!(selection.admitted.is_empty());
-        assert_eq!(selection.deferred.len(), 50);
-        assert!(selection.forecast_per_donor > selection.forecast_cap);
-    }
-
-    #[test]
-    fn expensive_reference_groups_defer_borrowed_retries() {
-        assert_large_group_is_deferred(include_str!(
-            "../../experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16413-a2eef0a8.json"
-        ));
-        assert_large_group_is_deferred(include_str!(
-            "../../experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16983-43969b02.json"
-        ));
-    }
-
-    #[test]
-    fn expensive_donor_only_request_short_circuits_without_mutating_estimates() {
-        let model = model(include_str!(
-            "../../experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16413-a2eef0a8.json"
-        ));
-        let n = model.n;
-        let mut estimates = vec![Estimate::default(); n * n];
-        for estimate in &mut estimates {
-            estimate.probability = 1. / n as f64;
-            estimate.std_err = 0.003;
-            estimate.samples = 100_000;
-            estimate.hits = 0;
-            estimate.ess = 0.;
-            estimate.mean_weight = 1.;
-            estimate.available = true;
-            estimate.meets_precision_goal = false;
-            estimate.relative_se = Some(0.012);
-            estimate.max_event_weight_share = 0.01;
-            estimate.design = "matched_point_pool".into();
-            estimate.reachability = "pool_positive".into();
-        }
-        let before = serde_json::to_value(&estimates).unwrap();
-        assert_eq!(super::run(&model, 809, 1, &mut estimates), 0);
-        assert_eq!(serde_json::to_value(&estimates).unwrap(), before);
-    }
-
-    #[test]
-    fn b3_rare_low_probability_candidate_is_admitted_first() {
-        let model = model(include_str!("../tests/fixtures/group-17064.json"));
-        let target = model.ids[..model.n]
-            .iter()
-            .position(|&team| team == 2689)
-            .unwrap()
-            * model.n;
-        let candidates = vec![
-            (
-                target,
-                Estimate {
-                    probability: 5.2576e-5,
-                    ..Estimate::default()
-                },
-            ),
-            (
-                target + 1,
-                Estimate {
-                    probability: 0.01,
-                    ..Estimate::default()
-                },
-            ),
-        ];
-        let selection = select_donors_for_profile(&model, &candidates, "coverage");
-        let reference = crate::rare_tail::budget::reference_cost(&model).max(1);
-        let validation_draws = 1_000 + 2_000 + 1_000;
-        let full_forecast = crate::rare_tail::budget::family_validation_upper_cost(&model)
-            .max(reference)
-            .saturating_mul(validation_draws);
-        let screened_forecast = crate::rare_tail::budget::family_validation_screen_cost(&model)
-            .max(reference)
-            .saturating_mul(validation_draws);
-        assert!(screened_forecast <= selection.forecast_cap);
-        assert!(full_forecast > selection.forecast_cap);
-        assert_eq!(selection.forecast_per_donor, screened_forecast);
-        assert_eq!(selection.admitted.len(), 1);
-        assert_eq!(selection.admitted[0].0, target);
-        assert_eq!(selection.deferred.len(), 1);
-        assert!(selection.forecasted_total <= selection.forecast_cap);
-    }
-
-    #[test]
-    fn many_teams_with_one_fixture_fit_the_forecast_cap() {
-        let request = serde_json::json!({
-            "id": 2,
-            "phase": {"sort":"pt,head,gd,bias", "championship":{"point_win":3,"point_draw":1,"point_loss":0}},
-            "team_groups": (0..20).map(|team| serde_json::json!({"team_id":team,"add_sub":0,"bias":0})).collect::<Vec<_>>(),
-            "games": [{"id":1,"home_id":0,"away_id":1,"home_power":1.0,"away_power":1.0}]
-        });
-        let model = Model::new(serde_json::from_value::<Request>(request).unwrap()).unwrap();
-        let selection = select_donors_for_profile(&model, &donors(4), "coverage");
-        assert_eq!(selection.admitted.len(), 1);
-        assert_eq!(selection.deferred.len(), 3);
-        assert!(selection.forecast_per_donor <= selection.forecast_cap);
-        assert!(selection.forecasted_total <= selection.forecast_cap);
+        assert_eq!(estimate.samples, 100_000);
+        assert_eq!(estimate.hits, 0);
+        assert_eq!(estimate.ess, result.hits as f64);
+        assert_eq!(estimate.max_event_weight_share, 1. / result.hits as f64);
+        assert!(estimate.meets_precision_goal);
+        assert!(estimate.probability > 0.0);
     }
 }
 
@@ -3219,16 +3136,21 @@ mod rollback_reachability_tests {
                 samples: 3,
                 reachability: "undecided".into(),
                 zero_hit_upper_95: 0.2,
+                native_cohort_lower: 0.25,
                 ..Estimate::default()
             },
             Estimate {
                 probability: 0.,
                 reachability: "impossible_by_points".into(),
+                native_cohort_lower: 0.1,
                 ..Estimate::default()
             },
             Estimate {
                 probability: 0.4,
                 reachability: "pool_positive".into(),
+                pool_guide: 0.2,
+                zero_hit_upper_95: 0.15,
+                native_cohort_lower: 0.1,
                 ..Estimate::default()
             },
             Estimate {
@@ -3243,8 +3165,11 @@ mod rollback_reachability_tests {
                 ..Estimate::default()
             },
             Estimate {
-                probability: 0.,
-                reachability: "undecided".into(),
+                probability: 0.1,
+                samples: 1000,
+                hits: 1,
+                design: "matched_point_pool".into(),
+                reachability: "pool_positive".into(),
                 ..Estimate::default()
             },
         ];
@@ -3254,11 +3179,13 @@ mod rollback_reachability_tests {
                 samples: 99,
                 reachability: "witness".into(),
                 zero_hit_upper_95: 0.,
+                native_cohort_lower: 0.75,
                 ..Estimate::default()
             },
             Estimate {
                 probability: 0.2,
                 reachability: "witness".into(),
+                native_cohort_lower: 0.8,
                 ..Estimate::default()
             },
             Estimate {
@@ -3277,8 +3204,8 @@ mod rollback_reachability_tests {
                 ..Estimate::default()
             },
             Estimate {
-                probability: 0.3,
-                reachability: "undecided".into(),
+                probability: 0.,
+                reachability: "impossible_direct_conflict".into(),
                 ..Estimate::default()
             },
         ];
@@ -3287,13 +3214,20 @@ mod rollback_reachability_tests {
         assert_eq!(candidate[0].samples, 3);
         assert_eq!(candidate[0].reachability, "witness");
         assert_eq!(candidate[0].zero_hit_upper_95, 0.2);
+        assert_eq!(candidate[0].native_cohort_lower, 0.75);
         assert_eq!(candidate[1].reachability, "impossible_by_points");
-        assert_eq!(candidate[2].probability, 0.4);
-        assert_eq!(candidate[2].reachability, "pool_positive");
+        assert_eq!(candidate[1].native_cohort_lower, 0.8);
+        assert_eq!(candidate[2].probability, 0.);
+        assert_eq!(candidate[2].reachability, "impossible_conflict");
+        assert_eq!(candidate[2].zero_hit_upper_95, 0.);
+        assert_eq!(candidate[2].pool_guide, 0.);
+        assert_eq!(candidate[2].native_cohort_lower, 0.);
         assert_eq!(candidate[3].reachability, "witness");
         assert_eq!(candidate[4].reachability, "impossible_new");
         assert_eq!(candidate[4].zero_hit_upper_95, 0.);
-        assert_eq!(candidate[5].reachability, "undecided");
+        assert_eq!(candidate[5].probability, 0.1);
+        assert_eq!(candidate[5].hits, 1);
+        assert_eq!(candidate[5].reachability, "pool_positive");
     }
 
     #[test]

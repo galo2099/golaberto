@@ -718,16 +718,21 @@ pub(super) fn run(
     let reduce_floor = value("RUST_ODDS_RARE_TAIL_BRANCH_BOUND_FLOOR") == "1";
     let (mut found, mut work, mut attempted, mut skipped, mut setups_ms) = (0, 0, 0, 0, 0.);
     let (mut positive_attempted, mut positive_refined) = (0usize, 0usize);
+    let mut zero_attempted = 0usize;
     let mut positive_setup_fee_work = 0u64;
     let refund_checks = tree_mode || tree_enabled();
     let mut reclaimed_check_work = 0;
     let mut handled = Vec::new();
     let mut tree_eligible = Vec::new();
     for cell in cells.iter().copied() {
-        if attempted >= 8 {
-            break;
-        }
         let positive_refinement = estimates[cell.index(m.n)].probability > 0.0;
+        if positive_refinement {
+            if positive_attempted >= POSITIVE_BRANCH_LIMIT {
+                continue;
+            }
+        } else if zero_attempted >= 8 {
+            continue;
+        }
         if deterministic && !positive_refinement && zero_budget.reserved >= zero_budget.limit {
             if positive_branches_on {
                 continue;
@@ -748,15 +753,17 @@ pub(super) fn run(
         };
         let job_defensive_percent = job_defensive_percent(positive_refinement, defensive_percent);
         attempted += 1;
+        if positive_refinement {
+            positive_attempted += 1;
+        } else {
+            zero_attempted += 1;
+        }
         let old_estimate = positive_refinement.then(|| estimates[cell.index(m.n)].clone());
         let cell_pilot_draws = if positive_refinement {
             100
         } else {
             pilot_draws
         };
-        if positive_refinement {
-            positive_attempted += 1;
-        }
         let positive_prepaid_setup = if positive_refinement {
             match reserve_positive_setup_fee(job_budget, m) {
                 Some(fee) => fee,
@@ -771,7 +778,7 @@ pub(super) fn run(
                         "positive_setup_fee_unfundable",
                         fee,
                     );
-                    break;
+                    continue;
                 }
             }
         } else {
@@ -798,6 +805,26 @@ pub(super) fn run(
                 setup_work.div_ceil(budget::reference_cost(m))
             };
             if deterministic && !job_budget.reserve(charge) {
+                if positive_branches_on {
+                    skipped += 1;
+                    if positive_refinement {
+                        log_positive_skip(
+                            log,
+                            m,
+                            cell,
+                            old_estimate.as_ref().unwrap(),
+                            "certified target limits exceed remaining work budget",
+                            positive_prepaid_setup,
+                        );
+                    } else {
+                        emit(
+                            log,
+                            "rust_odds_rare_tail_branches_skip",
+                            json!({"group":m.request.id,"team":m.ids[cell.team],"rank":cell.rank+1,"reason":"certified target limits exceed remaining work budget"}),
+                        );
+                    }
+                    continue;
+                }
                 break;
             }
             emit(
@@ -866,7 +893,7 @@ pub(super) fn run(
                     "positive_setup_extra_unfundable",
                     positive_prepaid_setup,
                 );
-                break;
+                continue;
             }
             positive_setup_fee_work =
                 positive_setup_fee_work.saturating_add(positive_setup_extra as u64);
@@ -2245,9 +2272,63 @@ mod tests {
     }
 
     #[test]
+    fn accepted_positive_refinement_commits_improved_evidence() {
+        let old = Estimate {
+            probability: 1e-27,
+            std_err: 5e-28,
+            samples: 9000,
+            hits: 40,
+            ess: 5.0,
+            relative_se: Some(0.5),
+            max_event_weight_share: 0.3,
+            conditional_mass: 0.2,
+            conditional_samples: 9000,
+            conditional_hits: 40,
+            design: "previous design".into(),
+            ..Estimate::default()
+        };
+        let mut main = result(100, 1e-23, 40, 10.0, 0.1, 0.2);
+        let mut check = result(100, 1e-23, 40, 8.0, 0.2, 0.1);
+        main.mass = 0.25;
+        check.mass = 0.25;
+        let allocated = [100];
+        let coverage = positive_branch_coverage(
+            &[bound(1e-23)],
+            &[branch(main.clone())],
+            &[branch(check.clone())],
+            &allocated,
+            main.probability,
+            check.probability,
+        );
+        assert!(coverage.accepted);
+
+        let mut estimate = old.clone();
+        assert!(commit_positive_estimate(
+            &mut estimate,
+            &old,
+            &main,
+            &check,
+            &coverage
+        ));
+        assert_eq!(
+            estimate.design,
+            "matched_point_pool_complete_branches_positive"
+        );
+        assert_eq!(estimate.probability, main.probability);
+        assert_eq!(estimate.samples, old.samples);
+        assert_eq!(estimate.hits, old.hits);
+        assert_eq!(estimate.ess, main.ess);
+        assert_eq!(estimate.conditional_samples, main.samples);
+        assert_eq!(estimate.conditional_hits, main.hits);
+        assert!(estimate.conditional_mass > 0.0);
+    }
+
+    #[test]
     fn rejected_positive_refinement_preserves_estimate_atomically() {
         let old = Estimate {
             probability: 1e-27,
+            pool_guide: 0.0,
+            native_cohort_lower: 0.0,
             std_err: 2e-28,
             samples: 9000,
             hits: 40,

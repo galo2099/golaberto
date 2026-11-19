@@ -468,7 +468,32 @@ impl<'a> Backward<'a> {
         self.from_terminal(rng, outcomes, terminal);
     }
     pub fn from_terminal(&mut self, rng: &mut Rng, outcomes: &mut [u8], terminal: usize) {
-        let mut state = self.event.terminals[terminal].0;
+        let state = self.event.terminals[terminal].0;
+        self.from_state(rng, outcomes, state);
+    }
+
+    /// Sample fixture outcomes conditional on one team's exact added points.
+    /// The state must be present in the complete forward point DP; terminal
+    /// rank filtering is intentionally not consulted here.
+    pub fn from_points(&mut self, rng: &mut Rng, outcomes: &mut [u8], points: i32) -> bool {
+        if self.event.teams.len() != 1 || !(0..=255).contains(&points) {
+            return false;
+        }
+        let state = points as u64;
+        if self
+            .event
+            .forward
+            .last()
+            .and_then(|layer| layer.get(&state))
+            .is_none_or(|mass| *mass <= 0.0)
+        {
+            return false;
+        }
+        self.from_state(rng, outcomes, state);
+        true
+    }
+
+    fn from_state(&mut self, rng: &mut Rng, outcomes: &mut [u8], mut state: u64) {
         for i in (0..self.event.games.len()).rev() {
             let g = &self.event.games[i];
             let tr = if let Some(dense) = &self.dense {
@@ -1602,6 +1627,44 @@ mod analytic_score_tests {
                     .is_none()
             );
         }
+    }
+
+    #[test]
+    fn one_team_from_points_exposes_all_strata_and_exact_mass_ratios() {
+        let model = fixture_model("points", 0, 0);
+        let bounds = Bounds::new(&model);
+        let event = Event::build(&model, &bounds, 0, model.n - 1, &[], 100).unwrap();
+        let probabilities = model.fixtures[0].prob;
+        let expected = [
+            (0, probabilities[0]),
+            (1, probabilities[1]),
+            (3, probabilities[2]),
+        ];
+        for (points, mass) in expected {
+            let got = event
+                .forward
+                .last()
+                .unwrap()
+                .get(&(points as u64))
+                .copied()
+                .unwrap();
+            assert!((got - mass).abs() < 1e-12);
+            let mut backward = Backward::new(&event);
+            let mut outcomes = vec![9; model.fixtures.len()];
+            assert!(backward.from_points(&mut Rng::new(211), &mut outcomes, points));
+            assert_eq!(
+                outcomes[0],
+                match points {
+                    0 => 0,
+                    1 => 1,
+                    _ => 2,
+                }
+            );
+        }
+        assert!(!Backward::new(&event).from_points(&mut Rng::new(1), &mut vec![0], 2));
+        assert!(
+            (probabilities[2] / probabilities[0] - expected[2].1 / expected[0].1).abs() < 1e-12
+        );
     }
 
     #[test]

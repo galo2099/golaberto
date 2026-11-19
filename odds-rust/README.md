@@ -1,9 +1,11 @@
 # Rust odds and ratings service
 
-Native Rust odds and ratings service using the **matched point pool** estimator.
-It includes the initial game-importance scout, cost-selected outcome stratification,
-a general 100,000-season pool, exact point
-PMFs, uncertainty estimates, cap/floor proofs, conditional sampling, rank-directed
+The Rust odds service estimates finishing positions by matching teams on final
+points across 100,000 simulated seasons. A team can borrow a rank estimate
+when a complete season places that team in that rank under the competition's
+tiebreak rules. The service also uses outcome stratification when affordable.
+A separate scout measures game importance.
+The pipeline also uses exact point PMFs, impossibility proofs, conditional sampling, rank-directed
 importance sampling, neighborhood and constructive witnesses, point-tilt/gap
 rescues, cross-team witness reuse, directional/constraint peer rescues, propagated
 domains, reduced fixtures, and final matrix reconciliation.
@@ -129,8 +131,8 @@ The model indexes those directed results once. Each comparison visits only
 games touching the compared teams, retaining the same recursive mini-table
 rules without rescanning the match history.
 
-Before the general matched-point pool, the odds API compares the estimated work
-of outcome stratification with a 100,000-season simulation of the same model.
+The odds API compares the estimated work of outcome stratification with a
+100,000-season simulation of the same model.
 The checked plan accounts for outcome paths, score support, campaign copies,
 ranking comparisons, and conditional draws. These are logical work estimates,
 rather than a wall-clock deadline. Team count and a `pt,head` sort
@@ -184,21 +186,32 @@ score sampler; a missed score
 tail is never a proof of mathematical impossibility. Existing rare-event
 search still handles any cells left undecided.
 
-General search is gated by support for point-total conditioning, so a supported
-request can still receive rescue work after the pool falls back to plain Monte
-Carlo. A positive matched-pool estimate with no direct hits and no conditional
-evidence can also enter the rare-event confirmation stage when no unresolved
-zero cells are waiting. A deterministic cost forecast admits borrowed-cell
-retries against an allowance of 20,000 ordinary reference draws. It charges
-the mandatory pilot and independent main/check pair using a conservative
-proposal cost, and prioritizes the smallest positive probabilities. Expensive
-retries retain their pool estimates. This is a preflight allowance; admitted
-jobs still use the existing rare-event work budget and confirmation rules.
-The existing confirmation budget stays reserved for
-zero-cell recovery while any remain, so borrowed-cell retries cannot displace
-that work. Failed confirmations
-restore the original estimate and its metadata before the existing matrix
-reconciliation; only independent confirmation can replace its evidence.
+The proof checks each attainable points total. If wins follow points in the
+standings, it also checks wins at that total. This can rule out intermediate
+places even when the team's best and worst finishes lie on opposite sides of
+them. Joint proofs use the remaining schedule to rule out additional ranks
+before targeted sampling starts.
+
+A finish observed for another team on matching points supplies a pooled
+estimate. To use it for a team with zero direct hits, the service generates
+complete scorelines and checks the team's actual place with the production
+standings sorter. All scores in that season must be supported by the match
+model. The pool applies the same exclusions when balancing the full matrix and
+its ten jackknife replicates. A constructed season establishes feasibility and
+leaves the team's Monte Carlo hit count unchanged.
+
+Remaining candidates can enter the target-point sampler. It conditions on each feasible points
+total for the target team, draws scores for the remaining fixtures, and ranks the
+season with the competition's full tiebreak rules. It weights the observed rank
+frequencies by the original probabilities of those points totals. Its uncertainty
+and confirmation checks use the target team's observations. Cells without an
+accepted estimate continue through the other recovery methods.
+
+When goal-difference integration is supported, a final cohort pass reserves
+sampling work for remaining zero cells. It checks an estimate against independent
+full-score simulations before publication. Conflicting estimates can leave a
+finish classified as reachable with an upper bound.
+
 Goal-score tilting supports goal difference later in a points-first
 ranking order, including after head-to-head; sampled finishes always use the
 production sorter.
@@ -208,9 +221,8 @@ Matrix balancing retains the existing multiplicative normalization and its
 limit with residuals at most `1e-6`, a bounded additive repair can redistribute
 mass through supported cells. The repair locks exact zeros and entries at or
 below `1e-15`, retains bounded per-cell adjustments, and must pass the same
-validity check. Main and jackknife matrices use the same procedure; successful
-normalization results remain unchanged. If repair declines, matrices with at
-most 64 teams can receive up to 40,000 further normalization steps, still
+validity check. If repair declines, matrices with at most 64 teams can receive
+up to 40,000 further normalization steps, still
 requiring the same validity check. This extension preserves structural zeros;
 normalization can scale positive entries, including tiny ones.
 
@@ -255,8 +267,10 @@ odds-rust/target/release/golaberto-odds estimate \
 Arguments are request path, output path, seed, and worker count (1–4).
 The default seed is 808 for reproducible CLI experiments. Requests with zones
 include the 20,000-season game-importance scout; requests without zones return
-the same zero importance directly. Affordable stratification plans
-use the path estimator; other requests use the 100,000-season matched pool.
+the same zero importance directly. Affordable stratification plans use the path
+estimator. For larger searches, the service pools rank observations from the
+100,000 simulated seasons by final points. A zero-hit team can borrow an
+estimate for a rank it reaches in a verified score scenario.
 Timings go to stderr; the response goes to the output file.
 
 ```sh
@@ -326,13 +340,7 @@ Matrix balancing reuses a sparse workspace for matrices with at least 32 teams
 and at most 25% nonzero entries. Active values use contiguous storage, copied
 back before validation. It skips structural zeros while retaining the
 original row and column addition order, divisions, convergence tolerance,
-validation cadence, and iteration limit. This reduces repeated work in the
-matched pool, its ten jackknife matrices, and final reconciliation without
-changing the estimates or sampling budgets. Other matrices use the dense path.
-The ten jackknife calculations share the requested worker limit (1–4), with
-results restored to batch order before uncertainty is calculated. A failed
-batch retains the same successful prefix and plain-MC fallback as the serial
-calculation.
+validation cadence, and iteration limit. Other matrices use the dense path.
 
 If final search reconciliation cannot converge with ordinary balancing, it
 tries a bounded additive correction of the original candidate matrix. A
@@ -421,8 +429,8 @@ stderr. Each record includes a Unix timestamp in milliseconds, a request ID,
 and cumulative request wall time. Estimator records also include the group
 and seed, making a slow run reproducible.
 
-The stages include setup, the initial scout, pool MC, point PMFs, the matched
-matrix, jackknife uncertainty, point proofs, initial conditioning, guided and
+The stages include setup, the initial scout, pool guide, full-world MC,
+point PMFs, point proofs, initial conditioning, guided and
 extra search, witnesses, point tilts, neighborhood walk, peer/domain rescues,
 deferred joint-cap publication, and reconciliation. `rust_odds_joint_caps`
 records include the seed, setup/sampling times, acceptance and confirmation
@@ -772,9 +780,8 @@ window and historical sampling schedule.
 
 ## Configuration and scope
 
-The Rust executable selects the matched-pool pipeline directly; it does not
-require `RARE_POSITION_MATCHED_POINT_POOL=1`. Current default search stages
-are enabled. Their existing disable toggles are honored, including
+The Rust executable enables matched-point pooling and rare-position search
+by default. Their existing disable toggles are honored, including
 `RARE_POSITION_CONDITIONED_ZERO=0`,
 `RARE_POSITION_CONDITIONED_ZERO_LOOKAHEAD=0`,
 `RARE_POSITION_CONDITIONED_POINT_TILT=0`,
@@ -786,9 +793,8 @@ Historical CEM/diversified-only pipelines and optional million-draw deep
 experiments are outside this port. Worker and iteration controls come from
 the Rust interface, rather than Go's benchmark-only environment variables.
 The four-core benchmark uses the same ten fixed pool batches as parallel Go.
-Rust also retains these batch streams with one worker; Go's serial pool uses
-a different stream layout. Non-points standings or unsupported point PMFs
-fall back to plain MC.
+Rust also retains these batch streams with one worker. Non-points standings or
+unsupported point PMFs use plain Monte Carlo for the general estimator.
 
 ### Reachability defaults and experiments
 
@@ -940,21 +946,17 @@ MYSQL_TEST_URL=mysql://root@127.0.0.1:3306/GolAberto_development \
 Rust tests consume saved Go scout and rating outputs without building Go.
 The five synthetic 20-team scenarios in
 `tests/fixtures/rare_position_benchmarks` also run fixed-seed sampling and ranking
-regressions against their frozen 5M-season Go references. The default checks
-validate fixture hashes and matrix conservation, then compare probabilities
-with conservative allowances for sampling error. The same target checks the
-100,000-season production pool's matrix and its agreement with reference cells
-having at least 25 hits:
+regressions against their frozen 5M-season Go references. The tests check
+fixture hashes, matrix conservation, and agreement between the 100,000-season
+production estimates and reference cells with at least 25 hits.
 
 ```sh
 cargo test --release --locked --manifest-path odds-rust/Cargo.toml \
   --test rare_position_benchmarks
 ```
 
-The production comparison is an empirical regression gate for these fixed
-cases: its jackknife errors do not quantify pooling bias. The references are
-test expectations only. Sampling zeros do not certify an impossible finish,
-and these checks do not validate the rare-event fallback's extreme-tail accuracy.
+The frozen simulations measure agreement where they observed enough hits.
+Rare-event recovery and impossibility proofs have separate regression tests.
 
 The uploaded National Friendlies request is retained byte-for-byte in
 `tests/fixtures/group-16687-2026-10-12.json`. `tests/request_performance.rs`
@@ -1142,9 +1144,9 @@ offline; it does not change production reachability labels.
 
 ### Default rare-position coverage
 
-The default profile below funds a final weighted portfolio for cells still zero
-after the existing pipeline, with at most four workers. It preserves the
-scout, pooled MC, proofs and earlier positive estimates.
+The default profile below funds targeted recovery for cells still zero after
+proofs and earlier estimation, with at most four workers. Pool matches can
+also guide target-point sampling for finishes without an accepted estimate.
 
 ```sh
 ./odds-rust/target/release/golaberto-odds serve

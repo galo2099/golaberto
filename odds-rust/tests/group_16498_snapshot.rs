@@ -1,10 +1,10 @@
 use golaberto_odds::model::Model;
 use golaberto_odds::{
     api,
-    pool::Bounds,
+    pool::{Bounds, Estimate},
     rank_proof::{Options, RankProof},
     rng::Rng,
-    search::Cell,
+    search::{self, Cell},
 };
 use std::collections::{HashMap, HashSet};
 
@@ -204,6 +204,20 @@ fn november_19_cruzeiro_odds_and_point_win_bounds_preserve_tiebreak_cases() {
                 "place {}",
                 place + 1
             );
+            assert_eq!(
+                estimates[&place].zero_hit_upper_95,
+                0.0,
+                "place {}",
+                place + 1
+            );
+            assert_eq!(estimates[&place].hits, 0, "place {}", place + 1);
+            assert_eq!(
+                estimates[&place].conditional_samples,
+                0,
+                "place {}",
+                place + 1
+            );
+            assert_eq!(estimates[&place].conditional_hits, 0, "place {}", place + 1);
         }
     }
 
@@ -243,6 +257,135 @@ fn november_19_cruzeiro_odds_and_point_win_bounds_preserve_tiebreak_cases() {
             "team {rival_id} cannot finish 3rd"
         );
     }
+}
+
+#[test]
+fn large_private_guide_cannot_bypass_point_impossibility_proof() {
+    let model = Model::new(november_19_request()).unwrap();
+    let cruzeiro = model.indices[&15];
+    let target = cruzeiro * model.n + 4;
+    let mut estimates = vec![Estimate::default(); model.n * model.n];
+    for estimate in &mut estimates {
+        estimate.reachability = "impossible_elsewhere".into();
+    }
+    estimates[target].reachability = "undecided".into();
+    estimates[target].pool_guide = 1.;
+
+    assert_eq!(search::run(&model, 808, 1, &mut estimates), 0);
+    assert_eq!(estimates[target].probability, 0.);
+    assert_eq!(estimates[target].zero_hit_upper_95, 0.0);
+    assert!(
+        estimates[target].reachability.starts_with("impossible"),
+        "a private guide cannot override the proof: {}",
+        estimates[target].reachability
+    );
+    assert_eq!(estimates[target].conditional_samples, 0);
+    assert_eq!(estimates[target].conditional_hits, 0);
+}
+
+#[test]
+fn private_pool_guide_cannot_borrow_a_rank_blocked_by_immutable_goal_difference() {
+    use golaberto_odds::model::{Championship, Game, Phase, Request, Team};
+
+    let request = Request {
+        id: 1,
+        zones: vec![],
+        phase: Phase {
+            sort: "pt,gd,w,gf".into(),
+            championship: Championship {
+                point_win: 3,
+                point_draw: 1,
+                point_loss: 0,
+            },
+            bonus_points: 0,
+            bonus_points_threshold: 0,
+        },
+        // Each club finishes with 3 points and 1 win. The score margins put
+        // A (+2 GD) permanently ahead of B (-1 GD), despite B's equal points
+        // and wins. There are no remaining games that could change that order.
+        games: vec![
+            Game {
+                id: 1,
+                home_id: 1,
+                away_id: 2,
+                home_score: 3,
+                away_score: 0,
+                home_power: 1.0,
+                away_power: 1.0,
+                played: true,
+            },
+            Game {
+                id: 2,
+                home_id: 2,
+                away_id: 3,
+                home_score: 2,
+                away_score: 0,
+                home_power: 1.0,
+                away_power: 1.0,
+                played: true,
+            },
+            Game {
+                id: 3,
+                home_id: 3,
+                away_id: 1,
+                home_score: 1,
+                away_score: 0,
+                home_power: 1.0,
+                away_power: 1.0,
+                played: true,
+            },
+        ],
+        team_groups: [1, 2, 3]
+            .into_iter()
+            .map(|team_id| Team {
+                team_id,
+                add_sub: 0,
+                bias: 0,
+            })
+            .collect(),
+    };
+    let model = Model::new(request).unwrap();
+    let a = model.indices[&1];
+    let b = model.indices[&2];
+    assert_eq!((model.base[a].points, model.base[a].wins), (3, 1));
+    assert_eq!((model.base[b].points, model.base[b].wins), (3, 1));
+
+    let bounds = Bounds::new(&model);
+    assert!(
+        bounds.allowed(b, 0, 0),
+        "point/win bounds leave first place open"
+    );
+    assert!(
+        bounds.allowed(a, 0, 0),
+        "the mirrored first-place finish is feasible"
+    );
+
+    let mut order = vec![0; model.n];
+    model.standings(
+        &mut order,
+        &model.base,
+        &model.empty_scores(),
+        &mut Rng::new(808),
+    );
+    assert_eq!(
+        order[0], a,
+        "the completed scores witness A finishing first"
+    );
+
+    let mut estimates = vec![Estimate::default(); model.n * model.n];
+    for estimate in &mut estimates {
+        estimate.reachability = "impossible_elsewhere".into();
+    }
+    let target = b * model.n;
+    estimates[target].reachability = "undecided".into();
+    estimates[target].pool_guide = 1.0;
+
+    assert_eq!(search::run(&model, 808, 1, &mut estimates), 0);
+    assert_eq!(estimates[target].probability, 0.0);
+    assert_eq!(estimates[target].zero_hit_upper_95, 0.0);
+    assert_eq!(estimates[target].reachability, "impossible_by_rank_support");
+    assert_eq!(estimates[target].conditional_samples, 0);
+    assert_eq!(estimates[target].conditional_hits, 0);
 }
 
 #[test]

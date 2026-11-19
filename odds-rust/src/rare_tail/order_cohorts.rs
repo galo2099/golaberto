@@ -138,54 +138,11 @@ fn feasible_fallback_trigger(arm_health: &[bool], analytic_gd: bool) -> Option<&
     }
 }
 
-pub(crate) fn has_weak_eligible_cells(
-    m: &Model,
-    estimates: &[Estimate],
-    positive_baselines: Option<&[(usize, Estimate)]>,
-) -> bool {
+pub(crate) fn has_weak_eligible_cells(m: &Model, estimates: &[Estimate]) -> bool {
     if cohort_score_mode() != "analytic_gd_cohort" || !crate::score_integral::supported(m) {
         return false;
     }
-    if estimates.iter().any(weak_positive) {
-        return true;
-    }
-    positive_baselines.is_some_and(|baselines| {
-        baselines.iter().any(|(index, baseline)| {
-            let current = estimates.get(*index).unwrap_or(baseline);
-            weak_positive(if dominates_positive(current, baseline) {
-                current
-            } else {
-                baseline
-            })
-        })
-    })
-}
-
-fn dominates_positive(candidate: &Estimate, baseline: &Estimate) -> bool {
-    candidate.probability.is_finite()
-        && candidate.probability > 0.0
-        && candidate.ess.is_finite()
-        && candidate.ess > baseline.ess
-        && relative_se(candidate) < relative_se(baseline)
-}
-
-fn restore_positive_baselines(
-    estimates: &mut [Estimate],
-    baselines: &[(usize, Estimate)],
-) -> (usize, usize) {
-    let mut restored = 0;
-    let mut kept_better = 0;
-    for (index, baseline) in baselines {
-        if let Some(current) = estimates.get_mut(*index) {
-            if dominates_positive(current, baseline) {
-                kept_better += 1;
-            } else {
-                *current = baseline.clone();
-                restored += 1;
-            }
-        }
-    }
-    (restored, kept_better)
+    estimates.iter().any(weak_positive)
 }
 
 fn candidate_cells(
@@ -325,31 +282,33 @@ impl NativeEvidence {
 
 #[derive(Clone, Copy, Debug)]
 struct NativeGdDisagreement {
-    native_lower: f64,
-    gd_upper: f64,
+    prior_lower: f64,
+    pair_upper: f64,
 }
 
-fn native_gd_disagreement(
-    native: &[Option<NativeEvidence>; 2],
-    gd_main: &Result,
-    gd_check: &Result,
+fn independent_pair_conflict(
+    retained_independent_lower: f64,
+    main: &Result,
+    check: &Result,
 ) -> Option<NativeGdDisagreement> {
-    let gd_upper = [gd_main, gd_check]
+    let competing_upper = [main, check]
         .iter()
         .filter(|r| r.probability.is_finite() && r.std_err.is_finite() && r.std_err >= 0.0)
         .map(|r| r.probability + 2.0 * r.std_err)
         .reduce(f64::max)?;
-    native
-        .iter()
-        .flatten()
-        .copied()
-        .map(NativeEvidence::two_se_lower)
-        .filter(|lower| *lower > gd_upper)
-        .map(|native_lower| NativeGdDisagreement {
-            native_lower,
-            gd_upper,
+    (retained_independent_lower.is_finite() && retained_independent_lower > competing_upper)
+        .then_some(NativeGdDisagreement {
+            prior_lower: retained_independent_lower,
+            pair_upper: competing_upper,
         })
-        .max_by(|a, b| a.native_lower.total_cmp(&b.native_lower))
+}
+
+fn update_native_cohort_lower(estimate: &mut Estimate, main: &Result, check: &Result) {
+    estimate.native_cohort_lower = [main, check]
+        .iter()
+        .filter_map(|result| NativeEvidence::from_result(result))
+        .map(NativeEvidence::two_se_lower)
+        .fold(estimate.native_cohort_lower, f64::max);
 }
 
 pub(crate) fn log_status(
@@ -371,21 +330,12 @@ pub(super) fn run(
     workers: usize,
     estimates: &mut [Estimate],
     log: Option<&crate::logging::RequestLog>,
-    positive_baselines: Option<&[(usize, Estimate)]>,
 ) -> Outcome {
     let capacity = budget::capacity(m, budget::scaled(2 * budget::REFERENCE_DRAWS, 0.45));
     let rough = crate::rare_tail::value("RUST_ODDS_RARE_TAIL_QUALITY") == "order";
     let analytic_gd = positive_refinement_enabled(m);
-    let (restored_baselines, kept_better_baselines) = if analytic_gd {
-        positive_baselines.map_or((0, 0), |baselines| {
-            restore_positive_baselines(estimates, baselines)
-        })
-    } else {
-        (0, 0)
-    };
     let native_cells = candidate_cells(estimates, m.n, false, &m.ids, request_seed);
     let native_candidate_count = native_cells.len();
-    let mut native_evidence = vec![[None; 2]; estimates.len()];
     let mut totals = run_pass(
         m,
         request_seed,
@@ -396,7 +346,7 @@ pub(super) fn run(
         native_cells,
         false,
         rough,
-        &mut native_evidence,
+        None,
     );
     let mut gd_totals = PassTotals::default();
     let mut gd_candidate_count = 0;
@@ -420,7 +370,7 @@ pub(super) fn run(
                 gd_cells,
                 true,
                 rough,
-                &mut native_evidence,
+                None,
             );
         }
     }
@@ -444,12 +394,88 @@ pub(super) fn run(
     emit(
         log,
         "rust_odds_expected_cohorts_summary",
-        json!({"enabled":true,"budget_mode":budget::mode(),"score_mode":if analytic_gd {"analytic_gd_cohort"} else {"sampled"},"gd_eligible":crate::score_integral::supported(m),"restored_donor_baselines":restored_baselines,"kept_better_donor_estimates":kept_better_baselines,"selected_weak_positive_candidates":gd_weak_candidate_count,"replaced_weak_positives":totals.accepted_weak_positives,"preserved_weak_positives":gd_weak_candidate_count.saturating_sub(totals.accepted_weak_positives),"preserved_reason":"failed_publication_or_improvement_gate_or_budget","candidate_cells":native_candidate_count+gd_candidate_count,"selected":totals.selected,"accepted":totals.accepted,"reserve":capacity,"forecast_capacity":capacity,"setup_pilot_work":totals.setup_pilot_work,"actual_work":totals.actual_work,"actual_final_work":totals.actual_final_work,"forecast_pair_work":totals.forecast_pair_work,"overrun":totals.overrun,"capacity_exceeded":totals.actual_work>capacity}),
+        json!({"enabled":true,"budget_mode":budget::mode(),"score_mode":if analytic_gd {"analytic_gd_cohort"} else {"sampled"},"gd_eligible":crate::score_integral::supported(m),"selected_weak_positive_candidates":gd_weak_candidate_count,"replaced_weak_positives":totals.accepted_weak_positives,"preserved_weak_positives":gd_weak_candidate_count.saturating_sub(totals.accepted_weak_positives),"preserved_reason":"failed_publication_or_improvement_gate_or_budget","candidate_cells":native_candidate_count+gd_candidate_count,"selected":totals.selected,"accepted":totals.accepted,"reserve":capacity,"forecast_capacity":capacity,"setup_pilot_work":totals.setup_pilot_work,"actual_work":totals.actual_work,"actual_final_work":totals.actual_final_work,"forecast_pair_work":totals.forecast_pair_work,"overrun":totals.overrun,"capacity_exceeded":totals.actual_work>capacity}),
     );
     Outcome {
         accepted: totals.accepted,
         legacy_sample_work: totals.legacy_sample_work,
     }
+}
+
+/// Final bounded recovery for cells left at zero by the broad proposal pass.
+/// A native paired pass runs first so its independent evidence can veto any
+/// conflicting analytic-GD publication, using the same rule as the main pass.
+pub(crate) fn recover_remaining_gd(
+    m: &Model,
+    request_seed: i64,
+    workers: usize,
+    estimates: &mut [Estimate],
+    log: Option<&crate::logging::RequestLog>,
+) -> (usize, u64) {
+    if !enabled() || !budget::modeled() || !positive_refinement_enabled(m) {
+        log_status(
+            log,
+            m.request.id,
+            enabled() && budget::modeled(),
+            budget::mode(),
+        );
+        return (0, 0);
+    }
+
+    let capacity = budget::capacity(m, budget::scaled(2 * budget::REFERENCE_DRAWS, 0.45));
+    let rough = crate::rare_tail::value("RUST_ODDS_RARE_TAIL_QUALITY") == "order";
+    let native_cells = candidate_cells(estimates, m.n, false, &m.ids, request_seed);
+    // Reserve most of this recovery allowance for GD publication. Native work
+    // is still sampled first so any complete independent pair can veto a GD
+    // estimate, but its pass cannot consume nearly all of this stage's budget.
+    let native_capacity = capacity / 3;
+    let native = run_pass(
+        m,
+        request_seed,
+        workers,
+        estimates,
+        log,
+        native_capacity,
+        native_cells,
+        false,
+        rough,
+        Some("final_recovery_native"),
+    );
+    let remaining = capacity.saturating_sub(native.actual_work);
+    let gd_cells = candidate_cells(estimates, m.n, false, &m.ids, request_seed);
+    let gd = if remaining > 0 && !gd_cells.is_empty() {
+        run_pass(
+            m,
+            request_seed,
+            workers,
+            estimates,
+            log,
+            remaining,
+            gd_cells,
+            true,
+            rough,
+            Some("final_recovery_gd"),
+        )
+    } else {
+        PassTotals::default()
+    };
+    emit(
+        log,
+        "rust_odds_expected_cohorts_final_recovery_summary",
+        json!({
+            "group":m.request.id,"enabled":true,"budget_mode":budget::mode(),
+            "capacity":capacity,"native_work":native.actual_work,"gd_work":gd.actual_work,
+            "accepted":native.accepted+gd.accepted,
+            "remaining_cells":candidate_cells(estimates,m.n,false,&m.ids,request_seed).len(),
+            "capacity_exceeded":native.actual_work.saturating_add(gd.actual_work)>capacity
+        }),
+    );
+    (
+        native.accepted + gd.accepted,
+        native
+            .legacy_sample_work
+            .saturating_add(gd.legacy_sample_work),
+    )
 }
 
 fn run_pass(
@@ -462,13 +488,13 @@ fn run_pass(
     cells: Vec<Cell>,
     analytic_gd: bool,
     rough: bool,
-    native_evidence: &mut [[Option<NativeEvidence>; 2]],
+    stage_override: Option<&str>,
 ) -> PassTotals {
-    let pass_name = if analytic_gd {
+    let pass_name = stage_override.unwrap_or(if analytic_gd {
         "gd_refinement"
     } else {
         "native_recovery"
-    };
+    });
     let initial_capacity = capacity;
     let mut actual_total = 0usize;
     let mut setup_pilot_work = 0usize;
@@ -1243,13 +1269,10 @@ fn run_pass(
         let estimate = &mut estimates[cell.index(m.n)];
         let old_probability = estimate.probability;
         if !analytic_gd && pair_is_complete {
-            native_evidence[cell.index(m.n)] = [
-                NativeEvidence::from_result(&main),
-                NativeEvidence::from_result(&check),
-            ];
+            update_native_cohort_lower(estimate, &main, &check);
         }
-        let disagreement = if analytic_gd && old_probability == 0.0 && quality_ok {
-            native_gd_disagreement(&native_evidence[cell.index(m.n)], &main, &check)
+        let disagreement = if quality_ok {
+            independent_pair_conflict(estimate.native_cohort_lower, &main, &check)
         } else {
             None
         };
@@ -1319,7 +1342,7 @@ fn run_pass(
         let replacement_reason = if committed {
             "both_streams_improved"
         } else if disagreement.is_some() {
-            "native_gd_disagreement"
+            "independent_estimate_disagreement"
         } else if old_probability > 0.0 && !ok {
             "failed_independent_publication_gate"
         } else if old_probability > 0.0 {
@@ -1330,7 +1353,7 @@ fn run_pass(
         emit(
             log,
             "rust_odds_expected_cohorts_pair",
-            json!({"team":m.ids[cell.team],"rank":cell.rank+1,"stage":pass_name,"method":winner_method,"score_mode":if analytic_gd {"analytic_gd_cohort"} else {"sampled"},"candidate_kind":candidate_kind,"old_probability":if old_probability>0.0 {Some(old_probability)} else {None},"replacement_reason":replacement_reason,"native_gd_disagreement":disagreement.map(|d|json!({"native_lower_two_se":d.native_lower,"gd_upper_two_se":d.gd_upper})),"width":winner_width,"pilot_hits":pilot.hits,"pilot_ess":pilot.ess,"efficiency_score":score,"requested_draws":draws,"execution_cap":pair_forecast,"main_draws":main.samples,"main_hits":main.hits,"main_ess":main.ess,"check_draws":check.samples,"check_hits":check.hits,"check_ess":check.ess,"probability":main.probability,"check_probability":check.probability,"accepted":committed,"publication_gate":ok,"forecast_pair_work":pair_forecast,"actual_pair_work":actual_pair,"overrun":pair_overrun,"setup_ms":stage_ms,"pilot_ms":pilot_ms}),
+            json!({"team":m.ids[cell.team],"rank":cell.rank+1,"stage":pass_name,"method":winner_method,"score_mode":if analytic_gd {"analytic_gd_cohort"} else {"sampled"},"candidate_kind":candidate_kind,"old_probability":if old_probability>0.0 {Some(old_probability)} else {None},"replacement_reason":replacement_reason,"independent_pair_conflict":disagreement.map(|d|json!({"prior_lower":d.prior_lower,"competing_pair_upper_two_se":d.pair_upper})),"width":winner_width,"pilot_hits":pilot.hits,"pilot_ess":pilot.ess,"efficiency_score":score,"requested_draws":draws,"execution_cap":pair_forecast,"main_draws":main.samples,"main_hits":main.hits,"main_ess":main.ess,"check_draws":check.samples,"check_hits":check.hits,"check_ess":check.ess,"probability":main.probability,"check_probability":check.probability,"accepted":committed,"publication_gate":ok,"forecast_pair_work":pair_forecast,"actual_pair_work":actual_pair,"overrun":pair_overrun,"setup_ms":stage_ms,"pilot_ms":pilot_ms}),
         );
         if actual_total > initial_capacity {
             break;
@@ -1679,18 +1702,26 @@ mod tests {
     }
 
     #[test]
-    fn native_gd_disagreement_uses_qualified_two_se_intervals() {
-        let native = NativeEvidence::from_result(&Result {
+    fn retained_evidence_conflicts_use_qualified_two_se_intervals() {
+        let qualified = NativeEvidence::from_result(&Result {
             probability: 10.0,
             std_err: 1.0,
             hits: 30,
             ess: 3.0,
             ..Default::default()
-        });
-        assert!(native.is_some());
-        let native = [native, None];
-        let separated = native_gd_disagreement(
-            &native,
+        })
+        .unwrap();
+        assert_eq!(qualified.two_se_lower(), 8.0);
+        assert!(NativeEvidence::from_result(&Result {
+            probability: 10.0,
+            std_err: 1.0,
+            hits: 29,
+            ess: 3.0,
+            ..Default::default()
+        })
+        .is_none());
+        let separated = independent_pair_conflict(
+            qualified.two_se_lower(),
             &Result {
                 probability: 1.0,
                 std_err: 1.0,
@@ -1703,47 +1734,82 @@ mod tests {
             },
         )
         .unwrap();
-        assert_eq!(separated.native_lower, 8.0);
-        assert_eq!(separated.gd_upper, 4.0);
+        assert_eq!(separated.prior_lower, 8.0);
+        assert_eq!(separated.pair_upper, 4.0);
 
-        let overlapping = [
-            NativeEvidence::from_result(&Result {
-                probability: 10.0,
-                std_err: 3.0,
+        let overlapping = NativeEvidence::from_result(&Result {
+            probability: 10.0,
+            std_err: 3.0,
+            hits: 30,
+            ess: 3.0,
+            ..Default::default()
+        })
+        .unwrap()
+        .two_se_lower();
+        assert!(independent_pair_conflict(
+            overlapping,
+            &Result {
+                probability: 1.0,
+                std_err: 5.0,
+                ..Default::default()
+            },
+            &Result {
+                probability: 1.0,
+                std_err: 5.0,
+                ..Default::default()
+            },
+        )
+        .is_none());
+        assert!(independent_pair_conflict(
+            0.0,
+            &Result {
+                probability: 1.0,
+                std_err: 0.1,
+                ..Default::default()
+            },
+            &Result {
+                probability: 1.0,
+                std_err: 0.1,
+                ..Default::default()
+            },
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn weaker_native_retry_cannot_bypass_retained_disagreement_evidence() {
+        let mut estimate = Estimate {
+            native_cohort_lower: 8.0,
+            ..Estimate::default()
+        };
+        update_native_cohort_lower(
+            &mut estimate,
+            &Result {
+                probability: 4.0,
+                std_err: 1.0,
                 hits: 30,
                 ess: 3.0,
                 ..Default::default()
-            }),
-            None,
-        ];
-        assert!(native_gd_disagreement(
-            &overlapping,
+            },
+            &Result::default(),
+        );
+        assert_eq!(estimate.native_cohort_lower, 8.0);
+        let retry = independent_pair_conflict(
+            estimate.native_cohort_lower,
             &Result {
                 probability: 1.0,
-                std_err: 5.0,
+                std_err: 1.0,
                 ..Default::default()
             },
             &Result {
-                probability: 1.0,
-                std_err: 5.0,
-                ..Default::default()
-            },
-        )
-        .is_none());
-        assert!(native_gd_disagreement(
-            &[None, None],
-            &Result {
-                probability: 1.0,
-                std_err: 0.1,
-                ..Default::default()
-            },
-            &Result {
-                probability: 1.0,
-                std_err: 0.1,
+                probability: 2.0,
+                std_err: 1.0,
                 ..Default::default()
             },
         )
-        .is_none());
+        .unwrap();
+        assert_eq!(retry.prior_lower, 8.0);
+        assert_eq!(retry.pair_upper, 4.0);
     }
 
     #[test]
@@ -1876,48 +1942,6 @@ mod tests {
             panic!("truncated pair unexpectedly passed its publication gate");
         }
         assert_eq!(serde_json::to_value(&old).unwrap(), before);
-    }
-
-    #[test]
-    fn donor_baseline_is_restored_unless_temporary_tail_estimate_dominates_it() {
-        let baseline = Estimate {
-            probability: 1e-7,
-            std_err: 0.5e-7,
-            ess: 20.0,
-            work_spent: 1234,
-            design: "donor_baseline".into(),
-            conditional_samples: 100,
-            ..Default::default()
-        };
-        let mut estimates = vec![
-            Estimate::default(),
-            Estimate {
-                probability: 0.9e-7,
-                std_err: 0.6e-7,
-                ess: 30.0,
-                design: "weaker_tail_result".into(),
-                ..Default::default()
-            },
-            Estimate {
-                probability: 1.2e-7,
-                std_err: 0.3e-7,
-                ess: 25.0,
-                design: "better_tail_result".into(),
-                ..Default::default()
-            },
-        ];
-        let (restored, kept) = restore_positive_baselines(
-            &mut estimates,
-            &[
-                (0, baseline.clone()),
-                (1, baseline.clone()),
-                (2, baseline.clone()),
-            ],
-        );
-        assert_eq!((restored, kept), (2, 1));
-        assert_eq!(estimates[0].design, "donor_baseline");
-        assert_eq!(estimates[1].design, "donor_baseline");
-        assert_eq!(estimates[2].design, "better_tail_result");
     }
 
     #[test]

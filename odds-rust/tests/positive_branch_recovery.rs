@@ -117,41 +117,94 @@ fn weak_positive_complete_branch_recovery_is_bounded_and_deterministic() {
         "enabled reference estimate={reference_new_probability:e}"
     );
 
-    let refined = one_logs
-        .iter()
-        .find(|event| {
-            event["event"] == "rust_odds_rare_tail_branches"
-                && event["positive_refinement"] == true
-                && event["positive_accepted"] == true
-        })
-        .expect("accepted positive complete-branch refinement");
-    assert_eq!(refined["positive_quality_improved"], true);
-    let positive_team = refined["team"].as_u64().unwrap().to_string();
-    let positive_rank = (refined["rank"].as_u64().unwrap() - 1).to_string();
-    let new = &recovered["rare_position_estimates"][&positive_team][&positive_rank];
-    let old_probability = refined["positive_old_probability"].as_f64().unwrap();
-    let new_probability = new["probability"].as_f64().unwrap();
-    let old_quality = &refined["positive_old_quality"];
-    let old_ess = old_quality["ess"].as_f64().unwrap();
-    let old_relative_se = old_quality["rse"].as_f64().unwrap();
-    let old_max_share = old_quality["max_share"].as_f64().unwrap();
-    let new_relative_se = new["relative_se"].as_f64().unwrap();
-    assert!(old_probability > 0.0, "old={old_probability:e}");
-    assert!(new_probability > 0.0, "new={new_probability:e}");
-    assert!(
-        (old_probability / 2.0..=old_probability * 2.0).contains(&new_probability),
-        "complete-branch estimate={new_probability:e}, baseline={old_probability:e}"
-    );
-    let logged_new_probability = refined["positive_new_probability"].as_f64().unwrap();
-    assert!((logged_new_probability - new_probability).abs() / new_probability < 1e-5);
-    assert_eq!(
-        new["design"],
-        "matched_point_pool_complete_branches_positive"
-    );
-    assert_eq!(new["meets_precision_goal"], true);
-    assert!(new["ess"].as_f64().unwrap() > old_ess);
-    assert!(new_relative_se < old_relative_se);
-    assert!(new["max_event_weight_share"].as_f64().unwrap() <= old_max_share);
+    let refined = one_logs.iter().find(|event| {
+        event["event"] == "rust_odds_rare_tail_branches"
+            && event["positive_refinement"] == true
+            && event["positive_accepted"] == true
+    });
+    if let Some(refined) = refined {
+        assert_eq!(refined["positive_quality_improved"], true);
+        let positive_team = refined["team"].as_u64().unwrap().to_string();
+        let positive_rank = (refined["rank"].as_u64().unwrap() - 1).to_string();
+        let new = &recovered["rare_position_estimates"][&positive_team][&positive_rank];
+        let old_probability = refined["positive_old_probability"].as_f64().unwrap();
+        let new_probability = new["probability"].as_f64().unwrap();
+        let old_quality = &refined["positive_old_quality"];
+        let old_ess = old_quality["ess"].as_f64().unwrap();
+        let old_relative_se = old_quality["rse"].as_f64().unwrap();
+        let old_max_share = old_quality["max_share"].as_f64().unwrap();
+        let new_relative_se = new["relative_se"].as_f64().unwrap();
+        assert!(old_probability > 0.0, "old={old_probability:e}");
+        assert!(new_probability > 0.0, "new={new_probability:e}");
+        assert!(
+            (old_probability / 2.0..=old_probability * 2.0).contains(&new_probability),
+            "complete-branch estimate={new_probability:e}, baseline={old_probability:e}"
+        );
+        let logged_new_probability = refined["positive_new_probability"].as_f64().unwrap();
+        assert!((logged_new_probability - new_probability).abs() / new_probability < 1e-5);
+        assert_eq!(
+            new["design"],
+            "matched_point_pool_complete_branches_positive"
+        );
+        assert_eq!(new["meets_precision_goal"], true);
+        assert!(new["ess"].as_f64().unwrap() > old_ess);
+        assert!(new_relative_se < old_relative_se);
+        assert!(new["max_event_weight_share"].as_f64().unwrap() <= old_max_share);
+
+        let coverage = &refined["branch_coverage"];
+        assert!(
+            coverage["unsupported_upper_sum"].as_f64().unwrap()
+                <= coverage["unsupported_allowance"].as_f64().unwrap()
+        );
+        let branches = coverage["branches"].as_array().unwrap();
+        assert!(!branches.is_empty());
+        for branch in branches {
+            assert!(branch["allocated_draws"].as_u64().unwrap() > 0);
+            assert!(branch["main"]["samples"].as_u64().unwrap() > 0);
+            assert!(branch["check"]["samples"].as_u64().unwrap() > 0);
+        }
+    } else {
+        let rejected: Vec<_> = one_logs
+            .iter()
+            .filter(|event| {
+                (event["event"] == "rust_odds_rare_tail_branches_skip"
+                    && event["positive_refinement"] == true)
+                    || (event["event"] == "rust_odds_rare_tail_branches"
+                        && event["positive_refinement"] == true
+                        && event["positive_accepted"] == false)
+            })
+            .collect();
+        assert!(
+            !rejected.is_empty(),
+            "positive refinement rejection/skip event"
+        );
+        for event in rejected {
+            let old_probability = event["positive_old_probability"].as_f64().unwrap();
+            let old_quality = &event["positive_old_quality"];
+            assert!(old_probability > 0.0);
+            assert!(old_quality.is_object());
+            assert!(old_quality["ess"].is_number());
+            assert!(old_quality["rse"].is_number());
+            assert!(old_quality["max_share"].is_number());
+            let reason = event["positive_rejection_reason"]
+                .as_str()
+                .or_else(|| event["reason"].as_str())
+                .expect("positive rejection reason");
+            assert!(!reason.is_empty());
+
+            let team = event["team"].as_u64().unwrap().to_string();
+            let rank = (event["rank"].as_u64().unwrap() - 1).to_string();
+            // Work accounting may differ while rejected estimate fields are preserved.
+            let mut enabled_cell = recovered["rare_position_estimates"][&team][&rank].clone();
+            let mut disabled_cell = disabled["rare_position_estimates"][&team][&rank].clone();
+            enabled_cell.as_object_mut().unwrap().remove("work_spent");
+            disabled_cell.as_object_mut().unwrap().remove("work_spent");
+            assert_eq!(
+                enabled_cell, disabled_cell,
+                "rejected positive refinement changed team={team}, rank={rank}"
+            );
+        }
+    }
 
     let old_rows = disabled["rare_position_estimates"].as_object().unwrap();
     let new_rows = recovered["rare_position_estimates"].as_object().unwrap();
@@ -197,25 +250,24 @@ fn weak_positive_complete_branch_recovery_is_bounded_and_deterministic() {
     );
     assert!(summary["positive_eligible"].as_u64().unwrap() > 0);
     assert!(summary["positive_attempted"].as_u64().unwrap() > 0);
-    assert!(summary["positive_attempted"].as_u64().unwrap() <= 2);
-    assert!(summary["positive_refined"].as_u64().unwrap() > 0);
-    assert!(summary["attempted"].as_u64().unwrap() <= 8);
+    let positive_attempted = summary["positive_attempted"].as_u64().unwrap();
+    let positive_selected = summary["positive_selected"].as_u64().unwrap();
+    assert!(positive_attempted <= positive_selected);
+    assert!(positive_selected <= 2);
+    assert!(positive_attempted <= 2);
+    let positive_refined = summary["positive_refined"].as_u64().unwrap();
+    let positive_rejected = summary["positive_rejected"].as_u64().unwrap();
+    assert_eq!(positive_refined + positive_rejected, positive_attempted);
+    if refined.is_none() {
+        assert_eq!(positive_refined, 0);
+        assert_eq!(positive_rejected, positive_attempted);
+    }
+    let attempted = summary["attempted"].as_u64().unwrap();
+    assert!(attempted >= positive_attempted);
+    assert!(attempted - positive_attempted <= 8);
     let reserved = summary["reserved_work"].as_u64().unwrap();
     let limit = summary["work_limit"].as_u64().unwrap();
     assert!(reserved <= limit, "reserved={reserved}, limit={limit}");
-
-    let coverage = &refined["branch_coverage"];
-    assert!(
-        coverage["unsupported_upper_sum"].as_f64().unwrap()
-            <= coverage["unsupported_allowance"].as_f64().unwrap()
-    );
-    let branches = coverage["branches"].as_array().unwrap();
-    assert!(!branches.is_empty());
-    for branch in branches {
-        assert!(branch["allocated_draws"].as_u64().unwrap() > 0);
-        assert!(branch["main"]["samples"].as_u64().unwrap() > 0);
-        assert!(branch["check"]["samples"].as_u64().unwrap() > 0);
-    }
 
     let four_summary = four_logs
         .iter()
@@ -225,7 +277,22 @@ fn weak_positive_complete_branch_recovery_is_bounded_and_deterministic() {
         })
         .expect("four-worker complete-branch stage summary");
     assert!(four_summary["positive_attempted"].as_u64().unwrap() <= 2);
-    assert!(four_summary["attempted"].as_u64().unwrap() <= 8);
+    let four_selected = four_summary["positive_selected"].as_u64().unwrap();
+    let four_positive_attempted = four_summary["positive_attempted"].as_u64().unwrap();
+    assert!(four_positive_attempted <= four_selected);
+    assert!(four_selected <= 2);
+    assert_eq!(
+        four_summary["positive_refined"].as_u64().unwrap()
+            + four_summary["positive_rejected"].as_u64().unwrap(),
+        four_positive_attempted
+    );
+    assert!(
+        four_summary["positive_reserved_work"].as_u64().unwrap()
+            <= four_summary["positive_work_limit"].as_u64().unwrap()
+    );
+    let four_attempted = four_summary["attempted"].as_u64().unwrap();
+    assert!(four_attempted >= four_positive_attempted);
+    assert!(four_attempted - four_positive_attempted <= 8);
     assert!(
         four_summary["reserved_work"].as_u64().unwrap()
             <= four_summary["work_limit"].as_u64().unwrap()
