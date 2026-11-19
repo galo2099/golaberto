@@ -561,6 +561,122 @@ fn extra(
 pub fn run(model: &Model, seed: i64, workers: usize, estimates: &mut [Estimate]) -> u64 {
     run_logged(model, seed, workers, estimates, None)
 }
+
+fn run_tail_fallback(
+    model: &Model,
+    seed: i64,
+    workers: usize,
+    estimates: &mut [Estimate],
+    log: Option<&crate::logging::RequestLog>,
+    intervals: &[(usize, f64, f64)],
+    bounds: &[(usize, f64, f64)],
+) -> u64 {
+    let selected = std::env::var("RUST_ODDS_TAIL_ALGORITHM").ok();
+    let profile = crate::rare_tail::profile();
+    let Some(mode) = tail_fallback_mode(selected.as_deref(), &profile) else {
+        return 0;
+    };
+    if !tail_fallback_supported(model)
+        || model.fixtures.is_empty()
+        || estimates.len() != model.n.saturating_mul(model.n)
+        || !estimates.iter().any(|estimate| {
+            estimate.probability == 0. && !estimate.reachability.starts_with("impossible")
+        })
+    {
+        return 0;
+    }
+    let baseline = estimates.to_vec();
+    let (conditioned_accepted, conditioned_work) = if mode != "particles" {
+        crate::tail_conditioned::run(model, seed, workers, estimates, log)
+    } else {
+        (0, 0)
+    };
+    let (particle_accepted, particle_work) = if mode != "conditioned"
+        && estimates.iter().any(|estimate| {
+            estimate.probability == 0. && !estimate.reachability.starts_with("impossible")
+        }) {
+        crate::tail_particles::run(model, seed, workers, estimates, log)
+    } else {
+        (0, 0)
+    };
+    let accepted = conditioned_accepted.saturating_add(particle_accepted);
+    let spent = conditioned_work.saturating_add(particle_work);
+    let mut retained = accepted;
+    let mut rolled_back = false;
+    if accepted > 0 {
+        let valid = reconcile(model, estimates, &baseline)
+            && crate::pool::valid(
+                &estimates.iter().map(|e| e.probability).collect::<Vec<_>>(),
+                model.n,
+            )
+            && baseline
+                .iter()
+                .zip(estimates.iter())
+                .all(|(before, after)| {
+                    (before.probability <= 0. || after.probability > 0.)
+                        && (!before.reachability.starts_with("impossible")
+                            || (after.probability == 0.
+                                && after.reachability.starts_with("impossible")))
+                })
+            && intervals.iter().all(|(index, lower, upper)| {
+                let p = estimates[*index].probability;
+                let tolerance =
+                    16. * f64::EPSILON * lower.abs().max(upper.abs()).max(f64::MIN_POSITIVE);
+                p.is_finite() && p >= *lower - tolerance && p <= *upper + tolerance
+            })
+            && bounds.iter().all(|(index, floor, upper)| {
+                let p = estimates[*index].probability;
+                p.is_finite()
+                    && p + floor.abs().max(f64::MIN_POSITIVE) * 1e-10 >= *floor
+                    && p <= *upper + upper.abs().max(f64::MIN_POSITIVE) * 1e-10
+            });
+        if !valid {
+            estimates.clone_from_slice(&baseline);
+            retained = 0;
+            rolled_back = true;
+        }
+    }
+    if let Some(log) = log {
+        log.event(
+            "rust_odds_tail_fallback_reconcile",
+            serde_json::json!({"algorithm":mode,"conditioned_accepted":conditioned_accepted,
+                "particle_accepted":particle_accepted,"accepted":retained,
+                "rolled_back":rolled_back,"work":spent}),
+        );
+    }
+    spent
+}
+
+fn tail_fallback_mode(selected: Option<&str>, profile: &str) -> Option<&'static str> {
+    match selected {
+        Some("particles") => Some("particles"),
+        Some("conditioned") => Some("conditioned"),
+        Some(_) => None,
+        None if profile == "coverage" => Some("conditioned_then_particles"),
+        None => None,
+    }
+}
+
+pub(crate) fn tail_fallback_supported(model: &Model) -> bool {
+    let rules = &model.request.phase.championship;
+    (1..=64).contains(&model.n)
+        && model.ids.len() == model.n
+        && model.request.team_groups.len() == model.n
+        && model.fixtures.len() <= 256
+        && rules.point_win == 3
+        && rules.point_draw == 1
+        && rules.point_loss == 0
+        && model.request.phase.bonus_points == 0
+        && model.keys.first() == Some(&Key::Pt)
+        && model.fixtures.iter().all(|fixture| {
+            fixture.home < model.n
+                && fixture.away < model.n
+                && fixture.home != fixture.away
+                && fixture.home_sampler.mean.is_finite()
+                && fixture.away_sampler.mean.is_finite()
+        })
+}
+
 pub fn run_logged(
     model: &Model,
     seed: i64,
@@ -576,7 +692,7 @@ pub fn run_logged(
     // count fixes the rank.  Ties and all score-dependent keys remain open.
     prove_saturated_by_points(model, estimates);
     let complement_baseline = estimates.to_vec();
-    let complement = crate::native_complement::run(model, seed, estimates);
+    let mut complement = crate::native_complement::run(model, seed, estimates);
     let complemented = complement.components;
     let complement_work = complement.work;
     work = work.saturating_add(complement_work);
@@ -600,6 +716,7 @@ pub fn run_logged(
         {
             restore_baseline_preserving_reachability(estimates, &complement_baseline);
             complement_rolled_back = true;
+            complement.intervals.clear();
         }
     }
     if let Some(log) = log {
@@ -666,6 +783,15 @@ pub fn run_logged(
         );
     }
     if !rank_rescue.enabled {
+        work = work.saturating_add(run_tail_fallback(
+            model,
+            seed,
+            workers,
+            estimates,
+            log,
+            &complement.intervals,
+            &exact_caps.bounds,
+        ));
         let packed_phase = std::time::Instant::now();
         let packed = packed_witness_fallback(model, estimates);
         if let Some(log) = log {
@@ -748,6 +874,16 @@ pub fn run_logged(
             }),
         );
     }
+    work = work.saturating_add(rescue_work);
+    work = work.saturating_add(run_tail_fallback(
+        model,
+        seed,
+        workers,
+        estimates,
+        log,
+        &complement.intervals,
+        &exact_caps.bounds,
+    ));
     let packed_phase = std::time::Instant::now();
     let packed = packed_witness_fallback(model, estimates);
     if let Some(log) = log {
@@ -757,7 +893,7 @@ pub fn run_logged(
             serde_json::json!(packed),
         );
     }
-    work.saturating_add(rescue_work)
+    work
 }
 
 fn prove_saturated_by_points(model: &Model, estimates: &mut [Estimate]) {
@@ -1941,6 +2077,143 @@ fn restore_baseline_preserving_reachability(estimates: &mut [Estimate], baseline
         {
             restored.reachability = candidate.reachability;
         }
+    }
+}
+
+#[cfg(test)]
+mod tail_fallback_eligibility_tests {
+    use super::{run_tail_fallback, tail_fallback_mode, tail_fallback_supported};
+    use crate::model::{Model, Request};
+    use crate::pool::Estimate;
+    use serde_json::json;
+
+    fn group(n: usize, games: Vec<serde_json::Value>, points: [i32; 3]) -> Model {
+        let request: Request = serde_json::from_value(json!({
+            "id": 7305,
+            "phase": {"sort":"pt,gd", "championship":{"point_win":points[0],"point_draw":points[1],"point_loss":points[2]}},
+            "team_groups": (0..n).map(|team| json!({"team_id":team,"add_sub":0})).collect::<Vec<_>>(),
+            "games": games
+        })).unwrap();
+        Model::new(request).unwrap()
+    }
+
+    fn one_game() -> Vec<serde_json::Value> {
+        vec![json!({"id":1,"home_id":0,"away_id":1,"home_power":0.4,"away_power":0.5})]
+    }
+
+    fn tiny_fallback_model() -> Model {
+        let request: Request = serde_json::from_value(json!({
+            "id": 7306,
+            "phase": {"sort":"pt,gd", "championship":{"point_win":3,"point_draw":1,"point_loss":0}},
+            "team_groups": [
+                {"team_id":0,"add_sub":0},
+                {"team_id":1,"add_sub":0},
+                {"team_id":2,"add_sub":-100}
+            ],
+            "games": [{"id":1,"home_id":0,"away_id":1,"home_power":0.4,"away_power":0.5}]
+        }))
+        .unwrap();
+        Model::new(request).unwrap()
+    }
+
+    #[test]
+    fn fallback_support_covers_small_groups_and_32_team_groups() {
+        for n in [2, 3, 32, 64] {
+            assert!(
+                tail_fallback_supported(&group(n, one_game(), [3, 1, 0])),
+                "n={n}"
+            );
+        }
+        assert!(tail_fallback_supported(&group(1, vec![], [3, 1, 0])));
+        assert!(!tail_fallback_supported(&group(65, vec![], [3, 1, 0])));
+    }
+
+    #[test]
+    fn fallback_modes_cover_default_and_explicit_algorithms() {
+        assert_eq!(
+            tail_fallback_mode(None, "coverage"),
+            Some("conditioned_then_particles")
+        );
+        assert_eq!(
+            tail_fallback_mode(Some("conditioned"), "default"),
+            Some("conditioned")
+        );
+        assert_eq!(
+            tail_fallback_mode(Some("particles"), "default"),
+            Some("particles")
+        );
+        assert_eq!(tail_fallback_mode(None, "default"), None);
+    }
+
+    #[test]
+    fn fallback_support_rejects_extra_teams_nonstandard_rules_and_oversized_schedules() {
+        let external = group(
+            2,
+            vec![json!({"id":1,"home_id":0,"away_id":2,"home_power":0.4,"away_power":0.5})],
+            [3, 1, 0],
+        );
+        assert!(!tail_fallback_supported(&external));
+        assert!(!tail_fallback_supported(&group(2, one_game(), [2, 1, 0])));
+        let schedule = (0..257)
+            .map(|id| json!({"id":id,"home_id":0,"away_id":1,"home_power":0.4,"away_power":0.5}))
+            .collect();
+        assert!(!tail_fallback_supported(&group(2, schedule, [3, 1, 0])));
+    }
+
+    fn unresolved_matrix(model: &Model) -> Vec<Estimate> {
+        let mut estimates = vec![Estimate::default(); model.n * model.n];
+        estimates[0].reachability = "undecided".into();
+        estimates[1] = Estimate {
+            probability: 1.,
+            design: "prior_estimate".into(),
+            reachability: "witness".into(),
+            ..Estimate::default()
+        };
+        estimates[model.n] = Estimate {
+            probability: 1.,
+            design: "prior_estimate".into(),
+            reachability: "witness".into(),
+            ..Estimate::default()
+        };
+        estimates[model.n + 1].reachability = "undecided".into();
+        estimates[2].reachability = "impossible:fixed_last".into();
+        estimates[model.n + 2].reachability = "impossible:fixed_last".into();
+        estimates[2 * model.n].reachability = "impossible:fixed_last".into();
+        estimates[2 * model.n + 1].reachability = "impossible:fixed_last".into();
+        estimates[2 * model.n + 2].probability = 1.;
+        estimates
+    }
+
+    #[test]
+    fn tiny_default_fallback_resolves_a_cell_and_rolls_back_prior_bound_violation() {
+        assert_eq!(
+            tail_fallback_mode(None, &crate::rare_tail::profile()),
+            Some("conditioned_then_particles")
+        );
+        let model = tiny_fallback_model();
+        let mut estimates = unresolved_matrix(&model);
+        let original_positive_design = estimates[1].design.clone();
+        let original_impossible = estimates[2].reachability.clone();
+        run_tail_fallback(&model, 731, 1, &mut estimates, None, &[], &[]);
+        assert!(estimates[0].probability > 0.);
+        assert_eq!(estimates[1].design, original_positive_design);
+        assert_eq!(estimates[2].reachability, original_impossible);
+
+        let mut constrained = unresolved_matrix(&model);
+        let baseline = constrained.clone();
+        run_tail_fallback(
+            &model,
+            732,
+            1,
+            &mut constrained,
+            None,
+            &[],
+            &[(1, 0.99, 1.0)],
+        );
+        assert_eq!(
+            serde_json::to_value(&constrained).unwrap(),
+            serde_json::to_value(&baseline).unwrap()
+        );
     }
 }
 

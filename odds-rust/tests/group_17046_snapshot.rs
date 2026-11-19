@@ -52,12 +52,29 @@ fn run_cli(seed: i64, workers: usize, output: &Path) -> (serde_json::Value, Vec<
     )
 }
 
-fn packed_witness_log(stderr: &[u8]) -> serde_json::Value {
+fn log_events(stderr: &[u8]) -> Vec<serde_json::Value> {
     String::from_utf8_lossy(stderr)
         .lines()
         .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
-        .find(|event| event["stage"] == "search.packed_witness")
-        .expect("packed witness stage log")
+        .collect()
+}
+
+fn stage_position(events: &[serde_json::Value], stage: &str) -> usize {
+    events
+        .iter()
+        .position(|event| event["stage"] == stage)
+        .unwrap_or_else(|| panic!("missing {stage} stage log"))
+}
+
+fn event_position(events: &[serde_json::Value], name: &str) -> usize {
+    events
+        .iter()
+        .position(|event| event["event"] == name)
+        .unwrap_or_else(|| panic!("missing {name} event"))
+}
+
+fn packed_witness_log(events: &[serde_json::Value]) -> &serde_json::Value {
+    &events[stage_position(events, "search.packed_witness")]
 }
 
 fn snapshot_request() -> (serde_json::Value, Request) {
@@ -243,7 +260,17 @@ fn november_5_default_production_cli_resolves_the_complete_rank_grid() {
                 .join(format!("seed-{seed}-workers-{workers}.json")),
         );
         if workers == 4 {
-            let packed = packed_witness_log(&stderr);
+            let events = log_events(&stderr);
+            let tail = stage_position(&events, "search.rare_tail");
+            let reconcile = stage_position(&events, "search.reconcile");
+            let fallback_reconcile = event_position(&events, "rust_odds_tail_fallback_reconcile");
+            let proof = stage_position(&events, "search.packed_witness");
+            // Default endpoint order finishes tail sampling and reconciliation before proof.
+            assert!(
+                tail < reconcile && reconcile < fallback_reconcile && fallback_reconcile < proof,
+                "tail sampling, reconciliation, and packed proof stages must remain ordered"
+            );
+            let packed = packed_witness_log(&events);
             let nodes = packed["nodes"].as_u64().expect("packed witness node count");
             assert!(nodes > 0 && nodes <= 6_000, "packed witness nodes: {nodes}");
             assert!(packed["candidates"].as_u64().unwrap() > 0, "{packed}");

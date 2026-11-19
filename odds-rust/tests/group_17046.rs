@@ -138,6 +138,16 @@ fn seed_808_returns_a_complete_finite_reachable_matrix() {
 
     assert_eq!(response.team_odds.len(), 36);
     assert_eq!(response.rare_position_estimates.len(), 36);
+    let team_639_final_rank = &response.rare_position_estimates[&639][&35];
+    assert_eq!(team_639_final_rank.reachability, "reachable");
+    assert_eq!(team_639_final_rank.design, "pilot_sized_lazy_conditioned");
+    assert!(team_639_final_rank.probability > 0.);
+    assert!(team_639_final_rank.ess.is_finite() && team_639_final_rank.ess > 0.);
+    assert!(team_639_final_rank.conditional_hits >= 30);
+    assert!(team_639_final_rank.conditional_samples >= 16_384);
+    assert!(team_639_final_rank.ess >= 4.);
+    assert!(team_639_final_rank.max_event_weight_share <= 0.35);
+    assert!(team_639_final_rank.relative_se.unwrap() <= 0.6);
     let mut positive_cells = 0;
     for (&team_id, odds) in &response.team_odds {
         assert_eq!(odds.pos.len(), 36, "team {team_id}");
@@ -185,7 +195,10 @@ fn seed_808_returns_a_complete_finite_reachable_matrix() {
         let total: f64 = response.team_odds.values().map(|odds| odds.pos[rank]).sum();
         assert!((total - 100.).abs() < 1e-9, "rank {}: {total}", rank + 1);
     }
-    assert!(positive_cells >= 1273, "positive cells: {positive_cells}");
+    assert!(
+        positive_cells == 1296,
+        "positive cells: {positive_cells} (pre-change seed 808 count: 1276)"
+    );
 }
 
 #[test]
@@ -216,6 +229,8 @@ fn cli_admission_audit_covers_overflow_seeds_and_recycles_unused_grants() {
         "seed 808 response changed with worker count or logging"
     );
 
+    let mut aggregate_positive_cells = 0u64;
+    let mut found_conditioned_pair = false;
     for seed in 808..=812 {
         let logs = if seed == 808 {
             seed_808_logs.clone()
@@ -229,6 +244,11 @@ fn cli_admission_audit_covers_overflow_seeds_and_recycles_unused_grants() {
             );
             logs
         };
+        let complete = logs
+            .iter()
+            .find(|event| event["event"] == "rust_odds_complete")
+            .unwrap();
+        aggregate_positive_cells += complete["cells"]["positive"].as_u64().unwrap();
         let overflow = logs
             .iter()
             .find(|event| event["event"] == "rust_odds_target_overflow_tree_summary")
@@ -326,5 +346,44 @@ fn cli_admission_audit_covers_overflow_seeds_and_recycles_unused_grants() {
         assert_eq!(audited_training, actual_total);
         assert_eq!(native_capacity, stage_capacity);
         assert!(audited_training + final_operations <= native_capacity);
+
+        for event in logs
+            .iter()
+            .filter(|event| event["event"] == "rust_odds_tail_conditioned_cell")
+        {
+            if event["accepted"] != true {
+                continue;
+            }
+            let main_probability = event["main"]["probability"].as_f64().unwrap();
+            let check_probability = event["check"]["probability"].as_f64().unwrap();
+            let agreement = main_probability / check_probability;
+            assert!((0.2..=5.).contains(&agreement), "seed {seed}: pair ratio {agreement}");
+            for (stream_name, minimum_ess, maximum_relative_se) in
+                [("main", 4., 0.6), ("check", 3., 0.75)]
+            {
+                let stream = &event[stream_name];
+                assert_eq!(stream["pilot_samples"].as_u64(), Some(4096));
+                let final_samples = stream["final_samples"].as_u64().unwrap();
+                let final_hits = stream["final_hits"].as_u64().unwrap();
+                let ess = stream["ess"].as_f64().unwrap();
+                let relative_se = stream["relative_se"].as_f64().unwrap();
+                assert!(final_samples >= 16_384, "seed {seed}, {stream_name}: {final_samples}");
+                assert!(final_hits >= 30, "seed {seed}, {stream_name}: {final_hits} hits");
+                assert!(
+                    ess.is_finite() && ess >= minimum_ess,
+                    "seed {seed}, {stream_name}: ESS {ess} < {minimum_ess}"
+                );
+                assert!(
+                    relative_se.is_finite() && relative_se <= maximum_relative_se,
+                    "seed {seed}, {stream_name}: relative SE {relative_se} > {maximum_relative_se}"
+                );
+            }
+            found_conditioned_pair = true;
+        }
     }
+    assert!(
+        aggregate_positive_cells >= 6460,
+        "seed 808..=812 aggregate positive cells: {aggregate_positive_cells} (pre-change aggregate: 6396)"
+    );
+    assert!(found_conditioned_pair, "missing accepted conditioned pair");
 }

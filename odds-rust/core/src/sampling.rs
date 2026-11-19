@@ -195,10 +195,13 @@ impl Scores {
         assert!(!v.is_empty(), "zero mass outcome");
         let u = rng.float();
         let mut i = self.lookup[outcome][(u * 256.) as usize] as usize;
-        while i < v.len() && v[i].1 < u {
+        // The RNG returns values strictly below one and every nonempty
+        // conditional CDF ends at exactly one, so this search always stops
+        // before the end of `v`.
+        while v[i].1 < u {
             i += 1;
         }
-        v[i.min(v.len() - 1)].0
+        v[i].0
     }
 }
 

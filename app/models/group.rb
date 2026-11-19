@@ -23,7 +23,10 @@ class Group < ApplicationRecord
   def odds(games_json: nil, snapshot_time: Time.zone.now, persist_game_importance: true, persist_team_odds: true, persist_group_progress: true)
     req = Net::HTTP::Post.new("/odds", {'Content-Type' =>'application/json'})
     req.body = odds_request(games_json: games_json).to_json
-    response = Net::HTTP.new("localhost", 6577).start {|http| http.request(req) }
+    response = Net::HTTP.new("localhost", 6577).start do |http|
+      http.read_timeout = 300
+      http.request(req)
+    end
     calculated_odds = ActiveSupport::JSON.decode(response.body)
     ActiveRecord::Base.transaction do
       team_groups.each do |t|

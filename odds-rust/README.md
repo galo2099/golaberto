@@ -21,6 +21,45 @@ additional portfolio uses deterministic work limits and the documented
 rough-estimate gates below.
 `RUST_ODDS_RARE_TAIL=0` disables the additional portfolio.
 
+After the bounded portfolio and the existing recovery stages, coverage gives
+unresolved cells additional sampling outside the portfolio's work cap. This
+applies to points-first groups of up to 64 teams with 3/1/0 scoring, no bonus
+points, and 1–256 remaining fixtures. Every fixture must be between group teams.
+Estimation and confirmation each train an independent proposal for the target
+team's results.
+A separate 4,096-draw pilot sizes each final batch to aim for 128 effective
+samples. The final batches range from 16,384 to 524,288 draws per stream.
+
+For positions still unresolved near either end of the table, a particle filter
+simulates the target team's matches first. It then completes each rival's
+schedule in turn, resampling partial seasons according to the points still
+available to the other rivals. Independent groups of particles provide the
+estimate and its uncertainty. Both stages preserve previously established
+probability bounds. Set `RUST_ODDS_TAIL_ALGORITHM=conditioned` or `particles`
+to run either stage alone, or `off` to disable both.
+
+The [small-group benchmark](../experiments/rare_positions/results/all-group-sizes-tail-coverage.csv)
+compares the previous size cutoff with the expanded sampler on 17 fixtures
+at seed 808. Seeds 809 and 810 repeat the four snapshots with gaps and one
+20-team control. Counts use the final response from `estimate` with four
+workers. Timing columns record elapsed seconds for separate, sequential
+release runs on six fixtures at seed 808. To compare the sampler on a small
+fixture, run `golaberto-odds estimate INPUT OUTPUT SEED 4` with the default
+settings and again with `RUST_ODDS_TAIL_ALGORITHM=off`.
+
+The conditional sampler schedules estimation and confirmation independently.
+When a target outcome pattern is sampled repeatedly, it can reuse the valid
+outcomes and rank probabilities for each team's reachable point totals. In the
+rank calculation, a rival with probability one shifts the required count by
+one, and only rivals with fractional probabilities need multiplication.
+
+The [sampler benchmark results](../experiments/rare_positions/results/odds-sampler-speed.csv)
+include two elapsed-time measurements per release build on eight fixtures.
+Each timing used `golaberto-odds estimate INPUT OUTPUT 808 4` with request
+logging disabled. The total time averaged 133.94 seconds before the change
+and 64.69 seconds after it. All 43 fixture and seed combinations in the file
+also returned identical JSON through `POST /odds`.
+
 The coverage profile also enables the bounded **family fallback** by default.
 It learns rival points/wins patterns from failed native confirmation batches,
 then fits proposals only for cells still at zero after all native searches.

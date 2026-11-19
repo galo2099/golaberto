@@ -147,7 +147,7 @@ class GroupTest < ActiveSupport::TestCase
       'game_importance' => {}
     }.to_json)
 
-    fake_http = Object.new
+    fake_http = Struct.new(:read_timeout).new
     fake_http.define_singleton_method(:request) { |_req| response }
     fake_client = Object.new
     fake_client.define_singleton_method(:start) { |&block| block.call(fake_http) }
@@ -165,6 +165,7 @@ class GroupTest < ActiveSupport::TestCase
         )
       end
     end
+    assert_equal 300, fake_http.read_timeout
 
     snapshot = tg_home.odds_histories.find_by!(recorded_on: Date.new(2024, 6, 1))
     assert_equal [0.65, 0.35], snapshot.reload.odds

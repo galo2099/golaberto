@@ -3,12 +3,13 @@
 use crate::budget::Operations;
 use crate::{
     conditioned::canonical,
-    model::{Campaign, Key, Model},
+    model::{Campaign, Fixture, Key, Model},
     rng::Rng,
     sampling::masses,
     search_support::Cell,
 };
 use std::collections::HashMap;
+use std::sync::Arc;
 const BETAS: [f64; 9] = [-3., -2., -1., -0.5, 0., 0.5, 1., 2., 3.];
 const MAX_JOINT_GUIDES: usize = 6;
 const MAX_JOINT_SELECTED_FIXTURES: usize = 96;
@@ -87,10 +88,58 @@ impl JointProposal {
             .sum()
     }
 }
+
+/// Replace a score contribution without changing the fixture's W/D/L.
+/// Points and result counts are then unchanged; only goal totals and the
+/// away-side goal total need adjustment.
+#[inline]
+fn replace_same_outcome(
+    campaigns: &mut [Campaign],
+    fixture: &Fixture,
+    old: [i32; 2],
+    new: [i32; 2],
+) {
+    let home_goals = new[0] - old[0];
+    let away_goals = new[1] - old[1];
+    campaigns[fixture.home].gf += home_goals;
+    campaigns[fixture.home].ga += away_goals;
+    campaigns[fixture.away].gf += away_goals;
+    campaigns[fixture.away].ga += home_goals;
+    campaigns[fixture.away].away += away_goals;
+}
+
+#[inline]
+fn sample_target_score(
+    tables: &[Vec<Table>],
+    table_index: usize,
+    fixture: &Fixture,
+    target: usize,
+    outcome: usize,
+    drawn: usize,
+    chosen: usize,
+    rng: &mut Rng,
+) -> ([i32; 2], f64, f64) {
+    let table = &tables[table_index][drawn];
+    let values = &table.values[outcome];
+    let u = rng.float();
+    let score = values[values
+        .partition_point(|(_, p)| *p < u)
+        .min(values.len() - 1)]
+    .0;
+    let log_z = tables[table_index][chosen].log_z[outcome];
+    let gain = if fixture.home == target {
+        score[0] - score[1]
+    } else {
+        score[1] - score[0]
+    } as f64;
+    (score, log_z, gain)
+}
+
 #[derive(Clone)]
 pub struct GoalTilt {
     cell: Cell,
     tables: Vec<Vec<Table>>,
+    target_fixtures: Arc<[usize]>,
     joint_enabled: bool,
 }
 impl GoalTilt {
@@ -201,11 +250,17 @@ impl GoalTilt {
             return None;
         }
         let joint_enabled = Self::joint_guidance_may_fit(m, Some(cell.team));
-        let tables = m
+        let target_fixtures: Arc<[usize]> = m
             .fixtures
             .iter()
-            .filter(|f| f.home == cell.team || f.away == cell.team)
-            .map(|f| {
+            .enumerate()
+            .filter_map(|(i, f)| (f.home == cell.team || f.away == cell.team).then_some(i))
+            .collect::<Vec<_>>()
+            .into();
+        let tables = target_fixtures
+            .iter()
+            .map(|&i| {
+                let f = &m.fixtures[i];
                 let h = masses(f.home_sampler.mean);
                 let a = masses(f.away_sampler.mean);
                 let sign = if f.home == cell.team { 1. } else { -1. };
@@ -261,6 +316,7 @@ impl GoalTilt {
         Some(Self {
             cell,
             tables,
+            target_fixtures,
             joint_enabled,
         })
     }
@@ -732,72 +788,119 @@ impl GoalTilt {
                 }
             })
         };
-        let above = (0..m.n)
-            .filter(|&t| t != target && compare(&c[t], &c[target]).is_gt())
-            .count();
         let ties = &mut context.ties;
         ties.clear();
-        ties.extend(
-            (0..m.n)
-                .filter(|&t| t != target && compare(&c[t], &c[target]).is_eq())
-                .map(|t| c[t].gf - c[t].ga),
-        );
+        let mut above = 0;
+        for t in 0..m.n {
+            if t == target {
+                continue;
+            }
+            match compare(&c[t], &c[target]) {
+                std::cmp::Ordering::Greater => above += 1,
+                std::cmp::Ordering::Equal => ties.push(c[t].gf - c[t].ga),
+                std::cmp::Ordering::Less => {}
+            }
+        }
         if ties.is_empty() {
             return (above, 1.);
         }
         if self.cell.rank < above || self.cell.rank > above + ties.len() {
             return (above, 1.);
         }
+        let large_native_prefix = m.n > 32
+            && (matches!(m.keys.as_slice(), [Key::Pt, Key::Gd, ..])
+                || matches!(m.keys.as_slice(), [Key::Pt, Key::W, Key::Gd, ..]));
+        if large_native_prefix {
+            // Freeze non-target scores once, then include canonical target
+            // contributions when measuring each rival's actual GD.
+            for (i, f) in m.fixtures.iter().enumerate() {
+                if f.home != target && f.away != target {
+                    let old = canonical(out[i]);
+                    let score = f.scores.sample(out[i] as usize, rng);
+                    scores[f.request_index] = score;
+                    replace_same_outcome(c, f, old, score);
+                }
+            }
+            ties.clear();
+            ties.extend(
+                (0..m.n)
+                    .filter(|&t| t != target && compare(&c[t], &c[target]).is_eq())
+                    .map(|t| c[t].gf - c[t].ga),
+            );
+        }
         ties.sort_by(|a, b| b.cmp(a));
         let k = self.cell.rank - above;
-        let desired = if k == 0 {
-            ties[0] as f64 + 1.
-        } else if k == ties.len() {
-            ties[k - 1] as f64 - 1.
-        } else {
-            (ties[k - 1] + ties[k]) as f64 * 0.5
-        };
         let mut means = [(m.base[target].gf - m.base[target].ga) as f64; 9];
-        let mut ix = 0;
-        for (i, f) in m.fixtures.iter().enumerate() {
-            if f.home == target || f.away == target {
-                for b in 0..9 {
-                    means[b] += self.tables[ix][b].mean[out[i] as usize];
-                }
-                ix += 1;
+        for (ix, &i) in self.target_fixtures.iter().enumerate() {
+            for b in 0..9 {
+                means[b] += self.tables[ix][b].mean[out[i] as usize];
             }
         }
+        let native_mean = means[4];
+        let (goal_difference_target, prefer_native_on_tie) = if large_native_prefix {
+            let (lower, upper) = if k == 0 {
+                (ties[0] as f64 + 1., f64::INFINITY)
+            } else if k == ties.len() {
+                (f64::NEG_INFINITY, ties[k - 1] as f64 - 1.)
+            } else {
+                (ties[k] as f64, ties[k - 1] as f64)
+            };
+            (native_mean.clamp(lower, upper), true)
+        } else {
+            let desired = if k == 0 {
+                ties[0] as f64 + 1.
+            } else if k == ties.len() {
+                ties[k - 1] as f64 - 1.
+            } else {
+                (ties[k - 1] + ties[k]) as f64 * 0.5
+            };
+            (desired, false)
+        };
         let chosen = (0..9)
             .min_by(|&a, &b| {
-                (means[a] - desired)
+                (means[a] - goal_difference_target)
                     .abs()
-                    .total_cmp(&(means[b] - desired).abs())
+                    .total_cmp(&(means[b] - goal_difference_target).abs())
+                    .then_with(|| {
+                        if prefer_native_on_tie {
+                            (a != 4).cmp(&(b != 4))
+                        } else {
+                            std::cmp::Ordering::Equal
+                        }
+                    })
             })
             .unwrap();
         let drawn = if rng.float() < 0.1 { 4 } else { chosen };
-        c.copy_from_slice(&m.base);
-        ix = 0;
         let (mut log_z, mut gain) = (0., 0.);
-        for (i, f) in m.fixtures.iter().enumerate() {
-            let o = out[i] as usize;
-            let score = if f.home == target || f.away == target {
-                let table = &self.tables[ix][drawn];
-                let v = &table.values[o];
-                let u = rng.float();
-                let score = v[v.partition_point(|(_, p)| *p < u).min(v.len() - 1)].0;
-                log_z += self.tables[ix][chosen].log_z[o];
-                gain += if f.home == target {
-                    score[0] - score[1]
+        if large_native_prefix {
+            for (ix, &i) in self.target_fixtures.iter().enumerate() {
+                let f = &m.fixtures[i];
+                let o = out[i] as usize;
+                let (score, fixture_log_z, fixture_gain) =
+                    sample_target_score(&self.tables, ix, f, target, o, drawn, chosen, rng);
+                log_z += fixture_log_z;
+                gain += fixture_gain;
+                replace_same_outcome(c, f, canonical(out[i]), score);
+                scores[f.request_index] = score;
+            }
+        } else {
+            c.copy_from_slice(&m.base);
+            let mut ix = 0;
+            for (i, f) in m.fixtures.iter().enumerate() {
+                let o = out[i] as usize;
+                let score = if f.home == target || f.away == target {
+                    let (score, fixture_log_z, fixture_gain) =
+                        sample_target_score(&self.tables, ix, f, target, o, drawn, chosen, rng);
+                    log_z += fixture_log_z;
+                    gain += fixture_gain;
+                    ix += 1;
+                    score
                 } else {
-                    score[1] - score[0]
-                } as f64;
-                ix += 1;
-                score
-            } else {
-                f.scores.sample(o, rng)
-            };
-            scores[f.request_index] = score;
-            m.add(c, i, score);
+                    f.scores.sample(o, rng)
+                };
+                scores[f.request_index] = score;
+                m.add(c, i, score);
+            }
         }
         m.standings(order, c, scores, rng);
         let density = (BETAS[chosen] * gain - log_z).exp();
@@ -823,6 +926,36 @@ mod tests {
     use super::*;
     use crate::model::Request;
     use serde_json::json;
+
+    #[test]
+    fn same_outcome_campaign_replacement_matches_full_replay() {
+        let request: Request = serde_json::from_value(json!({
+            "id": 1,
+            "phase": {"sort":"pt,gd", "championship":{"point_win":4,"point_draw":2,"point_loss":-1}},
+            "team_groups": [
+                {"team_id":0,"add_sub":0,"bias":0},
+                {"team_id":1,"add_sub":0,"bias":0}
+            ],
+            "games": [
+                {"id":0,"home_id":1,"away_id":0,"home_score":3,"away_score":4,"played":true},
+                {"id":1,"home_id":0,"away_id":1,"home_power":1.2,"away_power":0.8}
+            ]
+        }))
+        .unwrap();
+        let model = Model::new(request).unwrap();
+        let fixture = &model.fixtures[0];
+        assert_eq!(model.base[0].away, 4);
+
+        for (old, actual) in [([0, 1], [0, 4]), ([0, 0], [3, 3]), ([1, 0], [5, 2])] {
+            let mut updated = model.base.clone();
+            model.add(&mut updated, 0, old);
+            replace_same_outcome(&mut updated, fixture, old, actual);
+
+            let mut replayed = model.base.clone();
+            model.add(&mut replayed, 0, actual);
+            assert_eq!(updated, replayed);
+        }
+    }
 
     #[test]
     fn production_comparator_guidance_captures_recursive_head_goal_coefficients() {
@@ -1223,6 +1356,47 @@ mod tests {
             }
         }
         favorable
+    }
+
+    #[test]
+    fn large_league_marginal_matches_exact_rank_with_fixed_non_target_scores() {
+        let request: Request = serde_json::from_value(json!({
+            "id": 1,
+            "phase": {"sort": "pt,gd,bias", "championship": {"point_win": 3, "point_draw": 1, "point_loss": 0}},
+            "team_groups": (0..33).map(|team| json!({"team_id": team, "add_sub": 0, "bias": team})).collect::<Vec<_>>(),
+            "games": [
+                {"id": 1, "home_id": 1, "away_id": 0, "home_power": 1.2, "away_power": 0.8},
+                {"id": 2, "home_id": 2, "away_id": 3, "home_power": 1.2, "away_power": 0.8}
+            ]
+        })).unwrap();
+        let mut model = Model::new(request).unwrap();
+        // Both teams finish on three points. The unrelated future fixture is
+        // incident on the tied rival, so its fixed score changes the GD cutoff.
+        model.base[2].gf = 1;
+        let outcomes = [0, 2];
+        for rank in [0, 1] {
+            let expected = exact_conditional_rank(&model, &outcomes, 0, rank);
+            assert!(expected > 0. && expected < 1., "rank={rank}, p={expected}");
+            let proposal = GoalTilt::new(&model, Cell { team: 0, rank }).unwrap();
+            let mut rng = Rng::new(901 + rank as i64);
+            let mut context = Context::new(&model);
+            let (mut weighted, mut weighted2) = (0., 0.);
+            let n = 30_000;
+            for _ in 0..n {
+                let (observed_rank, weight) =
+                    proposal.rank_marginal(&model, &outcomes, &mut rng, &mut context);
+                if observed_rank == rank {
+                    weighted += weight;
+                    weighted2 += weight * weight;
+                }
+            }
+            let mean = weighted / n as f64;
+            let se = ((weighted2 / n as f64 - mean * mean) / (n - 1) as f64).sqrt();
+            assert!(
+                (mean - expected).abs() < 7. * se,
+                "rank={rank}: weighted estimate {mean} vs exact {expected}, se={se}"
+            );
+        }
     }
 
     #[test]

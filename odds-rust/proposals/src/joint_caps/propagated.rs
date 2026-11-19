@@ -18,6 +18,8 @@ use std::{
 };
 
 pub mod lazy;
+mod draw_table;
+use draw_table::{DrawTable, EndpointTransition};
 
 const PATTERN_LIMIT: usize = 64;
 
@@ -473,6 +475,119 @@ fn update_cardinality(values: &mut [f64], p: f64, support: &mut (usize, usize)) 
     support.1 = next_hi;
 }
 
+#[inline]
+#[cfg(test)]
+fn update_fractional_cardinality(values: &mut [f64], p: f64, support: &mut (usize, usize)) {
+    let (lo, hi) = *support;
+    if lo >= values.len() {
+        return;
+    }
+    let next_hi = (hi + 1).min(values.len() - 1);
+    let stay = 1. - p;
+    for j in (lo.max(1)..=next_hi).rev() {
+        values[j] = values[j] * stay + values[j - 1] * p;
+    }
+    if lo == 0 {
+        values[0] = values[0] * stay + 0.;
+    }
+    support.1 = next_hi;
+}
+
+#[inline(always)]
+fn update_small_fractional_terms<const DEGREE: usize>(
+    values: &mut [f64; 5],
+    mut terms: u64,
+    chances: &[f64],
+) {
+    while terms != 0 {
+        let team = terms.trailing_zeros() as usize;
+        terms &= terms - 1;
+        let p = chances[team];
+        let stay = 1. - p;
+        for degree in (1..=DEGREE).rev() {
+            values[degree] = values[degree] * stay + values[degree - 1] * p;
+        }
+        values[0] = values[0] * stay + 0.;
+    }
+}
+
+#[inline]
+fn metered_cardinality_spans(positive: u64, certain: u64, degree: usize) -> usize {
+    let mut processed = positive.count_ones() as usize;
+    let mut certain_terms = certain & positive;
+    let mut seen = 0usize;
+    let mut certain_position_sum = 0usize;
+    while certain_terms != 0 {
+        let team = certain_terms.trailing_zeros() as usize;
+        let bit = 1u64 << team;
+        certain_terms &= certain_terms - 1;
+        seen += 1;
+        let position = (positive & (bit - 1)).count_ones() as usize + 1;
+        certain_position_sum += position;
+        if seen > degree {
+            processed = position;
+            break;
+        }
+    }
+    let short = processed.min(degree);
+    let base = short * (short + 3) / 2 + processed.saturating_sub(degree) * (degree + 1);
+    base - (seen * processed - certain_position_sum)
+}
+
+/// Return the leave-two-out coefficients for zero, one, or two endpoint wins.
+/// Certain rivals shift the requested degree; fractional terms stay in team
+/// order so the retained coefficients match the full DP bit for bit.
+#[inline]
+fn compact_leave_two_out_coefficients(
+    chances: &[f64],
+    fractional: u64,
+    certain: u64,
+    excluded: u64,
+    needed: usize,
+    scratch: &mut [f64; 5],
+) -> Option<[f64; 3]> {
+    let shift = (certain & !excluded).count_ones() as usize;
+    if shift > needed {
+        return Some([0.; 3]);
+    }
+    let degree = needed - shift;
+    if degree > 4 {
+        return None;
+    }
+    scratch.fill(0.);
+    scratch[0] = 1.;
+    let terms = fractional & !excluded;
+    match degree {
+        0 => update_small_fractional_terms::<0>(scratch, terms, chances),
+        1 => update_small_fractional_terms::<1>(scratch, terms, chances),
+        2 => update_small_fractional_terms::<2>(scratch, terms, chances),
+        3 => update_small_fractional_terms::<3>(scratch, terms, chances),
+        4 => update_small_fractional_terms::<4>(scratch, terms, chances),
+        _ => unreachable!(),
+    }
+    Some([
+        scratch[degree],
+        degree.checked_sub(1).map_or(0., |i| scratch[i]),
+        degree.checked_sub(2).map_or(0., |i| scratch[i]),
+    ])
+}
+
+/// Match the old per-rival work charge without walking every rival.
+#[inline]
+fn compact_leave_two_out_metered_work(
+    team_count: usize,
+    target: usize,
+    home: usize,
+    away: usize,
+    positive: u64,
+    certain: u64,
+    excluded: u64,
+    needed: usize,
+) -> usize {
+    team_count - 2 - usize::from(target != home && target != away)
+        + metered_cardinality_spans(positive & !excluded, certain & !excluded, needed)
+}
+
 #[derive(Clone)]
 struct Pattern {
     fixed: Vec<(usize, u8)>,
@@ -488,6 +603,21 @@ struct Pattern {
     cumulative: f64,
     bound_guidance: bool,
 }
+fn certain_leave_two_out_factor(
+    certain_rivals: usize,
+    chances: &[f64],
+    target: usize,
+    home: usize,
+    away: usize,
+) -> f64 {
+    let excluded = usize::from(home != target && chances[home] == 1.)
+        + usize::from(away != target && chances[away] == 1.);
+    if certain_rivals > excluded {
+        0.
+    } else {
+        1.
+    }
+}
 impl Pattern {
     fn draw(
         &self,
@@ -501,7 +631,75 @@ impl Pattern {
         dynamic: usize,
         operations: &mut crate::rare_tail::budget::Operations,
     ) -> f64 {
-        let cardinality = cardinality && !self.bound_guidance;
+        self.draw_with_table(
+            cell, rng, out, points, guided, cardinality, replay, dynamic, operations, None,
+        )
+    }
+
+    pub(super) fn draw_with_table(
+        &self,
+        cell: Cell,
+        rng: &mut Rng,
+        out: &mut [u8],
+        points: &mut [i32],
+        guided: bool,
+        cardinality: bool,
+        replay: bool,
+        dynamic: usize,
+        operations: &mut crate::rare_tail::budget::Operations,
+        table: Option<&DrawTable>,
+    ) -> f64 {
+        if table.is_some() && guided && cardinality && !self.bound_guidance && !replay && dynamic == 0
+        {
+            self.draw_impl::<true>(
+                cell,
+                rng,
+                out,
+                points,
+                true,
+                true,
+                false,
+                0,
+                operations,
+                table,
+            )
+        } else {
+            self.draw_impl::<false>(
+                cell,
+                rng,
+                out,
+                points,
+                guided,
+                cardinality,
+                replay,
+                dynamic,
+                operations,
+                table,
+            )
+        }
+    }
+
+    fn draw_impl<const FAST: bool>(
+        &self,
+        cell: Cell,
+        rng: &mut Rng,
+        out: &mut [u8],
+        points: &mut [i32],
+        guided: bool,
+        cardinality: bool,
+        replay: bool,
+        dynamic: usize,
+        operations: &mut crate::rare_tail::budget::Operations,
+        table: Option<&DrawTable>,
+    ) -> f64 {
+        let cardinality = if FAST {
+            true
+        } else {
+            cardinality && !self.bound_guidance
+        };
+        let guided = if FAST { true } else { guided };
+        let replay = if FAST { false } else { replay };
+        let dynamic = if FAST { 0 } else { dynamic };
         operations.guidance +=
             (self.fixed.len() + 4 * points.len() + 3 * self.joint.selected.len()) as u64;
 
@@ -578,6 +776,8 @@ impl Pattern {
         } else {
             cell.rank
         };
+        let extreme_cardinality =
+            cardinality && needed == 0 && points.len() > 32 && points.len() <= 64;
         let chance_rows = if cardinality {
             self.guide.prepare_chances(count_below)
         } else {
@@ -594,7 +794,42 @@ impl Pattern {
         } else {
             Vec::new()
         };
-        let mut other = vec![0.; if cardinality { needed + 1 } else { 0 }];
+        let mut certain_mask = 0u64;
+        let mut fractional_mask = 0u64;
+        if cardinality && points.len() <= u64::BITS as usize {
+            for (t, &p) in chances.iter().enumerate() {
+                let bit = 1u64 << t;
+                if p == 1. {
+                    certain_mask |= bit;
+                } else if p > 0. {
+                    fractional_mask |= bit;
+                }
+            }
+        }
+        let mut small_other = [0.; 5];
+        let mut other = vec![
+            0.;
+            if cardinality && (needed > 4 || points.len() > 64 || extreme_cardinality) {
+                needed + 1
+            } else {
+                0
+            }
+        ];
+        // For rank one / rank last, the leave-two-out cardinality factor is
+        // just a common product of (1-p). Its only relevant property is
+        // whether it is zero; track certain rivals as endpoint chances move.
+        let mut certain_rivals = if cardinality {
+            if extreme_cardinality {
+                operations.guidance += points.len() as u64;
+            }
+            if extreme_cardinality {
+                (certain_mask & !(1u64 << cell.team)).count_ones() as usize
+            } else {
+                0
+            }
+        } else {
+            0
+        };
         let rivals: Vec<_> = if dynamic > 0 {
             (0..points.len()).filter(|&t| t != cell.team).collect()
         } else {
@@ -638,32 +873,114 @@ impl Pattern {
                     masks[step + i] &= mask;
                 }
             }
+            let mut cardinality_coefficients = [0.; 3];
             if cardinality {
-                other.fill(0.);
-                other[0] = 1.;
-                let mut support = (0, 0);
-                for (t, &p) in chances.iter().enumerate() {
-                    if t == cell.team || t == g.home || t == g.away {
-                        continue;
+                if extreme_cardinality {
+                    other[0] = certain_leave_two_out_factor(
+                        certain_rivals,
+                        &chances,
+                        cell.team,
+                        g.home,
+                        g.away,
+                    );
+                    cardinality_coefficients = [other[0], 0., 0.];
+                    operations.guidance += 2;
+                } else if points.len() <= u64::BITS as usize {
+                    let excluded =
+                        (1u64 << cell.team) | (1u64 << g.home) | (1u64 << g.away);
+                    let compact = compact_leave_two_out_coefficients(
+                        &chances,
+                        fractional_mask,
+                        certain_mask,
+                        excluded,
+                        needed,
+                        &mut small_other,
+                    );
+                    if let Some(coefficients) = compact {
+                        cardinality_coefficients = coefficients;
+                    } else {
+                        other.fill(0.);
+                        other[0] = 1.;
+                        let mut support = (0, 0);
+                        for (t, &p) in chances.iter().enumerate() {
+                            if t == cell.team || t == g.home || t == g.away {
+                                continue;
+                            }
+                            update_cardinality(&mut other, p, &mut support);
+                        }
+                        cardinality_coefficients = [
+                            other[needed],
+                            if needed > 0 { other[needed - 1] } else { 0. },
+                            if needed > 1 { other[needed - 2] } else { 0. },
+                        ];
                     }
-
-                    operations.guidance += 1;
-
-                    if p > 0. && support.0 < other.len() {
-                        operations.guidance +=
-                            ((support.1 + 1).min(other.len() - 1) - support.0 + 1) as u64;
+                    operations.guidance += compact_leave_two_out_metered_work(
+                        points.len(),
+                        cell.team,
+                        g.home,
+                        g.away,
+                        fractional_mask | certain_mask,
+                        certain_mask,
+                        excluded,
+                        needed,
+                    ) as u64;
+                } else {
+                    // Keep the full original scan for higher degrees and
+                    // model sizes outside the compact mask representation.
+                    other.fill(0.);
+                    other[0] = 1.;
+                    let mut support = (0, 0);
+                    for (t, &p) in chances.iter().enumerate() {
+                        if t == cell.team || t == g.home || t == g.away {
+                            continue;
+                        }
+                        operations.guidance += 1;
+                        if p > 0. && support.0 < other.len() {
+                            operations.guidance +=
+                                ((support.1 + 1).min(other.len() - 1) - support.0 + 1) as u64;
+                        }
+                        update_cardinality(&mut other, p, &mut support);
                     }
-                    update_cardinality(&mut other, p, &mut support);
+                    cardinality_coefficients = [
+                        other[needed],
+                        if needed > 0 { other[needed - 1] } else { 0. },
+                        if needed > 1 { other[needed - 2] } else { 0. },
+                    ];
                 }
             }
             let mut q = [0.; 3];
             let mut support = 0.;
-            let mut endpoint_chances = [[0.; 2]; 3];
-            let next: [Option<(usize, usize)>; 3] =
-                std::array::from_fn(|o| self.next_counts(step, points, cell, o, counts));
-            let allowed: [bool; 3] = std::array::from_fn(|o| {
-                g.prob[o] > 0. && next[o].is_some() && (dynamic == 0 || masks[step] & (1 << o) != 0)
+            let domain: [bool; 3] = std::array::from_fn(|o| {
+                g.prob[o] > 0. && (dynamic == 0 || masks[step] & (1 << o) != 0)
             });
+            let transitions = table
+                .and_then(|table| {
+                    table.lookup(step, points[g.home], points[g.away], counts)
+                })
+                .unwrap_or_else(|| {
+                    std::array::from_fn(|o| {
+                        let next_counts = self.next_counts(step, points, cell, o, counts);
+                        let endpoint_chances = if cardinality
+                            && domain[o]
+                            && next_counts.is_some()
+                        {
+                            [
+                                chance(step + 1, g.home, points[g.home] + g.hg[o])
+                                    .clamp(0., 1.),
+                                chance(step + 1, g.away, points[g.away] + g.ag[o])
+                                    .clamp(0., 1.),
+                            ]
+                        } else {
+                            [0.; 2]
+                        };
+                        EndpointTransition {
+                            next_counts,
+                            endpoint_chances,
+                        }
+                    })
+                });
+            let allowed: [bool; 3] =
+                std::array::from_fn(|o| domain[o] && transitions[o].next_counts.is_some());
             for o in 0..3 {
                 if !allowed[o] {
                     continue;
@@ -673,7 +990,7 @@ impl Pattern {
 
                 support += g.prob[o];
                 q[o] = g.prob[o]
-                    * if self.bound_guidance {
+                    * if !FAST && self.bound_guidance {
                         self.guide.bounds(
                             step + 1,
                             g.home,
@@ -686,20 +1003,11 @@ impl Pattern {
                             self.upper[g.away] - points[g.away] - g.ag[o],
                         )
                     } else if cardinality {
-                        let ph = chance(step + 1, g.home, points[g.home] + g.hg[o]).clamp(0., 1.);
-                        let pa = chance(step + 1, g.away, points[g.away] + g.ag[o]).clamp(0., 1.);
-                        endpoint_chances[o] = [ph, pa];
-                        other[needed] * (1. - ph) * (1. - pa)
-                            + if needed > 0 {
-                                other[needed - 1] * (ph * (1. - pa) + (1. - ph) * pa)
-                            } else {
-                                0.
-                            }
-                            + if needed > 1 {
-                                other[needed - 2] * ph * pa
-                            } else {
-                                0.
-                            }
+                        let [ph, pa] = transitions[o].endpoint_chances;
+                        cardinality_coefficients[0] * (1. - ph) * (1. - pa)
+                            + cardinality_coefficients[1]
+                                * (ph * (1. - pa) + (1. - ph) * pa)
+                            + cardinality_coefficients[2] * ph * pa
                     } else if guided {
                         self.guide.factor(
                             step + 1,
@@ -747,14 +1055,38 @@ impl Pattern {
             if !allowed[o] || q[o] <= 0. {
                 return 0.;
             }
-            counts = next[o].unwrap();
+            counts = transitions[o].next_counts.unwrap();
             weight *= g.prob[o] * total / q[o];
             out[g.index] = o as u8;
             points[g.home] += g.hg[o];
             points[g.away] += g.ag[o];
             if cardinality {
-                chances[g.home] = endpoint_chances[o][0];
-                chances[g.away] = endpoint_chances[o][1];
+                if extreme_cardinality {
+                    operations.guidance += 4;
+                }
+                if extreme_cardinality {
+                    if g.home != cell.team {
+                        certain_rivals -= usize::from(chances[g.home] == 1.);
+                        certain_rivals += usize::from(transitions[o].endpoint_chances[0] == 1.);
+                    }
+                    if g.away != cell.team {
+                        certain_rivals -= usize::from(chances[g.away] == 1.);
+                        certain_rivals += usize::from(transitions[o].endpoint_chances[1] == 1.);
+                    }
+                }
+                chances[g.home] = transitions[o].endpoint_chances[0];
+                chances[g.away] = transitions[o].endpoint_chances[1];
+                if points.len() <= u64::BITS as usize {
+                    for (t, p) in [
+                        (g.home, transitions[o].endpoint_chances[0]),
+                        (g.away, transitions[o].endpoint_chances[1]),
+                    ] {
+                        let bit = 1u64 << t;
+                        certain_mask = (certain_mask & !bit) | (if p == 1. { bit } else { 0 });
+                        fractional_mask = (fractional_mask & !bit)
+                            | (if p > 0. && p < 1. { bit } else { 0 });
+                    }
+                }
             }
         }
         weight
@@ -1328,6 +1660,23 @@ fn constructed_guide_values(guide: &Guide) -> Option<usize> {
 mod tests {
     use super::*;
     use crate::{conditioned::canonical_ranks, model::Request};
+    #[test]
+    fn rank_endpoint_leave_two_out_factor_excludes_target_and_endpoints() {
+        let chances = [1., 1., 0.25, 0.25]; // target and one endpoint are certain
+        let certain_including_target = chances.iter().filter(|&&p| p == 1.).count();
+        let certain_rivals = certain_including_target - usize::from(chances[0] == 1.);
+        assert_eq!(certain_leave_two_out_factor(certain_rivals, &chances, 0, 1, 2), 1.);
+
+        let chances = [1., 0.25, 1., 0.25]; // the other endpoint is certain instead
+        let certain_including_target = chances.iter().filter(|&&p| p == 1.).count();
+        let certain_rivals = certain_including_target - usize::from(chances[0] == 1.);
+        assert_eq!(certain_leave_two_out_factor(certain_rivals, &chances, 0, 1, 2), 1.);
+
+        let chances = [1., 1., 0.25, 1.]; // target plus an outside rival are certain
+        let certain_including_target = chances.iter().filter(|&&p| p == 1.).count();
+        let certain_rivals = certain_including_target - usize::from(chances[0] == 1.);
+        assert_eq!(certain_leave_two_out_factor(certain_rivals, &chances, 0, 1, 2), 0.);
+    }
     fn assert_same_result(left: &Result, right: &Result) {
         assert_eq!(left.mass.to_bits(), right.mass.to_bits());
         assert_eq!(left.samples, right.samples);
@@ -1570,6 +1919,59 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn cached_draw_table_preserves_seeded_pattern_draws_and_metering() {
+        let m = league("pt,w,bias");
+        let cell = Cell { team: 0, rank: 1 };
+        let proposal = PropagatedJoint::with_limits(&m, cell, 0, 1).unwrap();
+        let pattern = &proposal.patterns[0];
+        assert!(!pattern.guide.games.is_empty());
+        let table = DrawTable::new(pattern, cell, usize::MAX).unwrap();
+
+        for seed in [1, 17, 441, 808, 99173] {
+            let mut baseline_rng = Rng::new(seed);
+            let mut cached_rng = Rng::new(seed);
+            let mut baseline_out = vec![0; m.fixtures.len()];
+            let mut cached_out = baseline_out.clone();
+            let mut baseline_points = vec![0; m.n];
+            let mut cached_points = baseline_points.clone();
+            let mut baseline_operations = crate::rare_tail::budget::Operations::default();
+            let mut cached_operations = crate::rare_tail::budget::Operations::default();
+
+            let baseline_weight = pattern.draw(
+                cell,
+                &mut baseline_rng,
+                &mut baseline_out,
+                &mut baseline_points,
+                true,
+                true,
+                false,
+                0,
+                &mut baseline_operations,
+            );
+            let cached_weight = pattern.draw_with_table(
+                cell,
+                &mut cached_rng,
+                &mut cached_out,
+                &mut cached_points,
+                true,
+                true,
+                false,
+                0,
+                &mut cached_operations,
+                Some(&table),
+            );
+
+            assert_eq!(baseline_weight.to_bits(), cached_weight.to_bits());
+            assert_eq!(baseline_out, cached_out);
+            assert_eq!(baseline_points, cached_points);
+            assert_eq!(baseline_operations.fixtures, cached_operations.fixtures);
+            assert_eq!(baseline_operations.guidance, cached_operations.guidance);
+            assert_eq!(baseline_operations.ranking, cached_operations.ranking);
+            assert_eq!(baseline_rng.float().to_bits(), cached_rng.float().to_bits());
+        }
+    }
     #[test]
     fn reversed_guidance_retains_tiny_upper_tail_and_real_goal_tiebreakers() {
         let g = RankGame {
@@ -1631,7 +2033,10 @@ mod tests {
 
 #[cfg(test)]
 mod cardinality_fast_tests {
-    use super::update_cardinality;
+    use super::{
+        compact_leave_two_out_coefficients, metered_cardinality_spans, update_cardinality,
+        update_fractional_cardinality, update_small_fractional_terms,
+    };
     #[test]
     fn deterministic_rank_terms_preserve_every_dp_bit() {
         let probabilities = [0., 1., 1e-30, 0.3, 1. - f64::EPSILON];
@@ -1655,6 +2060,178 @@ mod cardinality_fast_tests {
                         original.iter().map(|v| v.to_bits()).collect::<Vec<_>>(),
                         fast.iter().map(|v| v.to_bits()).collect::<Vec<_>>()
                     );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn fractional_rank_dp_matches_full_dp_after_certain_shift() {
+        let probabilities = [0., 1., 1e-30, 0.3, 1. - f64::EPSILON];
+        for code in 0..5usize.pow(6) {
+            let mut full = vec![0.; 8];
+            let mut fractional = full.clone();
+            full[0] = 1.;
+            fractional[0] = 1.;
+            let mut sequence = code;
+            let mut certain = 0usize;
+            let mut full_support = (0, 0);
+            let mut fractional_support = (0, 0);
+            for _ in 0..6 {
+                let p = probabilities[sequence % 5];
+                sequence /= 5;
+                update_cardinality(&mut full, p, &mut full_support);
+                if p == 1. {
+                    certain += 1;
+                } else if p > 0. {
+                    update_fractional_cardinality(&mut fractional, p, &mut fractional_support);
+                }
+            }
+            for degree in certain..full.len() {
+                assert_eq!(
+                    full[degree].to_bits(),
+                    fractional[degree - certain].to_bits(),
+                    "code {code}, degree {degree}, certain {certain}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn small_fixed_recurrence_matches_generic_bits() {
+        let probabilities = [0., 1., 1e-30, 0.3, 1. - f64::EPSILON];
+        for code in 0..5usize.pow(6) {
+            let mut sequence = code;
+            let chances: Vec<_> = (0..6)
+                .map(|_| {
+                    let p = probabilities[sequence % 5];
+                    sequence /= 5;
+                    p
+                })
+                .collect();
+            let mut terms = 0u64;
+            let mut certain = 0usize;
+            for (team, &p) in chances.iter().enumerate() {
+                if p == 1. {
+                    certain += 1;
+                } else if p > 0. {
+                    terms |= 1 << team;
+                }
+            }
+            for degree in 0..=4 {
+                let mut full = vec![0.; 11];
+                full[0] = 1.;
+                let mut support = (0, 0);
+                for &p in &chances {
+                    update_cardinality(&mut full, p, &mut support);
+                }
+                let mut small = [0.; 5];
+                small[0] = 1.;
+                match degree {
+                    0 => update_small_fractional_terms::<0>(&mut small, terms, &chances),
+                    1 => update_small_fractional_terms::<1>(&mut small, terms, &chances),
+                    2 => update_small_fractional_terms::<2>(&mut small, terms, &chances),
+                    3 => update_small_fractional_terms::<3>(&mut small, terms, &chances),
+                    _ => update_small_fractional_terms::<4>(&mut small, terms, &chances),
+                }
+                for d in 0..=degree {
+                    assert_eq!(
+                        full[d + certain].to_bits(),
+                        small[d].to_bits(),
+                        "code {code}, degree {degree}, coefficient {d}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn compact_leave_two_out_coefficients_match_full_dp_bits() {
+        let probabilities = [0., 1., 1e-30, 0.3, 1. - f64::EPSILON];
+        for mut code in 0..5usize.pow(5) {
+            let mut chances = [0.; 5];
+            let mut fractional = 0u64;
+            let mut certain = 0u64;
+            for team in 0..5 {
+                let p = probabilities[code % 5];
+                code /= 5;
+                chances[team] = p;
+                if p == 1. {
+                    certain |= 1 << team;
+                } else if p > 0. {
+                    fractional |= 1 << team;
+                }
+            }
+            for excluded in 0..(1u64 << chances.len()) {
+                for needed in 0..=9 {
+                    let mut full = vec![0.; needed + 1];
+                    full[0] = 1.;
+                    let mut support = (0, 0);
+                    for (team, &p) in chances.iter().enumerate() {
+                        if excluded & (1 << team) == 0 {
+                            update_cardinality(&mut full, p, &mut support);
+                        }
+                    }
+                    let mut scratch = [0.; 5];
+                    let actual = compact_leave_two_out_coefficients(
+                        &chances,
+                        fractional,
+                        certain,
+                        excluded,
+                        needed,
+                        &mut scratch,
+                    );
+                    let expected = [
+                        full[needed],
+                        if needed > 0 { full[needed - 1] } else { 0. },
+                        if needed > 1 { full[needed - 2] } else { 0. },
+                    ];
+                    if let Some(actual) = actual {
+                        assert_eq!(
+                            actual.map(f64::to_bits),
+                            expected.map(f64::to_bits),
+                            "code {code}, excluded {excluded:#x}, needed {needed}"
+                        );
+                    } else {
+                        let shift = (certain & !excluded).count_ones() as usize;
+                        assert!(needed.saturating_sub(shift) > 4);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn closed_form_meter_matches_original_support_walk() {
+        for teams in 0..=8usize {
+            for mut code in 0..3usize.pow(teams as u32) {
+                let mut positive = 0u64;
+                let mut certain = 0u64;
+                let mut probabilities = Vec::with_capacity(teams);
+                for team in 0..teams {
+                    let state = code % 3;
+                    code /= 3;
+                    let p = [0., 0.25, 1.][state];
+                    probabilities.push(p);
+                    if p > 0. {
+                        positive |= 1 << team;
+                    }
+                    if p == 1. {
+                        certain |= 1 << team;
+                    }
+                }
+                for degree in 0..=5 {
+                    let mut values = vec![0.; degree + 1];
+                    values[0] = 1.;
+                    let mut support = (0, 0);
+                    let mut expected = 0;
+                    for p in &probabilities {
+                        if *p > 0. && support.0 < values.len() {
+                            expected += (support.1 + 1).min(degree) - support.0 + 1;
+                        }
+                        update_cardinality(&mut values, *p, &mut support);
+                    }
+                    assert_eq!(metered_cardinality_spans(positive, certain, degree), expected);
                 }
             }
         }

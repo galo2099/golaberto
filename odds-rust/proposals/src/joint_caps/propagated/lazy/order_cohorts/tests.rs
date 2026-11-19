@@ -7,6 +7,75 @@ use crate::{
 };
 use serde_json::json;
 
+#[test]
+fn compact_rank_hint_matches_exhaustive_categorical_assignments() {
+    fn visit(
+        probs: &[(f64, f64, f64)],
+        index: usize,
+        strict: usize,
+        weak: usize,
+        mass: f64,
+        target_rank: usize,
+        total: &mut f64,
+    ) {
+        if index == probs.len() {
+            if strict <= target_rank && weak >= target_rank {
+                *total += mass;
+            }
+            return;
+        }
+        for (offset, p) in [probs[index].0, probs[index].1, probs[index].2]
+            .into_iter()
+            .enumerate()
+        {
+            let above = offset == 0;
+            let tied = offset == 1;
+            visit(
+                probs,
+                index + 1,
+                strict + usize::from(above),
+                weak + usize::from(above || tied),
+                mass * p,
+                target_rank,
+                total,
+            );
+        }
+    }
+    for probs in [
+        vec![(0.2, 0.3, 0.5); 5],
+        vec![(0.0, 1.0, 0.0), (1.0, 0.0, 0.0), (0.0, 0.0, 1.0)],
+        vec![(1e-200, 0.4, 0.6 - 1e-200); 4],
+        vec![(1e-60, 0.0, 1.0 - 1e-60); 4],
+        vec![
+            (0.91, 0.08, 0.01),
+            (0.03, 0.17, 0.8),
+            (0.2, 0.2, 0.6),
+            (0.5, 0.5, 0.0),
+        ],
+    ] {
+        let mut workspace = super::RankHintWorkspace::default();
+        for rank in 0..=probs.len() {
+            let mut expected = 0.;
+            visit(&probs, 0, 0, 0, 1., rank, &mut expected);
+            let actual = super::rank_event_mass(&probs, rank, &mut workspace);
+            assert!(
+                (actual - expected).abs() <= 1e-12 * expected.abs().max(1e-300),
+                "rank={rank}, actual={actual:e}, expected={expected:e}"
+            );
+        }
+    }
+}
+
+#[test]
+fn compact_rank_hint_is_gated_to_supported_large_leagues() {
+    assert!(super::use_compact_rank_hint(33, 0));
+    assert!(super::use_compact_rank_hint(33, 2));
+    assert!(super::use_compact_rank_hint(33, 16));
+    assert!(super::use_compact_rank_hint(64, 31));
+    assert!(!super::use_compact_rank_hint(32, 0));
+    assert!(!super::use_compact_rank_hint(65, 0));
+}
+
 fn four_team_one_residual_model() -> Model {
     let request: Request = serde_json::from_value(json!({
         "id": 59,

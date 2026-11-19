@@ -6,6 +6,82 @@ mod tests;
 const MAX_FEASIBLE_ROOTS: usize = 32;
 const MAX_FEASIBLE_MEMBERSHIPS_PER_ROOT: usize = 4;
 
+/// Use the linear rank-hint recurrence only for supported large leagues.
+pub(super) fn use_compact_rank_hint(n: usize, rank: usize) -> bool {
+    (33..=64).contains(&n) && rank < n
+}
+
+fn compact_rank_hint_allowance(n: usize, rank: usize) -> usize {
+    let rivals = n.saturating_sub(1);
+    let k = rank.min(rivals.saturating_sub(rank));
+    let side = k.saturating_add(1);
+    // Bound both F/W recurrences' arithmetic and indexed reads/writes for
+    // every side count, plus initialization and the returned endpoint.
+    rivals
+        .saturating_mul(16usize.saturating_mul(side))
+        .saturating_add(2usize.saturating_mul(side))
+}
+
+/// Scratch storage for the independent-marginal rank hint. Buffers grow on
+/// first use and callers retain this workspace across target totals.
+#[derive(Default)]
+pub(super) struct RankHintWorkspace {
+    interval_and_weak: Vec<(f64, f64)>,
+}
+
+/// Independent-categorical mass meeting the weak rank-feasibility condition:
+/// strictly above <= `rank` and weakly above (above or tied) >= `rank`.
+/// This is a training hint, not the probability of the target's actual rank.
+/// The calculation tracks the smaller side using positive additions only.
+pub(super) fn rank_event_mass(
+    rivals: &[(f64, f64, f64)],
+    rank: usize,
+    workspace: &mut RankHintWorkspace,
+) -> f64 {
+    if rank > rivals.len() {
+        return 0.;
+    }
+    let below = rivals.len().saturating_sub(rank);
+    let (use_below, limit) = if rank <= below {
+        (false, rank)
+    } else {
+        (true, below)
+    };
+    let side = limit + 1;
+    workspace.interval_and_weak.resize(side, (0., 0.));
+    workspace.interval_and_weak.fill((0., 0.));
+    workspace.interval_and_weak[0] = (1., 1.);
+    for categories in rivals {
+        // F[j] is mass whose interval [strict, weak] contains j; W[j]
+        // is mass with weak endpoint exactly j. Descending updates preserve
+        // old j-1. Other keeps the interval, strict shifts it, and tie keeps
+        // the old interval while W[j-1] contributes its new endpoint. These
+        // are disjoint assignments, so every term is a positive addition.
+        let (strict_probability, tied_probability, other_probability) = if use_below {
+            (categories.2, categories.1, categories.0)
+        } else {
+            (categories.0, categories.1, categories.2)
+        };
+        let keep_probability = other_probability + tied_probability;
+        let weak_extend_probability = strict_probability + tied_probability;
+        for j in (0..side).rev() {
+            let (f, w) = workspace.interval_and_weak[j];
+            let (previous_f, previous_w) = if j == 0 {
+                (0., 0.)
+            } else {
+                workspace.interval_and_weak[j - 1]
+            };
+            workspace.interval_and_weak[j] = (
+                keep_probability * f
+                    + strict_probability * previous_f
+                    + tied_probability * previous_w,
+                other_probability * w + weak_extend_probability * previous_w,
+            );
+        }
+    }
+    workspace.interval_and_weak[limit].0
+}
+
 fn expected_raw_points(
     m: &Model,
     target: &[RankGame],
@@ -535,13 +611,17 @@ impl LazyJoint {
             .enumerate()
             .filter(|(t, _)| *t != cell.team)
             .fold(0usize, |s, (_, v)| s.saturating_add(*v));
-        for c in 0..n.saturating_sub(1) {
-            let tri = (c + 1).saturating_mul(c + 2) / 2;
-            term = term.saturating_add(
-                6usize
-                    .saturating_mul(tri)
-                    .saturating_add(n.saturating_mul(n)),
-            );
+        if use_compact_rank_hint(n, cell.rank) {
+            term = term.saturating_add(compact_rank_hint_allowance(n, cell.rank));
+        } else {
+            for c in 0..n.saturating_sub(1) {
+                let tri = (c + 1).saturating_mul(c + 2) / 2;
+                term = term.saturating_add(
+                    6usize
+                        .saturating_mul(tri)
+                        .saturating_add(n.saturating_mul(n)),
+                );
+            }
         }
         term = term.saturating_add(n.saturating_mul(n));
         b = b.saturating_add(a.saturating_mul(term));

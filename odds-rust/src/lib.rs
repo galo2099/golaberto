@@ -9,6 +9,8 @@ pub use golaberto_odds_core::{model, neighbors, outcome_stratification, pool, pr
 pub mod player_ratings;
 pub mod rare_tail;
 pub mod ratings;
+pub(crate) mod tail_conditioned;
+pub(crate) mod tail_particles;
 pub use golaberto_odds_core::{reachability, rng, sampling, sort, target_limits, tilt};
 pub mod rescue;
 pub mod search;

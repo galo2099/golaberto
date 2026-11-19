@@ -1,5 +1,6 @@
 //! Sample target paths instead of requiring complete enumeration. A frozen
 //! cache is an importance proposal, never a truncation of event support.
+use super::draw_table::DrawTable;
 use super::*;
 use crate::rng::derive;
 
@@ -10,6 +11,78 @@ type SharedGuideKey = (
     usize,
     Vec<(usize, usize, usize, [i32; 3], [i32; 3], [u64; 3])>,
 );
+
+const DRAW_TABLE_MIN_SAMPLES: usize = 4_096;
+const DRAW_TABLE_CACHE_BYTES: usize = 4 * 1024 * 1024;
+
+fn cache_root_draw_tables(plan: &LazyJoint) -> HashMap<Vec<u8>, DrawTable> {
+    let mut priorities = HashMap::with_capacity(plan.mixture.len());
+    let mut previous = 0.;
+    for (key, cumulative) in &plan.mixture {
+        let weight = (cumulative - previous).max(0.);
+        previous = *cumulative;
+        priorities.insert(
+            key.as_slice(),
+            plan.root_allocation.get(key).copied().unwrap_or(weight),
+        );
+    }
+
+    let mut patterns: Vec<_> = plan
+        .roots
+        .iter()
+        .filter_map(|(key, pattern)| {
+            if plan.families.contains_key(key)
+                || plan.cases.contains_key(key)
+                || plan.biased.contains_key(key)
+                || plan.alternates.contains_key(key)
+            {
+                return None;
+            }
+            pattern
+                .as_ref()
+                .filter(|pattern| !pattern.bound_guidance)
+                .and_then(|pattern| {
+                    priorities
+                        .get(key.as_slice())
+                        .map(|&weight| (key, pattern, weight))
+                })
+        })
+        .collect();
+    patterns.sort_unstable_by(|(left_key, _, left_weight), (right_key, _, right_weight)| {
+        right_weight
+            .total_cmp(left_weight)
+            .then_with(|| left_key.cmp(right_key))
+    });
+
+    let mut remaining = DRAW_TABLE_CACHE_BYTES;
+    let mut tables = HashMap::new();
+    for (key, pattern, _) in patterns {
+        if remaining == 0 {
+            break;
+        }
+        // `memory_bytes` counts table rows and entries. Reserve additional
+        // room for the per-step row boxes, map buckets, and copied root key
+        // before construction, so an oversized candidate is rejected early.
+        let overhead = 64usize
+            .saturating_add(key.len())
+            .saturating_add(pattern.guide.games.len().saturating_mul(32));
+        let Some(table_budget) = remaining.checked_sub(overhead) else {
+            continue;
+        };
+        if let Some(table) = DrawTable::new(pattern, plan.cell, table_budget) {
+            let bytes = table.memory_bytes().saturating_add(overhead);
+            if bytes <= remaining {
+                remaining -= bytes;
+                tables.insert(key.clone(), table);
+            }
+        }
+    }
+    tables
+}
+
+fn cache_enabled_for_work_limit(work_limit: Option<usize>) -> bool {
+    work_limit.is_none_or(|limit| limit == usize::MAX)
+}
 
 fn partial_family_side(state: &[i8]) -> Option<i8> {
     let above = state.contains(&1);
@@ -351,6 +424,9 @@ impl LazyJoint {
         // probabilities of the true shared-fixture rank event. A zero-root
         // constructor never samples or weights roots, so avoid this setup.
         let (hint, max, tilted) = if roots > 0 {
+            let compact_hint = order_cohorts::use_compact_rank_hint(m.n, cell.rank);
+            let mut hint_workspace = order_cohorts::RankHintWorkspace::default();
+            let mut categories = Vec::with_capacity(m.n.saturating_sub(1));
             let pmfs: Vec<_> = (0..m.n)
                 .map(|t| {
                     let mut p = vec![1.];
@@ -375,21 +451,32 @@ impl LazyJoint {
                         return 0.;
                     }
                     let total = base[cell.team] + gain as i32;
-                    let mut dp = vec![vec![0.; m.n]; m.n];
-                    dp[0][0] = 1.;
-                    let mut count = 0;
+                    categories.clear();
                     for t in 0..m.n {
                         if t == cell.team {
                             continue;
                         }
-                        let (mut lo, mut eq, mut hi) = (0., 0., 0.);
-                        for (a, &p) in pmfs[t].iter().enumerate() {
+                        let (mut above, mut tied, mut below) = (0., 0., 0.);
+                        for (a, &probability) in pmfs[t].iter().enumerate() {
                             match (base[t] + a as i32).cmp(&total) {
-                                std::cmp::Ordering::Less => lo += p,
-                                std::cmp::Ordering::Equal => eq += p,
-                                std::cmp::Ordering::Greater => hi += p,
+                                std::cmp::Ordering::Less => below += probability,
+                                std::cmp::Ordering::Equal => tied += probability,
+                                std::cmp::Ordering::Greater => above += probability,
                             }
                         }
+                        categories.push((above, tied, below));
+                    }
+                    if compact_hint {
+                        return order_cohorts::rank_event_mass(
+                            &categories,
+                            cell.rank,
+                            &mut hint_workspace,
+                        );
+                    }
+                    let mut dp = vec![vec![0.; m.n]; m.n];
+                    dp[0][0] = 1.;
+                    let mut count = 0;
+                    for &(hi, eq, lo) in &categories {
                         let mut next = vec![vec![0.; m.n]; m.n];
                         for a in 0..=count {
                             for tie in 0..=count - a {
@@ -1969,6 +2056,9 @@ impl LazyJoint {
             .len()
             .saturating_add(4usize.saturating_mul(teams))
             .saturating_add(3usize.saturating_mul(pattern.joint.selected.len()));
+        if cardinality && needed == 0 && teams > 32 {
+            guidance = guidance.saturating_add(teams);
+        }
         let mut fixtures = pattern
             .omitted
             .len()
@@ -1992,11 +2082,15 @@ impl LazyJoint {
             if cardinality {
                 // Bound each rival's cardinality update by a full scan of the
                 // largest possible count support plus its outcome transition.
-                guidance = guidance.saturating_add(
+                guidance = guidance.saturating_add(if needed == 0 && teams > 32 {
+                    // The rank-one/last path maintains the number of certain
+                    // rivals and needs only endpoint exclusion/update work.
+                    6
+                } else {
                     teams
                         .saturating_sub(1)
-                        .saturating_mul(needed.saturating_add(2)),
-                );
+                        .saturating_mul(needed.saturating_add(2))
+                });
             }
         }
         fixtures.saturating_mul(8).saturating_add(guidance)
@@ -2347,6 +2441,14 @@ impl LazyJoint {
             .ok()
             .and_then(|s| s.parse::<usize>().ok())
             .unwrap_or(0);
+        let draw_tables = if cardinality
+            && samples >= DRAW_TABLE_MIN_SAMPLES
+            && cache_enabled_for_work_limit(work_limit)
+        {
+            cache_root_draw_tables(self)
+        } else {
+            HashMap::new()
+        };
         let mut points = vec![0; m.n];
         let (mut sum, mut sum2, mut max, mut batches) = (0., 0., 0_f64, [0.; 2]);
         for draw in 0..samples {
@@ -2696,7 +2798,7 @@ impl LazyJoint {
                         root_prob / (mass * q) / (0.5 * density + 0.5 * other_density)
                     } else {
                         p.mass / (mass * q)
-                            * p.draw(
+                            * p.draw_with_table(
                                 self.cell,
                                 &mut rng,
                                 &mut out,
@@ -2706,6 +2808,7 @@ impl LazyJoint {
                                 false,
                                 dynamic,
                                 &mut result.operations,
+                                draw_tables.get(key),
                             )
                     }
                 }
@@ -2994,6 +3097,14 @@ impl LazyJoint {
 mod tests {
     use super::*;
     use crate::{conditioned::canonical_ranks, model::Request};
+
+    #[test]
+    fn draw_table_cache_skips_finite_work_limits() {
+        assert!(cache_enabled_for_work_limit(None));
+        assert!(cache_enabled_for_work_limit(Some(usize::MAX)));
+        assert!(!cache_enabled_for_work_limit(Some(usize::MAX - 1)));
+        assert!(!cache_enabled_for_work_limit(Some(0)));
+    }
 
     fn compact_gd_model() -> Model {
         let request: Request = serde_json::from_value(json!({

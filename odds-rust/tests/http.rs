@@ -22,7 +22,7 @@ impl Service {
     }
 
     fn start_with_family_fallback(family_fallback: Option<&str>) -> Self {
-        Self::start_with_settings(family_fallback, None, None, None)
+        Self::start_with_settings(family_fallback, None, None, None, None)
     }
 
     fn start_with_settings(
@@ -30,6 +30,7 @@ impl Service {
         target_overflow_tree: Option<&str>,
         legacy_target_overflow_tree: Option<&str>,
         expected_cohorts: Option<&str>,
+        tail_algorithm: Option<&str>,
     ) -> Self {
         let socket = TcpListener::bind("127.0.0.1:0").unwrap();
         let address = socket.local_addr().unwrap().to_string();
@@ -55,6 +56,9 @@ impl Service {
         }
         if let Some(value) = expected_cohorts {
             command.env("RUST_ODDS_EXPECTED_COHORTS", value);
+        }
+        if let Some(value) = tail_algorithm {
+            command.env("RUST_ODDS_TAIL_ALGORITHM", value);
         }
         let child = command
             .env(
@@ -159,8 +163,10 @@ fn odds_http_uses_default_family_fallback_and_honors_explicit_opt_out() {
     );
 
     // Keep expected-cohort proposals out of this comparison so it isolates
-    // family fallback behavior against its explicit opt-out.
-    let default_service = Service::start_with_settings(None, Some("0"), None, Some("0"));
+    // family fallback behavior against its explicit opt-out. Keep the newer
+    // tail recovery portfolio disabled so this test stays stage-specific.
+    let default_service =
+        Service::start_with_settings(None, Some("0"), None, Some("0"), Some("off"));
     let (status, default_body) = default_service.request("POST", "/odds", REQUEST, false);
     assert_eq!(status, 200);
     let default_payload: Value = serde_json::from_slice(&default_body).unwrap();
@@ -173,7 +179,8 @@ fn odds_http_uses_default_family_fallback_and_honors_explicit_opt_out() {
     );
     drop(default_service);
 
-    let opt_out_service = Service::start_with_settings(Some("0"), Some("0"), None, Some("0"));
+    let opt_out_service =
+        Service::start_with_settings(Some("0"), Some("0"), None, Some("0"), Some("off"));
     let (status, opt_out_body) = opt_out_service.request("POST", "/odds", REQUEST, false);
     assert_eq!(status, 200);
     let opt_out_payload: Value = serde_json::from_slice(&opt_out_body).unwrap();
@@ -273,9 +280,10 @@ fn odds_http_enables_default_target_overflow_tree_and_honors_production_opt_out(
     const REQUEST: &[u8] = include_bytes!(
         "../../experiments/rare_positions/reference/2026-09-30-hundredfold/inputs/group-16498-44eabb47.json"
     );
-    // Disable other late recovery stages so this comparison isolates the
-    // target overflow tree and its production opt-out.
-    let default_service = Service::start_with_settings(Some("0"), None, None, Some("0"));
+    // Disable the new tail portfolio as well as other late recovery stages so
+    // this comparison isolates the target overflow tree and its production opt-out.
+    let default_service =
+        Service::start_with_settings(Some("0"), None, None, Some("0"), Some("off"));
     let (status, body) = default_service.request("POST", "/odds", REQUEST, false);
     assert_eq!(status, 200);
     let default_payload: Value = serde_json::from_slice(&body).unwrap();
@@ -287,7 +295,8 @@ fn odds_http_enables_default_target_overflow_tree_and_honors_production_opt_out(
     );
     drop(default_service);
 
-    let opt_out_service = Service::start_with_settings(Some("0"), Some("0"), Some("1"), Some("0"));
+    let opt_out_service =
+        Service::start_with_settings(Some("0"), Some("0"), Some("1"), Some("0"), Some("off"));
     let (status, body) = opt_out_service.request("POST", "/odds", REQUEST, false);
     assert_eq!(status, 200);
     let opt_out_payload: Value = serde_json::from_slice(&body).unwrap();
