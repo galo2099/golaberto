@@ -174,11 +174,19 @@ pub struct Bounds {
     pub current: Vec<i32>,
     pub min: Vec<i32>,
     pub max: Vec<i32>,
+    // Closed-form conditional win bounds apply to standard 3/1/0 scoring
+    // when wins are the second ranking key.
+    current_wins: Vec<i32>,
+    remaining: Vec<i32>,
+    conditional_wins: bool,
+    standard_scoring: bool,
 }
 impl Bounds {
     pub fn new(model: &Model) -> Self {
         let n = model.n;
         let current: Vec<_> = model.base[..n].iter().map(|c| c.points).collect();
+        let current_wins: Vec<_> = model.base[..n].iter().map(|c| c.wins).collect();
+        let mut remaining = vec![0; n];
         let mut min = current.clone();
         let mut max = current.clone();
         let c = &model.request.phase.championship;
@@ -190,23 +198,81 @@ impl Bounds {
                 if t < n {
                     min[t] += w.min(d).min(l);
                     max[t] += w.max(d).max(l);
+                    remaining[t] += 1;
                 }
             }
         }
-        Self { current, min, max }
+        let no_self_fixtures = model.fixtures.iter().all(|f| f.home != f.away);
+        let conditional_wins = model.keys.starts_with(&[Key::Pt, Key::W])
+            && c.point_win >= 0
+            && c.point_draw >= 0
+            && c.point_loss >= 0
+            && model.request.phase.bonus_points == 0
+            && no_self_fixtures;
+        let standard_scoring = (c.point_win, c.point_draw, c.point_loss) == (3, 1, 0);
+        Self {
+            current,
+            min,
+            max,
+            current_wins,
+            remaining,
+            conditional_wins,
+            standard_scoring,
+        }
     }
     #[inline]
     pub fn allowed(&self, t: usize, r: usize, added: i32) -> bool {
+        let (first, last) = self.rank_range(t, added);
+        (first..=last).contains(&r)
+    }
+
+    #[inline]
+    fn rank_range(&self, t: usize, added: i32) -> (usize, usize) {
         let p = self.current[t] + added;
+        let target_wins = self
+            .conditional_wins
+            .then(|| self.win_range(t, added))
+            .flatten();
         let mut above = 0;
         let mut below = 0;
         for i in 0..self.current.len() {
             if i != t {
-                above += usize::from(self.min[i] > p);
-                below += usize::from(self.max[i] < p);
+                if self.min[i] > p {
+                    above += 1;
+                } else if self.max[i] < p {
+                    below += 1;
+                } else if let Some((target_low, target_high)) = target_wins {
+                    let rival_added = p - self.current[i];
+                    if self.min[i] == p {
+                        if let Some((low, _)) = self.win_range(i, rival_added) {
+                            above += usize::from(low > target_high);
+                        }
+                    }
+                    if self.max[i] == p {
+                        if let Some((_, high)) = self.win_range(i, rival_added) {
+                            below += usize::from(high < target_low);
+                        }
+                    }
+                }
             }
         }
-        r >= above && r <= self.current.len() - 1 - below
+        (above, self.current.len() - 1 - below)
+    }
+    #[inline]
+    fn win_range(&self, t: usize, added: i32) -> Option<(i32, i32)> {
+        let matches = *self.remaining.get(t)?;
+        let (min_added_wins, max_added_wins) = if self.standard_scoring {
+            (
+                (added - matches + 1).div_euclid(2).max(0),
+                matches.min(added.div_euclid(3)),
+            )
+        } else {
+            (0, matches)
+        };
+        (min_added_wins <= max_added_wins).then_some((
+            self.current_wins[t] + min_added_wins,
+            self.current_wins[t] + max_added_wins,
+        ))
     }
     pub fn hard_bound(&self, t: usize, r: usize, pmf: &[(i32, f64)]) -> (f64, Vec<i32>) {
         let mut p = 0.;
@@ -693,8 +759,9 @@ pub fn matched(
             }
             let own = scout.row(t, added, n);
             let own_count: usize = own.iter().sum();
+            let (first_rank, last_rank) = bounds.rank_range(t, added);
             for r in 0..n {
-                if !bounds.allowed(t, r, added) {
+                if r < first_rank || r > last_rank {
                     continue;
                 }
                 if weight_total > 0. {

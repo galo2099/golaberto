@@ -1,6 +1,7 @@
 use golaberto_odds::model::Model;
 use golaberto_odds::{
     api,
+    pool::Bounds,
     rank_proof::{Options, RankProof},
     rng::Rng,
     search::Cell,
@@ -163,4 +164,102 @@ fn default_calculation_recovers_palmeiras_thirteenth_for_one_and_four_workers() 
         serde_json::to_value(&one_worker).unwrap(),
         serde_json::to_value(&four_workers).unwrap()
     );
+}
+
+fn november_19_request() -> golaberto_odds::model::Request {
+    serde_json::from_str(include_str!("fixtures/group-16498-2026-11-19.json")).unwrap()
+}
+
+#[test]
+fn november_19_cruzeiro_odds_and_point_win_bounds_preserve_tiebreak_cases() {
+    const CRUZEIRO: i32 = 15;
+    let request = november_19_request();
+    let (response, _) = api::calculate(request.clone(), 808, 1, 100).unwrap();
+    let estimates = &response.rare_position_estimates[&CRUZEIRO];
+
+    for place in 0..20 {
+        if [2, 3].contains(&place) {
+            assert!(
+                response.team_odds[&CRUZEIRO].pos[place] > 0.0,
+                "place {}",
+                place + 1
+            );
+            assert_eq!(
+                estimates[&place].reachability,
+                "reachable",
+                "place {}",
+                place + 1
+            );
+        } else {
+            assert_eq!(
+                response.team_odds[&CRUZEIRO].pos[place],
+                0.0,
+                "place {}",
+                place + 1
+            );
+            assert_eq!(estimates[&place].probability, 0.0, "place {}", place + 1);
+            assert_eq!(
+                estimates[&place].reachability,
+                "impossible",
+                "place {}",
+                place + 1
+            );
+        }
+    }
+
+    for place in 0..20 {
+        let total: f64 = response
+            .team_odds
+            .values()
+            .map(|odds| odds.pos[place])
+            .sum();
+        assert!(
+            (total - 100.0).abs() < 1e-10,
+            "place {} totals {total}",
+            place + 1
+        );
+    }
+    for (&team, odds) in &response.team_odds {
+        assert_eq!(odds.pos.len(), 20, "team {team}");
+        assert!(
+            (odds.pos.iter().sum::<f64>() - 100.0).abs() < 1e-10,
+            "team {team}"
+        );
+    }
+
+    let model = Model::new(request).unwrap();
+    let team = model.indices[&CRUZEIRO];
+    assert_eq!((model.base[team].points, model.base[team].wins), (63, 19));
+    let bounds = Bounds::new(&model);
+    assert!(
+        bounds.allowed(team, 3, 0),
+        "Fluminense can still pass 63 points"
+    );
+    for rival_id in [5, 74] {
+        let rival = model.indices[&rival_id];
+        let max_added = bounds.max[rival] - bounds.current[rival];
+        assert!(
+            !bounds.allowed(rival, 2, max_added),
+            "team {rival_id} cannot finish 3rd"
+        );
+    }
+}
+
+#[test]
+fn point_goal_difference_bounds_keep_fifth_place_open_on_equal_points() {
+    let mut request = november_19_request();
+    request.phase.sort = "pt,gd,w,gf".into();
+    let model = Model::new(request).unwrap();
+    let cruzeiro = model.indices[&15];
+    assert!(Bounds::new(&model).allowed(cruzeiro, 4, 0));
+
+    // Athletico starts at 54 points and 16 wins in this controlled state.
+    // Three wins reach 63/19, exactly Cruzeiro's current points and wins;
+    // goal difference remains available to decide the tie.
+    let mut model = Model::new(november_19_request()).unwrap();
+    let cruzeiro = model.indices[&15];
+    let athletico = model.indices[&5];
+    model.base[athletico].wins = 16;
+    let bounds = Bounds::new(&model);
+    assert!(bounds.allowed(cruzeiro, 4, 0));
 }
